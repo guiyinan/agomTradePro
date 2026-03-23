@@ -17,10 +17,11 @@ Regime Orchestration Module.
     # sync_macro_data 通过 DjangoMacroSyncTaskGateway 延迟解析
 """
 
-from celery import shared_task, chain
-from celery.utils.log import get_task_logger
 from datetime import date, datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
+from celery import chain, shared_task
+from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
@@ -31,7 +32,7 @@ logger = get_task_logger(__name__)
 
 @shared_task(time_limit=900, soft_time_limit=850)
 def generate_daily_regime_signal(
-    as_of_date: Optional[str] = None
+    as_of_date: str | None = None
 ) -> dict:
     """
     生成日度 Regime 信号任务
@@ -102,7 +103,7 @@ def generate_daily_regime_signal(
 
 @shared_task(time_limit=900, soft_time_limit=850)
 def recalculate_regime_with_daily_signal(
-    as_of_date: Optional[str] = None,
+    as_of_date: str | None = None,
     use_pit: bool = True
 ) -> dict:
     """
@@ -119,13 +120,13 @@ def recalculate_regime_with_daily_signal(
         dict: Regime 计算结果（融合日度信号）
     """
     try:
-        from apps.regime.application.use_cases import (
-            HighFrequencySignalUseCase,
-            HighFrequencySignalRequest,
-            ResolveSignalConflictUseCase,
-            ResolveSignalConflictRequest,
-        )
         from apps.regime.application.current_regime import resolve_current_regime
+        from apps.regime.application.use_cases import (
+            HighFrequencySignalRequest,
+            HighFrequencySignalUseCase,
+            ResolveSignalConflictRequest,
+            ResolveSignalConflictUseCase,
+        )
         from apps.regime.infrastructure.macro_data_provider import (
             DjangoMacroDataProvider,
         )
@@ -205,8 +206,8 @@ def recalculate_regime_with_daily_signal(
 
 @shared_task(time_limit=900, soft_time_limit=850)
 def calculate_regime_after_sync(
-    sync_result: Optional[Dict[str, Any]] = None,
-    as_of_date: Optional[str] = None,
+    sync_result: dict[str, Any] | None = None,
+    as_of_date: str | None = None,
     use_pit: bool = True
 ) -> dict:
     """
@@ -260,7 +261,7 @@ def calculate_regime_after_sync(
 
 @shared_task(time_limit=600, soft_time_limit=570)
 def notify_regime_change_after_calculation(
-    regime_result: Optional[Dict[str, Any]] = None
+    regime_result: dict[str, Any] | None = None
 ) -> dict:
     """
     在 Regime 计算后发送变化通知
@@ -312,11 +313,12 @@ def notify_regime_change_after_calculation(
 
                 # 发送 Regime 变化通知
                 try:
-                    from shared.infrastructure.notification_service import (
-                        get_notification_service,
-                        NotificationPriority,
-                    )
                     from django.conf import settings as django_settings
+
+                    from shared.infrastructure.notification_service import (
+                        NotificationPriority,
+                        get_notification_service,
+                    )
 
                     svc = get_notification_service()
 
@@ -369,11 +371,12 @@ def notify_regime_change_after_calculation(
 
                 # 置信度下降通知
                 try:
-                    from shared.infrastructure.notification_service import (
-                        get_notification_service,
-                        NotificationPriority,
-                    )
                     from django.conf import settings as django_settings
+
+                    from shared.infrastructure.notification_service import (
+                        NotificationPriority,
+                        get_notification_service,
+                    )
 
                     svc = get_notification_service()
                     recipients = getattr(
@@ -417,10 +420,10 @@ def notify_regime_change_after_calculation(
 @shared_task(time_limit=900, soft_time_limit=850)
 def sync_macro_then_refresh_regime(
     source: str = 'akshare',
-    indicator: Optional[str] = None,
+    indicator: str | None = None,
     days_back: int = 30,
     use_pit: bool = True,
-    as_of_date: Optional[str] = None
+    as_of_date: str | None = None
 ) -> dict:
     """
     编排任务：宏观数据同步 + Regime 计算 + 通知

@@ -4,12 +4,12 @@ Configuration Loader for AgomTradePro
 提供带缓存的配置访问接口，替代硬编码。
 """
 
-import os
 import logging
-from typing import Optional, Dict, List, Any
+import os
+from typing import Any, Dict, List, Optional
 
-from django.core.cache import cache
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def _legacy_fallback_allowed() -> bool:
     )
 
 
-def get_asset_ticker(asset_class: str) -> Optional[str]:
+def get_asset_ticker(asset_class: str) -> str | None:
     """
     获取资产代码（带缓存）
 
@@ -85,7 +85,7 @@ def get_asset_ticker(asset_class: str) -> Optional[str]:
     return ticker
 
 
-def get_indicator_config(code: str) -> Optional[Dict[str, Any]]:
+def get_indicator_config(code: str) -> dict[str, Any] | None:
     """
     获取指标配置（带缓存）
 
@@ -140,7 +140,7 @@ def get_indicator_config(code: str) -> Optional[Dict[str, Any]]:
     return config
 
 
-def get_eligibility_config(asset_class: str, regime: str) -> Optional[str]:
+def get_eligibility_config(asset_class: str, regime: str) -> str | None:
     """
     获取准入配置（带缓存）
 
@@ -178,10 +178,10 @@ def get_eligibility_config(asset_class: str, regime: str) -> Optional[str]:
 
 def get_risk_parameter(
     key: str,
-    policy_level: Optional[str] = None,
-    regime: Optional[str] = None,
-    asset_class: Optional[str] = None
-) -> Optional[Any]:
+    policy_level: str | None = None,
+    regime: str | None = None,
+    asset_class: str | None = None
+) -> Any | None:
     """
     获取风险参数（带缓存）
 
@@ -252,7 +252,7 @@ def invalidate_config_cache(pattern: str = None):
         pass
 
 
-def get_all_asset_configs() -> List[Dict[str, Any]]:
+def get_all_asset_configs() -> list[dict[str, Any]]:
     """
     获取所有资产配置
 
@@ -278,7 +278,7 @@ def get_all_asset_configs() -> List[Dict[str, Any]]:
         return []
 
 
-def get_all_indicator_configs() -> List[Dict[str, Any]]:
+def get_all_indicator_configs() -> list[dict[str, Any]]:
     """
     获取所有指标配置
 
@@ -305,7 +305,7 @@ def get_all_indicator_configs() -> List[Dict[str, Any]]:
         return []
 
 
-def get_sector_weights(regime: str) -> Dict[str, float]:
+def get_sector_weights(regime: str) -> dict[str, float]:
     """
     获取板块权重配置（带缓存）
 
@@ -342,7 +342,7 @@ def get_sector_weights(regime: str) -> Dict[str, float]:
     return weights
 
 
-def get_fund_type_preferences(regime: str) -> List[str]:
+def get_fund_type_preferences(regime: str) -> list[str]:
     """
     获取基金类型偏好（带缓存）
 

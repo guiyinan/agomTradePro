@@ -23,11 +23,11 @@ Whitelist approach:
     - Strips all HTML for plain text
 """
 
-import re
 import html
 import logging
-from typing import Optional, List
+import re
 from functools import wraps
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ SAFE_ATTRS = {
 SAFE_URL_SCHEMES = {'http', 'https', 'mailto', 'tel'}
 
 
-def sanitize_plain_text(text: Optional[str]) -> str:
+def sanitize_plain_text(text: str | None) -> str:
     """
     Sanitize plain text by removing all HTML and dangerous characters.
 
@@ -85,7 +85,7 @@ def sanitize_plain_text(text: Optional[str]) -> str:
     return text
 
 
-def sanitize_rich_text(text: Optional[str], allowed_tags: Optional[set] = None) -> str:
+def sanitize_rich_text(text: str | None, allowed_tags: set | None = None) -> str:
     """
     Sanitize rich text by allowing only safe HTML tags.
 
@@ -181,7 +181,7 @@ def _sanitize_attributes(tag_name: str, attrs_str: str) -> str:
     return ' '.join(safe_attrs)
 
 
-def _sanitize_url(url: str) -> Optional[str]:
+def _sanitize_url(url: str) -> str | None:
     """
     Sanitize URL, ensuring it uses a safe scheme.
 
@@ -229,7 +229,7 @@ def sanitize_field(field_name: str, value: any, is_rich_text: bool = False) -> a
 
 
 # Decorator for automatic sanitization
-def sanitize_inputs(*fields: str, rich_text_fields: Optional[List[str]] = None):
+def sanitize_inputs(*fields: str, rich_text_fields: list[str] | None = None):
     """
     Decorator to automatically sanitize specified fields in function arguments.
 

@@ -7,44 +7,42 @@ Events Domain Module
 """
 
 from .entities import (
-    # 事件类型
-    EventType,
     # 核心实体
     DomainEvent,
-    EventHandler,
-    EventSubscription,
-    EventFilter,
     EventBusConfig,
+    # 类型别名
+    EventCallback,
+    EventFilter,
+    EventHandler,
     EventMetrics,
     EventSnapshot,
+    EventSubscription,
+    # 事件类型
+    EventType,
+    SubscriptionFilter,
     # 便捷工厂函数
     create_event,
     create_subscription,
-    # 类型别名
-    EventCallback,
-    SubscriptionFilter,
 )
-
+from .rules import (
+    EventAgeRule,
+    EventDeduplicationRule,
+    EventFilterRule,
+    EventRuleEngine,
+    EventThrottleRule,
+    EventValidationRule,
+    create_default_rule_engine,
+    create_strict_rule_engine,
+)
 from .services import (
     # 事件总线
     EventBus,
     InMemoryEventBus,
+    # 装饰器
+    event_handler,
     # 全局实例
     get_event_bus,
     reset_event_bus,
-    # 装饰器
-    event_handler,
-)
-
-from .rules import (
-    EventRuleEngine,
-    EventFilterRule,
-    EventDeduplicationRule,
-    EventThrottleRule,
-    EventAgeRule,
-    EventValidationRule,
-    create_default_rule_engine,
-    create_strict_rule_engine,
 )
 
 __all__ = [

@@ -6,9 +6,9 @@ Following four-layer architecture, this file uses ONLY Python standard library.
 """
 
 from dataclasses import dataclass, field
-from datetime import date
-from typing import List, Dict, Optional, Any
+from datetime import UTC, date
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class LossSource(Enum):
@@ -41,7 +41,7 @@ class RegimePeriod:
     start_date: date
     end_date: date
     regime: str
-    actual_regime: Optional[str] = None  # 实际发生的 Regime（用于验证）
+    actual_regime: str | None = None  # 实际发生的 Regime（用于验证）
     confidence: float = 0.0
 
     @property
@@ -57,7 +57,7 @@ class PeriodPerformance:
     benchmark_return: float
     best_asset_return: float  # 该周期表现最好的资产收益
     worst_asset_return: float  # 该周期表现最差的资产收益
-    asset_returns: Dict[str, float]  # 各资产收益
+    asset_returns: dict[str, float]  # 各资产收益
 
 
 @dataclass(frozen=True)
@@ -83,14 +83,14 @@ class AttributionResult:
     # 损失分析
     loss_source: LossSource
     loss_amount: float  # 损失金额
-    loss_periods: List[RegimePeriod]  # 亏损周期
+    loss_periods: list[RegimePeriod]  # 亏损周期
 
     # 经验总结
     lesson_learned: str
-    improvement_suggestions: List[str]
+    improvement_suggestions: list[str]
 
     # 详细分解
-    period_attributions: List[Dict]  # 每个周期的归因
+    period_attributions: list[dict]  # 每个周期的归因
 
     # 归因方法标识（放在最后，因为有默认值）
     attribution_method: AttributionMethod = AttributionMethod.HEURISTIC  # 使用的归因方法
@@ -131,10 +131,10 @@ class BrinsonAttributionResult:
     attribution_sum: float  # allocation + selection + interaction
 
     # 分时段分解
-    period_breakdown: List[Dict]  # 各时段的 Brinson 分解
+    period_breakdown: list[dict]  # 各时段的 Brinson 分解
 
     # 分资产类别分解
-    sector_breakdown: Dict[str, Dict]  # 各资产类别的详细分解
+    sector_breakdown: dict[str, dict]  # 各资产类别的详细分解
     # 格式: {asset_class: {"allocation": float, "selection": float, "interaction": float}}
 
 
@@ -193,8 +193,8 @@ class IndicatorPerformanceReport:
     lead_time_std: float
 
     # 稳定性（分段相关性）
-    pre_2015_correlation: Optional[float]
-    post_2015_correlation: Optional[float]
+    pre_2015_correlation: float | None
+    post_2015_correlation: float | None
     stability_score: float
 
     # 建议
@@ -214,8 +214,8 @@ class IndicatorThresholdConfig:
     indicator_name: str
 
     # 阈值定义
-    level_low: Optional[float]
-    level_high: Optional[float]
+    level_low: float | None
+    level_high: float | None
 
     # 权重配置
     base_weight: float = 1.0
@@ -251,7 +251,7 @@ class ThresholdValidationReport:
     pending_indicators: int  # 需要更多数据
 
     # 各指标的详细报告
-    indicator_reports: List[IndicatorPerformanceReport]
+    indicator_reports: list[IndicatorPerformanceReport]
 
     # 总体建议
     overall_recommendation: str
@@ -303,7 +303,7 @@ class RegimeSnapshot:
     confidence: float
     growth_momentum_z: float
     inflation_momentum_z: float
-    distribution: Dict[str, float]  # 各 Regime 的概率分布
+    distribution: dict[str, float]  # 各 Regime 的概率分布
 
 
 # ============ MCP/SDK 操作审计日志实体 ============
@@ -343,9 +343,9 @@ class OperationLog:
     request_id: str  # 链路追踪ID
 
     # 操作者身份
-    user_id: Optional[int]
+    user_id: int | None
     username: str
-    ip_address: Optional[str]
+    ip_address: str | None
     user_agent: str
 
     # 来源与租户
@@ -357,10 +357,10 @@ class OperationLog:
     module: str
     action: OperationAction
     resource_type: str
-    resource_id: Optional[str]
+    resource_id: str | None
 
     # MCP 特定字段
-    mcp_tool_name: Optional[str]
+    mcp_tool_name: str | None
     mcp_client_id: str
     mcp_role: str
     sdk_version: str
@@ -368,8 +368,8 @@ class OperationLog:
     # 请求详情
     request_method: str
     request_path: str
-    request_params: Dict[str, Any]  # 已脱敏
-    response_payload: Optional[Any]
+    request_params: dict[str, Any]  # 已脱敏
+    response_payload: Any | None
     response_text: str
     response_status: int
     response_message: str
@@ -378,7 +378,7 @@ class OperationLog:
 
     # 时间与性能
     timestamp: str  # ISO 8601 格式
-    duration_ms: Optional[int]
+    duration_ms: int | None
 
     # 完整性
     checksum: str
@@ -387,26 +387,26 @@ class OperationLog:
     def create(
         cls,
         request_id: str,
-        user_id: Optional[int],
+        user_id: int | None,
         username: str,
         source: OperationSource,
         operation_type: OperationType,
         module: str,
         action: OperationAction,
-        mcp_tool_name: Optional[str] = None,
-        request_params: Optional[Dict[str, Any]] = None,
-        response_payload: Optional[Any] = None,
+        mcp_tool_name: str | None = None,
+        request_params: dict[str, Any] | None = None,
+        response_payload: Any | None = None,
         response_text: str = "",
         response_status: int = 200,
         response_message: str = "",
         error_code: str = "",
         exception_traceback: str = "",
-        duration_ms: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        duration_ms: int | None = None,
+        ip_address: str | None = None,
         user_agent: str = "",
         client_id: str = "",
         resource_type: str = "",
-        resource_id: Optional[str] = None,
+        resource_id: str | None = None,
         mcp_client_id: str = "",
         mcp_role: str = "",
         sdk_version: str = "",
@@ -421,7 +421,7 @@ class OperationLog:
         log_id = str(uuid.uuid4())
 
         # 时间戳
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         # 脱敏参数
         masked_params = mask_sensitive_params(request_params or {})
@@ -475,7 +475,7 @@ class OperationLog:
         log_id: str,
         request_id: str,
         timestamp: str,
-        params: Dict,
+        params: dict,
         response_payload: Any,
         response_text: str,
     ) -> str:

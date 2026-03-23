@@ -5,6 +5,7 @@ Django base settings for AgomTradePro project.
 import os
 import sys
 from pathlib import Path
+
 import environ
 from celery.schedules import crontab
 

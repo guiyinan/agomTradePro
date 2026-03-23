@@ -7,14 +7,12 @@
 3. Regime 相关性分析
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 
-from apps.equity.domain.services import (
-    ValuationAnalyzer,
-    RegimeCorrelationAnalyzer
-)
+import pytest
+
+from apps.equity.domain.services import RegimeCorrelationAnalyzer, ValuationAnalyzer
 
 
 class TestValuationAnalyzer:

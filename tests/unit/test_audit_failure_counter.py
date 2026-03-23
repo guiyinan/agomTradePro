@@ -9,9 +9,10 @@ Unit tests for Audit Failure Counter Module
 5. 健康状态判断
 """
 
+from datetime import UTC, datetime, timezone
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
 
 from apps.audit.infrastructure.failure_counter import (
     FailureRecord,
@@ -25,7 +26,7 @@ class TestFailureRecord:
     def test_to_dict(self):
         """测试转换为字典"""
         record = FailureRecord(
-            timestamp=datetime(2026, 3, 4, 12, 0, 0, tzinfo=timezone.utc),
+            timestamp=datetime(2026, 3, 4, 12, 0, 0, tzinfo=UTC),
             component="database",
             reason="Connection timeout",
         )
@@ -55,7 +56,7 @@ class TestFailureStats:
             by_component={"database": 3, "validation": 2},
             recent_failures=[
                 FailureRecord(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     component="database",
                     reason="Test failure",
                 )
@@ -252,9 +253,10 @@ class TestGlobalFunctions:
     @patch("apps.audit.infrastructure.failure_counter.AuditFailureCounter")
     def test_get_audit_failure_counter(self, mock_counter_class):
         """测试获取计数器单例"""
-        from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
         import importlib
+
         from apps.audit.infrastructure import failure_counter
+        from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
 
         # 重置单例
         failure_counter._failure_counter = None
@@ -323,7 +325,7 @@ class TestIntegrationWithUseCase:
 
     def test_log_operation_use_case_records_failure_on_exception(self):
         """测试 LogOperationUseCase 在异常时记录失败"""
-        from apps.audit.application.use_cases import LogOperationUseCase, LogOperationRequest
+        from apps.audit.application.use_cases import LogOperationRequest, LogOperationUseCase
 
         # Mock repository 抛出异常
         mock_repo = Mock()
@@ -356,8 +358,8 @@ class TestIntegrationWithUseCase:
 
     def test_repository_records_failure_on_save_error(self):
         """测试 Repository 在保存失败时记录错误"""
+        from apps.audit.domain.entities import OperationAction, OperationSource, OperationType
         from apps.audit.infrastructure.repositories import DjangoAuditRepository
-        from apps.audit.domain.entities import OperationSource, OperationType, OperationAction
 
         # 创建一个 mock log entity
         mock_log = Mock()

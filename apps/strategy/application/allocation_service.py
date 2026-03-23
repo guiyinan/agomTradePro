@@ -6,19 +6,19 @@ based on current portfolio, regime, and risk profile.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
 from datetime import date
 from decimal import Decimal
+from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 
+from apps.account.domain.entities import Position
 from apps.strategy.domain.allocation_matrix import (
-    get_allocation_target,
     AllocationTarget,
     AssetAllocation,
+    get_allocation_target,
 )
 from apps.strategy.domain.protocols import AssetNameResolverProtocol
-from apps.account.domain.entities import Position
 
 
 @dataclass
@@ -37,24 +37,24 @@ class TradeAction:
 class AllocationAdvice:
     """资产配置建议"""
     # 当前配置
-    current_allocation: Dict[str, float]  # {"equity": 0.65, "fixed_income": 0.20, ...}
+    current_allocation: dict[str, float]  # {"equity": 0.65, "fixed_income": 0.20, ...}
 
     # 目标配置
-    target_allocation: Dict[str, float]
+    target_allocation: dict[str, float]
 
     # 配置差异
-    allocation_diff: Dict[str, float]  # {"equity": -0.45, "fixed_income": 0.20, ...}
+    allocation_diff: dict[str, float]  # {"equity": -0.45, "fixed_income": 0.20, ...}
 
     # 具体操作建议
-    trade_actions: List[TradeAction]
+    trade_actions: list[TradeAction]
 
     # 配置摘要
     summary: str
 
     # 预期效果
-    expected_return: Optional[float] = None
-    expected_volatility: Optional[float] = None
-    sharpe_ratio: Optional[float] = None
+    expected_return: float | None = None
+    expected_volatility: float | None = None
+    sharpe_ratio: float | None = None
 
     # 元数据
     regime: str = ""
@@ -75,10 +75,10 @@ class AllocationService:
         cls,
         current_regime: str,
         risk_profile: str,
-        policy_level: Optional[str],
+        policy_level: str | None,
         total_assets: float,
-        current_positions: List[Position],
-        asset_name_resolver: Optional[AssetNameResolverProtocol] = None,
+        current_positions: list[Position],
+        asset_name_resolver: AssetNameResolverProtocol | None = None,
     ) -> AllocationAdvice:
         """
         计算资产配置建议
@@ -139,9 +139,9 @@ class AllocationService:
     @classmethod
     def _calculate_current_allocation(
         cls,
-        positions: List[Position],
+        positions: list[Position],
         total_assets: float,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """计算当前资产配置"""
         if total_assets <= 0:
             return {"equity": 0.0, "fixed_income": 0.0, "commodity": 0.0, "cash": 1.0}
@@ -170,9 +170,9 @@ class AllocationService:
     @classmethod
     def _calculate_allocation_diff(
         cls,
-        current: Dict[str, float],
+        current: dict[str, float],
         target: AssetAllocation,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """计算配置差异"""
         target_dict = {
             "equity": target.equity,
@@ -191,13 +191,13 @@ class AllocationService:
     @classmethod
     def _generate_trade_actions(
         cls,
-        positions: List[Position],
-        current_allocation: Dict[str, float],
+        positions: list[Position],
+        current_allocation: dict[str, float],
         target_allocation: AssetAllocation,
         total_assets: float,
         regime: str,
-        asset_name_resolver: Optional[AssetNameResolverProtocol] = None,
-    ) -> List[TradeAction]:
+        asset_name_resolver: AssetNameResolverProtocol | None = None,
+    ) -> list[TradeAction]:
         """生成具体操作建议"""
         actions = []
         target_dict = {
@@ -288,7 +288,7 @@ class AllocationService:
         return actions
 
     @classmethod
-    def _get_recommended_assets(cls) -> Dict[str, Dict[str, List[str]]]:
+    def _get_recommended_assets(cls) -> dict[str, dict[str, list[str]]]:
         """
         从配置读取 Regime 到资产代码的映射。
 
@@ -302,9 +302,9 @@ class AllocationService:
     @classmethod
     def _resolve_asset_names(
         cls,
-        codes: List[str],
-        asset_name_resolver: Optional[AssetNameResolverProtocol] = None,
-    ) -> Dict[str, str]:
+        codes: list[str],
+        asset_name_resolver: AssetNameResolverProtocol | None = None,
+    ) -> dict[str, str]:
         """批量解析证券名称，由调用方注入解析器。"""
         code_set = {code for code in codes if code}
         if not code_set or asset_name_resolver is None:
@@ -378,10 +378,10 @@ class AllocationService:
         cls,
         regime: str,
         risk_profile: str,
-        policy_level: Optional[str],
-        current_allocation: Dict[str, float],
+        policy_level: str | None,
+        current_allocation: dict[str, float],
         target_allocation: AssetAllocation,
-        trade_actions: List[TradeAction],
+        trade_actions: list[TradeAction],
     ) -> str:
         """生成配置摘要"""
         regime_display = {

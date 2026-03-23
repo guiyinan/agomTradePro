@@ -7,23 +7,24 @@ NOTE: These tests focus on domain layer logic (state machine, entities)
 and use integration-style tests for use cases that require Django ORM.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock
-from datetime import datetime, timezone
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timezone
+from unittest.mock import MagicMock, Mock
 
-from apps.agent_runtime.domain.entities import (
-    TaskDomain,
-    TaskStatus,
-    AgentTask,
-)
-from apps.agent_runtime.domain.services import (
-    TaskStateMachine,
-    InvalidStateTransitionError,
-    get_task_state_machine,
-)
+import pytest
+
 from apps.agent_runtime.application.use_cases import (
     generate_request_id,
+)
+from apps.agent_runtime.domain.entities import (
+    AgentTask,
+    TaskDomain,
+    TaskStatus,
+)
+from apps.agent_runtime.domain.services import (
+    InvalidStateTransitionError,
+    TaskStateMachine,
+    get_task_state_machine,
 )
 
 
@@ -114,8 +115,8 @@ class TestTaskStateMachine:
             last_error=None,
             requires_human=False,
             created_by=1,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         updated = machine.transition(task, TaskStatus.CONTEXT_READY)
@@ -142,8 +143,8 @@ class TestTaskStateMachine:
             last_error=None,
             requires_human=False,
             created_by=1,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         with pytest.raises(InvalidStateTransitionError) as exc_info:
@@ -199,8 +200,8 @@ class TestAgentTaskEntity:
             last_error=None,
             requires_human=False,
             created_by=1,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         assert task.id == 1
@@ -224,8 +225,8 @@ class TestAgentTaskEntity:
             last_error=None,
             requires_human=False,
             created_by=1,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         with pytest.raises(AttributeError):
@@ -245,8 +246,8 @@ class TestAgentTaskEntity:
             last_error=None,
             requires_human=False,
             created_by=1,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         updated = replace(task, status=TaskStatus.CONTEXT_READY)

@@ -17,16 +17,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from apps.prompt.application.agent_runtime import AgentRuntime
-from apps.prompt.application.use_cases import ExecuteChainUseCase
 from apps.prompt.application.context_builders import (
+    AssetPoolContextProvider,
     ContextBundleBuilder,
     MacroContextProvider,
-    RegimeContextProvider,
     PortfolioContextProvider,
+    RegimeContextProvider,
     SignalContextProvider,
-    AssetPoolContextProvider,
 )
 from apps.prompt.application.tool_execution import create_agent_tool_registry
+from apps.prompt.application.use_cases import ExecuteChainUseCase
 from apps.prompt.domain.agent_entities import (
     AgentExecutionRequest,
     AgentExecutionResponse,
@@ -37,7 +37,6 @@ from apps.prompt.infrastructure.adapters.function_registry import (
     FunctionRegistry,
     ToolDefinition,
 )
-
 
 # ========== Fixtures ==========
 

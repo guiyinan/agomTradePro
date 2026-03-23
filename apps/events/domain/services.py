@@ -10,22 +10,22 @@ Events Domain Services
 import logging
 import threading
 from collections import defaultdict, deque
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Set
+from datetime import UTC, datetime, timezone
+from typing import Any, Dict, List, Optional, Set
 
 from .entities import (
     DomainEvent,
-    EventHandler,
-    EventType,
-    EventSubscription,
     EventBusConfig,
+    EventHandler,
     EventMetrics,
     EventSnapshot,
+    EventSubscription,
+    EventType,
     create_event,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -129,12 +129,12 @@ class InMemoryEventBus(EventBus):
             config: 事件总线配置
         """
         self.config = config
-        self._subscriptions: Dict[EventType, List[EventSubscription]] = defaultdict(list)
+        self._subscriptions: dict[EventType, list[EventSubscription]] = defaultdict(list)
         self._event_queue: deque = deque(maxlen=config.max_queue_size)
-        self._snapshots: List[EventSnapshot] = []
+        self._snapshots: list[EventSnapshot] = []
         self._lock = threading.RLock()
         self._metrics = EventMetrics()
-        self._subscription_ids: Set[str] = set()
+        self._subscription_ids: set[str] = set()
         self._stopped = False
 
     def subscribe(self, subscription: EventSubscription) -> None:
@@ -257,7 +257,7 @@ class InMemoryEventBus(EventBus):
         # TODO: 实现真正的异步处理
         self.publish(event)
 
-    def publish_batch(self, events: List[DomainEvent]) -> None:
+    def publish_batch(self, events: list[DomainEvent]) -> None:
         """
         批量发布事件
 
@@ -289,7 +289,7 @@ class InMemoryEventBus(EventBus):
             if not subscription.should_process(event):
                 continue
 
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
             success = False
             error_message = None
             retry_count = 0
@@ -322,14 +322,14 @@ class InMemoryEventBus(EventBus):
 
             finally:
                 # 计算处理时间
-                processing_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                processing_time = (datetime.now(UTC) - start_time).total_seconds() * 1000
                 self._update_avg_processing_time(processing_time)
 
                 # 保存快照
                 if self.config.enable_persistence:
                     snapshot = EventSnapshot(
                         event=event,
-                        processed_at=datetime.now(timezone.utc),
+                        processed_at=datetime.now(UTC),
                         handler_id=subscription.handler.get_handler_id(),
                         success=success,
                         error_message=error_message,
@@ -362,7 +362,7 @@ class InMemoryEventBus(EventBus):
         with self._lock:
             return deepcopy(self._metrics)
 
-    def get_snapshots(self, limit: int = 100) -> List[EventSnapshot]:
+    def get_snapshots(self, limit: int = 100) -> list[EventSnapshot]:
         """
         获取事件快照
 
@@ -375,7 +375,7 @@ class InMemoryEventBus(EventBus):
         with self._lock:
             return list(self._snapshots[-limit:])
 
-    def get_subscription_count(self, event_type: Optional[EventType] = None) -> int:
+    def get_subscription_count(self, event_type: EventType | None = None) -> int:
         """
         获取订阅数量
 
@@ -390,7 +390,7 @@ class InMemoryEventBus(EventBus):
                 return len(self._subscription_ids)
             return len(self._subscriptions.get(event_type, []))
 
-    def get_subscriptions(self, event_type: EventType) -> List[EventSubscription]:
+    def get_subscriptions(self, event_type: EventType) -> list[EventSubscription]:
         """
         获取指定事件类型的所有订阅
 
@@ -425,7 +425,7 @@ class InMemoryEventBus(EventBus):
             self._stopped = False
             logger.info("Event bus started")
 
-    def replay_events(self, event_type: Optional[EventType] = None) -> int:
+    def replay_events(self, event_type: EventType | None = None) -> int:
         """
         重放事件
 
@@ -449,11 +449,11 @@ class InMemoryEventBus(EventBus):
 
 # ========== 全局事件总线实例 ==========
 
-_global_event_bus: Optional[InMemoryEventBus] = None
+_global_event_bus: InMemoryEventBus | None = None
 _global_bus_lock = threading.Lock()
 
 
-def get_event_bus(config: Optional[EventBusConfig] = None) -> InMemoryEventBus:
+def get_event_bus(config: EventBusConfig | None = None) -> InMemoryEventBus:
     """
     获取全局事件总线实例
 
@@ -486,7 +486,7 @@ def reset_event_bus() -> None:
 # ========== 装饰器 ==========
 
 
-def event_handler(event_type: EventType, filter_criteria: Optional[Dict[str, Any]] = None, priority: int = 100):
+def event_handler(event_type: EventType, filter_criteria: dict[str, Any] | None = None, priority: int = 100):
     """
     事件处理器装饰器
 

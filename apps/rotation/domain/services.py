@@ -9,19 +9,20 @@ Uses only:
 - Pure business algorithms
 """
 
+import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple, Callable
-import math
+from typing import Dict, List, Optional, Tuple
 
 from apps.rotation.domain.entities import (
     AssetCategory,
     AssetClass,
-    RotationStrategyType,
-    RotationConfig,
-    RotationSignal,
-    RotationPortfolio,
     MomentumScore,
+    RotationConfig,
+    RotationPortfolio,
+    RotationSignal,
+    RotationStrategyType,
 )
 
 
@@ -29,11 +30,11 @@ from apps.rotation.domain.entities import (
 class RotationContext:
     """Context for rotation strategy calculation"""
     calc_date: date
-    asset_universe: List[str]  # List of asset codes
+    asset_universe: list[str]  # List of asset codes
 
     # Data accessors (injected from Infrastructure layer)
-    get_asset_prices: Callable[[str, date, int], Optional[List[float]]]  # (asset, end_date, days) -> [prices]
-    get_current_regime: Callable[[], Optional[str]]  # () -> regime_name
+    get_asset_prices: Callable[[str, date, int], list[float] | None]  # (asset, end_date, days) -> [prices]
+    get_current_regime: Callable[[], str | None]  # () -> regime_name
 
 
 class MomentumRotationEngine:
@@ -48,8 +49,8 @@ class MomentumRotationEngine:
 
     def calculate_momentum_scores(
         self,
-        periods: List[int] = None
-    ) -> List[MomentumScore]:
+        periods: list[int] = None
+    ) -> list[MomentumScore]:
         """
         Calculate momentum scores for all assets in universe.
 
@@ -78,9 +79,9 @@ class MomentumRotationEngine:
 
     def select_top_assets(
         self,
-        momentum_scores: List[MomentumScore],
+        momentum_scores: list[MomentumScore],
         top_n: int = 3
-    ) -> List[str]:
+    ) -> list[str]:
         """Select top N assets by momentum score"""
         return [s.asset_code for s in momentum_scores[:top_n]]
 
@@ -106,7 +107,7 @@ class MomentumRotationEngine:
 
         # Calculate equal weights
         weight = 1.0 / len(top_assets) if top_assets else 0.0
-        target_allocation = {asset: weight for asset in top_assets}
+        target_allocation = dict.fromkeys(top_assets, weight)
 
         # Build momentum ranking
         momentum_ranking = [(s.asset_code, s.composite_score) for s in scores]
@@ -126,8 +127,8 @@ class MomentumRotationEngine:
     def _calculate_asset_momentum(
         self,
         asset_code: str,
-        periods: List[int]
-    ) -> Optional[MomentumScore]:
+        periods: list[int]
+    ) -> MomentumScore | None:
         """Calculate momentum score for a single asset"""
         # Get historical prices (need max period + buffer for calculations)
         max_period = max(periods) if periods else 120
@@ -183,7 +184,7 @@ class MomentumRotationEngine:
             trend_strength=trend_strength,
         )
 
-    def _calculate_sharpe_ratio(self, prices: List[float], period: int) -> float:
+    def _calculate_sharpe_ratio(self, prices: list[float], period: int) -> float:
         """Calculate simplified Sharpe ratio for a period"""
         if len(prices) < period + 1:
             return 0.0
@@ -210,7 +211,7 @@ class MomentumRotationEngine:
         sharpe = (mean_return * 252) / (std_return * math.sqrt(252))
         return sharpe
 
-    def _calculate_ma_signal(self, prices: List[float]) -> str:
+    def _calculate_ma_signal(self, prices: list[float]) -> str:
         """Calculate moving average signal"""
         if len(prices) < 60:
             return "neutral"
@@ -226,7 +227,7 @@ class MomentumRotationEngine:
         else:
             return "neutral"
 
-    def _calculate_trend_strength(self, prices: List[float]) -> float:
+    def _calculate_trend_strength(self, prices: list[float]) -> float:
         """Calculate trend strength (0-1) using linear regression slope"""
         if len(prices) < 20:
             return 0.0
@@ -262,7 +263,7 @@ class MomentumRotationEngine:
         # Clamp to 0-1
         return min(max(trend, 0.0), 1.0)
 
-    def _assign_ranks(self, scores: List[MomentumScore]) -> List[MomentumScore]:
+    def _assign_ranks(self, scores: list[MomentumScore]) -> list[MomentumScore]:
         """Assign ranks based on composite score"""
         if not scores:
             return scores
@@ -331,16 +332,16 @@ class RegimeBasedRotationEngine:
             reason=reason,
         )
 
-    def _get_balanced_allocation(self, universe: List[str]) -> Dict[str, float]:
+    def _get_balanced_allocation(self, universe: list[str]) -> dict[str, float]:
         """Get balanced equal-weight allocation"""
         weight = 1.0 / len(universe) if universe else 0.0
-        return {asset: weight for asset in universe}
+        return dict.fromkeys(universe, weight)
 
     def _filter_allocation_to_universe(
         self,
-        allocation: Dict[str, float],
-        universe: List[str]
-    ) -> Dict[str, float]:
+        allocation: dict[str, float],
+        universe: list[str]
+    ) -> dict[str, float]:
         """Filter allocation to only include assets in universe"""
         filtered = {k: v for k, v in allocation.items() if k in universe}
 
@@ -408,7 +409,7 @@ class RiskParityRotationEngine:
             reason=reason,
         )
 
-    def _calculate_volatility(self, prices: List[float]) -> float:
+    def _calculate_volatility(self, prices: list[float]) -> float:
         """Calculate annualized volatility"""
         if len(prices) < 2:
             return 0.0
@@ -469,7 +470,7 @@ class RotationService:
             engine = MomentumRotationEngine(self.context)
             return engine.generate_signal(config)
 
-    def compare_assets(self, asset_codes: List[str]) -> Dict[str, Dict]:
+    def compare_assets(self, asset_codes: list[str]) -> dict[str, dict]:
         """
         Compare multiple assets across multiple dimensions.
 

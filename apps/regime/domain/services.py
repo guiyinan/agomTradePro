@@ -7,14 +7,14 @@ Domain Services for Regime Calculation.
 import math
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass(frozen=True)
 class RegimeCalculationResult:
     """Regime 计算结果"""
     snapshot: "RegimeSnapshot"
-    warnings: List[str]
+    warnings: list[str]
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ def calculate_regime_distribution(
     inflation_z: float,
     k: float = 2.0,
     correlation: float = 0.3
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     计算四象限 Regime 的模糊权重分布
 
@@ -155,9 +155,9 @@ def calculate_regime_distribution(
 
 
 def calculate_momentum(
-    series: List[float],
+    series: list[float],
     period: int = 3
-) -> List[float]:
+) -> list[float]:
     """
     计算时间序列的动量（周期变化）- 相对动量
 
@@ -193,9 +193,9 @@ def calculate_momentum(
 
 
 def calculate_absolute_momentum(
-    series: List[float],
+    series: list[float],
     period: int = 3
-) -> List[float]:
+) -> list[float]:
     """
     计算时间序列的动量（周期变化）- 绝对差值动量
 
@@ -233,10 +233,10 @@ def calculate_absolute_momentum(
 
 
 def calculate_rolling_zscore(
-    series: List[float],
+    series: list[float],
     window: int = 60,
     min_periods: int = 24
-) -> List[float]:
+) -> list[float]:
     """
     计算滚动 Z-score
 
@@ -274,7 +274,7 @@ def calculate_rolling_zscore(
     return z_scores
 
 
-def find_dominant_regime(distribution: Dict[str, float]) -> Tuple[str, float]:
+def find_dominant_regime(distribution: dict[str, float]) -> tuple[str, float]:
     """
     找到主导 Regime
 
@@ -341,8 +341,8 @@ class RegimeCalculator:
 
     def calculate(
         self,
-        growth_series: List[float],
-        inflation_series: List[float],
+        growth_series: list[float],
+        inflation_series: list[float],
         as_of_date: date
     ) -> RegimeCalculationResult:
         """
@@ -432,8 +432,8 @@ class RegimeCalculator:
         self,
         growth_value: float,
         inflation_value: float,
-        growth_history: List[float],
-        inflation_history: List[float],
+        growth_history: list[float],
+        inflation_history: list[float],
         as_of_date: date
     ) -> RegimeCalculationResult:
         """
@@ -465,8 +465,8 @@ class DailySignalContext:
     signal_strength: float  # 0-1
     confidence: float  # 0-1
     persist_days: int  # 持续天数
-    contributing_indicators: List[Dict]
-    warning_signals: List[str]
+    contributing_indicators: list[dict]
+    warning_signals: list[str]
 
 
 @dataclass
@@ -474,7 +474,7 @@ class HybridRegimeResult:
     """混合 Regime 计算结果"""
     snapshot: "RegimeSnapshot"
     source: str  # MONTHLY_ONLY, DAILY_ONLY, HYBRID_WEIGHTED, DAILY_OVERRIDE
-    daily_context: Optional[DailySignalContext]
+    daily_context: DailySignalContext | None
     monthly_confidence: float
     daily_confidence: float
     final_confidence: float
@@ -502,7 +502,7 @@ class HybridRegimeCalculator:
 
     def __init__(
         self,
-        monthly_calculator: Optional[RegimeCalculator] = None,
+        monthly_calculator: RegimeCalculator | None = None,
         daily_persist_threshold: int = 10,
         hybrid_weight_daily: float = 0.3,
         hybrid_weight_monthly: float = 0.7
@@ -521,9 +521,9 @@ class HybridRegimeCalculator:
 
     def calculate_hybrid(
         self,
-        growth_series: List[float],
-        inflation_series: List[float],
-        daily_context: Optional[DailySignalContext],
+        growth_series: list[float],
+        inflation_series: list[float],
+        daily_context: DailySignalContext | None,
         as_of_date: date
     ) -> HybridRegimeResult:
         """
@@ -631,7 +631,7 @@ class HybridRegimeCalculator:
     def _map_signal_to_regime(
         self,
         signal_direction: str,
-        current_distribution: Dict[str, float]
+        current_distribution: dict[str, float]
     ) -> str:
         """
         将日度信号方向映射到 Regime
@@ -674,7 +674,7 @@ class HybridRegimeCalculator:
         daily_regime: str,
         daily_confidence: float,
         persist_days: int
-    ) -> Dict:
+    ) -> dict:
         """
         解决信号冲突
 
@@ -723,10 +723,10 @@ class HybridRegimeCalculator:
 
     def _adjust_distribution_for_daily(
         self,
-        original_distribution: Dict[str, float],
+        original_distribution: dict[str, float],
         daily_regime: str,
         signal_strength: float
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         根据日度信号调整分布
 
@@ -764,18 +764,18 @@ class HybridRegimeCalculator:
 
     def _blend_distributions(
         self,
-        monthly_distribution: Dict[str, float],
+        monthly_distribution: dict[str, float],
         daily_regime: str,
         monthly_weight: float,
         daily_weight: float
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         融合月度和日度分布
 
         创建一个偏向日度 Regime 的加权分布
         """
         # 构建日度分布（100%集中在日度 Regime）
-        daily_distribution = {k: 0.0 for k in monthly_distribution.keys()}
+        daily_distribution = dict.fromkeys(monthly_distribution.keys(), 0.0)
         daily_distribution[daily_regime] = 1.0
 
         # 加权融合
@@ -792,9 +792,10 @@ class HybridRegimeCalculator:
 # ==================== Phase 4: Probability Confidence Model ====================
 
 from typing import List as TypingList
+
 from .entities import (
-    ConfidenceConfig,
     ConfidenceBreakdown,
+    ConfidenceConfig,
     IndicatorPredictivePower,
     RegimeProbabilities,
     SignalConflict,
@@ -807,7 +808,7 @@ def calculate_confidence(
     has_daily_data: bool = False,
     has_weekly_data: bool = False,
     daily_consistent: bool = False,
-    config: Optional[ConfidenceConfig] = None
+    config: ConfidenceConfig | None = None
 ) -> ConfidenceBreakdown:
     """
     计算基于数据新鲜度的置信度
@@ -875,9 +876,9 @@ def calculate_confidence(
 
 
 def calculate_bayesian_confidence(
-    indicators: TypingList[IndicatorPredictivePower],
+    indicators: list[IndicatorPredictivePower],
     base_prior: float = 0.5,
-    config: Optional[ConfidenceConfig] = None
+    config: ConfidenceConfig | None = None
 ) -> RegimeProbabilities:
     """
     贝叶斯框架计算 Regime 概率
@@ -1013,7 +1014,7 @@ def calculate_bayesian_confidence(
 
 def resolve_signal_conflict(
     daily_signal: str,
-    weekly_signal: Optional[str],
+    weekly_signal: str | None,
     monthly_signal: str,
     daily_confidence: float,
     monthly_confidence: float,
@@ -1174,7 +1175,7 @@ class ConfidenceCalculator:
     整合各种置信度计算方法，提供统一的接口。
     """
 
-    def __init__(self, config: Optional[ConfidenceConfig] = None):
+    def __init__(self, config: ConfidenceConfig | None = None):
         """
         Args:
             config: 置信度配置（从数据库读取）
@@ -1202,7 +1203,7 @@ class ConfidenceCalculator:
 
     def calculate_bayesian(
         self,
-        indicators: TypingList[IndicatorPredictivePower],
+        indicators: list[IndicatorPredictivePower],
         base_prior: float = 0.5
     ) -> RegimeProbabilities:
         """
@@ -1217,7 +1218,7 @@ class ConfidenceCalculator:
     def resolve_conflict(
         self,
         daily_signal: str,
-        weekly_signal: Optional[str],
+        weekly_signal: str | None,
         monthly_signal: str,
         daily_confidence: float,
         monthly_confidence: float,

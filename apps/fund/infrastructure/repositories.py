@@ -7,24 +7,32 @@
 - 提供数据访问方法
 """
 
-from typing import List, Optional, Dict, Tuple
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Dict, List, Optional, Tuple
 
-from django.db.models import Q, Avg, Sum, Max, Min
+from django.db.models import Avg, Max, Min, Q, Sum
 from django.utils import timezone
 
-from .models import (
-    FundInfoModel, FundManagerModel, FundNetValueModel,
-    FundHoldingModel, FundSectorAllocationModel, FundPerformanceModel
-)
 from ..domain.entities import (
-    FundInfo, FundManager, FundNetValue, FundHolding,
-    FundSectorAllocation, FundPerformance, FundAssetScore
+    FundAssetScore,
+    FundHolding,
+    FundInfo,
+    FundManager,
+    FundNetValue,
+    FundPerformance,
+    FundSectorAllocation,
 )
-from .adapters.tushare_fund_adapter import TushareFundAdapter
 from .adapters.akshare_fund_adapter import AkShareFundAdapter
-
+from .adapters.tushare_fund_adapter import TushareFundAdapter
+from .models import (
+    FundHoldingModel,
+    FundInfoModel,
+    FundManagerModel,
+    FundNetValueModel,
+    FundPerformanceModel,
+    FundSectorAllocationModel,
+)
 
 # ==================== 通用资产分析框架集成 ====================
 # 实现 AssetRepositoryProtocol 接口以支持通用资产分析
@@ -46,7 +54,7 @@ class DjangoFundAssetRepository:
         asset_type: str,
         filters: dict,
         max_count: int = 100
-    ) -> List[FundAssetScore]:
+    ) -> list[FundAssetScore]:
         """
         根据过滤条件获取资产列表
 
@@ -99,7 +107,7 @@ class DjangoFundAssetRepository:
             for m in models
         ]
 
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional[FundAssetScore]:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> FundAssetScore | None:
         """
         根据代码获取资产
 
@@ -140,7 +148,7 @@ class DjangoFundRepository:
 
     # ==================== 基金信息 ====================
 
-    def get_fund_info(self, fund_code: str) -> Optional[FundInfo]:
+    def get_fund_info(self, fund_code: str) -> FundInfo | None:
         """获取单个基金信息
 
         Args:
@@ -155,7 +163,7 @@ class DjangoFundRepository:
         except FundInfoModel.DoesNotExist:
             return None
 
-    def get_all_funds(self, fund_type: Optional[str] = None) -> List[FundInfo]:
+    def get_all_funds(self, fund_type: str | None = None) -> list[FundInfo]:
         """获取所有基金信息
 
         Args:
@@ -197,9 +205,9 @@ class DjangoFundRepository:
     def get_fund_nav(
         self,
         fund_code: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[FundNetValue]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[FundNetValue]:
         """获取基金净值数据
 
         Args:
@@ -222,7 +230,7 @@ class DjangoFundRepository:
         models = queryset.all()
         return [self._model_to_entity_nav(m) for m in models]
 
-    def get_latest_nav(self, fund_code: str) -> Optional[FundNetValue]:
+    def get_latest_nav(self, fund_code: str) -> FundNetValue | None:
         """获取最新净值
 
         Args:
@@ -258,7 +266,7 @@ class DjangoFundRepository:
             }
         )
 
-    def save_fund_nav_batch(self, nav_list: List[FundNetValue]) -> None:
+    def save_fund_nav_batch(self, nav_list: list[FundNetValue]) -> None:
         """批量保存基金净值
 
         Args:
@@ -272,8 +280,8 @@ class DjangoFundRepository:
     def get_fund_holdings(
         self,
         fund_code: str,
-        report_date: Optional[date] = None
-    ) -> List[FundHolding]:
+        report_date: date | None = None
+    ) -> list[FundHolding]:
         """获取基金持仓数据
 
         Args:
@@ -321,8 +329,8 @@ class DjangoFundRepository:
     def get_fund_sector_allocation(
         self,
         fund_code: str,
-        report_date: Optional[date] = None
-    ) -> List[FundSectorAllocation]:
+        report_date: date | None = None
+    ) -> list[FundSectorAllocation]:
         """获取基金行业配置
 
         Args:
@@ -369,7 +377,7 @@ class DjangoFundRepository:
         fund_code: str,
         start_date: date,
         end_date: date
-    ) -> Optional[FundPerformance]:
+    ) -> FundPerformance | None:
         """获取基金业绩指标
 
         Args:
@@ -417,7 +425,7 @@ class DjangoFundRepository:
         self,
         start_date: date,
         end_date: date
-    ) -> List[Tuple[FundInfo, FundPerformance, List[FundSectorAllocation]]]:
+    ) -> list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]]:
         """获取基金及其业绩和行业配置
 
         Args:

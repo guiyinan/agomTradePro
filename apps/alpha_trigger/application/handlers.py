@@ -5,12 +5,12 @@ Alpha Trigger Event Handlers
 """
 
 import logging
-from typing import Optional, List
+from typing import List, Optional
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType, create_event
-from ..domain.entities import TriggerType, TriggerStatus, SignalStrength
-from ..domain.services import calculate_strength
 
+from ..domain.entities import SignalStrength, TriggerStatus, TriggerType
+from ..domain.services import calculate_strength
 
 logger = logging.getLogger(__name__)
 

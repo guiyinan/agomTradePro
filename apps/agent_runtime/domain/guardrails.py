@@ -13,7 +13,7 @@ Guardrail gates:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from apps.agent_runtime.domain.entities import (
     AgentProposal,
@@ -31,7 +31,7 @@ class GuardrailResult:
     decision: GuardrailDecision
     reason_code: str
     message: str
-    evidence: Dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     requires_human: bool = False
 
 
@@ -42,9 +42,9 @@ class GuardrailCheckOutput:
     overall_decision: GuardrailDecision
     reason_code: str
     message: str
-    evidence: Dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     requires_human: bool = False
-    gate_results: List[GuardrailResult] = field(default_factory=list)
+    gate_results: list[GuardrailResult] = field(default_factory=list)
 
 
 # Proposal types that always require human approval
@@ -72,8 +72,8 @@ class GuardrailEngine:
     def check_pre_approval(
         self,
         proposal: AgentProposal,
-        actor: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        actor: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> GuardrailCheckOutput:
         """
         Run guardrail checks before submitting for approval.
@@ -87,7 +87,7 @@ class GuardrailEngine:
             Aggregate guardrail decision
         """
         ctx = context or {}
-        results: List[GuardrailResult] = [
+        results: list[GuardrailResult] = [
             self._role_gate(proposal, actor),
             self._risk_level_gate(proposal),
             self._data_freshness_gate(proposal, ctx),
@@ -98,8 +98,8 @@ class GuardrailEngine:
     def check_pre_execution(
         self,
         proposal: AgentProposal,
-        actor: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        actor: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> GuardrailCheckOutput:
         """
         Run guardrail checks before executing an approved proposal.
@@ -113,7 +113,7 @@ class GuardrailEngine:
             Aggregate guardrail decision
         """
         ctx = context or {}
-        results: List[GuardrailResult] = [
+        results: list[GuardrailResult] = [
             self._role_gate(proposal, actor),
             self._approval_required_gate(proposal),
             self._risk_level_gate(proposal),
@@ -128,7 +128,7 @@ class GuardrailEngine:
     def _role_gate(
         self,
         proposal: AgentProposal,
-        actor: Optional[Dict[str, Any]],
+        actor: dict[str, Any] | None,
     ) -> GuardrailResult:
         """Check that the actor has permission for this proposal type."""
         if actor is None:
@@ -225,7 +225,7 @@ class GuardrailEngine:
     def _market_readiness_gate(
         self,
         proposal: AgentProposal,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> GuardrailResult:
         """Check market readiness from context."""
         market_open = context.get("market_open", True)
@@ -251,7 +251,7 @@ class GuardrailEngine:
     def _data_freshness_gate(
         self,
         proposal: AgentProposal,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> GuardrailResult:
         """Check upstream data freshness."""
         stale_sources = context.get("stale_data_sources", [])
@@ -274,7 +274,7 @@ class GuardrailEngine:
     def _dependency_health_gate(
         self,
         proposal: AgentProposal,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> GuardrailResult:
         """Check dependent service health."""
         unhealthy_deps = context.get("unhealthy_dependencies", [])
@@ -296,7 +296,7 @@ class GuardrailEngine:
 
     # ── Aggregation ───────────────────────────────────────────
 
-    def _aggregate(self, results: List[GuardrailResult]) -> GuardrailCheckOutput:
+    def _aggregate(self, results: list[GuardrailResult]) -> GuardrailCheckOutput:
         """Aggregate gate results into a single decision."""
         blocked = [r for r in results if r.decision == GuardrailDecision.BLOCKED]
         needs_human = [r for r in results if r.decision == GuardrailDecision.NEEDS_HUMAN]
@@ -344,7 +344,7 @@ class GuardrailEngine:
 
 
 # Singleton
-_guardrail_engine: Optional[GuardrailEngine] = None
+_guardrail_engine: GuardrailEngine | None = None
 
 
 def get_guardrail_engine() -> GuardrailEngine:

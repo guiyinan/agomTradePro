@@ -4,21 +4,37 @@ Factor Module Interface Layer - Views
 DRF ViewSets and page views for the factor module.
 """
 
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from datetime import date, datetime
+
 from django.contrib.auth.decorators import login_required
-from rest_framework import viewsets, status
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.http import require_http_methods
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from datetime import date, datetime
 
+# Application layer UseCases
+from apps.factor.application.use_cases import (
+    CalculateScoresRequest,
+    CalculateScoresUseCase,
+    CreatePortfolioConfigRequest,
+    CreatePortfolioConfigUseCase,
+    FactorCalculateViewRequest,
+    FactorListViewRequest,
+    GetFactorCalculationDataUseCase,
+    GetFactorDefinitionsForViewUseCase,
+    GetPortfolioConfigsForViewUseCase,
+    PortfolioConfigActionRequest,
+    PortfolioListViewRequest,
+    UpdatePortfolioConfigUseCase,
+)
 from apps.factor.infrastructure.models import (
     FactorDefinitionModel,
+    FactorExposureModel,
     FactorPortfolioConfigModel,
     FactorPortfolioHoldingModel,
-    FactorExposureModel,
 )
 from apps.factor.infrastructure.repositories import (
     FactorDefinitionRepository,
@@ -32,22 +48,6 @@ from apps.factor.interface.serializers import (
     FactorPortfolioHoldingSerializer,
     FactorScoreRequestSerializer,
     FactorScoreResponseSerializer,
-)
-
-# Application layer UseCases
-from apps.factor.application.use_cases import (
-    GetFactorDefinitionsForViewUseCase,
-    GetPortfolioConfigsForViewUseCase,
-    GetFactorCalculationDataUseCase,
-    CreatePortfolioConfigUseCase,
-    UpdatePortfolioConfigUseCase,
-    CalculateScoresUseCase,
-    FactorListViewRequest,
-    PortfolioListViewRequest,
-    FactorCalculateViewRequest,
-    CreatePortfolioConfigRequest,
-    PortfolioConfigActionRequest,
-    CalculateScoresRequest,
 )
 
 

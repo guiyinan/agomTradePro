@@ -26,7 +26,7 @@ def _safe_float(value: object) -> float:
         return 0.0
 
 
-def _parse_date(value: object) -> Optional[date]:
+def _parse_date(value: object) -> date | None:
     """安全地将值解析为 date"""
     if value is None:
         return None
@@ -43,7 +43,7 @@ def _parse_date(value: object) -> Optional[date]:
 def parse_akshare_capital_flow_row(
     row: "pandas.Series",  # type: ignore[name-defined]
     stock_code: str,
-) -> Optional[CapitalFlowSnapshot]:
+) -> CapitalFlowSnapshot | None:
     """将 ak.stock_individual_fund_flow() 的一行解析为 CapitalFlowSnapshot
 
     AKShare 资金流向字段（来自东方财富）:

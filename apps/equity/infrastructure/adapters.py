@@ -5,16 +5,16 @@
 遵循四层架构：Infrastructure 层可以导入其他模块的 ORM 和仓储。
 """
 
-from typing import Dict, List, Optional, Union
+import logging
 from datetime import date, datetime
 from decimal import Decimal
-import logging
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
 from shared.config.secrets import get_secrets
 
-from ..domain.ports import RegimeDataPort, MarketDataPort, StockPoolPort
+from ..domain.ports import MarketDataPort, RegimeDataPort, StockPoolPort
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,8 @@ class TushareStockAdapter:
     def fetch_daily_data(
         self,
         stock_code: str,
-        start_date: Union[str, date, datetime],
-        end_date: Union[str, date, datetime],
+        start_date: str | date | datetime,
+        end_date: str | date | datetime,
     ) -> pd.DataFrame:
         """获取股票日线行情。"""
         df = self.pro.daily(
@@ -81,7 +81,7 @@ class TushareStockAdapter:
         )
         return df.sort_values("trade_date").reset_index(drop=True)
 
-    def fetch_stock_info(self, stock_code: str) -> Dict:
+    def fetch_stock_info(self, stock_code: str) -> dict:
         """获取单只股票基础信息。"""
         normalized_code = self._normalize_stock_code(stock_code)
         symbol = normalized_code.split(".")[0]
@@ -117,7 +117,7 @@ class TushareStockAdapter:
             return f"{code}.BJ"
         return code
 
-    def _normalize_date(self, value: Union[str, date, datetime]) -> str:
+    def _normalize_date(self, value: str | date | datetime) -> str:
         if isinstance(value, datetime):
             return value.strftime("%Y%m%d")
         if isinstance(value, date):
@@ -144,7 +144,7 @@ class RegimeRepositoryAdapter(RegimeDataPort):
         self,
         start_date: date,
         end_date: date
-    ) -> List:
+    ) -> list:
         """
         获取日期范围内的 Regime 快照列表
 
@@ -182,8 +182,8 @@ class MarketDataRepositoryAdapter(MarketDataPort):
 
     def __init__(self):
         # 延迟导入，避免循环依赖
-        from apps.macro.infrastructure.models import MacroIndicator
         from apps.account.infrastructure.models import SystemSettingsModel
+        from apps.macro.infrastructure.models import MacroIndicator
         self._model = MacroIndicator
         self._default_index_code = SystemSettingsModel.get_runtime_benchmark_code(
             "equity_default_index"
@@ -194,7 +194,7 @@ class MarketDataRepositoryAdapter(MarketDataPort):
         index_code: str,
         start_date: date,
         end_date: date
-    ) -> Dict[date, float]:
+    ) -> dict[date, float]:
         """
         获取指数日收益率
 
@@ -254,7 +254,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         self._cache = cache
         self._cache_key_prefix = "equity:stock_pool"
 
-    def get_current_pool(self) -> List[str]:
+    def get_current_pool(self) -> list[str]:
         """
         获取当前股票池
 
@@ -274,7 +274,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
 
     def save_pool(
         self,
-        stock_codes: List[str],
+        stock_codes: list[str],
         regime: str,
         as_of_date: date
     ) -> None:
@@ -286,8 +286,9 @@ class StockPoolRepositoryAdapter(StockPoolPort):
             regime: 当前的 Regime
             as_of_date: 截止日期
         """
-        from django.core.cache import cache
         import json
+
+        from django.core.cache import cache
 
         # 保存到缓存（24 小时过期）
         pool_key = f"{self._cache_key_prefix}:current"
@@ -306,15 +307,16 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         # 同时保存到数据库（持久化）
         self._save_pool_to_db(stock_codes, regime, as_of_date)
 
-    def get_latest_pool_info(self) -> Optional[dict]:
+    def get_latest_pool_info(self) -> dict | None:
         """
         获取最新的股票池信息
 
         Returns:
             包含股票池元数据的字典，或 None
         """
-        from django.core.cache import cache
         import json
+
+        from django.core.cache import cache
 
         meta_key = f"{self._cache_key_prefix}:meta"
         meta_str = cache.get(meta_key)
@@ -324,7 +326,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
 
         return self._load_pool_meta_from_db()
 
-    def _load_pool_from_db(self) -> List[str]:
+    def _load_pool_from_db(self) -> list[str]:
         """从数据库加载股票池"""
         try:
             from .models import StockPoolSnapshot
@@ -344,7 +346,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
 
     def _save_pool_to_db(
         self,
-        stock_codes: List[str],
+        stock_codes: list[str],
         regime: str,
         as_of_date: date
     ) -> None:
@@ -366,7 +368,7 @@ class StockPoolRepositoryAdapter(StockPoolPort):
         except Exception as e:
             logger.error(f"保存股票池到数据库失败: {e}")
 
-    def _load_pool_meta_from_db(self) -> Optional[dict]:
+    def _load_pool_meta_from_db(self) -> dict | None:
         """从数据库加载股票池元数据"""
         try:
             from .models import StockPoolSnapshot

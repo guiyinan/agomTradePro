@@ -16,7 +16,6 @@ from typing import Dict, List, Optional
 from celery import shared_task
 from django.utils import timezone
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -178,8 +177,9 @@ def qlib_train_model(
         ... )
     """
     try:
-        from ..infrastructure.models import QlibModelRegistryModel
         from datetime import datetime, timedelta
+
+        from ..infrastructure.models import QlibModelRegistryModel
 
         logger.info(f"开始 Qlib 训练: {model_name} ({model_type})")
 
@@ -293,10 +293,12 @@ def qlib_evaluate_model(
         >>> qlib_evaluate_model.delay("abc123...")
     """
     try:
-        from ...infrastructure.models import QlibModelRegistryModel
-        from ...infrastructure.cache_evaluation import evaluate_model_from_cache
         from datetime import timedelta
+
         from django.utils import timezone as tz
+
+        from ...infrastructure.cache_evaluation import evaluate_model_from_cache
+        from ...infrastructure.models import QlibModelRegistryModel
 
         logger.info(f"开始评估模型: {model_artifact_hash}")
 
@@ -450,7 +452,7 @@ def _execute_qlib_prediction(
     universe_id: str,
     trade_date: date,
     top_n: int
-) -> List[dict]:
+) -> list[dict]:
     """
     执行 Qlib 预测
 
@@ -465,22 +467,22 @@ def _execute_qlib_prediction(
     """
     try:
         # 尝试导入 Qlib
-        import qlib
-        from qlib.data import D
-        from qlib.contrib.data.handler import Alpha360
-        from qlib.contrib.model.gbdt import LGBModel
-        from qlib.contrib.evaluate import risk_analysis
-        from qlib.data.dataset import DatasetH
         import pandas as pd
+        import qlib
+        from qlib.contrib.data.handler import Alpha360
+        from qlib.contrib.evaluate import risk_analysis
+        from qlib.contrib.model.gbdt import LGBModel
+        from qlib.data import D
+        from qlib.data.dataset import DatasetH
 
         # 获取 Qlib 配置（优先从数据库读取）
         from apps.account.infrastructure.models import SystemSettingsModel
         qlib_config = SystemSettingsModel.get_runtime_qlib_config()
-        
+
         if not qlib_config.get('enabled'):
             logger.warning("Qlib 未启用，跳过预测")
             return None
-            
+
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
         region = _normalize_qlib_region(qlib_config.get('region', 'CN'))
 
@@ -696,23 +698,23 @@ def _train_qlib_model(
         训练好的模型
     """
     try:
+        import pandas as pd
         import qlib
         from qlib.contrib.data.handler import Alpha360
         from qlib.contrib.model.gbdt import LGBModel
+        from qlib.contrib.model.mlptron import MLPTPModel
         from qlib.contrib.model.pytorch_gru import GRUModel
         from qlib.contrib.model.pytorch_lstm import LSTMModel
-        from qlib.contrib.model.mlptron import MLPTPModel
-        from qlib.data.dataset import DatasetH
         from qlib.data import D
-        import pandas as pd
+        from qlib.data.dataset import DatasetH
 
         # 获取 Qlib 配置（优先从数据库读取）
         from apps.account.infrastructure.models import SystemSettingsModel
         qlib_config = SystemSettingsModel.get_runtime_qlib_config()
-        
+
         if not qlib_config.get('enabled'):
             raise ValueError("Qlib 未启用，请先在系统配置中启用 Qlib")
-            
+
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
         region = _normalize_qlib_region(qlib_config.get('region', 'CN'))
 
@@ -837,14 +839,14 @@ def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> 
         指标字典，包含 ic, icir, rank_ic, rank_icir
     """
     try:
+        import numpy as np
+        import pandas as pd
         import qlib
-        from qlib.data import D
         from qlib.contrib.data.handler import Alpha360
         from qlib.contrib.evaluate import risk_analysis
+        from qlib.data import D
         from qlib.data.dataset import DatasetH
         from scipy.stats import spearmanr
-        import pandas as pd
-        import numpy as np
 
         # 获取配置
         train_config = train_config or {}

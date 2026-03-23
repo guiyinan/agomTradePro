@@ -4,20 +4,29 @@ Unit tests for Invalidation Domain Layer.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import date
 
+import pytest
+
+from apps.signal.domain.indicators import (
+    IndicatorCategory,
+    IndicatorDefinition,
+    find_indicator_by_alias,
+    get_all_indicators,
+    get_indicator,
+    get_indicators_by_category,
+)
 from apps.signal.domain.invalidation import (
-    InvalidationRule,
-    InvalidationCondition,
-    InvalidationCheckResult,
-    IndicatorValue,
     ComparisonOperator,
-    LogicOperator,
     IndicatorType,
-    evaluate_rule,
-    evaluate_condition,
+    IndicatorValue,
+    InvalidationCheckResult,
+    InvalidationCondition,
+    InvalidationRule,
+    LogicOperator,
     _compare,
+    evaluate_condition,
+    evaluate_rule,
     validate_rule,
 )
 from apps.signal.domain.parser import (
@@ -25,15 +34,6 @@ from apps.signal.domain.parser import (
     ParseResult,
     validate_parse_input,
 )
-from apps.signal.domain.indicators import (
-    IndicatorDefinition,
-    IndicatorCategory,
-    get_indicator,
-    find_indicator_by_alias,
-    get_all_indicators,
-    get_indicators_by_category,
-)
-
 
 # ==================== Test ComparisonOperator ====================
 

@@ -12,32 +12,31 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from django.db import models, transaction
 from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.utils import timezone
 
 from ..domain.entities import (
-    DecisionQuota,
+    ApprovalStatus,
     CooldownPeriod,
+    DecisionFeatureSnapshot,
+    DecisionPriority,
+    DecisionQuota,
     DecisionRequest,
     DecisionResponse,
-    DecisionPriority,
-    QuotaPeriod,
-    ExecutionTarget,
-    ExecutionStatus,
-    ApprovalStatus,
-    RecommendationSide,
-    ValuationSnapshot,
-    InvestmentRecommendation,
     ExecutionApprovalRequest,
+    ExecutionStatus,
+    ExecutionTarget,
+    InvestmentRecommendation,
+    ModelParamAuditLog,
+    ModelParamConfig,
+    QuotaPeriod,
+    RecommendationSide,
     RecommendationStatus,
     UnifiedRecommendation,
     UserDecisionAction,
-    DecisionFeatureSnapshot,
-    ModelParamConfig,
-    ModelParamAuditLog,
+    ValuationSnapshot,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -1390,6 +1389,7 @@ class ExecutionApprovalRequestModel(models.Model):
             ExecutionApprovalRequest 实体
         """
         from decimal import Decimal
+
         from ..domain.entities import ApprovalStatus
 
         return ExecutionApprovalRequest(
@@ -1959,7 +1959,7 @@ class UnifiedRecommendationModel(models.Model):
         )
 
     @classmethod
-    def from_domain(cls, recommendation: UnifiedRecommendation, snapshot_model: Optional[DecisionFeatureSnapshotModel] = None) -> "UnifiedRecommendationModel":
+    def from_domain(cls, recommendation: UnifiedRecommendation, snapshot_model: DecisionFeatureSnapshotModel | None = None) -> "UnifiedRecommendationModel":
         """从 Domain 层实体创建"""
         return cls(
             recommendation_id=recommendation.recommendation_id,

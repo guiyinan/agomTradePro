@@ -24,7 +24,7 @@ def _request_ip(request) -> str:
 
 
 def _user_key(username: str, ip: str) -> str:
-    raw = f"{username}|{ip}".encode("utf-8")
+    raw = f"{username}|{ip}".encode()
     digest = hashlib.sha256(raw).hexdigest()
     return f"auth_lockout:{digest}"
 
@@ -42,7 +42,7 @@ class LockoutModelBackend(ModelBackend):
     Uses cache counters keyed by (username, ip).
     """
 
-    def authenticate(self, request, username: Optional[str] = None, password: Optional[str] = None, **kwargs):
+    def authenticate(self, request, username: str | None = None, password: str | None = None, **kwargs):
         username = username or kwargs.get("username")
         ip = _request_ip(request)
 

@@ -17,7 +17,8 @@ Usage:
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+
 import pytest
 
 # Add project root to path
@@ -119,11 +120,11 @@ def test_realtime_monitoring_flow() -> None:
 
                 # Check data freshness (should be within last trading day)
                 if price_data.get("updated_at"):
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     updated_at = datetime.fromisoformat(price_data["updated_at"])
                     if updated_at.tzinfo is None:
-                        updated_at = updated_at.replace(tzinfo=timezone.utc)
-                    age_hours = (now - updated_at.astimezone(timezone.utc)).total_seconds() / 3600
+                        updated_at = updated_at.replace(tzinfo=UTC)
+                    age_hours = (now - updated_at.astimezone(UTC)).total_seconds() / 3600
                     if age_hours < 48:
                         print_result(True, f"Data is fresh ({age_hours:.1f} hours old)")
                     else:
@@ -172,7 +173,7 @@ def test_realtime_monitoring_flow() -> None:
             print(f"  Last Update: {overview.get('last_update')}")
 
             if overview.get("indices"):
-                print(f"\n  Major Indices:")
+                print("\n  Major Indices:")
                 for idx in overview["indices"]:
                     print(
                         f"    {idx.get('name')}: {idx.get('value')} "
@@ -180,7 +181,7 @@ def test_realtime_monitoring_flow() -> None:
                     )
 
             if overview.get("market_summary"):
-                print(f"\n  Market Summary:")
+                print("\n  Market Summary:")
                 summary = overview["market_summary"]
                 print(
                     f"    Up/Down/Unchanged: "

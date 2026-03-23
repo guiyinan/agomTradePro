@@ -5,17 +5,17 @@ This file contains pure business logic using only Python standard library.
 No Django, Pandas, or external dependencies allowed.
 """
 
-import re
 import json
-from typing import Dict, Any, List, Optional, Protocol
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Protocol
 
 
 class PlaceholderResolverProtocol(Protocol):
     """占位符解析器协议"""
 
-    def resolve(self, placeholder: str, context: Dict[str, Any]) -> Any:
+    def resolve(self, placeholder: str, context: dict[str, Any]) -> Any:
         """解析单个占位符"""
         ...
 
@@ -28,7 +28,7 @@ class TemplateRenderer:
     """
 
     def __init__(self):
-        self.resolvers: Dict[str, PlaceholderResolverProtocol] = {}
+        self.resolvers: dict[str, PlaceholderResolverProtocol] = {}
 
     def register_resolver(self, prefix: str, resolver: PlaceholderResolverProtocol):
         """注册解析器"""
@@ -37,7 +37,7 @@ class TemplateRenderer:
     def render_simple(
         self,
         template: str,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> str:
         """简单模板渲染（仅支持{{var}}替换）
 
@@ -50,7 +50,7 @@ class TemplateRenderer:
             result = result.replace(placeholder, str(value))
         return result
 
-    def extract_placeholders(self, template: str) -> List[str]:
+    def extract_placeholders(self, template: str) -> list[str]:
         """从模板中提取占位符
 
         Returns:
@@ -68,7 +68,7 @@ class OutputParser:
     """
 
     @staticmethod
-    def extract_json(response: str) -> Optional[Dict[str, Any]]:
+    def extract_json(response: str) -> dict[str, Any] | None:
         """从AI响应中提取JSON
 
         支持以下格式：
@@ -95,7 +95,7 @@ class OutputParser:
             return None
 
     @staticmethod
-    def extract_table(response: str) -> List[List[str]]:
+    def extract_table(response: str) -> list[list[str]]:
         """从AI响应中提取表格
 
         支持Markdown表格格式：
@@ -129,7 +129,7 @@ class OutputParser:
         return table_data
 
     @staticmethod
-    def extract_code_blocks(response: str, language: str = "") -> List[str]:
+    def extract_code_blocks(response: str, language: str = "") -> list[str]:
         """提取指定语言的代码块
 
         Args:
@@ -148,7 +148,7 @@ class OutputParser:
         return [m.strip() for m in matches]
 
     @staticmethod
-    def parse_function_calls(response: str) -> List[Dict[str, Any]]:
+    def parse_function_calls(response: str) -> list[dict[str, Any]]:
         """解析AI返回的函数调用
 
         支持OpenAI Function Calling格式：
@@ -186,24 +186,24 @@ class ChainExecutionPlan:
         step_id: str
         template_id: str
         order: int
-        parallel_group: Optional[str] = None
-        dependencies: List[str] = None  # 依赖的step_id列表
+        parallel_group: str | None = None
+        dependencies: list[str] = None  # 依赖的step_id列表
 
     def __init__(self):
-        self.steps: List["ChainExecutionPlan.ExecutionStep"] = []
+        self.steps: list[ChainExecutionPlan.ExecutionStep] = []
 
     def add_step(self, step: "ChainExecutionPlan.ExecutionStep"):
         """添加执行步骤"""
         self.steps.append(step)
 
-    def get_parallel_groups(self) -> Dict[str, List["ExecutionStep"]]:
+    def get_parallel_groups(self) -> dict[str, list["ExecutionStep"]]:
         """获取并行分组
 
         Returns:
             分组字典，key为parallel_group，value为该组的步骤列表
             无分组的步骤key为None
         """
-        groups: Dict[str, List["ChainExecutionPlan.ExecutionStep"]] = {}
+        groups: dict[str, list[ChainExecutionPlan.ExecutionStep]] = {}
         for step in self.steps:
             group = step.parallel_group or "__serial__"
             if group not in groups:
@@ -219,11 +219,11 @@ class ChainExecutor:
     """
 
     def __init__(self):
-        self._plan: Optional[ChainExecutionPlan] = None
+        self._plan: ChainExecutionPlan | None = None
 
     def build_execution_plan(
         self,
-        steps: List["ChainStep"],
+        steps: list["ChainStep"],
         execution_mode: "ChainExecutionMode"
     ) -> ChainExecutionPlan:
         """构建执行计划
@@ -248,7 +248,7 @@ class ChainExecutor:
 
         return self._plan
 
-    def _build_serial_plan(self, steps: List["ChainStep"]):
+    def _build_serial_plan(self, steps: list["ChainStep"]):
         """构建串行执行计划"""
         # 按order排序
         sorted_steps = sorted(steps, key=lambda s: s.order)
@@ -268,10 +268,10 @@ class ChainExecutor:
             )
             self._plan.add_step(exec_step)
 
-    def _build_parallel_plan(self, steps: List["ChainStep"]):
+    def _build_parallel_plan(self, steps: list["ChainStep"]):
         """构建并行执行计划"""
         # 按parallel_group分组
-        groups: Dict[str, List["ChainStep"]] = {}
+        groups: dict[str, list[ChainStep]] = {}
         for step in steps:
             group = step.parallel_group or f"group_{step.order}"
             if group not in groups:
@@ -285,7 +285,7 @@ class ChainExecutor:
         )
 
         # 构建执行计划
-        prev_group_steps: List[str] = []
+        prev_group_steps: list[str] = []
         for group_name, group_steps in sorted_groups:
             group_steps_sorted = sorted(group_steps, key=lambda s: s.order)
             for step in group_steps_sorted:
@@ -299,7 +299,7 @@ class ChainExecutor:
                 self._plan.add_step(exec_step)
             prev_group_steps = [s.step_id for s in group_steps_sorted]
 
-    def _build_tool_calling_plan(self, steps: List["ChainStep"]):
+    def _build_tool_calling_plan(self, steps: list["ChainStep"]):
         """构建工具调用执行计划"""
         # 工具调用模式通常是单步执行
         for step in sorted(steps, key=lambda s: s.order):
@@ -312,7 +312,7 @@ class ChainExecutor:
             )
             self._plan.add_step(exec_step)
 
-    def _build_hybrid_plan(self, steps: List["ChainStep"]):
+    def _build_hybrid_plan(self, steps: list["ChainStep"]):
         """构建混合执行计划"""
         # 混合模式：根据parallel_group决定是否并行
         self._build_parallel_plan(steps)
@@ -320,4 +320,4 @@ class ChainExecutor:
 
 # 导入ChainStep和ChainExecutionMode（避免循环导入）
 # 这些在运行时会从entities.py导入
-from .entities import ChainStep, ChainExecutionMode  # noqa: E402
+from .entities import ChainExecutionMode, ChainStep  # noqa: E402

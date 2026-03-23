@@ -16,8 +16,7 @@ from typing import Dict, List, Optional
 
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
-from .base import BaseAlphaProvider, qlib_safe, create_stock_score, provider_safe
-
+from .base import BaseAlphaProvider, create_stock_score, provider_safe, qlib_safe
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +180,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             }
         )
 
-    def _get_active_model(self) -> Optional[Dict]:
+    def _get_active_model(self) -> dict | None:
         """
         获取激活的模型信息
 
@@ -218,7 +217,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         universe_id: str,
         intended_trade_date: date,
         top_n: int
-    ) -> Optional[AlphaResult]:
+    ) -> AlphaResult | None:
         """
         从缓存获取评分
 
@@ -301,7 +300,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             logger.error(f"读取 Qlib 缓存失败: {e}", exc_info=True)
             return None
 
-    def _parse_scores(self, raw_scores: list, top_n: int) -> List[StockScore]:
+    def _parse_scores(self, raw_scores: list, top_n: int) -> list[StockScore]:
         """
         解析原始评分数据
 
@@ -416,7 +415,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         stock_code: str,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         获取因子暴露（带异常保护）
 
@@ -428,8 +427,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
             因子暴露字典
         """
         try:
-            from qlib.data import D
             import pandas as pd
+            from qlib.data import D
 
             # Qlib 使用 D.features 获取因子值
             trade_date_str = trade_date.strftime("%Y-%m-%d")
@@ -476,7 +475,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             logger.error(f"获取因子暴露失败: {e}")
             return {}
 
-    def get_universe_stocks(self, universe_id: str) -> List[str]:
+    def get_universe_stocks(self, universe_id: str) -> list[str]:
         """
         获取股票池的股票列表
 
@@ -555,7 +554,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         执行预测（同步方法，用于测试）
 
@@ -571,10 +570,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return {}
 
         try:
-            from qlib.data import D
-            from qlib.contrib.data.handler import Alpha360
-            from qlib.data.dataset import DatasetH
             import pandas as pd
+            from qlib.contrib.data.handler import Alpha360
+            from qlib.data import D
+            from qlib.data.dataset import DatasetH
 
             trade_date_str = trade_date.strftime("%Y-%m-%d")
             # 需要几天的历史数据给 Alpha360 做特征

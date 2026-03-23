@@ -8,7 +8,6 @@ from django.core.management.base import BaseCommand
 
 from apps.ai_capability.infrastructure.repositories import DjangoCapabilityRepository
 
-
 logger = logging.getLogger(__name__)
 
 

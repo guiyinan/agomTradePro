@@ -6,17 +6,18 @@ Dashboard Domain Rules
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
 
 from .entities import (
-    DashboardCard,
-    DashboardWidget,
-    DashboardLayout,
-    MetricCard,
     AlertConfig,
     AlertSeverity,
     CardType,
+    DashboardCard,
+    DashboardLayout,
+    DashboardWidget,
+    MetricCard,
 )
 
 
@@ -24,7 +25,7 @@ class Rule(ABC):
     """规则基类"""
 
     @abstractmethod
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估规则
 
@@ -50,9 +51,9 @@ class DashboardCardVisibilityRule(Rule):
     """
 
     card_id: str
-    conditions: Dict[str, Any]
+    conditions: dict[str, Any]
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估卡片是否可见
 
@@ -129,7 +130,7 @@ class WidgetPositionRule(Rule):
     min_width: int = 1
     min_height: int = 1
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估组件位置是否合法
 
@@ -179,11 +180,11 @@ class MetricThresholdRule(Rule):
     """
 
     metric_name: str
-    warning_threshold: Optional[float] = None
-    critical_threshold: Optional[float] = None
+    warning_threshold: float | None = None
+    critical_threshold: float | None = None
     operator: str = "gte"  # greater than or equal
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估指标是否超过阈值
 
@@ -228,7 +229,7 @@ class MetricThresholdRule(Rule):
         op_func = ops.get(self.operator, lambda a, b: a >= b)
         return op_func(value, threshold)
 
-    def get_severity(self, context: Dict[str, Any]) -> Optional[AlertSeverity]:
+    def get_severity(self, context: dict[str, Any]) -> AlertSeverity | None:
         """
         获取告警级别
 
@@ -269,9 +270,9 @@ class CardDependencyRule(Rule):
     """
 
     card_id: str
-    dependencies: List[str]
+    dependencies: list[str]
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估依赖是否满足
 
@@ -306,7 +307,7 @@ class RefreshIntervalRule(Rule):
     min_interval: int = 10
     max_interval: int = 3600
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估刷新间隔是否合理
 
@@ -339,9 +340,9 @@ class DataSourceAvailabilityRule(Rule):
     """
 
     data_source: str
-    required_fields: List[str] = None
+    required_fields: list[str] = None
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估数据源是否可用
 
@@ -383,7 +384,7 @@ class RuleEngine:
 
     def __init__(self):
         """初始化规则引擎"""
-        self._rules: List[Rule] = []
+        self._rules: list[Rule] = []
 
     def add_rule(self, rule: Rule) -> None:
         """
@@ -404,7 +405,7 @@ class RuleEngine:
         if rule in self._rules:
             self._rules.remove(rule)
 
-    def evaluate_all(self, context: Dict[str, Any]) -> Dict[str, bool]:
+    def evaluate_all(self, context: dict[str, Any]) -> dict[str, bool]:
         """
         评估所有规则
 
@@ -420,7 +421,7 @@ class RuleEngine:
             results[rule_id] = rule.evaluate(context)
         return results
 
-    def evaluate_any(self, context: Dict[str, Any]) -> bool:
+    def evaluate_any(self, context: dict[str, Any]) -> bool:
         """
         评估是否任意规则通过
 
@@ -432,7 +433,7 @@ class RuleEngine:
         """
         return any(rule.evaluate(context) for rule in self._rules)
 
-    def evaluate_all_pass(self, context: Dict[str, Any]) -> bool:
+    def evaluate_all_pass(self, context: dict[str, Any]) -> bool:
         """
         评估是否所有规则都通过
 

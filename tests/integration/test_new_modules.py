@@ -12,8 +12,8 @@ Usage:
 
 import os
 import sys
-from pathlib import Path
 from datetime import date, timedelta
+from pathlib import Path
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -23,6 +23,7 @@ sys.path.insert(0, str(project_root))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 
 import django
+
 django.setup()
 
 from apps.factor.infrastructure.repositories import (
@@ -30,15 +31,15 @@ from apps.factor.infrastructure.repositories import (
     FactorPortfolioConfigRepository,
     FactorPortfolioHoldingRepository,
 )
+from apps.hedge.infrastructure.repositories import (
+    CorrelationHistoryRepository,
+    HedgePairRepository,
+    HedgePortfolioRepository,
+)
 from apps.rotation.infrastructure.repositories import (
     AssetClassRepository,
     RotationConfigRepository,
     RotationSignalRepository,
-)
-from apps.hedge.infrastructure.repositories import (
-    HedgePairRepository,
-    CorrelationHistoryRepository,
-    HedgePortfolioRepository,
 )
 from apps.signal.infrastructure.repositories import UnifiedSignalRepository
 
@@ -75,8 +76,11 @@ def test_factor_module() -> dict:
     print_test("Factor Module")
 
     try:
+        from apps.factor.infrastructure.models import (
+            FactorDefinitionModel,
+            FactorPortfolioConfigModel,
+        )
         from apps.factor.infrastructure.repositories import FactorDefinitionRepository
-        from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
 
         factor_def_repo = FactorDefinitionRepository()
         factors = factor_def_repo.get_all()
@@ -202,11 +206,11 @@ def test_django_models() -> dict:
             FactorDefinitionModel,
             FactorPortfolioConfigModel,
         )
+        from apps.hedge.infrastructure.models import HedgePairModel
         from apps.rotation.infrastructure.models import (
             AssetClassModel,
             RotationConfigModel,
         )
-        from apps.hedge.infrastructure.models import HedgePairModel
         from apps.signal.infrastructure.models import UnifiedSignalModel
 
         # Count records in each table
@@ -237,7 +241,7 @@ def test_sdk_modules() -> dict:
     print_test("SDK Module Imports")
 
     try:
-        from sdk.agomtradepro.modules import FactorModule, RotationModule, HedgeModule
+        from sdk.agomtradepro.modules import FactorModule, HedgeModule, RotationModule
         print_success("All new SDK modules imported")
 
         return {'status': 'pass'}
@@ -253,8 +257,8 @@ def test_mcp_tools() -> dict:
     try:
         from sdk.agomtradepro_mcp.tools import (
             factor_tools,
-            rotation_tools,
             hedge_tools,
+            rotation_tools,
         )
 
         # Count registered tools

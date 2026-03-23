@@ -6,9 +6,9 @@ Policy Response Rules - Domain Layer
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timezone
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 from .entities import PolicyLevel
 
@@ -30,13 +30,13 @@ class PolicyResponse:
     description: str
     market_action: MarketAction
     cash_adjustment: float  # 现金权重调整（百分比）
-    signal_pause_hours: Optional[int]  # 暂停信号时长（小时）
+    signal_pause_hours: int | None  # 暂停信号时长（小时）
     requires_manual_approval: bool  # 是否需要人工审批
     alert_triggered: bool  # 是否触发告警
 
 
 # 政策档位响应规则配置
-POLICY_RESPONSE_RULES: Dict[PolicyLevel, PolicyResponse] = {
+POLICY_RESPONSE_RULES: dict[PolicyLevel, PolicyResponse] = {
     PolicyLevel.P0: PolicyResponse(
         level=PolicyLevel.P0,
         name="常态",
@@ -115,7 +115,7 @@ def should_pause_trading_signals(level: PolicyLevel) -> bool:
     ]
 
 
-def get_signal_pause_duration_hours(level: PolicyLevel) -> Optional[int]:
+def get_signal_pause_duration_hours(level: PolicyLevel) -> int | None:
     """
     获取信号暂停时长
 
@@ -191,7 +191,7 @@ def validate_policy_event(
     title: str,
     description: str,
     evidence_url: str
-) -> tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     """
     验证政策事件的有效性
 
@@ -233,14 +233,14 @@ def validate_policy_event(
 @dataclass(frozen=True)
 class PolicyTransition:
     """政策档位变更记录"""
-    from_level: Optional[PolicyLevel]
+    from_level: PolicyLevel | None
     to_level: PolicyLevel
     transition_date: str  # ISO 格式日期字符串
     is_upgrade: bool  # 是否升级（P0->P1, P1->P2 等）
 
 
 def analyze_policy_transition(
-    from_level: Optional[PolicyLevel],
+    from_level: PolicyLevel | None,
     to_level: PolicyLevel
 ) -> PolicyTransition:
     """
@@ -268,7 +268,7 @@ def analyze_policy_transition(
     )
 
 
-def get_recommendations_for_level(level: PolicyLevel) -> List[str]:
+def get_recommendations_for_level(level: PolicyLevel) -> list[str]:
     """
     根据政策档位获取操作建议
 
@@ -306,13 +306,13 @@ class PolicyLevelKeywordRule:
     用于从RSS条目标题中自动提取政策档位
     """
     level: PolicyLevel
-    keywords: List[str]  # 如 ["降息", "降准"] for P2
+    keywords: list[str]  # 如 ["降息", "降准"] for P2
     weight: int = 1  # 权重，支持多规则匹配
-    category: Optional[str] = None  # 可选：按分类应用不同规则
+    category: str | None = None  # 可选：按分类应用不同规则
 
 
 # 默认关键词规则配置（可通过数据库覆盖）
-DEFAULT_KEYWORD_RULES: List[PolicyLevelKeywordRule] = [
+DEFAULT_KEYWORD_RULES: list[PolicyLevelKeywordRule] = [
     PolicyLevelKeywordRule(
         level=PolicyLevel.P3,
         keywords=["熔断", "紧急", "救市", "危机", "恐慌"],
@@ -336,16 +336,16 @@ DEFAULT_KEYWORD_RULES: List[PolicyLevelKeywordRule] = [
 # ============================================================
 
 from .entities import (
-    GateLevel,
-    SentimentGateThresholds,
-    IngestionConfig,
     EventType,
+    GateLevel,
+    IngestionConfig,
+    SentimentGateThresholds,
 )
 
 
 def calculate_gate_level(
-    heat_score: Optional[float],
-    sentiment_score: Optional[float],
+    heat_score: float | None,
+    sentiment_score: float | None,
     config: SentimentGateThresholds
 ) -> GateLevel:
     """
@@ -393,7 +393,7 @@ def calculate_gate_level(
 
 def should_auto_approve(
     policy_level: PolicyLevel,
-    ai_confidence: Optional[float],
+    ai_confidence: float | None,
     config: IngestionConfig
 ) -> tuple[bool, str]:
     """
@@ -461,7 +461,7 @@ def is_sla_exceeded(
     created_at: datetime,
     policy_level: PolicyLevel,
     config: IngestionConfig,
-    now: Optional[datetime] = None
+    now: datetime | None = None
 ) -> tuple[bool, int]:
     """
     检查是否超出 SLA（纯函数）
@@ -478,7 +478,7 @@ def is_sla_exceeded(
     from datetime import datetime, timezone
 
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
     # 计算经过的小时数
     elapsed = now - created_at

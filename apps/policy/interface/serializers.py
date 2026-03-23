@@ -6,13 +6,20 @@ Interface Layer - Serializers for Policy Management
 P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
-from rest_framework import serializers
 from datetime import date
 from typing import Optional
 
-from ..domain.entities import PolicyLevel
-from ..infrastructure.models import PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel, RSSFetchLog
+from rest_framework import serializers
+
 from shared.infrastructure.sanitization import sanitize_plain_text
+
+from ..domain.entities import PolicyLevel
+from ..infrastructure.models import (
+    PolicyLevelKeywordModel,
+    PolicyLog,
+    RSSFetchLog,
+    RSSSourceConfigModel,
+)
 
 
 class PolicyLevelField(serializers.Field):

@@ -2,13 +2,15 @@
 Django Admin configuration for Macro Data.
 """
 
-from django.contrib import admin
-from django.contrib import messages
+from django.contrib import admin, messages
 from django.shortcuts import redirect
 from django.utils.html import format_html
 
 from apps.macro.infrastructure.models import (
-    MacroIndicator, DataSourceConfig, DataProviderSettings, IndicatorUnitConfig
+    DataProviderSettings,
+    DataSourceConfig,
+    IndicatorUnitConfig,
+    MacroIndicator,
 )
 
 

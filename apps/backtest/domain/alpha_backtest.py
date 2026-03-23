@@ -5,18 +5,19 @@ Integration layer for using Alpha signals in backtesting.
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, List, Dict, Optional, Tuple, Callable
+from typing import Any, Dict, List, Optional, Tuple
 
 from .stock_selection_backtest import (
-    StockSelectionBacktestConfig,
-    StockSelectionBacktestResult,
-    StockSelectionBacktestEngine,
+    RebalanceFrequency,
     RebalanceRecord,
     StockPerformance,
-    RebalanceFrequency,
+    StockSelectionBacktestConfig,
+    StockSelectionBacktestEngine,
+    StockSelectionBacktestResult,
 )
 
 try:
@@ -46,7 +47,7 @@ class AlphaBacktestResult(StockSelectionBacktestResult):
     avg_rank_ic: float = 0.0  # 平均 Rank IC
     icir: float = 0.0  # ICIR
     coverage_ratio: float = 0.0  # 平均覆盖率
-    provider_usage: Dict[str, int] = field(default_factory=dict)  # 各 Provider 使用次数
+    provider_usage: dict[str, int] = field(default_factory=dict)  # 各 Provider 使用次数
 
 
 class AlphaBacktestEngine(StockSelectionBacktestEngine):
@@ -60,9 +61,9 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
     def __init__(
         self,
         config: AlphaBacktestConfig,
-        get_regime_func: Callable[[date], Optional[str]],
-        get_price_func: Callable[[str, date], Optional[Decimal]],
-        get_benchmark_price_func: Callable[[date], Optional[float]],
+        get_regime_func: Callable[[date], str | None],
+        get_price_func: Callable[[str, date], Decimal | None],
+        get_benchmark_price_func: Callable[[date], float | None],
         alpha_service,
     ):
         """
@@ -326,7 +327,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
 
     def _calculate_turnover_rate(
         self,
-        rebalance_records: List[RebalanceRecord]
+        rebalance_records: list[RebalanceRecord]
     ) -> float:
         """
         计算换手率
@@ -359,7 +360,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
 
         return sum(turnover_rates) / len(turnover_rates)
 
-    def _calculate_icir(self, ics: List[float]) -> float:
+    def _calculate_icir(self, ics: list[float]) -> float:
         """
         计算 ICIR（IC 信息比率）
 
@@ -411,11 +412,11 @@ class RunAlphaBacktestRequest:
 @dataclass
 class RunAlphaBacktestResponse:
     """运行 Alpha 回测的响应"""
-    backtest_id: Optional[int]
+    backtest_id: int | None
     status: str
-    result: Optional[Dict[str, Any]]
-    errors: List[str]
-    warnings: List[str]
+    result: dict[str, Any] | None
+    errors: list[str]
+    warnings: list[str]
 
 
 class RunAlphaBacktestUseCase:
@@ -432,9 +433,9 @@ class RunAlphaBacktestUseCase:
     def __init__(
         self,
         repository,
-        get_regime_func: Callable[[date], Optional[str]],
-        get_price_func: Callable[[str, date], Optional[Decimal]],
-        get_benchmark_price_func: Callable[[date], Optional[float]],
+        get_regime_func: Callable[[date], str | None],
+        get_price_func: Callable[[str, date], Decimal | None],
+        get_benchmark_price_func: Callable[[date], float | None],
     ):
         """
         Args:
@@ -553,7 +554,7 @@ class RunAlphaBacktestUseCase:
             )
 
     @staticmethod
-    def _result_to_dict(result: AlphaBacktestResult) -> Dict[str, Any]:
+    def _result_to_dict(result: AlphaBacktestResult) -> dict[str, Any]:
         """将结果转换为字典"""
         return {
             'total_return': result.total_return,

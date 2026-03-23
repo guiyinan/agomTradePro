@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.utils import timezone
 
 from apps.regime.application.current_regime import resolve_current_regime
 
@@ -36,7 +37,7 @@ from ..infrastructure.repositories import (
 logger = logging.getLogger(__name__)
 
 
-def _decimal(value: Any, *, default: Optional[Decimal] = None) -> Optional[Decimal]:
+def _decimal(value: Any, *, default: Decimal | None = None) -> Decimal | None:
     if value in (None, ""):
         return default
     try:
@@ -45,7 +46,7 @@ def _decimal(value: Any, *, default: Optional[Decimal] = None) -> Optional[Decim
         return default
 
 
-def _regime_context() -> Dict[str, Any]:
+def _regime_context() -> dict[str, Any]:
     try:
         current = resolve_current_regime()
         return {
@@ -61,7 +62,7 @@ def _regime_context() -> Dict[str, Any]:
         }
 
 
-def _build_valuation_repair_map(security_codes: list[str]) -> Dict[str, Dict[str, Any]]:
+def _build_valuation_repair_map(security_codes: list[str]) -> dict[str, dict[str, Any]]:
     """批量查询估值修复快照，供决策工作台展示辅助信息。"""
     codes = [(code or "").upper() for code in security_codes if code]
     if not codes:
@@ -113,8 +114,8 @@ def _user_action_label(value: str) -> str:
     }.get(value, value)
 
 
-def _risk_checks(recommendation, market_price: Optional[Decimal]) -> Dict[str, Any]:
-    result: Dict[str, Any] = {}
+def _risk_checks(recommendation, market_price: Decimal | None) -> dict[str, Any]:
+    result: dict[str, Any] = {}
 
     if market_price is None:
         result["price_validation"] = {"passed": True, "reason": "未提供市场价"}
@@ -267,8 +268,8 @@ class ExecutionPreviewView(APIView):
             return Response({"success": False, "error": "recommendation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 优先查找 UnifiedRecommendation（M2 融合推荐）
-        from ..infrastructure.models import UnifiedRecommendationModel
         from ..domain.entities import UnifiedRecommendation
+        from ..infrastructure.models import UnifiedRecommendationModel
 
         uni_rec_model = UnifiedRecommendationModel.objects.filter(
             recommendation_id=recommendation_id
@@ -385,7 +386,7 @@ class ExecutionPreviewView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
-    def _risk_checks_from_unified(self, uni_rec, market_price) -> Dict[str, Any]:
+    def _risk_checks_from_unified(self, uni_rec, market_price) -> dict[str, Any]:
         """从 UnifiedRecommendation 构建风控检查结果"""
         result = {}
 
@@ -442,8 +443,9 @@ class ExecutionPreviewView(APIView):
         self, uni_rec, uni_rec_model, account_id, risk_checks, regime_source, market_price
     ):
         """从 UnifiedRecommendation 创建审批请求"""
-        from uuid import uuid4
         from datetime import datetime, timezone
+        from uuid import uuid4
+
         from ..infrastructure.models import ExecutionApprovalRequestModel
 
         # 计算建议数量
@@ -468,7 +470,7 @@ class ExecutionPreviewView(APIView):
             risk_check_results=risk_checks,
             reviewer_comments="",
             regime_source=regime_source,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         approval_model.save()
 
@@ -517,7 +519,7 @@ class ExecutionApproveView(APIView):
     def _publish_decision_approved_event(self, approval_request):
         """发布决策批准事件，同步 Candidate 状态"""
         try:
-            from apps.events.domain.entities import create_event, EventType
+            from apps.events.domain.entities import EventType, create_event
             from apps.events.domain.services import get_event_bus
 
             event_bus = get_event_bus()
@@ -585,7 +587,7 @@ class ExecutionRejectView(APIView):
     def _publish_decision_rejected_event(self, approval_request):
         """发布决策拒绝事件"""
         try:
-            from apps.events.domain.entities import create_event, EventType
+            from apps.events.domain.entities import EventType, create_event
             from apps.events.domain.services import get_event_bus
 
             event_bus = get_event_bus()
@@ -631,26 +633,26 @@ class ExecutionRequestDetailView(APIView):
 
 
 from ..application.dtos import (
-    UnifiedRecommendationDTO,
+    ConflictDTO,
+    ConflictsListDTO,
+    RecommendationsListDTO,
     RefreshRecommendationsRequestDTO,
     RefreshRecommendationsResponseDTO,
-    ConflictDTO,
-    RecommendationsListDTO,
-    ConflictsListDTO,
+    UnifiedRecommendationDTO,
 )
 from ..application.use_cases import (
-    GetModelParamsUseCase,
-    GenerateUnifiedRecommendationsUseCase,
     GenerateRecommendationsRequest,
-    GetUnifiedRecommendationsUseCase,
-    GetRecommendationsRequest,
-    GetConflictsUseCase,
+    GenerateUnifiedRecommendationsUseCase,
     GetConflictsRequest,
+    GetConflictsUseCase,
+    GetModelParamsUseCase,
+    GetRecommendationsRequest,
+    GetUnifiedRecommendationsUseCase,
 )
 from ..infrastructure.models import (
-    UnifiedRecommendationModel,
     DecisionFeatureSnapshotModel,
     DecisionModelParamConfigModel,
+    UnifiedRecommendationModel,
 )
 
 
@@ -927,22 +929,24 @@ class RefreshRecommendationsView(APIView):
             force: 是否强制刷新（默认 False）
             async_mode: 是否异步执行（默认 True）
         """
+        import uuid
+
         from django.core.cache import cache
+
         from ..application.use_cases import (
             GenerateUnifiedRecommendationsUseCase,
             GetModelParamsUseCase,
         )
         from ..infrastructure.feature_providers import (
-            create_feature_provider,
-            create_valuation_provider,
-            create_signal_provider,
             create_candidate_provider,
+            create_feature_provider,
+            create_signal_provider,
+            create_valuation_provider,
         )
         from ..infrastructure.repositories import (
-            UnifiedRecommendationRepository,
             DecisionModelParamConfigRepository,
+            UnifiedRecommendationRepository,
         )
-        import uuid
 
         # 解析请求
         dto = RefreshRecommendationsRequestDTO.from_dict(request.data or {})

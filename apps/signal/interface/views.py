@@ -2,25 +2,27 @@
 Page Views for Investment Signal Management.
 """
 
-from django.shortcuts import render, redirect
+from datetime import date
+
+from django.db.models import Count, Q
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from django.shortcuts import redirect, render
 from django.utils import timezone
-from rest_framework import viewsets, status
+from django.views.decorators.http import require_http_methods
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from core.cache_utils import cached_api, CACHE_TTL
-from apps.signal.infrastructure.models import InvestmentSignalModel
+
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.signal.application.invalidation_checker import InvalidationCheckService
 from apps.signal.application.use_cases import (
-    ValidateSignalUseCase,
     GetRecommendedAssetsUseCase,
     ValidateSignalRequest,
+    ValidateSignalUseCase,
 )
-from apps.signal.application.invalidation_checker import InvalidationCheckService
 from apps.signal.domain.rules import Eligibility, get_eligibility_matrix
-from django.db.models import Count, Q
-from datetime import date
+from apps.signal.infrastructure.models import InvestmentSignalModel
+from core.cache_utils import CACHE_TTL, cached_api
 
 
 def signal_manage_view(request):
@@ -347,6 +349,7 @@ def signal_eligibility_info_view(request):
 def ai_parse_logic_view(request):
     """AI 解析证伪逻辑"""
     import json
+
     from apps.signal.application.ai_invalidation_helper import ai_parse_invalidation_logic
 
     try:
@@ -415,6 +418,7 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
     def list(self, request):
         """List unified signals"""
         from datetime import date, timedelta
+
         from apps.signal.application.unified_service import UnifiedSignalService
 
         signal_date_str = request.query_params.get("date", date.today().isoformat())
@@ -444,6 +448,7 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
     def collect(self, request):
         """Collect signals from all modules"""
         from datetime import date
+
         from apps.signal.application.unified_service import UnifiedSignalService
 
         signal_date_str = request.data.get("date")
@@ -467,6 +472,7 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
     def summary(self, request):
         """Get signal summary for a date range"""
         from datetime import date, timedelta
+
         from apps.signal.application.unified_service import UnifiedSignalService
 
         days = int(request.query_params.get("days", 30))

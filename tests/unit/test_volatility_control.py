@@ -5,6 +5,7 @@ Unit tests for Volatility Target Control
 """
 
 import pytest
+
 from apps.account.domain.services import VolatilityTargetService
 
 

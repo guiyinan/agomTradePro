@@ -11,13 +11,13 @@ Event Retry Mechanism
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 from ..domain.entities import DomainEvent, EventType
 from ..domain.interfaces import FailedEventRepositoryProtocol
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +43,13 @@ class FailedEventDTO:
     id: int
     event_id: str
     event_type: str
-    payload: Dict[str, Any]
-    metadata: Dict[str, Any]
+    payload: dict[str, Any]
+    metadata: dict[str, Any]
     handler_id: str
     error_message: str
     retry_count: int
     max_retries: int
-    next_retry_at: Optional[datetime]
+    next_retry_at: datetime | None
     status: str
 
 
@@ -75,7 +75,7 @@ class EventRetryManager:
         self,
         max_retries: int = 3,
         base_delay_minutes: int = 5,
-        failed_event_repo: Optional[FailedEventRepositoryProtocol] = None,
+        failed_event_repo: FailedEventRepositoryProtocol | None = None,
     ):
         """
         初始化管理器
@@ -99,7 +99,7 @@ class EventRetryManager:
         event: DomainEvent,
         handler_id: str,
         error: Exception,
-        traceback_str: Optional[str] = None,
+        traceback_str: str | None = None,
     ) -> FailedEventDTO:
         """
         记录失败事件
@@ -143,8 +143,8 @@ class EventRetryManager:
     def get_pending_events(
         self,
         limit: int = 100,
-        handler_id: Optional[str] = None,
-    ) -> List[FailedEventDTO]:
+        handler_id: str | None = None,
+    ) -> list[FailedEventDTO]:
         """
         获取待重试的事件
 
@@ -182,7 +182,7 @@ class EventRetryManager:
             self._repo.update_status(
                 event_db_id=failed_event_dto.id,
                 status="RETRYING",
-                last_retry_at=datetime.now(timezone.utc),
+                last_retry_at=datetime.now(UTC),
             )
 
             # 重建事件对象
@@ -195,7 +195,7 @@ class EventRetryManager:
             event = DomainEvent(
                 event_id=failed_event_dto.event_id,
                 event_type=event_type,
-                occurred_at=datetime.now(timezone.utc),  # 使用当前时间
+                occurred_at=datetime.now(UTC),  # 使用当前时间
                 payload=failed_event_dto.payload,
                 metadata=failed_event_dto.metadata,
             )
@@ -224,7 +224,7 @@ class EventRetryManager:
                 next_retry_at = None
             else:
                 delay_minutes = self.base_delay_minutes * (2 ** (failed_event_dto.retry_count + 1))
-                next_retry_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
+                next_retry_at = datetime.now(UTC) + timedelta(minutes=delay_minutes)
 
             self._repo.increment_retry_count(
                 event_db_id=failed_event_dto.id,
@@ -251,9 +251,9 @@ class EventRetryManager:
 
     def retry_pending_events(
         self,
-        handler_factory: Callable[[str], Optional[Callable[[DomainEvent], None]]],
+        handler_factory: Callable[[str], Callable[[DomainEvent], None] | None],
         limit: int = 100,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
         批量重试待重试的事件
 
@@ -313,7 +313,7 @@ class EventRetryManager:
         """
         return self._repo.cleanup_old_events(days)
 
-    def _dict_to_dto(self, event_dict: Dict[str, Any]) -> FailedEventDTO:
+    def _dict_to_dto(self, event_dict: dict[str, Any]) -> FailedEventDTO:
         """转换字典为 DTO"""
         return FailedEventDTO(
             id=event_dict["id"],
@@ -331,7 +331,7 @@ class EventRetryManager:
 
 
 # 全局单例
-_event_retry_manager: Optional[EventRetryManager] = None
+_event_retry_manager: EventRetryManager | None = None
 
 
 def get_event_retry_manager() -> EventRetryManager:

@@ -13,36 +13,35 @@
 9. 整体分析流程
 """
 
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+
 from apps.equity.domain.entities_valuation_repair import (
-    ValuationRepairPhase,
-    PercentilePoint,
-    ValuationRepairStatus,
-    ValuationRepairConfig,
     DEFAULT_VALUATION_REPAIR_CONFIG,
+    PercentilePoint,
+    ValuationRepairConfig,
+    ValuationRepairPhase,
+    ValuationRepairStatus,
 )
 from apps.equity.domain.services_valuation_repair import (
     # 异常
     InsufficientHistoryError,
     InvalidValuationDataError,
-
+    analyze_repair_status,
+    build_description,
+    build_percentile_series,
+    calculate_confidence,
+    calculate_repair_progress,
+    calculate_repair_speed_per_30d,
     # 函数
     compute_composite_percentile,
-    build_percentile_series,
     detect_repair_start,
     detect_stall,
     determine_phase,
-    calculate_repair_progress,
-    calculate_repair_speed_per_30d,
     estimate_days_to_target,
-    calculate_confidence,
-    build_description,
-    analyze_repair_status
 )
-
 
 # ==================== 测试数据构建工具 ====================
 

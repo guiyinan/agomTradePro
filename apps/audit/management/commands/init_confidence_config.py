@@ -9,6 +9,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.audit.infrastructure.models import ConfidenceConfigModel
 
 
@@ -92,34 +93,34 @@ class Command(BaseCommand):
     def _display_config(self, config: ConfidenceConfigModel):
         """显示配置详情"""
         self.stdout.write('\n配置详情:')
-        self.stdout.write(f'  新鲜度系数:')
+        self.stdout.write('  新鲜度系数:')
         self.stdout.write(f'    发布当天: {config.day_0_coefficient}')
         self.stdout.write(f'    发布1周: {config.day_7_coefficient}')
         self.stdout.write(f'    发布2周: {config.day_14_coefficient}')
         self.stdout.write(f'    发布1月: {config.day_30_coefficient}')
-        self.stdout.write(f'  数据加成:')
+        self.stdout.write('  数据加成:')
         self.stdout.write(f'    日度加成: {config.daily_data_bonus}')
         self.stdout.write(f'    周度加成: {config.weekly_data_bonus}')
         self.stdout.write(f'    一致性加成: {config.daily_consistency_bonus}')
         self.stdout.write(f'  基础置信度: {config.base_confidence}')
-        self.stdout.write(f'  冲突解决:')
+        self.stdout.write('  冲突解决:')
         self.stdout.write(f'    日度持续阈值: {config.daily_persist_threshold}天')
         self.stdout.write(f'    混合权重(日度/月度): {config.hybrid_weight_daily}/{config.hybrid_weight_monthly}')
 
     def _display_config_dict(self, config: dict):
         """显示配置字典"""
         self.stdout.write('\n配置详情:')
-        self.stdout.write(f'  新鲜度系数:')
+        self.stdout.write('  新鲜度系数:')
         self.stdout.write(f'    发布当天: {config["day_0_coefficient"]}')
         self.stdout.write(f'    发布1周: {config["day_7_coefficient"]}')
         self.stdout.write(f'    发布2周: {config["day_14_coefficient"]}')
         self.stdout.write(f'    发布1月: {config["day_30_coefficient"]}')
-        self.stdout.write(f'  数据加成:')
+        self.stdout.write('  数据加成:')
         self.stdout.write(f'    日度加成: {config["daily_data_bonus"]}')
         self.stdout.write(f'    周度加成: {config["weekly_data_bonus"]}')
         self.stdout.write(f'    一致性加成: {config["daily_consistency_bonus"]}')
         self.stdout.write(f'  基础置信度: {config["base_confidence"]}')
-        self.stdout.write(f'  冲突解决:')
+        self.stdout.write('  冲突解决:')
         self.stdout.write(f'    日度持续阈值: {config["daily_persist_threshold"]}天')
         self.stdout.write(f'    混合权重(日度/月度): {config["hybrid_weight_daily"]}/{config["hybrid_weight_monthly"]}')
 

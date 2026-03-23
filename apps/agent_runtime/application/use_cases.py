@@ -1,35 +1,35 @@
 """
 Application Use Cases for Agent Runtime.
 
-These use cases orchestrate business logic for AgentTask operations.
+These use cases orchestate business logic for agentTask operations.
 All use cases follow the FROZEN contract and emit timeline events.
 
 WP-M1-05: Use Cases (020-024)
 See: docs/plans/ai-native/vendor-baseline-contract.md
 """
 
+from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from django.utils import timezone
 
+from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
     AgentTask,
+    EventSource,
     TaskDomain,
     TaskStatus,
-    EventSource,
 )
 from apps.agent_runtime.domain.services import (
-    TaskStateMachine,
     InvalidStateTransitionError,
+    TaskStateMachine,
     get_task_state_machine,
 )
-from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.infrastructure.repositories import AgentTaskRepository
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,8 @@ class CreateTaskInput:
 
     task_domain: str
     task_type: str
-    input_payload: Dict[str, Any]
-    created_by: Optional[int] = None
+    input_payload: dict[str, Any]
+    created_by: int | None = None
 
 
 @dataclass
@@ -64,7 +64,7 @@ class CreateTaskOutput:
 
     task: AgentTask
     request_id: str
-    timeline_event_id: Optional[int] = None
+    timeline_event_id: int | None = None
 
 
 @dataclass
@@ -79,11 +79,11 @@ class GetTaskOutput:
 class ListTasksInput:
     """Input DTO for listing tasks."""
 
-    status: Optional[str] = None
-    task_domain: Optional[str] = None
-    task_type: Optional[str] = None
-    requires_human: Optional[bool] = None
-    search: Optional[str] = None
+    status: str | None = None
+    task_domain: str | None = None
+    task_type: str | None = None
+    requires_human: bool | None = None
+    search: str | None = None
     limit: int = 50
     offset: int = 0
 
@@ -92,7 +92,7 @@ class ListTasksInput:
 class ListTasksOutput:
     """Output DTO for listing tasks."""
 
-    tasks: List[AgentTask]
+    tasks: list[AgentTask]
     total_count: int
     request_id: str
 
@@ -102,9 +102,9 @@ class ResumeTaskInput:
     """Input DTO for resuming a task."""
 
     task_id: int
-    target_status: Optional[str] = None
-    reason: Optional[str] = None
-    actor: Optional[Dict[str, Any]] = None
+    target_status: str | None = None
+    reason: str | None = None
+    actor: dict[str, Any] | None = None
 
 
 @dataclass
@@ -113,7 +113,7 @@ class ResumeTaskOutput:
 
     task: AgentTask
     request_id: str
-    timeline_event_id: Optional[int] = None
+    timeline_event_id: int | None = None
 
 
 @dataclass
@@ -122,7 +122,7 @@ class CancelTaskInput:
 
     task_id: int
     reason: str
-    actor: Optional[Dict[str, Any]] = None
+    actor: dict[str, Any] | None = None
 
 
 @dataclass
@@ -131,7 +131,7 @@ class CancelTaskOutput:
 
     task: AgentTask
     request_id: str
-    timeline_event_id: Optional[int] = None
+    timeline_event_id: int | None = None
 
 
 class CreateTaskUseCase:
@@ -143,10 +143,10 @@ class CreateTaskUseCase:
 
     def __init__(
         self,
-        state_machine: Optional[TaskStateMachine] = None,
-        timeline_service: Optional[TimelineEventWriterService] = None,
+        state_machine: TaskStateMachine | None = None,
+        timeline_service: TimelineEventWriterService | None = None,
         audit_service: Optional["AgentRuntimeAuditService"] = None,
-        task_repo: Optional[AgentTaskRepository] = None,
+        task_repo: AgentTaskRepository | None = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
@@ -155,6 +155,7 @@ class CreateTaskUseCase:
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
+
                 self.audit_service = get_audit_service()
             except Exception:
                 self.audit_service = None
@@ -228,7 +229,7 @@ class GetTaskUseCase:
     Use case for retrieving a single AgentTask.
     """
 
-    def __init__(self, task_repo: Optional[AgentTaskRepository] = None):
+    def __init__(self, task_repo: AgentTaskRepository | None = None):
         self.task_repo = task_repo or AgentTaskRepository()
 
     def execute(self, task_id: int) -> GetTaskOutput:
@@ -257,12 +258,12 @@ class ListTasksUseCase:
     Use case for listing AgentTasks with filters.
     """
 
-    def __init__(self, task_repo: Optional[AgentTaskRepository] = None):
+    def __init__(self, task_repo: AgentTaskRepository | None = None):
         self.task_repo = task_repo or AgentTaskRepository()
 
     def execute(
         self,
-        input_dto: Optional[ListTasksInput] = None,
+        input_dto: ListTasksInput | None = None,
         **filters: Any,
     ) -> ListTasksOutput:
         """
@@ -307,10 +308,10 @@ class ResumeTaskUseCase:
 
     def __init__(
         self,
-        state_machine: Optional[TaskStateMachine] = None,
-        timeline_service: Optional[TimelineEventWriterService] = None,
+        state_machine: TaskStateMachine | None = None,
+        timeline_service: TimelineEventWriterService | None = None,
         audit_service: Optional["AgentRuntimeAuditService"] = None,
-        task_repo: Optional[AgentTaskRepository] = None,
+        task_repo: AgentTaskRepository | None = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
@@ -319,6 +320,7 @@ class ResumeTaskUseCase:
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
+
                 self.audit_service = get_audit_service()
             except Exception:
                 self.audit_service = None
@@ -436,10 +438,10 @@ class CancelTaskUseCase:
 
     def __init__(
         self,
-        state_machine: Optional[TaskStateMachine] = None,
-        timeline_service: Optional[TimelineEventWriterService] = None,
+        state_machine: TaskStateMachine | None = None,
+        timeline_service: TimelineEventWriterService | None = None,
         audit_service: Optional["AgentRuntimeAuditService"] = None,
-        task_repo: Optional[AgentTaskRepository] = None,
+        task_repo: AgentTaskRepository | None = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
@@ -448,6 +450,7 @@ class CancelTaskUseCase:
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
+
                 self.audit_service = get_audit_service()
             except Exception:
                 self.audit_service = None

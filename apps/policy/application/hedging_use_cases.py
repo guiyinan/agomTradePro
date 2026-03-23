@@ -5,10 +5,10 @@ Policy Application - Hedging Use Cases
 """
 
 import logging
-from decimal import Decimal
-from typing import Optional, Dict, List
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Dict, List, Optional
 
 from django.utils import timezone
 
@@ -119,7 +119,7 @@ class ExecuteHedgingUseCase:
         portfolio_id: int,
         user_id: int,
         calculation: HedgeCalculationResult,
-    ) -> Optional[HedgeExecutionResult]:
+    ) -> HedgeExecutionResult | None:
         """
         执行对冲操作
 
@@ -198,7 +198,7 @@ class HedgeEffectivenessAnalyzer:
         self,
         portfolio_id: int,
         hedge_id: int,
-    ) -> Dict:
+    ) -> dict:
         """
         分析对冲效果
 
@@ -266,7 +266,7 @@ class HedgeEffectivenessAnalyzer:
         self,
         portfolio_id: int,
         hedge: 'HedgePositionModel',
-    ) -> Dict:
+    ) -> dict:
         """
         根据持仓和对冲标的历史收益率，回归计算 beta
 
@@ -275,10 +275,11 @@ class HedgeEffectivenessAnalyzer:
         """
         try:
             import numpy as np
+
             from apps.account.infrastructure.models import PositionModel
             from apps.equity.infrastructure.adapters import (
-                TushareStockAdapter,
                 MarketDataRepositoryAdapter,
+                TushareStockAdapter,
             )
 
             # 获取持仓

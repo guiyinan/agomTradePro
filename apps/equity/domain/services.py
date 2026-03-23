@@ -7,11 +7,11 @@
 - 所有金融逻辑必须在此层
 """
 
-from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from .entities import StockInfo, FinancialData, ValuationMetrics, ScoringWeightConfig
+from .entities import FinancialData, ScoringWeightConfig, StockInfo, ValuationMetrics
 from .rules import StockScreeningRule
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class StockScreener:
     """个股筛选服务（纯 Domain 层逻辑）"""
 
-    def __init__(self, scoring_config: Optional[ScoringWeightConfig] = None) -> None:
+    def __init__(self, scoring_config: ScoringWeightConfig | None = None) -> None:
         """
         初始化筛选器
 
@@ -32,9 +32,9 @@ class StockScreener:
 
     def screen(
         self,
-        all_stocks: List[Tuple[StockInfo, FinancialData, ValuationMetrics]],
+        all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule
-    ) -> List[str]:
+    ) -> list[str]:
         """
         根据规则筛选个股
 
@@ -63,8 +63,8 @@ class StockScreener:
 
     def _collect_market_metrics(
         self,
-        all_stocks: List[Tuple[StockInfo, FinancialData, ValuationMetrics]]
-    ) -> Dict[str, List[float]]:
+        all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]]
+    ) -> dict[str, list[float]]:
         """
         收集全市场指标用于分位数计算
 
@@ -140,7 +140,7 @@ class StockScreener:
         financial: FinancialData,
         valuation: ValuationMetrics,
         rule: StockScreeningRule,
-        market_metrics: Dict[str, List[float]]
+        market_metrics: dict[str, list[float]]
     ) -> float:
         """
         计算综合评分（使用分位数归一化法）
@@ -206,7 +206,7 @@ class StockScreener:
 
         return total_score
 
-    def _percentile(self, value: float, reference: List[float]) -> float:
+    def _percentile(self, value: float, reference: list[float]) -> float:
         """
         计算值在参考列表中的分位数 (0-1)
 
@@ -262,7 +262,7 @@ class ValuationAnalyzer:
     def calculate_pe_percentile(
         self,
         current_pe: float,
-        historical_pe: List[float]
+        historical_pe: list[float]
     ) -> float:
         """
         计算 PE 在历史中的分位数
@@ -291,7 +291,7 @@ class ValuationAnalyzer:
     def calculate_pb_percentile(
         self,
         current_pb: float,
-        historical_pb: List[float]
+        historical_pb: list[float]
     ) -> float:
         """
         计算 PB 在历史中的分位数
@@ -384,9 +384,9 @@ class RegimeCorrelationAnalyzer:
 
     def calculate_regime_correlation(
         self,
-        stock_returns: Dict[date, float],
-        regime_history: Dict[date, str]
-    ) -> Dict[str, float]:
+        stock_returns: dict[date, float],
+        regime_history: dict[date, str]
+    ) -> dict[str, float]:
         """
         计算个股在不同 Regime 下的平均收益
 
@@ -423,10 +423,10 @@ class RegimeCorrelationAnalyzer:
 
     def calculate_regime_beta(
         self,
-        stock_returns: Dict[date, float],
-        market_returns: Dict[date, float],
-        regime_history: Dict[date, str]
-    ) -> Dict[str, float]:
+        stock_returns: dict[date, float],
+        market_returns: dict[date, float],
+        regime_history: dict[date, str]
+    ) -> dict[str, float]:
         """
         计算个股在不同 Regime 下的 Beta（相对于市场）
 
@@ -466,8 +466,8 @@ class RegimeCorrelationAnalyzer:
 
     def _calculate_beta(
         self,
-        stock_returns: List[float],
-        market_returns: List[float]
+        stock_returns: list[float],
+        market_returns: list[float]
     ) -> float:
         """
         计算 Beta（协方差 / 市场方差）

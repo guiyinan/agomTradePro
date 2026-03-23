@@ -79,7 +79,7 @@ def _build_market_data_unavailable_hint(market_closed: bool) -> str:
 
     try:
         get_secrets()
-    except EnvironmentError:
+    except OSError:
         hint_parts.append("检测到未配置 Tushare Token，收盘价备用源当前不可用。")
 
     hint_parts.append("请检查东方财富连接状态，或在后台/环境变量中补齐 TUSHARE_TOKEN。")

@@ -12,7 +12,6 @@ from pathlib import Path
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -125,7 +124,7 @@ class Command(BaseCommand):
         async_mode = options.get('async', False)
         model_path = options.get('model_path', '/models/qlib')
 
-        self.stdout.write(self.style.SUCCESS(f'Qlib 模型训练'))
+        self.stdout.write(self.style.SUCCESS('Qlib 模型训练'))
         self.stdout.write(f'  模型名称: {name}')
         self.stdout.write(f'  模型类型: {model_type}')
         self.stdout.write(f'  股票池: {universe}')
@@ -169,7 +168,7 @@ class Command(BaseCommand):
         )
 
         if result['success']:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ 模型训练完成'))
+            self.stdout.write(self.style.SUCCESS('  ✓ 模型训练完成'))
             self.stdout.write(f'    Artifact Hash: {result["artifact_hash"][:8]}...')
             self.stdout.write(f'    IC: {result.get("ic", "N/A")}')
             self.stdout.write(f'    ICIR: {result.get("icir", "N/A")}')
@@ -346,6 +345,7 @@ class Command(BaseCommand):
         # 2) 尝试缓存评估
         try:
             from datetime import timedelta
+
             from apps.alpha.infrastructure.cache_evaluation import evaluate_model_from_cache
 
             end_date = timezone.now().date()

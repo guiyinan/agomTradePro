@@ -73,6 +73,7 @@ class _StubStockRepository:
 @pytest.mark.django_db
 def test_status_use_case_passes_runtime_config(monkeypatch):
     from datetime import date, timedelta
+
     import apps.equity.application.use_cases_valuation_repair as target_module
 
     captured = {}

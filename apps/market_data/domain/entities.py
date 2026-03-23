@@ -20,16 +20,16 @@ class QuoteSnapshot:
 
     stock_code: str
     price: Decimal
-    change: Optional[Decimal] = None
-    change_pct: Optional[float] = None
-    volume: Optional[int] = None
-    amount: Optional[Decimal] = None
-    turnover_rate: Optional[float] = None
-    volume_ratio: Optional[float] = None
-    high: Optional[Decimal] = None
-    low: Optional[Decimal] = None
-    open: Optional[Decimal] = None
-    pre_close: Optional[Decimal] = None
+    change: Decimal | None = None
+    change_pct: float | None = None
+    volume: int | None = None
+    amount: Decimal | None = None
+    turnover_rate: float | None = None
+    volume_ratio: float | None = None
+    high: Decimal | None = None
+    low: Decimal | None = None
+    open: Decimal | None = None
+    pre_close: Decimal | None = None
     source: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now())
 
@@ -109,7 +109,7 @@ class StockNewsItem:
     title: str
     content: str = ""
     published_at: datetime = field(default_factory=lambda: datetime.now())
-    url: Optional[str] = None
+    url: str | None = None
     source: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now())
 
@@ -151,21 +151,21 @@ class TechnicalSnapshot:
     stock_code: str
     trade_date: date
     close: Decimal
-    ma5: Optional[Decimal] = None
-    ma20: Optional[Decimal] = None
-    ma60: Optional[Decimal] = None
-    macd: Optional[float] = None
-    macd_signal: Optional[float] = None
-    macd_hist: Optional[float] = None
-    rsi: Optional[float] = None
-    kdj_k: Optional[float] = None
-    kdj_d: Optional[float] = None
-    kdj_j: Optional[float] = None
-    boll_upper: Optional[float] = None
-    boll_mid: Optional[float] = None
-    boll_lower: Optional[float] = None
-    turnover_rate: Optional[float] = None
-    volume_ratio: Optional[float] = None
+    ma5: Decimal | None = None
+    ma20: Decimal | None = None
+    ma60: Decimal | None = None
+    macd: float | None = None
+    macd_signal: float | None = None
+    macd_hist: float | None = None
+    rsi: float | None = None
+    kdj_k: float | None = None
+    kdj_d: float | None = None
+    kdj_j: float | None = None
+    boll_upper: float | None = None
+    boll_mid: float | None = None
+    boll_lower: float | None = None
+    turnover_rate: float | None = None
+    volume_ratio: float | None = None
     source: str = ""
 
     def __post_init__(self) -> None:
@@ -210,8 +210,8 @@ class HistoricalPriceBar:
     high: float
     low: float
     close: float
-    volume: Optional[int] = None
-    amount: Optional[float] = None
+    volume: int | None = None
+    amount: float | None = None
     source: str = ""
 
     def __post_init__(self) -> None:
@@ -245,10 +245,10 @@ class ProviderStatus:
     provider_name: str
     capability: str
     is_healthy: bool
-    last_success_at: Optional[datetime] = None
+    last_success_at: datetime | None = None
     consecutive_failures: int = 0
-    circuit_open_until: Optional[datetime] = None
-    avg_latency_ms: Optional[float] = None
+    circuit_open_until: datetime | None = None
+    avg_latency_ms: float | None = None
 
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -281,7 +281,7 @@ class RawPayload:
     request_type: str
     stock_code: str
     provider_name: str
-    payload: Dict
+    payload: dict
     parse_status: str = "success"
     error_message: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now())

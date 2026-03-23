@@ -3,10 +3,10 @@ Share API URL Configuration
 
 API 路由配置。
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.share.interface.views import ShareLinkViewSet, PublicShareViewSet
+from apps.share.interface.views import PublicShareViewSet, ShareLinkViewSet
 
 app_name = "share_api"
 

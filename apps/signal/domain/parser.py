@@ -10,14 +10,14 @@
 import re
 from typing import Dict, List, Optional
 
-from .invalidation import (
-    InvalidationRule,
-    InvalidationCondition,
-    ComparisonOperator,
-    LogicOperator,
-    IndicatorType,
-)
 from .indicators import find_indicator_by_alias
+from .invalidation import (
+    ComparisonOperator,
+    IndicatorType,
+    InvalidationCondition,
+    InvalidationRule,
+    LogicOperator,
+)
 
 
 class ParseResult:
@@ -29,10 +29,10 @@ class ParseResult:
     def __init__(
         self,
         success: bool,
-        rule: Optional[InvalidationRule] = None,
-        condition: Optional[InvalidationCondition] = None,
-        error: Optional[str] = None,
-        warnings: Optional[List[str]] = None,
+        rule: InvalidationRule | None = None,
+        condition: InvalidationCondition | None = None,
+        error: str | None = None,
+        warnings: list[str] | None = None,
     ):
         self.success = success
         self.rule = rule
@@ -136,7 +136,7 @@ class InvalidationLogicParser:
                 return LogicOperator.OR
         return LogicOperator.AND
 
-    def _split_conditions(self, text: str, logic: LogicOperator) -> List[str]:
+    def _split_conditions(self, text: str, logic: LogicOperator) -> list[str]:
         """分割多个条件
 
         Args:
@@ -189,7 +189,7 @@ class InvalidationLogicParser:
         op = self._extract_operator(text)
         if not op:
             op = ComparisonOperator.LT  # 默认小于
-            warnings.append(f"未检测到比较操作符，默认使用 '<'")
+            warnings.append("未检测到比较操作符，默认使用 '<'")
 
         # 3. 提取阈值
         threshold = self._extract_threshold(text)
@@ -217,7 +217,7 @@ class InvalidationLogicParser:
         except ValueError as e:
             return ParseResult(success=False, error=str(e))
 
-    def _extract_operator(self, text: str) -> Optional[ComparisonOperator]:
+    def _extract_operator(self, text: str) -> ComparisonOperator | None:
         """提取比较操作符
 
         Args:
@@ -232,7 +232,7 @@ class InvalidationLogicParser:
                     return op
         return None
 
-    def _extract_threshold(self, text: str) -> Optional[float]:
+    def _extract_threshold(self, text: str) -> float | None:
         """提取阈值
 
         支持多种格式：
@@ -261,7 +261,7 @@ class InvalidationLogicParser:
                     continue
         return None
 
-    def _extract_duration(self, text: str) -> Optional[int]:
+    def _extract_duration(self, text: str) -> int | None:
         """提取持续时间
 
         支持格式：
@@ -284,7 +284,7 @@ class InvalidationLogicParser:
         return None
 
 
-def find_indicators_in_text(text: str) -> List:
+def find_indicators_in_text(text: str) -> list:
     """在文本中查找可能的指标
 
     用于提供错误提示和建议。
@@ -315,7 +315,7 @@ def find_indicators_in_text(text: str) -> List:
     return found
 
 
-def validate_parse_input(user_input: str) -> List[str]:
+def validate_parse_input(user_input: str) -> list[str]:
     """验证解析输入的有效性
 
     在解析前进行基本验证，提供友好的错误提示。

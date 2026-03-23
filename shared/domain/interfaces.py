@@ -4,9 +4,9 @@ Shared Domain Interfaces and Protocols.
 Defines protocols that infrastructure layer must implement.
 """
 
-from typing import Protocol, List, Optional, TypeVar, Generic, Any
-from dataclasses import dataclass
 from abc import abstractmethod
+from dataclasses import dataclass
+from typing import Any, Generic, List, Optional, Protocol, TypeVar
 
 # Generic type variable for entities
 T = TypeVar('T')
@@ -25,7 +25,7 @@ class TrendCalculatorProtocol(Protocol):
 
     def calculate_hp_trend(
         self,
-        series: List[float],
+        series: list[float],
         lamb: float = 129600
     ) -> TrendResult:
         """HP 滤波计算趋势"""
@@ -33,7 +33,7 @@ class TrendCalculatorProtocol(Protocol):
 
     def calculate_z_scores(
         self,
-        series: List[float],
+        series: list[float],
         window: int = 60
     ) -> tuple[float, ...]:
         """计算 Z-score"""
@@ -45,13 +45,13 @@ class DataSourceSecretsDTO:
     """数据源密钥数据传输对象"""
     tushare_token: str
     fred_api_key: str
-    juhe_api_key: Optional[str] = None
+    juhe_api_key: str | None = None
 
 
 class DatabaseSecretsLoaderProtocol(Protocol):
     """数据库密钥加载协议"""
 
-    def __call__(self) -> Optional[DataSourceSecretsDTO]:
+    def __call__(self) -> DataSourceSecretsDTO | None:
         """从数据库加载密钥
 
         Returns:
@@ -81,7 +81,7 @@ class RepositoryProtocol(Protocol, Generic[T, T_id]):
             def find_active_signals(self, asset_code: str) -> List[InvestmentSignal]: ...
     """
 
-    def get_by_id(self, id: T_id) -> Optional[T]:
+    def get_by_id(self, id: T_id) -> T | None:
         """Retrieve an entity by its identifier.
 
         Args:
@@ -92,7 +92,7 @@ class RepositoryProtocol(Protocol, Generic[T, T_id]):
         """
         ...
 
-    def get_all(self) -> List[T]:
+    def get_all(self) -> list[T]:
         """Retrieve all entities.
 
         Returns:
@@ -130,7 +130,7 @@ class FilterableRepositoryProtocol(RepositoryProtocol[T, T_id], Protocol):
     Use this when the repository needs to support complex queries.
     """
 
-    def find_by_criteria(self, **criteria: Any) -> List[T]:
+    def find_by_criteria(self, **criteria: Any) -> list[T]:
         """Find entities matching the given criteria.
 
         Args:

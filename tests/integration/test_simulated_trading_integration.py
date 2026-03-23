@@ -7,23 +7,13 @@
 - 持仓更新
 - 绩效计算
 """
-import pytest
-from django.test import TestCase
 from datetime import date, datetime
 from decimal import Decimal
 
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    FeeConfigModel,
-)
-from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
-    DjangoPositionRepository,
-    DjangoTradeRepository,
-    DjangoFeeConfigRepository,
-)
+import pytest
+from django.test import TestCase
+
+from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.use_cases import (
     CreateSimulatedAccountUseCase,
     ExecuteBuyOrderUseCase,
@@ -31,7 +21,18 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
-from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.simulated_trading.infrastructure.models import (
+    FeeConfigModel,
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
+)
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoFeeConfigRepository,
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
+    DjangoTradeRepository,
+)
 
 
 @pytest.mark.django_db

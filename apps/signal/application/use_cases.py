@@ -6,15 +6,15 @@ Application layer orchestrating the workflow of signal validation.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, List
+from typing import List, Optional
 
 from ..domain.entities import InvestmentSignal, SignalStatus
 from ..domain.rules import (
-    validate_invalidation_logic,
-    should_reject_signal,
-    create_rejection_record,
     RejectionRecord,
     ValidationResult,
+    create_rejection_record,
+    should_reject_signal,
+    validate_invalidation_logic,
 )
 
 
@@ -26,7 +26,7 @@ class ValidateSignalRequest:
     direction: str
     logic_desc: str
     invalidation_logic: str
-    invalidation_threshold: Optional[float]
+    invalidation_threshold: float | None
     target_regime: str
     current_regime: str
     policy_level: int
@@ -38,10 +38,10 @@ class ValidateSignalResponse:
     """验证投资信号的响应 DTO"""
     is_valid: bool
     is_approved: bool
-    rejection_record: Optional[RejectionRecord]
+    rejection_record: RejectionRecord | None
     logic_validation: ValidationResult
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
 
 class ValidateSignalUseCase:
@@ -117,7 +117,7 @@ class ValidateSignalUseCase:
     def validate_and_create_signal(
         self,
         request: ValidateSignalRequest
-    ) -> Optional[InvestmentSignal]:
+    ) -> InvestmentSignal | None:
         """
         验证并创建信号（如果通过）
 
@@ -249,9 +249,9 @@ class GetRecommendedAssetsRequest:
 @dataclass
 class GetRecommendedAssetsResponse:
     """获取推荐资产的响应 DTO"""
-    recommended: List[str]
-    neutral: List[str]
-    hostile: List[str]
+    recommended: list[str]
+    neutral: list[str]
+    hostile: list[str]
 
 
 class GetRecommendedAssetsUseCase:
@@ -275,7 +275,7 @@ class GetRecommendedAssetsUseCase:
         Returns:
             GetRecommendedAssetsResponse: 推荐资产分类
         """
-        from ..domain.rules import get_eligibility_matrix, Eligibility
+        from ..domain.rules import Eligibility, get_eligibility_matrix
 
         recommended = []
         neutral = []
@@ -302,7 +302,7 @@ class GetRecommendedAssetsUseCase:
 class ReevaluateSignalsRequest:
     """重评信号的请求 DTO"""
     policy_level: int
-    current_regime: Optional[str] = None
+    current_regime: str | None = None
     regime_confidence: float = 0.0
 
 
@@ -311,7 +311,7 @@ class ReevaluateSignalsResponse:
     """重评信号的响应 DTO"""
     total_count: int
     rejected_count: int
-    rejected_signal_ids: List[str]
+    rejected_signal_ids: list[str]
 
 
 class ReevaluateSignalsUseCase:

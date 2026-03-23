@@ -11,14 +11,13 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Optional
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +40,10 @@ class TerminalChatRouterService:
         self,
         *,
         message: str,
-        session_id: Optional[str],
-        provider_ref: Optional[str],
-        model: Optional[str],
-        context: Optional[dict[str, Any]] = None,
+        session_id: str | None,
+        provider_ref: str | None,
+        model: str | None,
+        context: dict[str, Any] | None = None,
         answer_chain_enabled: bool = False,
         user_is_admin: bool = False,
     ) -> dict[str, Any]:
@@ -120,8 +119,8 @@ class TerminalChatRouterService:
         self,
         *,
         message: str,
-        provider_ref: Optional[str],
-        model: Optional[str],
+        provider_ref: str | None,
+        model: str | None,
     ) -> TerminalIntentDecision:
         ai_factory = AIClientFactory()
         ai_client = ai_factory.get_client(provider_ref)
@@ -216,7 +215,7 @@ class TerminalChatRouterService:
             _line("Redis", checks.get("redis", {})),
             _line("Celery", checks.get("celery", {})),
             _line("Critical Data", checks.get("critical_data", {})),
-            f"- **Timestamp**: `{datetime.now(timezone.utc).isoformat()}`",
+            f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
         ])
 
         return {
@@ -285,8 +284,8 @@ class TerminalChatRouterService:
         *,
         message: str,
         session_id: str,
-        provider_ref: Optional[str],
-        model: Optional[str],
+        provider_ref: str | None,
+        model: str | None,
         context: dict[str, Any],
         decision: TerminalIntentDecision,
         answer_chain_enabled: bool,
@@ -330,7 +329,7 @@ class TerminalChatRouterService:
             "suggestion_prompt": None,
         }
 
-    def _metadata_answer_chain(self, enabled: bool, chain: Optional[dict[str, Any]]) -> dict[str, Any]:
+    def _metadata_answer_chain(self, enabled: bool, chain: dict[str, Any] | None) -> dict[str, Any]:
         if not enabled or not chain:
             return {}
         return {"answer_chain": chain}

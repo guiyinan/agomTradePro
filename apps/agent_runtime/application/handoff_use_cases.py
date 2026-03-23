@@ -6,24 +6,23 @@ WP-M4-02: Resume and handoff behavior.
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
-from apps.agent_runtime.domain.entities import (
-    AgentTask,
-    TaskStatus,
-    EventSource,
-)
 from apps.agent_runtime.application.services import TimelineEventWriterService
-from apps.agent_runtime.domain.entities import TERMINAL_PROPOSAL_STATUSES
+from apps.agent_runtime.domain.entities import (
+    TERMINAL_PROPOSAL_STATUSES,
+    AgentTask,
+    EventSource,
+    TaskStatus,
+)
 from apps.agent_runtime.infrastructure.repositories import (
     AgentContextRepository,
     AgentHandoffRepository,
     AgentProposalRepository,
     AgentTaskRepository,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +32,9 @@ class HandoffInput:
     task_id: int
     to_agent: str
     handoff_reason: str
-    recommended_next_action: Optional[str] = None
-    open_risks: Optional[List[str]] = None
-    actor: Optional[Dict[str, Any]] = None
+    recommended_next_action: str | None = None
+    open_risks: list[str] | None = None
+    actor: dict[str, Any] | None = None
 
 
 @dataclass
@@ -43,7 +42,7 @@ class HandoffOutput:
     task_id: int
     request_id: str
     handoff_id: int
-    handoff_payload: Dict[str, Any]
+    handoff_payload: dict[str, Any]
 
 
 class HandoffTaskUseCase:
@@ -61,11 +60,11 @@ class HandoffTaskUseCase:
 
     def __init__(
         self,
-        timeline_service: Optional[TimelineEventWriterService] = None,
-        task_repo: Optional[AgentTaskRepository] = None,
-        context_repo: Optional[AgentContextRepository] = None,
-        proposal_repo: Optional[AgentProposalRepository] = None,
-        handoff_repo: Optional[AgentHandoffRepository] = None,
+        timeline_service: TimelineEventWriterService | None = None,
+        task_repo: AgentTaskRepository | None = None,
+        context_repo: AgentContextRepository | None = None,
+        proposal_repo: AgentProposalRepository | None = None,
+        handoff_repo: AgentHandoffRepository | None = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.task_repo = task_repo or AgentTaskRepository()

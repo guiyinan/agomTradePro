@@ -7,18 +7,19 @@
 - 审计日志记录
 """
 
+from datetime import UTC, datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from django.contrib.auth.models import User
 from django.utils import timezone as django_timezone
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (
-    PortfolioModel,
-    PositionModel,
-    PortfolioObserverGrantModel,
     AssetCategoryModel,
     CurrencyModel,
+    PortfolioModel,
+    PortfolioObserverGrantModel,
+    PositionModel,
 )
 
 
@@ -261,7 +262,7 @@ class TestObserverAccessPermission:
         """过期授权被拒绝"""
         data = setup_observer_test_data
         # 设置授权为已过期
-        data['grant'].expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+        data['grant'].expires_at = datetime.now(UTC) - timedelta(days=1)
         data['grant'].save()
 
         client = APIClient()

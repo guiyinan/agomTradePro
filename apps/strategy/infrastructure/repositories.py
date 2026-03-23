@@ -7,51 +7,51 @@ Infrastructure层:
 - 提供ORM对象到Domain实体的转换
 """
 import logging
-from typing import List, Optional
 from dataclasses import asdict
 from datetime import datetime
 from hashlib import sha256
+from typing import List, Optional
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q, F, Prefetch, Max
+from django.db.models import F, Max, Prefetch, Q
 
 from apps.strategy.domain.entities import (
-    Strategy,
-    StrategyType,
     ActionType,
-    RuleType,
-    ApprovalMode,
-    RiskControlParams,
-    StrategyConfig,
-    ScriptConfig,
     AIConfig,
-    RuleCondition,
-    SignalRecommendation,
-    StrategyExecutionResult,
+    ApprovalMode,
+    DecisionAction,
+    DecisionResult,
     OrderIntent,
     OrderSide,
     OrderStatus,
-    TimeInForce,
-    DecisionResult,
-    DecisionAction,
-    SizingResult,
+    RiskControlParams,
     RiskSnapshot,
+    RuleCondition,
+    RuleType,
+    ScriptConfig,
+    SignalRecommendation,
+    SizingResult,
+    Strategy,
+    StrategyConfig,
+    StrategyExecutionResult,
+    StrategyType,
+    TimeInForce,
 )
 from apps.strategy.domain.protocols import (
-    StrategyRepositoryProtocol,
+    OrderIntentRepositoryProtocol,
     RuleConditionRepositoryProtocol,
     StrategyExecutionLogRepositoryProtocol,
-    OrderIntentRepositoryProtocol,
+    StrategyRepositoryProtocol,
 )
 from apps.strategy.infrastructure.models import (
-    StrategyModel,
+    AIStrategyConfigModel,
+    OrderIntentModel,
+    PortfolioStrategyAssignmentModel,
     RuleConditionModel,
     ScriptConfigModel,
-    AIStrategyConfigModel,
-    PortfolioStrategyAssignmentModel,
     StrategyExecutionLogModel,
+    StrategyModel,
     StrategyParamVersionModel,
-    OrderIntentModel,
 )
 
 logger = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ class DjangoStrategyRepository:
             }
         )
 
-    def _save_rule_conditions(self, strategy_orm: StrategyModel, rule_conditions: List[RuleCondition]):
+    def _save_rule_conditions(self, strategy_orm: StrategyModel, rule_conditions: list[RuleCondition]):
         """保存规则条件"""
         # 删除现有规则
         RuleConditionModel._default_manager.filter(strategy=strategy_orm).delete()
@@ -242,7 +242,7 @@ class DjangoStrategyRepository:
                 is_enabled=rule.is_enabled
             )
 
-    def get_by_id(self, strategy_id: int) -> Optional[Strategy]:
+    def get_by_id(self, strategy_id: int) -> Strategy | None:
         """
         根据ID获取策略
 
@@ -258,7 +258,7 @@ class DjangoStrategyRepository:
         except StrategyModel.DoesNotExist:
             return None
 
-    def get_by_user(self, user_id: int, is_active: bool = True) -> List[Strategy]:
+    def get_by_user(self, user_id: int, is_active: bool = True) -> list[Strategy]:
         """
         获取用户的策略列表
 
@@ -276,7 +276,7 @@ class DjangoStrategyRepository:
         orm_objects = queryset.all()
         return [self._orm_to_domain_entity(obj) for obj in orm_objects]
 
-    def get_active_strategies_for_portfolio(self, portfolio_id: int) -> List[Strategy]:
+    def get_active_strategies_for_portfolio(self, portfolio_id: int) -> list[Strategy]:
         """
         获取投资组合的激活策略
 
@@ -397,7 +397,7 @@ class DjangoRuleConditionRepository:
 
         return orm_obj.id
 
-    def get_by_strategy(self, strategy_id: int) -> List[RuleCondition]:
+    def get_by_strategy(self, strategy_id: int) -> list[RuleCondition]:
         """
         获取策略的所有规则条件
 
@@ -517,7 +517,7 @@ class DjangoStrategyExecutionLogRepository:
             logger.error(f"Failed to save execution log: {e}")
             return 0  # 返回0表示保存失败
 
-    def get_by_strategy(self, strategy_id: int, limit: int = 100) -> List[StrategyExecutionResult]:
+    def get_by_strategy(self, strategy_id: int, limit: int = 100) -> list[StrategyExecutionResult]:
         """
         获取策略的执行日志
 
@@ -534,7 +534,7 @@ class DjangoStrategyExecutionLogRepository:
 
         return [self._orm_to_domain_entity(obj) for obj in orm_objects]
 
-    def get_by_portfolio(self, portfolio_id: int, limit: int = 100) -> List[StrategyExecutionResult]:
+    def get_by_portfolio(self, portfolio_id: int, limit: int = 100) -> list[StrategyExecutionResult]:
         """
         获取投资组合的执行日志
 
@@ -586,7 +586,7 @@ class StrategyParamRepository:
         change_description: str = "",
         changed_by_id: int = None,
         set_as_active: bool = True
-    ) -> Optional[StrategyParamVersionModel]:
+    ) -> StrategyParamVersionModel | None:
         """
         保存策略参数新版本
 
@@ -850,14 +850,14 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
             orm_obj = OrderIntentModel._default_manager.get(intent_id=intent.intent_id)
             return self._orm_to_domain_entity(orm_obj)
 
-    def get_by_id(self, intent_id: str) -> Optional[OrderIntent]:
+    def get_by_id(self, intent_id: str) -> OrderIntent | None:
         try:
             orm_obj = OrderIntentModel._default_manager.get(intent_id=intent_id)
             return self._orm_to_domain_entity(orm_obj)
         except OrderIntentModel.DoesNotExist:
             return None
 
-    def get_by_idempotency_key(self, idempotency_key: str) -> Optional[OrderIntent]:
+    def get_by_idempotency_key(self, idempotency_key: str) -> OrderIntent | None:
         try:
             orm_obj = OrderIntentModel._default_manager.get(idempotency_key=idempotency_key)
             return self._orm_to_domain_entity(orm_obj)
@@ -870,7 +870,7 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
         )
         return updated > 0
 
-    def get_pending_intents(self, portfolio_id: int) -> List[OrderIntent]:
+    def get_pending_intents(self, portfolio_id: int) -> list[OrderIntent]:
         orm_objects = OrderIntentModel._default_manager.filter(
             portfolio_id=portfolio_id,
             status__in=[
@@ -885,7 +885,7 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
 class DjangoStrategyGatewayRepository:
     """Strategy gateway 的只读查询仓储。"""
 
-    def get_strategy_info(self, strategy_id: int) -> Optional[dict]:
+    def get_strategy_info(self, strategy_id: int) -> dict | None:
         strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
         if not strategy:
             return None
@@ -897,7 +897,7 @@ class DjangoStrategyGatewayRepository:
             "description": strategy.description,
         }
 
-    def get_active_strategy_binding(self, account_id: int) -> Optional[dict]:
+    def get_active_strategy_binding(self, account_id: int) -> dict | None:
         assignment = (
             PortfolioStrategyAssignmentModel._default_manager.filter(
                 portfolio_id=account_id,
@@ -918,7 +918,7 @@ class DjangoStrategyGatewayRepository:
             "description": assignment.strategy.description,
         }
 
-    def get_inspection_selection(self, account_id: int, strategy_id: Optional[int] = None):
+    def get_inspection_selection(self, account_id: int, strategy_id: int | None = None):
         from apps.strategy.application.execution_gateway import InspectionSelection
 
         if strategy_id:
@@ -959,9 +959,9 @@ class DjangoStrategyGatewayRepository:
 
     def evaluate_position_rule(
         self,
-        rule_id: Optional[int],
+        rule_id: int | None,
         context: dict,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         if not rule_id:
             return None
 

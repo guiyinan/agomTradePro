@@ -12,8 +12,9 @@ IMPORTANT: These throttles only apply to specific methods, not all requests.
 - Read operations (GET, HEAD, OPTIONS) use default rate limits only
 """
 
-from rest_framework.throttling import UserRateThrottle
 import logging
+
+from rest_framework.throttling import UserRateThrottle
 
 logger = logging.getLogger(__name__)
 

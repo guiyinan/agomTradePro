@@ -9,25 +9,25 @@ Account Module Integration Tests - 持仓价格来源于行情数据
 - 所有测试通过
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date, datetime
-from unittest.mock import Mock, patch, MagicMock
+from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from django.contrib.auth.models import User
 
-from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.account.application.use_cases import (
-    CreatePositionUseCase,
-    CreatePositionInput,
     CreatePositionFromSignalUseCase,
-)
-from apps.account.infrastructure.repositories import (
-    PositionRepository,
-    AccountRepository,
-    AssetMetadataRepository,
+    CreatePositionInput,
+    CreatePositionUseCase,
 )
 from apps.account.domain.entities import PositionSource
+from apps.account.infrastructure.market_price_service import MarketPriceService
+from apps.account.infrastructure.repositories import (
+    AccountRepository,
+    AssetMetadataRepository,
+    PositionRepository,
+)
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
 
@@ -347,13 +347,12 @@ class TestPriceSourceTraceability:
 
     def test_price_service_singleton(self):
         """测试市场价格服务单例"""
-        from apps.account.infrastructure.market_price_service import (
-            get_market_price_service,
-            _price_service_instance,
-        )
-
         # 清除单例
         import apps.account.infrastructure.market_price_service as mps_module
+        from apps.account.infrastructure.market_price_service import (
+            _price_service_instance,
+            get_market_price_service,
+        )
         mps_module._price_service_instance = None
 
         service1 = get_market_price_service()

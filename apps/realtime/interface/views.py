@@ -8,17 +8,16 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import List
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
 from apps.realtime.application.price_polling_service import PricePollingUseCase
-
-from core.cache_utils import cached_api, CACHE_TTL
-
+from core.cache_utils import CACHE_TTL, cached_api
 
 logger = logging.getLogger(__name__)
 

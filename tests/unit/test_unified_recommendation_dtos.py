@@ -4,25 +4,26 @@
 测试 Application 层 DTO 的创建和转换。
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 
+import pytest
+
 from apps.decision_rhythm.application.dtos import (
-    UnifiedRecommendationDTO,
-    RefreshRecommendationsRequestDTO,
-    RefreshRecommendationsResponseDTO,
+    ApproveExecutionRequestDTO,
     ConflictDTO,
-    RecommendationsListDTO,
     ConflictsListDTO,
     ExecutionPreviewDTO,
-    ApproveExecutionRequestDTO,
-    RejectExecutionRequestDTO,
     ExecutionResponseDTO,
+    RecommendationsListDTO,
+    RefreshRecommendationsRequestDTO,
+    RefreshRecommendationsResponseDTO,
+    RejectExecutionRequestDTO,
+    UnifiedRecommendationDTO,
 )
 from apps.decision_rhythm.domain.entities import (
-    UnifiedRecommendation,
     RecommendationStatus,
+    UnifiedRecommendation,
     UserDecisionAction,
 )
 
@@ -82,9 +83,9 @@ class TestUnifiedRecommendationDTO:
             status=RecommendationStatus.NEW,
             user_action=UserDecisionAction.WATCHING,
             user_action_note="来自首页 Alpha 推荐",
-            user_action_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            user_action_at=datetime.now(UTC),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         dto = UnifiedRecommendationDTO.from_domain(domain)
@@ -112,7 +113,7 @@ class TestUnifiedRecommendationDTO:
             side="BUY",
             fair_value=Decimal("15.50"),
             entry_price_low=Decimal("14.80"),
-            created_at=datetime(2026, 3, 2, 12, 0, 0, tzinfo=timezone.utc),
+            created_at=datetime(2026, 3, 2, 12, 0, 0, tzinfo=UTC),
         )
 
         result = dto.to_dict()
@@ -356,7 +357,7 @@ class TestExecutionResponseDTO:
             success=True,
             message="执行成功",
             execution_ref={"trade_id": "trade_001"},
-            executed_at=datetime(2026, 3, 2, 12, 0, 0, tzinfo=timezone.utc),
+            executed_at=datetime(2026, 3, 2, 12, 0, 0, tzinfo=UTC),
         )
 
         result = dto.to_dict()

@@ -14,7 +14,7 @@ from apps.market_data.domain.entities import QuoteSnapshot
 logger = logging.getLogger(__name__)
 
 
-def _safe_decimal(value: object) -> Optional[Decimal]:
+def _safe_decimal(value: object) -> Decimal | None:
     """安全地将值转换为 Decimal"""
     if value is None:
         return None
@@ -27,7 +27,7 @@ def _safe_decimal(value: object) -> Optional[Decimal]:
         return None
 
 
-def _safe_float(value: object) -> Optional[float]:
+def _safe_float(value: object) -> float | None:
     """安全地将值转换为 float"""
     if value is None:
         return None
@@ -40,7 +40,7 @@ def _safe_float(value: object) -> Optional[float]:
         return None
 
 
-def _safe_int(value: object) -> Optional[int]:
+def _safe_int(value: object) -> int | None:
     """安全地将值转换为 int"""
     if value is None:
         return None
@@ -53,7 +53,7 @@ def _safe_int(value: object) -> Optional[int]:
 def parse_akshare_spot_row(
     row: "pandas.Series",  # type: ignore[name-defined]
     stock_code_tushare: str,
-) -> Optional[QuoteSnapshot]:
+) -> QuoteSnapshot | None:
     """将 ak.stock_zh_a_spot_em() 的一行解析为 QuoteSnapshot
 
     Args:

@@ -8,13 +8,13 @@ Market Data 模块 - Domain 层协议
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from apps.market_data.domain.enums import DataCapability
 from apps.market_data.domain.entities import (
     CapitalFlowSnapshot,
     QuoteSnapshot,
     StockNewsItem,
     TechnicalSnapshot,
 )
+from apps.market_data.domain.enums import DataCapability
 
 
 class MarketDataProviderProtocol(ABC):
@@ -35,8 +35,8 @@ class MarketDataProviderProtocol(ABC):
         ...
 
     def get_quote_snapshots(
-        self, stock_codes: List[str]
-    ) -> List[QuoteSnapshot]:
+        self, stock_codes: list[str]
+    ) -> list[QuoteSnapshot]:
         """批量获取实时行情快照
 
         默认返回空列表，子类按需覆盖。
@@ -45,7 +45,7 @@ class MarketDataProviderProtocol(ABC):
 
     def get_capital_flows(
         self, stock_code: str, period: str = "5d"
-    ) -> List[CapitalFlowSnapshot]:
+    ) -> list[CapitalFlowSnapshot]:
         """获取个股资金流向
 
         Args:
@@ -56,12 +56,12 @@ class MarketDataProviderProtocol(ABC):
 
     def get_stock_news(
         self, stock_code: str, limit: int = 20
-    ) -> List[StockNewsItem]:
+    ) -> list[StockNewsItem]:
         """获取个股新闻"""
         return []
 
     def get_technical_snapshot(
         self, stock_code: str
-    ) -> Optional[TechnicalSnapshot]:
+    ) -> TechnicalSnapshot | None:
         """获取个股技术指标快照"""
         return None

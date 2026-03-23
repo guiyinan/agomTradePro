@@ -6,14 +6,14 @@ Integration Tests for Qlib Alpha Module
 
 import importlib.util
 import os
-import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from django.test import override_settings
 
-from apps.alpha.application.services import AlphaService, AlphaProviderRegistry
+from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.application.tasks import qlib_predict_scores
 from apps.alpha.domain.entities import AlphaResult
 from apps.alpha.domain.interfaces import AlphaProviderStatus
@@ -370,6 +370,7 @@ class TestQlibManagementCommands:
     def test_init_qlib_data_check_only(self):
         """测试 init_qlib_data 命令（仅检查）"""
         from io import StringIO
+
         from django.core.management import call_command
 
         out = StringIO()
@@ -392,6 +393,7 @@ class TestQlibManagementCommands:
     def test_init_qlib_data_with_download(self):
         """测试 init_qlib_data 命令（下载）"""
         from io import StringIO
+
         from django.core.management import call_command
 
         out = StringIO()

@@ -4,15 +4,16 @@ Sector Module Integration Tests
 集成测试：测试板块数据持久化和基本数据流。
 """
 
-import pytest
-from django.test import TestCase
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+from django.test import TestCase
+
 from apps.sector.infrastructure.models import (
-    SectorInfoModel,
-    SectorIndexModel,
     SectorConstituentModel,
+    SectorIndexModel,
+    SectorInfoModel,
     SectorRelativeStrengthModel,
 )
 

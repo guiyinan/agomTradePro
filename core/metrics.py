@@ -16,11 +16,13 @@ AgomTradePro Prometheus Metrics
     >>> record_api_request('GET', '/api/regime/', 200, 0.123)
 """
 
-from prometheus_client import Counter, Histogram, Gauge
 import logging
+from collections.abc import Callable
 from functools import wraps
 from time import perf_counter
-from typing import Callable, Optional
+from typing import Optional
+
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +154,7 @@ def record_api_request(
     status_code: int,
     duration_seconds: float,
     view_name: str = 'unknown',
-    error_class: Optional[str] = None,
+    error_class: str | None = None,
 ) -> None:
     """
     记录 API 请求指标
@@ -198,8 +200,8 @@ def record_api_request(
 def record_celery_task(
     task_name: str,
     status: str,
-    duration_seconds: Optional[float] = None,
-    retry_reason: Optional[str] = None,
+    duration_seconds: float | None = None,
+    retry_reason: str | None = None,
 ) -> None:
     """
     记录 Celery 任务指标
@@ -238,7 +240,7 @@ def record_audit_write(
     module: str,
     status: str,
     source: str = 'api',
-    latency_seconds: Optional[float] = None,
+    latency_seconds: float | None = None,
 ) -> None:
     """
     记录审计日志写入指标
@@ -384,7 +386,7 @@ def record_exception(
     exception: Exception,
     module: str = 'unknown',
     is_handled: bool = True,
-    service_name: Optional[str] = None,
+    service_name: str | None = None,
 ) -> None:
     """
     记录异常指标

@@ -10,9 +10,8 @@ domain entities to the interface layer.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Any, Optional, List
 from enum import Enum
-
+from typing import Any, Dict, List, Optional
 
 # ============================================================================
 # Request DTOs (Input)
@@ -31,7 +30,7 @@ class TaskCreateDTO:
     """
     task_domain: str
     task_type: str
-    input_payload: Dict[str, Any] = field(default_factory=dict)
+    input_payload: dict[str, Any] = field(default_factory=dict)
     schema_version: str = "v1"
 
 
@@ -46,10 +45,10 @@ class TaskUpdateDTO:
         last_error: Structured error payload (optional)
         requires_human: Whether human intervention is needed (optional)
     """
-    status: Optional[str] = None
-    current_step: Optional[str] = None
-    last_error: Optional[Dict[str, Any]] = None
-    requires_human: Optional[bool] = None
+    status: str | None = None
+    current_step: str | None = None
+    last_error: dict[str, Any] | None = None
+    requires_human: bool | None = None
 
 
 @dataclass
@@ -66,11 +65,11 @@ class TaskQueryDTO:
         limit: Max results (default 50)
         offset: Pagination offset (default 0)
     """
-    status: Optional[str] = None
-    task_domain: Optional[str] = None
-    task_type: Optional[str] = None
-    requires_human: Optional[bool] = None
-    search: Optional[str] = None
+    status: str | None = None
+    task_domain: str | None = None
+    task_type: str | None = None
+    requires_human: bool | None = None
+    search: str | None = None
     limit: int = 50
     offset: int = 0
 
@@ -85,7 +84,7 @@ class TaskApprovalDTO:
         reason: Optional reason for the decision
     """
     action: str  # 'approve' or 'reject'
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 @dataclass
@@ -97,7 +96,7 @@ class TaskExecutionDTO:
         input_payload: Additional/updated input payload
         force: Force execution even if task is not in ready state
     """
-    input_payload: Dict[str, Any] = field(default_factory=dict)
+    input_payload: dict[str, Any] = field(default_factory=dict)
     force: bool = False
 
 
@@ -114,12 +113,12 @@ class ProposalCreateDTO:
         proposal_payload: Execution payload
         approval_reason: Human/system explanation
     """
-    task_id: Optional[int] = None
+    task_id: int | None = None
     proposal_type: str = ""
     risk_level: str = "medium"
     approval_required: bool = True
-    proposal_payload: Dict[str, Any] = field(default_factory=dict)
-    approval_reason: Optional[str] = None
+    proposal_payload: dict[str, Any] = field(default_factory=dict)
+    approval_reason: str | None = None
 
 
 # ============================================================================
@@ -159,12 +158,12 @@ class TaskDetailDTO:
     task_type: str
     status: str
     status_display: str
-    input_payload: Dict[str, Any]
-    current_step: Optional[str]
-    last_error: Optional[Dict[str, Any]]
+    input_payload: dict[str, Any]
+    current_step: str | None
+    last_error: dict[str, Any] | None
     requires_human: bool
-    created_by: Optional[int]
-    created_by_username: Optional[str]
+    created_by: int | None
+    created_by_username: str | None
     created_at: datetime
     updated_at: datetime
     steps_count: int = 0
@@ -172,7 +171,7 @@ class TaskDetailDTO:
     artifacts_count: int = 0
     timeline_events_count: int = 0
 
-    def to_response_dict(self) -> Dict[str, Any]:
+    def to_response_dict(self) -> dict[str, Any]:
         """Convert to API response dict with ISO timestamps."""
         return {
             "id": self.id,
@@ -209,7 +208,7 @@ class TaskListDTO:
         limit: Limit used
         offset: Offset used
     """
-    tasks: List[Dict[str, Any]]
+    tasks: list[dict[str, Any]]
     total: int
     limit: int
     offset: int
@@ -242,12 +241,12 @@ class TaskListItemDTO:
     task_type: str
     status: str
     status_display: str
-    current_step: Optional[str]
+    current_step: str | None
     requires_human: bool
     created_at: datetime
     updated_at: datetime
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict with ISO timestamps."""
         return {
             "id": self.id,
@@ -277,7 +276,7 @@ class TaskTimelineDTO:
     """
     task_id: int
     request_id: str
-    events: List[Dict[str, Any]]
+    events: list[dict[str, Any]]
 
 
 @dataclass
@@ -301,16 +300,16 @@ class TimelineEventDTO:
     id: int
     request_id: str
     task_id: int
-    proposal_id: Optional[int]
+    proposal_id: int | None
     event_type: str
     event_type_display: str
     event_source: str
     event_source_display: str
-    step_index: Optional[int]
-    event_payload: Dict[str, Any]
+    step_index: int | None
+    event_payload: dict[str, Any]
     created_at: datetime
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict with ISO timestamp."""
         return {
             "id": self.id,
@@ -339,7 +338,7 @@ class TaskArtifactsDTO:
     """
     task_id: int
     request_id: str
-    artifacts: List[Dict[str, Any]]
+    artifacts: list[dict[str, Any]]
 
 
 @dataclass
@@ -363,12 +362,12 @@ class ArtifactDTO:
     task_id: int
     artifact_type: str
     artifact_name: str
-    artifact_data: Optional[Dict[str, Any]]
-    file_path: Optional[str]
+    artifact_data: dict[str, Any] | None
+    file_path: str | None
     content_type: str
     created_at: datetime
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict with ISO timestamp."""
         return {
             "id": self.id,
@@ -411,7 +410,7 @@ class ProposalDetailDTO:
     id: int
     request_id: str
     schema_version: str
-    task_id: Optional[int]
+    task_id: int | None
     proposal_type: str
     status: str
     status_display: str
@@ -420,10 +419,10 @@ class ProposalDetailDTO:
     approval_required: bool
     approval_status: str
     approval_status_display: str
-    approval_reason: Optional[str]
-    proposal_payload: Dict[str, Any]
-    created_by: Optional[int]
-    created_by_username: Optional[str]
+    approval_reason: str | None
+    proposal_payload: dict[str, Any]
+    created_by: int | None
+    created_by_username: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -447,9 +446,9 @@ class TaskContextDTO:
     request_id: str
     domain: str
     domain_display: str
-    snapshot_data: Dict[str, Any]
-    generated_at: Optional[datetime]
-    data_freshness: Optional[Dict[str, Any]]
+    snapshot_data: dict[str, Any]
+    generated_at: datetime | None
+    data_freshness: dict[str, Any] | None
     created_at: datetime
 
 
@@ -465,7 +464,7 @@ class TaskStepsDTO:
     """
     task_id: int
     request_id: str
-    steps: List[Dict[str, Any]]
+    steps: list[dict[str, Any]]
 
 
 @dataclass
@@ -494,10 +493,10 @@ class TaskStepDTO:
     step_name: str
     step_index: int
     status: str
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    error_message: Optional[str]
-    output_data: Optional[Dict[str, Any]]
+    started_at: datetime | None
+    completed_at: datetime | None
+    error_message: str | None
+    output_data: dict[str, Any] | None
     created_at: datetime
 
 
@@ -518,10 +517,10 @@ class ErrorResponseDTO:
         task: Optional task details if error relates to a task
     """
     request_id: str
-    error: Dict[str, Any]  # {"code": "ERROR_CODE", "message": "...", "details": {...}}
-    task: Optional[Dict[str, Any]] = None
+    error: dict[str, Any]  # {"code": "ERROR_CODE", "message": "...", "details": {...}}
+    task: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to response dict."""
         result = {
             "request_id": self.request_id,
@@ -543,10 +542,10 @@ class ValidationErrorDTO:
         field_errors: Dict of field-specific errors
     """
     request_id: str
-    error: Dict[str, Any]
-    field_errors: Dict[str, List[str]]
+    error: dict[str, Any]
+    field_errors: dict[str, list[str]]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to response dict."""
         return {
             "request_id": self.request_id,
@@ -571,7 +570,7 @@ class TaskCreateResponseDTO:
     request_id: str
     task: TaskDetailDTO
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to response dict."""
         return {
             "request_id": self.request_id,
@@ -591,7 +590,7 @@ class TaskGetResponseDTO:
     request_id: str
     task: TaskDetailDTO
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to response dict."""
         return {
             "request_id": self.request_id,
@@ -611,7 +610,7 @@ class TaskListResponseDTO:
     request_id: str
     tasks: TaskListDTO
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to response dict."""
         return {
             "request_id": self.request_id,

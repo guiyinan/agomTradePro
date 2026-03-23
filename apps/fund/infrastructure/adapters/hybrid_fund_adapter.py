@@ -4,16 +4,17 @@
 支持多数据源自动切换和降级策略
 """
 
-import pandas as pd
 import logging
+from datetime import date, datetime
 from typing import Optional
-from datetime import datetime, date
+
+import pandas as pd
 
 from shared.infrastructure.resilience import (
-    retry_on_error,
-    cached,
+    DataSourceUnavailable,
     _health_manager,
-    DataSourceUnavailable
+    cached,
+    retry_on_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class HybridFundAdapter:
     """混合基金数据适配器 - 自动切换数据源"""
 
-    def __init__(self, tushare_token: Optional[str] = None):
+    def __init__(self, tushare_token: str | None = None):
         """
         初始化混合适配器
 

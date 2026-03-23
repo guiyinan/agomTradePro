@@ -3,11 +3,11 @@
 from apps.rotation.domain.entities import (
     AssetCategory,
     AssetClass,
-    RotationStrategyType,
-    RotationConfig,
-    RotationSignal,
-    RotationPortfolio,
     MomentumScore,
+    RotationConfig,
+    RotationPortfolio,
+    RotationSignal,
+    RotationStrategyType,
 )
 
 __all__ = [

@@ -8,16 +8,16 @@ Django Admin 配置：
 - 费率配置管理
 """
 from django.contrib import admin
+from django.db.models import Q, Sum
 from django.utils.html import format_html
-from django.db.models import Sum, Q
 
 from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    FeeConfigModel,
-    DailyInspectionReportModel,
     DailyInspectionNotificationConfigModel,
+    DailyInspectionReportModel,
+    FeeConfigModel,
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
 )
 
 
@@ -569,8 +569,9 @@ class SimulatedTradingAdminSite(admin.AdminSite):
 
 def dashboard_view(request):
     """模拟盘仪表盘视图"""
-    from django.shortcuts import render
     from datetime import timedelta
+
+    from django.shortcuts import render
     from django.utils import timezone
 
     # 获取统计数据

@@ -4,17 +4,18 @@ Use Cases for Backtest Module.
 Application layer orchestrating the workflow of backtesting operations.
 """
 
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional, List, Dict, Any, Callable
-import logging
+from typing import Any, Dict, List, Optional
 
 from ..domain.entities import (
+    DEFAULT_PUBLICATION_LAGS,
     BacktestConfig,
     BacktestResult,
     BacktestStatus,
     PITDataConfig,
-    DEFAULT_PUBLICATION_LAGS,
 )
 from ..domain.services import BacktestEngine, PITDataProcessor
 from ..infrastructure.repositories import DjangoBacktestRepository
@@ -37,14 +38,14 @@ class RunBacktestRequest:
 @dataclass
 class RunBacktestResponse:
     """运行回测的响应 DTO"""
-    backtest_id: Optional[int]
+    backtest_id: int | None
     status: str
-    result: Optional[Dict[str, Any]]
-    errors: List[str]
-    warnings: List[str]
+    result: dict[str, Any] | None
+    errors: list[str]
+    warnings: list[str]
     audit_status: str = "pending"  # 'pending', 'success', 'failed', 'skipped'
-    audit_error: Optional[str] = None
-    audit_report_id: Optional[int] = None
+    audit_error: str | None = None
+    audit_report_id: int | None = None
 
 
 class RunBacktestUseCase:
@@ -61,8 +62,8 @@ class RunBacktestUseCase:
     def __init__(
         self,
         repository: DjangoBacktestRepository,
-        get_regime_func: Callable[[date], Optional[Dict]],
-        get_asset_price_func: Callable[[str, date], Optional[float]],
+        get_regime_func: Callable[[date], dict | None],
+        get_asset_price_func: Callable[[str, date], float | None],
     ):
         """
         Args:
@@ -135,8 +136,8 @@ class RunBacktestUseCase:
 
             try:
                 from apps.audit.application.use_cases import (
+                    GenerateAttributionReportRequest,
                     GenerateAttributionReportUseCase,
-                    GenerateAttributionReportRequest
                 )
                 from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
@@ -207,11 +208,11 @@ class GetBacktestResultRequest:
 @dataclass
 class GetBacktestResultResponse:
     """获取回测结果的响应 DTO"""
-    backtest_id: Optional[int]
-    name: Optional[str]
-    status: Optional[str]
-    result: Optional[Dict[str, Any]]
-    error: Optional[str]
+    backtest_id: int | None
+    name: str | None
+    status: str | None
+    result: dict[str, Any] | None
+    error: str | None
 
 
 class GetBacktestResultUseCase:
@@ -271,14 +272,14 @@ class GetBacktestResultUseCase:
 @dataclass
 class ListBacktestsRequest:
     """列出回测的请求 DTO"""
-    status: Optional[str] = None
-    limit: Optional[int] = None
+    status: str | None = None
+    limit: int | None = None
 
 
 @dataclass
 class ListBacktestsResponse:
     """列出回测的响应 DTO"""
-    backtests: List[Dict[str, Any]]
+    backtests: list[dict[str, Any]]
     total_count: int
 
 
@@ -336,7 +337,7 @@ class DeleteBacktestRequest:
 class DeleteBacktestResponse:
     """删除回测的响应 DTO"""
     success: bool
-    error: Optional[str]
+    error: str | None
 
 
 class DeleteBacktestUseCase:
@@ -376,7 +377,7 @@ class DeleteBacktestUseCase:
 class GetBacktestStatisticsResponse:
     """获取回测统计的响应 DTO"""
     total: int
-    by_status: Dict[str, Dict]
+    by_status: dict[str, dict]
     avg_return: float
     max_return: float
     min_return: float

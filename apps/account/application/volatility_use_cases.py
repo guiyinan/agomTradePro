@@ -4,16 +4,16 @@ Account Application - Volatility Control Use Cases
 波动率目标控制用例编排。
 """
 
-from decimal import Decimal
-from typing import List, Dict, Optional
-from datetime import datetime, date, timedelta
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from typing import Dict, List, Optional
 
 from apps.account.domain.services import (
-    VolatilityCalculator,
-    VolatilityTargetService,
-    VolatilityMetrics,
     VolatilityAdjustmentResult,
+    VolatilityCalculator,
+    VolatilityMetrics,
+    VolatilityTargetService,
 )
 from apps.account.infrastructure.repositories import (
     AccountRepository,
@@ -32,7 +32,7 @@ class VolatilityAnalysisOutput:
     current_volatility_90d: float     # 90天波动率
     target_volatility: float          # 目标波动率
     adjustment_result: VolatilityAdjustmentResult
-    volatility_history: List[VolatilityMetrics]  # 历史波动率序列
+    volatility_history: list[VolatilityMetrics]  # 历史波动率序列
 
 
 class VolatilityAnalysisUseCase:
@@ -127,7 +127,7 @@ class VolatilityAnalysisUseCase:
 
     def _calculate_volatility_for_window(
         self,
-        snapshots: List[Dict],
+        snapshots: list[dict],
         window_days: int,
     ) -> float:
         """
@@ -179,7 +179,7 @@ class VolatilityAdjustmentUseCase:
         self,
         portfolio_id: int,
         user_id: int,
-    ) -> Dict:
+    ) -> dict:
         """
         执行波动率调整
 
@@ -254,10 +254,10 @@ class UpdateTargetVolatilityUseCase:
     def execute(
         self,
         user_id: int,
-        target_volatility: Optional[float] = None,
-        volatility_tolerance: Optional[float] = None,
-        max_volatility_reduction: Optional[float] = None,
-    ) -> Dict:
+        target_volatility: float | None = None,
+        volatility_tolerance: float | None = None,
+        max_volatility_reduction: float | None = None,
+    ) -> dict:
         """
         更新目标波动率配置
 

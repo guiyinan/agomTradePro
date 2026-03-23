@@ -9,8 +9,8 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
-from apps.factor.infrastructure.models import FactorDefinitionModel
-from apps.factor.infrastructure.models import FactorPortfolioConfigModel
+
+from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
 
 
 class Command(BaseCommand):

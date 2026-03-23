@@ -8,30 +8,34 @@
 4. 最大回撤按时序准确计算
 5. 自动交易引擎在交易后自动调用绩效更新
 """
-import pytest
-from django.test import TestCase
 from datetime import date, timedelta
 from decimal import Decimal
 
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    DailyNetValueModel,
+import pytest
+from django.test import TestCase
+
+from apps.simulated_trading.application.auto_trading_engine import (
+    AutoTradingEngine,
+    MockMarketDataProvider,
 )
-from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
-    DjangoPositionRepository,
-    DjangoTradeRepository,
-)
+from apps.simulated_trading.application.daily_net_value_service import DailyNetValueService
 from apps.simulated_trading.application.use_cases import (
     CreateSimulatedAccountUseCase,
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from apps.simulated_trading.application.daily_net_value_service import DailyNetValueService
-from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine, MockMarketDataProvider
+from apps.simulated_trading.infrastructure.models import (
+    DailyNetValueModel,
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
+)
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
+    DjangoTradeRepository,
+)
 
 
 @pytest.mark.django_db

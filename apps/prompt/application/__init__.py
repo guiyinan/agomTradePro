@@ -7,8 +7,8 @@ No Django, Pandas, or external dependencies allowed.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Dict, Any, List
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class PlaceholderType(Enum):
@@ -51,10 +51,10 @@ class PlaceholderDef:
     name: str
     type: PlaceholderType
     description: str
-    default_value: Optional[Any] = None
+    default_value: Any | None = None
     required: bool = True
-    function_name: Optional[str] = None
-    function_params: Optional[Dict[str, Any]] = None
+    function_name: str | None = None
+    function_params: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -75,18 +75,18 @@ class PromptTemplate:
         is_active: 是否激活
         created_at: 创建日期
     """
-    id: Optional[str]
+    id: str | None
     name: str
     category: PromptCategory
     version: str
     template_content: str
-    placeholders: List[PlaceholderDef]
-    system_prompt: Optional[str] = None
+    placeholders: list[PlaceholderDef]
+    system_prompt: str | None = None
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     description: str = ""
     is_active: bool = True
-    created_at: Optional[date] = None
+    created_at: date | None = None
 
     def __post_init__(self):
         """验证数据一致性"""
@@ -118,11 +118,11 @@ class ChainStep:
     template_id: str
     step_name: str
     order: int
-    input_mapping: Dict[str, str]
-    output_parser: Optional[str] = None
-    parallel_group: Optional[str] = None
+    input_mapping: dict[str, str]
+    output_parser: str | None = None
+    parallel_group: str | None = None
     enable_tool_calling: bool = False
-    available_tools: Optional[List[str]] = None
+    available_tools: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -140,15 +140,15 @@ class ChainConfig:
         is_active: 是否激活
         created_at: 创建日期
     """
-    id: Optional[str]
+    id: str | None
     name: str
     category: PromptCategory
     description: str
-    steps: List[ChainStep]
+    steps: list[ChainStep]
     execution_mode: ChainExecutionMode
-    aggregate_step: Optional[ChainStep] = None
+    aggregate_step: ChainStep | None = None
     is_active: bool = True
-    created_at: Optional[date] = None
+    created_at: date | None = None
 
     def __post_init__(self):
         """验证数据一致性"""
@@ -192,14 +192,14 @@ class PromptExecutionContext:
         chain_execution_id: 链式执行ID
         step_outputs: 前序步骤输出
     """
-    placeholder_values: Dict[str, Any]
-    regime_snapshot: Optional[Dict] = None
-    policy_level: Optional[int] = None
-    provider_ref: Optional[Any] = None
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
-    chain_execution_id: Optional[str] = None
-    step_outputs: Optional[Dict[str, Any]] = None
+    placeholder_values: dict[str, Any]
+    regime_snapshot: dict | None = None
+    policy_level: int | None = None
+    provider_ref: Any | None = None
+    provider_name: str | None = None
+    model: str | None = None
+    chain_execution_id: str | None = None
+    step_outputs: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -228,8 +228,8 @@ class PromptExecutionResult:
     total_tokens: int
     estimated_cost: float
     response_time_ms: int
-    error_message: Optional[str] = None
-    parsed_output: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    parsed_output: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -250,10 +250,10 @@ class ChainExecutionResult:
     success: bool
     chain_name: str
     execution_mode: ChainExecutionMode
-    step_results: Dict[str, PromptExecutionResult]
-    final_output: Optional[str] = None
+    step_results: dict[str, PromptExecutionResult]
+    final_output: str | None = None
     total_tokens: int = 0
     total_cost: float = 0.0
     total_time_ms: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
 

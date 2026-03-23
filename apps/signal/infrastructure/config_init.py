@@ -5,12 +5,13 @@ Configuration Initialization for Domain Layer
 """
 
 from typing import Dict
-from apps.signal.domain.entities import Eligibility
+
 from apps.signal.domain import rules as signal_rules
+from apps.signal.domain.entities import Eligibility
 from shared.infrastructure.models import RegimeEligibilityConfigModel
 
 
-def _load_eligibility_matrix_from_db() -> Dict[str, Dict[str, Eligibility]]:
+def _load_eligibility_matrix_from_db() -> dict[str, dict[str, Eligibility]]:
     """从数据库加载准入矩阵"""
     matrix = {}
 

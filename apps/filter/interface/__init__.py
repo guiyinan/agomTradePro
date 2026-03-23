@@ -4,8 +4,6 @@ Interface Layer for Filter App.
 Django views, DRF serializers, and URL configuration.
 """
 
-from . import views
-from . import api_views
-from . import serializers
+from . import api_views, serializers, views
 
 __all__ = ['views', 'api_views', 'serializers']

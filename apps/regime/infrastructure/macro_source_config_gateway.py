@@ -16,7 +16,7 @@ from apps.regime.domain.protocols import (
 class DjangoMacroSourceConfigGateway(MacroSourceConfigGatewayProtocol):
     """延迟导入 macro 数据源配置模型。"""
 
-    def list_active_sources(self) -> List[MacroSourceSummary]:
+    def list_active_sources(self) -> list[MacroSourceSummary]:
         try:
             from apps.macro.infrastructure.models import DataSourceConfig
 

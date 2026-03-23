@@ -4,8 +4,9 @@ Unit tests for Setup Wizard Domain layer.
 Tests domain entities and services without any external dependencies.
 """
 
+from datetime import UTC, datetime, timezone
+
 import pytest
-from datetime import datetime, timezone
 
 from apps.setup_wizard.domain.entities import (
     AdminConfig,
@@ -160,7 +161,7 @@ class TestSetupProgress:
     def test_create_setup_progress(self):
         from datetime import datetime, timezone
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         progress = SetupProgress(
             current_step=WizardStep.ADMIN_PASSWORD,
             completed_steps=[WizardStep.WELCOME],

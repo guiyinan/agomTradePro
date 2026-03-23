@@ -5,23 +5,25 @@ Tests the pure domain logic in apps/filter/domain/services.py
 Only uses Python standard library - no Django imports.
 """
 
-import pytest
-from datetime import date, timedelta
 from dataclasses import FrozenInstanceError
+from datetime import date, timedelta
+
+import pytest
+
+from apps.filter.domain.entities import (
+    FilterResult,
+    FilterSeries,
+    FilterType,
+    HPFilterParams,
+    KalmanFilterParams,
+)
 from apps.filter.domain.services import (
+    FilterComparison,
     FilterProtocol,
     HPFilterService,
     KalmanFilterService,
-    FilterComparison,
     compare_filters,
     detect_turning_points,
-)
-from apps.filter.domain.entities import (
-    FilterType,
-    FilterResult,
-    FilterSeries,
-    HPFilterParams,
-    KalmanFilterParams,
 )
 
 

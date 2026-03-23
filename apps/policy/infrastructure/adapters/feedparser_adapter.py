@@ -16,8 +16,8 @@ Feedparser RSS Adapter
 """
 
 import logging
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
 from django.utils import timezone
 
@@ -32,8 +32,8 @@ except ImportError:
     feedparser = None
     raise ImportError("feedparser is required. Install it with: pip install feedparser")
 
-from .rss_adapter import BaseRSSAdapter, RSSItem, RSSFetchError, RSSParseError
-from ...domain.entities import RSSSourceConfig, ProxyConfig
+from ...domain.entities import ProxyConfig, RSSSourceConfig
+from .rss_adapter import BaseRSSAdapter, RSSFetchError, RSSItem, RSSParseError
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class FeedparserAdapter(BaseRSSAdapter):
 
     source_name = "feedparser"
 
-    def fetch(self, source_config: RSSSourceConfig) -> List[RSSItem]:
+    def fetch(self, source_config: RSSSourceConfig) -> list[RSSItem]:
         """
         抓取RSS源
 
@@ -129,7 +129,7 @@ class FeedparserAdapter(BaseRSSAdapter):
             logger.error(f"Failed to fetch RSS from {source_config.url}: {e}", exc_info=True)
             raise RSSFetchError(f"Failed to fetch RSS: {e}")
 
-    def _parse_entry(self, entry, source_name: str) -> Optional[RSSItem]:
+    def _parse_entry(self, entry, source_name: str) -> RSSItem | None:
         """
         解析单个RSS条目
 

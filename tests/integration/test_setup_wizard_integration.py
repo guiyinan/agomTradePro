@@ -4,8 +4,9 @@ Integration tests for Setup Wizard Application layer.
 Tests use cases with infrastructure dependencies.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from apps.setup_wizard.application.use_cases import (
     CheckSetupStatusUseCase,
@@ -20,10 +21,10 @@ from apps.setup_wizard.domain.entities import (
     AdminConfig,
     AIProviderConfigDTO,
     DataSourceConfigDTO,
-    WizardStep,
-    SetupStatus,
-    SetupState,
     SetupProgress,
+    SetupState,
+    SetupStatus,
+    WizardStep,
 )
 
 

@@ -117,7 +117,7 @@ class PercentilePoint:
         composite_method: 综合方法（"pe_pb_blend" 或 "pb_only"）
     """
     trade_date: date
-    pe_percentile: Optional[float]
+    pe_percentile: float | None
     pb_percentile: float
     composite_percentile: float
     composite_method: str  # "pe_pb_blend" / "pb_only"
@@ -171,25 +171,25 @@ class ValuationRepairStatus:
     phase: str
     signal: str  # "watch", "opportunity", "in_progress", "near_exit", "take_profit", "stalled", "none"
 
-    current_pe: Optional[float]
+    current_pe: float | None
     current_pb: float
-    pe_percentile: Optional[float]
+    pe_percentile: float | None
     pb_percentile: float
     composite_percentile: float
     composite_method: str
 
-    repair_start_date: Optional[date]
-    repair_start_percentile: Optional[float]
+    repair_start_date: date | None
+    repair_start_percentile: float | None
     lowest_percentile: float
     lowest_percentile_date: date
 
-    repair_progress: Optional[float]  # 0-1，仅在已启动修复时有值
+    repair_progress: float | None  # 0-1，仅在已启动修复时有值
     target_percentile: float
-    repair_speed_per_30d: Optional[float]
-    estimated_days_to_target: Optional[int]
+    repair_speed_per_30d: float | None
+    estimated_days_to_target: int | None
 
     is_stalled: bool
-    stall_start_date: Optional[date]
+    stall_start_date: date | None
     stall_duration_trading_days: int
     repair_duration_trading_days: int
 

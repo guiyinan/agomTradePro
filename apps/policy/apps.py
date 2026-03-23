@@ -9,5 +9,5 @@ class PolicyConfig(AppConfig):
 
     def ready(self):
         """Import admin and tasks modules when app is ready"""
-        import apps.policy.interface.admin  # noqa: F401
         import apps.policy.application.tasks  # noqa: F401 - Import Celery tasks
+        import apps.policy.interface.admin  # noqa: F401

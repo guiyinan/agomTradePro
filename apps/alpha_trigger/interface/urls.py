@@ -4,11 +4,10 @@ Alpha Trigger URL Configuration
 Alpha 事件触发的 URL 路由配置。
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from ..interface import views as alpha_trigger_views
-
 
 # 创建路由器
 router = DefaultRouter()

@@ -5,14 +5,15 @@ AgomTradePro 系统页面遍历测试
 """
 
 import asyncio
-import os
-import sys
-import subprocess
-from pathlib import Path
-from datetime import datetime
-from playwright.async_api import async_playwright, Page, Browser
-from typing import List, Dict, Any
 import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
+from playwright.async_api import Browser, Page, async_playwright
 
 # 添加项目根目录到 Python 路径
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,11 +21,11 @@ sys.path.insert(0, str(BASE_DIR))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 
 import django
+
 django.setup()
 
-from django.test.utils import get_runner
 from django.conf import settings
-
+from django.test.utils import get_runner
 
 # 定义要测试的页面列表
 # 注意：只测试HTML页面视图，不测试POST-only API端点
@@ -86,9 +87,9 @@ class PageTester:
 
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url.rstrip('/')
-        self.results: List[Dict[str, Any]] = []
-        self.console_errors: List[Dict[str, Any]] = []
-        self.failed_pages: List[Dict[str, Any]] = []
+        self.results: list[dict[str, Any]] = []
+        self.console_errors: list[dict[str, Any]] = []
+        self.failed_pages: list[dict[str, Any]] = []
         self.browser: Browser = None
 
     async def setup_browser(self):
@@ -114,7 +115,7 @@ class PageTester:
 
         page.on('console', handle_console)
 
-    async def test_page(self, page_info: Dict[str, Any], credentials: Dict[str, str] = None) -> Dict[str, Any]:
+    async def test_page(self, page_info: dict[str, Any], credentials: dict[str, str] = None) -> dict[str, Any]:
         """测试单个页面"""
         url = page_info['url']
         name = page_info['name']
@@ -250,7 +251,7 @@ class PageTester:
     async def run_all_tests(self):
         """运行所有测试"""
         print(f"\n{'='*80}")
-        print(f"开始测试 AgomTradePro 系统页面")
+        print("开始测试 AgomTradePro 系统页面")
         print(f"基础 URL: {self.base_url}")
         print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*80}\n")

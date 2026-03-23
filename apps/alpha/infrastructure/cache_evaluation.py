@@ -10,23 +10,22 @@ from typing import Dict, List, Optional, Set
 
 import numpy as np
 
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from shared.infrastructure.model_evaluation import (
-    ModelMetrics,
-    RollingMetrics,
     IC_Calculator,
     ModelEvaluator,
+    ModelMetrics,
+    RollingMetrics,
 )
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel
-
 
 logger = logging.getLogger(__name__)
 
 
 def _get_actual_returns(
-    stock_codes: Set[str],
+    stock_codes: set[str],
     trade_date: date,
     horizon: int = 1,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     获取股票在 trade_date 后 horizon 天的实际收益率
 
@@ -153,7 +152,7 @@ def calculate_rolling_metrics(
     start_date: date,
     end_date: date,
     window: int = 20
-) -> List[RollingMetrics]:
+) -> list[RollingMetrics]:
     """
     计算滚动指标
 

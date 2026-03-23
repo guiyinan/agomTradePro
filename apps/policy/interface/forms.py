@@ -2,7 +2,11 @@
 
 from django import forms
 
-from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel
+from apps.policy.infrastructure.models import (
+    PolicyLevelKeywordModel,
+    PolicyLog,
+    RSSSourceConfigModel,
+)
 
 
 class PolicyEventForm(forms.ModelForm):

@@ -4,12 +4,13 @@ Unit Tests for Policy Tasks Notification Integration
 测试 policy tasks 与通知服务的集成。
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import date, timedelta, datetime
+from datetime import date, datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
 
-from apps.policy.domain.entities import PolicyLevel, PolicyEvent
+import pytest
+
 from apps.policy.application import tasks
+from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 
 
 class TestNotificationServiceIntegration:

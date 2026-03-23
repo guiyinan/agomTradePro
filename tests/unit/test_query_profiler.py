@@ -8,15 +8,16 @@ Unit tests for Query Profiler Middleware
 - N+1 查询检测
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from core.middleware.query_profiler import (
-    normalize_sql,
+    QuerySummary,
     extract_operation_type,
     get_profiler_config,
-    QuerySummary,
+    normalize_sql,
 )
 
 

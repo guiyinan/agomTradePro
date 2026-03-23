@@ -6,11 +6,10 @@ Beta Gate URL Configuration
 简化版本，只包含基本的 ViewSet 路由。
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from . import views as beta_gate_views
-
 
 # 创建路由器
 router = DefaultRouter()

@@ -5,14 +5,14 @@ No Django/pandas/numpy dependencies - safe for Domain layer testing.
 All factory functions return frozen dataclass instances with sensible defaults.
 """
 
-from datetime import date, datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, date, datetime, timezone
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # ============================================================
 # Hedge Module Factories
 # ============================================================
-
 from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
@@ -47,7 +47,7 @@ def make_hedge_pair(
 def make_correlation_metric(
     asset1: str = "510300",
     asset2: str = "511260",
-    calc_date: Optional[date] = None,
+    calc_date: date | None = None,
     window_days: int = 60,
     correlation: float = -0.5,
     **kwargs: Any,
@@ -64,7 +64,7 @@ def make_correlation_metric(
 
 def make_hedge_portfolio(
     pair_name: str = "测试对冲",
-    trade_date: Optional[date] = None,
+    trade_date: date | None = None,
     long_weight: float = 0.7,
     hedge_weight: float = 0.3,
     hedge_ratio: float = 0.43,
@@ -82,7 +82,7 @@ def make_hedge_portfolio(
 
 def make_hedge_alert(
     pair_name: str = "测试对冲",
-    alert_date: Optional[date] = None,
+    alert_date: date | None = None,
     alert_type: HedgeAlertType = HedgeAlertType.CORRELATION_BREAKDOWN,
     message: str = "Correlation breakdown detected",
     **kwargs: Any,
@@ -98,8 +98,8 @@ def make_hedge_alert(
 
 def make_hedge_performance(
     pair_name: str = "测试对冲",
-    period_start: Optional[date] = None,
-    period_end: Optional[date] = None,
+    period_start: date | None = None,
+    period_end: date | None = None,
     total_return: float = 0.08,
     annual_return: float = 0.10,
     sharpe_ratio: float = 1.2,
@@ -159,10 +159,10 @@ def make_fund_info(
 
 def make_fund_net_value(
     fund_code: str = "110011",
-    nav_date: Optional[date] = None,
+    nav_date: date | None = None,
     unit_nav: Decimal = Decimal("1.5000"),
     accum_nav: Decimal = Decimal("2.3000"),
-    daily_return: Optional[float] = None,
+    daily_return: float | None = None,
 ) -> FundNetValue:
     return FundNetValue(
         fund_code=fund_code,
@@ -175,8 +175,8 @@ def make_fund_net_value(
 
 def make_fund_performance(
     fund_code: str = "110011",
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     total_return: float = 0.15,
     **kwargs: Any,
 ) -> FundPerformance:
@@ -191,7 +191,7 @@ def make_fund_performance(
 
 def make_fund_holding(
     fund_code: str = "110011",
-    report_date: Optional[date] = None,
+    report_date: date | None = None,
     stock_code: str = "000001",
     stock_name: str = "平安银行",
     **kwargs: Any,
@@ -207,7 +207,7 @@ def make_fund_holding(
 
 def make_fund_sector_allocation(
     fund_code: str = "110011",
-    report_date: Optional[date] = None,
+    report_date: date | None = None,
     sector_name: str = "金融",
     allocation_ratio: float = 0.25,
 ) -> FundSectorAllocation:
@@ -222,7 +222,7 @@ def make_fund_sector_allocation(
 def make_fund_score(
     fund_code: str = "110011",
     fund_name: str = "测试基金A",
-    score_date: Optional[date] = None,
+    score_date: date | None = None,
     performance_score: float = 80.0,
     regime_fit_score: float = 75.0,
     risk_score: float = 70.0,
@@ -280,7 +280,7 @@ def make_factor_definition(
 
 def make_factor_exposure(
     stock_code: str = "000001",
-    trade_date: Optional[date] = None,
+    trade_date: date | None = None,
     factor_code: str = "pe_ttm",
     factor_value: float = 0.8,
     percentile_rank: float = 0.75,
@@ -301,9 +301,9 @@ def make_factor_exposure(
 def make_factor_score(
     stock_code: str = "000001",
     stock_name: str = "平安银行",
-    trade_date: Optional[date] = None,
-    factor_scores: Optional[Dict[str, float]] = None,
-    factor_weights: Optional[Dict[str, float]] = None,
+    trade_date: date | None = None,
+    factor_scores: dict[str, float] | None = None,
+    factor_weights: dict[str, float] | None = None,
     composite_score: float = 0.75,
     percentile_rank: float = 0.80,
     **kwargs: Any,
@@ -322,7 +322,7 @@ def make_factor_score(
 
 def make_factor_portfolio_config(
     name: str = "价值组合",
-    factor_weights: Optional[Dict[str, float]] = None,
+    factor_weights: dict[str, float] | None = None,
     **kwargs: Any,
 ) -> FactorPortfolioConfig:
     return FactorPortfolioConfig(
@@ -365,7 +365,7 @@ def make_asset_class(
 
 def make_momentum_score(
     asset_code: str = "510300",
-    calc_date: Optional[date] = None,
+    calc_date: date | None = None,
     **kwargs: Any,
 ) -> MomentumScore:
     return MomentumScore(
@@ -378,10 +378,10 @@ def make_momentum_score(
 def make_rotation_config(
     name: str = "动量轮动",
     strategy_type: RotationStrategyType = RotationStrategyType.MOMENTUM,
-    asset_universe: Optional[List[str]] = None,
-    params: Optional[Dict] = None,
-    regime_allocations: Optional[Dict] = None,
-    momentum_periods: Optional[List[int]] = None,
+    asset_universe: list[str] | None = None,
+    params: dict | None = None,
+    regime_allocations: dict | None = None,
+    momentum_periods: list[int] | None = None,
     **kwargs: Any,
 ) -> RotationConfig:
     return RotationConfig(
@@ -400,8 +400,8 @@ def make_rotation_config(
 
 def make_rotation_signal(
     config_name: str = "动量轮动",
-    signal_date: Optional[date] = None,
-    target_allocation: Optional[Dict[str, float]] = None,
+    signal_date: date | None = None,
+    target_allocation: dict[str, float] | None = None,
     **kwargs: Any,
 ) -> RotationSignal:
     return RotationSignal(
@@ -454,7 +454,7 @@ def make_dashboard_widget(
 def make_dashboard_card(
     card_id: str = "card-1",
     card_type: CardType = CardType.METRIC,
-    widgets: Optional[List[DashboardWidget]] = None,
+    widgets: list[DashboardWidget] | None = None,
     **kwargs: Any,
 ) -> DashboardCard:
     return DashboardCard(
@@ -468,7 +468,7 @@ def make_dashboard_card(
 def make_dashboard_layout(
     layout_id: str = "default",
     name: str = "默认布局",
-    cards: Optional[List[DashboardCard]] = None,
+    cards: list[DashboardCard] | None = None,
     **kwargs: Any,
 ) -> DashboardLayout:
     return DashboardLayout(
@@ -535,7 +535,7 @@ def make_sector_info(
 
 def make_sector_index(
     sector_code: str = "801010",
-    trade_date: Optional[date] = None,
+    trade_date: date | None = None,
     open_price: Decimal = Decimal("1000.00"),
     high: Decimal = Decimal("1020.00"),
     low: Decimal = Decimal("990.00"),
@@ -561,7 +561,7 @@ def make_sector_index(
 
 def make_sector_relative_strength(
     sector_code: str = "801010",
-    trade_date: Optional[date] = None,
+    trade_date: date | None = None,
     relative_strength: float = 1.05,
     momentum: float = 0.03,
     **kwargs: Any,
@@ -593,7 +593,7 @@ def make_stock_info(
     name: str = "平安银行",
     sector: str = "金融",
     market: str = "主板",
-    list_date: Optional[date] = None,
+    list_date: date | None = None,
 ) -> StockInfo:
     return StockInfo(
         stock_code=stock_code,
@@ -606,7 +606,7 @@ def make_stock_info(
 
 def make_financial_data(
     stock_code: str = "000001",
-    report_date: Optional[date] = None,
+    report_date: date | None = None,
     revenue: Decimal = Decimal("100000000000"),
     net_profit: Decimal = Decimal("15000000000"),
     revenue_growth: float = 0.08,
@@ -636,7 +636,7 @@ def make_financial_data(
 
 def make_valuation_metrics(
     stock_code: str = "000001",
-    trade_date: Optional[date] = None,
+    trade_date: date | None = None,
     pe: float = 8.5,
     pb: float = 0.9,
     ps: float = 1.2,
@@ -670,17 +670,17 @@ from apps.events.domain.entities import (
 
 
 def make_domain_event(
-    event_id: Optional[str] = None,
+    event_id: str | None = None,
     event_type: EventType = EventType.REGIME_CHANGED,
-    occurred_at: Optional[datetime] = None,
-    payload: Optional[Dict[str, Any]] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    occurred_at: datetime | None = None,
+    payload: dict[str, Any] | None = None,
+    metadata: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> DomainEvent:
     return DomainEvent(
         event_id=event_id or "evt-test-001",
         event_type=event_type,
-        occurred_at=occurred_at or datetime(2025, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
+        occurred_at=occurred_at or datetime(2025, 1, 15, 12, 0, 0, tzinfo=UTC),
         payload=payload or {"regime": "growth_inflation"},
         metadata=metadata or {},
         **kwargs,
@@ -701,7 +701,7 @@ def make_price_series(
     days: int = 120,
     daily_return_mean: float = 0.0005,
     daily_return_std: float = 0.015,
-) -> List[float]:
+) -> list[float]:
     """Generate a deterministic price series for testing."""
     import math
 
@@ -714,12 +714,12 @@ def make_price_series(
 
 
 def make_get_asset_prices(
-    price_data: Optional[Dict[str, List[float]]] = None,
-) -> Callable[[str, date, int], Optional[List[float]]]:
+    price_data: dict[str, list[float]] | None = None,
+) -> Callable[[str, date, int], list[float] | None]:
     """Create a mock get_asset_prices callable for service contexts."""
     data = price_data or {}
 
-    def _get_prices(asset_code: str, calc_date: date, window: int) -> Optional[List[float]]:
+    def _get_prices(asset_code: str, calc_date: date, window: int) -> list[float] | None:
         if asset_code in data:
             series = data[asset_code]
             return series[-window:] if len(series) >= window else series
@@ -729,7 +729,7 @@ def make_get_asset_prices(
     return _get_prices
 
 
-def make_get_asset_name() -> Callable[[str], Optional[str]]:
+def make_get_asset_name() -> Callable[[str], str | None]:
     """Create a mock get_asset_name callable."""
     names = {
         "510300": "沪深300ETF",
@@ -738,7 +738,7 @@ def make_get_asset_name() -> Callable[[str], Optional[str]]:
         "000001": "平安银行",
     }
 
-    def _get_name(code: str) -> Optional[str]:
+    def _get_name(code: str) -> str | None:
         return names.get(code, f"资产{code}")
 
     return _get_name

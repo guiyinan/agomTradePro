@@ -104,7 +104,7 @@ class TestConfig:
     admin_policy: str = "/admin/policy/"
 
     @property
-    def all_user_urls(self) -> Dict[str, str]:
+    def all_user_urls(self) -> dict[str, str]:
         """All user-facing URLs for testing."""
         return {
             "login": self.login_url,
@@ -125,7 +125,7 @@ class TestConfig:
         }
 
     @property
-    def all_admin_urls(self) -> Dict[str, str]:
+    def all_admin_urls(self) -> dict[str, str]:
         """All admin URLs for testing."""
         return {
             "admin_index": self.admin_index,
@@ -136,7 +136,7 @@ class TestConfig:
         }
 
     @property
-    def critical_paths(self) -> Dict[str, list]:
+    def critical_paths(self) -> dict[str, list]:
         """Critical user paths to test."""
         return {
             "login_to_dashboard": [

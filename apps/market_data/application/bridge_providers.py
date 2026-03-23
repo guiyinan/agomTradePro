@@ -28,14 +28,14 @@ class MarketDataBridgePriceProvider(PriceDataProviderProtocol):
     def __init__(self, registry: SourceRegistry) -> None:
         self._registry = registry
 
-    def get_realtime_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格"""
         prices = self.get_realtime_prices_batch([asset_code])
         return prices[0] if prices else None
 
     def get_realtime_prices_batch(
-        self, asset_codes: List[str]
-    ) -> List[RealtimePrice]:
+        self, asset_codes: list[str]
+    ) -> list[RealtimePrice]:
         """批量获取实时价格
 
         使用 call_with_failover 自动遍历所有可用 provider：
@@ -49,7 +49,7 @@ class MarketDataBridgePriceProvider(PriceDataProviderProtocol):
             logger.warning("所有 REALTIME_QUOTE provider 均无法获取数据")
             return []
 
-        results: List[RealtimePrice] = []
+        results: list[RealtimePrice] = []
         for snap in snapshots:
             try:
                 results.append(

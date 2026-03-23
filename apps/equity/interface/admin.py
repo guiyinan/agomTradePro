@@ -3,12 +3,13 @@ Django Admin configuration for Equity Module.
 """
 
 from django.contrib import admin
+
 from apps.equity.infrastructure.models import (
-    StockInfoModel,
-    StockDailyModel,
     FinancialDataModel,
-    ValuationModel,
     ScoringWeightConfigModel,
+    StockDailyModel,
+    StockInfoModel,
+    ValuationModel,
 )
 
 

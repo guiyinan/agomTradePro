@@ -4,32 +4,33 @@ Integration Tests for Decision Platform
 测试 Beta Gate、Alpha Trigger、Decision Rhythm 三个模块的协同工作。
 """
 
-import pytest
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from django.test import TestCase, Client
-from django.contrib.auth.models import User
 
+import pytest
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
+
+from apps.alpha_trigger.domain.entities import (
+    AlphaCandidate,
+    AlphaTrigger,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
+)
 from apps.beta_gate.domain.entities import (
     GateConfig,
-    RegimeConstraint,
     PolicyConstraint,
     PortfolioConstraint,
+    RegimeConstraint,
     RiskProfile,
 )
-from apps.alpha_trigger.domain.entities import (
-    AlphaTrigger,
-    AlphaCandidate,
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
-)
 from apps.decision_rhythm.domain.entities import (
-    DecisionQuota,
-    QuotaPeriod,
     DecisionPriority,
+    DecisionQuota,
     DecisionRequest,
     DecisionStatus,
+    QuotaPeriod,
 )
 
 

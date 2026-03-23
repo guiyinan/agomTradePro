@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 DISALLOWED_PATTERNS = (
     "MockModel",
     "SYNTH",

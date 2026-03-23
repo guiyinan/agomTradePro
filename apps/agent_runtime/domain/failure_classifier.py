@@ -14,7 +14,7 @@ Failure types:
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class FailureType(str, Enum):
@@ -34,10 +34,10 @@ class FailureClassification:
     retryable: bool
     recommended_action: str
     human_required: bool
-    original_error: Optional[str] = None
-    evidence: Optional[Dict[str, Any]] = None
+    original_error: str | None = None
+    evidence: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dict for API responses and audit."""
         return {
             "failure_type": self.failure_type.value,
@@ -65,7 +65,7 @@ _KEYWORD_RULES = [
      FailureType.EXECUTION_FAILURE),
 ]
 
-_RECOVERY_MAP: Dict[FailureType, tuple[bool, str, bool]] = {
+_RECOVERY_MAP: dict[FailureType, tuple[bool, str, bool]] = {
     # (retryable, recommended_action, human_required)
     FailureType.VALIDATION_ERROR: (
         False,
@@ -102,8 +102,8 @@ _RECOVERY_MAP: Dict[FailureType, tuple[bool, str, bool]] = {
 
 def classify_failure(
     error_message: str,
-    error_code: Optional[str] = None,
-    evidence: Optional[Dict[str, Any]] = None,
+    error_code: str | None = None,
+    evidence: dict[str, Any] | None = None,
 ) -> FailureClassification:
     """
     Classify an error into a deterministic failure type.

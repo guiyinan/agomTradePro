@@ -4,10 +4,14 @@ Decision Rhythm Application Layer DTOs
 统一推荐相关的数据传输对象。
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from ..domain.entities import UnifiedRecommendation
 
 
 @dataclass
@@ -70,7 +74,7 @@ class UnifiedRecommendationDTO:
     # 综合
     composite_score: float = 0.0
     confidence: float = 0.0
-    reason_codes: List[str] = field(default_factory=list)
+    reason_codes: list[str] = field(default_factory=list)
     human_rationale: str = ""
     # 交易参数
     fair_value: Decimal = Decimal("0")
@@ -83,17 +87,17 @@ class UnifiedRecommendationDTO:
     suggested_quantity: int = 0
     max_capital: Decimal = Decimal("50000")
     # 溯源
-    source_signal_ids: List[str] = field(default_factory=list)
-    source_candidate_ids: List[str] = field(default_factory=list)
+    source_signal_ids: list[str] = field(default_factory=list)
+    source_candidate_ids: list[str] = field(default_factory=list)
     feature_snapshot_id: str = ""
-    valuation_repair: Optional[Dict[str, Any]] = None
+    valuation_repair: dict[str, Any] | None = None
     # 状态
     status: str = "NEW"
     user_action: str = "PENDING"
     user_action_note: str = ""
-    user_action_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    user_action_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @classmethod
     def from_domain(
@@ -147,7 +151,7 @@ class UnifiedRecommendationDTO:
             updated_at=recommendation.updated_at,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -208,13 +212,13 @@ class RefreshRecommendationsRequestDTO:
         async_mode: 是否异步执行
     """
 
-    account_id: Optional[str] = None
-    security_codes: Optional[List[str]] = None
+    account_id: str | None = None
+    security_codes: list[str] | None = None
     force: bool = False
     async_mode: bool = True
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RefreshRecommendationsRequestDTO":
+    def from_dict(cls, data: dict[str, Any]) -> "RefreshRecommendationsRequestDTO":
         """
         从字典创建 DTO
 
@@ -247,13 +251,13 @@ class RefreshRecommendationsResponseDTO:
         conflicts_count: 冲突数量
     """
 
-    task_id: Optional[str] = None
+    task_id: str | None = None
     status: str = "PENDING"
     message: str = ""
     recommendations_count: int = 0
     conflicts_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -287,12 +291,12 @@ class ConflictDTO:
 
     security_code: str
     account_id: str
-    buy_recommendation: Optional[UnifiedRecommendationDTO] = None
-    sell_recommendation: Optional[UnifiedRecommendationDTO] = None
+    buy_recommendation: UnifiedRecommendationDTO | None = None
+    sell_recommendation: UnifiedRecommendationDTO | None = None
     conflict_type: str = "BUY_SELL_CONFLICT"
     resolution_hint: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -327,12 +331,12 @@ class RecommendationsListDTO:
         page_size: 每页大小
     """
 
-    recommendations: List[UnifiedRecommendationDTO]
+    recommendations: list[UnifiedRecommendationDTO]
     total_count: int = 0
     page: int = 1
     page_size: int = 20
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -359,10 +363,10 @@ class ConflictsListDTO:
         total_count: 总数
     """
 
-    conflicts: List[ConflictDTO]
+    conflicts: list[ConflictDTO]
     total_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -411,10 +415,10 @@ class ExecutionPreviewDTO:
     position_pct: float
     suggested_quantity: int
     max_capital: Decimal
-    risk_check_results: Dict[str, Any]
+    risk_check_results: dict[str, Any]
     approval_request_id: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -454,10 +458,10 @@ class ApproveExecutionRequestDTO:
 
     approval_request_id: str
     reviewer_comments: str
-    execution_params: Dict[str, Any] = field(default_factory=dict)
+    execution_params: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ApproveExecutionRequestDTO":
+    def from_dict(cls, data: dict[str, Any]) -> "ApproveExecutionRequestDTO":
         """
         从字典创建 DTO
 
@@ -490,7 +494,7 @@ class RejectExecutionRequestDTO:
     reviewer_comments: str
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RejectExecutionRequestDTO":
+    def from_dict(cls, data: dict[str, Any]) -> "RejectExecutionRequestDTO":
         """
         从字典创建 DTO
 
@@ -522,10 +526,10 @@ class ExecutionResponseDTO:
 
     success: bool
     message: str = ""
-    execution_ref: Optional[Dict[str, Any]] = None
-    executed_at: Optional[datetime] = None
+    execution_ref: dict[str, Any] | None = None
+    executed_at: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         转换为字典
 
@@ -536,7 +540,5 @@ class ExecutionResponseDTO:
             "success": self.success,
             "message": self.message,
             "execution_ref": self.execution_ref,
-            "executed_at": (
-                self.executed_at.isoformat() if self.executed_at else None
-            ),
+            "executed_at": (self.executed_at.isoformat() if self.executed_at else None),
         }

@@ -7,17 +7,18 @@ Tests for:
 - ThresholdValidator class
 """
 
-import pytest
 from datetime import date, timedelta
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 from unittest.mock import Mock
 
+import pytest
+
 from apps.audit.domain.entities import (
+    IndicatorThresholdConfig,
+    RecommendedAction,
     RegimePeriod,
     RegimeSnapshot,
     SignalEvent,
-    IndicatorThresholdConfig,
-    RecommendedAction,
     ValidationStatus,
 )
 from apps.audit.domain.services import (
@@ -25,7 +26,6 @@ from apps.audit.domain.services import (
     IndicatorPerformanceAnalyzer,
     ThresholdValidator,
 )
-
 
 # ============ Fixtures ============
 

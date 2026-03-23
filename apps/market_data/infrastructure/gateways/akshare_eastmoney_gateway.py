@@ -6,8 +6,8 @@ AKShare 东方财富 Gateway
 而不需要修改 parser 和业务逻辑。
 """
 
-import os
 import logging
+import os
 import time
 from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
@@ -100,7 +100,7 @@ def _to_secid(stock_code: str) -> str:
     return f"0.{code}"
 
 
-def _safe_decimal(value: object, scale: int = 1) -> Optional[Decimal]:
+def _safe_decimal(value: object, scale: int = 1) -> Decimal | None:
     if value in (None, ""):
         return None
     try:
@@ -112,12 +112,12 @@ def _safe_decimal(value: object, scale: int = 1) -> Optional[Decimal]:
         return None
 
 
-def _safe_float(value: object, scale: int = 1) -> Optional[float]:
+def _safe_float(value: object, scale: int = 1) -> float | None:
     decimal_value = _safe_decimal(value, scale=scale)
     return float(decimal_value) if decimal_value is not None else None
 
 
-def _safe_int(value: object) -> Optional[int]:
+def _safe_int(value: object) -> int | None:
     if value in (None, ""):
         return None
     try:
@@ -156,11 +156,11 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
     # ------------------------------------------------------------------
 
     def get_quote_snapshots(
-        self, stock_codes: List[str]
-    ) -> List[QuoteSnapshot]:
+        self, stock_codes: list[str]
+    ) -> list[QuoteSnapshot]:
         """批量获取实时行情（东方财富单股接口）"""
         self._throttle()
-        results: List[QuoteSnapshot] = []
+        results: list[QuoteSnapshot] = []
         with requests.Session() as session:
             session.trust_env = False
             session.headers.update(
@@ -193,7 +193,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
 
     def get_capital_flows(
         self, stock_code: str, period: str = "5d"
-    ) -> List[CapitalFlowSnapshot]:
+    ) -> list[CapitalFlowSnapshot]:
         """获取个股资金流向"""
         self._throttle()
         try:
@@ -213,7 +213,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
             if days and len(df) > days:
                 df = df.tail(days)
 
-            results: List[CapitalFlowSnapshot] = []
+            results: list[CapitalFlowSnapshot] = []
             for _, row in df.iterrows():
                 snapshot = parse_akshare_capital_flow_row(row, stock_code)
                 if snapshot is not None:
@@ -234,7 +234,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
 
     def get_stock_news(
         self, stock_code: str, limit: int = 20
-    ) -> List[StockNewsItem]:
+    ) -> list[StockNewsItem]:
         """获取个股新闻"""
         self._throttle()
         try:
@@ -255,7 +255,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
 
     def get_technical_snapshot(
         self, stock_code: str
-    ) -> Optional[TechnicalSnapshot]:
+    ) -> TechnicalSnapshot | None:
         """获取技术指标快照
 
         turnover_rate 和 volume_ratio 来自实时行情，
@@ -286,7 +286,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         asset_code: str,
         start_date: str,
         end_date: str,
-    ) -> List[HistoricalPriceBar]:
+    ) -> list[HistoricalPriceBar]:
         """获取历史 K 线（东方财富源）
 
         使用 *_em 系列接口，避免 *_sina 接口依赖 py_mini_racer。
@@ -350,7 +350,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         df: "pd.DataFrame",
         asset_code: str,
         source: str,
-    ) -> List[HistoricalPriceBar]:
+    ) -> list[HistoricalPriceBar]:
         """解析东方财富中文列名 DataFrame（fund_etf_hist_em / stock_zh_a_hist）"""
         import pandas as pd
 
@@ -361,7 +361,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         df[date_col] = pd.to_datetime(df[date_col])
         df = df.sort_values(date_col)
 
-        bars: List[HistoricalPriceBar] = []
+        bars: list[HistoricalPriceBar] = []
         for _, row in df.iterrows():
             try:
                 bars.append(HistoricalPriceBar(
@@ -386,7 +386,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         start_date: str,
         end_date: str,
         source: str,
-    ) -> List[HistoricalPriceBar]:
+    ) -> list[HistoricalPriceBar]:
         """解析英文列名 DataFrame（stock_zh_index_daily）"""
         import pandas as pd
 
@@ -400,7 +400,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         df = df[(df[date_col] >= start_dt) & (df[date_col] <= end_dt)]
         df = df.sort_values(date_col)
 
-        bars: List[HistoricalPriceBar] = []
+        bars: list[HistoricalPriceBar] = []
         for _, row in df.iterrows():
             try:
                 bars.append(HistoricalPriceBar(
@@ -433,7 +433,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         self,
         session: requests.Session,
         stock_code: str,
-    ) -> Optional[QuoteSnapshot]:
+    ) -> QuoteSnapshot | None:
         """通过东财单股接口获取一只股票的行情。"""
         params = {
             "secid": _to_secid(stock_code),
@@ -475,7 +475,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         )
 
     @staticmethod
-    def _parse_period_days(period: str) -> Optional[int]:
+    def _parse_period_days(period: str) -> int | None:
         """将 '5d', '10d' 格式解析为天数"""
         period = period.strip().lower()
         if period.endswith("d"):

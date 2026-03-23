@@ -5,17 +5,18 @@ Django Admin 配置 - Shared App
 """
 
 from django.contrib import admin
+
 from .infrastructure.models import (
     AssetConfigModel,
+    FilterParameterConfigModel,
+    FundTypePreferenceConfigModel,
+    HedgingInstrumentConfigModel,
     IndicatorConfigModel,
     RegimeEligibilityConfigModel,
     RiskParameterConfigModel,
-    FilterParameterConfigModel,
-    TransactionCostConfigModel,
-    HedgingInstrumentConfigModel,
-    StockScreeningRuleConfigModel,
     SectorPreferenceConfigModel,
-    FundTypePreferenceConfigModel,
+    StockScreeningRuleConfigModel,
+    TransactionCostConfigModel,
 )
 
 

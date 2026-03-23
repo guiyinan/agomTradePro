@@ -4,12 +4,13 @@
 测试新增的 Bootstrap/Detail/Fetch API 端点。
 """
 
+from datetime import UTC, date, datetime, timezone
+
 import pytest
-from datetime import date, datetime, timezone
 from django.contrib.auth.models import User
 
-from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
 from apps.policy.domain.entities import PolicyLevel
+from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ def sample_event(db, test_user):
         description='这是一个测试事件的详细描述',
         evidence_url='https://example.com/test',
         gate_effective=True,
-        effective_at=datetime.now(timezone.utc),
+        effective_at=datetime.now(UTC),
         effective_by=test_user,
         audit_status='approved',
         ai_confidence=0.85,

@@ -8,18 +8,19 @@ Integration tests for Portfolio Observer Access.
 - 撤销后立即失去访问权限
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (
-    PortfolioObserverGrantModel,
-    PortfolioModel,
-    PositionModel,
     AssetCategoryModel,
     CurrencyModel,
+    PortfolioModel,
+    PortfolioObserverGrantModel,
+    PositionModel,
 )
 
 
@@ -367,7 +368,7 @@ class TestObserverAccessExpiration:
         data = setup_observer_test_data
 
         # 设置授权为过期
-        data['grant'].expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+        data['grant'].expires_at = datetime.now(UTC) - timedelta(days=1)
         data['grant'].save()
 
         client = APIClient()
@@ -382,7 +383,7 @@ class TestObserverAccessExpiration:
         data = setup_observer_test_data
 
         # 设置未来过期时间
-        data['grant'].expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        data['grant'].expires_at = datetime.now(UTC) + timedelta(days=30)
         data['grant'].save()
 
         client = APIClient()

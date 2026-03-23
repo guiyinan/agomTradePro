@@ -4,9 +4,9 @@ Field-level encryption service for sensitive data.
 Provides AES-256-GCM encryption for fields like API keys.
 Uses Fernet (symmetric encryption) from the cryptography library.
 """
-import os
 import base64
 import logging
+import os
 from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -27,7 +27,7 @@ class FieldEncryptionService:
     # Prefix to identify encrypted values
     PREFIX = "encrypted:v1:"
 
-    def __init__(self, encryption_key: Optional[str] = None):
+    def __init__(self, encryption_key: str | None = None):
         """
         Initialize the encryption service.
 
@@ -48,7 +48,7 @@ class FieldEncryptionService:
         self.fernet = self._create_fernet(self._raw_key)
 
     @staticmethod
-    def _get_encryption_key() -> Optional[str]:
+    def _get_encryption_key() -> str | None:
         """
         Get encryption key from Django settings or environment.
 
@@ -201,7 +201,7 @@ class FieldEncryptionService:
         return f"{value[:show_prefix]}...{value[-show_suffix:]}"
 
 
-def get_encryption_service() -> Optional[FieldEncryptionService]:
+def get_encryption_service() -> FieldEncryptionService | None:
     """
     Get the encryption service instance.
 

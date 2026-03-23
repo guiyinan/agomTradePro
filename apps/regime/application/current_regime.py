@@ -15,8 +15,8 @@ from datetime import date
 from typing import Dict, List, Optional
 
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
-from apps.regime.infrastructure.repositories import get_regime_repository
 from apps.regime.domain.protocols import MacroDataProviderProtocol
+from apps.regime.infrastructure.repositories import get_regime_repository
 
 
 @dataclass
@@ -27,13 +27,13 @@ class CurrentRegimeResult:
     confidence: float
     observed_at: date
     data_source: str
-    warnings: List[str]
-    distribution: Optional[Dict[str, float]] = None
+    warnings: list[str]
+    distribution: dict[str, float] | None = None
     is_fallback: bool = False
 
 
 # 全局提供者 (延迟初始化)
-_macro_data_provider: Optional[MacroDataProviderProtocol] = None
+_macro_data_provider: MacroDataProviderProtocol | None = None
 
 
 def set_macro_data_provider(provider: MacroDataProviderProtocol) -> None:
@@ -77,8 +77,8 @@ def get_macro_data_provider() -> MacroDataProviderProtocol:
 
 def resolve_current_regime(
     *,
-    as_of_date: Optional[date] = None,
-    data_source: Optional[str] = None,
+    as_of_date: date | None = None,
+    data_source: str | None = None,
     use_pit: bool = True,
     skip_cache: bool = False,
 ) -> CurrentRegimeResult:

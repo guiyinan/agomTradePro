@@ -10,16 +10,17 @@ Tests for Decision Execution Event Handlers
 4. 容错机制：主事务成功优先
 """
 
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+import pytest
+
 from apps.events.application.decision_execution_handlers import (
     DecisionApprovedHandler,
     DecisionExecutedHandler,
     DecisionExecutionFailedHandler,
 )
+from apps.events.domain.entities import DomainEvent, EventType, create_event
 
 
 @pytest.mark.django_db

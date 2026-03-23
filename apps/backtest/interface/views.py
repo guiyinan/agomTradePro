@@ -4,37 +4,38 @@ Views for Backtest Module.
 包含页面视图和 API 视图。
 """
 
-from django.shortcuts import render
+from datetime import date
+
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
-from rest_framework import viewsets, status
+from django.views.decorators.http import require_http_methods
+from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from datetime import date
 
 from core.throttling import BacktestRateThrottle, WriteRateThrottle
+
+from ..application.use_cases import (
+    DeleteBacktestRequest,
+    DeleteBacktestUseCase,
+    GetBacktestResultRequest,
+    GetBacktestResultUseCase,
+    GetBacktestStatisticsUseCase,
+    ListBacktestsRequest,
+    ListBacktestsUseCase,
+    RunBacktestRequest,
+    RunBacktestUseCase,
+)
 from ..infrastructure.models import BacktestResultModel, BacktestTradeModel
 from ..infrastructure.repositories import DjangoBacktestRepository
-from ..application.use_cases import (
-    RunBacktestUseCase,
-    RunBacktestRequest,
-    GetBacktestResultUseCase,
-    GetBacktestResultRequest,
-    ListBacktestsUseCase,
-    ListBacktestsRequest,
-    DeleteBacktestUseCase,
-    DeleteBacktestRequest,
-    GetBacktestStatisticsUseCase,
-)
 from .serializers import (
-    BacktestResultSerializer,
     BacktestListSerializer,
-    RunBacktestSerializer,
+    BacktestResultSerializer,
     BacktestStatisticsSerializer,
+    RunBacktestSerializer,
 )
-
 
 # ==================== Page Views ====================
 
@@ -191,8 +192,9 @@ class BacktestViewSet(viewsets.ViewSet):
             return None
 
         def get_asset_price(asset_class: str, as_of_date: date):
-            from ..infrastructure.adapters import create_default_price_adapter
             from shared.config.secrets import get_secrets
+
+            from ..infrastructure.adapters import create_default_price_adapter
 
             # 创建价格适配器（使用组合适配器支持 failover）
             try:
@@ -308,8 +310,9 @@ def run_backtest_api_view(request):
         return None
 
     def get_asset_price(asset_class: str, as_of_date: date):
-        from ..infrastructure.adapters import create_default_price_adapter
         from shared.config.secrets import get_secrets
+
+        from ..infrastructure.adapters import create_default_price_adapter
 
         try:
             token = get_secrets().data_sources.tushare_token

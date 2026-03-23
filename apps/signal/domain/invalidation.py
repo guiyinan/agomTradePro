@@ -57,8 +57,8 @@ class InvalidationCondition:
     indicator_type: IndicatorType # 指标类型
     operator: ComparisonOperator  # 比较操作符
     threshold: float              # 阈值
-    duration: Optional[int] = None      # 持续期数（可选）
-    compare_with: Optional[str] = None  # 比较对象（可选）
+    duration: int | None = None      # 持续期数（可选）
+    compare_with: str | None = None  # 比较对象（可选）
 
     def __post_init__(self):
         """验证条件有效性"""
@@ -67,7 +67,7 @@ class InvalidationCondition:
         if self.compare_with not in (None, "prev_value", "prev_period"):
             raise ValueError(f"不支持的 compare_with: {self.compare_with}")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """转换为字典格式（用于存储）"""
         return {
             "indicator_code": self.indicator_code,
@@ -79,7 +79,7 @@ class InvalidationCondition:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "InvalidationCondition":
+    def from_dict(cls, d: dict) -> "InvalidationCondition":
         """从字典创建"""
         return cls(
             indicator_code=d["indicator_code"],
@@ -101,7 +101,7 @@ class InvalidationRule:
         conditions: 条件列表
         logic: 逻辑操作符（AND/OR）
     """
-    conditions: List[InvalidationCondition]
+    conditions: list[InvalidationCondition]
     logic: LogicOperator
 
     def __post_init__(self):
@@ -109,7 +109,7 @@ class InvalidationRule:
         if not self.conditions:
             raise ValueError("conditions 不能为空")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """转换为字典格式（用于存储）"""
         return {
             "conditions": [c.to_dict() for c in self.conditions],
@@ -117,7 +117,7 @@ class InvalidationRule:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "InvalidationRule":
+    def from_dict(cls, d: dict) -> "InvalidationRule":
         """从字典创建（用于加载）"""
         conditions = [
             InvalidationCondition.from_dict(c)
@@ -157,7 +157,7 @@ class InvalidationCheckResult:
     """证伪检查结果"""
     is_invalidated: bool
     reason: str
-    checked_conditions: List[Dict]  # 每个条件的检查详情
+    checked_conditions: list[dict]  # 每个条件的检查详情
     checked_at: str  # ISO 格式时间戳
 
 
@@ -168,10 +168,10 @@ class IndicatorValue:
     包含当前值、历史值和元数据。
     """
     code: str
-    current_value: Optional[float]
-    history_values: List[float]
+    current_value: float | None
+    history_values: list[float]
     unit: str
-    last_updated: Optional[str]
+    last_updated: str | None
 
 
 # ==================== 纯函数业务逻辑 ====================
@@ -203,7 +203,7 @@ def _compare(value: float, op: ComparisonOperator, threshold: float) -> bool:
 def evaluate_condition(
     condition: InvalidationCondition,
     indicator_value: IndicatorValue
-) -> Tuple[bool, Dict]:
+) -> tuple[bool, dict]:
     """评估单个条件是否满足
 
     Args:
@@ -260,7 +260,7 @@ def evaluate_condition(
 
 def _generate_invalidation_reason(
     rule: InvalidationRule,
-    checked_conditions: List[Dict]
+    checked_conditions: list[dict]
 ) -> str:
     """生成证伪原因描述"""
     parts = []
@@ -285,7 +285,7 @@ def _generate_invalidation_reason(
 
 def evaluate_rule(
     rule: InvalidationRule,
-    indicator_values: Dict[str, IndicatorValue]
+    indicator_values: dict[str, IndicatorValue]
 ) -> InvalidationCheckResult:
     """评估证伪规则
 
@@ -332,7 +332,7 @@ def evaluate_rule(
     )
 
 
-def validate_rule(rule: InvalidationRule) -> List[str]:
+def validate_rule(rule: InvalidationRule) -> list[str]:
     """验证规则的有效性
 
     Args:

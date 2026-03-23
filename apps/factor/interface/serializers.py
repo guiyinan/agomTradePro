@@ -5,10 +5,11 @@ DRF Serializers for the factor module API.
 """
 
 from rest_framework import serializers
+
 from apps.factor.infrastructure.models import (
     FactorDefinitionModel,
-    FactorPortfolioConfigModel,
     FactorExposureModel,
+    FactorPortfolioConfigModel,
     FactorPortfolioHoldingModel,
 )
 

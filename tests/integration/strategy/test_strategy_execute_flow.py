@@ -7,28 +7,29 @@ Integration Tests for Strategy Execute Flow
 - 完整的策略执行流程
 - 响应格式验证（execution_id, generated_signals, failed_rules, duration_ms）
 """
-import pytest
-import uuid
 import json
-from django.test import TestCase, Client
-from django.contrib.auth.models import User
-from django.utils import timezone
+import uuid
 from datetime import datetime
 
+import pytest
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
+from django.utils import timezone
+
 from apps.account.infrastructure.models import AccountProfileModel
-from apps.strategy.infrastructure.models import (
-    StrategyModel,
-    RuleConditionModel,
-    PortfolioStrategyAssignmentModel,
-    StrategyExecutionLogModel,
-)
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    FeeConfigModel,
-)
+from apps.asset_analysis.infrastructure.models import AssetScoreCache
 from apps.macro.infrastructure.models import MacroIndicator
 from apps.regime.infrastructure.models import RegimeLog
-from apps.asset_analysis.infrastructure.models import AssetScoreCache
+from apps.simulated_trading.infrastructure.models import (
+    FeeConfigModel,
+    SimulatedAccountModel,
+)
+from apps.strategy.infrastructure.models import (
+    PortfolioStrategyAssignmentModel,
+    RuleConditionModel,
+    StrategyExecutionLogModel,
+    StrategyModel,
+)
 
 
 @pytest.mark.django_db

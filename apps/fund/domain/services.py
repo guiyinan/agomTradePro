@@ -7,13 +7,17 @@
 - 通过依赖注入接收数据
 """
 
-from typing import List, Dict, Tuple
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
+from typing import Dict, List, Tuple
 
 from .entities import (
-    FundInfo, FundNetValue, FundHolding, FundSectorAllocation,
-    FundPerformance, FundScore
+    FundHolding,
+    FundInfo,
+    FundNetValue,
+    FundPerformance,
+    FundScore,
+    FundSectorAllocation,
 )
 
 
@@ -28,12 +32,12 @@ class FundScreener:
 
     def screen_by_regime(
         self,
-        all_funds: List[Tuple[FundInfo, FundPerformance, List[FundSectorAllocation]]],
-        preferred_types: List[str],
-        preferred_styles: List[str],
+        all_funds: list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]],
+        preferred_types: list[str],
+        preferred_styles: list[str],
         min_scale: Decimal = Decimal(0),
         max_count: int = 30
-    ) -> List[str]:
+    ) -> list[str]:
         """基于 Regime 筛选基金
 
         Args:
@@ -82,13 +86,13 @@ class FundScreener:
 
     def rank_funds(
         self,
-        funds_data: List[Tuple[FundInfo, FundPerformance, List[FundSectorAllocation]]],
-        regime_weights: Dict[str, float],
+        funds_data: list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]],
+        regime_weights: dict[str, float],
         performance_weight: float = 0.4,
         regime_fit_weight: float = 0.3,
         risk_weight: float = 0.2,
         scale_weight: float = 0.1
-    ) -> List[FundScore]:
+    ) -> list[FundScore]:
         """对基金进行综合评分和排名
 
         Args:
@@ -202,7 +206,7 @@ class FundScreener:
         self,
         fund_type: str,
         investment_style: str,
-        regime_weights: Dict[str, float]
+        regime_weights: dict[str, float]
     ) -> float:
         """计算 Regime 适配度评分
 
@@ -292,8 +296,8 @@ class FundStyleAnalyzer:
 
     def analyze_holding_style(
         self,
-        holdings: List[FundHolding]
-    ) -> Dict[str, float]:
+        holdings: list[FundHolding]
+    ) -> dict[str, float]:
         """分析持仓风格
 
         基于持仓股票的估值指标判断风格：
@@ -338,8 +342,8 @@ class FundStyleAnalyzer:
 
     def analyze_sector_concentration(
         self,
-        sector_alloc: List[FundSectorAllocation]
-    ) -> Dict[str, float]:
+        sector_alloc: list[FundSectorAllocation]
+    ) -> dict[str, float]:
         """分析行业集中度
 
         Args:
@@ -381,7 +385,7 @@ class FundPerformanceCalculator:
 
     def calculate_total_return(
         self,
-        nav_series: List[FundNetValue]
+        nav_series: list[FundNetValue]
     ) -> float:
         """计算区间收益率
 
@@ -429,7 +433,7 @@ class FundPerformanceCalculator:
 
     def calculate_volatility(
         self,
-        daily_returns: List[float]
+        daily_returns: list[float]
     ) -> float:
         """计算波动率（年化）
 
@@ -476,7 +480,7 @@ class FundPerformanceCalculator:
 
     def calculate_max_drawdown(
         self,
-        nav_series: List[FundNetValue]
+        nav_series: list[FundNetValue]
     ) -> float:
         """计算最大回撤
 

@@ -6,6 +6,7 @@ Django Admin for Regime Interface.
 """
 
 from django.contrib import admin
+
 from apps.regime.infrastructure.models import RegimeLog
 
 

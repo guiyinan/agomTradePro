@@ -5,9 +5,9 @@ Infrastructure layer - defines the interface for fetching asset prices.
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Protocol
-from dataclasses import dataclass
 
 
 class AssetPriceUnavailableError(Exception):
@@ -58,7 +58,7 @@ class AssetPriceAdapterProtocol(Protocol):
         self,
         asset_class: str,
         as_of_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         获取指定资产在指定日期的价格
 
@@ -128,7 +128,7 @@ class BaseAssetPriceAdapter(ABC):
         self,
         asset_class: str,
         as_of_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """默认实现：子类应覆盖"""
         raise NotImplementedError
 

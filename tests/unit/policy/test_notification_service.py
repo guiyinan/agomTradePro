@@ -10,23 +10,24 @@ Unit Tests for Policy Notification Service
 """
 
 import logging
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import date, datetime, timezone
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.domain.interfaces import (
-    NotificationMessage,
     NotificationChannel,
+    NotificationMessage,
     NotificationServicePort,
     PolicyAlertServicePort,
 )
-from apps.policy.domain.entities import PolicyLevel, PolicyEvent
 from apps.policy.infrastructure.notification_service import (
-    LoggingNotificationService,
     EmailNotificationService,
     InAppNotificationService,
-    PolicyAlertService,
+    LoggingNotificationService,
     NotificationServiceFactory,
+    PolicyAlertService,
 )
 
 

@@ -12,8 +12,8 @@ Uses only:
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class AssetCategory(Enum):
@@ -46,7 +46,7 @@ class AssetClass:
     name: str                              # Asset name
     category: AssetCategory                # Asset category
     description: str                       # Asset description
-    underlying_index: Optional[str] = None # Underlying index (e.g., "000300.SH")
+    underlying_index: str | None = None # Underlying index (e.g., "000300.SH")
     currency: str = "CNY"                  # Currency denomination
     is_active: bool = True                 # Whether this asset is available
 
@@ -104,10 +104,10 @@ class RotationConfig:
     strategy_type: RotationStrategyType = RotationStrategyType.MOMENTUM
 
     # Asset universe
-    asset_universe: List[str] = field(default_factory=list)  # List of asset codes
+    asset_universe: list[str] = field(default_factory=list)  # List of asset codes
 
     # Strategy parameters
-    params: Dict = field(default_factory=dict)  # Strategy-specific parameters
+    params: dict = field(default_factory=dict)  # Strategy-specific parameters
 
     # Portfolio construction
     rebalance_frequency: str = "monthly"   # weekly, monthly, quarterly
@@ -119,10 +119,10 @@ class RotationConfig:
     lookback_period: int = 252             # Lookback period for calculations (days)
 
     # Regime-based settings (if strategy_type == REGIME_BASED)
-    regime_allocations: Dict = field(default_factory=dict)  # {regime: {asset: weight}}
+    regime_allocations: dict = field(default_factory=dict)  # {regime: {asset: weight}}
 
     # Momentum settings (if strategy_type == MOMENTUM)
-    momentum_periods: List[int] = field(default_factory=lambda: [20, 60, 120, 252])
+    momentum_periods: list[int] = field(default_factory=lambda: [20, 60, 120, 252])
     top_n: int = 3                         # Number of top assets to select
 
     # Status
@@ -155,11 +155,11 @@ class RotationSignal:
     signal_date: date                      # Signal date
 
     # Allocation recommendations
-    target_allocation: Dict[str, float]    # {asset_code: target_weight}
+    target_allocation: dict[str, float]    # {asset_code: target_weight}
 
     # Context information
     current_regime: str = ""               # Current macro regime (if applicable)
-    momentum_ranking: List[Tuple[str, float]] = field(default_factory=list)  # [(asset, score)]
+    momentum_ranking: list[tuple[str, float]] = field(default_factory=list)  # [(asset, score)]
 
     # Risk metrics
     expected_volatility: float = 0.0       # Expected portfolio volatility
@@ -191,7 +191,7 @@ class RotationPortfolio:
     trade_date: date                       # Trade date
 
     # Current holdings
-    current_allocation: Dict[str, float]   # {asset_code: current_weight}
+    current_allocation: dict[str, float]   # {asset_code: current_weight}
 
     # Performance
     daily_return: float = 0.0              # Daily return
@@ -217,12 +217,12 @@ class RotationPortfolio:
 
 # Domain factory functions
 
-def get_common_etf_assets() -> List[AssetClass]:
+def get_common_etf_assets() -> list[AssetClass]:
     """Rotation 资产应从数据库读取，Domain 层不再内置默认资产。"""
     return []
 
 
-def create_default_regime_allocation() -> Dict[str, Dict[str, float]]:
+def create_default_regime_allocation() -> dict[str, dict[str, float]]:
     """
     Create default regime-based allocation matrix.
 

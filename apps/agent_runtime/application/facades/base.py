@@ -8,7 +8,7 @@ a failure in one source does not block others.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 class SourceStatus:
     """Status of a single data source fetch."""
     available: bool
-    fetched_at: Optional[str] = None
-    error: Optional[str] = None
+    fetched_at: str | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -32,16 +32,16 @@ class ContextSnapshotDTO:
     """
     domain: str
     generated_at: str
-    regime_summary: Dict[str, Any] = field(default_factory=dict)
-    policy_summary: Dict[str, Any] = field(default_factory=dict)
-    portfolio_summary: Dict[str, Any] = field(default_factory=dict)
-    active_signals_summary: Dict[str, Any] = field(default_factory=dict)
-    open_decisions_summary: Dict[str, Any] = field(default_factory=dict)
-    risk_alerts_summary: Dict[str, Any] = field(default_factory=dict)
-    task_health_summary: Dict[str, Any] = field(default_factory=dict)
-    data_freshness_summary: Dict[str, Any] = field(default_factory=dict)
+    regime_summary: dict[str, Any] = field(default_factory=dict)
+    policy_summary: dict[str, Any] = field(default_factory=dict)
+    portfolio_summary: dict[str, Any] = field(default_factory=dict)
+    active_signals_summary: dict[str, Any] = field(default_factory=dict)
+    open_decisions_summary: dict[str, Any] = field(default_factory=dict)
+    risk_alerts_summary: dict[str, Any] = field(default_factory=dict)
+    task_health_summary: dict[str, Any] = field(default_factory=dict)
+    data_freshness_summary: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to serializable dict."""
         return {
             "domain": self.domain,
@@ -57,7 +57,7 @@ class ContextSnapshotDTO:
         }
 
 
-def _unavailable(source_name: str, error: str) -> Dict[str, Any]:
+def _unavailable(source_name: str, error: str) -> dict[str, Any]:
     """Return a degraded placeholder for an unavailable data source."""
     return {
         "status": "unavailable",
@@ -80,7 +80,7 @@ class BaseContextFacade:
     # Individual data source fetchers (override in subclasses as needed)
     # ------------------------------------------------------------------
 
-    def fetch_regime_summary(self) -> Dict[str, Any]:
+    def fetch_regime_summary(self) -> dict[str, Any]:
         """Fetch current regime state."""
         try:
             from apps.regime.infrastructure.models import RegimeRecord
@@ -98,7 +98,7 @@ class BaseContextFacade:
             logger.warning("Failed to fetch regime summary: %s", e)
             return _unavailable("regime", str(e))
 
-    def fetch_policy_summary(self) -> Dict[str, Any]:
+    def fetch_policy_summary(self) -> dict[str, Any]:
         """Fetch current policy gear status."""
         try:
             from apps.policy.infrastructure.models import PolicyEvent
@@ -115,7 +115,7 @@ class BaseContextFacade:
             logger.warning("Failed to fetch policy summary: %s", e)
             return _unavailable("policy", str(e))
 
-    def fetch_portfolio_summary(self) -> Dict[str, Any]:
+    def fetch_portfolio_summary(self) -> dict[str, Any]:
         """Fetch portfolio overview."""
         try:
             from apps.account.infrastructure.models import Portfolio, Position
@@ -135,7 +135,7 @@ class BaseContextFacade:
             logger.warning("Failed to fetch portfolio summary: %s", e)
             return _unavailable("portfolio", str(e))
 
-    def fetch_active_signals_summary(self) -> Dict[str, Any]:
+    def fetch_active_signals_summary(self) -> dict[str, Any]:
         """Fetch active investment signals summary."""
         try:
             from apps.signal.infrastructure.models import InvestmentSignal
@@ -158,7 +158,7 @@ class BaseContextFacade:
             logger.warning("Failed to fetch active signals: %s", e)
             return _unavailable("signal", str(e))
 
-    def fetch_open_decisions_summary(self) -> Dict[str, Any]:
+    def fetch_open_decisions_summary(self) -> dict[str, Any]:
         """Fetch open decision requests summary."""
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionRequest
@@ -171,7 +171,7 @@ class BaseContextFacade:
             logger.warning("Failed to fetch open decisions: %s", e)
             return _unavailable("decision_rhythm", str(e))
 
-    def fetch_risk_alerts_summary(self) -> Dict[str, Any]:
+    def fetch_risk_alerts_summary(self) -> dict[str, Any]:
         """Fetch risk-related alerts."""
         try:
             from apps.beta_gate.infrastructure.models import BetaGateConfig
@@ -184,11 +184,11 @@ class BaseContextFacade:
             logger.warning("Failed to fetch risk alerts: %s", e)
             return _unavailable("risk", str(e))
 
-    def fetch_task_health_summary(self) -> Dict[str, Any]:
+    def fetch_task_health_summary(self) -> dict[str, Any]:
         """Fetch agent runtime task health."""
         try:
-            from apps.agent_runtime.infrastructure.models import AgentTaskModel
             from apps.agent_runtime.domain.entities import TaskStatus
+            from apps.agent_runtime.infrastructure.models import AgentTaskModel
 
             total = AgentTaskModel._default_manager.count()
             active = AgentTaskModel._default_manager.exclude(
@@ -214,9 +214,9 @@ class BaseContextFacade:
             logger.warning("Failed to fetch task health: %s", e)
             return _unavailable("agent_runtime", str(e))
 
-    def fetch_data_freshness_summary(self) -> Dict[str, Any]:
+    def fetch_data_freshness_summary(self) -> dict[str, Any]:
         """Fetch data freshness metrics across sources."""
-        freshness: Dict[str, Any] = {"status": "ok", "sources": {}}
+        freshness: dict[str, Any] = {"status": "ok", "sources": {}}
         # Regime freshness
         try:
             from apps.regime.infrastructure.models import RegimeRecord
@@ -248,7 +248,7 @@ class BaseContextFacade:
         Each source is fetched independently. Failures produce
         structured degraded responses rather than exceptions.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         return ContextSnapshotDTO(
             domain=self.domain,
             generated_at=now,

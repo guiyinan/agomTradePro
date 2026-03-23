@@ -7,14 +7,14 @@ Tests for:
 - AlphaCandidate serialization with new fields
 """
 
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
 from apps.alpha_trigger.domain.entities import (
     AlphaCandidate,
-    SignalStrength,
     CandidateStatus,
+    SignalStrength,
 )
 
 

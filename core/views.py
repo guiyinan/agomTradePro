@@ -4,12 +4,14 @@ Core Views for AgomTradePro
 项目级视图函数
 """
 
-from django.shortcuts import render
+from datetime import UTC, date, datetime, timezone
+
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from datetime import date, datetime, timezone
+from django.shortcuts import render
+
 from apps.regime.application.current_regime import resolve_current_regime
-from core.health_checks import run_readiness_checks, is_healthy
+from core.health_checks import is_healthy, run_readiness_checks
 
 
 def index_view(request):
@@ -28,7 +30,7 @@ def health_view(request):
     """
     return JsonResponse({
         'status': 'ok',
-        'timestamp': datetime.now(timezone.utc).isoformat()
+        'timestamp': datetime.now(UTC).isoformat()
     })
 
 
@@ -48,14 +50,14 @@ def readiness_view(request):
     if is_healthy(checks):
         response_data = {
             'status': 'ok',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'checks': checks
         }
         return JsonResponse(response_data, status=200)
     else:
         response_data = {
             'status': 'error',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'checks': checks
         }
         return JsonResponse(response_data, status=503)
@@ -73,22 +75,22 @@ def terminal_view(request):
     
     提供 bash 风格的命令行界面，用于与 AI 中台交互
     """
-    from apps.regime.application.current_regime import resolve_current_regime
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-    
+    from apps.regime.application.current_regime import resolve_current_regime
+
     # 获取当前上下文信息
     current_regime = resolve_current_regime()
-    
+
     policy_repo = DjangoPolicyRepository()
     latest_policy = policy_repo.get_current_policy_level()
-    
+
     regime_display = {
         'Recovery': '复苏',
         'Overheat': '过热',
         'Stagflation': '滞胀',
         'Deflation': '通缩',
     }
-    
+
     context = {
         'current_regime': current_regime.dominant_regime,
         'regime_display': regime_display.get(current_regime.dominant_regime, '未知'),
@@ -96,7 +98,7 @@ def terminal_view(request):
         'current_policy': latest_policy.value if latest_policy else 'P1',
         'page_title': 'AI Terminal',
     }
-    
+
     return render(request, 'terminal/index.html', context)
 
 
@@ -108,16 +110,16 @@ def terminal_config_view(request):
     管理员可以在此配置终端命令，映射到Prompt模板或API端点
     """
     from django.contrib.auth.decorators import permission_required
-    
+
     # 检查权限
     if not (request.user.is_staff or request.user.is_superuser):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("需要管理员权限")
-    
+
     context = {
         'page_title': '终端命令配置',
     }
-    
+
     return render(request, 'terminal/config.html', context)
 
 
@@ -168,6 +170,7 @@ def asset_screen_view(request):
 def docs_view(request, doc_slug=''):
     """文档查看视图"""
     from django.http import Http404
+
     from apps.account.infrastructure.models import DocumentationModel
 
     if doc_slug:
@@ -246,6 +249,7 @@ def decision_workspace_view(request):
     集成 Beta Gate、Alpha Trigger、Decision Rhythm 三个模块的概览和快速操作。
     """
     import logging
+
     from apps.policy.application.use_cases import GetCurrentPolicyUseCase
     from apps.policy.infrastructure.repositories import get_policy_repository
 
@@ -298,7 +302,7 @@ def decision_workspace_view(request):
 
     # ========== Alpha Trigger 数据 ==========
     try:
-        from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 
         # 统计各状态数量
         context['alpha_trigger_count'] = AlphaTriggerModel._default_manager.filter(status='ACTIVE').count()
@@ -323,8 +327,8 @@ def decision_workspace_view(request):
 
     # ========== Decision Rhythm 数据 ==========
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
         from apps.decision_rhythm.domain.entities import QuotaPeriod
+        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
         current_quota = (
             DecisionQuotaModel._default_manager
             .filter(period=QuotaPeriod.WEEKLY.value)
@@ -350,7 +354,10 @@ def decision_workspace_view(request):
 
     # ========== 决策待办列表（优先级排序） ==========
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel, DecisionResponseModel
+        from apps.decision_rhythm.infrastructure.models import (
+            DecisionRequestModel,
+            DecisionResponseModel,
+        )
 
         # 待处理定义：已批准但未执行的请求
         # P1-8: 查询条件改为 PENDING + FAILED，以支持重试分支
@@ -391,8 +398,9 @@ def decision_workspace_view(request):
 
     # 候选即将过期告警
     try:
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
         expiring_soon = 0
         now = timezone.now()
         threshold = now + timedelta(days=2)

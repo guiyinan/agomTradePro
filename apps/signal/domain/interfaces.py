@@ -6,7 +6,7 @@ Application layer depends on these protocols, not concrete implementations.
 """
 
 from datetime import date
-from typing import List, Optional, Protocol, Any
+from typing import Any, List, Optional, Protocol
 
 from shared.domain.interfaces import FilterableRepositoryProtocol
 
@@ -21,7 +21,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
     Application layer should depend on this protocol, not concrete implementations.
     """
 
-    def get_by_id(self, id: str) -> Optional[InvestmentSignal]:
+    def get_by_id(self, id: str) -> InvestmentSignal | None:
         """Retrieve a signal by its identifier.
 
         Args:
@@ -32,7 +32,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def get_all(self) -> List[InvestmentSignal]:
+    def get_all(self) -> list[InvestmentSignal]:
         """Retrieve all signals.
 
         Returns:
@@ -62,7 +62,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def find_by_criteria(self, **criteria: Any) -> List[InvestmentSignal]:
+    def find_by_criteria(self, **criteria: Any) -> list[InvestmentSignal]:
         """Find signals matching the given criteria.
 
         Args:
@@ -89,7 +89,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
     def find_signals_with_invalidation_rules(
         self,
         status: SignalStatus
-    ) -> List[InvestmentSignal]:
+    ) -> list[InvestmentSignal]:
         """Find signals that have invalidation rules and match the given status.
 
         Args:
@@ -100,7 +100,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def find_signals_to_invalidate(self, as_of_date: date) -> List[InvestmentSignal]:
+    def find_signals_to_invalidate(self, as_of_date: date) -> list[InvestmentSignal]:
         """Find signals that should be checked for invalidation.
 
         Args:
@@ -149,7 +149,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         self,
         signal_id: str,
         new_status: SignalStatus,
-        rejection_reason: Optional[str] = None
+        rejection_reason: str | None = None
     ) -> bool:
         """Update a signal's status.
 
@@ -163,7 +163,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def get_active_signals(self) -> List[InvestmentSignal]:
+    def get_active_signals(self) -> list[InvestmentSignal]:
         """Get all active (approved) signals.
 
         Returns:
@@ -171,7 +171,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def get_pending_signals(self) -> List[InvestmentSignal]:
+    def get_pending_signals(self) -> list[InvestmentSignal]:
         """Get all pending signals.
 
         Returns:
@@ -182,8 +182,8 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
     def get_signals_by_asset(
         self,
         asset_code: str,
-        status: Optional[SignalStatus] = None
-    ) -> List[InvestmentSignal]:
+        status: SignalStatus | None = None
+    ) -> list[InvestmentSignal]:
         """Get signals by asset code.
 
         Args:
@@ -195,7 +195,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def get_signals_by_status(self, status: SignalStatus) -> List[InvestmentSignal]:
+    def get_signals_by_status(self, status: SignalStatus) -> list[InvestmentSignal]:
         """Get signals by status.
 
         Args:
@@ -214,7 +214,7 @@ class UserRepositoryProtocol(Protocol):
     Provides access to user data for notification purposes.
     """
 
-    def get_staff_emails(self) -> List[str]:
+    def get_staff_emails(self) -> list[str]:
         """Get email addresses of all active staff users.
 
         Returns:
@@ -222,7 +222,7 @@ class UserRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_user_by_id(self, user_id: int) -> Optional[Any]:
+    def get_user_by_id(self, user_id: int) -> Any | None:
         """Get a user by ID.
 
         Args:

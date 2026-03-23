@@ -5,25 +5,24 @@ Sentiment 模块 - Application 层服务
 Application 层依赖 Domain 层和 Infrastructure 层的接口。
 """
 
-import re
 import json
 import logging
-from typing import List, Optional
+import re
 from datetime import datetime
+from typing import List, Optional
 
 from django.utils import timezone
 
+from apps.ai_provider.domain.entities import AIChatRequest
+from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
+    SentimentCategory,
     SentimentIndex,
     SentimentSource,
-    SentimentCategory,
 )
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter
-from apps.ai_provider.domain.entities import AIChatRequest
 from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
-
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +102,7 @@ class SentimentAnalyzer:
             analyzed_at=timezone.now(),
         )
 
-    def analyze_batch(self, texts: List[str]) -> List[SentimentAnalysisResult]:
+    def analyze_batch(self, texts: list[str]) -> list[SentimentAnalysisResult]:
         """
         批量分析文本情感
 
@@ -263,7 +262,7 @@ class SentimentAnalyzer:
         else:
             return SentimentCategory.NEUTRAL
 
-    def _extract_keywords(self, text: str, ai_response: str) -> List[str]:
+    def _extract_keywords(self, text: str, ai_response: str) -> list[str]:
         """
         提取关键词
 
@@ -339,10 +338,10 @@ class SentimentIndexCalculator:
 
     def calculate_index(
         self,
-        news_scores: List[float],
-        policy_scores: List[float],
-        news_weight: Optional[float] = None,
-        policy_weight: Optional[float] = None,
+        news_scores: list[float],
+        policy_scores: list[float],
+        news_weight: float | None = None,
+        policy_weight: float | None = None,
     ) -> SentimentIndex:
         """
         计算综合情绪指数
@@ -396,7 +395,7 @@ class SentimentIndexCalculator:
         )
 
     @staticmethod
-    def _weighted_average(scores: List[float]) -> float:
+    def _weighted_average(scores: list[float]) -> float:
         """
         计算加权平均（近期数据权重更高）
 

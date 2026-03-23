@@ -4,19 +4,20 @@
 测试评分日志记录器和告警服务。
 """
 
-import pytest
 from datetime import date, datetime
 
-from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle
-from apps.asset_analysis.domain.value_objects import WeightConfig, ScoreContext
+import pytest
+
 from apps.asset_analysis.application.logging_service import (
-    ScoringLogger,
     AlertService,
     ScoringLogEntry,
+    ScoringLogger,
 )
+from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetType
+from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 from apps.asset_analysis.infrastructure.models import (
-    AssetScoringLog,
     AssetAnalysisAlert,
+    AssetScoringLog,
 )
 
 

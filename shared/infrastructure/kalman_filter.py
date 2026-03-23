@@ -4,16 +4,17 @@ Kalman Filter Implementation for Trend Extraction.
 Infrastructure layer using NumPy for performance.
 """
 
-import numpy as np
-from typing import List, Tuple, Optional
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
+
+import numpy as np
 
 
 @dataclass
 class KalmanFilterResult:
     """Kalman 滤波结果"""
-    filtered_levels: List[float]
-    filtered_slopes: List[float]
+    filtered_levels: list[float]
+    filtered_slopes: list[float]
     final_state: "KalmanState"
 
 
@@ -75,8 +76,8 @@ class LocalLinearTrendFilter:
 
     def filter(
         self,
-        observations: List[float],
-        initial_level: Optional[float] = None,
+        observations: list[float],
+        initial_level: float | None = None,
         initial_slope: float = 0.0
     ) -> KalmanFilterResult:
         """对完整序列进行滤波"""

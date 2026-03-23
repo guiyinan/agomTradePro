@@ -3,11 +3,12 @@ Smoke tests for critical user paths.
 Tests that all major pages load without errors.
 """
 import re
+
 import pytest
 from playwright.sync_api import Page, expect
 
 from tests.playwright.config.test_config import config
-from tests.playwright.pages import LoginPage, DashboardPage, AdminPage
+from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 
 

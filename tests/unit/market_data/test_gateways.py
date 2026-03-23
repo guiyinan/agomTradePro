@@ -4,10 +4,11 @@ Gateway 测试
 使用 mock 避免实际网络调用。
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+
 import pandas as pd
+import pytest
 
 from apps.market_data.domain.enums import DataCapability
 
@@ -34,10 +35,10 @@ class TestTushareGateway:
 
     @patch("apps.market_data.infrastructure.gateways.tushare_gateway.TushareGateway.get_quote_snapshots")
     def test_get_technical_snapshot_delegates(self, mock_quotes):
+        from apps.market_data.domain.entities import QuoteSnapshot
         from apps.market_data.infrastructure.gateways.tushare_gateway import (
             TushareGateway,
         )
-        from apps.market_data.domain.entities import QuoteSnapshot
 
         mock_quotes.return_value = [
             QuoteSnapshot(

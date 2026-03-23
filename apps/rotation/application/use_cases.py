@@ -5,28 +5,29 @@ Application use cases for the rotation module.
 Orchestrates domain services and infrastructure adapters.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Dict, List, Optional
 
+from apps.rotation.application.dtos import (
+    AssetComparisonRequest,
+    AssetComparisonResponse,
+    AssetMomentumScore,
+    AssetsViewRequest,
+    AssetsViewResponse,
+    ConfigLatestSignal,
+    RotationConfigsViewRequest,
+    RotationConfigsViewResponse,
+    RotationSignalRequest,
+    RotationSignalResponse,
+    RotationSignalsViewRequest,
+    RotationSignalsViewResponse,
+)
 from apps.rotation.domain.entities import RotationConfig, RotationSignal
 from apps.rotation.domain.services import (
     RotationContext,
     RotationService,
-)
-from apps.rotation.application.dtos import (
-    RotationSignalRequest,
-    RotationSignalResponse,
-    AssetComparisonRequest,
-    AssetComparisonResponse,
-    AssetsViewRequest,
-    AssetsViewResponse,
-    AssetMomentumScore,
-    RotationConfigsViewRequest,
-    RotationConfigsViewResponse,
-    ConfigLatestSignal,
-    RotationSignalsViewRequest,
-    RotationSignalsViewResponse,
 )
 
 
@@ -34,12 +35,12 @@ from apps.rotation.application.dtos import (
 class RotationUseCaseContext:
     """Context for rotation use case execution"""
     calc_date: date
-    asset_universe: List[str]
+    asset_universe: list[str]
 
     # Repository accessors (injected)
-    get_asset_prices: Callable[[str, date, int], Optional[List[float]]]
-    get_current_regime: Callable[[], Optional[str]]
-    get_rotation_config: Callable[[str], Optional[RotationConfig]]
+    get_asset_prices: Callable[[str, date, int], list[float] | None]
+    get_current_regime: Callable[[], str | None]
+    get_rotation_config: Callable[[str], RotationConfig | None]
 
 
 class GenerateRotationSignalUseCase:
@@ -131,7 +132,7 @@ class GetCurrentRegimeUseCase:
     def __init__(self, context: RotationUseCaseContext):
         self.context = context
 
-    def execute(self) -> Optional[str]:
+    def execute(self) -> str | None:
         """Execute get current regime"""
         return self.context.get_current_regime()
 

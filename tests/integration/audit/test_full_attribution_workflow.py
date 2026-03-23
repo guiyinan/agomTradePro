@@ -9,36 +9,37 @@ Tests end-to-end attribution analysis workflow:
 5. Report retrieval
 """
 
-import pytest
 import json
 from datetime import date, timedelta
 from unittest.mock import Mock, patch
 
-from apps.audit.domain.services import (
-    analyze_attribution,
-    AttributionConfig,
-    AttributionAnalyzer,
+import pytest
+
+from apps.audit.application.use_cases import (
+    GenerateAttributionReportRequest,
+    GenerateAttributionReportUseCase,
+    GetAuditSummaryRequest,
+    GetAuditSummaryUseCase,
 )
 from apps.audit.domain.entities import (
+    LossSource,
     RegimePeriod,
     RegimeSnapshot,
-    LossSource,
 )
-from apps.audit.application.use_cases import (
-    GenerateAttributionReportUseCase,
-    GenerateAttributionReportRequest,
-    GetAuditSummaryUseCase,
-    GetAuditSummaryRequest,
+from apps.audit.domain.services import (
+    AttributionAnalyzer,
+    AttributionConfig,
+    analyze_attribution,
 )
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.audit.infrastructure.models import (
     AttributionReport,
-    LossAnalysis,
     ExperienceSummary,
+    LossAnalysis,
 )
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.backtest.infrastructure.models import BacktestResultModel
+from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.backtest.infrastructure.adapters.base import AssetPricePoint
+from apps.backtest.infrastructure.models import BacktestResultModel
+from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 
 
 @pytest.fixture

@@ -5,6 +5,7 @@ Pure Domain layer tests using only Python standard library.
 """
 
 import pytest
+
 from apps.ai_provider.domain.services import (
     AICostCalculator,
     BudgetChecker,

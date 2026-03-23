@@ -4,22 +4,23 @@ Integration Tests for Policy Application
 测试政策跟踪功能的应用层集成。
 """
 
-import pytest
 from datetime import date, timedelta
+
+import pytest
 from django.test import TestCase
 
-from apps.policy.domain.entities import PolicyLevel, PolicyEvent
-from apps.policy.infrastructure.models import PolicyLog, PolicyAuditQueue
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.policy.application.use_cases import (
-    CreatePolicyEventUseCase,
     CreatePolicyEventInput,
-    GetPolicyStatusUseCase,
-    GetPolicyHistoryUseCase,
-    UpdatePolicyEventUseCase,
+    CreatePolicyEventUseCase,
     DeletePolicyEventUseCase,
+    GetPolicyHistoryUseCase,
+    GetPolicyStatusUseCase,
+    UpdatePolicyEventUseCase,
 )
-from shared.infrastructure.alert_service import ConsoleAlertChannel, AlertLevel
+from apps.policy.domain.entities import PolicyEvent, PolicyLevel
+from apps.policy.infrastructure.models import PolicyAuditQueue, PolicyLog
+from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from shared.infrastructure.alert_service import AlertLevel, ConsoleAlertChannel
 
 
 @pytest.fixture(autouse=True)

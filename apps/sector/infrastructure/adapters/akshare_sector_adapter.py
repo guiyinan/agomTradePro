@@ -7,9 +7,10 @@
 - 作为 Tushare 的补充数据源
 """
 
+from datetime import date, datetime
+from typing import List, Optional
+
 import pandas as pd
-from typing import Optional, List
-from datetime import datetime, date
 
 
 class AKShareSectorAdapter:
@@ -187,7 +188,7 @@ class AKShareSectorAdapter:
 
         return pd.DataFrame()
 
-    def fetch_all_sector_codes(self, level: str = 'L1') -> List[str]:
+    def fetch_all_sector_codes(self, level: str = 'L1') -> list[str]:
         """获取所有板块代码列表
 
         Args:
@@ -208,7 +209,7 @@ class AKShareSectorAdapter:
 
         return []
 
-    def fetch_industry_stocks(self, industry_name: str) -> List[str]:
+    def fetch_industry_stocks(self, industry_name: str) -> list[str]:
         """获取行业成分股列表
 
         Args:

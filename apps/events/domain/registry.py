@@ -22,12 +22,12 @@ Domain 层注册表， 用于实现订阅注册反转 (IoC)。
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Protocol
 from datetime import datetime, timezone
+from typing import Dict, List, Optional, Protocol
 
-from .entities import EventType, EventHandler
-
+from .entities import EventHandler, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class SubscriberInfo:
     event_type: EventType
     handler_factory: Callable[[], EventHandler]
     priority: int = 100
-    description: Optional[str] = None
+    description: str | None = None
 
     def __post_init__(self):
         """初始化后验证"""
@@ -76,7 +76,7 @@ class EventSubscriberRegistry:
     """
 
     def __init__(self):
-        self._subscribers: Dict[EventType, List[SubscriberInfo]] = {}
+        self._subscribers: dict[EventType, list[SubscriberInfo]] = {}
         self._sorted = False
 
     def register(
@@ -85,7 +85,7 @@ class EventSubscriberRegistry:
         event_type: EventType,
         handler_factory: Callable[[], EventHandler],
         priority: int = 100,
-        description: Optional[str] = None
+        description: str | None = None
     ) -> None:
         """
         注册订阅者
@@ -138,7 +138,7 @@ class EventSubscriberRegistry:
             f"Registered subscriber: {module_name} -> {event_type.value} (priority={priority})"
         )
 
-    def get_subscribers(self, event_type: EventType) -> List[SubscriberInfo]:
+    def get_subscribers(self, event_type: EventType) -> list[SubscriberInfo]:
         """
         获取指定事件类型的所有订阅者
 
@@ -156,7 +156,7 @@ class EventSubscriberRegistry:
 
         return self._subscribers.get(event_type, [])
 
-    def get_all_subscribers(self) -> List[SubscriberInfo]:
+    def get_all_subscribers(self) -> list[SubscriberInfo]:
         """
         获取所有订阅者
 
@@ -217,7 +217,7 @@ class EventSubscriberRegistry:
 # 全局单例
 # ============================================================================
 
-_registry_instance: Optional[EventSubscriberRegistry] = None
+_registry_instance: EventSubscriberRegistry | None = None
 
 
 def get_event_subscriber_registry() -> EventSubscriberRegistry:

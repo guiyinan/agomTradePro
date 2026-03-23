@@ -7,6 +7,7 @@ Provides adapters for fetching macro economic data from various sources.
 import logging
 from datetime import date, datetime
 from typing import List, Optional
+
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class AKShareAdapter:
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """
         获取指标数据
 
@@ -101,7 +102,7 @@ class AKShareAdapter:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取 PMI 数据"""
         from apps.macro.application.use_cases import MacroDataPoint
 
@@ -145,7 +146,7 @@ class AKShareAdapter:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取 CPI 数据"""
         from apps.macro.application.use_cases import MacroDataPoint
 
@@ -188,7 +189,7 @@ class AKShareAdapter:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取 CPI 同比增长数据（百分比形式）"""
         from apps.macro.application.use_cases import MacroDataPoint
 
@@ -233,7 +234,7 @@ class AKShareAdapter:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取 M2 数据"""
         from apps.macro.application.use_cases import MacroDataPoint
 
@@ -282,7 +283,7 @@ class AKShareAdapter:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取 SHIBOR 数据"""
         from apps.macro.application.use_cases import MacroDataPoint
 
@@ -323,7 +324,7 @@ class AKShareAdapter:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取 PPI 数据"""
         from apps.macro.application.use_cases import MacroDataPoint
 
@@ -365,7 +366,7 @@ class TushareAdapter:
     从 Tushare 获取宏观经济数据。
     """
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         """
         初始化 Tushare 适配器
 
@@ -397,7 +398,7 @@ class TushareAdapter:
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List['MacroDataPoint']:
+    ) -> list['MacroDataPoint']:
         """获取指标数据"""
         # 简化实现，暂不实现 Tushare
         logger.warning(f"Tushare 适配器未实现 {indicator_code}")

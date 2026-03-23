@@ -6,12 +6,12 @@ from django.utils.html import format_html
 
 from .models import (
     AssetConfigModel,
+    FilterParameterConfigModel,
+    HedgingInstrumentConfigModel,
     IndicatorConfigModel,
     RegimeEligibilityConfigModel,
     RiskParameterConfigModel,
-    FilterParameterConfigModel,
     TransactionCostConfigModel,
-    HedgingInstrumentConfigModel,
 )
 
 

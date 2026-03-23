@@ -6,8 +6,9 @@
 - 包含基金基本信息、净值、持仓、业绩等表
 """
 
-from django.db import models
 from decimal import Decimal
+
+from django.db import models
 
 
 class FundInfoModel(models.Model):

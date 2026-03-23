@@ -32,14 +32,14 @@ class HedgeEffectivenessResponse:
 @dataclass
 class CorrelationMatrixRequest:
     """Request DTO for correlation matrix"""
-    asset_codes: List[str]
+    asset_codes: list[str]
     window_days: int = 60
 
 
 @dataclass
 class CorrelationMatrixResponse:
     """Response DTO for correlation matrix"""
-    matrix: Dict[str, Dict[str, float]]
+    matrix: dict[str, dict[str, float]]
     calc_date: date
     window_days: int
 

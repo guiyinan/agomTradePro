@@ -5,10 +5,10 @@ Django Admin 配置。
 """
 
 from django.contrib import admin
-from django.utils.html import format_html
 from django.db.models import Count
+from django.utils.html import format_html
 
-from apps.task_monitor.infrastructure.models import TaskExecutionModel, TaskAlertModel
+from apps.task_monitor.infrastructure.models import TaskAlertModel, TaskExecutionModel
 
 
 @admin.register(TaskExecutionModel)

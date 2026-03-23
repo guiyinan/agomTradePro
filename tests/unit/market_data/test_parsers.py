@@ -4,24 +4,25 @@ Market Data Parser 测试
 测试东方财富数据解析器的字段映射和容错。
 """
 
-import pytest
-import pandas as pd
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 
-from apps.market_data.infrastructure.parsers.eastmoney_quote_parser import (
-    parse_akshare_spot_row,
-    _safe_decimal,
-    _safe_float,
-    _safe_int,
-)
+import pandas as pd
+import pytest
+
 from apps.market_data.infrastructure.parsers.eastmoney_capital_flow_parser import (
     parse_akshare_capital_flow_row,
 )
 from apps.market_data.infrastructure.parsers.eastmoney_news_parser import (
-    parse_akshare_news_rows,
-    _generate_news_id,
     _clean_content,
+    _generate_news_id,
+    parse_akshare_news_rows,
+)
+from apps.market_data.infrastructure.parsers.eastmoney_quote_parser import (
+    _safe_decimal,
+    _safe_float,
+    _safe_int,
+    parse_akshare_spot_row,
 )
 
 

@@ -7,32 +7,31 @@ Alpha 事件触发的 Domain 层。
 """
 
 from .entities import (
-    # 枚举
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
+    AlphaCandidate,
+    AlphaTrigger,
     # 实体
     InvalidationCondition,
-    AlphaTrigger,
-    TriggerEvent,
-    AlphaCandidate,
+    SignalStrength,
     TriggerConfig,
+    TriggerEvent,
+    TriggerStatus,
+    # 枚举
+    TriggerType,
+    calculate_strength,
     # 工厂函数
     create_invalidations,
-    calculate_strength,
 )
-
 from .services import (
+    CandidateGenerator,
     # 结果类型
     InvalidationCheckResult,
     # 服务
     TriggerEvaluator,
-    TriggerInvalidator,
-    CandidateGenerator,
     TriggerFilter,
+    TriggerInvalidator,
+    check_invalidations,
     # 便捷函数
     evaluate_trigger,
-    check_invalidations,
     generate_candidate,
 )
 

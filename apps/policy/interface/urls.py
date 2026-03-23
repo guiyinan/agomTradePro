@@ -4,27 +4,28 @@ Interface Layer - URL Configuration for Policy Management
 定义政策管理相关的 URL 路由。
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
+
 from .views import (
-    PolicyStatusView,
-    RSSSourceConfigViewSet,
-    RSSFetchLogViewSet,
-    PolicyLevelKeywordViewSet,
-    ReviewPolicyItemView,
-    BulkReviewView,
     AutoAssignAuditsView,
-    PolicyEventsPageView,
+    BulkReviewView,
     PolicyEventCreateView,
-    RSSSourceListView,
-    RSSSourceCreateView,
-    RSSSourceUpdateView,
-    RSSReaderView,
-    RSSKeywordListView,
+    PolicyEventsPageView,
     PolicyKeywordCreateView,
     PolicyKeywordUpdateView,
+    PolicyLevelKeywordViewSet,
+    PolicyStatusView,
+    ReviewPolicyItemView,
     RSSFetchLogListView,
+    RSSFetchLogViewSet,
+    RSSKeywordListView,
+    RSSReaderView,
+    RSSSourceConfigViewSet,
+    RSSSourceCreateView,
+    RSSSourceListView,
+    RSSSourceUpdateView,
     # 工作台页面视图
     WorkbenchView,
 )

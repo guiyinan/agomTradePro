@@ -5,8 +5,9 @@ Django ORM models for hedge portfolio management.
 Follows four-layer architecture.
 """
 
-from django.db import models
 from decimal import Decimal
+
+from django.db import models
 
 
 class HedgePairModel(models.Model):
@@ -101,7 +102,7 @@ class HedgePairModel(models.Model):
 
     def to_domain(self):
         """Convert to domain entity"""
-        from apps.hedge.domain.entities import HedgePair, HedgeMethod
+        from apps.hedge.domain.entities import HedgeMethod, HedgePair
 
         method_map = {
             'beta': HedgeMethod.BETA,

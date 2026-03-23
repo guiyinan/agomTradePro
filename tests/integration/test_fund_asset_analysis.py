@@ -4,14 +4,15 @@ Fund 模块集成测试（通用资产分析框架）
 测试 Fund 模块与 asset_analysis 模块的集成。
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 
-from apps.fund.domain.entities import FundInfo, FundAssetScore
-from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
-from apps.fund.application.services import FundMultiDimScorer
+import pytest
+
 from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.fund.application.services import FundMultiDimScorer
+from apps.fund.domain.entities import FundAssetScore, FundInfo
+from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
 
 
 class TestFundAssetScore:

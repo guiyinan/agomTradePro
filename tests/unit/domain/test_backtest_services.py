@@ -4,24 +4,25 @@ Unit tests for Backtest Domain Services.
 纯 Domain 层测试，只使用 Python 标准库。
 """
 
-import pytest
 from datetime import date, timedelta
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
+
+import pytest
 
 from apps.backtest.domain.entities import (
-    BacktestConfig,
-    Trade,
-    PortfolioState,
-    BacktestResult,
-    RebalanceResult,
-    RebalanceFrequency,
-    AssetClass,
-    PITDataConfig,
     DEFAULT_PUBLICATION_LAGS,
+    AssetClass,
+    BacktestConfig,
+    BacktestResult,
+    PITDataConfig,
+    PortfolioState,
+    RebalanceFrequency,
+    RebalanceResult,
+    Trade,
 )
 from apps.backtest.domain.services import (
-    PITDataProcessor,
     BacktestEngine,
+    PITDataProcessor,
 )
 
 
@@ -156,7 +157,7 @@ class TestBacktestEngine:
     @pytest.fixture
     def mock_get_regime(self):
         """模拟 Regime 获取函数"""
-        def _get_regime(as_of_date: date) -> Optional[Dict]:
+        def _get_regime(as_of_date: date) -> dict | None:
             # 简单模拟：1月是 Recovery，2月是 Overheat，3月是 Stagflation
             month = as_of_date.month
             if month == 1:
@@ -212,7 +213,7 @@ class TestBacktestEngine:
             "cash": 1.0,
         }
 
-        def _get_price(asset_class: str, as_of_date: date) -> Optional[float]:
+        def _get_price(asset_class: str, as_of_date: date) -> float | None:
             return prices.get(asset_class)
 
         return _get_price
@@ -325,7 +326,7 @@ class TestBacktestEngine:
 
     def test_backtest_run_without_regime_data(self, config, mock_get_price):
         """测试没有 Regime 数据时的回测"""
-        def no_regime(as_of_date: date) -> Optional[Dict]:
+        def no_regime(as_of_date: date) -> dict | None:
             return None
 
         engine = BacktestEngine(

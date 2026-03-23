@@ -4,14 +4,14 @@ Failover Data Adapter.
 Infrastructure layer - provides automatic failover between multiple data sources.
 """
 
+import logging
 from datetime import date
 from typing import List, Optional
-import logging
 
 from .base import (
+    DataSourceUnavailableError,
     MacroAdapterProtocol,
     MacroDataPoint,
-    DataSourceUnavailableError,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class FailoverAdapter(MacroAdapterProtocol):
 
     def __init__(
         self,
-        adapters: List[MacroAdapterProtocol],
+        adapters: list[MacroAdapterProtocol],
         validate_consistency: bool = True,
         tolerance: float = 0.01
     ):
@@ -55,7 +55,7 @@ class FailoverAdapter(MacroAdapterProtocol):
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取指定指标的数据（带容错切换）
 
@@ -129,8 +129,8 @@ class FailoverAdapter(MacroAdapterProtocol):
 
     def _validate_consistency(
         self,
-        primary_data: List[MacroDataPoint],
-        backup_data: List[MacroDataPoint]
+        primary_data: list[MacroDataPoint],
+        backup_data: list[MacroDataPoint]
     ) -> bool:
         """
         校验主备数据源的一致性
@@ -187,7 +187,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
 
     source_name = "multi_source"
 
-    def __init__(self, adapters: List[MacroAdapterProtocol]):
+    def __init__(self, adapters: list[MacroAdapterProtocol]):
         """
         Args:
             adapters: 数据源适配器列表
@@ -206,7 +206,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         从所有支持的适配器获取数据并合并
 
@@ -251,7 +251,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         return merged_data
 
 
-def create_default_adapter(tushare_token: Optional[str] = None) -> "MacroAdapterProtocol":
+def create_default_adapter(tushare_token: str | None = None) -> "MacroAdapterProtocol":
     """
     创建默认的容错适配器配置（从数据库读取设置）
 
@@ -261,8 +261,8 @@ def create_default_adapter(tushare_token: Optional[str] = None) -> "MacroAdapter
     Returns:
         MacroAdapterProtocol: 配置好的适配器（可能是单个或 FailoverAdapter）
     """
-    from .tushare_adapter import TushareAdapter
     from .akshare_adapter import AKShareAdapter
+    from .tushare_adapter import TushareAdapter
 
     # 尝试从数据库加载设置
     try:

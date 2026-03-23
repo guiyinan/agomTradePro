@@ -1,8 +1,9 @@
 """
 使用正确的 NBS JSON API 获取 PMI 分项数据
 """
-import requests
 import json
+
+import requests
 
 # NBS JSON API endpoint
 NBS_API_URL = "http://data.stats.gov.cn/easyquery.htm"
@@ -56,7 +57,7 @@ def test_nbs_api():
             if r.status_code == 200:
                 try:
                     data = r.json()
-                    print(f"JSON 响应成功!")
+                    print("JSON 响应成功!")
 
                     # 检查返回的数据结构
                     if isinstance(data, dict):

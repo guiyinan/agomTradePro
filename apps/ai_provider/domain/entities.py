@@ -6,9 +6,9 @@ Pure data classes using only Python standard library.
 """
 
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Dict
 from datetime import datetime
+from enum import Enum
+from typing import Dict, Optional
 
 
 class AIProviderType(Enum):
@@ -30,10 +30,10 @@ class AIProviderConfig:
     default_model: str
     is_active: bool
     priority: int
-    daily_budget_limit: Optional[float] = None
-    monthly_budget_limit: Optional[float] = None
+    daily_budget_limit: float | None = None
+    monthly_budget_limit: float | None = None
     description: str = ""
-    extra_config: Optional[Dict] = None
+    extra_config: dict | None = None
 
     def __post_init__(self):
         if self.extra_config is None:
@@ -51,21 +51,21 @@ class AIUsageRecord:
     estimated_cost: float
     response_time_ms: int
     status: str
-    error_message: Optional[str] = None
-    created_at: Optional[datetime] = None
+    error_message: str | None = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
 class AIChatRequest:
     """AI聊天请求（值对象）"""
     messages: list  # List[Dict[str, str]]
-    model: Optional[str] = None
+    model: str | None = None
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
-    tools: Optional[list] = None  # List[Dict] - OpenAI function calling format
-    tool_choice: Optional[str] = None  # "auto" | "none" | "required" | specific tool
-    response_format: Optional[Dict] = None  # {"type": "json_object"} etc.
-    metadata: Optional[Dict] = None
+    max_tokens: int | None = None
+    tools: list | None = None  # List[Dict] - OpenAI function calling format
+    tool_choice: str | None = None  # "auto" | "none" | "required" | specific tool
+    response_format: dict | None = None  # {"type": "json_object"} etc.
+    metadata: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -87,8 +87,8 @@ class AIChatResponse:
     finish_reason: str
     response_time_ms: int
     status: str
-    error_message: Optional[str] = None
-    estimated_cost: Optional[float] = None
-    tool_calls: Optional[list] = None  # List[ToolCallInfo]
-    raw_response: Optional[Dict] = None
-    request_type: Optional[str] = None  # "responses" | "chat"
+    error_message: str | None = None
+    estimated_cost: float | None = None
+    tool_calls: list | None = None  # List[ToolCallInfo]
+    raw_response: dict | None = None
+    request_type: str | None = None  # "responses" | "chat"

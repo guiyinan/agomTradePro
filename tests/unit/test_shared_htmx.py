@@ -4,8 +4,9 @@ Tests for shared.infrastructure.htmx module
 Tests the HTMX views, mixins, and decorators that were moved from apps/shared/interface/.
 """
 
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
 from django.test import RequestFactory
 
 
@@ -128,23 +129,23 @@ class TestModuleImports:
     def test_import_from_init(self):
         """Test imports from __init__.py work correctly."""
         from shared.infrastructure.htmx import (
-            is_htmx,
-            HtmxTemplateView,
-            HtmxListView,
-            HtmxFormView,
-            HtmxDetailView,
             HtmxDeleteView,
+            HtmxDetailView,
+            HtmxFormView,
+            HtmxListView,
             HtmxPartialView,
             HtmxResponseMixin,
+            HtmxTemplateView,
             StaffRequiredMixin,
             SuperuserRequiredMixin,
-            staff_required,
-            superuser_required,
             ajax_required,
             htmx_only,
-            htmx_view,
-            htmx_trigger,
             htmx_redirect,
+            htmx_trigger,
+            htmx_view,
+            is_htmx,
+            staff_required,
+            superuser_required,
         )
 
         # All imports should succeed

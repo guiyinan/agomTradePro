@@ -5,8 +5,9 @@ Configuration Models for AgomTradePro
 """
 
 from decimal import Decimal
-from django.db import models
 from typing import Dict
+
+from django.db import models
 
 
 class AssetConfigModel(models.Model):
@@ -428,7 +429,7 @@ class TransactionCostConfigModel(models.Model):
         self,
         trade_value: Decimal,
         is_buy: bool = True,
-    ) -> Dict[str, Decimal]:
+    ) -> dict[str, Decimal]:
         """
         计算交易总成本
 

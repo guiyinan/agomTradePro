@@ -4,9 +4,10 @@ Unit tests for Agent Runtime M2 - Domain Facade Layer.
 WP-M2-02: Tests for facade aggregation with complete and partial data.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from apps.agent_runtime.application.facades import get_facade
 from apps.agent_runtime.application.facades.base import (
@@ -14,11 +15,11 @@ from apps.agent_runtime.application.facades.base import (
     ContextSnapshotDTO,
     _unavailable,
 )
-from apps.agent_runtime.application.facades.research import ResearchTaskFacade
-from apps.agent_runtime.application.facades.monitoring import MonitoringTaskFacade
 from apps.agent_runtime.application.facades.decision import DecisionTaskFacade
 from apps.agent_runtime.application.facades.execution import ExecutionTaskFacade
+from apps.agent_runtime.application.facades.monitoring import MonitoringTaskFacade
 from apps.agent_runtime.application.facades.ops import OpsTaskFacade
+from apps.agent_runtime.application.facades.research import ResearchTaskFacade
 
 
 class TestGetFacade:

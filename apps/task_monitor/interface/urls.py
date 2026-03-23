@@ -5,6 +5,7 @@ URL 路由定义。
 """
 from django.http import JsonResponse
 from django.urls import path
+
 from apps.task_monitor.interface import views
 
 app_name = "task_monitor"

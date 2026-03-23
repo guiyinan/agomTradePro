@@ -4,13 +4,13 @@ Task Monitor Domain Interfaces
 定义任务监控仓储协议。
 """
 
-from typing import List, Optional, Protocol
 from datetime import datetime, timedelta
+from typing import List, Optional, Protocol
 
 from apps.task_monitor.domain.entities import (
+    CeleryHealthStatus,
     TaskExecutionRecord,
     TaskStatistics,
-    CeleryHealthStatus,
 )
 
 
@@ -28,7 +28,7 @@ class TaskRecordRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_by_task_id(self, task_id: str) -> Optional[TaskExecutionRecord]:
+    def get_by_task_id(self, task_id: str) -> TaskExecutionRecord | None:
         """根据任务 ID 获取记录
 
         Args:
@@ -43,8 +43,8 @@ class TaskRecordRepositoryProtocol(Protocol):
         self,
         task_name: str,
         limit: int = 100,
-        status: Optional[str] = None
-    ) -> List[TaskExecutionRecord]:
+        status: str | None = None
+    ) -> list[TaskExecutionRecord]:
         """根据任务名称列出记录
 
         Args:
@@ -61,7 +61,7 @@ class TaskRecordRepositoryProtocol(Protocol):
         self,
         hours: int = 24,
         limit: int = 50
-    ) -> List[TaskExecutionRecord]:
+    ) -> list[TaskExecutionRecord]:
         """列出最近的失败记录
 
         Args:
@@ -77,7 +77,7 @@ class TaskRecordRepositoryProtocol(Protocol):
         self,
         task_name: str,
         days: int = 7
-    ) -> Optional[TaskStatistics]:
+    ) -> TaskStatistics | None:
         """获取任务统计信息
 
         Args:
@@ -121,7 +121,7 @@ class AlertChannelProtocol(Protocol):
         level: str,
         title: str,
         message: str,
-        metadata: Optional[dict] = None
+        metadata: dict | None = None
     ) -> bool:
         """发送告警
 

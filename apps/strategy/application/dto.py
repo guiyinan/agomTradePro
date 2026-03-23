@@ -9,19 +9,18 @@ Application 层 DTO（Data Transfer Objects）
 """
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from apps.strategy.domain.entities import (
+    DecisionAction,
+    DecisionResult,
+    OrderIntent,
     OrderSide,
     OrderStatus,
-    TimeInForce,
-    DecisionAction,
-    OrderIntent,
-    DecisionResult,
-    SizingResult,
     RiskSnapshot,
+    SizingResult,
+    TimeInForce,
 )
-
 
 # ========================================================================
 # 请求 DTO
@@ -34,10 +33,10 @@ class EvaluateExecutionRequestDTO:
     portfolio_id: int
     symbol: str
     side: str  # "buy" | "sell"
-    signal_strength: Optional[float] = None
-    signal_direction: Optional[str] = None
-    signal_confidence: Optional[float] = None
-    context: Dict[str, Any] = field(default_factory=dict)
+    signal_strength: float | None = None
+    signal_direction: str | None = None
+    signal_confidence: float | None = None
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -49,10 +48,10 @@ class SubmitOrderIntentRequestDTO:
     symbol: str
     side: str
     qty: int
-    limit_price: Optional[float] = None
+    limit_price: float | None = None
     time_in_force: str = "day"
     reason: str = ""
-    idempotency_key: Optional[str] = None
+    idempotency_key: str | None = None
 
 
 # ========================================================================
@@ -64,7 +63,7 @@ class EvaluateExecutionResponseDTO:
     """执行评估响应 DTO"""
     # 决策结果
     action: str  # "allow" | "deny" | "watch"
-    reason_codes: List[str]
+    reason_codes: list[str]
     reason_text: str
     confidence: float
 
@@ -76,7 +75,7 @@ class EvaluateExecutionResponseDTO:
     sizing_explain: str
 
     # 风险快照
-    risk_snapshot: Dict[str, Any]
+    risk_snapshot: dict[str, Any]
 
     # 是否可以继续执行
     can_execute: bool
@@ -115,16 +114,16 @@ class OrderIntentResponseDTO:
     symbol: str
     side: str
     qty: int
-    limit_price: Optional[float]
+    limit_price: float | None
     time_in_force: str
     status: str
     reason: str
-    created_at: Optional[str]
-    updated_at: Optional[str]
+    created_at: str | None
+    updated_at: str | None
 
     # 决策信息
     decision_action: str
-    decision_reasons: List[str]
+    decision_reasons: list[str]
 
     # 仓位信息
     sizing_method: str
@@ -156,7 +155,7 @@ class OrderIntentResponseDTO:
 @dataclass
 class OrderIntentListResponseDTO:
     """订单意图列表响应 DTO"""
-    items: List[OrderIntentResponseDTO]
+    items: list[OrderIntentResponseDTO]
     total: int
     page: int
     page_size: int
@@ -166,12 +165,12 @@ class OrderIntentListResponseDTO:
 class ExecutionAdapterResultDTO:
     """执行适配器结果 DTO"""
     success: bool
-    broker_order_id: Optional[str] = None
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
+    broker_order_id: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
     executed_qty: int = 0
-    executed_price: Optional[float] = None
-    timestamp: Optional[str] = None
+    executed_price: float | None = None
+    timestamp: str | None = None
 
 
 # ========================================================================
@@ -185,7 +184,7 @@ class PreTradeRiskCheckRequestDTO:
     symbol: str
     side: str
     qty: int
-    limit_price: Optional[float]
+    limit_price: float | None
     portfolio_id: int
     strategy_id: int
 
@@ -194,6 +193,6 @@ class PreTradeRiskCheckRequestDTO:
 class PreTradeRiskCheckResponseDTO:
     """预交易风控检查响应 DTO"""
     passed: bool
-    violations: List[str]
-    warnings: List[str]
-    details: Dict[str, Any] = field(default_factory=dict)
+    violations: list[str]
+    warnings: list[str]
+    details: dict[str, Any] = field(default_factory=dict)

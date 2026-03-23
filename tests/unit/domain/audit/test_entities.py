@@ -5,29 +5,30 @@ Tests all dataclasses, enums, and value objects in the domain layer.
 Following the principle: Domain layer should have 90%+ test coverage.
 """
 
-import pytest
+from dataclasses import FrozenInstanceError
 from datetime import date
 from typing import Dict, List
-from dataclasses import FrozenInstanceError
+
+import pytest
 
 from apps.audit.domain.entities import (
-    # Enums
-    LossSource,
-    RegimeTransition,
-    ValidationStatus,
-    RecommendedAction,
-    # Attribution entities
-    RegimePeriod,
-    PeriodPerformance,
-    AttributionResult,
     AttributionConfig,
+    AttributionResult,
+    DynamicWeightConfig,
     # Indicator validation entities
     IndicatorPerformanceReport,
     IndicatorThresholdConfig,
-    ThresholdValidationReport,
-    DynamicWeightConfig,
-    SignalEvent,
+    # Enums
+    LossSource,
+    PeriodPerformance,
+    RecommendedAction,
+    # Attribution entities
+    RegimePeriod,
     RegimeSnapshot,
+    RegimeTransition,
+    SignalEvent,
+    ThresholdValidationReport,
+    ValidationStatus,
 )
 
 

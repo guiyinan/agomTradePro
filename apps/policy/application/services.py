@@ -5,12 +5,12 @@ RSS相关的业务服务，包括档位匹配等。
 """
 
 import logging
-from typing import List, Optional, Dict
 from datetime import datetime
+from typing import Dict, List, Optional
 
 from django.utils import timezone
 
-from ..domain.entities import PolicyLevel, RSSItem, PolicyLevelKeywordRule
+from ..domain.entities import PolicyLevel, PolicyLevelKeywordRule, RSSItem
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class PolicyLevelMatcher:
     根据关键词规则从RSS条目标题中提取政策档位
     """
 
-    def __init__(self, keyword_rules: List[PolicyLevelKeywordRule]):
+    def __init__(self, keyword_rules: list[PolicyLevelKeywordRule]):
         """
         初始化匹配器
 
@@ -33,7 +33,7 @@ class PolicyLevelMatcher:
         # 构建关键词到档位的映射（提高匹配效率）
         self._keyword_map = self._build_keyword_map()
 
-    def _build_keyword_map(self) -> Dict[str, List[tuple]]:
+    def _build_keyword_map(self) -> dict[str, list[tuple]]:
         """
         构建关键词映射
 
@@ -49,7 +49,7 @@ class PolicyLevelMatcher:
 
         return keyword_map
 
-    def match(self, item: RSSItem) -> Optional[PolicyLevel]:
+    def match(self, item: RSSItem) -> PolicyLevel | None:
         """
         匹配RSS条目的档位
 
@@ -94,7 +94,7 @@ class PolicyLevelMatcher:
     def match_with_details(
         self,
         item: RSSItem
-    ) -> tuple[Optional[PolicyLevel], Dict[str, any]]:
+    ) -> tuple[PolicyLevel | None, dict[str, any]]:
         """
         匹配RSS条目的档位（带详细信息）
 
@@ -147,8 +147,8 @@ class PolicyLevelMatcher:
 
 def extract_policy_level_from_title(
     title: str,
-    keyword_rules: Optional[List[PolicyLevelKeywordRule]] = None
-) -> Optional[PolicyLevel]:
+    keyword_rules: list[PolicyLevelKeywordRule] | None = None
+) -> PolicyLevel | None:
     """
     从标题提取政策档位（便捷函数）
 

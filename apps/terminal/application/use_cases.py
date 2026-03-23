@@ -5,21 +5,20 @@ Terminal Application Use Cases.
 """
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
-import logging
 
 from ..domain.entities import (
+    CommandType,
     TerminalAuditEntry,
     TerminalCommand,
     TerminalMode,
     TerminalRiskLevel,
-    CommandType,
 )
 from ..domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
 from ..domain.services import TerminalPermissionService
-
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +30,16 @@ class ExecuteCommandRequest:
     """执行命令请求"""
     command_name: str
     params: dict[str, Any] = field(default_factory=dict)
-    session_id: Optional[str] = None
-    provider_name: Optional[str] = None
-    model_name: Optional[str] = None
+    session_id: str | None = None
+    provider_name: str | None = None
+    model_name: str | None = None
     # 治理字段
-    user_id: Optional[int] = None
+    user_id: int | None = None
     username: str = 'unknown'
     user_role: str = 'read_only'
     mcp_enabled: bool = False
     terminal_mode: str = 'confirm_each'
-    confirmation_token: Optional[str] = None
+    confirmation_token: str | None = None
 
 
 @dataclass
@@ -49,14 +48,14 @@ class ExecuteCommandResponse:
     success: bool
     output: str = ''
     metadata: dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
-    command: Optional[TerminalCommand] = None
+    error: str | None = None
+    command: TerminalCommand | None = None
     # 确认相关
     confirmation_required: bool = False
-    confirmation_token: Optional[str] = None
-    confirmation_prompt: Optional[str] = None
-    command_summary: Optional[str] = None
-    risk_level: Optional[str] = None
+    confirmation_token: str | None = None
+    confirmation_prompt: str | None = None
+    command_summary: str | None = None
+    risk_level: str | None = None
 
 
 @dataclass
@@ -66,19 +65,19 @@ class CreateCommandRequest:
     description: str
     command_type: str
     # Prompt配置
-    prompt_template_id: Optional[str] = None
-    system_prompt: Optional[str] = None
+    prompt_template_id: str | None = None
+    system_prompt: str | None = None
     user_prompt_template: str = ''
     # API配置
-    api_endpoint: Optional[str] = None
+    api_endpoint: str | None = None
     api_method: str = 'GET'
-    response_jq_filter: Optional[str] = None
+    response_jq_filter: str | None = None
     # 参数
     parameters: list[dict] = field(default_factory=list)
     # 其他配置
     timeout: int = 60
-    provider_name: Optional[str] = None
-    model_name: Optional[str] = None
+    provider_name: str | None = None
+    model_name: str | None = None
     category: str = 'general'
     tags: list[str] = field(default_factory=list)
 
@@ -87,38 +86,38 @@ class CreateCommandRequest:
 class CreateCommandResponse:
     """创建命令响应"""
     success: bool
-    command: Optional[TerminalCommand] = None
-    error: Optional[str] = None
+    command: TerminalCommand | None = None
+    error: str | None = None
 
 
 @dataclass
 class UpdateCommandRequest:
     """更新命令请求"""
     command_id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
-    command_type: Optional[str] = None
-    prompt_template_id: Optional[str] = None
-    system_prompt: Optional[str] = None
-    user_prompt_template: Optional[str] = None
-    api_endpoint: Optional[str] = None
-    api_method: Optional[str] = None
-    response_jq_filter: Optional[str] = None
-    parameters: Optional[list[dict]] = None
-    timeout: Optional[int] = None
-    provider_name: Optional[str] = None
-    model_name: Optional[str] = None
-    category: Optional[str] = None
-    tags: Optional[list[str]] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    command_type: str | None = None
+    prompt_template_id: str | None = None
+    system_prompt: str | None = None
+    user_prompt_template: str | None = None
+    api_endpoint: str | None = None
+    api_method: str | None = None
+    response_jq_filter: str | None = None
+    parameters: list[dict] | None = None
+    timeout: int | None = None
+    provider_name: str | None = None
+    model_name: str | None = None
+    category: str | None = None
+    tags: list[str] | None = None
+    is_active: bool | None = None
 
 
 @dataclass
 class UpdateCommandResponse:
     """更新命令响应"""
     success: bool
-    command: Optional[TerminalCommand] = None
-    error: Optional[str] = None
+    command: TerminalCommand | None = None
+    error: str | None = None
 
 
 # ========== Use Cases ==========
@@ -130,7 +129,7 @@ class ExecuteCommandUseCase:
         self,
         repository: TerminalCommandRepository,
         execution_service,
-        audit_repository: Optional[TerminalAuditRepository] = None,
+        audit_repository: TerminalAuditRepository | None = None,
     ):
         self._repository = repository
         self._execution_service = execution_service
@@ -140,7 +139,7 @@ class ExecuteCommandUseCase:
     def _log_audit(
         self,
         request: ExecuteCommandRequest,
-        command: Optional[TerminalCommand],
+        command: TerminalCommand | None,
         result_status: str,
         confirmation_status: str = 'not_required',
         confirmation_required: bool = False,
@@ -340,11 +339,11 @@ class ExecuteCommandUseCase:
 
 class ListCommandsUseCase:
     """列出命令用例"""
-    
+
     def __init__(self, repository: TerminalCommandRepository):
         self._repository = repository
-    
-    def execute(self, category: Optional[str] = None, include_inactive: bool = False) -> list[TerminalCommand]:
+
+    def execute(self, category: str | None = None, include_inactive: bool = False) -> list[TerminalCommand]:
         """获取命令列表"""
         if category:
             return self._repository.get_by_category(category)
@@ -357,25 +356,25 @@ class ListCommandsUseCase:
 
 class CreateCommandUseCase:
     """创建命令用例"""
-    
+
     def __init__(self, repository: TerminalCommandRepository):
         self._repository = repository
-    
+
     def execute(self, request: CreateCommandRequest) -> CreateCommandResponse:
         """创建新命令"""
         import uuid
-        
+
         # 检查名称是否已存在
         if self._repository.exists_by_name(request.name):
             return CreateCommandResponse(
                 success=False,
                 error=f"Command '{request.name}' already exists"
             )
-        
+
         # 构建实体
         from ..domain.entities import CommandParameter
         parameters = [CommandParameter.from_dict(p) for p in request.parameters]
-        
+
         command = TerminalCommand(
             id=str(uuid.uuid4()),
             name=request.name,
@@ -394,10 +393,10 @@ class CreateCommandUseCase:
             category=request.category,
             tags=request.tags,
         )
-        
+
         # 保存
         saved_command = self._repository.save(command)
-        
+
         return CreateCommandResponse(
             success=True,
             command=saved_command
@@ -406,10 +405,10 @@ class CreateCommandUseCase:
 
 class UpdateCommandUseCase:
     """更新命令用例"""
-    
+
     def __init__(self, repository: TerminalCommandRepository):
         self._repository = repository
-    
+
     def execute(self, request: UpdateCommandRequest) -> UpdateCommandResponse:
         """更新命令"""
         # 获取现有命令
@@ -419,7 +418,7 @@ class UpdateCommandUseCase:
                 success=False,
                 error=f"Command with id '{request.command_id}' not found"
             )
-        
+
         # 检查名称冲突
         if request.name and request.name != command.name:
             if self._repository.exists_by_name(request.name, exclude_id=request.command_id):
@@ -427,7 +426,7 @@ class UpdateCommandUseCase:
                     success=False,
                     error=f"Command name '{request.name}' already exists"
                 )
-        
+
         # 更新字段
         if request.name is not None:
             command.name = request.name
@@ -462,10 +461,10 @@ class UpdateCommandUseCase:
             command.tags = request.tags
         if request.is_active is not None:
             command.is_active = request.is_active
-        
+
         # 保存
         saved_command = self._repository.save(command)
-        
+
         return UpdateCommandResponse(
             success=True,
             command=saved_command
@@ -474,10 +473,10 @@ class UpdateCommandUseCase:
 
 class DeleteCommandUseCase:
     """删除命令用例"""
-    
+
     def __init__(self, repository: TerminalCommandRepository):
         self._repository = repository
-    
+
     def execute(self, command_id: str) -> bool:
         """删除命令"""
         return self._repository.delete(command_id)

@@ -8,19 +8,19 @@
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Tuple
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Dict, List, Optional, Tuple
 
-from apps.equity.domain.services import StockScreener
 from apps.equity.domain.rules import StockScreeningRule
+from apps.equity.domain.services import StockScreener
 
 
 @dataclass
 class ScreenStocksRequest:
     """筛选个股请求"""
-    regime: Optional[str] = None  # 如果为 None，自动获取最新 Regime
-    custom_rule: Optional[dict] = None  # 自定义规则
+    regime: str | None = None  # 如果为 None，自动获取最新 Regime
+    custom_rule: dict | None = None  # 自定义规则
     max_count: int = 30
 
 
@@ -29,10 +29,10 @@ class ScreenStocksResponse:
     """筛选个股响应"""
     success: bool
     regime: str
-    stock_codes: List[str]
-    items: List[dict]
+    stock_codes: list[str]
+    items: list[dict]
     screening_criteria: dict
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class ScreenStocksUseCase:
@@ -117,7 +117,7 @@ class ScreenStocksUseCase:
                 stock_info.stock_code: (stock_info, financial, valuation)
                 for stock_info, financial, valuation in all_stocks
             }
-            items: List[dict] = []
+            items: list[dict] = []
             for rank, stock_code in enumerate(stock_codes, start=1):
                 stock_row = stock_lookup.get(stock_code)
                 if not stock_row:
@@ -215,7 +215,7 @@ class AnalyzeValuationResponse:
     # 基本信息
     sector: str
     market: str
-    list_date: Optional[str]
+    list_date: str | None
     # 估值数据
     current_pe: float
     pe_percentile: float
@@ -223,10 +223,10 @@ class AnalyzeValuationResponse:
     pb_percentile: float
     is_undervalued: bool
     # 最新估值详情
-    latest_valuation: Optional[Dict] = None
+    latest_valuation: dict | None = None
     # 财务数据
-    financial_data: Optional[Dict] = None
-    error: Optional[str] = None
+    financial_data: dict | None = None
+    error: str | None = None
 
 
 class AnalyzeValuationUseCase:
@@ -254,8 +254,9 @@ class AnalyzeValuationUseCase:
         6. 返回完整结果
         """
         try:
-            from apps.equity.domain.services import ValuationAnalyzer
             from datetime import timedelta
+
+            from apps.equity.domain.services import ValuationAnalyzer
 
             # 1. 获取股票基本信息
             stock_info = self.stock_repo.get_stock_info(request.stock_code)
@@ -387,10 +388,10 @@ class CalculateDCFResponse:
     stock_code: str
     stock_name: str
     intrinsic_value: Decimal  # 内在价值（企业总价值）
-    intrinsic_value_per_share: Optional[Decimal]  # 每股内在价值
-    current_price: Optional[Decimal]  # 当前股价
-    upside: Optional[float]  # 上涨空间（百分比）
-    error: Optional[str] = None
+    intrinsic_value_per_share: Decimal | None  # 每股内在价值
+    current_price: Decimal | None  # 当前股价
+    upside: float | None  # 上涨空间（百分比）
+    error: str | None = None
 
 
 class CalculateDCFUseCase:
@@ -519,10 +520,10 @@ class AnalyzeRegimeCorrelationResponse:
     success: bool
     stock_code: str
     stock_name: str
-    regime_performance: Dict[str, RegimePerformance]
+    regime_performance: dict[str, RegimePerformance]
     best_regime: str
     worst_regime: str
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class AnalyzeRegimeCorrelationUseCase:
@@ -552,8 +553,9 @@ class AnalyzeRegimeCorrelationUseCase:
         6. 返回结果
         """
         try:
-            from apps.equity.domain.services import RegimeCorrelationAnalyzer
             from datetime import timedelta
+
+            from apps.equity.domain.services import RegimeCorrelationAnalyzer
 
             # 1. 获取股票基本信息
             stock_info = self.stock_repo.get_stock_info(request.stock_code)
@@ -640,7 +642,7 @@ class AnalyzeRegimeCorrelationUseCase:
                 error=str(e)
             )
 
-    def _get_regime_history(self, start_date: date, end_date: date) -> Dict[date, str]:
+    def _get_regime_history(self, start_date: date, end_date: date) -> dict[date, str]:
         """
         获取 Regime 历史数据
 
@@ -673,7 +675,7 @@ class AnalyzeRegimeCorrelationUseCase:
             # Domain 层的 RegimeCorrelationAnalyzer 会处理空数据情况
             return {}
 
-    def _get_market_returns(self, start_date: date, end_date: date) -> Dict[date, float]:
+    def _get_market_returns(self, start_date: date, end_date: date) -> dict[date, float]:
         """
         获取市场指数收益率
 
@@ -686,8 +688,8 @@ class AnalyzeRegimeCorrelationUseCase:
         Returns:
             {日期: 收益率}
         """
-        from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
         from apps.account.infrastructure.models import SystemSettingsModel
+        from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
 
         try:
             market_adapter = MarketDataRepositoryAdapter()
@@ -708,10 +710,10 @@ class AnalyzeRegimeCorrelationUseCase:
 
     def _fill_missing_dates(
         self,
-        regime_history: Dict[date, str],
+        regime_history: dict[date, str],
         start_date: date,
         end_date: date
-    ) -> Dict[date, str]:
+    ) -> dict[date, str]:
         """
         填充缺失的日期
 
@@ -780,7 +782,7 @@ class ValuationScoreDTO:
     method: str
     score: float
     signal: str  # 'undervalued', 'fair', 'overvalued'
-    details: Dict
+    details: dict
 
     def to_dict(self):
         return {
@@ -801,8 +803,8 @@ class ComprehensiveValuationResponse:
     overall_signal: str
     recommendation: str
     confidence: float
-    scores: List[Dict]  # 序列化后的评分列表
-    error: Optional[str] = None
+    scores: list[dict]  # 序列化后的评分列表
+    error: str | None = None
 
 
 class ComprehensiveValuationUseCase:
@@ -830,10 +832,11 @@ class ComprehensiveValuationUseCase:
         6. 返回结果
         """
         try:
-            from apps.equity.domain.services_comprehensive_valuation import (
-                ComprehensiveValuationAnalyzer
-            )
             from datetime import timedelta
+
+            from apps.equity.domain.services_comprehensive_valuation import (
+                ComprehensiveValuationAnalyzer,
+            )
 
             # 1. 获取股票基本信息
             stock_info = self.stock_repo.get_stock_info(request.stock_code)

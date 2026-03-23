@@ -4,10 +4,11 @@ Celery Tasks for Regime Calculation.
 异步任务：Regime 计算、变化通知等。
 """
 
+from datetime import date
+from typing import Any, Dict, Optional
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from typing import Optional, Dict, Any
-from datetime import date
 
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
@@ -26,8 +27,8 @@ logger = get_task_logger(__name__)
 )
 def calculate_regime_task(
     self,
-    sync_result: Optional[Dict[str, Any]] = None,
-    as_of_date: Optional[str] = None,
+    sync_result: dict[str, Any] | None = None,
+    as_of_date: str | None = None,
     use_pit: bool = True
 ) -> dict:
     """

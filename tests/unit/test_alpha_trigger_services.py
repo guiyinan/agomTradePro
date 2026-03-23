@@ -4,25 +4,26 @@ Unit Tests for Alpha Trigger Domain Services
 测试 TriggerEvaluator, TriggerInvalidator 和 CandidateGenerator 的行为。
 """
 
-import pytest
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from apps.alpha_trigger.domain.entities import (
-    AlphaTrigger,
     AlphaCandidate,
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
+    AlphaTrigger,
     CandidateStatus,
-    InvalidationType,
     InvalidationCondition,
+    InvalidationType,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
 )
 from apps.alpha_trigger.domain.services import (
-    TriggerEvaluator,
-    TriggerInvalidator,
     CandidateGenerator,
     TriggerConfig,
+    TriggerEvaluator,
+    TriggerInvalidator,
     calculate_strength,
 )
 

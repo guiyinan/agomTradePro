@@ -6,13 +6,14 @@
 - 使用纯 Python 测试 Domain 层业务逻辑
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 
-from apps.equity.domain.entities import StockInfo, FinancialData, ValuationMetrics
-from apps.equity.domain.services import StockScreener
+import pytest
+
+from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
+from apps.equity.domain.services import StockScreener
 
 
 class TestStockScreener:

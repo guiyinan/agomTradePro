@@ -6,21 +6,21 @@
 - 规则驱动策略端到端测试
 - 上下文准备和错误处理
 """
-import pytest
-from unittest.mock import Mock, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 from apps.strategy.application.strategy_executor import StrategyExecutor
 from apps.strategy.domain.entities import (
-    Strategy,
-    StrategyType,
-    RuleCondition,
-    RuleType,
     ActionType,
     RiskControlParams,
-    StrategyConfig
+    RuleCondition,
+    RuleType,
+    Strategy,
+    StrategyConfig,
+    StrategyType,
 )
-
 
 # ========================================================================
 # Mock 提供者

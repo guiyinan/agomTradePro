@@ -39,16 +39,16 @@ class TaskExecutionRecord:
     status: TaskStatus
     args: tuple
     kwargs: dict
-    started_at: Optional[datetime]
-    finished_at: Optional[datetime]
-    result: Optional[str]
-    exception: Optional[str]
-    traceback: Optional[str]
-    runtime_seconds: Optional[float]
+    started_at: datetime | None
+    finished_at: datetime | None
+    result: str | None
+    exception: str | None
+    traceback: str | None
+    runtime_seconds: float | None
     retries: int
     priority: TaskPriority
-    queue: Optional[str]
-    worker: Optional[str]
+    queue: str | None
+    worker: str | None
 
     def to_dict(self) -> dict:
         """转换为字典格式"""
@@ -78,7 +78,7 @@ class TaskFailureAlert:
     task_id: str
     task_name: str
     exception: str
-    traceback: Optional[str]
+    traceback: str | None
     retries: int
     max_retries: int
     is_final_failure: bool
@@ -133,7 +133,7 @@ class TaskStatistics:
     average_runtime: float
     success_rate: float
     last_execution_status: TaskStatus
-    last_execution_at: Optional[datetime]
+    last_execution_at: datetime | None
 
     def to_dict(self) -> dict:
         """转换为字典格式"""

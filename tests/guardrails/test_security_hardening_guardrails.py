@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth import authenticate, get_user_model
-from django.test import RequestFactory, override_settings
 from django.core.cache import cache
+from django.test import RequestFactory, override_settings
 from rest_framework.test import APIClient
 
 

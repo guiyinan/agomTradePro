@@ -35,11 +35,11 @@ class CrossValidationResult:
     """交叉校验结果"""
 
     def __init__(self) -> None:
-        self.matches: List[str] = []       # 一致的股票
-        self.deviations: List[Dict] = []   # 有偏差的股票
-        self.alerts: List[Dict] = []       # 严重偏差需告警
-        self.missing_in_primary: List[str] = []   # 主源缺失
-        self.missing_in_secondary: List[str] = []  # 备源缺失
+        self.matches: list[str] = []       # 一致的股票
+        self.deviations: list[dict] = []   # 有偏差的股票
+        self.alerts: list[dict] = []       # 严重偏差需告警
+        self.missing_in_primary: list[str] = []   # 主源缺失
+        self.missing_in_secondary: list[str] = []  # 备源缺失
 
     @property
     def total_checked(self) -> int:
@@ -62,8 +62,8 @@ class CrossValidationResult:
 
 
 def cross_validate_quotes(
-    primary: List[QuoteSnapshot],
-    secondary: List[QuoteSnapshot],
+    primary: list[QuoteSnapshot],
+    secondary: list[QuoteSnapshot],
     tolerance_pct: float = PRICE_TOLERANCE_PCT,
     alert_threshold_pct: float = PRICE_ALERT_THRESHOLD_PCT,
 ) -> CrossValidationResult:
@@ -80,8 +80,8 @@ def cross_validate_quotes(
     """
     result = CrossValidationResult()
 
-    primary_map: Dict[str, QuoteSnapshot] = {s.stock_code: s for s in primary}
-    secondary_map: Dict[str, QuoteSnapshot] = {s.stock_code: s for s in secondary}
+    primary_map: dict[str, QuoteSnapshot] = {s.stock_code: s for s in primary}
+    secondary_map: dict[str, QuoteSnapshot] = {s.stock_code: s for s in secondary}
 
     all_codes = set(primary_map.keys()) | set(secondary_map.keys())
 
@@ -132,8 +132,8 @@ def cross_validate_quotes(
 
 def validate_and_select(
     registry: SourceRegistry,
-    stock_codes: List[str],
-) -> Tuple[List[QuoteSnapshot], Optional[CrossValidationResult]]:
+    stock_codes: list[str],
+) -> tuple[list[QuoteSnapshot], CrossValidationResult | None]:
     """获取行情并做交叉校验
 
     1. 从最高优先级 provider 获取数据

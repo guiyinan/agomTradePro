@@ -14,7 +14,6 @@ from ..domain.entities import EventType
 from ..domain.services import EventBus, EventHandler, InMemoryEventBus
 from ..infrastructure.event_store import InMemoryEventStore
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -43,8 +42,8 @@ class EventBusInitializer:
             event_store: 事件存储（可选，默认使用内存存储）
         """
         self.event_store = event_store or InMemoryEventStore()
-        self.event_bus: Optional[EventBus] = None
-        self.handlers: List[EventHandler] = []
+        self.event_bus: EventBus | None = None
+        self.handlers: list[EventHandler] = []
 
     def initialize(self) -> EventBus:
         """
@@ -109,6 +108,7 @@ class EventBusInitializer:
         此方法从注册表读取并创建处理器。
         """
         import uuid
+
         from ..domain.entities import EventSubscription
         from ..domain.registry import get_event_subscriber_registry
 
@@ -157,8 +157,9 @@ class EventBusInitializer:
         self._register_decision_execution_handlers()
 
         # 添加日志处理器（默认）- 使用 EventSubscription 包装
-        from ..domain.entities import EventSubscription, EventType
         import uuid
+
+        from ..domain.entities import EventSubscription, EventType
 
         log_handler = LoggingEventHandler()
         log_subscription = EventSubscription(
@@ -172,14 +173,15 @@ class EventBusInitializer:
     def _register_decision_execution_handlers(self):
         """注册决策执行相关处理器"""
         try:
+            import uuid
+
+            from ..domain.entities import EventSubscription, EventType
             from .decision_execution_handlers import (
                 DecisionApprovedHandler,
                 DecisionExecutedHandler,
                 DecisionExecutionFailedHandler,
                 DecisionRejectedHandler,
             )
-            from ..domain.entities import EventSubscription, EventType
-            import uuid
 
             # 创建处理器
             decision_approved_handler = DecisionApprovedHandler(
@@ -235,7 +237,7 @@ class EventBusInitializer:
         except ImportError as e:
             logger.warning(f"Failed to import decision execution handlers: {e}")
 
-    def get_event_bus(self) -> Optional[EventBus]:
+    def get_event_bus(self) -> EventBus | None:
         """
         获取事件总线
 
@@ -244,7 +246,7 @@ class EventBusInitializer:
         """
         return self.event_bus
 
-    def get_handlers(self) -> List[EventHandler]:
+    def get_handlers(self) -> list[EventHandler]:
         """
         获取已注册的处理器列表
 
@@ -302,7 +304,7 @@ class LoggingEventHandler(EventHandler):
 
 
 # 全局单例
-_event_bus_initializer: Optional[EventBusInitializer] = None
+_event_bus_initializer: EventBusInitializer | None = None
 
 
 def get_event_bus_initializer() -> EventBusInitializer:
@@ -320,7 +322,7 @@ def get_event_bus_initializer() -> EventBusInitializer:
     return _event_bus_initializer
 
 
-def get_event_bus() -> Optional[EventBus]:
+def get_event_bus() -> EventBus | None:
     """
     获取全局事件总线
 

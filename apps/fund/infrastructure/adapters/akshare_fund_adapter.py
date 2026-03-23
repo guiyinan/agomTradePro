@@ -9,9 +9,10 @@ AKShare 基金数据适配器
 AKShare 提供了更丰富的基金数据接口，适合作为 Tushare 的补充
 """
 
-import pandas as pd
-from typing import Optional, List
-from datetime import datetime, date
+from datetime import date, datetime
+from typing import List, Optional
+
+import akshare as ak
 
 
 class AkShareFundAdapter:
@@ -21,6 +22,7 @@ class AkShareFundAdapter:
         """初始化适配器"""
         try:
             import akshare as ak
+
             self.ak = ak
         except ImportError:
             raise ImportError("请安装 akshare: pip install akshare")
@@ -33,7 +35,9 @@ class AkShareFundAdapter:
         """
         try:
             # 使用新的API获取基金列表
-            df = self.ak.fund_open_fund_info_em(symbol='710001', indicator='单位净值走势', period='日K')
+            df = self.ak.fund_open_fund_info_em(
+                symbol="710001", indicator="单位净值走势", period="日K"
+            )
             return df
         except Exception as e:
             print(f"AKShare 获取基金列表失败: {e}")
@@ -50,9 +54,7 @@ class AkShareFundAdapter:
         """
         try:
             df = self.ak.fund_open_fund_info_em(
-                symbol=fund_code,
-                indicator='单位净值走势',
-                period='日K'
+                symbol=fund_code, indicator="单位净值走势", period="日K"
             )
             return df
         except Exception as e:
@@ -70,35 +72,28 @@ class AkShareFundAdapter:
         """
         try:
             df = self.ak.fund_open_fund_info_em(
-                symbol=fund_code,
-                indicator='单位净值走势',
-                period='日K'
+                symbol=fund_code, indicator="单位净值走势", period="日K"
             )
 
             if df is not None and not df.empty:
                 # 转换列名和日期格式
                 # 查找日期列和净值列
                 for col in df.columns:
-                    if '日期' in col or 'date' in col.lower():
+                    if "日期" in col or "date" in col.lower():
                         date_col = col
-                    if '净值' in col or 'nav' in col.lower():
+                    if "净值" in col or "nav" in col.lower():
                         nav_col = col
 
                 if date_col in df.columns and nav_col in df.columns:
-                    df = df.rename(columns={date_col: 'nav_date', nav_col: 'unit_nav'})
-                    df['nav_date'] = pd.to_datetime(df['nav_date'])
+                    df = df.rename(columns={date_col: "nav_date", nav_col: "unit_nav"})
+                    df["nav_date"] = pd.to_datetime(df["nav_date"])
 
             return df
         except Exception as e:
             print(f"AKShare 获取基金 {fund_code} 净值失败: {e}")
             return pd.DataFrame()
 
-    def fetch_fund_portfolio_em(
-        self,
-        fund_code: str,
-        year: int,
-        quarter: int
-    ) -> pd.DataFrame:
+    def fetch_fund_portfolio_em(self, fund_code: str, year: int, quarter: int) -> pd.DataFrame:
         """获取基金持仓数据（东方财富）
 
         Args:
@@ -110,20 +105,13 @@ class AkShareFundAdapter:
             DataFrame with columns: 股票代码, 股票名称, 持有数量, etc.
         """
         try:
-            df = ak.fund_portfolio_hold(
-                symbol=fund_code,
-                year=year,
-                quarter=quarter
-            )
+            df = ak.fund_portfolio_hold(symbol=fund_code, year=year, quarter=quarter)
             return df
         except Exception as e:
             print(f"AKShare 获取基金 {fund_code} 持仓失败: {e}")
             return pd.DataFrame()
 
-    def fetch_fund_rank_em(
-        self,
-        indicator: str = "收益率"
-    ) -> pd.DataFrame:
+    def fetch_fund_rank_em(self, indicator: str = "收益率") -> pd.DataFrame:
         """获取基金排名数据（东方财富）
 
         Args:
@@ -135,21 +123,13 @@ class AkShareFundAdapter:
             DataFrame with columns: 代码, 名称, etc.
         """
         try:
-            df = ak.fund_open_fund_rank_em(
-                symbol="全部基金",
-                indicator=indicator
-            )
+            df = ak.fund_open_fund_rank_em(symbol="全部基金", indicator=indicator)
             return df
         except Exception as e:
             print(f"AKShare 获取基金排名失败: {e}")
             return pd.DataFrame()
 
-    def fetch_fund_sector_allocation(
-        self,
-        fund_code: str,
-        year: int,
-        quarter: int
-    ) -> pd.DataFrame:
+    def fetch_fund_sector_allocation(self, fund_code: str, year: int, quarter: int) -> pd.DataFrame:
         """获取基金行业配置数据
 
         Args:
@@ -162,11 +142,7 @@ class AkShareFundAdapter:
         """
         try:
             # AKShare 的 fund_portfolio_hold 包含行业信息
-            df = ak.fund_portfolio_hold(
-                symbol=fund_code,
-                year=year,
-                quarter=quarter
-            )
+            df = ak.fund_portfolio_hold(symbol=fund_code, year=year, quarter=quarter)
             return df
         except Exception as e:
             print(f"AKShare 获取基金 {fund_code} 行业配置失败: {e}")
@@ -179,10 +155,7 @@ class AkShareFundAdapter:
             DataFrame with columns: 基金代码, 基金名称, 基金规模, etc.
         """
         try:
-            df = ak.fund_open_fund_rank_em(
-                symbol="全部基金",
-                indicator="规模"
-            )
+            df = ak.fund_open_fund_rank_em(symbol="全部基金", indicator="规模")
             return df
         except Exception as e:
             print(f"AKShare 获取基金规模排名失败: {e}")

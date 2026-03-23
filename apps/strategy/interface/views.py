@@ -7,53 +7,53 @@ Interface层:
 - 只做输入验证和输出格式化，禁止业务逻辑
 """
 import logging
-from rest_framework import viewsets, status, filters
+
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q, Sum
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.db.models import Count, Q, Sum
-from django.conf import settings
 
-from apps.strategy.infrastructure.models import (
-    StrategyModel,
-    PositionManagementRuleModel,
-    RuleConditionModel,
-    ScriptConfigModel,
-    AIStrategyConfigModel,
-    PortfolioStrategyAssignmentModel,
-    StrategyExecutionLogModel
-)
-from apps.strategy.interface.serializers import (
-    StrategySerializer,
-    StrategyDetailSerializer,
-    PositionManagementRuleSerializer,
-    PositionManagementEvaluateInputSerializer,
-    PositionManagementEvaluateResultSerializer,
-    RuleConditionSerializer,
-    RuleConditionListSerializer,
-    ScriptConfigSerializer,
-    AIStrategyConfigSerializer,
-    PortfolioStrategyAssignmentSerializer,
-    PortfolioStrategyAssignmentDetailSerializer,
-    StrategyExecutionLogSerializer,
-    StrategyExecutionLogListSerializer,
-    ExecutionEvaluateInputSerializer,
-    ExecutionEvaluateOutputSerializer,
-)
 from apps.strategy.application.position_management_service import (
     PositionManagementService,
     PositionRuleError,
 )
 from apps.strategy.domain.services import (
     DecisionPolicyEngine,
-    SizingEngine,
     PreTradeRiskGate,
+    SizingEngine,
 )
-
+from apps.strategy.infrastructure.models import (
+    AIStrategyConfigModel,
+    PortfolioStrategyAssignmentModel,
+    PositionManagementRuleModel,
+    RuleConditionModel,
+    ScriptConfigModel,
+    StrategyExecutionLogModel,
+    StrategyModel,
+)
+from apps.strategy.interface.serializers import (
+    AIStrategyConfigSerializer,
+    ExecutionEvaluateInputSerializer,
+    ExecutionEvaluateOutputSerializer,
+    PortfolioStrategyAssignmentDetailSerializer,
+    PortfolioStrategyAssignmentSerializer,
+    PositionManagementEvaluateInputSerializer,
+    PositionManagementEvaluateResultSerializer,
+    PositionManagementRuleSerializer,
+    RuleConditionListSerializer,
+    RuleConditionSerializer,
+    ScriptConfigSerializer,
+    StrategyDetailSerializer,
+    StrategyExecutionLogListSerializer,
+    StrategyExecutionLogSerializer,
+    StrategySerializer,
+)
 
 # ========================================================================
 # Strategy ViewSet
@@ -572,8 +572,8 @@ def strategy_list(request):
 def strategy_create(request):
     """创建策略页面"""
     if request.method == 'POST':
-        import json
         import hashlib
+        import json
 
         name = request.POST.get('name')
         strategy_type = request.POST.get('strategy_type')
@@ -664,8 +664,8 @@ def strategy_edit(request, strategy_id):
     strategy = get_object_or_404(StrategyModel, id=strategy_id, created_by=request.user.account_profile)
 
     if request.method == 'POST':
-        import json
         import hashlib
+        import json
 
         name = request.POST.get('name')
         description = request.POST.get('description', '')
@@ -782,16 +782,16 @@ def strategy_execute(request, strategy_id):
 
         # 初始化策略执行引擎
         from apps.strategy.application.strategy_executor import StrategyExecutor
-        from apps.strategy.infrastructure.repositories import (
-            DjangoStrategyRepository,
-            DjangoStrategyExecutionLogRepository
-        )
         from apps.strategy.infrastructure.providers import (
-            DjangoMacroDataProvider,
-            DjangoRegimeProvider,
             DjangoAssetPoolProvider,
+            DjangoMacroDataProvider,
+            DjangoPortfolioDataProvider,
+            DjangoRegimeProvider,
             DjangoSignalProvider,
-            DjangoPortfolioDataProvider
+        )
+        from apps.strategy.infrastructure.repositories import (
+            DjangoStrategyExecutionLogRepository,
+            DjangoStrategyRepository,
         )
 
         # 创建提供者实例
@@ -996,6 +996,7 @@ def bind_strategy(request):
         return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
 
     import json
+
     from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
     try:
@@ -1049,6 +1050,7 @@ def unbind_strategy(request):
         return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
 
     import json
+
     from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
     try:
@@ -1082,10 +1084,11 @@ def test_script(request):
 
     import json
     import time
+
     from apps.strategy.application.script_engine import (
         ScriptAPI,
         ScriptExecutionEnvironment,
-        SecurityMode
+        SecurityMode,
     )
 
     try:
@@ -1195,6 +1198,7 @@ def test_strategy(request, strategy_id):
 
     import json
     import time
+
     from apps.strategy.application.strategy_executor import StrategyExecutor
 
     strategy = get_object_or_404(StrategyModel, id=strategy_id, created_by=request.user.account_profile)
@@ -1222,7 +1226,7 @@ def test_strategy(request, strategy_id):
                 from apps.strategy.application.script_engine import (
                     ScriptAPI,
                     ScriptExecutionEnvironment,
-                    SecurityMode
+                    SecurityMode,
                 )
 
                 # 创建模拟 API 提供者

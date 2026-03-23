@@ -11,20 +11,19 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from django.db import models, transaction
 from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.utils import timezone
 
 from ..domain.entities import (
-    AlphaTrigger,
     AlphaCandidate,
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
-    InvalidationCondition,
+    AlphaTrigger,
     CandidateStatus,
+    InvalidationCondition,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
 )
-
 
 logger = logging.getLogger(__name__)
 

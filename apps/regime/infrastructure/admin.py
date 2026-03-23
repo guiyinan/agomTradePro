@@ -6,13 +6,13 @@ Django Admin for Regime Infrastructure - 增强版
 
 from django.contrib import admin
 from django.db.models import Count
-from django.utils.html import format_html
 from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from .models import (
-    RegimeThresholdConfig,
     RegimeIndicatorThreshold,
+    RegimeThresholdConfig,
 )
 
 
@@ -97,6 +97,7 @@ class RegimeThresholdConfigAdmin(admin.ModelAdmin):
     def get_urls(self):
         """添加自定义 URL"""
         from django.urls import path
+
         from .views import activate_regime_config
 
         urls = super().get_urls()

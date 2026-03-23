@@ -7,8 +7,9 @@ Market Data Source Registry
 
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Callable, Dict, List, Optional, TypeVar
+from collections.abc import Callable
+from datetime import UTC, datetime, timezone
+from typing import Dict, List, Optional, TypeVar
 
 from apps.market_data.domain.entities import ProviderStatus
 from apps.market_data.domain.enums import DataCapability, ProviderHealth
@@ -37,8 +38,8 @@ class _ProviderState:
         self.priority = priority
         self.capability = capability
         self.consecutive_failures: int = 0
-        self.last_success_at: Optional[datetime] = None
-        self.circuit_open_until: Optional[float] = None
+        self.last_success_at: datetime | None = None
+        self.circuit_open_until: float | None = None
         self.total_calls: int = 0
         self.total_failures: int = 0
         self.total_latency_ms: float = 0.0
@@ -60,7 +61,7 @@ class _ProviderState:
 
     def record_success(self, latency_ms: float) -> None:
         self.consecutive_failures = 0
-        self.last_success_at = datetime.now(timezone.utc)
+        self.last_success_at = datetime.now(UTC)
         self.circuit_open_until = None
         self.total_calls += 1
         self.total_latency_ms += latency_ms
@@ -115,7 +116,7 @@ class SourceRegistry:
 
     def __init__(self) -> None:
         # capability → [_ProviderState] (按 priority 排序，小值优先)
-        self._registry: Dict[DataCapability, List[_ProviderState]] = {}
+        self._registry: dict[DataCapability, list[_ProviderState]] = {}
 
     def register(
         self,
@@ -147,7 +148,7 @@ class SourceRegistry:
 
     def get_provider(
         self, capability: DataCapability
-    ) -> Optional[MarketDataProviderProtocol]:
+    ) -> MarketDataProviderProtocol | None:
         """获取某能力的最高优先可用 provider"""
         states = self._registry.get(capability, [])
         for state in states:
@@ -157,7 +158,7 @@ class SourceRegistry:
 
     def get_providers(
         self, capability: DataCapability
-    ) -> List[MarketDataProviderProtocol]:
+    ) -> list[MarketDataProviderProtocol]:
         """获取某能力的所有可用 providers（按优先级排序）"""
         states = self._registry.get(capability, [])
         return [s.provider for s in states if s.is_available]
@@ -182,7 +183,7 @@ class SourceRegistry:
         self,
         capability: DataCapability,
         fn: Callable[[MarketDataProviderProtocol], T],
-    ) -> Optional[T]:
+    ) -> T | None:
         """对某能力的所有可用 provider 依次调用 fn，直到成功为止。
 
         成功 = fn 返回非空（非 None、非空列表）结果。
@@ -229,9 +230,9 @@ class SourceRegistry:
         logger.error("所有 provider 均失败: %s", capability.value)
         return None
 
-    def get_all_statuses(self) -> List[ProviderStatus]:
+    def get_all_statuses(self) -> list[ProviderStatus]:
         """获取所有 provider 状态"""
-        statuses: List[ProviderStatus] = []
+        statuses: list[ProviderStatus] = []
         for capability, states in self._registry.items():
             for state in states:
                 statuses.append(state.to_status(capability.value))
@@ -239,7 +240,7 @@ class SourceRegistry:
 
     def _find_state(
         self, provider_name: str, capability: DataCapability
-    ) -> Optional[_ProviderState]:
+    ) -> _ProviderState | None:
         states = self._registry.get(capability, [])
         for state in states:
             if state.provider.provider_name() == provider_name:

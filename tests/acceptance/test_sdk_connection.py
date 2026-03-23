@@ -15,8 +15,9 @@ Requirements:
 
 import os
 import sys
-from typing import Any
 from pathlib import Path
+from typing import Any
+
 import pytest
 
 # Add project root to Python path
@@ -189,7 +190,7 @@ def test_check_signal_eligibility() -> None:
             logic_desc="Test signal for eligibility check"
         )
 
-        print_success(f"Eligibility check completed")
+        print_success("Eligibility check completed")
         print_info(f"Is eligible: {eligibility.is_eligible}")
         if eligibility.regime_match:
             print_info(f"Regime match: {eligibility.regime_match}")

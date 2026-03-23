@@ -4,12 +4,13 @@
 包含出口、进口、贸易差额等贸易指标的获取逻辑。
 """
 
-import pandas as pd
+import logging
 from datetime import date
 from typing import List
-import logging
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class TradeIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国出口数据"""
         try:
             df = self.ak.macro_china_exports_yoy()
@@ -80,7 +81,7 @@ class TradeIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国进口数据"""
         try:
             df = self.ak.macro_china_imports_yoy()
@@ -126,7 +127,7 @@ class TradeIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国贸易差额数据"""
         try:
             df = self.ak.macro_china_trade_balance()

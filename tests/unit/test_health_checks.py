@@ -4,11 +4,12 @@ Unit tests for health check endpoints.
 Tests the liveness and readiness probes for Kubernetes deployment.
 """
 
-import pytest
 from datetime import datetime, timezone
-from django.test import Client
+from unittest.mock import MagicMock, patch
+
+import pytest
 from django.core.cache import cache
-from unittest.mock import patch, MagicMock
+from django.test import Client
 
 
 @pytest.mark.unit
@@ -62,8 +63,9 @@ class TestHealthCheckFunctions:
     @patch('core.health_checks.connections')
     def test_check_database_error(self, mock_connections):
         """Test database check returns error when database fails"""
-        from core.health_checks import check_database
         from django.db import DatabaseError
+
+        from core.health_checks import check_database
 
         # Mock database connection to fail
         mock_conn = MagicMock()

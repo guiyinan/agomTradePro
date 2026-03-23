@@ -33,7 +33,7 @@ class CapitalFlowRepository:
             },
         )
 
-    def save_batch(self, snapshots: List[CapitalFlowSnapshot]) -> int:
+    def save_batch(self, snapshots: list[CapitalFlowSnapshot]) -> int:
         """批量保存资金流向
 
         Returns:
@@ -54,7 +54,7 @@ class CapitalFlowRepository:
 
     def get_latest(
         self, stock_code: str, days: int = 5
-    ) -> List[CapitalFlowSnapshot]:
+    ) -> list[CapitalFlowSnapshot]:
         """获取最近 N 天的资金流向"""
         qs = (
             StockCapitalFlowModel.objects.filter(stock_code=stock_code)
@@ -67,7 +67,7 @@ class CapitalFlowRepository:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> List[CapitalFlowSnapshot]:
+    ) -> list[CapitalFlowSnapshot]:
         """按日期范围查询资金流向"""
         qs = StockCapitalFlowModel.objects.filter(
             stock_code=stock_code,

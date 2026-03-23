@@ -4,18 +4,19 @@ Repository Implementations for AI Provider Management.
 数据仓储实现，参考 DjangoMacroRepository 的模式。
 """
 
-from typing import List, Optional, Dict, Any
+import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-import logging
+from typing import Any, Dict, List, Optional
 
-from django.db.models import Sum, Count, Q, Avg
-from django.utils import timezone
+from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
+from django.utils import timezone
 
-from .models import AIProviderConfig, AIUsageLog
-from ..domain.entities import AIUsageRecord
 from shared.infrastructure.crypto import FieldEncryptionService
+
+from ..domain.entities import AIUsageRecord
+from .models import AIProviderConfig, AIUsageLog
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class AIProviderRepository:
 
     def __init__(self):
         """Initialize repository with encryption service."""
-        self._crypto: Optional[FieldEncryptionService] = None
+        self._crypto: FieldEncryptionService | None = None
 
     @property
     def _crypto_service(self) -> FieldEncryptionService:
@@ -81,31 +82,31 @@ class AIProviderRepository:
         # Fall back to plaintext field
         return provider.api_key or ''
 
-    def get_all(self) -> List[AIProviderConfig]:
+    def get_all(self) -> list[AIProviderConfig]:
         """获取所有提供商配置"""
         return list(AIProviderConfig._default_manager.all().order_by('priority', 'name'))
 
-    def get_active_providers(self) -> List[AIProviderConfig]:
+    def get_active_providers(self) -> list[AIProviderConfig]:
         """获取所有启用的提供商，按优先级排序"""
         return list(AIProviderConfig._default_manager.filter(
             is_active=True
         ).order_by('priority', 'name'))
 
-    def get_by_id(self, pk: int) -> Optional[AIProviderConfig]:
+    def get_by_id(self, pk: int) -> AIProviderConfig | None:
         """根据ID获取提供商"""
         try:
             return AIProviderConfig._default_manager.get(pk=pk)
         except AIProviderConfig.DoesNotExist:
             return None
 
-    def get_by_name(self, name: str) -> Optional[AIProviderConfig]:
+    def get_by_name(self, name: str) -> AIProviderConfig | None:
         """根据名称获取提供商"""
         try:
             return AIProviderConfig._default_manager.get(name=name)
         except AIProviderConfig.DoesNotExist:
             return None
 
-    def get_by_type(self, provider_type: str) -> List[AIProviderConfig]:
+    def get_by_type(self, provider_type: str) -> list[AIProviderConfig]:
         """根据类型获取提供商"""
         return list(AIProviderConfig._default_manager.filter(
             provider_type=provider_type,
@@ -182,7 +183,7 @@ class AIUsageRepository:
         status: str,
         request_type: str = "chat",
         error_message: str = "",
-        request_metadata: Dict = None
+        request_metadata: dict = None
     ) -> AIUsageLog:
         """
         记录API调用日志
@@ -227,7 +228,7 @@ class AIUsageRepository:
         self,
         provider_id: int,
         target_date: date
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取指定日期的使用统计
 
@@ -269,7 +270,7 @@ class AIUsageRepository:
         provider_id: int,
         year: int,
         month: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取指定月份的使用统计
 
@@ -304,9 +305,9 @@ class AIUsageRepository:
     def check_budget_limits(
         self,
         provider_id: int,
-        daily_limit: Optional[float],
-        monthly_limit: Optional[float]
-    ) -> Dict[str, Any]:
+        daily_limit: float | None,
+        monthly_limit: float | None
+    ) -> dict[str, Any]:
         """
         检查预算限制
 
@@ -348,10 +349,10 @@ class AIUsageRepository:
 
     def get_recent_logs(
         self,
-        provider_id: Optional[int] = None,
+        provider_id: int | None = None,
         limit: int = 100,
-        status: Optional[str] = None
-    ) -> List[AIUsageLog]:
+        status: str | None = None
+    ) -> list[AIUsageLog]:
         """
         获取最近的日志记录
 
@@ -377,7 +378,7 @@ class AIUsageRepository:
         self,
         provider_id: int,
         days: int = 30
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         按日期获取使用统计
 
@@ -420,7 +421,7 @@ class AIUsageRepository:
         self,
         provider_id: int,
         days: int = 30
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         按模型获取使用统计
 

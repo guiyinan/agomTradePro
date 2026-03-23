@@ -10,7 +10,7 @@
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -30,11 +30,11 @@ class FundInfo:
     fund_code: str
     fund_name: str
     fund_type: str  # '股票型', '债券型', '混合型', '指数型', '货币型', 'QDII', '商品型'
-    investment_style: Optional[str] = None  # '成长', '价值', '平衡', '商品', '稳健'
-    setup_date: Optional[date] = None
-    management_company: Optional[str] = None
-    custodian: Optional[str] = None
-    fund_scale: Optional[Decimal] = None  # 单位：元
+    investment_style: str | None = None  # '成长', '价值', '平衡', '商品', '稳健'
+    setup_date: date | None = None
+    management_company: str | None = None
+    custodian: str | None = None
+    fund_scale: Decimal | None = None  # 单位：元
 
 
 @dataclass(frozen=True)
@@ -52,9 +52,9 @@ class FundManager:
     fund_code: str
     manager_name: str
     tenure_start: date
-    tenure_end: Optional[date] = None
-    total_tenure_days: Optional[int] = None
-    fund_return: Optional[float] = None  # %
+    tenure_end: date | None = None
+    total_tenure_days: int | None = None
+    fund_return: float | None = None  # %
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class FundNetValue:
     nav_date: date
     unit_nav: Decimal
     accum_nav: Decimal
-    daily_return: Optional[float] = None
+    daily_return: float | None = None
 
 
 @dataclass(frozen=True)
@@ -93,9 +93,9 @@ class FundHolding:
     report_date: date
     stock_code: str
     stock_name: str
-    holding_amount: Optional[int] = None
-    holding_value: Optional[Decimal] = None
-    holding_ratio: Optional[float] = None
+    holding_amount: int | None = None
+    holding_value: Decimal | None = None
+    holding_ratio: float | None = None
 
 
 @dataclass(frozen=True)
@@ -134,12 +134,12 @@ class FundPerformance:
     start_date: date
     end_date: date
     total_return: float
-    annualized_return: Optional[float] = None
-    volatility: Optional[float] = None
-    sharpe_ratio: Optional[float] = None
-    max_drawdown: Optional[float] = None
-    beta: Optional[float] = None
-    alpha: Optional[float] = None
+    annualized_return: float | None = None
+    volatility: float | None = None
+    sharpe_ratio: float | None = None
+    max_drawdown: float | None = None
+    beta: float | None = None
+    alpha: float | None = None
 
 
 @dataclass(frozen=True)
@@ -188,18 +188,18 @@ class FundAssetScore:
     fund_code: str                                 # 基金代码
     fund_name: str                                 # 基金名称
     fund_type: str                                 # 基金类型
-    investment_style: Optional[str] = None         # 投资风格
-    fund_company: Optional[str] = None             # 基金公司
-    fund_manager: Optional[str] = None             # 基金经理
-    establishment_date: Optional[date] = None      # 成立日期
-    fund_scale: Optional[Decimal] = None           # 基金规模
+    investment_style: str | None = None         # 投资风格
+    fund_company: str | None = None             # 基金公司
+    fund_manager: str | None = None             # 基金经理
+    establishment_date: date | None = None      # 成立日期
+    fund_scale: Decimal | None = None           # 基金规模
 
     # ========== 通用维度得分（来自 asset_analysis） ==========
     # 这些维度由通用框架计算
     asset_type: str = "fund"                       # 固定为 "fund"
-    style: Optional[str] = None                    # 映射到通用风格
-    size: Optional[str] = None                     # 大盘/中盘/小盘
-    sector: Optional[str] = None                   # 行业（对基金不适用）
+    style: str | None = None                    # 映射到通用风格
+    size: str | None = None                     # 大盘/中盘/小盘
+    sector: str | None = None                   # 行业（对基金不适用）
 
     # 四大维度得分（0-100）
     regime_score: float = 0.0                      # 宏观环境得分
@@ -224,7 +224,7 @@ class FundAssetScore:
 
     # ========== 元信息 ==========
     score_date: date = field(default_factory=date.today)
-    context: Optional[Dict] = None                 # 评分上下文
+    context: dict | None = None                 # 评分上下文
 
     def __post_init__(self):
         """初始化后处理"""
@@ -251,7 +251,7 @@ class FundAssetScore:
                 size = "small"
             object.__setattr__(self, 'size', size)
 
-    def get_custom_scores(self) -> Dict[str, float]:
+    def get_custom_scores(self) -> dict[str, float]:
         """获取基金特有得分（用于传递给通用框架）"""
         return {
             "manager": self.manager_score,

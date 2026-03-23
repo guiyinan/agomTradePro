@@ -8,11 +8,10 @@ WP-M1-06: Security And Audit Hook
 """
 
 import logging
-from typing import Optional, Dict, Any
 from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 from django.utils import timezone as django_timezone
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +40,11 @@ class AgentRuntimeAuditService:
         request_id: str,
         task_domain: str,
         task_type: str,
-        user_id: Optional[int] = None,
-        input_payload: Optional[Dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
+        user_id: int | None = None,
+        input_payload: dict[str, Any] | None = None,
+        ip_address: str | None = None,
         source: str = "API",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Log a task creation event.
 
@@ -88,11 +87,11 @@ class AgentRuntimeAuditService:
         request_id: str,
         from_status: str,
         to_status: str,
-        reason: Optional[str] = None,
-        user_id: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        reason: str | None = None,
+        user_id: int | None = None,
+        ip_address: str | None = None,
         source: str = "API",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Log a task resume event.
 
@@ -135,10 +134,10 @@ class AgentRuntimeAuditService:
         request_id: str,
         from_status: str,
         reason: str,
-        user_id: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        user_id: int | None = None,
+        ip_address: str | None = None,
         source: str = "API",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Log a task cancellation event.
 
@@ -180,10 +179,10 @@ class AgentRuntimeAuditService:
         from_status: str,
         to_status: str,
         trigger: str,
-        user_id: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        user_id: int | None = None,
+        ip_address: str | None = None,
         source: str = "SYSTEM",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Log a state transition event.
 
@@ -223,19 +222,19 @@ class AgentRuntimeAuditService:
     def _log_operation(
         self,
         request_id: str,
-        user_id: Optional[int],
+        user_id: int | None,
         source: str,
         operation_type: str,
         module: str,
         action: str,
         resource_type: str,
         resource_id: str,
-        request_params: Dict[str, Any],
-        response_payload: Dict[str, Any],
+        request_params: dict[str, Any],
+        response_payload: dict[str, Any],
         response_status: int,
         response_message: str,
-        ip_address: Optional[str] = None,
-    ) -> Optional[str]:
+        ip_address: str | None = None,
+    ) -> str | None:
         """
         Internal method to log an operation.
 
@@ -265,8 +264,8 @@ class AgentRuntimeAuditService:
 
         try:
             from apps.audit.application.use_cases import (
-                LogOperationUseCase,
                 LogOperationRequest,
+                LogOperationUseCase,
             )
             from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
@@ -326,7 +325,7 @@ class AgentRuntimeAuditService:
 
 
 # Singleton instance
-_audit_service: Optional[AgentRuntimeAuditService] = None
+_audit_service: AgentRuntimeAuditService | None = None
 
 
 def get_audit_service() -> AgentRuntimeAuditService:

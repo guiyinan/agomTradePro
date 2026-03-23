@@ -3,13 +3,13 @@ Share API Serializers
 
 DRF 序列化器定义。
 """
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from rest_framework import serializers
 
 from apps.share.infrastructure.models import (
+    ShareAccessLogModel,
     ShareLinkModel,
     ShareSnapshotModel,
-    ShareAccessLogModel,
 )
 
 User = get_user_model()

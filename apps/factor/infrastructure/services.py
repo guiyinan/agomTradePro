@@ -4,27 +4,28 @@ Factor Module Infrastructure Layer - Integration Services
 Integration services that connect domain logic with data adapters.
 """
 
-from datetime import date, datetime
-from typing import Dict, List, Optional, Callable
 import logging
+from collections.abc import Callable
+from datetime import date, datetime
+from typing import Dict, List, Optional
 
 from apps.factor.domain.entities import (
     FactorDefinition,
-    FactorScore,
     FactorPortfolioConfig,
     FactorPortfolioHolding,
+    FactorScore,
 )
 from apps.factor.domain.services import (
     FactorCalculationContext,
     FactorEngine,
     ScoringService,
 )
+from apps.factor.infrastructure.adapters import FailoverFactorAdapter
 from apps.factor.infrastructure.repositories import (
     FactorDefinitionRepository,
     FactorPortfolioConfigRepository,
     FactorPortfolioHoldingRepository,
 )
-from apps.factor.infrastructure.adapters import FailoverFactorAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +45,11 @@ class FactorIntegrationService:
 
     def calculate_factor_scores(
         self,
-        universe: List[str],
-        factor_weights: Dict[str, float],
-        trade_date: Optional[date] = None,
+        universe: list[str],
+        factor_weights: dict[str, float],
+        trade_date: date | None = None,
         top_n: int = 50
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Calculate factor scores for stocks.
 
@@ -67,10 +68,10 @@ class FactorIntegrationService:
         factor_definitions = self.factor_repo.get_active()
 
         # Create domain context
-        def get_factor_value(stock_code: str, factor_code: str, calc_date: date) -> Optional[float]:
+        def get_factor_value(stock_code: str, factor_code: str, calc_date: date) -> float | None:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
-        def get_stock_info(stock_code: str) -> Optional[Dict]:
+        def get_stock_info(stock_code: str) -> dict | None:
             # Get stock info from equity module if available
             try:
                 from apps.equity.infrastructure.repositories import StockInfoRepository
@@ -128,8 +129,8 @@ class FactorIntegrationService:
     def create_factor_portfolio(
         self,
         config_name: str,
-        trade_date: Optional[date] = None
-    ) -> Optional[Dict]:
+        trade_date: date | None = None
+    ) -> dict | None:
         """
         Create factor portfolio based on configuration.
 
@@ -193,7 +194,7 @@ class FactorIntegrationService:
             ],
         }
 
-    def get_factor_portfolio(self, config_name: str) -> Optional[Dict]:
+    def get_factor_portfolio(self, config_name: str) -> dict | None:
         """
         Get latest factor portfolio for a configuration.
 
@@ -228,9 +229,9 @@ class FactorIntegrationService:
     def explain_stock_score(
         self,
         stock_code: str,
-        factor_weights: Dict[str, float],
-        trade_date: Optional[date] = None
-    ) -> Optional[Dict]:
+        factor_weights: dict[str, float],
+        trade_date: date | None = None
+    ) -> dict | None:
         """
         Explain factor score breakdown for a stock.
 
@@ -248,10 +249,10 @@ class FactorIntegrationService:
         factor_definitions = self.factor_repo.get_active()
 
         # Create domain context
-        def get_factor_value(stock_code: str, factor_code: str, calc_date: date) -> Optional[float]:
+        def get_factor_value(stock_code: str, factor_code: str, calc_date: date) -> float | None:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
-        def get_stock_info(stock_code: str) -> Optional[Dict]:
+        def get_stock_info(stock_code: str) -> dict | None:
             try:
                 from apps.equity.infrastructure.repositories import StockInfoRepository
                 equity_repo = StockInfoRepository()
@@ -279,7 +280,7 @@ class FactorIntegrationService:
 
         return explanation
 
-    def resolve_universe_stocks(self, universe: str) -> List[str]:
+    def resolve_universe_stocks(self, universe: str) -> list[str]:
         """Get stock list for a universe"""
         # Map universe codes to actual stock lists.
         from apps.equity.infrastructure.models import StockInfoModel
@@ -303,9 +304,9 @@ class FactorIntegrationService:
         self,
         config_name: str,
         trade_date: date,
-        scores: List[Dict],
+        scores: list[dict],
         weight_method: str
-    ) -> List[FactorPortfolioHolding]:
+    ) -> list[FactorPortfolioHolding]:
         """Create holdings from scores"""
         n = len(scores)
         holdings = []
@@ -358,7 +359,7 @@ class FactorIntegrationService:
 
         return holdings
 
-    def get_factor_definitions(self) -> List[Dict]:
+    def get_factor_definitions(self) -> list[dict]:
         """Get all factor definitions"""
         factors = self.factor_repo.get_active()
 
@@ -375,7 +376,7 @@ class FactorIntegrationService:
             for f in factors
         ]
 
-    def get_all_configs(self) -> List[Dict]:
+    def get_all_configs(self) -> list[dict]:
         """Get all portfolio configurations"""
         configs = self.config_repo.get_all()
 
@@ -395,9 +396,9 @@ class FactorIntegrationService:
 
     def get_top_stocks(
         self,
-        factor_preferences: Dict[str, str],
+        factor_preferences: dict[str, str],
         top_n: int = 30
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Get top stocks based on factor preferences.
 

@@ -5,7 +5,7 @@ AgomTradePro 资本市场数据连接测试脚本
 """
 
 import json
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 
 
 def test_stock_data_adapters():
@@ -35,21 +35,21 @@ def test_stock_data_adapters():
                 'sample': df.head(3)[['stock_code', 'name', 'market']].to_dict('records') if 'stock_code' in df.columns else []
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare A股列表', 'status': 'failed'})
 
         # 测试2: 获取单个股票信息
         print("\n2. 获取平安银行(000001)信息...")
         info = adapter.fetch_stock_info('000001')
         if info:
-            print(f"   ✓ 成功获取股票信息")
+            print("   ✓ 成功获取股票信息")
             results.append({
                 'test': 'AKShare 股票信息',
                 'status': 'success',
                 'sample': list(info.keys())[:5]
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 股票信息', 'status': 'failed'})
 
         # 测试3: 获取历史数据
@@ -64,7 +64,7 @@ def test_stock_data_adapters():
                 'columns': list(df.columns)
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 日线数据', 'status': 'failed'})
 
         # 测试4: 获取实时行情
@@ -78,7 +78,7 @@ def test_stock_data_adapters():
                 'count': len(df)
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 实时行情', 'status': 'failed'})
 
         # 测试5: 获取指数数据
@@ -92,7 +92,7 @@ def test_stock_data_adapters():
                 'count': len(df)
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 指数数据', 'status': 'failed'})
 
     except Exception as e:
@@ -126,7 +126,7 @@ def test_stock_data_adapters():
                     'count': len(df)
                 })
             else:
-                print(f"   ✗ 获取失败")
+                print("   ✗ 获取失败")
                 results.append({'test': 'Tushare 股票列表', 'status': 'failed'})
 
         except ValueError as e:
@@ -174,20 +174,20 @@ def test_fund_data_adapters():
                 'count': len(df)
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 基金列表', 'status': 'failed'})
 
         # 测试2: 获取单个基金信息
         print("\n2. 获取易方达蓝筹精选(005827)信息...")
         df = adapter.fetch_fund_info_em('005827')
         if df is not None and not df.empty:
-            print(f"   ✓ 成功获取基金信息")
+            print("   ✓ 成功获取基金信息")
             results.append({
                 'test': 'AKShare 基金信息',
                 'status': 'success'
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 基金信息', 'status': 'failed'})
 
         # 测试3: 获取基金净值
@@ -201,7 +201,7 @@ def test_fund_data_adapters():
                 'count': len(df)
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 基金净值', 'status': 'failed'})
 
     except Exception as e:
@@ -245,7 +245,7 @@ def test_sector_data_adapters():
             if 'sector_name' in df.columns:
                 print(f"   示例行业: {', '.join(df['sector_name'].head(5).tolist())}")
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 行业分类', 'status': 'failed'})
 
         # 测试2: 获取板块列表
@@ -259,7 +259,7 @@ def test_sector_data_adapters():
                 'count': len(df)
             })
         else:
-            print(f"   ✗ 获取失败")
+            print("   ✗ 获取失败")
             results.append({'test': 'AKShare 板块列表', 'status': 'failed'})
 
     except Exception as e:
@@ -284,8 +284,9 @@ def test_database_operations():
     # 测试股票数据保存
     print("\n--- 测试股票数据保存 ---")
     try:
-        from apps.equity.infrastructure.models import StockInfoModel, StockDailyModel
         from apps.equity.infrastructure.adapters.akshare_stock_adapter import AKShareStockAdapter
+
+        from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
 
         adapter = AKShareStockAdapter()
 
@@ -321,7 +322,7 @@ def test_database_operations():
                 'count': saved_count
             })
         else:
-            print(f"   ✗ 无法获取股票数据")
+            print("   ✗ 无法获取股票数据")
             results.append({'test': '股票数据保存', 'status': 'failed'})
 
         # 检查数据库中的股票数量
@@ -344,8 +345,8 @@ def test_database_operations():
     # 测试基金数据保存
     print("\n--- 测试基金数据保存 ---")
     try:
-        from apps.fund.infrastructure.models import FundInfoModel
         from apps.fund.infrastructure.adapters.akshare_fund_adapter import AkShareFundAdapter
+        from apps.fund.infrastructure.models import FundInfoModel
 
         adapter = AkShareFundAdapter()
 
@@ -387,10 +388,10 @@ def test_database_operations():
                     'count': saved_count
                 })
             else:
-                print(f"   ⚠ 无法找到基金代码列")
+                print("   ⚠ 无法找到基金代码列")
                 results.append({'test': '基金数据保存', 'status': 'partial'})
         else:
-            print(f"   ✗ 无法获取基金数据")
+            print("   ✗ 无法获取基金数据")
             results.append({'test': '基金数据保存', 'status': 'failed'})
 
         # 检查数据库中的基金数量
@@ -478,6 +479,7 @@ def run_all_tests():
 if __name__ == '__main__':
     # Django setup
     import os
+
     import django
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
     django.setup()

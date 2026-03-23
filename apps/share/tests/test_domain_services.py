@@ -3,8 +3,9 @@ Share Domain Services Tests
 
 Tests for Domain layer services (pure Python, no external dependencies).
 """
-import pytest
 import string
+
+import pytest
 
 from apps.share.domain.services import (
     generate_short_code,

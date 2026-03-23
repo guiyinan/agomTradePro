@@ -9,13 +9,14 @@ End-to-End Tests for Alpha Module + Dashboard Integration
 4. API 响应验证
 """
 
-import pytest
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from django.utils import timezone
-from django.test import Client
-from django.contrib.auth import get_user_model
+
+import pytest
 from django.apps import apps
+from django.contrib.auth import get_user_model
+from django.test import Client
+from django.utils import timezone
 
 # Import Alpha models using Django's app registry (use full model name)
 AlphaScoreCacheModel = apps.get_model('alpha', 'AlphaScoreCacheModel')
@@ -24,7 +25,6 @@ QlibModelRegistryModel = apps.get_model('alpha', 'QlibModelRegistryModel')
 from apps.alpha.application.services import AlphaService
 from apps.signal.application.unified_service import UnifiedSignalService
 from shared.infrastructure.metrics import get_alpha_metrics
-
 
 User = get_user_model()
 
@@ -117,8 +117,9 @@ class TestAlphaDashboardE2E:
     def test_dashboard_contains_alpha_data(self):
         """测试 Dashboard 包含 Alpha 数据"""
         # 直接调用 AlphaService 测试数据是否正确创建
-        from apps.alpha.application.services import AlphaService
         from datetime import date
+
+        from apps.alpha.application.services import AlphaService
 
         service = AlphaService()
         result = service.get_stock_scores(
@@ -141,8 +142,9 @@ class TestAlphaDashboardE2E:
         """测试 Alpha 选股 HTMX 端点"""
         # 由于 Django 测试事务隔离，HTTP 请求无法看到测试数据
         # 因此直接测试服务层
-        from apps.alpha.application.services import AlphaService
         from datetime import date
+
+        from apps.alpha.application.services import AlphaService
 
         service = AlphaService()
         result = service.get_stock_scores(

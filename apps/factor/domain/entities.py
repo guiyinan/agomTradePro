@@ -12,8 +12,8 @@ Uses only:
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class FactorCategory(Enum):
@@ -57,7 +57,7 @@ class FactorDefinition:
     allow_missing: bool = False            # Whether to allow missing values
 
     # Factor characteristics
-    higher_better: Optional[bool] = None   # Deprecated: use direction instead
+    higher_better: bool | None = None   # Deprecated: use direction instead
 
     def __post_init__(self):
         """Validate factor definition"""
@@ -116,8 +116,8 @@ class FactorScore:
     trade_date: date                       # Trade date
 
     # Factor breakdown
-    factor_scores: Dict[str, float]        # Individual factor scores
-    factor_weights: Dict[str, float]       # Factor weights used
+    factor_scores: dict[str, float]        # Individual factor scores
+    factor_weights: dict[str, float]       # Factor weights used
 
     # Composite scores
     composite_score: float                 # Weighted composite score
@@ -125,7 +125,7 @@ class FactorScore:
 
     # Additional info
     sector: str = ""                       # Sector classification
-    market_cap: Optional[Decimal] = None   # Market cap in yuan
+    market_cap: Decimal | None = None   # Market cap in yuan
 
     # Scores by category
     value_score: float = 0.0
@@ -161,18 +161,18 @@ class FactorPortfolioConfig:
     description: str = ""                  # Configuration description
 
     # Factor weights
-    factor_weights: Dict[str, float] = field(default_factory=dict)  # {factor_code: weight}
+    factor_weights: dict[str, float] = field(default_factory=dict)  # {factor_code: weight}
 
     # Universe settings
     universe: str = "all_a"                # Stock universe: all_a, hs300, zz500, sz50
-    min_market_cap: Optional[float] = None # Minimum market cap (in billion yuan)
-    max_market_cap: Optional[float] = None # Maximum market cap (in billion yuan)
+    min_market_cap: float | None = None # Minimum market cap (in billion yuan)
+    max_market_cap: float | None = None # Maximum market cap (in billion yuan)
 
     # Filtering conditions
-    max_pe: Optional[float] = None         # Maximum PE ratio
-    min_pe: Optional[float] = None         # Minimum PE ratio
-    max_pb: Optional[float] = None         # Maximum PB ratio
-    max_debt_ratio: Optional[float] = None # Maximum debt ratio (%)
+    max_pe: float | None = None         # Maximum PE ratio
+    min_pe: float | None = None         # Minimum PE ratio
+    max_pb: float | None = None         # Maximum PB ratio
+    max_debt_ratio: float | None = None # Maximum debt ratio (%)
 
     # Portfolio construction
     top_n: int = 30                        # Number of stocks to select
@@ -227,7 +227,7 @@ class FactorPortfolioHolding:
     sector: str = ""                       # Sector classification
 
     # Factor breakdown
-    factor_scores: Dict[str, float] = field(default_factory=dict)
+    factor_scores: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate holding"""
@@ -291,7 +291,7 @@ def create_default_factor_config() -> FactorPortfolioConfig:
     )
 
 
-def get_common_factors() -> List[FactorDefinition]:
+def get_common_factors() -> list[FactorDefinition]:
     """Get list of commonly used factor definitions"""
     return [
         # Value factors

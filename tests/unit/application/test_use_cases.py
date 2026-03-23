@@ -7,28 +7,28 @@ Unit Tests for Application Use Cases
 3. CalculateRegimeUseCase - Regime 计算编排、降级方案
 """
 
-import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from apps.macro.application.use_cases import (
-    SyncMacroDataUseCase,
+    GetLatestMacroDataRequest,
+    GetLatestMacroDataResponse,
+    GetLatestMacroDataUseCase,
+    MacroDataPoint,
     SyncMacroDataRequest,
     SyncMacroDataResponse,
-    MacroDataPoint,
-    GetLatestMacroDataUseCase,
-    GetLatestMacroDataRequest,
-    GetLatestMacroDataResponse
+    SyncMacroDataUseCase,
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.regime.application.use_cases import (
-    CalculateRegimeUseCase,
     CalculateRegimeRequest,
     CalculateRegimeResponse,
-    RegimeCalculationError
+    CalculateRegimeUseCase,
+    RegimeCalculationError,
 )
 from apps.regime.domain.entities import RegimeSnapshot
-
 
 # ============================================================================
 # Test SyncMacroDataUseCase

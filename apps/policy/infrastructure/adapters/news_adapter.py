@@ -7,19 +7,19 @@ News Policy Adapter - 新闻政策事件适配器
 
 import logging
 import re
-from datetime import date, datetime, timedelta
-from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 import requests
 
-from .base import (
-    PolicyAdapterProtocol,
-    PolicyAdapterError,
-    PolicySourceUnavailableError,
-    PolicyParsingError
-)
 from ...domain.entities import PolicyEvent, PolicyLevel
+from .base import (
+    PolicyAdapterError,
+    PolicyAdapterProtocol,
+    PolicyParsingError,
+    PolicySourceUnavailableError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class NewsSourceConfig:
     """新闻源配置"""
     name: str
     base_url: str
-    api_key: Optional[str] = None
+    api_key: str | None = None
     request_timeout: int = 10
     rate_limit_delay: float = 1.0  # 秒
 
@@ -83,9 +83,9 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
 
     def fetch_policy_events(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[PolicyEvent]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[PolicyEvent]:
         """
         获取政策事件列表
 
@@ -153,7 +153,7 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         self,
         start_date: date,
         end_date: date
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         搜索政策相关新闻
 
@@ -193,8 +193,8 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
 
     def _parse_news_to_event(
         self,
-        news_item: Dict[str, Any]
-    ) -> Optional[PolicyEvent]:
+        news_item: dict[str, Any]
+    ) -> PolicyEvent | None:
         """
         将新闻解析为政策事件
 
@@ -255,7 +255,7 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         # 默认返回 P0
         return PolicyLevel.P0
 
-    def _parse_date(self, date_str: str) -> Optional[date]:
+    def _parse_date(self, date_str: str) -> date | None:
         """
         解析日期字符串
 
@@ -306,9 +306,9 @@ class RSSPolicyAdapter(PolicyAdapterProtocol):
 
     def fetch_policy_events(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[PolicyEvent]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[PolicyEvent]:
         """
         从 PolicyLog 获取政策事件
 

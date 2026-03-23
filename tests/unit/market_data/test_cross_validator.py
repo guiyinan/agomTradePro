@@ -2,9 +2,10 @@
 交叉校验模块测试
 """
 
-import pytest
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from apps.market_data.application.cross_validator import (
     PRICE_ALERT_THRESHOLD_PCT,

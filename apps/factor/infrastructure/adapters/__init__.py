@@ -5,9 +5,9 @@ Fetches factor data for stocks (PE, PB, ROE, etc.)
 Implements failover between data sources.
 """
 
-from datetime import date, datetime, timedelta
-from typing import List, Optional, Dict
 import logging
+from datetime import date, datetime, timedelta
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class FactorDataSource:
         stock_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get factor value for a stock on a date"""
         raise NotImplementedError
 
@@ -39,6 +39,7 @@ class TushareFactorAdapter(FactorDataSource):
 
         try:
             import tushare as ts
+
             from shared.config.secrets import get_secrets
             secrets = get_secrets()
             token = secrets.data_sources.tushare_token
@@ -53,7 +54,7 @@ class TushareFactorAdapter(FactorDataSource):
         stock_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get factor value from Tushare"""
         self._connect()
 
@@ -89,7 +90,7 @@ class TushareFactorAdapter(FactorDataSource):
         ts_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get valuation factor (PE, PB, PS)"""
         # Get daily basic data
         end_date = trade_date.strftime('%Y%m%d')
@@ -112,22 +113,21 @@ class TushareFactorAdapter(FactorDataSource):
             'pe_ttm': 'pe_ttm',
             'pb': 'pb',
             'ps': 'ps',
-            'dividend_yield': 'dv_ratio',
+            'dividend_yield': 'dv_ratio'
         }
-
         field = factor_map.get(factor_code)
-        if field and field in df:
-            value = df[field]
-            return float(value) if value is not None and not pd.isna(value) else None
-
+    except ValueError:
+        # fallback
         return None
+
+(Showing lines 115-144 of 459. Use offset=145 to continue.)
 
     def _get_financial_factor(
         self,
         ts_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get financial factor (ROE, ROA, etc.)"""
         import pandas as pd
 
@@ -164,7 +164,7 @@ class TushareFactorAdapter(FactorDataSource):
         ts_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get growth factor (revenue_growth, profit_growth)"""
         import pandas as pd
 
@@ -199,7 +199,7 @@ class TushareFactorAdapter(FactorDataSource):
         self,
         ts_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get dividend yield"""
         return self._get_valuation_factor(ts_code, 'dividend_yield', trade_date)
 
@@ -221,7 +221,7 @@ class AkshareFactorAdapter(FactorDataSource):
         stock_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get factor value from Akshare"""
         try:
             import akshare as ak
@@ -237,7 +237,7 @@ class AkshareFactorAdapter(FactorDataSource):
             logger.warning(f"Akshare failed for {stock_code} {factor_code}: {e}")
             return None
 
-    def _get_valuation_akshare(self, stock_code: str, factor_code: str) -> Optional[float]:
+    def _get_valuation_akshare(self, stock_code: str, factor_code: str) -> float | None:
         """Get valuation from Akshare"""
         import akshare as ak
 
@@ -260,7 +260,7 @@ class AkshareFactorAdapter(FactorDataSource):
 
         return None
 
-    def _get_financial_akshare(self, stock_code: str, factor_code: str) -> Optional[float]:
+    def _get_financial_akshare(self, stock_code: str, factor_code: str) -> float | None:
         """Get financial data from Akshare"""
         # Implementation for financial factors
         return None
@@ -285,7 +285,7 @@ class CachedFactorAdapter(FactorDataSource):
         stock_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get factor value, calculate from prices if needed"""
         # Check cache first
         cache_key = f"{stock_code}_{factor_code}_{trade_date}"
@@ -304,7 +304,7 @@ class CachedFactorAdapter(FactorDataSource):
         stock_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Calculate factor from price data"""
         try:
             from apps.account.infrastructure.models import SystemSettingsModel
@@ -345,7 +345,7 @@ class CachedFactorAdapter(FactorDataSource):
 
         return None
 
-    def _calculate_momentum(self, prices: List[float], days: int) -> float:
+    def _calculate_momentum(self, prices: list[float], days: int) -> float:
         """Calculate momentum return"""
         if len(prices) < days + 1:
             return 0.0
@@ -355,7 +355,7 @@ class CachedFactorAdapter(FactorDataSource):
 
         return (current - past) / past if past > 0 else 0.0
 
-    def _calculate_volatility(self, prices: List[float], days: int) -> float:
+    def _calculate_volatility(self, prices: list[float], days: int) -> float:
         """Calculate volatility (annualized std)"""
         import math
 
@@ -383,8 +383,8 @@ class CachedFactorAdapter(FactorDataSource):
 
     def _calculate_beta(
         self,
-        asset_prices: List[float],
-        benchmark_prices: List[float],
+        asset_prices: list[float],
+        benchmark_prices: list[float],
         days: int
     ) -> float:
         """Calculate beta to benchmark"""
@@ -438,7 +438,7 @@ class FailoverFactorAdapter(FactorDataSource):
         stock_code: str,
         factor_code: str,
         trade_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """Get factor value with failover"""
         # Try price-based factors first (fastest)
         value = self.cached_adapter.get_factor_value(stock_code, factor_code, trade_date)

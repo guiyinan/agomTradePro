@@ -7,8 +7,9 @@ Tests:
 """
 
 import asyncio
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Ensure MCP server has tools registered
 from agomtradepro_mcp.server import server

@@ -18,12 +18,13 @@ Unified Notification Service
 import logging
 import smtplib
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from django.conf import settings
 from django.core.cache import cache
@@ -31,8 +32,7 @@ from django.core.mail import send_mail as django_send_mail
 from django.utils import timezone
 
 from core.exceptions import AgomTradeProException, ExternalServiceError
-from shared.infrastructure.resilience import retry_on_error, MaxRetriesExceeded
-
+from shared.infrastructure.resilience import MaxRetriesExceeded, retry_on_error
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +75,9 @@ class NotificationStatus(Enum):
 @dataclass(frozen=True)
 class NotificationRecipient:
     """通知接收者"""
-    user_id: Optional[int] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    user_id: int | None = None
+    email: str | None = None
+    phone: str | None = None
     name: str = ""
 
 
@@ -86,11 +86,11 @@ class NotificationMessage:
     """通知消息"""
     subject: str
     body: str
-    html_body: Optional[str] = None
+    html_body: str | None = None
     priority: NotificationPriority = NotificationPriority.NORMAL
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    tags: List[str] = field(default_factory=list)
-    correlation_id: Optional[str] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    correlation_id: str | None = None
 
 
 @dataclass
@@ -100,10 +100,10 @@ class NotificationResult:
     channel: NotificationChannel
     recipient: NotificationRecipient
     status: NotificationStatus
-    error_message: Optional[str] = None
-    sent_at: Optional[datetime] = None
+    error_message: str | None = None
+    sent_at: datetime | None = None
     retry_count: int = 0
-    notification_id: Optional[str] = None
+    notification_id: str | None = None
 
 
 @dataclass
@@ -205,9 +205,9 @@ class EmailNotificationChannel(NotificationChannelInterface):
 
     def __init__(
         self,
-        from_email: Optional[str] = None,
+        from_email: str | None = None,
         use_html: bool = True,
-        reply_to: Optional[List[str]] = None
+        reply_to: list[str] | None = None
     ):
         """
         初始化邮件通知通道
@@ -224,7 +224,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
         # 统计计数器
         self._failure_count = 0
         self._success_count = 0
-        self._last_failure_time: Optional[datetime] = None
+        self._last_failure_time: datetime | None = None
 
     def get_channel_type(self) -> NotificationChannel:
         return NotificationChannel.EMAIL
@@ -270,7 +270,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
         subject: str,
         body: str,
         recipient_email: str,
-        html_body: Optional[str] = None
+        html_body: str | None = None
     ) -> bool:
         """
         实际发送邮件（带重试装饰器）
@@ -530,7 +530,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
 
         return html
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """获取统计信息"""
         return {
             "channel": "email",
@@ -680,9 +680,9 @@ class AlertNotificationChannel(NotificationChannelInterface):
     def __init__(self):
         """初始化告警通知通道"""
         from shared.infrastructure.alert_service import (
-            MultiChannelAlertService,
+            AlertLevel,
             ConsoleAlertChannel,
-            AlertLevel
+            MultiChannelAlertService,
         )
 
         # 创建告警服务
@@ -775,8 +775,8 @@ class UnifiedNotificationService:
 
     def __init__(
         self,
-        channels: Optional[List[NotificationChannelInterface]] = None,
-        config: Optional[NotificationConfig] = None
+        channels: list[NotificationChannelInterface] | None = None,
+        config: NotificationConfig | None = None
     ):
         """
         初始化统一通知服务
@@ -786,7 +786,7 @@ class UnifiedNotificationService:
             config: 通知配置
         """
         self.config = config or NotificationConfig()
-        self.channels: List[NotificationChannelInterface] = []
+        self.channels: list[NotificationChannelInterface] = []
 
         # 注册通道
         if channels:
@@ -795,7 +795,7 @@ class UnifiedNotificationService:
             self._setup_default_channels()
 
         # 失败计数器（用于告警触发）
-        self._channel_failures: Dict[str, int] = {}
+        self._channel_failures: dict[str, int] = {}
 
     def _setup_default_channels(self):
         """设置默认通知通道"""
@@ -821,10 +821,10 @@ class UnifiedNotificationService:
 
     def send(
         self,
-        message: Union[NotificationMessage, str],
-        recipients: Union[NotificationRecipient, List[NotificationRecipient]],
-        channels: Optional[List[NotificationChannel]] = None
-    ) -> List[NotificationResult]:
+        message: NotificationMessage | str,
+        recipients: NotificationRecipient | list[NotificationRecipient],
+        channels: list[NotificationChannel] | None = None
+    ) -> list[NotificationResult]:
         """
         发送通知
 
@@ -889,10 +889,10 @@ class UnifiedNotificationService:
         self,
         subject: str,
         body: str,
-        recipients: Union[str, List[str]],
-        html_body: Optional[str] = None,
+        recipients: str | list[str],
+        html_body: str | None = None,
         priority: NotificationPriority = NotificationPriority.NORMAL
-    ) -> List[NotificationResult]:
+    ) -> list[NotificationResult]:
         """
         发送邮件通知（便捷方法）
 
@@ -937,7 +937,7 @@ class UnifiedNotificationService:
         title: str,
         content: str,
         priority: NotificationPriority = NotificationPriority.NORMAL,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> NotificationResult:
         """
         发送站内通知（便捷方法）
@@ -980,7 +980,7 @@ class UnifiedNotificationService:
         title: str,
         message: str,
         level: str = "warning",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> NotificationResult:
         """
         发送告警通知（便捷方法）
@@ -1069,7 +1069,7 @@ class UnifiedNotificationService:
                 except Exception as e:
                     logger.error(f"发送通知通道故障告警失败: {e}")
 
-    def get_service_status(self) -> Dict[str, Any]:
+    def get_service_status(self) -> dict[str, Any]:
         """获取服务状态"""
         return {
             "channels": [
@@ -1092,7 +1092,7 @@ class UnifiedNotificationService:
 # Global Service Instance
 # ============================================================================
 
-_notification_service: Optional[UnifiedNotificationService] = None
+_notification_service: UnifiedNotificationService | None = None
 
 
 def get_notification_service() -> UnifiedNotificationService:
@@ -1106,10 +1106,10 @@ def get_notification_service() -> UnifiedNotificationService:
 
 
 def send_notification(
-    message: Union[NotificationMessage, str],
-    recipients: Union[NotificationRecipient, List[NotificationRecipient]],
-    channels: Optional[List[NotificationChannel]] = None
-) -> List[NotificationResult]:
+    message: NotificationMessage | str,
+    recipients: NotificationRecipient | list[NotificationRecipient],
+    channels: list[NotificationChannel] | None = None
+) -> list[NotificationResult]:
     """
     发送通知（便捷函数）
 
@@ -1128,9 +1128,9 @@ def send_notification(
 def send_email_notification(
     subject: str,
     body: str,
-    recipients: Union[str, List[str]],
-    html_body: Optional[str] = None
-) -> List[NotificationResult]:
+    recipients: str | list[str],
+    html_body: str | None = None
+) -> list[NotificationResult]:
     """
     发送邮件通知（便捷函数）
 

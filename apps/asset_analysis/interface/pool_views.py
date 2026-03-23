@@ -3,20 +3,21 @@
 """
 
 from datetime import date
-from rest_framework.views import APIView
-from rest_framework.response import Response
+
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.asset_analysis.application.pool_service import AssetPoolManager
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.regime.application.current_regime import resolve_current_regime
+from apps.equity.application.services import EquityMultiDimScorer
+from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
+from apps.fund.application.services import FundMultiDimScorer
+from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
-from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
-from apps.fund.application.services import FundMultiDimScorer
-from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
-from apps.equity.application.services import EquityMultiDimScorer
 
 
 class AssetPoolScreenAPIView(APIView):
@@ -198,8 +199,8 @@ class AssetPoolSummaryAPIView(APIView):
         """获取所有资产池的摘要信息"""
         asset_type = request.query_params.get("asset_type")
 
-        from apps.asset_analysis.infrastructure.models import AssetPoolEntry
         from apps.asset_analysis.domain.pool import PoolType
+        from apps.asset_analysis.infrastructure.models import AssetPoolEntry
 
         try:
             queryset = AssetPoolEntry._default_manager.filter(is_active=True)

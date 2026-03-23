@@ -9,23 +9,18 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from celery import shared_task
-from django.db.models import Count, Avg, Max
+from django.db.models import Avg, Count, Max
 from django.utils import timezone
 
-from shared.infrastructure.metrics import (
-    get_alpha_metrics,
-    AlertManager,
-    MetricType
-)
-from shared.infrastructure.model_evaluation import (
-    IC_Calculator,
-    RollingMetrics,
-)
 from apps.alpha.infrastructure.models import (
     AlphaScoreCacheModel,
     QlibModelRegistryModel,
 )
-
+from shared.infrastructure.metrics import AlertManager, MetricType, get_alpha_metrics
+from shared.infrastructure.model_evaluation import (
+    IC_Calculator,
+    RollingMetrics,
+)
 
 logger = logging.getLogger(__name__)
 

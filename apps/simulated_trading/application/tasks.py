@@ -7,33 +7,33 @@ Application层异步任务：
 - 绩效定期重算
 """
 import logging
-from datetime import date, datetime
-from typing import Dict, Any, Optional
 from dataclasses import replace
+from datetime import date, datetime
+from typing import Any, Dict, Optional
 
 from celery import shared_task
 from celery.schedules import crontab
 from django.conf import settings
 from django.core.mail import send_mail
 
+from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
+from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
-    DjangoPositionRepository,
-    DjangoTradeRepository,
-    DjangoInspectionRepository,
-)
 from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
-from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
-from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
-from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoInspectionRepository,
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
+    DjangoTradeRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +51,9 @@ logger = logging.getLogger(__name__)
 )
 def daily_auto_trading_task(
     self,
-    trade_date: Optional[str] = None,
-    account_ids: Optional[list] = None,
-) -> Dict[str, Any]:
+    trade_date: str | None = None,
+    account_ids: list | None = None,
+) -> dict[str, Any]:
     """
     每日自动交易任务
 
@@ -71,9 +71,9 @@ def daily_auto_trading_task(
     # 1. 确定交易日期
     target_date = date.fromisoformat(trade_date) if trade_date else date.today()
 
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
     logger.info(f"模拟盘自动交易任务开始: {target_date}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     try:
         # 2. 初始化依赖
@@ -113,12 +113,12 @@ def daily_auto_trading_task(
         total_buy_count = sum(r['buy_count'] for r in results.values())
         total_sell_count = sum(r['sell_count'] for r in results.values())
 
-        logger.info(f"=" * 60)
-        logger.info(f"模拟盘自动交易任务完成")
+        logger.info("=" * 60)
+        logger.info("模拟盘自动交易任务完成")
         logger.info(f"  处理账户: {total_accounts} 个")
         logger.info(f"  总买入: {total_buy_count} 笔")
         logger.info(f"  总卖出: {total_sell_count} 笔")
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
 
         return {
             'success': True,
@@ -159,7 +159,7 @@ def daily_auto_trading_task(
     time_limit=900,
     soft_time_limit=850,
 )
-def update_position_prices_task(self, account_id: Optional[int] = None) -> Dict[str, Any]:
+def update_position_prices_task(self, account_id: int | None = None) -> dict[str, Any]:
     """
     更新持仓价格任务
 
@@ -270,7 +270,7 @@ def update_position_prices_task(self, account_id: Optional[int] = None) -> Dict[
     time_limit=900,
     soft_time_limit=850,
 )
-def calculate_all_performance_task(self, trade_date: Optional[str] = None) -> Dict[str, Any]:
+def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[str, Any]:
     """
     全量绩效计算任务
 
@@ -343,7 +343,7 @@ def calculate_all_performance_task(self, trade_date: Optional[str] = None) -> Di
     time_limit=900,
     soft_time_limit=850,
 )
-def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> Dict[str, Any]:
+def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> dict[str, Any]:
     """
     清理不活跃账户任务
 
@@ -407,7 +407,7 @@ def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> Dict[str, 
     time_limit=900,
     soft_time_limit=850,
 )
-def send_performance_summary_task(self, account_ids: Optional[list] = None) -> Dict[str, Any]:
+def send_performance_summary_task(self, account_ids: list | None = None) -> dict[str, Any]:
     """
     发送绩效摘要任务
 
@@ -421,7 +421,7 @@ def send_performance_summary_task(self, account_ids: Optional[list] = None) -> D
     Returns:
         发送结果
     """
-    logger.info(f"开始生成绩效摘要")
+    logger.info("开始生成绩效摘要")
 
     try:
         account_repo = DjangoSimulatedAccountRepository()
@@ -462,8 +462,8 @@ def send_performance_summary_task(self, account_ids: Optional[list] = None) -> D
         notification_results = []
         try:
             from shared.infrastructure.notification_service import (
-                get_notification_service,
                 NotificationPriority,
+                get_notification_service,
             )
             notification_service = get_notification_service()
 
@@ -535,10 +535,10 @@ def send_performance_summary_task(self, account_ids: Optional[list] = None) -> D
 def daily_portfolio_inspection_task(
     self,
     account_id: int = 679,
-    strategy_id: Optional[int] = 4,
-    inspection_date: Optional[str] = None,
+    strategy_id: int | None = 4,
+    inspection_date: str | None = None,
     auto_create_proposal: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     日更巡检任务（ETF稳健组合）
 
@@ -606,7 +606,7 @@ def daily_portfolio_inspection_task(
         }
 
 
-def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
+def _send_daily_inspection_email(result: dict[str, Any]) -> None:
     """发送巡检邮件通知（配置来自数据库）。"""
     if not getattr(settings, "DAILY_INSPECTION_EMAIL_ENABLED", True):
         return
@@ -677,7 +677,7 @@ def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
     logger.info("巡检邮件已发送: account_id=%s recipients=%s", result.get("account_id"), recipients)
 
 
-def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
+def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
     """发送再平衡建议通知（邮件 + 站内）。"""
     if not result.get("proposal_id"):
         return
@@ -764,8 +764,8 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
         from shared.infrastructure.notification_service import (
             InAppNotificationChannel,
             NotificationMessage,
-            NotificationRecipient,
             NotificationPriority,
+            NotificationRecipient,
         )
 
         try:
@@ -808,7 +808,7 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
 def _record_notification_history(
     account_id: int,
     account_name: str,
-    account_user_id: Optional[int],
+    account_user_id: int | None,
     proposal: Any,
     notification_type: str,
     recipients: list[str],
@@ -861,7 +861,7 @@ class NotificationConfig:
     time_limit=900,
     soft_time_limit=850,
 )
-def check_position_invalidation_task(self) -> Dict[str, Any]:
+def check_position_invalidation_task(self) -> dict[str, Any]:
     """
     持仓证伪检查任务
 
@@ -879,19 +879,19 @@ def check_position_invalidation_task(self) -> Dict[str, Any]:
     try:
         from apps.simulated_trading.application.position_invalidation_checker import (
             check_and_invalidate_positions,
-            get_invalidated_positions_summary
+            get_invalidated_positions_summary,
         )
 
         # 检查并证伪满足条件的持仓
         result = check_and_invalidate_positions()
 
-        logger.info(f"证伪检查完成:")
+        logger.info("证伪检查完成:")
         logger.info(f"  检查持仓: {result['checked']} 个")
         logger.info(f"  证伪数量: {result['invalidated']} 个")
 
         # 如果有新的证伪持仓，记录详细信息
         if result['invalidated'] > 0:
-            logger.warning(f"新证伪持仓列表:")
+            logger.warning("新证伪持仓列表:")
             for pos in result['positions']:
                 logger.warning(
                     f"  - 账户 {pos['account_id']}: {pos['asset_code']} ({pos['asset_name']})"
@@ -926,7 +926,7 @@ def check_position_invalidation_task(self) -> Dict[str, Any]:
     time_limit=900,
     soft_time_limit=850,
 )
-def notify_invalidated_positions_task(self) -> Dict[str, Any]:
+def notify_invalidated_positions_task(self) -> dict[str, Any]:
     """
     证伪持仓通知任务
 
@@ -941,7 +941,7 @@ def notify_invalidated_positions_task(self) -> Dict[str, Any]:
 
     try:
         from apps.simulated_trading.application.position_invalidation_checker import (
-            get_invalidated_positions_summary
+            get_invalidated_positions_summary,
         )
 
         positions = get_invalidated_positions_summary()
@@ -960,8 +960,8 @@ def notify_invalidated_positions_task(self) -> Dict[str, Any]:
         if positions:
             try:
                 from shared.infrastructure.notification_service import (
-                    get_notification_service,
                     NotificationPriority,
+                    get_notification_service,
                 )
                 notification_service = get_notification_service()
 
@@ -1027,7 +1027,7 @@ def notify_invalidated_positions_task(self) -> Dict[str, Any]:
     time_limit=600,
     soft_time_limit=570,
 )
-def update_all_prices_after_close(self, account_id: Optional[int] = None) -> Dict[str, Any]:
+def update_all_prices_after_close(self, account_id: int | None = None) -> dict[str, Any]:
     """
     收盘后批量价格更新任务
 

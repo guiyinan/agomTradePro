@@ -4,31 +4,32 @@ Unit Tests for Task Monitor Module
 任务监控模块单元测试。
 """
 
-import pytest
 from datetime import datetime, timedelta
-from django.utils import timezone
 from unittest.mock import Mock, patch
 
-from apps.task_monitor.domain.entities import (
-    TaskStatus,
-    TaskPriority,
-    TaskExecutionRecord,
-    TaskFailureAlert,
-    CeleryHealthStatus,
-    TaskStatistics,
-)
-from apps.task_monitor.infrastructure.repositories import (
-    DjangoTaskRecordRepository,
-    CeleryHealthChecker,
-)
+import pytest
+from django.utils import timezone
+
 from apps.task_monitor.application.use_cases import (
-    GetTaskStatusUseCase,
-    ListTasksUseCase,
-    GetTaskStatisticsUseCase,
     CheckCeleryHealthUseCase,
     CleanupOldRecordsUseCase,
+    GetTaskStatisticsUseCase,
+    GetTaskStatusUseCase,
+    ListTasksUseCase,
+)
+from apps.task_monitor.domain.entities import (
+    CeleryHealthStatus,
+    TaskExecutionRecord,
+    TaskFailureAlert,
+    TaskPriority,
+    TaskStatistics,
+    TaskStatus,
 )
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
+from apps.task_monitor.infrastructure.repositories import (
+    CeleryHealthChecker,
+    DjangoTaskRecordRepository,
+)
 
 
 class TestTaskExecutionRecord:

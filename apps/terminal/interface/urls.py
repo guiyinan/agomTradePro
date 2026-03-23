@@ -5,7 +5,8 @@ Terminal Page URL Configuration.
 """
 
 from django.urls import path
-from .views import terminal_view, terminal_config_view
+
+from .views import terminal_config_view, terminal_view
 
 app_name = 'terminal'
 

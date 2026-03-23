@@ -1,7 +1,8 @@
+from pathlib import Path
+
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import resolve, reverse
-from pathlib import Path
 
 
 def test_dashboard_legacy_api_route_names_resolvable():

@@ -2,15 +2,17 @@
 Unit tests for Operation Audit Log permissions.
 """
 
-import pytest
 import uuid
+
+import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIRequestFactory
+
 from apps.audit.interface.permissions import (
-    IsAuditAdmin,
-    OperationLogReadPermission,
     HasInternalAuditSignature,
+    IsAuditAdmin,
     IsSelfOrAuditAdmin,
+    OperationLogReadPermission,
 )
 
 

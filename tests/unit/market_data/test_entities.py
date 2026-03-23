@@ -2,17 +2,18 @@
 Market Data Domain 层实体测试
 """
 
-import pytest
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
+import pytest
+
 from apps.market_data.domain.entities import (
     CapitalFlowSnapshot,
+    ProviderStatus,
     QuoteSnapshot,
+    RawPayload,
     StockNewsItem,
     TechnicalSnapshot,
-    ProviderStatus,
-    RawPayload,
 )
 
 

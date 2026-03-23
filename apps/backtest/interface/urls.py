@@ -1,7 +1,8 @@
 """URL Configuration for Backtest Module."""
 
-from django.urls import path, include
+from django.urls import include, path
 from django.views.generic import RedirectView
+
 from . import views
 
 app_name = 'backtest'

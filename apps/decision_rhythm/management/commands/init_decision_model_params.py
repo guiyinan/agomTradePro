@@ -15,10 +15,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.decision_rhythm.infrastructure.models import (
-    DecisionModelParamConfigModel,
     DecisionModelParamAuditLogModel,
+    DecisionModelParamConfigModel,
 )
-
 
 # 默认参数配置
 DEFAULT_PARAMS = [

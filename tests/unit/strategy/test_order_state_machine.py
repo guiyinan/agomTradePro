@@ -2,7 +2,8 @@
 OrderIntent 状态机单元测试
 """
 import pytest
-from apps.strategy.domain.entities import OrderStatus, OrderEvent
+
+from apps.strategy.domain.entities import OrderEvent, OrderStatus
 from apps.strategy.domain.services import OrderStateMachine
 
 

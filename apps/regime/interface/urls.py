@@ -1,8 +1,8 @@
 """URL configuration for Regime app."""
-from django.urls import path, include
 from django.shortcuts import redirect
-from . import views
+from django.urls import include, path
 
+from . import views
 
 app_name = 'regime'
 

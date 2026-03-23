@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -31,7 +30,7 @@ def test_guardrail_architecture_boundaries_have_no_violations():
     assert report["rules_version"] == "2026-03-12.v1"
     assert report["violation_count"] == 0
     rule_ids = set()
-    with open(REPO_ROOT / "governance/architecture_rules.json", "r", encoding="utf-8") as fh:
+    with open(REPO_ROOT / "governance/architecture_rules.json", encoding="utf-8") as fh:
         ruleset = json.load(fh)
         rule_ids = {rule["id"] for rule in ruleset["boundary_rules"]}
 

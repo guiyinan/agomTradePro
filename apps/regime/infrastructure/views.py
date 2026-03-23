@@ -2,10 +2,9 @@
 Django Admin 视图用于 Regime 配置管理
 """
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import redirect, get_object_or_404
-from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
 from django.utils.translation import ngettext
 
 from .models import RegimeThresholdConfig

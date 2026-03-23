@@ -12,30 +12,30 @@ Tests for:
 - _build_period_attributions()
 """
 
-import pytest
 from datetime import date, timedelta
-from typing import List, Dict, Tuple, NamedTuple
+from typing import Dict, List, NamedTuple, Tuple
 from unittest.mock import Mock
 
+import pytest
+
 from apps.audit.domain.entities import (
-    LossSource,
-    RegimePeriod,
-    PeriodPerformance,
-    AttributionResult,
     AttributionConfig,
     AttributionMethod,
+    AttributionResult,
+    LossSource,
+    PeriodPerformance,
+    RegimePeriod,
 )
 from apps.audit.domain.services import (
-    analyze_attribution,
+    _build_period_attributions,
     _build_regime_periods,
     _calculate_period_performances,
+    _calculate_total_transaction_cost,
+    _generate_lessons,
     _heuristic_pnl_decomposition,
     _identify_loss_source,
-    _generate_lessons,
-    _calculate_total_transaction_cost,
-    _build_period_attributions,
+    analyze_attribution,
 )
-
 
 # ============ Fixtures ============
 

@@ -4,11 +4,12 @@ AgomTradePro 项目无头浏览器全面测试脚本
 """
 import asyncio
 import json
-from datetime import datetime
-from playwright.async_api import async_playwright, Page, Browser
-from typing import List, Dict, Any
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List
 from urllib.parse import urljoin
+
+from playwright.async_api import Browser, Page, async_playwright
 
 
 @dataclass
@@ -19,7 +20,7 @@ class TestResult:
     status: str  # success, error, warning
     response_time: float
     error_message: str = ""
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     screenshot: str = ""
 
 
@@ -39,8 +40,8 @@ class AgomTradeProBrowserTest:
 
     def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
-        self.results: List[TestResult] = []
-        self.improvements: List[Improvement] = []
+        self.results: list[TestResult] = []
+        self.improvements: list[Improvement] = []
         self.browser = None
         self.page = None
 
@@ -72,7 +73,7 @@ class AgomTradeProBrowserTest:
             print(f"登录失败: {e}")
             return False
 
-    async def test_page(self, url: str, name: str, check_elements: List[str] = None,
+    async def test_page(self, url: str, name: str, check_elements: list[str] = None,
                        need_login: bool = True) -> TestResult:
         """测试单个页面"""
         start_time = datetime.now()
@@ -309,7 +310,7 @@ class AgomTradeProBrowserTest:
             report += f"| {result.name} | {status_emoji} {result.status} | {result.response_time:.2f}s | {result.error_message or '正常'} |\n"
 
         # 改进建议
-        report += f"""
+        report += """
 
 ## 改进建议
 
@@ -399,8 +400,8 @@ class AgomTradeProBrowserTest:
                 } for i in self.improvements]
             }, f, indent=2, ensure_ascii=False)
 
-        print(f"报告已保存到 docs/test_report.md")
-        print(f"详细数据已保存到 docs/test_results.json")
+        print("报告已保存到 docs/test_report.md")
+        print("详细数据已保存到 docs/test_results.json")
 
         return report
 

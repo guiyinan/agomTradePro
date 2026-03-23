@@ -12,5 +12,5 @@ class SimulatedTradingConfig(AppConfig):
 
     def ready(self):
         """Import admin and tasks modules when app is ready"""
-        import apps.simulated_trading.interface.admin  # noqa: F401
         import apps.simulated_trading.application.tasks  # noqa: F401 - Import Celery tasks
+        import apps.simulated_trading.interface.admin  # noqa: F401

@@ -5,12 +5,12 @@ Core Context Processors
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
 
-def get_market_visuals(request) -> Dict[str, Dict[str, str]]:
+def get_market_visuals(request) -> dict[str, dict[str, str]]:
     """
     获取全局市场语义颜色配置。
 
@@ -38,7 +38,7 @@ def get_market_visuals(request) -> Dict[str, Dict[str, str]]:
     return {"market_visuals": visual_tokens}
 
 
-def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
+def get_alerts(request) -> dict[str, list[dict[str, str]]]:
     """
     获取当前用户的告警信息
 
@@ -55,13 +55,14 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
     alerts = []
 
     try:
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         # ========== 配额告警 ==========
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
             from apps.decision_rhythm.domain.entities import QuotaPeriod
+            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
             current_quota = (
                 DecisionQuotaModel._default_manager
                 .filter(period=QuotaPeriod.WEEKLY.value)
@@ -80,7 +81,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
                         'type': 'danger',
                         'icon': '🚨',
                         'title': '配额已耗尽',
-                        'message': f'本周决策配额已用完。请联系管理员或重置配额。',
+                        'message': '本周决策配额已用完。请联系管理员或重置配额。',
                         'action_url': '/decision-rhythm/quota/',
                         'action_text': '查看配额',
                         'dismissible': True,

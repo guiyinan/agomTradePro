@@ -5,14 +5,15 @@ DRF Serializers for the rotation module API.
 """
 
 from rest_framework import serializers
+
 from apps.rotation.infrastructure.models import (
     AssetClassModel,
-    RotationConfigModel,
-    RotationSignalModel,
-    RotationPortfolioModel,
     MomentumScoreModel,
-    RotationTemplateModel,
     PortfolioRotationConfigModel,
+    RotationConfigModel,
+    RotationPortfolioModel,
+    RotationSignalModel,
+    RotationTemplateModel,
 )
 
 

@@ -31,10 +31,12 @@ wheels/
 
 # Testing
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 .tox/
 .hypothesis/
+test_db_*.sqlite3
 
 # Type checking
 .mypy_cache/
@@ -97,5 +99,6 @@ tmp_asset_screen_before.png
 docs/DEV_DIARY.md
 *.sqlite3-journal
 /data/qlib
+/data/*.json
 *.type
 /mlruns

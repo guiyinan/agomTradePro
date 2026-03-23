@@ -3,17 +3,12 @@
 
 测试PositionSizingRule和TradingConstraintRule
 """
-import pytest
 from datetime import date
-from apps.simulated_trading.domain.entities import (
-    SimulatedAccount,
-    Position,
-    AccountType
-)
-from apps.simulated_trading.domain.rules import (
-    PositionSizingRule,
-    TradingConstraintRule
-)
+
+import pytest
+
+from apps.simulated_trading.domain.entities import AccountType, Position, SimulatedAccount
+from apps.simulated_trading.domain.rules import PositionSizingRule, TradingConstraintRule
 
 
 class TestPositionSizingRule:

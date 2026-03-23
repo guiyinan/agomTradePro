@@ -3,18 +3,19 @@ Share Domain Entities Tests
 
 Tests for Domain layer entities (pure Python, no Django dependencies).
 """
-import pytest
-from datetime import datetime, timedelta, timezone
 from dataclasses import FrozenInstanceError
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 
 from apps.share.domain.entities import (
+    AccessResultStatus,
+    ShareAccessLogEntity,
+    ShareConfig,
     ShareLevel,
-    ShareStatus,
     ShareLinkEntity,
     ShareSnapshotEntity,
-    ShareAccessLogEntity,
-    AccessResultStatus,
-    ShareConfig,
+    ShareStatus,
 )
 
 
@@ -59,7 +60,7 @@ class TestShareLinkEntity:
     @pytest.fixture
     def base_entity(self):
         """Create a base entity for testing."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return ShareLinkEntity(
             id=None,
             owner_id=1,
@@ -93,7 +94,7 @@ class TestShareLinkEntity:
 
     def test_is_accessible_active_no_restrictions(self, base_entity):
         """Test is_accessible returns True for active link without restrictions."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         is_accessible, status = base_entity.is_accessible(now)
 
         assert is_accessible is True
@@ -101,7 +102,7 @@ class TestShareLinkEntity:
 
     def test_is_accessible_revoked(self, base_entity):
         """Test is_accessible returns False for revoked link."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entity = ShareLinkEntity(
             **{**base_entity.__dict__, "status": ShareStatus.REVOKED}
         )
@@ -112,7 +113,7 @@ class TestShareLinkEntity:
 
     def test_is_accessible_expired(self, base_entity):
         """Test is_accessible returns False for expired link."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         past = now - timedelta(hours=1)
         entity = ShareLinkEntity(
             **{**base_entity.__dict__, "expires_at": past}
@@ -124,7 +125,7 @@ class TestShareLinkEntity:
 
     def test_is_accessible_max_count_exceeded(self, base_entity):
         """Test is_accessible returns False when max count exceeded."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entity = ShareLinkEntity(
             **{**base_entity.__dict__, "max_access_count": 10, "access_count": 10}
         )
@@ -135,7 +136,7 @@ class TestShareLinkEntity:
 
     def test_is_accessible_expires_at_future(self, base_entity):
         """Test is_accessible returns True when expires_at is in future."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         future = now + timedelta(hours=1)
         entity = ShareLinkEntity(
             **{**base_entity.__dict__, "expires_at": future}
@@ -183,7 +184,7 @@ class TestShareSnapshotEntity:
     @pytest.fixture
     def snapshot_entity(self):
         """Create a snapshot entity for testing."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return ShareSnapshotEntity(
             id=None,
             share_link_id=1,
@@ -205,7 +206,7 @@ class TestShareSnapshotEntity:
 
     def test_is_empty_true(self):
         """Test is_empty returns True when all payloads are empty."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entity = ShareSnapshotEntity(
             id=None,
             share_link_id=1,
@@ -232,7 +233,7 @@ class TestShareAccessLogEntity:
     @pytest.fixture
     def log_entity(self):
         """Create a log entity for testing."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return ShareAccessLogEntity(
             id=None,
             share_link_id=1,

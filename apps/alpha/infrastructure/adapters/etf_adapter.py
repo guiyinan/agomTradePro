@@ -17,10 +17,10 @@ from datetime import date
 from typing import Dict, List, Optional
 
 from django.conf import settings
+
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe
-
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +174,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         self,
         etf_code: str,
         top_n: int
-    ) -> tuple[List[tuple], Optional[str]]:
+    ) -> tuple[list[tuple], str | None]:
         """
         获取 ETF 成分股（仅从真实数据源）
 
@@ -218,7 +218,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
             if not holdings:
                 return [], f"ETF {etf_code} 报告日期 {latest_report} 没有持仓记录"
 
-            result: List[tuple] = []
+            result: list[tuple] = []
             for row in holdings:
                 stock_code = row["stock_code"]
                 ratio = row["holding_ratio"]
@@ -232,7 +232,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         except Exception as e:
             return [], f"获取 ETF {etf_code} 持仓时发生错误: {e}"
 
-    def get_etf_for_universe(self, universe_id: str) -> Dict[str, str]:
+    def get_etf_for_universe(self, universe_id: str) -> dict[str, str]:
         """
         获取股票池对应的 ETF
 
@@ -244,7 +244,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         """
         return self._resolve_etf_info(universe_id) or {}
 
-    def get_supported_universes(self) -> List[str]:
+    def get_supported_universes(self) -> list[str]:
         """
         获取支持的股票池列表
 
@@ -258,7 +258,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         self,
         stock_code: str,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         获取因子暴露
 
@@ -273,7 +273,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         """
         return {}
 
-    def _resolve_etf_info(self, universe_id: str) -> Optional[Dict[str, str]]:
+    def _resolve_etf_info(self, universe_id: str) -> dict[str, str] | None:
         """优先使用 settings 映射，再尝试根据 universe_id 自动发现 ETF。"""
         config_map = self._get_config_map()
         mapped = config_map.get(universe_id)
@@ -286,7 +286,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 "report_date": None,
             }
             try:
-                from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
+                from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
                 fund_code = resolved_code.split(".")[0]
                 fund = FundInfoModel._default_manager.filter(fund_code=fund_code).first()
@@ -309,7 +309,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         if not digits:
             return None
         try:
-            from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
+            from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
             query = FundInfoModel._default_manager.filter(is_active=True).filter(fund_name__icontains="ETF")
             if digits:
@@ -334,7 +334,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
             pass
         return None
 
-    def _get_config_map(self) -> Dict[str, Dict[str, str]]:
+    def _get_config_map(self) -> dict[str, dict[str, str]]:
         """获取股票池到 ETF 的映射配置"""
         config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
         merged = self.DEFAULT_UNIVERSE_ETF_MAP.copy()

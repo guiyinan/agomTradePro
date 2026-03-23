@@ -4,11 +4,12 @@ Share Admin Configuration
 Django Admin 配置。
 """
 from django.contrib import admin
+
 from apps.share.infrastructure.models import (
+    ShareAccessLogModel,
     ShareDisclaimerConfigModel,
     ShareLinkModel,
     ShareSnapshotModel,
-    ShareAccessLogModel,
 )
 
 

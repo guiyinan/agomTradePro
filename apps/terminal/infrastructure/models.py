@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.prompt.infrastructure.models import PromptTemplateORM
+
 from ..domain.entities import (
     CommandParameter,
     CommandType,

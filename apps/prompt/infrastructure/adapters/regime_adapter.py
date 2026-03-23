@@ -5,8 +5,9 @@ This adapter fetches regime data and resolves placeholders
 related to regime analysis.
 """
 
-from typing import Dict, Any, Optional
 from datetime import date
+from typing import Any, Dict, Optional
+
 from apps.regime.application.current_regime import resolve_current_regime
 
 
@@ -45,8 +46,8 @@ class RegimeDataAdapter:
 
     def get_current_regime(
         self,
-        as_of_date: Optional[date] = None
-    ) -> Optional[Dict[str, Any]]:
+        as_of_date: date | None = None
+    ) -> dict[str, Any] | None:
         """
         获取当前Regime状态
 
@@ -85,8 +86,8 @@ class RegimeDataAdapter:
 
     def get_regime_distribution(
         self,
-        as_of_date: Optional[date] = None
-    ) -> Optional[Dict[str, float]]:
+        as_of_date: date | None = None
+    ) -> dict[str, float] | None:
         """
         获取Regime概率分布
 
@@ -105,8 +106,8 @@ class RegimeDataAdapter:
     def resolve_placeholder(
         self,
         placeholder_name: str,
-        as_of_date: Optional[date] = None
-    ) -> Optional[Any]:
+        as_of_date: date | None = None
+    ) -> Any | None:
         """
         解析占位符
 
@@ -144,7 +145,7 @@ class RegimeDataAdapter:
 
         return None
 
-    def _get_mock_regime(self) -> Dict[str, Any]:
+    def _get_mock_regime(self) -> dict[str, Any]:
         """
         获取模拟Regime数据（用于测试）
 

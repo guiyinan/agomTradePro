@@ -5,7 +5,8 @@ Domain Entities for Investment Signals.
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
 from shared.domain.asset_eligibility import Eligibility
 
 if TYPE_CHECKING:
@@ -41,7 +42,7 @@ class InvestmentSignal:
         backtest_performance_score: 回测表现评分
         avg_backtest_return: 平均回测收益率
     """
-    id: Optional[str]
+    id: str | None
     asset_code: str
     asset_class: str
     direction: str  # LONG, SHORT, NEUTRAL
@@ -49,19 +50,19 @@ class InvestmentSignal:
 
     # 证伪规则（替代原来的 invalidation_logic + invalidation_threshold）
     invalidation_rule: Optional["InvalidationRule"] = None
-    invalidation_description: Optional[str] = None  # 人类可读描述
+    invalidation_description: str | None = None  # 人类可读描述
     # backward-compatible legacy fields
-    invalidation_logic: Optional[str] = None
-    invalidation_threshold: Optional[float] = None
+    invalidation_logic: str | None = None
+    invalidation_threshold: float | None = None
 
     target_regime: str = ""
-    created_at: Optional[date] = None
+    created_at: date | None = None
     status: SignalStatus = SignalStatus.PENDING
-    rejection_reason: Optional[str] = None
+    rejection_reason: str | None = None
 
     # 回测评分
-    backtest_performance_score: Optional[float] = None
-    avg_backtest_return: Optional[float] = None
+    backtest_performance_score: float | None = None
+    avg_backtest_return: float | None = None
 
     def __post_init__(self) -> None:
         # Keep legacy and new fields interoperable.

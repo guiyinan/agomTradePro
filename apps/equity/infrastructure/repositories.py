@@ -7,28 +7,28 @@
 - 负责数据持久化逻辑
 """
 
-from typing import List, Optional, Tuple, Dict
 from datetime import date
 from decimal import Decimal
+from typing import Dict, List, Optional, Tuple
 
 from django.db import models
 from django.utils import timezone
 
-from .models import (
-    StockInfoModel,
-    StockDailyModel,
-    FinancialDataModel,
-    ValuationModel,
-    ValuationDataQualitySnapshotModel,
-)
 from apps.equity.domain.entities import (
-    StockInfo,
+    EquityAssetScore,
     FinancialData,
-    ValuationMetrics,
+    StockInfo,
     TechnicalIndicators,
-    EquityAssetScore
+    ValuationMetrics,
 )
 
+from .models import (
+    FinancialDataModel,
+    StockDailyModel,
+    StockInfoModel,
+    ValuationDataQualitySnapshotModel,
+    ValuationModel,
+)
 
 # ==================== 通用资产分析框架集成 ====================
 # 实现 AssetRepositoryProtocol 接口以支持通用资产分析
@@ -46,7 +46,7 @@ class DjangoEquityAssetRepository:
         asset_type: str,
         filters: dict,
         max_count: int = 100
-    ) -> List[EquityAssetScore]:
+    ) -> list[EquityAssetScore]:
         """
         根据过滤条件获取资产列表
 
@@ -198,7 +198,7 @@ class DjangoEquityAssetRepository:
 
         return stocks_data
 
-    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional[EquityAssetScore]:
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> EquityAssetScore | None:
         """
         根据代码获取资产
 
@@ -304,8 +304,8 @@ class DjangoStockRepository:
 
     def get_all_stocks_with_fundamentals(
         self,
-        as_of_date: Optional[date] = None
-    ) -> List[Tuple[StockInfo, FinancialData, ValuationMetrics]]:
+        as_of_date: date | None = None
+    ) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]:
         """
         获取所有股票的基本面数据（最新财务数据 + 最新估值数据）
 
@@ -388,7 +388,7 @@ class DjangoStockRepository:
 
         return result
 
-    def get_stock_info(self, stock_code: str) -> Optional[StockInfo]:
+    def get_stock_info(self, stock_code: str) -> StockInfo | None:
         """
         获取单个股票的基本信息
 
@@ -414,7 +414,7 @@ class DjangoStockRepository:
         self,
         stock_code: str,
         limit: int = 4
-    ) -> List[FinancialData]:
+    ) -> list[FinancialData]:
         """
         获取股票的财务数据
 
@@ -452,7 +452,7 @@ class DjangoStockRepository:
         stock_code: str,
         start_date: date,
         end_date: date
-    ) -> List[ValuationMetrics]:
+    ) -> list[ValuationMetrics]:
         """
         获取股票的估值历史数据
 
@@ -578,7 +578,7 @@ class DjangoStockRepository:
         stock_code: str,
         start_date: date,
         end_date: date
-    ) -> List[Tuple[date, Decimal]]:
+    ) -> list[tuple[date, Decimal]]:
         """
         获取股票的日线收盘价数据
 
@@ -603,7 +603,7 @@ class DjangoStockRepository:
         stock_code: str,
         start_date: date,
         end_date: date
-    ) -> Dict[date, float]:
+    ) -> dict[date, float]:
         """
         计算股票的日收益率
 
@@ -631,7 +631,7 @@ class DjangoStockRepository:
     def get_latest_financial_data(
         self,
         stock_code: str
-    ) -> Optional[FinancialData]:
+    ) -> FinancialData | None:
         """
         获取股票最新的财务数据
 
@@ -678,7 +678,7 @@ class DjangoStockRepository:
             is_active=True
         ).count()
 
-    def get_all_sectors(self) -> List[str]:
+    def get_all_sectors(self) -> list[str]:
         """
         获取所有行业列表
 
@@ -691,7 +691,7 @@ class DjangoStockRepository:
 
         return list(sectors)
 
-    def list_active_stock_codes(self, limit: Optional[int] = None) -> List[str]:
+    def list_active_stock_codes(self, limit: int | None = None) -> list[str]:
         """
         获取所有活跃股票代码列表
 
@@ -712,12 +712,12 @@ class DjangoStockRepository:
 
         return list(queryset)
 
-    def get_latest_valuation_date(self) -> Optional[date]:
+    def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""
         latest = ValuationModel._default_manager.order_by("-trade_date").values_list("trade_date", flat=True).first()
         return latest
 
-    def get_valuation_models_by_date(self, as_of_date: date) -> List[ValuationModel]:
+    def get_valuation_models_by_date(self, as_of_date: date) -> list[ValuationModel]:
         """获取指定日期的原始估值模型记录。"""
         return list(
             ValuationModel._default_manager.filter(trade_date=as_of_date).order_by("stock_code")
@@ -901,9 +901,9 @@ class DjangoValuationRepairRepository:
     def list_active_snapshots(
         self,
         source_universe: str = "all_active",
-        phase: Optional[str] = None,
+        phase: str | None = None,
         limit: int = 50
-    ) -> List:
+    ) -> list:
         """
         列出活跃的估值修复快照
 
@@ -957,22 +957,22 @@ class DjangoValuationRepairRepository:
 class DjangoValuationDataQualityRepository:
     """估值数据质量快照仓储"""
 
-    def upsert_snapshot(self, snapshot: Dict) -> None:
+    def upsert_snapshot(self, snapshot: dict) -> None:
         ValuationDataQualitySnapshotModel._default_manager.update_or_create(
             as_of_date=snapshot["as_of_date"],
             defaults=snapshot,
         )
 
-    def get_snapshot(self, as_of_date: date) -> Optional[ValuationDataQualitySnapshotModel]:
+    def get_snapshot(self, as_of_date: date) -> ValuationDataQualitySnapshotModel | None:
         try:
             return ValuationDataQualitySnapshotModel._default_manager.get(as_of_date=as_of_date)
         except ValuationDataQualitySnapshotModel.DoesNotExist:
             return None
 
-    def get_latest_snapshot(self) -> Optional[ValuationDataQualitySnapshotModel]:
+    def get_latest_snapshot(self) -> ValuationDataQualitySnapshotModel | None:
         return ValuationDataQualitySnapshotModel._default_manager.order_by("-as_of_date").first()
 
-    def get_latest_gate_passed_snapshot(self) -> Optional[ValuationDataQualitySnapshotModel]:
+    def get_latest_gate_passed_snapshot(self) -> ValuationDataQualitySnapshotModel | None:
         return (
             ValuationDataQualitySnapshotModel._default_manager
             .filter(is_gate_passed=True)
@@ -982,11 +982,11 @@ class DjangoValuationDataQualityRepository:
 
 
 def compute_valuation_quality_flag(
-    pb: Optional[float],
-    pe: Optional[float],
-    previous_pb: Optional[float] = None,
-    previous_pe: Optional[float] = None,
-) -> Tuple[bool, str, str]:
+    pb: float | None,
+    pe: float | None,
+    previous_pb: float | None = None,
+    previous_pe: float | None = None,
+) -> tuple[bool, str, str]:
     """根据估值字段计算基础质量标记。"""
     if pb is None:
         return False, "missing_pb", "PB is missing"
@@ -1011,9 +1011,9 @@ def compute_valuation_quality_flag(
 def build_quality_snapshot(
     as_of_date: date,
     expected_stock_count: int,
-    valuations: List[ValuationModel],
+    valuations: list[ValuationModel],
     primary_source: str = "akshare",
-) -> Dict:
+) -> dict:
     """根据指定日期估值记录构建质量快照。"""
     synced_stock_count = len(valuations)
     valid_stock_count = sum(1 for item in valuations if item.is_valid)

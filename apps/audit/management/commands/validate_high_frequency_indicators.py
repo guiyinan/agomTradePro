@@ -13,21 +13,20 @@ Usage:
 import argparse
 import logging
 from datetime import date, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
-import pandas as pd
 import numpy as np
-from scipy import stats
-
+import pandas as pd
 from django.core.management.base import BaseCommand
 from django.db.models import Q
+from scipy import stats
 
+from apps.audit.infrastructure.models import (
+    IndicatorThresholdConfigModel,
+    ValidationSummaryModel,
+)
 from apps.macro.infrastructure.models import MacroIndicator
 from apps.regime.infrastructure.models import RegimeLog
-from apps.audit.infrastructure.models import (
-    ValidationSummaryModel,
-    IndicatorThresholdConfigModel,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +58,13 @@ class IndicatorValidator:
         'min_years': 3,  # 最少年数
     }
 
-    def __init__(self, start_date: date, end_date: date, thresholds: Optional[Dict] = None):
+    def __init__(self, start_date: date, end_date: date, thresholds: dict | None = None):
         self.start_date = start_date
         self.end_date = end_date
         self.thresholds = {**self.DEFAULT_THRESHOLDS, **(thresholds or {})}
-        self.validation_results: Dict[str, Dict] = {}
+        self.validation_results: dict[str, dict] = {}
 
-    def check_data_availability(self) -> Dict[str, Dict]:
+    def check_data_availability(self) -> dict[str, dict]:
         """检查数据可用性"""
         logger.info("检查数据可用性...")
 
@@ -121,7 +120,7 @@ class IndicatorValidator:
 
         return self.validation_results
 
-    def calculate_correlation_with_regime(self) -> Dict[str, Dict]:
+    def calculate_correlation_with_regime(self) -> dict[str, dict]:
         """计算指标与 Regime 的相关性"""
         logger.info("计算指标与 Regime 的相关性...")
 
@@ -208,7 +207,7 @@ class IndicatorValidator:
 
         return self.validation_results
 
-    def event_study_term_spread(self) -> Dict:
+    def event_study_term_spread(self) -> dict:
         """期限利差事件研究：检查倒挂后是否出现衰退"""
         logger.info("执行期限利差事件研究...")
 
@@ -296,7 +295,7 @@ class IndicatorValidator:
             logger.error(f"期限利差事件研究失败: {e}")
             return {'status': 'ERROR', 'message': str(e)}
 
-    def generate_validation_report(self) -> Dict:
+    def generate_validation_report(self) -> dict:
         """生成验证报告"""
         logger.info("生成验证报告...")
 
@@ -409,7 +408,7 @@ class Command(BaseCommand):
 
         save_report = options.get('save_report', False)
 
-        self.stdout.write(f'Phase 0 高频指标验证')
+        self.stdout.write('Phase 0 高频指标验证')
         self.stdout.write(f'验证期间: {start_date} 至 {end_date}')
         self.stdout.write('=' * 50)
 

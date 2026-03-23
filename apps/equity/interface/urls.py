@@ -6,8 +6,8 @@ from .views import (
     detail_page,
     pool_page,
     screen_page,
-    valuation_repair_page,
     valuation_repair_config_page,
+    valuation_repair_page,
 )
 
 app_name = 'equity'

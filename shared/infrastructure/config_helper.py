@@ -5,8 +5,8 @@ Configuration Helper
 """
 
 import logging
-from typing import Optional, Any, Dict
 from functools import lru_cache
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class ConfigHelper:
     """
 
     # 内存缓存
-    _cache: Dict[str, Any] = {}
+    _cache: dict[str, Any] = {}
     _cache_enabled = True
 
     @classmethod
@@ -182,7 +182,7 @@ class ConfigHelper:
         policy_level: str,
         regime: str,
         use_cache: bool
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """内部方法：获取配置值"""
         try:
             from .models import RiskParameterConfigModel

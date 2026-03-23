@@ -12,10 +12,10 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from apps.realtime.domain.entities import (
-    RealtimePrice,
-    PriceUpdate,
     PricePollingConfig,
-    PriceSnapshot
+    PriceSnapshot,
+    PriceUpdate,
+    RealtimePrice,
 )
 
 
@@ -35,7 +35,7 @@ class RealtimePriceRepositoryProtocol(ABC):
         pass
 
     @abstractmethod
-    def save_prices_batch(self, prices: List[RealtimePrice]) -> None:
+    def save_prices_batch(self, prices: list[RealtimePrice]) -> None:
         """批量保存实时价格
 
         Args:
@@ -44,7 +44,7 @@ class RealtimePriceRepositoryProtocol(ABC):
         pass
 
     @abstractmethod
-    def get_latest_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_latest_price(self, asset_code: str) -> RealtimePrice | None:
         """获取资产的最新价格
 
         Args:
@@ -56,7 +56,7 @@ class RealtimePriceRepositoryProtocol(ABC):
         pass
 
     @abstractmethod
-    def get_latest_prices(self, asset_codes: List[str]) -> List[RealtimePrice]:
+    def get_latest_prices(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取多个资产的最新价格
 
         Args:
@@ -75,7 +75,7 @@ class PriceDataProviderProtocol(ABC):
     """
 
     @abstractmethod
-    def get_realtime_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格
 
         Args:
@@ -87,7 +87,7 @@ class PriceDataProviderProtocol(ABC):
         pass
 
     @abstractmethod
-    def get_realtime_prices_batch(self, asset_codes: List[str]) -> List[RealtimePrice]:
+    def get_realtime_prices_batch(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取多个资产的实时价格
 
         Args:
@@ -124,7 +124,7 @@ class PriceUpdateNotifierProtocol(ABC):
         pass
 
     @abstractmethod
-    def notify_price_updates_batch(self, updates: List[PriceUpdate]) -> None:
+    def notify_price_updates_batch(self, updates: list[PriceUpdate]) -> None:
         """批量通知价格更新
 
         Args:
@@ -149,7 +149,7 @@ class WatchlistProviderProtocol(ABC):
     """
 
     @abstractmethod
-    def get_held_assets(self) -> List[str]:
+    def get_held_assets(self) -> list[str]:
         """获取所有持仓资产代码
 
         Returns:
@@ -158,7 +158,7 @@ class WatchlistProviderProtocol(ABC):
         pass
 
     @abstractmethod
-    def get_watchlist_assets(self, user_id: Optional[str] = None) -> List[str]:
+    def get_watchlist_assets(self, user_id: str | None = None) -> list[str]:
         """获取关注池资产代码
 
         Args:
@@ -170,7 +170,7 @@ class WatchlistProviderProtocol(ABC):
         pass
 
     @abstractmethod
-    def get_all_monitored_assets(self) -> List[str]:
+    def get_all_monitored_assets(self) -> list[str]:
         """获取所有需要监控的资产（持仓 + 关注池）
 
         Returns:

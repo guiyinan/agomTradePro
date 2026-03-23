@@ -7,16 +7,16 @@ Events Domain Rules
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
 from .entities import (
     DomainEvent,
-    EventType,
-    EventSubscription,
-    EventSnapshot,
     EventBusConfig,
+    EventSnapshot,
+    EventSubscription,
+    EventType,
 )
 
 
@@ -24,7 +24,7 @@ class Rule(ABC):
     """规则基类"""
 
     @abstractmethod
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估规则
 
@@ -48,9 +48,9 @@ class EventPriorityRule(Rule):
         priority_mapping: 事件类型到优先级的映射
     """
 
-    priority_mapping: Dict[EventType, int] = field(default_factory=dict)
+    priority_mapping: dict[EventType, int] = field(default_factory=dict)
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估事件优先级
 
@@ -93,11 +93,11 @@ class EventFilterRule(Rule):
         require_metadata: 必需的元数据字段
     """
 
-    allowed_types: Optional[Set[EventType]] = None
-    blocked_types: Optional[Set[EventType]] = None
-    require_metadata: Optional[Set[str]] = None
+    allowed_types: set[EventType] | None = None
+    blocked_types: set[EventType] | None = None
+    require_metadata: set[str] | None = None
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估事件是否应该被处理
 
@@ -140,9 +140,9 @@ class EventDeduplicationRule(Rule):
     """
 
     dedup_window: int = 60  # 默认60秒窗口
-    _seen_events: Dict[str, datetime] = field(default_factory=dict)
+    _seen_events: dict[str, datetime] = field(default_factory=dict)
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估事件是否重复
 
@@ -162,11 +162,11 @@ class EventDeduplicationRule(Rule):
         # 检查是否在时间窗口内
         if signature in self._seen_events:
             last_seen = self._seen_events[signature]
-            if (datetime.now(timezone.utc) - last_seen).total_seconds() < self.dedup_window:
+            if (datetime.now(UTC) - last_seen).total_seconds() < self.dedup_window:
                 return True  # 重复事件
 
         # 更新最后见时间
-        self._seen_events[signature] = datetime.now(timezone.utc)
+        self._seen_events[signature] = datetime.now(UTC)
         return False
 
     def _create_signature(self, event: DomainEvent) -> str:
@@ -206,7 +206,7 @@ class EventDeduplicationRule(Rule):
         Returns:
             清理的数量
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=older_than)
+        cutoff = datetime.now(UTC) - timedelta(seconds=older_than)
         to_remove = [
             sig for sig, ts in self._seen_events.items()
             if ts < cutoff
@@ -232,9 +232,9 @@ class EventThrottleRule(Rule):
 
     max_events_per_window: int = 100
     window_seconds: int = 60
-    _event_counts: Dict[str, List[datetime]] = field(default_factory=dict)
+    _event_counts: dict[str, list[datetime]] = field(default_factory=dict)
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估事件是否应该被节流
 
@@ -249,7 +249,7 @@ class EventThrottleRule(Rule):
             return False
 
         event_type = event.event_type.value
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # 获取该类型事件的时间戳列表
         timestamps = self._event_counts.setdefault(event_type, [])
@@ -281,7 +281,7 @@ class EventAgeRule(Rule):
 
     max_age_seconds: int = 3600  # 默认1小时
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估事件是否过期
 
@@ -295,7 +295,7 @@ class EventAgeRule(Rule):
         if not event or not isinstance(event, DomainEvent):
             return False
 
-        age = (datetime.now(timezone.utc) - event.occurred_at).total_seconds()
+        age = (datetime.now(UTC) - event.occurred_at).total_seconds()
         return age > self.max_age_seconds
 
 
@@ -318,7 +318,7 @@ class EventValidationRule(Rule):
     min_payload_size: int = 0
     max_payload_size: int = 10000
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """
         评估事件是否有效
 
@@ -362,10 +362,10 @@ class EventRuleEngine:
 
     def __init__(self):
         """初始化规则引擎"""
-        self._rules: List[Rule] = []
-        self._rule_names: Dict[Rule, str] = {}
+        self._rules: list[Rule] = []
+        self._rule_names: dict[Rule, str] = {}
 
-    def add_rule(self, rule: Rule, name: Optional[str] = None) -> None:
+    def add_rule(self, rule: Rule, name: str | None = None) -> None:
         """
         添加规则
 
@@ -387,7 +387,7 @@ class EventRuleEngine:
             self._rules.remove(rule)
             self._rule_names.pop(rule, None)
 
-    def should_process(self, event: DomainEvent) -> tuple[bool, List[str]]:
+    def should_process(self, event: DomainEvent) -> tuple[bool, list[str]]:
         """
         判断事件是否应该被处理
 

@@ -4,32 +4,33 @@ Integration tests for Policy Workbench use cases.
 Tests the interaction between use cases, repositories, and models.
 """
 
+from datetime import UTC, date, datetime, timedelta, timezone
+
 import pytest
-from datetime import date, datetime, timezone, timedelta
 from django.contrib.auth.models import User
 
-from apps.policy.domain.entities import PolicyLevel, EventType, GateLevel
+from apps.policy.application.use_cases import (
+    ApproveEventInput,
+    ApproveEventUseCase,
+    GetWorkbenchItemsUseCase,
+    GetWorkbenchSummaryUseCase,
+    RejectEventInput,
+    RejectEventUseCase,
+    RollbackEventInput,
+    RollbackEventUseCase,
+    WorkbenchItemsInput,
+    WorkbenchSummaryInput,
+)
+from apps.policy.domain.entities import EventType, GateLevel, PolicyLevel
 from apps.policy.infrastructure.models import (
-    PolicyLog,
-    PolicyIngestionConfig,
-    SentimentGateConfig,
     GateActionAuditLog,
+    PolicyIngestionConfig,
+    PolicyLog,
+    SentimentGateConfig,
 )
 from apps.policy.infrastructure.repositories import (
     DjangoPolicyRepository,
     WorkbenchRepository,
-)
-from apps.policy.application.use_cases import (
-    GetWorkbenchSummaryUseCase,
-    GetWorkbenchItemsUseCase,
-    ApproveEventUseCase,
-    RejectEventUseCase,
-    RollbackEventUseCase,
-    WorkbenchSummaryInput,
-    WorkbenchItemsInput,
-    ApproveEventInput,
-    RejectEventInput,
-    RollbackEventInput,
 )
 
 
@@ -102,7 +103,7 @@ class TestGetCurrentPolicyLevel:
             evidence_url='https://example.com/1',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=test_user,
         )
 
@@ -131,7 +132,7 @@ class TestGetCurrentPolicyLevel:
             evidence_url='https://example.com/hotspot',
             event_type='hotspot',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=test_user,
             heat_score=90.0,
             sentiment_score=-0.8,
@@ -158,7 +159,7 @@ class TestGetCurrentPolicyLevel:
             evidence_url='https://example.com/old',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc) - timedelta(days=2),
+            effective_at=datetime.now(UTC) - timedelta(days=2),
             effective_by=test_user,
         )
 
@@ -171,7 +172,7 @@ class TestGetCurrentPolicyLevel:
             evidence_url='https://example.com/new',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=test_user,
         )
 
@@ -194,7 +195,7 @@ class TestGetWorkbenchSummaryUseCase:
             evidence_url='https://example.com/test',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=test_user,
         )
 
@@ -446,7 +447,7 @@ class TestRollbackEventUseCase:
             evidence_url='https://example.com/test',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=test_user,
         )
 

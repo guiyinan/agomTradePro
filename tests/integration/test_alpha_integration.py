@@ -4,16 +4,17 @@ Integration Tests for Alpha Module
 测试 Alpha 模块的端到端功能。
 """
 
-import pytest
 from datetime import date
 
-from apps.alpha.application.services import AlphaService, AlphaProviderRegistry
-from apps.alpha.domain.entities import StockScore, AlphaResult
+import pytest
+
+from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
+from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
-from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
-from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
+from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
+from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
 
 @pytest.mark.django_db

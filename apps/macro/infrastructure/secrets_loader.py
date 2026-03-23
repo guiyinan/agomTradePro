@@ -9,7 +9,7 @@ from typing import Optional
 from shared.domain.interfaces import DataSourceSecretsDTO
 
 
-def load_secrets_from_database() -> Optional[DataSourceSecretsDTO]:
+def load_secrets_from_database() -> DataSourceSecretsDTO | None:
     """
     从数据库加载数据源配置
 

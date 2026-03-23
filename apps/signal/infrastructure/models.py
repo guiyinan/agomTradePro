@@ -2,10 +2,11 @@
 ORM Models for Investment Signals.
 """
 
-from django.db import models
-from django.core.exceptions import ValidationError
-from django.contrib.auth.models import User
 import json
+
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import models
 
 
 class InvestmentSignalModel(models.Model):

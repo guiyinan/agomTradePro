@@ -5,8 +5,8 @@ Activate Qlib Model Management Command
 """
 
 import logging
-from django.core.management.base import BaseCommand, CommandError
 
+from django.core.management.base import BaseCommand, CommandError
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class Command(BaseCommand):
         # 检查当前激活状态
         if model.is_active:
             self.stdout.write(
-                self.style.WARNING(f'  ⚠ 模型已经是激活状态')
+                self.style.WARNING('  ⚠ 模型已经是激活状态')
             )
             return
 
@@ -87,7 +87,7 @@ class Command(BaseCommand):
             model.activate(activated_by='command_line')
 
             self.stdout.write(
-                self.style.SUCCESS(f'  ✓ 模型已激活')
+                self.style.SUCCESS('  ✓ 模型已激活')
             )
             self.stdout.write(f'    模型名称: {model.model_name}')
             self.stdout.write(f'    模型类型: {model.model_type}')

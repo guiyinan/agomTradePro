@@ -20,7 +20,7 @@ class DecisionTaskFacade(BaseContextFacade):
 
     domain = "decision"
 
-    def fetch_open_decisions_summary(self) -> Dict[str, Any]:
+    def fetch_open_decisions_summary(self) -> dict[str, Any]:
         """Enhanced decision summary with quota information."""
         base = super().fetch_open_decisions_summary()
         # Add quota information
@@ -34,7 +34,7 @@ class DecisionTaskFacade(BaseContextFacade):
             logger.debug("Decision quotas unavailable: %s", e)
         return base
 
-    def fetch_active_signals_summary(self) -> Dict[str, Any]:
+    def fetch_active_signals_summary(self) -> dict[str, Any]:
         """Enhanced signals with approval-pending signals count."""
         base = super().fetch_active_signals_summary()
         if base.get("status") != "ok":

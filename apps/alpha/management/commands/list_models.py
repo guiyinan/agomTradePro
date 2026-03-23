@@ -5,8 +5,8 @@ List Qlib Models Management Command
 """
 
 import logging
-from django.core.management.base import BaseCommand
 
+from django.core.management.base import BaseCommand
 
 logger = logging.getLogger(__name__)
 

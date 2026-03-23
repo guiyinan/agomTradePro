@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from apps.account.application.rbac import user_allows
 
@@ -48,8 +48,9 @@ class ObserverAccessPermission(BasePermission):
         Returns:
             bool: 是否有权限访问
         """
-        from apps.account.infrastructure.models import PortfolioObserverGrantModel
         from django.utils import timezone
+
+        from apps.account.infrastructure.models import PortfolioObserverGrantModel
 
         # 1. 获取关联的 PortfolioModel
         if hasattr(obj, 'portfolio'):
@@ -97,9 +98,10 @@ def get_accessible_portfolios(user):
     Returns:
         QuerySet: 可访问的 PortfolioModel 查询集
     """
-    from apps.account.infrastructure.models import PortfolioModel, PortfolioObserverGrantModel
-    from django.utils import timezone
     from django.db import models as django_models
+    from django.utils import timezone
+
+    from apps.account.infrastructure.models import PortfolioModel, PortfolioObserverGrantModel
 
     # 1. 获取被授权观察的用户ID列表
     now = timezone.now()

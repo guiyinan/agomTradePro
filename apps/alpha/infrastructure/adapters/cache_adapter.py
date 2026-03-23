@@ -15,7 +15,6 @@ from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, provider_safe
 
-
 logger = logging.getLogger(__name__)
 
 try:
@@ -209,7 +208,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
             }
         )
 
-    def _parse_scores(self, raw_scores: list, top_n: int) -> List[StockScore]:
+    def _parse_scores(self, raw_scores: list, top_n: int) -> list[StockScore]:
         """
         解析原始评分数据
 
@@ -237,7 +236,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         universe_id: str,
         start_date: date,
         end_date: date
-    ) -> List[date]:
+    ) -> list[date]:
         """
         获取指定日期范围内的可用缓存日期
 
@@ -259,7 +258,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         return sorted(set(caches))
 
-    def get_latest_cache_date(self, universe_id: str) -> Optional[date]:
+    def get_latest_cache_date(self, universe_id: str) -> date | None:
         """
         获取指定股票池的最新缓存日期
 

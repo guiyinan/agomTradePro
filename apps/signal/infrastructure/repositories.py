@@ -4,14 +4,14 @@ Repositories for Investment Signals.
 Infrastructure layer implementation using Django ORM.
 """
 
-from datetime import date
-from typing import List, Optional, Any
 import json
+from datetime import date
+from typing import Any, List, Optional
 
 from django.db import transaction
 from django.utils import timezone
 
-from ..domain.entities import InvestmentSignal, SignalStatus, Eligibility
+from ..domain.entities import Eligibility, InvestmentSignal, SignalStatus
 from .models import InvestmentSignalModel
 
 
@@ -31,10 +31,10 @@ class DjangoSignalRepository:
         self._model = InvestmentSignalModel
 
     # Protocol compatibility methods
-    def get_by_id(self, id: str) -> Optional[InvestmentSignal]:
+    def get_by_id(self, id: str) -> InvestmentSignal | None:
         return self.get_signal_by_id(id)
 
-    def get_all(self) -> List[InvestmentSignal]:
+    def get_all(self) -> list[InvestmentSignal]:
         query = self._model.objects.all().order_by("-created_at")
         return [self._orm_to_entity(obj) for obj in query]
 
@@ -44,7 +44,7 @@ class DjangoSignalRepository:
     def delete(self, id: str) -> bool:
         return self.delete_signal(id)
 
-    def find_by_criteria(self, **criteria: Any) -> List[InvestmentSignal]:
+    def find_by_criteria(self, **criteria: Any) -> list[InvestmentSignal]:
         query = self._model.objects.filter(**criteria).order_by("-created_at")
         return [self._orm_to_entity(obj) for obj in query]
 
@@ -115,7 +115,7 @@ class DjangoSignalRepository:
 
         return self._orm_to_entity(orm_obj)
 
-    def get_signal_by_id(self, signal_id: str) -> Optional[InvestmentSignal]:
+    def get_signal_by_id(self, signal_id: str) -> InvestmentSignal | None:
         """
         按 ID 获取信号
 
@@ -134,8 +134,8 @@ class DjangoSignalRepository:
     def get_signals_by_asset(
         self,
         asset_code: str,
-        status: Optional[SignalStatus] = None
-    ) -> List[InvestmentSignal]:
+        status: SignalStatus | None = None
+    ) -> list[InvestmentSignal]:
         """
         按资产代码获取信号列表
 
@@ -159,7 +159,7 @@ class DjangoSignalRepository:
     def get_signals_by_status(
         self,
         status: SignalStatus
-    ) -> List[InvestmentSignal]:
+    ) -> list[InvestmentSignal]:
         """
         按状态获取信号列表
 
@@ -174,7 +174,7 @@ class DjangoSignalRepository:
 
         return [self._orm_to_entity(obj) for obj in query]
 
-    def get_pending_signals(self) -> List[InvestmentSignal]:
+    def get_pending_signals(self) -> list[InvestmentSignal]:
         """
         获取待处理信号
 
@@ -183,7 +183,7 @@ class DjangoSignalRepository:
         """
         return self.get_signals_by_status(SignalStatus.PENDING)
 
-    def get_active_signals(self) -> List[InvestmentSignal]:
+    def get_active_signals(self) -> list[InvestmentSignal]:
         """
         获取活跃信号（已批准但未失效）
 
@@ -196,7 +196,7 @@ class DjangoSignalRepository:
     def find_signals_with_invalidation_rules(
         self,
         status: SignalStatus
-    ) -> List[InvestmentSignal]:
+    ) -> list[InvestmentSignal]:
         """
         查找具有证伪规则的信号
 
@@ -214,7 +214,7 @@ class DjangoSignalRepository:
 
         return [self._orm_to_entity(obj) for obj in query]
 
-    def find_signals_to_invalidate(self, as_of_date: date) -> List[InvestmentSignal]:
+    def find_signals_to_invalidate(self, as_of_date: date) -> list[InvestmentSignal]:
         """
         查找需要证伪检查的信号
 
@@ -300,7 +300,7 @@ class DjangoSignalRepository:
         self,
         start_datetime,
         end_datetime
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取指定时间范围内创建的信号（返回字典格式，用于摘要报告）
 
@@ -321,7 +321,7 @@ class DjangoSignalRepository:
         self,
         start_datetime,
         end_datetime
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取指定时间范围内证伪的信号（返回字典格式，用于摘要报告）
 
@@ -338,7 +338,7 @@ class DjangoSignalRepository:
             ).values('asset_code', 'logic_desc', 'invalidation_details', 'id')[:10]
         )
 
-    def get_old_invalidated_signals(self, days: int) -> List[dict]:
+    def get_old_invalidated_signals(self, days: int) -> list[dict]:
         """
         获取旧的已证伪信号
 
@@ -361,8 +361,8 @@ class DjangoSignalRepository:
     def get_signals_by_regime(
         self,
         target_regime: str,
-        status: Optional[SignalStatus] = None
-    ) -> List[InvestmentSignal]:
+        status: SignalStatus | None = None
+    ) -> list[InvestmentSignal]:
         """
         按目标 Regime 获取信号
 
@@ -387,7 +387,7 @@ class DjangoSignalRepository:
         self,
         signal_id: str,
         new_status: SignalStatus,
-        rejection_reason: Optional[str] = None
+        rejection_reason: str | None = None
     ) -> bool:
         """
         更新信号状态
@@ -427,7 +427,7 @@ class DjangoSignalRepository:
 
     def get_signal_count(
         self,
-        status: Optional[SignalStatus] = None
+        status: SignalStatus | None = None
     ) -> int:
         """
         获取信号数量
@@ -449,9 +449,9 @@ class DjangoSignalRepository:
     def get_user_signals(
         self,
         user_id: int,
-        status: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[InvestmentSignal]:
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[InvestmentSignal]:
         """
         获取用户的投资信号列表
 
@@ -510,14 +510,14 @@ class DjangoSignalRepository:
             'by_asset_class': asset_stats
         }
 
-    def get_valid_signal_summaries(self, asset_codes: Optional[List[str]] = None) -> List[dict]:
+    def get_valid_signal_summaries(self, asset_codes: list[str] | None = None) -> list[dict]:
         query = self._model.objects.filter(status='valid', is_active=True)
         if asset_codes:
             query = query.filter(asset_code__in=asset_codes)
         query = query.order_by('-created_at')
         return list(query.values('id', 'asset_code', 'logic_desc'))
 
-    def get_signal_snapshot(self, signal_id: int) -> Optional[dict]:
+    def get_signal_snapshot(self, signal_id: int) -> dict | None:
         signal = self._model.objects.filter(id=signal_id).values(
             'id', 'asset_code', 'status', 'logic_desc', 'user_id'
         ).first()
@@ -527,7 +527,7 @@ class DjangoSignalRepository:
         signal['signal_id'] = signal.pop('id')
         return signal
 
-    def get_signal_invalidation_payload(self, signal_id: int) -> tuple[Optional[str], str]:
+    def get_signal_invalidation_payload(self, signal_id: int) -> tuple[str | None, str]:
         signal = self._model.objects.filter(id=signal_id).values(
             'invalidation_rule_json', 'invalidation_description'
         ).first()
@@ -841,7 +841,7 @@ class DjangoUserRepository:
         from django.contrib.auth import get_user_model
         self._model = get_user_model()
 
-    def get_staff_emails(self) -> List[str]:
+    def get_staff_emails(self) -> list[str]:
         """
         获取所有活跃 staff 用户的邮箱
 
@@ -857,7 +857,7 @@ class DjangoUserRepository:
             ).values_list('email', flat=True)
         )
 
-    def get_user_by_id(self, user_id: int) -> Optional[Any]:
+    def get_user_by_id(self, user_id: int) -> Any | None:
         """
         通过 ID 获取用户
 
@@ -872,7 +872,7 @@ class DjangoUserRepository:
         except self._model.DoesNotExist:
             return None
 
-    def get_user_email(self, user_id: int) -> Optional[str]:
+    def get_user_email(self, user_id: int) -> str | None:
         """
         获取用户邮箱
 

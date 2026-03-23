@@ -4,19 +4,20 @@ Page Views for Macro Data Management.
 Contains view functions for rendering HTML pages.
 """
 
+from datetime import datetime, timedelta
+
+from django.db.models import Count, Max, Min, Q
 from django.shortcuts import render
-from django.db.models import Q, Count, Max, Min
-from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
     ScheduleDataFetchUseCase,
 )
 from apps.macro.infrastructure.adapters import AKShareAdapter
-from datetime import datetime, timedelta
+from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 
 from .helpers import get_repository
-
 
 # 指标名称映射
 INDICATOR_NAMES = {

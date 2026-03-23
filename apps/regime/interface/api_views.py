@@ -8,26 +8,28 @@ DRF API Views for Regime Calculation.
 - 保持 API 完全兼容
 """
 
-from rest_framework import viewsets, status
+from datetime import date
+
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from datetime import date
-from django.utils import timezone
 
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
+from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.infrastructure.models import RegimeLog
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+
 from .serializers import (
-    RegimeSnapshotSerializer,
     RegimeCalculateRequestSerializer,
     RegimeCalculateResponseSerializer,
-    RegimeLogSerializer,
     RegimeHistoryQuerySerializer,
+    RegimeLogSerializer,
+    RegimeSnapshotSerializer,
 )
 
 

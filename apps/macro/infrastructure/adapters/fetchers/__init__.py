@@ -6,12 +6,12 @@
 
 from .base_fetchers import BaseIndicatorFetcher
 from .economic_fetchers import EconomicIndicatorFetcher
-from .trade_fetchers import TradeIndicatorFetcher
 from .financial_fetchers import FinancialIndicatorFetcher
-from .other_fetchers import OtherIndicatorFetcher
 from .high_frequency_fetchers import HighFrequencyIndicatorFetcher
-from .weekly_indicators_fetchers import WeeklyIndicatorFetcher
+from .other_fetchers import OtherIndicatorFetcher
 from .pmi_subitems_fetchers import PMISubitemsFetcher
+from .trade_fetchers import TradeIndicatorFetcher
+from .weekly_indicators_fetchers import WeeklyIndicatorFetcher
 
 __all__ = [
     'BaseIndicatorFetcher',

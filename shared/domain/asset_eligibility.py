@@ -5,9 +5,10 @@ Shared Asset Eligibility Rules.
 符合四层架构：Domain 层只使用 Python 标准库。
 """
 
-from typing import Dict, List, Tuple, Optional, Callable
-from enum import Enum
+from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class Eligibility(Enum):
@@ -18,7 +19,7 @@ class Eligibility(Enum):
 
 
 # 默认准入矩阵配置（fallback）
-DEFAULT_ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
+DEFAULT_ELIGIBILITY_MATRIX: dict[str, dict[str, Eligibility]] = {
     "a_share_growth": {
         "Recovery": Eligibility.PREFERRED,
         "Overheat": Eligibility.NEUTRAL,
@@ -58,10 +59,10 @@ DEFAULT_ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
 }
 
 # 可配置的准入矩阵（可通过依赖注入设置）
-_eligibility_matrix_provider: Optional[Callable[[], Dict[str, Dict[str, Eligibility]]]] = None
+_eligibility_matrix_provider: Callable[[], dict[str, dict[str, Eligibility]]] | None = None
 
 
-def set_eligibility_matrix_provider(provider: Callable[[], Dict[str, Dict[str, Eligibility]]]):
+def set_eligibility_matrix_provider(provider: Callable[[], dict[str, dict[str, Eligibility]]]):
     """
     设置准入矩阵提供者（依赖注入）
 
@@ -72,7 +73,7 @@ def set_eligibility_matrix_provider(provider: Callable[[], Dict[str, Dict[str, E
     _eligibility_matrix_provider = provider
 
 
-def get_eligibility_matrix() -> Dict[str, Dict[str, Eligibility]]:
+def get_eligibility_matrix() -> dict[str, dict[str, Eligibility]]:
     """
     获取准入矩阵（优先使用提供者，否则使用默认值）
 
@@ -92,7 +93,7 @@ def get_eligibility_matrix() -> Dict[str, Dict[str, Eligibility]]:
 def check_eligibility(
     asset_class: str,
     regime: str,
-    custom_matrix: Optional[Dict[str, Dict[str, Eligibility]]] = None
+    custom_matrix: dict[str, dict[str, Eligibility]] | None = None
 ) -> Eligibility:
     """
     检查资产在当前 Regime 下的适配性
@@ -116,7 +117,7 @@ def check_eligibility(
     return matrix[asset_class].get(regime, Eligibility.NEUTRAL)
 
 
-def get_preferred_asset_classes(regime: str) -> List[str]:
+def get_preferred_asset_classes(regime: str) -> list[str]:
     """
     获取指定 Regime 下推荐的资产类别
 

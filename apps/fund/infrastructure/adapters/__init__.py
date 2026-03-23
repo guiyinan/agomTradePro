@@ -6,9 +6,9 @@
 - AKShare: 基金基本信息
 """
 
-from .tushare_fund_adapter import TushareFundAdapter
 from .akshare_fund_adapter import AkShareFundAdapter
 from .hybrid_fund_adapter import HybridFundAdapter
+from .tushare_fund_adapter import TushareFundAdapter
 
 # Backward-compat alias used by alpha simple provider.
 TushareAdapter = TushareFundAdapter

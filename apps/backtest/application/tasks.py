@@ -6,14 +6,13 @@ Celery Tasks for Backtest Module.
 
 import logging
 from datetime import date
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from celery import shared_task
 from django.utils import timezone
 
-from ..domain.entities import BacktestConfig
+from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig, PITDataConfig
 from ..domain.services import BacktestEngine, PITDataProcessor
-from ..domain.entities import PITDataConfig, DEFAULT_PUBLICATION_LAGS
 from ..infrastructure.repositories import DjangoBacktestRepository
 
 logger = logging.getLogger(__name__)
@@ -29,8 +28,8 @@ logger = logging.getLogger(__name__)
 def run_backtest_task(
     self,
     backtest_id: int,
-    config_dict: Dict[str, Any],
-) -> Dict[str, Any]:
+    config_dict: dict[str, Any],
+) -> dict[str, Any]:
     """
     异步执行回测任务
 
@@ -66,7 +65,7 @@ def run_backtest_task(
 
         # 4. 获取数据获取函数（需要在实际使用时注入）
         # 这里使用模拟数据，实际应用中需要从外部传入
-        def get_regime(as_of_date: date) -> Optional[Dict]:
+        def get_regime(as_of_date: date) -> dict | None:
             """
             获取指定日期的 Regime 数据
 
@@ -85,14 +84,15 @@ def run_backtest_task(
                 }
             return None
 
-        def get_asset_price(asset_class: str, as_of_date: date) -> Optional[float]:
+        def get_asset_price(asset_class: str, as_of_date: date) -> float | None:
             """
             获取指定资产在指定日期的价格
 
             实际应用中应该从数据库查询或调用外部数据源
             """
-            from ..infrastructure.adapters import create_default_price_adapter
             from shared.config.secrets import get_secrets
+
+            from ..infrastructure.adapters import create_default_price_adapter
 
             try:
                 token = get_secrets().data_sources.tushare_token
@@ -170,8 +170,9 @@ def cleanup_old_backtests(self, days_old: int = 90) -> int:
     Returns:
         int: 删除的记录数
     """
-    from django.utils import timezone
     from datetime import timedelta
+
+    from django.utils import timezone
 
     repository = DjangoBacktestRepository()
     cutoff_date = timezone.now() - timedelta(days=days_old)
@@ -199,7 +200,7 @@ def cleanup_old_backtests(self, days_old: int = 90) -> int:
     time_limit=300,
     soft_time_limit=280,
 )
-def generate_backtest_report(self, backtest_id: int) -> Dict[str, Any]:
+def generate_backtest_report(self, backtest_id: int) -> dict[str, Any]:
     """
     生成回测报告
 
@@ -235,7 +236,7 @@ def generate_backtest_report(self, backtest_id: int) -> Dict[str, Any]:
     return report
 
 
-def _analyze_regime_performance(regime_history: list) -> Dict[str, Any]:
+def _analyze_regime_performance(regime_history: list) -> dict[str, Any]:
     """分析各 Regime 下的表现"""
     if not regime_history:
         return {}
@@ -261,7 +262,7 @@ def _analyze_regime_performance(regime_history: list) -> Dict[str, Any]:
     return analysis
 
 
-def _analyze_trades(trades: list) -> Dict[str, Any]:
+def _analyze_trades(trades: list) -> dict[str, Any]:
     """分析交易记录"""
     if not trades:
         return {}

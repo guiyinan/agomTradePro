@@ -5,14 +5,14 @@ Provides unified caching service for Regime calculations and macro data.
 Supports Redis as backend with fallback to in-memory cache.
 """
 
-import logging
 import hashlib
 import json
-from typing import Optional, Any, Dict
+import logging
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
-from django.core.cache import cache
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class CacheService:
         as_of_date: str,
         growth_indicator: str,
         inflation_indicator: str,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         获取缓存的Regime计算结果
 
@@ -96,8 +96,8 @@ class CacheService:
         as_of_date: str,
         growth_indicator: str,
         inflation_indicator: str,
-        data: Dict,
-        timeout: Optional[int] = None,
+        data: dict,
+        timeout: int | None = None,
     ) -> bool:
         """
         设置Regime计算结果缓存
@@ -132,7 +132,7 @@ class CacheService:
         cls,
         indicator_code: str,
         end_date: str,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         获取缓存的宏观数据序列
 
@@ -160,8 +160,8 @@ class CacheService:
         cls,
         indicator_code: str,
         end_date: str,
-        data: Dict,
-        timeout: Optional[int] = None,
+        data: dict,
+        timeout: int | None = None,
     ) -> bool:
         """
         设置宏观数据序列缓存
@@ -195,7 +195,7 @@ class CacheService:
         regime: str,
         match_score: float,
         invested_ratio: float,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         获取缓存的AI建议
 
@@ -226,8 +226,8 @@ class CacheService:
         regime: str,
         match_score: float,
         invested_ratio: float,
-        data: Dict,
-        timeout: Optional[int] = None,
+        data: dict,
+        timeout: int | None = None,
     ) -> bool:
         """
         设置AI建议缓存
@@ -263,7 +263,7 @@ class CacheService:
         regime: str,
         risk_profile: str,
         policy_level: str,
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         获取缓存的资产配置建议
 
@@ -294,8 +294,8 @@ class CacheService:
         regime: str,
         risk_profile: str,
         policy_level: str,
-        data: Dict,
-        timeout: Optional[int] = None,
+        data: dict,
+        timeout: int | None = None,
     ) -> bool:
         """
         设置资产配置建议缓存
@@ -345,7 +345,7 @@ class CacheService:
             return False
 
     @classmethod
-    def get_cache_info(cls) -> Dict:
+    def get_cache_info(cls) -> dict:
         """
         获取缓存信息（用于监控）
 

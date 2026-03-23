@@ -4,13 +4,14 @@
 包含工业增加值、社会消费品零售总额、GDP 等经济活动指标的获取逻辑。
 """
 
-import pandas as pd
-from datetime import date
-from typing import List
 import logging
 import re
+from datetime import date
+from typing import List
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class EconomicIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取工业增加值数据"""
         try:
             df = self.ak.macro_china_gyzjz()
@@ -110,7 +111,7 @@ class EconomicIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取社会消费品零售总额数据"""
         try:
             df = self.ak.macro_china_consumer_goods_retail()
@@ -157,7 +158,7 @@ class EconomicIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 GDP 数据
 
         注意：akshare返回的GDP数据单位是"亿元"

@@ -4,26 +4,26 @@ Hedge Module Interface Layer - URL Configuration
 URL patterns for the hedge module API and pages.
 """
 
-from django.urls import path, include
 from django.shortcuts import redirect
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.hedge.interface.views import (
-    HedgePairViewSet,
     CorrelationHistoryViewSet,
-    HedgePortfolioSnapshotViewSet,
-    HedgeAlertViewSet,
     HedgeActionViewSet,
-    # Page views
-    hedge_pairs_view,
-    hedge_snapshots_view,
-    hedge_alerts_view,
+    HedgeAlertViewSet,
+    HedgePairViewSet,
+    HedgePortfolioSnapshotViewSet,
     # Action views
     activate_pair_view,
     deactivate_pair_view,
-    update_portfolios_view,
-    run_monitoring_view,
+    hedge_alerts_view,
+    # Page views
+    hedge_pairs_view,
+    hedge_snapshots_view,
     resolve_alert_view,
+    run_monitoring_view,
+    update_portfolios_view,
 )
 
 app_name = 'hedge'

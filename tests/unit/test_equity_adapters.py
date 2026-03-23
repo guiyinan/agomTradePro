@@ -7,9 +7,10 @@ Unit tests for equity module adapters and TODO cleanup
 3. 行业过滤缓存
 """
 
-import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 
 class TestIncrementalScreeningEngineRuleDetection:
@@ -234,7 +235,7 @@ class TestTOODOCount:
             if not os.path.exists(full_path):
                 continue
 
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, encoding='utf-8') as f:
                 content = f.read()
 
                 # 查找 TODO

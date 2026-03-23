@@ -4,27 +4,28 @@ Unit Tests for Beta Gate Domain Services
 测试 BetaGateEvaluator 和 VisibilityUniverseBuilder 的行为。
 """
 
-import pytest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from apps.beta_gate.domain.entities import (
+    AssetCategory,
     GateConfig,
     GateDecision,
+    GateMatchResult,
     GateStatus,
     RiskProfile,
-    VisibilityUniverse,
-    GateMatchResult,
-    AssetCategory,
     Strategy,
+    VisibilityUniverse,
 )
-from apps.policy.domain.entities import PolicyLevel
 from apps.beta_gate.domain.services import (
     BetaGateEvaluator,
-    VisibilityUniverseBuilder,
     GateConfigSelector,
+    VisibilityUniverseBuilder,
     get_default_configs,
 )
+from apps.policy.domain.entities import PolicyLevel
 
 
 class TestGateConfigSelector:

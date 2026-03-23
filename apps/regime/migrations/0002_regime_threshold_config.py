@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Migration: Create Regime threshold configuration model
 
 创建 Regime 判定阈值配置表，使阈值可动态调整而非硬编码。
 """
 
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

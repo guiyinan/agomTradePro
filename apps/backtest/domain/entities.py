@@ -7,8 +7,8 @@ Domain Entities for Backtesting Module.
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import List, Dict, Optional, Tuple
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class RebalanceFrequency(Enum):
@@ -76,7 +76,7 @@ class PortfolioState:
     """组合状态（实体）"""
     as_of_date: date
     cash: float
-    positions: Dict[str, float]  # asset_class -> shares
+    positions: dict[str, float]  # asset_class -> shares
     total_value: float
 
     def get_position_value(self, asset_class: str, price: float) -> float:
@@ -84,7 +84,7 @@ class PortfolioState:
         shares = self.positions.get(asset_class, 0)
         return shares * price
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """转换为字典"""
         return {
             "as_of_date": self.as_of_date.isoformat(),
@@ -101,14 +101,14 @@ class BacktestResult:
     final_value: float
     total_return: float
     annualized_return: float
-    sharpe_ratio: Optional[float]
+    sharpe_ratio: float | None
     max_drawdown: float
-    trades: List[Trade] = field(default_factory=list)
-    equity_curve: List[Tuple[date, float]] = field(default_factory=list)
-    regime_history: List[Dict] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    trades: list[Trade] = field(default_factory=list)
+    equity_curve: list[tuple[date, float]] = field(default_factory=list)
+    regime_history: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_summary_dict(self) -> Dict:
+    def to_summary_dict(self) -> dict:
         """转换为摘要字典"""
         return {
             "start_date": self.config.start_date.isoformat(),
@@ -123,7 +123,7 @@ class BacktestResult:
             "rebalance_frequency": self.config.rebalance_frequency,
         }
 
-    def get_win_rate(self) -> Optional[float]:
+    def get_win_rate(self) -> float | None:
         """计算胜率"""
         if not self.trades:
             return None
@@ -140,12 +140,12 @@ class RebalanceResult:
     date: date
     regime: str
     regime_confidence: float
-    old_weights: Dict[str, float]
-    new_weights: Dict[str, float]
-    trades: List[Trade]
+    old_weights: dict[str, float]
+    new_weights: dict[str, float]
+    trades: list[Trade]
     portfolio_value: float
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """转换为字典"""
         return {
             "date": self.date.isoformat(),
@@ -176,10 +176,10 @@ class AttributionReport:
     total_return: float
     benchmark_return: float
     active_return: float  # 超额收益
-    regime_attribution: Dict[str, Dict]  # 各 Regime 下的归因
-    entries: List[AttributionEntry]
+    regime_attribution: dict[str, dict]  # 各 Regime 下的归因
+    entries: list[AttributionEntry]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """转换为字典"""
         return {
             "total_return": self.total_return,
@@ -193,7 +193,7 @@ class AttributionReport:
 @dataclass
 class PITDataConfig:
     """Point-in-Time 数据配置"""
-    publication_lags: Dict[str, timedelta] = field(default_factory=dict)
+    publication_lags: dict[str, timedelta] = field(default_factory=dict)
 
     def add_lag(self, indicator_code: str, lag_days: int) -> None:
         """添加指标的发布延迟"""
@@ -284,9 +284,9 @@ class DataVersionHistory:
     """
     indicator_code: str
     observed_at: date
-    versions: Tuple[DataVersion, ...]  # 按版本号排序
+    versions: tuple[DataVersion, ...]  # 按版本号排序
 
-    def get_version_on(self, query_date: date) -> Optional[DataVersion]:
+    def get_version_on(self, query_date: date) -> DataVersion | None:
         """
         获取在指定日期可用的最新版本
 
@@ -307,7 +307,7 @@ class DataVersionHistory:
                 return version
         return None
 
-    def get_final_value(self) -> Optional[DataVersion]:
+    def get_final_value(self) -> DataVersion | None:
         """获取最终值版本"""
         for version in reversed(self.versions):
             if version.is_final:

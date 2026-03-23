@@ -9,10 +9,11 @@ that integrates Beta Gate, Alpha Trigger, and Decision Rhythm modules.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 from uuid import uuid4
 
 
@@ -170,8 +171,8 @@ class DomainEvent:
     event_id: str
     event_type: EventType
     occurred_at: datetime
-    payload: Dict[str, Any]
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any]
+    metadata: dict[str, Any] = field(default_factory=dict)
     version: int = 1
 
     def get_payload_value(self, key: str, default: Any = None) -> Any:
@@ -346,8 +347,8 @@ class EventSubscription:
     event_type: EventType
     handler: EventHandler
     is_active: bool = True
-    filter_criteria: Optional[Dict[str, Any]] = None
-    event_filter: Optional[EventFilter] = None
+    filter_criteria: dict[str, Any] | None = None
+    event_filter: EventFilter | None = None
     priority: int = 100
     subscribe_at: datetime = field(default_factory=datetime.now)
 
@@ -448,9 +449,9 @@ class EventMetrics:
     total_failed: int = 0
     total_subscribers: int = 0
     avg_processing_time_ms: float = 0.0
-    last_event_at: Optional[datetime] = None
+    last_event_at: datetime | None = None
     total_events: int = 0
-    events_by_type: Dict[str, int] = field(default_factory=dict)
+    events_by_type: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -473,7 +474,7 @@ class EventSnapshot:
     processed_at: datetime
     handler_id: str
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
     retry_count: int = 0
 
 
@@ -482,10 +483,10 @@ class EventSnapshot:
 
 def create_event(
     event_type: EventType,
-    payload: Dict[str, Any],
-    metadata: Optional[Dict[str, Any]] = None,
-    event_id: Optional[str] = None,
-    occurred_at: Optional[datetime] = None,
+    payload: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+    event_id: str | None = None,
+    occurred_at: datetime | None = None,
 ) -> DomainEvent:
     """
     创建领域事件的便捷函数
@@ -509,7 +510,7 @@ def create_event(
     return DomainEvent(
         event_id=event_id or str(uuid4()),
         event_type=event_type,
-        occurred_at=occurred_at or datetime.now(timezone.utc),
+        occurred_at=occurred_at or datetime.now(UTC),
         payload=payload,
         metadata=metadata or {},
     )
@@ -518,7 +519,7 @@ def create_event(
 def create_subscription(
     event_type: EventType,
     handler: EventHandler,
-    filter_criteria: Optional[Dict[str, Any]] = None,
+    filter_criteria: dict[str, Any] | None = None,
     priority: int = 100,
 ) -> EventSubscription:
     """

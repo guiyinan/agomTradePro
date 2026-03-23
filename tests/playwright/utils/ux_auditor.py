@@ -5,12 +5,12 @@ Identifies common UX problems like Admin exposure, missing modals, etc.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
 from pathlib import Path
+from typing import List, Optional
 
 from playwright.sync_api import Page
 
-from tests.playwright.config.selectors import common, admin, modal
+from tests.playwright.config.selectors import admin, common, modal
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 
 
@@ -32,7 +32,7 @@ class UXIssue:
     description: str
     url: str
     evidence: str  # What was observed
-    screenshot_path: Optional[str] = None
+    screenshot_path: str | None = None
     recommendation: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
@@ -40,20 +40,20 @@ class UXIssue:
 class UXAuditor:
     """Automated UX issue detector."""
 
-    def __init__(self, screenshot_utils: Optional[ScreenshotUtils] = None):
+    def __init__(self, screenshot_utils: ScreenshotUtils | None = None):
         """Initialize UX auditor.
 
         Args:
             screenshot_utils: Screenshot utility instance
         """
         self.screenshot = screenshot_utils or ScreenshotUtils()
-        self.issues: List[UXIssue] = []
+        self.issues: list[UXIssue] = []
 
     def reset(self) -> None:
         """Clear all recorded issues."""
         self.issues = []
 
-    def audit_page(self, page: Page, page_name: str) -> List[UXIssue]:
+    def audit_page(self, page: Page, page_name: str) -> list[UXIssue]:
         """Perform a comprehensive UX audit on a page.
 
         Args:
@@ -93,7 +93,7 @@ class UXAuditor:
         self.issues.extend(page_issues)
         return page_issues
 
-    def _check_admin_exposure(self, page: Page, url: str, page_name: str) -> List[UXIssue]:
+    def _check_admin_exposure(self, page: Page, url: str, page_name: str) -> list[UXIssue]:
         """Check for Django Admin exposure.
 
         Args:
@@ -183,7 +183,7 @@ class UXAuditor:
 
         return issues
 
-    def _check_navigation(self, page: Page, url: str, page_name: str) -> List[UXIssue]:
+    def _check_navigation(self, page: Page, url: str, page_name: str) -> list[UXIssue]:
         """Check for navigation issues.
 
         Args:
@@ -243,7 +243,7 @@ class UXAuditor:
 
         return issues
 
-    def _check_crud_modals(self, page: Page, url: str, page_name: str) -> List[UXIssue]:
+    def _check_crud_modals(self, page: Page, url: str, page_name: str) -> list[UXIssue]:
         """Check if CRUD operations use modals instead of page navigation.
 
         Args:
@@ -285,7 +285,7 @@ class UXAuditor:
                         issue_id=f"NO_MODAL_{page_name.upper()}_{i}",
                         category="modal",
                         severity=Severity.MEDIUM,
-                        title=f"CRUD button navigates to new page instead of using modal",
+                        title="CRUD button navigates to new page instead of using modal",
                         description=f"The '{button_text}' button navigates to a new page ({href}) instead of opening a modal dialog.",
                         url=url,
                         evidence=f"Button href: {href}",
@@ -321,7 +321,7 @@ class UXAuditor:
 
         return issues
 
-    def _check_loading_indicators(self, page: Page, url: str, page_name: str) -> List[UXIssue]:
+    def _check_loading_indicators(self, page: Page, url: str, page_name: str) -> list[UXIssue]:
         """Check for loading indicators.
 
         Args:
@@ -357,7 +357,7 @@ class UXAuditor:
 
         return issues
 
-    def _check_form_validation(self, page: Page, url: str, page_name: str) -> List[UXIssue]:
+    def _check_form_validation(self, page: Page, url: str, page_name: str) -> list[UXIssue]:
         """Check for form validation feedback.
 
         Args:
@@ -402,7 +402,7 @@ class UXAuditor:
 
         return issues
 
-    def _check_responsive_design(self, page: Page, url: str, page_name: str) -> List[UXIssue]:
+    def _check_responsive_design(self, page: Page, url: str, page_name: str) -> list[UXIssue]:
         """Check for responsive design considerations.
 
         Args:
@@ -445,7 +445,7 @@ class UXAuditor:
         parsed = urlparse(url)
         return f"{parsed.scheme}://{parsed.netloc}"
 
-    def get_issues_by_severity(self, severity: Severity) -> List[UXIssue]:
+    def get_issues_by_severity(self, severity: Severity) -> list[UXIssue]:
         """Get all issues of a specific severity.
 
         Args:
@@ -456,7 +456,7 @@ class UXAuditor:
         """
         return [issue for issue in self.issues if issue.severity == severity]
 
-    def get_issues_by_category(self, category: str) -> List[UXIssue]:
+    def get_issues_by_category(self, category: str) -> list[UXIssue]:
         """Get all issues of a specific category.
 
         Args:

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+import os
 from collections import deque
 from datetime import datetime
 from threading import Lock
-import logging
-import os
 
 _MAX_ENTRIES = max(100, int(os.getenv("ADMIN_LOG_BUFFER_SIZE", "5000")))
 _BUFFER = deque(maxlen=_MAX_ENTRIES)

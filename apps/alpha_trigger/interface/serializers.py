@@ -6,20 +6,20 @@ Alpha 事件触发的 API 序列化器。
 负责输入验证和输出格式化。
 """
 
-from rest_framework import serializers
 from typing import Any, Dict, List, Optional
 
+from rest_framework import serializers
+
 from ..domain.entities import (
-    AlphaTrigger,
     AlphaCandidate,
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
+    AlphaTrigger,
+    CandidateStatus,
     InvalidationCondition,
     InvalidationType,
-    CandidateStatus,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
 )
-
 
 # ========== Enum Serializers ==========
 

@@ -10,13 +10,14 @@ Tests for:
 P0-2: Verify that read operations are NOT throttled by BacktestRateThrottle
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from core.throttling import (
     BacktestRateThrottle,
-    WriteRateThrottle,
     BurstRateThrottle,
+    WriteRateThrottle,
     get_client_ip,
 )
 

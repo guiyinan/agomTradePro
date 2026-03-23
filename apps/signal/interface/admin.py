@@ -3,6 +3,7 @@ Django Admin for Investment Signals.
 """
 
 from django.contrib import admin
+
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
 

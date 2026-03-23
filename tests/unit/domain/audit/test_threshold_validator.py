@@ -4,20 +4,20 @@ Unit tests for ThresholdValidator class in Audit module.
 Tests for batch validation functionality and report generation.
 """
 
-import pytest
 from datetime import date, timedelta
-from typing import List, Dict
+from typing import Dict, List
+
+import pytest
 
 from apps.audit.domain.entities import (
-    RegimeSnapshot,
-    IndicatorThresholdConfig,
     IndicatorPerformanceReport,
-    ValidationStatus,
-    ThresholdValidationReport,
+    IndicatorThresholdConfig,
     RecommendedAction,
+    RegimeSnapshot,
+    ThresholdValidationReport,
+    ValidationStatus,
 )
 from apps.audit.domain.services import ThresholdValidator
-
 
 # ============ Fixtures ============
 
@@ -372,7 +372,7 @@ class TestBatchValidationScenarios:
                 confidence=0.8,
                 growth_momentum_z=1.0,
                 inflation_momentum_z=0.5,
-                distribution={r: 0.25 for r in regimes}
+                distribution=dict.fromkeys(regimes, 0.25)
             )
             for d in range(12)
         ]

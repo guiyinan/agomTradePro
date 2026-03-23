@@ -5,22 +5,22 @@ Account Domain Services
 遵循四层架构约束：只使用 Python 标准库。
 """
 
-from decimal import Decimal
-from typing import List, Dict, Tuple, Optional, Any, Union
 from dataclasses import dataclass
-from datetime import datetime, date
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from apps.account.domain.entities import (
-    Position,
     AccountProfile,
-    RiskTolerance,
-    AssetClassType,
-    Region,
-    CrossBorderFlag,
     AssetAllocation,
-    RegimeMatchAnalysis,
+    AssetClassType,
+    CrossBorderFlag,
     InvestmentStyle,
+    Position,
     PositionStatus,
+    RegimeMatchAnalysis,
+    Region,
+    RiskTolerance,
 )
 
 
@@ -45,7 +45,7 @@ class PositionService:
     """
 
     # 准入矩阵（预定义，与 signal/domain/rules.py 保持一致）
-    ELIGIBILITY_MATRIX: Dict[Tuple[str, str], Dict[str, str]] = {
+    ELIGIBILITY_MATRIX: dict[tuple[str, str], dict[str, str]] = {
         # (asset_class, region) -> {regime: eligibility}
         ("equity", "CN"): {
             "Recovery": "preferred",
@@ -184,7 +184,7 @@ class PositionService:
 
     @staticmethod
     def calculate_regime_match_score(
-        positions: List[Position],
+        positions: list[Position],
         current_regime: str,
     ) -> RegimeMatchAnalysis:
         """
@@ -270,10 +270,10 @@ class PositionService:
     def _generate_regime_recommendations(
         regime: str,
         score: float,
-        preferred: List[str],
-        neutral: List[str],
-        hostile: List[str],
-    ) -> List[str]:
+        preferred: list[str],
+        neutral: list[str],
+        hostile: list[str],
+    ) -> list[str]:
         """生成Regime匹配建议"""
         recommendations = []
 
@@ -302,9 +302,9 @@ class PositionService:
 
     @staticmethod
     def calculate_asset_allocation(
-        positions: List[Position],
+        positions: list[Position],
         dimension: str = "asset_class",
-    ) -> List[AssetAllocation]:
+    ) -> list[AssetAllocation]:
         """
         计算资产配置分布
 
@@ -319,7 +319,7 @@ class PositionService:
             return []
 
         # 按维度分组
-        groups: Dict[str, Dict[str, Any]] = {}
+        groups: dict[str, dict[str, Any]] = {}
 
         for pos in positions:
             # 获取维度值
@@ -360,9 +360,9 @@ class PositionService:
 
     @staticmethod
     def assess_portfolio_risk(
-        positions: List[Position],
+        positions: list[Position],
         account_capital: Decimal,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         评估组合风险
 
@@ -393,7 +393,7 @@ class PositionService:
         concentration_ratio = top3_value / total_value if total_value > 0 else 0
 
         # 计算地区分散度（使用赫芬达尔指数）
-        region_counts: Dict[str, float] = {}
+        region_counts: dict[str, float] = {}
         for pos in positions:
             region = pos.region.value
             region_counts[region] = region_counts.get(region, 0) + float(pos.market_value)
@@ -450,7 +450,7 @@ class StopLossService:
         highest_price: float,
         stop_loss_pct: float,
         stop_loss_type: str,
-        trailing_stop_pct: Optional[float] = None,
+        trailing_stop_pct: float | None = None,
     ) -> StopLossCheckResult:
         """
         检查是否触发止损
@@ -555,7 +555,7 @@ class StopLossService:
         current_highest: float,
         current_price: float,
         current_price_time: datetime,
-        last_update_time: Optional[datetime],
+        last_update_time: datetime | None,
     ) -> tuple[float, datetime]:
         """
         更新移动止损的最高价
@@ -582,7 +582,7 @@ class TakeProfitCheckResult:
     take_profit_price: float  # 止盈价格
     current_price: float      # 当前价格
     unrealized_pnl_pct: float # 未实现盈亏百分比
-    partial_level: Optional[int] = None  # 分批止盈级别
+    partial_level: int | None = None  # 分批止盈级别
 
 
 class TakeProfitService:
@@ -595,7 +595,7 @@ class TakeProfitService:
         entry_price: float,
         current_price: float,
         take_profit_pct: float,
-        partial_levels: Optional[List[float]] = None,
+        partial_levels: list[float] | None = None,
     ) -> TakeProfitCheckResult:
         """
         检查是否触发止盈
@@ -670,7 +670,7 @@ class VolatilityCalculator:
 
     @staticmethod
     def calculate_volatility(
-        returns: List[float],
+        returns: list[float],
         window_days: int = 30,
         annualize: bool = True,
     ) -> VolatilityMetrics:
@@ -709,9 +709,9 @@ class VolatilityCalculator:
 
     @staticmethod
     def calculate_portfolio_volatility(
-        daily_snapshots: List[Dict[str, float]],
+        daily_snapshots: list[dict[str, float]],
         window_days: int = 30,
-    ) -> List[VolatilityMetrics]:
+    ) -> list[VolatilityMetrics]:
         """
         计算投资组合滚动波动率
 
@@ -881,9 +881,9 @@ class LimitCheckService:
 
     @staticmethod
     def check_style_limit(
-        positions: List[Position],
+        positions: list[Position],
         new_position_style: str,
-        limits: Optional[MultiDimensionLimits] = None,
+        limits: MultiDimensionLimits | None = None,
     ) -> LimitCheckResult:
         """
         检查投资风格限额
@@ -928,9 +928,9 @@ class LimitCheckService:
 
     @staticmethod
     def check_sector_limit(
-        positions: List[Position],
+        positions: list[Position],
         new_position_sector: str,
-        limits: Optional[MultiDimensionLimits] = None,
+        limits: MultiDimensionLimits | None = None,
     ) -> LimitCheckResult:
         """
         检查行业板块限额
@@ -974,10 +974,10 @@ class LimitCheckService:
 
     @staticmethod
     def check_currency_limit(
-        positions: List[Position],
+        positions: list[Position],
         new_position_currency: str,
         base_currency: str = "CNY",
-        limits: Optional[MultiDimensionLimits] = None,
+        limits: MultiDimensionLimits | None = None,
     ) -> LimitCheckResult:
         """
         检查币种限额
@@ -1032,13 +1032,13 @@ class LimitCheckService:
 
     @staticmethod
     def check_all_limits(
-        positions: List[Position],
+        positions: list[Position],
         new_asset_code: str,
         new_style: str,
         new_sector: str,
         new_currency: str,
-        limits: Optional[MultiDimensionLimits] = None,
-    ) -> List[LimitCheckResult]:
+        limits: MultiDimensionLimits | None = None,
+    ) -> list[LimitCheckResult]:
         """
         检查所有限额
 
@@ -1083,7 +1083,7 @@ class LimitCheckService:
 
     @staticmethod
     def should_reject_position(
-        limit_results: List[LimitCheckResult],
+        limit_results: list[LimitCheckResult],
     ) -> tuple[bool, str]:
         """
         判断是否应该拒绝新增持仓

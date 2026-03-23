@@ -4,9 +4,10 @@ Unit tests for field encryption service.
 Tests the FieldEncryptionService class from shared.infrastructure.crypto.
 """
 import os
+
+import django
 import pytest
 from cryptography.fernet import InvalidToken
-import django
 from django.conf import settings
 
 from shared.infrastructure.crypto import (

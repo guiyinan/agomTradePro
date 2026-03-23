@@ -12,12 +12,11 @@ Features:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Dict, List, Optional
 
-from ..infrastructure.repositories import DjangoAuditRepository
 from ..infrastructure.failure_counter import get_audit_failure_counter
-
+from ..infrastructure.repositories import DjangoAuditRepository
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +36,14 @@ class HealthCheckResult:
     component: str
     status: str  # OK, WARNING, ERROR
     message: str
-    details: Dict[str, any]
+    details: dict[str, any]
     checked_at: datetime
 
     def is_healthy(self) -> bool:
         """是否健康"""
         return self.status == "OK"
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """转换为字典"""
         return {
             "component": self.component,
@@ -67,15 +66,15 @@ class AuditHealthReport:
         generated_at: 生成时间
     """
     overall_status: str  # OK, WARNING, ERROR
-    checks: List[HealthCheckResult]
-    metrics: Dict[str, any]
+    checks: list[HealthCheckResult]
+    metrics: dict[str, any]
     generated_at: datetime
 
     def is_healthy(self) -> bool:
         """是否健康"""
         return self.overall_status == "OK"
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """转换为字典"""
         return {
             "overall_status": self.overall_status,
@@ -103,8 +102,8 @@ class AuditHealthChecker:
 
     def __init__(
         self,
-        warning_threshold: Optional[int] = None,
-        error_threshold: Optional[int] = None,
+        warning_threshold: int | None = None,
+        error_threshold: int | None = None,
     ):
         """
         初始化健康检查器
@@ -146,7 +145,7 @@ class AuditHealthChecker:
             overall_status=overall_status,
             checks=checks,
             metrics=metrics,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
     def _check_failure_counter(self) -> HealthCheckResult:
@@ -185,7 +184,7 @@ class AuditHealthChecker:
                     "warning_threshold": self.warning_threshold,
                     "error_threshold": self.error_threshold,
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -195,7 +194,7 @@ class AuditHealthChecker:
                 status="ERROR",
                 message=f"Failed to check failure counter: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
     def _check_database_connection(self) -> HealthCheckResult:
@@ -220,7 +219,7 @@ class AuditHealthChecker:
                     "database": connection.settings_dict["NAME"],
                     "engine": connection.settings_dict["ENGINE"],
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -230,7 +229,7 @@ class AuditHealthChecker:
                 status="ERROR",
                 message=f"Database connection failed: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
     def _check_audit_tables_accessible(self) -> HealthCheckResult:
@@ -253,7 +252,7 @@ class AuditHealthChecker:
                 details={
                     "operation_log_count": count,
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -263,10 +262,10 @@ class AuditHealthChecker:
                 status="ERROR",
                 message=f"Cannot access audit tables: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
-    def _calculate_overall_status(self, checks: List[HealthCheckResult]) -> str:
+    def _calculate_overall_status(self, checks: list[HealthCheckResult]) -> str:
         """
         计算总体状态
 
@@ -286,7 +285,7 @@ class AuditHealthChecker:
         else:
             return "OK"
 
-    def _get_audit_metrics(self) -> Dict[str, any]:
+    def _get_audit_metrics(self) -> dict[str, any]:
         """
         获取审计模块指标
 
@@ -317,12 +316,12 @@ class AuditHealthChecker:
 
 
 # 全局健康检查器单例
-_health_checker: Optional[AuditHealthChecker] = None
+_health_checker: AuditHealthChecker | None = None
 
 
 def get_health_checker(
-    warning_threshold: Optional[int] = None,
-    error_threshold: Optional[int] = None,
+    warning_threshold: int | None = None,
+    error_threshold: int | None = None,
 ) -> AuditHealthChecker:
     """
     获取健康检查器单例
@@ -346,8 +345,8 @@ def get_health_checker(
 
 
 def check_audit_health(
-    warning_threshold: Optional[int] = None,
-    error_threshold: Optional[int] = None,
+    warning_threshold: int | None = None,
+    error_threshold: int | None = None,
 ) -> AuditHealthReport:
     """
     检查审计模块健康状态

@@ -4,8 +4,9 @@ Unit Tests for M4 WP-M4-01: Operator Dashboard API.
 Tests verify the dashboard views return structured data.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.agent_runtime.interface.views import OperatorDashboardViewSet
@@ -31,9 +32,9 @@ class TestOperatorDashboard:
     @pytest.fixture
     def task_with_data(self, staff_user):
         from apps.agent_runtime.infrastructure.models import (
+            AgentProposalModel,
             AgentTaskModel,
             AgentTimelineEventModel,
-            AgentProposalModel,
         )
 
         task = AgentTaskModel._default_manager.create(
@@ -159,7 +160,7 @@ class TestOperatorDashboard:
 
     def test_operator_group_allowed(self, factory):
         """User in 'operator' group can access dashboard."""
-        from django.contrib.auth.models import User, Group
+        from django.contrib.auth.models import Group, User
         operator_group, _ = Group.objects.get_or_create(name="operator")
         op_user = User.objects.create_user(
             username="dashboard_operator",

@@ -9,16 +9,17 @@ Integration tests for Observer Grant API.
 - 数量限制测试（最多 10 个）
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (
-    PortfolioObserverGrantModel,
-    PortfolioModel,
     CurrencyModel,
+    PortfolioModel,
+    PortfolioObserverGrantModel,
 )
 
 
@@ -121,7 +122,7 @@ class TestObserverGrantCreateAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        expires_at = datetime.now(UTC) + timedelta(days=30)
         payload = {
             'observer_user_id': data['observer'].id,
             'expires_at': expires_at.isoformat(),
@@ -222,7 +223,7 @@ class TestObserverGrantCreateAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        past_time = datetime.now(timezone.utc) - timedelta(days=1)
+        past_time = datetime.now(UTC) - timedelta(days=1)
         payload = {
             'observer_user_id': data['observer'].id,
             'expires_at': past_time.isoformat(),
@@ -465,7 +466,7 @@ class TestObserverGrantDeleteAPI:
             owner_user_id=data['owner'],
             observer_user_id=data['observer'],
             status='revoked',
-            revoked_at=datetime.now(timezone.utc),
+            revoked_at=datetime.now(UTC),
             revoked_by=data['owner'],
         )
 
@@ -602,7 +603,7 @@ class TestObserverGrantUpdateAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        new_expires = datetime.now(timezone.utc) + timedelta(days=60)
+        new_expires = datetime.now(UTC) + timedelta(days=60)
         payload = {
             'expires_at': new_expires.isoformat(),
         }
@@ -628,7 +629,7 @@ class TestObserverGrantUpdateAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        past_time = datetime.now(timezone.utc) - timedelta(days=1)
+        past_time = datetime.now(UTC) - timedelta(days=1)
         payload = {
             'expires_at': past_time.isoformat(),
         }

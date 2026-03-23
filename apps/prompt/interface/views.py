@@ -4,38 +4,48 @@ DRF Views for AI Prompt Management.
 Django Rest Framework views for API endpoints.
 """
 
-from django.shortcuts import render
-from rest_framework import viewsets, status
+import logging
+
+from django.shortcuts import get_object_or_404, render
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-
-from ..infrastructure.models import PromptTemplateORM, ChainConfigORM, PromptExecutionLogORM
-from ..infrastructure.repositories import (
-    DjangoPromptRepository, DjangoChainRepository, DjangoExecutionLogRepository
-)
-from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
-from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.adapters.function_registry import create_builtin_tools
-from ..application.use_cases import (
-    ExecutePromptUseCase, ExecuteChainUseCase,
-    GenerateReportUseCase, GenerateSignalUseCase
-)
-from .serializers import (
-    PromptTemplateSerializer, PromptTemplateCreateSerializer,
-    ChainConfigSerializer, ChainConfigCreateSerializer,
-    ExecutePromptSerializer, ExecutePromptResponseSerializer,
-    ExecuteChainSerializer, ExecuteChainResponseSerializer,
-    GenerateReportSerializer, GenerateReportResponseSerializer,
-    GenerateSignalSerializer, GenerateSignalResponseSerializer,
-    ChatRequestSerializer, ChatResponseSerializer,
-    ExecutionLogSerializer
-)
-
-import logging
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+
+from ..application.use_cases import (
+    ExecuteChainUseCase,
+    ExecutePromptUseCase,
+    GenerateReportUseCase,
+    GenerateSignalUseCase,
+)
+from ..infrastructure.adapters.function_registry import create_builtin_tools
+from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
+from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
+from ..infrastructure.models import ChainConfigORM, PromptExecutionLogORM, PromptTemplateORM
+from ..infrastructure.repositories import (
+    DjangoChainRepository,
+    DjangoExecutionLogRepository,
+    DjangoPromptRepository,
+)
+from .serializers import (
+    ChainConfigCreateSerializer,
+    ChainConfigSerializer,
+    ChatRequestSerializer,
+    ChatResponseSerializer,
+    ExecuteChainResponseSerializer,
+    ExecuteChainSerializer,
+    ExecutePromptResponseSerializer,
+    ExecutePromptSerializer,
+    ExecutionLogSerializer,
+    GenerateReportResponseSerializer,
+    GenerateReportSerializer,
+    GenerateSignalResponseSerializer,
+    GenerateSignalSerializer,
+    PromptTemplateCreateSerializer,
+    PromptTemplateSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -384,19 +394,19 @@ class AgentExecuteView(APIView):
 
     def post(self, request):
         """执行 Agent 任务"""
-        from .serializers import AgentExecuteRequestSerializer, AgentExecuteResponseSerializer
         from ..application.agent_runtime import AgentRuntime
         from ..application.context_builders import (
+            AssetPoolContextProvider,
             ContextBundleBuilder,
             MacroContextProvider,
-            RegimeContextProvider,
             PortfolioContextProvider,
+            RegimeContextProvider,
             SignalContextProvider,
-            AssetPoolContextProvider,
         )
         from ..application.tool_execution import create_agent_tool_registry
         from ..application.trace_logging import AgentExecutionLogger
         from ..domain.agent_entities import AgentExecutionRequest
+        from .serializers import AgentExecuteRequestSerializer, AgentExecuteResponseSerializer
 
         serializer = AgentExecuteRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -414,9 +424,9 @@ class AgentExecuteView(APIView):
             asset_pool_provider = None
             try:
                 from apps.strategy.infrastructure.providers import (
+                    DjangoAssetPoolProvider,
                     DjangoPortfolioDataProvider,
                     DjangoSignalProvider,
-                    DjangoAssetPoolProvider,
                 )
                 portfolio_provider = DjangoPortfolioDataProvider()
                 signal_provider = DjangoSignalProvider()

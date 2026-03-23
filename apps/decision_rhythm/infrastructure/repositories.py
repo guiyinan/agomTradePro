@@ -12,30 +12,28 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist
 
 from ..domain.entities import (
-    DecisionQuota,
+    ApprovalStatus,
     CooldownPeriod,
+    DecisionPriority,
+    DecisionQuota,
     DecisionRequest,
     DecisionResponse,
-    DecisionPriority,
-    QuotaPeriod,
     ExecutionStatus,
     ExecutionTarget,
-    DecisionPriority,
-    ApprovalStatus,
+    QuotaPeriod,
     RecommendationSide,
 )
 from .models import (
-    DecisionQuotaModel,
     CooldownPeriodModel,
+    DecisionQuotaModel,
     DecisionRequestModel,
     DecisionResponseModel,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ class QuotaRepository:
 
     def get_quota(
         self, period: QuotaPeriod, account_id: str = "default"
-    ) -> Optional[DecisionQuota]:
+    ) -> DecisionQuota | None:
         """
         获取配额
 
@@ -85,9 +83,9 @@ class QuotaRepository:
 
     def get_all_quotas(
         self,
-        period: Optional[QuotaPeriod] = None,
-        account_id: Optional[str] = None,
-    ) -> List[DecisionQuota]:
+        period: QuotaPeriod | None = None,
+        account_id: str | None = None,
+    ) -> list[DecisionQuota]:
         """
         获取所有配额
 
@@ -206,8 +204,8 @@ class CooldownRepository:
     def get_active_cooldown(
         self,
         asset_code: str,
-        direction: Optional[str] = None,
-    ) -> Optional[CooldownPeriod]:
+        direction: str | None = None,
+    ) -> CooldownPeriod | None:
         """
         获取活跃冷却期
 
@@ -229,7 +227,7 @@ class CooldownRepository:
     def get_remaining_hours(
         self,
         asset_code: str,
-        direction: Optional[str] = None,
+        direction: str | None = None,
     ) -> float:
         """
         获取剩余冷却小时数
@@ -290,7 +288,7 @@ class CooldownRepository:
 
             return model.to_domain()
 
-    def get_all_active(self) -> List[CooldownPeriod]:
+    def get_all_active(self) -> list[CooldownPeriod]:
         """
         获取所有活跃冷却期
 
@@ -321,7 +319,7 @@ class DecisionRequestRepository:
         self.model = DecisionRequestModel
         self.response_model = DecisionResponseModel
 
-    def get_by_id(self, request_id: str) -> Optional[DecisionRequest]:
+    def get_by_id(self, request_id: str) -> DecisionRequest | None:
         """
         按 ID 获取请求
 
@@ -340,8 +338,8 @@ class DecisionRequestRepository:
     def get_recent(
         self,
         days: int = 30,
-        asset_code: Optional[str] = None,
-    ) -> List[DecisionRequest]:
+        asset_code: str | None = None,
+    ) -> list[DecisionRequest]:
         """
         获取最近的请求
 
@@ -479,10 +477,10 @@ class DecisionRequestRepository:
     def update_execution_status_to_executed(
         self,
         request_id: str,
-        execution_ref: Optional[Dict[str, Any]],
+        execution_ref: dict[str, Any] | None,
     ) -> bool:
         """更新请求执行状态为已执行。"""
-        update_fields: Dict[str, Any] = {
+        update_fields: dict[str, Any] = {
             "execution_status": ExecutionStatus.EXECUTED.value,
             "executed_at": timezone.now(),
         }
@@ -518,7 +516,7 @@ class DecisionRequestRepository:
     def get_statistics(
         self,
         days: int = 30,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取统计信息
 
@@ -595,7 +593,7 @@ class DecisionRequestRepository:
             logger.warning(f"Request not found for execution update: {request_id}")
             return False
 
-    def get_pending_for_execution(self) -> List[DecisionRequest]:
+    def get_pending_for_execution(self) -> list[DecisionRequest]:
         """
         获取待执行的决策请求
 
@@ -608,7 +606,7 @@ class DecisionRequestRepository:
 
         return [m.to_domain() for m in models]
 
-    def get_by_candidate_id(self, candidate_id: str) -> Optional[DecisionRequest]:
+    def get_by_candidate_id(self, candidate_id: str) -> DecisionRequest | None:
         """
         按候选 ID 获取最近的决策请求
 
@@ -631,7 +629,7 @@ class DecisionRequestRepository:
             logger.error(f"Failed to get request by candidate_id: {e}", exc_info=True)
             return None
 
-    def get_open_by_asset_code(self, asset_code: str) -> Optional[DecisionRequest]:
+    def get_open_by_asset_code(self, asset_code: str) -> DecisionRequest | None:
         """
         按证券代码获取最近的待执行请求（已批准且未完成）。
 
@@ -652,7 +650,7 @@ class DecisionRequestRepository:
             logger.error(f"Failed to get open request by asset_code: {e}", exc_info=True)
             return None
 
-    def get_open_by_candidate_id(self, candidate_id: str) -> Optional[DecisionRequest]:
+    def get_open_by_candidate_id(self, candidate_id: str) -> DecisionRequest | None:
         """
         按候选 ID 获取最近的待执行请求（已批准且未完成）。
         """
@@ -722,7 +720,7 @@ class ValuationSnapshotRepository:
         model.save()
         return model.to_domain()
 
-    def get_by_id(self, snapshot_id: str) -> Optional[Any]:
+    def get_by_id(self, snapshot_id: str) -> Any | None:
         """
         根据 ID 获取估值快照
 
@@ -744,7 +742,7 @@ class ValuationSnapshotRepository:
         self,
         security_code: str,
         limit: int = 5,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         获取指定证券的最新估值快照
 
@@ -767,7 +765,7 @@ class ValuationSnapshotRepository:
         self,
         security_code: str,
         valuation_method: str,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         获取指定证券和方法的最新估值快照
 
@@ -848,7 +846,7 @@ class InvestmentRecommendationRepository:
         model.save()
         return model.to_domain()
 
-    def get_by_id(self, recommendation_id: str) -> Optional[Any]:
+    def get_by_id(self, recommendation_id: str) -> Any | None:
         """
         根据 ID 获取投资建议
 
@@ -871,7 +869,7 @@ class InvestmentRecommendationRepository:
     def get_active_recommendations(
         self,
         include_executed: bool = False,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         获取活跃的投资建议
 
@@ -895,7 +893,7 @@ class InvestmentRecommendationRepository:
         self,
         account_id: str,
         include_executed: bool = False,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         获取指定账户的活跃建议
 
@@ -918,7 +916,7 @@ class InvestmentRecommendationRepository:
     def get_all_active(
         self,
         include_executed: bool = False,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         获取所有活跃建议
 
@@ -933,8 +931,8 @@ class InvestmentRecommendationRepository:
     def get_by_security(
         self,
         security_code: str,
-        status: Optional[str] = None,
-    ) -> List[Any]:
+        status: str | None = None,
+    ) -> list[Any]:
         """
         获取指定证券的建议
 
@@ -961,7 +959,7 @@ class InvestmentRecommendationRepository:
         self,
         recommendation_id: str,
         status: str,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         更新建议状态
 
@@ -1042,7 +1040,7 @@ class ExecutionApprovalRequestRepository:
         model.save()
         return model.to_domain()
 
-    def get_by_id(self, request_id: str) -> Optional[Any]:
+    def get_by_id(self, request_id: str) -> Any | None:
         """
         根据 ID 获取执行审批请求
 
@@ -1062,8 +1060,8 @@ class ExecutionApprovalRequestRepository:
 
     def get_pending_requests(
         self,
-        account_id: Optional[str] = None,
-    ) -> List[Any]:
+        account_id: str | None = None,
+    ) -> list[Any]:
         """
         获取待审批的请求
 
@@ -1089,8 +1087,8 @@ class ExecutionApprovalRequestRepository:
         self,
         account_id: str,
         security_code: str,
-        side: Optional[str] = None,
-    ) -> List[Any]:
+        side: str | None = None,
+    ) -> list[Any]:
         """
         获取指定账户和证券的审批请求
 
@@ -1120,7 +1118,7 @@ class ExecutionApprovalRequestRepository:
         account_id: str,
         security_code: str,
         side: str,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         获取指定聚合键的待审批请求
 
@@ -1151,8 +1149,8 @@ class ExecutionApprovalRequestRepository:
         self,
         request_id: str,
         approval_status: ApprovalStatus,
-        reviewer_comments: Optional[str] = None,
-    ) -> Optional[Any]:
+        reviewer_comments: str | None = None,
+    ) -> Any | None:
         """
         更新审批状态并同步到关联的 UnifiedRecommendation
 
@@ -1164,8 +1162,8 @@ class ExecutionApprovalRequestRepository:
         Returns:
             更新后的实体，不存在则返回 None
         """
-        from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
         from ..domain.entities import RecommendationStatus
+        from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
 
         try:
             with transaction.atomic():
@@ -1252,7 +1250,7 @@ class ExecutionApprovalRequestRepository:
     def get_by_regime_source(
         self,
         regime_source: str,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         根据 Regime 来源获取审批请求
 
@@ -1276,7 +1274,7 @@ class ExecutionApprovalRequestRepository:
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         获取指定时间段内已执行的请求
 
@@ -1322,8 +1320,8 @@ class UnifiedRecommendationRepository:
         Returns:
             保存后的实体
         """
-        from .models import UnifiedRecommendationModel
         from ..domain.entities import RecommendationStatus
+        from .models import UnifiedRecommendationModel
 
         # 转换 reason_codes 和其他列表字段
         reason_codes = recommendation.reason_codes if hasattr(recommendation, "reason_codes") else []
@@ -1403,8 +1401,8 @@ class UnifiedRecommendationRepository:
     def get_by_account(
         self,
         account_id: str,
-        status: Optional[str] = None,
-    ) -> List[Any]:
+        status: str | None = None,
+    ) -> list[Any]:
         """
         按账户获取推荐
 
@@ -1425,7 +1423,7 @@ class UnifiedRecommendationRepository:
         query = query.order_by("-created_at")
         return [self._model_to_entity(model) for model in query]
 
-    def get_conflicts(self, account_id: str) -> List[Any]:
+    def get_conflicts(self, account_id: str) -> list[Any]:
         """
         获取冲突推荐
 
@@ -1435,8 +1433,8 @@ class UnifiedRecommendationRepository:
         Returns:
             冲突推荐列表
         """
-        from .models import UnifiedRecommendationModel
         from ..domain.entities import RecommendationStatus
+        from .models import UnifiedRecommendationModel
 
         models = UnifiedRecommendationModel.objects.filter(
             account_id=account_id,
@@ -1452,8 +1450,8 @@ class UnifiedRecommendationRepository:
         Args:
             recommendation_id: 推荐 ID
         """
-        from .models import UnifiedRecommendationModel
         from ..domain.entities import RecommendationStatus
+        from .models import UnifiedRecommendationModel
 
         UnifiedRecommendationModel.objects.filter(
             recommendation_id=recommendation_id
@@ -1469,11 +1467,12 @@ class UnifiedRecommendationRepository:
         Returns:
             实体实例
         """
-        from ..domain.entities import (
-            UnifiedRecommendation,
-            RecommendationStatus,
-        )
         from decimal import Decimal
+
+        from ..domain.entities import (
+            RecommendationStatus,
+            UnifiedRecommendation,
+        )
 
         # 解析状态
         try:

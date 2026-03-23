@@ -20,7 +20,7 @@ class ExecutionTaskFacade(BaseContextFacade):
 
     domain = "execution"
 
-    def fetch_portfolio_summary(self) -> Dict[str, Any]:
+    def fetch_portfolio_summary(self) -> dict[str, Any]:
         """Enhanced portfolio summary with position details for execution."""
         base = super().fetch_portfolio_summary()
         if base.get("status") != "ok":
@@ -39,7 +39,7 @@ class ExecutionTaskFacade(BaseContextFacade):
             logger.debug("Position details unavailable: %s", e)
         return base
 
-    def fetch_risk_alerts_summary(self) -> Dict[str, Any]:
+    def fetch_risk_alerts_summary(self) -> dict[str, Any]:
         """Enhanced risk summary with beta gate test results."""
         base = super().fetch_risk_alerts_summary()
         try:

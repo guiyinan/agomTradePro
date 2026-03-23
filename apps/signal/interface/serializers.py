@@ -4,12 +4,13 @@ DRF Serializers for Signal API.
 P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
-from rest_framework import serializers
 from datetime import date
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from apps.signal.infrastructure.models import InvestmentSignalModel
+from rest_framework import serializers
+
 from apps.signal.domain.entities import SignalStatus
+from apps.signal.infrastructure.models import InvestmentSignalModel
 from shared.infrastructure.sanitization import sanitize_plain_text
 
 

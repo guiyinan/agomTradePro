@@ -1,62 +1,62 @@
 """
-Events Application DTOs
+Events Application Layer DTOs
 
-事件数据传输对象定义。
+事件相关的数据传输对象。
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from django.utils import timezone
-
-from ..domain.entities import EventType
-
-
-# ========== 请求 DTOs ==========
+if TYPE_CHECKING:
+    from .use_cases import PublishEventRequest
 
 
 @dataclass
 class EventPublishRequestDTO:
     """发布事件请求 DTO"""
+
     event_type: str
-    payload: Dict[str, Any]
-    metadata: Optional[Dict[str, Any]] = None
-    event_id: Optional[str] = None
-    occurred_at: Optional[str] = None  # ISO 格式时间字符串
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
+    payload: dict[str, Any]
+    metadata: dict[str, Any] | None = None
+    event_id: str | None = None
+    occurred_at: str | None = None  # ISO 格式时间字符串
+    correlation_id: str | None = None
+    causation_id: str | None = None
 
 
 @dataclass
 class EventSubscriptionRequestDTO:
     """事件订阅请求 DTO"""
+
     event_type: str
     handler_class: str  # 处理器类路径
-    filter_criteria: Optional[Dict[str, Any]] = None
+    filter_criteria: dict[str, Any] | None = None
     priority: int = 100
 
 
 @dataclass
 class EventQueryRequestDTO:
     """事件查询请求 DTO"""
-    event_type: Optional[str] = None
-    event_types: Optional[List[str]] = None
-    correlation_id: Optional[str] = None
-    since: Optional[str] = None  # ISO 格式时间字符串
-    until: Optional[str] = None  # ISO 格式时间字符串
+
+    event_type: str | None = None
+    event_types: list[str] | None = None
+    correlation_id: str | None = None
+    since: str | None = None  # ISO 格式时间字符串
+    until: str | None = None  # ISO 格式时间字符串
     limit: int = 100
 
 
 @dataclass
 class EventReplayRequestDTO:
     """事件重放请求 DTO"""
-    event_type: Optional[str] = None
-    since: Optional[str] = None  # ISO 格式时间字符串
-    until: Optional[str] = None  # ISO 格式时间字符串
+
+    event_type: str | None = None
+    since: str | None = None  # ISO 格式时间字符串
+    until: str | None = None  # ISO 格式时间字符串
     limit: int = 1000
-    target_handler_class: Optional[str] = None  # 处理器类路径
+    target_handler_class: str | None = None  # 处理器类路径
 
 
 # ========== 响应 DTOs ==========
@@ -65,28 +65,31 @@ class EventReplayRequestDTO:
 @dataclass
 class EventDTO:
     """事件传输对象"""
+
     event_id: str
     event_type: str
     occurred_at: str  # ISO 格式时间字符串
-    payload: Dict[str, Any]
-    metadata: Dict[str, Any]
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
+    payload: dict[str, Any]
+    metadata: dict[str, Any]
+    correlation_id: str | None = None
+    causation_id: str | None = None
     version: int = 1
 
 
 @dataclass
 class BaseResponseDTO:
     """基础响应 DTO"""
+
     success: bool
-    message: Optional[str] = None
-    error_code: Optional[str] = None
+    message: str | None = None
+    error_code: str | None = None
     timestamp: str = field(default_factory=lambda: timezone.now().isoformat())
 
 
 @dataclass
 class EventPublishResponseDTO(BaseResponseDTO):
     """发布事件响应 DTO"""
+
     event_id: str = ""
     published_at: str = ""  # ISO 格式时间字符串
     subscribers_notified: int = 0
@@ -95,6 +98,7 @@ class EventPublishResponseDTO(BaseResponseDTO):
 @dataclass
 class EventSubscriptionResponseDTO(BaseResponseDTO):
     """事件订阅响应 DTO"""
+
     subscription_id: str = ""
     subscribed_at: str = ""  # ISO 格式时间字符串
     event_type: str = ""
@@ -104,7 +108,8 @@ class EventSubscriptionResponseDTO(BaseResponseDTO):
 @dataclass
 class EventQueryResponseDTO(BaseResponseDTO):
     """事件查询响应 DTO"""
-    events: List[EventDTO] = field(default_factory=list)
+
+    events: list[EventDTO] = field(default_factory=list)
     total_count: int = 0
     queried_at: str = ""  # ISO 格式时间字符串
     has_more: bool = False
@@ -113,6 +118,7 @@ class EventQueryResponseDTO(BaseResponseDTO):
 @dataclass
 class EventReplayResponseDTO(BaseResponseDTO):
     """事件重放响应 DTO"""
+
     events_replayed: int = 0
     replayed_at: str = ""  # ISO 格式时间字符串
     duration_ms: int = 0
@@ -121,20 +127,22 @@ class EventReplayResponseDTO(BaseResponseDTO):
 @dataclass
 class EventMetricsDTO:
     """事件指标 DTO"""
+
     total_published: int = 0
     total_processed: int = 0
     total_failed: int = 0
     total_subscribers: int = 0
     avg_processing_time_ms: float = 0.0
-    last_event_at: Optional[str] = None  # ISO 格式时间字符串
+    last_event_at: str | None = None  # ISO 格式时间字符串
     success_rate: float = 0.0  # 成功率
 
 
 @dataclass
 class EventStatisticsResponseDTO(BaseResponseDTO):
     """事件统计响应 DTO"""
+
     metrics: EventMetricsDTO = field(default_factory=EventMetricsDTO)
-    events_by_type: Dict[str, int] = field(default_factory=dict)  # 事件类型到数量的映射
+    events_by_type: dict[str, int] = field(default_factory=dict)  # 事件类型到数量的映射
     active_subscriptions: int = 0
     queue_size: int = 0
 
@@ -142,10 +150,11 @@ class EventStatisticsResponseDTO(BaseResponseDTO):
 @dataclass
 class EventBusStatusDTO:
     """事件总线状态 DTO"""
+
     is_running: bool = True
     total_subscribers: int = 0
     queue_size: int = 0
-    last_event_at: Optional[str] = None  # ISO 格式时间字符串
+    last_event_at: str | None = None  # ISO 格式时间字符串
     uptime_seconds: float = 0.0
 
 
@@ -162,13 +171,14 @@ def dto_to_event_publish_request(dto: EventPublishRequestDTO) -> "PublishEventRe
     Returns:
         用例请求
     """
-    from .use_cases import PublishEventRequest
     from datetime import datetime
+
+    from .use_cases import PublishEventRequest
 
     occurred_at = None
     if dto.occurred_at:
         try:
-            occurred_at = datetime.fromisoformat(dto.occurred_at.replace('Z', '+00:00'))
+            occurred_at = datetime.fromisoformat(dto.occurred_at.replace("Z", "+00:00"))
         except ValueError:
             pass
 

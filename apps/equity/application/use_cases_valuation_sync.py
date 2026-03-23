@@ -7,7 +7,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 from apps.equity.infrastructure.repositories import (
     build_quality_snapshot,
@@ -23,15 +23,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ValidateEquityValuationQualityRequest:
-    as_of_date: Optional[date] = None
+    as_of_date: date | None = None
     primary_source: str = "akshare"
 
 
 @dataclass
 class SyncEquityValuationRequest:
-    stock_codes: Optional[List[str]] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    stock_codes: list[str] | None = None
+    start_date: date | None = None
+    end_date: date | None = None
     primary_source: str = "akshare"
     fallback_source: str = "tushare"
     days_back: int = 1
@@ -40,8 +40,8 @@ class SyncEquityValuationRequest:
 @dataclass
 class SyncEquityValuationResponse:
     success: bool
-    data: Optional[Dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -53,29 +53,29 @@ class BackfillEquityValuationRequest:
 @dataclass
 class BackfillEquityValuationResponse:
     success: bool
-    data: Optional[Dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 @dataclass
 class ValidateEquityValuationQualityResponse:
     success: bool
-    data: Optional[Dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 @dataclass
 class GetEquityValuationFreshnessResponse:
     success: bool
-    data: Optional[Dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 @dataclass
 class GetLatestEquityValuationQualityResponse:
     success: bool
-    data: Optional[Dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 class ValidateEquityValuationQualityUseCase:
@@ -285,7 +285,7 @@ class GetLatestEquityValuationQualityUseCase:
             return GetLatestEquityValuationQualityResponse(success=False, error=str(exc))
 
 
-def _snapshot_to_dict(snapshot) -> Dict:
+def _snapshot_to_dict(snapshot) -> dict:
     if isinstance(snapshot, dict):
         data = snapshot
     else:

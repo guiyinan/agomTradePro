@@ -14,7 +14,6 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -38,20 +37,20 @@ class ModelMetrics:
         max_drawdown: 最大回撤
     """
 
-    ic: Optional[float] = None
-    icir: Optional[float] = None
-    rank_ic: Optional[float] = None
-    rank_icir: Optional[float] = None
-    group_ic: Optional[float] = None
-    sharpe: Optional[float] = None
-    turnover: Optional[float] = None
-    coverage: Optional[float] = None
-    long_short_ratio: Optional[float] = None
-    annual_return: Optional[float] = None
-    annual_volatility: Optional[float] = None
-    max_drawdown: Optional[float] = None
+    ic: float | None = None
+    icir: float | None = None
+    rank_ic: float | None = None
+    rank_icir: float | None = None
+    group_ic: float | None = None
+    sharpe: float | None = None
+    turnover: float | None = None
+    coverage: float | None = None
+    long_short_ratio: float | None = None
+    annual_return: float | None = None
+    annual_volatility: float | None = None
+    max_drawdown: float | None = None
 
-    def to_dict(self) -> Dict[str, Optional[float]]:
+    def to_dict(self) -> dict[str, float | None]:
         """转换为字典"""
         return {
             "ic": self.ic,
@@ -69,7 +68,7 @@ class ModelMetrics:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Optional[float]]) -> "ModelMetrics":
+    def from_dict(cls, data: dict[str, float | None]) -> "ModelMetrics":
         """从字典创建"""
         return cls(**data)
 
@@ -90,12 +89,12 @@ class RollingMetrics:
 
     date: date
     ic: float
-    icir: Optional[float] = None
-    rank_ic: Optional[float] = None
-    ic_ma_5: Optional[float] = None
-    ic_std_20: Optional[float] = None
+    icir: float | None = None
+    rank_ic: float | None = None
+    ic_ma_5: float | None = None
+    ic_std_20: float | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "date": self.date.isoformat(),
             "ic": self.ic,
@@ -185,7 +184,7 @@ class IC_Calculator:
 
     @staticmethod
     def calculate_icir(
-        ics: List[float],
+        ics: list[float],
         annualize: bool = True
     ) -> float:
         """
@@ -226,9 +225,9 @@ class IC_Calculator:
 
     @staticmethod
     def calculate_group_ic(
-        predictions: Dict[str, np.ndarray],
-        targets: Dict[str, np.ndarray],
-        groups: Dict[str, str]
+        predictions: dict[str, np.ndarray],
+        targets: dict[str, np.ndarray],
+        groups: dict[str, str]
     ) -> float:
         """
         计算分组 IC（按行业分组）
@@ -264,10 +263,10 @@ class IC_Calculator:
 
     @staticmethod
     def calculate_rolling_ic(
-        predictions: List[float],
-        targets: List[float],
+        predictions: list[float],
+        targets: list[float],
         window: int = 20
-    ) -> List[Tuple[int, float]]:
+    ) -> list[tuple[int, float]]:
         """
         计算滚动 IC
 
@@ -365,8 +364,8 @@ class PerformanceCalculator:
 
     @staticmethod
     def calculate_turnover(
-        current_positions: List[str],
-        previous_positions: List[str]
+        current_positions: list[str],
+        previous_positions: list[str]
     ) -> float:
         """
         计算换手率
@@ -394,8 +393,8 @@ class PerformanceCalculator:
 
     @staticmethod
     def calculate_coverage(
-        scored_stocks: List[str],
-        universe_stocks: List[str]
+        scored_stocks: list[str],
+        universe_stocks: list[str]
     ) -> float:
         """
         计算覆盖率
@@ -431,10 +430,10 @@ class ModelEvaluator:
 
     def evaluate_predictions(
         self,
-        predictions: Dict[str, float],
-        targets: Dict[str, float],
-        returns: Optional[Dict[str, float]] = None,
-        groups: Optional[Dict[str, str]] = None
+        predictions: dict[str, float],
+        targets: dict[str, float],
+        returns: dict[str, float] | None = None,
+        groups: dict[str, str] | None = None
     ) -> ModelMetrics:
         """
         评估预测结果
@@ -499,8 +498,8 @@ class ModelEvaluator:
 
     def _calculate_performance_metrics(
         self,
-        predictions: Dict[str, float],
-        returns: Dict[str, float],
+        predictions: dict[str, float],
+        returns: dict[str, float],
         metrics: ModelMetrics
     ) -> ModelMetrics:
         """计算绩效指标"""

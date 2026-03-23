@@ -4,19 +4,24 @@ Repositories for Filter Operations.
 Data access layer for filter results and configurations.
 """
 
-from typing import List, Dict, Optional, Protocol
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Dict, List, Optional, Protocol
 
 from django.db import transaction
 from django.db.models import Q
 
-from .models import FilterResultModel, KalmanStateModel, FilterConfig
 from apps.filter.domain.entities import (
-    FilterType, FilterResult, FilterSeries, KalmanFilterState,
-    HPFilterParams, KalmanFilterParams
+    FilterResult,
+    FilterSeries,
+    FilterType,
+    HPFilterParams,
+    KalmanFilterParams,
+    KalmanFilterState,
 )
 from apps.macro.infrastructure.models import MacroIndicator
+
+from .models import FilterConfig, FilterResultModel, KalmanStateModel
 
 
 class FilterRepositoryProtocol(Protocol):
@@ -30,16 +35,16 @@ class FilterRepositoryProtocol(Protocol):
         self,
         indicator_code: str,
         filter_type: FilterType,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[FilterResult]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[FilterResult]:
         """获取滤波结果"""
         ...
 
     def get_latest_kalman_state(
         self,
         indicator_code: str
-    ) -> Optional[KalmanFilterState]:
+    ) -> KalmanFilterState | None:
         """获取最新的 Kalman 状态"""
         ...
 
@@ -47,7 +52,7 @@ class FilterRepositoryProtocol(Protocol):
         self,
         indicator_code: str,
         state: KalmanFilterState,
-        params: Dict
+        params: dict
     ) -> None:
         """保存 Kalman 状态"""
         ...
@@ -91,9 +96,9 @@ class DjangoFilterRepository:
         self,
         indicator_code: str,
         filter_type: FilterType,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[FilterResult]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[FilterResult]:
         """获取滤波结果"""
         queryset = FilterResultModel._default_manager.filter(
             indicator_code=indicator_code,
@@ -121,7 +126,7 @@ class DjangoFilterRepository:
     def get_latest_kalman_state(
         self,
         indicator_code: str
-    ) -> Optional[KalmanFilterState]:
+    ) -> KalmanFilterState | None:
         """获取最新的 Kalman 状态"""
         try:
             model = KalmanStateModel._default_manager.get(indicator_code=indicator_code)
@@ -133,7 +138,7 @@ class DjangoFilterRepository:
         self,
         indicator_code: str,
         state: KalmanFilterState,
-        params: Dict
+        params: dict
     ) -> None:
         """保存 Kalman 状态"""
         with transaction.atomic():
@@ -142,7 +147,7 @@ class DjangoFilterRepository:
                 state, indicator_code, params
             ).save()
 
-    def get_filter_config(self, indicator_code: str) -> Dict:
+    def get_filter_config(self, indicator_code: str) -> dict:
         """获取滤波器配置"""
         try:
             config = FilterConfig._default_manager.get(indicator_code=indicator_code)
@@ -168,10 +173,10 @@ class DjangoFilterRepository:
     def get_macro_indicator_data(
         self,
         indicator_code: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         limit: int = 200
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         获取宏观数据
 
@@ -201,7 +206,7 @@ class DjangoFilterRepository:
             for item in reversed(queryset)
         ]
 
-    def get_available_indicators(self) -> List[dict]:
+    def get_available_indicators(self) -> list[dict]:
         """获取可用的指标列表（包含代码和名称）"""
         # 常见指标名称映射
         INDICATOR_NAMES = {
@@ -254,9 +259,9 @@ class HPFilterAdapter:
 
     def filter_expanding(
         self,
-        values: List[float],
+        values: list[float],
         lamb: float = 129600
-    ) -> List[float]:
+    ) -> list[float]:
         """
         扩张窗口 HP 滤波
 
@@ -293,9 +298,8 @@ class KalmanFilterAdapter:
     """
 
     def __init__(self, params: KalmanFilterParams):
-        from shared.infrastructure.kalman_filter import (
-            LocalLinearTrendFilter, KalmanState as InfraKalmanState
-        )
+        from shared.infrastructure.kalman_filter import KalmanState as InfraKalmanState
+        from shared.infrastructure.kalman_filter import LocalLinearTrendFilter
 
         self.filter = LocalLinearTrendFilter(
             level_variance=params.level_variance,
@@ -306,9 +310,9 @@ class KalmanFilterAdapter:
 
     def filter_series(
         self,
-        values: List[float],
-        initial_state: Optional[KalmanFilterState] = None
-    ) -> tuple[List[float], List[float], KalmanFilterState]:
+        values: list[float],
+        initial_state: KalmanFilterState | None = None
+    ) -> tuple[list[float], list[float], KalmanFilterState]:
         """
         对序列进行 Kalman 滤波
 

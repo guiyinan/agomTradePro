@@ -6,80 +6,80 @@
 - 禁止业务逻辑
 - 包含 API 视图（DRF）和页面视图（Django Views）
 """
+个股分析模块 Interface 层视图
 
-from django.shortcuts import render
-from django.db import OperationalError, ProgrammingError
-from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+遵循四层架构规范。
+"""
 
-from rest_framework import viewsets, status
-from rest_framework.views import APIView
+from __future__ import annotations
+from datetime import date
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from rest_framework.views import APIView
 
 from apps.equity.application.use_cases import (
-    ScreenStocksUseCase,
-    AnalyzeValuationUseCase,
-    CalculateDCFUseCase,
+    AnalyzeRegimeCorrelationRequest,
     AnalyzeRegimeCorrelationUseCase,
+    AnalyzeValuationRequest,
+    AnalyzeValuationUseCase,
+    CalculateDCFRequest,
+    CalculateDCFUseCase,
+    ComprehensiveValuationRequest,
     ComprehensiveValuationUseCase,
     ScreenStocksRequest,
-    AnalyzeValuationRequest,
-    CalculateDCFRequest,
-    AnalyzeRegimeCorrelationRequest,
-    ComprehensiveValuationRequest,
+    ScreenStocksUseCase,
 )
 from apps.equity.application.use_cases_valuation_repair import (
-    GetValuationRepairStatusUseCase,
-    GetValuationRepairStatusRequest,
-    GetValuationPercentileHistoryUseCase,
     GetValuationPercentileHistoryRequest,
-    ScanValuationRepairsUseCase,
-    ScanValuationRepairsRequest,
-    ListValuationRepairsUseCase,
+    GetValuationPercentileHistoryUseCase,
+    GetValuationRepairStatusRequest,
+    GetValuationRepairStatusUseCase,
     ListValuationRepairsRequest,
+    ListValuationRepairsUseCase,
+    ScanValuationRepairsRequest,
+    ScanValuationRepairsUseCase,
 )
 from apps.equity.application.use_cases_valuation_sync import (
-    SyncEquityValuationUseCase,
-    SyncEquityValuationRequest,
-    BackfillEquityValuationUseCase,
     BackfillEquityValuationRequest,
-    ValidateEquityValuationQualityUseCase,
-    ValidateEquityValuationQualityRequest,
+    BackfillEquityValuationUseCase,
     GetEquityValuationFreshnessUseCase,
     GetLatestEquityValuationQualityUseCase,
+    SyncEquityValuationRequest,
+    SyncEquityValuationUseCase,
+    ValidateEquityValuationQualityRequest,
+    ValidateEquityValuationQualityUseCase,
 )
 from apps.equity.infrastructure.repositories import (
     DjangoStockRepository,
-    DjangoValuationRepairRepository,
     DjangoValuationDataQualityRepository,
+    DjangoValuationRepairRepository,
 )
+
 from .serializers import (
-    ScreenStocksRequestSerializer,
-    ScreenStocksResponseSerializer,
+    AnalyzeRegimeCorrelationRequestSerializer,
+    AnalyzeRegimeCorrelationResponseSerializer,
     AnalyzeValuationRequestSerializer,
     AnalyzeValuationResponseSerializer,
     CalculateDCFRequestSerializer,
     CalculateDCFResponseSerializer,
-    AnalyzeRegimeCorrelationRequestSerializer,
-    AnalyzeRegimeCorrelationResponseSerializer,
     ComprehensiveValuationRequestSerializer,
     ComprehensiveValuationResponseSerializer,
-    ValuationRepairStatusResponseSerializer,
-    ValuationRepairHistoryResponseSerializer,
-    ScanValuationRepairsRequestSerializer,
-    ScanValuationRepairsResponseSerializer,
     ListValuationRepairsRequestSerializer,
     ListValuationRepairsResponseSerializer,
+    ScanValuationRepairsRequestSerializer,
+    ScanValuationRepairsResponseSerializer,
+    ScreenStocksRequestSerializer,
+    ScreenStocksResponseSerializer,
     SyncValuationDataRequestSerializer,
     SyncValuationDataResponseSerializer,
     ValidateValuationDataRequestSerializer,
-    ValuationQualitySnapshotResponseSerializer,
     ValuationFreshnessResponseSerializer,
+    ValuationQualitySnapshotResponseSerializer,
+    ValuationRepairHistoryResponseSerializer,
+    ValuationRepairStatusResponseSerializer,
 )
-
 
 # ============================================================================
 # 页面视图（前端）
@@ -545,6 +545,7 @@ class EquityViewSet(viewsets.ViewSet):
         获取当前股票池
         """
         from datetime import date
+
         from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
         from apps.regime.application.current_regime import resolve_current_regime
 
@@ -1026,18 +1027,18 @@ class EquityViewSet(viewsets.ViewSet):
     def sync_financial_data(self, request):
         """同步财务数据"""
         from apps.equity.application.tasks_valuation_sync import sync_financial_data_task
-        
+
         stock_codes = request.data.get('stock_codes')
         periods = request.data.get('periods', 8)
         source = request.data.get('source', 'akshare')
-        
+
         # 异步执行同步任务
         result = sync_financial_data_task(
             source=source,
             periods=periods,
             stock_codes=stock_codes,
         )
-        
+
         return Response(result, status=status.HTTP_200_OK)
 
     @extend_schema(
@@ -1134,8 +1135,8 @@ class EquityMultiDimScreenAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
         from apps.equity.application.services import EquityMultiDimScorer
+        from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
 
         self.asset_repo = DjangoEquityAssetRepository()
         self.scorer = EquityMultiDimScorer(self.asset_repo)
@@ -1230,8 +1231,8 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         from apps.equity.interface.serializers import (
-            ValuationRepairConfigSerializer,
             ValuationRepairConfigCreateSerializer,
+            ValuationRepairConfigSerializer,
         )
         if self.action in ['create', 'update', 'partial_update']:
             return ValuationRepairConfigCreateSerializer

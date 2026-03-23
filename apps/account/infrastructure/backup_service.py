@@ -17,7 +17,6 @@ from django.utils import timezone
 
 from apps.account.infrastructure.models import SystemSettingsModel
 
-
 DOWNLOAD_TOKEN_SALT = "account-db-backup-download"
 BACKUP_FILE_MAGIC = b"AGBK1"
 

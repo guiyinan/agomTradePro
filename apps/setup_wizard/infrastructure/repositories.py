@@ -4,7 +4,7 @@ Repository implementations for Setup Wizard.
 实现数据持久化逻辑。
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Optional, Protocol
 
 from django.contrib.auth import get_user_model
@@ -91,7 +91,7 @@ class SetupStateRepository:
             model.completed_steps = [s.value for s in state.progress.completed_steps]
 
             if state.status == SetupStatus.COMPLETED:
-                model.completed_at = datetime.now(timezone.utc)
+                model.completed_at = datetime.now(UTC)
 
         model.save(
             update_fields=[
@@ -121,7 +121,7 @@ class SetupStateRepository:
         """标记安装完成"""
         model = SetupStateModel.get_instance()
         model.is_completed = True
-        model.completed_at = datetime.now(timezone.utc)
+        model.completed_at = datetime.now(UTC)
         model.current_step = WizardStep.COMPLETE.value
         model.save()
 

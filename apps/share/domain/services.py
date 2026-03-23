@@ -90,7 +90,7 @@ def verify_password(password: str, hashed: str) -> bool:
     raise NotImplementedError("Use Django's check_password in Infrastructure layer")
 
 
-def hash_ip_address(ip_address: str, salt: Optional[str] = None) -> str:
+def hash_ip_address(ip_address: str, salt: str | None = None) -> str:
     """
     对 IP 地址进行哈希，不直接存储原始 IP
 

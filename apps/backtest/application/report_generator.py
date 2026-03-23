@@ -9,11 +9,11 @@ Backtest Report Generator
 - 风险指标
 """
 
-import os
-from typing import Optional, Dict, Any, List
-from datetime import date
-from dataclasses import dataclass
 import json
+import os
+from dataclasses import dataclass
+from datetime import date
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -32,13 +32,13 @@ class BacktestReportGenerator:
     生成包含图表、指标、交易记录的完整 HTML 报告。
     """
 
-    def __init__(self, config: Optional[ReportConfig] = None):
+    def __init__(self, config: ReportConfig | None = None):
         self.config = config or ReportConfig()
 
     def generate(
         self,
         backtest_result: Any,
-        benchmark_data: Optional[List[float]] = None
+        benchmark_data: list[float] | None = None
     ) -> str:
         """
         生成 HTML 报告
@@ -64,8 +64,8 @@ class BacktestReportGenerator:
     def _prepare_report_data(
         self,
         backtest_result: Any,
-        benchmark_data: Optional[List[float]] = None
-    ) -> Dict[str, Any]:
+        benchmark_data: list[float] | None = None
+    ) -> dict[str, Any]:
         """准备报告数据"""
 
         # 从 backtest_result 提取数据
@@ -105,7 +105,7 @@ class BacktestReportGenerator:
             'final_capital': float(getattr(backtest_result, 'final_capital', 0)),
         }
 
-    def _calculate_drawdowns(self, equity_values: List[float]) -> List[Dict[str, Any]]:
+    def _calculate_drawdowns(self, equity_values: list[float]) -> list[dict[str, Any]]:
         """计算回撤序列"""
         if not equity_values:
             return []
@@ -126,7 +126,7 @@ class BacktestReportGenerator:
 
         return drawdowns
 
-    def _generate_html(self, data: Dict[str, Any]) -> str:
+    def _generate_html(self, data: dict[str, Any]) -> str:
         """生成 HTML 内容"""
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -294,7 +294,7 @@ class BacktestReportGenerator:
 </html>"""
         return html
 
-    def _generate_warnings_html(self, warnings: List[str]) -> str:
+    def _generate_warnings_html(self, warnings: list[str]) -> str:
         """生成警告 HTML"""
         if not warnings:
             return ""
@@ -315,12 +315,12 @@ class BacktestReportGenerator:
         </div>
         """
 
-    def _generate_trades_html(self, trades: List[Dict[str, Any]]) -> str:
+    def _generate_trades_html(self, trades: list[dict[str, Any]]) -> str:
         """生成交易表格 HTML"""
         if not trades:
             return ""
 
-        trades_html = [f"""
+        trades_html = ["""
         <div class="trades-table">
             <h2>交易记录</h2>
             <table>
@@ -376,7 +376,7 @@ class BacktestReportGenerator:
         return output_path
 
 
-def generate_backtest_report(backtest_result: Any, config: Optional[ReportConfig] = None) -> str:
+def generate_backtest_report(backtest_result: Any, config: ReportConfig | None = None) -> str:
     """
     便捷函数：生成回测报告
 

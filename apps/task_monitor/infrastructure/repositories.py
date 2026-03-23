@@ -13,15 +13,15 @@ from django.db.models import Avg, Count, Q
 from django.utils import timezone
 
 from apps.task_monitor.domain.entities import (
-    TaskStatus,
-    TaskPriority,
-    TaskExecutionRecord,
-    TaskStatistics,
     CeleryHealthStatus,
+    TaskExecutionRecord,
+    TaskPriority,
+    TaskStatistics,
+    TaskStatus,
 )
 from apps.task_monitor.domain.interfaces import (
-    TaskRecordRepositoryProtocol,
     CeleryHealthCheckerProtocol,
+    TaskRecordRepositoryProtocol,
 )
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 
@@ -88,7 +88,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
 
         return str(model.id)
 
-    def get_by_task_id(self, task_id: str) -> Optional[TaskExecutionRecord]:
+    def get_by_task_id(self, task_id: str) -> TaskExecutionRecord | None:
         """根据任务 ID 获取记录"""
         try:
             model = TaskExecutionModel.objects.get(task_id=task_id)
@@ -100,8 +100,8 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         self,
         task_name: str,
         limit: int = 100,
-        status: Optional[str] = None
-    ) -> List[TaskExecutionRecord]:
+        status: str | None = None
+    ) -> list[TaskExecutionRecord]:
         """根据任务名称列出记录"""
         queryset = TaskExecutionModel.objects.filter(task_name=task_name)
 
@@ -116,7 +116,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         self,
         hours: int = 24,
         limit: int = 50
-    ) -> List[TaskExecutionRecord]:
+    ) -> list[TaskExecutionRecord]:
         """列出最近的失败记录"""
         since = timezone.now() - timedelta(hours=hours)
 
@@ -131,7 +131,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         self,
         task_name: str,
         days: int = 7
-    ) -> Optional[TaskStatistics]:
+    ) -> TaskStatistics | None:
         """获取任务统计信息"""
         since = timezone.now() - timedelta(days=days)
 

@@ -19,12 +19,12 @@ Application 层门面服务，为 strategy 模块和其他模块提供访问模�
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 from decimal import Decimal
+from typing import List, Optional
 
 from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
     DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
 )
 
 logger = __import__('logging').getLogger(__name__)
@@ -44,7 +44,7 @@ class PositionSummary:
     current_price: Decimal
     market_value: Decimal
     unrealized_pnl: Decimal
-    unrealized_pnl_pct: Optional[Decimal] = None
+    unrealized_pnl_pct: Decimal | None = None
     asset_type: str = "equity"
     is_closed: bool = False
 
@@ -57,7 +57,7 @@ class AccountSummary:
     total_value: Decimal
     current_cash: Decimal
     market_value: Decimal
-    active_strategy_id: Optional[int]
+    active_strategy_id: int | None
     position_count: int
     is_active: bool
 
@@ -72,8 +72,8 @@ class AccountOverview:
     market_value: Decimal
     total_value: Decimal
     position_count: int
-    active_strategy_id: Optional[int] = None
-    total_return_pct: Optional[Decimal] = None
+    active_strategy_id: int | None = None
+    total_return_pct: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -105,13 +105,13 @@ class SimulatedTradingFacade:
 
     def __init__(
         self,
-        account_repo: Optional[DjangoSimulatedAccountRepository] = None,
-        position_repo: Optional[DjangoPositionRepository] = None,
+        account_repo: DjangoSimulatedAccountRepository | None = None,
+        position_repo: DjangoPositionRepository | None = None,
     ) -> None:
         self.account_repo = account_repo or DjangoSimulatedAccountRepository()
         self.position_repo = position_repo or DjangoPositionRepository()
 
-    def _get_active_strategy_binding(self, account_id: int) -> Optional[StrategyBindingSummary]:
+    def _get_active_strategy_binding(self, account_id: int) -> StrategyBindingSummary | None:
         """通过 strategy gateway 获取账户当前激活的策略绑定。"""
         try:
             from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
@@ -131,7 +131,7 @@ class SimulatedTradingFacade:
             logger.error(f"Error getting active strategy binding: {e}")
             return None
 
-    def get_account_summary(self, account_id: int) -> Optional[AccountSummary]:
+    def get_account_summary(self, account_id: int) -> AccountSummary | None:
         """
         获取账户摘要
 
@@ -167,7 +167,7 @@ class SimulatedTradingFacade:
             logger.error(f"Error getting account summary: {e}")
             return None
 
-    def get_positions(self, account_id: int) -> List[PositionSummary]:
+    def get_positions(self, account_id: int) -> list[PositionSummary]:
         """
         获取账户持仓列表
 
@@ -221,7 +221,7 @@ class SimulatedTradingFacade:
             logger.error(f"Error getting cash: {e}")
             return Decimal('0')
 
-    def get_active_strategy_id(self, account_id: int) -> Optional[int]:
+    def get_active_strategy_id(self, account_id: int) -> int | None:
         """
         获取账户绑定的活跃策略 ID
 
@@ -234,7 +234,7 @@ class SimulatedTradingFacade:
         binding = self._get_active_strategy_binding(account_id)
         return binding.strategy_id if binding else None
 
-    def get_active_strategy_summary(self, account_id: int) -> Optional[StrategyBindingSummary]:
+    def get_active_strategy_summary(self, account_id: int) -> StrategyBindingSummary | None:
         """获取账户当前绑定策略的摘要信息。"""
         return self._get_active_strategy_binding(account_id)
 
@@ -246,7 +246,7 @@ class SimulatedTradingFacade:
             logger.error(f"Error checking account ownership: {e}")
             return False
 
-    def get_account_overview(self, account_id: int) -> Optional[AccountOverview]:
+    def get_account_overview(self, account_id: int) -> AccountOverview | None:
         """
         获取账户概览（用于 dashboard）
 
@@ -289,7 +289,7 @@ class SimulatedTradingFacade:
             logger.error(f"Error getting account overview: {e}")
             return None
 
-    def get_all_active_accounts(self) -> List[AccountOverview]:
+    def get_all_active_accounts(self) -> list[AccountOverview]:
         """
         获取所有活跃账户概览
 
@@ -333,7 +333,7 @@ class SimulatedTradingFacade:
 # 全局单例
 # ============================================================================
 
-_facade_instance: Optional[SimulatedTradingFacade] = None
+_facade_instance: SimulatedTradingFacade | None = None
 
 
 def get_simulated_trading_facade() -> SimulatedTradingFacade:

@@ -12,9 +12,9 @@ Infrastructure层:
 - 这些适配器已通过get_secrets()从数据库或环境变量读取配置
 - 如果需要更完善的failover，可参考apps.macro的FailoverAdapter实现
 """
-from typing import Optional, Dict
-from datetime import date, datetime, timedelta
 import logging
+from datetime import date, datetime, timedelta
+from typing import Dict, Optional
 
 from django.utils import timezone
 
@@ -48,7 +48,7 @@ class MarketDataProvider:
         self.cache_ttl_minutes = cache_ttl_minutes
 
         # 简单内存缓存: {asset_code: (price, timestamp)}
-        self._price_cache: Dict[str, tuple] = {}
+        self._price_cache: dict[str, tuple] = {}
 
     @property
     def stock_adapter(self):
@@ -66,7 +66,7 @@ class MarketDataProvider:
             self._fund_adapter = TushareFundAdapter()
         return self._fund_adapter
 
-    def get_price(self, asset_code: str, trade_date: date = None) -> Optional[float]:
+    def get_price(self, asset_code: str, trade_date: date = None) -> float | None:
         """
         获取资产价格（收盘价）
 
@@ -109,7 +109,7 @@ class MarketDataProvider:
 
         return price
 
-    def _get_realtime_price(self, asset_code: str) -> Optional[float]:
+    def _get_realtime_price(self, asset_code: str) -> float | None:
         """
         从实时价格缓存（Redis）获取最新价格
 
@@ -130,7 +130,7 @@ class MarketDataProvider:
             logger.debug(f"实时缓存获取失败: {asset_code}, {e}")
         return None
 
-    def _get_stock_price(self, stock_code: str, trade_date: date = None) -> Optional[float]:
+    def _get_stock_price(self, stock_code: str, trade_date: date = None) -> float | None:
         """
         获取股票价格
 
@@ -175,7 +175,7 @@ class MarketDataProvider:
             logger.error(f"获取股票价格失败: {stock_code}, 错误: {e}")
             return None
 
-    def _get_fund_price(self, fund_code: str, trade_date: date = None) -> Optional[float]:
+    def _get_fund_price(self, fund_code: str, trade_date: date = None) -> float | None:
         """
         获取基金净值
 
@@ -217,7 +217,7 @@ class MarketDataProvider:
             logger.error(f"获取基金净值失败: {fund_code}, 错误: {e}")
             return None
 
-    def get_latest_price(self, asset_code: str) -> Optional[float]:
+    def get_latest_price(self, asset_code: str) -> float | None:
         """
         获取最新价格（快捷方法）
 
@@ -234,7 +234,7 @@ class MarketDataProvider:
         self._price_cache.clear()
         logger.info("价格缓存已清空")
 
-    def get_batch_prices(self, asset_codes: list, trade_date: date = None) -> Dict[str, Optional[float]]:
+    def get_batch_prices(self, asset_codes: list, trade_date: date = None) -> dict[str, float | None]:
         """
         批量获取价格
 

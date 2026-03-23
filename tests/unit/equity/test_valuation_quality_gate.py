@@ -2,9 +2,9 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 from apps.equity.application.use_cases_valuation_sync import (
-    ValidateEquityValuationQualityUseCase,
-    ValidateEquityValuationQualityRequest,
     GetEquityValuationFreshnessUseCase,
+    ValidateEquityValuationQualityRequest,
+    ValidateEquityValuationQualityUseCase,
 )
 
 

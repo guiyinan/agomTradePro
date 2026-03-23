@@ -8,8 +8,8 @@ Events Domain Interfaces
 - Application 层通过 Protocol 依赖抽象，而非具体实现
 """
 
-from typing import Protocol, List, Optional, Any, Dict
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Protocol
 
 from .entities import DomainEvent
 
@@ -30,7 +30,7 @@ class FailedEventRepositoryProtocol(Protocol):
         event: DomainEvent,
         handler_id: str,
         error_message: str,
-        error_traceback: Optional[str],
+        error_traceback: str | None,
         max_retries: int,
     ) -> int:
         """
@@ -48,7 +48,7 @@ class FailedEventRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_by_id(self, event_db_id: int) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, event_db_id: int) -> dict[str, Any] | None:
         """
         按 ID 获取失败事件
 
@@ -63,8 +63,8 @@ class FailedEventRepositoryProtocol(Protocol):
     def find_pending_events(
         self,
         limit: int,
-        handler_id: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        handler_id: str | None,
+    ) -> list[dict[str, Any]]:
         """
         查找待重试的事件
 
@@ -81,7 +81,7 @@ class FailedEventRepositoryProtocol(Protocol):
         self,
         event_db_id: int,
         status: str,
-        last_retry_at: Optional[datetime] = None,
+        last_retry_at: datetime | None = None,
     ) -> bool:
         """
         更新事件状态
@@ -100,7 +100,7 @@ class FailedEventRepositoryProtocol(Protocol):
         self,
         event_db_id: int,
         error_message: str,
-        next_retry_at: Optional[datetime],
+        next_retry_at: datetime | None,
         is_exhausted: bool,
     ) -> bool:
         """
@@ -224,7 +224,7 @@ class DecisionRequestRepositoryProtocol(Protocol):
     def update_execution_status_to_executed(
         self,
         request_id: str,
-        execution_ref: Optional[Dict[str, Any]],
+        execution_ref: dict[str, Any] | None,
     ) -> bool:
         """
         更新请求执行状态为已执行

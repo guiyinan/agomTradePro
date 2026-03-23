@@ -23,7 +23,7 @@ from apps.market_data.infrastructure.registries.source_registry import SourceReg
 
 logger = logging.getLogger(__name__)
 
-_global_registry: Optional[SourceRegistry] = None
+_global_registry: SourceRegistry | None = None
 
 
 def get_registry() -> SourceRegistry:

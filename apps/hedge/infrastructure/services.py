@@ -9,28 +9,28 @@ from datetime import date, timedelta
 from typing import Dict, List, Optional
 
 from apps.hedge.domain.entities import (
-    HedgePair,
-    HedgeMethod,
     CorrelationMetric,
-    HedgePortfolio,
     HedgeAlert,
     HedgeAlertType,
+    HedgeMethod,
+    HedgePair,
+    HedgePortfolio,
     get_common_hedge_pairs,
 )
 from apps.hedge.domain.services import (
-    HedgeContext,
     CorrelationMonitor,
-    HedgeRatioCalculator,
+    HedgeContext,
     HedgePortfolioService,
-)
-from apps.hedge.infrastructure.repositories import (
-    HedgePairRepository,
-    CorrelationHistoryRepository,
-    HedgePortfolioRepository,
-    HedgeAlertRepository,
-    HedgePerformanceRepository,
+    HedgeRatioCalculator,
 )
 from apps.hedge.infrastructure.adapters import get_hedge_adapter
+from apps.hedge.infrastructure.repositories import (
+    CorrelationHistoryRepository,
+    HedgeAlertRepository,
+    HedgePairRepository,
+    HedgePerformanceRepository,
+    HedgePortfolioRepository,
+)
 
 
 class HedgeIntegrationService:
@@ -55,11 +55,11 @@ class HedgeIntegrationService:
         hedge_pairs = self.pair_repo.get_all(active_only=True)
 
         # Create price accessor function
-        def get_asset_prices(asset_code: str, end_date: date, days: int) -> Optional[List[float]]:
+        def get_asset_prices(asset_code: str, end_date: date, days: int) -> list[float] | None:
             return self.price_adapter.get_asset_prices(asset_code, end_date, days)
 
         # Create asset name accessor function
-        def get_asset_name(asset_code: str) -> Optional[str]:
+        def get_asset_name(asset_code: str) -> str | None:
             # Could be enhanced to fetch from database
             asset_names = {
                 '510300': '沪深300ETF',
@@ -87,9 +87,9 @@ class HedgeIntegrationService:
         self,
         asset1: str,
         asset2: str,
-        calc_date: Optional[date] = None,
+        calc_date: date | None = None,
         window_days: int = 60
-    ) -> Optional[CorrelationMetric]:
+    ) -> CorrelationMetric | None:
         """
         Calculate correlation between two assets.
 
@@ -118,10 +118,10 @@ class HedgeIntegrationService:
 
     def get_correlation_matrix(
         self,
-        asset_codes: List[str],
-        calc_date: Optional[date] = None,
+        asset_codes: list[str],
+        calc_date: date | None = None,
         window_days: int = 60
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Get correlation matrix for multiple assets.
 
@@ -143,8 +143,8 @@ class HedgeIntegrationService:
 
     def monitor_hedge_pairs(
         self,
-        calc_date: Optional[date] = None
-    ) -> List[HedgeAlert]:
+        calc_date: date | None = None
+    ) -> list[HedgeAlert]:
         """
         Monitor all hedge pairs and generate alerts.
 
@@ -175,8 +175,8 @@ class HedgeIntegrationService:
     def update_hedge_portfolio(
         self,
         pair_name: str,
-        calc_date: Optional[date] = None
-    ) -> Optional[HedgePortfolio]:
+        calc_date: date | None = None
+    ) -> HedgePortfolio | None:
         """
         Update hedge portfolio state for a pair.
 
@@ -208,8 +208,8 @@ class HedgeIntegrationService:
 
     def update_all_portfolios(
         self,
-        calc_date: Optional[date] = None
-    ) -> List[HedgePortfolio]:
+        calc_date: date | None = None
+    ) -> list[HedgePortfolio]:
         """Update all active hedge portfolios"""
         if calc_date is None:
             calc_date = date.today()
@@ -224,7 +224,7 @@ class HedgeIntegrationService:
 
         return portfolios
 
-    def get_hedge_portfolio(self, pair_name: str) -> Optional[HedgePortfolio]:
+    def get_hedge_portfolio(self, pair_name: str) -> HedgePortfolio | None:
         """Get latest hedge portfolio state"""
         return self.portfolio_repo.get_latest_portfolio(pair_name)
 
@@ -235,8 +235,8 @@ class HedgeIntegrationService:
     def check_hedge_effectiveness(
         self,
         pair_name: str,
-        calc_date: Optional[date] = None
-    ) -> Optional[Dict]:
+        calc_date: date | None = None
+    ) -> dict | None:
         """
         Check effectiveness of a hedge pair.
 
@@ -261,8 +261,8 @@ class HedgeIntegrationService:
 
     def get_all_effectiveness(
         self,
-        calc_date: Optional[date] = None
-    ) -> List[Dict]:
+        calc_date: date | None = None
+    ) -> list[dict]:
         """Get effectiveness for all active hedge pairs"""
         if calc_date is None:
             calc_date = date.today()
@@ -284,8 +284,8 @@ class HedgeIntegrationService:
     def calculate_hedge_ratio(
         self,
         pair_name: str,
-        calc_date: Optional[date] = None
-    ) -> Optional[tuple[float, Dict]]:
+        calc_date: date | None = None
+    ) -> tuple[float, dict] | None:
         """
         Calculate optimal hedge ratio for a pair.
 
@@ -314,20 +314,20 @@ class HedgeIntegrationService:
 
     def get_active_alerts(
         self,
-        pair_name: Optional[str] = None
-    ) -> List[HedgeAlert]:
+        pair_name: str | None = None
+    ) -> list[HedgeAlert]:
         """Get active (unresolved) alerts"""
         return self.alert_repo.get_active_alerts(pair_name)
 
     def get_recent_alerts(
         self,
         days: int = 7,
-        pair_name: Optional[str] = None
-    ) -> List[HedgeAlert]:
+        pair_name: str | None = None
+    ) -> list[HedgeAlert]:
         """Get alerts from recent days"""
         return self.alert_repo.get_recent_alerts(days, pair_name)
 
-    def resolve_alert(self, alert_id: int) -> Optional[HedgeAlert]:
+    def resolve_alert(self, alert_id: int) -> HedgeAlert | None:
         """Mark an alert as resolved"""
         return self.alert_repo.resolve_alert(alert_id)
 
@@ -338,8 +338,8 @@ class HedgeIntegrationService:
     def calculate_performance(
         self,
         pair_name: str,
-        calc_date: Optional[date] = None
-    ) -> Optional[Dict]:
+        calc_date: date | None = None
+    ) -> dict | None:
         """
         Calculate performance metrics for a hedge pair.
 
@@ -413,11 +413,11 @@ class HedgeIntegrationService:
 
     def _calculate_portfolio_returns(
         self,
-        long_prices: List[float],
-        hedge_prices: List[float],
+        long_prices: list[float],
+        hedge_prices: list[float],
         long_weight: float,
         hedge_weight: float
-    ) -> List[float]:
+    ) -> list[float]:
         """Calculate portfolio returns from price series"""
         if not long_prices or not hedge_prices or len(long_prices) < 2:
             return []
@@ -432,7 +432,7 @@ class HedgeIntegrationService:
 
         return returns
 
-    def _calculate_volatility(self, returns: List[float]) -> float:
+    def _calculate_volatility(self, returns: list[float]) -> float:
         """Calculate annualized volatility"""
         if not returns:
             return 0.0
@@ -444,7 +444,7 @@ class HedgeIntegrationService:
 
     def _calculate_sharpe_ratio(
         self,
-        returns: List[float],
+        returns: list[float],
         risk_free_rate: float = 0.03
     ) -> float:
         """Calculate Sharpe ratio"""
@@ -461,7 +461,7 @@ class HedgeIntegrationService:
 
         return excess_return / volatility
 
-    def _calculate_max_drawdown(self, returns: List[float]) -> float:
+    def _calculate_max_drawdown(self, returns: list[float]) -> float:
         """Calculate maximum drawdown"""
         if not returns:
             return 0.0
@@ -488,18 +488,18 @@ class HedgeIntegrationService:
     # Configuration Management
     # ========================================================================
 
-    def get_all_pairs(self, active_only: bool = True) -> List[HedgePair]:
+    def get_all_pairs(self, active_only: bool = True) -> list[HedgePair]:
         """Get all hedge pair configurations"""
         return self.pair_repo.get_all(active_only)
 
-    def get_pair_by_name(self, name: str) -> Optional[HedgePair]:
+    def get_pair_by_name(self, name: str) -> HedgePair | None:
         """Get hedge pair by name"""
         return self.pair_repo.get_by_name(name)
 
-    def create_pair(self, pair: HedgePair) -> Optional[HedgePair]:
+    def create_pair(self, pair: HedgePair) -> HedgePair | None:
         """Create new hedge pair configuration"""
         return self.pair_repo.create(pair)
 
-    def update_pair(self, pair: HedgePair) -> Optional[HedgePair]:
+    def update_pair(self, pair: HedgePair) -> HedgePair | None:
         """Update existing hedge pair configuration"""
         return self.pair_repo.update(pair)

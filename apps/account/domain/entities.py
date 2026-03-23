@@ -7,11 +7,10 @@ Account Domain Entities
 """
 
 from dataclasses import dataclass
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Dict, List
 from enum import Enum
-
+from typing import Dict, List, Optional
 
 # ============================================================
 # 资产分类系统 - 多维度灵活分类
@@ -99,8 +98,8 @@ class AssetMetadata:
     region: Region            # 地区
     cross_border: CrossBorderFlag  # 跨境标识
     style: InvestmentStyle    # 投资风格
-    sector: Optional[str]     # 行业板块（用户可自定义）
-    sub_class: Optional[str]  # 子类（用户可自定义，如"科技股"、"消费股"）
+    sector: str | None     # 行业板块（用户可自定义）
+    sub_class: str | None  # 子类（用户可自定义，如"科技股"、"消费股"）
     description: str          # 描述
 
     def get_full_classification(self) -> str:
@@ -116,7 +115,7 @@ class AssetMetadata:
             parts.append(self.style.value)
         return " | ".join(parts)
 
-    def is_eligible_for_regime(self, regime: str, eligibility_matrix: Dict[str, Dict[str, str]]) -> bool:
+    def is_eligible_for_regime(self, regime: str, eligibility_matrix: dict[str, dict[str, str]]) -> bool:
         """
         检查资产在给定Regime下是否适合
 
@@ -171,7 +170,7 @@ class Position:
     记录用户持有的资产信息，包括持仓数量、成本、盈亏等。
     资产分类信息通过 asset_code 关联到 AssetMetadata 获取。
     """
-    id: Optional[int]  # 数据库ID，新建时为None
+    id: int | None  # 数据库ID，新建时为None
     portfolio_id: int
     user_id: int
     asset_code: str          # 资产代码，如 "ASSET_CODE"
@@ -184,7 +183,7 @@ class Position:
     opened_at: datetime      # 开仓时间
     status: PositionStatus   # 持仓状态
     source: PositionSource   # 持仓来源
-    source_id: Optional[int] # 关联的signal_id或backtest_id
+    source_id: int | None # 关联的signal_id或backtest_id
     # 以下是冗余字段，用于快速查询（从AssetMetadata同步）
     asset_class: AssetClassType  # 资产大类
     region: Region            # 地区
@@ -218,7 +217,7 @@ class PortfolioSnapshot:
     invested_value: Decimal   # 投资市值
     total_return: Decimal     # 总收益
     total_return_pct: float   # 总收益率
-    positions: List[Position] # 持仓列表
+    positions: list[Position] # 持仓列表
 
     def get_cash_ratio(self) -> float:
         """计算现金仓位比例"""
@@ -240,10 +239,10 @@ class Transaction:
 
     记录每一笔交易的详细信息。
     """
-    id: Optional[int]
+    id: int | None
     portfolio_id: int
     user_id: int
-    position_id: Optional[int]  # 关联的持仓ID，平仓时有值
+    position_id: int | None  # 关联的持仓ID，平仓时有值
     asset_code: str
     action: str                 # "buy" 或 "sell"
     shares: float
@@ -266,7 +265,7 @@ class AssetAllocation:
     count: int                # 持仓数量
     market_value: Decimal     # 市值
     percentage: float         # 占比
-    asset_codes: List[str]    # 包含的资产代码列表
+    asset_codes: list[str]    # 包含的资产代码列表
 
     def get_display_name(self) -> str:
         """获取显示名称"""
@@ -305,10 +304,10 @@ class RegimeMatchAnalysis:
     """
     regime: str                # 当前Regime
     total_match_score: float   # 总体匹配度 (0-100)
-    preferred_assets: List[str]      # 优选资产列表
-    neutral_assets: List[str]        # 中性资产列表
-    hostile_assets: List[str]        # 不匹配资产列表
-    recommendations: List[str]        # 调仓建议
+    preferred_assets: list[str]      # 优选资产列表
+    neutral_assets: list[str]        # 中性资产列表
+    hostile_assets: list[str]        # 不匹配资产列表
+    recommendations: list[str]        # 调仓建议
 
 
 # ============================================================
@@ -340,9 +339,9 @@ class StopLossConfig:
     position_id: int          # 关联的持仓ID
     stop_loss_type: StopLossType  # 止损类型
     stop_loss_pct: float      # 止损百分比（如 -0.10 表示 -10%）
-    trailing_stop_pct: Optional[float] = None  # 移动止损百分比
-    max_holding_days: Optional[int] = None     # 最大持仓天数
-    activated_at: Optional[datetime] = None    # 激活时间
+    trailing_stop_pct: float | None = None  # 移动止损百分比
+    max_holding_days: int | None = None     # 最大持仓天数
+    activated_at: datetime | None = None    # 激活时间
     status: StopLossStatus = StopLossStatus.ACTIVE
 
     def calculate_stop_price(self, entry_price: float, current_price: float, highest_price: float) -> float:
@@ -380,7 +379,7 @@ class StopLossTrigger:
 
     记录一次止损触发的详细信息。
     """
-    id: Optional[int]
+    id: int | None
     position_id: int          # 关联的持仓ID
     trigger_type: StopLossType  # 触发类型
     trigger_price: float      # 触发时的价格
@@ -398,7 +397,7 @@ class TradingCostConfig:
 
     每个投资组合可独立配置交易费率，遵循中国A股市场规则。
     """
-    id: Optional[int]
+    id: int | None
     portfolio_id: int
 
     # 佣金（双向）
@@ -469,7 +468,7 @@ class TakeProfitConfig:
     """
     position_id: int          # 关联的持仓ID
     take_profit_pct: float    # 止盈百分比（如 0.20 表示 +20%）
-    partial_profit_levels: Optional[List[float]] = None  # 分批止盈点位
+    partial_profit_levels: list[float] | None = None  # 分批止盈点位
     is_active: bool = True    # 是否激活
 
     def calculate_take_profit_price(self, entry_price: float) -> float:

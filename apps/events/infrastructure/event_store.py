@@ -9,21 +9,21 @@ Event Store Implementation
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional
 
-from django.db import models, transaction
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models, transaction
 from django.utils import timezone
 
 from ..domain.entities import (
     DomainEvent,
-    EventType,
-    EventSnapshot,
-    EventMetrics,
     EventBusConfig,
+    EventMetrics,
+    EventSnapshot,
+    EventType,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +290,7 @@ class DatabaseEventStore:
             logger.error(f"Failed to store event: {e}", exc_info=True)
             return False
 
-    def append_batch(self, events: List[DomainEvent]) -> int:
+    def append_batch(self, events: list[DomainEvent]) -> int:
         """
         批量追加事件
 
@@ -308,7 +308,7 @@ class DatabaseEventStore:
 
         return count
 
-    def get_by_id(self, event_id: str) -> Optional[DomainEvent]:
+    def get_by_id(self, event_id: str) -> DomainEvent | None:
         """
         按 ID 获取事件
 
@@ -326,13 +326,13 @@ class DatabaseEventStore:
 
     def get_events(
         self,
-        event_type: Optional[EventType] = None,
-        event_types: Optional[List[EventType]] = None,
-        correlation_id: Optional[str] = None,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        event_type: EventType | None = None,
+        event_types: list[EventType] | None = None,
+        correlation_id: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         limit: int = 100,
-    ) -> List[DomainEvent]:
+    ) -> list[DomainEvent]:
         """
         获取事件列表
 
@@ -369,7 +369,7 @@ class DatabaseEventStore:
 
         return [self._to_domain_event(m) for m in models]
 
-    def get_by_correlation(self, correlation_id: str) -> List[DomainEvent]:
+    def get_by_correlation(self, correlation_id: str) -> list[DomainEvent]:
         """
         按关联 ID 获取事件
 
@@ -389,7 +389,7 @@ class DatabaseEventStore:
 
     def get_metrics(
         self,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
     ) -> EventMetrics:
         """
         获取事件指标
@@ -477,8 +477,8 @@ class SnapshotStore:
         aggregate_type: str,
         aggregate_id: str,
         version: int,
-        state: Dict[str, Any],
-    ) -> Optional[str]:
+        state: dict[str, Any],
+    ) -> str | None:
         """
         保存快照
 
@@ -539,7 +539,7 @@ class SnapshotStore:
         self,
         aggregate_type: str,
         aggregate_id: str,
-    ) -> Optional[EventSnapshot]:
+    ) -> EventSnapshot | None:
         """
         获取最新快照
 
@@ -581,7 +581,7 @@ class SnapshotStore:
         aggregate_type: str,
         aggregate_id: str,
         version: int,
-    ) -> Optional[EventSnapshot]:
+    ) -> EventSnapshot | None:
         """
         获取指定版本快照
 
@@ -686,9 +686,9 @@ class EventReplayHandler:
     def replay_to(
         self,
         subscriber,
-        event_types: Optional[List[EventType]] = None,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        event_types: list[EventType] | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         limit: int = 1000,
     ) -> int:
         """
@@ -748,25 +748,25 @@ class InMemoryEventStore:
     """
 
     def __init__(self):
-        self._events: List[DomainEvent] = []
+        self._events: list[DomainEvent] = []
 
     def append(self, event: DomainEvent) -> bool:
         self._events.append(event)
         return True
 
-    def append_batch(self, events: List[DomainEvent]) -> int:
+    def append_batch(self, events: list[DomainEvent]) -> int:
         self._events.extend(events)
         return len(events)
 
     def get_events(
         self,
-        event_type: Optional[EventType] = None,
-        event_types: Optional[List[EventType]] = None,
-        correlation_id: Optional[str] = None,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        event_type: EventType | None = None,
+        event_types: list[EventType] | None = None,
+        correlation_id: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         limit: int = 100,
-    ) -> List[DomainEvent]:
+    ) -> list[DomainEvent]:
         events = self._events
 
         if event_type:
@@ -783,7 +783,7 @@ class InMemoryEventStore:
 
         return events[: max(limit, 0)]
 
-    def get_metrics(self, since: Optional[datetime] = None) -> EventMetrics:
+    def get_metrics(self, since: datetime | None = None) -> EventMetrics:
         events = self.get_events(since=since, limit=len(self._events))
         return EventMetrics(
             total_published=len(events),

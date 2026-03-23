@@ -7,8 +7,8 @@
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 from decimal import Decimal
+from typing import List, Optional
 
 
 @dataclass
@@ -55,7 +55,7 @@ class StockScreeningRule:
     min_market_cap: Decimal = Decimal(0)
 
     # 行业偏好
-    sector_preference: Optional[List[str]] = None
+    sector_preference: list[str] | None = None
 
     # 筛选数量
     max_count: int = 50

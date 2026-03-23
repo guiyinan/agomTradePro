@@ -8,9 +8,9 @@ import logging
 from typing import Optional
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType
+
 from ..domain.entities import get_default_configs
 from ..domain.services import GateConfigSelector, VisibilityUniverseBuilder
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class BetaGateEventHandler(EventHandler):
             config_selector: 配置选择器（可选）
             event_bus: 事件总线（可选）
         """
-        from ..domain.services import VisibilityUniverseBuilder, GateConfigSelector
+        from ..domain.services import GateConfigSelector, VisibilityUniverseBuilder
 
         self.universe_builder = universe_builder or VisibilityUniverseBuilder()
         self.config_selector = config_selector or GateConfigSelector(get_default_configs())

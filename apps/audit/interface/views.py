@@ -2,39 +2,41 @@
 Views for Audit API.
 """
 
-from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
-from datetime import datetime, date
 import json
 import logging
+from datetime import date, datetime
+
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
+from django.views.generic import TemplateView
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.audit.application.use_cases import (
-    GenerateAttributionReportUseCase,
-    GenerateAttributionReportRequest,
-    GetAuditSummaryUseCase,
-    GetAuditSummaryRequest,
-    EvaluateIndicatorPerformanceUseCase,
     EvaluateIndicatorPerformanceRequest,
-    ValidateThresholdsUseCase,
+    EvaluateIndicatorPerformanceUseCase,
+    GenerateAttributionReportRequest,
+    GenerateAttributionReportUseCase,
+    GetAuditSummaryRequest,
+    GetAuditSummaryUseCase,
     ValidateThresholdsRequest,
+    ValidateThresholdsUseCase,
 )
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.audit.infrastructure.models import (
     AttributionReport,
-    LossAnalysis,
     ExperienceSummary,
-    IndicatorThresholdConfigModel,
-    ValidationSummaryModel,
     IndicatorPerformanceModel,
+    IndicatorThresholdConfigModel,
+    LossAnalysis,
+    ValidationSummaryModel,
 )
+from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.backtest.infrastructure.models import BacktestResultModel
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
+
 from .serializers import (
     AttributionReportSerializer,
     GenerateAttributionReportRequestSerializer,
@@ -955,26 +957,27 @@ class MyDecisionTracesPageView(LoginRequiredMixin, TemplateView):
 
 # ============ MCP/SDK 操作审计日志 API Views ============
 
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
+
 from .permissions import (
-    IsAuditAdmin,
-    OperationLogReadPermission,
     HasInternalAuditSignature,
+    IsAuditAdmin,
     IsSelfOrAuditAdmin,
+    OperationLogReadPermission,
 )
 from .serializers import (
-    OperationLogSerializer,
-    OperationLogListSerializer,
-    OperationLogDetailSerializer,
-    OperationLogQuerySerializer,
-    OperationLogIngestSerializer,
-    OperationStatsSerializer,
-    ExportOperationLogsSerializer,
-    DecisionTraceListSerializer,
     DecisionTraceDetailSerializer,
+    DecisionTraceListSerializer,
+    ExportOperationLogsSerializer,
+    OperationLogDetailSerializer,
+    OperationLogIngestSerializer,
+    OperationLogListSerializer,
+    OperationLogQuerySerializer,
+    OperationLogSerializer,
+    OperationStatsSerializer,
 )
 
 
@@ -1094,8 +1097,8 @@ class OperationLogListView(APIView):
         is_admin = IsAuditAdmin().has_permission(request, self)
 
         from apps.audit.application.use_cases import (
-            QueryOperationLogsUseCase,
             QueryOperationLogsRequest,
+            QueryOperationLogsUseCase,
         )
 
         use_case = QueryOperationLogsUseCase(
@@ -1159,8 +1162,8 @@ class OperationLogDetailView(APIView):
     def get(self, request, log_id):
         """获取操作日志详情"""
         from apps.audit.application.use_cases import (
-            GetOperationLogDetailUseCase,
             GetOperationLogDetailRequest,
+            GetOperationLogDetailUseCase,
         )
 
         is_admin = IsAuditAdmin().has_permission(request, self)
@@ -1243,8 +1246,8 @@ class OperationLogExportView(APIView):
     def get(self, request):
         """导出操作日志"""
         from apps.audit.application.use_cases import (
-            ExportOperationLogsUseCase,
             ExportOperationLogsRequest,
+            ExportOperationLogsUseCase,
         )
 
         start_date = request.query_params.get('start_date')
@@ -1330,8 +1333,8 @@ class OperationLogStatsView(APIView):
     def get(self, request):
         """获取操作统计"""
         from apps.audit.application.use_cases import (
-            GetOperationStatsUseCase,
             GetOperationStatsRequest,
+            GetOperationStatsUseCase,
         )
 
         start_date = request.query_params.get('start_date')
@@ -1398,8 +1401,8 @@ class OperationLogIngestView(APIView):
         data = serializer.validated_data
 
         from apps.audit.application.use_cases import (
-            LogOperationUseCase,
             LogOperationRequest,
+            LogOperationUseCase,
         )
 
         use_case = LogOperationUseCase(

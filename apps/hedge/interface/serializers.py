@@ -5,12 +5,13 @@ DRF Serializers for the hedge module API.
 """
 
 from rest_framework import serializers
+
 from apps.hedge.infrastructure.models import (
-    HedgePairModel,
     CorrelationHistoryModel,
-    HedgePortfolioSnapshotModel,
     HedgeAlertModel,
+    HedgePairModel,
     HedgePerformanceModel,
+    HedgePortfolioSnapshotModel,
 )
 
 

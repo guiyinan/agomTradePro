@@ -1,15 +1,15 @@
 """URL Configuration for Strategy System."""
-from django.urls import path, include
+from django.urls import include, path
 
 app_name = 'strategy'
 
 from apps.strategy.interface.views import (
-    strategy_list,
     strategy_create,
     strategy_detail,
     strategy_edit,
-    strategy_toggle_status,
     strategy_execute,
+    strategy_list,
+    strategy_toggle_status,
     test_strategy,
 )
 

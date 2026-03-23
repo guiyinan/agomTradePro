@@ -4,13 +4,14 @@
 测试分位数归一化法的正确性
 """
 
-import pytest
 from datetime import date
 from decimal import Decimal
 
-from apps.equity.domain.services import StockScreener
-from apps.equity.domain.entities import StockInfo, FinancialData, ValuationMetrics
+import pytest
+
+from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
+from apps.equity.domain.services import StockScreener
 
 
 class TestPercentileCalculation:

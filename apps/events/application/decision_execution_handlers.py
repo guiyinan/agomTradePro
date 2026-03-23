@@ -26,7 +26,6 @@ from ..domain.interfaces import (
     DecisionRequestRepositoryProtocol,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +47,7 @@ class DecisionApprovedHandler(EventHandler):
     def __init__(
         self,
         event_bus=None,
-        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+        alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
     ):
         """
         初始化处理器
@@ -157,7 +156,7 @@ class DecisionRejectedHandler(EventHandler):
     def __init__(
         self,
         event_bus=None,
-        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+        alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
     ):
         """
         初始化处理器
@@ -262,8 +261,8 @@ class DecisionExecutedHandler(EventHandler):
     def __init__(
         self,
         event_bus=None,
-        decision_request_repo: Optional[DecisionRequestRepositoryProtocol] = None,
-        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+        decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
+        alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
     ):
         """
         初始化处理器
@@ -331,7 +330,7 @@ class DecisionExecutedHandler(EventHandler):
             # 主事务成功优先，事件处理失败只记录日志
 
     def _update_decision_request(
-        self, request_id: str, execution_ref: Optional[Dict[str, Any]]
+        self, request_id: str, execution_ref: dict[str, Any] | None
     ) -> None:
         """
         更新 DecisionRequest 的执行状态
@@ -388,8 +387,8 @@ class DecisionExecutionFailedHandler(EventHandler):
     def __init__(
         self,
         event_bus=None,
-        decision_request_repo: Optional[DecisionRequestRepositoryProtocol] = None,
-        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+        decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
+        alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
     ):
         """
         初始化处理器
@@ -459,7 +458,7 @@ class DecisionExecutionFailedHandler(EventHandler):
             # 主事务成功优先，事件处理失败只记录日志
 
     def _update_decision_request_failed(
-        self, request_id: str, error_message: Optional[str]
+        self, request_id: str, error_message: str | None
     ) -> None:
         """
         更新 DecisionRequest 的执行失败状态

@@ -11,9 +11,10 @@ Unified Secrets Management.
 """
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional, Callable
+from typing import Optional
 
 from shared.domain.interfaces import DataSourceSecretsDTO
 
@@ -23,25 +24,25 @@ class DataSourceSecrets:
     """数据源 API 密钥"""
     tushare_token: str
     fred_api_key: str
-    juhe_api_key: Optional[str] = None
+    juhe_api_key: str | None = None
 
 
 @dataclass(frozen=True)
 class AppSecrets:
     """应用密钥配置"""
     data_sources: DataSourceSecrets
-    slack_webhook: Optional[str] = None
-    alert_email: Optional[str] = None
+    slack_webhook: str | None = None
+    alert_email: str | None = None
 
 
 # ========== 注册表模式 ==========
 
 # 数据库密钥加载器注册表
 # 由 apps.macro.apps.MacroConfig.ready() 注册
-_database_secrets_loader: Optional[Callable[[], Optional[DataSourceSecretsDTO]]] = None
+_database_secrets_loader: Callable[[], DataSourceSecretsDTO | None] | None = None
 
 
-def register_database_secrets_loader(loader: Callable[[], Optional[DataSourceSecretsDTO]]) -> None:
+def register_database_secrets_loader(loader: Callable[[], DataSourceSecretsDTO | None]) -> None:
     """
     注册数据库密钥加载器
 
@@ -71,7 +72,7 @@ def _load_from_env() -> AppSecrets:
     )
 
 
-def _load_from_database() -> Optional[AppSecrets]:
+def _load_from_database() -> AppSecrets | None:
     """
     从数据库加载数据源配置
 
@@ -130,7 +131,7 @@ def get_secrets() -> AppSecrets:
 
     # 检查是否有至少一个配置源
     if not env_secrets.data_sources.tushare_token:
-        raise EnvironmentError(
+        raise OSError(
             "未配置 Tushare Token！\n"
             "请通过以下方式之一配置:\n"
             "1. 访问 http://127.0.0.1:8000/admin/ 添加数据源配置\n"

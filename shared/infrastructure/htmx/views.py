@@ -10,10 +10,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import ListView, FormView, TemplateView, DetailView
+from django.views.generic import DetailView, FormView, ListView, TemplateView
 
 
 def is_htmx(request: HttpRequest) -> bool:
@@ -36,7 +36,7 @@ class HtmxTemplateView(TemplateView):
     对于 HTMX 请求返回部分模板，对于普通请求返回完整页面。
     """
 
-    htmx_template_name: Optional[str] = None
+    htmx_template_name: str | None = None
     """HTMX 请求使用的模板（部分内容）"""
 
     def get_template_names(self) -> list[str]:
@@ -50,7 +50,7 @@ class HtmxTemplateView(TemplateView):
             return [self.htmx_template_name]
         return super().get_template_names()
 
-    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
         获取模板上下文数据
 
@@ -64,7 +64,7 @@ class HtmxTemplateView(TemplateView):
         context['is_htmx'] = is_htmx(self.request)
         return context
 
-    def render_to_response(self, context: Dict[str, Any], **response_kwargs: Any) -> HttpResponse:
+    def render_to_response(self, context: dict[str, Any], **response_kwargs: Any) -> HttpResponse:
         """
         渲染模板响应
 
@@ -93,7 +93,7 @@ class HtmxListView(ListView):
     paginate_by: int = 20
     """每页数量"""
 
-    htmx_template_name: Optional[str] = None
+    htmx_template_name: str | None = None
     """HTMX 请求使用的模板（通常是表格内容）"""
 
     search_fields: list[str] = []
@@ -143,7 +143,7 @@ class HtmxListView(ListView):
             return [self.htmx_template_name]
         return super().get_template_names()
 
-    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
         获取模板上下文
 
@@ -168,7 +168,7 @@ class HtmxFormView(FormView):
     支持 HTMX 表单提交，返回验证错误或成功消息。
     """
 
-    htmx_template_name: Optional[str] = None
+    htmx_template_name: str | None = None
     """HTMX 请求使用的模板（通常是表单片段）"""
 
     success_message: str = '操作成功'
@@ -241,7 +241,7 @@ class HtmxDetailView(DetailView):
     HTMX 详情视图基类
     """
 
-    htmx_template_name: Optional[str] = None
+    htmx_template_name: str | None = None
     """HTMX 请求使用的模板（通常是详情片段）"""
 
     def get_template_names(self) -> list[str]:
@@ -255,7 +255,7 @@ class HtmxDetailView(DetailView):
             return [self.htmx_template_name]
         return super().get_template_names()
 
-    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
         获取模板上下文
 
@@ -286,7 +286,7 @@ class HtmxDeleteView(View):
     success_message: str = '删除成功'
     """成功消息"""
 
-    def get_object(self, queryset: Optional[QuerySet] = None) -> Any:
+    def get_object(self, queryset: QuerySet | None = None) -> Any:
         """
         获取要删除的对象
 
@@ -368,7 +368,7 @@ class HtmxPartialView(View):
         context = self.get_context_data(**kwargs)
         return render(request, self.template_name, context)
 
-    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
         获取模板上下文
 
@@ -461,7 +461,7 @@ class HtmxResponseMixin:
     为视图添加 HTMX 响应头支持。
     """
 
-    def render_to_response(self, context: Dict[str, Any], **response_kwargs: Any) -> HttpResponse:
+    def render_to_response(self, context: dict[str, Any], **response_kwargs: Any) -> HttpResponse:
         """
         渲染响应并添加 HTMX 头部
 

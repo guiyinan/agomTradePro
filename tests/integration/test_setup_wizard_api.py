@@ -4,13 +4,14 @@ API Integration tests for Setup Wizard Interface layer.
 Tests HTTP endpoints and views.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from django.test import Client
 from django.contrib.auth import get_user_model
+from django.test import Client
 from django.urls import reverse
 
-from apps.setup_wizard.domain.entities import WizardStep, SetupStatus
+from apps.setup_wizard.domain.entities import SetupStatus, WizardStep
 
 User = get_user_model()
 

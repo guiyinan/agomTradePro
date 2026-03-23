@@ -23,13 +23,14 @@ End-to-End Tests for Decision Workspace (M3)
 - 实体定义: apps/decision_rhythm/domain/entities.py
 """
 
-import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
-from django.test import Client
-from django.contrib.auth import get_user_model
-from django.utils import timezone as django_timezone
+
+import pytest
 from django.apps import apps
+from django.contrib.auth import get_user_model
+from django.test import Client
+from django.utils import timezone as django_timezone
 
 # Import models using Django's app registry
 UnifiedRecommendationModel = apps.get_model('decision_rhythm', 'UnifiedRecommendationModel')
@@ -1365,7 +1366,7 @@ class TestRefreshRecommendations:
         - 端点可访问
         - 返回正确的响应结构
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
 
         # Mock feature providers 以避免外部依赖
         with patch('apps.decision_rhythm.infrastructure.feature_providers.create_feature_provider') as mock_feature, \
@@ -1441,7 +1442,7 @@ class TestRefreshRecommendations:
         - force 参数生效
         - 强制重新计算
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
 
         with patch('apps.decision_rhythm.infrastructure.feature_providers.create_feature_provider') as mock_feature, \
              patch('apps.decision_rhythm.infrastructure.feature_providers.create_valuation_provider') as mock_valuation, \

@@ -5,14 +5,21 @@
 """
 
 from datetime import date
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
+from apps.asset_analysis.domain.interfaces import (
+    AssetRepositoryProtocol,
+    WeightConfigRepositoryProtocol,
+)
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol, AssetRepositoryProtocol
-from apps.asset_analysis.application.use_cases import MultiDimScreenUseCase, GetWeightConfigsUseCase
-from apps.asset_analysis.infrastructure.repositories import DjangoWeightConfigRepository, DjangoAssetRepository
+from apps.asset_analysis.infrastructure.repositories import (
+    DjangoAssetRepository,
+    DjangoWeightConfigRepository,
+)
 from apps.asset_analysis.interface.serializers import (
     ScreenRequestSerializer,
     ScreenResponseSerializer,

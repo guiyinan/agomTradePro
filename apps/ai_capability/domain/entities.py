@@ -108,9 +108,9 @@ class CapabilityDefinition:
     auto_collected: bool = False
     review_status: ReviewStatus = ReviewStatus.AUTO
     priority_weight: float = 1.0
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    last_synced_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    last_synced_at: datetime | None = None
 
     def __post_init__(self):
         if isinstance(self.source_type, str):
@@ -209,16 +209,16 @@ class CapabilityRoutingLog:
     """
 
     entrypoint: str
-    user_id: Optional[int]
+    user_id: int | None
     session_id: str
     raw_message: str
     retrieved_candidates: list[str] = field(default_factory=list)
-    selected_capability_key: Optional[str] = None
+    selected_capability_key: str | None = None
     confidence: float = 0.0
     decision: CapabilityDecision = CapabilityDecision.CHAT
     fallback_reason: str = ""
     execution_result: str = ""
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     def __post_init__(self):
         if isinstance(self.decision, str):
@@ -248,7 +248,7 @@ class CapabilitySyncLog:
 
     sync_type: str
     started_at: datetime
-    finished_at: Optional[datetime] = None
+    finished_at: datetime | None = None
     total_discovered: int = 0
     created_count: int = 0
     updated_count: int = 0
@@ -279,11 +279,11 @@ class RoutingContext:
 
     entrypoint: str
     session_id: str
-    user_id: Optional[int] = None
+    user_id: int | None = None
     user_is_admin: bool = False
     mcp_enabled: bool = True
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
+    provider_name: str | None = None
+    model: str | None = None
     context: dict[str, Any] = field(default_factory=dict)
     answer_chain_enabled: bool = False
 
@@ -296,7 +296,7 @@ class RoutingDecision:
     """
 
     decision: CapabilityDecision
-    selected_capability_key: Optional[str] = None
+    selected_capability_key: str | None = None
     confidence: float = 0.0
     candidate_capabilities: list[dict[str, Any]] = field(default_factory=list)
     requires_confirmation: bool = False

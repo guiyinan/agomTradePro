@@ -5,25 +5,25 @@ DRF ViewSet for CRUD operations via AJAX.
 遵循项目架构约束：Interface 层调用 Application 层，不直接访问 Infrastructure 层。
 """
 
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from ...application.use_cases import (
-    ListProvidersUseCase,
     CreateProviderUseCase,
-    UpdateProviderUseCase,
     DeleteProviderUseCase,
-    ToggleProviderUseCase,
-    GetProviderStatsUseCase,
     GetOverallStatsUseCase,
+    GetProviderStatsUseCase,
+    ListProvidersUseCase,
     ListUsageLogsUseCase,
+    ToggleProviderUseCase,
+    UpdateProviderUseCase,
 )
 from ...infrastructure.models import AIProviderConfig, AIUsageLog
 from ..serializers import (
-    AIProviderConfigSerializer,
     AIProviderConfigCreateSerializer,
+    AIProviderConfigSerializer,
     AIUsageLogSerializer,
 )
 
@@ -120,8 +120,8 @@ class AIProviderConfigViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], url_path='test-connection')
     def test_connection(self, request, pk=None):
         """测试 AI 提供商连接是否可用"""
-        from ...infrastructure.repositories import AIProviderRepository
         from ...infrastructure.adapters import OpenAICompatibleAdapter
+        from ...infrastructure.repositories import AIProviderRepository
 
         provider_repo = AIProviderRepository()
         provider = provider_repo.get_by_id(pk)

@@ -5,15 +5,15 @@ Alpha 模块告警配置和通知机制。
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from django.utils import timezone
 
-from shared.infrastructure.metrics import AlertRule, AlertManager, get_alpha_metrics
-
+from shared.infrastructure.metrics import AlertManager, AlertRule, get_alpha_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class AlertNotifier:
     """
 
     def __init__(self):
-        self._handlers: List[Callable[[AlertNotification], None]] = []
+        self._handlers: list[Callable[[AlertNotification], None]] = []
 
     def register_handler(self, handler: Callable[[AlertNotification], None]):
         """注册告警处理器"""
@@ -193,7 +193,7 @@ class AlphaAlertConfig:
     )
 
     @classmethod
-    def get_all_rules(cls) -> List[AlertRule]:
+    def get_all_rules(cls) -> list[AlertRule]:
         """获取所有告警规则"""
         return [
             cls.PROVIDER_UNAVAILABLE,
@@ -208,22 +208,22 @@ class AlphaAlertConfig:
         ]
 
     @classmethod
-    def get_rules_by_severity(cls, severity: str) -> List[AlertRule]:
+    def get_rules_by_severity(cls, severity: str) -> list[AlertRule]:
         """按严重级别获取告警规则"""
         return [r for r in cls.get_all_rules() if r.severity == severity]
 
     @classmethod
-    def get_critical_rules(cls) -> List[AlertRule]:
+    def get_critical_rules(cls) -> list[AlertRule]:
         """获取严重告警规则"""
         return cls.get_rules_by_severity("critical")
 
     @classmethod
-    def get_warning_rules(cls) -> List[AlertRule]:
+    def get_warning_rules(cls) -> list[AlertRule]:
         """获取警告告警规则"""
         return cls.get_rules_by_severity("warning")
 
     @classmethod
-    def get_info_rules(cls) -> List[AlertRule]:
+    def get_info_rules(cls) -> list[AlertRule]:
         """获取信息告警规则"""
         return cls.get_rules_by_severity("info")
 
@@ -247,7 +247,7 @@ class AlphaAlertManager(AlertManager):
         # self._setup_email_notifier()
         # self._setup_webhook_notifier()
 
-    def evaluate_with_notification(self) -> List[AlertNotification]:
+    def evaluate_with_notification(self) -> list[AlertNotification]:
         """
         评估告警规则并发送通知
 
@@ -383,6 +383,7 @@ class AlertThresholds:
     def update_from_env(cls):
         """从环境变量更新阈值"""
         import os
+
         from environ import Env
 
         env = Env()

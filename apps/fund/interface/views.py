@@ -11,28 +11,33 @@
 - 不包含业务逻辑
 """
 
+from typing import Any, Dict
+
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
-from typing import Dict, Any
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from ..infrastructure.repositories import DjangoFundRepository
 from ..application.use_cases import (
-    ScreenFundsUseCase, ScreenFundsRequest,
-    AnalyzeFundStyleUseCase, AnalyzeFundStyleRequest,
-    CalculateFundPerformanceUseCase, CalculateFundPerformanceRequest,
-    RankFundsUseCase
+    AnalyzeFundStyleRequest,
+    AnalyzeFundStyleUseCase,
+    CalculateFundPerformanceRequest,
+    CalculateFundPerformanceUseCase,
+    RankFundsUseCase,
+    ScreenFundsRequest,
+    ScreenFundsUseCase,
 )
+from ..infrastructure.repositories import DjangoFundRepository
 from .serializers import (
-    ScreenFundsRequestSerializer, ScreenFundsResponseSerializer,
-    AnalyzeFundStyleRequestSerializer, AnalyzeFundStyleResponseSerializer,
-    CalculateFundPerformanceRequestSerializer, CalculateFundPerformanceResponseSerializer,
-    FundScoreSerializer
+    AnalyzeFundStyleRequestSerializer,
+    AnalyzeFundStyleResponseSerializer,
+    CalculateFundPerformanceRequestSerializer,
+    CalculateFundPerformanceResponseSerializer,
+    FundScoreSerializer,
+    ScreenFundsRequestSerializer,
+    ScreenFundsResponseSerializer,
 )
-
 
 # ============================================================================
 # 页面视图（前端）
@@ -46,8 +51,8 @@ def dashboard_view(request):
     GET /fund/dashboard/
     """
     # 获取当前 Regime 信息
-    from apps.regime.application.current_regime import resolve_current_regime
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.regime.application.current_regime import resolve_current_regime
     from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
     from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
@@ -359,8 +364,8 @@ class FundMultiDimScreenAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
         from apps.fund.application.services import FundMultiDimScorer
+        from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
 
         self.asset_repo = DjangoFundAssetRepository()
         self.scorer = FundMultiDimScorer(self.asset_repo)

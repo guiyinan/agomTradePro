@@ -10,7 +10,7 @@ from typing import List, Optional
 from django.db import transaction
 from django.db.models import Max
 
-from ..domain.entities import RegimeSnapshot, KalmanState
+from ..domain.entities import KalmanState, RegimeSnapshot
 from .models import RegimeLog
 
 
@@ -72,7 +72,7 @@ class DjangoRegimeRepository:
     def get_snapshot_by_date(
         self,
         observed_at: date
-    ) -> Optional[RegimeSnapshot]:
+    ) -> RegimeSnapshot | None:
         """
         按日期获取 Regime 快照
 
@@ -92,8 +92,8 @@ class DjangoRegimeRepository:
 
     def get_latest_snapshot(
         self,
-        before_date: Optional[date] = None
-    ) -> Optional[RegimeSnapshot]:
+        before_date: date | None = None
+    ) -> RegimeSnapshot | None:
         """
         获取最新快照
 
@@ -118,7 +118,7 @@ class DjangoRegimeRepository:
         self,
         start_date: date,
         end_date: date
-    ) -> List[RegimeSnapshot]:
+    ) -> list[RegimeSnapshot]:
         """
         获取日期范围内的快照列表
 
@@ -139,9 +139,9 @@ class DjangoRegimeRepository:
     def get_regime_history(
         self,
         regime_name: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[RegimeSnapshot]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[RegimeSnapshot]:
         """
         获取指定 Regime 的历史快照
 
@@ -190,7 +190,7 @@ class DjangoRegimeRepository:
         """
         return self._model.objects.count()
 
-    def get_earliest_date(self) -> Optional[date]:
+    def get_earliest_date(self) -> date | None:
         """
         获取最早的快照日期
 
@@ -204,7 +204,7 @@ class DjangoRegimeRepository:
         )
         return result.get('earliest_date')
 
-    def get_latest_date(self) -> Optional[date]:
+    def get_latest_date(self) -> date | None:
         """
         获取最新的快照日期
 
@@ -219,7 +219,7 @@ class DjangoRegimeRepository:
         return result.get('latest_date')
 
     # 别名方法，用于兼容 backtest 模块的调用
-    def get_regime_by_date(self, observed_at: date) -> Optional[RegimeSnapshot]:
+    def get_regime_by_date(self, observed_at: date) -> RegimeSnapshot | None:
         """
         按日期获取 Regime 快照（别名方法）
 
@@ -233,8 +233,8 @@ class DjangoRegimeRepository:
 
     def get_regime_distribution_stats(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        start_date: date | None = None,
+        end_date: date | None = None
     ) -> dict:
         """
         获取 Regime 分布统计

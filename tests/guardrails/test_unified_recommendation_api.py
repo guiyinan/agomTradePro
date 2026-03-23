@@ -5,12 +5,12 @@
 """
 
 import pytest
-from django.test import Client
 from django.contrib.auth.models import User
+from django.test import Client
 
 from apps.decision_rhythm.infrastructure.models import (
-    UnifiedRecommendationModel,
     DecisionModelParamConfigModel,
+    UnifiedRecommendationModel,
 )
 from apps.equity.infrastructure.models import ValuationRepairTrackingModel
 

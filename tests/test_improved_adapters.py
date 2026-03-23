@@ -11,7 +11,7 @@
 
 import json
 import time
-from datetime import datetime, date
+from datetime import date, datetime
 
 
 def test_resilience_features():
@@ -24,7 +24,7 @@ def test_resilience_features():
 
     # 测试1: 重试机制
     print("\n1. 测试重试机制")
-    from shared.infrastructure.resilience import retry_on_error, MaxRetriesExceeded
+    from shared.infrastructure.resilience import MaxRetriesExceeded, retry_on_error
 
     attempt_count = {'count': 0}
 
@@ -52,11 +52,11 @@ def test_resilience_features():
             'status': 'failed',
             'attempts': attempt_count['count']
         })
-        print(f"   重试机制失败: 超过最大重试次数")
+        print("   重试机制失败: 超过最大重试次数")
 
     # 测试2: 缓存机制
     print("\n2. 测试缓存机制")
-    from shared.infrastructure.resilience import cached, _cache_manager
+    from shared.infrastructure.resilience import _cache_manager, cached
 
     call_count = {'count': 0}
 
@@ -79,7 +79,7 @@ def test_resilience_features():
             'status': 'success',
             'details': '缓存正常工作'
         })
-        print(f"   缓存机制正常: 第1次调用执行，第2次调用使用缓存")
+        print("   缓存机制正常: 第1次调用执行，第2次调用使用缓存")
     else:
         results.append({
             'test': '缓存机制',
@@ -89,7 +89,7 @@ def test_resilience_features():
 
     # 测试3: 断路器
     print("\n3. 测试断路器")
-    from shared.infrastructure.resilience import circuit_breaker, DataSourceUnavailable
+    from shared.infrastructure.resilience import DataSourceUnavailable, circuit_breaker
 
     failure_count = {'count': 0}
 
@@ -122,7 +122,7 @@ def test_resilience_features():
                 'status': 'success',
                 'reason': '断路器正常工作'
             })
-            print(f"   断路器正常: 连续失败后快速失败")
+            print("   断路器正常: 连续失败后快速失败")
     except Exception as e:
         results.append({
             'test': '断路器',
@@ -177,7 +177,7 @@ def test_hybrid_stock_adapter():
                     'status': 'failed',
                     'reason': '返回空数据'
                 })
-                print(f"   失败: 返回空数据")
+                print("   失败: 返回空数据")
 
         except MaxRetriesExceeded as e:
             results.append({
@@ -186,7 +186,7 @@ def test_hybrid_stock_adapter():
                 'reason': '超过重试次数',
                 'error': str(e)
             })
-            print(f"   失败: 超过最大重试次数")
+            print("   失败: 超过最大重试次数")
         except Exception as e:
             results.append({
                 'test': '混合适配器-股票列表',
@@ -212,7 +212,7 @@ def test_hybrid_stock_adapter():
                     'status': 'failed',
                     'reason': '返回空信息'
                 })
-                print(f"   失败: 返回空信息")
+                print("   失败: 返回空信息")
         except Exception as e:
             results.append({
                 'test': '混合适配器-股票信息',
@@ -238,7 +238,7 @@ def test_hybrid_stock_adapter():
                     'status': 'failed',
                     'reason': '返回空数据'
                 })
-                print(f"   失败: 返回空数据")
+                print("   失败: 返回空数据")
         except Exception as e:
             results.append({
                 'test': '混合适配器-日线数据',
@@ -287,8 +287,9 @@ def test_database_operations_with_cache():
     results = []
 
     try:
-        from apps.equity.infrastructure.models import StockInfoModel
         from apps.equity.infrastructure.adapters.hybrid_stock_adapter import HybridStockAdapter
+
+        from apps.equity.infrastructure.models import StockInfoModel
 
         adapter = HybridStockAdapter(tushare_token=None)
 
@@ -322,7 +323,7 @@ def test_database_operations_with_cache():
                     'count': saved_count
                 })
             else:
-                print(f"   未能获取股票数据")
+                print("   未能获取股票数据")
                 results.append({
                     'test': '数据库保存',
                     'status': 'failed',
@@ -351,7 +352,7 @@ def test_database_operations_with_cache():
             # 显示最近的股票
             if total_count > 0:
                 recent_stocks = StockInfoModel.objects.order_by('-created_at')[:5]
-                print(f"   最近添加的股票:")
+                print("   最近添加的股票:")
                 for stock in recent_stocks:
                     print(f"     - {stock.stock_code}: {stock.name}")
 
@@ -434,6 +435,7 @@ def run_all_tests():
 if __name__ == '__main__':
     # Django setup
     import os
+
     import django
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
     django.setup()

@@ -12,12 +12,11 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from ..application.use_cases import (
-    FeatureDataProviderProtocol,
-    ValuationProviderProtocol,
-    SignalProviderProtocol,
     CandidateProviderProtocol,
+    FeatureDataProviderProtocol,
+    SignalProviderProtocol,
+    ValuationProviderProtocol,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class RegimeFeatureProvider:
     从 regime 模块获取当前 Regime 状态。
     """
 
-    def get_regime(self) -> Optional[Dict[str, Any]]:
+    def get_regime(self) -> dict[str, Any] | None:
         """
         获取当前 Regime 状态
 
@@ -77,7 +76,7 @@ class PolicyFeatureProvider:
             self._repository = DjangoPolicyRepository()
         return self._repository
 
-    def get_policy_level(self) -> Optional[str]:
+    def get_policy_level(self) -> str | None:
         """
         获取当前政策档位
 
@@ -462,10 +461,10 @@ class CompositeFeatureProvider(
     实现所有特征获取接口。
     """
 
-    def get_regime(self) -> Optional[Dict[str, Any]]:
+    def get_regime(self) -> dict[str, Any] | None:
         return RegimeFeatureProvider.get_regime(self)
 
-    def get_policy_level(self) -> Optional[str]:
+    def get_policy_level(self) -> str | None:
         return PolicyFeatureProvider.get_policy_level(self)
 
     def check_beta_gate(self, security_code: str) -> bool:
@@ -522,7 +521,7 @@ class AssetValuationProvider(ValuationProviderProtocol):
                 pass
         return self._service
 
-    def get_valuation(self, security_code: str) -> Optional[Dict[str, Any]]:
+    def get_valuation(self, security_code: str) -> dict[str, Any] | None:
         """
         获取估值数据
 
@@ -585,8 +584,8 @@ class AlphaSignalProvider(SignalProviderProtocol):
 
     def get_active_signals(
         self,
-        security_code: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        security_code: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         获取活跃信号
 
@@ -598,8 +597,8 @@ class AlphaSignalProvider(SignalProviderProtocol):
         """
         try:
             from apps.alpha_trigger.infrastructure.repositories import (
-                AlphaTriggerRepository,
                 AlphaCandidateRepository,
+                AlphaTriggerRepository,
             )
 
             # 使用 AlphaTriggerRepository 获取活跃触发器
@@ -652,8 +651,8 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
 
     def get_active_candidates(
         self,
-        account_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        account_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         获取活跃候选
 

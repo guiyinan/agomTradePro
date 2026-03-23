@@ -3,13 +3,14 @@ Django Admin for Audit.
 """
 
 from django.contrib import admin
+
 from apps.audit.infrastructure.models import (
-    AuditReport,
     AttributionReport,
-    LossAnalysis,
+    AuditReport,
     ExperienceSummary,
     IndicatorPerformanceModel,
     IndicatorThresholdConfigModel,
+    LossAnalysis,
     ValidationSummaryModel,
 )
 

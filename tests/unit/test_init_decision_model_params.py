@@ -4,14 +4,15 @@
 测试 init_decision_model_params management command。
 """
 
-import pytest
 from io import StringIO
+
+import pytest
 from django.core.management import call_command
 from django.test import TestCase
 
 from apps.decision_rhythm.infrastructure.models import (
-    DecisionModelParamConfigModel,
     DecisionModelParamAuditLogModel,
+    DecisionModelParamConfigModel,
 )
 
 

@@ -4,14 +4,16 @@ Unit tests for AI Provider Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from apps.ai_provider.domain.entities import (
-    AIProviderType,
-    AIProviderConfig,
-    AIUsageRecord,
     AIChatRequest,
     AIChatResponse,
+    AIProviderConfig,
+    AIProviderType,
+    AIUsageRecord,
 )
 
 

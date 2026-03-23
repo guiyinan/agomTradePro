@@ -7,11 +7,11 @@ No MCP tool should directly aggregate multiple apps without going through a faca
 """
 
 from apps.agent_runtime.application.facades.base import BaseContextFacade
-from apps.agent_runtime.application.facades.research import ResearchTaskFacade
-from apps.agent_runtime.application.facades.monitoring import MonitoringTaskFacade
 from apps.agent_runtime.application.facades.decision import DecisionTaskFacade
 from apps.agent_runtime.application.facades.execution import ExecutionTaskFacade
+from apps.agent_runtime.application.facades.monitoring import MonitoringTaskFacade
 from apps.agent_runtime.application.facades.ops import OpsTaskFacade
+from apps.agent_runtime.application.facades.research import ResearchTaskFacade
 
 __all__ = [
     "BaseContextFacade",

@@ -4,23 +4,24 @@
 测试 Top-down 和 Bottom-up 特征提供者。
 """
 
-import pytest
 from datetime import date, datetime
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
+
+import pytest
 
 from apps.decision_rhythm.infrastructure.feature_providers import (
-    RegimeFeatureProvider,
-    PolicyFeatureProvider,
-    BetaGateFeatureProvider,
-    SentimentFeatureProvider,
-    FlowFeatureProvider,
-    TechnicalFeatureProvider,
-    FundamentalFeatureProvider,
-    AlphaModelFeatureProvider,
-    CompositeFeatureProvider,
-    AssetValuationProvider,
-    AlphaSignalProvider,
     AlphaCandidateProvider,
+    AlphaModelFeatureProvider,
+    AlphaSignalProvider,
+    AssetValuationProvider,
+    BetaGateFeatureProvider,
+    CompositeFeatureProvider,
+    FlowFeatureProvider,
+    FundamentalFeatureProvider,
+    PolicyFeatureProvider,
+    RegimeFeatureProvider,
+    SentimentFeatureProvider,
+    TechnicalFeatureProvider,
 )
 
 
@@ -378,8 +379,9 @@ class TestAssetValuationProvider:
     @pytest.mark.django_db
     def test_get_valuation_from_snapshot(self):
         """测试从估值快照获取估值数据"""
-        from apps.decision_rhythm.infrastructure.models import ValuationSnapshotModel
         from decimal import Decimal
+
+        from apps.decision_rhythm.infrastructure.models import ValuationSnapshotModel
 
         # 创建测试数据
         ValuationSnapshotModel.objects.create(

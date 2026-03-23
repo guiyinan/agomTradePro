@@ -7,20 +7,20 @@
 - 返回 Domain 层实体
 """
 
-from typing import List, Dict, Optional, Tuple
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Dict, List, Optional, Tuple
 
-from django.db import models
 from django.core.cache import cache
+from django.db import models
 
+from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength
 from .models import (
-    SectorInfoModel,
-    SectorIndexModel,
     SectorConstituentModel,
-    SectorRelativeStrengthModel
+    SectorIndexModel,
+    SectorInfoModel,
+    SectorRelativeStrengthModel,
 )
-from ..domain.entities import SectorInfo, SectorIndex, SectorRelativeStrength
 
 
 class DjangoSectorRepository:
@@ -35,7 +35,7 @@ class DjangoSectorRepository:
 
     # ===== 板块基本信息 =====
 
-    def get_sector_info(self, sector_code: str) -> Optional[SectorInfo]:
+    def get_sector_info(self, sector_code: str) -> SectorInfo | None:
         """获取板块基本信息
 
         Args:
@@ -57,8 +57,8 @@ class DjangoSectorRepository:
 
     def get_all_sectors(
         self,
-        level: Optional[str] = None
-    ) -> List[SectorInfo]:
+        level: str | None = None
+    ) -> list[SectorInfo]:
         """获取所有板块信息
 
         Args:
@@ -116,7 +116,7 @@ class DjangoSectorRepository:
         self,
         sector_code: str,
         trade_date: date
-    ) -> Optional[SectorIndex]:
+    ) -> SectorIndex | None:
         """获取板块指数数据
 
         Args:
@@ -151,7 +151,7 @@ class DjangoSectorRepository:
         sector_code: str,
         start_date: date,
         end_date: date
-    ) -> List[SectorIndex]:
+    ) -> list[SectorIndex]:
         """获取板块指数时间范围数据
 
         Args:
@@ -217,7 +217,7 @@ class DjangoSectorRepository:
             print(f"保存板块指数失败: {e}")
             return False
 
-    def get_latest_sector_index(self, sector_code: str) -> Optional[SectorIndex]:
+    def get_latest_sector_index(self, sector_code: str) -> SectorIndex | None:
         """获取板块最新指数数据
 
         Args:
@@ -282,7 +282,7 @@ class DjangoSectorRepository:
         self,
         sector_code: str,
         trade_date: date
-    ) -> Optional[SectorRelativeStrength]:
+    ) -> SectorRelativeStrength | None:
         """获取相对强弱指标
 
         Args:

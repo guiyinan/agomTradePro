@@ -5,30 +5,31 @@ WP-M1-04: Serializers for Agent Runtime Module
 See: docs/plans/ai-native/schema-contract.md
 """
 
-from rest_framework import serializers
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from apps.agent_runtime.infrastructure.models import (
-    AgentTaskModel,
-    AgentProposalModel,
-    AgentTimelineEventModel,
-    AgentArtifactModel,
-    AgentExecutionRecordModel,
-    AgentContextSnapshotModel,
-    AgentTaskStepModel,
-    AgentHandoffModel,
-    AgentGuardrailDecisionModel,
-)
+from rest_framework import serializers
+
 from apps.agent_runtime.domain.entities import (
-    TaskDomain,
-    TaskStatus,
-    ProposalStatus,
     ApprovalStatus,
-    RiskLevel,
     EventSource,
     GuardrailDecision,
+    ProposalStatus,
+    RiskLevel,
+    TaskDomain,
+    TaskStatus,
     TimelineEventType,
+)
+from apps.agent_runtime.infrastructure.models import (
+    AgentArtifactModel,
+    AgentContextSnapshotModel,
+    AgentExecutionRecordModel,
+    AgentGuardrailDecisionModel,
+    AgentHandoffModel,
+    AgentProposalModel,
+    AgentTaskModel,
+    AgentTaskStepModel,
+    AgentTimelineEventModel,
 )
 from shared.infrastructure.sanitization import sanitize_plain_text
 
@@ -141,7 +142,7 @@ class AgentTaskCreateSerializer(serializers.Serializer):
             )
         return value
 
-    def validate_input_payload(self, value: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_input_payload(self, value: dict[str, Any]) -> dict[str, Any]:
         """Validate input payload is a dict."""
         if not isinstance(value, dict):
             raise serializers.ValidationError(
@@ -206,7 +207,7 @@ class AgentTaskUpdateSerializer(serializers.Serializer):
         help_text="Whether human intervention is needed"
     )
 
-    def validate_status(self, value: Optional[str]) -> Optional[str]:
+    def validate_status(self, value: str | None) -> str | None:
         """Validate status transition."""
         if value is not None:
             try:
@@ -217,7 +218,7 @@ class AgentTaskUpdateSerializer(serializers.Serializer):
                 )
         return value
 
-    def validate_current_step(self, value: Optional[str]) -> Optional[str]:
+    def validate_current_step(self, value: str | None) -> str | None:
         """Validate current step with XSS sanitization."""
         if value is not None:
             value = sanitize_plain_text(value)
@@ -288,7 +289,7 @@ class AgentProposalCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("proposal_type cannot be empty")
         return value
 
-    def validate_approval_reason(self, value: Optional[str]) -> Optional[str]:
+    def validate_approval_reason(self, value: str | None) -> str | None:
         """Validate approval reason with XSS sanitization."""
         if value is not None:
             value = sanitize_plain_text(value)
@@ -574,7 +575,7 @@ class TaskApprovalRequestSerializer(serializers.Serializer):
     )
     reason = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
-    def validate_reason(self, value: Optional[str]) -> Optional[str]:
+    def validate_reason(self, value: str | None) -> str | None:
         """Validate reason with XSS sanitization."""
         if value is not None:
             value = sanitize_plain_text(value)

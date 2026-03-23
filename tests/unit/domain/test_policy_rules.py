@@ -5,27 +5,29 @@ Tests the pure domain logic in apps/policy/domain/rules.py
 Only uses Python standard library - no Django imports.
 """
 
-import pytest
-from datetime import date
 from dataclasses import FrozenInstanceError
+from datetime import date
+
+import pytest
+
 from apps.policy.domain.entities import PolicyLevel
 from apps.policy.domain.rules import (
-    MarketAction,
-    PolicyResponse,
-    POLICY_RESPONSE_RULES,
-    get_policy_response,
-    should_pause_trading_signals,
-    get_signal_pause_duration_hours,
-    should_trigger_alert,
-    requires_manual_intervention,
-    get_cash_allocation_adjustment,
-    is_high_risk_level,
-    validate_policy_event,
-    analyze_policy_transition,
-    PolicyTransition,
-    get_recommendations_for_level,
-    PolicyLevelKeywordRule,
     DEFAULT_KEYWORD_RULES,
+    POLICY_RESPONSE_RULES,
+    MarketAction,
+    PolicyLevelKeywordRule,
+    PolicyResponse,
+    PolicyTransition,
+    analyze_policy_transition,
+    get_cash_allocation_adjustment,
+    get_policy_response,
+    get_recommendations_for_level,
+    get_signal_pause_duration_hours,
+    is_high_risk_level,
+    requires_manual_intervention,
+    should_pause_trading_signals,
+    should_trigger_alert,
+    validate_policy_event,
 )
 
 

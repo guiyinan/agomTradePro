@@ -9,8 +9,8 @@ Domain layer interfaces: Pure Python types
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
 from decimal import Decimal
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -29,12 +29,12 @@ class CorrelationResult:
 @dataclass
 class CorrelationMatrix:
     """Correlation matrix for multiple assets (Domain entity)"""
-    assets: List[str]
-    matrix: List[List[float]]  # Square matrix of correlations
+    assets: list[str]
+    matrix: list[list[float]]  # Square matrix of correlations
     calc_date: str  # ISO format date string
     window_days: int
 
-    def get_correlation(self, asset1: str, asset2: str) -> Optional[float]:
+    def get_correlation(self, asset1: str, asset2: str) -> float | None:
         """Get correlation between two assets"""
         try:
             idx1 = self.assets.index(asset1)
@@ -57,10 +57,10 @@ class RollingCorrelationCalculator:
 
     def calculate_rolling_correlation(
         self,
-        prices1: List[float],
-        prices2: List[float],
+        prices1: list[float],
+        prices2: list[float],
         window: int = 20
-    ) -> List[Optional[float]]:
+    ) -> list[float | None]:
         """
         Calculate rolling correlation coefficient.
 
@@ -97,8 +97,8 @@ class RollingCorrelationCalculator:
 
     def calculate_correlation(
         self,
-        prices1: List[float],
-        prices2: List[float]
+        prices1: list[float],
+        prices2: list[float]
     ) -> float:
         """
         Calculate single correlation coefficient over entire period.
@@ -123,8 +123,8 @@ class RollingCorrelationCalculator:
 
     def calculate_covariance(
         self,
-        prices1: List[float],
-        prices2: List[float]
+        prices1: list[float],
+        prices2: list[float]
     ) -> float:
         """
         Calculate covariance between two price series.
@@ -156,7 +156,7 @@ class RollingCorrelationCalculator:
     def calculate_correlation_matrix(
         self,
         price_dict: dict,  # {asset_code: [prices]}
-        window: Optional[int] = None
+        window: int | None = None
     ) -> CorrelationMatrix:
         """
         Calculate correlation matrix for multiple assets.
@@ -196,7 +196,7 @@ class RollingCorrelationCalculator:
             window_days=window or len(next(iter(prices.values())))
         )
 
-    def _calculate_returns(self, prices: List[float]) -> List[float]:
+    def _calculate_returns(self, prices: list[float]) -> list[float]:
         """Calculate log returns from price series"""
         returns = []
         for i in range(1, len(prices)):
@@ -207,7 +207,7 @@ class RollingCorrelationCalculator:
                 returns.append(0.0)
         return returns
 
-    def _correlation_coefficient(self, x: List[float], y: List[float]) -> float:
+    def _correlation_coefficient(self, x: list[float], y: list[float]) -> float:
         """Calculate Pearson correlation coefficient"""
         n = len(x)
         if n < 2:
@@ -230,8 +230,8 @@ class RollingCorrelationCalculator:
 
     def calculate_beta(
         self,
-        asset_prices: List[float],
-        benchmark_prices: List[float]
+        asset_prices: list[float],
+        benchmark_prices: list[float]
     ) -> float:
         """
         Calculate beta coefficient (asset sensitivity to benchmark).
@@ -302,7 +302,7 @@ class NumPyCorrelationCalculator:
     def calculate_correlation_matrix(
         self,
         price_dict: dict,
-        window: Optional[int] = None
+        window: int | None = None
     ) -> CorrelationMatrix:
         """Calculate correlation matrix using NumPy if available"""
         if not self._use_numpy:

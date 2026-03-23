@@ -5,7 +5,7 @@
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import List
 
 from apps.market_data.domain.entities import StockNewsItem
@@ -36,7 +36,7 @@ class StockNewsRepository:
         )
         return created
 
-    def save_batch(self, items: List[StockNewsItem]) -> int:
+    def save_batch(self, items: list[StockNewsItem]) -> int:
         """批量保存新闻（去重）
 
         Returns:
@@ -53,9 +53,9 @@ class StockNewsRepository:
 
     def get_recent(
         self, stock_code: str, days: int = 3, limit: int = 50
-    ) -> List[StockNewsItem]:
+    ) -> list[StockNewsItem]:
         """获取最近 N 天的新闻"""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         qs = (
             StockNewsModel.objects.filter(
                 stock_code=stock_code,
@@ -67,7 +67,7 @@ class StockNewsRepository:
 
     def count_recent(self, stock_code: str, days: int = 3) -> int:
         """统计最近 N 天的新闻数量"""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         return StockNewsModel.objects.filter(
             stock_code=stock_code,
             published_at__gte=cutoff,

@@ -2,11 +2,13 @@
 Admin page object for detecting Django Admin exposure.
 """
 from typing import List, Optional
+
 from playwright.sync_api import Page, expect
 
-from tests.playwright.pages.base_page import BasePage
+from tests.playwright.config.selectors import admin as admin_sel
+from tests.playwright.config.selectors import common
 from tests.playwright.config.test_config import config
-from tests.playwright.config.selectors import admin as admin_sel, common
+from tests.playwright.pages.base_page import BasePage
 
 
 class AdminPage(BasePage):
@@ -79,7 +81,7 @@ class AdminPage(BasePage):
 
     # Module Detection
 
-    def get_admin_modules(self) -> List[dict]:
+    def get_admin_modules(self) -> list[dict]:
         """Get all Django Admin app modules on index page.
 
         Returns:
@@ -99,7 +101,7 @@ class AdminPage(BasePage):
 
         return modules
 
-    def get_admin_models(self, app_name: Optional[str] = None) -> List[dict]:
+    def get_admin_models(self, app_name: str | None = None) -> list[dict]:
         """Get all Django Admin models on app page.
 
         Args:
@@ -162,7 +164,7 @@ class AdminPage(BasePage):
 
         return False
 
-    def get_changelist_items(self) -> List[dict]:
+    def get_changelist_items(self) -> list[dict]:
         """Get items from changelist table.
 
         Returns:
@@ -209,7 +211,7 @@ class AdminPage(BasePage):
 
         return False
 
-    def get_form_fields(self) -> List[dict]:
+    def get_form_fields(self) -> list[dict]:
         """Get all form fields on change form page.
 
         Returns:
@@ -257,7 +259,7 @@ class AdminPage(BasePage):
             "admin_links": self.get_admin_links(),
         }
 
-    def get_required_actions_for_custom_ui(self) -> List[str]:
+    def get_required_actions_for_custom_ui(self) -> list[str]:
         """Get list of actions that need custom UI implementation.
 
         Returns:

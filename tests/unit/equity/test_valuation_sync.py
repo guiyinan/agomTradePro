@@ -3,10 +3,10 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from apps.equity.application.use_cases_valuation_sync import (
-    SyncEquityValuationRequest,
-    SyncEquityValuationUseCase,
     BackfillEquityValuationRequest,
     BackfillEquityValuationUseCase,
+    SyncEquityValuationRequest,
+    SyncEquityValuationUseCase,
 )
 from apps.equity.domain.entities import ValuationMetrics
 

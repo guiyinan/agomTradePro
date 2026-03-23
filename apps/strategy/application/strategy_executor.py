@@ -7,35 +7,32 @@
 - 编排业务逻辑流程
 """
 import logging
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
+from apps.strategy.application.ai_strategy_executor import AIStrategyExecutor
+from apps.strategy.application.rule_evaluator import CompositeRuleEvaluator
+from apps.strategy.application.script_engine import ScriptBasedStrategyExecutor, SecurityMode
 from apps.strategy.domain.entities import (
-    Strategy,
-    StrategyType,
+    ActionType,
     RuleCondition,
     SignalRecommendation,
+    Strategy,
     StrategyExecutionResult,
-    ActionType
+    StrategyType,
 )
 from apps.strategy.domain.protocols import (
-    StrategyRepositoryProtocol,
-    RuleConditionRepositoryProtocol,
-    StrategyExecutionLogRepositoryProtocol,
-    MacroDataProviderProtocol,
-    RegimeProviderProtocol,
     AssetPoolProviderProtocol,
+    MacroDataProviderProtocol,
+    PortfolioDataProviderProtocol,
+    RegimeProviderProtocol,
+    RuleConditionRepositoryProtocol,
     SignalProviderProtocol,
-    PortfolioDataProviderProtocol
+    StrategyExecutionLogRepositoryProtocol,
+    StrategyRepositoryProtocol,
 )
-from apps.strategy.application.rule_evaluator import CompositeRuleEvaluator
-from apps.strategy.application.script_engine import (
-    ScriptBasedStrategyExecutor,
-    SecurityMode
-)
-from apps.strategy.application.ai_strategy_executor import AIStrategyExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +174,7 @@ class StrategyExecutor:
 
         return result
 
-    def _prepare_context(self, portfolio_id: int) -> Dict[str, Any]:
+    def _prepare_context(self, portfolio_id: int) -> dict[str, Any]:
         """
         准备执行上下文
 
@@ -240,8 +237,8 @@ class StrategyExecutor:
     def _dispatch_execution(
         self,
         strategy: Strategy,
-        context: Dict[str, Any]
-    ) -> List[SignalRecommendation]:
+        context: dict[str, Any]
+    ) -> list[SignalRecommendation]:
         """
         根据策略类型分发执行
 
@@ -273,8 +270,8 @@ class StrategyExecutor:
     def _execute_rule_based_strategy(
         self,
         strategy: Strategy,
-        context: Dict[str, Any]
-    ) -> List[SignalRecommendation]:
+        context: dict[str, Any]
+    ) -> list[SignalRecommendation]:
         """
         执行规则驱动策略
 
@@ -311,8 +308,8 @@ class StrategyExecutor:
     def _execute_hybrid_strategy(
         self,
         strategy: Strategy,
-        context: Dict[str, Any]
-    ) -> List[SignalRecommendation]:
+        context: dict[str, Any]
+    ) -> list[SignalRecommendation]:
         """
         执行混合策略
 
@@ -346,9 +343,9 @@ class StrategyExecutor:
     def _generate_signals_from_rule(
         self,
         rule: RuleCondition,
-        asset_pool: List[Dict[str, Any]],
-        context: Dict[str, Any]
-    ) -> List[SignalRecommendation]:
+        asset_pool: list[dict[str, Any]],
+        context: dict[str, Any]
+    ) -> list[SignalRecommendation]:
         """
         从规则生成信号
 

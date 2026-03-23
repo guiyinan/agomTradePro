@@ -26,7 +26,7 @@ class SectorInfo:
     sector_code: str
     sector_name: str
     level: str  # 'SW1', 'SW2', 'SW3'
-    parent_code: Optional[str] = None
+    parent_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ class SectorIndex:
     volume: int  # 成交量（手）
     amount: Decimal  # 成交额（元）
     change_pct: float  # 涨跌幅（%）
-    turnover_rate: Optional[float] = None  # 换手率（%）
+    turnover_rate: float | None = None  # 换手率（%）
 
 
 @dataclass(frozen=True)
@@ -72,7 +72,7 @@ class SectorRelativeStrength:
     trade_date: date
     relative_strength: float  # 相对强弱（板块收益率 / 大盘收益率）
     momentum: float  # 动量（N日累计收益率，%）
-    beta: Optional[float] = None  # 贝塔系数
+    beta: float | None = None  # 贝塔系数
 
 
 @dataclass(frozen=True)

@@ -34,7 +34,7 @@ class AdminConfig:
 
     username: str
     password: str
-    email: Optional[str] = None
+    email: str | None = None
 
     def validate_password_strength(self) -> tuple[bool, str]:
         """
@@ -74,8 +74,8 @@ class AIProviderConfigDTO:
 class DataSourceConfigDTO:
     """数据源配置实体"""
 
-    tushare_token: Optional[str] = None
-    fred_api_key: Optional[str] = None
+    tushare_token: str | None = None
+    fred_api_key: str | None = None
     akshare_enabled: bool = True
 
 
@@ -85,8 +85,8 @@ class SetupProgress:
 
     current_step: WizardStep
     completed_steps: list[WizardStep] = field(default_factory=list)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     def is_step_completed(self, step: WizardStep) -> bool:
         """检查步骤是否已完成"""
@@ -110,7 +110,7 @@ class SetupState:
     """安装状态实体"""
 
     status: SetupStatus
-    progress: Optional[SetupProgress] = None
+    progress: SetupProgress | None = None
     admin_configured: bool = False
     ai_provider_configured: bool = False
     data_source_configured: bool = False

@@ -7,7 +7,7 @@
 import hashlib
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import List, Optional
 
 from apps.market_data.domain.entities import StockNewsItem
@@ -38,19 +38,19 @@ def _clean_content(content: str) -> str:
     return content.strip()
 
 
-def _parse_datetime(value: object) -> Optional[datetime]:
+def _parse_datetime(value: object) -> datetime | None:
     """安全地解析时间字段"""
     if value is None:
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
     s = str(value).strip()
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
         try:
             dt = datetime.strptime(s, fmt)
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         except ValueError:
             continue
     return None
@@ -60,7 +60,7 @@ def parse_akshare_news_rows(
     df: "pandas.DataFrame",  # type: ignore[name-defined]
     stock_code: str,
     limit: int = 20,
-) -> List[StockNewsItem]:
+) -> list[StockNewsItem]:
     """将 ak.stock_news_em() 的 DataFrame 解析为 StockNewsItem 列表
 
     AKShare 新闻字段（来自东方财富）:
@@ -81,7 +81,7 @@ def parse_akshare_news_rows(
     if df is None or df.empty:
         return []
 
-    items: List[StockNewsItem] = []
+    items: list[StockNewsItem] = []
     seen_ids: set = set()
 
     for _, row in df.iterrows():

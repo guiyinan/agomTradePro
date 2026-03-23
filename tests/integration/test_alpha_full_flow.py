@@ -9,11 +9,11 @@ End-to-End Integration Tests for Alpha Module
 5. 监控指标记录
 """
 
-import pytest
 from datetime import date, datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
 from decimal import Decimal
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from django.utils import timezone
 
 from apps.alpha.application.services import AlphaService
@@ -31,8 +31,8 @@ _FAKE_ETF_CONSTITUENTS = (
     None,
 )
 from apps.backtest.domain.alpha_backtest import (
-    RunAlphaBacktestUseCase,
     RunAlphaBacktestRequest,
+    RunAlphaBacktestUseCase,
 )
 from shared.infrastructure.metrics import get_alpha_metrics
 

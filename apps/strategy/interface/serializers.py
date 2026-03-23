@@ -5,23 +5,22 @@ Interface层:
 - 负责输入验证和输出格式化
 - 使用DRF Serializer进行数据转换
 """
+from django.core.validators import MaxValueValidator, MinValueValidator
 from rest_framework import serializers
-from django.core.validators import MinValueValidator, MaxValueValidator
 
-from apps.strategy.infrastructure.models import (
-    StrategyModel,
-    PositionManagementRuleModel,
-    RuleConditionModel,
-    ScriptConfigModel,
-    AIStrategyConfigModel,
-    PortfolioStrategyAssignmentModel,
-    StrategyExecutionLogModel
-)
 from apps.strategy.application.position_management_service import (
     PositionManagementService,
     PositionRuleError,
 )
-
+from apps.strategy.infrastructure.models import (
+    AIStrategyConfigModel,
+    PortfolioStrategyAssignmentModel,
+    PositionManagementRuleModel,
+    RuleConditionModel,
+    ScriptConfigModel,
+    StrategyExecutionLogModel,
+    StrategyModel,
+)
 
 # ========================================================================
 # Strategy Serializers

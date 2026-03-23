@@ -5,9 +5,9 @@
 """
 
 from apps.equity.infrastructure.models import (
-    StockInfoModel,
-    StockDailyModel,
     FinancialDataModel,
+    StockDailyModel,
+    StockInfoModel,
     ValuationModel,
 )
 

@@ -9,25 +9,23 @@ Exports:
     - create_default_adapter: 创建默认适配器工厂函数
 """
 
+from .akshare_adapter import AKShareAdapter
 from .base import (
-    MacroAdapterProtocol,
-    MacroDataPoint,
+    PUBLICATION_LAGS,
     BaseMacroAdapter,
     DataSourceUnavailableError,
     DataValidationError,
+    MacroAdapterProtocol,
+    MacroDataPoint,
     PublicationLag,
-    PUBLICATION_LAGS,
     get_publication_lags,
 )
-
-from .tushare_adapter import TushareAdapter
-from .akshare_adapter import AKShareAdapter
 from .failover_adapter import (
     FailoverAdapter,
     MultiSourceAdapter,
     create_default_adapter,
 )
-
+from .tushare_adapter import TushareAdapter
 
 __all__ = [
     # Protocol

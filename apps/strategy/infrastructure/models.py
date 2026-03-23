@@ -6,9 +6,9 @@ Infrastructure层:
 - 对应Domain层的实体
 - 包含索引优化和约束
 """
-from django.db import models
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 from django.utils import timezone
 
 

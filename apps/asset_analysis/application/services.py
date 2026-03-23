@@ -7,19 +7,19 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 
 import time
 import traceback
-from typing import List, Optional
 from dataclasses import replace
+from typing import List, Optional
 
+from apps.asset_analysis.application.logging_service import AlertService, ScoringLogger
 from apps.asset_analysis.domain.entities import AssetScore
-from apps.asset_analysis.domain.value_objects import WeightConfig, ScoreContext
 from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol
 from apps.asset_analysis.domain.services import (
-    RegimeMatcher,
     PolicyMatcher,
+    RegimeMatcher,
     SentimentMatcher,
     SignalMatcher,
 )
-from apps.asset_analysis.application.logging_service import ScoringLogger, AlertService
+from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 
 
 class AssetMultiDimScorer:
@@ -102,12 +102,12 @@ class AssetMultiDimScorer:
 
     def score_batch(
         self,
-        assets: List[AssetScore],
+        assets: list[AssetScore],
         context: ScoreContext,
         request_source: str = "unknown",
-        user_id: Optional[int] = None,
-        filters: Optional[dict] = None,
-    ) -> List[AssetScore]:
+        user_id: int | None = None,
+        filters: dict | None = None,
+    ) -> list[AssetScore]:
         """
         批量评分资产（带日志记录和告警）
 

@@ -5,10 +5,10 @@ Provides a simplified interface for terminal to use the unified routing system.
 """
 
 import logging
-from dataclasses import replace
-from datetime import datetime, timezone
-from typing import Any, Optional
 import uuid
+from dataclasses import replace
+from datetime import UTC, datetime, timezone
+from typing import Any, Optional
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
@@ -29,7 +29,6 @@ from ..infrastructure.repositories import (
     DjangoRoutingLogRepository,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -47,8 +46,8 @@ class CapabilityRoutingFacade:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
-        routing_log_repo: Optional[DjangoRoutingLogRepository] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
+        routing_log_repo: DjangoRoutingLogRepository | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
         self.routing_log_repo = routing_log_repo or DjangoRoutingLogRepository()
@@ -61,13 +60,13 @@ class CapabilityRoutingFacade:
         self,
         message: str,
         entrypoint: str = "terminal",
-        session_id: Optional[str] = None,
-        user_id: Optional[int] = None,
+        session_id: str | None = None,
+        user_id: int | None = None,
         user_is_admin: bool = False,
         mcp_enabled: bool = True,
-        provider_name: Optional[str] = None,
-        model: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None,
+        provider_name: str | None = None,
+        model: str | None = None,
+        context: dict[str, Any] | None = None,
         answer_chain_enabled: bool = False,
     ) -> dict[str, Any]:
         request_dto = RouteRequestDTO(
@@ -91,13 +90,13 @@ class CapabilityRoutingFacade:
         capability_key: str,
         message: str,
         entrypoint: str = "web",
-        session_id: Optional[str] = None,
-        user_id: Optional[int] = None,
+        session_id: str | None = None,
+        user_id: int | None = None,
         user_is_admin: bool = False,
         mcp_enabled: bool = True,
-        provider_name: Optional[str] = None,
-        model: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None,
+        provider_name: str | None = None,
+        model: str | None = None,
+        context: dict[str, Any] | None = None,
         answer_chain_enabled: bool = False,
     ) -> dict[str, Any]:
         capability = self.capability_repo.get_by_key(capability_key)
@@ -331,7 +330,7 @@ class CapabilityRoutingFacade:
                 _line("Redis", checks.get("redis", {})),
                 _line("Celery", checks.get("celery", {})),
                 _line("Critical Data", checks.get("critical_data", {})),
-                f"- **Timestamp**: `{datetime.now(timezone.utc).isoformat()}`",
+                f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
             ]
         )
 

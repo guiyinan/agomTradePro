@@ -6,11 +6,11 @@
 """
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
 
-from core.logging_utils import set_trace_id, clear_trace_id, get_trace_id
+from core.logging_utils import clear_trace_id, get_trace_id, set_trace_id
 
 logger = logging.getLogger(__name__)
 

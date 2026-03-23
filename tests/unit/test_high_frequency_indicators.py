@@ -8,18 +8,19 @@ Unit tests for High-Frequency Indicators (Phase 1)
 4. 混合 Regime 计算（HybridRegimeCalculator）
 """
 
-import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 from apps.macro.domain.entities import (
+    BondYieldCurve,
+    CreditSpreadIndicator,
+    HighFrequencyIndicator,
     PeriodType,
     RegimeSensitivity,
-    SignalDirection,
-    HighFrequencyIndicator,
     RegimeSignal,
-    BondYieldCurve,
-    CreditSpreadIndicator
+    SignalDirection,
 )
 
 
@@ -309,7 +310,10 @@ class TestTermSpreadCalculation:
 
     def test_calculate_normal_spread(self):
         """测试：计算正常期限利差"""
-        from apps.regime.application.use_cases import CalculateTermSpreadRequest, CalculateTermSpreadUseCase
+        from apps.regime.application.use_cases import (
+            CalculateTermSpreadRequest,
+            CalculateTermSpreadUseCase,
+        )
 
         # Mock repository
         mock_repo = Mock()
@@ -348,7 +352,10 @@ class TestTermSpreadCalculation:
 
     def test_calculate_inverted_spread(self):
         """测试：计算倒挂期限利差"""
-        from apps.regime.application.use_cases import CalculateTermSpreadRequest, CalculateTermSpreadUseCase
+        from apps.regime.application.use_cases import (
+            CalculateTermSpreadRequest,
+            CalculateTermSpreadUseCase,
+        )
 
         mock_repo = Mock()
 
@@ -391,7 +398,10 @@ class TestSignalConflictResolution:
 
     def test_all_consistent_signals(self):
         """测试：日度和月度信号一致"""
-        from apps.regime.application.use_cases import ResolveSignalConflictRequest, ResolveSignalConflictUseCase
+        from apps.regime.application.use_cases import (
+            ResolveSignalConflictRequest,
+            ResolveSignalConflictUseCase,
+        )
 
         use_case = ResolveSignalConflictUseCase()
         request = ResolveSignalConflictRequest(
@@ -410,7 +420,10 @@ class TestSignalConflictResolution:
 
     def test_persistent_daily_signal(self):
         """测试：日度信号持续超过阈值"""
-        from apps.regime.application.use_cases import ResolveSignalConflictRequest, ResolveSignalConflictUseCase
+        from apps.regime.application.use_cases import (
+            ResolveSignalConflictRequest,
+            ResolveSignalConflictUseCase,
+        )
 
         use_case = ResolveSignalConflictUseCase()
         request = ResolveSignalConflictRequest(
@@ -429,7 +442,10 @@ class TestSignalConflictResolution:
 
     def test_default_monthly_signal(self):
         """测试：默认使用月度信号"""
-        from apps.regime.application.use_cases import ResolveSignalConflictRequest, ResolveSignalConflictUseCase
+        from apps.regime.application.use_cases import (
+            ResolveSignalConflictRequest,
+            ResolveSignalConflictUseCase,
+        )
 
         use_case = ResolveSignalConflictUseCase()
         request = ResolveSignalConflictRequest(
@@ -473,7 +489,11 @@ class TestHybridRegimeCalculator:
 
     def test_all_consistent_signals_boost_confidence(self):
         """测试：信号一致时提升置信度"""
-        from apps.regime.domain.services import HybridRegimeCalculator, RegimeCalculator, DailySignalContext
+        from apps.regime.domain.services import (
+            DailySignalContext,
+            HybridRegimeCalculator,
+            RegimeCalculator,
+        )
 
         monthly_calc = RegimeCalculator()
         hybrid_calc = HybridRegimeCalculator(monthly_calc)
@@ -503,7 +523,11 @@ class TestHybridRegimeCalculator:
 
     def test_persistent_daily_signal_overrides(self):
         """测试：持续日度信号覆盖月度信号"""
-        from apps.regime.domain.services import HybridRegimeCalculator, RegimeCalculator, DailySignalContext
+        from apps.regime.domain.services import (
+            DailySignalContext,
+            HybridRegimeCalculator,
+            RegimeCalculator,
+        )
 
         monthly_calc = RegimeCalculator()
         hybrid_calc = HybridRegimeCalculator(monthly_calc, daily_persist_threshold=10)

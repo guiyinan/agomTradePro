@@ -6,6 +6,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.equity.infrastructure.models import ScoringWeightConfigModel
 
 

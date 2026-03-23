@@ -6,21 +6,21 @@ Dashboard Domain Services
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
 from .entities import (
-    DashboardCard,
-    DashboardWidget,
-    DashboardLayout,
-    ChartConfig,
-    MetricCard,
     AlertConfig,
-    DashboardPreferences,
-    CardType,
-    WidgetType,
     AlertSeverity,
+    CardType,
+    ChartConfig,
+    DashboardCard,
+    DashboardLayout,
+    DashboardPreferences,
+    DashboardWidget,
+    MetricCard,
+    WidgetType,
 )
 from .rules import (
     DashboardCardVisibilityRule,
@@ -41,11 +41,11 @@ class LayoutResolutionResult:
         layout_metadata: 布局元数据
     """
 
-    visible_cards: List[DashboardCard]
-    visible_widgets: List[DashboardWidget]
+    visible_cards: list[DashboardCard]
+    visible_widgets: list[DashboardWidget]
     hidden_count: int
     total_cards: int
-    layout_metadata: Dict[str, Any] = field(default_factory=dict)
+    layout_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -65,13 +65,13 @@ class MetricCalculationResult:
     """
 
     metric_name: str
-    value: Union[float, int, str]
+    value: float | int | str
     formatted_value: str
-    trend: Optional[str] = None
-    trend_value: Optional[float] = None
-    severity: Optional[AlertSeverity] = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    trend: str | None = None
+    trend_value: float | None = None
+    severity: AlertSeverity | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class DashboardLayoutService:
@@ -88,8 +88,8 @@ class DashboardLayoutService:
     def resolve_layout(
         self,
         layout: DashboardLayout,
-        user_preferences: Optional[DashboardPreferences] = None,
-        context: Optional[Dict[str, Any]] = None,
+        user_preferences: DashboardPreferences | None = None,
+        context: dict[str, Any] | None = None,
     ) -> LayoutResolutionResult:
         """
         解析布局
@@ -172,7 +172,7 @@ class DashboardLayoutService:
                 "layout_id": layout.layout_id,
                 "columns": layout.columns,
                 "row_height": layout.row_height,
-                "resolved_at": datetime.now(timezone.utc).isoformat(),
+                "resolved_at": datetime.now(UTC).isoformat(),
             }
         )
 
@@ -180,8 +180,8 @@ class DashboardLayoutService:
         self,
         card: DashboardCard,
         layout: DashboardLayout,
-        occupied_positions: List[Dict[str, int]],
-    ) -> Dict[str, int]:
+        occupied_positions: list[dict[str, int]],
+    ) -> dict[str, int]:
         """
         计算卡片位置
 
@@ -228,8 +228,8 @@ class DashboardLayoutService:
 
     def _positions_overlap(
         self,
-        pos1: Dict[str, int],
-        pos2: Dict[str, int],
+        pos1: dict[str, int],
+        pos2: dict[str, int],
     ) -> bool:
         """检查两个位置是否重叠"""
         r1, c1, w1, h1 = pos1.get("row", 0), pos1.get("col", 0), pos1.get("width", 1), pos1.get("height", 1)
@@ -258,9 +258,9 @@ class DashboardMetricService:
     def calculate_metric(
         self,
         metric_name: str,
-        data: Dict[str, Any],
-        config: Optional[MetricCard] = None,
-        previous_data: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any],
+        config: MetricCard | None = None,
+        previous_data: dict[str, Any] | None = None,
     ) -> MetricCalculationResult:
         """
         计算指标
@@ -311,7 +311,7 @@ class DashboardMetricService:
             severity=severity,
         )
 
-    def _extract_metric_value(self, metric_name: str, data: Dict[str, Any]) -> Any:
+    def _extract_metric_value(self, metric_name: str, data: dict[str, Any]) -> Any:
         """从数据中提取指标值"""
         # 支持嵌套路径，如 "portfolio.total_value"
         keys = metric_name.split(".")
@@ -371,8 +371,8 @@ class DashboardChartService:
     def prepare_chart_data(
         self,
         config: ChartConfig,
-        raw_data: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        raw_data: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         准备图表数据
 
@@ -396,8 +396,8 @@ class DashboardChartService:
     def _prepare_line_chart_data(
         self,
         config: ChartConfig,
-        raw_data: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        raw_data: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """准备折线图数据"""
         # 提取系列数据
         series_data = {}
@@ -432,8 +432,8 @@ class DashboardChartService:
     def _prepare_bar_chart_data(
         self,
         config: ChartConfig,
-        raw_data: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        raw_data: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """准备柱状图数据"""
         categories = []
         values = []
@@ -456,8 +456,8 @@ class DashboardChartService:
     def _prepare_pie_chart_data(
         self,
         config: ChartConfig,
-        raw_data: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        raw_data: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """准备饼图数据"""
         labels = []
         values = []
@@ -490,10 +490,10 @@ class DashboardAlertService:
 
     def evaluate_alerts(
         self,
-        alert_configs: List[AlertConfig],
-        current_data: Dict[str, Any],
-        cooldown_state: Optional[Dict[str, datetime]] = None,
-    ) -> List[Dict[str, Any]]:
+        alert_configs: list[AlertConfig],
+        current_data: dict[str, Any],
+        cooldown_state: dict[str, datetime] | None = None,
+    ) -> list[dict[str, Any]]:
         """
         评估告警
 
@@ -507,7 +507,7 @@ class DashboardAlertService:
         """
         cooldown_state = cooldown_state or {}
         triggered_alerts = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for config in alert_configs:
             if not config.is_enabled:
@@ -548,8 +548,8 @@ class DashboardAlertService:
 
 def resolve_dashboard_layout(
     layout: DashboardLayout,
-    user_preferences: Optional[DashboardPreferences] = None,
-    context: Optional[Dict[str, Any]] = None,
+    user_preferences: DashboardPreferences | None = None,
+    context: dict[str, Any] | None = None,
 ) -> LayoutResolutionResult:
     """
     解析仪表盘布局的便捷函数
@@ -568,8 +568,8 @@ def resolve_dashboard_layout(
 
 def calculate_dashboard_metric(
     metric_name: str,
-    data: Dict[str, Any],
-    config: Optional[MetricCard] = None,
+    data: dict[str, Any],
+    config: MetricCard | None = None,
 ) -> MetricCalculationResult:
     """
     计算仪表盘指标的便捷函数

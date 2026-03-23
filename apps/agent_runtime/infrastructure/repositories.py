@@ -7,7 +7,7 @@ import ORM models directly.
 
 from typing import Any, Dict, List, Optional
 
-from apps.agent_runtime.domain.entities import AgentTask, AgentProposal
+from apps.agent_runtime.domain.entities import AgentProposal, AgentTask
 from apps.agent_runtime.infrastructure.models import (
     AgentContextSnapshotModel,
     AgentExecutionRecordModel,
@@ -28,8 +28,8 @@ class AgentTaskRepository:
         request_id: str,
         task_domain: str,
         task_type: str,
-        input_payload: Dict[str, Any],
-        created_by: Optional[int],
+        input_payload: dict[str, Any],
+        created_by: int | None,
         status: str,
         schema_version: str = "v1",
     ) -> AgentTask:
@@ -53,14 +53,14 @@ class AgentTaskRepository:
     def list_tasks(
         self,
         *,
-        status: Optional[str] = None,
-        task_domain: Optional[str] = None,
-        task_type: Optional[str] = None,
-        requires_human: Optional[bool] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        task_domain: str | None = None,
+        task_type: str | None = None,
+        requires_human: bool | None = None,
+        search: str | None = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         queryset = AgentTaskModel._default_manager.all()
         if status:
             queryset = queryset.filter(status=status)
@@ -85,7 +85,7 @@ class AgentTaskRepository:
         task_id: int,
         *,
         status: str,
-        requires_human: Optional[bool] = None,
+        requires_human: bool | None = None,
     ) -> AgentTask:
         model = AgentTaskModel._default_manager.get(pk=task_id)
         model.status = status
@@ -99,7 +99,7 @@ class AgentTaskRepository:
     def task_exists(self, task_id: int) -> bool:
         return AgentTaskModel._default_manager.filter(pk=task_id).exists()
 
-    def get_health_summary(self, terminal_statuses: List[str], failed_status: str) -> Dict[str, int]:
+    def get_health_summary(self, terminal_statuses: list[str], failed_status: str) -> dict[str, int]:
         total = AgentTaskModel._default_manager.count()
         active = AgentTaskModel._default_manager.exclude(status__in=terminal_statuses).count()
         needs_human = AgentTaskModel._default_manager.filter(requires_human=True).count()
@@ -119,15 +119,15 @@ class AgentProposalRepository:
         self,
         *,
         request_id: str,
-        task_id: Optional[int],
+        task_id: int | None,
         proposal_type: str,
         status: str,
         risk_level: str,
         approval_required: bool,
         approval_status: str,
-        proposal_payload: Dict[str, Any],
-        approval_reason: Optional[str],
-        created_by: Optional[int],
+        proposal_payload: dict[str, Any],
+        approval_reason: str | None,
+        created_by: int | None,
         schema_version: str = "v1",
     ) -> AgentProposal:
         model = AgentProposalModel._default_manager.create(
@@ -153,8 +153,8 @@ class AgentProposalRepository:
         proposal_id: int,
         *,
         status: str,
-        approval_status: Optional[str] = None,
-        approval_reason: Optional[str] = None,
+        approval_status: str | None = None,
+        approval_reason: str | None = None,
     ) -> AgentProposal:
         model = AgentProposalModel._default_manager.get(pk=proposal_id)
         model.status = status
@@ -172,14 +172,14 @@ class AgentProposalRepository:
         self,
         *,
         request_id: str,
-        task_id: Optional[int],
-        proposal_id: Optional[int],
+        task_id: int | None,
+        proposal_id: int | None,
         decision: str,
         reason_code: str,
         message: str,
-        evidence: Dict[str, Any],
+        evidence: dict[str, Any],
         requires_human: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         model = AgentGuardrailDecisionModel._default_manager.create(
             request_id=request_id,
             task_id=task_id,
@@ -205,7 +205,7 @@ class AgentProposalRepository:
         task_id: int,
         proposal_id: int,
         execution_status: str,
-        execution_output: Dict[str, Any],
+        execution_output: dict[str, Any],
         started_at,
         completed_at,
     ) -> int:
@@ -220,7 +220,7 @@ class AgentProposalRepository:
         )
         return model.id
 
-    def list_open_proposals(self, task_id: int, terminal_statuses: List[str]) -> List[Dict[str, Any]]:
+    def list_open_proposals(self, task_id: int, terminal_statuses: list[str]) -> list[dict[str, Any]]:
         return list(
             AgentProposalModel._default_manager.filter(task_id=task_id)
             .exclude(status__in=terminal_statuses)
@@ -239,7 +239,7 @@ class AgentHandoffRepository:
         from_agent: str,
         to_agent: str,
         handoff_reason: str,
-        handoff_payload: Dict[str, Any],
+        handoff_payload: dict[str, Any],
         handoff_status: str = "completed",
     ) -> int:
         model = AgentHandoffModel._default_manager.create(
@@ -257,7 +257,7 @@ class AgentHandoffRepository:
 class AgentContextRepository:
     """Context snapshot and step query helpers."""
 
-    def get_latest_context_reference(self, task_id: int) -> Optional[Dict[str, Any]]:
+    def get_latest_context_reference(self, task_id: int) -> dict[str, Any] | None:
         snapshot = AgentContextSnapshotModel._default_manager.filter(task_id=task_id).order_by("-created_at").first()
         if snapshot is None:
             return None
@@ -267,7 +267,7 @@ class AgentContextRepository:
             "generated_at": snapshot.generated_at.isoformat() if snapshot.generated_at else None,
         }
 
-    def list_task_steps(self, task_id: int) -> List[Dict[str, Any]]:
+    def list_task_steps(self, task_id: int) -> list[dict[str, Any]]:
         steps = AgentTaskStepModel._default_manager.filter(task_id=task_id).order_by("step_index")
         return [
             {

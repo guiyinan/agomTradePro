@@ -4,19 +4,21 @@ Unit tests for Hedge Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import date, datetime
 from decimal import Decimal
+
+import pytest
+
 from apps.hedge.domain.entities import (
-    HedgeMethod,
-    HedgeAlertType,
-    HedgePair,
     CorrelationMetric,
-    HedgePortfolio,
     HedgeAlert,
+    HedgeAlertType,
+    HedgeMethod,
+    HedgePair,
     HedgePerformance,
-    get_common_hedge_pairs,
+    HedgePortfolio,
     create_default_hedge_config,
+    get_common_hedge_pairs,
 )
 
 

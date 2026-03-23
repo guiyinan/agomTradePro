@@ -9,21 +9,21 @@ Tests for:
 - Error handling
 """
 
-import pytest
 import json
 from datetime import date
-from unittest.mock import patch, MagicMock
-from rest_framework.test import APIClient
-from rest_framework import status
+from unittest.mock import MagicMock, patch
+
+import pytest
 from django.contrib.auth import get_user_model
+from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.audit.infrastructure.models import (
     AttributionReport,
-    LossAnalysis,
     ExperienceSummary,
+    LossAnalysis,
 )
 from apps.backtest.infrastructure.models import BacktestResultModel
-
 
 User = get_user_model()
 

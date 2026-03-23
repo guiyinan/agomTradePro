@@ -5,16 +5,17 @@ Page views for filter operations.
 """
 
 import json
-from django.shortcuts import render
 from datetime import date
 from typing import Dict, List
 
+from django.shortcuts import render
+
 from ..application.use_cases import (
-    ApplyFilterUseCase,
-    GetFilterDataUseCase,
-    CompareFiltersUseCase,
     ApplyFilterRequest,
+    ApplyFilterUseCase,
+    CompareFiltersUseCase,
     GetFilterDataRequest,
+    GetFilterDataUseCase,
 )
 from ..domain.entities import FilterType
 from ..infrastructure.repositories import DjangoFilterRepository
@@ -78,12 +79,12 @@ def filter_dashboard_view(request):
     return render(request, 'filter/dashboard.html', context)
 
 
-def _get_available_indicators(repository) -> List[str]:
+def _get_available_indicators(repository) -> list[str]:
     """获取可用的指标列表（从数据库动态获取）"""
     return repository.get_available_indicators()
 
 
-def _prepare_chart_data(response) -> Dict:
+def _prepare_chart_data(response) -> dict:
     """准备图表数据"""
     return {
         'dates': response.dates,

@@ -31,16 +31,15 @@ from tests.factories.domain_factories import (
     make_price_series,
 )
 
-
 # ============================================================
 # Fixtures
 # ============================================================
 
 
 def _build_context(
-    price_data: Optional[Dict[str, List[float]]] = None,
-    pairs: Optional[List[HedgePair]] = None,
-    calc_date: Optional[date] = None,
+    price_data: dict[str, list[float]] | None = None,
+    pairs: list[HedgePair] | None = None,
+    calc_date: date | None = None,
 ) -> HedgeContext:
     """Build a HedgeContext with sensible defaults."""
     return HedgeContext(
@@ -51,12 +50,12 @@ def _build_context(
     )
 
 
-def _constant_prices(value: float, n: int = 200) -> List[float]:
+def _constant_prices(value: float, n: int = 200) -> list[float]:
     """Return a flat price series (zero volatility)."""
     return [value] * n
 
 
-def _linear_prices(start: float, step: float, n: int = 200) -> List[float]:
+def _linear_prices(start: float, step: float, n: int = 200) -> list[float]:
     """Return a linearly increasing price series."""
     return [start + i * step for i in range(n)]
 

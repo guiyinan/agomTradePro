@@ -7,17 +7,18 @@ Integration Tests for Regime Calculation Workflow
 3. Regime 变化通知
 """
 
-import pytest
 from datetime import date, timedelta
 from unittest.mock import Mock, patch
 
+import pytest
+
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.application.tasks import notify_regime_change
+from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
-from apps.regime.application.tasks import notify_regime_change
-from shared.infrastructure.alert_service import ConsoleAlertChannel, AlertLevel
+from shared.infrastructure.alert_service import AlertLevel, ConsoleAlertChannel
 
 
 @pytest.mark.django_db

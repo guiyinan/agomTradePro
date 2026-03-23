@@ -8,8 +8,9 @@ Beta Gate Domain Services
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from datetime import UTC, datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 from .entities import (
     GateConfig,
@@ -19,7 +20,6 @@ from .entities import (
     VisibilityUniverse,
     get_default_configs,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class BetaGateEvaluator:
         policy_level: int,
         current_portfolio_value: float = 0.0,
         new_position_value: float = 0.0,
-        existing_positions: Optional[Dict[str, float]] = None,
+        existing_positions: dict[str, float] | None = None,
     ) -> GateDecision:
         """
         执行完整的闸门评估
@@ -164,7 +164,7 @@ class BetaGateEvaluator:
             current_regime=current_regime,
             policy_level=policy_level,
             regime_confidence=regime_confidence,
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=datetime.now(UTC),
             regime_check=(regime_passed, regime_reason),
             policy_check=(policy_passed, policy_reason),
             portfolio_check=(True, ""),
@@ -282,12 +282,12 @@ class BetaGateEvaluator:
 
     def evaluate_batch(
         self,
-        assets: List[Tuple[str, str]],  # [(asset_code, asset_class), ...]
+        assets: list[tuple[str, str]],  # [(asset_code, asset_class), ...]
         current_regime: str,
         regime_confidence: float,
         policy_level: int,
         current_portfolio_value: float = 0.0,
-    ) -> List[GateDecision]:
+    ) -> list[GateDecision]:
         """
         批量评估多个资产
 
@@ -324,9 +324,9 @@ class BetaGateEvaluator:
         current_regime: str,
         policy_level: int,
         regime_confidence: float,
-        regime_check: Tuple[bool, str] = (True, ""),
-        policy_check: Tuple[bool, str] = (True, ""),
-        portfolio_check: Tuple[bool, str] = (True, ""),
+        regime_check: tuple[bool, str] = (True, ""),
+        policy_check: tuple[bool, str] = (True, ""),
+        portfolio_check: tuple[bool, str] = (True, ""),
     ) -> GateDecision:
         """创建被拦截的决策"""
         return GateDecision(
@@ -336,7 +336,7 @@ class BetaGateEvaluator:
             current_regime=current_regime,
             policy_level=policy_level,
             regime_confidence=regime_confidence,
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=datetime.now(UTC),
             regime_check=regime_check,
             policy_check=policy_check,
             portfolio_check=portfolio_check,
@@ -363,7 +363,7 @@ class VisibilityUniverseBuilder:
         ... )
     """
 
-    def __init__(self, configs: Optional[Dict[RiskProfile, GateConfig]] = None):
+    def __init__(self, configs: dict[RiskProfile, GateConfig] | None = None):
         """
         初始化构建器
 
@@ -381,7 +381,7 @@ class VisibilityUniverseBuilder:
         config_selector: Optional["GateConfigSelector"] = None,
         regime_snapshot_id: str = "",
         policy_snapshot_id: str = "",
-        candidate_assets: Optional[List[Tuple[str, str]]] = None,
+        candidate_assets: list[tuple[str, str]] | None = None,
     ) -> VisibilityUniverse:
         """
         构建可见性宇宙
@@ -470,7 +470,7 @@ class VisibilityUniverseBuilder:
         current_regime: str,
         policy_level: int,
         risk_profile: RiskProfile,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         根据环境确定可见策略
 
@@ -555,7 +555,7 @@ class GateConfigSelector:
         >>> config = selector.get_config(RiskProfile.BALANCED)
     """
 
-    def __init__(self, configs: Optional[Iterable[GateConfig] | Dict[RiskProfile, GateConfig]] = None):
+    def __init__(self, configs: Iterable[GateConfig] | dict[RiskProfile, GateConfig] | None = None):
         """
         初始化选择器
 
@@ -591,7 +591,7 @@ class GateConfigSelector:
 
         return config
 
-    def get_active_configs(self) -> List[GateConfig]:
+    def get_active_configs(self) -> list[GateConfig]:
         """
         获取所有激活的配置
 
@@ -681,7 +681,7 @@ def build_universe(
     regime_confidence: float,
     policy_level: int,
     risk_profile: RiskProfile = RiskProfile.BALANCED,
-    candidate_assets: Optional[List[Tuple[str, str]]] = None,
+    candidate_assets: list[tuple[str, str]] | None = None,
 ) -> VisibilityUniverse:
     """
     构建可见性宇宙的便捷函数

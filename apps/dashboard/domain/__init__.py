@@ -5,17 +5,17 @@ Dashboard Domain Layer
 """
 
 from .entities import (
-    DashboardCard,
-    DashboardWidget,
-    DashboardLayout,
-    ChartConfig,
-    MetricCard,
     AlertConfig,
+    ChartConfig,
+    DashboardCard,
+    DashboardLayout,
+    DashboardWidget,
+    MetricCard,
 )
 from .rules import (
     DashboardCardVisibilityRule,
-    WidgetPositionRule,
     MetricThresholdRule,
+    WidgetPositionRule,
 )
 
 __all__ = [

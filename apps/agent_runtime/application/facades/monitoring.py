@@ -20,7 +20,7 @@ class MonitoringTaskFacade(BaseContextFacade):
 
     domain = "monitoring"
 
-    def fetch_risk_alerts_summary(self) -> Dict[str, Any]:
+    def fetch_risk_alerts_summary(self) -> dict[str, Any]:
         """Enhanced risk summary with price alerts for monitoring."""
         base = super().fetch_risk_alerts_summary()
         # Add price alert counts
@@ -36,7 +36,7 @@ class MonitoringTaskFacade(BaseContextFacade):
             logger.debug("Price alerts unavailable: %s", e)
         return base
 
-    def fetch_data_freshness_summary(self) -> Dict[str, Any]:
+    def fetch_data_freshness_summary(self) -> dict[str, Any]:
         """Enhanced freshness with sentiment and realtime data status."""
         base = super().fetch_data_freshness_summary()
         # Add sentiment freshness

@@ -7,18 +7,18 @@ Application层:
 - 支持净值曲线查询和最大回撤计算
 """
 import logging
-from typing import List, Dict, Optional, Tuple
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
-from dataclasses import replace
+from typing import Dict, List, Optional, Tuple
 
-from apps.simulated_trading.domain.entities import SimulatedAccount
 from apps.simulated_trading.application.ports import DailyNetValueRepositoryProtocol
+from apps.simulated_trading.domain.entities import SimulatedAccount
 from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
-    DjangoPositionRepository,
-    DjangoTradeRepository,
     DjangoDailyNetValueRepository,
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
+    DjangoTradeRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,10 +37,10 @@ class DailyNetValueService:
 
     def __init__(
         self,
-        account_repo: Optional[DjangoSimulatedAccountRepository] = None,
-        position_repo: Optional[DjangoPositionRepository] = None,
-        trade_repo: Optional[DjangoTradeRepository] = None,
-        daily_net_value_repo: Optional[DailyNetValueRepositoryProtocol] = None,
+        account_repo: DjangoSimulatedAccountRepository | None = None,
+        position_repo: DjangoPositionRepository | None = None,
+        trade_repo: DjangoTradeRepository | None = None,
+        daily_net_value_repo: DailyNetValueRepositoryProtocol | None = None,
     ):
         self.account_repo = account_repo or DjangoSimulatedAccountRepository()
         self.position_repo = position_repo or DjangoPositionRepository()
@@ -51,7 +51,7 @@ class DailyNetValueService:
         self,
         account_id: int,
         record_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         记录当日净值并更新绩效指标
 
@@ -142,9 +142,9 @@ class DailyNetValueService:
     def get_equity_curve(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[Dict]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[dict]:
         """
         获取净值曲线数据
 
@@ -177,7 +177,7 @@ class DailyNetValueService:
             for record in records
         ]
 
-    def _get_previous_net_value(self, account_id: int, current_date: date) -> Optional[float]:
+    def _get_previous_net_value(self, account_id: int, current_date: date) -> float | None:
         """获取上一交易日的净值"""
         try:
             prev_record = self.daily_net_value_repo.get_latest_record_before(account_id, current_date)
@@ -193,7 +193,7 @@ class DailyNetValueService:
         except Exception:
             return 0.0
 
-    def _get_max_net_value_before_date(self, account_id: int, before_date: date) -> Optional[float]:
+    def _get_max_net_value_before_date(self, account_id: int, before_date: date) -> float | None:
         """获取指定日期之前的最大净值"""
         try:
             return self.daily_net_value_repo.get_max_net_value_before(account_id, before_date)
@@ -211,7 +211,7 @@ class DailyNetValueService:
         self,
         account_id: int,
         as_of_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         重新计算绩效指标（基于净值曲线）
 
@@ -274,7 +274,7 @@ class DailyNetValueService:
 
         return metrics
 
-    def _calculate_max_drawdown_from_records(self, records: List[Dict[str, object]]) -> float:
+    def _calculate_max_drawdown_from_records(self, records: list[dict[str, object]]) -> float:
         """
         从净值记录计算最大回撤
 
@@ -306,7 +306,7 @@ class DailyNetValueService:
 
         return max_drawdown
 
-    def _calculate_sharpe_ratio_from_records(self, records: List[Dict[str, object]]) -> float:
+    def _calculate_sharpe_ratio_from_records(self, records: list[dict[str, object]]) -> float:
         """
         从净值记录计算夏普比率
 
@@ -353,7 +353,7 @@ class DailyNetValueService:
         sharpe = (annual_return - risk_free_rate) / annual_volatility
         return sharpe
 
-    def _calculate_win_rate(self, account_id: int) -> Tuple[float, int]:
+    def _calculate_win_rate(self, account_id: int) -> tuple[float, int]:
         """
         计算胜率
 

@@ -5,8 +5,8 @@ Rollback Qlib Model Management Command
 """
 
 import logging
-from django.core.management.base import BaseCommand, CommandError
 
+from django.core.management.base import BaseCommand, CommandError
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class Command(BaseCommand):
 
         if not current_active:
             self.stdout.write(
-                self.style.ERROR(f'  ✗ 没有激活的模型')
+                self.style.ERROR('  ✗ 没有激活的模型')
             )
             return
 
@@ -128,7 +128,7 @@ class Command(BaseCommand):
 
         if not prev_model:
             self.stdout.write(
-                self.style.ERROR(f'  ✗ 没有找到上一个版本')
+                self.style.ERROR('  ✗ 没有找到上一个版本')
             )
             return
 
@@ -148,7 +148,7 @@ class Command(BaseCommand):
             model_name=model_name
         ).order_by('-created_at')
 
-        self.stdout.write(f'  版本列表:')
+        self.stdout.write('  版本列表:')
         for model in models:
             active_flag = ' [ACTIVE]' if model.is_active else ''
             self.stdout.write(

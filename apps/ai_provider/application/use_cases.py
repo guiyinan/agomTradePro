@@ -5,20 +5,20 @@ Use Cases for AI Provider Management.
 遵循项目架构约束：Application 层通过依赖注入使用 Infrastructure 层。
 """
 
-from typing import List, Optional, Dict, Any
 from datetime import date, datetime
+from typing import Any, Dict, List, Optional
 
-from ..infrastructure.models import AIProviderConfig, AIUsageLog
-from ..infrastructure.repositories import AIProviderRepository, AIUsageRepository
 from ..domain.entities import AIProviderType
 from ..domain.services import AICostCalculator, BudgetChecker
+from ..infrastructure.models import AIProviderConfig, AIUsageLog
+from ..infrastructure.repositories import AIProviderRepository, AIUsageRepository
 from .dtos import (
-    ProviderStatsDTO,
-    UsageStatsDTO,
+    BudgetCheckResultDTO,
     OverallStatsDTO,
     ProviderListItemDTO,
-    BudgetCheckResultDTO,
+    ProviderStatsDTO,
     UsageLogListItemDTO,
+    UsageStatsDTO,
 )
 
 
@@ -31,13 +31,13 @@ class ListProvidersUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None,
-        usage_repo: Optional[AIUsageRepository] = None
+        provider_repo: AIProviderRepository | None = None,
+        usage_repo: AIUsageRepository | None = None
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
 
-    def execute(self, include_inactive: bool = True) -> List[ProviderListItemDTO]:
+    def execute(self, include_inactive: bool = True) -> list[ProviderListItemDTO]:
         """
         执行用例
 
@@ -94,7 +94,7 @@ class CreateProviderUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None
+        provider_repo: AIProviderRepository | None = None
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
 
@@ -109,10 +109,10 @@ class CreateProviderUseCase:
         fallback_enabled: bool = True,
         is_active: bool = True,
         priority: int = 10,
-        daily_budget_limit: Optional[float] = None,
-        monthly_budget_limit: Optional[float] = None,
+        daily_budget_limit: float | None = None,
+        monthly_budget_limit: float | None = None,
         description: str = "",
-        extra_config: Optional[Dict] = None,
+        extra_config: dict | None = None,
     ) -> AIProviderConfig:
         """
         创建新的 AI 提供商配置
@@ -171,7 +171,7 @@ class UpdateProviderUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None
+        provider_repo: AIProviderRepository | None = None
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
 
@@ -217,7 +217,7 @@ class DeleteProviderUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None
+        provider_repo: AIProviderRepository | None = None
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
 
@@ -247,7 +247,7 @@ class ToggleProviderUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None
+        provider_repo: AIProviderRepository | None = None
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
 
@@ -281,8 +281,8 @@ class GetProviderStatsUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None,
-        usage_repo: Optional[AIUsageRepository] = None,
+        provider_repo: AIProviderRepository | None = None,
+        usage_repo: AIUsageRepository | None = None,
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
@@ -340,8 +340,8 @@ class GetOverallStatsUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None,
-        usage_repo: Optional[AIUsageRepository] = None,
+        provider_repo: AIProviderRepository | None = None,
+        usage_repo: AIUsageRepository | None = None,
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
@@ -383,18 +383,18 @@ class ListUsageLogsUseCase:
 
     def __init__(
         self,
-        usage_repo: Optional[AIUsageRepository] = None,
-        provider_repo: Optional[AIProviderRepository] = None,
+        usage_repo: AIUsageRepository | None = None,
+        provider_repo: AIProviderRepository | None = None,
     ):
         self._usage_repo = usage_repo or AIUsageRepository()
         self._provider_repo = provider_repo or AIProviderRepository()
 
     def execute(
         self,
-        provider_id: Optional[int] = None,
-        status: Optional[str] = None,
+        provider_id: int | None = None,
+        status: str | None = None,
         limit: int = 100,
-    ) -> List[UsageLogListItemDTO]:
+    ) -> list[UsageLogListItemDTO]:
         """
         获取使用日志列表
 
@@ -448,8 +448,8 @@ class CheckBudgetUseCase:
 
     def __init__(
         self,
-        provider_repo: Optional[AIProviderRepository] = None,
-        usage_repo: Optional[AIUsageRepository] = None,
+        provider_repo: AIProviderRepository | None = None,
+        usage_repo: AIUsageRepository | None = None,
     ):
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()

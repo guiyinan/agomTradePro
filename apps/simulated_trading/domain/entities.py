@@ -9,7 +9,7 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 
 class AccountType(Enum):
@@ -170,14 +170,14 @@ class SimulatedAccount:
 
     # 时间信息
     start_date: date = field(default_factory=date.today)
-    last_trade_date: Optional[date] = None
+    last_trade_date: date | None = None
     is_active: bool = True
 
     # 策略配置
     auto_trading_enabled: bool = True  # 是否启用自动交易
     max_position_pct: float = 20.0     # 单个资产最大持仓比例(%)
     max_total_position_pct: float = 95.0  # 总持仓比例上限(%)
-    stop_loss_pct: Optional[float] = None  # 止损比例(%)
+    stop_loss_pct: float | None = None  # 止损比例(%)
 
     # 费用配置
     commission_rate: float = 0.0003    # 手续费率(0.03%)
@@ -224,18 +224,18 @@ class Position:
     last_update_date: date
 
     # 关联信号
-    signal_id: Optional[int] = None
+    signal_id: int | None = None
     entry_reason: str = ""
 
     # ==================== 证伪条件跟踪 ====================
     # 从信号继承的证伪条件（副本，即使信号被删除也不影响）
-    invalidation_rule_json: Optional[str] = None      # JSON 格式的证伪规则
-    invalidation_description: Optional[str] = None    # 人类可读的证伪描述
+    invalidation_rule_json: str | None = None      # JSON 格式的证伪规则
+    invalidation_description: str | None = None    # 人类可读的证伪描述
 
     # 证伪状态
     is_invalidated: bool = False                     # 是否已被证伪
-    invalidation_reason: Optional[str] = None         # 证伪原因
-    invalidation_checked_at: Optional[datetime] = None  # 最后检查时间
+    invalidation_reason: str | None = None         # 证伪原因
+    invalidation_checked_at: datetime | None = None  # 最后检查时间
     # =====================================================
 
     @property
@@ -277,12 +277,12 @@ class SimulatedTrade:
     total_cost: float = 0.0     # 总成本 = amount + commission + slippage
 
     # 盈亏(仅SELL时有)
-    realized_pnl: Optional[float] = None      # 已实现盈亏(元)
-    realized_pnl_pct: Optional[float] = None  # 已实现盈亏率(%)
+    realized_pnl: float | None = None      # 已实现盈亏(元)
+    realized_pnl_pct: float | None = None  # 已实现盈亏率(%)
 
     # 交易原因
     reason: str = ""            # 交易原因(如"信号触发"、"信号失效")
-    signal_id: Optional[int] = None
+    signal_id: int | None = None
 
     # 状态
     status: OrderStatus = OrderStatus.PENDING

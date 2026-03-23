@@ -9,22 +9,21 @@ Alpha 事件触发的核心业务逻辑实现。
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from .entities import (
-    AlphaTrigger,
     AlphaCandidate,
-    TriggerEvent,
-    TriggerConfig,
-    TriggerStatus,
-    TriggerType,
-    SignalStrength,
+    AlphaTrigger,
     CandidateStatus,
     InvalidationCondition,
+    SignalStrength,
+    TriggerConfig,
+    TriggerEvent,
+    TriggerStatus,
+    TriggerType,
     calculate_strength,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +42,8 @@ class InvalidationCheckResult:
 
     is_invalidated: bool
     reason: str
-    conditions_met: List[str]
-    details: Dict[str, Any] = field(default_factory=dict)
+    conditions_met: list[str]
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class TriggerEvaluator:
@@ -61,7 +60,7 @@ class TriggerEvaluator:
         >>> should_trigger, reason = evaluator.should_trigger(trigger, current_data)
     """
 
-    def __init__(self, config: Optional[TriggerConfig] = None):
+    def __init__(self, config: TriggerConfig | None = None):
         """
         初始化评估器
 
@@ -73,8 +72,8 @@ class TriggerEvaluator:
     def should_trigger(
         self,
         trigger: AlphaTrigger,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str]:
         """
         判断触发器是否应该触发
 
@@ -109,8 +108,8 @@ class TriggerEvaluator:
     def _check_threshold_cross(
         self,
         trigger: AlphaTrigger,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str]:
         """检查阈值穿越"""
         indicator = trigger.trigger_condition.get("indicator_code")
         threshold = trigger.trigger_condition.get("threshold")
@@ -135,8 +134,8 @@ class TriggerEvaluator:
     def _check_momentum_signal(
         self,
         trigger: AlphaTrigger,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str]:
         """检查动量信号"""
         momentum_pct = trigger.trigger_condition.get("momentum_pct")
         if momentum_pct is None:
@@ -160,8 +159,8 @@ class TriggerEvaluator:
     def _check_regime_transition(
         self,
         trigger: AlphaTrigger,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str]:
         """检查 Regime 转换"""
         target_regime = trigger.trigger_condition.get("target_regime")
         if target_regime is None:
@@ -179,8 +178,8 @@ class TriggerEvaluator:
     def _check_policy_change(
         self,
         trigger: AlphaTrigger,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str]:
         """检查政策变化"""
         target_level = trigger.trigger_condition.get("target_policy_level")
         if target_level is None:
@@ -212,7 +211,7 @@ class TriggerInvalidator:
     def check_invalidations(
         self,
         trigger: AlphaTrigger,
-        current_data: Dict[str, Any],
+        current_data: dict[str, Any],
     ) -> InvalidationCheckResult:
         """
         检查触发器是否应该证伪
@@ -226,8 +225,8 @@ class TriggerInvalidator:
         Returns:
             证伪检查结果
         """
-        conditions_met: List[str] = []
-        reasons: List[str] = []
+        conditions_met: list[str] = []
+        reasons: list[str] = []
         details = {}
 
         for condition in trigger.invalidation_conditions:
@@ -255,8 +254,8 @@ class TriggerInvalidator:
     def _check_condition(
         self,
         condition: InvalidationCondition,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str, dict[str, Any]]:
         """
         检查单个证伪条件
 
@@ -275,8 +274,8 @@ class TriggerInvalidator:
     def _check_threshold_condition(
         self,
         condition: InvalidationCondition,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str, dict[str, Any]]:
         """检查阈值穿越条件"""
         indicator = condition.indicator_code
         if indicator is None:
@@ -312,8 +311,8 @@ class TriggerInvalidator:
     def _check_time_decay(
         self,
         condition: InvalidationCondition,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str, dict[str, Any]]:
         """检查时间衰减条件"""
         max_days = condition.max_holding_days
         max_hours = condition.time_window_hours or condition.time_limit_hours
@@ -331,7 +330,7 @@ class TriggerInvalidator:
         else:
             return False, "无效的触发时间格式", {}
 
-        now = datetime.now(triggered_at.tzinfo) if triggered_at.tzinfo else datetime.now(timezone.utc)
+        now = datetime.now(triggered_at.tzinfo) if triggered_at.tzinfo else datetime.now(UTC)
         elapsed = now - triggered_at
         hours_elapsed = elapsed.total_seconds() / 3600
         days_elapsed = elapsed.days
@@ -357,8 +356,8 @@ class TriggerInvalidator:
     def _check_regime_mismatch(
         self,
         condition: InvalidationCondition,
-        current_data: Dict[str, Any],
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+        current_data: dict[str, Any],
+    ) -> tuple[bool, str, dict[str, Any]]:
         """检查 Regime 不匹配条件"""
         required_regime = condition.required_regime
         if required_regime is None:
@@ -392,7 +391,7 @@ class CandidateGenerator:
         >>> candidate = generator.from_trigger(trigger)
     """
 
-    def __init__(self, config: Optional[TriggerConfig] = None):
+    def __init__(self, config: TriggerConfig | None = None):
         """
         初始化生成器
 
@@ -416,8 +415,8 @@ class CandidateGenerator:
         Returns:
             Alpha 候选
         """
-        from uuid import uuid4
         from datetime import date
+        from uuid import uuid4
 
         # 计算时间窗口
         start_date = date.today()
@@ -446,8 +445,8 @@ class CandidateGenerator:
             time_horizon=time_window_days,
             expected_asymmetry=asymmetry,
             status=status,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             audit_trail=[f"从触发器 {trigger.trigger_id} 生成"],
         )
 
@@ -461,7 +460,7 @@ class CandidateGenerator:
         else:
             return "LOW"
 
-    def _describe_invalidations(self, conditions: List[InvalidationCondition]) -> str:
+    def _describe_invalidations(self, conditions: list[InvalidationCondition]) -> str:
         """描述证伪条件"""
         if not conditions:
             return "无证伪条件"
@@ -495,25 +494,25 @@ class TriggerFilter:
 
     def filter_by_status(
         self,
-        triggers: List[AlphaTrigger],
+        triggers: list[AlphaTrigger],
         status: TriggerStatus,
-    ) -> List[AlphaTrigger]:
+    ) -> list[AlphaTrigger]:
         """按状态过滤"""
         return [t for t in triggers if t.status == status]
 
     def filter_by_asset(
         self,
-        triggers: List[AlphaTrigger],
+        triggers: list[AlphaTrigger],
         asset_code: str,
-    ) -> List[AlphaTrigger]:
+    ) -> list[AlphaTrigger]:
         """按资产过滤"""
         return [t for t in triggers if t.asset_code == asset_code]
 
     def filter_by_strength(
         self,
-        triggers: List[AlphaTrigger],
+        triggers: list[AlphaTrigger],
         min_strength: SignalStrength,
-    ) -> List[AlphaTrigger]:
+    ) -> list[AlphaTrigger]:
         """按信号强度过滤"""
         strength_order = {
             SignalStrength.WEAK: 1,
@@ -527,15 +526,15 @@ class TriggerFilter:
             if strength_order.get(t.strength, 0) >= min_level
         ]
 
-    def filter_active(self, triggers: List[AlphaTrigger]) -> List[AlphaTrigger]:
+    def filter_active(self, triggers: list[AlphaTrigger]) -> list[AlphaTrigger]:
         """过滤激活的触发器"""
         return [t for t in triggers if t.is_active and not t.is_expired]
 
     def sort_by_confidence(
         self,
-        triggers: List[AlphaTrigger],
+        triggers: list[AlphaTrigger],
         descending: bool = True,
-    ) -> List[AlphaTrigger]:
+    ) -> list[AlphaTrigger]:
         """按置信度排序"""
         return sorted(
             triggers,
@@ -545,10 +544,10 @@ class TriggerFilter:
 
     def get_top_n(
         self,
-        triggers: List[AlphaTrigger],
+        triggers: list[AlphaTrigger],
         n: int,
         by: str = "confidence",
-    ) -> List[AlphaTrigger]:
+    ) -> list[AlphaTrigger]:
         """
         获取 Top N 触发器
 
@@ -575,9 +574,9 @@ class TriggerFilter:
 
 def evaluate_trigger(
     trigger: AlphaTrigger,
-    current_data: Dict[str, Any],
-    config: Optional[TriggerConfig] = None,
-) -> Tuple[bool, str]:
+    current_data: dict[str, Any],
+    config: TriggerConfig | None = None,
+) -> tuple[bool, str]:
     """
     评估触发器是否应该触发的便捷函数
 
@@ -595,7 +594,7 @@ def evaluate_trigger(
 
 def check_invalidations(
     trigger: AlphaTrigger,
-    current_data: Dict[str, Any],
+    current_data: dict[str, Any],
 ) -> InvalidationCheckResult:
     """
     检查触发器证伪的便捷函数

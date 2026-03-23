@@ -5,23 +5,25 @@ Tests the pure domain logic in apps/prompt/domain/services.py
 Only uses Python standard library - no Django imports.
 """
 
-import pytest
 import json
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
+
+from apps.prompt.domain.entities import ChainExecutionMode, ChainStep
 from apps.prompt.domain.services import (
-    PlaceholderResolverProtocol,
-    TemplateRenderer,
-    OutputParser,
     ChainExecutionPlan,
     ChainExecutor,
+    OutputParser,
+    PlaceholderResolverProtocol,
+    TemplateRenderer,
 )
-from apps.prompt.domain.entities import ChainStep, ChainExecutionMode
 
 
 class MockResolver(PlaceholderResolverProtocol):
     """Mock resolver for testing"""
 
-    def resolve(self, placeholder: str, context: Dict[str, Any]) -> Any:
+    def resolve(self, placeholder: str, context: dict[str, Any]) -> Any:
         """简单解析器"""
         return context.get(placeholder, f"<{placeholder}>")
 

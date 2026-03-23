@@ -4,17 +4,28 @@ Terminal Interface API Views.
 RESTful API视图定义。
 """
 
-from rest_framework import viewsets, status
+import logging
+
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-import logging
 
 from apps.account.application.rbac import get_user_role
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
 from ..application.services import AnswerChainSettingsService, CommandExecutionService
+from ..application.use_cases import (
+    CreateCommandRequest,
+    CreateCommandUseCase,
+    DeleteCommandUseCase,
+    ExecuteCommandRequest,
+    ExecuteCommandUseCase,
+    ListCommandsUseCase,
+    UpdateCommandRequest,
+    UpdateCommandUseCase,
+)
 from ..domain.entities import TerminalMode, TerminalRiskLevel
 from ..domain.services import TerminalPermissionService
 from ..infrastructure.models import TerminalCommandORM
@@ -22,31 +33,20 @@ from ..infrastructure.repositories import (
     get_terminal_audit_repository,
     get_terminal_command_repository,
 )
-from ..application.use_cases import (
-    ExecuteCommandUseCase,
-    ExecuteCommandRequest,
-    ListCommandsUseCase,
-    CreateCommandUseCase,
-    CreateCommandRequest,
-    UpdateCommandUseCase,
-    UpdateCommandRequest,
-    DeleteCommandUseCase,
-)
 from .permissions import IsStaffOrAdmin
 from .serializers import (
-    TerminalCommandSerializer,
-    TerminalCommandCreateSerializer,
-    TerminalCommandUpdateSerializer,
-    ExecuteCommandSerializer,
-    ExecuteCommandResponseSerializer,
     AvailableCommandSerializer,
     ConfirmExecuteSerializer,
-    TerminalCapabilitiesSerializer,
+    ExecuteCommandResponseSerializer,
+    ExecuteCommandSerializer,
     TerminalAuditEntrySerializer,
+    TerminalCapabilitiesSerializer,
     TerminalChatRequestSerializer,
     TerminalChatResponseSerializer,
+    TerminalCommandCreateSerializer,
+    TerminalCommandSerializer,
+    TerminalCommandUpdateSerializer,
 )
-
 
 logger = logging.getLogger(__name__)
 

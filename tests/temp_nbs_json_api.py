@@ -1,9 +1,10 @@
 """
 使用 NBS JSON API 获取 PMI 分项数据
 """
-import requests
 import json
 from datetime import datetime
+
+import requests
 
 # NBS JSON API endpoint
 NBS_API_URL = "http://data.stats.gov.cn/easyquery.htm"
@@ -57,7 +58,7 @@ def fetch_pmi_subitems():
                 # 尝试解析为 JSON
                 try:
                     data = r.json()
-                    print(f"成功获取 JSON 数据!")
+                    print("成功获取 JSON 数据!")
                     print(json.dumps(data, ensure_ascii=False, indent=2)[:2000])
 
                     # 保存完整数据

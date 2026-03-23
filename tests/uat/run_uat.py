@@ -7,12 +7,12 @@ Usage:
     python tests/uat/run_uat.py -- journeys=A,B,C
 """
 import argparse
+import json
 import subprocess
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional
-import json
 
 
 class UATRunner:
@@ -36,7 +36,7 @@ class UATRunner:
             "defects": [],
         }
 
-    def run_playwright_tests(self, journeys: Optional[List[str]] = None) -> Dict:
+    def run_playwright_tests(self, journeys: list[str] | None = None) -> dict:
         """Run Playwright UAT tests.
 
         Args:
@@ -51,7 +51,7 @@ class UATRunner:
         if journeys:
             journey_marks = []
             for j in journeys:
-                journey_marks.append(f"-m")
+                journey_marks.append("-m")
                 journey_marks.append(f"journey_{j.lower()}")
             cmd.extend(journey_marks)
 
@@ -77,7 +77,7 @@ class UATRunner:
             "stderr": result.stderr,
         }
 
-    def run_api_compliance_tests(self) -> Dict:
+    def run_api_compliance_tests(self) -> dict:
         """Run API naming compliance tests.
 
         Returns:
@@ -104,7 +104,7 @@ class UATRunner:
             "stderr": result.stderr,
         }
 
-    def check_navigation_links(self) -> Dict:
+    def check_navigation_links(self) -> dict:
         """Check navigation links for 404 errors.
 
         Returns:
@@ -114,12 +114,11 @@ class UATRunner:
         sys.path.insert(0, str(self.base_dir))
 
         try:
-            from django.urls import get_resolver
-            from django.test import Client
-
             # Initialize Django
             import django
             from django.conf import settings
+            from django.test import Client
+            from django.urls import get_resolver
 
             if not settings.configured:
                 # Minimal config for testing
@@ -216,7 +215,7 @@ class UATRunner:
 
         return str(report_path)
 
-    def run_full_uat(self, journeys: Optional[List[str]] = None) -> Dict:
+    def run_full_uat(self, journeys: list[str] | None = None) -> dict:
         """Run full UAT suite.
 
         Args:
@@ -266,7 +265,7 @@ class UATRunner:
 
         return self.test_results
 
-    def _parse_journey_results(self, results: Dict) -> Dict:
+    def _parse_journey_results(self, results: dict) -> dict:
         """Parse journey test results from pytest output.
 
         Args:
@@ -285,7 +284,7 @@ class UATRunner:
             "E": {"tests": [], "passed": 0, "total": 3},
         }
 
-    def _parse_api_results(self, results: Dict) -> Dict:
+    def _parse_api_results(self, results: dict) -> dict:
         """Parse API compliance test results.
 
         Args:

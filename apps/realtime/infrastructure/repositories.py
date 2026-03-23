@@ -13,23 +13,22 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from django.core.cache import cache
-from django.utils import timezone
 from django.db import models
+from django.utils import timezone
 
 from apps.realtime.domain.entities import (
     AssetType,
-    RealtimePrice,
     PriceSnapshot,
     PriceUpdate,
-    PriceUpdateStatus
+    PriceUpdateStatus,
+    RealtimePrice,
 )
 from apps.realtime.domain.protocols import (
-    RealtimePriceRepositoryProtocol,
     PriceDataProviderProtocol,
-    WatchlistProviderProtocol
+    RealtimePriceRepositoryProtocol,
+    WatchlistProviderProtocol,
 )
 from apps.simulated_trading.infrastructure.models import PositionModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
         cache.set(cache_key, price.to_dict(), timeout=self.CACHE_TIMEOUT)
         logger.debug(f"Saved price for {price.asset_code}: {price.price}")
 
-    def save_prices_batch(self, prices: List[RealtimePrice]) -> None:
+    def save_prices_batch(self, prices: list[RealtimePrice]) -> None:
         """批量保存实时价格到 Redis"""
         cache_data = {
             f"{self.CACHE_KEY_PREFIX}:{p.asset_code}": p.to_dict()
@@ -61,7 +60,7 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
         cache.set_many(cache_data, timeout=self.CACHE_TIMEOUT)
         logger.info(f"Batch saved {len(prices)} prices to Redis")
 
-    def get_latest_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_latest_price(self, asset_code: str) -> RealtimePrice | None:
         """从 Redis 获取资产的最新价格"""
         cache_key = f"{self.CACHE_KEY_PREFIX}:{asset_code}"
         data = cache.get(cache_key)
@@ -75,7 +74,7 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             logger.error(f"Failed to deserialize price for {asset_code}: {e}")
             return None
 
-    def get_latest_prices(self, asset_codes: List[str]) -> List[RealtimePrice]:
+    def get_latest_prices(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取多个资产的最新价格"""
         cache_keys = [f"{self.CACHE_KEY_PREFIX}:{code}" for code in asset_codes]
         cache_data_dict = cache.get_many(cache_keys)
@@ -119,7 +118,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
         self.adapter = TushareStockAdapter()
         self._is_available = True
 
-    def get_realtime_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格
 
         注意：Tushare免费版只能获取历史数据，"实时"实际上是最新交易日数据
@@ -157,7 +156,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
             logger.error(f"Failed to get realtime price for {asset_code}: {e}")
             return None
 
-    def get_realtime_prices_batch(self, asset_codes: List[str]) -> List[RealtimePrice]:
+    def get_realtime_prices_batch(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取多个资产的实时价格"""
         prices = []
 
@@ -212,7 +211,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     def __init__(self):
         self._is_available = True
 
-    def get_realtime_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格
 
         AKShare 提供实时行情数据，无需 Token
@@ -255,7 +254,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             logger.error(f"Failed to get realtime price for {asset_code} from AKShare: {e}")
             return None
 
-    def get_realtime_prices_batch(self, asset_codes: List[str]) -> List[RealtimePrice]:
+    def get_realtime_prices_batch(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取多个资产的实时价格
 
         AKShare 可以一次性获取所有股票的实时行情
@@ -338,7 +337,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
     从数据库中获取持仓资产和关注池资产
     """
 
-    def get_held_assets(self) -> List[str]:
+    def get_held_assets(self) -> list[str]:
         """获取所有持仓资产代码"""
         # 查询所有非零持仓
         positions = PositionModel._default_manager.filter(
@@ -347,7 +346,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
 
         return list(positions)
 
-    def get_watchlist_assets(self, user_id: Optional[str] = None) -> List[str]:
+    def get_watchlist_assets(self, user_id: str | None = None) -> list[str]:
         """获取关注池资产代码
 
         从 asset_analysis 模块的 AssetPoolEntry 中查询
@@ -370,7 +369,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
             logger.warning("Failed to load watchlist assets: %s", e)
             return []
 
-    def get_all_monitored_assets(self) -> List[str]:
+    def get_all_monitored_assets(self) -> list[str]:
         """获取所有需要监控的资产（持仓 + 关注池）"""
         held = set(self.get_held_assets())
         watchlist = set(self.get_watchlist_assets())
@@ -385,10 +384,10 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
     支持多个数据源，自动故障转移
     """
 
-    def __init__(self, providers: List[PriceDataProviderProtocol]):
+    def __init__(self, providers: list[PriceDataProviderProtocol]):
         self.providers = providers
 
-    def get_realtime_price(self, asset_code: str) -> Optional[RealtimePrice]:
+    def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """依次尝试从各个数据源获取价格"""
         last_error = None
 
@@ -404,7 +403,7 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
         logger.error(f"All providers failed for {asset_code}, last error: {last_error}")
         return None
 
-    def get_realtime_prices_batch(self, asset_codes: List[str]) -> List[RealtimePrice]:
+    def get_realtime_prices_batch(self, asset_codes: list[str]) -> list[RealtimePrice]:
         """批量获取价格（使用第一个可用的提供者）"""
         for provider in self.providers:
             try:

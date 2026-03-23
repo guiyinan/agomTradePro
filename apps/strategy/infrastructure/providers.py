@@ -7,9 +7,9 @@ Infrastructure层:
 - 提供策略执行所需的外部数据
 """
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from django.db.models import Q, F
+from django.db.models import F, Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class DjangoMacroDataProvider:
     从 macro 应用获取宏观数据
     """
 
-    def get_indicator(self, indicator_code: str) -> Optional[float]:
+    def get_indicator(self, indicator_code: str) -> float | None:
         """
         获取宏观指标值
 
@@ -63,7 +63,7 @@ class DjangoMacroDataProvider:
             logger.error(f"Error getting macro indicator {indicator_code}: {e}")
             return None
 
-    def get_all_indicators(self) -> Dict[str, float]:
+    def get_all_indicators(self) -> dict[str, float]:
         """
         获取所有宏观指标
 
@@ -105,7 +105,7 @@ class DjangoRegimeProvider:
     从 regime 应用获取当前 Regime 状态
     """
 
-    def get_current_regime(self) -> Dict[str, Any]:
+    def get_current_regime(self) -> dict[str, Any]:
         """
         获取当前Regime状态
 
@@ -163,7 +163,7 @@ class DjangoAssetPoolProvider:
         self,
         min_score: float = 60.0,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取可投资产列表
 
@@ -211,7 +211,7 @@ class DjangoSignalProvider:
     从 signal 应用获取有效信号
     """
 
-    def get_valid_signals(self) -> List[Dict[str, Any]]:
+    def get_valid_signals(self) -> list[dict[str, Any]]:
         """
         获取有效信号列表
 
@@ -271,7 +271,7 @@ class DjangoPortfolioDataProvider:
             self._facade = get_simulated_trading_facade()
         return self._facade
 
-    def get_positions(self, portfolio_id: int) -> List[Dict[str, Any]]:
+    def get_positions(self, portfolio_id: int) -> list[dict[str, Any]]:
         """
         获取投资组合持仓
 
@@ -326,12 +326,12 @@ class DjangoPortfolioDataProvider:
 class DjangoAssetNameResolver:
     """Django ORM 实现的资产名称解析器。"""
 
-    def resolve_asset_names(self, codes: List[str]) -> Dict[str, str]:
+    def resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         code_set = {code for code in codes if code}
         if not code_set:
             return {}
 
-        resolved: Dict[str, str] = {}
+        resolved: dict[str, str] = {}
 
         try:
             from apps.equity.infrastructure.models import StockInfoModel
@@ -382,7 +382,7 @@ class PaperExecutionAdapter:
 
     def __init__(self, portfolio_id: int):
         self.portfolio_id = portfolio_id
-        self._orders: Dict[str, Dict[str, Any]] = {}
+        self._orders: dict[str, dict[str, Any]] = {}
 
     def submit_order(self, intent) -> str:
         """
@@ -395,9 +395,10 @@ class PaperExecutionAdapter:
             模拟订单ID（使用 intent_id）
         """
         import uuid
+
         from django.utils import timezone
 
-        from apps.strategy.domain.entities import OrderStatus, OrderEvent
+        from apps.strategy.domain.entities import OrderEvent, OrderStatus
         from apps.strategy.domain.services import OrderStateMachine
 
         # 生成模拟订单ID
@@ -424,7 +425,7 @@ class PaperExecutionAdapter:
 
         return paper_order_id
 
-    def query_order_status(self, broker_order_id: str) -> Dict[str, Any]:
+    def query_order_status(self, broker_order_id: str) -> dict[str, Any]:
         """
         查询模拟订单状态
 
@@ -511,7 +512,7 @@ class BrokerExecutionAdapter:
     - 沙盒测试
     """
 
-    def __init__(self, broker_config: Dict[str, Any]):
+    def __init__(self, broker_config: dict[str, Any]):
         """
         初始化券商适配器
 
@@ -544,7 +545,7 @@ class BrokerExecutionAdapter:
             "Please implement the actual broker API integration."
         )
 
-    def query_order_status(self, broker_order_id: str) -> Dict[str, Any]:
+    def query_order_status(self, broker_order_id: str) -> dict[str, Any]:
         """
         查询券商订单状态
 
@@ -594,7 +595,7 @@ class ExecutionAdapterFactory:
     def create_adapter(
         mode: str,
         portfolio_id: int,
-        broker_config: Dict[str, Any] = None
+        broker_config: dict[str, Any] = None
     ):
         """
         创建执行适配器

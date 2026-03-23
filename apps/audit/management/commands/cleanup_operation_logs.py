@@ -6,11 +6,13 @@ Usage:
     python manage.py cleanup_operation_logs --days=90 --dry-run
 """
 
-from django.core.management.base import BaseCommand
-from django.conf import settings
-from apps.audit.infrastructure.models import OperationLogModel
 from datetime import timedelta
+
+from django.conf import settings
+from django.core.management.base import BaseCommand
 from django.utils import timezone
+
+from apps.audit.infrastructure.models import OperationLogModel
 
 
 class Command(BaseCommand):

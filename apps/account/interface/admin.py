@@ -3,29 +3,30 @@ Django Admin for Account Module.
 
 提供 Account 模块所有模型的 Admin 管理界面。
 """
-from django.contrib import admin
-from django import forms
-from django.utils.html import format_html
-from django.db.models import Sum, F, DecimalField
 from decimal import Decimal
 
+from django import forms
+from django.contrib import admin
+from django.db.models import DecimalField, F, Sum
+from django.utils.html import format_html
+
 from ..infrastructure.models import (
-    CurrencyModel,
-    AssetCategoryModel,
     AccountProfileModel,
-    PortfolioModel,
-    PositionModel,
-    TransactionModel,
-    CapitalFlowModel,
+    AssetCategoryModel,
     AssetMetadataModel,
-    StopLossConfigModel,
-    StopLossTriggerModel,
-    TakeProfitConfigModel,
-    SystemSettingsModel,
+    CapitalFlowModel,
+    CurrencyModel,
     DocumentationModel,
     ExchangeRateModel,
     InvestmentRuleModel,
     PortfolioDailySnapshotModel,
+    PortfolioModel,
+    PositionModel,
+    StopLossConfigModel,
+    StopLossTriggerModel,
+    SystemSettingsModel,
+    TakeProfitConfigModel,
+    TransactionModel,
     UserAccessTokenModel,
 )
 

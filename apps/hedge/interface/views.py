@@ -4,51 +4,52 @@ Hedge Module Interface Layer - Views
 DRF ViewSets and page views for the hedge module.
 """
 
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import ensure_csrf_cookie
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from datetime import date, datetime
 
-# Infrastructure models - kept for DRF ViewSets (read-only access)
-from apps.hedge.infrastructure.models import (
-    HedgePairModel,
-    CorrelationHistoryModel,
-    HedgePortfolioSnapshotModel,
-    HedgeAlertModel,
-)
-from apps.hedge.infrastructure.services import HedgeIntegrationService
-from apps.hedge.infrastructure.repositories import (
-    HedgePairRepository,
-    CorrelationHistoryRepository,
-    HedgePortfolioRepository,
-    HedgeAlertRepository,
-)
-from apps.hedge.interface.serializers import (
-    HedgePairSerializer,
-    CorrelationHistorySerializer,
-    HedgePortfolioSnapshotSerializer,
-    HedgeAlertSerializer,
-    HedgeEffectivenessRequestSerializer,
-)
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_http_methods
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 # Application layer UseCases - for page views
 from apps.hedge.application.use_cases import (
+    ActivateHedgePairRequest,
+    ActivateHedgePairUseCase,
+    DeactivateHedgePairRequest,
+    DeactivateHedgePairUseCase,
+    GetHedgeAlertsForViewUseCase,
     GetHedgePairsForViewUseCase,
     GetHedgeSnapshotsForViewUseCase,
-    GetHedgeAlertsForViewUseCase,
-    ActivateHedgePairUseCase,
-    DeactivateHedgePairUseCase,
-    ResolveHedgeAlertUseCase,
+    HedgeAlertsViewRequest,
     HedgePairsViewRequest,
     HedgeSnapshotsViewRequest,
-    HedgeAlertsViewRequest,
-    ActivateHedgePairRequest,
-    DeactivateHedgePairRequest,
     ResolveHedgeAlertRequest,
+    ResolveHedgeAlertUseCase,
+)
+
+# Infrastructure models - kept for DRF ViewSets (read-only access)
+from apps.hedge.infrastructure.models import (
+    CorrelationHistoryModel,
+    HedgeAlertModel,
+    HedgePairModel,
+    HedgePortfolioSnapshotModel,
+)
+from apps.hedge.infrastructure.repositories import (
+    CorrelationHistoryRepository,
+    HedgeAlertRepository,
+    HedgePairRepository,
+    HedgePortfolioRepository,
+)
+from apps.hedge.infrastructure.services import HedgeIntegrationService
+from apps.hedge.interface.serializers import (
+    CorrelationHistorySerializer,
+    HedgeAlertSerializer,
+    HedgeEffectivenessRequestSerializer,
+    HedgePairSerializer,
+    HedgePortfolioSnapshotSerializer,
 )
 
 

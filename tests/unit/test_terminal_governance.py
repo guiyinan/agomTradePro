@@ -23,7 +23,6 @@ from apps.terminal.domain.services import (
     TerminalPermissionService,
 )
 
-
 # ========== Domain: TerminalRiskLevel ==========
 
 class TestTerminalRiskLevel:
@@ -389,7 +388,7 @@ class TestExecuteCommandGovernance:
         )
 
     def test_mcp_blocked(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(requires_mcp=True)
         mock_repo.get_by_name.return_value = cmd
@@ -408,7 +407,7 @@ class TestExecuteCommandGovernance:
         assert 'MCP' in resp.error
 
     def test_role_blocked(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.ADMIN)
         mock_repo.get_by_name.return_value = cmd
@@ -427,7 +426,7 @@ class TestExecuteCommandGovernance:
         assert 'role' in resp.error.lower()
 
     def test_readonly_blocks_writes(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.WRITE_LOW)
         mock_repo.get_by_name.return_value = cmd
@@ -446,7 +445,7 @@ class TestExecuteCommandGovernance:
         assert 'read-only' in resp.error.lower()
 
     def test_confirm_each_returns_token_for_write(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.WRITE_HIGH)
         mock_repo.get_by_name.return_value = cmd
@@ -466,7 +465,7 @@ class TestExecuteCommandGovernance:
         assert resp.confirmation_token is not None
 
     def test_auto_confirm_executes_directly(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.WRITE_LOW)
         mock_repo.get_by_name.return_value = cmd
@@ -484,7 +483,7 @@ class TestExecuteCommandGovernance:
         assert resp.success is True
 
     def test_read_command_always_succeeds(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.READ)
         mock_repo.get_by_name.return_value = cmd
@@ -502,7 +501,7 @@ class TestExecuteCommandGovernance:
         assert resp.success is True
 
     def test_disabled_command_blocked(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(enabled=False)
         mock_repo.get_by_name.return_value = cmd
@@ -521,7 +520,7 @@ class TestExecuteCommandGovernance:
         assert 'not available' in resp.error.lower()
 
     def test_audit_logged_on_success(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.READ)
         mock_repo.get_by_name.return_value = cmd
@@ -541,7 +540,7 @@ class TestExecuteCommandGovernance:
         assert entry.result_status == 'success'
 
     def test_audit_logged_on_block(self, mock_repo, mock_execution_service, mock_audit_repo):
-        from apps.terminal.application.use_cases import ExecuteCommandUseCase, ExecuteCommandRequest
+        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
 
         cmd = self._make_cmd(risk_level=TerminalRiskLevel.ADMIN)
         mock_repo.get_by_name.return_value = cmd

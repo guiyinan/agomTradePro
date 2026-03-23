@@ -9,24 +9,21 @@ Unit Tests for Data Adapters
 5. MultiSourceAdapter 多源聚合
 """
 
-import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from apps.macro.infrastructure.adapters.base import (
-    MacroDataPoint,
-    PublicationLag,
     PUBLICATION_LAGS,
+    BaseMacroAdapter,
     DataSourceUnavailableError,
     DataValidationError,
-    BaseMacroAdapter,
-    MacroAdapterProtocol
+    MacroAdapterProtocol,
+    MacroDataPoint,
+    PublicationLag,
 )
-from apps.macro.infrastructure.adapters.failover_adapter import (
-    FailoverAdapter,
-    MultiSourceAdapter
-)
-
+from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter, MultiSourceAdapter
 
 # ============================================================================
 # Test MacroDataPoint

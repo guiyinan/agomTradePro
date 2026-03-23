@@ -14,7 +14,6 @@ from django.apps import apps
 
 from ..domain.entities import TerminalCommand
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -88,9 +87,9 @@ class CommandExecutionService:
         self,
         command: TerminalCommand,
         params: dict[str, Any],
-        session_id: Optional[str] = None,
-        provider_name: Optional[str] = None,
-        model_name: Optional[str] = None,
+        session_id: str | None = None,
+        provider_name: str | None = None,
+        model_name: str | None = None,
     ) -> dict[str, Any]:
         """
         执行Prompt类型命令 - 通过 AgentRuntime 执行。
@@ -144,7 +143,7 @@ class CommandExecutionService:
                 'trace': trace_summary,
             }
         }
-    
+
     def execute_api_command(
         self,
         command: TerminalCommand,
@@ -161,13 +160,13 @@ class CommandExecutionService:
         for key, value in params.items():
             placeholder = f"{{{key}}}"
             url = url.replace(placeholder, str(value))
-        
+
         # 构建请求参数
         request_params = {}
         for key, value in params.items():
             if f"{{{key}}}" not in command.api_endpoint:
                 request_params[key] = value
-        
+
         # 发送请求
         try:
             if command.api_method.upper() == 'GET':
@@ -179,17 +178,17 @@ class CommandExecutionService:
                     json=request_params,
                     timeout=command.timeout
                 )
-            
+
             response.raise_for_status()
             data = response.json()
-            
+
         except requests.RequestException as e:
             logger.error(f"API request failed: {e}")
             return {
                 'output': f"API request failed: {e}",
                 'metadata': {'error': str(e)}
             }
-        
+
         # 应用JQ过滤
         output = data
         if command.response_jq_filter:
@@ -197,13 +196,13 @@ class CommandExecutionService:
                 output = self._apply_jq_filter(data, command.response_jq_filter)
             except Exception as e:
                 logger.warning(f"JQ filter failed: {e}, returning raw data")
-        
+
         # 格式化输出
         if isinstance(output, (dict, list)):
             output_str = json.dumps(output, indent=2, ensure_ascii=False)
         else:
             output_str = str(output)
-        
+
         return {
             'output': output_str,
             'metadata': {
@@ -212,7 +211,7 @@ class CommandExecutionService:
                 'status_code': response.status_code,
             }
         }
-    
+
     def _apply_jq_filter(self, data: Any, filter_expr: str) -> Any:
         """
         应用简单的JQ-like过滤器
@@ -222,14 +221,14 @@ class CommandExecutionService:
         # 简化实现，支持基本的点语法路径
         if not filter_expr.startswith('.'):
             return data
-        
+
         path = filter_expr[1:].split('.')
         result = data
-        
+
         for part in path:
             if not part:
                 continue
-            
+
             # 处理数组索引: key[0]
             match = re.match(r'(\w+)\[(\d+)\]', part)
             if match:
@@ -241,7 +240,7 @@ class CommandExecutionService:
                 result = result.get(part)
             else:
                 return None
-        
+
         return result
 
 

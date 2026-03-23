@@ -20,7 +20,7 @@ class OpsTaskFacade(BaseContextFacade):
 
     domain = "ops"
 
-    def fetch_task_health_summary(self) -> Dict[str, Any]:
+    def fetch_task_health_summary(self) -> dict[str, Any]:
         """Enhanced task health with event bus status."""
         base = super().fetch_task_health_summary()
         # Add event bus metrics
@@ -32,7 +32,7 @@ class OpsTaskFacade(BaseContextFacade):
             logger.debug("Event bus metrics unavailable: %s", e)
         return base
 
-    def fetch_data_freshness_summary(self) -> Dict[str, Any]:
+    def fetch_data_freshness_summary(self) -> dict[str, Any]:
         """Enhanced freshness with audit and AI provider status."""
         base = super().fetch_data_freshness_summary()
         # Add AI provider status

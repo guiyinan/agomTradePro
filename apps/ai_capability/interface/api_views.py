@@ -11,25 +11,24 @@ from rest_framework.response import Response
 
 from ..application.dtos import RouteRequestDTO
 from ..application.use_cases import (
-    GetCatalogStatsUseCase,
     GetCapabilityDetailUseCase,
     GetCapabilityListUseCase,
+    GetCatalogStatsUseCase,
     RouteMessageUseCase,
     SyncCapabilitiesUseCase,
 )
 from ..infrastructure.repositories import DjangoCapabilityRepository
 from .serializers import (
-    CatalogStatsSerializer,
     CapabilityDetailSerializer,
     CapabilityPublicDetailSerializer,
     CapabilitySummarySerializer,
+    CatalogStatsSerializer,
     RouteRequestSerializer,
     RouteResponseSerializer,
     SyncResultSerializer,
     WebChatRequestSerializer,
     WebChatResponseSerializer,
 )
-
 
 logger = logging.getLogger(__name__)
 

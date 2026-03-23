@@ -4,9 +4,10 @@ Django Admin Configuration for AI Provider Management.
 管理后台配置。
 """
 
-from django.contrib import admin
-from django.db.models import Sum, Count
 from datetime import date
+
+from django.contrib import admin
+from django.db.models import Count, Sum
 
 from ..infrastructure.models import AIProviderConfig, AIUsageLog
 from ..infrastructure.repositories import AIProviderRepository

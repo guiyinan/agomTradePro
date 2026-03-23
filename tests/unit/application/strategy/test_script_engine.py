@@ -7,25 +7,25 @@
 - ScriptBasedStrategyExecutor 端到端测试
 - 安全模式验证（strict/standard/relaxed）
 """
+from unittest.mock import MagicMock, Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
 
 from apps.strategy.application.script_engine import (
-    SecurityMode,
-    SecurityConfig,
     ScriptAPI,
+    ScriptBasedStrategyExecutor,
     ScriptExecutionEnvironment,
-    ScriptBasedStrategyExecutor
+    SecurityConfig,
+    SecurityMode,
 )
 from apps.strategy.domain.entities import (
-    Strategy,
-    StrategyType,
     ActionType,
     RiskControlParams,
+    ScriptConfig,
+    Strategy,
     StrategyConfig,
-    ScriptConfig
+    StrategyType,
 )
-
 
 # ========================================================================
 # 安全配置测试

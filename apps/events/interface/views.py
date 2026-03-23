@@ -10,17 +10,10 @@ from typing import Any, Dict, Optional
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 
-from apps.events.domain.entities import EventType, DomainEvent, create_event
-from apps.events.application.use_cases import (
-    PublishEventUseCase,
-    QueryEventsUseCase,
-    ReplayEventsUseCase,
-    GetEventMetricsUseCase,
-)
 from apps.events.application.dtos import (
     EventPublishRequestDTO,
     EventQueryRequestDTO,
@@ -28,18 +21,25 @@ from apps.events.application.dtos import (
     event_to_dto,
     metrics_to_dto,
 )
-from .serializers import (
-    EventPublishRequestSerializer,
-    EventQueryRequestSerializer,
-    EventReplayRequestSerializer,
-    EventPublishResponseSerializer,
-    EventQueryResponseSerializer,
-    EventStatisticsResponseSerializer,
-    EventBusStatusSerializer,
-    EventReplayResponseSerializer,
-    BaseResponseSerializer,
+from apps.events.application.use_cases import (
+    GetEventMetricsUseCase,
+    PublishEventUseCase,
+    QueryEventsUseCase,
+    ReplayEventsUseCase,
 )
+from apps.events.domain.entities import DomainEvent, EventType, create_event
 
+from .serializers import (
+    BaseResponseSerializer,
+    EventBusStatusSerializer,
+    EventPublishRequestSerializer,
+    EventPublishResponseSerializer,
+    EventQueryRequestSerializer,
+    EventQueryResponseSerializer,
+    EventReplayRequestSerializer,
+    EventReplayResponseSerializer,
+    EventStatisticsResponseSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,8 @@ class BaseAPIView(APIView):
 
     def success_response(
         self,
-        data: Optional[Dict[str, Any]] = None,
-        message: Optional[str] = None,
+        data: dict[str, Any] | None = None,
+        message: str | None = None,
     ) -> Response:
         """
         成功响应
@@ -79,7 +79,7 @@ class BaseAPIView(APIView):
     def error_response(
         self,
         message: str,
-        error_code: Optional[str] = None,
+        error_code: str | None = None,
         http_status: int = status.HTTP_400_BAD_REQUEST,
     ) -> Response:
         """

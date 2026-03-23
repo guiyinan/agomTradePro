@@ -40,7 +40,7 @@ class AssetAllocation:
         if not (0.99 <= total <= 1.01):  # 允许轻微浮点误差
             raise ValueError(f"配置比例总和必须为1，当前为{total:.4f}")
 
-    def to_percentage_dict(self) -> Dict[str, float]:
+    def to_percentage_dict(self) -> dict[str, float]:
         """转换为百分比字典"""
         return {
             "equity": round(self.equity * 100, 1),
@@ -55,9 +55,9 @@ class AllocationTarget:
     """资产配置目标（包含推荐理由）"""
     allocation: AssetAllocation
     reasoning: str  # 配置理由
-    expected_return: Optional[float] = None  # 预期年化收益
-    expected_volatility: Optional[float] = None  # 预期波动率
-    sharpe_ratio: Optional[float] = None  # 夏普比率
+    expected_return: float | None = None  # 预期年化收益
+    expected_volatility: float | None = None  # 预期波动率
+    sharpe_ratio: float | None = None  # 夏普比率
 
 
 # ============================================================
@@ -67,7 +67,7 @@ class AllocationTarget:
 # 16种配置矩阵：4种Regime × 4种风险偏好
 # 每个数字表示该资产类别的配置比例
 
-ALLOCATION_MATRIX: Dict[RegimeType, Dict[RiskProfile, AllocationTarget]] = {
+ALLOCATION_MATRIX: dict[RegimeType, dict[RiskProfile, AllocationTarget]] = {
     # ==================== RECOVERY（复苏期）：增长↑，通胀↓ ====================
     # 特征：经济复苏，企业盈利改善，股市表现较好
     RegimeType.RECOVERY: {
@@ -215,7 +215,7 @@ class PolicyLevel(Enum):
 
 
 # Policy档位对权益仓位的调整系数
-POLICY_EQUITY_ADJUSTMENT: Dict[PolicyLevel, float] = {
+POLICY_EQUITY_ADJUSTMENT: dict[PolicyLevel, float] = {
     PolicyLevel.P0: 1.0,   # 正常：不调整
     PolicyLevel.P1: 0.8,   # 轻度限制：权益仓位×0.8
     PolicyLevel.P2: 0.6,   # 中度限制：权益仓位×0.6
@@ -223,7 +223,7 @@ POLICY_EQUITY_ADJUSTMENT: Dict[PolicyLevel, float] = {
 }
 
 
-def get_allocation_target(regime: str, risk_profile: str, policy_level: Optional[str] = None) -> AllocationTarget:
+def get_allocation_target(regime: str, risk_profile: str, policy_level: str | None = None) -> AllocationTarget:
     """
     根据Regime和风险偏好获取目标配置
 

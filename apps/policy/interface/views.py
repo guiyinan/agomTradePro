@@ -8,61 +8,66 @@ import logging
 from datetime import date
 from typing import Optional
 
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import models
+from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.urls import reverse_lazy
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib import messages
-from rest_framework import viewsets, status
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
-from ..domain.entities import PolicyLevel, PolicyEvent
-from ..infrastructure.models import PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel, RSSFetchLog
-from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
 from ..application.use_cases import (
-    CreatePolicyEventUseCase,
-    GetPolicyStatusUseCase,
-    GetPolicyHistoryUseCase,
-    UpdatePolicyEventUseCase,
-    DeletePolicyEventUseCase,
+    AutoAssignAuditsUseCase,
+    BulkReviewUseCase,
     CreatePolicyEventInput,
     CreatePolicyEventOutput,
-    PolicyStatusOutput,
-    PolicyHistoryOutput,
-    FetchRSSUseCase,
+    CreatePolicyEventUseCase,
+    DeletePolicyEventUseCase,
     FetchRSSInput,
     FetchRSSOutput,
+    FetchRSSUseCase,
     GetAuditQueueUseCase,
-    ReviewPolicyItemUseCase,
+    GetPolicyHistoryUseCase,
+    GetPolicyStatusUseCase,
+    PolicyHistoryOutput,
+    PolicyStatusOutput,
     ReviewPolicyItemInput,
     ReviewPolicyItemOutput,
-    BulkReviewUseCase,
-    AutoAssignAuditsUseCase,
+    ReviewPolicyItemUseCase,
+    UpdatePolicyEventUseCase,
 )
-from rest_framework.permissions import IsAuthenticated
+from ..domain.entities import PolicyEvent, PolicyLevel
+from ..infrastructure.models import (
+    PolicyLevelKeywordModel,
+    PolicyLog,
+    RSSFetchLog,
+    RSSSourceConfigModel,
+)
+from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
+from .forms import PolicyEventForm, PolicyKeywordForm, RSSSourceForm
 from .serializers import (
-    PolicyEventSerializer,
-    PolicyLogSerializer,
-    PolicyStatusSerializer,
     PolicyCreateResponseSerializer,
+    PolicyEventSerializer,
     PolicyHistorySerializer,
     PolicyHistoryWithStatsSerializer,
     PolicyLevelField,
-    RSSSourceConfigSerializer,
-    RSSSourceConfigCreateSerializer,
     PolicyLevelKeywordSerializer,
+    PolicyLogSerializer,
+    PolicyStatusSerializer,
     RSSFetchLogSerializer,
     RSSFetchOutputSerializer,
+    RSSSourceConfigCreateSerializer,
+    RSSSourceConfigSerializer,
     RSSTriggerSerializer,
 )
-from .forms import PolicyEventForm, RSSSourceForm, PolicyKeywordForm
 
 logger = logging.getLogger(__name__)
 
@@ -274,8 +279,9 @@ class PolicyEventListView(APIView):
             repo = DjangoPolicyRepository()
 
             # 创建告警服务（仅控制台输出，可在 settings 中配置更多渠道）
-            from shared.infrastructure.alert_service import create_default_alert_service
             from django.conf import settings
+
+            from shared.infrastructure.alert_service import create_default_alert_service
             alert_service = create_default_alert_service(
                 slack_webhook=getattr(settings, 'SLACK_WEBHOOK_URL', None),
                 email_config=getattr(settings, 'ALERT_EMAIL_CONFIG', None),
@@ -428,8 +434,9 @@ class PolicyEventDetailView(APIView):
             repo = DjangoPolicyRepository()
 
             # 创建告警服务（仅控制台输出，可在 settings 中配置更多渠道）
-            from shared.infrastructure.alert_service import create_default_alert_service
             from django.conf import settings
+
+            from shared.infrastructure.alert_service import create_default_alert_service
             alert_service = create_default_alert_service(
                 slack_webhook=getattr(settings, 'SLACK_WEBHOOK_URL', None),
                 email_config=getattr(settings, 'ALERT_EMAIL_CONFIG', None),
@@ -561,8 +568,9 @@ class RSSSourceConfigViewSet(viewsets.ModelViewSet):
     def trigger_fetch(self, request, pk=None):
         """手动触发抓取指定源"""
         try:
-            from ..application.tasks import fetch_rss_sources
             from django.conf import settings
+
+            from ..application.tasks import fetch_rss_sources
 
             source = self.get_object()
             logger.info(f"Triggering RSS fetch for source: {source.name} (ID: {source.id})")
@@ -1117,43 +1125,43 @@ class AutoAssignAuditsView(APIView):
 # ============================================================
 
 from ..application.use_cases import (
-    GetWorkbenchSummaryUseCase,
-    GetWorkbenchItemsUseCase,
-    ApproveEventUseCase,
-    RejectEventUseCase,
-    RollbackEventUseCase,
-    OverrideEventUseCase,
-    GetSentimentGateStateUseCase,
-    WorkbenchSummaryInput,
-    WorkbenchItemsInput,
     ApproveEventInput,
-    RejectEventInput,
-    RollbackEventInput,
+    ApproveEventUseCase,
+    GetSentimentGateStateUseCase,
+    GetWorkbenchItemsUseCase,
+    GetWorkbenchSummaryUseCase,
     OverrideEventInput,
+    OverrideEventUseCase,
+    RejectEventInput,
+    RejectEventUseCase,
+    RollbackEventInput,
+    RollbackEventUseCase,
     SentimentGateStateInput,
+    WorkbenchItemsInput,
+    WorkbenchSummaryInput,
 )
 from ..infrastructure.repositories import WorkbenchRepository
 from .serializers import (
-    WorkbenchSummarySerializer,
-    WorkbenchItemsQuerySerializer,
-    WorkbenchItemsResponseSerializer,
+    ActionResponseSerializer,
     ApproveEventSerializer,
+    IngestionConfigSerializer,
+    OverrideEventSerializer,
     RejectEventSerializer,
     RollbackEventSerializer,
-    OverrideEventSerializer,
-    ActionResponseSerializer,
-    SentimentGateStateSerializer,
-    IngestionConfigSerializer,
     SentimentGateConfigSerializer,
+    SentimentGateStateSerializer,
     # 新增序列化器
     WorkbenchBootstrapSerializer,
-    WorkbenchFilterOptionsSerializer,
-    WorkbenchTrendSerializer,
-    WorkbenchFetchStatusSerializer,
-    WorkbenchItemDetailSerializer,
     WorkbenchFetchInputSerializer,
     WorkbenchFetchOutputSerializer,
+    WorkbenchFetchStatusSerializer,
+    WorkbenchFilterOptionsSerializer,
+    WorkbenchItemDetailSerializer,
     WorkbenchItemSerializer,
+    WorkbenchItemsQuerySerializer,
+    WorkbenchItemsResponseSerializer,
+    WorkbenchSummarySerializer,
+    WorkbenchTrendSerializer,
 )
 
 
@@ -1731,13 +1739,13 @@ class WorkbenchBootstrapView(APIView):
     def get(self, request):
         """获取工作台启动数据"""
         try:
+            from ..infrastructure.models import RSSFetchLog, RSSSourceConfigModel
             from .serializers import (
                 WorkbenchBootstrapSerializer,
+                WorkbenchFetchStatusSerializer,
                 WorkbenchFilterOptionsSerializer,
                 WorkbenchTrendSerializer,
-                WorkbenchFetchStatusSerializer,
             )
-            from ..infrastructure.models import RSSSourceConfigModel, RSSFetchLog
 
             # 1. 获取 summary
             summary_use_case = GetWorkbenchSummaryUseCase(workbench_repo=WorkbenchRepository())
@@ -1776,7 +1784,8 @@ class WorkbenchBootstrapView(APIView):
 
             # 4. 获取 trend data (近30天)
             from datetime import timedelta
-            from django.db.models import Count, Avg
+
+            from django.db.models import Avg, Count
             from django.utils import timezone
 
             end_date = timezone.now().date()

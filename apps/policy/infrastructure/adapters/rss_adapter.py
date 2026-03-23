@@ -5,12 +5,12 @@ RSS Adapter - Base Protocol and Exception Classes
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Protocol
 from datetime import datetime
+from typing import List, Optional, Protocol
 
 from django.utils import timezone
 
-from ...domain.entities import RSSItem, RSSSourceConfig, ProxyConfig
+from ...domain.entities import ProxyConfig, RSSItem, RSSSourceConfig
 
 
 class RSSAdapterError(Exception):
@@ -37,7 +37,7 @@ class RSSAdapterProtocol(Protocol):
 
     source_name: str
 
-    def fetch(self, source_config: RSSSourceConfig) -> List[RSSItem]:
+    def fetch(self, source_config: RSSSourceConfig) -> list[RSSItem]:
         """
         抓取RSS源
 
@@ -63,11 +63,11 @@ class BaseRSSAdapter(ABC):
 
     source_name: str = "base"
 
-    def fetch(self, source_config: RSSSourceConfig) -> List[RSSItem]:
+    def fetch(self, source_config: RSSSourceConfig) -> list[RSSItem]:
         """默认实现：子类必须覆盖"""
         raise NotImplementedError
 
-    def _build_proxy_dict(self, proxy_config: Optional[ProxyConfig]) -> Optional[dict]:
+    def _build_proxy_dict(self, proxy_config: ProxyConfig | None) -> dict | None:
         """
         构建代理配置字典
 

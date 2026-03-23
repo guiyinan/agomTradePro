@@ -8,21 +8,19 @@ Unit Tests for Repository Layer
 4. 错误处理
 """
 
-import pytest
 from datetime import date, timedelta
 
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+import pytest
+
+from apps.backtest.domain.entities import BacktestConfig, BacktestStatus
+from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.models import MacroIndicator as MacroIndicatorORM
-
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.domain.entities import RegimeSnapshot
-
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
-
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.backtest.domain.entities import BacktestConfig, BacktestStatus
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 @pytest.mark.django_db

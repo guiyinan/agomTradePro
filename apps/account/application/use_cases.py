@@ -6,10 +6,10 @@ Account Application Use Cases
 """
 
 import logging
-from decimal import Decimal
-from typing import List, Optional, Dict
-from datetime import datetime, date
 from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Dict, List, Optional
 
 from django.utils import timezone
 
@@ -17,29 +17,29 @@ logger = logging.getLogger(__name__)
 
 from apps.account.domain.entities import (
     AccountProfile,
-    Position,
+    AssetAllocation,
+    AssetClassType,
+    CrossBorderFlag,
     PortfolioSnapshot,
+    Position,
     PositionSource,
     RegimeMatchAnalysis,
-    AssetAllocation,
-    RiskTolerance,
-    AssetClassType,
     Region,
-    CrossBorderFlag,
+    RiskTolerance,
 )
 from apps.account.domain.services import PositionService
+from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.account.infrastructure.repositories import (
     AccountRepository,
+    AssetMetadataRepository,
     PortfolioRepository,
     PositionRepository,
-    TransactionRepository,
-    AssetMetadataRepository,
     SystemSettingsRepository,
+    TransactionRepository,
 )
-from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
@@ -48,8 +48,8 @@ class CreatePositionInput:
     """创建持仓输入"""
     user_id: int
     asset_code: str
-    shares: Optional[float] = None  # 不指定则自动计算
-    price: Optional[Decimal] = None  # 不指定则获取行情
+    shares: float | None = None  # 不指定则自动计算
+    price: Decimal | None = None  # 不指定则获取行情
 
 
 @dataclass
@@ -67,8 +67,8 @@ class RegimeAnalysisOutput:
     current_regime: str
     regime_date: date
     match_analysis: RegimeMatchAnalysis
-    asset_allocation: List[AssetAllocation]
-    risk_assessment: Dict[str, any]
+    asset_allocation: list[AssetAllocation]
+    risk_assessment: dict[str, any]
 
 
 class CreatePositionUseCase:
@@ -151,7 +151,7 @@ class CreatePositionUseCase:
             cash_required=Decimal(str(shares * float(price))),
         )
 
-    def _get_market_price(self, asset_code: str) -> Optional[Decimal]:
+    def _get_market_price(self, asset_code: str) -> Decimal | None:
         """
         从行情接口获取资产价格
 
@@ -192,7 +192,7 @@ class CreatePositionFromSignalUseCase:
         self,
         user_id: int,
         signal_id: int,
-        price: Optional[Decimal] = None,
+        price: Decimal | None = None,
     ) -> CreatePositionOutput:
         """
         从投资信号创建持仓
@@ -258,8 +258,8 @@ class ClosePositionUseCase:
         self,
         position_id: int,
         user_id: int,
-        shares: Optional[float] = None,
-    ) -> Optional[Position]:
+        shares: float | None = None,
+    ) -> Position | None:
         """
         平仓
 
@@ -357,7 +357,7 @@ class UpdatePositionPricesUseCase:
         self.position_repo = position_repo
         self.asset_meta_repo = asset_meta_repo
 
-    def execute(self, user_id: int) -> Dict[str, any]:
+    def execute(self, user_id: int) -> dict[str, any]:
         """
         批量更新用户持仓价格
 
@@ -392,7 +392,7 @@ class CreatePositionFromBacktestInput:
 @dataclass
 class CreatePositionFromBacktestOutput:
     """从回测创建持仓输出"""
-    positions_created: List[Position]
+    positions_created: list[Position]
     total_positions: int
     total_value: float
     backtest_name: str
@@ -506,9 +506,9 @@ class CreatePositionFromBacktestUseCase:
 
     def _extract_final_holdings_from_trades(
         self,
-        trades: List[Dict],
+        trades: list[dict],
         scale_factor: float = 1.0
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         从交易记录中提取最终持仓
 
@@ -517,7 +517,7 @@ class CreatePositionFromBacktestUseCase:
         2. 逐笔更新持仓状态
         3. 返回最终持仓（shares > 0）
         """
-        holdings: Dict[str, Dict] = {}  # asset_class -> {shares, last_price}
+        holdings: dict[str, dict] = {}  # asset_class -> {shares, last_price}
 
         for trade in trades:
             asset_class = trade.get('asset_class')

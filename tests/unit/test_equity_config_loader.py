@@ -4,9 +4,10 @@ Tests for apps.equity.infrastructure.config_loader module
 Tests the stock screening rule loader that was moved from shared/infrastructure/.
 """
 
-import pytest
-from unittest.mock import patch, Mock
 from decimal import Decimal
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestGetStockScreeningRule:
@@ -20,11 +21,11 @@ class TestGetStockScreeningRule:
 
     def test_returns_rule_when_found(self):
         """Test that a rule is returned when found in database."""
-        from apps.equity.infrastructure.config_loader import get_stock_screening_rule
-
         # This test requires database access or mocking
         # For now, just verify the function signature
         import inspect
+
+        from apps.equity.infrastructure.config_loader import get_stock_screening_rule
         sig = inspect.signature(get_stock_screening_rule)
         params = list(sig.parameters.keys())
 

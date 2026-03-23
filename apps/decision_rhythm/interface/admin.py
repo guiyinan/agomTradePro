@@ -7,8 +7,8 @@ Decision Rhythm Django Admin Configuration
 from django.contrib import admin
 
 from ..infrastructure.models import (
-    DecisionQuotaModel,
     CooldownPeriodModel,
+    DecisionQuotaModel,
     DecisionRequestModel,
 )
 

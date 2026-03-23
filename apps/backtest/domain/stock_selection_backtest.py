@@ -4,15 +4,16 @@
 用于验证基于估值和财务指标的股票筛选策略的有效性
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import List, Dict, Optional, Tuple, Callable
 from decimal import Decimal
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
-from apps.equity.domain.entities import StockInfo, FinancialData, ValuationMetrics
-from apps.equity.domain.services import StockScreener, ValuationAnalyzer
+from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
+from apps.equity.domain.services import StockScreener, ValuationAnalyzer
 
 
 class RebalanceFrequency(Enum):
@@ -43,9 +44,9 @@ class StockPerformance:
     stock_name: str
     entry_date: date
     entry_price: Decimal
-    exit_date: Optional[date]
-    exit_price: Optional[Decimal]
-    return_rate: Optional[float]  # 收益率
+    exit_date: date | None
+    exit_price: Decimal | None
+    return_rate: float | None  # 收益率
     holding_days: int  # 持有天数
 
 
@@ -54,9 +55,9 @@ class RebalanceRecord:
     """再平衡记录"""
     rebalance_date: date
     regime: str  # 当时的 Regime
-    selected_stocks: List[str]  # 筛选出的股票
-    sold_stocks: List[Tuple[str, float]]  # (股票代码, 收益率)
-    bought_stocks: List[Tuple[str, Decimal]]  # (股票代码, 买入价格)
+    selected_stocks: list[str]  # 筛选出的股票
+    sold_stocks: list[tuple[str, float]]  # (股票代码, 收益率)
+    bought_stocks: list[tuple[str, Decimal]]  # (股票代码, 买入价格)
     portfolio_value: Decimal  # 组合价值
 
 
@@ -91,9 +92,9 @@ class StockSelectionBacktestResult:
     avg_loss: float  # 平均亏损幅度
 
     # 详细记录
-    equity_curve: List[Tuple[date, Decimal]]  # 净值曲线
-    rebalance_records: List[RebalanceRecord]  # 再平衡记录
-    stock_performances: List[StockPerformance]  # 个股表现
+    equity_curve: list[tuple[date, Decimal]]  # 净值曲线
+    rebalance_records: list[RebalanceRecord]  # 再平衡记录
+    stock_performances: list[StockPerformance]  # 个股表现
 
 
 class StockSelectionBacktestEngine:
@@ -113,10 +114,10 @@ class StockSelectionBacktestEngine:
     def __init__(
         self,
         config: StockSelectionBacktestConfig,
-        get_regime_func: Callable[[date], Optional[str]],
-        get_stock_data_func: Callable[[date], List[Tuple[StockInfo, FinancialData, ValuationMetrics]]],
-        get_price_func: Callable[[str, date], Optional[Decimal]],
-        get_benchmark_price_func: Callable[[date], Optional[float]]
+        get_regime_func: Callable[[date], str | None],
+        get_stock_data_func: Callable[[date], list[tuple[StockInfo, FinancialData, ValuationMetrics]]],
+        get_price_func: Callable[[str, date], Decimal | None],
+        get_benchmark_price_func: Callable[[date], float | None]
     ):
         """
         初始化回测引擎
@@ -136,7 +137,7 @@ class StockSelectionBacktestEngine:
 
     def run(
         self,
-        screening_rules: Dict[str, StockScreeningRule]
+        screening_rules: dict[str, StockScreeningRule]
     ) -> StockSelectionBacktestResult:
         """
         运行回测
@@ -328,7 +329,7 @@ class StockSelectionBacktestEngine:
             stock_performances=stock_performances_list
         )
 
-    def _generate_rebalance_dates(self) -> List[date]:
+    def _generate_rebalance_dates(self) -> list[date]:
         """生成再平衡日期"""
         dates = []
         current = self.config.start_date
@@ -359,9 +360,9 @@ class StockSelectionBacktestEngine:
 
     def _calculate_weights(
         self,
-        stock_codes: List[str],
+        stock_codes: list[str],
         rebalance_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """计算持仓权重"""
         n = len(stock_codes)
         if n == 0:
@@ -369,16 +370,16 @@ class StockSelectionBacktestEngine:
 
         if self.config.position_method == "equal_weight":
             # 等权重
-            return {code: 1.0 / n for code in stock_codes}
+            return dict.fromkeys(stock_codes, 1.0 / n)
         else:
             # 市值加权（TODO: 实现）
-            return {code: 1.0 / n for code in stock_codes}
+            return dict.fromkeys(stock_codes, 1.0 / n)
 
     def _calculate_risk_metrics(
         self,
-        equity_curve: List[Tuple[date, Decimal]],
+        equity_curve: list[tuple[date, Decimal]],
         annualized_return: float
-    ) -> Tuple[float, float, float]:
+    ) -> tuple[float, float, float]:
         """计算风险指标"""
         if len(equity_curve) < 2:
             return 0.0, 0.0, 0.0
@@ -418,8 +419,8 @@ class StockSelectionBacktestEngine:
 
     def _calculate_win_loss_stats(
         self,
-        stock_performances: Dict[str, List[Dict]]
-    ) -> Tuple[float, float, float]:
+        stock_performances: dict[str, list[dict]]
+    ) -> tuple[float, float, float]:
         """计算胜率、平均盈利、平均亏损"""
         all_returns = []
         for performances in stock_performances.values():
@@ -444,7 +445,7 @@ class StockSelectionBacktestEngine:
 
     def _calculate_avg_holding_period(
         self,
-        rebalance_dates: List[date]
+        rebalance_dates: list[date]
     ) -> float:
         """
         计算平均持仓天数
@@ -474,7 +475,7 @@ class StockSelectionBacktestEngine:
 
     def _calculate_turnover_rate(
         self,
-        rebalance_records: List[RebalanceRecord]
+        rebalance_records: list[RebalanceRecord]
     ) -> float:
         """
         计算换手率
@@ -516,8 +517,8 @@ class StockSelectionBacktestEngine:
 
     def _organize_stock_performances(
         self,
-        stock_performances: Dict[str, List[Dict]]
-    ) -> List[StockPerformance]:
+        stock_performances: dict[str, list[dict]]
+    ) -> list[StockPerformance]:
         """
         整理个股表现
 

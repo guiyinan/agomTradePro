@@ -7,29 +7,28 @@ Beta Gate Domain Module
 """
 
 from .entities import (
+    GateConfig,
+    GateDecision,
     # 枚举
     GateStatus,
-    RiskProfile,
-    # 实体
-    RegimeConstraint,
     PolicyConstraint,
     PortfolioConstraint,
-    GateDecision,
-    GateConfig,
+    # 实体
+    RegimeConstraint,
+    RiskProfile,
     VisibilityUniverse,
     # 工厂函数
     create_gate_config,
     get_default_configs,
 )
-
 from .services import (
     # 服务
     BetaGateEvaluator,
-    VisibilityUniverseBuilder,
     GateConfigSelector,
+    VisibilityUniverseBuilder,
+    build_universe,
     # 便捷函数
     evaluate_visibility,
-    build_universe,
 )
 
 __all__ = [

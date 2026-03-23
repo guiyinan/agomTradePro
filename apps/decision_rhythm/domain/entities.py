@@ -8,7 +8,7 @@ Decision Rhythm Domain Entities
 """
 
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -223,14 +223,14 @@ class DecisionQuota:
     max_execution_count: int = 0
     used_decisions: int = 0
     used_executions: int = 0
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
-    quota_id: Optional[str] = None
-    account_id: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
+    quota_id: str | None = None
+    account_id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     # Backward compatibility fields
-    max_executions: Optional[int] = None
+    max_executions: int | None = None
     is_active: bool = True
 
     def __post_init__(self):
@@ -283,14 +283,14 @@ class DecisionQuota:
         """是否已过期"""
         if self.period_end is None:
             return False
-        return datetime.now(timezone.utc) > self.period_end
+        return datetime.now(UTC) > self.period_end
 
     @property
-    def days_remaining(self) -> Optional[int]:
+    def days_remaining(self) -> int | None:
         """剩余天数"""
         if self.period_end is None:
             return None
-        delta = self.period_end - datetime.now(timezone.utc)
+        delta = self.period_end - datetime.now(UTC)
         return max(0, delta.days)
 
     def consume_decision(self, count: int = 1) -> "DecisionQuota":
@@ -306,7 +306,7 @@ class DecisionQuota:
             quota_id=self.quota_id,
             account_id=self.account_id,
             created_at=self.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
     def consume_execution(self, count: int = 1) -> "DecisionQuota":
@@ -322,7 +322,7 @@ class DecisionQuota:
             quota_id=self.quota_id,
             account_id=self.account_id,
             created_at=self.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
     def reset(self) -> "DecisionQuota":
@@ -333,22 +333,22 @@ class DecisionQuota:
             max_execution_count=self.max_execution_count,
             used_decisions=0,
             used_executions=0,
-            period_start=datetime.now(timezone.utc),
+            period_start=datetime.now(UTC),
             period_end=self._calculate_period_end(),
             quota_id=self.quota_id,
             account_id=self.account_id,
             created_at=self.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
-    def _calculate_period_end(self, now: Optional[datetime] = None) -> Optional[datetime]:
+    def _calculate_period_end(self, now: datetime | None = None) -> datetime | None:
         """计算周期结束时间
 
         Args:
             now: 可选的时间戳，用于避免竞态条件
         """
         if now is None:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
         if self.period == QuotaPeriod.DAILY:
             return now.replace(hour=23, minute=59, second=59)
         elif self.period == QuotaPeriod.WEEKLY:
@@ -366,7 +366,7 @@ class DecisionQuota:
             return next_month
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "quota_id": self.quota_id,
@@ -414,12 +414,12 @@ class CooldownPeriod:
     """
 
     asset_code: str
-    last_decision_at: Optional[datetime] = None
-    last_execution_at: Optional[datetime] = None
+    last_decision_at: datetime | None = None
+    last_execution_at: datetime | None = None
     min_decision_interval_hours: int = 24
     min_execution_interval_hours: int = 48
     same_asset_cooldown_hours: int = 72
-    cooldown_id: Optional[str] = None
+    cooldown_id: str | None = None
 
     @property
     def is_decision_ready(self) -> bool:
@@ -427,7 +427,7 @@ class CooldownPeriod:
         if self.last_decision_at is None:
             return True
 
-        elapsed = (datetime.now(timezone.utc) - self.last_decision_at).total_seconds() / 3600
+        elapsed = (datetime.now(UTC) - self.last_decision_at).total_seconds() / 3600
         return elapsed >= self.min_decision_interval_hours
 
     @property
@@ -436,7 +436,7 @@ class CooldownPeriod:
         if self.last_execution_at is None:
             return True
 
-        elapsed = (datetime.now(timezone.utc) - self.last_execution_at).total_seconds() / 3600
+        elapsed = (datetime.now(UTC) - self.last_execution_at).total_seconds() / 3600
         return elapsed >= self.min_execution_interval_hours
 
     @property
@@ -445,7 +445,7 @@ class CooldownPeriod:
         if self.last_decision_at is None:
             return 0.0
 
-        elapsed = (datetime.now(timezone.utc) - self.last_decision_at).total_seconds() / 3600
+        elapsed = (datetime.now(UTC) - self.last_decision_at).total_seconds() / 3600
         remaining = self.min_decision_interval_hours - elapsed
         return max(0.0, remaining)
 
@@ -455,7 +455,7 @@ class CooldownPeriod:
         if self.last_execution_at is None:
             return 0.0
 
-        elapsed = (datetime.now(timezone.utc) - self.last_execution_at).total_seconds() / 3600
+        elapsed = (datetime.now(UTC) - self.last_execution_at).total_seconds() / 3600
         remaining = self.min_execution_interval_hours - elapsed
         return max(0.0, remaining)
 
@@ -463,7 +463,7 @@ class CooldownPeriod:
         """更新决策时间，返回新的冷却期对象"""
         return CooldownPeriod(
             asset_code=self.asset_code,
-            last_decision_at=datetime.now(timezone.utc),
+            last_decision_at=datetime.now(UTC),
             last_execution_at=self.last_execution_at,
             min_decision_interval_hours=self.min_decision_interval_hours,
             min_execution_interval_hours=self.min_execution_interval_hours,
@@ -476,14 +476,14 @@ class CooldownPeriod:
         return CooldownPeriod(
             asset_code=self.asset_code,
             last_decision_at=self.last_decision_at,
-            last_execution_at=datetime.now(timezone.utc),
+            last_execution_at=datetime.now(UTC),
             min_decision_interval_hours=self.min_decision_interval_hours,
             min_execution_interval_hours=self.min_execution_interval_hours,
             same_asset_cooldown_hours=self.same_asset_cooldown_hours,
             cooldown_id=self.cooldown_id,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "cooldown_id": self.cooldown_id,
@@ -541,22 +541,22 @@ class DecisionRequest:
     asset_class: str
     direction: str
     priority: DecisionPriority
-    trigger_id: Optional[str] = None
+    trigger_id: str | None = None
     reason: str = ""
     expected_confidence: float = 0.0
-    quota_period: Optional[QuotaPeriod] = None
-    quantity: Optional[int] = None
-    notional: Optional[float] = None
+    quota_period: QuotaPeriod | None = None
+    quantity: int | None = None
+    notional: float | None = None
     status: DecisionStatus = DecisionStatus.PENDING
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
     requested_at: datetime = field(default_factory=datetime.now)
-    expires_at: Optional[datetime] = None
+    expires_at: datetime | None = None
     # 新增字段：首页主流程闭环改造
-    candidate_id: Optional[str] = None
+    candidate_id: str | None = None
     execution_target: ExecutionTarget = ExecutionTarget.NONE
     execution_status: ExecutionStatus = ExecutionStatus.PENDING
-    executed_at: Optional[datetime] = None
-    execution_ref: Optional[Dict[str, Any]] = None
+    executed_at: datetime | None = None
+    execution_ref: dict[str, Any] | None = None
 
     @property
     def is_buy(self) -> bool:
@@ -573,7 +573,7 @@ class DecisionRequest:
         """是否已过期"""
         if self.expires_at is None:
             return False
-        return datetime.now(timezone.utc) > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
     @property
     def is_executed(self) -> bool:
@@ -625,7 +625,7 @@ class DecisionRequest:
             return False
         return True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "request_id": self.request_id,
@@ -687,16 +687,16 @@ class DecisionResponse:
     request_id: str
     approved: bool
     approval_reason: str
-    scheduled_at: Optional[datetime] = None
-    estimated_execution_at: Optional[datetime] = None
-    rejection_reason: Optional[str] = None
-    wait_until: Optional[datetime] = None
-    alternative_suggestions: List[str] = field(default_factory=list)
-    quota_status: Optional[str] = None
-    cooldown_status: Optional[str] = None
+    scheduled_at: datetime | None = None
+    estimated_execution_at: datetime | None = None
+    rejection_reason: str | None = None
+    wait_until: datetime | None = None
+    alternative_suggestions: list[str] = field(default_factory=list)
+    quota_status: str | None = None
+    cooldown_status: str | None = None
     responded_at: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "request_id": self.request_id,
@@ -744,7 +744,7 @@ class RhythmConfig:
     weekly_quota: DecisionQuota
     monthly_quota: DecisionQuota
     default_cooldown: CooldownPeriod
-    priority_weights: Dict[DecisionPriority, float] = field(default_factory=lambda: {
+    priority_weights: dict[DecisionPriority, float] = field(default_factory=lambda: {
         DecisionPriority.CRITICAL: 1.0,
         DecisionPriority.HIGH: 0.8,
         DecisionPriority.MEDIUM: 0.5,
@@ -771,7 +771,7 @@ class RhythmConfig:
         """获取优先级权重"""
         return self.priority_weights.get(priority, 0.0)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "daily_quota": self.daily_quota.to_dict(),
@@ -808,7 +808,7 @@ def create_quota(
     """
     from uuid import uuid4
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     quota = DecisionQuota(
         period=period,
         max_decisions=max_decisions,
@@ -961,17 +961,17 @@ class ValuationSnapshot:
     target_price_high: Decimal
     stop_loss_price: Decimal
     calculated_at: datetime
-    input_parameters: Dict[str, Any]
+    input_parameters: dict[str, Any]
     version: int = 1
     is_legacy: bool = False
 
     @property
-    def entry_range(self) -> Tuple[Decimal, Decimal]:
+    def entry_range(self) -> tuple[Decimal, Decimal]:
         """入场价格区间"""
         return (self.entry_price_low, self.entry_price_high)
 
     @property
-    def target_range(self) -> Tuple[Decimal, Decimal]:
+    def target_range(self) -> tuple[Decimal, Decimal]:
         """目标价格区间"""
         return (self.target_price_low, self.target_price_high)
 
@@ -1011,7 +1011,7 @@ class ValuationSnapshot:
         """检查是否触发止损"""
         return price <= self.stop_loss_price
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "snapshot_id": self.snapshot_id,
@@ -1099,11 +1099,11 @@ class InvestmentRecommendation:
     stop_loss_price: Decimal
     position_size_pct: float
     max_capital: Decimal
-    reason_codes: List[str]
+    reason_codes: list[str]
     human_readable_rationale: str
     account_id: str
     valuation_snapshot_id: str
-    source_recommendation_ids: List[str]
+    source_recommendation_ids: list[str]
     created_at: datetime
     status: str = "ACTIVE"
 
@@ -1126,7 +1126,7 @@ class InvestmentRecommendation:
         return 0
 
     @property
-    def price_range(self) -> Dict[str, Decimal]:
+    def price_range(self) -> dict[str, Decimal]:
         """价格区间摘要"""
         return {
             "entry_low": self.entry_price_low,
@@ -1136,7 +1136,7 @@ class InvestmentRecommendation:
             "stop_loss": self.stop_loss_price,
         }
 
-    def validate_buy_price(self, market_price: Decimal) -> Tuple[bool, str]:
+    def validate_buy_price(self, market_price: Decimal) -> tuple[bool, str]:
         """
         验证买入价格是否合理
 
@@ -1153,7 +1153,7 @@ class InvestmentRecommendation:
             return False, f"市场价格 {market_price} 高于入场上限 {self.entry_price_high}"
         return True, "价格合理"
 
-    def validate_sell_price(self, market_price: Decimal, triggered_by_risk: bool = False) -> Tuple[bool, str]:
+    def validate_sell_price(self, market_price: Decimal, triggered_by_risk: bool = False) -> tuple[bool, str]:
         """
         验证卖出价格是否合理
 
@@ -1174,7 +1174,7 @@ class InvestmentRecommendation:
             return False, f"市场价格 {market_price} 低于目标下限 {self.target_price_low}"
         return True, "价格合理"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "recommendation_id": self.recommendation_id,
@@ -1254,16 +1254,16 @@ class ExecutionApprovalRequest:
     side: str
     approval_status: ApprovalStatus
     suggested_quantity: int
-    market_price_at_review: Optional[Decimal]
+    market_price_at_review: Decimal | None
     price_range_low: Decimal
     price_range_high: Decimal
     stop_loss_price: Decimal
-    risk_check_results: Dict[str, Any]
+    risk_check_results: dict[str, Any]
     reviewer_comments: str
     regime_source: str
     created_at: datetime
-    reviewed_at: Optional[datetime] = None
-    executed_at: Optional[datetime] = None
+    reviewed_at: datetime | None = None
+    executed_at: datetime | None = None
 
     @property
     def is_pending(self) -> bool:
@@ -1290,7 +1290,7 @@ class ExecutionApprovalRequest:
         """聚合键（账户+证券+方向）"""
         return f"{self.account_id}:{self.security_code}:{self.side}"
 
-    def validate_price_for_approval(self, market_price: Decimal) -> Tuple[bool, str]:
+    def validate_price_for_approval(self, market_price: Decimal) -> tuple[bool, str]:
         """
         验证价格是否允许审批
 
@@ -1309,7 +1309,7 @@ class ExecutionApprovalRequest:
 
         return True, "价格验证通过"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "request_id": self.request_id,
@@ -1349,7 +1349,7 @@ def create_valuation_snapshot(
     target_price_low: Decimal,
     target_price_high: Decimal,
     stop_loss_price: Decimal,
-    input_parameters: Dict[str, Any],
+    input_parameters: dict[str, Any],
     is_legacy: bool = False,
 ) -> ValuationSnapshot:
     """
@@ -1380,7 +1380,7 @@ def create_valuation_snapshot(
         target_price_low=target_price_low,
         target_price_high=target_price_high,
         stop_loss_price=stop_loss_price,
-        calculated_at=datetime.now(timezone.utc),
+        calculated_at=datetime.now(UTC),
         input_parameters=input_parameters,
         is_legacy=is_legacy,
     )
@@ -1394,9 +1394,9 @@ def create_investment_recommendation(
     account_id: str = "default",
     position_size_pct: float = 5.0,
     max_capital: Decimal = Decimal("50000"),
-    reason_codes: Optional[List[str]] = None,
+    reason_codes: list[str] | None = None,
     human_readable_rationale: str = "",
-    source_recommendation_ids: Optional[List[str]] = None,
+    source_recommendation_ids: list[str] | None = None,
 ) -> InvestmentRecommendation:
     """
     创建投资建议的便捷函数
@@ -1434,17 +1434,17 @@ def create_investment_recommendation(
         account_id=account_id,
         valuation_snapshot_id=valuation_snapshot.snapshot_id,
         source_recommendation_ids=source_recommendation_ids or [],
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
 def create_execution_approval_request(
     recommendation: InvestmentRecommendation,
     account_id: str,
-    risk_check_results: Dict[str, Any],
+    risk_check_results: dict[str, Any],
     regime_source: str,
-    suggested_quantity: Optional[int] = None,
-    market_price_at_review: Optional[Decimal] = None,
+    suggested_quantity: int | None = None,
+    market_price_at_review: Decimal | None = None,
 ) -> ExecutionApprovalRequest:
     """
     创建执行审批请求的便捷函数
@@ -1475,7 +1475,7 @@ def create_execution_approval_request(
         risk_check_results=risk_check_results,
         reviewer_comments="",
         regime_source=regime_source,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -1571,7 +1571,7 @@ class DecisionFeatureSnapshot:
     fundamental_score: float
     alpha_model_score: float
     # 额外特征
-    extra_features: Dict[str, Any]
+    extra_features: dict[str, Any]
     created_at: datetime
 
     def __init__(
@@ -1588,8 +1588,8 @@ class DecisionFeatureSnapshot:
         technical_score: float = 0.0,
         fundamental_score: float = 0.0,
         alpha_model_score: float = 0.0,
-        extra_features: Optional[Dict[str, Any]] = None,
-        created_at: Optional[datetime] = None,
+        extra_features: dict[str, Any] | None = None,
+        created_at: datetime | None = None,
     ):
         self.snapshot_id = snapshot_id
         self.security_code = security_code
@@ -1604,7 +1604,7 @@ class DecisionFeatureSnapshot:
         self.fundamental_score = fundamental_score
         self.alpha_model_score = alpha_model_score
         self.extra_features = extra_features or {}
-        self.created_at = created_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
 
     def __repr__(self) -> str:
         return (
@@ -1682,7 +1682,7 @@ class UnifiedRecommendation:
     # 综合
     composite_score: float
     confidence: float
-    reason_codes: List[str]
+    reason_codes: list[str]
     human_rationale: str
     # 交易参数
     fair_value: Decimal
@@ -1695,14 +1695,14 @@ class UnifiedRecommendation:
     suggested_quantity: int
     max_capital: Decimal
     # 溯源
-    source_signal_ids: List[str]
-    source_candidate_ids: List[str]
+    source_signal_ids: list[str]
+    source_candidate_ids: list[str]
     feature_snapshot_id: str
     # 状态
     status: RecommendationStatus
     user_action: UserDecisionAction
     user_action_note: str
-    user_action_at: Optional[datetime]
+    user_action_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -1723,7 +1723,7 @@ class UnifiedRecommendation:
         alpha_model_score: float = 0.0,
         composite_score: float = 0.0,
         confidence: float = 0.0,
-        reason_codes: Optional[List[str]] = None,
+        reason_codes: list[str] | None = None,
         human_rationale: str = "",
         fair_value: Decimal = Decimal("0"),
         entry_price_low: Decimal = Decimal("0"),
@@ -1734,15 +1734,15 @@ class UnifiedRecommendation:
         position_pct: float = 5.0,
         suggested_quantity: int = 0,
         max_capital: Decimal = Decimal("50000"),
-        source_signal_ids: Optional[List[str]] = None,
-        source_candidate_ids: Optional[List[str]] = None,
+        source_signal_ids: list[str] | None = None,
+        source_candidate_ids: list[str] | None = None,
         feature_snapshot_id: str = "",
         status: RecommendationStatus = RecommendationStatus.NEW,
         user_action: UserDecisionAction = UserDecisionAction.PENDING,
         user_action_note: str = "",
-        user_action_at: Optional[datetime] = None,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
+        user_action_at: datetime | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
     ):
         self.recommendation_id = recommendation_id
         self.account_id = account_id
@@ -1783,8 +1783,8 @@ class UnifiedRecommendation:
         self.user_action = user_action
         self.user_action_note = user_action_note
         self.user_action_at = user_action_at
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
+        self.updated_at = updated_at or datetime.now(UTC)
 
     def __repr__(self) -> str:
         return (
@@ -1864,8 +1864,8 @@ class ModelParamConfig:
         description: str = "",
         updated_by: str = "",
         updated_reason: str = "",
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
     ):
         self.config_id = config_id
         self.param_key = param_key
@@ -1877,8 +1877,8 @@ class ModelParamConfig:
         self.description = description
         self.updated_by = updated_by
         self.updated_reason = updated_reason
-        self.created_at = created_at or datetime.now(timezone.utc)
-        self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(UTC)
+        self.updated_at = updated_at or datetime.now(UTC)
 
     def __repr__(self) -> str:
         return f"ModelParamConfig({self.param_key}={self.param_value}, env={self.env})"
@@ -1935,7 +1935,7 @@ class ModelParamAuditLog:
         env: str = "dev",
         changed_by: str = "",
         change_reason: str = "",
-        changed_at: Optional[datetime] = None,
+        changed_at: datetime | None = None,
     ):
         self.log_id = log_id
         self.param_key = param_key
@@ -1944,7 +1944,7 @@ class ModelParamAuditLog:
         self.env = env
         self.changed_by = changed_by
         self.change_reason = change_reason
-        self.changed_at = changed_at or datetime.now(timezone.utc)
+        self.changed_at = changed_at or datetime.now(UTC)
 
     def __repr__(self) -> str:
         return (
@@ -1965,7 +1965,7 @@ def create_unified_recommendation(
     feature_snapshot: DecisionFeatureSnapshot,
     composite_score: float = 0.0,
     confidence: float = 0.0,
-    reason_codes: Optional[List[str]] = None,
+    reason_codes: list[str] | None = None,
     human_rationale: str = "",
     fair_value: Decimal = Decimal("0"),
     entry_price_low: Decimal = Decimal("0"),
@@ -1976,8 +1976,8 @@ def create_unified_recommendation(
     position_pct: float = 5.0,
     suggested_quantity: int = 0,
     max_capital: Decimal = Decimal("50000"),
-    source_signal_ids: Optional[List[str]] = None,
-    source_candidate_ids: Optional[List[str]] = None,
+    source_signal_ids: list[str] | None = None,
+    source_candidate_ids: list[str] | None = None,
 ) -> UnifiedRecommendation:
     """
     创建统一推荐对象的便捷函数

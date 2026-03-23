@@ -3,53 +3,53 @@ URL configuration for AgomTradePro project.
 """
 
 from django.contrib import admin
-from django.urls import path, include
-from django.views.generic import RedirectView
 from django.http import HttpResponse, JsonResponse
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from django.urls import include, path
+from django.views.generic import RedirectView
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Apply custom admin branding
 import core.admin as agom_admin_config
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 # 文档管理后台视图
 from apps.account.infrastructure.views import (
-    docs_manage,
-    doc_edit,
     doc_delete,
-    doc_export_markdown,
+    doc_edit,
     doc_export_all,
+    doc_export_markdown,
     doc_import,
+    docs_manage,
 )
 from apps.account.interface.backup_views import admin_db_backup_download_view
-
-# 核心视图
-from core.views import (
-    index_view,
-    health_view,
-    readiness_view,
-    chat_example_view,
-    docs_view,
-    asset_screen_view,
-    decision_workspace_view,
-    ops_center_view,
-)
-
-# 终端视图（从terminal模块导入）
-from apps.terminal.interface.views import terminal_view, terminal_config_view
-from core.api_views import ConfigCenterSnapshotView, ConfigCapabilitiesView
 from apps.ai_capability.interface.api_views import web_chat
 from apps.ai_capability.interface.views import (
     mcp_tools_page,
     sync_mcp_tools_view,
     toggle_mcp_tool_flag_view,
 )
+
+# 终端视图（从terminal模块导入）
+from apps.terminal.interface.views import terminal_config_view, terminal_view
 from core.admin_log_views import (
+    automation_server_logs_export,
+    automation_server_logs_stream,
+    server_logs_export,
     server_logs_page,
     server_logs_stream,
-    server_logs_export,
-    automation_server_logs_stream,
-    automation_server_logs_export,
+)
+from core.api_views import ConfigCapabilitiesView, ConfigCenterSnapshotView
+
+# 核心视图
+from core.views import (
+    asset_screen_view,
+    chat_example_view,
+    decision_workspace_view,
+    docs_view,
+    health_view,
+    index_view,
+    ops_center_view,
+    readiness_view,
 )
 
 

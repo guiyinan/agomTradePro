@@ -2,8 +2,8 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
 from apps.account.infrastructure.models import AccountProfileModel
+from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
 
 
 @pytest.fixture

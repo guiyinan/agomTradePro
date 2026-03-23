@@ -4,12 +4,14 @@ Table API Views for Macro Data.
 Handles table data operations including CRUD operations.
 """
 
-from django.http import JsonResponse
-from apps.macro.infrastructure.models import MacroIndicator
-from apps.macro.application.indicator_service import UnitDisplayService
-from datetime import datetime
 import json
 import logging
+from datetime import datetime
+
+from django.http import JsonResponse
+
+from apps.macro.application.indicator_service import UnitDisplayService
+from apps.macro.infrastructure.models import MacroIndicator
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
-import pytest
 from decimal import Decimal
 
+import pytest
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from rest_framework.test import APIClient

@@ -2,11 +2,12 @@
 Login page object for authentication testing.
 """
 import re
+
 from playwright.sync_api import Page, expect
 
-from tests.playwright.pages.base_page import BasePage
-from tests.playwright.config.test_config import config
 from tests.playwright.config.selectors import auth
+from tests.playwright.config.test_config import config
+from tests.playwright.pages.base_page import BasePage
 
 
 class LoginPage(BasePage):

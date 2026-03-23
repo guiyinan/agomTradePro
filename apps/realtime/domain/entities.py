@@ -50,9 +50,9 @@ class RealtimePrice:
     asset_code: str
     asset_type: AssetType
     price: Decimal
-    change: Optional[Decimal]
-    change_pct: Optional[Decimal]
-    volume: Optional[int]
+    change: Decimal | None
+    change_pct: Decimal | None
+    volume: int | None
     timestamp: datetime
     source: str
 
@@ -83,11 +83,11 @@ class PriceUpdate:
         error_message: 错误信息（如果更新失败）
     """
     asset_code: str
-    old_price: Optional[Decimal]
-    new_price: Optional[Decimal]
+    old_price: Decimal | None
+    new_price: Decimal | None
     status: PriceUpdateStatus
     timestamp: datetime
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     @property
     def price_changed(self) -> bool:
@@ -97,14 +97,14 @@ class PriceUpdate:
         return self.old_price != self.new_price
 
     @property
-    def price_change(self) -> Optional[Decimal]:
+    def price_change(self) -> Decimal | None:
         """价格变动（绝对值）"""
         if self.old_price is None or self.new_price is None:
             return None
         return self.new_price - self.old_price
 
     @property
-    def price_change_pct(self) -> Optional[Decimal]:
+    def price_change_pct(self) -> Decimal | None:
         """价格变动百分比"""
         if self.old_price is None or self.new_price is None or self.old_price == 0:
             return None
@@ -164,7 +164,7 @@ class PriceSnapshot:
         failed_count: 失败的资产数
     """
     timestamp: datetime
-    prices: List[RealtimePrice]
+    prices: list[RealtimePrice]
     total_assets: int
     success_count: int
     failed_count: int

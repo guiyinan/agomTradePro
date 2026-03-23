@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 class RotationSignalRequest:
     """Request DTO for generating rotation signal"""
     config_name: str
-    signal_date: Optional[date] = None
+    signal_date: date | None = None
 
 
 @dataclass
@@ -21,24 +21,24 @@ class RotationSignalResponse:
     """Response DTO for rotation signal"""
     config_name: str
     signal_date: date
-    target_allocation: Dict[str, float]
+    target_allocation: dict[str, float]
     current_regime: str
     action_required: str
     reason: str
-    momentum_ranking: List[Dict[str, float]]
+    momentum_ranking: list[dict[str, float]]
 
 
 @dataclass
 class AssetComparisonRequest:
     """Request DTO for comparing assets"""
-    asset_codes: List[str]
+    asset_codes: list[str]
     lookback_days: int = 60
 
 
 @dataclass
 class AssetComparisonResponse:
     """Response DTO for asset comparison"""
-    assets: Dict[str, Dict]
+    assets: dict[str, dict]
     comparison_date: date
 
 
@@ -63,10 +63,10 @@ class AssetMomentumScore:
 @dataclass
 class AssetsViewResponse:
     """Response DTO for assets view page"""
-    assets: List[Dict]
-    categories: Dict[str, Dict]
-    momentum_scores: Dict[str, AssetMomentumScore]
-    latest_calc_date: Optional[date]
+    assets: list[dict]
+    categories: dict[str, dict]
+    momentum_scores: dict[str, AssetMomentumScore]
+    latest_calc_date: date | None
     maintenance_notice: str = ""
 
 
@@ -82,16 +82,16 @@ class ConfigLatestSignal:
     signal_date: date
     current_regime: str
     action_required: str
-    target_allocation: Dict[str, float]
+    target_allocation: dict[str, float]
 
 
 @dataclass
 class RotationConfigsViewResponse:
     """Response DTO for rotation configs view page"""
-    configs: List[Dict]
-    latest_signals: Dict[int, ConfigLatestSignal]
-    strategy_types: List[tuple]
-    frequencies: List[str]
+    configs: list[dict]
+    latest_signals: dict[int, ConfigLatestSignal]
+    strategy_types: list[tuple]
+    frequencies: list[str]
 
 
 @dataclass
@@ -105,12 +105,12 @@ class RotationSignalsViewRequest:
 @dataclass
 class RotationSignalsViewResponse:
     """Response DTO for rotation signals view page"""
-    signals: List[Dict]
-    configs: List[Dict]
-    latest_by_config: Dict[int, Dict]
-    current_regime: Optional[str]
-    regime_choices: List[str]
-    action_choices: List[str]
+    signals: list[dict]
+    configs: list[dict]
+    latest_by_config: dict[int, dict]
+    current_regime: str | None
+    regime_choices: list[str]
+    action_choices: list[str]
     filter_config: str
     filter_regime: str
     filter_action: str

@@ -4,6 +4,7 @@
 import asyncio
 import json
 from datetime import datetime
+
 from playwright.async_api import async_playwright
 
 # NBS PMI data page URL
@@ -48,7 +49,7 @@ async def fetch_pmi_subitems():
             with open("pmi_data.json", "w", encoding="utf-8") as f:
                 json.dump(pmi_data, f, ensure_ascii=False, indent=2)
 
-            print(f"\nData saved to pmi_data.json")
+            print("\nData saved to pmi_data.json")
             return pmi_data
 
         finally:

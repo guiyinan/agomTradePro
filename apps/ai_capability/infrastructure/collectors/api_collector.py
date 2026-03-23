@@ -22,7 +22,6 @@ from apps.ai_capability.domain.entities import (
     Visibility,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -150,7 +149,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-    ) -> Optional[CapabilityDefinition]:
+    ) -> CapabilityDefinition | None:
         """Create a basic capability for a path without view class."""
         route_group = self._determine_route_group(path, method, None)
         risk_level = self._determine_risk_level(path, method, None)
@@ -197,7 +196,7 @@ class ApiCapabilityCollector:
         path: str,
         method: str,
         view_class: type,
-    ) -> Optional[CapabilityDefinition]:
+    ) -> CapabilityDefinition | None:
         """Create a capability for a view with class information."""
         route_group = self._determine_route_group(path, method, view_class)
         risk_level = self._determine_risk_level(path, method, view_class)
@@ -263,7 +262,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: Optional[type],
+        view_class: type | None,
     ) -> RouteGroup:
         """Determine route group based on path, method, and view."""
         if self._is_unsafe(path, method, view_class):
@@ -278,7 +277,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: Optional[type],
+        view_class: type | None,
     ) -> RiskLevel:
         """Determine risk level for the endpoint."""
         if self._is_unsafe(path, method, view_class):
@@ -293,7 +292,7 @@ class ApiCapabilityCollector:
         self,
         path: str,
         method: str,
-        view_class: Optional[type],
+        view_class: type | None,
     ) -> bool:
         """Check if the endpoint is considered unsafe."""
         path_lower = path.lower()

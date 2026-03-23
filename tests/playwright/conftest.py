@@ -1,15 +1,16 @@
 """
 Global fixtures for Playwright tests.
 """
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Optional
 
 import pytest
 import requests
 from playwright.sync_api import Browser, BrowserContext, Page
 
 from tests.playwright.config.test_config import config
-from tests.playwright.pages import LoginPage, DashboardPage, AdminPage
+from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 from tests.playwright.utils.ux_auditor import UXAuditor
 

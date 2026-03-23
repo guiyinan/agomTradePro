@@ -4,15 +4,16 @@ Equity Module Integration Tests
 集成测试：测试数据持久化和基本数据流。
 """
 
-import pytest
-from django.test import TestCase
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+from django.test import TestCase
+
 from apps.equity.infrastructure.models import (
-    StockInfoModel,
-    StockDailyModel,
     FinancialDataModel,
+    StockDailyModel,
+    StockInfoModel,
     ValuationModel,
 )
 from apps.equity.infrastructure.repositories import DjangoStockRepository

@@ -4,13 +4,13 @@
 使用缓存、批量查询、索引优化等技术加速筛选
 """
 
-from typing import List, Dict, Tuple, Optional, Set
-from functools import lru_cache
 from datetime import date
+from functools import lru_cache
+from typing import Dict, List, Optional, Set, Tuple
 
-from apps.equity.domain.services import StockScreener
-from apps.equity.domain.entities import StockInfo, FinancialData, ValuationMetrics
+from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
+from apps.equity.domain.services import StockScreener
 
 
 class OptimizedStockScreener(StockScreener):
@@ -37,10 +37,10 @@ class OptimizedStockScreener(StockScreener):
 
     def screen(
         self,
-        all_stocks: List[Tuple[StockInfo, FinancialData, ValuationMetrics]],
+        all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule,
         batch_size: int = 1000
-    ) -> List[str]:
+    ) -> list[str]:
         """
         优化的筛选方法
 
@@ -70,9 +70,9 @@ class OptimizedStockScreener(StockScreener):
 
     def _pre_filter(
         self,
-        all_stocks: List[Tuple[StockInfo, FinancialData, ValuationMetrics]],
+        all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule
-    ) -> List[Tuple[StockInfo, FinancialData, ValuationMetrics]]:
+    ) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]:
         """
         预筛选：快速过滤明显不符合的股票
 
@@ -116,9 +116,9 @@ class OptimizedStockScreener(StockScreener):
 
     def _screen_batch(
         self,
-        batch: List[Tuple[StockInfo, FinancialData, ValuationMetrics]],
+        batch: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """
         批量筛选
 
@@ -143,10 +143,10 @@ class IncrementalScreeningEngine:
     """
 
     def __init__(self) -> None:
-        self.last_screening_date: Optional[date] = None
-        self.last_selected_stocks: Set[str] = set()
-        self.stock_data_version: Dict[str, int] = {}  # {stock_code: version}
-        self._last_rule_hash: Optional[str] = None  # 上次规则的哈希值
+        self.last_screening_date: date | None = None
+        self.last_selected_stocks: set[str] = set()
+        self.stock_data_version: dict[str, int] = {}  # {stock_code: version}
+        self._last_rule_hash: str | None = None  # 上次规则的哈希值
 
     def _has_rule_changed(self, rule: StockScreeningRule) -> bool:
         """
@@ -206,11 +206,11 @@ class IncrementalScreeningEngine:
 
     def incremental_screen(
         self,
-        all_stocks: List[Tuple[StockInfo, FinancialData, ValuationMetrics]],
+        all_stocks: list[tuple[StockInfo, FinancialData, ValuationMetrics]],
         rule: StockScreeningRule,
         current_date: date,
-        changed_stocks: Set[str] = None
-    ) -> List[str]:
+        changed_stocks: set[str] = None
+    ) -> list[str]:
         """
         增量筛选
 
@@ -270,13 +270,13 @@ class ScreeningCacheManager:
     """
 
     def __init__(self) -> None:
-        self._cache: Dict[str, Tuple[List[str], date]] = {}
+        self._cache: dict[str, tuple[list[str], date]] = {}
 
     def get(
         self,
         rule_key: str,
         cache_date: date
-    ) -> Optional[List[str]]:
+    ) -> list[str] | None:
         """
         获取缓存
 
@@ -298,7 +298,7 @@ class ScreeningCacheManager:
         self,
         rule_key: str,
         cache_date: date,
-        result: List[str]
+        result: list[str]
     ) -> None:
         """
         设置缓存
@@ -351,7 +351,7 @@ class ScreeningCacheManager:
 def cached_sector_filter(
     stock_code: str,
     allowed_sectors: tuple,
-    stock_sector: Optional[str] = None,
+    stock_sector: str | None = None,
 ) -> bool:
     """
     缓存的行业过滤

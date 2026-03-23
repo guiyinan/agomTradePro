@@ -4,17 +4,17 @@ Rotation Module API URL Configuration.
 Provides API-only routes for /api/rotation/.
 """
 
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
 from django.http import JsonResponse
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from apps.rotation.interface.views import (
     AssetClassViewSet,
+    PortfolioRotationConfigViewSet,
+    RotationActionViewSet,
     RotationConfigViewSet,
     RotationSignalViewSet,
-    RotationActionViewSet,
     RotationTemplateViewSet,
-    PortfolioRotationConfigViewSet,
     get_regime_list,
 )
 

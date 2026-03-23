@@ -5,17 +5,22 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from django.db import transaction
-from django.utils import timezone
 from django.db.models import Q
+from django.utils import timezone
 
 from ..domain.entities import (
-    PromptTemplate, ChainConfig, PlaceholderDef,
-    PlaceholderType, PromptCategory, ChainExecutionMode, ChainStep
+    ChainConfig,
+    ChainExecutionMode,
+    ChainStep,
+    PlaceholderDef,
+    PlaceholderType,
+    PromptCategory,
+    PromptTemplate,
 )
-from .models import PromptTemplateORM, ChainConfigORM, PromptExecutionLogORM
+from .models import ChainConfigORM, PromptExecutionLogORM, PromptTemplateORM
 
 
 class PromptRepositoryError(Exception):
@@ -38,7 +43,7 @@ class DjangoPromptRepository:
     def __init__(self):
         self._model = PromptTemplateORM
 
-    def get_template_by_id(self, template_id: int) -> Optional[PromptTemplate]:
+    def get_template_by_id(self, template_id: int) -> PromptTemplate | None:
         """根据ID获取模板
 
         Args:
@@ -53,7 +58,7 @@ class DjangoPromptRepository:
         except self._model.DoesNotExist:
             return None
 
-    def get_template_by_name(self, name: str) -> Optional[PromptTemplate]:
+    def get_template_by_name(self, name: str) -> PromptTemplate | None:
         """根据名称获取模板
 
         Args:
@@ -70,9 +75,9 @@ class DjangoPromptRepository:
 
     def list_templates(
         self,
-        category: Optional[str] = None,
+        category: str | None = None,
         is_active: bool = True
-    ) -> List[PromptTemplate]:
+    ) -> list[PromptTemplate]:
         """列出模板
 
         Args:
@@ -129,7 +134,7 @@ class DjangoPromptRepository:
         self,
         template_id: int,
         template: PromptTemplate
-    ) -> Optional[PromptTemplate]:
+    ) -> PromptTemplate | None:
         """更新模板
 
         Args:
@@ -232,7 +237,7 @@ class DjangoChainRepository:
     def __init__(self):
         self._model = ChainConfigORM
 
-    def get_chain_by_id(self, chain_id: int) -> Optional[ChainConfig]:
+    def get_chain_by_id(self, chain_id: int) -> ChainConfig | None:
         """根据ID获取链配置
 
         Args:
@@ -247,7 +252,7 @@ class DjangoChainRepository:
         except self._model.DoesNotExist:
             return None
 
-    def get_chain_by_name(self, name: str) -> Optional[ChainConfig]:
+    def get_chain_by_name(self, name: str) -> ChainConfig | None:
         """根据名称获取链配置
 
         Args:
@@ -264,9 +269,9 @@ class DjangoChainRepository:
 
     def list_chains(
         self,
-        category: Optional[str] = None,
+        category: str | None = None,
         is_active: bool = True
-    ) -> List[ChainConfig]:
+    ) -> list[ChainConfig]:
         """列出链配置
 
         Args:
@@ -397,7 +402,7 @@ class DjangoExecutionLogRepository:
     def __init__(self):
         self._model = PromptExecutionLogORM
 
-    def create_log(self, log_data: Dict[str, Any]) -> PromptExecutionLogORM:
+    def create_log(self, log_data: dict[str, Any]) -> PromptExecutionLogORM:
         """创建执行日志
 
         Args:
@@ -408,7 +413,7 @@ class DjangoExecutionLogRepository:
         """
         return self._model.objects.create(**log_data)
 
-    def get_logs_by_execution_id(self, execution_id: str) -> List[PromptExecutionLogORM]:
+    def get_logs_by_execution_id(self, execution_id: str) -> list[PromptExecutionLogORM]:
         """根据执行ID获取日志
 
         Args:
@@ -425,7 +430,7 @@ class DjangoExecutionLogRepository:
         self,
         template_id: int,
         limit: int = 100
-    ) -> List[PromptExecutionLogORM]:
+    ) -> list[PromptExecutionLogORM]:
         """根据模板ID获取日志
 
         Args:
@@ -439,7 +444,7 @@ class DjangoExecutionLogRepository:
             template_id=template_id
         ).order_by('-created_at')[:limit])
 
-    def get_recent_logs(self, limit: int = 50) -> List[PromptExecutionLogORM]:
+    def get_recent_logs(self, limit: int = 50) -> list[PromptExecutionLogORM]:
         """获取最近的日志
 
         Args:

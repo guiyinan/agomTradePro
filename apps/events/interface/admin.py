@@ -9,9 +9,9 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from apps.events.infrastructure.event_store import (
-    StoredEventModel,
     EventSnapshotModel,
     EventSubscriptionModel,
+    StoredEventModel,
 )
 
 

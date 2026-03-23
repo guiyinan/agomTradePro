@@ -5,22 +5,25 @@
 用例是 Application 层的核心，协调 Domain 层和 Infrastructure 层。
 """
 
-from typing import List, Union
-from datetime import datetime
 from dataclasses import replace
+from datetime import datetime
+from typing import List, Union
 
 from django.utils import timezone
 
-from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle, AssetSize
-from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
-from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol, AssetRepositoryProtocol
-from apps.asset_analysis.application.services import AssetMultiDimScorer
 from apps.asset_analysis.application.dtos import (
+    AssetScoreDTO,
     ScreenRequest,
     ScreenResponse,
-    AssetScoreDTO,
     WeightConfigDTO,
 )
+from apps.asset_analysis.application.services import AssetMultiDimScorer
+from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle, AssetType
+from apps.asset_analysis.domain.interfaces import (
+    AssetRepositoryProtocol,
+    WeightConfigRepositoryProtocol,
+)
+from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 
 
 class MultiDimScreenUseCase:
@@ -113,7 +116,7 @@ class MultiDimScreenUseCase:
             )
 
     @staticmethod
-    def _convert_to_asset_scores(raw_assets: List, asset_type: str) -> List[AssetScore]:
+    def _convert_to_asset_scores(raw_assets: list, asset_type: str) -> list[AssetScore]:
         """
         将原始资产对象转换为 AssetScore 实体
 
@@ -232,7 +235,7 @@ class MultiDimScreenUseCase:
         return assets
 
     @staticmethod
-    def _convert_to_dtos(scored_assets: List[AssetScore]) -> List[AssetScoreDTO]:
+    def _convert_to_dtos(scored_assets: list[AssetScore]) -> list[AssetScoreDTO]:
         """
         将 AssetScore 实体转换为 DTO
 

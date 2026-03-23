@@ -5,24 +5,25 @@ Tests cache decorators, key building, and Prometheus metrics.
 """
 
 import time
-from unittest.mock import Mock, patch, MagicMock
-from django.test import TestCase, RequestFactory
+from unittest.mock import MagicMock, Mock, patch
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.test import RequestFactory, TestCase
 from prometheus_client import REGISTRY
 
 from core.cache_utils import (
+    CACHE_TTL,
+    CacheKeyBuilder,
+    cache_errors_total,
+    cache_hits_total,
+    cache_latency_seconds,
+    cache_misses_total,
+    cache_stale_total,
     cached_api,
     cached_function,
-    CacheKeyBuilder,
-    invalidate_pattern,
     get_cache_stats,
-    CACHE_TTL,
-    cache_hits_total,
-    cache_misses_total,
-    cache_errors_total,
-    cache_stale_total,
-    cache_latency_seconds,
+    invalidate_pattern,
 )
 
 

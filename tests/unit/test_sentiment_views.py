@@ -5,29 +5,30 @@ Tests for API and page views in the sentiment module.
 """
 
 import uuid
-import pytest
-from datetime import datetime, date
-from unittest.mock import Mock, MagicMock, patch
-from django.test import RequestFactory, TestCase
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIRequestFactory, force_authenticate
-from rest_framework import status
+from datetime import date, datetime
+from unittest.mock import MagicMock, Mock, patch
 
-from apps.sentiment.interface.views import (
-    SentimentAnalyzeView,
-    SentimentBatchAnalyzeView,
-    SentimentIndexView,
-    SentimentIndexRangeView,
-    SentimentIndexRecentView,
-    SentimentHealthView,
-    SentimentCacheClearView,
-    SentimentDashboardView,
-    SentimentAnalyzePageView,
-)
+import pytest
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory, TestCase
+from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
+
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
-    SentimentIndex,
     SentimentCategory,
+    SentimentIndex,
+)
+from apps.sentiment.interface.views import (
+    SentimentAnalyzePageView,
+    SentimentAnalyzeView,
+    SentimentBatchAnalyzeView,
+    SentimentCacheClearView,
+    SentimentDashboardView,
+    SentimentHealthView,
+    SentimentIndexRangeView,
+    SentimentIndexRecentView,
+    SentimentIndexView,
 )
 
 

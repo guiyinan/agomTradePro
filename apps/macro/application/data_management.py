@@ -7,11 +7,11 @@ Provides functionality for:
 - Data deletion
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import List, Optional, Dict, Any
 from enum import Enum
-import logging
+from typing import Any, Dict, List, Optional
 
 from ..domain.entities import MacroIndicator
 
@@ -35,10 +35,10 @@ class TaskStatus(Enum):
 @dataclass
 class FetchDataRequest:
     """数据获取请求"""
-    indicators: Optional[List[str]] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    source: Optional[str] = None
+    indicators: list[str] | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    source: str | None = None
 
 
 @dataclass
@@ -47,7 +47,7 @@ class FetchDataResponse:
     success: bool
     message: str
     synced_count: int = 0
-    errors: List[str] = None
+    errors: list[str] = None
 
     def __post_init__(self):
         if self.errors is None:
@@ -57,10 +57,10 @@ class FetchDataResponse:
 @dataclass
 class DeleteDataRequest:
     """数据删除请求"""
-    indicator_code: Optional[str] = None
-    source: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    indicator_code: str | None = None
+    source: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 @dataclass
@@ -78,7 +78,7 @@ class DataSourceStatus:
     source_type: str
     priority: int
     is_active: bool
-    last_sync: Optional[datetime] = None
+    last_sync: datetime | None = None
     record_count: int = 0
 
 
@@ -87,8 +87,8 @@ class DataManagementSummary:
     """数据管理概览"""
     total_indicators: int
     total_records: int
-    data_sources: List[DataSourceStatus]
-    recent_syncs: List[Dict[str, Any]]
+    data_sources: list[DataSourceStatus]
+    recent_syncs: list[dict[str, Any]]
 
 
 class FetchDataUseCase:
@@ -245,7 +245,7 @@ class GetDataManagementSummaryUseCase:
             recent_syncs=recent_syncs
         )
 
-    def _build_data_source_status(self, stats: Dict) -> List[DataSourceStatus]:
+    def _build_data_source_status(self, stats: dict) -> list[DataSourceStatus]:
         """构建数据源状态列表"""
         sources = []
 
@@ -307,7 +307,7 @@ class ScheduleDataFetchUseCase:
         """
         self.repository = repository
 
-    def get_scheduled_indicators(self) -> Dict[str, Dict]:
+    def get_scheduled_indicators(self) -> dict[str, dict]:
         """
         获取所有可定时抓取的指标配置
 
@@ -316,7 +316,7 @@ class ScheduleDataFetchUseCase:
         """
         return self.INDICATOR_SCHEDULES
 
-    def get_due_indicators(self, as_of_date: Optional[date] = None) -> List[str]:
+    def get_due_indicators(self, as_of_date: date | None = None) -> list[str]:
         """
         获取到期需要抓取的指标
 
@@ -335,7 +335,7 @@ class ScheduleDataFetchUseCase:
 
         return due_indicators
 
-    def _is_indicator_due(self, indicator: str, schedule: Dict, check_date: date) -> bool:
+    def _is_indicator_due(self, indicator: str, schedule: dict, check_date: date) -> bool:
         """
         判断指标是否到期需要抓取
 

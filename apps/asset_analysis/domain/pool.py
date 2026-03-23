@@ -4,10 +4,10 @@
 定义资产池相关的实体和值对象。
 """
 
-from enum import Enum
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List, Optional, Dict, Any
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class PoolType(Enum):
@@ -67,24 +67,24 @@ class PoolEntry:
 
     # 入池/出池信息
     entry_date: date = field(default_factory=date.today)
-    entry_reason: Optional[EntryReason] = None
-    exit_date: Optional[date] = None
-    exit_reason: Optional[ExitReason] = None
+    entry_reason: EntryReason | None = None
+    exit_date: date | None = None
+    exit_reason: ExitReason | None = None
     is_active: bool = True
 
     # 风险指标
     risk_level: str = "未知"
-    volatility: Optional[float] = None
-    max_drawdown: Optional[float] = None
+    volatility: float | None = None
+    max_drawdown: float | None = None
 
     # 额外属性
-    sector: Optional[str] = None
-    market_cap: Optional[float] = None
-    pe_ratio: Optional[float] = None
-    pb_ratio: Optional[float] = None
+    sector: str | None = None
+    market_cap: float | None = None
+    pe_ratio: float | None = None
+    pb_ratio: float | None = None
 
     # 元数据
-    context: Optional[Dict[str, Any]] = field(default_factory=dict)
+    context: dict[str, Any] | None = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -126,7 +126,7 @@ class PoolStatistics:
     avg_policy_score: float = 0.0
 
     # 行业分布
-    sector_distribution: Dict[str, int] = field(default_factory=dict)
+    sector_distribution: dict[str, int] = field(default_factory=dict)
 
     # 更新时间
     last_updated: date = field(default_factory=date.today)
@@ -166,13 +166,13 @@ class PoolConfig:
     watch_max_score: float = 60.0
 
     # 风险控制
-    max_volatility: Optional[float] = None  # 最大波动率
-    max_drawdown: Optional[float] = None    # 最大回撤
+    max_volatility: float | None = None  # 最大波动率
+    max_drawdown: float | None = None    # 最大回撤
 
     # 其他限制
-    min_market_cap: Optional[float] = None  # 最小市值（元）
-    max_pe_ratio: Optional[float] = None    # 最大PE
-    max_pb_ratio: Optional[float] = None    # 最大PB
+    min_market_cap: float | None = None  # 最小市值（元）
+    max_pe_ratio: float | None = None    # 最大PE
+    max_pb_ratio: float | None = None    # 最大PB
 
     def is_investable(self, total_score: float, regime_score: float, policy_score: float) -> bool:
         """判断是否可投"""

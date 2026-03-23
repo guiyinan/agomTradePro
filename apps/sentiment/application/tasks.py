@@ -4,10 +4,11 @@ Sentiment 模块 - Application 层 Celery 任务
 本模块包含异步任务定义，使用 Celery 执行定时或后台任务。
 """
 
-from celery import shared_task
-from datetime import date, datetime
-from typing import Dict, Any
 import logging
+from datetime import date, datetime
+from typing import Any, Dict
+
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
     time_limit=900,
     soft_time_limit=850,
 )
-def calculate_daily_sentiment_index(self, target_date: str = None) -> Dict[str, Any]:
+def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, Any]:
     """
     每日计算综合情绪指数
 
@@ -110,7 +111,7 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> Dict[str, 
     time_limit=300,
     soft_time_limit=280,
 )
-def analyze_policy_event_sentiment(self, event_id: int) -> Dict[str, Any]:
+def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
     """
     分析单个政策事件的情感
 
@@ -210,7 +211,7 @@ def batch_analyze_texts(self, texts: list) -> list:
     time_limit=300,
     soft_time_limit=280,
 )
-def check_sentiment_data_freshness(self) -> Dict[str, Any]:
+def check_sentiment_data_freshness(self) -> dict[str, Any]:
     """
     检查情绪数据新鲜度
 

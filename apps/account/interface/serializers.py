@@ -2,23 +2,23 @@
 DRF Serializers for Account API.
 """
 
-from django.contrib.auth.models import User
-from rest_framework import serializers
 from datetime import date
 from decimal import Decimal
 
+from django.contrib.auth.models import User
+from rest_framework import serializers
+
 from apps.account.infrastructure.models import (
     AccountProfileModel,
+    AssetCategoryModel,
+    AssetMetadataModel,
+    CapitalFlowModel,
+    CurrencyModel,
     PortfolioModel,
+    PortfolioObserverGrantModel,
     PositionModel,
     TransactionModel,
-    CapitalFlowModel,
-    AssetMetadataModel,
-    CurrencyModel,
-    AssetCategoryModel,
-    PortfolioObserverGrantModel,
 )
-
 
 # ==================== Account Profile ====================
 

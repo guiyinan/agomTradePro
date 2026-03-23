@@ -7,18 +7,19 @@ Unit tests for ObserverAccessPermission and get_accessible_portfolios.
 - get_accessible_portfolios() 函数
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIRequestFactory
 
 from apps.account.infrastructure.models import (
-    PortfolioObserverGrantModel,
-    PortfolioModel,
-    PositionModel,
     AssetCategoryModel,
     CurrencyModel,
+    PortfolioModel,
+    PortfolioObserverGrantModel,
+    PositionModel,
 )
 from apps.account.interface.permissions import (
     ObserverAccessPermission,
@@ -177,7 +178,7 @@ class TestObserverAccessPermission:
         data = setup_portfolio_with_grant
 
         # 设置授权为过期
-        data['grant'].expires_at = datetime.now(timezone.utc) - timedelta(days=1)
+        data['grant'].expires_at = datetime.now(UTC) - timedelta(days=1)
         data['grant'].save()
 
         request = factory.get(f'/account/api/portfolios/{data["portfolio"].id}/')
@@ -516,7 +517,7 @@ class TestGetAccessiblePortfolios:
             owner_user_id=owner,
             observer_user_id=observer,
             status='active',
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+            expires_at=datetime.now(UTC) - timedelta(days=1),
         )
 
         portfolios = get_accessible_portfolios(observer)

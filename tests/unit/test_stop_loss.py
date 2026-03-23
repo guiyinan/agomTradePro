@@ -5,6 +5,7 @@ Unit tests for Stop Loss Service
 """
 
 import pytest
+
 from apps.account.domain.services import StopLossService
 
 

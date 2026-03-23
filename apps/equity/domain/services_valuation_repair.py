@@ -6,20 +6,19 @@
 - 只使用 Python 标准库和 dataclasses
 """
 
+import math
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Dict, Tuple, Optional
-import math
+from typing import Dict, List, Optional, Tuple
 
 # 导入实体类型
 from .entities_valuation_repair import (
-    ValuationRepairPhase,
-    PercentilePoint,
-    ValuationRepairStatus,
-    ValuationRepairConfig,
     DEFAULT_VALUATION_REPAIR_CONFIG,
+    PercentilePoint,
+    ValuationRepairConfig,
+    ValuationRepairPhase,
+    ValuationRepairStatus,
 )
-
 
 # ============== 异常定义 ==============
 
@@ -36,10 +35,10 @@ class InvalidValuationDataError(Exception):
 # ============== 核心算法函数 ==============
 
 def compute_composite_percentile(
-    pe: Optional[float],
+    pe: float | None,
     pb: float,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
-) -> Tuple[float, str]:
+) -> tuple[float, str]:
     """计算综合百分位
 
     Args:
@@ -61,7 +60,7 @@ def compute_composite_percentile(
         return pb, "pb_only"
 
 
-def _calculate_percentile(value: float, historical_values: List[float]) -> float:
+def _calculate_percentile(value: float, historical_values: list[float]) -> float:
     """计算单个值的百分位
 
     Args:
@@ -91,10 +90,10 @@ def _calculate_percentile(value: float, historical_values: List[float]) -> float
 
 
 def build_percentile_series(
-    history: List[Dict],
-    lookback_days: Optional[int] = None,
+    history: list[dict],
+    lookback_days: int | None = None,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
-) -> List[PercentilePoint]:
+) -> list[PercentilePoint]:
     """构建百分位时间序列
 
     Args:
@@ -133,7 +132,7 @@ def build_percentile_series(
             f"历史数据不足：需要至少 {config.min_history_points} 条，实际 {len(truncated)} 条"
         )
 
-    points: List[PercentilePoint] = []
+    points: list[PercentilePoint] = []
 
     for i, record in enumerate(truncated):
         trade_date = record["trade_date"]
@@ -152,7 +151,7 @@ def build_percentile_series(
         pb_percentile = _calculate_percentile(pb, pb_history)
 
         # 计算 PE 百分位（PE <= 0 或 None 时为 None）
-        pe_percentile: Optional[float] = None
+        pe_percentile: float | None = None
         if pe is not None and pe > 0:
             pe_percentile = _calculate_percentile(pe, pe_history)
 
@@ -173,11 +172,11 @@ def build_percentile_series(
 
 
 def detect_repair_start(
-    series: List[PercentilePoint],
-    confirm_window: Optional[int] = None,
-    min_rebound: Optional[float] = None,
+    series: list[PercentilePoint],
+    confirm_window: int | None = None,
+    min_rebound: float | None = None,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
-) -> Tuple[Optional[date], Optional[float]]:
+) -> tuple[date | None, float | None]:
     """检测修复启动点
 
     Args:
@@ -227,12 +226,12 @@ def detect_repair_start(
 
 
 def detect_stall(
-    series: List[PercentilePoint],
+    series: list[PercentilePoint],
     repair_start_date: date,
-    stall_window: Optional[int] = None,
-    stall_min_progress: Optional[float] = None,
+    stall_window: int | None = None,
+    stall_min_progress: float | None = None,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
-) -> Tuple[bool, Optional[date], int]:
+) -> tuple[bool, date | None, int]:
     """检测修复停滞
 
     Args:
@@ -297,8 +296,8 @@ def detect_stall(
 
 def determine_phase(
     composite_percentile: float,
-    repair_start_date: Optional[date],
-    repair_start_percentile: Optional[float],
+    repair_start_date: date | None,
+    repair_start_percentile: float | None,
     is_stalled: bool,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> str:
@@ -396,9 +395,9 @@ def _map_phase_to_signal(phase: str) -> str:
 def calculate_repair_progress(
     current_percentile: float,
     start_percentile: float,
-    target_percentile: Optional[float] = None,
+    target_percentile: float | None = None,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
-) -> Optional[float]:
+) -> float | None:
     """计算修复进度
 
     Args:
@@ -426,7 +425,7 @@ def calculate_repair_speed_per_30d(
     current_percentile: float,
     start_percentile: float,
     repair_duration_trading_days: int
-) -> Optional[float]:
+) -> float | None:
     """计算修复速度（每 30 交易日提升的百分位）
 
     Args:
@@ -448,9 +447,9 @@ def calculate_repair_speed_per_30d(
 def estimate_days_to_target(
     current_percentile: float,
     target_percentile: float,
-    speed_per_30d: Optional[float],
+    speed_per_30d: float | None,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
-) -> Optional[int]:
+) -> int | None:
     """估算到达目标的交易日数
 
     Args:
@@ -523,10 +522,10 @@ def build_description(
     stock_code: str,
     phase: str,
     composite_percentile: float,
-    repair_start_date: Optional[date],
-    repair_progress: Optional[float],
+    repair_start_date: date | None,
+    repair_progress: float | None,
     stall_duration_trading_days: int,
-    estimated_days_to_target: Optional[int]
+    estimated_days_to_target: int | None
 ) -> str:
     """构建状态描述文本
 
@@ -578,13 +577,13 @@ def build_description(
 def analyze_repair_status(
     stock_code: str,
     stock_name: str,
-    history: List[Dict],
-    as_of_date: Optional[date] = None,
-    lookback_days: Optional[int] = None,
-    confirm_window: Optional[int] = None,
-    min_rebound: Optional[float] = None,
-    stall_window: Optional[int] = None,
-    stall_min_progress: Optional[float] = None,
+    history: list[dict],
+    as_of_date: date | None = None,
+    lookback_days: int | None = None,
+    confirm_window: int | None = None,
+    min_rebound: float | None = None,
+    stall_window: int | None = None,
+    stall_min_progress: float | None = None,
     config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> ValuationRepairStatus:
     """分析估值修复状态（主入口）
@@ -642,9 +641,9 @@ def analyze_repair_status(
     )
 
     # 7. 计算进度、速度、ETA
-    repair_progress: Optional[float] = None
-    repair_speed: Optional[float] = None
-    eta: Optional[int] = None
+    repair_progress: float | None = None
+    repair_speed: float | None = None
+    eta: int | None = None
 
     if repair_start_date and repair_start_percentile is not None:
         # 计算修复持续天数

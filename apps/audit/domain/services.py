@@ -10,27 +10,28 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from .entities import (
-    LossSource,
-    RegimeTransition,
-    RegimePeriod,
-    PeriodPerformance,
-    AttributionResult,
     AttributionConfig,
     AttributionMethod,
+    AttributionResult,
     BrinsonAttributionResult,
     IndicatorPerformanceReport,
     IndicatorThresholdConfig,
+    LossSource,
+    OperationLog,
+    PeriodPerformance,
     RecommendedAction,
+    RegimePeriod,
     RegimeSnapshot,
+    RegimeTransition,
     SignalEvent,
 )
 
 
 def analyze_attribution(
     backtest_result,
-    regime_history: List[Dict],
-    asset_returns: Dict[str, List[Tuple[date, float]]],
-    config: Optional[AttributionConfig] = None
+    regime_history: list[dict],
+    asset_returns: dict[str, list[tuple[date, float]]],
+    config: AttributionConfig | None = None,
 ) -> AttributionResult:
     """
     执行归因分析
@@ -52,9 +53,7 @@ def analyze_attribution(
 
     # 2. 计算各周期表现
     period_performances = _calculate_period_performances(
-        periods,
-        backtest_result.equity_curve,
-        asset_returns
+        periods, backtest_result.equity_curve, asset_returns
     )
 
     # 3. 归因分析（启发式分解）
@@ -84,11 +83,11 @@ def analyze_attribution(
         loss_periods=loss_periods,
         lesson_learned=lesson,
         improvement_suggestions=suggestions,
-        period_attributions=period_attributions
+        period_attributions=period_attributions,
     )
 
 
-def _build_regime_periods(regime_history: List[Dict]) -> List[RegimePeriod]:
+def _build_regime_periods(regime_history: list[dict]) -> list[RegimePeriod]:
     """构建 Regime 周期"""
     if not regime_history:
         return []
@@ -109,33 +108,37 @@ def _build_regime_periods(regime_history: List[Dict]) -> List[RegimePeriod]:
             current_confidence = confidence
         elif regime != current_regime:
             # Regime 变化，保存上一个周期
-            periods.append(RegimePeriod(
-                start_date=current_start,
-                end_date=entry_date,
-                regime=current_regime,
-                confidence=current_confidence
-            ))
+            periods.append(
+                RegimePeriod(
+                    start_date=current_start,
+                    end_date=entry_date,
+                    regime=current_regime,
+                    confidence=current_confidence,
+                )
+            )
             current_regime = regime
             current_start = entry_date
             current_confidence = confidence
 
     # 添加最后一个周期
     if current_regime and current_start:
-        periods.append(RegimePeriod(
-            start_date=current_start,
-            end_date=regime_history[-1].get("date", current_start),
-            regime=current_regime,
-            confidence=current_confidence
-        ))
+        periods.append(
+            RegimePeriod(
+                start_date=current_start,
+                end_date=regime_history[-1].get("date", current_start),
+                regime=current_regime,
+                confidence=current_confidence,
+            )
+        )
 
     return periods
 
 
 def _calculate_period_performances(
-    periods: List[RegimePeriod],
-    equity_curve: List[Tuple[date, float]],
-    asset_returns: Dict[str, List[Tuple[date, float]]]
-) -> List[PeriodPerformance]:
+    periods: list[RegimePeriod],
+    equity_curve: list[tuple[date, float]],
+    asset_returns: dict[str, list[tuple[date, float]]],
+) -> list[PeriodPerformance]:
     """计算各周期表现"""
     performances = []
 
@@ -173,33 +176,38 @@ def _calculate_period_performances(
         asset_period_returns = {}
         for asset, returns in asset_returns.items():
             # 找到周期内的收益率
-            period_returns = [
-                r for d, r in returns
-                if period.start_date <= d <= period.end_date
-            ]
+            period_returns = [r for d, r in returns if period.start_date <= d <= period.end_date]
             if period_returns:
                 # 简化：使用平均收益
                 asset_period_returns[asset] = sum(period_returns) / len(period_returns)
             else:
                 asset_period_returns[asset] = 0.0
 
-        benchmark_return = sum(asset_period_returns.values()) / len(asset_period_returns) if asset_period_returns else 0.0
+        benchmark_return = (
+            sum(asset_period_returns.values()) / len(asset_period_returns)
+            if asset_period_returns
+            else 0.0
+        )
         best_return = max(asset_period_returns.values()) if asset_period_returns else 0.0
         worst_return = min(asset_period_returns.values()) if asset_period_returns else 0.0
 
-        performances.append(PeriodPerformance(
-            period=period,
-            portfolio_return=portfolio_return,
-            benchmark_return=benchmark_return,
-            best_asset_return=best_return,
-            worst_asset_return=worst_return,
-            asset_returns=asset_period_returns
-        ))
+        performances.append(
+            PeriodPerformance(
+                period=period,
+                portfolio_return=portfolio_return,
+                benchmark_return=benchmark_return,
+                best_asset_return=best_return,
+                worst_asset_return=worst_return,
+                asset_returns=asset_period_returns,
+            )
+        )
 
     return performances
 
 
-def _heuristic_pnl_decomposition(performances: List[PeriodPerformance]) -> Tuple[float, float, float]:
+def _heuristic_pnl_decomposition(
+    performances: list[PeriodPerformance],
+) -> tuple[float, float, float]:
     """
     启发式收益分解（非 Brinson 模型）
 
@@ -246,8 +254,8 @@ def _heuristic_pnl_decomposition(performances: List[PeriodPerformance]) -> Tuple
 
 
 def _identify_loss_source(
-    performances: List[PeriodPerformance]
-) -> Tuple[LossSource, float, List[RegimePeriod]]:
+    performances: list[PeriodPerformance],
+) -> tuple[LossSource, float, list[RegimePeriod]]:
     """识别损失来源"""
     loss_periods = []
 
@@ -258,15 +266,11 @@ def _identify_loss_source(
     if not loss_periods:
         return LossSource.UNKNOWN, 0.0, []
 
-    total_loss = sum(
-        p.portfolio_return for p in performances
-        if p.portfolio_return < 0
-    )
+    total_loss = sum(p.portfolio_return for p in performances if p.portfolio_return < 0)
 
     # 判断主要损失来源
     low_confidence_count = sum(
-        1 for p in performances
-        if p.portfolio_return < 0 and p.period.confidence < 0.3
+        1 for p in performances if p.portfolio_return < 0 and p.period.confidence < 0.3
     )
 
     if low_confidence_count > len(loss_periods) / 2:
@@ -280,9 +284,8 @@ def _identify_loss_source(
 
 
 def _generate_lessons(
-    performances: List[PeriodPerformance],
-    loss_source: LossSource
-) -> Tuple[str, List[str]]:
+    performances: list[PeriodPerformance], loss_source: LossSource
+) -> tuple[str, list[str]]:
     """生成经验总结"""
     suggestions = []
 
@@ -317,36 +320,38 @@ def _generate_lessons(
     return lesson, suggestions
 
 
-def _calculate_total_transaction_cost(trades: List) -> float:
+def _calculate_total_transaction_cost(trades: list) -> float:
     """计算总交易成本"""
     return sum(trade.cost for trade in trades)
 
 
-def _build_period_attributions(performances: List[PeriodPerformance]) -> List[Dict]:
+def _build_period_attributions(performances: list[PeriodPerformance]) -> list[dict]:
     """构建周期归因详情"""
     attributions = []
 
     for perf in performances:
-        attributions.append({
-            "start_date": perf.period.start_date,
-            "end_date": perf.period.end_date,
-            "regime": perf.period.regime,
-            "confidence": perf.period.confidence,
-            "portfolio_return": perf.portfolio_return,
-            "benchmark_return": perf.benchmark_return,
-            "excess_return": perf.portfolio_return - perf.benchmark_return,
-            "asset_returns": perf.asset_returns,
-        })
+        attributions.append(
+            {
+                "start_date": perf.period.start_date,
+                "end_date": perf.period.end_date,
+                "regime": perf.period.regime,
+                "confidence": perf.period.confidence,
+                "portfolio_return": perf.portfolio_return,
+                "benchmark_return": perf.benchmark_return,
+                "excess_return": perf.portfolio_return - perf.benchmark_return,
+                "asset_returns": perf.asset_returns,
+            }
+        )
 
     return attributions
 
 
 def calculate_brinson_attribution(
-    portfolio_returns: Dict[str, List[Tuple[date, float]]],
-    benchmark_returns: Dict[str, List[Tuple[date, float]]],
-    portfolio_weights: Dict[str, Dict[date, float]],
-    benchmark_weights: Dict[str, Dict[date, float]],
-    evaluation_period: Tuple[date, date],
+    portfolio_returns: dict[str, list[tuple[date, float]]],
+    benchmark_returns: dict[str, list[tuple[date, float]]],
+    portfolio_weights: dict[str, dict[date, float]],
+    benchmark_weights: dict[str, dict[date, float]],
+    evaluation_period: tuple[date, date],
 ) -> BrinsonAttributionResult:
     """
     计算 Brinson 归因
@@ -381,8 +386,12 @@ def calculate_brinson_attribution(
     start_date, end_date = evaluation_period
 
     # 1. 计算整体收益率
-    portfolio_return = _calculate_weighted_return(portfolio_returns, portfolio_weights, evaluation_period)
-    benchmark_return = _calculate_weighted_return(benchmark_returns, benchmark_weights, evaluation_period)
+    portfolio_return = _calculate_weighted_return(
+        portfolio_returns, portfolio_weights, evaluation_period
+    )
+    benchmark_return = _calculate_weighted_return(
+        benchmark_returns, benchmark_weights, evaluation_period
+    )
     excess_return = portfolio_return - benchmark_return
 
     # 2. 获取所有涉及的资产类别
@@ -473,7 +482,7 @@ def calculate_brinson_attribution(
         portfolio_weights,
         benchmark_weights,
         start_date,
-        end_date
+        end_date,
     )
 
     return BrinsonAttributionResult(
@@ -490,9 +499,9 @@ def calculate_brinson_attribution(
 
 
 def _calculate_weighted_return(
-    returns: Dict[str, List[Tuple[date, float]]],
-    weights: Dict[str, Dict[date, float]],
-    evaluation_period: Tuple[date, date],
+    returns: dict[str, list[tuple[date, float]]],
+    weights: dict[str, dict[date, float]],
+    evaluation_period: tuple[date, date],
 ) -> float:
     """计算加权收益率"""
     start_date, end_date = evaluation_period
@@ -515,15 +524,12 @@ def _calculate_weighted_return(
 
 
 def _calculate_average_return(
-    return_series: List[Tuple[date, float]],
+    return_series: list[tuple[date, float]],
     start_date: date,
     end_date: date,
 ) -> float:
     """计算期间平均收益率"""
-    relevant_returns = [
-        r for d, r in return_series
-        if start_date <= d <= end_date
-    ]
+    relevant_returns = [r for d, r in return_series if start_date <= d <= end_date]
 
     if not relevant_returns:
         return 0.0
@@ -532,15 +538,12 @@ def _calculate_average_return(
 
 
 def _calculate_average_weight(
-    weight_dict: Dict[date, float],
+    weight_dict: dict[date, float],
     start_date: date,
     end_date: date,
 ) -> float:
     """计算期间平均权重"""
-    relevant_weights = [
-        w for d, w in weight_dict.items()
-        if start_date <= d <= end_date
-    ]
+    relevant_weights = [w for d, w in weight_dict.items() if start_date <= d <= end_date]
 
     if not relevant_weights:
         return 0.0
@@ -549,13 +552,13 @@ def _calculate_average_weight(
 
 
 def _generate_brinson_period_breakdown(
-    portfolio_returns: Dict[str, List[Tuple[date, float]]],
-    benchmark_returns: Dict[str, List[Tuple[date, float]]],
-    portfolio_weights: Dict[str, Dict[date, float]],
-    benchmark_weights: Dict[str, Dict[date, float]],
+    portfolio_returns: dict[str, list[tuple[date, float]]],
+    benchmark_returns: dict[str, list[tuple[date, float]]],
+    portfolio_weights: dict[str, dict[date, float]],
+    benchmark_weights: dict[str, dict[date, float]],
     start_date: date,
     end_date: date,
-) -> List[Dict]:
+) -> list[dict]:
     """生成分时段的 Brinson 分解"""
     period_breakdown = []
 
@@ -578,17 +581,19 @@ def _generate_brinson_period_breakdown(
                 evaluation_period=(current_date, period_end),
             )
 
-            period_breakdown.append({
-                "period": f"Period {period_num}",
-                "start_date": current_date,
-                "end_date": period_end,
-                "portfolio_return": period_result.portfolio_return,
-                "benchmark_return": period_result.benchmark_return,
-                "excess_return": period_result.excess_return,
-                "allocation_effect": period_result.allocation_effect,
-                "selection_effect": period_result.selection_effect,
-                "interaction_effect": period_result.interaction_effect,
-            })
+            period_breakdown.append(
+                {
+                    "period": f"Period {period_num}",
+                    "start_date": current_date,
+                    "end_date": period_end,
+                    "portfolio_return": period_result.portfolio_return,
+                    "benchmark_return": period_result.benchmark_return,
+                    "excess_return": period_result.excess_return,
+                    "allocation_effect": period_result.allocation_effect,
+                    "selection_effect": period_result.selection_effect,
+                    "interaction_effect": period_result.interaction_effect,
+                }
+            )
         except Exception:
             # 如果计算失败，跳过该期间
             pass
@@ -610,14 +615,12 @@ class AttributionAnalyzer:
     提供更高级的归因分析功能。
     """
 
-    def __init__(self, config: Optional[AttributionConfig] = None):
+    def __init__(self, config: AttributionConfig | None = None):
         self.config = config or AttributionConfig()
 
     def analyze_regime_accuracy(
-        self,
-        regime_history: List[Dict],
-        actual_regime_history: List[Dict]
-    ) -> Dict:
+        self, regime_history: list[dict], actual_regime_history: list[dict]
+    ) -> dict:
         """
         分析 Regime 判断准确率
 
@@ -629,11 +632,7 @@ class AttributionAnalyzer:
             Dict: 准确率统计
         """
         if not regime_history or not actual_regime_history:
-            return {
-                "total_periods": 0,
-                "correct_predictions": 0,
-                "accuracy": 0.0
-            }
+            return {"total_periods": 0, "correct_predictions": 0, "accuracy": 0.0}
 
         correct = 0
         total = min(len(regime_history), len(actual_regime_history))
@@ -650,20 +649,18 @@ class AttributionAnalyzer:
             "accuracy": correct / total if total > 0 else 0.0,
             "regime_confusion_matrix": self._build_confusion_matrix(
                 regime_history, actual_regime_history
-            )
+            ),
         }
 
     def _build_confusion_matrix(
-        self,
-        predicted: List[Dict],
-        actual: List[Dict]
-    ) -> Dict[str, Dict[str, int]]:
+        self, predicted: list[dict], actual: list[dict]
+    ) -> dict[str, dict[str, int]]:
         """构建混淆矩阵"""
         regimes = ["Recovery", "Overheat", "Stagflation", "Deflation"]
         matrix = {r: {} for r in regimes}
 
         for p in regimes:
-            matrix[p] = {a: 0 for a in regimes}
+            matrix[p] = dict.fromkeys(regimes, 0)
 
         total = min(len(predicted), len(actual))
         for i in range(total):
@@ -675,10 +672,8 @@ class AttributionAnalyzer:
         return matrix
 
     def calculate_information_ratio(
-        self,
-        backtest_result,
-        benchmark_returns: List[float]
-    ) -> Optional[float]:
+        self, backtest_result, benchmark_returns: list[float]
+    ) -> float | None:
         """
         计算信息比率
 
@@ -720,6 +715,7 @@ class AttributionAnalyzer:
 
 # ============ 指标表现评估服务 ============
 
+
 class IndicatorPerformanceAnalyzer:
     """
     指标表现分析器（纯业务逻辑）
@@ -739,8 +735,8 @@ class IndicatorPerformanceAnalyzer:
     def analyze_performance(
         self,
         indicator_code: str,
-        indicator_values: List[Tuple[date, float]],
-        regime_history: List[RegimeSnapshot],
+        indicator_values: list[tuple[date, float]],
+        regime_history: list[RegimeSnapshot],
         evaluation_start: date,
         evaluation_end: date,
     ) -> IndicatorPerformanceReport:
@@ -773,10 +769,7 @@ class IndicatorPerformanceAnalyzer:
 
         # 3. 计算混淆矩阵
         tp, fp, tn, fn = self._calculate_confusion_matrix(
-            signals,
-            regime_dict,
-            evaluation_start,
-            evaluation_end
+            signals, regime_dict, evaluation_start, evaluation_end
         )
 
         # 4. 计算统计指标
@@ -784,34 +777,22 @@ class IndicatorPerformanceAnalyzer:
 
         # 5. 计算领先时间
         lead_time_mean, lead_time_std = self._calculate_lead_time(
-            signals,
-            regime_dict,
-            evaluation_start,
-            evaluation_end
+            signals, regime_dict, evaluation_start, evaluation_end
         )
 
         # 6. 计算稳定性
         pre_2015_corr, post_2015_corr, stability_score = self._calculate_stability(
-            indicator_values,
-            regime_dict,
-            evaluation_start,
-            evaluation_end
+            indicator_values, regime_dict, evaluation_start, evaluation_end
         )
 
         # 7. 计算衰减率和信号强度
         decay_rate, signal_strength = self._calculate_decay_and_strength(
-            signals,
-            regime_dict,
-            evaluation_start,
-            evaluation_end
+            signals, regime_dict, evaluation_start, evaluation_end
         )
 
         # 8. 生成建议
         recommended_action, recommended_weight, confidence = self._generate_recommendation(
-            f1_score,
-            stability_score,
-            decay_rate,
-            signal_strength
+            f1_score, stability_score, decay_rate, signal_strength
         )
 
         return IndicatorPerformanceReport(
@@ -841,10 +822,10 @@ class IndicatorPerformanceAnalyzer:
 
     def _generate_signals(
         self,
-        indicator_values: List[Tuple[date, float]],
+        indicator_values: list[tuple[date, float]],
         start_date: date,
         end_date: date,
-    ) -> List[SignalEvent]:
+    ) -> list[SignalEvent]:
         """
         基于阈值生成信号
 
@@ -893,24 +874,26 @@ class IndicatorPerformanceAnalyzer:
             else:
                 confidence = 0.5
 
-            signals.append(SignalEvent(
-                indicator_code=self.threshold_config.indicator_code,
-                signal_date=obs_date,
-                signal_type=signal_type,
-                signal_value=value,
-                threshold_used=threshold_used,
-                confidence=confidence
-            ))
+            signals.append(
+                SignalEvent(
+                    indicator_code=self.threshold_config.indicator_code,
+                    signal_date=obs_date,
+                    signal_type=signal_type,
+                    signal_value=value,
+                    threshold_used=threshold_used,
+                    confidence=confidence,
+                )
+            )
 
         return signals
 
     def _calculate_confusion_matrix(
         self,
-        signals: List[SignalEvent],
-        regime_dict: Dict[date, RegimeSnapshot],
+        signals: list[SignalEvent],
+        regime_dict: dict[date, RegimeSnapshot],
         start_date: date,
         end_date: date,
-    ) -> Tuple[int, int, int, int]:
+    ) -> tuple[int, int, int, int]:
         """
         计算混淆矩阵
 
@@ -937,8 +920,7 @@ class IndicatorPerformanceAnalyzer:
             if regime is None:
                 # 找最近的日期
                 closest_date = min(
-                    (d for d in regime_dict.keys() if d <= signal.signal_date),
-                    default=None
+                    (d for d in regime_dict.keys() if d <= signal.signal_date), default=None
                 )
                 if closest_date:
                     regime = regime_dict[closest_date]
@@ -966,7 +948,7 @@ class IndicatorPerformanceAnalyzer:
         fp: int,
         tn: int,
         fn: int,
-    ) -> Tuple[float, float, float, float]:
+    ) -> tuple[float, float, float, float]:
         """
         计算统计指标
 
@@ -999,11 +981,11 @@ class IndicatorPerformanceAnalyzer:
 
     def _calculate_lead_time(
         self,
-        signals: List[SignalEvent],
-        regime_dict: Dict[date, RegimeSnapshot],
+        signals: list[SignalEvent],
+        regime_dict: dict[date, RegimeSnapshot],
         start_date: date,
         end_date: date,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """
         计算领先时间
 
@@ -1058,11 +1040,11 @@ class IndicatorPerformanceAnalyzer:
 
     def _calculate_stability(
         self,
-        indicator_values: List[Tuple[date, float]],
-        regime_dict: Dict[date, RegimeSnapshot],
+        indicator_values: list[tuple[date, float]],
+        regime_dict: dict[date, RegimeSnapshot],
         start_date: date,
         end_date: date,
-    ) -> Tuple[Optional[float], Optional[float], float]:
+    ) -> tuple[float | None, float | None, float]:
         """
         计算稳定性
 
@@ -1091,8 +1073,12 @@ class IndicatorPerformanceAnalyzer:
             return None, None, 0.5  # 数据不足
 
         # 简化的相关性计算（使用信号变化的一致性）
-        pre_corr = self._calculate_simple_correlation(pre_values, regime_dict, start_date, cutoff_date)
-        post_corr = self._calculate_simple_correlation(post_values, regime_dict, cutoff_date, end_date)
+        pre_corr = self._calculate_simple_correlation(
+            pre_values, regime_dict, start_date, cutoff_date
+        )
+        post_corr = self._calculate_simple_correlation(
+            post_values, regime_dict, cutoff_date, end_date
+        )
 
         # 稳定性分数 = 1 - |pre - post|
         if pre_corr is not None and post_corr is not None:
@@ -1105,11 +1091,11 @@ class IndicatorPerformanceAnalyzer:
 
     def _calculate_simple_correlation(
         self,
-        values: List[Tuple[date, float]],
-        regime_dict: Dict[date, RegimeSnapshot],
+        values: list[tuple[date, float]],
+        regime_dict: dict[date, RegimeSnapshot],
         start_date: date,
         end_date: date,
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         计算简化的相关性指标
 
@@ -1152,11 +1138,11 @@ class IndicatorPerformanceAnalyzer:
 
     def _calculate_decay_and_strength(
         self,
-        signals: List[SignalEvent],
-        regime_dict: Dict[date, RegimeSnapshot],
+        signals: list[SignalEvent],
+        regime_dict: dict[date, RegimeSnapshot],
         start_date: date,
         end_date: date,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """
         计算信号衰减率和强度
 
@@ -1192,9 +1178,9 @@ class IndicatorPerformanceAnalyzer:
 
     def _calculate_signal_accuracy(
         self,
-        signals: List[SignalEvent],
-        regime_dict: Dict[date, RegimeSnapshot],
-    ) -> Optional[float]:
+        signals: list[SignalEvent],
+        regime_dict: dict[date, RegimeSnapshot],
+    ) -> float | None:
         """计算信号准确率"""
         if not signals:
             return None
@@ -1219,7 +1205,7 @@ class IndicatorPerformanceAnalyzer:
         stability_score: float,
         decay_rate: float,
         signal_strength: float,
-    ) -> Tuple[RecommendedAction, float, float]:
+    ) -> tuple[RecommendedAction, float, float]:
         """
         生成建议
 
@@ -1294,23 +1280,19 @@ class ThresholdValidator:
     """
 
     def __init__(self):
-        self.analyzers: Dict[str, IndicatorPerformanceAnalyzer] = {}
+        self.analyzers: dict[str, IndicatorPerformanceAnalyzer] = {}
 
-    def add_indicator(
-        self,
-        indicator_code: str,
-        threshold_config: IndicatorThresholdConfig
-    ):
+    def add_indicator(self, indicator_code: str, threshold_config: IndicatorThresholdConfig):
         """添加指标分析器"""
         self.analyzers[indicator_code] = IndicatorPerformanceAnalyzer(threshold_config)
 
     def validate_all(
         self,
-        indicators_data: Dict[str, List[Tuple[date, float]]],
-        regime_history: List[RegimeSnapshot],
+        indicators_data: dict[str, list[tuple[date, float]]],
+        regime_history: list[RegimeSnapshot],
         evaluation_start: date,
         evaluation_end: date,
-    ) -> List[IndicatorPerformanceReport]:
+    ) -> list[IndicatorPerformanceReport]:
         """
         验证所有指标
 
@@ -1341,12 +1323,14 @@ class ThresholdValidator:
             except Exception as e:
                 # 记录错误但继续处理其他指标
                 import logging
+
                 logging.warning(f"Failed to analyze {indicator_code}: {e}")
 
         return reports
 
 
 # ============ MCP/SDK 操作审计日志服务 ============
+
 
 class OperationLogFactory:
     """
@@ -1359,31 +1343,31 @@ class OperationLogFactory:
     def create_from_mcp_call(
         request_id: str,
         tool_name: str,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         username: str = "anonymous",
-        source: Optional[str] = None,
-        operation_type: Optional[str] = None,
-        module: Optional[str] = None,
-        action: Optional[str] = None,
-        request_params: Optional[Dict] = None,
-        response_payload: Optional[Any] = None,
+        source: str | None = None,
+        operation_type: str | None = None,
+        module: str | None = None,
+        action: str | None = None,
+        request_params: dict | None = None,
+        response_payload: Any | None = None,
         response_text: str = "",
         response_status: int = 200,
         response_message: str = "",
         error_code: str = "",
         exception_traceback: str = "",
-        duration_ms: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        duration_ms: int | None = None,
+        ip_address: str | None = None,
         user_agent: str = "",
         client_id: str = "",
         mcp_role: str = "",
         sdk_version: str = "",
         resource_type: str = "",
-        resource_id: Optional[str] = None,
+        resource_id: str | None = None,
         mcp_client_id: str = "",
         request_method: str = "MCP",
         request_path: str = "",
-    ) -> 'OperationLog':
+    ) -> "OperationLog":
         """
         从 MCP 工具调用创建操作日志
 
@@ -1419,10 +1403,10 @@ class OperationLogFactory:
             OperationLog: 操作日志实体
         """
         from .entities import (
+            OperationAction,
             OperationLog,
             OperationSource,
             OperationType,
-            OperationAction,
             infer_action_from_tool,
             infer_module_from_tool,
         )
@@ -1486,24 +1470,24 @@ class OperationLogFactory:
     @staticmethod
     def create_from_api_call(
         request_id: str,
-        user_id: Optional[int],
+        user_id: int | None,
         username: str,
         request_method: str,
         request_path: str,
-        request_params: Optional[Dict] = None,
-        response_payload: Optional[Any] = None,
+        request_params: dict | None = None,
+        response_payload: Any | None = None,
         response_text: str = "",
         response_status: int = 200,
         response_message: str = "",
         error_code: str = "",
         exception_traceback: str = "",
-        duration_ms: Optional[int] = None,
-        ip_address: Optional[str] = None,
+        duration_ms: int | None = None,
+        ip_address: str | None = None,
         user_agent: str = "",
         client_id: str = "",
         resource_type: str = "",
-        resource_id: Optional[str] = None,
-    ) -> 'OperationLog':
+        resource_id: str | None = None,
+    ) -> "OperationLog":
         """
         从 API 调用创建操作日志
 
@@ -1531,10 +1515,10 @@ class OperationLogFactory:
             OperationLog: 操作日志实体
         """
         from .entities import (
+            OperationAction,
             OperationLog,
             OperationSource,
             OperationType,
-            OperationAction,
             infer_module_from_tool,
         )
 

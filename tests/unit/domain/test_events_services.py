@@ -28,7 +28,6 @@ from tests.factories.domain_factories import (
     make_event_bus_config,
 )
 
-
 # ============================================================
 # Helpers
 # ============================================================

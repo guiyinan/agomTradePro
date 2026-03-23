@@ -11,21 +11,21 @@ This script runs tests without requiring Django setup.
 """
 
 import sys
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, '.')
 
+from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.domain.services import (
-    sigmoid,
-    calculate_regime_distribution,
+    RegimeCalculationResult,
+    RegimeCalculator,
     calculate_absolute_momentum,
     calculate_momentum,
+    calculate_regime_distribution,
     calculate_rolling_zscore,
     find_dominant_regime,
-    RegimeCalculator,
-    RegimeCalculationResult,
+    sigmoid,
 )
-from apps.regime.domain.entities import RegimeSnapshot
 
 
 def print_section(title: str):
@@ -250,7 +250,7 @@ def test_regime_calculator():
         print(f"  Inflation Z-score: {result.snapshot.inflation_momentum_z:.4f}")
         print(f"  Dominant Regime: {result.snapshot.dominant_regime}")
         print(f"  Confidence: {result.snapshot.confidence:.4f} ({result.snapshot.confidence_percent:.1f}%)")
-        print(f"  Distribution:")
+        print("  Distribution:")
         for regime, prob in result.snapshot.distribution.items():
             print(f"    {regime}: {prob:.4f}")
 
@@ -312,7 +312,7 @@ def test_edge_cases():
         if result.warnings:
             print(f"  Warnings: {result.warnings}")
         else:
-            print(f"  No warnings")
+            print("  No warnings")
 
         # Verify distribution always sums to 1
         total = sum(result.snapshot.distribution.values())
@@ -347,7 +347,7 @@ def test_date_handling():
         date(2030, 1, 1),   # Far future
     ]
 
-    print(f"  Testing with various dates:")
+    print("  Testing with various dates:")
     for test_date in test_dates:
         result = calculator.calculate(
             growth_series=growth,
@@ -358,7 +358,7 @@ def test_date_handling():
         print(f"    {test_date} -> observed_at = {result.snapshot.observed_at}")
         assert result.snapshot.observed_at == test_date, f"Date mismatch for {test_date}"
 
-    print(f"  [OK] All dates preserved correctly")
+    print("  [OK] All dates preserved correctly")
     print()
 
 
@@ -371,7 +371,7 @@ def test_absolute_vs_relative_momentum():
     """
     print_section("Test 7: Absolute vs Relative Momentum Comparison")
 
-    print(f"  Why the 2026-01-22 fix matters:")
+    print("  Why the 2026-01-22 fix matters:")
     print()
 
     scenarios = [
@@ -400,7 +400,7 @@ def test_absolute_vs_relative_momentum():
         abs_mom = calculate_absolute_momentum(scenario['series'], period=2)
         rel_mom = calculate_momentum(scenario['series'], period=2)
 
-        print(f"    Period 2 momentum:")
+        print("    Period 2 momentum:")
         print(f"      Absolute (pp): {abs_mom[-1]:.4f}")
         print(f"      Relative (%):  {rel_mom[-1]:.4f}")
 

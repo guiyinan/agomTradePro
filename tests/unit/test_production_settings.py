@@ -10,6 +10,7 @@ Tests for:
 
 import os
 import sys
+
 import pytest
 from django.core.exceptions import ImproperlyConfigured
 

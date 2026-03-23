@@ -3,16 +3,18 @@
 
 测试FeeConfig、SimulatedAccount、Position、SimulatedTrade实体
 """
-import pytest
 from datetime import date, datetime
+
+import pytest
+
 from apps.simulated_trading.domain.entities import (
-    FeeConfig,
-    SimulatedAccount,
-    Position,
-    SimulatedTrade,
     AccountType,
+    FeeConfig,
+    OrderStatus,
+    Position,
+    SimulatedAccount,
+    SimulatedTrade,
     TradeAction,
-    OrderStatus
 )
 
 

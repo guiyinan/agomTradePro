@@ -7,8 +7,8 @@ Tests that the system gracefully degrades when primary data sources fail:
   - Alert on large deviations
 """
 
-from datetime import date, datetime, timezone
-from unittest.mock import MagicMock, patch, PropertyMock
+from datetime import UTC, date, datetime, timezone
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from django.test import TestCase
@@ -70,7 +70,7 @@ class TestDataSourceFailover(TestCase):
             event_type=EventType.DATA_SOURCE_SWITCHED
             if hasattr(EventType, "DATA_SOURCE_SWITCHED")
             else EventType.UNKNOWN,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
             payload={
                 "primary_source": "tushare",
                 "fallback_source": "akshare",

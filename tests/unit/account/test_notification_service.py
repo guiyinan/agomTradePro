@@ -5,9 +5,9 @@ Tests for the stop loss/take profit notification service.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from django.test import override_settings
@@ -17,7 +17,6 @@ from apps.account.infrastructure.notification_service import (
     EmailStopLossNotificationService,
     InMemoryStopLossNotificationService,
 )
-
 
 # =============================================================================
 # Test Fixtures
@@ -33,7 +32,7 @@ def notification_data():
         asset_code="000001.SZ",
         trigger_type="fixed",
         trigger_price=Decimal("9.50"),
-        trigger_time=datetime.now(timezone.utc),
+        trigger_time=datetime.now(UTC),
         trigger_reason="价格下跌超过10%",
         pnl=Decimal("-500.00"),
         pnl_pct=-10.0,
@@ -51,7 +50,7 @@ def take_profit_notification_data():
         asset_code="000001.SZ",
         trigger_type="take_profit",
         trigger_price=Decimal("11.00"),
-        trigger_time=datetime.now(timezone.utc),
+        trigger_time=datetime.now(UTC),
         trigger_reason="价格上涨超过10%",
         pnl=Decimal("500.00"),
         pnl_pct=10.0,
@@ -98,7 +97,7 @@ class TestInMemoryStopLossNotificationService:
             asset_code="600000.SH",
             trigger_type="trailing",
             trigger_price=Decimal("8.50"),
-            trigger_time=datetime.now(timezone.utc),
+            trigger_time=datetime.now(UTC),
             trigger_reason="移动止损触发",
             pnl=Decimal("-300.00"),
             pnl_pct=-8.0,
@@ -243,7 +242,7 @@ class TestEmailStopLossNotificationService:
             'asset_code': '000001.SZ',
             'trigger_type': 'fixed',
             'trigger_price': Decimal('9.50'),
-            'trigger_time': datetime.now(timezone.utc),
+            'trigger_time': datetime.now(UTC),
             'trigger_reason': '价格下跌超过10%',
             'pnl': Decimal('-500.00'),
             'pnl_pct': -10.0,
@@ -264,7 +263,7 @@ class TestEmailStopLossNotificationService:
             'user_email': 'test@example.com',
             'asset_code': '600000.SH',
             'trigger_price': Decimal('11.00'),
-            'trigger_time': datetime.now(timezone.utc),
+            'trigger_time': datetime.now(UTC),
             'trigger_reason': '价格上涨超过10%',
             'pnl': Decimal('500.00'),
             'pnl_pct': 10.0,

@@ -5,27 +5,28 @@
 DecisionModelParamConfigModel、DecisionModelParamAuditLogModel 的创建和查询。
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 
+import pytest
+
+from apps.decision_rhythm.domain.entities import (
+    ApprovalStatus,
+    DecisionPriority,
+    ExecutionStatus,
+    ExecutionTarget,
+    RecommendationStatus,
+    UserDecisionAction,
+)
 from apps.decision_rhythm.infrastructure.models import (
     DecisionFeatureSnapshotModel,
-    UnifiedRecommendationModel,
-    DecisionModelParamConfigModel,
     DecisionModelParamAuditLogModel,
+    DecisionModelParamConfigModel,
     DecisionRequestModel,
     ExecutionApprovalRequestModel,
     InvestmentRecommendationModel,
+    UnifiedRecommendationModel,
     ValuationSnapshotModel,
-)
-from apps.decision_rhythm.domain.entities import (
-    RecommendationStatus,
-    UserDecisionAction,
-    DecisionPriority,
-    ExecutionTarget,
-    ExecutionStatus,
-    ApprovalStatus,
 )
 
 
@@ -35,7 +36,7 @@ def feature_snapshot_data():
     return {
         "snapshot_id": "fsn_test001",
         "security_code": "000001.SZ",
-        "snapshot_time": datetime.now(timezone.utc),
+        "snapshot_time": datetime.now(UTC),
         "regime": "GROWTH_INFLATION",
         "regime_confidence": 0.85,
         "policy_level": "LEVEL_2",
@@ -106,7 +107,7 @@ class TestDecisionFeatureSnapshotModel:
         """测试自动生成快照 ID"""
         snapshot = DecisionFeatureSnapshotModel.objects.create(
             security_code="000002.SZ",
-            snapshot_time=datetime.now(timezone.utc),
+            snapshot_time=datetime.now(UTC),
         )
         assert snapshot.snapshot_id.startswith("fsn_")
         assert len(snapshot.snapshot_id) == 16

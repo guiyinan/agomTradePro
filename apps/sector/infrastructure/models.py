@@ -6,8 +6,9 @@
 - 包含板块基本信息、板块指数、板块成分股等表
 """
 
-from django.db import models
 from decimal import Decimal
+
+from django.db import models
 
 
 class SectorInfoModel(models.Model):

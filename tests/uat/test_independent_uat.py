@@ -4,9 +4,9 @@ Independent UAT Tests - Not dependent on visual consistency changes.
 These tests can run while Task #13 is in progress.
 """
 import pytest
-from django.test import Client
-from django.urls import reverse, resolve
 from django.conf import settings
+from django.test import Client
+from django.urls import resolve, reverse
 
 
 class TestAPINamingConvention:

@@ -6,8 +6,9 @@ import pytest
 
 from apps.ai_capability.domain.entities import (
     CapabilityDefinition,
-    RouteGroup,
     RiskLevel,
+    RouteGroup,
+    RoutingContext,
     SourceType,
     Visibility,
 )
@@ -17,7 +18,6 @@ from apps.ai_capability.domain.services import (
     CapabilityRetrievalScorer,
     RetrievalScore,
 )
-from apps.ai_capability.domain.entities import RoutingContext
 
 
 class TestCapabilityRetrievalScorer:

@@ -20,17 +20,17 @@ M3 核心组件：编排订单执行流程
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional, List
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 from apps.strategy.domain.entities import (
+    DecisionAction,
+    DecisionResult,
     OrderIntent,
     OrderSide,
     OrderStatus,
-    DecisionResult,
-    DecisionAction,
-    SizingResult,
     RiskSnapshot,
+    SizingResult,
 )
 from apps.strategy.domain.protocols import (
     ExecutionAdapterProtocol,
@@ -38,8 +38,8 @@ from apps.strategy.domain.protocols import (
 )
 from apps.strategy.domain.services import (
     DecisionPolicyEngine,
-    SizingEngine,
     PreTradeRiskGate,
+    SizingEngine,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,14 +92,14 @@ class ExecutionResult:
     """执行结果"""
     success: bool
     intent_id: str
-    broker_order_id: Optional[str] = None
+    broker_order_id: str | None = None
     status: str = "draft"
-    error_message: Optional[str] = None
-    decision_result: Optional[DecisionResult] = None
-    sizing_result: Optional[SizingResult] = None
+    error_message: str | None = None
+    decision_result: DecisionResult | None = None
+    sizing_result: SizingResult | None = None
     risk_check_passed: bool = False
-    risk_violations: List[str] = field(default_factory=list)
-    risk_warnings: List[str] = field(default_factory=list)
+    risk_violations: list[str] = field(default_factory=list)
+    risk_warnings: list[str] = field(default_factory=list)
 
 
 # ========================================================================
@@ -125,9 +125,9 @@ class ExecutionOrchestrator:
         self,
         intent_repository: OrderIntentRepositoryProtocol,
         paper_adapter: ExecutionAdapterProtocol,
-        broker_adapter: Optional[ExecutionAdapterProtocol],
+        broker_adapter: ExecutionAdapterProtocol | None,
         config: ExecutionConfig,
-        audit_logger: Optional[Any] = None,
+        audit_logger: Any | None = None,
     ):
         """
         初始化执行编排器
@@ -179,13 +179,13 @@ class ExecutionOrchestrator:
         daily_pnl_pct: float,
         regime: str = "Unknown",
         regime_confidence: float = 0.5,
-        stop_loss_price: Optional[float] = None,
-        atr: Optional[float] = None,
+        stop_loss_price: float | None = None,
+        atr: float | None = None,
         reason: str = "",
-        idempotency_key: Optional[str] = None,
-        target_regime: Optional[str] = None,
-        volatility_z: Optional[float] = None,
-        avg_volume: Optional[float] = None,
+        idempotency_key: str | None = None,
+        target_regime: str | None = None,
+        volatility_z: float | None = None,
+        avg_volume: float | None = None,
     ) -> ExecutionResult:
         """
         执行交易
@@ -216,7 +216,7 @@ class ExecutionOrchestrator:
             执行结果
         """
         intent_id = str(uuid.uuid4())
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         final_idempotency_key = idempotency_key or intent_id
 
         try:
@@ -248,7 +248,7 @@ class ExecutionOrchestrator:
                 action=DecisionAction(decision_action),
                 reason_codes=reason_codes,
                 reason_text=reason_text,
-                valid_until=datetime.now(timezone.utc) + timedelta(seconds=valid_until) if valid_until else None,
+                valid_until=datetime.now(UTC) + timedelta(seconds=valid_until) if valid_until else None,
                 confidence=signal_confidence,
             )
 
@@ -337,7 +337,7 @@ class ExecutionOrchestrator:
                 reason=reason,
                 idempotency_key=final_idempotency_key,
                 status=OrderStatus.DRAFT,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
 
             # 7. 保存订单意图
@@ -373,7 +373,7 @@ class ExecutionOrchestrator:
                     intent=saved_intent,
                     broker_order_id=broker_order_id,
                     adapter_name=adapter.get_name(),
-                    duration_ms=int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000),
+                    duration_ms=int((datetime.now(UTC) - start_time).total_seconds() * 1000),
                 )
 
                 return ExecutionResult(
@@ -488,7 +488,7 @@ class ExecutionOrchestrator:
                 'sizing_method': intent.sizing.sizing_method,
                 'expected_risk_pct': intent.sizing.expected_risk_pct,
                 'duration_ms': duration_ms,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': datetime.now(UTC).isoformat(),
             }
 
             self.audit_logger.log(log_entry)

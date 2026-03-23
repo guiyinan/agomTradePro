@@ -4,22 +4,22 @@ Unit Tests for Qlib Training
 测试 Qlib 模型训练相关功能。
 """
 
-import os
-import pytest
 import json
+import os
 import pickle
 from datetime import date, datetime
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from django.core.management import call_command
 from django.test import override_settings
 
 from apps.alpha.application.tasks import (
-    qlib_train_model,
     _calculate_artifact_hash,
     _save_model_artifact,
+    qlib_train_model,
 )
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
@@ -108,8 +108,8 @@ class TestQlibTrainingHelpers:
 
     def test_save_model_artifact(self):
         """测试保存模型 artifact"""
-        import tempfile
         import shutil
+        import tempfile
 
         # 创建临时目录
         temp_dir = tempfile.mkdtemp()
@@ -138,13 +138,13 @@ class TestQlibTrainingHelpers:
             assert (artifact_dir / "data_version.txt").exists()
 
             # 验证配置文件内容
-            with open(artifact_dir / "config.json", "r") as f:
+            with open(artifact_dir / "config.json") as f:
                 config = json.load(f)
                 assert config["model_name"] == "test_model"
                 assert config["artifact_hash"] == "abc123"
 
             # 验证指标文件内容
-            with open(artifact_dir / "metrics.json", "r") as f:
+            with open(artifact_dir / "metrics.json") as f:
                 metrics = json.load(f)
                 assert metrics["ic"] == 0.05
 
@@ -464,8 +464,8 @@ class TestModelArtifacts:
 
     def test_artifact_directory_structure(self):
         """测试 artifact 目录结构"""
-        import tempfile
         import shutil
+        import tempfile
 
         temp_dir = tempfile.mkdtemp()
         model_path = Path(temp_dir)
@@ -502,8 +502,8 @@ class TestModelArtifacts:
 
     def test_model_artifact_persistence(self):
         """测试模型 artifact 持久化"""
-        import tempfile
         import shutil
+        import tempfile
 
         temp_dir = tempfile.mkdtemp()
         model_path = Path(temp_dir)
@@ -531,7 +531,7 @@ class TestModelArtifacts:
 
             # 加载配置
             config_file = artifact_dir / "config.json"
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 config = json.load(f)
 
             assert config["artifact_hash"] == "test_hash_456"

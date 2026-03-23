@@ -3,13 +3,14 @@ Django Admin configuration for Fund Module.
 """
 
 from django.contrib import admin
+
 from apps.fund.infrastructure.models import (
+    FundHoldingModel,
     FundInfoModel,
     FundManagerModel,
     FundNetValueModel,
-    FundHoldingModel,
-    FundSectorAllocationModel,
     FundPerformanceModel,
+    FundSectorAllocationModel,
 )
 
 

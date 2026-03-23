@@ -8,8 +8,8 @@ Content Extractor - 从HTML页面提取文章正文
 
 import logging
 import re
-from typing import Optional, Dict, Any, Protocol
 from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional, Protocol
 
 try:
     import httpx
@@ -39,7 +39,7 @@ class ContentExtractorProtocol(Protocol):
 
     source_name: str
 
-    def extract(self, url: str, proxy_config: Optional[Dict] = None, timeout: int = 30) -> str:
+    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
         """
         从URL提取文章正文
 
@@ -62,7 +62,7 @@ class BaseContentExtractor(ABC):
 
     source_name: str = "base"
 
-    def extract(self, url: str, proxy_config: Optional[Dict] = None, timeout: int = 30) -> str:
+    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
         """默认实现：子类必须覆盖"""
         raise NotImplementedError
 
@@ -82,7 +82,7 @@ class BaseContentExtractor(ABC):
         text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]', '', text)
         return text.strip()
 
-    def _build_proxies(self, proxy_config: Optional[Dict]) -> Optional[str]:
+    def _build_proxies(self, proxy_config: dict | None) -> str | None:
         """
         构建代理URL
 
@@ -119,7 +119,7 @@ class ReadabilityExtractor(BaseContentExtractor):
 
     source_name = "readability"
 
-    def extract(self, url: str, proxy_config: Optional[Dict] = None, timeout: int = 30) -> str:
+    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
         """
         使用readability-lxml提取内容
 
@@ -221,7 +221,7 @@ class BeautifulSoupExtractor(BaseContentExtractor):
         'iframe', 'noscript'
     ]
 
-    def extract(self, url: str, proxy_config: Optional[Dict] = None, timeout: int = 30) -> str:
+    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
         """
         使用BeautifulSoup4提取内容
 
@@ -291,7 +291,7 @@ class BeautifulSoupExtractor(BaseContentExtractor):
         self,
         url: str,
         selector: str,
-        proxy_config: Optional[Dict] = None,
+        proxy_config: dict | None = None,
         timeout: int = 30
     ) -> str:
         """
@@ -349,7 +349,7 @@ class HybridContentExtractor(BaseContentExtractor):
         self.readability_extractor = ReadabilityExtractor()
         self.bs4_extractor = BeautifulSoupExtractor()
 
-    def extract(self, url: str, proxy_config: Optional[Dict] = None, timeout: int = 30) -> str:
+    def extract(self, url: str, proxy_config: dict | None = None, timeout: int = 30) -> str:
         """
         混合提取：先尝试readability，失败时使用BeautifulSoup4
 

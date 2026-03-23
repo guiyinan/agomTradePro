@@ -5,12 +5,12 @@ Service to collect and aggregate signals from all modules (Regime, Factor, Rotat
 into a unified signal system.
 """
 
-from datetime import date, timedelta
-from typing import List, Dict, Any, Optional
 import logging
+from datetime import date, timedelta
+from typing import Any, Dict, List, Optional
 
-from apps.signal.infrastructure.repositories import UnifiedSignalRepository
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.signal.infrastructure.repositories import UnifiedSignalRepository
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class UnifiedSignalService:
                 self._alpha_service = False
         return self._alpha_service
 
-    def _get_current_regime(self, calc_date: date) -> Optional[str]:
+    def _get_current_regime(self, calc_date: date) -> str | None:
         """获取当前 Regime（可选功能）"""
         try:
             return resolve_current_regime(as_of_date=calc_date).dominant_regime
@@ -75,7 +75,7 @@ class UnifiedSignalService:
     def collect_all_signals(
         self,
         calc_date: date = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         收集所有模块的信号
 
@@ -148,7 +148,7 @@ class UnifiedSignalService:
 
         return results
 
-    def _collect_regime_signals(self, calc_date: date) -> List[Dict]:
+    def _collect_regime_signals(self, calc_date: date) -> list[dict]:
         """收集 Regime 模块信号"""
         signals = []
 
@@ -201,7 +201,7 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_rotation_signals(self, calc_date: date) -> List[Dict]:
+    def _collect_rotation_signals(self, calc_date: date) -> list[dict]:
         """收集 Rotation 模块信号"""
         signals = []
 
@@ -242,7 +242,7 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_factor_signals(self, calc_date: date) -> List[Dict]:
+    def _collect_factor_signals(self, calc_date: date) -> list[dict]:
         """收集 Factor 模块信号"""
         signals = []
 
@@ -285,7 +285,7 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_hedge_signals(self, calc_date: date) -> List[Dict]:
+    def _collect_hedge_signals(self, calc_date: date) -> list[dict]:
         """收集 Hedge 模块信号"""
         signals = []
 
@@ -344,7 +344,7 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_alpha_signals(self, calc_date: date) -> List[Dict]:
+    def _collect_alpha_signals(self, calc_date: date) -> list[dict]:
         """收集 Alpha 模块信号"""
         signals = []
 
@@ -418,7 +418,7 @@ class UnifiedSignalService:
 
         return signals
 
-    def _get_regime_allocation(self, regime_type: str) -> Dict[str, Dict]:
+    def _get_regime_allocation(self, regime_type: str) -> dict[str, dict]:
         """
         根据宏观象限获取建议配置
 
@@ -464,7 +464,7 @@ class UnifiedSignalService:
         signal_date: date = None,
         signal_source: str = None,
         min_priority: int = 1
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         获取统一信号列表
 
@@ -488,7 +488,7 @@ class UnifiedSignalService:
         self,
         start_date: date = None,
         end_date: date = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取信号汇总
 

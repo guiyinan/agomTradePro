@@ -9,19 +9,20 @@ Tests verify:
 - Both AgentTask entity and task_id integer are supported
 """
 
+from datetime import UTC, datetime, timezone
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
 
 from apps.agent_runtime.application.services.timeline_service import (
     TimelineEventWriterService,
 )
 from apps.agent_runtime.domain.entities import (
     AgentTask,
+    EventSource,
     TaskDomain,
     TaskStatus,
     TimelineEventType,
-    EventSource,
 )
 
 
@@ -49,8 +50,8 @@ class TestTimelineEventWriterService:
             last_error=None,
             requires_human=False,
             created_by=1,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
     # ========== write_event Tests ==========

@@ -48,8 +48,8 @@ class OpenAICompatibleAdapter:
         base_url: str,
         api_key: str,
         default_model: str = "gpt-4o-mini",
-        api_mode: Optional[str] = None,
-        fallback_enabled: Optional[bool] = None,
+        api_mode: str | None = None,
+        fallback_enabled: bool | None = None,
     ):
         if not OPENAI_AVAILABLE:
             raise ImportError("需要安装 openai 库。请运行: agomtradepro/Scripts/pip install openai")
@@ -75,15 +75,15 @@ class OpenAICompatibleAdapter:
 
     def chat_completion(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         stream: bool = False,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        tool_choice: Optional[str] = None,
-        response_format: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         统一聊天接口，内部按 api_mode 决定调用 Responses 或 Chat Completions。
 
@@ -126,15 +126,15 @@ class OpenAICompatibleAdapter:
 
     def _chat_completion_responses(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float,
-        max_tokens: Optional[int],
+        max_tokens: int | None,
         start_time: float,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        tool_choice: Optional[str] = None,
-        response_format: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
             kwargs: dict[str, Any] = {
                 "model": model,
@@ -187,16 +187,16 @@ class OpenAICompatibleAdapter:
 
     def _chat_completion_chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         model: str,
         temperature: float,
-        max_tokens: Optional[int],
+        max_tokens: int | None,
         stream: bool,
         start_time: float,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        tool_choice: Optional[str] = None,
-        response_format: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
             create_kwargs: dict[str, Any] = {
                 "model": model,
@@ -261,10 +261,10 @@ class OpenAICompatibleAdapter:
             )
 
     @staticmethod
-    def _extract_tool_calls_from_responses(response: Any) -> Optional[List[Dict[str, Any]]]:
+    def _extract_tool_calls_from_responses(response: Any) -> list[dict[str, Any]] | None:
         """从 Responses API 返回中提取 tool_calls。"""
         output = getattr(response, "output", None) or []
-        tool_calls: list[Dict[str, Any]] = []
+        tool_calls: list[dict[str, Any]] = []
         for item in output:
             item_type = getattr(item, "type", None)
             if item_type == "function_call":
@@ -298,10 +298,10 @@ class OpenAICompatibleAdapter:
         prompt_tokens: int,
         completion_tokens: int,
         total_tokens: int,
-        finish_reason: Optional[str],
+        finish_reason: str | None,
         response_time_ms: int,
         request_type: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "content": content,
             "model": model,
@@ -326,7 +326,7 @@ class OpenAICompatibleAdapter:
         error_msg: str,
         response_time_ms: int,
         request_type: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         status = "error"
         lowered = error_msg.lower()
         if "rate" in lowered or "limit" in lowered:
@@ -367,7 +367,7 @@ class OpenAICompatibleAdapter:
 class AIFailoverHelper:
     """AI 故障转移辅助类，按优先级依次尝试多个提供商。"""
 
-    def __init__(self, providers: List[Dict[str, Any]]):
+    def __init__(self, providers: list[dict[str, Any]]):
         self.providers = providers
         self.adapters = []
 
@@ -393,14 +393,14 @@ class AIFailoverHelper:
 
     def chat_completion_with_failover(
         self,
-        messages: List[Dict[str, str]],
-        model: Optional[str] = None,
+        messages: list[dict[str, str]],
+        model: str | None = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        tool_choice: Optional[str] = None,
-        response_format: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         last_error = None
 
         for item in self.adapters:

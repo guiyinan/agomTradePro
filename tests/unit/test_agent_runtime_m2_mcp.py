@@ -5,8 +5,9 @@ WP-M2-04/05/06: Tests for tool/resource/prompt registration and execution.
 """
 
 import asyncio
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestAgentTaskToolRegistration:

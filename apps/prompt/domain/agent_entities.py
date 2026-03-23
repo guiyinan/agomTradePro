@@ -33,10 +33,10 @@ class ToolCallRecord:
         duration_ms: 执行耗时（毫秒）
     """
     tool_name: str
-    arguments: Dict[str, Any]
+    arguments: dict[str, Any]
     success: bool
     result: Any
-    error_message: Optional[str] = None
+    error_message: str | None = None
     duration_ms: int = 0
 
 
@@ -55,11 +55,11 @@ class AgentTurnResult:
     """
     turn_number: int
     has_tool_calls: bool
-    tool_calls: List[ToolCallRecord]
-    content: Optional[str] = None
+    tool_calls: list[ToolCallRecord]
+    content: str | None = None
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
 
 
 @dataclass
@@ -85,17 +85,17 @@ class AgentExecutionRequest:
     task_type: str
     user_input: str
     provider_ref: Any = None
-    model: Optional[str] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    context_scope: Optional[List[str]] = None
-    context_params: Optional[Dict[str, Any]] = None
-    tool_names: Optional[List[str]] = None
-    response_schema: Optional[Dict[str, Any]] = None
+    model: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
+    context_scope: list[str] | None = None
+    context_params: dict[str, Any] | None = None
+    tool_names: list[str] | None = None
+    response_schema: dict[str, Any] | None = None
     max_rounds: int = 4
-    session_id: Optional[str] = None
-    system_prompt: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    session_id: str | None = None
+    system_prompt: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -121,18 +121,18 @@ class AgentExecutionResponse:
         execution_id: 执行 ID
     """
     success: bool
-    final_answer: Optional[str]
-    structured_output: Optional[Dict[str, Any]] = None
-    used_context: Optional[List[str]] = None
-    tool_calls: Optional[List[ToolCallRecord]] = None
-    turns: Optional[List[AgentTurnResult]] = None
+    final_answer: str | None
+    structured_output: dict[str, Any] | None = None
+    used_context: list[str] | None = None
+    tool_calls: list[ToolCallRecord] | None = None
+    turns: list[AgentTurnResult] | None = None
     turn_count: int = 0
-    provider_used: Optional[str] = None
-    model_used: Optional[str] = None
+    provider_used: str | None = None
+    model_used: str | None = None
     total_tokens: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
     estimated_cost: float = 0.0
     response_time_ms: int = 0
-    error_message: Optional[str] = None
-    execution_id: Optional[str] = None
+    error_message: str | None = None
+    execution_id: str | None = None

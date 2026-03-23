@@ -9,21 +9,22 @@ Uses only:
 - Pure business algorithms
 """
 
+import math
+import statistics
+from bisect import bisect_right
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Tuple, Callable
-from bisect import bisect_right
-import statistics
-import math
+from typing import Dict, List, Optional, Tuple
 
 from apps.factor.domain.entities import (
     FactorCategory,
     FactorDefinition,
+    FactorDirection,
     FactorExposure,
-    FactorScore,
     FactorPortfolioConfig,
     FactorPortfolioHolding,
-    FactorDirection,
+    FactorScore,
     get_common_factors,
 )
 
@@ -32,12 +33,12 @@ from apps.factor.domain.entities import (
 class FactorCalculationContext:
     """Context for factor calculation"""
     trade_date: date
-    universe: List[str]  # List of stock codes
-    factor_definitions: List[FactorDefinition]
+    universe: list[str]  # List of stock codes
+    factor_definitions: list[FactorDefinition]
 
     # Data accessors (injected from Infrastructure layer)
-    get_factor_value: Callable[[str, str, date], Optional[float]]  # (stock_code, factor_code, date) -> value
-    get_stock_info: Callable[[str], Optional[Dict]]  # (stock_code) -> {name, sector, market_cap, ...}
+    get_factor_value: Callable[[str, str, date], float | None]  # (stock_code, factor_code, date) -> value
+    get_stock_info: Callable[[str], dict | None]  # (stock_code) -> {name, sector, market_cap, ...}
 
 
 class FactorEngine:
@@ -52,17 +53,17 @@ class FactorEngine:
         self.context = context
         self._factor_def_map = {f.code: f for f in context.factor_definitions}
         self._common_factor_map = {f.code: f for f in get_common_factors()}
-        self._factor_value_cache: Dict[Tuple[str, str], Optional[float]] = {}
-        self._factor_distribution_cache: Dict[str, List[float]] = {}
-        self._factor_stats_cache: Dict[str, Tuple[float, float]] = {}
-        self._factor_exposure_cache: Dict[Tuple[str, str], Optional[FactorExposure]] = {}
-        self._stock_info_cache: Dict[str, Optional[Dict]] = {}
+        self._factor_value_cache: dict[tuple[str, str], float | None] = {}
+        self._factor_distribution_cache: dict[str, list[float]] = {}
+        self._factor_stats_cache: dict[str, tuple[float, float]] = {}
+        self._factor_exposure_cache: dict[tuple[str, str], FactorExposure | None] = {}
+        self._stock_info_cache: dict[str, dict | None] = {}
 
     def calculate_factor_exposure(
         self,
         stock_code: str,
         factor_code: str
-    ) -> Optional[FactorExposure]:
+    ) -> FactorExposure | None:
         """
         Calculate factor exposure for a single stock-factor pair.
 
@@ -119,8 +120,8 @@ class FactorEngine:
 
     def calculate_factor_scores(
         self,
-        factor_weights: Dict[str, float]
-    ) -> List[FactorScore]:
+        factor_weights: dict[str, float]
+    ) -> list[FactorScore]:
         """
         Calculate composite factor scores for all stocks in universe.
 
@@ -153,7 +154,7 @@ class FactorEngine:
     def select_portfolio(
         self,
         config: FactorPortfolioConfig
-    ) -> List[FactorPortfolioHolding]:
+    ) -> list[FactorPortfolioHolding]:
         """
         Select portfolio based on factor configuration.
 
@@ -177,7 +178,7 @@ class FactorEngine:
 
         return holdings
 
-    def _get_all_factor_values(self, factor_code: str) -> List[float]:
+    def _get_all_factor_values(self, factor_code: str) -> list[float]:
         """Get all factor values for the universe"""
         if factor_code in self._factor_distribution_cache:
             return self._factor_distribution_cache[factor_code]
@@ -191,7 +192,7 @@ class FactorEngine:
         self._factor_distribution_cache[factor_code] = values
         return values
 
-    def _calculate_percentile(self, value: float, all_values: List[float]) -> float:
+    def _calculate_percentile(self, value: float, all_values: list[float]) -> float:
         """Calculate percentile rank (0-1)"""
         if not all_values:
             return 0.5
@@ -200,7 +201,7 @@ class FactorEngine:
         count_le = bisect_right(all_values, value)
         return count_le / n
 
-    def _get_factor_value(self, stock_code: str, factor_code: str) -> Optional[float]:
+    def _get_factor_value(self, stock_code: str, factor_code: str) -> float | None:
         cache_key = (stock_code, factor_code)
         if cache_key not in self._factor_value_cache:
             self._factor_value_cache[cache_key] = self.context.get_factor_value(
@@ -210,14 +211,14 @@ class FactorEngine:
             )
         return self._factor_value_cache[cache_key]
 
-    def _get_factor_stats(self, factor_code: str) -> Tuple[float, float]:
+    def _get_factor_stats(self, factor_code: str) -> tuple[float, float]:
         if factor_code not in self._factor_stats_cache:
             self._factor_stats_cache[factor_code] = self._calculate_mean_std(
                 self._get_all_factor_values(factor_code)
             )
         return self._factor_stats_cache[factor_code]
 
-    def _calculate_mean_std(self, values: List[float]) -> Tuple[float, float]:
+    def _calculate_mean_std(self, values: list[float]) -> tuple[float, float]:
         """Calculate mean and standard deviation"""
         if not values:
             return 0.0, 1.0
@@ -262,8 +263,8 @@ class FactorEngine:
     def _calculate_stock_score(
         self,
         stock_code: str,
-        factor_weights: Dict[str, float]
-    ) -> Optional[FactorScore]:
+        factor_weights: dict[str, float]
+    ) -> FactorScore | None:
         """Calculate composite score for a single stock"""
         factor_scores = {}
         stock_info = self._get_stock_info(stock_code)
@@ -299,7 +300,7 @@ class FactorEngine:
             **category_scores,
         )
 
-    def _calculate_category_scores(self, factor_scores: Dict[str, float]) -> Dict[str, float]:
+    def _calculate_category_scores(self, factor_scores: dict[str, float]) -> dict[str, float]:
         """Calculate scores by factor category"""
         # Map factors to categories
         category_scores = {
@@ -311,7 +312,7 @@ class FactorEngine:
             "liquidity_score": 0.0,
         }
 
-        category_counts = {k: 0 for k in category_scores.keys()}
+        category_counts = dict.fromkeys(category_scores.keys(), 0)
 
         for factor_code, score in factor_scores.items():
             if factor_code in self._common_factor_map:
@@ -328,12 +329,12 @@ class FactorEngine:
 
         return category_scores
 
-    def _get_stock_info(self, stock_code: str) -> Optional[Dict]:
+    def _get_stock_info(self, stock_code: str) -> dict | None:
         if stock_code not in self._stock_info_cache:
             self._stock_info_cache[stock_code] = self.context.get_stock_info(stock_code)
         return self._stock_info_cache[stock_code]
 
-    def _assign_percentile_ranks(self, scores: List[FactorScore]) -> List[FactorScore]:
+    def _assign_percentile_ranks(self, scores: list[FactorScore]) -> list[FactorScore]:
         """Assign percentile ranks based on composite scores"""
         if not scores:
             return scores
@@ -351,9 +352,9 @@ class FactorEngine:
 
     def _apply_filters(
         self,
-        scores: List[FactorScore],
+        scores: list[FactorScore],
         config: FactorPortfolioConfig
-    ) -> List[FactorScore]:
+    ) -> list[FactorScore]:
         """Apply filtering conditions"""
         filtered = scores
 
@@ -419,9 +420,9 @@ class FactorEngine:
 
     def _calculate_weights(
         self,
-        scores: List[FactorScore],
+        scores: list[FactorScore],
         config: FactorPortfolioConfig
-    ) -> List[FactorPortfolioHolding]:
+    ) -> list[FactorPortfolioHolding]:
         """Calculate portfolio weights"""
         if not scores:
             return []
@@ -495,9 +496,9 @@ class ScoringService:
 
     def get_top_stocks(
         self,
-        factor_weights: Dict[str, float],
+        factor_weights: dict[str, float],
         top_n: int = 30
-    ) -> List[FactorScore]:
+    ) -> list[FactorScore]:
         """
         Get top N stocks by composite factor score.
 
@@ -514,8 +515,8 @@ class ScoringService:
     def explain_stock_score(
         self,
         stock_code: str,
-        factor_weights: Dict[str, float]
-    ) -> Optional[Dict]:
+        factor_weights: dict[str, float]
+    ) -> dict | None:
         """
         Explain a stock's factor score breakdown.
 

@@ -8,7 +8,7 @@ Beta Gate Domain Entities
 """
 
 from dataclasses import InitVar, dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -81,12 +81,12 @@ class Strategy(str, Enum):
 class GateMatchResult:
     """兼容旧版 Gate 匹配结果结构。"""
 
-    allowed_assets: List[str] = field(default_factory=list)
-    forbidden_assets: List[str] = field(default_factory=list)
-    allowed_categories: List[Any] = field(default_factory=list)
-    forbidden_categories: List[Any] = field(default_factory=list)
-    allowed_strategies: List[Any] = field(default_factory=list)
-    forbidden_strategies: List[Any] = field(default_factory=list)
+    allowed_assets: list[str] = field(default_factory=list)
+    forbidden_assets: list[str] = field(default_factory=list)
+    allowed_categories: list[Any] = field(default_factory=list)
+    forbidden_categories: list[Any] = field(default_factory=list)
+    allowed_strategies: list[Any] = field(default_factory=list)
+    forbidden_strategies: list[Any] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -111,16 +111,16 @@ class RegimeConstraint:
         >>> is_allowed, reason = constraint.is_regime_allowed("Recovery", 0.6)
     """
 
-    allowed_regimes: List[str] = field(default_factory=list)
+    allowed_regimes: list[str] = field(default_factory=list)
     min_confidence: float = 0.3
     require_high_confidence: bool = False
-    disallowed_regimes: List[str] = field(default_factory=list)
+    disallowed_regimes: list[str] = field(default_factory=list)
     # Backward compatibility fields
-    current_regime: Optional[str] = None
-    confidence: Optional[float] = None
-    allowed_asset_classes: List[str] = field(default_factory=list)
+    current_regime: str | None = None
+    confidence: float | None = None
+    allowed_asset_classes: list[str] = field(default_factory=list)
 
-    def is_regime_allowed(self, regime: str, confidence: float) -> Tuple[bool, str]:
+    def is_regime_allowed(self, regime: str, confidence: float) -> tuple[bool, str]:
         """
         检查 Regime 是否允许
 
@@ -149,7 +149,7 @@ class RegimeConstraint:
 
         return True, ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "allowed_regimes": self.allowed_regimes,
@@ -159,7 +159,7 @@ class RegimeConstraint:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RegimeConstraint":
+    def from_dict(cls, data: dict[str, Any]) -> "RegimeConstraint":
         """从字典创建"""
         return cls(
             allowed_regimes=data.get("allowed_regimes", []),
@@ -197,9 +197,9 @@ class PolicyConstraint:
     # Backward compatibility fields
     current_level: int = 0
     max_risk_exposure: float = 100.0
-    hard_exclusions: List[str] = field(default_factory=list)
+    hard_exclusions: list[str] = field(default_factory=list)
 
-    def is_policy_allowed(self, policy_level: int) -> Tuple[bool, str]:
+    def is_policy_allowed(self, policy_level: int) -> tuple[bool, str]:
         """
         检查 Policy 是否允许
 
@@ -219,15 +219,15 @@ class PolicyConstraint:
 
         # P2 档位特殊处理
         if policy_level == 2 and not self.allowed_on_p2:
-            return False, f"P2 档位下不允许该资产"
+            return False, "P2 档位下不允许该资产"
 
         # P1 档位特殊处理
         if policy_level == 1 and not self.allowed_on_p1:
-            return False, f"P1 档位下不允许该资产"
+            return False, "P1 档位下不允许该资产"
 
         return True, ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "max_allowed_level": self.max_allowed_level,
@@ -237,7 +237,7 @@ class PolicyConstraint:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PolicyConstraint":
+    def from_dict(cls, data: dict[str, Any]) -> "PolicyConstraint":
         """从字典创建"""
         return cls(
             max_allowed_level=data.get("max_allowed_level", 2),
@@ -274,9 +274,9 @@ class PortfolioConstraint:
     require_diversification: bool = True
     min_cash_pct: float = 5.0
     # Backward compatibility fields
-    max_positions: Optional[int] = None
-    max_single_position_weight: Optional[float] = None
-    max_concentration_ratio: Optional[float] = None
+    max_positions: int | None = None
+    max_single_position_weight: float | None = None
+    max_concentration_ratio: float | None = None
 
     def __post_init__(self):
         if self.max_single_position_weight is not None:
@@ -289,8 +289,8 @@ class PortfolioConstraint:
         current_value: float,
         new_position_value: float,
         total_portfolio_value: float,
-        existing_positions: Optional[Dict[str, float]] = None,
-    ) -> Tuple[bool, str]:
+        existing_positions: dict[str, float] | None = None,
+    ) -> tuple[bool, str]:
         """
         检查仓位限制
 
@@ -325,7 +325,7 @@ class PortfolioConstraint:
 
         return True, ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "max_total_position_pct": self.max_total_position_pct,
@@ -336,7 +336,7 @@ class PortfolioConstraint:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PortfolioConstraint":
+    def from_dict(cls, data: dict[str, Any]) -> "PortfolioConstraint":
         """从字典创建"""
         return cls(
             max_total_position_pct=data.get("max_total_position_pct", 95.0),
@@ -390,25 +390,25 @@ class GateDecision:
     current_regime: str
     policy_level: int
     regime_confidence: float
-    evaluated_at: Optional[datetime] = None
+    evaluated_at: datetime | None = None
     # Backward-compatible aliases
-    is_passed: Optional[bool] = None
-    blocking_reason: Optional[str] = None
-    risk_profile: Optional[RiskProfile] = None
-    evaluation_details: Dict[str, Any] = field(default_factory=dict)
-    created_at: Optional[datetime] = None
+    is_passed: bool | None = None
+    blocking_reason: str | None = None
+    risk_profile: RiskProfile | None = None
+    evaluation_details: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
     # Newer rich checks
-    regime_check: Tuple[bool, str] = (True, "")
-    policy_check: Tuple[bool, str] = (True, "")
-    risk_check: Tuple[bool, str] = (True, "")
-    portfolio_check: Tuple[bool, str] = (True, "")
-    suggested_alternatives: List[str] = field(default_factory=list)
-    waiting_period_days: Optional[int] = None
-    score: Optional[float] = None
+    regime_check: tuple[bool, str] = (True, "")
+    policy_check: tuple[bool, str] = (True, "")
+    risk_check: tuple[bool, str] = (True, "")
+    portfolio_check: tuple[bool, str] = (True, "")
+    suggested_alternatives: list[str] = field(default_factory=list)
+    waiting_period_days: int | None = None
+    score: float | None = None
 
     def __post_init__(self) -> None:
         if self.evaluated_at is None:
-            self.evaluated_at = self.created_at or datetime.now(timezone.utc)
+            self.evaluated_at = self.created_at or datetime.now(UTC)
         if self.created_at is None:
             self.created_at = self.evaluated_at
         if self.is_passed is None:
@@ -455,7 +455,7 @@ class GateDecision:
             ]
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "status": self.status.value,
@@ -505,29 +505,29 @@ class GateConfig:
 
     config_id: str
     risk_profile: RiskProfile
-    regime_constraint: Optional[RegimeConstraint] = None
-    policy_constraint: Optional[PolicyConstraint] = None
-    portfolio_constraint: Optional[PortfolioConstraint] = None
+    regime_constraint: RegimeConstraint | None = None
+    policy_constraint: PolicyConstraint | None = None
+    portfolio_constraint: PortfolioConstraint | None = None
     version: int = 1
     is_active: bool = True
     effective_date: date = field(default_factory=date.today)
-    expires_at: Optional[date] = None
+    expires_at: date | None = None
     # Backward-compatible fields
-    regime_constraints: Dict[Any, Any] = field(default_factory=dict)
-    policy_constraints: Dict[Any, Any] = field(default_factory=dict)
-    asset_category_visibility: Dict[Any, bool] = field(default_factory=dict)
-    strategy_visibility: Dict[Any, bool] = field(default_factory=dict)
+    regime_constraints: dict[Any, Any] = field(default_factory=dict)
+    policy_constraints: dict[Any, Any] = field(default_factory=dict)
+    asset_category_visibility: dict[Any, bool] = field(default_factory=dict)
+    strategy_visibility: dict[Any, bool] = field(default_factory=dict)
     confidence_threshold: float = 0.3
     portfolio_exposure_limit: float = 0.8
-    custom_rules: Dict[str, Any] = field(default_factory=dict)
-    created_at: Optional[datetime] = None
-    valid_from: Optional[datetime] = None
-    valid_until: Optional[datetime] = None
-    is_valid: InitVar[Optional[bool]] = None
-    _is_valid_override: Optional[bool] = field(default=None, init=False, repr=False)
+    custom_rules: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    is_valid: InitVar[bool | None] = None
+    _is_valid_override: bool | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self, is_valid: Optional[bool] = None):
-        now = datetime.now(timezone.utc)
+    def __post_init__(self, is_valid: bool | None = None):
+        now = datetime.now(UTC)
         # dataclass InitVar and same-name @property can leak the property object
         # into __post_init__ when caller doesn't pass is_valid.
         self._is_valid_override = None if isinstance(is_valid, property) else is_valid
@@ -549,7 +549,7 @@ class GateConfig:
         if self._is_valid_override is not None:
             return self._is_valid_override
         tz = self.valid_from.tzinfo if self.valid_from and getattr(self.valid_from, "tzinfo", None) else None
-        now = datetime.now(tz) if tz else datetime.now(timezone.utc)
+        now = datetime.now(tz) if tz else datetime.now(UTC)
         if not self.is_active or self.is_expired:
             return False
         if self.valid_from and now < self.valid_from:
@@ -565,7 +565,7 @@ class GateConfig:
             return False
         return date.today() > self.expires_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "config_id": self.config_id,
@@ -581,7 +581,7 @@ class GateConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "GateConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "GateConfig":
         """从字典创建"""
         return cls(
             config_id=data["config_id"],
@@ -630,10 +630,10 @@ class VisibilityUniverse:
     regime_snapshot_id: str
     policy_snapshot_id: str
     risk_profile: RiskProfile
-    visible_asset_categories: List[Any] = field(default_factory=list)
-    visible_strategies: List[Any] = field(default_factory=list)
-    hard_exclusions: List[Any] = field(default_factory=list)
-    watch_list: List[str] = field(default_factory=list)
+    visible_asset_categories: list[Any] = field(default_factory=list)
+    visible_strategies: list[Any] = field(default_factory=list)
+    hard_exclusions: list[Any] = field(default_factory=list)
+    watch_list: list[str] = field(default_factory=list)
     notes: str = ""
     # Backward-compatible fields used by legacy tests
     current_regime: str = ""
@@ -664,7 +664,7 @@ class VisibilityUniverse:
         """
         return strategy in self.visible_strategies
 
-    def get_exclusion_reason(self, asset_class: str) -> Optional[str]:
+    def get_exclusion_reason(self, asset_class: str) -> str | None:
         """
         获取资产被排除的原因
 
@@ -683,7 +683,7 @@ class VisibilityUniverse:
                 return "hard excluded"
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "as_of": self.as_of.isoformat(),
@@ -698,7 +698,7 @@ class VisibilityUniverse:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "VisibilityUniverse":
+    def from_dict(cls, data: dict[str, Any]) -> "VisibilityUniverse":
         """从字典创建"""
         return cls(
             as_of=date.fromisoformat(data["as_of"]),
@@ -718,7 +718,7 @@ class VisibilityUniverse:
 
 def create_gate_config(
     risk_profile: RiskProfile = RiskProfile.BALANCED,
-    allowed_regimes: Optional[List[str]] = None,
+    allowed_regimes: list[str] | None = None,
     min_confidence: float = 0.3,
     max_policy_level: int = 2,
     veto_on_p3: bool = True,
@@ -760,7 +760,7 @@ def create_gate_config(
     )
 
 
-def get_default_configs() -> Dict[RiskProfile, GateConfig]:
+def get_default_configs() -> dict[RiskProfile, GateConfig]:
     """
     获取默认的闸门配置
 

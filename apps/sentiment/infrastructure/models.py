@@ -4,8 +4,8 @@ Sentiment 模块 - Infrastructure 层数据模型
 本模块包含 Django ORM 模型定义。
 """
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
 

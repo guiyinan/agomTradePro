@@ -5,16 +5,20 @@ Django Admin for Policy Events.
 """
 
 from django.contrib import admin
+from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
-from django.db.models import Count
 from django.utils.safestring import mark_safe
 
-from ..infrastructure.models import (
-    PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel,
-    RSSFetchLog, PolicyAuditQueue, RSSHubGlobalConfig
-)
 from ..domain.entities import PolicyLevel
+from ..infrastructure.models import (
+    PolicyAuditQueue,
+    PolicyLevelKeywordModel,
+    PolicyLog,
+    RSSFetchLog,
+    RSSHubGlobalConfig,
+    RSSSourceConfigModel,
+)
 
 
 @admin.register(PolicyLog)
@@ -213,6 +217,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
     def approve_selected(self, request, queryset):
         """批量通过"""
         from django.utils import timezone
+
         from ..infrastructure.models import PolicyAuditQueue
 
         count = queryset.filter(audit_status='pending_review').update(
@@ -232,6 +237,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
     def reject_selected(self, request, queryset):
         """批量拒绝"""
         from django.utils import timezone
+
         from ..infrastructure.models import PolicyAuditQueue
 
         count = queryset.filter(audit_status='pending_review').update(

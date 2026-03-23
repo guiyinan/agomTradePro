@@ -8,8 +8,9 @@ Note: Legacy API routes (api/*) are kept for backward compatibility.
 New code should use /api/sentiment/ endpoints.
 """
 
-from django.urls import path
 from django.shortcuts import redirect
+from django.urls import path
+
 from . import views
 
 app_name = 'sentiment'

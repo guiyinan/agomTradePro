@@ -5,21 +5,20 @@
 """
 
 import logging
-from typing import List, Dict, Optional, Tuple
 from datetime import date, datetime
+from typing import Dict, List, Optional, Tuple
 
+from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetType
 from apps.asset_analysis.domain.pool import (
-    PoolType,
-    PoolCategory,
     EntryReason,
     ExitReason,
+    PoolCategory,
+    PoolConfig,
     PoolEntry,
     PoolStatistics,
-    PoolConfig,
+    PoolType,
 )
-from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle
 from apps.asset_analysis.domain.value_objects import ScoreContext
-
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class AssetPoolClassifier:
     def __init__(self):
         """初始化分类器"""
         # 默认配置（可从数据库加载）
-        self.configs: Dict[PoolCategory, PoolConfig] = {
+        self.configs: dict[PoolCategory, PoolConfig] = {
             PoolCategory.EQUITY: PoolConfig(
                 pool_type=PoolType.INVESTABLE,
                 asset_category=PoolCategory.EQUITY,
@@ -188,7 +187,7 @@ class AssetPoolClassifier:
         # 4. 默认候选池
         return PoolType.CANDIDATE
 
-    def _determine_entry_reason(self, asset: AssetScore, pool_type: PoolType) -> Optional[EntryReason]:
+    def _determine_entry_reason(self, asset: AssetScore, pool_type: PoolType) -> EntryReason | None:
         """确定入池原因"""
         if pool_type == PoolType.PROHIBITED:
             return None
@@ -235,10 +234,10 @@ class AssetPoolManager:
 
     def create_pools(
         self,
-        scored_assets: List[AssetScore],
+        scored_assets: list[AssetScore],
         context: ScoreContext,
         asset_category: PoolCategory
-    ) -> Dict[PoolType, List[PoolEntry]]:
+    ) -> dict[PoolType, list[PoolEntry]]:
         """
         根据评分结果创建资产池
 
@@ -273,9 +272,9 @@ class AssetPoolManager:
 
     def calculate_statistics(
         self,
-        pools: Dict[PoolType, List[PoolEntry]],
+        pools: dict[PoolType, list[PoolEntry]],
         asset_category: PoolCategory
-    ) -> List[PoolStatistics]:
+    ) -> list[PoolStatistics]:
         """
         计算资产池统计信息
 
@@ -318,8 +317,8 @@ class AssetPoolManager:
 
     def get_pool_summary(
         self,
-        pools: Dict[PoolType, List[PoolEntry]]
-    ) -> Dict[str, any]:
+        pools: dict[PoolType, list[PoolEntry]]
+    ) -> dict[str, any]:
         """
         获取资产池摘要
 

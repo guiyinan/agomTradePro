@@ -7,10 +7,10 @@ This module defines URL routing for the realtime price monitoring system.
 from django.urls import path
 
 from apps.realtime.interface.views import (
+    HealthCheckView,
+    PricePollingTriggerView,
     RealtimePriceView,
     SingleAssetPriceView,
-    PricePollingTriggerView,
-    HealthCheckView
 )
 
 app_name = "realtime"

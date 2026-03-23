@@ -6,12 +6,13 @@
 - 不包含业务逻辑
 """
 
-from celery import shared_task
 from datetime import date, timedelta
 
-from .use_cases import UpdateSectorDataUseCase, AnalyzeSectorRotationUseCase
-from ..infrastructure.repositories import DjangoSectorRepository
+from celery import shared_task
+
 from ..infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
+from ..infrastructure.repositories import DjangoSectorRepository
+from .use_cases import AnalyzeSectorRotationUseCase, UpdateSectorDataUseCase
 
 
 @shared_task(

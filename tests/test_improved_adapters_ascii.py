@@ -11,7 +11,7 @@ Tests the following improvements:
 
 import json
 import time
-from datetime import datetime, date
+from datetime import date, datetime
 
 
 def test_resilience_features():
@@ -24,7 +24,7 @@ def test_resilience_features():
 
     # Test 1: Retry mechanism
     print("\n1. Testing retry mechanism")
-    from shared.infrastructure.resilience import retry_on_error, MaxRetriesExceeded
+    from shared.infrastructure.resilience import MaxRetriesExceeded, retry_on_error
 
     attempt_count = {'count': 0}
 
@@ -52,11 +52,11 @@ def test_resilience_features():
             'status': 'failed',
             'attempts': attempt_count['count']
         })
-        print(f"   Retry failed: Exceeded max retries")
+        print("   Retry failed: Exceeded max retries")
 
     # Test 2: Caching mechanism
     print("\n2. Testing caching mechanism")
-    from shared.infrastructure.resilience import cached, _cache_manager
+    from shared.infrastructure.resilience import _cache_manager, cached
 
     call_count = {'count': 0}
 
@@ -79,7 +79,7 @@ def test_resilience_features():
             'status': 'success',
             'details': 'Cache works correctly'
         })
-        print(f"   Cache works: First call executed, second call used cache")
+        print("   Cache works: First call executed, second call used cache")
     else:
         results.append({
             'test': 'Caching mechanism',
@@ -89,7 +89,7 @@ def test_resilience_features():
 
     # Test 3: Circuit breaker
     print("\n3. Testing circuit breaker")
-    from shared.infrastructure.resilience import circuit_breaker, DataSourceUnavailable
+    from shared.infrastructure.resilience import DataSourceUnavailable, circuit_breaker
 
     failure_count = {'count': 0}
 
@@ -122,7 +122,7 @@ def test_resilience_features():
                 'status': 'success',
                 'reason': 'Circuit breaker works correctly'
             })
-            print(f"   Circuit breaker works: Fast fail after consecutive failures")
+            print("   Circuit breaker works: Fast fail after consecutive failures")
     except Exception as e:
         results.append({
             'test': 'Circuit breaker',
@@ -177,7 +177,7 @@ def test_hybrid_stock_adapter():
                     'status': 'failed',
                     'reason': 'Returned empty data'
                 })
-                print(f"   Failed: Returned empty data")
+                print("   Failed: Returned empty data")
 
         except MaxRetriesExceeded as e:
             results.append({
@@ -186,7 +186,7 @@ def test_hybrid_stock_adapter():
                 'reason': 'Exceeded retry count',
                 'error': str(e)
             })
-            print(f"   Failed: Exceeded max retry count")
+            print("   Failed: Exceeded max retry count")
         except Exception as e:
             results.append({
                 'test': 'Hybrid adapter - stock list',
@@ -212,7 +212,7 @@ def test_hybrid_stock_adapter():
                     'status': 'failed',
                     'reason': 'Returned empty info'
                 })
-                print(f"   Failed: Returned empty info")
+                print("   Failed: Returned empty info")
         except Exception as e:
             results.append({
                 'test': 'Hybrid adapter - stock info',
@@ -238,7 +238,7 @@ def test_hybrid_stock_adapter():
                     'status': 'failed',
                     'reason': 'Returned empty data'
                 })
-                print(f"   Failed: Returned empty data")
+                print("   Failed: Returned empty data")
         except Exception as e:
             results.append({
                 'test': 'Hybrid adapter - daily data',
@@ -287,8 +287,9 @@ def test_database_operations_with_cache():
     results = []
 
     try:
-        from apps.equity.infrastructure.models import StockInfoModel
         from apps.equity.infrastructure.adapters.hybrid_stock_adapter import HybridStockAdapter
+
+        from apps.equity.infrastructure.models import StockInfoModel
 
         adapter = HybridStockAdapter(tushare_token=None)
 
@@ -322,7 +323,7 @@ def test_database_operations_with_cache():
                     'count': saved_count
                 })
             else:
-                print(f"   Failed to fetch stock data")
+                print("   Failed to fetch stock data")
                 results.append({
                     'test': 'Database save',
                     'status': 'failed',
@@ -351,7 +352,7 @@ def test_database_operations_with_cache():
             # Show recent stocks
             if total_count > 0:
                 recent_stocks = StockInfoModel.objects.order_by('-created_at')[:5]
-                print(f"   Recently added stocks:")
+                print("   Recently added stocks:")
                 for stock in recent_stocks:
                     print(f"     - {stock.stock_code}: {stock.name}")
 
@@ -434,6 +435,7 @@ def run_all_tests():
 if __name__ == '__main__':
     # Django setup
     import os
+
     import django
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
     django.setup()

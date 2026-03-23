@@ -3,13 +3,15 @@ Page Views for Macro Data Management.
 Updated for collapsible category layout.
 """
 
+from decimal import Decimal, InvalidOperation
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Max, Min, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from django.db.models import Q, Count, Max, Min
-from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
+
+from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
 from apps.macro.interface.forms import DataSourceConfigForm
-from decimal import Decimal, InvalidOperation
 
 
 def safe_float(value):
@@ -310,11 +312,12 @@ def datasource_edit_view(request, source_id: int):
 
 def data_controller_view(request):
     """统一数据管理器页面"""
-    from apps.macro.infrastructure.repositories import DjangoMacroRepository
     from apps.macro.application.data_management import (
         GetDataManagementSummaryUseCase,
         ScheduleDataFetchUseCase,
     )
+    from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
     from .helpers import get_repository
 
     repo = get_repository()

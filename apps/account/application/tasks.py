@@ -4,27 +4,24 @@ Account Application - Celery Tasks
 定时任务：自动止损止盈检查、波动率控制。
 """
 
+from typing import Dict, List
+
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
-from django.core.mail import send_mail
-from django.core.mail import EmailMessage
 from django.conf import settings
+from django.core.mail import EmailMessage, send_mail
 from django.db import DatabaseError
 from django.utils import timezone
-from typing import Dict, List
 
 from apps.account.application.stop_loss_use_cases import (
     AutoStopLossUseCase,
     AutoTakeProfitUseCase,
 )
 from apps.account.application.volatility_use_cases import (
-    VolatilityAnalysisUseCase,
     VolatilityAdjustmentUseCase,
+    VolatilityAnalysisUseCase,
 )
-
-from core.exceptions import DataFetchError, BusinessLogicError, ExternalServiceError
-from core.metrics import record_exception
 from apps.account.infrastructure.backup_service import (
     build_backup_download_url,
     describe_backup_package,
@@ -36,6 +33,8 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
     SystemSettingsRepository,
 )
+from core.exceptions import BusinessLogicError, DataFetchError, ExternalServiceError
+from core.metrics import record_exception
 
 logger = get_task_logger(__name__)
 
@@ -254,7 +253,7 @@ def check_stop_loss_and_take_profit_task(self, user_id: int = None):
         raise self.retry(exc=exc)
 
 
-def _send_stop_loss_notifications(results: List, user_id: int = None):
+def _send_stop_loss_notifications(results: list, user_id: int = None):
     """
     发送止损触发通知
 
@@ -295,7 +294,7 @@ def _send_stop_loss_notifications(results: List, user_id: int = None):
             logger.error(f"发送止损通知失败: {e}")
 
 
-def _send_take_profit_notifications(results: List, user_id: int = None):
+def _send_take_profit_notifications(results: list, user_id: int = None):
     """
     发送止盈触发通知
 
@@ -455,7 +454,7 @@ def _send_volatility_adjustment_notification(
     portfolio_id: int,
     user_id: int,
     analysis,
-    result: Dict,
+    result: dict,
 ):
     """
     发送波动率调整通知

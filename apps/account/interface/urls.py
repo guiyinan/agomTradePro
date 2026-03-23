@@ -1,6 +1,7 @@
 """Account URL Configuration."""
 
-from django.urls import path, include
+from django.urls import include, path
+
 from apps.account.interface import views
 
 app_name = 'account'

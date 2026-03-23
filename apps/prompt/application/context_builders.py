@@ -7,7 +7,7 @@ Context Builders - 上下文构建层。
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Dict, List, Optional, Protocol
 
 from ..domain.context_entities import ContextBundle, ContextPolicy, ContextSection
@@ -23,15 +23,15 @@ class ContextProvider(Protocol):
         """域名称。"""
         ...
 
-    def build_summary(self, params: Dict[str, Any]) -> Any:
+    def build_summary(self, params: dict[str, Any]) -> Any:
         """构建摘要数据。"""
         ...
 
-    def build_raw_data(self, params: Dict[str, Any]) -> Any:
+    def build_raw_data(self, params: dict[str, Any]) -> Any:
         """构建原始数据。"""
         ...
 
-    def build_section(self, params: Dict[str, Any]) -> ContextSection:
+    def build_section(self, params: dict[str, Any]) -> ContextSection:
         """构建完整上下文段。"""
         ...
 
@@ -44,7 +44,7 @@ class MacroContextProvider:
     def __init__(self, macro_adapter: Any = None):
         self._adapter = macro_adapter
 
-    def build_summary(self, params: Dict[str, Any]) -> Any:
+    def build_summary(self, params: dict[str, Any]) -> Any:
         """构建宏观数据摘要。"""
         if not self._adapter:
             return "宏观数据不可用"
@@ -58,7 +58,7 @@ class MacroContextProvider:
             logger.warning("MacroContextProvider.build_summary failed: %s", exc)
             return "宏观数据获取失败"
 
-    def build_raw_data(self, params: Dict[str, Any]) -> Any:
+    def build_raw_data(self, params: dict[str, Any]) -> Any:
         """构建宏观数据原始数据。"""
         if not self._adapter:
             return {}
@@ -70,14 +70,14 @@ class MacroContextProvider:
             logger.warning("MacroContextProvider.build_raw_data failed: %s", exc)
             return {}
 
-    def build_section(self, params: Dict[str, Any]) -> ContextSection:
+    def build_section(self, params: dict[str, Any]) -> ContextSection:
         """构建宏观上下文段。"""
         return ContextSection(
             name=self.domain_name,
             summary=self.build_summary(params),
             raw_data=self.build_raw_data(params),
             references={"source": "macro_adapter"},
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
         )
 
 
@@ -89,7 +89,7 @@ class RegimeContextProvider:
     def __init__(self, regime_adapter: Any = None):
         self._adapter = regime_adapter
 
-    def build_summary(self, params: Dict[str, Any]) -> Any:
+    def build_summary(self, params: dict[str, Any]) -> Any:
         """构建 Regime 摘要。"""
         if not self._adapter:
             return "Regime 数据不可用"
@@ -101,7 +101,7 @@ class RegimeContextProvider:
             logger.warning("RegimeContextProvider.build_summary failed: %s", exc)
             return "Regime 数据获取失败"
 
-    def build_raw_data(self, params: Dict[str, Any]) -> Any:
+    def build_raw_data(self, params: dict[str, Any]) -> Any:
         """构建 Regime 原始数据。"""
         if not self._adapter:
             return {}
@@ -118,13 +118,13 @@ class RegimeContextProvider:
             logger.warning("RegimeContextProvider.build_raw_data failed: %s", exc)
             return {}
 
-    def build_section(self, params: Dict[str, Any]) -> ContextSection:
+    def build_section(self, params: dict[str, Any]) -> ContextSection:
         return ContextSection(
             name=self.domain_name,
             summary=self.build_summary(params),
             raw_data=self.build_raw_data(params),
             references={"source": "regime_adapter"},
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
         )
 
 
@@ -136,7 +136,7 @@ class PortfolioContextProvider:
     def __init__(self, portfolio_provider: Any = None):
         self._provider = portfolio_provider
 
-    def build_summary(self, params: Dict[str, Any]) -> Any:
+    def build_summary(self, params: dict[str, Any]) -> Any:
         """构建投资组合摘要。"""
         if not self._provider:
             return "投资组合数据不可用"
@@ -156,7 +156,7 @@ class PortfolioContextProvider:
             logger.warning("PortfolioContextProvider.build_summary failed: %s", exc)
             return "投资组合数据获取失败"
 
-    def build_raw_data(self, params: Dict[str, Any]) -> Any:
+    def build_raw_data(self, params: dict[str, Any]) -> Any:
         if not self._provider:
             return {}
         try:
@@ -171,13 +171,13 @@ class PortfolioContextProvider:
             logger.warning("PortfolioContextProvider.build_raw_data failed: %s", exc)
             return {}
 
-    def build_section(self, params: Dict[str, Any]) -> ContextSection:
+    def build_section(self, params: dict[str, Any]) -> ContextSection:
         return ContextSection(
             name=self.domain_name,
             summary=self.build_summary(params),
             raw_data=self.build_raw_data(params),
             references={"source": "portfolio_provider"},
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
         )
 
 
@@ -189,7 +189,7 @@ class SignalContextProvider:
     def __init__(self, signal_provider: Any = None):
         self._provider = signal_provider
 
-    def build_summary(self, params: Dict[str, Any]) -> Any:
+    def build_summary(self, params: dict[str, Any]) -> Any:
         if not self._provider:
             return "信号数据不可用"
         try:
@@ -210,7 +210,7 @@ class SignalContextProvider:
             logger.warning("SignalContextProvider.build_summary failed: %s", exc)
             return "信号数据获取失败"
 
-    def build_raw_data(self, params: Dict[str, Any]) -> Any:
+    def build_raw_data(self, params: dict[str, Any]) -> Any:
         if not self._provider:
             return []
         try:
@@ -219,13 +219,13 @@ class SignalContextProvider:
             logger.warning("SignalContextProvider.build_raw_data failed: %s", exc)
             return []
 
-    def build_section(self, params: Dict[str, Any]) -> ContextSection:
+    def build_section(self, params: dict[str, Any]) -> ContextSection:
         return ContextSection(
             name=self.domain_name,
             summary=self.build_summary(params),
             raw_data=self.build_raw_data(params),
             references={"source": "signal_provider"},
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
         )
 
 
@@ -237,7 +237,7 @@ class AssetPoolContextProvider:
     def __init__(self, asset_pool_provider: Any = None):
         self._provider = asset_pool_provider
 
-    def build_summary(self, params: Dict[str, Any]) -> Any:
+    def build_summary(self, params: dict[str, Any]) -> Any:
         if not self._provider:
             return "资产池数据不可用"
         try:
@@ -254,7 +254,7 @@ class AssetPoolContextProvider:
             logger.warning("AssetPoolContextProvider.build_summary failed: %s", exc)
             return "资产池数据获取失败"
 
-    def build_raw_data(self, params: Dict[str, Any]) -> Any:
+    def build_raw_data(self, params: dict[str, Any]) -> Any:
         if not self._provider:
             return []
         try:
@@ -263,13 +263,13 @@ class AssetPoolContextProvider:
             logger.warning("AssetPoolContextProvider.build_raw_data failed: %s", exc)
             return []
 
-    def build_section(self, params: Dict[str, Any]) -> ContextSection:
+    def build_section(self, params: dict[str, Any]) -> ContextSection:
         return ContextSection(
             name=self.domain_name,
             summary=self.build_summary(params),
             raw_data=self.build_raw_data(params),
             references={"source": "asset_pool_provider"},
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
         )
 
 
@@ -281,7 +281,7 @@ class ContextBundleBuilder:
     """
 
     def __init__(self):
-        self._providers: Dict[str, Any] = {}
+        self._providers: dict[str, Any] = {}
 
     def register_provider(self, provider: Any) -> None:
         """注册上下文提供者。"""
@@ -291,8 +291,8 @@ class ContextBundleBuilder:
 
     def build(
         self,
-        scope: List[str],
-        params: Optional[Dict[str, Any]] = None,
+        scope: list[str],
+        params: dict[str, Any] | None = None,
         policy: str = ContextPolicy.SUMMARY_PLUS_SELECTED_RAW.value,
     ) -> ContextBundle:
         """
@@ -310,7 +310,7 @@ class ContextBundleBuilder:
         bundle = ContextBundle(
             scope=scope,
             policy=policy,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
         )
 
         for domain_name in scope:
@@ -321,7 +321,7 @@ class ContextBundleBuilder:
                     name=domain_name,
                     summary=f"{domain_name} 数据不可用（无 provider）",
                     raw_data=None,
-                    generated_at=datetime.now(timezone.utc).isoformat(),
+                    generated_at=datetime.now(UTC).isoformat(),
                 ))
                 continue
 
@@ -336,7 +336,7 @@ class ContextBundleBuilder:
                     name=domain_name,
                     summary=f"{domain_name} 数据构建失败: {exc}",
                     raw_data=None,
-                    generated_at=datetime.now(timezone.utc).isoformat(),
+                    generated_at=datetime.now(UTC).isoformat(),
                 ))
 
         return bundle

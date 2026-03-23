@@ -6,22 +6,22 @@ Beta Gate DRF Views
 简化版本，避免复杂的依赖。
 """
 
-import logging
 import json
+import logging
 import re
 from dataclasses import replace
+
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .forms import GateConfigForm
+from ..domain.entities import RiskProfile, create_gate_config
 from ..infrastructure.models import GateConfigModel
 from ..infrastructure.repositories import get_config_repository
-from ..domain.entities import RiskProfile, create_gate_config
-
+from .forms import GateConfigForm
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +207,7 @@ class RollbackConfigView(APIView):
         """
         try:
             import json
+
             from ..infrastructure.models import GateConfigModel
 
             data = json.loads(request.body) if isinstance(request.body, bytes) else request.data
@@ -565,7 +566,8 @@ class BetaGateTestAPIView(APIView):
         """
         try:
             import json
-            from ..application.use_cases import EvaluateBatchUseCase, EvaluateBatchRequest
+
+            from ..application.use_cases import EvaluateBatchRequest, EvaluateBatchUseCase
             from ..domain.entities import RiskProfile
             from ..infrastructure.repositories import get_config_repository
 
@@ -605,9 +607,9 @@ class BetaGateTestAPIView(APIView):
                     # 返回默认配置
                     from ..domain.entities import (
                         GateConfig,
-                        RegimeConstraint,
                         PolicyConstraint,
                         PortfolioConstraint,
+                        RegimeConstraint,
                     )
 
                     allowed_asset_classes = [asset_class] if asset_class else []

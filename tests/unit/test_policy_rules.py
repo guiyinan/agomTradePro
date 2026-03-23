@@ -4,23 +4,24 @@ Unit tests for Policy domain rules.
 Tests the core business logic for gate levels and auto-approval.
 """
 
+from datetime import UTC, datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 
 from apps.policy.domain.entities import (
-    PolicyLevel,
     EventType,
     GateLevel,
-    SentimentGateThresholds,
     IngestionConfig,
+    PolicyLevel,
+    SentimentGateThresholds,
 )
 from apps.policy.domain.rules import (
     calculate_gate_level,
-    should_auto_approve,
-    normalize_sentiment_score,
-    is_sla_exceeded,
-    get_max_position_cap,
     can_event_affect_policy_level,
+    get_max_position_cap,
+    is_sla_exceeded,
+    normalize_sentiment_score,
+    should_auto_approve,
     should_event_count_in_gate,
 )
 
@@ -228,7 +229,7 @@ class TestIsSlaExceeded:
 
     def test_p2_within_sla(self, config):
         """P2 event within 2-hour SLA should not be exceeded."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created_at = now - timedelta(hours=1)
 
         exceeded, hours = is_sla_exceeded(created_at, PolicyLevel.P2, config, now)
@@ -237,7 +238,7 @@ class TestIsSlaExceeded:
 
     def test_p2_exceeded_sla(self, config):
         """P2 event past 2-hour SLA should be exceeded."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created_at = now - timedelta(hours=3)
 
         exceeded, hours = is_sla_exceeded(created_at, PolicyLevel.P2, config, now)
@@ -246,7 +247,7 @@ class TestIsSlaExceeded:
 
     def test_p3_within_sla(self, config):
         """P3 event within 2-hour SLA should not be exceeded."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created_at = now - timedelta(hours=1.5)
 
         exceeded, hours = is_sla_exceeded(created_at, PolicyLevel.P3, config, now)
@@ -254,7 +255,7 @@ class TestIsSlaExceeded:
 
     def test_p0_within_sla(self, config):
         """P0 event within 24-hour SLA should not be exceeded."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created_at = now - timedelta(hours=12)
 
         exceeded, hours = is_sla_exceeded(created_at, PolicyLevel.P0, config, now)
@@ -262,7 +263,7 @@ class TestIsSlaExceeded:
 
     def test_p0_exceeded_sla(self, config):
         """P0 event past 24-hour SLA should be exceeded."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         created_at = now - timedelta(hours=26)
 
         exceeded, hours = is_sla_exceeded(created_at, PolicyLevel.P0, config, now)

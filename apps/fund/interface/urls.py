@@ -6,8 +6,8 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 from .views import (
-    dashboard_view,
     FundMultiDimScreenAPIView,
+    dashboard_view,
 )
 
 app_name = 'fund'

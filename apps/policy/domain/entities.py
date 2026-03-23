@@ -5,7 +5,7 @@ Domain Entities for Policy Events.
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 class PolicyLevel(Enum):
@@ -93,8 +93,8 @@ class ProxyConfig:
     """代理配置值对象"""
     host: str
     port: int
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
     proxy_type: str = "http"  # http/https/socks5
 
 
@@ -107,7 +107,7 @@ class RSSSourceConfig:
     is_active: bool
     fetch_interval_hours: int  # 抓取间隔（小时）
     extract_content: bool  # 是否提取完整内容
-    proxy_config: Optional[ProxyConfig] = None
+    proxy_config: ProxyConfig | None = None
 
     # ========== RSSHub 配置 ==========
     rsshub_enabled: bool = False  # 是否使用 RSSHub 模式
@@ -124,9 +124,9 @@ class RSSItem:
     title: str
     link: str  # 用作去重标识
     pub_date: datetime
-    description: Optional[str] = None
-    guid: Optional[str] = None  # RSS的guid字段（优先用于去重）
-    author: Optional[str] = None
+    description: str | None = None
+    guid: str | None = None  # RSS的guid字段（优先用于去重）
+    author: str | None = None
     source: str = "rss"  # 数据来源标识
 
 
@@ -134,40 +134,40 @@ class RSSItem:
 class PolicyLevelKeywordRule:
     """政策档位关键词规则实体"""
     level: PolicyLevel
-    keywords: List[str]
+    keywords: list[str]
     weight: int
-    category: Optional[str] = None
+    category: str | None = None
 
 
 @dataclass(frozen=True)
 class StructuredPolicyData:
     """AI提取的结构化政策数据"""
-    policy_subject: Optional[str] = None
-    policy_object: Optional[str] = None
-    effective_date: Optional[str] = None
-    expiry_date: Optional[str] = None
-    conditions: List[str] = field(default_factory=list)
-    impact_scope: Optional[str] = None
-    affected_sectors: List[str] = field(default_factory=list)
-    affected_stocks: List[str] = field(default_factory=list)
-    sentiment: Optional[str] = None
-    sentiment_score: Optional[float] = None
-    keywords: List[str] = field(default_factory=list)
-    summary: Optional[str] = None
+    policy_subject: str | None = None
+    policy_object: str | None = None
+    effective_date: str | None = None
+    expiry_date: str | None = None
+    conditions: list[str] = field(default_factory=list)
+    impact_scope: str | None = None
+    affected_sectors: list[str] = field(default_factory=list)
+    affected_stocks: list[str] = field(default_factory=list)
+    sentiment: str | None = None
+    sentiment_score: float | None = None
+    keywords: list[str] = field(default_factory=list)
+    summary: str | None = None
 
 
 @dataclass(frozen=True)
 class AIClassificationResult:
     """AI分类结果"""
     success: bool
-    info_category: Optional[InfoCategory] = None
-    audit_status: Optional[AuditStatus] = None
-    ai_confidence: Optional[float] = None
+    info_category: InfoCategory | None = None
+    audit_status: AuditStatus | None = None
+    ai_confidence: float | None = None
     policy_level: Optional['PolicyLevel'] = None  # AI 推荐的政策档位
-    structured_data: Optional[StructuredPolicyData] = None
-    risk_impact: Optional[RiskImpact] = None
-    error_message: Optional[str] = None
-    processing_metadata: Dict[str, Any] = field(default_factory=dict)
+    structured_data: StructuredPolicyData | None = None
+    risk_impact: RiskImpact | None = None
+    error_message: str | None = None
+    processing_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ============================================================
@@ -216,20 +216,20 @@ class WorkbenchEvent:
     event_date: date
     event_type: EventType
     level: PolicyLevel
-    gate_level: Optional[GateLevel]
+    gate_level: GateLevel | None
     title: str
     description: str
     evidence_url: str
-    ai_confidence: Optional[float]
-    heat_score: Optional[float]
-    sentiment_score: Optional[float]
+    ai_confidence: float | None
+    heat_score: float | None
+    sentiment_score: float | None
     gate_effective: bool
-    asset_class: Optional[AssetClass]
-    asset_scope: List[str]
+    asset_class: AssetClass | None
+    asset_scope: list[str]
     created_at: datetime
     audit_status: str
-    effective_at: Optional[datetime] = None
-    effective_by_id: Optional[int] = None
+    effective_at: datetime | None = None
+    effective_by_id: int | None = None
     rollback_reason: str = ""
     review_notes: str = ""
 
@@ -238,14 +238,14 @@ class WorkbenchEvent:
 class WorkbenchSummary:
     """工作台概览"""
     policy_level: PolicyLevel
-    policy_level_event: Optional[str]  # 触发政策档位的事件标题
-    global_heat_score: Optional[float]
-    global_sentiment_score: Optional[float]
-    global_gate_level: Optional[GateLevel]
+    policy_level_event: str | None  # 触发政策档位的事件标题
+    global_heat_score: float | None
+    global_sentiment_score: float | None
+    global_gate_level: GateLevel | None
     pending_review_count: int
     sla_exceeded_count: int
     effective_today_count: int
-    last_fetch_at: Optional[datetime] = None
+    last_fetch_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -253,9 +253,9 @@ class GateActionRecord:
     """闸门操作记录"""
     event_id: int
     action: str  # approve, reject, rollback, override
-    operator_id: Optional[int]
-    before_state: Dict[str, Any]
-    after_state: Dict[str, Any]
+    operator_id: int | None
+    before_state: dict[str, Any]
+    after_state: dict[str, Any]
     reason: str
     rule_version: str
     created_at: datetime

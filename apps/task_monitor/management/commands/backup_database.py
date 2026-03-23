@@ -13,16 +13,16 @@ Usage:
     python manage.py backup_database --output /custom/path
 """
 
+import logging
 import os
 import shutil
 import subprocess
-import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ class Command(BaseCommand):
             raise CommandError(f"Database file not found: {db_path}")
 
         # Generate backup filename
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_name = f"db_backup_{timestamp}.sqlite3"
         if compress:
             backup_name += ".gz"
@@ -143,7 +143,7 @@ class Command(BaseCommand):
         db_password = db_config.get("PASSWORD", "")
 
         # Generate backup filename
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_name = f"db_backup_{timestamp}.sql"
         if compress:
             backup_name += ".gz"
@@ -205,7 +205,7 @@ class Command(BaseCommand):
         Returns the number of files removed.
         """
         removed_count = 0
-        cutoff = datetime.now(timezone.utc).timestamp() - (keep_days * 86400)
+        cutoff = datetime.now(UTC).timestamp() - (keep_days * 86400)
 
         # Find and remove old backup files
         for backup_file in output_path.glob("db_backup_*"):

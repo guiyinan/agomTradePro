@@ -9,21 +9,23 @@ DRF Views and page views for regime calculation.
 - 保持 API 完全兼容
 """
 
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from datetime import date
-from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
+
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.http import require_http_methods
+
+from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from apps.regime.infrastructure.macro_data_provider import (
-    MacroRepositoryAdapter,
     DjangoDataSourceConfig,
+    MacroRepositoryAdapter,
 )
 from apps.regime.infrastructure.macro_source_config_gateway import (
     DjangoMacroSourceConfigGateway,
 )
 
 # API Cache layer
-from core.cache_utils import cached_api, CACHE_TTL
+from core.cache_utils import CACHE_TTL, cached_api
 
 
 def _get_available_sources():

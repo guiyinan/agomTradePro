@@ -9,22 +9,23 @@ Tests the regime_actual field calculation logic:
 5. Edge cases and error handling
 """
 
-import pytest
 import json
 from datetime import date, timedelta
 from unittest.mock import Mock, patch
 
+import pytest
+
 from apps.audit.application.use_cases import (
-    GenerateAttributionReportUseCase,
     GenerateAttributionReportRequest,
+    GenerateAttributionReportUseCase,
 )
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.backtest.infrastructure.models import BacktestResultModel
-from apps.backtest.infrastructure.adapters.base import AssetPricePoint
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.regime.domain.entities import RegimeSnapshot
 from apps.audit.infrastructure.models import AttributionReport
+from apps.audit.infrastructure.repositories import DjangoAuditRepository
+from apps.backtest.infrastructure.adapters.base import AssetPricePoint
+from apps.backtest.infrastructure.models import BacktestResultModel
+from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
+from apps.regime.domain.entities import RegimeSnapshot
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 
 
 @pytest.fixture

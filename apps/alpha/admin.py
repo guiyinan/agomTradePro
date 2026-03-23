@@ -15,7 +15,11 @@ from django.urls import path, reverse
 from django.utils import timezone
 
 from apps.alpha.application.tasks import _execute_qlib_prediction
-from apps.alpha.infrastructure.models import AlphaAlertModel, AlphaScoreCacheModel, QlibModelRegistryModel
+from apps.alpha.infrastructure.models import (
+    AlphaAlertModel,
+    AlphaScoreCacheModel,
+    QlibModelRegistryModel,
+)
 
 
 class QlibModelImportForm(forms.Form):
@@ -436,7 +440,7 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
             passed = False
 
         qlib_settings = getattr(settings, "QLIB_SETTINGS", {}) or {}
-        
+
         # 优先从数据库读取 Qlib 配置
         try:
             from apps.account.infrastructure.models import SystemSettingsModel
@@ -446,13 +450,13 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         except Exception:
             qlib_data_path = str(Path(qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")).expanduser())
             qlib_enabled = False
-        
+
         if qlib_data_path:
             data_path_obj = Path(qlib_data_path).expanduser()
             qlib_data_ok = data_path_obj.exists()
         else:
             qlib_data_ok = False
-            
+
         status_text = "启用" if qlib_enabled else "未启用"
         checks.append(
             {

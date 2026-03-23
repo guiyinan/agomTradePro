@@ -20,7 +20,7 @@ class RawPayloadRepository:
         request_type: str,
         stock_code: str,
         provider_name: str,
-        payload: Dict,
+        payload: dict,
         parse_status: str = "success",
         error_message: str = "",
     ) -> None:

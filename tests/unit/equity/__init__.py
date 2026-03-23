@@ -5,16 +5,17 @@ Pure Domain layer tests using only Python standard library.
 """
 
 import pytest
+
 from apps.signal.domain.entities import Eligibility, SignalStatus
 from apps.signal.domain.rules import (
+    RejectionRecord,
+    ValidationResult,
+    analyze_regime_transition,
     check_eligibility,
-    validate_invalidation_logic,
-    should_reject_signal,
     create_rejection_record,
     get_recommended_asset_classes,
-    analyze_regime_transition,
-    ValidationResult,
-    RejectionRecord,
+    should_reject_signal,
+    validate_invalidation_logic,
 )
 
 

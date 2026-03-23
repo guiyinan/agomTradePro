@@ -6,11 +6,15 @@ Phase 2 验收测试：
 - 最大回撤按时序计算
 - 返回完整字段：cash/market_value/net_value/drawdown_pct
 """
+from datetime import date, datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 from django.test import TestCase
-from datetime import date, datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch
 
+from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.simulated_trading.application.use_cases import CreateSimulatedAccountUseCase
+from apps.simulated_trading.domain.entities import TradeAction
 from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
@@ -19,9 +23,6 @@ from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
-from apps.simulated_trading.application.use_cases import CreateSimulatedAccountUseCase
-from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
-from apps.simulated_trading.domain.entities import TradeAction
 
 
 @pytest.mark.django_db

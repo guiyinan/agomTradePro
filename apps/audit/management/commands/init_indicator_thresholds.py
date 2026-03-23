@@ -10,6 +10,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.audit.infrastructure.models import IndicatorThresholdConfigModel
 
 

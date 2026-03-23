@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 from rest_framework import serializers
 
-from ..domain.entities import StockScore, AlphaResult
+from ..domain.entities import AlphaResult, StockScore
 
 
 class StockScoreSerializer(serializers.Serializer):
@@ -38,11 +38,11 @@ class StockScoreSerializer(serializers.Serializer):
     label_id = serializers.CharField(help_text="标签标识", required=False, allow_null=True)
     data_version = serializers.CharField(help_text="数据版本", required=False, allow_null=True)
 
-    def create(self, validated_data: Dict[str, Any]) -> StockScore:
+    def create(self, validated_data: dict[str, Any]) -> StockScore:
         """从验证数据创建 StockScore"""
         return StockScore(**validated_data)
 
-    def to_representation(self, instance: StockScore) -> Dict[str, Any]:
+    def to_representation(self, instance: StockScore) -> dict[str, Any]:
         """转换为字典表示"""
         return instance.to_dict()
 
@@ -62,14 +62,14 @@ class AlphaResultSerializer(serializers.Serializer):
     stocks = StockScoreSerializer(many=True, help_text="股票评分列表")
     metadata = serializers.DictField(help_text="额外元数据", required=False, default={})
 
-    def create(self, validated_data: Dict[str, Any]) -> AlphaResult:
+    def create(self, validated_data: dict[str, Any]) -> AlphaResult:
         """从验证数据创建 AlphaResult"""
         stocks_data = validated_data.pop("stocks", [])
         stocks = [StockScore(**s) for s in stocks_data]
 
         return AlphaResult(stocks=stocks, **validated_data)
 
-    def to_representation(self, instance: AlphaResult) -> Dict[str, Any]:
+    def to_representation(self, instance: AlphaResult) -> dict[str, Any]:
         """转换为字典表示"""
         return instance.to_dict()
 

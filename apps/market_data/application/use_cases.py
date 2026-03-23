@@ -55,7 +55,7 @@ class SyncCapitalFlowUseCase:
     def __init__(
         self,
         registry: SourceRegistry,
-        repository: Optional[CapitalFlowRepository] = None,
+        repository: CapitalFlowRepository | None = None,
     ) -> None:
         self._registry = registry
         self._repository = repository or CapitalFlowRepository()
@@ -119,7 +119,7 @@ class IngestStockNewsUseCase:
     def __init__(
         self,
         registry: SourceRegistry,
-        repository: Optional[StockNewsRepository] = None,
+        repository: StockNewsRepository | None = None,
     ) -> None:
         self._registry = registry
         self._repository = repository or StockNewsRepository()

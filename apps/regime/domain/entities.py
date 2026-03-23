@@ -6,7 +6,7 @@ Pure data classes using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -16,7 +16,7 @@ class KalmanFilterParams:
     level_variance: float = 0.01
     slope_variance: float = 0.001
     observation_variance: float = 1.0
-    initial_level: Optional[float] = None
+    initial_level: float | None = None
     initial_slope: float = 0.0
     initial_level_var: float = 10.0
     initial_slope_var: float = 1.0
@@ -59,7 +59,7 @@ class RegimeSnapshot:
     """Regime 状态快照"""
     growth_momentum_z: float
     inflation_momentum_z: float
-    distribution: Dict[str, float]
+    distribution: dict[str, float]
     dominant_regime: str
     confidence: float
     observed_at: date
@@ -102,7 +102,7 @@ class RegimeProbabilities:
     consistency_score: float  # 指标一致性评分 (0-1)
 
     @property
-    def distribution(self) -> Dict[str, float]:
+    def distribution(self) -> dict[str, float]:
         """返回四象限分布字典"""
         return {
             "Overheat": self.growth_reflation,
@@ -231,7 +231,7 @@ class IndicatorPredictivePower:
 class SignalConflict:
     """信号冲突记录"""
     daily_signal: str  # BULLISH, BEARISH, NEUTRAL
-    weekly_signal: Optional[str]
+    weekly_signal: str | None
     monthly_signal: str
 
     daily_confidence: float
@@ -266,7 +266,7 @@ class ConfidenceBreakdown:
     daily_consistent: bool  # 日度数据是否一致
     indicators_count: int  # 参与指标数量
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """转换为字典"""
         return {
             "total_confidence": self.total_confidence,

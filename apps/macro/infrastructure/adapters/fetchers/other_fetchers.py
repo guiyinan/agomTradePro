@@ -4,13 +4,14 @@
 包含就业、房产、价格等其他指标的获取逻辑。
 """
 
-import pandas as pd
-from datetime import date
-from typing import List
 import logging
 import re
+from datetime import date
+from typing import List
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class OtherIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国城镇调查失业率数据"""
         try:
             df = self.ak.macro_china_urban_unemployment()
@@ -92,7 +93,7 @@ class OtherIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国新房价格指数数据"""
         try:
             df = self.ak.macro_china_new_house_price()
@@ -145,7 +146,7 @@ class OtherIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国成品油价格数据"""
         try:
             df = self.ak.energy_oil_hist()

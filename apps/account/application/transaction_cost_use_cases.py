@@ -4,10 +4,10 @@ Account Application - Transaction Cost Use Cases
 交易成本预估与验证用例。
 """
 
-from decimal import Decimal
-from typing import Dict, Optional, List
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
+from typing import Dict, List, Optional
 
 from apps.account.infrastructure.repositories import (
     AssetMetadataRepository,
@@ -48,7 +48,7 @@ class TransactionCostAnalysis:
     cost_variance_pct: float          # 成本差异百分比
     estimation_accuracy: float        # 预估准确率
     avg_cost_ratio: float             # 平均成本比例
-    high_cost_transactions: List[Dict]  # 高成本交易列表
+    high_cost_transactions: list[dict]  # 高成本交易列表
 
 
 class TransactionCostEstimationUseCase:
@@ -147,7 +147,7 @@ class TransactionCostEstimationUseCase:
         else:
             return 'CN_A_SHARE'  # 默认
 
-    def _get_cost_config(self, market: str, asset_class: str) -> Dict[str, object]:
+    def _get_cost_config(self, market: str, asset_class: str) -> dict[str, object]:
         """获取成本配置"""
         return (
             self.transaction_cost_config_repo.get_cost_config(market, asset_class)
@@ -155,7 +155,7 @@ class TransactionCostEstimationUseCase:
         )
 
     @staticmethod
-    def _calculate_total_cost(config: Dict[str, object], notional: Decimal, is_buy: bool) -> Dict[str, object]:
+    def _calculate_total_cost(config: dict[str, object], notional: Decimal, is_buy: bool) -> dict[str, object]:
         """根据配置计算总交易成本。"""
         commission_rate = Decimal(str(config["commission_rate"]))
         slippage_rate = Decimal(str(config["slippage_rate"]))
@@ -233,7 +233,7 @@ class TransactionCostAnalysisUseCase:
     def analyze_user_transaction_costs(
         self,
         user_id: int,
-        portfolio_id: Optional[int] = None,
+        portfolio_id: int | None = None,
         days: int = 90,
     ) -> TransactionCostAnalysis:
         """
@@ -247,8 +247,9 @@ class TransactionCostAnalysisUseCase:
         Returns:
             TransactionCostAnalysis: 成本分析结果
         """
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         # 获取时间范围
         since_date = timezone.now() - timedelta(days=days)

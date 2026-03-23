@@ -4,19 +4,20 @@ Unit tests for Agent Runtime Domain layer.
 WP-M1-07: Tests (027-030)
 """
 
-import pytest
 from dataclasses import replace
+
+import pytest
 
 from apps.agent_runtime.domain.entities import (
     AgentTask,
+    EventSource,
     TaskDomain,
     TaskStatus,
     TimelineEventType,
-    EventSource,
 )
 from apps.agent_runtime.domain.services import (
-    TaskStateMachine,
     InvalidStateTransitionError,
+    TaskStateMachine,
     get_task_state_machine,
 )
 

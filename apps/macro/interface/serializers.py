@@ -3,6 +3,7 @@ DRF Serializers for Macro Data API.
 """
 
 from rest_framework import serializers
+
 from apps.macro.infrastructure.models import MacroIndicator
 
 

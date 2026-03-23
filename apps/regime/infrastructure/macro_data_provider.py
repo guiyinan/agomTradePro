@@ -18,10 +18,10 @@ from datetime import date
 from typing import List, Optional
 
 from ..domain.protocols import (
-    MacroDataProviderProtocol,
     DataSourceConfigProtocol,
-    MacroIndicatorValue,
     IndicatorSeries,
+    MacroDataProviderProtocol,
+    MacroIndicatorValue,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         >>> pmi_value = provider.get_indicator_value("PMI")
     """
 
-    def __init__(self, config: Optional[DataSourceConfigProtocol] = None):
+    def __init__(self, config: DataSourceConfigProtocol | None = None):
         """
         初始化提供者
 
@@ -93,8 +93,8 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
     def get_indicator_value(
         self,
         indicator_code: str,
-        as_of_date: Optional[date] = None
-    ) -> Optional[MacroIndicatorValue]:
+        as_of_date: date | None = None
+    ) -> MacroIndicatorValue | None:
         """
         获取指定指标的值
 
@@ -147,7 +147,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         indicator_code: str,
         end_date: date,
         lookback_periods: int = 24
-    ) -> Optional[IndicatorSeries]:
+    ) -> IndicatorSeries | None:
         """
         获取指标的历史序列
 
@@ -192,7 +192,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         indicator_code: str,
         end_date: date,
         lookback_periods: int = 24
-    ) -> List[float]:
+    ) -> list[float]:
         """
         获取增长指标序列
 
@@ -212,7 +212,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         indicator_code: str,
         end_date: date,
         lookback_periods: int = 24
-    ) -> List[float]:
+    ) -> list[float]:
         """
         获取通胀指标序列
 
@@ -227,7 +227,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         series = self.get_indicator_series(indicator_code, end_date, lookback_periods)
         return series.values if series else []
 
-    def get_latest_observation_date(self, indicator_code: str) -> Optional[date]:
+    def get_latest_observation_date(self, indicator_code: str) -> date | None:
         """
         获取指定指标的最新观测日期
 
@@ -246,8 +246,8 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
 
 
 # 全局单例 (可选)
-_default_provider: Optional[DjangoMacroDataProvider] = None
-_default_config: Optional[DjangoDataSourceConfig] = None
+_default_provider: DjangoMacroDataProvider | None = None
+_default_config: DjangoDataSourceConfig | None = None
 
 
 def get_default_macro_data_provider() -> DjangoMacroDataProvider:
@@ -305,7 +305,7 @@ class MacroRepositoryAdapter:
         "GDP平减指数": "CN_GDP_DEFLATOR",
     }
 
-    def __init__(self, provider: Optional[MacroDataProviderProtocol] = None):
+    def __init__(self, provider: MacroDataProviderProtocol | None = None):
         """
         初始化适配器
 
@@ -327,7 +327,7 @@ class MacroRepositoryAdapter:
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List:
+    ) -> list:
         """
         获取指定时间段的观测数据
 
@@ -347,7 +347,7 @@ class MacroRepositoryAdapter:
             end_date=end_date,
         )
 
-    def get_latest_observation(self, code: str, before_date: Optional[date] = None):
+    def get_latest_observation(self, code: str, before_date: date | None = None):
         """获取最新观测数据。"""
         return self._get_repository().get_latest_observation(
             code=code,
@@ -358,7 +358,7 @@ class MacroRepositoryAdapter:
         self,
         indicator_code: str,
         limit: int = 24
-    ) -> List:
+    ) -> list:
         """
         获取最近的观测数据序列
 
@@ -376,7 +376,7 @@ class MacroRepositoryAdapter:
             limit=limit,
         )
 
-    def get_latest_observation_date(self, indicator_code: str) -> Optional[date]:
+    def get_latest_observation_date(self, indicator_code: str) -> date | None:
         """
         获取最新观测日期
 
@@ -397,9 +397,9 @@ class MacroRepositoryAdapter:
     def get_growth_series(
         self,
         indicator_code: str = "PMI",
-        end_date: Optional[date] = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None,
+        source: str | None = None,
     ):
         return self._get_repository().get_growth_series(
             indicator_code=indicator_code,
@@ -411,9 +411,9 @@ class MacroRepositoryAdapter:
     def get_growth_series_full(
         self,
         indicator_code: str = "PMI",
-        end_date: Optional[date] = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None,
+        source: str | None = None,
     ):
         return self._get_repository().get_growth_series_full(
             indicator_code=indicator_code,
@@ -425,9 +425,9 @@ class MacroRepositoryAdapter:
     def get_inflation_series(
         self,
         indicator_code: str = "CPI",
-        end_date: Optional[date] = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None,
+        source: str | None = None,
     ):
         return self._get_repository().get_inflation_series(
             indicator_code=indicator_code,
@@ -439,9 +439,9 @@ class MacroRepositoryAdapter:
     def get_inflation_series_full(
         self,
         indicator_code: str = "CPI",
-        end_date: Optional[date] = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None,
+        source: str | None = None,
     ):
         return self._get_repository().get_inflation_series_full(
             indicator_code=indicator_code,
@@ -452,10 +452,10 @@ class MacroRepositoryAdapter:
 
     def get_available_dates(
         self,
-        codes: Optional[List[str]] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[date]:
+        codes: list[str] | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[date]:
         return self._get_repository().get_available_dates(
             codes=codes,
             start_date=start_date,

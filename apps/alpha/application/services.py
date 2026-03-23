@@ -12,9 +12,8 @@ from typing import Dict, List, Optional
 from ..domain.entities import AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
 from ..infrastructure.adapters.cache_adapter import CacheAlphaProvider
-from ..infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 from ..infrastructure.adapters.etf_adapter import ETFFallbackProvider
-
+from ..infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class AlphaProviderRegistry:
 
     def __init__(self):
         """初始化注册中心"""
-        self._providers: List[AlphaProvider] = []
+        self._providers: list[AlphaProvider] = []
 
     def register(self, provider: AlphaProvider) -> None:
         """
@@ -100,7 +99,7 @@ class AlphaProviderRegistry:
             return True
         return False
 
-    def get_provider(self, name: str) -> Optional[AlphaProvider]:
+    def get_provider(self, name: str) -> AlphaProvider | None:
         """
         获取指定名称的 Provider
 
@@ -115,7 +114,7 @@ class AlphaProviderRegistry:
                 return provider
         return None
 
-    def get_all_providers(self) -> List[AlphaProvider]:
+    def get_all_providers(self) -> list[AlphaProvider]:
         """
         获取所有已注册的 Provider
 
@@ -124,7 +123,7 @@ class AlphaProviderRegistry:
         """
         return list(self._providers)
 
-    def get_active_providers(self) -> List[AlphaProvider]:
+    def get_active_providers(self) -> list[AlphaProvider]:
         """
         获取所有可用的 Provider
 
@@ -505,8 +504,9 @@ class AlphaService:
         """
         # 1. Qlib Provider（最高优先级，但可能不可用）
         try:
-            from ..infrastructure.adapters.qlib_adapter import QlibAlphaProvider
             from apps.account.infrastructure.models import SystemSettingsModel
+
+            from ..infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 
             qlib_config = SystemSettingsModel.get_runtime_qlib_config()
             if qlib_config.get("enabled"):
@@ -546,10 +546,10 @@ class AlphaService:
     def get_stock_scores(
         self,
         universe_id: str = "csi300",
-        intended_trade_date: Optional[date] = None,
+        intended_trade_date: date | None = None,
         top_n: int = 30,
         user=None,
-        provider_filter: Optional[str] = None,
+        provider_filter: str | None = None,
     ) -> AlphaResult:
         """
         获取股票评分（带自动降级）
@@ -594,7 +594,7 @@ class AlphaService:
 
         return result
 
-    def get_provider_status(self) -> Dict[str, Dict[str, str]]:
+    def get_provider_status(self) -> dict[str, dict[str, str]]:
         """
         获取所有 Provider 状态
 
@@ -632,7 +632,7 @@ class AlphaService:
 
         return status
 
-    def get_available_universes(self) -> List[str]:
+    def get_available_universes(self) -> list[str]:
         """
         获取支持的股票池列表
 

@@ -5,39 +5,42 @@ Account Infrastructure Repositories
 遵循依赖反转原则：Domain层定义接口，Infrastructure层实现。
 """
 
-from decimal import Decimal
-from typing import List, Optional, Dict, Any
+import logging
 from datetime import date, datetime, timedelta
 
+logger = logging.getLogger(__name__)
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
 from django.contrib.auth.models import User
-from django.db.models import Sum, Q, F, Count
+from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    PortfolioModel,
-    PositionModel,
-    TransactionModel,
-    AssetMetadataModel,
-    PositionSignalLogModel,
-    PortfolioDailySnapshotModel,
-    StopLossConfigModel,
-    TakeProfitConfigModel,
-    StopLossTriggerModel,
-)
 from apps.account.domain.entities import (
     AccountProfile,
-    Position,
-    PortfolioSnapshot,
-    Transaction,
-    RiskTolerance,
-    PositionSource,
-    PositionStatus,
     AssetClassType,
-    Region,
     CrossBorderFlag,
     InvestmentStyle,
+    PortfolioSnapshot,
+    Position,
+    PositionSource,
+    PositionStatus,
+    Region,
+    RiskTolerance,
+    Transaction,
+)
+from apps.account.infrastructure.models import (
+    AccountProfileModel,
+    AssetMetadataModel,
+    PortfolioDailySnapshotModel,
+    PortfolioModel,
+    PositionModel,
+    PositionSignalLogModel,
+    StopLossConfigModel,
+    StopLossTriggerModel,
+    TakeProfitConfigModel,
+    TransactionModel,
 )
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
@@ -45,7 +48,7 @@ from apps.signal.infrastructure.models import InvestmentSignalModel
 class AccountRepository:
     """用户账户仓储"""
 
-    def get_by_user_id(self, user_id: int) -> Optional[AccountProfile]:
+    def get_by_user_id(self, user_id: int) -> AccountProfile | None:
         """根据用户ID获取账户配置"""
         try:
             model = AccountProfileModel._default_manager.get(user_id=user_id)
@@ -71,9 +74,7 @@ class AccountRepository:
     def get_or_create_default_portfolio(self, user_id: int) -> int:
         """获取或创建默认投资组合，返回portfolio_id"""
         portfolio, created = PortfolioModel._default_manager.get_or_create(
-            user_id=user_id,
-            name="默认组合",
-            defaults={"is_active": True}
+            user_id=user_id, name="默认组合", defaults={"is_active": True}
         )
         return portfolio.id
 
@@ -98,7 +99,7 @@ class AccountRepository:
             created_at=profile.created_at,
         )
 
-    def get_volatility_settings(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def get_volatility_settings(self, user_id: int) -> dict[str, Any] | None:
         """获取用户波动率控制配置。"""
         try:
             model = AccountProfileModel._default_manager.get(user_id=user_id)
@@ -116,10 +117,10 @@ class AccountRepository:
         self,
         user_id: int,
         *,
-        target_volatility: Optional[float] = None,
-        volatility_tolerance: Optional[float] = None,
-        max_volatility_reduction: Optional[float] = None,
-    ) -> Optional[Dict[str, Any]]:
+        target_volatility: float | None = None,
+        volatility_tolerance: float | None = None,
+        max_volatility_reduction: float | None = None,
+    ) -> dict[str, Any] | None:
         """更新用户波动率控制配置。"""
         try:
             model = AccountProfileModel._default_manager.get(user_id=user_id)
@@ -132,12 +133,14 @@ class AccountRepository:
             model.volatility_tolerance = volatility_tolerance
         if max_volatility_reduction is not None:
             model.max_volatility_reduction = max_volatility_reduction
-        model.save(update_fields=[
-            "target_volatility",
-            "volatility_tolerance",
-            "max_volatility_reduction",
-            "updated_at",
-        ])
+        model.save(
+            update_fields=[
+                "target_volatility",
+                "volatility_tolerance",
+                "max_volatility_reduction",
+                "updated_at",
+            ]
+        )
         return self.get_volatility_settings(user_id)
 
 
@@ -148,7 +151,7 @@ class PortfolioRepository:
         """检查投资组合归属。"""
         return PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).exists()
 
-    def list_active_portfolios(self, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def list_active_portfolios(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """列出激活中的投资组合摘要。"""
         queryset = PortfolioModel._default_manager.filter(is_active=True)
         if user_id is not None:
@@ -164,7 +167,7 @@ class PortfolioRepository:
             for portfolio in portfolios
         ]
 
-    def get_portfolio_notification_context(self, portfolio_id: int) -> Optional[Dict[str, Any]]:
+    def get_portfolio_notification_context(self, portfolio_id: int) -> dict[str, Any] | None:
         """获取投资组合通知所需的最小上下文。"""
         try:
             portfolio = PortfolioModel._default_manager.select_related("user").get(id=portfolio_id)
@@ -178,7 +181,7 @@ class PortfolioRepository:
             "user_email": portfolio.user.email,
         }
 
-    def get_user_portfolios(self, user_id: int) -> List[Dict]:
+    def get_user_portfolios(self, user_id: int) -> list[dict]:
         """获取用户的所有投资组合"""
         portfolios = PortfolioModel._default_manager.filter(user_id=user_id).order_by("-created_at")
         return [
@@ -191,10 +194,11 @@ class PortfolioRepository:
             for p in portfolios
         ]
 
-    def get_portfolio_snapshot(self, portfolio_id: int) -> Optional[PortfolioSnapshot]:
+    def get_portfolio_snapshot(self, portfolio_id: int) -> PortfolioSnapshot | None:
         """获取组合快照（包含持仓详情）"""
-        from apps.account.infrastructure.models import PortfolioDailySnapshotModel
         from datetime import timedelta
+
+        from apps.account.infrastructure.models import PortfolioDailySnapshotModel
 
         try:
             portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
@@ -202,10 +206,11 @@ class PortfolioRepository:
             return None
 
         # 获取活跃持仓
-        position_models = PositionModel._default_manager.filter(
-            portfolio=portfolio,
-            is_closed=False
-        ).select_related("portfolio").order_by("-opened_at")
+        position_models = (
+            PositionModel._default_manager.filter(portfolio=portfolio, is_closed=False)
+            .select_related("portfolio")
+            .order_by("-opened_at")
+        )
 
         positions = self._convert_to_position_entities(position_models)
 
@@ -217,33 +222,38 @@ class PortfolioRepository:
         # 回溯收益率计算
         # 1. 年收益率（对比1年前）
         one_year_ago = timezone.now() - timedelta(days=365)
-        yearly_snapshot = PortfolioDailySnapshotModel._default_manager.filter(
-            portfolio=portfolio,
-            snapshot_date__lte=one_year_ago.date()
-            ).order_by('-snapshot_date').first()
+        yearly_snapshot = (
+            PortfolioDailySnapshotModel._default_manager.filter(
+                portfolio=portfolio, snapshot_date__lte=one_year_ago.date()
+            )
+            .order_by("-snapshot_date")
+            .first()
+        )
 
         # 2. 月收益率（对比1个月前）
         one_month_ago = timezone.now() - timedelta(days=30)
-        monthly_snapshot = PortfolioDailySnapshotModel._default_manager.filter(
-            portfolio=portfolio,
-            snapshot_date__lte=one_month_ago.date()
-            ).order_by('-snapshot_date').first()
+        monthly_snapshot = (
+            PortfolioDailySnapshotModel._default_manager.filter(
+                portfolio=portfolio, snapshot_date__lte=one_month_ago.date()
+            )
+            .order_by("-snapshot_date")
+            .first()
+        )
 
         # 计算收益率
         if yearly_snapshot:
             yearly_return = total_value - float(yearly_snapshot.total_value)
-            yearly_return_pct = (yearly_return / float(yearly_snapshot.total_value) * 100)
+            yearly_return_pct = yearly_return / float(yearly_snapshot.total_value) * 100
         else:
             # 没有历史快照，使用累计入金作为基准
             from apps.account.infrastructure.models import CapitalFlowModel
+
             total_deposit = CapitalFlowModel._default_manager.filter(
-                portfolio=portfolio,
-                flow_type='deposit'
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+                portfolio=portfolio, flow_type="deposit"
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
             total_withdraw = CapitalFlowModel._default_manager.filter(
-                portfolio=portfolio,
-                flow_type='withdraw'
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+                portfolio=portfolio, flow_type="withdraw"
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
             net_capital = float(total_deposit - total_withdraw)
 
             # 如果没有任何入金记录，收益为0
@@ -251,12 +261,12 @@ class PortfolioRepository:
                 yearly_return = 0.0
                 yearly_return_pct = 0.0
             else:
-                yearly_return = (total_value - net_capital)
-                yearly_return_pct = (yearly_return / net_capital * 100)
+                yearly_return = total_value - net_capital
+                yearly_return_pct = yearly_return / net_capital * 100
 
         if monthly_snapshot:
             monthly_return = total_value - float(monthly_snapshot.total_value)
-            monthly_return_pct = (monthly_return / float(monthly_snapshot.total_value) * 100)
+            monthly_return_pct = monthly_return / float(monthly_snapshot.total_value) * 100
         else:
             monthly_return_pct = 0.0
 
@@ -270,11 +280,11 @@ class PortfolioRepository:
             portfolio=portfolio,
             snapshot_date=today,
             defaults={
-                'total_value': Decimal(str(total_value)),
-                'cash_balance': Decimal(str(cash_balance)),
-                'invested_value': Decimal(str(invested_value)),
-                'position_count': len(positions),
-            }
+                "total_value": Decimal(str(total_value)),
+                "cash_balance": Decimal(str(cash_balance)),
+                "invested_value": Decimal(str(invested_value)),
+                "position_count": len(positions),
+            },
         )
 
         return PortfolioSnapshot(
@@ -290,32 +300,36 @@ class PortfolioRepository:
             positions=positions,
         )
 
-    def _convert_to_position_entities(self, models: List[PositionModel]) -> List[Position]:
+    def _convert_to_position_entities(self, models: list[PositionModel]) -> list[Position]:
         """将ORM模型转换为Domain实体"""
         entities = []
         for model in models:
-            entities.append(Position(
-                id=model.id,
-                portfolio_id=model.portfolio_id,
-                user_id=model.portfolio.user_id,
-                asset_code=model.asset_code,
-                asset_class=AssetClassType(model.asset_class),
-                region=Region(model.region),
-                cross_border=CrossBorderFlag(model.cross_border),
-                shares=model.shares,
-                avg_cost=model.avg_cost,
-                current_price=model.current_price or model.avg_cost,
-                market_value=model.market_value,
-                unrealized_pnl=model.unrealized_pnl,
-                unrealized_pnl_pct=model.unrealized_pnl_pct,
-                opened_at=model.opened_at,
-                status=PositionStatus.ACTIVE if not model.is_closed else PositionStatus.CLOSED,
-                source=PositionSource(model.source),
-                source_id=model.source_id,
-            ))
+            entities.append(
+                Position(
+                    id=model.id,
+                    portfolio_id=model.portfolio_id,
+                    user_id=model.portfolio.user_id,
+                    asset_code=model.asset_code,
+                    asset_class=AssetClassType(model.asset_class),
+                    region=Region(model.region),
+                    cross_border=CrossBorderFlag(model.cross_border),
+                    shares=model.shares,
+                    avg_cost=model.avg_cost,
+                    current_price=model.current_price or model.avg_cost,
+                    market_value=model.market_value,
+                    unrealized_pnl=model.unrealized_pnl,
+                    unrealized_pnl_pct=model.unrealized_pnl_pct,
+                    opened_at=model.opened_at,
+                    status=PositionStatus.ACTIVE if not model.is_closed else PositionStatus.CLOSED,
+                    source=PositionSource(model.source),
+                    source_id=model.source_id,
+                )
+            )
         return entities
 
-    def _calculate_cash_balance(self, portfolio: PortfolioModel, positions: List[Position]) -> float:
+    def _calculate_cash_balance(
+        self, portfolio: PortfolioModel, positions: list[Position]
+    ) -> float:
         """
         计算现金余额
 
@@ -325,30 +339,27 @@ class PortfolioRepository:
         - 当前现金 = 入金 - 出金 - 买入支出 + 卖出收入
         - 总资产 = 当前现金 + 持仓市值
         """
-        from apps.account.infrastructure.models import CapitalFlowModel, TransactionModel
         from django.db.models import Sum
+
+        from apps.account.infrastructure.models import CapitalFlowModel, TransactionModel
 
         # 1. 资金流动（入金 - 出金）
         total_deposit = CapitalFlowModel._default_manager.filter(
-            portfolio=portfolio,
-            flow_type='deposit'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            portfolio=portfolio, flow_type="deposit"
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
 
         total_withdraw = CapitalFlowModel._default_manager.filter(
-            portfolio=portfolio,
-            flow_type='withdraw'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            portfolio=portfolio, flow_type="withdraw"
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
 
         # 2. 交易对现金的影响
         buy_total = TransactionModel._default_manager.filter(
-            portfolio=portfolio,
-            action='buy'
-        ).aggregate(total=Sum('notional'))['total'] or Decimal('0')
+            portfolio=portfolio, action="buy"
+        ).aggregate(total=Sum("notional"))["total"] or Decimal("0")
 
         sell_total = TransactionModel._default_manager.filter(
-            portfolio=portfolio,
-            action='sell'
-        ).aggregate(total=Sum('notional'))['total'] or Decimal('0')
+            portfolio=portfolio, action="sell"
+        ).aggregate(total=Sum("notional"))["total"] or Decimal("0")
 
         # 3. 当前现金 = 入金 - 出金 - 买入支出 + 卖出收入
         cash_balance = float(total_deposit - total_withdraw - buy_total + sell_total)
@@ -362,13 +373,15 @@ class PositionRepository:
     def get_user_positions(
         self,
         user_id: int,
-        status: Optional[str] = None,
-        asset_class: Optional[str] = None,
-    ) -> List[Position]:
+        status: str | None = None,
+        asset_class: str | None = None,
+    ) -> list[Position]:
         """获取用户持仓列表"""
-        queryset = PositionModel._default_manager.filter(
-            portfolio__user_id=user_id
-        ).select_related("portfolio").order_by("-opened_at")
+        queryset = (
+            PositionModel._default_manager.filter(portfolio__user_id=user_id)
+            .select_related("portfolio")
+            .order_by("-opened_at")
+        )
 
         if status == "active":
             queryset = queryset.filter(is_closed=False)
@@ -380,7 +393,7 @@ class PositionRepository:
 
         return PortfolioRepository()._convert_to_position_entities(queryset)
 
-    def get_position_by_id(self, position_id: int) -> Optional[Position]:
+    def get_position_by_id(self, position_id: int) -> Position | None:
         """根据ID获取持仓"""
         try:
             model = PositionModel._default_manager.get(id=position_id)
@@ -388,7 +401,7 @@ class PositionRepository:
         except PositionModel.DoesNotExist:
             return None
 
-    def list_open_positions_for_adjustment(self, portfolio_id: int) -> List[Dict[str, Any]]:
+    def list_open_positions_for_adjustment(self, portfolio_id: int) -> list[dict[str, Any]]:
         """获取用于风控调仓的活跃持仓。"""
         models = PositionModel._default_manager.filter(
             portfolio_id=portfolio_id,
@@ -405,7 +418,7 @@ class PositionRepository:
             for model in models
         ]
 
-    def list_portfolio_position_weights(self, portfolio_id: int) -> List[Dict[str, Any]]:
+    def list_portfolio_position_weights(self, portfolio_id: int) -> list[dict[str, Any]]:
         """获取组合中各持仓的权重。"""
         positions = list(
             PositionModel._default_manager.filter(
@@ -428,10 +441,12 @@ class PositionRepository:
             for position in positions
         ]
 
-    def get_position_notification_context(self, position_id: int) -> Optional[Dict[str, Any]]:
+    def get_position_notification_context(self, position_id: int) -> dict[str, Any] | None:
         """获取持仓通知所需的最小上下文。"""
         try:
-            model = PositionModel._default_manager.select_related("portfolio__user").get(id=position_id)
+            model = PositionModel._default_manager.select_related("portfolio__user").get(
+                id=position_id
+            )
         except PositionModel.DoesNotExist:
             return None
 
@@ -451,7 +466,7 @@ class PositionRepository:
         shares: float,
         price: Decimal,
         source: str = "manual",
-        source_id: Optional[int] = None,
+        source_id: int | None = None,
     ) -> Position:
         """创建新持仓"""
         # 获取资产元数据
@@ -494,7 +509,7 @@ class PositionRepository:
 
         return PortfolioRepository()._convert_to_position_entities([model])[0]
 
-    def close_position(self, position_id: int, shares: Optional[float] = None) -> Optional[Position]:
+    def close_position(self, position_id: int, shares: float | None = None) -> Position | None:
         """平仓（全部或部分）"""
         try:
             model = PositionModel._default_manager.get(id=position_id)
@@ -528,7 +543,7 @@ class PositionRepository:
 
         return PortfolioRepository()._convert_to_position_entities([model])[0]
 
-    def update_position_price(self, position_id: int, new_price: Decimal) -> Optional[Position]:
+    def update_position_price(self, position_id: int, new_price: Decimal) -> Position | None:
         """更新持仓当前价格并重算盈亏"""
         try:
             model = PositionModel._default_manager.get(id=position_id)
@@ -551,7 +566,7 @@ class PositionRepository:
         user_id: int,
         signal_id: int,
         price: Decimal,
-    ) -> Optional[Position]:
+    ) -> Position | None:
         """从投资信号创建持仓"""
         try:
             signal = InvestmentSignalModel._default_manager.get(id=signal_id, user_id=user_id)
@@ -642,31 +657,35 @@ class TransactionRepository:
         self,
         portfolio_id: int,
         limit: int = 50,
-    ) -> List[Transaction]:
+    ) -> list[Transaction]:
         """获取组合交易记录"""
-        models = TransactionModel._default_manager.filter(
-            portfolio_id=portfolio_id
-        ).select_related("position").order_by("-traded_at")[:limit]
+        models = (
+            TransactionModel._default_manager.filter(portfolio_id=portfolio_id)
+            .select_related("position")
+            .order_by("-traded_at")[:limit]
+        )
 
         transactions = []
         for model in models:
-            transactions.append(Transaction(
-                id=model.id,
-                portfolio_id=model.portfolio_id,
-                user_id=model.portfolio.user_id,
-                position_id=model.position_id,
-                asset_code=model.asset_code,
-                action=model.action,
-                shares=model.shares,
-                price=model.price,
-                notional=model.notional,
-                commission=model.commission,
-                traded_at=model.traded_at,
-                notes=model.notes,
-            ))
+            transactions.append(
+                Transaction(
+                    id=model.id,
+                    portfolio_id=model.portfolio_id,
+                    user_id=model.portfolio.user_id,
+                    position_id=model.position_id,
+                    asset_code=model.asset_code,
+                    action=model.action,
+                    shares=model.shares,
+                    price=model.price,
+                    notional=model.notional,
+                    commission=model.commission,
+                    traded_at=model.traded_at,
+                    notes=model.notes,
+                )
+            )
         return transactions
 
-    def get_transaction_cost_record(self, transaction_id: int) -> Optional[Dict[str, Any]]:
+    def get_transaction_cost_record(self, transaction_id: int) -> dict[str, Any] | None:
         """获取交易成本分析所需的交易明细。"""
         try:
             model = TransactionModel._default_manager.get(id=transaction_id)
@@ -680,10 +699,10 @@ class TransactionRepository:
         transaction_id: int,
         *,
         commission: Decimal,
-        slippage: Optional[Decimal] = None,
-        stamp_duty: Optional[Decimal] = None,
-        transfer_fee: Optional[Decimal] = None,
-    ) -> Optional[Dict[str, Any]]:
+        slippage: Decimal | None = None,
+        stamp_duty: Decimal | None = None,
+        transfer_fee: Decimal | None = None,
+    ) -> dict[str, Any] | None:
         """更新交易的实际成本并返回最新明细。"""
         try:
             model = TransactionModel._default_manager.get(id=transaction_id)
@@ -706,7 +725,9 @@ class TransactionRepository:
         )
         if model.estimated_cost:
             variance = total_actual - model.estimated_cost
-            variance_pct = float(variance) / float(model.estimated_cost) if model.estimated_cost > 0 else 0
+            variance_pct = (
+                float(variance) / float(model.estimated_cost) if model.estimated_cost > 0 else 0
+            )
             model.cost_variance = variance
             model.cost_variance_pct = variance_pct
 
@@ -717,9 +738,9 @@ class TransactionRepository:
         self,
         user_id: int,
         *,
-        portfolio_id: Optional[int] = None,
-        since_date: Optional[datetime] = None,
-    ) -> List[Dict[str, Any]]:
+        portfolio_id: int | None = None,
+        since_date: datetime | None = None,
+    ) -> list[dict[str, Any]]:
         """列出用户指定时间范围内的交易成本明细。"""
         queryset = TransactionModel._default_manager.filter(portfolio__user_id=user_id)
         if portfolio_id is not None:
@@ -732,7 +753,7 @@ class TransactionRepository:
         ]
 
     @staticmethod
-    def _to_transaction_cost_dict(model: TransactionModel) -> Dict[str, Any]:
+    def _to_transaction_cost_dict(model: TransactionModel) -> dict[str, Any]:
         """转换为交易成本分析用的字典。"""
         return {
             "id": model.id,
@@ -756,22 +777,12 @@ class AssetMetadataRepository:
     """资产元数据仓储"""
 
     def get_or_create_asset(
-        self,
-        asset_code: str,
-        name: str,
-        asset_class: str = "equity",
-        region: str = "CN",
-        **kwargs
-    ) -> Dict:
+        self, asset_code: str, name: str, asset_class: str = "equity", region: str = "CN", **kwargs
+    ) -> dict:
         """获取或创建资产元数据"""
         asset, created = AssetMetadataModel._default_manager.get_or_create(
             asset_code=asset_code,
-            defaults={
-                "name": name,
-                "asset_class": asset_class,
-                "region": region,
-                **kwargs
-            }
+            defaults={"name": name, "asset_class": asset_class, "region": region, **kwargs},
         )
         return {
             "id": asset.id,
@@ -785,16 +796,14 @@ class AssetMetadataRepository:
     def search_assets(
         self,
         query: str,
-        asset_class: Optional[str] = None,
-        region: Optional[str] = None,
-    ) -> List[Dict]:
+        asset_class: str | None = None,
+        region: str | None = None,
+    ) -> list[dict]:
         """搜索资产"""
         queryset = AssetMetadataModel._default_manager.all()
 
         if query:
-            queryset = queryset.filter(
-                Q(asset_code__icontains=query) | Q(name__icontains=query)
-            )
+            queryset = queryset.filter(Q(asset_code__icontains=query) | Q(name__icontains=query))
 
         if asset_class:
             queryset = queryset.filter(asset_class=asset_class)
@@ -829,8 +838,7 @@ class AssetMetadataRepository:
 
         # 获取用户所有活跃持仓
         positions = PositionModel._default_manager.filter(
-            portfolio__user_id=user_id,
-            is_closed=False
+            portfolio__user_id=user_id, is_closed=False
         )
 
         updated_count = 0
@@ -840,8 +848,8 @@ class AssetMetadataRepository:
             try:
                 # 从行情接口获取价格
                 price_metadata = price_service.get_price_with_metadata(position.asset_code)
-                if price_metadata and price_metadata['price'] is not None:
-                    new_price = price_metadata['price']
+                if price_metadata and price_metadata["price"] is not None:
+                    new_price = price_metadata["price"]
                     # 更新持仓价格
                     position.current_price = new_price
                     position.market_value = Decimal(str(position.shares * float(new_price)))
@@ -849,10 +857,14 @@ class AssetMetadataRepository:
                     pnl = (new_price - position.avg_cost) * position.shares
                     position.unrealized_pnl = pnl
                     position.unrealized_pnl_pct = float((new_price / position.avg_cost - 1) * 100)
-                    position.save(update_fields=[
-                        'current_price', 'market_value',
-                        'unrealized_pnl', 'unrealized_pnl_pct'
-                    ])
+                    position.save(
+                        update_fields=[
+                            "current_price",
+                            "market_value",
+                            "unrealized_pnl",
+                            "unrealized_pnl_pct",
+                        ]
+                    )
                     updated_count += 1
                 else:
                     # 行情接口不可用时，保持当前价格不变
@@ -861,14 +873,12 @@ class AssetMetadataRepository:
                         f"使用现有价格 {position.current_price}"
                     )
             except Exception as e:
-                logger.error(
-                    f"更新持仓 {position.id} ({position.asset_code}) 价格失败: {e}"
-                )
+                logger.error(f"更新持仓 {position.id} ({position.asset_code}) 价格失败: {e}")
                 # 继续处理其他持仓
 
         return updated_count
 
-    def get_asset_by_code(self, asset_code: str) -> Optional[Dict[str, Any]]:
+    def get_asset_by_code(self, asset_code: str) -> dict[str, Any] | None:
         """
         Get asset metadata by code.
 
@@ -893,12 +903,11 @@ class AssetMetadataRepository:
 # Stop Loss Repository
 # ============================================================
 
+
 class StopLossRepository:
     """止损配置仓储"""
 
-    def get_active_stop_loss_configs(
-        self, user_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    def get_active_stop_loss_configs(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """
         Get all active stop loss configurations.
 
@@ -908,12 +917,12 @@ class StopLossRepository:
         Returns:
             List of stop loss config dicts with position relationship
         """
-        queryset = StopLossConfigModel._default_manager.filter(status='active')
+        queryset = StopLossConfigModel._default_manager.filter(status="active")
 
         if user_id:
             queryset = queryset.filter(position__portfolio__user_id=user_id)
 
-        configs = queryset.select_related('position', 'position__portfolio').all()
+        configs = queryset.select_related("position", "position__portfolio").all()
 
         return [
             {
@@ -940,9 +949,7 @@ class StopLossRepository:
             for config in configs
         ]
 
-    def get_stop_loss_config_by_position(
-        self, position_id: int
-    ) -> Optional[Dict[str, Any]]:
+    def get_stop_loss_config_by_position(self, position_id: int) -> dict[str, Any] | None:
         """Get stop loss config for a position."""
         try:
             config = StopLossConfigModel._default_manager.get(position_id=position_id)
@@ -964,10 +971,10 @@ class StopLossRepository:
         position_id: int,
         stop_loss_type: str,
         stop_loss_pct: float,
-        trailing_stop_pct: Optional[float] = None,
-        max_holding_days: Optional[int] = None,
-        highest_price: Optional[Decimal] = None,
-    ) -> Dict[str, Any]:
+        trailing_stop_pct: float | None = None,
+        max_holding_days: int | None = None,
+        highest_price: Decimal | None = None,
+    ) -> dict[str, Any]:
         """Create stop loss configuration."""
         config = StopLossConfigModel._default_manager.create(
             position_id=position_id,
@@ -976,7 +983,7 @@ class StopLossRepository:
             trailing_stop_pct=trailing_stop_pct,
             max_holding_days=max_holding_days,
             highest_price=highest_price,
-            status='active',
+            status="active",
         )
         return {
             "id": config.id,
@@ -989,10 +996,10 @@ class StopLossRepository:
     def update_stop_loss_config(
         self,
         config_id: int,
-        status: Optional[str] = None,
-        highest_price: Optional[Decimal] = None,
-        highest_price_updated_at: Optional[Any] = None,
-        triggered_at: Optional[Any] = None,
+        status: str | None = None,
+        highest_price: Decimal | None = None,
+        highest_price_updated_at: Any | None = None,
+        triggered_at: Any | None = None,
     ) -> bool:
         """Update stop loss configuration."""
         try:
@@ -1019,7 +1026,7 @@ class StopLossRepository:
         pnl: Decimal,
         pnl_pct: float,
         notes: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create stop loss trigger record."""
         trigger = StopLossTriggerModel._default_manager.create(
             position_id=position_id,
@@ -1044,12 +1051,11 @@ class StopLossRepository:
 # Take Profit Repository
 # ============================================================
 
+
 class TakeProfitRepository:
     """止盈配置仓储"""
 
-    def get_active_take_profit_configs(
-        self, user_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    def get_active_take_profit_configs(self, user_id: int | None = None) -> list[dict[str, Any]]:
         """
         Get all active take profit configurations.
 
@@ -1064,7 +1070,7 @@ class TakeProfitRepository:
         if user_id:
             queryset = queryset.filter(position__portfolio__user_id=user_id)
 
-        configs = queryset.select_related('position', 'position__portfolio').all()
+        configs = queryset.select_related("position", "position__portfolio").all()
 
         return [
             {
@@ -1086,9 +1092,7 @@ class TakeProfitRepository:
             for config in configs
         ]
 
-    def get_take_profit_config_by_position(
-        self, position_id: int
-    ) -> Optional[Dict[str, Any]]:
+    def get_take_profit_config_by_position(self, position_id: int) -> dict[str, Any] | None:
         """Get take profit config for a position."""
         try:
             config = TakeProfitConfigModel._default_manager.get(position_id=position_id)
@@ -1106,8 +1110,8 @@ class TakeProfitRepository:
         self,
         position_id: int,
         take_profit_pct: float,
-        partial_profit_levels: Optional[List[float]] = None,
-    ) -> Dict[str, Any]:
+        partial_profit_levels: list[float] | None = None,
+    ) -> dict[str, Any]:
         """Create take profit configuration."""
         config = TakeProfitConfigModel._default_manager.create(
             position_id=position_id,
@@ -1125,7 +1129,7 @@ class TakeProfitRepository:
     def update_take_profit_config(
         self,
         config_id: int,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
     ) -> bool:
         """Update take profit configuration."""
         try:
@@ -1142,6 +1146,7 @@ class TakeProfitRepository:
 # Portfolio Snapshot Repository
 # ============================================================
 
+
 class PortfolioSnapshotRepository:
     """投资组合快照仓储"""
 
@@ -1149,7 +1154,7 @@ class PortfolioSnapshotRepository:
         self,
         portfolio_id: int,
         days: int = 90,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get portfolio daily snapshots for volatility calculation.
 
@@ -1158,7 +1163,7 @@ class PortfolioSnapshotRepository:
         """
         snapshots = PortfolioDailySnapshotModel._default_manager.filter(
             portfolio_id=portfolio_id
-        ).order_by('-snapshot_date')[:days]
+        ).order_by("-snapshot_date")[:days]
 
         return [
             {
@@ -1173,12 +1178,11 @@ class PortfolioSnapshotRepository:
 # Transaction Cost Config Repository
 # ============================================================
 
+
 class TransactionCostConfigRepository:
     """交易成本配置仓储"""
 
-    def get_cost_config(
-        self, market: str, asset_class: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_cost_config(self, market: str, asset_class: str) -> dict[str, Any] | None:
         """
         Get transaction cost configuration for market and asset class.
 
@@ -1207,7 +1211,7 @@ class TransactionCostConfigRepository:
         except TransactionCostConfigModel.DoesNotExist:
             return None
 
-    def get_default_cost_config(self, market: str, asset_class: str) -> Dict[str, Any]:
+    def get_default_cost_config(self, market: str, asset_class: str) -> dict[str, Any]:
         """
         Get default cost configuration.
 
@@ -1217,11 +1221,11 @@ class TransactionCostConfigRepository:
         return {
             "market": market,
             "asset_class": asset_class,
-            "commission_rate": Decimal('0.0003'),
-            "slippage_rate": Decimal('0.0002'),
-            "stamp_duty_rate": Decimal('0.001'),
-            "transfer_fee_rate": Decimal('0.00001'),
-            "min_commission": Decimal('5.00'),
+            "commission_rate": Decimal("0.0003"),
+            "slippage_rate": Decimal("0.0002"),
+            "stamp_duty_rate": Decimal("0.001"),
+            "transfer_fee_rate": Decimal("0.00001"),
+            "min_commission": Decimal("5.00"),
             "cost_warning_threshold": 0.005,
         }
 

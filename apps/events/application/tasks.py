@@ -8,10 +8,9 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from django.utils import timezone
-
 from celery import shared_task
 from celery.utils.log import get_task_logger
+from django.utils import timezone
 
 from ..domain.entities import (
     DomainEvent,
@@ -24,7 +23,6 @@ from ..infrastructure.event_store import (
     get_event_store,
     get_replay_handler,
 )
-
 
 logger = get_task_logger(__name__)
 
@@ -43,13 +41,13 @@ logger = get_task_logger(__name__)
 def publish_event_async(
     self,
     event_type: str,
-    payload: Dict[str, Any],
-    metadata: Optional[Dict[str, Any]] = None,
-    event_id: Optional[str] = None,
-    occurred_at: Optional[str] = None,
-    correlation_id: Optional[str] = None,
-    causation_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    payload: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+    event_id: str | None = None,
+    occurred_at: str | None = None,
+    correlation_id: str | None = None,
+    causation_id: str | None = None,
+) -> dict[str, Any]:
     """
     异步发布事件
 
@@ -134,8 +132,8 @@ def publish_event_async(
 )
 def publish_batch_events_async(
     self,
-    events_data: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    events_data: list[dict[str, Any]],
+) -> dict[str, Any]:
     """
     批量异步发布事件
 
@@ -204,12 +202,12 @@ def publish_batch_events_async(
 )
 def replay_events_async(
     self,
-    event_type: Optional[str] = None,
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    event_type: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
     limit: int = 1000,
-    target_handler_class: Optional[str] = None,
-) -> Dict[str, Any]:
+    target_handler_class: str | None = None,
+) -> dict[str, Any]:
     """
     异步重放事件
 
@@ -297,7 +295,7 @@ def cleanup_old_events(
     self,
     older_than_days: int = 30,
     batch_size: int = 1000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     清理旧事件
 
@@ -311,7 +309,9 @@ def cleanup_old_events(
     """
     try:
         from datetime import timedelta
+
         from django.db import transaction
+
         from ..infrastructure.event_store import StoredEventModel
 
         cutoff = timezone.now() - timedelta(days=older_than_days)
@@ -365,7 +365,7 @@ def cleanup_old_snapshots(
     self,
     older_than_days: int = 90,
     keep_latest: int = 10,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     清理旧快照
 
@@ -379,6 +379,7 @@ def cleanup_old_snapshots(
     """
     try:
         from datetime import timedelta
+
         from ..infrastructure.event_store import EventSnapshotModel
 
         cutoff = timezone.now() - timedelta(days=older_than_days)
@@ -391,7 +392,7 @@ def cleanup_old_snapshots(
         deleted_count = 0
 
         # 按聚合根分组
-        from django.db.models import Min, Max
+        from django.db.models import Max, Min
         aggregates = snapshots.values("aggregate_type", "aggregate_id").distinct()
 
         for agg in aggregates:
@@ -442,7 +443,7 @@ def cleanup_old_snapshots(
     time_limit=300,
     soft_time_limit=280,
 )
-def collect_event_metrics(self) -> Dict[str, Any]:
+def collect_event_metrics(self) -> dict[str, Any]:
     """
     收集事件指标
 
@@ -505,7 +506,7 @@ def collect_event_metrics(self) -> Dict[str, Any]:
     time_limit=300,
     soft_time_limit=280,
 )
-def event_bus_health_check(self) -> Dict[str, Any]:
+def event_bus_health_check(self) -> dict[str, Any]:
     """
     事件总线健康检查
 

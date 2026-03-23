@@ -4,17 +4,18 @@ Unit Tests for Beta Gate Domain Entities
 测试 GateConfig 和 GateDecision 实体的行为。
 """
 
-import pytest
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from apps.beta_gate.domain.entities import (
+    AssetCategory,
     GateConfig,
     GateDecision,
+    GateMatchResult,
     GateStatus,
     RiskProfile,
-    GateMatchResult,
-    AssetCategory,
     Strategy,
 )
 from apps.policy.domain.entities import PolicyLevel

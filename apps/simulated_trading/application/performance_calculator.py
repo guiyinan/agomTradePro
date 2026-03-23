@@ -7,20 +7,21 @@ Application层:
 - 支持历史净值曲线
 """
 import logging
-from typing import List, Dict, Optional, Tuple
-from datetime import date, datetime
 from collections import defaultdict
+from dataclasses import replace
+from datetime import date, datetime
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 from pandas import DataFrame
-from dataclasses import replace
 
-from apps.simulated_trading.domain.entities import SimulatedAccount, Position, TradeAction
+from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
+from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 from apps.simulated_trading.infrastructure.repositories import (
+    DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
-    DjangoPositionRepository
 )
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class PerformanceCalculator:
         self,
         account_id: int,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         计算并更新账户绩效
 
@@ -92,7 +93,7 @@ class PerformanceCalculator:
         self,
         account: SimulatedAccount,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """计算绩效指标"""
         metrics = {}
 
@@ -261,7 +262,7 @@ class PerformanceCalculator:
         self,
         account: SimulatedAccount,
         end_date: date = None
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         构建完整的净值曲线（内部方法）
 
@@ -296,7 +297,7 @@ class PerformanceCalculator:
             }]
 
         # 按日期分组交易
-        trades_by_date: Dict[date, List] = defaultdict(list)
+        trades_by_date: dict[date, list] = defaultdict(list)
         for trade in trades:
             trades_by_date[trade.execution_date].append(trade)
 
@@ -358,7 +359,7 @@ class PerformanceCalculator:
         account_id: int,
         start_date: date,
         end_date: date
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         获取净值曲线数据
 

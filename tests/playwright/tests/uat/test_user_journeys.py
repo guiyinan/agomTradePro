@@ -4,13 +4,14 @@ Tests the critical paths: Research -> Selection -> Decision -> Execution -> Revi
 
 Based on: docs/frontend/ux-user-journey-checklist-2026-02-18.md
 """
-import pytest
-from playwright.sync_api import Page, expect
 from typing import Dict, List
 
+import pytest
+from playwright.sync_api import Page, expect
+
 from tests.playwright.config.test_config import config
-from tests.playwright.pages import LoginPage, DashboardPage
-from tests.playwright.utils.ux_auditor import UXAuditor, Severity
+from tests.playwright.pages import DashboardPage, LoginPage
+from tests.playwright.utils.ux_auditor import Severity, UXAuditor
 
 
 class TestJourneyA:
@@ -494,7 +495,7 @@ class TestUATSummaryReport:
 
 
 # Test data collection helpers
-def collect_journey_results() -> Dict[str, Dict[str, str]]:
+def collect_journey_results() -> dict[str, dict[str, str]]:
     """Collect results for all journey tests.
 
     Returns:

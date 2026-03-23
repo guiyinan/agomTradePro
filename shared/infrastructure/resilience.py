@@ -8,12 +8,13 @@
 4. 缓存装饰器
 """
 
-import time
 import functools
 import logging
-from typing import Callable, Optional, Any, Type, Tuple
+import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from functools import wraps
+from typing import Any, Optional, Tuple, Type
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,8 @@ def retry_on_error(
     initial_delay: float = 1.0,
     backoff_factor: float = 2.0,
     max_delay: float = 60.0,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
-    on_retry: Optional[Callable] = None
+    exceptions: tuple[type[Exception], ...] = (Exception,),
+    on_retry: Callable | None = None
 ):
     """
     重试装饰器 - 指数退避重试
@@ -139,7 +140,7 @@ def timeout(seconds: float = 30.0):
 def circuit_breaker(
     failure_threshold: int = 5,
     reset_timeout: float = 60.0,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,)
+    exceptions: tuple[type[Exception], ...] = (Exception,)
 ):
     """
     熔断器装饰器 - 连续失败时快速失败
@@ -207,7 +208,7 @@ def circuit_breaker(
 
 def fallback_to(
     fallback_func: Callable,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
+    exceptions: tuple[type[Exception], ...] = (Exception,),
     log_fallback: bool = True
 ):
     """
@@ -251,7 +252,7 @@ class CacheManager:
         self._cache = {}
         self._timestamps = {}
 
-    def get(self, key: str, max_age: Optional[float] = None) -> Optional[Any]:
+    def get(self, key: str, max_age: float | None = None) -> Any | None:
         """获取缓存
 
         Args:
@@ -274,7 +275,7 @@ class CacheManager:
 
         return self._cache[key]
 
-    def set(self, key: str, value: Any, ttl: Optional[float] = None):
+    def set(self, key: str, value: Any, ttl: float | None = None):
         """设置缓存
 
         Args:
@@ -324,7 +325,7 @@ _cache_manager = CacheManager()
 
 def cached(
     ttl: float = 3600,
-    key_func: Optional[Callable] = None,
+    key_func: Callable | None = None,
     cache_null: bool = False
 ):
     """

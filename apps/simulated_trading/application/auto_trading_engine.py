@@ -8,16 +8,16 @@ Application层核心组件：
 - 集成策略系统（Phase 5）
 """
 import logging
-from typing import List, Optional, Protocol
 from datetime import date, datetime
+from typing import List, Optional, Protocol
 
-from apps.simulated_trading.domain.entities import SimulatedAccount, Position
-from apps.simulated_trading.domain.rules import PositionSizingRule
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
-    GetAccountPerformanceUseCase
+    GetAccountPerformanceUseCase,
 )
+from apps.simulated_trading.domain.entities import Position, SimulatedAccount
+from apps.simulated_trading.domain.rules import PositionSizingRule
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +25,25 @@ logger = logging.getLogger(__name__)
 # Protocol接口定义
 class AssetPoolServiceProtocol(Protocol):
     """资产池服务接口"""
-    def get_investable_assets(self, asset_type: str) -> List[dict]:
+    def get_investable_assets(self, asset_type: str) -> list[dict]:
         """获取可投池资产"""
         ...
 
 
 class SignalServiceProtocol(Protocol):
     """信号服务接口"""
-    def get_valid_signals(self) -> List[dict]:
+    def get_valid_signals(self) -> list[dict]:
         """获取有效信号"""
         ...
 
-    def get_signal_by_id(self, signal_id: int) -> Optional[dict]:
+    def get_signal_by_id(self, signal_id: int) -> dict | None:
         """按ID获取信号快照"""
         ...
 
 
 class MarketDataProviderProtocol(Protocol):
     """市场数据提供者接口"""
-    def get_price(self, asset_code: str, trade_date: date) -> Optional[float]:
+    def get_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取指定日期的价格"""
         ...
 
@@ -80,10 +80,10 @@ class AutoTradingEngine:
         buy_use_case: ExecuteBuyOrderUseCase,
         sell_use_case: ExecuteSellOrderUseCase,
         performance_use_case: GetAccountPerformanceUseCase,
-        asset_pool_service: Optional[AssetPoolServiceProtocol] = None,
-        signal_service: Optional[SignalServiceProtocol] = None,
-        market_data_provider: Optional[MarketDataProviderProtocol] = None,
-        regime_service: Optional[RegimeServiceProtocol] = None,
+        asset_pool_service: AssetPoolServiceProtocol | None = None,
+        signal_service: SignalServiceProtocol | None = None,
+        market_data_provider: MarketDataProviderProtocol | None = None,
+        regime_service: RegimeServiceProtocol | None = None,
         strategy_executor: Optional['StrategyExecutor'] = None
     ):
         self.account_repo = account_repo
@@ -108,9 +108,9 @@ class AutoTradingEngine:
         Returns:
             {account_id: {buy_count: int, sell_count: int}}
         """
-        logger.info(f"="*60)
+        logger.info("="*60)
         logger.info(f"开始执行模拟盘自动交易: {trade_date}")
-        logger.info(f"="*60)
+        logger.info("="*60)
 
         # 1. 获取所有活跃的模拟账户
         accounts = self.account_repo.get_active_accounts()
@@ -128,9 +128,9 @@ class AutoTradingEngine:
                 "sell_count": sell_count
             }
 
-        logger.info(f"="*60)
+        logger.info("="*60)
         logger.info(f"模拟盘自动交易完成: {results}")
-        logger.info(f"="*60)
+        logger.info("="*60)
 
         return results
 
@@ -156,10 +156,10 @@ class AutoTradingEngine:
             logger.info(f"  账户绑定策略ID: {active_strategy_id}, 使用策略执行引擎")
             return self._execute_strategy_based_trading(account, active_strategy_id, trade_date)
         else:
-            logger.info(f"  账户未绑定策略或策略引擎未配置，使用原有逻辑")
+            logger.info("  账户未绑定策略或策略引擎未配置，使用原有逻辑")
             return self._execute_legacy_trading(account, trade_date)
 
-    def _get_account_strategy_id(self, account_id: int) -> Optional[int]:
+    def _get_account_strategy_id(self, account_id: int) -> int | None:
         """
         获取账户绑定的策略ID
 
@@ -419,7 +419,7 @@ class AutoTradingEngine:
         else:
             return "信号变化卖出"
 
-    def _get_buy_candidates(self, account: SimulatedAccount, trade_date: date) -> List[dict]:
+    def _get_buy_candidates(self, account: SimulatedAccount, trade_date: date) -> list[dict]:
         """
         获取买入候选资产
 
@@ -522,7 +522,7 @@ class AutoTradingEngine:
         logger.info(f"    ✓ 买入: {asset_name} x{quantity} @ {price:.2f}")
         return True
 
-    def _get_current_price(self, asset_code: str, trade_date: date) -> Optional[float]:
+    def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取当前价格"""
         if self.market_data:
             return self.market_data.get_price(asset_code, trade_date)
@@ -542,7 +542,9 @@ class AutoTradingEngine:
             trade_date: 交易日期
         """
         try:
-            from apps.simulated_trading.application.daily_net_value_service import DailyNetValueService
+            from apps.simulated_trading.application.daily_net_value_service import (
+                DailyNetValueService,
+            )
 
             # 使用净值服务记录和更新绩效
             net_value_service = DailyNetValueService(
@@ -571,10 +573,10 @@ class AutoTradingEngine:
 class MockMarketDataProvider:
     """模拟市场数据提供者(用于测试)"""
 
-    def __init__(self, prices: Optional[dict[str, float]] = None):
+    def __init__(self, prices: dict[str, float] | None = None):
         self._prices = prices or {}
 
-    def get_price(self, asset_code: str, trade_date: date) -> Optional[float]:
+    def get_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取指定日期的价格(模拟)"""
         return self._prices.get(asset_code)
 

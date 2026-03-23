@@ -6,14 +6,15 @@
 ⚠️ 安全第一：执行前必须做全量备份
 """
 
-from django.core.management.base import BaseCommand
-from django.db import transaction
 from datetime import datetime
 from decimal import Decimal
 
-from apps.macro.infrastructure.models import MacroIndicatorModel
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
 from apps.macro.domain.entities import normalize_currency_unit
 from apps.macro.infrastructure.exchange_rate_config import ExchangeRateService
+from apps.macro.infrastructure.models import MacroIndicatorModel
 
 
 class Command(BaseCommand):

@@ -2,8 +2,9 @@
 Pytest configuration and shared fixtures.
 """
 
-import pytest
 from datetime import date
+
+import pytest
 from django.contrib.auth import get_user_model
 
 

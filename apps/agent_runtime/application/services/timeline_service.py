@@ -8,17 +8,16 @@ FROZEN: This service implements WP-M1-03 from the implementation plan.
 """
 
 import logging
-from typing import Optional, Dict, Any, Union
+from typing import Any, Dict, Optional, Union
 
 from django.utils import timezone
 
 from apps.agent_runtime.domain.entities import (
-    AgentTask,
     AgentProposal,
-    TimelineEventType,
+    AgentTask,
     EventSource,
+    TimelineEventType,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +37,14 @@ class TimelineEventWriterService:
 
     def write_event(
         self,
-        event_type: Union[TimelineEventType, str],
+        event_type: TimelineEventType | str,
         task_id: int,
-        event_payload: Dict[str, Any],
-        event_source: Union[EventSource, str],
+        event_payload: dict[str, Any],
+        event_source: EventSource | str,
         request_id: str,
-        proposal_id: Optional[int] = None,
-        step_index: Optional[int] = None,
-    ) -> Optional[int]:
+        proposal_id: int | None = None,
+        step_index: int | None = None,
+    ) -> int | None:
         """
         Write a generic timeline event.
 
@@ -97,10 +96,10 @@ class TimelineEventWriterService:
 
     def write_task_created_event(
         self,
-        task: Union[AgentTask, int],
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        task: AgentTask | int,
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         Write a task_created event.
 
@@ -137,13 +136,13 @@ class TimelineEventWriterService:
 
     def write_state_changed_event(
         self,
-        task: Union[AgentTask, int],
-        old_status: Union[str, object],
-        new_status: Union[str, object],
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-        reason: Optional[str] = None,
-    ) -> Optional[int]:
+        task: AgentTask | int,
+        old_status: str | object,
+        new_status: str | object,
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+        reason: str | None = None,
+    ) -> int | None:
         """
         Write a state_changed event.
 
@@ -189,12 +188,12 @@ class TimelineEventWriterService:
 
     def write_step_started_event(
         self,
-        task: Union[AgentTask, int],
+        task: AgentTask | int,
         step_key: str,
-        step_index: Optional[int] = None,
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        step_index: int | None = None,
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         Write a step_started event.
 
@@ -233,13 +232,13 @@ class TimelineEventWriterService:
 
     def write_step_completed_event(
         self,
-        task: Union[AgentTask, int],
+        task: AgentTask | int,
         step_key: str,
-        step_index: Optional[int] = None,
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-        output: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        step_index: int | None = None,
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+        output: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         Write a step_completed event.
 
@@ -281,13 +280,13 @@ class TimelineEventWriterService:
 
     def write_step_failed_event(
         self,
-        task: Union[AgentTask, int],
+        task: AgentTask | int,
         step_key: str,
         error_message: str,
-        step_index: Optional[int] = None,
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        step_index: int | None = None,
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         Write a step_failed event.
 
@@ -328,11 +327,11 @@ class TimelineEventWriterService:
 
     def write_task_resumed_event(
         self,
-        task: Union[AgentTask, int],
+        task: AgentTask | int,
         reason: str,
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         Write a task_resumed event.
 
@@ -369,11 +368,11 @@ class TimelineEventWriterService:
 
     def write_task_cancelled_event(
         self,
-        task: Union[AgentTask, int],
+        task: AgentTask | int,
         reason: str,
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         Write a task_cancelled event.
 
@@ -410,12 +409,12 @@ class TimelineEventWriterService:
 
     def write_task_escalated_event(
         self,
-        task: Union[AgentTask, int],
+        task: AgentTask | int,
         reason: str,
-        event_source: Union[EventSource, str] = EventSource.SYSTEM,
-        actor: Optional[Dict[str, Any]] = None,
-        escalation_target: Optional[str] = None,
-    ) -> Optional[int]:
+        event_source: EventSource | str = EventSource.SYSTEM,
+        actor: dict[str, Any] | None = None,
+        escalation_target: str | None = None,
+    ) -> int | None:
         """
         Write a task_escalated event.
 

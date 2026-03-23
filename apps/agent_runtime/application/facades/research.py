@@ -20,7 +20,7 @@ class ResearchTaskFacade(BaseContextFacade):
 
     domain = "research"
 
-    def fetch_regime_summary(self) -> Dict[str, Any]:
+    def fetch_regime_summary(self) -> dict[str, Any]:
         """Enhanced regime summary with trend context for research."""
         base = super().fetch_regime_summary()
         if base.get("status") != "ok":
@@ -34,7 +34,7 @@ class ResearchTaskFacade(BaseContextFacade):
             pass
         return base
 
-    def fetch_active_signals_summary(self) -> Dict[str, Any]:
+    def fetch_active_signals_summary(self) -> dict[str, Any]:
         """Enhanced signals with invalidation status for research review."""
         base = super().fetch_active_signals_summary()
         if base.get("status") != "ok":

@@ -3,23 +3,24 @@ Share Application Use Cases
 
 用例编排层，协调 Domain 层和 Infrastructure 层完成业务用例。
 """
-from typing import Optional, List
 from datetime import datetime
-from django.utils import timezone
+from typing import List, Optional
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from apps.share.domain.entities import (
-    ShareLinkEntity,
+    AccessResultStatus,
     ShareLevel,
+    ShareLinkEntity,
     ShareStatus,
     ShareTheme,
-    AccessResultStatus,
 )
 from apps.share.infrastructure.models import (
+    ShareAccessLogModel,
     ShareLinkModel,
     ShareSnapshotModel,
-    ShareAccessLogModel,
 )
 
 User = get_user_model()
@@ -37,12 +38,12 @@ class ShareLinkUseCases:
         owner_id: int,
         account_id: int,
         title: str,
-        subtitle: Optional[str] = None,
+        subtitle: str | None = None,
         theme: str = "bloomberg",
         share_level: str = "snapshot",
-        password: Optional[str] = None,
-        expires_at: Optional[datetime] = None,
-        max_access_count: Optional[int] = None,
+        password: str | None = None,
+        expires_at: datetime | None = None,
+        max_access_count: int | None = None,
         allow_indexing: bool = False,
         show_amounts: bool = False,
         show_positions: bool = True,
@@ -50,7 +51,7 @@ class ShareLinkUseCases:
         show_decision_summary: bool = True,
         show_decision_evidence: bool = False,
         show_invalidation_logic: bool = False,
-        short_code: Optional[str] = None,
+        short_code: str | None = None,
     ) -> ShareLinkEntity:
         """
         创建分享链接
@@ -141,7 +142,7 @@ class ShareLinkUseCases:
 
         return self._model_to_entity(model)
 
-    def get_share_link(self, share_link_id: int) -> Optional[ShareLinkEntity]:
+    def get_share_link(self, share_link_id: int) -> ShareLinkEntity | None:
         """
         获取分享链接
 
@@ -157,7 +158,7 @@ class ShareLinkUseCases:
         except ShareLinkModel.DoesNotExist:
             return None
 
-    def get_share_link_by_code(self, short_code: str) -> Optional[ShareLinkEntity]:
+    def get_share_link_by_code(self, short_code: str) -> ShareLinkEntity | None:
         """
         通过短码获取分享链接
 
@@ -175,11 +176,11 @@ class ShareLinkUseCases:
 
     def list_share_links(
         self,
-        owner_id: Optional[int] = None,
-        account_id: Optional[int] = None,
-        status: Optional[str] = None,
-        share_level: Optional[str] = None,
-    ) -> List[ShareLinkEntity]:
+        owner_id: int | None = None,
+        account_id: int | None = None,
+        status: str | None = None,
+        share_level: str | None = None,
+    ) -> list[ShareLinkEntity]:
         """
         列出分享链接
 
@@ -209,21 +210,21 @@ class ShareLinkUseCases:
         self,
         share_link_id: int,
         owner_id: int,
-        title: Optional[str] = None,
-        subtitle: Optional[str] = None,
-        theme: Optional[str] = None,
-        share_level: Optional[str] = None,
-        password: Optional[str] = None,
-        expires_at: Optional[datetime] = None,
-        max_access_count: Optional[int] = None,
-        allow_indexing: Optional[bool] = None,
-        show_amounts: Optional[bool] = None,
-        show_positions: Optional[bool] = None,
-        show_transactions: Optional[bool] = None,
-        show_decision_summary: Optional[bool] = None,
-        show_decision_evidence: Optional[bool] = None,
-        show_invalidation_logic: Optional[bool] = None,
-    ) -> Optional[ShareLinkEntity]:
+        title: str | None = None,
+        subtitle: str | None = None,
+        theme: str | None = None,
+        share_level: str | None = None,
+        password: str | None = None,
+        expires_at: datetime | None = None,
+        max_access_count: int | None = None,
+        allow_indexing: bool | None = None,
+        show_amounts: bool | None = None,
+        show_positions: bool | None = None,
+        show_transactions: bool | None = None,
+        show_decision_summary: bool | None = None,
+        show_decision_evidence: bool | None = None,
+        show_invalidation_logic: bool | None = None,
+    ) -> ShareLinkEntity | None:
         """
         更新分享链接
 
@@ -407,9 +408,9 @@ class ShareSnapshotUseCases:
         positions_payload: dict,
         transactions_payload: dict,
         decision_payload: dict,
-        source_range_start: Optional[datetime] = None,
-        source_range_end: Optional[datetime] = None,
-    ) -> Optional[int]:
+        source_range_start: datetime | None = None,
+        source_range_end: datetime | None = None,
+    ) -> int | None:
         """
         创建快照
 
@@ -460,7 +461,7 @@ class ShareSnapshotUseCases:
         except ShareLinkModel.DoesNotExist:
             return None
 
-    def get_latest_snapshot(self, share_link_id: int) -> Optional[dict]:
+    def get_latest_snapshot(self, share_link_id: int) -> dict | None:
         """
         获取最新快照
 
@@ -506,8 +507,8 @@ class ShareAccessUseCases:
         self,
         share_link_id: int,
         ip_address: str,
-        user_agent: Optional[str] = None,
-        referer: Optional[str] = None,
+        user_agent: str | None = None,
+        referer: str | None = None,
         result_status: str = "success",
         is_verified: bool = False,
     ) -> int:
@@ -545,7 +546,7 @@ class ShareAccessUseCases:
         self,
         share_link_id: int,
         limit: int = 100,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取访问日志
 

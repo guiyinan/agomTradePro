@@ -63,7 +63,7 @@ class CompositeAssetPriceAdapter:
         asset_class: str,
         as_of_date: date,
         use_cache: bool = True
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         获取指定资产在指定日期的价格
 

@@ -6,8 +6,9 @@
 - 禁止业务逻辑
 """
 
-from rest_framework import serializers
 from decimal import Decimal
+
+from rest_framework import serializers
 
 
 class ScreenStocksRequestSerializer(serializers.Serializer):

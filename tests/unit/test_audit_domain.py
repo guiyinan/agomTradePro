@@ -2,16 +2,18 @@
 Unit tests for Operation Audit Log Domain layer.
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+
 from apps.audit.domain.entities import (
+    OperationAction,
     OperationLog,
     OperationSource,
     OperationType,
-    OperationAction,
-    mask_sensitive_params,
     infer_action_from_tool,
     infer_module_from_tool,
+    mask_sensitive_params,
 )
 
 

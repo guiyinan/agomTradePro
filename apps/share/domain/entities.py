@@ -9,9 +9,9 @@ Share Domain Entities
 - 所有分享相关业务逻辑在此层定义
 """
 from dataclasses import dataclass
-from datetime import datetime, date
+from datetime import date, datetime
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class ShareLevel(Enum):
@@ -75,21 +75,21 @@ class ShareLinkEntity:
 
     表示一个可公开访问的账户分享链接。
     """
-    id: Optional[int]
+    id: int | None
     owner_id: int
     account_id: int
     short_code: str
     title: str
-    subtitle: Optional[str]
+    subtitle: str | None
     theme: ShareTheme
     share_level: ShareLevel
     status: ShareStatus
-    password_hash: Optional[str]
-    expires_at: Optional[datetime]
-    max_access_count: Optional[int]
+    password_hash: str | None
+    expires_at: datetime | None
+    max_access_count: int | None
     access_count: int
-    last_snapshot_at: Optional[datetime]
-    last_accessed_at: Optional[datetime]
+    last_snapshot_at: datetime | None
+    last_accessed_at: datetime | None
     allow_indexing: bool
     show_amounts: bool
     show_positions: bool
@@ -97,8 +97,8 @@ class ShareLinkEntity:
     show_decision_summary: bool
     show_decision_evidence: bool
     show_invalidation_logic: bool
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: datetime | None
+    updated_at: datetime | None
 
     def is_accessible(self, now: datetime) -> tuple[bool, AccessResultStatus]:
         """
@@ -126,7 +126,7 @@ class ShareLinkEntity:
         """是否需要密码验证"""
         return self.password_hash is not None and self.password_hash != ""
 
-    def get_visibility_config(self) -> Dict[str, bool]:
+    def get_visibility_config(self) -> dict[str, bool]:
         """获取可见性配置"""
         return {
             "amounts": self.show_amounts,
@@ -145,17 +145,17 @@ class ShareSnapshotEntity:
 
     存储分享链接在某个时间点的完整状态快照。
     """
-    id: Optional[int]
+    id: int | None
     share_link_id: int
     snapshot_version: int
-    summary_payload: Dict[str, Any]
-    performance_payload: Dict[str, Any]
-    positions_payload: Dict[str, Any]
-    transactions_payload: Dict[str, Any]
-    decision_payload: Dict[str, Any]
+    summary_payload: dict[str, Any]
+    performance_payload: dict[str, Any]
+    positions_payload: dict[str, Any]
+    transactions_payload: dict[str, Any]
+    decision_payload: dict[str, Any]
     generated_at: datetime
-    source_range_start: Optional[date]
-    source_range_end: Optional[date]
+    source_range_start: date | None
+    source_range_end: date | None
 
     def is_empty(self) -> bool:
         """检查快照是否为空"""
@@ -175,12 +175,12 @@ class ShareAccessLogEntity:
 
     记录每次访问分享链接的行为。
     """
-    id: Optional[int]
+    id: int | None
     share_link_id: int
     accessed_at: datetime
     ip_hash: str
-    user_agent: Optional[str]
-    referer: Optional[str]
+    user_agent: str | None
+    referer: str | None
     is_verified: bool
     result_status: AccessResultStatus
 
@@ -197,12 +197,12 @@ class ShareConfig:
     定义创建分享时的配置选项。
     """
     title: str
-    subtitle: Optional[str] = None
+    subtitle: str | None = None
     theme: ShareTheme = ShareTheme.BLOOMBERG
     share_level: ShareLevel = ShareLevel.SNAPSHOT
-    password: Optional[str] = None
-    expires_at: Optional[datetime] = None
-    max_access_count: Optional[int] = None
+    password: str | None = None
+    expires_at: datetime | None = None
+    max_access_count: int | None = None
     allow_indexing: bool = False
     show_amounts: bool = False
     show_positions: bool = True
@@ -211,7 +211,7 @@ class ShareConfig:
     show_decision_evidence: bool = False
     show_invalidation_logic: bool = False
 
-    def get_visibility_flags(self) -> Dict[str, bool]:
+    def get_visibility_flags(self) -> dict[str, bool]:
         """获取可见性标志"""
         return {
             "show_amounts": self.show_amounts,

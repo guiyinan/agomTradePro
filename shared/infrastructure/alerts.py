@@ -4,16 +4,17 @@ Alert Service for AgomTradePro.
 支持多种告警渠道：邮件、Slack、钉钉、企业微信等。
 """
 
+import json
+import logging
 import os
 import smtplib
-import json
-import requests
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
-import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,8 @@ class AlertMessage:
     title: str
     content: str
     level: str = "INFO"  # INFO, WARNING, ERROR, CRITICAL
-    timestamp: Optional[datetime] = None
-    metadata: Optional[Dict[str, Any]] = None
+    timestamp: datetime | None = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -52,7 +53,7 @@ class EmailAlertChannel(AlertChannel):
         username: str,
         password: str,
         from_addr: str,
-        to_addrs: List[str],
+        to_addrs: list[str],
         use_tls: bool = True
     ):
         self.smtp_host = smtp_host
@@ -162,7 +163,7 @@ class EmailAlertChannel(AlertChannel):
 class SlackAlertChannel(AlertChannel):
     """Slack 告警渠道"""
 
-    def __init__(self, webhook_url: str, channel: Optional[str] = None, username: str = "AgomTradePro Bot"):
+    def __init__(self, webhook_url: str, channel: str | None = None, username: str = "AgomTradePro Bot"):
         self.webhook_url = webhook_url
         self.channel = channel
         self.username = username
@@ -232,7 +233,7 @@ class SlackAlertChannel(AlertChannel):
 class DingTalkAlertChannel(AlertChannel):
     """钉钉告警渠道"""
 
-    def __init__(self, webhook_url: str, secret: Optional[str] = None):
+    def __init__(self, webhook_url: str, secret: str | None = None):
         self.webhook_url = webhook_url
         self.secret = secret
 
@@ -327,7 +328,7 @@ class AlertService:
     支持多渠道发送告警消息。
     """
 
-    def __init__(self, channels: Optional[List[AlertChannel]] = None):
+    def __init__(self, channels: list[AlertChannel] | None = None):
         self.channels = channels or []
         self.logger = logging.getLogger(__name__)
 
@@ -335,7 +336,7 @@ class AlertService:
         """添加告警渠道"""
         self.channels.append(channel)
 
-    def send(self, message: AlertMessage) -> Dict[str, bool]:
+    def send(self, message: AlertMessage) -> dict[str, bool]:
         """发送告警到所有渠道"""
         results = {}
         for i, channel in enumerate(self.channels):
@@ -353,29 +354,29 @@ class AlertService:
 
         return results
 
-    def send_info(self, title: str, content: str, **kwargs) -> Dict[str, bool]:
+    def send_info(self, title: str, content: str, **kwargs) -> dict[str, bool]:
         """发送 INFO 级别告警"""
         message = AlertMessage(title=title, content=content, level="INFO", **kwargs)
         return self.send(message)
 
-    def send_warning(self, title: str, content: str, **kwargs) -> Dict[str, bool]:
+    def send_warning(self, title: str, content: str, **kwargs) -> dict[str, bool]:
         """发送 WARNING 级别告警"""
         message = AlertMessage(title=title, content=content, level="WARNING", **kwargs)
         return self.send(message)
 
-    def send_error(self, title: str, content: str, **kwargs) -> Dict[str, bool]:
+    def send_error(self, title: str, content: str, **kwargs) -> dict[str, bool]:
         """发送 ERROR 级别告警"""
         message = AlertMessage(title=title, content=content, level="ERROR", **kwargs)
         return self.send(message)
 
-    def send_critical(self, title: str, content: str, **kwargs) -> Dict[str, bool]:
+    def send_critical(self, title: str, content: str, **kwargs) -> dict[str, bool]:
         """发送 CRITICAL 级别告警"""
         message = AlertMessage(title=title, content=content, level="CRITICAL", **kwargs)
         return self.send(message)
 
 
 # 全局告警服务实例
-_alert_service: Optional[AlertService] = None
+_alert_service: AlertService | None = None
 
 
 def get_alert_service() -> AlertService:
@@ -420,7 +421,7 @@ def get_alert_service() -> AlertService:
 
 
 # 便捷函数
-def send_alert(title: str, content: str, level: str = "INFO", **kwargs) -> Dict[str, bool]:
+def send_alert(title: str, content: str, level: str = "INFO", **kwargs) -> dict[str, bool]:
     """发送告警（便捷函数）"""
     service = get_alert_service()
     message = AlertMessage(title=title, content=content, level=level, **kwargs)

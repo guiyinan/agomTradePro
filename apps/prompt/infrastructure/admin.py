@@ -5,10 +5,10 @@ Admin configuration for Prompt management.
 from django.contrib import admin
 
 from .models import (
-    PromptTemplateORM,
     ChainConfigORM,
-    PromptExecutionLogORM,
     ChatSessionORM,
+    PromptExecutionLogORM,
+    PromptTemplateORM,
 )
 
 
@@ -19,7 +19,7 @@ class PromptTemplateAdmin(admin.ModelAdmin):
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at', 'last_used_at']
     ordering = ['category', 'name']
-    
+
     fieldsets = (
         ('基本信息', {
             'fields': ('name', 'category', 'version', 'description', 'is_active')
@@ -52,10 +52,10 @@ class PromptExecutionLogAdmin(admin.ModelAdmin):
     search_fields = ['execution_id', 'template__name']
     readonly_fields = [f.name for f in PromptExecutionLogORM._meta.fields]
     date_hierarchy = 'created_at'
-    
+
     def has_add_permission(self, request):
         return False
-    
+
     def has_change_permission(self, request, obj=None):
         return False
 

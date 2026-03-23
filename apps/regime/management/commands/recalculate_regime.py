@@ -16,14 +16,15 @@
 - 主运行时链路（API/页面）使用 resolve_current_regime(V2)，已解耦
 """
 
-from django.core.management.base import BaseCommand
-from django.db import transaction
-from django.utils import timezone
 from datetime import date, timedelta
 from typing import Optional
 
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.utils import timezone
+
 # Legacy offline recalculation path; main runtime chain uses resolve_current_regime(V2).
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository

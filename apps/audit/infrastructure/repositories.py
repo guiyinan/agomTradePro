@@ -2,21 +2,22 @@
 Repository for Audit Domain.
 """
 
-from typing import List, Optional
-from datetime import date
-from django.db.models import QuerySet
 import logging
+from datetime import date
+from typing import List, Optional
+
+from django.db.models import QuerySet
+
+from apps.backtest.infrastructure.models import BacktestResultModel
 
 from .models import (
     AttributionReport,
-    LossAnalysis,
     ExperienceSummary,
     IndicatorPerformanceModel,
     IndicatorThresholdConfigModel,
+    LossAnalysis,
     ValidationSummaryModel,
 )
-from apps.backtest.infrastructure.models import BacktestResultModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class DjangoAuditRepository:
         total_pnl: float,
         regime_accuracy: float,
         regime_predicted: str,
-        regime_actual: Optional[str] = None,
+        regime_actual: str | None = None,
         attribution_method: str = 'heuristic',
     ) -> int:
         """
@@ -98,7 +99,7 @@ class DjangoAuditRepository:
         )
         return summary.id
 
-    def get_attribution_report(self, report_id: int) -> Optional[dict]:
+    def get_attribution_report(self, report_id: int) -> dict | None:
         """获取归因报告"""
         try:
             report = AttributionReport._default_manager.get(id=report_id)
@@ -106,7 +107,7 @@ class DjangoAuditRepository:
         except AttributionReport.DoesNotExist:
             return None
 
-    def get_reports_by_backtest(self, backtest_id: int) -> List[dict]:
+    def get_reports_by_backtest(self, backtest_id: int) -> list[dict]:
         """获取指定回测的所有归因报告"""
         reports = AttributionReport._default_manager.filter(
             backtest_id=backtest_id
@@ -118,7 +119,7 @@ class DjangoAuditRepository:
         self,
         start_date: date,
         end_date: date
-    ) -> List[dict]:
+    ) -> list[dict]:
         """获取日期范围内的归因报告"""
         reports = AttributionReport._default_manager.filter(
             period_start__gte=start_date,
@@ -127,7 +128,7 @@ class DjangoAuditRepository:
 
         return [self._serialize_report(r) for r in reports]
 
-    def get_loss_analyses(self, report_id: int) -> List[dict]:
+    def get_loss_analyses(self, report_id: int) -> list[dict]:
         """获取报告的损失分析"""
         analyses = LossAnalysis._default_manager.filter(
             report_id=report_id
@@ -146,7 +147,7 @@ class DjangoAuditRepository:
             for a in analyses
         ]
 
-    def get_experience_summaries(self, report_id: int) -> List[dict]:
+    def get_experience_summaries(self, report_id: int) -> list[dict]:
         """获取报告的经验总结"""
         summaries = ExperienceSummary._default_manager.filter(
             report_id=report_id
@@ -190,7 +191,7 @@ class DjangoAuditRepository:
         indicator_code: str,
         start_date: date,
         end_date: date,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """获取指标在指定时间段内的表现记录"""
         performances = IndicatorPerformanceModel._default_manager.filter(
             indicator_code=indicator_code,
@@ -214,7 +215,7 @@ class DjangoAuditRepository:
             for p in performances
         ]
 
-    def get_latest_indicator_performance(self, indicator_code: str) -> Optional[dict]:
+    def get_latest_indicator_performance(self, indicator_code: str) -> dict | None:
         """获取指标最新的表现记录"""
         try:
             performance = IndicatorPerformanceModel._default_manager.filter(
@@ -236,7 +237,7 @@ class DjangoAuditRepository:
         except IndicatorPerformanceModel.DoesNotExist:
             return None
 
-    def get_active_threshold_configs(self) -> List[dict]:
+    def get_active_threshold_configs(self) -> list[dict]:
         """获取所有激活的阈值配置"""
         configs = IndicatorThresholdConfigModel._default_manager.filter(
             is_active=True
@@ -263,7 +264,7 @@ class DjangoAuditRepository:
             for c in configs
         ]
 
-    def get_validation_summary(self, validation_run_id: str) -> Optional[dict]:
+    def get_validation_summary(self, validation_run_id: str) -> dict | None:
         """获取验证摘要"""
         try:
             summary = ValidationSummaryModel._default_manager.get(
@@ -289,7 +290,7 @@ class DjangoAuditRepository:
         except ValidationSummaryModel.DoesNotExist:
             return None
 
-    def get_recent_validations(self, limit: int = 10) -> List[dict]:
+    def get_recent_validations(self, limit: int = 10) -> list[dict]:
         """获取最近的验证记录"""
         summaries = ValidationSummaryModel._default_manager.all().order_by('-run_date')[:limit]
 
@@ -317,7 +318,7 @@ class DjangoAuditRepository:
     def get_threshold_config_by_indicator(
         self,
         indicator_code: str
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         获取指标的阈值配置
 
@@ -357,14 +358,14 @@ class DjangoAuditRepository:
         indicator_code: str,
         evaluation_period_start: date,
         evaluation_period_end: date,
-        f1_score: Optional[float] = None,
-        precision_score: Optional[float] = None,
-        recall_score: Optional[float] = None,
+        f1_score: float | None = None,
+        precision_score: float | None = None,
+        recall_score: float | None = None,
         stability_score: float = 0.0,
         recommended_action: str = 'keep',
         recommended_weight: float = 1.0,
         confidence_level: float = 0.5,
-        analysis_details: Optional[dict] = None,
+        analysis_details: dict | None = None,
     ) -> int:
         """
         保存指标性能评估记录
@@ -407,8 +408,8 @@ class DjangoAuditRepository:
         approved_indicators: int = 0,
         rejected_indicators: int = 0,
         pending_indicators: int = 0,
-        avg_f1_score: Optional[float] = None,
-        avg_stability_score: Optional[float] = None,
+        avg_f1_score: float | None = None,
+        avg_stability_score: float | None = None,
         overall_recommendation: str = '',
         status: str = 'pending',
         is_shadow_mode: bool = True,
@@ -438,7 +439,7 @@ class DjangoAuditRepository:
         )
         return validation_run_id
 
-    def get_validation_summary_by_id(self, summary_id: int) -> Optional[dict]:
+    def get_validation_summary_by_id(self, summary_id: int) -> dict | None:
         """根据 ID 获取验证摘要"""
         try:
             summary = ValidationSummaryModel._default_manager.get(id=summary_id)
@@ -462,7 +463,7 @@ class DjangoAuditRepository:
         except ValidationSummaryModel.DoesNotExist:
             return None
 
-    def get_latest_validation_summary_record(self) -> Optional[dict]:
+    def get_latest_validation_summary_record(self) -> dict | None:
         """获取最新的验证摘要记录"""
         try:
             summary = ValidationSummaryModel._default_manager.all().latest('run_date')
@@ -478,10 +479,10 @@ class DjangoAuditRepository:
 
     def get_indicator_performance_reports(
         self,
-        validation_run_id: Optional[str] = None,
-        indicator_code: Optional[str] = None,
+        validation_run_id: str | None = None,
+        indicator_code: str | None = None,
         limit: int = 100,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取指标性能报告列表
 
@@ -522,7 +523,7 @@ class DjangoAuditRepository:
         indicator_code: str,
         start_date: date,
         end_date: date,
-    ) -> List[tuple]:
+    ) -> list[tuple]:
         """
         获取宏观指标历史值（跨模块查询包装）
 
@@ -548,7 +549,7 @@ class DjangoAuditRepository:
         self,
         start_date: date,
         end_date: date,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取 Regime 日志历史（跨模块查询包装)
 
@@ -582,8 +583,8 @@ class DjangoAuditRepository:
 
     def get_active_threshold_configs_by_codes(
         self,
-        indicator_codes: Optional[List[str]] = None
-    ) -> List[dict]:
+        indicator_codes: list[str] | None = None
+    ) -> list[dict]:
         """
         获取激活的阈值配置（可选按指标代码过滤）
 
@@ -621,7 +622,7 @@ class DjangoAuditRepository:
 
     def count_active_threshold_configs(
         self,
-        indicator_codes: Optional[List[str]] = None
+        indicator_codes: list[str] | None = None
     ) -> int:
         """统计激活的阈值配置数量"""
         queryset = IndicatorThresholdConfigModel._default_manager.filter(
@@ -639,7 +640,7 @@ class DjangoAuditRepository:
         total_indicators: int = 0,
         status: str = 'in_progress',
         is_shadow_mode: bool = True,
-        run_date: Optional[date] = None,
+        run_date: date | None = None,
     ) -> dict:
         """
         创建验证摘要记录
@@ -669,8 +670,8 @@ class DjangoAuditRepository:
         approved_indicators: int = 0,
         rejected_indicators: int = 0,
         pending_indicators: int = 0,
-        avg_f1_score: Optional[float] = None,
-        avg_stability_score: Optional[float] = None,
+        avg_f1_score: float | None = None,
+        avg_stability_score: float | None = None,
         overall_recommendation: str = '',
         error_message: str = '',
     ) -> bool:
@@ -700,7 +701,7 @@ class DjangoAuditRepository:
         except ValidationSummaryModel.DoesNotExist:
             return False
 
-    def get_validation_summary_by_run_id(self, validation_run_id: str) -> Optional[dict]:
+    def get_validation_summary_by_run_id(self, validation_run_id: str) -> dict | None:
         """
         根据运行 ID 获取验证摘要
 
@@ -735,7 +736,7 @@ class DjangoAuditRepository:
         self,
         start_date: date,
         end_date: date,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         根据日期范围获取指标性能报告
 
@@ -789,7 +790,7 @@ class DjangoAuditRepository:
         self,
         start_date: date,
         end_date: date,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         根据日期范围获取指标表现报告
 
@@ -897,19 +898,19 @@ class DjangoAuditRepository:
 
     def query_operation_logs(
         self,
-        user_id: Optional[int] = None,
-        username: Optional[str] = None,
-        operation_type: Optional[str] = None,
-        module: Optional[str] = None,
-        action: Optional[str] = None,
-        mcp_tool_name: Optional[str] = None,
-        mcp_client_id: Optional[str] = None,
-        mcp_role: Optional[str] = None,
-        response_status: Optional[int] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        resource_id: Optional[str] = None,
-        source: Optional[str] = None,
+        user_id: int | None = None,
+        username: str | None = None,
+        operation_type: str | None = None,
+        module: str | None = None,
+        action: str | None = None,
+        mcp_tool_name: str | None = None,
+        mcp_client_id: str | None = None,
+        mcp_role: str | None = None,
+        response_status: int | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        resource_id: str | None = None,
+        source: str | None = None,
         ordering: str = "-timestamp",
         page: int = 1,
         page_size: int = 20,
@@ -926,8 +927,9 @@ class DjangoAuditRepository:
         Returns:
             tuple: (logs_list, total_count)
         """
-        from .models import OperationLogModel
         from django.db.models import Q
+
+        from .models import OperationLogModel
 
         queryset = OperationLogModel._default_manager.all()
 
@@ -1007,7 +1009,7 @@ class DjangoAuditRepository:
 
         return logs, total_count
 
-    def get_operation_log_by_id(self, log_id: str) -> Optional[dict]:
+    def get_operation_log_by_id(self, log_id: str) -> dict | None:
         """
         根据 ID 获取操作日志
 
@@ -1057,8 +1059,8 @@ class DjangoAuditRepository:
 
     def get_operation_stats(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         group_by: str = "module",
     ) -> dict:
         """
@@ -1072,8 +1074,9 @@ class DjangoAuditRepository:
         Returns:
             dict: 统计结果
         """
+        from django.db.models import Avg, Count, Q
+
         from .models import OperationLogModel
-        from django.db.models import Count, Avg, Q
 
         queryset = OperationLogModel._default_manager.all()
 
@@ -1148,9 +1151,11 @@ class DjangoAuditRepository:
         Returns:
             int: 删除的记录数
         """
-        from .models import OperationLogModel
         from datetime import timedelta
+
         from django.utils import timezone
+
+        from .models import OperationLogModel
 
         cutoff_date = timezone.now() - timedelta(days=days)
         queryset = OperationLogModel._default_manager.filter(timestamp__lt=cutoff_date)
@@ -1163,15 +1168,16 @@ class DjangoAuditRepository:
 
     def list_decision_traces(
         self,
-        current_user_id: Optional[int] = None,
+        current_user_id: int | None = None,
         is_admin: bool = False,
-        mcp_client_id: Optional[str] = None,
+        mcp_client_id: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict], int]:
         """按 request_id 聚合 MCP/SDK 调用，生成决策链列表。"""
-        from .models import OperationLogModel
         from django.db.models import Count, Max, Min
+
+        from .models import OperationLogModel
 
         queryset = OperationLogModel._default_manager.exclude(request_id="")
         if not is_admin and current_user_id is not None:
@@ -1236,10 +1242,10 @@ class DjangoAuditRepository:
     def get_decision_trace(
         self,
         request_id: str,
-        mcp_client_id: Optional[str] = None,
-        current_user_id: Optional[int] = None,
+        mcp_client_id: str | None = None,
+        current_user_id: int | None = None,
         is_admin: bool = False,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """获取单条决策链详情。"""
         from .models import OperationLogModel
 

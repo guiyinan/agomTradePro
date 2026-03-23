@@ -23,8 +23,9 @@ Audit Module Prometheus Metrics
     >>> record_audit_write_failure(module="regime", error_type="database")
 """
 
-from prometheus_client import Counter, Histogram, CollectorRegistry, REGISTRY
 import logging
+
+from prometheus_client import REGISTRY, CollectorRegistry, Counter, Histogram
 
 logger = logging.getLogger(__name__)
 

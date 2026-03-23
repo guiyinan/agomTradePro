@@ -4,16 +4,16 @@ Factor Module API URL Configuration.
 Provides API-only routes for /api/factor/.
 """
 
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import include, path
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
 from apps.factor.interface.views import (
+    FactorActionViewSet,
     FactorDefinitionViewSet,
     FactorPortfolioConfigViewSet,
-    FactorActionViewSet,
 )
 
 app_name = "api_factor"

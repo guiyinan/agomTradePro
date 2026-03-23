@@ -108,8 +108,8 @@ class AgentExecutionLogger:
                 logger.warning("Failed to persist agent execution log: %s", exc)
 
     def _serialize_tool_calls(
-        self, tool_calls: Optional[list]
-    ) -> Optional[str]:
+        self, tool_calls: list | None
+    ) -> str | None:
         """序列化工具调用列表。"""
         if not tool_calls:
             return None
@@ -128,7 +128,7 @@ class AgentExecutionLogger:
         return json.dumps(records, ensure_ascii=False, default=str)
 
 
-def _truncate(text: Optional[str], max_length: int) -> Optional[str]:
+def _truncate(text: str | None, max_length: int) -> str | None:
     """截断文本。"""
     if not text:
         return text

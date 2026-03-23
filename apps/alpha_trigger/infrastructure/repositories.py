@@ -11,25 +11,24 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from django.core.exceptions import ObjectDoesNotExist
 
 from ..domain.entities import (
-    AlphaTrigger,
     AlphaCandidate,
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
+    AlphaTrigger,
     CandidateStatus,
     InvalidationCondition,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
 )
 from .models import (
-    AlphaTriggerModel,
     AlphaCandidateModel,
+    AlphaTriggerModel,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ class AlphaTriggerRepository:
         """初始化仓储"""
         self.model = AlphaTriggerModel
 
-    def get_by_id(self, trigger_id: str) -> Optional[AlphaTrigger]:
+    def get_by_id(self, trigger_id: str) -> AlphaTrigger | None:
         """
         按 ID 获取触发器
 
@@ -68,7 +67,7 @@ class AlphaTriggerRepository:
         except ObjectDoesNotExist:
             return None
 
-    def get_by_signal_id(self, signal_id: str) -> Optional[AlphaTrigger]:
+    def get_by_signal_id(self, signal_id: str) -> AlphaTrigger | None:
         """
         按源信号 ID 获取触发器
 
@@ -86,9 +85,9 @@ class AlphaTriggerRepository:
 
     def get_active(
         self,
-        asset_code: Optional[str] = None,
-        min_strength: Optional[SignalStrength] = None,
-    ) -> List[AlphaTrigger]:
+        asset_code: str | None = None,
+        min_strength: SignalStrength | None = None,
+    ) -> list[AlphaTrigger]:
         """
         获取活跃触发器
 
@@ -122,7 +121,7 @@ class AlphaTriggerRepository:
 
         return [m.to_domain() for m in models]
 
-    def get_by_regime(self, regime: str) -> List[AlphaTrigger]:
+    def get_by_regime(self, regime: str) -> list[AlphaTrigger]:
         """
         按相关 Regime 获取触发器
 
@@ -136,7 +135,7 @@ class AlphaTriggerRepository:
 
         return [m.to_domain() for m in models]
 
-    def get_by_type(self, trigger_type: TriggerType) -> List[AlphaTrigger]:
+    def get_by_type(self, trigger_type: TriggerType) -> list[AlphaTrigger]:
         """
         按类型获取触发器
 
@@ -189,8 +188,8 @@ class AlphaTriggerRepository:
         self,
         trigger_id: str,
         status: TriggerStatus,
-        triggered_at: Optional[datetime] = None,
-        invalidated_at: Optional[datetime] = None,
+        triggered_at: datetime | None = None,
+        invalidated_at: datetime | None = None,
     ) -> AlphaTrigger:
         """
         更新触发器状态
@@ -224,7 +223,7 @@ class AlphaTriggerRepository:
         except ObjectDoesNotExist:
             raise ValueError(f"Trigger not found: {trigger_id}")
 
-    def get_expired(self) -> List[AlphaTrigger]:
+    def get_expired(self) -> list[AlphaTrigger]:
         """
         获取已过期但状态未更新的触发器
 
@@ -247,7 +246,7 @@ class AlphaTriggerRepository:
     def get_statistics(
         self,
         days: int = 30,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取统计信息
 
@@ -324,7 +323,7 @@ class AlphaCandidateRepository:
         """初始化仓储"""
         self.model = AlphaCandidateModel
 
-    def get_by_id(self, candidate_id: str) -> Optional[AlphaCandidate]:
+    def get_by_id(self, candidate_id: str) -> AlphaCandidate | None:
         """
         按 ID 获取候选
 
@@ -340,7 +339,7 @@ class AlphaCandidateRepository:
         except ObjectDoesNotExist:
             return None
 
-    def get_by_trigger_id(self, trigger_id: str) -> Optional[AlphaCandidate]:
+    def get_by_trigger_id(self, trigger_id: str) -> AlphaCandidate | None:
         """
         按触发器 ID 获取候选
 
@@ -361,8 +360,8 @@ class AlphaCandidateRepository:
     def get_by_asset(
         self,
         asset_code: str,
-        status: Optional[CandidateStatus] = None,
-    ) -> List[AlphaCandidate]:
+        status: CandidateStatus | None = None,
+    ) -> list[AlphaCandidate]:
         """
         按资产获取候选
 
@@ -384,8 +383,8 @@ class AlphaCandidateRepository:
 
     def get_actionable(
         self,
-        min_strength: Optional[SignalStrength] = None,
-    ) -> List[AlphaCandidate]:
+        min_strength: SignalStrength | None = None,
+    ) -> list[AlphaCandidate]:
         """
         获取可操作的候选
 
@@ -404,7 +403,7 @@ class AlphaCandidateRepository:
 
         return [m.to_domain() for m in models]
 
-    def get_watch_list(self) -> List[AlphaCandidate]:
+    def get_watch_list(self) -> list[AlphaCandidate]:
         """
         获取观察列表
 
@@ -574,7 +573,7 @@ class AlphaCandidateRepository:
     def get_statistics(
         self,
         days: int = 30,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取统计信息
 

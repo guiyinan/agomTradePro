@@ -6,11 +6,12 @@ Infrastructure layer implementation using Django ORM.
 
 from datetime import date
 from typing import List, Optional
-from django.utils import timezone
+
 from django.db import models, transaction
+from django.utils import timezone
 
 from ..domain.entities import PolicyEvent, PolicyLevel, PolicyLevelKeywordRule
-from .models import PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel, RSSFetchLog
+from .models import PolicyLevelKeywordModel, PolicyLog, RSSFetchLog, RSSSourceConfigModel
 
 
 class PolicyRepositoryError(Exception):
@@ -105,7 +106,7 @@ class DjangoPolicyRepository:
     def get_event_by_date(
         self,
         event_date: date
-    ) -> Optional[PolicyEvent]:
+    ) -> PolicyEvent | None:
         """
         按日期获取政策事件（返回第一个匹配）
 
@@ -129,7 +130,7 @@ class DjangoPolicyRepository:
     def get_events_by_date(
         self,
         event_date: date
-    ) -> List[PolicyEvent]:
+    ) -> list[PolicyEvent]:
         """
         按日期获取所有政策事件
 
@@ -147,8 +148,8 @@ class DjangoPolicyRepository:
 
     def get_latest_event(
         self,
-        before_date: Optional[date] = None
-    ) -> Optional[PolicyEvent]:
+        before_date: date | None = None
+    ) -> PolicyEvent | None:
         """
         获取最新政策事件
 
@@ -173,7 +174,7 @@ class DjangoPolicyRepository:
         self,
         start_date: date,
         end_date: date
-    ) -> List[PolicyEvent]:
+    ) -> list[PolicyEvent]:
         """
         获取日期范围内的事件列表
 
@@ -194,9 +195,9 @@ class DjangoPolicyRepository:
     def get_events_by_level(
         self,
         level: PolicyLevel,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[PolicyEvent]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[PolicyEvent]:
         """
         按档位获取事件列表
 
@@ -222,7 +223,7 @@ class DjangoPolicyRepository:
 
     def get_current_policy_level(
         self,
-        as_of_date: Optional[date] = None
+        as_of_date: date | None = None
     ) -> PolicyLevel:
         """
         获取当前政策档位
@@ -253,7 +254,7 @@ class DjangoPolicyRepository:
 
     def is_intervention_active(
         self,
-        as_of_date: Optional[date] = None
+        as_of_date: date | None = None
     ) -> bool:
         """
         检查是否有干预性政策生效
@@ -271,7 +272,7 @@ class DjangoPolicyRepository:
 
     def is_crisis_mode(
         self,
-        as_of_date: Optional[date] = None
+        as_of_date: date | None = None
     ) -> bool:
         """
         检查是否处于危机模式
@@ -333,8 +334,8 @@ class DjangoPolicyRepository:
 
     def get_policy_level_stats(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        start_date: date | None = None,
+        end_date: date | None = None
     ) -> dict:
         """
         获取政策档位统计
@@ -377,9 +378,9 @@ class DjangoPolicyRepository:
 
     def get_existing_for_update(
         self,
-        event_id: Optional[int] = None,
-        event_date: Optional[date] = None
-    ) -> Optional[dict]:
+        event_id: int | None = None,
+        event_date: date | None = None
+    ) -> dict | None:
         """
         获取现有事件用于更新检查
 
@@ -430,15 +431,15 @@ class RSSRepository:
 
     # ========== RSS源配置 ==========
 
-    def get_active_sources(self) -> List[RSSSourceConfigModel]:
+    def get_active_sources(self) -> list[RSSSourceConfigModel]:
         """获取所有启用的RSS源"""
         return list(self._source_model.objects.filter(is_active=True).all())
 
-    def get_source_by_id(self, source_id: int) -> Optional[RSSSourceConfigModel]:
+    def get_source_by_id(self, source_id: int) -> RSSSourceConfigModel | None:
         """根据ID获取RSS源"""
         return self._source_model.objects.filter(id=source_id).first()
 
-    def get_all_sources(self) -> List[RSSSourceConfigModel]:
+    def get_all_sources(self) -> list[RSSSourceConfigModel]:
         """获取所有RSS源"""
         return list(self._source_model.objects.all())
 
@@ -488,9 +489,9 @@ class RSSRepository:
 
     def get_fetch_logs(
         self,
-        source_id: Optional[int] = None,
+        source_id: int | None = None,
         limit: int = 100
-    ) -> List[RSSFetchLog]:
+    ) -> list[RSSFetchLog]:
         """获取抓取日志"""
         query = self._log_model.objects.all()
         if source_id:
@@ -499,8 +500,9 @@ class RSSRepository:
 
     def cleanup_old_logs(self, days_to_keep: int = 90) -> int:
         """清理旧的抓取日志"""
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         cutoff = timezone.now() - timedelta(days=days_to_keep)
         count, _ = self._log_model.objects.filter(fetched_at__lt=cutoff).delete()
@@ -508,7 +510,7 @@ class RSSRepository:
 
     # ========== 去重检查 ==========
 
-    def is_item_exists(self, link: str, guid: Optional[str] = None) -> bool:
+    def is_item_exists(self, link: str, guid: str | None = None) -> bool:
         """
         检查RSS条目是否已存在（去重）
 
@@ -527,8 +529,8 @@ class RSSRepository:
 
     def get_active_keyword_rules(
         self,
-        category: Optional[str] = None
-    ) -> List[PolicyLevelKeywordRule]:
+        category: str | None = None
+    ) -> list[PolicyLevelKeywordRule]:
         """
        获取启用的关键词规则
 
@@ -591,11 +593,7 @@ class WorkbenchRepository:
 
     def __init__(self):
         self._model = PolicyLog
-        from .models import (
-            PolicyIngestionConfig,
-            SentimentGateConfig,
-            GateActionAuditLog
-        )
+        from .models import GateActionAuditLog, PolicyIngestionConfig, SentimentGateConfig
         self._ingestion_config_model = PolicyIngestionConfig
         self._gate_config_model = SentimentGateConfig
         self._audit_log_model = GateActionAuditLog
@@ -604,10 +602,10 @@ class WorkbenchRepository:
 
     def get_pending_review_events(
         self,
-        event_type: Optional[str] = None,
-        level: Optional[str] = None,
+        event_type: str | None = None,
+        level: str | None = None,
         limit: int = 50
-    ) -> List[PolicyLog]:
+    ) -> list[PolicyLog]:
         """
         获取待审核事件列表
 
@@ -632,11 +630,11 @@ class WorkbenchRepository:
 
     def get_effective_events(
         self,
-        event_type: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        event_type: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         limit: int = 50
-    ) -> List[PolicyLog]:
+    ) -> list[PolicyLog]:
         """
         获取已生效事件列表
 
@@ -675,8 +673,9 @@ class WorkbenchRepository:
         Returns:
             int: 超时事件数量
         """
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         now = timezone.now()
 
@@ -698,7 +697,7 @@ class WorkbenchRepository:
 
         return p23_count + normal_count
 
-    def get_global_heat_sentiment(self) -> tuple[Optional[float], Optional[float]]:
+    def get_global_heat_sentiment(self) -> tuple[float | None, float | None]:
         """
         获取全局热度与情绪评分
 
@@ -738,7 +737,7 @@ class WorkbenchRepository:
         event_id: int,
         user_id: int,
         reason: str = ""
-    ) -> Optional[PolicyLog]:
+    ) -> PolicyLog | None:
         """
         审核通过事件
 
@@ -780,7 +779,7 @@ class WorkbenchRepository:
         event_id: int,
         user_id: int,
         reason: str
-    ) -> Optional[PolicyLog]:
+    ) -> PolicyLog | None:
         """
         审核拒绝事件
 
@@ -821,7 +820,7 @@ class WorkbenchRepository:
         event_id: int,
         user_id: int,
         reason: str
-    ) -> Optional[PolicyLog]:
+    ) -> PolicyLog | None:
         """
         回滚事件生效状态
 
@@ -860,8 +859,8 @@ class WorkbenchRepository:
         event_id: int,
         user_id: int,
         reason: str,
-        new_level: Optional[str] = None
-    ) -> Optional[PolicyLog]:
+        new_level: str | None = None
+    ) -> PolicyLog | None:
         """
         临时豁免事件
 
@@ -920,7 +919,7 @@ class WorkbenchRepository:
             enabled=True
         ).first()
 
-    def get_all_gate_configs(self) -> List['SentimentGateConfig']:
+    def get_all_gate_configs(self) -> list['SentimentGateConfig']:
         """获取所有闸门配置"""
         return list(self._gate_config_model.objects.filter(enabled=True).all())
 
@@ -940,7 +939,7 @@ class WorkbenchRepository:
         self,
         event: PolicyLog,
         action: str,
-        operator_id: Optional[int],
+        operator_id: int | None,
         before_state: dict,
         after_state: dict,
         reason: str,

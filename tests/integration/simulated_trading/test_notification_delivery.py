@@ -1,32 +1,35 @@
 """Integration tests for notification delivery in simulated trading."""
 
-import pytest
 from datetime import date, datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from django.core.mail import send_mail
 from django.utils import timezone
 
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    DailyInspectionReportModel,
-    DailyInspectionNotificationConfigModel,
-    NotificationHistoryModel,
-    RebalanceProposalModel,
-)
 from apps.simulated_trading.application.tasks import (
+    NotificationConfig,
+    _record_notification_history,
     _send_daily_inspection_email,
     _send_rebalance_proposal_notification,
-    _record_notification_history,
-    NotificationConfig,
+)
+from apps.simulated_trading.infrastructure.models import (
+    DailyInspectionNotificationConfigModel,
+    DailyInspectionReportModel,
+    NotificationHistoryModel,
+    RebalanceProposalModel,
+    SimulatedAccountModel,
 )
 from shared.infrastructure.notification_service import (
     EmailNotificationChannel,
     InAppNotificationChannel,
     NotificationMessage,
-    NotificationRecipient,
     NotificationPriority,
-    NotificationChannel as NC,
+    NotificationRecipient,
     UnifiedNotificationService,
+)
+from shared.infrastructure.notification_service import (
+    NotificationChannel as NC,
 )
 
 

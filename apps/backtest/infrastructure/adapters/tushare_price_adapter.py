@@ -9,23 +9,24 @@ from datetime import date, timedelta
 from typing import Optional
 
 from shared.config.secrets import get_secrets
+
 try:
     import tushare as ts
 except ImportError:
     ts = None
 
 from .base import (
-    BaseAssetPriceAdapter,
     AssetPricePoint,
     AssetPriceUnavailableError,
     AssetPriceValidationError,
+    BaseAssetPriceAdapter,
     get_asset_class_tickers,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def get_tushare_asset_tickers() -> dict[str, Optional[str]]:
+def get_tushare_asset_tickers() -> dict[str, str | None]:
     """Tushare 可支持的资产代理代码映射。"""
     configured = get_asset_class_tickers()
     return {
@@ -48,7 +49,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
 
     source_name = "tushare"
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         """
         初始化 Tushare 适配器
 
@@ -82,7 +83,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         self,
         asset_class: str,
         as_of_date: date
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         获取指定资产在指定日期的价格
 

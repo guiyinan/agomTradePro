@@ -5,16 +5,19 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from django.db import transaction
 from django.db.models import Avg
 from django.utils import timezone
 
 from ..domain.entities import (
     BacktestConfig,
-    BacktestResult as DomainBacktestResult,
     BacktestStatus,
     Trade,
+)
+from ..domain.entities import (
+    BacktestResult as DomainBacktestResult,
 )
 from .models import BacktestResultModel, BacktestTradeModel
 
@@ -58,7 +61,7 @@ class DjangoBacktestRepository:
             transaction_cost_bps=config.transaction_cost_bps,
         )
 
-    def get_backtest_by_id(self, backtest_id: int) -> Optional[BacktestResultModel]:
+    def get_backtest_by_id(self, backtest_id: int) -> BacktestResultModel | None:
         """
         按 ID 获取回测记录
 
@@ -73,7 +76,7 @@ class DjangoBacktestRepository:
         except self._model.DoesNotExist:
             return None
 
-    def get_backtests_by_status(self, status: str) -> List[BacktestResultModel]:
+    def get_backtests_by_status(self, status: str) -> list[BacktestResultModel]:
         """
         按状态获取回测列表
 
@@ -85,7 +88,7 @@ class DjangoBacktestRepository:
         """
         return list(self._model.objects.filter(status=status).order_by("-created_at"))
 
-    def get_all_backtests(self, limit: Optional[int] = None) -> List[BacktestResultModel]:
+    def get_all_backtests(self, limit: int | None = None) -> list[BacktestResultModel]:
         """
         获取所有回测记录
 
@@ -101,7 +104,7 @@ class DjangoBacktestRepository:
         return list(query)
 
     def update_status(
-        self, backtest_id: int, status: str, error_message: Optional[str] = None
+        self, backtest_id: int, status: str, error_message: str | None = None
     ) -> bool:
         """
         更新回测状态
@@ -191,7 +194,7 @@ class DjangoBacktestRepository:
         count, _ = self._model.objects.filter(id=backtest_id).delete()
         return count > 0
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         获取回测统计信息
 
@@ -232,7 +235,7 @@ class DjangoBacktestRepository:
             "min_return": min_return,
         }
 
-    def get_recent_results(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_results(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         获取最近的回测结果摘要
 

@@ -4,20 +4,22 @@ Fetch API Views for Macro Data.
 Handles data fetching, scheduling, and quick sync operations.
 """
 
-from django.http import JsonResponse, StreamingHttpResponse
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
-from django.core.management import call_command
-from apps.macro.infrastructure.adapters import AKShareAdapter
-from apps.macro.application.data_management import (
-    FetchDataUseCase,
-    ScheduleDataFetchUseCase,
-    FetchDataRequest,
-)
-from datetime import datetime, timedelta, date
-from io import StringIO
 import json
 import logging
+from datetime import date, datetime, timedelta
+from io import StringIO
+
+from django.core.management import call_command
+from django.http import JsonResponse, StreamingHttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+
+from apps.macro.application.data_management import (
+    FetchDataRequest,
+    FetchDataUseCase,
+    ScheduleDataFetchUseCase,
+)
+from apps.macro.infrastructure.adapters import AKShareAdapter
 
 from .helpers import get_repository, get_sync_use_case
 

@@ -13,8 +13,8 @@ Domain Services for Regime Calculation (New Version)
 import math
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List, Dict, Tuple, Optional, Protocol
 from enum import Enum
+from typing import Dict, List, Optional, Protocol, Tuple
 
 
 class RegimeType(Enum):
@@ -64,16 +64,16 @@ class RegimeCalculationResult:
     inflation_level: float  # CPI 当前值
     growth_state: str  # 'expansion', 'contraction'
     inflation_state: str  # 'high', 'low', 'deflation'
-    distribution: Dict[str, float]  # 四象限概率分布
-    trend_indicators: List[TrendIndicator]  # 趋势指标
-    warnings: List[str] = field(default_factory=list)
-    prediction: Optional[str] = None  # 趋势预测
+    distribution: dict[str, float]  # 四象限概率分布
+    trend_indicators: list[TrendIndicator]  # 趋势指标
+    warnings: list[str] = field(default_factory=list)
+    prediction: str | None = None  # 趋势预测
 
 
 def calculate_regime_by_level(
     pmi_value: float,
     cpi_value: float,
-    config: Optional[ThresholdConfig] = None
+    config: ThresholdConfig | None = None
 ) -> RegimeType:
     """
     基于绝对水平判定 Regime
@@ -115,8 +115,8 @@ def calculate_regime_by_level(
 def calculate_regime_distribution_by_level(
     pmi_value: float,
     cpi_value: float,
-    config: Optional[ThresholdConfig] = None
-) -> Dict[str, float]:
+    config: ThresholdConfig | None = None
+) -> dict[str, float]:
     """
     基于绝对水平计算四象限概率分布
 
@@ -160,7 +160,7 @@ def calculate_regime_distribution_by_level(
     total = sum(weights.values())
 
     if total == 0:
-        return {r: 0.25 for r in centers}
+        return dict.fromkeys(centers, 0.25)
 
     probabilities = {r: w / total for r, w in weights.items()}
 
@@ -168,9 +168,9 @@ def calculate_regime_distribution_by_level(
 
 
 def calculate_momentum_simple(
-    series: List[float],
+    series: list[float],
     period: int = 3
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
     计算简单的动量
 
@@ -196,7 +196,7 @@ def calculate_momentum_simple(
 
 
 def calculate_zscore_simple(
-    series: List[float],
+    series: list[float],
     value: float
 ) -> float:
     """
@@ -230,8 +230,8 @@ def generate_prediction(
     current_regime: RegimeType,
     pmi_trend: int,
     cpi_trend: int,
-    trend_indicators: List[TrendIndicator]
-) -> Optional[str]:
+    trend_indicators: list[TrendIndicator]
+) -> str | None:
     """
     生成趋势预测
 
@@ -274,7 +274,7 @@ class RegimeCalculatorV2:
     基于绝对水平判定，而非动量
     """
 
-    def __init__(self, config: Optional[ThresholdConfig] = None):
+    def __init__(self, config: ThresholdConfig | None = None):
         """
         Args:
             config: 阈值配置，如果为 None 则使用默认配置
@@ -283,8 +283,8 @@ class RegimeCalculatorV2:
 
     def calculate(
         self,
-        pmi_series: List[float],
-        cpi_series: List[float],
+        pmi_series: list[float],
+        cpi_series: list[float],
         as_of_date: date
     ) -> RegimeCalculationResult:
         """
@@ -381,7 +381,7 @@ class RegimeCalculatorV2:
         else:
             return "moderate"
 
-    def _empty_result(self, as_of_date: date, warnings: List[str]) -> RegimeCalculationResult:
+    def _empty_result(self, as_of_date: date, warnings: list[str]) -> RegimeCalculationResult:
         """返回空结果"""
         return RegimeCalculationResult(
             regime=RegimeType.DEFLATION,
@@ -398,8 +398,8 @@ class RegimeCalculatorV2:
 
 # 便捷函数
 def calculate_regime_with_defaults(
-    pmi_series: List[float],
-    cpi_series: List[float],
+    pmi_series: list[float],
+    cpi_series: list[float],
     as_of_date: date
 ) -> RegimeCalculationResult:
     """使用默认配置计算 Regime"""

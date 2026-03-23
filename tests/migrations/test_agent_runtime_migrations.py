@@ -11,10 +11,10 @@ These tests verify that:
 """
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from django.apps import apps
 from django.core.management import call_command
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 
 
 @pytest.mark.django_db
@@ -279,8 +279,9 @@ class TestAgentRuntimeModelConstraints:
 
     def test_task_domain_choices(self):
         """Test that task_domain accepts only valid choices."""
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
         from django.core.exceptions import ValidationError
+
+        from apps.agent_runtime.infrastructure.models import AgentTaskModel
 
         task = AgentTaskModel(
             request_id="test_domain_choices",
@@ -296,8 +297,9 @@ class TestAgentRuntimeModelConstraints:
 
     def test_task_status_choices(self):
         """Test that status accepts only valid choices."""
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
         from django.core.exceptions import ValidationError
+
+        from apps.agent_runtime.infrastructure.models import AgentTaskModel
 
         task = AgentTaskModel(
             request_id="test_status_choices",
@@ -313,8 +315,9 @@ class TestAgentRuntimeModelConstraints:
 
     def test_request_id_unique(self):
         """Test that duplicate request_id is rejected."""
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
         from django.db import IntegrityError, transaction
+
+        from apps.agent_runtime.infrastructure.models import AgentTaskModel
 
         # Create first task
         task1 = AgentTaskModel.objects.create(

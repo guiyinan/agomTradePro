@@ -9,8 +9,13 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
-from apps.rotation.infrastructure.models import AssetClassModel, RotationConfigModel, RotationTemplateModel
+
 from apps.rotation.infrastructure.default_assets import DEFAULT_ROTATION_ASSETS
+from apps.rotation.infrastructure.models import (
+    AssetClassModel,
+    RotationConfigModel,
+    RotationTemplateModel,
+)
 
 
 class Command(BaseCommand):

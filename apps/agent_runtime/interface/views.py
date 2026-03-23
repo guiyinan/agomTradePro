@@ -8,60 +8,60 @@ See: docs/plans/ai-native/schema-contract.md
 """
 
 import logging
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
-from rest_framework import viewsets, status, serializers as drf_serializers
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, BasePermission
 from django.db.models import Q
 from django.http import Http404
+from rest_framework import serializers as drf_serializers
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.response import Response
 
-from apps.agent_runtime.domain.entities import TaskStatus, TaskDomain, EventSource
-from apps.agent_runtime.domain.services import InvalidStateTransitionError
+from apps.agent_runtime.application.proposal_use_cases import (
+    ApproveProposalUseCase,
+    CreateProposalInput,
+    CreateProposalUseCase,
+    ExecuteProposalUseCase,
+    GetProposalUseCase,
+    GuardrailBlockedError,
+    InvalidProposalTransitionError,
+    RejectProposalUseCase,
+    SubmitProposalForApprovalUseCase,
+)
 from apps.agent_runtime.application.use_cases import (
-    CreateTaskUseCase,
-    GetTaskUseCase,
-    ListTasksUseCase,
-    ResumeTaskUseCase,
+    CancelTaskInput,
     CancelTaskUseCase,
     CreateTaskInput,
+    CreateTaskUseCase,
+    GetTaskUseCase,
     ListTasksInput,
+    ListTasksUseCase,
     ResumeTaskInput,
-    CancelTaskInput,
+    ResumeTaskUseCase,
 )
-from apps.agent_runtime.application.proposal_use_cases import (
-    CreateProposalUseCase,
-    GetProposalUseCase,
-    SubmitProposalForApprovalUseCase,
-    ApproveProposalUseCase,
-    RejectProposalUseCase,
-    ExecuteProposalUseCase,
-    CreateProposalInput,
-    InvalidProposalTransitionError,
-    GuardrailBlockedError,
-)
-from apps.agent_runtime.interface.serializers import (
-    AgentTaskSerializer,
-    AgentTaskCreateSerializer,
-    AgentTaskListSerializer,
-    AgentTaskListQuerySerializer,
-    AgentTimelineEventSerializer,
-    AgentArtifactSerializer,
-    AgentProposalSerializer,
-    AgentProposalCreateSerializer,
-    AgentGuardrailDecisionSerializer,
-    AgentExecutionRecordSerializer,
-)
+from apps.agent_runtime.domain.entities import EventSource, TaskDomain, TaskStatus
+from apps.agent_runtime.domain.services import InvalidStateTransitionError
 from apps.agent_runtime.infrastructure.models import (
+    AgentArtifactModel,
+    AgentExecutionRecordModel,
+    AgentGuardrailDecisionModel,
+    AgentProposalModel,
     AgentTaskModel,
     AgentTimelineEventModel,
-    AgentArtifactModel,
-    AgentProposalModel,
-    AgentGuardrailDecisionModel,
-    AgentExecutionRecordModel,
 )
-
+from apps.agent_runtime.interface.serializers import (
+    AgentArtifactSerializer,
+    AgentExecutionRecordSerializer,
+    AgentGuardrailDecisionSerializer,
+    AgentProposalCreateSerializer,
+    AgentProposalSerializer,
+    AgentTaskCreateSerializer,
+    AgentTaskListQuerySerializer,
+    AgentTaskListSerializer,
+    AgentTaskSerializer,
+    AgentTimelineEventSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def build_error_response(
     request_id: str,
     error_code: str,
     message: str,
-    details: Optional[Dict[str, Any]] = None,
+    details: dict[str, Any] | None = None,
     status_code: int = status.HTTP_400_BAD_REQUEST,
 ) -> Response:
     """
@@ -128,7 +128,7 @@ def _build_validation_error_response(
     )
 
 
-def _serialize_task_like(task_obj: Any) -> Dict[str, Any]:
+def _serialize_task_like(task_obj: Any) -> dict[str, Any]:
     """Serialize either a model instance or a domain/mock task object."""
     if isinstance(task_obj, AgentTaskModel):
         return AgentTaskSerializer(task_obj).data
@@ -202,7 +202,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
     def _get_task_for_action(self, pk: Any) -> AgentTaskModel:
         """Fetch a task with the same ownership rules used by the queryset."""
-        filters: Dict[str, Any] = {"pk": pk}
+        filters: dict[str, Any] = {"pk": pk}
         if not self.request.user.is_staff:
             filters["created_by_id"] = getattr(self.request.user, "id", None)
         task_model = AgentTaskModel._default_manager.filter(**filters).first()
@@ -210,7 +210,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             raise Http404
         return task_model
 
-    def _build_actor(self, request: Any) -> Optional[Dict[str, Any]]:
+    def _build_actor(self, request: Any) -> dict[str, Any] | None:
         """Build actor dict from request, including Django group names as roles."""
         user = request.user
         if not user.is_authenticated:
@@ -227,7 +227,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             "roles": roles,
         }
 
-    def _lookup_task_request_id(self, pk: Any) -> Optional[str]:
+    def _lookup_task_request_id(self, pk: Any) -> str | None:
         """Best-effort request_id lookup for error responses."""
         try:
             task_model = AgentTaskModel._default_manager.filter(pk=pk).only("request_id").first()
@@ -630,8 +630,8 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         completed/pending steps, context references, and open risks.
         """
         from apps.agent_runtime.application.handoff_use_cases import (
-            HandoffTaskUseCase,
             HandoffInput,
+            HandoffTaskUseCase,
         )
 
         to_agent = request.data.get("to_agent", "")
@@ -824,7 +824,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
 
     permission_classes = [IsAuthenticated]
 
-    def _serialize_proposal(self, proposal_model: Any) -> Dict[str, Any]:
+    def _serialize_proposal(self, proposal_model: Any) -> dict[str, Any]:
         """Serialize a proposal model to dict."""
         if isinstance(proposal_model, AgentProposalModel):
             return AgentProposalSerializer(proposal_model).data
@@ -849,7 +849,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             "updated_at": updated_at.isoformat() if hasattr(updated_at, "isoformat") else updated_at,
         }
 
-    def _get_proposal_data(self, proposal_entity: Any) -> Dict[str, Any]:
+    def _get_proposal_data(self, proposal_entity: Any) -> dict[str, Any]:
         """Get serialized proposal data, preferring model if available."""
         try:
             model = AgentProposalModel._default_manager.get(pk=proposal_entity.id)
@@ -857,7 +857,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
         except AgentProposalModel.DoesNotExist:
             return self._serialize_proposal(proposal_entity)
 
-    def _get_actor(self, request: Any) -> Dict[str, Any]:
+    def _get_actor(self, request: Any) -> dict[str, Any]:
         """Build actor dict from request, including Django group names as roles."""
         user = request.user
         roles = []
@@ -872,7 +872,7 @@ class AgentProposalViewSet(viewsets.ViewSet):
             "roles": roles,
         }
 
-    def _require_staff_or_operator(self, request: Any) -> Optional[Response]:
+    def _require_staff_or_operator(self, request: Any) -> Response | None:
         """Return an error response if the user is not staff or operator. None if OK."""
         user = request.user
         if user.is_staff:

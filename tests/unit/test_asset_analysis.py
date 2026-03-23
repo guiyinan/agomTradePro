@@ -2,18 +2,19 @@
 资产分析模块单元测试
 """
 
-import pytest
 from datetime import date
 
-from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle
-from apps.asset_analysis.domain.value_objects import WeightConfig, ScoreContext
+import pytest
+
+from apps.asset_analysis.application.services import AssetMultiDimScorer
+from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetType
 from apps.asset_analysis.domain.services import (
-    RegimeMatcher,
     PolicyMatcher,
+    RegimeMatcher,
     SentimentMatcher,
     SignalMatcher,
 )
-from apps.asset_analysis.application.services import AssetMultiDimScorer
+from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 from apps.asset_analysis.infrastructure.repositories import DjangoWeightConfigRepository
 
 

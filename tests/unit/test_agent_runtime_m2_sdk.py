@@ -4,11 +4,11 @@ Unit tests for Agent Runtime M2 - SDK Modules.
 WP-M2-03: Tests for runtime and context SDK module endpoint contracts.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from agomtradepro.modules.agent_runtime import AgentRuntimeModule
+import pytest
 from agomtradepro.modules.agent_context import AgentContextModule
+from agomtradepro.modules.agent_runtime import AgentRuntimeModule
 
 
 class TestAgentRuntimeModule:

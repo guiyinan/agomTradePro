@@ -6,7 +6,7 @@ DashboardChartService, DashboardAlertService, and convenience functions.
 No Django/pandas/numpy dependencies.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -42,7 +42,6 @@ from tests.factories.domain_factories import (
     make_dashboard_widget,
     make_metric_card,
 )
-
 
 # ============================================================
 # DashboardLayoutService Tests
@@ -581,7 +580,7 @@ class TestDashboardAlertServiceEvaluateAlerts:
         config = make_alert_config(
             alert_id="a1", metric="cpu", threshold=90.0, cooldown=300,
         )
-        recent_time = datetime.now(timezone.utc) - timedelta(seconds=60)
+        recent_time = datetime.now(UTC) - timedelta(seconds=60)
         cooldown_state: dict[str, datetime] = {"a1": recent_time}
         service = DashboardAlertService()
         alerts = service.evaluate_alerts([config], {"cpu": 99.0}, cooldown_state)
@@ -593,7 +592,7 @@ class TestDashboardAlertServiceEvaluateAlerts:
         config = make_alert_config(
             alert_id="a1", metric="cpu", threshold=90.0, cooldown=300,
         )
-        old_time = datetime.now(timezone.utc) - timedelta(seconds=600)
+        old_time = datetime.now(UTC) - timedelta(seconds=600)
         cooldown_state: dict[str, datetime] = {"a1": old_time}
         service = DashboardAlertService()
         alerts = service.evaluate_alerts([config], {"cpu": 99.0}, cooldown_state)
@@ -612,7 +611,7 @@ class TestDashboardAlertServiceEvaluateAlerts:
             alert_id="a1", metric="cpu", threshold=90.0, cooldown=300,
         )
         # Pre-populate with an old, expired entry so the dict is truthy
-        old_time = datetime.now(timezone.utc) - timedelta(seconds=600)
+        old_time = datetime.now(UTC) - timedelta(seconds=600)
         cooldown_state: dict[str, datetime] = {"a1": old_time}
         service = DashboardAlertService()
         alerts = service.evaluate_alerts([config], {"cpu": 99.0}, cooldown_state)

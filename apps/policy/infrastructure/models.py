@@ -2,10 +2,10 @@
 ORM Models for Policy Events.
 """
 
+from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class PolicyLog(models.Model):
@@ -702,9 +702,10 @@ class PolicyAuditQueue(models.Model):
 
 # ========== Django Signals ==========
 
+import logging
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-import logging
 
 logger = logging.getLogger(__name__)
 

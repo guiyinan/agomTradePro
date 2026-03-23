@@ -5,14 +5,15 @@ Provides health check functions for Kubernetes liveness and readiness probes.
 """
 
 import logging
-from typing import Dict, Any, Optional
-from django.db import connections, DatabaseError
+from typing import Any, Dict, Optional
+
 from django.core.cache import cache
+from django.db import DatabaseError, connections
 
 logger = logging.getLogger(__name__)
 
 
-def check_database(using: str = "default") -> Dict[str, Any]:
+def check_database(using: str = "default") -> dict[str, Any]:
     """
     Check database connection health.
 
@@ -42,7 +43,7 @@ def check_database(using: str = "default") -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
-def check_redis() -> Dict[str, Any]:
+def check_redis() -> dict[str, Any]:
     """
     Check Redis connection health (if configured).
 
@@ -77,7 +78,7 @@ def check_redis() -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
-def check_celery() -> Dict[str, Any]:
+def check_celery() -> dict[str, Any]:
     """
     Check Celery worker availability by sending a ping.
 
@@ -104,7 +105,7 @@ def check_celery() -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
-def check_critical_data() -> Dict[str, Any]:
+def check_critical_data() -> dict[str, Any]:
     """
     Check that critical data tables are non-empty.
 
@@ -117,7 +118,7 @@ def check_critical_data() -> Dict[str, Any]:
     try:
         from django.apps import apps
 
-        checks: Dict[str, bool] = {}
+        checks: dict[str, bool] = {}
 
         # Check macro indicators
         try:
@@ -146,7 +147,7 @@ def check_critical_data() -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
-def run_readiness_checks() -> Dict[str, Dict[str, Any]]:
+def run_readiness_checks() -> dict[str, dict[str, Any]]:
     """
     Run all readiness checks.
 
@@ -168,7 +169,7 @@ def run_readiness_checks() -> Dict[str, Dict[str, Any]]:
     return checks
 
 
-def is_healthy(checks: Dict[str, Dict[str, Any]]) -> bool:
+def is_healthy(checks: dict[str, dict[str, Any]]) -> bool:
     """
     Determine if all readiness checks passed.
 

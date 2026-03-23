@@ -1,37 +1,42 @@
 """
-Decision Rhythm Domain Services
+Domain Services for Decision Rhythm
 
 决策频率约束和配额管理的核心业务逻辑实现。
-提供稀疏决策的调度算法。
+提供稀疏决策的调度、冷却控制和配额管理。
 
-仅使用 Python 标准库，不依赖 Django、pandas 等外部库。
+仅使用 Python 标准库。
 """
 
 import logging
+from __future__ import annotations
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
+if TYPE_CHECKING:
+    from .entities import DecisionFeatureSnapshot, UnifiedRecommendation
+
 from .entities import (
-    DecisionQuota,
+    ApprovalStatus,
     CooldownPeriod,
+    DecisionPriority,
+    DecisionQuota,
     DecisionRequest,
     DecisionResponse,
-    RhythmConfig,
-    DecisionPriority,
-    QuotaPeriod,
-    QuotaStatus,
-    get_default_rhythm_config,
-    ApprovalStatus,
-    RecommendationSide,
-    ValuationSnapshot,
-    InvestmentRecommendation,
     ExecutionApprovalRequest,
-    create_valuation_snapshot,
-    create_investment_recommendation,
+    ExecutionStatus,
+    ExecutionTarget,
+    InvestmentRecommendation,
+    QuotaPeriod,
+    RhythmConfig,
+    ValuationSnapshot,
     create_execution_approval_request,
+    create_investment_recommendation,
+    create_valuation_snapshot,
+    get_default_rhythm_config,
 )
 
 
@@ -51,7 +56,7 @@ class QuotaCheckResult:
 
     passed: bool
     reason: str
-    available_at: Optional[datetime] = None
+    available_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -68,7 +73,7 @@ class CooldownCheckResult:
 
     passed: bool
     reason: str
-    ready_at: Optional[datetime] = None
+    ready_at: datetime | None = None
     wait_hours: float = 0.0
 
 
@@ -87,7 +92,7 @@ class QuotaManager:
         >>> result = manager.check_quota(request, QuotaPeriod.WEEKLY)
     """
 
-    def __init__(self, config: Optional[RhythmConfig] = None):
+    def __init__(self, config: RhythmConfig | None = None):
         """
         初始化配额管理器
 
@@ -95,7 +100,7 @@ class QuotaManager:
             config: 节奏配置
         """
         self.config = config or get_default_rhythm_config()
-        self.quotas: Dict[QuotaPeriod, DecisionQuota] = {
+        self.quotas: dict[QuotaPeriod, DecisionQuota] = {
             QuotaPeriod.DAILY: self.config.daily_quota,
             QuotaPeriod.WEEKLY: self.config.weekly_quota,
             QuotaPeriod.MONTHLY: self.config.monthly_quota,
@@ -200,7 +205,7 @@ class QuotaManager:
         for period in self.quotas:
             self._reset_quota(period)
 
-    def get_quota_status(self, period: QuotaPeriod) -> Dict[str, Any]:
+    def get_quota_status(self, period: QuotaPeriod) -> dict[str, Any]:
         """获取配额状态"""
         quota = self.quotas.get(period)
         if quota is None:
@@ -208,12 +213,9 @@ class QuotaManager:
 
         return quota.to_dict()
 
-    def get_all_quota_statuses(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_quota_statuses(self) -> dict[str, dict[str, Any]]:
         """获取所有配额状态"""
-        return {
-            period.value: self.get_quota_status(period)
-            for period in QuotaPeriod
-        }
+        return {period.value: self.get_quota_status(period) for period in QuotaPeriod}
 
 
 class CooldownManager:
@@ -231,7 +233,7 @@ class CooldownManager:
         >>> result = manager.check_cooldown("000001.SH")
     """
 
-    def __init__(self, default_config: Optional[CooldownPeriod] = None):
+    def __init__(self, default_config: CooldownPeriod | None = None):
         """
         初始化冷却期管理器
 
@@ -239,7 +241,7 @@ class CooldownManager:
             default_config: 默认冷却配置
         """
         self.default_config = default_config or CooldownPeriod(asset_code="*")
-        self.cooldowns: Dict[str, CooldownPeriod] = {}
+        self.cooldowns: dict[str, CooldownPeriod] = {}
 
     def get_cooldown(self, asset_code: str) -> CooldownPeriod:
         """获取资产的冷却配置"""
@@ -279,7 +281,9 @@ class CooldownManager:
         if check_execution:
             # 检查执行冷却
             if not cooldown.is_execution_ready:
-                ready_at = cooldown.last_execution_at + timedelta(hours=cooldown.min_execution_interval_hours)
+                ready_at = cooldown.last_execution_at + timedelta(
+                    hours=cooldown.min_execution_interval_hours
+                )
                 return CooldownCheckResult(
                     passed=False,
                     reason=f"执行冷却期内，剩余 {cooldown.execution_ready_in_hours:.1f} 小时",
@@ -289,7 +293,9 @@ class CooldownManager:
         else:
             # 检查决策冷却
             if not cooldown.is_decision_ready:
-                ready_at = cooldown.last_decision_at + timedelta(hours=cooldown.min_decision_interval_hours)
+                ready_at = cooldown.last_decision_at + timedelta(
+                    hours=cooldown.min_decision_interval_hours
+                )
                 return CooldownCheckResult(
                     passed=False,
                     reason=f"决策冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
@@ -344,9 +350,9 @@ class RhythmManager:
 
     def __init__(
         self,
-        quota_manager: Optional[QuotaManager] = None,
-        cooldown_manager: Optional[CooldownManager] = None,
-        config: Optional[RhythmConfig] = None,
+        quota_manager: QuotaManager | None = None,
+        cooldown_manager: CooldownManager | None = None,
+        config: RhythmConfig | None = None,
     ):
         """
         初始化节奏管理器
@@ -421,9 +427,9 @@ class RhythmManager:
 
     def submit_batch(
         self,
-        requests: List[DecisionRequest],
+        requests: list[DecisionRequest],
         quota_period: QuotaPeriod = QuotaPeriod.WEEKLY,
-    ) -> List[DecisionResponse]:
+    ) -> list[DecisionResponse]:
         """
         批量提交决策请求
 
@@ -453,9 +459,9 @@ class RhythmManager:
     def _schedule_execution(self, request: DecisionRequest) -> datetime:
         """调度执行时间"""
         # 立即执行（实际应该考虑交易时间等）
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取决策节奏摘要"""
         return {
             "quota_statuses": self.quota_manager.get_all_quota_statuses(),
@@ -487,7 +493,7 @@ class DecisionScheduler:
         Args:
             max_queue_size: 最大队列长度
         """
-        self.queue: List[DecisionRequest] = []
+        self.queue: list[DecisionRequest] = []
         self.max_queue_size = max_queue_size
 
     def add_request(self, request: DecisionRequest) -> bool:
@@ -507,7 +513,7 @@ class DecisionScheduler:
         self.queue.append(request)
         return True
 
-    def get_next(self) -> Optional[DecisionRequest]:
+    def get_next(self) -> DecisionRequest | None:
         """
         获取下一个待处理的请求
 
@@ -547,7 +553,7 @@ class DecisionScheduler:
         """清空队列"""
         self.queue.clear()
 
-    def get_queue_summary(self) -> Dict[str, Any]:
+    def get_queue_summary(self) -> dict[str, Any]:
         """获取队列摘要"""
         if not self.queue:
             return {"size": 0, "by_priority": {}}
@@ -602,7 +608,7 @@ def submit_decision_request(
     return manager.submit_request(request, quota_period)
 
 
-def check_quota_status(period: QuotaPeriod) -> Dict[str, Any]:
+def check_quota_status(period: QuotaPeriod) -> dict[str, Any]:
     """
     检查配额状态的便捷函数
 
@@ -616,7 +622,7 @@ def check_quota_status(period: QuotaPeriod) -> Dict[str, Any]:
     return manager.get_quota_status(period)
 
 
-def check_cooldown_status(asset_code: str) -> Dict[str, Any]:
+def check_cooldown_status(asset_code: str) -> dict[str, Any]:
     """
     检查冷却状态的便捷函数
 
@@ -655,9 +661,9 @@ class PrecheckResult:
     quota_ok: bool = True
     cooldown_ok: bool = True
     candidate_valid: bool = True
-    warnings: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    details: Dict[str, Any] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    details: dict[str, Any] = field(default_factory=dict)
 
     @property
     def can_proceed(self) -> bool:
@@ -681,10 +687,10 @@ class ExecutionResult:
 
     request_id: str
     execution_status: str  # "EXECUTED", "FAILED", "CANCELLED"
-    executed_at: Optional[datetime] = None
-    execution_ref: Optional[Dict[str, Any]] = None
-    candidate_status: Optional[str] = None
-    error: Optional[str] = None
+    executed_at: datetime | None = None
+    execution_ref: dict[str, Any] | None = None
+    candidate_status: str | None = None
+    error: str | None = None
 
     @property
     def is_success(self) -> bool:
@@ -734,7 +740,7 @@ class ExecutionStatusStateMachine:
         return to_status in allowed
 
     @classmethod
-    def validate_transition(cls, from_status: str, to_status: str) -> Tuple[bool, str]:
+    def validate_transition(cls, from_status: str, to_status: str) -> tuple[bool, str]:
         """
         验证状态迁移并返回原因
 
@@ -806,7 +812,9 @@ class CandidateStatusStateMachine:
         return from_status == "ACTIONABLE"
 
     @classmethod
-    def validate_transition(cls, from_status: str, to_status: str, via_api: bool = False) -> Tuple[bool, str]:
+    def validate_transition(
+        cls, from_status: str, to_status: str, via_api: bool = False
+    ) -> tuple[bool, str]:
         """
         验证状态迁移并返回原因
 
@@ -877,7 +885,9 @@ class ApprovalStatusStateMachine:
         return to_status in allowed
 
     @classmethod
-    def validate_transition(cls, from_status: ApprovalStatus, to_status: ApprovalStatus) -> Tuple[bool, str]:
+    def validate_transition(
+        cls, from_status: ApprovalStatus, to_status: ApprovalStatus
+    ) -> tuple[bool, str]:
         """
         验证状态迁移并返回原因
 
@@ -893,7 +903,7 @@ class ApprovalStatusStateMachine:
         return False, f"非法审批状态迁移: {from_status.value} -> {to_status.value}"
 
     @classmethod
-    def get_valid_next_statuses(cls, current_status: ApprovalStatus) -> List[ApprovalStatus]:
+    def get_valid_next_statuses(cls, current_status: ApprovalStatus) -> list[ApprovalStatus]:
         """
         获取有效的下一状态列表
 
@@ -936,9 +946,9 @@ class ValuationSnapshotService:
         valuation_method: str,
         fair_value: Decimal,
         current_price: Decimal,
-        input_parameters: Dict[str, Any],
-        stop_loss_pct: Optional[float] = None,
-        target_upside_pct: Optional[float] = None,
+        input_parameters: dict[str, Any],
+        stop_loss_pct: float | None = None,
+        target_upside_pct: float | None = None,
     ) -> ValuationSnapshot:
         """
         创建估值快照
@@ -1090,9 +1100,9 @@ class RecommendationConsolidationService:
 
     def consolidate(
         self,
-        recommendations: List[InvestmentRecommendation],
+        recommendations: list[InvestmentRecommendation],
         account_id: str,
-    ) -> List[InvestmentRecommendation]:
+    ) -> list[InvestmentRecommendation]:
         """
         聚合投资建议
 
@@ -1107,7 +1117,7 @@ class RecommendationConsolidationService:
             return []
 
         # 按 (security_code, side) 分组
-        groups: Dict[str, List[InvestmentRecommendation]] = {}
+        groups: dict[str, list[InvestmentRecommendation]] = {}
         for rec in recommendations:
             key = f"{rec.security_code}:{rec.side}"
             if key not in groups:
@@ -1129,7 +1139,7 @@ class RecommendationConsolidationService:
 
     def _merge_recommendations(
         self,
-        recommendations: List[InvestmentRecommendation],
+        recommendations: list[InvestmentRecommendation],
         account_id: str,
     ) -> InvestmentRecommendation:
         """
@@ -1147,23 +1157,30 @@ class RecommendationConsolidationService:
         # 加权平均置信度
         total_weight = sum(rec.position_size_pct for rec in recommendations)
         if total_weight > 0:
-            weighted_confidence = sum(
-                rec.confidence * rec.position_size_pct for rec in recommendations
-            ) / total_weight
+            weighted_confidence = (
+                sum(rec.confidence * rec.position_size_pct for rec in recommendations)
+                / total_weight
+            )
         else:
-            weighted_confidence = sum(rec.confidence for rec in recommendations) / len(recommendations)
+            weighted_confidence = sum(rec.confidence for rec in recommendations) / len(
+                recommendations
+            )
 
         # 价格区间取并集（扩大范围）
         entry_price_low = min(rec.entry_price_low for rec in recommendations)
         entry_price_high = max(rec.entry_price_high for rec in recommendations)
         target_price_low = min(rec.target_price_low for rec in recommendations)
         target_price_high = max(rec.target_price_high for rec in recommendations)
-        stop_loss_price = max(rec.stop_loss_price for rec in recommendations)  # 止损价取最高（最保守）
+        stop_loss_price = max(
+            rec.stop_loss_price for rec in recommendations
+        )  # 止损价取最高（最保守）
 
         # 公允价值取加权平均
-        fair_value = sum(
-            rec.fair_value * rec.position_size_pct for rec in recommendations
-        ) / total_weight if total_weight > 0 else first.fair_value
+        fair_value = (
+            sum(rec.fair_value * rec.position_size_pct for rec in recommendations) / total_weight
+            if total_weight > 0
+            else first.fair_value
+        )
 
         # 仓位比例累加（但有上限）
         total_position_pct = min(
@@ -1188,7 +1205,9 @@ class RecommendationConsolidationService:
             all_source_ids.extend(rec.source_recommendation_ids)
 
         # 合并人类可读理由
-        rationales = [rec.human_readable_rationale for rec in recommendations if rec.human_readable_rationale]
+        rationales = [
+            rec.human_readable_rationale for rec in recommendations if rec.human_readable_rationale
+        ]
         merged_rationale = " | ".join(rationales[:3])  # 最多取 3 条
         if len(rationales) > 3:
             merged_rationale += f" ... (共 {len(rationales)} 条理由)"
@@ -1212,7 +1231,7 @@ class RecommendationConsolidationService:
             account_id=account_id,
             valuation_snapshot_id=first.valuation_snapshot_id,  # 使用第一条的快照
             source_recommendation_ids=all_source_ids,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             status="CONSOLIDATED",
         )
 
@@ -1235,7 +1254,7 @@ class ExecutionApprovalService:
         self,
         approval_request: ExecutionApprovalRequest,
         market_price: Decimal,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         检查是否可以批准执行
 
@@ -1248,7 +1267,10 @@ class ExecutionApprovalService:
         """
         # 检查状态
         if not approval_request.is_pending:
-            return False, f"审批状态不是 PENDING，当前状态: {approval_request.approval_status.value}"
+            return (
+                False,
+                f"审批状态不是 PENDING，当前状态: {approval_request.approval_status.value}",
+            )
 
         # 检查价格
         price_valid, price_reason = approval_request.validate_price_for_approval(market_price)
@@ -1267,7 +1289,7 @@ class ExecutionApprovalService:
         self,
         approval_request: ExecutionApprovalRequest,
         reviewer_comments: str,
-        market_price: Optional[Decimal] = None,
+        market_price: Decimal | None = None,
     ) -> ExecutionApprovalRequest:
         """
         批准执行
@@ -1303,7 +1325,7 @@ class ExecutionApprovalService:
             reviewer_comments=reviewer_comments,
             regime_source=approval_request.regime_source,
             created_at=approval_request.created_at,
-            reviewed_at=datetime.now(timezone.utc),
+            reviewed_at=datetime.now(UTC),
             executed_at=None,
         )
 
@@ -1345,7 +1367,7 @@ class ExecutionApprovalService:
             reviewer_comments=reviewer_comments,
             regime_source=approval_request.regime_source,
             created_at=approval_request.created_at,
-            reviewed_at=datetime.now(timezone.utc),
+            reviewed_at=datetime.now(UTC),
             executed_at=None,
         )
 
@@ -1386,7 +1408,7 @@ class ExecutionApprovalService:
             regime_source=approval_request.regime_source,
             created_at=approval_request.created_at,
             reviewed_at=approval_request.reviewed_at,
-            executed_at=datetime.now(timezone.utc),
+            executed_at=datetime.now(UTC),
         )
 
     def mark_failed(
@@ -1416,7 +1438,7 @@ class ExecutionApprovalService:
         updated_risk_checks["execution_error"] = {
             "passed": False,
             "reason": error_message,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         return ExecutionApprovalRequest(
@@ -1486,7 +1508,7 @@ class ModelWeights:
     technical_weight: float = 0.15
     fundamental_weight: float = 0.15
 
-    def validate(self) -> Tuple[bool, str]:
+    def validate(self) -> tuple[bool, str]:
         """
         验证权重配置
 
@@ -1552,8 +1574,8 @@ class CompositeScoreCalculator:
 
     def __init__(
         self,
-        weights: Optional[ModelWeights] = None,
-        penalties: Optional[GatePenalties] = None,
+        weights: ModelWeights | None = None,
+        penalties: GatePenalties | None = None,
     ):
         """
         初始化综合分计算器
@@ -1575,7 +1597,7 @@ class CompositeScoreCalculator:
         cooldown_violation: bool = False,
         quota_tight: bool = False,
         volatility_high: bool = False,
-    ) -> Tuple[float, List[str]]:
+    ) -> tuple[float, list[str]]:
         """
         计算综合分
 
@@ -1628,7 +1650,7 @@ class CompositeScoreCalculator:
         cooldown_violation: bool = False,
         quota_tight: bool = False,
         volatility_high: bool = False,
-    ) -> Tuple[float, List[str]]:
+    ) -> tuple[float, list[str]]:
         """
         从特征快照计算综合分
 
@@ -1666,8 +1688,8 @@ class RecommendationAggregator:
 
     def aggregate(
         self,
-        recommendations: List["UnifiedRecommendation"],
-    ) -> Tuple[List["UnifiedRecommendation"], List["UnifiedRecommendation"], List["ConflictPair"]]:
+        recommendations: list["UnifiedRecommendation"],
+    ) -> tuple[list["UnifiedRecommendation"], list["UnifiedRecommendation"], list["ConflictPair"]]:
         """
         聚合推荐列表
 
@@ -1680,7 +1702,7 @@ class RecommendationAggregator:
         from .entities import RecommendationStatus
 
         # 按聚合键分组
-        groups: Dict[str, List["UnifiedRecommendation"]] = {}
+        groups: dict[str, list[UnifiedRecommendation]] = {}
         for rec in recommendations:
             key = rec.get_aggregation_key()
             if key not in groups:
@@ -1688,9 +1710,9 @@ class RecommendationAggregator:
             groups[key].append(rec)
 
         # 处理每个分组
-        deduplicated: List["UnifiedRecommendation"] = []
-        conflicts: List["UnifiedRecommendation"] = []
-        conflict_pairs: List["ConflictPair"] = []
+        deduplicated: list[UnifiedRecommendation] = []
+        conflicts: list[UnifiedRecommendation] = []
+        conflict_pairs: list[ConflictPair] = []
 
         for key, group in groups.items():
             if len(group) == 1:
@@ -1702,7 +1724,7 @@ class RecommendationAggregator:
                 deduplicated.append(merged)
 
         # 检测 BUY/SELL 冲突
-        account_security_groups: Dict[str, Dict[str, List["UnifiedRecommendation"]]] = {}
+        account_security_groups: dict[str, dict[str, list[UnifiedRecommendation]]] = {}
         for rec in deduplicated:
             as_key = f"{rec.account_id}|{rec.security_code}"
             if as_key not in account_security_groups:
@@ -1712,7 +1734,7 @@ class RecommendationAggregator:
             account_security_groups[as_key][rec.side].append(rec)
 
         # 处理冲突
-        final_recommendations: List["UnifiedRecommendation"] = []
+        final_recommendations: list[UnifiedRecommendation] = []
         for as_key, side_groups in account_security_groups.items():
             has_buy = "BUY" in side_groups and side_groups["BUY"]
             has_sell = "SELL" in side_groups and side_groups["SELL"]
@@ -1725,10 +1747,12 @@ class RecommendationAggregator:
                 for buy_rec in buy_recs:
                     conflicts.append(buy_rec)
                     for sell_rec in sell_recs:
-                        conflict_pairs.append(ConflictPair(
-                            buy_recommendation=buy_rec,
-                            sell_recommendation=sell_rec,
-                        ))
+                        conflict_pairs.append(
+                            ConflictPair(
+                                buy_recommendation=buy_rec,
+                                sell_recommendation=sell_rec,
+                            )
+                        )
 
                 for sell_rec in sell_recs:
                     if sell_rec not in conflicts:
@@ -1742,7 +1766,7 @@ class RecommendationAggregator:
 
     def _merge_recommendations(
         self,
-        recommendations: List["UnifiedRecommendation"],
+        recommendations: list["UnifiedRecommendation"],
     ) -> "UnifiedRecommendation":
         """
         合并多个同键推荐
@@ -1768,9 +1792,9 @@ class RecommendationAggregator:
         best = sorted_recs[0]
 
         # 合并 reason_codes 和 source
-        all_reason_codes: List[str] = []
-        all_source_signal_ids: List[str] = []
-        all_source_candidate_ids: List[str] = []
+        all_reason_codes: list[str] = []
+        all_source_signal_ids: list[str] = []
+        all_source_candidate_ids: list[str] = []
 
         for rec in recommendations:
             all_reason_codes.extend(rec.reason_codes)
@@ -1817,7 +1841,7 @@ class RecommendationAggregator:
             feature_snapshot_id=best.feature_snapshot_id,
             status=best.status,
             created_at=best.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
 

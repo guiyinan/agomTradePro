@@ -15,16 +15,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from core.cache_utils import cached_api, CACHE_TTL
+from core.cache_utils import CACHE_TTL, cached_api
+
 from ..application.services import AlphaService
 from ..infrastructure.models import AlphaScoreCacheModel
 from .serializers import (
-    GetStockScoresRequestSerializer,
     AlphaResultSerializer,
+    GetStockScoresRequestSerializer,
     ProviderStatusSerializer,
     UploadScoresSerializer,
 )
-
 
 logger = logging.getLogger(__name__)
 User = get_user_model()

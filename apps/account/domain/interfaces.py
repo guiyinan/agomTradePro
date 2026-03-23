@@ -6,25 +6,25 @@ These protocols define the contracts that infrastructure layer must implement.
 Application layer should depend on these protocols, not concrete implementations.
 """
 
-from typing import Protocol, List, Optional, Dict, Any
-from decimal import Decimal
-from datetime import date
 from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Protocol
 
 from apps.account.domain.entities import (
     AccountProfile,
-    Position,
     PortfolioSnapshot,
-    Transaction,
+    Position,
     StopLossConfig,
     StopLossTrigger,
+    Transaction,
 )
 
 
 class AccountRepositoryProtocol(Protocol):
     """Account repository protocol for user account operations."""
 
-    def get_by_user_id(self, user_id: int) -> Optional[AccountProfile]:
+    def get_by_user_id(self, user_id: int) -> AccountProfile | None:
         """Get account profile by user ID."""
         ...
 
@@ -38,7 +38,7 @@ class AccountRepositoryProtocol(Protocol):
 
     def get_account_profile_with_volatility_config(
         self, user_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get account profile with volatility configuration.
 
@@ -52,15 +52,15 @@ class AccountRepositoryProtocol(Protocol):
 class PortfolioRepositoryProtocol(Protocol):
     """Portfolio repository protocol for portfolio operations."""
 
-    def get_user_portfolios(self, user_id: int) -> List[Dict]:
+    def get_user_portfolios(self, user_id: int) -> list[dict]:
         """Get all portfolios for a user."""
         ...
 
-    def get_portfolio_snapshot(self, portfolio_id: int) -> Optional[PortfolioSnapshot]:
+    def get_portfolio_snapshot(self, portfolio_id: int) -> PortfolioSnapshot | None:
         """Get portfolio snapshot with positions."""
         ...
 
-    def get_active_portfolios(self, user_id: Optional[int] = None) -> List[Dict]:
+    def get_active_portfolios(self, user_id: int | None = None) -> list[dict]:
         """
         Get active portfolios.
 
@@ -79,13 +79,13 @@ class PositionRepositoryProtocol(Protocol):
     def get_user_positions(
         self,
         user_id: int,
-        status: Optional[str] = None,
-        asset_class: Optional[str] = None,
-    ) -> List[Position]:
+        status: str | None = None,
+        asset_class: str | None = None,
+    ) -> list[Position]:
         """Get user positions with optional filters."""
         ...
 
-    def get_position_by_id(self, position_id: int) -> Optional[Position]:
+    def get_position_by_id(self, position_id: int) -> Position | None:
         """Get position by ID."""
         ...
 
@@ -96,7 +96,7 @@ class PositionRepositoryProtocol(Protocol):
         shares: float,
         price: Decimal,
         source: str = "manual",
-        source_id: Optional[int] = None,
+        source_id: int | None = None,
     ) -> Position:
         """Create a new position."""
         ...
@@ -104,26 +104,26 @@ class PositionRepositoryProtocol(Protocol):
     def close_position(
         self,
         position_id: int,
-        shares: Optional[float] = None,
-        price: Optional[Decimal] = None,
-        reason: Optional[str] = None,
-    ) -> Optional[Position]:
+        shares: float | None = None,
+        price: Decimal | None = None,
+        reason: str | None = None,
+    ) -> Position | None:
         """Close position (full or partial)."""
         ...
 
     def update_position_price(
         self, position_id: int, new_price: Decimal
-    ) -> Optional[Position]:
+    ) -> Position | None:
         """Update position current price and recalculate P&L."""
         ...
 
-    def get_active_positions_by_portfolio(self, portfolio_id: int) -> List[Position]:
+    def get_active_positions_by_portfolio(self, portfolio_id: int) -> list[Position]:
         """Get all active positions for a portfolio."""
         ...
 
     def get_position_with_user_email(
         self, position_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get position with user email for notifications.
 
@@ -140,11 +140,11 @@ class TransactionRepositoryProtocol(Protocol):
         self,
         portfolio_id: int,
         limit: int = 50,
-    ) -> List[Transaction]:
+    ) -> list[Transaction]:
         """Get portfolio transactions."""
         ...
 
-    def get_transaction_by_id(self, transaction_id: int) -> Optional[Dict[str, Any]]:
+    def get_transaction_by_id(self, transaction_id: int) -> dict[str, Any] | None:
         """
         Get transaction by ID.
 
@@ -157,10 +157,10 @@ class TransactionRepositoryProtocol(Protocol):
         self,
         transaction_id: int,
         commission: Decimal,
-        slippage: Optional[Decimal] = None,
-        stamp_duty: Optional[Decimal] = None,
-        transfer_fee: Optional[Decimal] = None,
-        estimated_cost: Optional[Decimal] = None,
+        slippage: Decimal | None = None,
+        stamp_duty: Decimal | None = None,
+        transfer_fee: Decimal | None = None,
+        estimated_cost: Decimal | None = None,
     ) -> bool:
         """Update transaction cost fields."""
         ...
@@ -168,9 +168,9 @@ class TransactionRepositoryProtocol(Protocol):
     def get_user_transactions_for_analysis(
         self,
         user_id: int,
-        portfolio_id: Optional[int] = None,
+        portfolio_id: int | None = None,
         days: int = 90,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get user transactions for cost analysis.
 
@@ -190,11 +190,11 @@ class AssetMetadataRepositoryProtocol(Protocol):
         asset_class: str = "equity",
         region: str = "CN",
         **kwargs
-    ) -> Dict:
+    ) -> dict:
         """Get or create asset metadata."""
         ...
 
-    def get_asset_by_code(self, asset_code: str) -> Optional[Dict[str, Any]]:
+    def get_asset_by_code(self, asset_code: str) -> dict[str, Any] | None:
         """
         Get asset metadata by code.
 
@@ -206,9 +206,9 @@ class AssetMetadataRepositoryProtocol(Protocol):
     def search_assets(
         self,
         query: str,
-        asset_class: Optional[str] = None,
-        region: Optional[str] = None,
-    ) -> List[Dict]:
+        asset_class: str | None = None,
+        region: str | None = None,
+    ) -> list[dict]:
         """Search assets."""
         ...
 
@@ -217,8 +217,8 @@ class StopLossRepositoryProtocol(Protocol):
     """Stop loss repository protocol for stop loss configuration operations."""
 
     def get_active_stop_loss_configs(
-        self, user_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, user_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get all active stop loss configurations.
 
@@ -232,7 +232,7 @@ class StopLossRepositoryProtocol(Protocol):
 
     def get_stop_loss_config_by_position(
         self, position_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get stop loss config for a position."""
         ...
 
@@ -241,20 +241,20 @@ class StopLossRepositoryProtocol(Protocol):
         position_id: int,
         stop_loss_type: str,
         stop_loss_pct: float,
-        trailing_stop_pct: Optional[float] = None,
-        max_holding_days: Optional[int] = None,
-        highest_price: Optional[Decimal] = None,
-    ) -> Dict[str, Any]:
+        trailing_stop_pct: float | None = None,
+        max_holding_days: int | None = None,
+        highest_price: Decimal | None = None,
+    ) -> dict[str, Any]:
         """Create stop loss configuration."""
         ...
 
     def update_stop_loss_config(
         self,
         config_id: int,
-        status: Optional[str] = None,
-        highest_price: Optional[Decimal] = None,
-        highest_price_updated_at: Optional[Any] = None,
-        triggered_at: Optional[Any] = None,
+        status: str | None = None,
+        highest_price: Decimal | None = None,
+        highest_price_updated_at: Any | None = None,
+        triggered_at: Any | None = None,
     ) -> bool:
         """Update stop loss configuration."""
         ...
@@ -268,7 +268,7 @@ class StopLossRepositoryProtocol(Protocol):
         pnl: Decimal,
         pnl_pct: float,
         notes: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create stop loss trigger record."""
         ...
 
@@ -277,8 +277,8 @@ class TakeProfitRepositoryProtocol(Protocol):
     """Take profit repository protocol for take profit configuration operations."""
 
     def get_active_take_profit_configs(
-        self, user_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, user_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get all active take profit configurations.
 
@@ -292,7 +292,7 @@ class TakeProfitRepositoryProtocol(Protocol):
 
     def get_take_profit_config_by_position(
         self, position_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get take profit config for a position."""
         ...
 
@@ -300,15 +300,15 @@ class TakeProfitRepositoryProtocol(Protocol):
         self,
         position_id: int,
         take_profit_pct: float,
-        partial_profit_levels: Optional[List[float]] = None,
-    ) -> Dict[str, Any]:
+        partial_profit_levels: list[float] | None = None,
+    ) -> dict[str, Any]:
         """Create take profit configuration."""
         ...
 
     def update_take_profit_config(
         self,
         config_id: int,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
     ) -> bool:
         """Update take profit configuration."""
         ...
@@ -321,7 +321,7 @@ class PortfolioSnapshotRepositoryProtocol(Protocol):
         self,
         portfolio_id: int,
         days: int = 90,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get portfolio daily snapshots for volatility calculation.
 
@@ -336,7 +336,7 @@ class TransactionCostConfigRepositoryProtocol(Protocol):
 
     def get_cost_config(
         self, market: str, asset_class: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get transaction cost configuration for market and asset class.
 
@@ -345,7 +345,7 @@ class TransactionCostConfigRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_default_cost_config(self, market: str, asset_class: str) -> Dict[str, Any]:
+    def get_default_cost_config(self, market: str, asset_class: str) -> dict[str, Any]:
         """
         Get default cost configuration.
 
@@ -367,7 +367,7 @@ class MarketDataPort(Protocol):
     Infrastructure layer should implement this protocol using actual data sources.
     """
 
-    def get_current_price(self, asset_code: str) -> Optional[Decimal]:
+    def get_current_price(self, asset_code: str) -> Decimal | None:
         """
         Get current price for an asset.
 
@@ -379,7 +379,7 @@ class MarketDataPort(Protocol):
         """
         ...
 
-    def get_prices_batch(self, asset_codes: List[str]) -> Dict[str, Optional[Decimal]]:
+    def get_prices_batch(self, asset_codes: list[str]) -> dict[str, Decimal | None]:
         """
         Get current prices for multiple assets.
 
@@ -418,7 +418,7 @@ class StopLossNotificationData:
     trigger_reason: str
     pnl: Decimal
     pnl_pct: float
-    shares_closed: Optional[float] = None
+    shares_closed: float | None = None
 
 
 class StopLossNotificationPort(Protocol):

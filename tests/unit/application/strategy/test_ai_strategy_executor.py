@@ -7,24 +7,24 @@ AI 策略执行器单元测试
 - 审核模式过滤
 - 待审核信号队列管理
 """
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 
 from apps.strategy.application.ai_strategy_executor import (
-    AIStrategyExecutor,
-    AIResponseParser,
     AIClientFactory,
-    PendingApprovalQueue
+    AIResponseParser,
+    AIStrategyExecutor,
+    PendingApprovalQueue,
 )
 from apps.strategy.domain.entities import (
-    Strategy,
-    StrategyType,
     ActionType,
+    AIConfig,
     RiskControlParams,
+    Strategy,
     StrategyConfig,
-    AIConfig
+    StrategyType,
 )
-
 
 # ========================================================================
 # AI 响应解析器测试

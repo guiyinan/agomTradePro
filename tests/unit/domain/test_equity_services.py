@@ -28,7 +28,6 @@ from tests.factories.domain_factories import (
     make_valuation_metrics,
 )
 
-
 # ============================================================
 # Helpers
 # ============================================================
@@ -336,7 +335,7 @@ class TestRegimeCorrelationAnalyzer:
         """Identical stock and market returns yield beta 1.0 per regime."""
         dates = [date(2024, 1, i) for i in range(2, 7)]
         returns = {d: 0.01 * (i + 1) for i, d in enumerate(dates)}
-        regime = {d: "Recovery" for d in dates}
+        regime = dict.fromkeys(dates, "Recovery")
 
         result = rca.calculate_regime_beta(returns, returns, regime)
 
@@ -369,8 +368,8 @@ class TestRegimeCorrelationAnalyzer:
         """Constant market returns (zero variance) returns default beta."""
         dates = [date(2024, 1, i) for i in range(2, 7)]
         stock = {d: 0.01 * (i + 1) for i, d in enumerate(dates)}
-        market = {d: 0.05 for d in dates}
-        regime = {d: "Stagflation" for d in dates}
+        market = dict.fromkeys(dates, 0.05)
+        regime = dict.fromkeys(dates, "Stagflation")
 
         result = rca.calculate_regime_beta(stock, market, regime)
 

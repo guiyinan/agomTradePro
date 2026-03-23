@@ -9,20 +9,21 @@ Integration Tests for Backtest Metrics Completeness
 5. stock_performances（个股表现）整理
 """
 
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
 
-from apps.backtest.domain.entities import BacktestConfig
-from apps.backtest.domain.services import BacktestEngine, RebalanceResult
-from apps.backtest.domain.stock_selection_backtest import (
-    StockSelectionBacktestConfig,
-    StockSelectionBacktestEngine,
-    RebalanceFrequency,
-)
+import pytest
+
 from apps.backtest.domain.alpha_backtest import (
     AlphaBacktestConfig,
     AlphaBacktestEngine,
+)
+from apps.backtest.domain.entities import BacktestConfig
+from apps.backtest.domain.services import BacktestEngine, RebalanceResult
+from apps.backtest.domain.stock_selection_backtest import (
+    RebalanceFrequency,
+    StockSelectionBacktestConfig,
+    StockSelectionBacktestEngine,
 )
 
 
@@ -371,8 +372,9 @@ class TestAlphaBacktestMetricsCompleteness:
         # Mock Alpha service
         class MockAlphaService:
             def get_stock_scores(self, universe_id, intended_trade_date, top_n):
-                from apps.alpha.domain.entities import AlphaResult, StockScore
                 from datetime import datetime
+
+                from apps.alpha.domain.entities import AlphaResult, StockScore
 
                 return AlphaResult(
                     success=True,

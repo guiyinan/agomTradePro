@@ -9,7 +9,6 @@ from django.core.management.base import BaseCommand
 
 from apps.ai_capability.application.use_cases import SyncCapabilitiesUseCase
 
-
 logger = logging.getLogger(__name__)
 
 

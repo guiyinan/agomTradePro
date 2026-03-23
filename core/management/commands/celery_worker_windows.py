@@ -9,6 +9,7 @@ Celery 在 Windows 上不支持 prefork pool（多进程），本命令自动使
 """
 
 import sys
+
 from django.core.management.base import BaseCommand
 
 

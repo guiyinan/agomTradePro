@@ -5,9 +5,10 @@ Tests the secrets loading with the new registry pattern that avoids
 direct dependencies on apps/ modules.
 """
 
-import pytest
-from unittest.mock import patch, Mock
 import os
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestSecretsRegistry:
@@ -16,10 +17,10 @@ class TestSecretsRegistry:
     def test_register_and_load_secrets(self):
         """Test registering a loader and loading secrets."""
         from shared.config.secrets import (
-            register_database_secrets_loader,
-            get_secrets,
-            clear_secrets_cache,
             AppSecrets,
+            clear_secrets_cache,
+            get_secrets,
+            register_database_secrets_loader,
         )
         from shared.domain.interfaces import DataSourceSecretsDTO
 
@@ -48,12 +49,12 @@ class TestSecretsRegistry:
 
     def test_fallback_to_env(self):
         """Test fallback to environment variables when no loader registered."""
-        from shared.config.secrets import (
-            get_secrets,
-            clear_secrets_cache,
-            _database_secrets_loader,
-        )
         import shared.config.secrets as secrets_module
+        from shared.config.secrets import (
+            _database_secrets_loader,
+            clear_secrets_cache,
+            get_secrets,
+        )
 
         # Clear cache
         clear_secrets_cache()
@@ -71,11 +72,11 @@ class TestSecretsRegistry:
 
     def test_no_token_raises_error(self):
         """Test that missing token raises EnvironmentError."""
-        from shared.config.secrets import (
-            get_secrets,
-            clear_secrets_cache,
-        )
         import shared.config.secrets as secrets_module
+        from shared.config.secrets import (
+            clear_secrets_cache,
+            get_secrets,
+        )
 
         # Clear cache and loader
         clear_secrets_cache()
@@ -187,8 +188,8 @@ class TestGetTushareToken:
     def test_get_tushare_token(self):
         """Test get_tushare_token returns the token."""
         from shared.config.secrets import (
-            get_tushare_token,
             clear_secrets_cache,
+            get_tushare_token,
             register_database_secrets_loader,
         )
         from shared.domain.interfaces import DataSourceSecretsDTO

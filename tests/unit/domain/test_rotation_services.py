@@ -38,7 +38,6 @@ from tests.factories.domain_factories import (
     make_rotation_signal,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -48,9 +47,9 @@ DEFAULT_UNIVERSE = ["510300", "511260", "159980"]
 
 
 def _build_context(
-    asset_universe: Optional[List[str]] = None,
-    price_data: Optional[Dict[str, List[float]]] = None,
-    regime: Optional[str] = "Recovery",
+    asset_universe: list[str] | None = None,
+    price_data: dict[str, list[float]] | None = None,
+    regime: str | None = "Recovery",
 ) -> RotationContext:
     """Build a RotationContext with controllable injected data."""
     return RotationContext(
@@ -61,22 +60,22 @@ def _build_context(
     )
 
 
-def _make_uptrend_prices(days: int = 200, base: float = 100.0) -> List[float]:
+def _make_uptrend_prices(days: int = 200, base: float = 100.0) -> list[float]:
     """Create a deterministic uptrend price series."""
     return [base * (1 + 0.001 * i) for i in range(days)]
 
 
-def _make_downtrend_prices(days: int = 200, base: float = 100.0) -> List[float]:
+def _make_downtrend_prices(days: int = 200, base: float = 100.0) -> list[float]:
     """Create a deterministic downtrend price series."""
     return [base * (1 - 0.0005 * i) for i in range(days)]
 
 
-def _make_flat_prices(days: int = 200, base: float = 100.0) -> List[float]:
+def _make_flat_prices(days: int = 200, base: float = 100.0) -> list[float]:
     """Create a flat price series."""
     return [base] * days
 
 
-def _make_volatile_prices(days: int = 200, base: float = 100.0) -> List[float]:
+def _make_volatile_prices(days: int = 200, base: float = 100.0) -> list[float]:
     """Create a volatile price series using sine pattern."""
     return [base * (1 + 0.03 * math.sin(i * 0.3)) for i in range(days)]
 

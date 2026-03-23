@@ -1,7 +1,8 @@
 """URL Configuration for Audit pages and legacy API aliases."""
 
-from django.urls import include, path
 from django.shortcuts import redirect
+from django.urls import include, path
+
 from . import views
 
 app_name = 'audit'

@@ -9,14 +9,15 @@
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional, Dict
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Dict, List, Optional
 
-from ..domain.entities import SectorInfo, SectorIndex, SectorRelativeStrength, SectorScore
+from shared.infrastructure.config_loader import get_sector_weights
+
+from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
 from ..domain.services import SectorRotationAnalyzer
 from ..infrastructure.repositories import DjangoSectorRepository
-from shared.infrastructure.config_loader import get_sector_weights
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class AnalyzeSectorRotationRequest:
         level: 板块级别（SW1/SW2/SW3）
         top_n: 返回前 N 个板块
     """
-    regime: Optional[str] = None  # 如果为 None，自动获取最新 Regime
+    regime: str | None = None  # 如果为 None，自动获取最新 Regime
     lookback_days: int = 20
     momentum_weight: float = 0.3
     rs_weight: float = 0.4
@@ -57,11 +58,11 @@ class SectorRotationResult:
     success: bool
     regime: str
     analysis_date: date
-    top_sectors: List[SectorScore]
-    error: Optional[str] = None
+    top_sectors: list[SectorScore]
+    error: str | None = None
     status: str = "available"
     data_source: str = "live"
-    warning_message: Optional[str] = None
+    warning_message: str | None = None
 
 
 class AnalyzeSectorRotationUseCase:
@@ -256,7 +257,7 @@ class AnalyzeSectorRotationUseCase:
 
     def _get_market_returns(
         self, start_date: date, end_date: date, expected_length: int
-    ) -> Optional[list]:
+    ) -> list | None:
         """获取大盘指数收益率（沪深300）
 
         Args:
@@ -315,8 +316,8 @@ class UpdateSectorDataRequest:
         force_update: 是否强制更新
     """
     level: str = 'SW1'
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    start_date: str | None = None
+    end_date: str | None = None
     force_update: bool = False
 
 
@@ -331,7 +332,7 @@ class UpdateSectorDataResult:
     """
     success: bool
     updated_count: int
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class UpdateSectorDataUseCase:

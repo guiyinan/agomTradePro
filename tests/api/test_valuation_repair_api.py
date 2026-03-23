@@ -6,21 +6,21 @@
 这些测试使用 Mock 避免依赖真实数据。
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 from datetime import date, timedelta
 from decimal import Decimal
-from django.test import TestCase, Client
+from unittest.mock import MagicMock, patch
+
+import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
+from django.test import Client, TestCase
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.equity.domain.entities_valuation_repair import (
+    PercentilePoint,
     ValuationRepairPhase,
     ValuationRepairStatus,
-    PercentilePoint,
 )
-
 
 User = get_user_model()
 
@@ -116,7 +116,7 @@ class TestValuationRepairStatusAPI:
 
             # 不应该返回 404
             assert response.status_code != status.HTTP_404_NOT_FOUND, \
-                f"Stock codes with '.' should be accepted, got 404 for 000001.SZ"
+                "Stock codes with '.' should be accepted, got 404 for 000001.SZ"
 
     def test_status_endpoint_invalid_lookback_days_returns_400(self, api_client):
         """
@@ -166,7 +166,7 @@ class TestValuationRepairHistoryAPI:
             response = api_client.get('/api/equity/valuation-repair/000001.SZ/history/')
 
             assert response.status_code != status.HTTP_404_NOT_FOUND, \
-                f"History endpoint should accept stock codes with '.', got 404"
+                "History endpoint should accept stock codes with '.', got 404"
 
     def test_history_endpoint_invalid_lookback_days_returns_400(self, api_client):
         """无效 lookback_days 应返回 400"""
@@ -198,11 +198,11 @@ class TestValuationRepairScanAPI:
 
             # 不应该返回 405 Method Not Allowed
             assert response.status_code != status.HTTP_405_METHOD_NOT_ALLOWED, \
-                f"Scan endpoint should accept POST, got 405"
+                "Scan endpoint should accept POST, got 405"
 
             # 也不应该返回 404
             assert response.status_code != status.HTTP_404_NOT_FOUND, \
-                f"Scan endpoint should exist, got 404"
+                "Scan endpoint should exist, got 404"
 
     def test_scan_endpoint_returns_correct_structure(self, api_client):
         """测试 scan 响应结构"""

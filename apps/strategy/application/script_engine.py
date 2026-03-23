@@ -6,18 +6,19 @@
 - 使用 RestrictedPython 实现沙箱隔离
 - 提供安全的脚本 API
 """
-import logging
 import ast
-from typing import List, Dict, Any, Optional, Set
+import logging
+from typing import Any, Dict, List, Optional, Set
+
 from RestrictedPython import compile_restricted
+from RestrictedPython.Eval import default_guarded_getattr
 from RestrictedPython.Guards import (
+    full_write_guard,
     guarded_iter_unpack_sequence,
     guarded_unpack_sequence,
     safe_builtins,
-    full_write_guard,
     safer_getattr,
 )
-from RestrictedPython.Eval import default_guarded_getattr
 
 
 def safe_dict_getattr(obj, attr):
@@ -33,18 +34,13 @@ def safe_dict_getattr(obj, attr):
             raise AttributeError(f"'dict' object has no attribute '{attr}'")
     return default_guarded_getattr(obj, attr)
 
-from apps.strategy.domain.entities import (
-    Strategy,
-    SignalRecommendation,
-    ActionType,
-    ScriptConfig
-)
+from apps.strategy.domain.entities import ActionType, ScriptConfig, SignalRecommendation, Strategy
 from apps.strategy.domain.protocols import (
-    MacroDataProviderProtocol,
-    RegimeProviderProtocol,
     AssetPoolProviderProtocol,
+    MacroDataProviderProtocol,
+    PortfolioDataProviderProtocol,
+    RegimeProviderProtocol,
     SignalProviderProtocol,
-    PortfolioDataProviderProtocol
 )
 
 logger = logging.getLogger(__name__)
@@ -65,23 +61,23 @@ class SecurityConfig:
     """安全配置"""
 
     # 宽松模式配置（用户确认的默认值）
-    RELAXED_ALLOWED_MODULES: Set[str] = {
+    RELAXED_ALLOWED_MODULES: set[str] = {
         'math', 'datetime', 'statistics', 'itertools',
         'pandas', 'numpy', 'collections', 'fractions',
         'decimal', 'random', 'typing'
     }
 
     # 标准模式配置
-    STANDARD_ALLOWED_MODULES: Set[str] = {
+    STANDARD_ALLOWED_MODULES: set[str] = {
         'math', 'datetime', 'statistics', 'itertools',
         'collections', 'fractions', 'decimal', 'random', 'typing'
     }
 
     # 严格模式配置
-    STRICT_ALLOWED_MODULES: Set[str] = {'math', 'datetime'}
+    STRICT_ALLOWED_MODULES: set[str] = {'math', 'datetime'}
 
     # 始终禁止的模块（危险操作）
-    FORBIDDEN_MODULES: Set[str] = {
+    FORBIDDEN_MODULES: set[str] = {
         'os', 'sys', 'subprocess', 'eval', 'exec',
         'importlib', 'types', 'pickle', 'shutil',
         'socket', 'urllib', 'requests', 'http',
@@ -89,13 +85,13 @@ class SecurityConfig:
     }
 
     # 始终禁止的内置函数
-    FORBIDDEN_BUILTINS: Set[str] = {
+    FORBIDDEN_BUILTINS: set[str] = {
         'open', 'file', '__import__', 'reload',
         'compile', 'eval', 'exec', 'exit', 'quit'
     }
 
     @classmethod
-    def get_allowed_modules(cls, security_mode: str = SecurityMode.RELAXED) -> Set[str]:
+    def get_allowed_modules(cls, security_mode: str = SecurityMode.RELAXED) -> set[str]:
         """
         根据安全模式获取允许的模块列表
 
@@ -171,7 +167,7 @@ class ScriptAPI:
         self.portfolio_provider = portfolio_provider
         self.portfolio_id = portfolio_id
 
-    def get_macro_indicator(self, indicator_code: str) -> Optional[float]:
+    def get_macro_indicator(self, indicator_code: str) -> float | None:
         """
         获取宏观指标值
 
@@ -192,7 +188,7 @@ class ScriptAPI:
             logger.error(f"Failed to get macro indicator {indicator_code}: {e}")
             return None
 
-    def get_all_macro_indicators(self) -> Dict[str, float]:
+    def get_all_macro_indicators(self) -> dict[str, float]:
         """
         获取所有宏观指标
 
@@ -209,7 +205,7 @@ class ScriptAPI:
             logger.error(f"Failed to get all macro indicators: {e}")
             return {}
 
-    def get_regime(self) -> Dict[str, Any]:
+    def get_regime(self) -> dict[str, Any]:
         """
         获取当前 Regime 状态
 
@@ -235,7 +231,7 @@ class ScriptAPI:
         self,
         min_score: float = 60.0,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取可投资产池
 
@@ -262,7 +258,7 @@ class ScriptAPI:
             logger.error(f"Failed to get asset pool: {e}")
             return []
 
-    def get_valid_signals(self) -> List[Dict[str, Any]]:
+    def get_valid_signals(self) -> list[dict[str, Any]]:
         """
         获取有效信号列表
 
@@ -284,7 +280,7 @@ class ScriptAPI:
             logger.error(f"Failed to get valid signals: {e}")
             return []
 
-    def get_portfolio_positions(self) -> List[Dict[str, Any]]:
+    def get_portfolio_positions(self) -> list[dict[str, Any]]:
         """
         获取投资组合持仓
 
@@ -328,10 +324,10 @@ class ScriptAPI:
         asset_code: str,
         asset_name: str,
         action: str,
-        weight: Optional[float] = None,
+        weight: float | None = None,
         reason: str = "",
         confidence: float = 0.5
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         生成交易信号
 
@@ -395,7 +391,7 @@ class ScriptExecutionEnvironment:
         self.security_mode = security_mode
         self.allowed_modules = SecurityConfig.get_allowed_modules(security_mode)
 
-    def _prepare_safe_globals(self, script_api: ScriptAPI) -> Dict[str, Any]:
+    def _prepare_safe_globals(self, script_api: ScriptAPI) -> dict[str, Any]:
         """
         准备安全的全局变量
 
@@ -566,7 +562,7 @@ class ScriptExecutionEnvironment:
         script_code: str,
         script_api: ScriptAPI,
         script_name: str = "<script>"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         在沙箱中执行脚本
 
@@ -660,7 +656,7 @@ class ScriptBasedStrategyExecutor:
         self,
         strategy: Strategy,
         portfolio_id: int
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         执行脚本驱动策略
 

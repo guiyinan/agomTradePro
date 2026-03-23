@@ -4,15 +4,16 @@ API Contract Tests for Policy Workbench.
 Tests the API endpoints for correct response structure and status codes.
 """
 
+from datetime import UTC, date, datetime, timedelta, timezone
+
 import pytest
-from datetime import date, datetime, timezone, timedelta
 from django.contrib.auth.models import User
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.policy.infrastructure.models import (
-    PolicyLog,
     PolicyIngestionConfig,
+    PolicyLog,
     SentimentGateConfig,
 )
 
@@ -103,7 +104,7 @@ class TestWorkbenchSummaryAPI:
             evidence_url='https://example.com/test',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=user,
         )
 
@@ -345,7 +346,7 @@ class TestRollbackEventAPI:
             evidence_url='https://example.com/test',
             event_type='policy',
             gate_effective=True,
-            effective_at=datetime.now(timezone.utc),
+            effective_at=datetime.now(UTC),
             effective_by=user,
         )
 

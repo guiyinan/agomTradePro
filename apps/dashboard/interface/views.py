@@ -12,33 +12,33 @@ Dashboard Interface Views
 import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone as django_timezone
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseNotAllowed
-from django.conf import settings
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from core.cache_utils import cached_api, CACHE_TTL
-from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.account.infrastructure.repositories import (
     AccountRepository,
     PortfolioRepository,
     PositionRepository,
 )
-from apps.dashboard.application.use_cases import GetDashboardDataUseCase
+from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.queries import (
     get_alpha_visualization_query,
     get_dashboard_detail_query,
     get_decision_plane_query,
     get_regime_summary_query,
 )
+from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
-
+from core.cache_utils import CACHE_TTL, cached_api
 
 logger = logging.getLogger(__name__)
 

@@ -6,18 +6,19 @@ Only uses Python standard library (no pandas/numpy).
 """
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import List, Dict, Optional, Tuple, Callable
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 # 从 entities 导入数据类
 from .entities import (
     BacktestConfig,
-    Trade,
-    PortfolioState,
     BacktestResult,
+    PortfolioState,
     RebalanceResult,
+    Trade,
 )
 
 # 默认无风险利率（从配置读取失败时使用）
@@ -43,7 +44,7 @@ class PITDataProcessor:
     用户可在回测结果中看到 pit_revision_warning 字段获取此警告。
     """
 
-    def __init__(self, publication_lags: Dict[str, timedelta]):
+    def __init__(self, publication_lags: dict[str, timedelta]):
         """
         Args:
             publication_lags: {indicator_code: lag_timedelta}
@@ -110,10 +111,10 @@ class PITDataProcessor:
 
     def filter_data_by_availability(
         self,
-        data_points: List[Tuple[date, float]],  # [(observed_at, value), ...]
+        data_points: list[tuple[date, float]],  # [(observed_at, value), ...]
         indicator_code: str,
         as_of_date: date
-    ) -> List[Tuple[date, float]]:
+    ) -> list[tuple[date, float]]:
         """
         筛选出在指定日期已发布的所有数据点
 
@@ -138,10 +139,10 @@ class PITDataProcessor:
 
     def get_latest_available_value(
         self,
-        data_points: List[Tuple[date, float]],
+        data_points: list[tuple[date, float]],
         indicator_code: str,
         as_of_date: date
-    ) -> Optional[Tuple[date, float]]:
+    ) -> tuple[date, float] | None:
         """
         获取指定日期可用的最新数据点
 
@@ -195,9 +196,9 @@ class BacktestEngine:
     def __init__(
         self,
         config: BacktestConfig,
-        get_regime_func: Callable[[date], Optional[Dict]],
-        get_asset_price_func: Callable[[str, date], Optional[float]],
-        pit_processor: Optional[PITDataProcessor] = None
+        get_regime_func: Callable[[date], dict | None],
+        get_asset_price_func: Callable[[str, date], float | None],
+        pit_processor: PITDataProcessor | None = None
     ):
         """
         Args:
@@ -213,10 +214,10 @@ class BacktestEngine:
 
         # 内部状态
         self._cash = config.initial_capital
-        self._positions: Dict[str, float] = {}  # asset_class -> shares
-        self._trades: List[Trade] = []
-        self._equity_curve: List[Tuple[date, float]] = []
-        self._regime_history: List[Dict] = []
+        self._positions: dict[str, float] = {}  # asset_class -> shares
+        self._trades: list[Trade] = []
+        self._equity_curve: list[tuple[date, float]] = []
+        self._regime_history: list[dict] = []
 
     def run(self) -> BacktestResult:
         """
@@ -276,7 +277,7 @@ class BacktestEngine:
             warnings=warnings
         )
 
-    def _generate_rebalance_dates(self) -> List[date]:
+    def _generate_rebalance_dates(self) -> list[date]:
         """生成再平衡日期"""
         dates = []
         current = self.config.start_date
@@ -305,7 +306,7 @@ class BacktestEngine:
 
         return dates
 
-    def _rebalance(self, as_of_date: date) -> Optional[RebalanceResult]:
+    def _rebalance(self, as_of_date: date) -> RebalanceResult | None:
         """
         执行再平衡
 
@@ -409,7 +410,7 @@ class BacktestEngine:
             portfolio_value=current_portfolio_value
         )
 
-    def _calculate_current_weights(self, as_of_date: date) -> Dict[str, float]:
+    def _calculate_current_weights(self, as_of_date: date) -> dict[str, float]:
         """
         计算当前组合的权重
 
@@ -442,7 +443,7 @@ class BacktestEngine:
         self,
         regime: str,
         confidence: float
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         计算目标权重（应用准入规则）
 
@@ -455,9 +456,9 @@ class BacktestEngine:
         """
         # 基础配置：等权分配给 PREFERRED 资产
         from shared.domain.asset_eligibility import (
-            check_eligibility,
             Eligibility,
-            get_eligibility_matrix
+            check_eligibility,
+            get_eligibility_matrix,
         )
 
         eligible_assets = []
@@ -481,7 +482,7 @@ class BacktestEngine:
             return {"CASH": 1.0}
 
         weight = 1.0 / len(eligible_assets)
-        return {asset: weight for asset in eligible_assets}
+        return dict.fromkeys(eligible_assets, weight)
 
     def _calculate_transaction_cost(self, notional: float) -> float:
         """计算交易成本"""
@@ -504,7 +505,7 @@ class BacktestEngine:
             return 0.0
         return (1 + total_return) ** (1 / years) - 1
 
-    def _calculate_sharpe_ratio(self) -> Optional[float]:
+    def _calculate_sharpe_ratio(self) -> float | None:
         """计算夏普比率"""
         if len(self._equity_curve) < 2:
             return None

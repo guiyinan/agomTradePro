@@ -3,6 +3,7 @@ Django Admin for Backtest.
 """
 
 from django.contrib import admin
+
 from ..infrastructure.models import BacktestResultModel, BacktestTradeModel
 
 

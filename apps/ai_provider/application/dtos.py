@@ -6,8 +6,8 @@ DTOs 用于在 Application 层和 Interface 层之间传递数据。
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -19,8 +19,8 @@ class ProviderStatsDTO:
     today_cost: float
     month_requests: int
     month_cost: float
-    usage_by_date: List[Dict[str, Any]]
-    model_stats: List[Dict[str, Any]]
+    usage_by_date: list[dict[str, Any]]
+    model_stats: list[dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class ProviderListItemDTO:
     description: str
     created_at: datetime
     updated_at: datetime
-    last_used_at: Optional[datetime]
+    last_used_at: datetime | None
     # 统计数据
     today_requests: int
     today_cost: float
@@ -71,11 +71,11 @@ class BudgetCheckResultDTO:
     daily_allowed: bool
     daily_message: str
     daily_spent: float
-    daily_limit: Optional[float]
+    daily_limit: float | None
     monthly_allowed: bool
     monthly_message: str
     monthly_spent: float
-    monthly_limit: Optional[float]
+    monthly_limit: float | None
 
 
 @dataclass(frozen=True)

@@ -16,6 +16,7 @@ Usage:
 import os
 import sys
 from datetime import date, datetime, timedelta
+
 import pytest
 
 # Add project root to path
@@ -89,7 +90,7 @@ def test_backtesting_flow() -> None:
         print(f"  Total backtests: {len(backtests)}")
 
         if backtests:
-            print(f"  Most recent backtest:")
+            print("  Most recent backtest:")
             print(f"    ID: {backtests[0].id}")
             print(f"    Name: {backtests[0].name}")
             print(f"    Status: {backtests[0].status}")
@@ -202,7 +203,7 @@ def test_backtesting_flow() -> None:
                 print(f"  Total trades: {len(trades)}")
 
                 if trades:
-                    print(f"  First trade:")
+                    print("  First trade:")
                     print(f"    Asset: {trades[0].asset_code}")
                     print(f"    Type: {trades[0].trade_type}")
                     print(f"    Date: {trades[0].trade_date}")
@@ -211,7 +212,7 @@ def test_backtesting_flow() -> None:
 
                     # Show last few trades
                     if len(trades) > 1:
-                        print(f"  Last trade:")
+                        print("  Last trade:")
                         print(f"    Asset: {trades[-1].asset_code}")
                         print(f"    Type: {trades[-1].trade_type}")
                         print(f"    Date: {trades[-1].trade_date}")

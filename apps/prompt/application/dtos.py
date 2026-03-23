@@ -6,8 +6,8 @@ in the Application layer.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
 from datetime import date
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -16,10 +16,10 @@ class TemplateCreateRequest:
     name: str
     category: str
     template_content: str
-    placeholders: List[Dict[str, Any]]
-    system_prompt: Optional[str] = None
+    placeholders: list[dict[str, Any]]
+    system_prompt: str | None = None
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     description: str = ""
 
 
@@ -30,10 +30,10 @@ class TemplateUpdateRequest:
     name: str
     category: str
     template_content: str
-    placeholders: List[Dict[str, Any]]
-    system_prompt: Optional[str] = None
+    placeholders: list[dict[str, Any]]
+    system_prompt: str | None = None
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     description: str = ""
     is_active: bool = True
 
@@ -46,13 +46,13 @@ class TemplateResponse:
     category: str
     version: str
     template_content: str
-    placeholders: List[Dict[str, Any]]
-    system_prompt: Optional[str]
+    placeholders: list[dict[str, Any]]
+    system_prompt: str | None
     temperature: float
-    max_tokens: Optional[int]
+    max_tokens: int | None
     description: str
     is_active: bool
-    created_at: Optional[date]
+    created_at: date | None
 
 
 @dataclass
@@ -61,9 +61,9 @@ class ChainCreateRequest:
     name: str
     category: str
     description: str
-    steps: List[Dict[str, Any]]
+    steps: list[dict[str, Any]]
     execution_mode: str
-    aggregate_step: Optional[Dict[str, Any]] = None
+    aggregate_step: dict[str, Any] | None = None
 
 
 @dataclass
@@ -73,23 +73,23 @@ class ChainResponse:
     name: str
     category: str
     description: str
-    steps: List[Dict[str, Any]]
+    steps: list[dict[str, Any]]
     execution_mode: str
-    aggregate_step: Optional[Dict[str, Any]]
+    aggregate_step: dict[str, Any] | None
     is_active: bool
-    created_at: Optional[date]
+    created_at: date | None
 
 
 @dataclass
 class ExecutePromptRequest:
     """执行Prompt的请求DTO"""
     template_id: int
-    placeholder_values: Dict[str, Any]
-    provider_ref: Optional[Any] = None
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
+    placeholder_values: dict[str, Any]
+    provider_ref: Any | None = None
+    provider_name: str | None = None
+    model: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
 
 
 @dataclass
@@ -104,8 +104,8 @@ class ExecutePromptResponse:
     total_tokens: int
     estimated_cost: float
     response_time_ms: int
-    error_message: Optional[str]
-    parsed_output: Optional[Dict[str, Any]]
+    error_message: str | None
+    parsed_output: dict[str, Any] | None
     template_name: str
 
 
@@ -113,10 +113,10 @@ class ExecutePromptResponse:
 class ExecuteChainRequest:
     """执行链式的请求DTO"""
     chain_id: int
-    placeholder_values: Dict[str, Any]
-    provider_ref: Optional[Any] = None
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
+    placeholder_values: dict[str, Any]
+    provider_ref: Any | None = None
+    provider_name: str | None = None
+    model: str | None = None
 
 
 @dataclass
@@ -125,12 +125,12 @@ class ExecuteChainResponse:
     success: bool
     chain_name: str
     execution_mode: str
-    step_results: Dict[str, Dict[str, Any]]
-    final_output: Optional[str]
+    step_results: dict[str, dict[str, Any]]
+    final_output: str | None
     total_tokens: int
     total_cost: float
     total_time_ms: int
-    error_message: Optional[str]
+    error_message: str | None
 
 
 @dataclass
@@ -140,26 +140,26 @@ class GenerateReportRequest:
     include_regime: bool = True
     include_policy: bool = True
     include_macro: bool = True
-    indicators: Optional[List[str]] = None
-    provider_ref: Optional[Any] = None
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
+    indicators: list[str] | None = None
+    provider_ref: Any | None = None
+    provider_name: str | None = None
+    model: str | None = None
 
 
 @dataclass
 class GenerateReportResponse:
     """生成投资分析报告的响应DTO"""
     report: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 @dataclass
 class GenerateSignalRequest:
     """生成投资信号的请求DTO"""
     asset_code: str
-    analysis_context: Dict[str, Any]
-    provider_ref: Optional[Any] = None
-    provider_name: Optional[str] = None
+    analysis_context: dict[str, Any]
+    provider_ref: Any | None = None
+    provider_name: str | None = None
 
 
 @dataclass
@@ -169,7 +169,7 @@ class GenerateSignalResponse:
     direction: str
     logic_desc: str
     invalidation_logic: str
-    invalidation_threshold: Optional[float]
+    invalidation_threshold: float | None
     target_regime: str
     confidence: float
 
@@ -178,11 +178,11 @@ class GenerateSignalResponse:
 class ChatRequest:
     """聊天请求"""
     message: str
-    session_id: Optional[str] = None
-    context: Optional[Dict[str, Any]] = None
-    provider_ref: Optional[Any] = None
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
+    session_id: str | None = None
+    context: dict[str, Any] | None = None
+    provider_ref: Any | None = None
+    provider_name: str | None = None
+    model: str | None = None
 
 
 @dataclass
@@ -190,7 +190,7 @@ class ChatResponse:
     """聊天响应"""
     reply: str
     session_id: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 @dataclass
@@ -204,7 +204,7 @@ class ValidationErrorResponse:
 @dataclass
 class ListTemplatesRequest:
     """列出模板请求"""
-    category: Optional[str] = None
+    category: str | None = None
     is_active: bool = True
     page: int = 1
     page_size: int = 20
@@ -213,7 +213,7 @@ class ListTemplatesRequest:
 @dataclass
 class ListTemplatesResponse:
     """列出模板响应"""
-    templates: List[TemplateResponse]
+    templates: list[TemplateResponse]
     total: int
     page: int
     page_size: int
@@ -222,7 +222,7 @@ class ListTemplatesResponse:
 @dataclass
 class ListChainsRequest:
     """列出链配置请求"""
-    category: Optional[str] = None
+    category: str | None = None
     is_active: bool = True
     page: int = 1
     page_size: int = 20
@@ -231,7 +231,7 @@ class ListChainsRequest:
 @dataclass
 class ListChainsResponse:
     """列出链配置响应"""
-    chains: List[ChainResponse]
+    chains: list[ChainResponse]
     total: int
     page: int
     page_size: int
@@ -242,31 +242,31 @@ class ExecutionLogResponse:
     """执行日志响应"""
     id: str
     execution_id: str
-    template_name: Optional[str]
-    chain_name: Optional[str]
-    step_id: Optional[str]
+    template_name: str | None
+    chain_name: str | None
+    step_id: str | None
     status: str
     provider_used: str
     model_used: str
     total_tokens: int
     estimated_cost: float
     response_time_ms: int
-    error_message: Optional[str]
+    error_message: str | None
     created_at: date
 
 
 @dataclass
 class ListLogsRequest:
     """列出日志请求"""
-    template_id: Optional[int] = None
-    chain_id: Optional[int] = None
-    execution_id: Optional[str] = None
-    status: Optional[str] = None
+    template_id: int | None = None
+    chain_id: int | None = None
+    execution_id: str | None = None
+    status: str | None = None
     limit: int = 50
 
 
 @dataclass
 class ListLogsResponse:
     """列出日志响应"""
-    logs: List[ExecutionLogResponse]
+    logs: list[ExecutionLogResponse]
     total: int

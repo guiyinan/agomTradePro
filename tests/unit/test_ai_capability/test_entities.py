@@ -2,22 +2,23 @@
 Tests for AI Capability Catalog domain entities.
 """
 
+from datetime import UTC, datetime, timezone
+
 import pytest
-from datetime import datetime, timezone
 
 from apps.ai_capability.domain.entities import (
-    CapabilityDefinition,
     CapabilityDecision,
+    CapabilityDefinition,
     CapabilityRoutingLog,
     CapabilitySyncLog,
     ExecutionKind,
     ReviewStatus,
     RiskLevel,
     RouteGroup,
-    SourceType,
-    Visibility,
     RoutingContext,
     RoutingDecision,
+    SourceType,
+    Visibility,
 )
 
 
@@ -204,7 +205,7 @@ class TestCapabilitySyncLog:
 
     def test_create_sync_log(self):
         """Test creating a sync log."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         log = CapabilitySyncLog(
             sync_type="full",
             started_at=now,

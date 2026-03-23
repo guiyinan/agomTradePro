@@ -4,33 +4,46 @@ Use Cases for AI Prompt Management.
 Orchestration layer that coordinates components from Domain and Infrastructure layers.
 """
 
-import uuid
 import time
-from typing import Optional, Dict, Any, List
-from datetime import date
+import uuid
 from dataclasses import dataclass
+from datetime import date
+from typing import Any, Dict, List, Optional
 
 from ..domain.entities import (
-    PromptTemplate, ChainConfig, PromptExecutionContext,
-    PromptExecutionResult, ChainExecutionResult,
-    PlaceholderType, ChainExecutionMode, PlaceholderDef
+    ChainConfig,
+    ChainExecutionMode,
+    ChainExecutionResult,
+    PlaceholderDef,
+    PlaceholderType,
+    PromptExecutionContext,
+    PromptExecutionResult,
+    PromptTemplate,
 )
-from ..domain.services import TemplateRenderer, ChainExecutor, OutputParser
-from ..domain.rules import validate_template_content, validate_chain_steps
-from ..infrastructure.repositories import (
-    DjangoPromptRepository, DjangoChainRepository, DjangoExecutionLogRepository
-)
-from ..infrastructure.adapters.macro_adapter import MacroDataAdapter, FunctionExecutor
-from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
+from ..domain.rules import validate_chain_steps, validate_template_content
+from ..domain.services import ChainExecutor, OutputParser, TemplateRenderer
 from ..infrastructure.adapters.function_registry import (
-    FunctionRegistry, create_builtin_tools, ToolDefinition
+    FunctionRegistry,
+    ToolDefinition,
+    create_builtin_tools,
 )
+from ..infrastructure.adapters.macro_adapter import FunctionExecutor, MacroDataAdapter
+from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
 from ..infrastructure.models import PromptExecutionLogORM
+from ..infrastructure.repositories import (
+    DjangoChainRepository,
+    DjangoExecutionLogRepository,
+    DjangoPromptRepository,
+)
 from .dtos import (
-    ExecutePromptRequest, ExecutePromptResponse,
-    ExecuteChainRequest, ExecuteChainResponse,
-    GenerateReportRequest, GenerateReportResponse,
-    GenerateSignalRequest, GenerateSignalResponse
+    ExecuteChainRequest,
+    ExecuteChainResponse,
+    ExecutePromptRequest,
+    ExecutePromptResponse,
+    GenerateReportRequest,
+    GenerateReportResponse,
+    GenerateSignalRequest,
+    GenerateSignalResponse,
 )
 
 
@@ -169,9 +182,9 @@ class ExecutePromptUseCase:
 
     def _resolve_placeholders(
         self,
-        placeholders: List[PlaceholderDef],
-        user_values: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        placeholders: list[PlaceholderDef],
+        user_values: dict[str, Any]
+    ) -> dict[str, Any]:
         """解析占位符"""
         resolved = {}
 
@@ -220,7 +233,7 @@ class ExecutePromptUseCase:
         self,
         execution_id: str,
         template_id: int,
-        placeholder_values: Dict[str, Any],
+        placeholder_values: dict[str, Any],
         rendered_prompt: str,
         result: PromptExecutionResult
     ):
@@ -458,14 +471,19 @@ class ExecuteChainUseCase:
         request: ExecuteChainRequest
     ) -> ChainExecutionResult:
         """工具调用模式 - 使用 AgentRuntime 执行真正的 tool calling。"""
-        from .agent_runtime import AgentRuntime
-        from .context_builders import ContextBundleBuilder, MacroContextProvider, RegimeContextProvider
-        from .tool_execution import create_agent_tool_registry
-        from .trace_logging import AgentExecutionLogger
+        from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+
         from ..domain.agent_entities import AgentExecutionRequest
         from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
         from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-        from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+        from .agent_runtime import AgentRuntime
+        from .context_builders import (
+            ContextBundleBuilder,
+            MacroContextProvider,
+            RegimeContextProvider,
+        )
+        from .tool_execution import create_agent_tool_registry
+        from .trace_logging import AgentExecutionLogger
 
         step_results = {}
         accumulated_output = {}
@@ -584,8 +602,8 @@ class ExecuteChainUseCase:
     @staticmethod
     def _resolve_final_output(
         chain: ChainConfig,
-        accumulated_output: Dict[str, Any],
-    ) -> Optional[str]:
+        accumulated_output: dict[str, Any],
+    ) -> str | None:
         """
         Resolve final output by chain order, not completion order.
 
@@ -610,9 +628,9 @@ class ExecuteChainUseCase:
     def _build_step_context(
         self,
         step,
-        base_values: Dict[str, Any],
-        accumulated_output: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        base_values: dict[str, Any],
+        accumulated_output: dict[str, Any]
+    ) -> dict[str, Any]:
         """构建步骤上下文"""
         context = base_values.copy()
 
@@ -627,7 +645,7 @@ class ExecuteChainUseCase:
 
         return context
 
-    def _serialize_step_results(self, step_results: Dict[str, PromptExecutionResult]) -> Dict[str, Dict]:
+    def _serialize_step_results(self, step_results: dict[str, PromptExecutionResult]) -> dict[str, dict]:
         """序列化步骤结果"""
         return {
             step_id: {

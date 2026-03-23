@@ -9,15 +9,17 @@
 5. 配置选项 - 支持固定 Provider
 """
 
-import pytest
 from datetime import date
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
 from apps.alpha.application.services import (
     AlphaProviderRegistry,
     AlphaService,
 )
-from apps.alpha.domain.entities import StockScore, AlphaResult
-from apps.alpha.domain.interfaces import AlphaProviderStatus, AlphaProvider
+from apps.alpha.domain.entities import AlphaResult, StockScore
+from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
 
 
 class TestAlphaComparabilityImprovements:

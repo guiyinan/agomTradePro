@@ -6,9 +6,10 @@ This layer is NOT part of the four-layer architecture but provides
 integration between Application layer and Infrastructure.
 """
 
-from datetime import date, datetime
-from typing import Dict, List, Optional, Callable
 import logging
+from collections.abc import Callable
+from datetime import date, datetime
+from typing import Dict, List, Optional
 
 from apps.rotation.domain.entities import (
     AssetClass,
@@ -25,9 +26,9 @@ from apps.rotation.infrastructure.adapters.price_adapter import (
 )
 from apps.rotation.infrastructure.repositories import (
     AssetClassRepository,
+    MomentumScoreRepository,
     RotationConfigRepository,
     RotationSignalRepository,
-    MomentumScoreRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class RotationIntegrationService:
 
     def __init__(
         self,
-        price_service: Optional[RotationPriceDataService] = None,
+        price_service: RotationPriceDataService | None = None,
     ):
         self.price_service = price_service or RotationPriceDataService()
         self.asset_repo = AssetClassRepository()
@@ -53,8 +54,8 @@ class RotationIntegrationService:
     def generate_rotation_signal(
         self,
         config_name: str,
-        signal_date: Optional[date] = None
-    ) -> Optional[Dict]:
+        signal_date: date | None = None
+    ) -> dict | None:
         """
         Generate rotation signal for a configuration.
 
@@ -77,10 +78,10 @@ class RotationIntegrationService:
         current_regime = self._get_current_regime()
 
         # Create domain context
-        def get_prices(asset_code: str, end_date: date, days: int) -> Optional[List[float]]:
+        def get_prices(asset_code: str, end_date: date, days: int) -> list[float] | None:
             return self.price_service.get_prices(asset_code, end_date, days)
 
-        def get_regime() -> Optional[str]:
+        def get_regime() -> str | None:
             return current_regime
 
         context = RotationContext(
@@ -116,9 +117,9 @@ class RotationIntegrationService:
 
     def compare_assets(
         self,
-        asset_codes: List[str],
+        asset_codes: list[str],
         lookback_days: int = 60
-    ) -> Dict:
+    ) -> dict:
         """
         Compare multiple assets across multiple dimensions.
 
@@ -130,10 +131,10 @@ class RotationIntegrationService:
             Dictionary with comparison results
         """
         # Create domain context
-        def get_prices(asset_code: str, end_date: date, days: int) -> Optional[List[float]]:
+        def get_prices(asset_code: str, end_date: date, days: int) -> list[float] | None:
             return self.price_service.get_prices(asset_code, end_date, days)
 
-        def get_regime() -> Optional[str]:
+        def get_regime() -> str | None:
             return self._get_current_regime()
 
         context = RotationContext(
@@ -155,9 +156,9 @@ class RotationIntegrationService:
 
     def get_correlation_matrix(
         self,
-        asset_codes: List[str],
+        asset_codes: list[str],
         window_days: int = 60
-    ) -> Dict:
+    ) -> dict:
         """
         Get correlation matrix for specified assets.
 
@@ -210,7 +211,7 @@ class RotationIntegrationService:
             'correlation_matrix': matrix_dict,
         }
 
-    def get_rotation_recommendation(self, strategy_type: str = 'momentum') -> Dict:
+    def get_rotation_recommendation(self, strategy_type: str = 'momentum') -> dict:
         """
         Get rotation recommendation based on strategy type.
 
@@ -261,7 +262,7 @@ class RotationIntegrationService:
             'calc_date': date.today().isoformat(),
         }
 
-    def get_asset_info(self, asset_code: str) -> Optional[Dict]:
+    def get_asset_info(self, asset_code: str) -> dict | None:
         """
         Get information about a specific asset.
 
@@ -307,7 +308,7 @@ class RotationIntegrationService:
             **price_info,
         }
 
-    def get_all_assets(self) -> List[Dict]:
+    def get_all_assets(self) -> list[dict]:
         """Get information about all active assets."""
         assets = self.asset_repo.get_all_active()
 
@@ -319,7 +320,7 @@ class RotationIntegrationService:
 
         return result
 
-    def get_asset_master(self, include_inactive: bool = True) -> List[Dict]:
+    def get_asset_master(self, include_inactive: bool = True) -> list[dict]:
         """Get asset master data without blocking on market-data lookups."""
         assets = self.asset_repo.get_all() if include_inactive else self.asset_repo.get_all_active()
 
@@ -339,7 +340,7 @@ class RotationIntegrationService:
             for asset in assets
         ]
 
-    def _get_current_regime(self) -> Optional[str]:
+    def _get_current_regime(self) -> str | None:
         """
         Get current macro regime from regime module.
 
@@ -371,11 +372,11 @@ class RotationSignalScheduler:
 
     def __init__(
         self,
-        integration_service: Optional[RotationIntegrationService] = None,
+        integration_service: RotationIntegrationService | None = None,
     ):
         self.service = integration_service or RotationIntegrationService()
 
-    def generate_all_signals(self, signal_date: Optional[date] = None) -> Dict[str, any]:
+    def generate_all_signals(self, signal_date: date | None = None) -> dict[str, any]:
         """
         Generate signals for all active configurations.
 

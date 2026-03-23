@@ -6,31 +6,31 @@ Infrastructure层:
 - 负责Domain实体与ORM模型之间的转换
 - 封装数据库操作细节
 """
-from typing import List, Optional
 from datetime import date
+from typing import List, Optional
 
 from django.db import models
-from django.db.models import Q, F, Sum, Count, Avg, Max, Min
+from django.db.models import Avg, Count, F, Max, Min, Q, Sum
 
 from apps.simulated_trading.domain.entities import (
-    SimulatedAccount,
-    Position,
-    SimulatedTrade,
-    FeeConfig,
     AccountType,
+    FeeConfig,
+    OrderStatus,
+    Position,
+    SimulatedAccount,
+    SimulatedTrade,
     TradeAction,
-    OrderStatus
 )
 from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    FeeConfigModel,
-    DailyNetValueModel,
-    DailyInspectionReportModel,
     DailyInspectionNotificationConfigModel,
+    DailyInspectionReportModel,
+    DailyNetValueModel,
+    FeeConfigModel,
     NotificationHistoryModel,
+    PositionModel,
     RebalanceProposalModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
 )
 
 
@@ -322,7 +322,7 @@ class DjangoSimulatedAccountRepository:
             model.save()
             return account.account_id
 
-    def get_by_id(self, account_id: int) -> Optional[SimulatedAccount]:
+    def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         """根据ID获取账户"""
         try:
             model = SimulatedAccountModel._default_manager.get(id=account_id)
@@ -330,7 +330,7 @@ class DjangoSimulatedAccountRepository:
         except SimulatedAccountModel.DoesNotExist:
             return None
 
-    def get_by_name(self, account_name: str) -> Optional[SimulatedAccount]:
+    def get_by_name(self, account_name: str) -> SimulatedAccount | None:
         """根据名称获取账户"""
         try:
             model = SimulatedAccountModel._default_manager.get(account_name=account_name)
@@ -338,7 +338,7 @@ class DjangoSimulatedAccountRepository:
         except SimulatedAccountModel.DoesNotExist:
             return None
 
-    def get_active_accounts(self) -> List[SimulatedAccount]:
+    def get_active_accounts(self) -> list[SimulatedAccount]:
         """获取所有活跃的自动交易账户"""
         models = SimulatedAccountModel._default_manager.filter(
             is_active=True,
@@ -346,12 +346,12 @@ class DjangoSimulatedAccountRepository:
         )
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
-    def get_all_accounts(self) -> List[SimulatedAccount]:
+    def get_all_accounts(self) -> list[SimulatedAccount]:
         """获取所有账户"""
         models = SimulatedAccountModel._default_manager.all()
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
-    def get_by_user(self, user_id: int) -> List[SimulatedAccount]:
+    def get_by_user(self, user_id: int) -> list[SimulatedAccount]:
         """
         ⭐ 新增：根据用户ID获取所有投资组合
 
@@ -366,7 +366,7 @@ class DjangoSimulatedAccountRepository:
         ).order_by('-created_at')
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
-    def get_by_user_and_type(self, user_id: int, account_type: str) -> List[SimulatedAccount]:
+    def get_by_user_and_type(self, user_id: int, account_type: str) -> list[SimulatedAccount]:
         """
         ⭐ 新增：根据用户ID和账户类型获取投资组合
 
@@ -437,12 +437,12 @@ class DjangoPositionRepository:
             model.save()
             return model.id
 
-    def get_by_account(self, account_id: int) -> List[Position]:
+    def get_by_account(self, account_id: int) -> list[Position]:
         """获取账户的所有持仓"""
         models = PositionModel._default_manager.filter(account_id=account_id)
         return [PositionMapper.to_entity(m) for m in models]
 
-    def get_position(self, account_id: int, asset_code: str) -> Optional[Position]:
+    def get_position(self, account_id: int, asset_code: str) -> Position | None:
         """获取特定持仓"""
         try:
             model = PositionModel._default_manager.get(
@@ -461,7 +461,7 @@ class DjangoPositionRepository:
         ).delete()
         return deleted > 0
 
-    def get_pending_invalidation_positions(self) -> List[Position]:
+    def get_pending_invalidation_positions(self) -> list[Position]:
         """获取需要做证伪检查的持仓。"""
         models = PositionModel._default_manager.filter(
             invalidation_rule_json__isnull=False,
@@ -469,7 +469,7 @@ class DjangoPositionRepository:
         ).exclude(invalidation_rule_json={})
         return [PositionMapper.to_entity(m) for m in models]
 
-    def get_position_by_id(self, position_id: int) -> Optional[Position]:
+    def get_position_by_id(self, position_id: int) -> Position | None:
         """按主键获取持仓。"""
         try:
             model = PositionModel._default_manager.get(id=position_id)
@@ -506,7 +506,7 @@ class DjangoPositionRepository:
             invalidation_rule_json__isnull=False
         ).exclude(invalidation_rule_json={}).count()
 
-    def get_invalidated_position_summaries(self) -> List[dict]:
+    def get_invalidated_position_summaries(self) -> list[dict]:
         models = PositionModel._default_manager.filter(
             is_invalidated=True,
             quantity__gt=0,
@@ -546,7 +546,7 @@ class DjangoTradeRepository:
         model.save()
         return model.id
 
-    def get_by_account(self, account_id: int) -> List[SimulatedTrade]:
+    def get_by_account(self, account_id: int) -> list[SimulatedTrade]:
         """获取账户的所有交易记录"""
         models = SimulatedTradeModel._default_manager.filter(
             account_id=account_id
@@ -558,7 +558,7 @@ class DjangoTradeRepository:
         account_id: int,
         start_date: date,
         end_date: date
-    ) -> List[SimulatedTrade]:
+    ) -> list[SimulatedTrade]:
         """获取日期范围内的交易记录"""
         models = SimulatedTradeModel._default_manager.filter(
             account_id=account_id,
@@ -567,7 +567,7 @@ class DjangoTradeRepository:
         ).order_by('-execution_date', '-execution_time')
         return [SimulatedTradeMapper.to_entity(m) for m in models]
 
-    def get_by_asset(self, account_id: int, asset_code: str) -> List[SimulatedTrade]:
+    def get_by_asset(self, account_id: int, asset_code: str) -> list[SimulatedTrade]:
         """获取特定资产的所有交易记录"""
         models = SimulatedTradeModel._default_manager.filter(
             account_id=account_id,
@@ -596,9 +596,9 @@ class DjangoDailyNetValueRepository:
     def list_daily_records(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[dict]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict]:
         queryset = DailyNetValueModel._default_manager.filter(account_id=account_id).order_by("record_date")
         if start_date:
             queryset = queryset.filter(record_date__gte=start_date)
@@ -618,7 +618,7 @@ class DjangoDailyNetValueRepository:
             )
         )
 
-    def get_latest_record_before(self, account_id: int, current_date: date) -> Optional[dict]:
+    def get_latest_record_before(self, account_id: int, current_date: date) -> dict | None:
         return DailyNetValueModel._default_manager.filter(
             account_id=account_id,
             record_date__lt=current_date,
@@ -628,7 +628,7 @@ class DjangoDailyNetValueRepository:
             "cumulative_return",
         ).first()
 
-    def get_max_net_value_before(self, account_id: int, before_date: date) -> Optional[float]:
+    def get_max_net_value_before(self, account_id: int, before_date: date) -> float | None:
         record = DailyNetValueModel._default_manager.filter(
             account_id=account_id,
             record_date__lt=before_date,
@@ -707,7 +707,7 @@ class DjangoFeeConfigRepository:
             model.save()
             return config.config_id
 
-    def get_by_id(self, config_id: int) -> Optional[FeeConfig]:
+    def get_by_id(self, config_id: int) -> FeeConfig | None:
         """根据ID获取费率配置"""
         try:
             model = FeeConfigModel._default_manager.get(id=config_id)
@@ -715,7 +715,7 @@ class DjangoFeeConfigRepository:
         except FeeConfigModel.DoesNotExist:
             return None
 
-    def get_default_config(self, asset_type: str = "all") -> Optional[FeeConfig]:
+    def get_default_config(self, asset_type: str = "all") -> FeeConfig | None:
         """获取默认费率配置"""
         try:
             model = FeeConfigModel._default_manager.filter(
@@ -729,7 +729,7 @@ class DjangoFeeConfigRepository:
         except FeeConfigModel.DoesNotExist:
             return None
 
-    def get_all_configs(self, asset_type: str = None) -> List[FeeConfig]:
+    def get_all_configs(self, asset_type: str = None) -> list[FeeConfig]:
         """获取所有费率配置"""
         if asset_type:
             models = FeeConfigModel._default_manager.filter(
@@ -779,7 +779,7 @@ class DjangoInspectionRepository:
             "proposed_by": proposal.proposed_by,
         }
 
-    def get_account_notification_context(self, account_id: int) -> Optional[dict]:
+    def get_account_notification_context(self, account_id: int) -> dict | None:
         account = SimulatedAccountModel._default_manager.filter(id=account_id).select_related("user").first()
         if not account:
             return None
@@ -797,7 +797,7 @@ class DjangoInspectionRepository:
             },
         }
 
-    def get_rebalance_proposal_detail(self, proposal_id: int) -> Optional[dict]:
+    def get_rebalance_proposal_detail(self, proposal_id: int) -> dict | None:
         proposal = RebalanceProposalModel._default_manager.filter(id=proposal_id).first()
         if not proposal:
             return None
@@ -814,13 +814,13 @@ class DjangoInspectionRepository:
     def record_notification_history(
         self,
         account_id: int,
-        proposal_id: Optional[int],
+        proposal_id: int | None,
         notification_type: str,
         recipients: list[str],
         status: str,
         subject: str,
         body: str,
-        recipient_user_id: Optional[int] = None,
+        recipient_user_id: int | None = None,
     ) -> None:
         for email in recipients:
             NotificationHistoryModel._default_manager.create(

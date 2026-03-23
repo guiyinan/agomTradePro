@@ -4,54 +4,55 @@ DRF API Views for Account Module.
 提供账户、投资组合、持仓、交易和资金流水的 RESTful API。
 """
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, Q, Count
+from decimal import Decimal
+
 from django.db import models
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from decimal import Decimal
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.account.infrastructure.models import (
     AccountProfileModel,
-    PortfolioModel,
-    PositionModel,
-    TransactionModel,
-    CapitalFlowModel,
     AssetMetadataModel,
+    CapitalFlowModel,
+    PortfolioModel,
     PortfolioObserverGrantModel,
+    PositionModel,
     TradingCostConfigModel,
+    TransactionModel,
 )
 from apps.account.infrastructure.repositories import (
     PortfolioRepository,
     PositionRepository,
 )
+
+from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
 from .serializers import (
     AccountProfileSerializer,
     AccountProfileUpdateSerializer,
-    PortfolioSerializer,
-    PortfolioCreateSerializer,
-    PositionSerializer,
-    PositionCreateSerializer,
-    PositionUpdateSerializer,
-    TransactionSerializer,
-    TransactionCreateSerializer,
-    CapitalFlowSerializer,
-    CapitalFlowCreateSerializer,
     AssetMetadataSerializer,
-    PortfolioStatisticsSerializer,
-    ObserverGrantSerializer,
+    CapitalFlowCreateSerializer,
+    CapitalFlowSerializer,
     ObserverGrantCreateSerializer,
+    ObserverGrantSerializer,
     ObserverGrantUpdateSerializer,
-    TradingCostConfigSerializer,
-    TradingCostConfigCreateSerializer,
+    PortfolioCreateSerializer,
+    PortfolioSerializer,
+    PortfolioStatisticsSerializer,
+    PositionCreateSerializer,
+    PositionSerializer,
+    PositionUpdateSerializer,
     TradingCostCalculationSerializer,
+    TradingCostConfigCreateSerializer,
+    TradingCostConfigSerializer,
+    TransactionCreateSerializer,
+    TransactionSerializer,
 )
-from .permissions import TradingPermission, GeneralPermission, ObserverAccessPermission
-
 
 # ==================== Portfolio ViewSet ====================
 
@@ -88,10 +89,11 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
         关键：观察员授权已撤销/过期时返回 403 而非 404
         """
-        from apps.account.infrastructure.models import PortfolioModel, PortfolioObserverGrantModel
-        from django.utils import timezone
         from django.core.exceptions import PermissionDenied
+        from django.utils import timezone
         from rest_framework.exceptions import NotFound
+
+        from apps.account.infrastructure.models import PortfolioModel, PortfolioObserverGrantModel
 
         # 先尝试获取对象（不限制 queryset）
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
@@ -308,11 +310,15 @@ class PortfolioViewSet(viewsets.ModelViewSet):
             extra_context: 额外上下文信息
         """
         try:
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
-            from apps.audit.domain.entities import (
-                OperationLog, OperationSource, OperationType, OperationAction
-            )
             import uuid
+
+            from apps.audit.domain.entities import (
+                OperationAction,
+                OperationLog,
+                OperationSource,
+                OperationType,
+            )
+            from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
             audit_repo = DjangoAuditRepository()
 
@@ -388,10 +394,15 @@ class PositionViewSet(viewsets.ModelViewSet):
 
         关键：观察员授权已撤销/过期时返回 403 而非 404
         """
-        from apps.account.infrastructure.models import PortfolioModel, PositionModel, PortfolioObserverGrantModel
-        from django.utils import timezone
         from django.core.exceptions import PermissionDenied
+        from django.utils import timezone
         from rest_framework.exceptions import NotFound
+
+        from apps.account.infrastructure.models import (
+            PortfolioModel,
+            PortfolioObserverGrantModel,
+            PositionModel,
+        )
 
         # 先尝试获取对象（不限制 queryset）
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
@@ -603,8 +614,9 @@ class PositionViewSet(viewsets.ModelViewSet):
         Returns:
             list: 被观察的投资组合ID列表
         """
-        from apps.account.infrastructure.models import PortfolioObserverGrantModel
         from django.utils import timezone
+
+        from apps.account.infrastructure.models import PortfolioObserverGrantModel
 
         now = timezone.now()
         active_grants = PortfolioObserverGrantModel._default_manager.filter(
@@ -659,11 +671,15 @@ class PositionViewSet(viewsets.ModelViewSet):
             extra_context: 额外上下文信息
         """
         try:
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
-            from apps.audit.domain.entities import (
-                OperationLog, OperationSource, OperationType, OperationAction
-            )
             import uuid
+
+            from apps.audit.domain.entities import (
+                OperationAction,
+                OperationLog,
+                OperationSource,
+                OperationType,
+            )
+            from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
             audit_repo = DjangoAuditRepository()
 
@@ -1132,11 +1148,15 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
             response_status: 响应状态码
         """
         try:
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
-            from apps.audit.domain.entities import (
-                OperationLog, OperationSource, OperationType, OperationAction
-            )
             import uuid
+
+            from apps.audit.domain.entities import (
+                OperationAction,
+                OperationLog,
+                OperationSource,
+                OperationType,
+            )
+            from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
             audit_repo = DjangoAuditRepository()
 
@@ -1200,6 +1220,7 @@ class UserSearchView(APIView):
         排除当前用户和已授权的用户
         """
         from django.contrib.auth.models import User
+
         from apps.account.infrastructure.models import PortfolioObserverGrantModel
 
         query = request.GET.get("q", "").strip()

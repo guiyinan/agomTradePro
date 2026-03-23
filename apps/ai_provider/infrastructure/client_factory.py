@@ -8,7 +8,6 @@ from typing import Any
 from .adapters import AIFailoverHelper, OpenAICompatibleAdapter
 from .repositories import AIProviderRepository
 
-
 logger = logging.getLogger(__name__)
 
 

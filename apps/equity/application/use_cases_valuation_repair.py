@@ -9,21 +9,21 @@
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional, Dict
 from datetime import date, timedelta
+from typing import Dict, List, Optional
 
-from apps.equity.domain.services_valuation_repair import (
-    analyze_repair_status,
-    build_percentile_series,
-    InsufficientHistoryError,
-    InvalidValuationDataError,
-)
+from apps.equity.application.config import get_valuation_repair_config
 from apps.equity.domain.entities_valuation_repair import (
+    PercentilePoint,
     ValuationRepairPhase,
     ValuationRepairStatus,
-    PercentilePoint,
 )
-from apps.equity.application.config import get_valuation_repair_config
+from apps.equity.domain.services_valuation_repair import (
+    InsufficientHistoryError,
+    InvalidValuationDataError,
+    analyze_repair_status,
+    build_percentile_series,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +42,8 @@ class GetValuationRepairStatusResponse:
     """获取估值修复状态响应"""
     success: bool
     stock_code: str
-    data: Optional[Dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -58,8 +58,8 @@ class GetValuationPercentileHistoryResponse:
     """获取百分位历史响应"""
     success: bool
     stock_code: str
-    data: List[Dict]
-    error: Optional[str] = None
+    data: list[dict]
+    error: str | None = None
 
 
 @dataclass
@@ -67,7 +67,7 @@ class ScanValuationRepairsRequest:
     """扫描估值修复请求"""
     universe: str = "all_active"
     lookback_days: int = 756
-    limit: Optional[int] = None
+    limit: int | None = None
 
 
 @dataclass
@@ -79,15 +79,15 @@ class ScanValuationRepairsResponse:
     scanned_count: int
     saved_count: int
     failed_count: int
-    phase_counts: Dict[str, int]
-    error: Optional[str] = None
+    phase_counts: dict[str, int]
+    error: str | None = None
 
 
 @dataclass
 class ListValuationRepairsRequest:
     """列出估值修复请求"""
     universe: str = "all_active"
-    phase: Optional[str] = None
+    phase: str | None = None
     limit: int = 50
 
 
@@ -97,8 +97,8 @@ class ListValuationRepairsResponse:
     success: bool
     universe: str
     count: int
-    data: List[Dict]
-    error: Optional[str] = None
+    data: list[dict]
+    error: str | None = None
 
 
 # ============== 用例实现 ==============
@@ -194,7 +194,7 @@ class GetValuationRepairStatusUseCase:
                 error=str(e)
             )
 
-    def _status_to_dict(self, status: ValuationRepairStatus) -> Dict:
+    def _status_to_dict(self, status: ValuationRepairStatus) -> dict:
         """将 ValuationRepairStatus 转换为字典"""
         return {
             "stock_code": status.stock_code,
@@ -228,7 +228,7 @@ class GetValuationRepairStatusUseCase:
             "data_as_of_date": status.as_of_date.isoformat(),
         }
 
-    def _get_latest_quality_flag(self, as_of_date: date) -> Optional[str]:
+    def _get_latest_quality_flag(self, as_of_date: date) -> str | None:
         if not self.quality_repo:
             return None
         snapshot = self.quality_repo.get_snapshot(as_of_date)
@@ -454,7 +454,7 @@ class ScanValuationRepairsUseCase:
                 error=str(e)
             )
 
-    def _resolve_universe(self, universe: str, limit: Optional[int]) -> List[str]:
+    def _resolve_universe(self, universe: str, limit: int | None) -> list[str]:
         """
         解析 universe 获取股票列表
 
@@ -486,7 +486,7 @@ class ScanValuationRepairsUseCase:
             # 假设是预定义的股票池名称
             raise ValueError(f"不支持的 universe: {universe}")
 
-    def _calculate_status(self, stock_code: str, lookback_days: int, as_of_date: Optional[date] = None) -> ValuationRepairStatus:
+    def _calculate_status(self, stock_code: str, lookback_days: int, as_of_date: date | None = None) -> ValuationRepairStatus:
         """
         计算单只股票的估值修复状态
 
@@ -583,7 +583,7 @@ class ListValuationRepairsUseCase:
                 error=str(e)
             )
 
-    def _snapshot_to_dict(self, snapshot) -> Dict:
+    def _snapshot_to_dict(self, snapshot) -> dict:
         """将快照对象转换为字典"""
         # 支持两种类型：ValuationRepairStatus 或 ORM Model
         if isinstance(snapshot, ValuationRepairStatus):

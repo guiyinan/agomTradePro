@@ -5,9 +5,10 @@ Tests for FundScreener, FundStyleAnalyzer, and FundPerformanceCalculator.
 Pure domain tests: no Django, pandas, or numpy dependencies.
 """
 
-import pytest
 from datetime import date
 from decimal import Decimal
+
+import pytest
 
 from apps.fund.domain.services import (
     FundPerformanceCalculator,
@@ -21,7 +22,6 @@ from tests.factories.domain_factories import (
     make_fund_performance,
     make_fund_sector_allocation,
 )
-
 
 # ============================================================
 # Fixtures

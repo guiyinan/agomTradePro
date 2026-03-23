@@ -5,44 +5,44 @@ Data access layer for rotation module.
 """
 
 from datetime import date, datetime, timedelta
-from typing import List, Dict, Optional
 from decimal import Decimal
+from typing import Dict, List, Optional
 
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.rotation.domain.entities import (
+    AssetCategory,
+    AssetClass,
+    MomentumScore,
+    RotationConfig,
+    RotationPortfolio,
+    RotationSignal,
+    RotationStrategyType,
+)
 from apps.rotation.infrastructure.models import (
     AssetClassModel,
-    RotationConfigModel,
-    RotationSignalModel,
     MomentumScoreModel,
+    RotationConfigModel,
     RotationPortfolioModel,
-)
-from apps.rotation.domain.entities import (
-    AssetClass,
-    RotationConfig,
-    RotationSignal,
-    MomentumScore,
-    RotationPortfolio,
-    RotationStrategyType,
-    AssetCategory,
+    RotationSignalModel,
 )
 
 
 class AssetClassRepository:
     """Repository for AssetClass entities"""
 
-    def get_all(self) -> List[AssetClass]:
+    def get_all(self) -> list[AssetClass]:
         """Get all asset classes, including inactive ones."""
         models = AssetClassModel._default_manager.all()
         return [m.to_domain() for m in models]
 
-    def get_all_active(self) -> List[AssetClass]:
+    def get_all_active(self) -> list[AssetClass]:
         """Get all active asset classes"""
         models = AssetClassModel._default_manager.filter(is_active=True)
         return [m.to_domain() for m in models]
 
-    def get_by_code(self, code: str) -> Optional[AssetClass]:
+    def get_by_code(self, code: str) -> AssetClass | None:
         """Get asset class by code"""
         try:
             model = AssetClassModel._default_manager.get(code=code, is_active=True)
@@ -50,7 +50,7 @@ class AssetClassRepository:
         except AssetClassModel.DoesNotExist:
             return None
 
-    def get_by_codes(self, codes: List[str]) -> List[AssetClass]:
+    def get_by_codes(self, codes: list[str]) -> list[AssetClass]:
         """Get asset classes by list of codes"""
         models = AssetClassModel._default_manager.filter(
             code__in=codes,
@@ -58,7 +58,7 @@ class AssetClassRepository:
         )
         return [m.to_domain() for m in models]
 
-    def get_by_category(self, category: str) -> List[AssetClass]:
+    def get_by_category(self, category: str) -> list[AssetClass]:
         """Get asset classes by category"""
         models = AssetClassModel._default_manager.filter(
             category=category,
@@ -70,17 +70,17 @@ class AssetClassRepository:
 class RotationConfigRepository:
     """Repository for RotationConfig entities"""
 
-    def get_all(self) -> List[RotationConfig]:
+    def get_all(self) -> list[RotationConfig]:
         """Get all rotation configurations"""
         models = RotationConfigModel._default_manager.all()
         return [m.to_domain() for m in models]
 
-    def get_active(self) -> List[RotationConfig]:
+    def get_active(self) -> list[RotationConfig]:
         """Get active rotation configurations"""
         models = RotationConfigModel._default_manager.filter(is_active=True)
         return [m.to_domain() for m in models]
 
-    def get_by_name(self, name: str) -> Optional[RotationConfig]:
+    def get_by_name(self, name: str) -> RotationConfig | None:
         """Get rotation configuration by name"""
         try:
             model = RotationConfigModel._default_manager.get(name=name)
@@ -88,14 +88,14 @@ class RotationConfigRepository:
         except RotationConfigModel.DoesNotExist:
             return None
 
-    def get_model_by_name(self, name: str) -> Optional[RotationConfigModel]:
+    def get_model_by_name(self, name: str) -> RotationConfigModel | None:
         """Get rotation configuration ORM model by name."""
         try:
             return RotationConfigModel._default_manager.get(name=name)
         except RotationConfigModel.DoesNotExist:
             return None
 
-    def get_by_id(self, config_id: int) -> Optional[RotationConfig]:
+    def get_by_id(self, config_id: int) -> RotationConfig | None:
         """Get rotation configuration by ID"""
         try:
             model = RotationConfigModel._default_manager.get(id=config_id)
@@ -154,7 +154,7 @@ class RotationSignalRepository:
         )
         return model
 
-    def get_latest_signal(self, config_id: int) -> Optional[RotationSignalModel]:
+    def get_latest_signal(self, config_id: int) -> RotationSignalModel | None:
         """Get latest signal for configuration"""
         return RotationSignalModel._default_manager.filter(
             config_id=config_id
@@ -165,7 +165,7 @@ class RotationSignalRepository:
         config_id: int,
         start_date: date,
         end_date: date
-    ) -> List[RotationSignalModel]:
+    ) -> list[RotationSignalModel]:
         """Get signals for a date range"""
         return RotationSignalModel._default_manager.filter(
             config_id=config_id,
@@ -173,7 +173,7 @@ class RotationSignalRepository:
             signal_date__lte=end_date,
         ).order_by('-signal_date')
 
-    def get_latest_for_all_configs(self) -> List[RotationSignalModel]:
+    def get_latest_for_all_configs(self) -> list[RotationSignalModel]:
         """Get latest signal for each active configuration"""
         configs = RotationConfigModel._default_manager.filter(is_active=True)
         signals = []
@@ -211,9 +211,9 @@ class MomentumScoreRepository:
 
     def get_latest_scores(
         self,
-        asset_code: Optional[str] = None,
+        asset_code: str | None = None,
         limit: int = 50
-    ) -> List[MomentumScoreModel]:
+    ) -> list[MomentumScoreModel]:
         """Get latest momentum scores, optionally filtered by asset code."""
         queryset = MomentumScoreModel._default_manager.filter(
             calc_date__gte=date.today() - timedelta(days=7)
@@ -222,7 +222,7 @@ class MomentumScoreRepository:
             queryset = queryset.filter(asset_code=asset_code)
         return queryset.order_by('-calc_date', '-composite_score')[:limit]
 
-    def get_scores_by_date(self, calc_date: date) -> List[MomentumScoreModel]:
+    def get_scores_by_date(self, calc_date: date) -> list[MomentumScoreModel]:
         """Get all momentum scores for a specific date"""
         return MomentumScoreModel._default_manager.filter(
             calc_date=calc_date
@@ -232,7 +232,7 @@ class MomentumScoreRepository:
         self,
         asset_code: str,
         calc_date: date
-    ) -> Optional[MomentumScoreModel]:
+    ) -> MomentumScoreModel | None:
         """Get momentum score for specific asset and date"""
         try:
             return MomentumScoreModel._default_manager.get(
@@ -262,7 +262,7 @@ class RotationPortfolioRepository:
         )
         return model
 
-    def get_latest_portfolio(self, config_id: int) -> Optional[RotationPortfolioModel]:
+    def get_latest_portfolio(self, config_id: int) -> RotationPortfolioModel | None:
         """Get latest portfolio state for configuration"""
         return RotationPortfolioModel._default_manager.filter(
             config_id=config_id
@@ -273,7 +273,7 @@ class RotationPortfolioRepository:
         config_id: int,
         start_date: date,
         end_date: date
-    ) -> List[RotationPortfolioModel]:
+    ) -> list[RotationPortfolioModel]:
         """Get portfolio history for a date range"""
         return RotationPortfolioModel._default_manager.filter(
             config_id=config_id,

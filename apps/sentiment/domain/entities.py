@@ -7,8 +7,8 @@ Domain 层不依赖任何外部框架（如 Django），只使用 Python 标准�
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Optional, List
 from enum import Enum
+from typing import Dict, List, Optional
 
 
 class SentimentCategory(Enum):
@@ -29,9 +29,9 @@ class SentimentAnalysisResult:
     sentiment_score: float                    # 情感评分 (-3.0 ~ +3.0)
     confidence: float                         # 置信度 (0.0 ~ 1.0)
     category: SentimentCategory               # 情感分类
-    keywords: List[str] = field(default_factory=list)  # 关键词列表
+    keywords: list[str] = field(default_factory=list)  # 关键词列表
     analyzed_at: datetime = field(default_factory=datetime.now)
-    error_message: Optional[str] = None       # 错误信息（AI 调用失败时）
+    error_message: str | None = None       # 错误信息（AI 调用失败时）
 
     def __post_init__(self):
         """验证数据有效性"""
@@ -76,7 +76,7 @@ class SentimentIndex:
     data_sufficient: bool = False            # 数据是否充足
 
     # 分类情绪（按行业、资产类型等）
-    sector_sentiment: Dict[str, float] = field(default_factory=dict)
+    sector_sentiment: dict[str, float] = field(default_factory=dict)
 
     # 数据来源统计
     news_count: int = 0                      # 新闻数量
@@ -143,10 +143,10 @@ class SentimentSource:
     title: str                                # 标题
     content: str                              # 内容
     published_at: datetime                    # 发布时间
-    url: Optional[str] = None                 # 链接
+    url: str | None = None                 # 链接
 
     # 扩展字段
-    metadata: Dict = field(default_factory=dict)  # 额外元数据
+    metadata: dict = field(default_factory=dict)  # 额外元数据
 
     def __post_init__(self):
         """验证数据有效性"""

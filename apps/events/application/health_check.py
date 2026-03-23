@@ -12,12 +12,11 @@ Features:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Dict, List, Optional
 
 from ..domain.entities import EventType
-from ..domain.services import get_event_bus, InMemoryEventBus
-
+from ..domain.services import InMemoryEventBus, get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +36,14 @@ class HealthCheckResult:
     component: str
     status: str  # OK, WARNING, ERROR
     message: str
-    details: Dict[str, any]
+    details: dict[str, any]
     checked_at: datetime
 
     def is_healthy(self) -> bool:
         """是否健康"""
         return self.status == "OK"
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """转换为字典"""
         return {
             "component": self.component,
@@ -67,15 +66,15 @@ class EventBusHealthReport:
         generated_at: 生成时间
     """
     overall_status: str  # OK, WARNING, ERROR
-    checks: List[HealthCheckResult]
-    metrics: Dict[str, any]
+    checks: list[HealthCheckResult]
+    metrics: dict[str, any]
     generated_at: datetime
 
     def is_healthy(self) -> bool:
         """是否健康"""
         return self.overall_status == "OK"
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         """转换为字典"""
         return {
             "overall_status": self.overall_status,
@@ -132,7 +131,7 @@ class EventBusHealthChecker:
             overall_status=overall_status,
             checks=checks,
             metrics=metrics,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
     def _check_event_bus_initialization(self) -> HealthCheckResult:
@@ -151,7 +150,7 @@ class EventBusHealthChecker:
                     status="ERROR",
                     message="Event bus is not initialized",
                     details={"initialized": False},
-                    checked_at=datetime.now(timezone.utc),
+                    checked_at=datetime.now(UTC),
                 )
 
             # 检查是否已启动
@@ -163,7 +162,7 @@ class EventBusHealthChecker:
                     status="WARNING",
                     message="Event bus is initialized but not started",
                     details={"initialized": True, "started": False},
-                    checked_at=datetime.now(timezone.utc),
+                    checked_at=datetime.now(UTC),
                 )
 
             return HealthCheckResult(
@@ -175,7 +174,7 @@ class EventBusHealthChecker:
                     "started": True,
                     "type": type(event_bus).__name__,
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -184,7 +183,7 @@ class EventBusHealthChecker:
                 status="ERROR",
                 message=f"Failed to check event bus: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
     def _check_handler_registration(self) -> HealthCheckResult:
@@ -203,7 +202,7 @@ class EventBusHealthChecker:
                     status="ERROR",
                     message="Event bus is not initialized",
                     details={"total_handlers": 0},
-                    checked_at=datetime.now(timezone.utc),
+                    checked_at=datetime.now(UTC),
                 )
 
             # 获取订阅数量
@@ -225,7 +224,7 @@ class EventBusHealthChecker:
                         "total_handlers": 0,
                         "handlers_by_type": handlers_by_type,
                     },
-                    checked_at=datetime.now(timezone.utc),
+                    checked_at=datetime.now(UTC),
                 )
 
             return HealthCheckResult(
@@ -236,7 +235,7 @@ class EventBusHealthChecker:
                     "total_handlers": total_handlers,
                     "handlers_by_type": handlers_by_type,
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -245,7 +244,7 @@ class EventBusHealthChecker:
                 status="ERROR",
                 message=f"Failed to check handler registration: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
     def _check_event_store_connection(self) -> HealthCheckResult:
@@ -271,7 +270,7 @@ class EventBusHealthChecker:
                     "total_events": metrics.total_events,
                     "events_by_type": metrics.events_by_type,
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -280,7 +279,7 @@ class EventBusHealthChecker:
                 status="ERROR",
                 message=f"Failed to connect to event store: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
     def _check_critical_handlers(self) -> HealthCheckResult:
@@ -307,7 +306,7 @@ class EventBusHealthChecker:
                     status="ERROR",
                     message="Event bus is not initialized",
                     details={"missing_handlers": critical_handlers},
-                    checked_at=datetime.now(timezone.utc),
+                    checked_at=datetime.now(UTC),
                 )
 
             # 获取所有订阅
@@ -335,7 +334,7 @@ class EventBusHealthChecker:
                         "missing_handlers": missing_handlers,
                         "registered_handlers": list(registered_handlers),
                     },
-                    checked_at=datetime.now(timezone.utc),
+                    checked_at=datetime.now(UTC),
                 )
 
             return HealthCheckResult(
@@ -346,7 +345,7 @@ class EventBusHealthChecker:
                     "critical_handlers": critical_handlers,
                     "registered_count": len(registered_handlers),
                 },
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -355,10 +354,10 @@ class EventBusHealthChecker:
                 status="ERROR",
                 message=f"Failed to check critical handlers: {e}",
                 details={"error": str(e)},
-                checked_at=datetime.now(timezone.utc),
+                checked_at=datetime.now(UTC),
             )
 
-    def _calculate_overall_status(self, checks: List[HealthCheckResult]) -> str:
+    def _calculate_overall_status(self, checks: list[HealthCheckResult]) -> str:
         """
         计算总体状态
 
@@ -378,7 +377,7 @@ class EventBusHealthChecker:
         else:
             return "OK"
 
-    def _get_event_bus_metrics(self) -> Dict[str, any]:
+    def _get_event_bus_metrics(self) -> dict[str, any]:
         """
         获取事件总线指标
 
@@ -411,7 +410,7 @@ class EventBusHealthChecker:
 
 
 # 全局健康检查器单例
-_health_checker: Optional[EventBusHealthChecker] = None
+_health_checker: EventBusHealthChecker | None = None
 
 
 def get_health_checker() -> EventBusHealthChecker:

@@ -61,8 +61,8 @@ class TestTemplateRendering(TestCase):
         """Build a minimal context that satisfies common template tags."""
         request = self.factory.get("/")
         # Add session and user to request for auth-dependent templates
-        from django.contrib.sessions.backends.db import SessionStore
         from django.contrib.auth.models import AnonymousUser
+        from django.contrib.sessions.backends.db import SessionStore
 
         request.session = SessionStore()
         request.user = AnonymousUser()

@@ -3,7 +3,7 @@ AI Capability Catalog Application DTOs.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, List
+from typing import Any, List, Optional
 
 
 @dataclass
@@ -12,9 +12,9 @@ class RouteRequestDTO:
 
     message: str
     entrypoint: str
-    session_id: Optional[str] = None
-    provider_name: Optional[str] = None
-    model: Optional[str] = None
+    session_id: str | None = None
+    provider_name: str | None = None
+    model: str | None = None
     context: dict[str, Any] = field(default_factory=dict)
 
 
@@ -23,21 +23,21 @@ class RouteResponseDTO:
     """Response DTO for capability routing."""
 
     decision: str
-    selected_capability_key: Optional[str] = None
+    selected_capability_key: str | None = None
     confidence: float = 0.0
-    candidate_capabilities: List[dict[str, Any]] = field(default_factory=list)
+    candidate_capabilities: list[dict[str, Any]] = field(default_factory=list)
     requires_confirmation: bool = False
     reply: str = ""
     session_id: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     answer_chain: dict[str, Any] = field(default_factory=dict)
     reason: str = ""
-    rejected_candidates: List[str] = field(default_factory=list)
+    rejected_candidates: list[str] = field(default_factory=list)
     filled_params: dict[str, Any] = field(default_factory=dict)
-    missing_params: List[str] = field(default_factory=list)
-    suggested_command: Optional[str] = None
-    suggested_intent: Optional[str] = None
-    suggestion_prompt: Optional[str] = None
+    missing_params: list[str] = field(default_factory=list)
+    suggested_command: str | None = None
+    suggested_intent: str | None = None
+    suggestion_prompt: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {

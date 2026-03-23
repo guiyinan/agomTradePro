@@ -5,8 +5,8 @@ Django models for persisting prompt templates, chain configurations,
 and execution logs.
 """
 
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 
 
 class PromptTemplateORM(models.Model):

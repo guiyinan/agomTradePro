@@ -12,16 +12,16 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityUseCase,
 )
 from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
-from apps.equity.infrastructure.repositories import (
-    DjangoStockRepository,
-    DjangoValuationDataQualityRepository,
-    DjangoValuationRepairRepository,
-)
 from apps.equity.infrastructure.financial_source_gateway import (
     AKShareFinancialGateway,
     TushareFinancialGateway,
 )
 from apps.equity.infrastructure.models import FinancialDataModel, StockInfoModel
+from apps.equity.infrastructure.repositories import (
+    DjangoStockRepository,
+    DjangoValuationDataQualityRepository,
+    DjangoValuationRepairRepository,
+)
 
 
 @shared_task(

@@ -9,51 +9,50 @@ Alpha 事件触发的 API 视图。
 import logging
 from typing import Any, Dict, List, Optional
 
-from django.shortcuts import render
 from django.http import Http404, HttpResponseNotFound
+from django.shortcuts import render
 from django.utils import timezone
-from rest_framework import viewsets, status
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from ..application.use_cases import (
-    CreateAlphaTriggerUseCase,
-    CheckTriggerInvalidationUseCase,
-    EvaluateAlphaTriggerUseCase,
-    GenerateCandidateUseCase,
-    CreateTriggerRequest,
-    CreateTriggerResponse,
     CheckInvalidationRequest,
     CheckInvalidationResponse,
+    CheckTriggerInvalidationUseCase,
+    CreateAlphaTriggerUseCase,
+    CreateTriggerRequest,
+    CreateTriggerResponse,
+    EvaluateAlphaTriggerUseCase,
     EvaluateTriggerRequest,
     EvaluateTriggerResponse,
     GenerateCandidateRequest,
     GenerateCandidateResponse,
+    GenerateCandidateUseCase,
 )
 from ..domain.entities import (
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
     CandidateStatus,
     InvalidationType,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
 )
 from ..domain.services import TriggerConfig
 from ..infrastructure.repositories import (
-    get_trigger_repository,
     get_candidate_repository,
+    get_trigger_repository,
 )
 from .serializers import (
-    AlphaTriggerSerializer,
     AlphaCandidateSerializer,
-    CreateTriggerRequestSerializer,
+    AlphaTriggerSerializer,
     CheckInvalidationRequestSerializer,
+    CreateTriggerRequestSerializer,
     EvaluateTriggerRequestSerializer,
     GenerateCandidateRequestSerializer,
     UpdateCandidateStatusRequestSerializer,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -762,7 +761,7 @@ def alpha_trigger_list_view(request):
     显示所有触发器和候选的状态统计。
     """
     try:
-        from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+        from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 
         # 直接查询 ORM 模型
         try:
@@ -944,8 +943,9 @@ def alpha_trigger_edit_view(request, trigger_id):
     加载现有触发器数据，支持修改。
     """
     try:
-        from ..infrastructure.models import AlphaTriggerModel
         from django.shortcuts import get_object_or_404
+
+        from ..infrastructure.models import AlphaTriggerModel
 
         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
 
@@ -998,8 +998,9 @@ def alpha_trigger_detail_view(request, trigger_id):
     显示完整信息和相关候选。
     """
     try:
-        from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
         from django.shortcuts import get_object_or_404
+
+        from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 
         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
 
@@ -1116,8 +1117,9 @@ def alpha_candidate_detail_view(request, candidate_id):
     显示候选的完整信息、状态历史和操作按钮。
     """
     try:
-        from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
         from django.shortcuts import get_object_or_404
+
+        from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 
         candidate = get_object_or_404(AlphaCandidateModel, candidate_id=candidate_id)
 
@@ -1219,10 +1221,12 @@ def alpha_trigger_performance_view(request):
     - 转化为执行的比例
     """
     try:
-        from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
-        from django.db.models import Count, Q, Avg, F
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.db.models import Avg, Count, F, Q
+        from django.utils import timezone
+
+        from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 
         # 获取所有活跃触发器
         triggers = list(
@@ -1417,10 +1421,12 @@ class TriggerPerformanceAPIView(APIView):
         - trigger_id: 特定触发器 ID（可选）
         """
         try:
-            from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
-            from django.utils import timezone
-            from datetime import timedelta
             import json
+            from datetime import timedelta
+
+            from django.utils import timezone
+
+            from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 
             days = int(request.query_params.get("days", 30))
             trigger_id = request.query_params.get("trigger_id", None)

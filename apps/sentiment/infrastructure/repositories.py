@@ -5,14 +5,14 @@ Sentiment 模块 - Infrastructure 层仓储实现
 """
 
 import hashlib
-from typing import List, Optional
 from datetime import date, datetime
+from typing import List, Optional
 
-from apps.sentiment.domain.entities import SentimentIndex, SentimentAnalysisResult
+from apps.sentiment.domain.entities import SentimentAnalysisResult, SentimentIndex
 from apps.sentiment.infrastructure.models import (
-    SentimentIndexModel,
     SentimentAnalysisLog,
     SentimentCache,
+    SentimentIndexModel,
 )
 
 
@@ -53,7 +53,7 @@ class SentimentIndexRepository:
 
         return model
 
-    def get_by_date(self, target_date: date) -> Optional[SentimentIndex]:
+    def get_by_date(self, target_date: date) -> SentimentIndex | None:
         """
         根据日期获取情绪指数
 
@@ -69,7 +69,7 @@ class SentimentIndexRepository:
         except SentimentIndexModel.DoesNotExist:
             return None
 
-    def get_latest(self) -> Optional[SentimentIndex]:
+    def get_latest(self) -> SentimentIndex | None:
         """
         获取最新的情绪指数
 
@@ -81,7 +81,7 @@ class SentimentIndexRepository:
             return self._to_entity(model)
         return None
 
-    def get_range(self, start_date: date, end_date: date) -> List[SentimentIndex]:
+    def get_range(self, start_date: date, end_date: date) -> list[SentimentIndex]:
         """
         获取日期范围内的情绪指数
 
@@ -99,7 +99,7 @@ class SentimentIndexRepository:
 
         return [self._to_entity(model) for model in models]
 
-    def get_recent(self, days: int = 30) -> List[SentimentIndex]:
+    def get_recent(self, days: int = 30) -> list[SentimentIndex]:
         """
         获取最近 N 天的情绪指数
 
@@ -185,7 +185,7 @@ class SentimentAnalysisLogRepository:
             ai_response_time_ms=ai_response_time_ms,
         )
 
-    def get_recent_logs(self, limit: int = 100) -> List[SentimentAnalysisLog]:
+    def get_recent_logs(self, limit: int = 100) -> list[SentimentAnalysisLog]:
         """
         获取最近的日志
 
@@ -197,7 +197,7 @@ class SentimentAnalysisLogRepository:
         """
         return list(SentimentAnalysisLog._default_manager.order_by("-created_at")[:limit])
 
-    def get_logs_by_source(self, source_type: str, source_id: str = None) -> List[SentimentAnalysisLog]:
+    def get_logs_by_source(self, source_type: str, source_id: str = None) -> list[SentimentAnalysisLog]:
         """
         根据数据源获取日志
 
@@ -223,7 +223,7 @@ class SentimentCacheRepository:
     负责情感分析结果的缓存管理。
     """
 
-    def get(self, text: str) -> Optional[SentimentAnalysisResult]:
+    def get(self, text: str) -> SentimentAnalysisResult | None:
         """
         从缓存获取分析结果
 

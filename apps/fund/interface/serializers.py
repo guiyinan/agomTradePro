@@ -6,14 +6,18 @@
 - 不包含业务逻辑
 """
 
-from rest_framework import serializers
 from datetime import date
 from decimal import Decimal
 
+from rest_framework import serializers
+
 from ..application.use_cases import (
-    ScreenFundsRequest, ScreenFundsResponse,
-    AnalyzeFundStyleRequest, AnalyzeFundStyleResponse,
-    CalculateFundPerformanceRequest, CalculateFundPerformanceResponse
+    AnalyzeFundStyleRequest,
+    AnalyzeFundStyleResponse,
+    CalculateFundPerformanceRequest,
+    CalculateFundPerformanceResponse,
+    ScreenFundsRequest,
+    ScreenFundsResponse,
 )
 
 

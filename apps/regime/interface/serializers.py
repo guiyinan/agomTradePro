@@ -2,9 +2,10 @@
 DRF Serializers for Regime API.
 """
 
-from rest_framework import serializers
 from datetime import date
-from typing import Dict, Any
+from typing import Any, Dict
+
+from rest_framework import serializers
 
 from apps.regime.infrastructure.models import RegimeLog
 

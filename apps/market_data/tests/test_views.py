@@ -1,14 +1,13 @@
-import pytest
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 from unittest.mock import Mock
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.market_data.domain.entities import QuoteSnapshot
-
 
 User = get_user_model()
 

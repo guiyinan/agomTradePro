@@ -8,11 +8,11 @@
 4. 状态回写验证
 """
 
-import pytest
 from decimal import Decimal
-from django.test import Client, TestCase
-from django.contrib.auth.models import User
 
+import pytest
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
 
 # ========== API 契约测试 ==========
 

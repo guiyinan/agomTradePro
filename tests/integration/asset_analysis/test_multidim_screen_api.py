@@ -4,13 +4,14 @@
 测试 POST /api/asset-analysis/multidim-screen/ 端点
 """
 
-import pytest
 from datetime import date
+
+import pytest
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.asset_analysis.infrastructure.models import WeightConfigModel
 from apps.fund.infrastructure.models import FundInfoModel

@@ -19,10 +19,10 @@ Features:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Dict, List, Optional
-from django.core.cache import cache
 
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ class FailureStats:
         recent_failures: 最近的失败记录（最多 10 条）
     """
     total_count: int = 0
-    by_component: Dict[str, int] = field(default_factory=dict)
-    recent_failures: List[FailureRecord] = field(default_factory=list)
+    by_component: dict[str, int] = field(default_factory=dict)
+    recent_failures: list[FailureRecord] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -89,7 +89,7 @@ class AuditFailureCounter:
     # 默认健康检查阈值（超过此数量返回 WARNING）
     DEFAULT_HEALTH_THRESHOLD = 10
 
-    def __init__(self, cache_backend: Optional[str] = None):
+    def __init__(self, cache_backend: str | None = None):
         """
         初始化计数器
 
@@ -135,7 +135,7 @@ class AuditFailureCounter:
         self,
         component: str,
         reason: str,
-        exc_info: Optional[bool] = False,
+        exc_info: bool | None = False,
     ) -> None:
         """
         记录一次失败
@@ -156,7 +156,7 @@ class AuditFailureCounter:
 
             # 添加到最近失败记录
             record = FailureRecord(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 component=component,
                 reason=reason,
             )
@@ -213,8 +213,8 @@ class AuditFailureCounter:
             logger.error(f"Failed to reset audit failure counter: {e}", exc_info=True)
 
     def get_health_status(
-        self, threshold: Optional[int] = None
-    ) -> Dict[str, any]:
+        self, threshold: int | None = None
+    ) -> dict[str, any]:
         """
         获取健康状态
 
@@ -272,7 +272,7 @@ class AuditFailureCounter:
 
 
 # 全局单例
-_failure_counter: Optional[AuditFailureCounter] = None
+_failure_counter: AuditFailureCounter | None = None
 
 
 def get_audit_failure_counter() -> AuditFailureCounter:

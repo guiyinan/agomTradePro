@@ -66,7 +66,7 @@ class ScoreContext:
     current_regime: str            # 当前 Regime: Recovery/Overheat/Stagflation/Deflation
     policy_level: str              # 政策档位: P0/P1/P2/P3
     sentiment_index: float         # 情绪指数: -3.0 ~ +3.0
-    active_signals: List           # 激活的投资信号列表
+    active_signals: list           # 激活的投资信号列表
     score_date: date = date.today()
 
     def __post_init__(self):

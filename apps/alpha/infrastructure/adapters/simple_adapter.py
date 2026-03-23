@@ -21,7 +21,6 @@ from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +61,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         "dividend_yield": 0.20,  # 股息率（越大越好）
     }
 
-    def __init__(self, factor_weights: Optional[Dict[str, float]] = None):
+    def __init__(self, factor_weights: dict[str, float] | None = None):
         """
         初始化简单 Provider
 
@@ -197,7 +196,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         trade_date: date
-    ) -> List[str]:
+    ) -> list[str]:
         """
         获取股票池列表（从数据库获取有估值数据的股票）。
 
@@ -233,7 +232,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             ).get('max_date')
 
             if not latest_date:
-                logger.warning(f"数据库中没有估值数据")
+                logger.warning("数据库中没有估值数据")
                 return []
 
             # 获取该日期有估值数据的所有股票
@@ -257,9 +256,9 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
     def _get_fundamental_data(
         self,
-        stock_list: List[str],
+        stock_list: list[str],
         trade_date: date
-    ) -> tuple[Dict[str, Dict[str, float]], Dict[str, any]]:
+    ) -> tuple[dict[str, dict[str, float]], dict[str, any]]:
         """
         从数据库获取真实的基本面数据。
 
@@ -274,7 +273,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             (基本面数据字典, 数据质量信息)
         """
-        fundamentals: Dict[str, Dict[str, float]] = {}
+        fundamentals: dict[str, dict[str, float]] = {}
         data_quality = {
             "valuation_count": 0,
             "financial_count": 0,
@@ -286,8 +285,8 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
         try:
             from apps.equity.infrastructure.models import (
-                ValuationModel,
                 FinancialDataModel,
+                ValuationModel,
             )
 
             # 1. 获取最近的估值数据
@@ -385,10 +384,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
     def _compute_scores(
         self,
-        fundamental_data: Dict[str, Dict[str, float]],
+        fundamental_data: dict[str, dict[str, float]],
         universe_id: str,
         trade_date: date
-    ) -> List[StockScore]:
+    ) -> list[StockScore]:
         """
         计算综合评分
 
@@ -473,7 +472,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         self,
         stock_code: str,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         获取因子暴露
 

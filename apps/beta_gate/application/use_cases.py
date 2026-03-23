@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from apps.events.domain.entities import DomainEvent, EventType, create_event
+
 from ..domain.entities import (
     GateConfig,
     GateDecision,
@@ -23,8 +25,6 @@ from ..domain.services import (
     BetaGateEvaluator,
     VisibilityUniverseBuilder,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
-
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class EvaluateGateRequest:
     current_portfolio_value: float = 0.0
     new_position_value: float = 0.0
     risk_profile: RiskProfile = RiskProfile.BALANCED
-    request_id: Optional[str] = None
+    request_id: str | None = None
 
 
 @dataclass
@@ -73,9 +73,9 @@ class EvaluateGateResponse:
     """
 
     success: bool
-    decision: Optional[GateDecision] = None
-    warnings: List[str] = field(default_factory=list)
-    error: Optional[str] = None
+    decision: GateDecision | None = None
+    warnings: list[str] = field(default_factory=list)
+    error: str | None = None
 
 
 @dataclass
@@ -102,8 +102,8 @@ class GetGateConfigResponse:
     """
 
     success: bool
-    config: Optional[GateConfig] = None
-    error: Optional[str] = None
+    config: GateConfig | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -127,7 +127,7 @@ class BuildUniverseRequest:
     risk_profile: RiskProfile = RiskProfile.BALANCED
     regime_snapshot_id: str = ""
     policy_snapshot_id: str = ""
-    candidate_assets: Optional[List[Tuple[str, str]]] = None
+    candidate_assets: list[tuple[str, str]] | None = None
 
 
 @dataclass
@@ -142,8 +142,8 @@ class BuildUniverseResponse:
     """
 
     success: bool
-    universe: Optional[VisibilityUniverse] = None
-    error: Optional[str] = None
+    universe: VisibilityUniverse | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -160,7 +160,7 @@ class EvaluateBatchRequest:
         risk_profile: 风险画像
     """
 
-    assets: List[Tuple[str, str]]
+    assets: list[tuple[str, str]]
     current_regime: str
     regime_confidence: float
     policy_level: int
@@ -181,9 +181,9 @@ class EvaluateBatchResponse:
     """
 
     success: bool
-    decisions: List[GateDecision] = field(default_factory=list)
-    summary: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    decisions: list[GateDecision] = field(default_factory=list)
+    summary: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
 # ========== Use Cases ==========
@@ -389,7 +389,7 @@ class EvaluateBatchUseCase:
                 error=str(e),
             )
 
-    def _calculate_summary(self, decisions: List[GateDecision]) -> Dict[str, Any]:
+    def _calculate_summary(self, decisions: list[GateDecision]) -> dict[str, Any]:
         """计算摘要统计"""
         total = len(decisions)
         passed = sum(1 for d in decisions if d.is_passed)
@@ -412,8 +412,8 @@ class EvaluateBatchUseCase:
 
     def _publish_summary_event(
         self,
-        decisions: List[GateDecision],
-        summary: Dict[str, Any],
+        decisions: list[GateDecision],
+        summary: dict[str, Any],
         request: EvaluateBatchRequest,
     ):
         """发布汇总事件"""

@@ -5,8 +5,8 @@ Base Policy Adapter - Protocol Definition
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 from datetime import date
+from typing import List, Optional
 
 from ...domain.entities import PolicyEvent, PolicyLevel
 
@@ -21,9 +21,9 @@ class PolicyAdapterProtocol(ABC):
     @abstractmethod
     def fetch_policy_events(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[PolicyEvent]:
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[PolicyEvent]:
         """
         获取政策事件列表
 

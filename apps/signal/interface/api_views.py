@@ -4,19 +4,20 @@ DRF API Views for Signal Management.
 提供 RESTful API 接口用于投资信号管理。
 """
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.signal.application.use_cases import ValidateSignalUseCase
+from apps.signal.infrastructure.models import InvestmentSignalModel
+
 from .serializers import (
-    InvestmentSignalSerializer,
     InvestmentSignalCreateSerializer,
+    InvestmentSignalSerializer,
     InvestmentSignalValidateRequestSerializer,
     InvestmentSignalValidateResponseSerializer,
     SignalListQuerySerializer,
@@ -148,8 +149,8 @@ class SignalViewSet(viewsets.ModelViewSet):
             request_serializer.is_valid(raise_exception=True)
             data = request_serializer.validated_data
 
-            from apps.signal.domain.rules import check_eligibility
             from apps.regime.application.current_regime import resolve_current_regime
+            from apps.signal.domain.rules import check_eligibility
 
             # 获取当前 Regime
             current_regime = resolve_current_regime()

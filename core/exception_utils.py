@@ -4,15 +4,18 @@ Exception Handling Utilities
 提供统一的异常处理工具函数和装饰器，用于规范异常处理模式。
 """
 
-import logging
 import functools
-from typing import Callable, TypeVar, Optional, Any, Type
+import logging
+from collections.abc import Callable
 from contextlib import contextmanager
+from typing import Any, Optional, Type, TypeVar
 
 from core.exceptions import (
     AgomTradeProException,
-    ExternalServiceError,
     DataFetchError,
+    ExternalServiceError,
+)
+from core.exceptions import (
     TimeoutError as AppTimeoutError,
 )
 from core.metrics import record_exception
@@ -144,7 +147,7 @@ def handle_repository_errors(
 def exception_context(
     operation_name: str,
     module: str,
-    reraise: Type[Exception] = None,
+    reraise: type[Exception] = None,
 ):
     """
     异常处理上下文管理器
@@ -219,7 +222,7 @@ def safe_execute(
 def validate_and_execute(
     validator: Callable,
     error_message: str,
-    exception_type: Type[AgomTradeProException] = None,
+    exception_type: type[AgomTradeProException] = None,
 ):
     """
     验证并执行装饰器

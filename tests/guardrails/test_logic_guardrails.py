@@ -1,6 +1,6 @@
-from datetime import datetime, date
-from pathlib import Path
 import uuid
+from datetime import date, datetime
+from pathlib import Path
 
 import pytest
 
@@ -154,8 +154,8 @@ def test_guardrail_backtest_monthly_rebalance_december_boundary():
 
     12 月的下一个月应该是次年 1 月，不是同年 12 月。
     """
-    from apps.backtest.domain.services import BacktestEngine
     from apps.backtest.domain.entities import BacktestConfig
+    from apps.backtest.domain.services import BacktestEngine
 
     # 测试 12 月边界
     config = BacktestConfig(

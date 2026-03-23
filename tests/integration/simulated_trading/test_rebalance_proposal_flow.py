@@ -1,23 +1,23 @@
 """Integration tests for rebalance proposal flow."""
 
-import pytest
 from datetime import date, datetime
 from unittest.mock import Mock, patch
 
+import pytest
 from django.utils import timezone as django_timezone
 
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    DailyInspectionReportModel,
-    RebalanceProposalModel,
-    PositionModel,
-    NotificationHistoryModel,
-)
 from apps.simulated_trading.application.daily_inspection_service import (
     DailyInspectionService,
 )
 from apps.simulated_trading.application.tasks import (
     daily_portfolio_inspection_task,
+)
+from apps.simulated_trading.infrastructure.models import (
+    DailyInspectionReportModel,
+    NotificationHistoryModel,
+    PositionModel,
+    RebalanceProposalModel,
+    SimulatedAccountModel,
 )
 
 

@@ -9,9 +9,10 @@ Management Command: Initialize Regime Threshold Configuration
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.regime.infrastructure.models import (
-    RegimeThresholdConfig,
     RegimeIndicatorThreshold,
+    RegimeThresholdConfig,
     RegimeTrendIndicator,
 )
 
@@ -93,9 +94,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f'\n成功创建配置: {config.name}'))
         self.stdout.write(self.style.SUCCESS('阈值配置:'))
-        self.stdout.write(f'  PMI: 扩张阈值 50.0')
-        self.stdout.write(f'  CPI: 高通胀 > 2.0%, 低通胀 < 1.0%, 通缩 < 0%')
+        self.stdout.write('  PMI: 扩张阈值 50.0')
+        self.stdout.write('  CPI: 高通胀 > 2.0%, 低通胀 < 1.0%, 通缩 < 0%')
         self.stdout.write(self.style.SUCCESS('趋势指标:'))
-        self.stdout.write(f'  PMI: 周期 3 个月, 权重 0.3')
-        self.stdout.write(f'  CPI: 周期 3 个月, 权重 0.3')
+        self.stdout.write('  PMI: 周期 3 个月, 权重 0.3')
+        self.stdout.write('  CPI: 周期 3 个月, 权重 0.3')
 

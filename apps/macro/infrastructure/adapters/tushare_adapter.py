@@ -4,17 +4,19 @@ Tushare Data Adapter.
 Infrastructure layer - fetches data from Tushare Pro API.
 """
 
-import pandas as pd
+import logging
 from datetime import date, timedelta
 from typing import List, Optional
-import logging
+
+import pandas as pd
 
 from shared.config.secrets import get_secrets
+
 from .base import (
     BaseMacroAdapter,
-    MacroDataPoint,
     DataSourceUnavailableError,
     DataValidationError,
+    MacroDataPoint,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ class TushareAdapter(BaseMacroAdapter):
 
     source_name = "tushare"
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         """
         Args:
             token: Tushare Pro Token（如果不提供，从环境变量读取）
@@ -76,7 +78,7 @@ class TushareAdapter(BaseMacroAdapter):
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取指定指标的数据
 
@@ -108,7 +110,7 @@ class TushareAdapter(BaseMacroAdapter):
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取 SHIBOR 利率数据
 
@@ -164,7 +166,7 @@ class TushareAdapter(BaseMacroAdapter):
         ts_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取指数日线数据
 
@@ -216,7 +218,7 @@ class TushareAdapter(BaseMacroAdapter):
 
         return self._sort_and_deduplicate(data_points)
 
-    def fetch_shibor_latest(self) -> Optional[MacroDataPoint]:
+    def fetch_shibor_latest(self) -> MacroDataPoint | None:
         """
         获取最新的 SHIBOR 数据
 
@@ -229,7 +231,7 @@ class TushareAdapter(BaseMacroAdapter):
         data_points = self._fetch_shibor(start_date, end_date)
         return data_points[-1] if data_points else None
 
-    def fetch_index_latest(self, ts_code: str) -> Optional[MacroDataPoint]:
+    def fetch_index_latest(self, ts_code: str) -> MacroDataPoint | None:
         """
         获取指数最新数据
 

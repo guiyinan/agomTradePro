@@ -5,9 +5,9 @@
 Domain 层定义接口，Infrastructure 层实现接口。
 """
 
-from typing import Protocol, Dict, List, Optional, runtime_checkable
-from datetime import date
 from abc import abstractmethod
+from datetime import date
+from typing import Dict, List, Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -23,7 +23,7 @@ class RegimeDataPort(Protocol):
         self,
         start_date: date,
         end_date: date
-    ) -> List:
+    ) -> list:
         """
         获取日期范围内的快照列表
 
@@ -67,7 +67,7 @@ class MarketDataPort(Protocol):
         index_code: str,
         start_date: date,
         end_date: date
-    ) -> Dict[date, float]:
+    ) -> dict[date, float]:
         """
         获取指数日收益率
 
@@ -91,7 +91,7 @@ class StockPoolPort(Protocol):
     """
 
     @abstractmethod
-    def get_current_pool(self) -> List[str]:
+    def get_current_pool(self) -> list[str]:
         """
         获取当前股票池
 
@@ -103,7 +103,7 @@ class StockPoolPort(Protocol):
     @abstractmethod
     def save_pool(
         self,
-        stock_codes: List[str],
+        stock_codes: list[str],
         regime: str,
         as_of_date: date
     ) -> None:
@@ -118,7 +118,7 @@ class StockPoolPort(Protocol):
         ...
 
     @abstractmethod
-    def get_latest_pool_info(self) -> Optional[dict]:
+    def get_latest_pool_info(self) -> dict | None:
         """
         获取最新的股票池信息
 

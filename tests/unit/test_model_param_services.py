@@ -5,29 +5,30 @@
 RecommendationAggregator 等核心服务。
 """
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
-from apps.decision_rhythm.domain.services import (
-    DEFAULT_MODEL_PARAMS,
-    ModelWeights,
-    GatePenalties,
-    CompositeScoreCalculator,
-    RecommendationAggregator,
-    ConflictPair,
-)
-from apps.decision_rhythm.domain.entities import (
-    UnifiedRecommendation,
-    DecisionFeatureSnapshot,
-    RecommendationStatus,
-)
+import pytest
+
 from apps.decision_rhythm.application.use_cases import (
     GetModelParamsUseCase,
-    UpdateModelParamUseCase,
     UpdateModelParamRequest,
+    UpdateModelParamUseCase,
+)
+from apps.decision_rhythm.domain.entities import (
+    DecisionFeatureSnapshot,
+    RecommendationStatus,
+    UnifiedRecommendation,
+)
+from apps.decision_rhythm.domain.services import (
+    DEFAULT_MODEL_PARAMS,
+    CompositeScoreCalculator,
+    ConflictPair,
+    GatePenalties,
+    ModelWeights,
+    RecommendationAggregator,
 )
 
 
@@ -152,7 +153,7 @@ class TestCompositeScoreCalculator:
         snapshot = DecisionFeatureSnapshot(
             snapshot_id="fsn_001",
             security_code="000001.SZ",
-            snapshot_time=datetime.now(timezone.utc),
+            snapshot_time=datetime.now(UTC),
             alpha_model_score=0.85,
             sentiment_score=0.72,
             flow_score=0.68,

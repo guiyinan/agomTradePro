@@ -6,18 +6,14 @@ Following four-layer architecture, this layer uses ONLY Python standard library.
 """
 
 from .entities import (
-    LossSource,
-    RegimeTransition,
-    RegimePeriod,
-    PeriodPerformance,
+    AttributionConfig,
     AttributionResult,
-    AttributionConfig
+    LossSource,
+    PeriodPerformance,
+    RegimePeriod,
+    RegimeTransition,
 )
-
-from .services import (
-    analyze_attribution,
-    AttributionAnalyzer
-)
+from .services import AttributionAnalyzer, analyze_attribution
 
 __all__ = [
     # Entities

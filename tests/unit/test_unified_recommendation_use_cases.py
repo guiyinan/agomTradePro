@@ -5,28 +5,28 @@
 GetConflictsUseCase 等用例。
 """
 
-import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from apps.decision_rhythm.application.use_cases import (
-    GenerateUnifiedRecommendationsUseCase,
     GenerateRecommendationsRequest,
     GenerateRecommendationsResponse,
-    GetUnifiedRecommendationsUseCase,
-    GetRecommendationsRequest,
-    GetConflictsUseCase,
+    GenerateUnifiedRecommendationsUseCase,
     GetConflictsRequest,
+    GetConflictsUseCase,
     GetModelParamsUseCase,
+    GetRecommendationsRequest,
+    GetUnifiedRecommendationsUseCase,
 )
 from apps.decision_rhythm.domain.entities import (
-    UnifiedRecommendation,
     DecisionFeatureSnapshot,
     RecommendationStatus,
+    UnifiedRecommendation,
 )
-
 
 # ============================================================================
 # Mock 提供者
@@ -39,13 +39,13 @@ class MockFeatureDataProvider:
     def __init__(self):
         self._regime = {"regime": "GROWTH_INFLATION", "confidence": 0.85}
         self._policy_level = "LEVEL_2"
-        self._beta_gate_results: Dict[str, bool] = {}
-        self._scores: Dict[str, Dict[str, float]] = {}
+        self._beta_gate_results: dict[str, bool] = {}
+        self._scores: dict[str, dict[str, float]] = {}
 
-    def get_regime(self) -> Optional[Dict[str, Any]]:
+    def get_regime(self) -> dict[str, Any] | None:
         return self._regime
 
-    def get_policy_level(self) -> Optional[str]:
+    def get_policy_level(self) -> str | None:
         return self._policy_level
 
     def check_beta_gate(self, security_code: str) -> bool:
@@ -69,7 +69,7 @@ class MockFeatureDataProvider:
     def set_beta_gate(self, security_code: str, passed: bool):
         self._beta_gate_results[security_code] = passed
 
-    def set_scores(self, security_code: str, scores: Dict[str, float]):
+    def set_scores(self, security_code: str, scores: dict[str, float]):
         if security_code not in self._scores:
             self._scores[security_code] = {}
         self._scores[security_code].update(scores)
@@ -79,12 +79,12 @@ class MockValuationProvider:
     """Mock 估值数据提供者"""
 
     def __init__(self):
-        self._valuations: Dict[str, Dict[str, Any]] = {}
+        self._valuations: dict[str, dict[str, Any]] = {}
 
-    def get_valuation(self, security_code: str) -> Optional[Dict[str, Any]]:
+    def get_valuation(self, security_code: str) -> dict[str, Any] | None:
         return self._valuations.get(security_code)
 
-    def set_valuation(self, security_code: str, valuation: Dict[str, Any]):
+    def set_valuation(self, security_code: str, valuation: dict[str, Any]):
         self._valuations[security_code] = valuation
 
 
@@ -92,9 +92,9 @@ class MockSignalProvider:
     """Mock 信号数据提供者"""
 
     def __init__(self):
-        self._signals: List[Dict[str, Any]] = []
+        self._signals: list[dict[str, Any]] = []
 
-    def get_active_signals(self, security_code: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_active_signals(self, security_code: str | None = None) -> list[dict[str, Any]]:
         if security_code:
             return [s for s in self._signals if s.get("security_code") == security_code]
         return self._signals
@@ -107,9 +107,9 @@ class MockCandidateProvider:
     """Mock 候选数据提供者"""
 
     def __init__(self):
-        self._candidates: List[Dict[str, Any]] = []
+        self._candidates: list[dict[str, Any]] = []
 
-    def get_active_candidates(self, account_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_active_candidates(self, account_id: str | None = None) -> list[dict[str, Any]]:
         if account_id:
             return [c for c in self._candidates if c.get("account_id") == account_id]
         return self._candidates
@@ -126,9 +126,9 @@ class MockRecommendationRepository:
     """Mock 推荐仓储"""
 
     def __init__(self):
-        self._recommendations: Dict[str, UnifiedRecommendation] = {}
-        self._snapshots: Dict[str, DecisionFeatureSnapshot] = {}
-        self._conflicts: List[str] = []
+        self._recommendations: dict[str, UnifiedRecommendation] = {}
+        self._snapshots: dict[str, DecisionFeatureSnapshot] = {}
+        self._conflicts: list[str] = []
 
     def save(self, recommendation: UnifiedRecommendation) -> UnifiedRecommendation:
         self._recommendations[recommendation.recommendation_id] = recommendation
@@ -141,8 +141,8 @@ class MockRecommendationRepository:
     def get_by_account(
         self,
         account_id: str,
-        status: Optional[str] = None,
-    ) -> List[UnifiedRecommendation]:
+        status: str | None = None,
+    ) -> list[UnifiedRecommendation]:
         result = [
             r for r in self._recommendations.values()
             if r.account_id == account_id and r.recommendation_id not in self._conflicts
@@ -151,7 +151,7 @@ class MockRecommendationRepository:
             result = [r for r in result if r.status.value == status]
         return result
 
-    def get_conflicts(self, account_id: str) -> List[UnifiedRecommendation]:
+    def get_conflicts(self, account_id: str) -> list[UnifiedRecommendation]:
         return [
             r for r in self._recommendations.values()
             if r.account_id == account_id and r.recommendation_id in self._conflicts

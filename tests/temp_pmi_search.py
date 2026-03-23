@@ -4,8 +4,10 @@
 import asyncio
 import json
 import re
-from playwright.async_api import async_playwright
 from datetime import datetime
+
+from playwright.async_api import async_playwright
+
 
 async def search_and_scrape_pmi():
     """

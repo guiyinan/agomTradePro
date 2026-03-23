@@ -4,15 +4,16 @@ Celery Tasks for Signal Management
 定期执行信号证伪检查等后台任务
 """
 
-from celery import shared_task
-from celery.exceptions import MaxRetriesExceededError
-from django.utils import timezone
-from django.conf import settings
-from django.db import DatabaseError
 import logging
 from typing import List, Optional
 
-from core.exceptions import DataFetchError, BusinessLogicError
+from celery import shared_task
+from celery.exceptions import MaxRetriesExceededError
+from django.conf import settings
+from django.db import DatabaseError
+from django.utils import timezone
+
+from core.exceptions import BusinessLogicError, DataFetchError
 from core.metrics import record_exception
 
 logger = logging.getLogger(__name__)
@@ -164,8 +165,9 @@ def send_daily_signal_summary():
 
     每天早上发送前一天的状态变化报告
     """
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
     from datetime import timedelta
+
+    from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
     repository = DjangoSignalRepository()
 
@@ -210,11 +212,11 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     Returns:
         bool: 是否发送成功
     """
-    from shared.infrastructure.notification_service import (
-        get_notification_service,
-        NotificationPriority,
-    )
     from apps.signal.infrastructure.repositories import DjangoUserRepository
+    from shared.infrastructure.notification_service import (
+        NotificationPriority,
+        get_notification_service,
+    )
 
     service = get_notification_service()
 
@@ -222,21 +224,21 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     subject = f"[AgomTradePro] 每日信号摘要 - {summary['date']}"
 
     lines = [
-        f"# 每日信号状态摘要",
+        "# 每日信号状态摘要",
         f"**日期**: {summary['date']}",
-        f"",
-        f"## 统计数据",
+        "",
+        "## 统计数据",
         f"- 新建信号: {summary['new_signals']} 个",
         f"- 证伪信号: {summary['invalidated_signals']} 个",
         f"- 当前有效信号: {summary['total_approved']} 个",
-        f"",
+        "",
     ]
 
     # 添加新建信号详情
     if new_details:
         lines.extend([
             f"## 新建信号 ({len(new_details)})",
-            f"",
+            "",
         ])
         for i, signal in enumerate(new_details[:10], 1):
             lines.append(f"{i}. **{signal['asset_code']}** - {signal.get('logic_desc', 'N/A')}")
@@ -248,7 +250,7 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     if invalidated_details:
         lines.extend([
             f"## 证伪信号 ({len(invalidated_details)})",
-            f"",
+            "",
         ])
         for i, signal in enumerate(invalidated_details[:10], 1):
             details = signal.get('invalidation_details', {})
@@ -368,15 +370,16 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
         return True
 
 
-def _get_signal_notification_recipients() -> List[str]:
+def _get_signal_notification_recipients() -> list[str]:
     """
     获取信号通知收件人列表
 
     Returns:
         list: 收件人邮箱列表
     """
-    from apps.signal.infrastructure.repositories import DjangoUserRepository
     from django.conf import settings
+
+    from apps.signal.infrastructure.repositories import DjangoUserRepository
 
     user_repo = DjangoUserRepository()
     recipients = []

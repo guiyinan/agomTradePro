@@ -1,6 +1,7 @@
 """Template filters for Alpha Trigger module."""
 
 import json
+
 from django import template
 
 register = template.Library()

@@ -4,20 +4,20 @@ Fund 模块 - Application 层服务（资产分析框架集成）
 本模块提供基金多维度评分的服务，集成通用资产分析框架。
 """
 
-from typing import List, Optional, Dict
-from datetime import date
 from dataclasses import replace
+from datetime import date
+from typing import Dict, List, Optional
 
-from apps.fund.domain.entities import FundAssetScore, FundInfo
-from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
-from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.asset_analysis.domain.entities import AssetType
 from apps.asset_analysis.domain.services import (
-    RegimeMatcher,
     PolicyMatcher,
+    RegimeMatcher,
     SentimentMatcher,
     SignalMatcher,
 )
-from apps.asset_analysis.domain.entities import AssetType
+from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.fund.domain.entities import FundAssetScore, FundInfo
+from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
 
 
 class FundMultiDimScorer:
@@ -38,9 +38,9 @@ class FundMultiDimScorer:
 
     def score_batch(
         self,
-        funds: List[FundAssetScore],
+        funds: list[FundAssetScore],
         context: ScoreContext,
-    ) -> List[FundAssetScore]:
+    ) -> list[FundAssetScore]:
         """
         批量评分基金
 
@@ -109,10 +109,10 @@ class FundMultiDimScorer:
 
     def screen_funds(
         self,
-        filters: Dict,
+        filters: dict,
         context: ScoreContext,
         max_count: int = 30,
-    ) -> Dict:
+    ) -> dict:
         """
         多维度筛选基金
 
@@ -154,7 +154,7 @@ class FundMultiDimScorer:
     @staticmethod
     def _to_asset_score(fund: FundAssetScore):
         """将 FundAssetScore 转换为通用 AssetScore 格式"""
-        from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetSize
+        from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle
 
         # 映射风格
         style_map = {

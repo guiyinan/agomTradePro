@@ -23,13 +23,13 @@ class FinancialRecord:
     report_type: str
     revenue: Decimal
     net_profit: Decimal
-    revenue_growth: Optional[float]
-    net_profit_growth: Optional[float]
+    revenue_growth: float | None
+    net_profit_growth: float | None
     total_assets: Decimal
     total_liabilities: Decimal
     equity: Decimal
     roe: float
-    roa: Optional[float]
+    roa: float | None
     debt_ratio: float
 
 
@@ -37,7 +37,7 @@ class FinancialRecord:
 class FinancialSyncBatch:
     source_provider: str
     stock_code: str
-    records: List[FinancialRecord]
+    records: list[FinancialRecord]
 
 
 class TushareFinancialGateway:
@@ -57,8 +57,8 @@ class TushareFinancialGateway:
         Returns:
             FinancialSyncBatch
         """
-        import tushare as ts
         import pandas as pd
+        import tushare as ts
 
         pro = ts.pro_api(self.token)
 
@@ -91,7 +91,7 @@ class TushareFinancialGateway:
         # 取最近 periods 个报告期
         income_df = income_df.sort_values('end_date', ascending=False).head(periods)
 
-        records: List[FinancialRecord] = []
+        records: list[FinancialRecord] = []
 
         for _, row in income_df.iterrows():
             report_date = row['end_date']
@@ -168,7 +168,7 @@ class AKShareFinancialGateway:
 
             # 取最近 periods 个报告期
             balance_df = balance_df.head(periods)
-            records: List[FinancialRecord] = []
+            records: list[FinancialRecord] = []
 
             for _, row in balance_df.iterrows():
                 # 解析日期（格式：20250930）
@@ -241,7 +241,7 @@ class AKShareFinancialGateway:
             logger.error(f"AKShare financial fetch failed for {stock_code}: {e}")
             return FinancialSyncBatch(source_provider="akshare", stock_code=stock_code, records=[])
 
-    def _safe_float(self, value) -> Optional[float]:
+    def _safe_float(self, value) -> float | None:
         import pandas as pd
         try:
             if value is None or value == '' or (isinstance(value, float) and pd.isna(value)):

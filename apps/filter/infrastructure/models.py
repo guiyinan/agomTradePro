@@ -5,6 +5,7 @@ Django models for persisting filter results and Kalman states.
 """
 
 from django.db import models
+
 from apps.filter.domain.entities import FilterType
 
 

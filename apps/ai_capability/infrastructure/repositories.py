@@ -2,8 +2,8 @@
 AI Capability Catalog Infrastructure Repositories.
 """
 
-from datetime import datetime, timezone
-from typing import Optional, List, Any
+from datetime import UTC, datetime, timezone
+from typing import Any, List, Optional
 
 from django.db import transaction
 
@@ -22,7 +22,7 @@ from .models import (
 class DjangoCapabilityRepository:
     """Django ORM implementation of capability repository."""
 
-    def get_by_key(self, capability_key: str) -> Optional[CapabilityDefinition]:
+    def get_by_key(self, capability_key: str) -> CapabilityDefinition | None:
         """Get a capability by its key."""
         try:
             model = CapabilityCatalogModel.objects.get(capability_key=capability_key)
@@ -30,29 +30,29 @@ class DjangoCapabilityRepository:
         except CapabilityCatalogModel.DoesNotExist:
             return None
 
-    def get_all_enabled(self) -> List[CapabilityDefinition]:
+    def get_all_enabled(self) -> list[CapabilityDefinition]:
         """Get all enabled capabilities."""
         models = CapabilityCatalogModel.objects.filter(enabled_for_routing=True)
         return [m.to_entity() for m in models]
 
-    def get_by_source_type(self, source_type: str) -> List[CapabilityDefinition]:
+    def get_by_source_type(self, source_type: str) -> list[CapabilityDefinition]:
         """Get capabilities by source type."""
         models = CapabilityCatalogModel.objects.filter(source_type=source_type)
         return [m.to_entity() for m in models]
 
-    def get_by_route_group(self, route_group: str) -> List[CapabilityDefinition]:
+    def get_by_route_group(self, route_group: str) -> list[CapabilityDefinition]:
         """Get capabilities by route group."""
         models = CapabilityCatalogModel.objects.filter(route_group=route_group)
         return [m.to_entity() for m in models]
 
-    def get_all_for_routing(self) -> List[CapabilityDefinition]:
+    def get_all_for_routing(self) -> list[CapabilityDefinition]:
         """Get all capabilities eligible for routing."""
         models = CapabilityCatalogModel.objects.filter(enabled_for_routing=True)
         return [m.to_entity() for m in models]
 
     def save(self, capability: CapabilityDefinition) -> CapabilityDefinition:
         """Save a capability (upsert by key)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         model, created = CapabilityCatalogModel.objects.update_or_create(
             capability_key=capability.capability_key,
             defaults={
@@ -88,12 +88,12 @@ class DjangoCapabilityRepository:
 
     def bulk_upsert(
         self,
-        capabilities: List[CapabilityDefinition],
+        capabilities: list[CapabilityDefinition],
     ) -> dict[str, int]:
         """Bulk upsert capabilities. Returns counts."""
         created_count = 0
         updated_count = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         with transaction.atomic():
             for cap in capabilities:
@@ -142,7 +142,7 @@ class DjangoCapabilityRepository:
     def disable_missing(
         self,
         source_type: str,
-        existing_keys: List[str],
+        existing_keys: list[str],
     ) -> int:
         """Disable capabilities that are no longer in source."""
         qs = CapabilityCatalogModel.objects.filter(
@@ -199,7 +199,7 @@ class DjangoRoutingLogRepository:
         )
         return model.to_entity()
 
-    def get_by_session(self, session_id: str) -> List[CapabilityRoutingLog]:
+    def get_by_session(self, session_id: str) -> list[CapabilityRoutingLog]:
         """Get logs by session ID."""
         models = CapabilityRoutingLogModel.objects.filter(session_id=session_id)
         return [m.to_entity() for m in models]
@@ -223,7 +223,7 @@ class DjangoSyncLogRepository:
         )
         return model.to_entity()
 
-    def get_latest(self, sync_type: str) -> Optional[CapabilitySyncLog]:
+    def get_latest(self, sync_type: str) -> CapabilitySyncLog | None:
         """Get the latest sync log of a given type."""
         try:
             model = (

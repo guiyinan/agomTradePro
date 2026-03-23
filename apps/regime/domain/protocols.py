@@ -22,16 +22,16 @@ class MacroIndicatorValue:
     indicator_code: str
     value: float
     observed_at: date
-    published_at: Optional[date]
-    unit: Optional[str]
+    published_at: date | None
+    unit: str | None
 
 
 @dataclass(frozen=True)
 class IndicatorSeries:
     """指标时间序列"""
     indicator_code: str
-    values: List[float]
-    dates: List[date]
+    values: list[float]
+    dates: list[date]
 
 
 @dataclass(frozen=True)
@@ -57,8 +57,8 @@ class MacroDataProviderProtocol(Protocol):
     def get_indicator_value(
         self,
         indicator_code: str,
-        as_of_date: Optional[date] = None
-    ) -> Optional[MacroIndicatorValue]:
+        as_of_date: date | None = None
+    ) -> MacroIndicatorValue | None:
         """
         获取指定指标的最新值
 
@@ -76,7 +76,7 @@ class MacroDataProviderProtocol(Protocol):
         indicator_code: str,
         end_date: date,
         lookback_periods: int = 24
-    ) -> Optional[IndicatorSeries]:
+    ) -> IndicatorSeries | None:
         """
         获取指标的历史序列
 
@@ -95,7 +95,7 @@ class MacroDataProviderProtocol(Protocol):
         indicator_code: str,
         end_date: date,
         lookback_periods: int = 24
-    ) -> List[float]:
+    ) -> list[float]:
         """
         获取增长指标序列 (用于 Kalman 滤波)
 
@@ -114,7 +114,7 @@ class MacroDataProviderProtocol(Protocol):
         indicator_code: str,
         end_date: date,
         lookback_periods: int = 24
-    ) -> List[float]:
+    ) -> list[float]:
         """
         获取通胀指标序列 (用于 Kalman 滤波)
 
@@ -128,7 +128,7 @@ class MacroDataProviderProtocol(Protocol):
         """
         ...
 
-    def get_latest_observation_date(self, indicator_code: str) -> Optional[date]:
+    def get_latest_observation_date(self, indicator_code: str) -> date | None:
         """
         获取指定指标的最新观测日期
 
@@ -175,7 +175,7 @@ class MacroSyncTaskGatewayProtocol(Protocol):
     def build_sync_signature(
         self,
         source: str,
-        indicator: Optional[str],
+        indicator: str | None,
         days_back: int,
     ) -> Any:
         """
@@ -190,6 +190,6 @@ class MacroSyncTaskGatewayProtocol(Protocol):
 class MacroSourceConfigGatewayProtocol(Protocol):
     """宏观数据源配置网关协议。"""
 
-    def list_active_sources(self) -> List[MacroSourceSummary]:
+    def list_active_sources(self) -> list[MacroSourceSummary]:
         """列出可用的数据源。"""
         ...

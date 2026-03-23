@@ -5,41 +5,41 @@ Data access layer for factor module.
 """
 
 from datetime import date, datetime
-from typing import List, Dict, Optional
 from decimal import Decimal
+from typing import Dict, List, Optional
 
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.factor.infrastructure.models import (
-    FactorDefinitionModel,
-    FactorExposureModel,
-    FactorPortfolioConfigModel,
-    FactorPortfolioHoldingModel,
-    FactorPerformanceModel,
-)
 from apps.factor.domain.entities import (
     FactorDefinition,
     FactorPortfolioConfig,
-    FactorScore,
     FactorPortfolioHolding,
+    FactorScore,
+)
+from apps.factor.infrastructure.models import (
+    FactorDefinitionModel,
+    FactorExposureModel,
+    FactorPerformanceModel,
+    FactorPortfolioConfigModel,
+    FactorPortfolioHoldingModel,
 )
 
 
 class FactorDefinitionRepository:
     """Repository for FactorDefinition entities"""
 
-    def get_all(self) -> List[FactorDefinition]:
+    def get_all(self) -> list[FactorDefinition]:
         """Get all factor definitions"""
         models = FactorDefinitionModel._default_manager.all()
         return [m.to_domain() for m in models]
 
-    def get_active(self) -> List[FactorDefinition]:
+    def get_active(self) -> list[FactorDefinition]:
         """Get active factor definitions"""
         models = FactorDefinitionModel._default_manager.filter(is_active=True)
         return [m.to_domain() for m in models]
 
-    def get_by_code(self, code: str) -> Optional[FactorDefinition]:
+    def get_by_code(self, code: str) -> FactorDefinition | None:
         """Get factor definition by code"""
         try:
             model = FactorDefinitionModel._default_manager.get(code=code)
@@ -47,7 +47,7 @@ class FactorDefinitionRepository:
         except FactorDefinitionModel.DoesNotExist:
             return None
 
-    def get_by_category(self, category: str) -> List[FactorDefinition]:
+    def get_by_category(self, category: str) -> list[FactorDefinition]:
         """Get factors by category"""
         models = FactorDefinitionModel._default_manager.filter(
             category=category,
@@ -76,7 +76,7 @@ class FactorExposureRepository:
         self,
         stock_code: str,
         factor_code: str
-    ) -> Optional[FactorExposureModel]:
+    ) -> FactorExposureModel | None:
         """Get latest exposure for stock-factor pair"""
         return FactorExposureModel._default_manager.filter(
             stock_code=stock_code,
@@ -87,7 +87,7 @@ class FactorExposureRepository:
         self,
         trade_date: date,
         factor_code: str
-    ) -> List[FactorExposureModel]:
+    ) -> list[FactorExposureModel]:
         """Get all exposures for a factor on a date"""
         return FactorExposureModel._default_manager.filter(
             trade_date=trade_date,
@@ -98,17 +98,17 @@ class FactorExposureRepository:
 class FactorPortfolioConfigRepository:
     """Repository for FactorPortfolioConfig entities"""
 
-    def get_all(self) -> List[FactorPortfolioConfig]:
+    def get_all(self) -> list[FactorPortfolioConfig]:
         """Get all portfolio configurations"""
         models = FactorPortfolioConfigModel._default_manager.all()
         return [m.to_domain() for m in models]
 
-    def get_active(self) -> List[FactorPortfolioConfig]:
+    def get_active(self) -> list[FactorPortfolioConfig]:
         """Get active portfolio configurations"""
         models = FactorPortfolioConfigModel._default_manager.filter(is_active=True)
         return [m.to_domain() for m in models]
 
-    def get_by_name(self, name: str) -> Optional[FactorPortfolioConfig]:
+    def get_by_name(self, name: str) -> FactorPortfolioConfig | None:
         """Get portfolio configuration by name"""
         try:
             model = FactorPortfolioConfigModel._default_manager.get(name=name)
@@ -148,7 +148,7 @@ class FactorPortfolioHoldingRepository:
         self,
         config_name: str,
         trade_date: date,
-        holdings: List[FactorPortfolioHolding]
+        holdings: list[FactorPortfolioHolding]
     ) -> int:
         """Save portfolio holdings"""
         from apps.factor.infrastructure.models import FactorPortfolioConfigModel
@@ -180,7 +180,7 @@ class FactorPortfolioHoldingRepository:
         FactorPortfolioHoldingModel._default_manager.bulk_create(holding_models)
         return len(holding_models)
 
-    def get_latest_holdings(self, config_name: str) -> List[FactorPortfolioHoldingModel]:
+    def get_latest_holdings(self, config_name: str) -> list[FactorPortfolioHoldingModel]:
         """Get latest holdings for a configuration"""
         return FactorPortfolioHoldingModel._default_manager.filter(
             config__name=config_name

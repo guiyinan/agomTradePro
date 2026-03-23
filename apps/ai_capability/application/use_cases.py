@@ -10,7 +10,7 @@ import re
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,15 +24,21 @@ from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
+from ..application.dtos import (
+    CapabilitySummaryDTO,
+    RouteRequestDTO,
+    RouteResponseDTO,
+    SyncResultDTO,
+)
 from ..domain.entities import (
-    CapabilityDefinition,
     CapabilityDecision,
+    CapabilityDefinition,
     CapabilityRoutingLog,
     CapabilitySyncLog,
     RiskLevel,
+    RouteGroup,
     RoutingContext,
     RoutingDecision,
-    RouteGroup,
     SourceType,
     Visibility,
 )
@@ -41,18 +47,11 @@ from ..domain.services import (
     CapabilityFilter,
     CapabilityRetrievalScorer,
 )
-from ..application.dtos import (
-    CapabilitySummaryDTO,
-    RouteRequestDTO,
-    RouteResponseDTO,
-    SyncResultDTO,
-)
 from ..infrastructure.repositories import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
     DjangoSyncLogRepository,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -193,8 +192,8 @@ class CapabilityRegistryService:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
-        filter_service: Optional[CapabilityFilter] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
+        filter_service: CapabilityFilter | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
         self.filter_service = filter_service or CapabilityFilter()
@@ -207,7 +206,7 @@ class CapabilityRegistryService:
 class CapabilityRetrievalService:
     """Deterministic capability retrieval service."""
 
-    def __init__(self, scorer: Optional[CapabilityRetrievalScorer] = None):
+    def __init__(self, scorer: CapabilityRetrievalScorer | None = None):
         self.scorer = scorer or CapabilityRetrievalScorer()
 
     def retrieve(
@@ -376,7 +375,7 @@ class CapabilityExecutionDispatcher:
                         _line("Redis", checks.get("redis", {})),
                         _line("Celery", checks.get("celery", {})),
                         _line("Critical Data", checks.get("critical_data", {})),
-                        f"- **Timestamp**: `{datetime.now(timezone.utc).isoformat()}`",
+                        f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
                     ]
                 )
             }
@@ -550,7 +549,7 @@ class CapabilityExecutionDispatcher:
             "metadata": {"status_code": getattr(response, "status_code", 200)},
         }
 
-    def _validate_path_param(self, name: str, value: Any, converter: str) -> Optional[str]:
+    def _validate_path_param(self, name: str, value: Any, converter: str) -> str | None:
         if converter == "int":
             value_str = str(value).strip()
             if not value_str.isdigit():
@@ -570,8 +569,8 @@ class RouteMessageUseCase:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
-        routing_log_repo: Optional[DjangoRoutingLogRepository] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
+        routing_log_repo: DjangoRoutingLogRepository | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
         self.routing_log_repo = routing_log_repo or DjangoRoutingLogRepository()
@@ -678,7 +677,7 @@ class RouteMessageUseCase:
         request: RouteRequestDTO,
         context: RoutingContext,
         reason: str = "",
-        rejected_candidates: Optional[list[str]] = None,
+        rejected_candidates: list[str] | None = None,
     ) -> RoutingDecision:
         """Build decision for high-confidence capability match."""
         execution_result = self._execute_capability(capability, request, context)
@@ -734,9 +733,9 @@ class RouteMessageUseCase:
         request: RouteRequestDTO,
         context: RoutingContext,
         reason: str = "",
-        rejected_candidates: Optional[list[str]] = None,
-        missing_params: Optional[list[str]] = None,
-        execution_result: Optional[dict[str, Any]] = None,
+        rejected_candidates: list[str] | None = None,
+        missing_params: list[str] | None = None,
+        execution_result: dict[str, Any] | None = None,
     ) -> RoutingDecision:
         """Build decision for medium-confidence suggestion."""
         answer_chain = self._build_answer_chain(
@@ -788,7 +787,7 @@ class RouteMessageUseCase:
         request: RouteRequestDTO,
         context: RoutingContext,
         reason: str = "",
-        rejected_candidates: Optional[list[str]] = None,
+        rejected_candidates: list[str] | None = None,
     ) -> RoutingDecision:
         """Build decision for general chat."""
         reply = self._execute_chat(request, context)
@@ -860,7 +859,7 @@ class RouteMessageUseCase:
                 _line("Redis", checks.get("redis", {})),
                 _line("Celery", checks.get("celery", {})),
                 _line("Critical Data", checks.get("critical_data", {})),
-                f"- **Timestamp**: `{datetime.now(timezone.utc).isoformat()}`",
+                f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
             ]
         )
 
@@ -948,7 +947,7 @@ class RouteMessageUseCase:
         context: RoutingContext,
         route: str,
         reason: str = "",
-        rejected_candidates: Optional[list[str]] = None,
+        rejected_candidates: list[str] | None = None,
     ) -> dict[str, Any]:
         """Build answer chain for debugging."""
         steps = [
@@ -1098,14 +1097,14 @@ class GetCapabilityListUseCase:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
 
     def execute(
         self,
-        source_type: Optional[str] = None,
-        route_group: Optional[str] = None,
+        source_type: str | None = None,
+        route_group: str | None = None,
         enabled_only: bool = True,
     ) -> list[CapabilitySummaryDTO]:
         """Get list of capabilities."""
@@ -1141,11 +1140,11 @@ class GetCapabilityDetailUseCase:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
 
-    def execute(self, capability_key: str) -> Optional[CapabilityDefinition]:
+    def execute(self, capability_key: str) -> CapabilityDefinition | None:
         """Get a single capability definition."""
         return self.capability_repo.get_by_key(capability_key)
 
@@ -1155,7 +1154,7 @@ class GetCatalogStatsUseCase:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
 
@@ -1169,16 +1168,16 @@ class SyncCapabilitiesUseCase:
 
     def __init__(
         self,
-        capability_repo: Optional[DjangoCapabilityRepository] = None,
-        sync_log_repo: Optional[DjangoSyncLogRepository] = None,
+        capability_repo: DjangoCapabilityRepository | None = None,
+        sync_log_repo: DjangoSyncLogRepository | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
         self.sync_log_repo = sync_log_repo or DjangoSyncLogRepository()
 
-    def execute(self, sync_type: str = "full", source: Optional[str] = None) -> SyncResultDTO:
+    def execute(self, sync_type: str = "full", source: str | None = None) -> SyncResultDTO:
         """Execute capability synchronization."""
         start_time = time.time()
-        started_at = datetime.now(timezone.utc)
+        started_at = datetime.now(UTC)
 
         total_discovered = 0
         created_count = 0
@@ -1215,7 +1214,7 @@ class SyncCapabilitiesUseCase:
             error_count += 1
             summary["error"] = str(e)
 
-        finished_at = datetime.now(timezone.utc)
+        finished_at = datetime.now(UTC)
         duration = time.time() - start_time
 
         sync_log = CapabilitySyncLog(

@@ -4,39 +4,40 @@ Account Interface Views
 用户认证、注册、登录、登出等视图。
 """
 
-from django.shortcuts import render, redirect
+import json
+import logging
+from decimal import Decimal
+
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.contrib import messages
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.http import JsonResponse
 from django.db import models, transaction
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
 from django.utils import timezone
-from decimal import Decimal
-import json
-import logging
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_http_methods
 
+from apps.account.application.rbac import ROLE_CHOICES, is_system_admin
+from apps.account.application.use_cases import (
+    CreatePositionFromBacktestInput,
+    CreatePositionFromBacktestUseCase,
+)
 from apps.account.infrastructure.models import (
     AccountProfileModel,
-    PortfolioModel,
     CapitalFlowModel,
+    PortfolioModel,
     SystemSettingsModel,
-    UserAccessTokenModel,
     TradingCostConfigModel,
+    UserAccessTokenModel,
 )
 from apps.account.infrastructure.repositories import (
     AccountRepository,
+    AssetMetadataRepository,
     PortfolioRepository,
     PositionRepository,
-    AssetMetadataRepository,
 )
-from apps.account.application.use_cases import (
-    CreatePositionFromBacktestUseCase,
-    CreatePositionFromBacktestInput,
-)
-from apps.account.application.rbac import ROLE_CHOICES, is_system_admin
 from apps.account.interface.serializers import TradingCostConfigCreateSerializer
 
 logger = logging.getLogger(__name__)
@@ -198,7 +199,7 @@ def register_view(request):
             # 根据审批状态显示不同消息
             if approval_status == "pending":
                 messages.info(
-                    request, f"注册成功！您的账户正在等待管理员审批，审批通过后即可登录。"
+                    request, "注册成功！您的账户正在等待管理员审批，审批通过后即可登录。"
                 )
                 return redirect("/account/login/")
             else:
@@ -560,8 +561,9 @@ def apply_backtest_results_view(request, backtest_id):
     Args:
         backtest_id: 回测结果ID
     """
-    from apps.backtest.infrastructure.models import BacktestResultModel
     import json
+
+    from apps.backtest.infrastructure.models import BacktestResultModel
 
     try:
         # 获取参数

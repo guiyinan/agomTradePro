@@ -11,10 +11,14 @@ Version: 1.0
 from datetime import date
 
 from apps.prompt.domain.entities import (
-    PromptTemplate, ChainConfig, ChainStep, PlaceholderDef,
-    PlaceholderType, PromptCategory, ChainExecutionMode
+    ChainConfig,
+    ChainExecutionMode,
+    ChainStep,
+    PlaceholderDef,
+    PlaceholderType,
+    PromptCategory,
+    PromptTemplate,
 )
-
 
 # ============================================
 # Predefined Prompt Templates

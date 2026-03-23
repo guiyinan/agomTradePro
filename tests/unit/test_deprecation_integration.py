@@ -3,10 +3,9 @@ Integration tests for DeprecationHeaderMiddleware with real Django views.
 """
 
 import pytest
-from django.test import Client
-from django.urls import path
 from django.http import HttpResponse
-from django.urls import clear_url_caches
+from django.test import Client
+from django.urls import clear_url_caches, path
 
 
 def dummy_view(request):

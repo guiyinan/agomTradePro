@@ -41,8 +41,8 @@ class ContextSection:
     name: str
     summary: Any
     raw_data: Any
-    references: Dict[str, Any] = field(default_factory=dict)
-    generated_at: Optional[str] = None
+    references: dict[str, Any] = field(default_factory=dict)
+    generated_at: str | None = None
 
 
 @dataclass
@@ -55,16 +55,16 @@ class ContextBundle:
         policy: 上下文注入策略
         generated_at: 生成时间
     """
-    sections: Dict[str, ContextSection] = field(default_factory=dict)
-    scope: List[str] = field(default_factory=list)
+    sections: dict[str, ContextSection] = field(default_factory=dict)
+    scope: list[str] = field(default_factory=list)
     policy: str = ContextPolicy.SUMMARY_PLUS_SELECTED_RAW.value
-    generated_at: Optional[str] = None
+    generated_at: str | None = None
 
     def add_section(self, section: ContextSection) -> None:
         """添加一个上下文段。"""
         self.sections[section.name] = section
 
-    def get_section(self, name: str) -> Optional[ContextSection]:
+    def get_section(self, name: str) -> ContextSection | None:
         """获取指定域的上下文段。"""
         return self.sections.get(name)
 
@@ -84,6 +84,6 @@ class ContextBundle:
                 parts.append(f"## {name.upper()}\n{summary_str}")
         return "\n\n".join(parts)
 
-    def get_used_domains(self) -> List[str]:
+    def get_used_domains(self) -> list[str]:
         """返回已构建的域列表。"""
         return list(self.sections.keys())

@@ -6,11 +6,13 @@ Django Management Command: 同步宏观数据
     python manage.py sync_macro_data --source akshare --indicators PMI CPI
 """
 
-from django.core.management.base import BaseCommand
 from datetime import date, timedelta
+
+from django.core.management.base import BaseCommand
+
+from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.domain.entities import MacroIndicator, PeriodType
 
 # 高频指标映射到对应的 period_type
 # 注意：ORM 支持扩展类型（10Y, 5Y 等），但 Domain 层 PeriodType 枚举不支持
@@ -77,7 +79,7 @@ class Command(BaseCommand):
         years = options['years']
 
         self.stdout.write(self.style.SUCCESS(f'\n{"="*60}'))
-        self.stdout.write(self.style.SUCCESS(f'开始同步宏观数据'))
+        self.stdout.write(self.style.SUCCESS('开始同步宏观数据'))
         self.stdout.write(self.style.SUCCESS(f'数据源: {source}'))
         self.stdout.write(self.style.SUCCESS(f'指标: {", ".join(indicators)}'))
         self.stdout.write(self.style.SUCCESS(f'{"="*60}\n'))
@@ -102,7 +104,7 @@ class Command(BaseCommand):
                 data_points = adapter.fetch(indicator_code, start_date, end_date)
 
                 if not data_points:
-                    self.stdout.write(self.style.WARNING(f'  未获取到数据'))
+                    self.stdout.write(self.style.WARNING('  未获取到数据'))
                     continue
 
                 self.stdout.write(f'  获取到 {len(data_points)} 条数据')

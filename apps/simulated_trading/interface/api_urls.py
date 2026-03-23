@@ -1,12 +1,12 @@
 """Simulated trading API URL configuration."""
 
-from django.urls import path
 from django.http import JsonResponse
+from django.urls import path
 
 from .views import (
+    AccountBatchDeleteAPIView,
     AccountDetailAPIView,
     AccountListAPIView,
-    AccountBatchDeleteAPIView,
     AutoTradingAPIView,
     DailyInspectionReportListAPIView,
     DailyInspectionRunAPIView,

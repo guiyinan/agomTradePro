@@ -4,13 +4,14 @@
 包含外汇储备、LPR、SHIBOR、存款准备金率、信贷数据等金融指标的获取逻辑。
 """
 
-import pandas as pd
-from datetime import date
-from typing import List
 import logging
 import re
+from datetime import date
+from typing import List
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国外汇储备数据"""
         try:
             df = self.ak.macro_china_fx_gold()
@@ -107,7 +108,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 LPR 数据"""
         try:
             df = self.ak.macro_china_lpr()
@@ -154,7 +155,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 SHIBOR 数据"""
         try:
             df = self.ak.macro_china_shibor_all()
@@ -201,7 +202,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国存款准备金率数据"""
         try:
             df = self.ak.macro_china_reserve_requirement_ratio()
@@ -249,7 +250,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国新增信贷数据"""
         try:
             df = self.ak.macro_china_new_financial_credit()
@@ -297,7 +298,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取人民币存款余额数据"""
         try:
             df = self.ak.macro_rmb_deposit()
@@ -348,7 +349,7 @@ class FinancialIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取人民币贷款余额数据"""
         try:
             df = self.ak.macro_rmb_loan()

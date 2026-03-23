@@ -5,11 +5,11 @@ Account Application - Stress Testing Use Cases
 """
 
 import logging
-from decimal import Decimal
-from typing import List, Dict, Optional
-from datetime import datetime, date
-from dataclasses import dataclass
 import statistics
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Dict, List, Optional
 
 from apps.account.infrastructure.repositories import PositionRepository
 
@@ -39,7 +39,7 @@ class StressTestResult:
     volatility: float          # 波动率
     var_95: float              # 95% VaR
     var_99: float              # 99% VaR
-    recommendations: List[str]  # 改进建议
+    recommendations: list[str]  # 改进建议
 
 
 class HistoricalScenarioService:
@@ -75,12 +75,12 @@ class HistoricalScenarioService:
     }
 
     @classmethod
-    def get_scenario(cls, scenario_id: str) -> Optional[StressTestScenario]:
+    def get_scenario(cls, scenario_id: str) -> StressTestScenario | None:
         """获取情景定义"""
         return cls.SCENARIOS.get(scenario_id)
 
     @classmethod
-    def get_all_scenarios(cls) -> List[StressTestScenario]:
+    def get_all_scenarios(cls) -> list[StressTestScenario]:
         """获取所有情景"""
         return list(cls.SCENARIOS.values())
 
@@ -94,7 +94,7 @@ class VaRService:
 
     @staticmethod
     def calculate_historical_var(
-        returns: List[float],
+        returns: list[float],
         confidence: float = 0.95,
     ) -> float:
         """
@@ -120,7 +120,7 @@ class VaRService:
         return var
 
     @staticmethod
-    def calculate_max_drawdown(equity_curve: List[float]) -> tuple:
+    def calculate_max_drawdown(equity_curve: list[float]) -> tuple:
         """
         计算最大回撤
 
@@ -235,16 +235,16 @@ class StressTestingUseCase:
 
     def _get_portfolio_positions(
         self, portfolio_id: int
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """获取组合持仓及权重"""
         return self.position_repo.list_portfolio_position_weights(portfolio_id)
 
     def _simulate_portfolio_returns(
         self,
-        positions: List[Dict],
+        positions: list[dict],
         start_date: date,
         end_date: date,
-    ) -> List[float]:
+    ) -> list[float]:
         """模拟组合在历史场景中的收益率序列"""
         try:
             from apps.equity.infrastructure.adapters import TushareStockAdapter
@@ -305,7 +305,7 @@ class StressTestingUseCase:
     @staticmethod
     def _generate_recommendations(
         total_return: Decimal, max_drawdown: float, volatility: float
-    ) -> List[str]:
+    ) -> list[str]:
         """根据测试结果生成改进建议"""
         recommendations = []
 
@@ -326,7 +326,7 @@ class StressTestingUseCase:
     def run_all_scenarios(
         self,
         portfolio_id: int,
-    ) -> List[StressTestResult]:
+    ) -> list[StressTestResult]:
         """
         运行所有情景的压力测试
 

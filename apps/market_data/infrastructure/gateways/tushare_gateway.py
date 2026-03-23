@@ -28,7 +28,7 @@ _SUPPORTED = {
 }
 
 
-def _safe_decimal(value: object) -> Optional[Decimal]:
+def _safe_decimal(value: object) -> Decimal | None:
     if value is None:
         return None
     try:
@@ -38,7 +38,7 @@ def _safe_decimal(value: object) -> Optional[Decimal]:
         return None
 
 
-def _safe_float(value: object) -> Optional[float]:
+def _safe_float(value: object) -> float | None:
     if value is None:
         return None
     try:
@@ -48,7 +48,7 @@ def _safe_float(value: object) -> Optional[float]:
         return None
 
 
-def _safe_int(value: object) -> Optional[int]:
+def _safe_int(value: object) -> int | None:
     if value is None:
         return None
     try:
@@ -71,14 +71,14 @@ class TushareGateway(MarketDataProviderProtocol):
         return capability in _SUPPORTED
 
     def get_quote_snapshots(
-        self, stock_codes: List[str]
-    ) -> List[QuoteSnapshot]:
+        self, stock_codes: list[str]
+    ) -> list[QuoteSnapshot]:
         """从 Tushare 获取最新日线数据作为"准实时"行情"""
         try:
             from apps.equity.infrastructure.adapters import TushareStockAdapter
 
             adapter = TushareStockAdapter()
-            results: List[QuoteSnapshot] = []
+            results: list[QuoteSnapshot] = []
 
             from django.utils import timezone
 
@@ -137,7 +137,7 @@ class TushareGateway(MarketDataProviderProtocol):
 
     def get_technical_snapshot(
         self, stock_code: str
-    ) -> Optional[TechnicalSnapshot]:
+    ) -> TechnicalSnapshot | None:
         """从 Tushare 获取技术指标"""
         snapshots = self.get_quote_snapshots([stock_code])
         if not snapshots:
@@ -156,11 +156,12 @@ class TushareGateway(MarketDataProviderProtocol):
         asset_code: str,
         start_date: str,
         end_date: str,
-    ) -> List[HistoricalPriceBar]:
+    ) -> list[HistoricalPriceBar]:
         """从 Tushare 获取历史 K 线"""
         try:
-            from shared.config.secrets import get_secrets
             import tushare as ts
+
+            from shared.config.secrets import get_secrets
 
             secrets = get_secrets()
             token = secrets.data_sources.tushare_token
@@ -199,7 +200,7 @@ class TushareGateway(MarketDataProviderProtocol):
                 return []
 
             df = df.sort_values("trade_date")
-            bars: List[HistoricalPriceBar] = []
+            bars: list[HistoricalPriceBar] = []
             for _, row in df.iterrows():
                 try:
                     td = str(row["trade_date"])

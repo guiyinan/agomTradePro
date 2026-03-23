@@ -12,27 +12,27 @@ from unittest.mock import Mock, patch
 import pytest
 from django.utils import timezone
 
-from apps.alpha.application.services import AlphaService
 from apps.alpha.application.monitoring_tasks import (
-    evaluate_alerts,
-    update_provider_metrics,
     calculate_ic_drift,
     check_queue_lag,
+    evaluate_alerts,
     generate_daily_report,
+    update_provider_metrics,
 )
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
+from apps.alpha.application.services import AlphaService
 from apps.alpha.infrastructure.alerts import (
-    AlphaAlertManager,
-    AlphaAlertConfig,
     AlertNotification,
     AlertSeverity,
+    AlphaAlertConfig,
+    AlphaAlertManager,
     get_alpha_alert_manager,
 )
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from shared.infrastructure.metrics import (
-    MetricsRegistry,
     AlphaMetrics,
-    get_alpha_metrics,
+    MetricsRegistry,
     MetricType,
+    get_alpha_metrics,
 )
 
 

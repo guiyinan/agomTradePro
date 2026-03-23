@@ -6,7 +6,7 @@ Task Monitor Application DTOs
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 
 @dataclass
@@ -15,9 +15,9 @@ class TaskStatusResponse:
     task_id: str
     task_name: str
     status: str
-    started_at: Optional[str]
-    finished_at: Optional[str]
-    runtime_seconds: Optional[float]
+    started_at: str | None
+    finished_at: str | None
+    runtime_seconds: float | None
     retries: int
     is_success: bool
     is_failure: bool
@@ -27,7 +27,7 @@ class TaskStatusResponse:
 class TaskListResponse:
     """任务列表响应 DTO"""
     total: int
-    items: List[TaskStatusResponse]
+    items: list[TaskStatusResponse]
 
 
 @dataclass
@@ -36,7 +36,7 @@ class HealthCheckResponse:
     is_healthy: bool
     broker_reachable: bool
     backend_reachable: bool
-    active_workers: List[str]
+    active_workers: list[str]
     active_tasks_count: int
     pending_tasks_count: int
     scheduled_tasks_count: int
@@ -53,4 +53,4 @@ class TaskStatisticsResponse:
     average_runtime: float
     success_rate: float
     last_execution_status: str
-    last_execution_at: Optional[str]
+    last_execution_at: str | None

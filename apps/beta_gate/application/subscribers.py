@@ -10,13 +10,11 @@ Beta Gate Event Subscribers.
 """
 
 import logging
-from typing import Callable, Dict
+from collections.abc import Callable
+from typing import Dict
 
-from apps.events.domain.registry import (
-    get_event_subscriber_registry,
-    SubscriberInfo
-)
 from apps.events.domain.entities import EventType
+from apps.events.domain.registry import SubscriberInfo, get_event_subscriber_registry
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +55,8 @@ def _create_beta_gate_handler():
     try:
         # 延迟导入避免循环依赖
         from apps.beta_gate.application.handlers import BetaGateEventHandler
-        from apps.beta_gate.domain.services import (
-            VisibilityUniverseBuilder,
-            GateConfigSelector
-        )
         from apps.beta_gate.domain.entities import get_default_configs
+        from apps.beta_gate.domain.services import GateConfigSelector, VisibilityUniverseBuilder
 
         return BetaGateEventHandler(
             universe_builder=VisibilityUniverseBuilder(),
@@ -78,8 +73,8 @@ def _create_gate_invalidation_handler():
     try:
         # 延迟导入避免循环依赖
         from apps.beta_gate.application.handlers import GateInvalidationHandler
-        from apps.beta_gate.domain.services import GateConfigSelector
         from apps.beta_gate.domain.entities import get_default_configs
+        from apps.beta_gate.domain.services import GateConfigSelector
 
         return GateInvalidationHandler(
             config_selector=GateConfigSelector(get_default_configs())
@@ -89,7 +84,7 @@ def _create_gate_invalidation_handler():
         raise
 
 
-def get_handler_factories() -> Dict[EventType, Callable]:
+def get_handler_factories() -> dict[EventType, Callable]:
     """
     获取处理器工厂
 

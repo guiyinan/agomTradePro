@@ -8,15 +8,15 @@ Tests for:
 - DecisionRequest new field validation
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 import pytest
 
 from apps.decision_rhythm.domain.entities import (
-    DecisionRequest,
     DecisionPriority,
-    ExecutionTarget,
+    DecisionRequest,
     ExecutionStatus,
+    ExecutionTarget,
 )
 
 
@@ -209,7 +209,7 @@ class TestDecisionRequestStateMachine:
             direction="BUY",
             priority=DecisionPriority.MEDIUM,
             execution_status=ExecutionStatus.EXECUTED,
-            executed_at=datetime.now(timezone.utc),
+            executed_at=datetime.now(UTC),
         )
         assert request.validate_execution_consistency() is True
 
@@ -394,7 +394,7 @@ class TestDecisionRequestToDict:
             candidate_id="cand_001",
             execution_target=ExecutionTarget.SIMULATED,
             execution_status=ExecutionStatus.EXECUTED,
-            executed_at=datetime(2026, 3, 1, 12, 0, 0, tzinfo=timezone.utc),
+            executed_at=datetime(2026, 3, 1, 12, 0, 0, tzinfo=UTC),
             execution_ref={"trade_id": "trade_001"},
         )
         result = request.to_dict()

@@ -5,19 +5,18 @@ Alpha 事件触发的基础设施层实现。
 """
 
 from .models import (
-    AlphaTriggerModel,
+    AlphaCandidateManager,
     AlphaCandidateModel,
-    AlphaTriggerQuerySet,
     AlphaCandidateQuerySet,
     AlphaTriggerManager,
-    AlphaCandidateManager,
+    AlphaTriggerModel,
+    AlphaTriggerQuerySet,
 )
-
 from .repositories import (
-    AlphaTriggerRepository,
     AlphaCandidateRepository,
-    get_trigger_repository,
+    AlphaTriggerRepository,
     get_candidate_repository,
+    get_trigger_repository,
 )
 
 __all__ = [

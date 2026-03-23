@@ -4,43 +4,49 @@ Application Layer - Use Cases for Policy Management
 本层负责编排业务逻辑，通过依赖注入使用 Infrastructure 层。
 """
 
-from dataclasses import dataclass, asdict
-from datetime import date, datetime
-from typing import List, Optional, Protocol, Dict, Any
 import logging
 import time
+from dataclasses import asdict, dataclass
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional, Protocol
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError, IntegrityError
 
-from ..domain.entities import (
-    PolicyEvent, PolicyLevel, RSSItem, RSSSourceConfig, ProxyConfig,
-    InfoCategory, AuditStatus, RiskImpact
-)
-from ..domain.rules import (
-    validate_policy_event,
-    should_trigger_alert,
-    get_policy_response,
-    analyze_policy_transition,
-    get_recommendations_for_level,
-    is_high_risk_level,
-    DEFAULT_KEYWORD_RULES,
-    PolicyResponse,
-)
-from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
-from ..infrastructure.models import RSSSourceConfigModel, PolicyAuditQueue, PolicyLog
-from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
-from ..infrastructure.adapters.content_extractor import ContentExtractorError
-
 from core.exceptions import (
+    AIServiceError,
     BusinessLogicError,
+    DataFetchError,
     DataValidationError,
     ExternalServiceError,
-    DataFetchError,
     InvalidInputError,
-    AIServiceError,
 )
 from core.metrics import record_exception
+
+from ..domain.entities import (
+    AuditStatus,
+    InfoCategory,
+    PolicyEvent,
+    PolicyLevel,
+    ProxyConfig,
+    RiskImpact,
+    RSSItem,
+    RSSSourceConfig,
+)
+from ..domain.rules import (
+    DEFAULT_KEYWORD_RULES,
+    PolicyResponse,
+    analyze_policy_transition,
+    get_policy_response,
+    get_recommendations_for_level,
+    is_high_risk_level,
+    should_trigger_alert,
+    validate_policy_event,
+)
+from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
+from ..infrastructure.adapters.content_extractor import ContentExtractorError
+from ..infrastructure.models import PolicyAuditQueue, PolicyLog, RSSSourceConfigModel
+from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +55,8 @@ logger = logging.getLogger(__name__)
 class GetCurrentPolicyResponse:
     """Backward-compatible response for current policy query."""
     success: bool
-    policy_level: Optional[PolicyLevel] = None
-    error: Optional[str] = None
+    policy_level: PolicyLevel | None = None
+    error: str | None = None
 
 
 class GetCurrentPolicyUseCase:
@@ -90,7 +96,7 @@ class AlertServiceProtocol(Protocol):
         level: str,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> bool:
         """发送告警"""
         ...
@@ -103,7 +109,7 @@ class EventStoreProtocol(Protocol):
         """保存事件"""
         ...
 
-    def get_latest_event(self, before_date: Optional[date] = None) -> Optional[PolicyEvent]:
+    def get_latest_event(self, before_date: date | None = None) -> PolicyEvent | None:
         """获取最新事件"""
         ...
 
@@ -122,9 +128,9 @@ class CreatePolicyEventInput:
 class CreatePolicyEventOutput:
     """创建政策事件的输出 DTO"""
     success: bool
-    event: Optional[PolicyEvent] = None
-    errors: List[str] = None
-    warnings: List[str] = None
+    event: PolicyEvent | None = None
+    errors: list[str] = None
+    warnings: list[str] = None
     alert_triggered: bool = False
 
     def __post_init__(self):
@@ -140,19 +146,19 @@ class PolicyStatusOutput:
     current_level: PolicyLevel
     level_name: str
     response_config: PolicyResponse
-    latest_event: Optional[PolicyEvent]
+    latest_event: PolicyEvent | None
     is_intervention_active: bool
     is_crisis_mode: bool
-    recommendations: List[str]
+    recommendations: list[str]
     as_of_date: date
 
 
 @dataclass
 class PolicyHistoryOutput:
     """政策历史输出 DTO"""
-    events: List[PolicyEvent]
+    events: list[PolicyEvent]
     total_count: int
-    level_stats: Dict[str, Any]
+    level_stats: dict[str, Any]
     start_date: date
     end_date: date
 
@@ -171,7 +177,7 @@ class CreatePolicyEventUseCase:
     def __init__(
         self,
         event_store: EventStoreProtocol,
-        alert_service: Optional[AlertServiceProtocol] = None
+        alert_service: AlertServiceProtocol | None = None
     ):
         """
         初始化用例
@@ -264,7 +270,7 @@ class CreatePolicyEventUseCase:
             record_exception(e, module="policy", is_handled=True)
         except IntegrityError as e:
             # Database integrity error
-            output.errors.append(f"数据一致性错误: 事件可能已存在")
+            output.errors.append("数据一致性错误: 事件可能已存在")
             logger.error(f"Integrity error creating policy event: {e}", exc_info=True)
             record_exception(e, module="policy", is_handled=True)
         except DatabaseError as e:
@@ -283,7 +289,7 @@ class CreatePolicyEventUseCase:
     def _send_alert(
         self,
         event: PolicyEvent,
-        previous_level: Optional[PolicyLevel]
+        previous_level: PolicyLevel | None
     ) -> bool:
         """
         发送告警
@@ -303,8 +309,8 @@ class CreatePolicyEventUseCase:
 
         # 构建告警消息
         message_parts = [
-            f"**政策档位变更通知**",
-            f"",
+            "**政策档位变更通知**",
+            "",
             f"档位: {event.level.value} - {response.name}",
             f"标题: {event.title}",
             f"描述: {event.description}",
@@ -315,7 +321,7 @@ class CreatePolicyEventUseCase:
         if previous_level and previous_level != event.level:
             message_parts.append(f"上一次档位: {previous_level.value}")
 
-        message_parts.append(f"")
+        message_parts.append("")
         message_parts.append(f"**响应措施**: {response.market_action.value}")
         message_parts.append(f"现金调整: +{response.cash_adjustment}%")
 
@@ -370,7 +376,7 @@ class GetPolicyStatusUseCase:
         """
         self.event_store = event_store
 
-    def execute(self, as_of_date: Optional[date] = None) -> PolicyStatusOutput:
+    def execute(self, as_of_date: date | None = None) -> PolicyStatusOutput:
         """
         执行用例
 
@@ -439,7 +445,7 @@ class GetPolicyHistoryUseCase:
         self,
         start_date: date,
         end_date: date,
-        level: Optional[PolicyLevel] = None
+        level: PolicyLevel | None = None
     ) -> PolicyHistoryOutput:
         """
         执行用例
@@ -490,7 +496,7 @@ class UpdatePolicyEventUseCase:
     def __init__(
         self,
         event_store: EventStoreProtocol,
-        alert_service: Optional[AlertServiceProtocol] = None
+        alert_service: AlertServiceProtocol | None = None
     ):
         self.event_store = event_store
         self.alert_service = alert_service
@@ -502,7 +508,7 @@ class UpdatePolicyEventUseCase:
         title: str,
         description: str,
         evidence_url: str,
-        event_id: Optional[int] = None
+        event_id: int | None = None
     ) -> CreatePolicyEventOutput:
         """
         执行用例
@@ -590,7 +596,7 @@ class DeletePolicyEventUseCase:
     def __init__(self, event_store: EventStoreProtocol):
         self.event_store = event_store
 
-    def execute(self, event_date: Optional[date] = None, event_id: Optional[int] = None) -> tuple[bool, str]:
+    def execute(self, event_date: date | None = None, event_id: int | None = None) -> tuple[bool, str]:
         """
         执行用例
 
@@ -629,7 +635,7 @@ class DeletePolicyEventUseCase:
 @dataclass
 class FetchRSSInput:
     """RSS抓取输入 DTO"""
-    source_id: Optional[int] = None  # None表示抓取所有启用的源
+    source_id: int | None = None  # None表示抓取所有启用的源
     force_refetch: bool = False  # 是否强制重新抓取（忽略去重）
 
 
@@ -640,8 +646,8 @@ class FetchRSSOutput:
     sources_processed: int
     total_items: int
     new_policy_events: int
-    errors: List[str]
-    details: List[Dict[str, Any]]
+    errors: list[str]
+    details: list[dict[str, Any]]
 
     def __post_init__(self):
         if self.errors is None:
@@ -680,8 +686,8 @@ class FetchRSSUseCase:
         self,
         rss_repository: RSSRepository,
         policy_repository: DjangoPolicyRepository,
-        alert_service: Optional[AlertServiceProtocol] = None,
-        ai_classifier: Optional[Any] = None  # PolicyClassifierProtocol
+        alert_service: AlertServiceProtocol | None = None,
+        ai_classifier: Any | None = None  # PolicyClassifierProtocol
     ):
         """
         初始化用例
@@ -777,7 +783,7 @@ class FetchRSSUseCase:
         self,
         source: RSSSourceConfigModel,
         force_refetch: bool
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         抓取单个RSS源（增强版 - 集成AI分类）
 
@@ -1164,7 +1170,7 @@ class FetchRSSUseCase:
         evidence_url: str,
         info_category: InfoCategory,
         risk_impact: RiskImpact,
-        structured_data: Optional[Dict[str, Any]] = None
+        structured_data: dict[str, Any] | None = None
     ) -> bool:
         """为RSS触发的政策事件发送增强告警"""
         if not self.alert_service:
@@ -1215,7 +1221,7 @@ class ReviewPolicyItemInput:
     approved: bool
     reviewer: Any  # Django User model
     notes: str = ""
-    modifications: Optional[Dict[str, Any]] = None  # 允许审核者修改AI提取的数据
+    modifications: dict[str, Any] | None = None  # 允许审核者修改AI提取的数据
 
 
 @dataclass
@@ -1224,7 +1230,7 @@ class ReviewPolicyItemOutput:
     success: bool
     audit_status: AuditStatus
     message: str
-    errors: List[str] = None
+    errors: list[str] = None
 
     def __post_init__(self):
         if self.errors is None:
@@ -1247,9 +1253,9 @@ class GetAuditQueueUseCase:
         self,
         user: Any,
         status: str = 'pending_review',
-        priority: Optional[str] = None,
+        priority: str | None = None,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取待审核的政策列表
 
@@ -1303,7 +1309,7 @@ class ReviewPolicyItemUseCase:
     def __init__(
         self,
         policy_repository: DjangoPolicyRepository,
-        alert_service: Optional[AlertServiceProtocol] = None
+        alert_service: AlertServiceProtocol | None = None
     ):
         self.policy_repository = policy_repository
         self.alert_service = alert_service
@@ -1318,8 +1324,9 @@ class ReviewPolicyItemUseCase:
         Returns:
             ReviewPolicyItemOutput: 审核结果
         """
-        from ..infrastructure.models import PolicyLog, PolicyAuditQueue
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyAuditQueue, PolicyLog
 
         output = ReviewPolicyItemOutput(
             success=False,
@@ -1391,11 +1398,11 @@ class BulkReviewUseCase:
 
     def execute(
         self,
-        policy_log_ids: List[int],
+        policy_log_ids: list[int],
         approved: bool,
         reviewer: Any,
         notes: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         批量审核政策条目
 
@@ -1437,7 +1444,7 @@ class BulkReviewUseCase:
 class AutoAssignAuditsUseCase:
     """自动分配审核任务用例"""
 
-    def execute(self, max_per_user: int = 10) -> Dict[str, Any]:
+    def execute(self, max_per_user: int = 10) -> dict[str, Any]:
         """
         自动将待审核的政策分配给审核人员
 
@@ -1447,9 +1454,10 @@ class AutoAssignAuditsUseCase:
         Returns:
             Dict: 分配结果统计
         """
-        from ..infrastructure.models import PolicyAuditQueue
         from django.contrib.auth.models import User
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyAuditQueue
 
         # 获取所有待审核且未分配的政策
         unassigned = PolicyAuditQueue._default_manager.filter(
@@ -1501,17 +1509,17 @@ from ..domain.entities import (
     EventType,
     GateLevel,
     HeatSentimentScore,
-    SentimentGateThresholds,
     IngestionConfig,
-    WorkbenchSummary,
+    SentimentGateThresholds,
     WorkbenchEvent,
+    WorkbenchSummary,
 )
 from ..domain.rules import (
     calculate_gate_level,
-    should_auto_approve,
-    is_sla_exceeded,
-    get_max_position_cap,
     can_event_affect_policy_level,
+    get_max_position_cap,
+    is_sla_exceeded,
+    should_auto_approve,
 )
 from ..infrastructure.repositories import WorkbenchRepository
 
@@ -1526,8 +1534,8 @@ class WorkbenchSummaryInput:
 class WorkbenchSummaryOutput:
     """工作台概览输出 DTO"""
     success: bool
-    summary: Optional[WorkbenchSummary] = None
-    error: Optional[str] = None
+    summary: WorkbenchSummary | None = None
+    error: str | None = None
 
 
 class GetWorkbenchSummaryUseCase:
@@ -1614,13 +1622,13 @@ class GetWorkbenchSummaryUseCase:
 class WorkbenchItemsInput:
     """工作台事件列表输入 DTO"""
     tab: str = 'pending'  # pending, effective, all
-    event_type: Optional[str] = None
-    level: Optional[str] = None
-    gate_level: Optional[str] = None
-    asset_class: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    search: Optional[str] = None
+    event_type: str | None = None
+    level: str | None = None
+    gate_level: str | None = None
+    asset_class: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    search: str | None = None
     limit: int = 50
     offset: int = 0
 
@@ -1629,9 +1637,9 @@ class WorkbenchItemsInput:
 class WorkbenchItemsOutput:
     """工作台事件列表输出 DTO"""
     success: bool
-    items: List[Dict[str, Any]] = None
+    items: list[dict[str, Any]] = None
     total: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class GetWorkbenchItemsUseCase:
@@ -1651,8 +1659,9 @@ class GetWorkbenchItemsUseCase:
             WorkbenchItemsOutput: 事件列表
         """
         try:
-            from ..infrastructure.models import PolicyLog
             from django.db.models import Q
+
+            from ..infrastructure.models import PolicyLog
 
             query = PolicyLog._default_manager.all()
 
@@ -1738,8 +1747,8 @@ class ApproveEventInput:
 class ApproveEventOutput:
     """审核通过输出 DTO"""
     success: bool
-    event_id: Optional[int] = None
-    error: Optional[str] = None
+    event_id: int | None = None
+    error: str | None = None
 
 
 class ApproveEventUseCase:
@@ -1788,8 +1797,8 @@ class RejectEventInput:
 class RejectEventOutput:
     """审核拒绝输出 DTO"""
     success: bool
-    event_id: Optional[int] = None
-    error: Optional[str] = None
+    event_id: int | None = None
+    error: str | None = None
 
 
 class RejectEventUseCase:
@@ -1841,8 +1850,8 @@ class RollbackEventInput:
 class RollbackEventOutput:
     """回滚生效输出 DTO"""
     success: bool
-    event_id: Optional[int] = None
-    error: Optional[str] = None
+    event_id: int | None = None
+    error: str | None = None
 
 
 class RollbackEventUseCase:
@@ -1888,15 +1897,15 @@ class OverrideEventInput:
     event_id: int
     user_id: int
     reason: str
-    new_level: Optional[str] = None
+    new_level: str | None = None
 
 
 @dataclass
 class OverrideEventOutput:
     """临时豁免输出 DTO"""
     success: bool
-    event_id: Optional[int] = None
-    error: Optional[str] = None
+    event_id: int | None = None
+    error: str | None = None
 
 
 class OverrideEventUseCase:
@@ -1947,13 +1956,13 @@ class SentimentGateStateInput:
 class SentimentGateStateOutput:
     """热点情绪闸门状态输出 DTO"""
     success: bool
-    asset_class: Optional[str] = None
-    gate_level: Optional[str] = None
-    heat_score: Optional[float] = None
-    sentiment_score: Optional[float] = None
-    max_position_cap: Optional[float] = None
-    thresholds: Optional[Dict[str, float]] = None
-    error: Optional[str] = None
+    asset_class: str | None = None
+    gate_level: str | None = None
+    heat_score: float | None = None
+    sentiment_score: float | None = None
+    max_position_cap: float | None = None
+    thresholds: dict[str, float] | None = None
+    error: str | None = None
 
 
 class GetSentimentGateStateUseCase:

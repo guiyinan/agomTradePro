@@ -7,18 +7,17 @@ Events Infrastructure Repositories
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from django.core.exceptions import ObjectDoesNotExist
 
 from ..domain.interfaces import (
-    FailedEventRepositoryProtocol,
     AlphaCandidateRepositoryProtocol,
     DecisionRequestRepositoryProtocol,
+    FailedEventRepositoryProtocol,
 )
 from .models import FailedEventModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ class FailedEventRepository:
         event,
         handler_id: str,
         error_message: str,
-        error_traceback: Optional[str],
+        error_traceback: str | None,
         max_retries: int,
     ) -> int:
         """
@@ -69,7 +68,7 @@ class FailedEventRepository:
             error_traceback=error_traceback or "",
             retry_count=0,
             max_retries=max_retries,
-            next_retry_at=datetime.now(timezone.utc),
+            next_retry_at=datetime.now(UTC),
             status=self.model.PENDING,
         )
         failed_event.save()
@@ -81,7 +80,7 @@ class FailedEventRepository:
 
         return failed_event.id
 
-    def get_by_id(self, event_db_id: int) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, event_db_id: int) -> dict[str, Any] | None:
         """
         按 ID 获取失败事件
 
@@ -100,8 +99,8 @@ class FailedEventRepository:
     def find_pending_events(
         self,
         limit: int,
-        handler_id: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        handler_id: str | None,
+    ) -> list[dict[str, Any]]:
         """
         查找待重试的事件
 
@@ -114,7 +113,7 @@ class FailedEventRepository:
         """
         queryset = self.model.objects.filter(
             status=self.model.PENDING,
-            next_retry_at__lte=datetime.now(timezone.utc),
+            next_retry_at__lte=datetime.now(UTC),
         )
 
         if handler_id:
@@ -128,7 +127,7 @@ class FailedEventRepository:
         self,
         event_db_id: int,
         status: str,
-        last_retry_at: Optional[datetime] = None,
+        last_retry_at: datetime | None = None,
     ) -> bool:
         """
         更新事件状态
@@ -160,7 +159,7 @@ class FailedEventRepository:
         self,
         event_db_id: int,
         error_message: str,
-        next_retry_at: Optional[datetime],
+        next_retry_at: datetime | None,
         is_exhausted: bool,
     ) -> bool:
         """
@@ -225,7 +224,7 @@ class FailedEventRepository:
         Returns:
             删除的记录数
         """
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
 
         deleted, _ = self.model.objects.filter(
             status__in=[self.model.SUCCESS, self.model.EXHAUSTED],
@@ -237,7 +236,7 @@ class FailedEventRepository:
 
         return deleted
 
-    def _to_dict(self, model: FailedEventModel) -> Dict[str, Any]:
+    def _to_dict(self, model: FailedEventModel) -> dict[str, Any]:
         """转换 ORM 模型为字典"""
         return {
             "id": model.id,
@@ -360,7 +359,7 @@ class DecisionRequestRepositoryWrapper:
     def update_execution_status_to_executed(
         self,
         request_id: str,
-        execution_ref: Optional[Dict[str, Any]],
+        execution_ref: dict[str, Any] | None,
     ) -> bool:
         """
         更新请求执行状态为已执行

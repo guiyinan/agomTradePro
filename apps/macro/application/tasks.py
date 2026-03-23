@@ -12,10 +12,11 @@ Celery Tasks for Macro Data Synchronization.
     from apps.regime.application.orchestration import sync_macro_then_refresh_regime
 """
 
+from datetime import date, timedelta
+from typing import Optional
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from typing import Optional
-from datetime import date, timedelta
 
 from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
@@ -38,7 +39,7 @@ logger = get_task_logger(__name__)
 def sync_macro_data(
     self,
     source: str = 'akshare',
-    indicator: Optional[str] = None,
+    indicator: str | None = None,
     days_back: int = 1
 ) -> dict:
     """
@@ -201,9 +202,11 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
     try:
         logger.info(f"Starting cleanup of data older than {days_to_keep} days")
 
-        from apps.macro.infrastructure.models import MacroIndicator
-        from django.db.models import Count
         from datetime import date, timedelta
+
+        from django.db.models import Count
+
+        from apps.macro.infrastructure.models import MacroIndicator
 
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 

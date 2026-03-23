@@ -5,10 +5,10 @@ Events Interface Layer
 """
 
 from .views import (
+    EventBusStatusView,
+    EventMetricsView,
     EventPublishView,
     EventQueryView,
-    EventMetricsView,
-    EventBusStatusView,
     EventReplayView,
 )
 

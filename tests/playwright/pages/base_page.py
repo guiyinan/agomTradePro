@@ -2,12 +2,12 @@
 Base page class for Playwright tests.
 Provides common functionality for all page objects.
 """
-from typing import Optional, List
+from typing import List, Optional
 
-from playwright.sync_api import Page, Locator, expect
+from playwright.sync_api import Locator, Page, expect
 
+from tests.playwright.config.selectors import admin, common
 from tests.playwright.config.test_config import config
-from tests.playwright.config.selectors import common, admin
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 from tests.playwright.utils.ux_auditor import UXAuditor
 
@@ -15,7 +15,7 @@ from tests.playwright.utils.ux_auditor import UXAuditor
 class BasePage:
     """Base class for all page objects."""
 
-    def __init__(self, page: Page, base_url: Optional[str] = None):
+    def __init__(self, page: Page, base_url: str | None = None):
         """Initialize base page.
 
         Args:
@@ -78,7 +78,7 @@ class BasePage:
         """
         self.page.wait_for_load_state(state)
 
-    def wait_for_selector(self, selector: str, timeout: Optional[int] = None) -> Locator:
+    def wait_for_selector(self, selector: str, timeout: int | None = None) -> Locator:
         """Wait for a selector to be available.
 
         Args:
@@ -91,7 +91,7 @@ class BasePage:
         timeout = timeout or config.default_timeout
         return self.page.wait_for_selector(selector, timeout=timeout)
 
-    def wait_for_element_visible(self, selector: str, timeout: Optional[int] = None) -> None:
+    def wait_for_element_visible(self, selector: str, timeout: int | None = None) -> None:
         """Wait for an element to be visible.
 
         Args:
@@ -166,7 +166,7 @@ class BasePage:
         admin_links = self.page.locator('a[href*="/admin/"]')
         return admin_links.count() > 0
 
-    def get_admin_links(self) -> List[str]:
+    def get_admin_links(self) -> list[str]:
         """Get all admin links on the page.
 
         Returns:
@@ -373,7 +373,7 @@ class BasePage:
 
     # Link Detection Methods
 
-    def get_all_links(self) -> List[dict]:
+    def get_all_links(self) -> list[dict]:
         """Get all links on the page.
 
         Returns:
@@ -393,7 +393,7 @@ class BasePage:
 
         return result
 
-    def get_broken_links(self) -> List[dict]:
+    def get_broken_links(self) -> list[dict]:
         """Check all links and return potentially broken ones.
 
         Returns:
@@ -417,7 +417,7 @@ class BasePage:
 
     # Table Methods
 
-    def get_table_data(self, selector: str = "table") -> List[List[str]]:
+    def get_table_data(self, selector: str = "table") -> list[list[str]]:
         """Get data from a table.
 
         Args:

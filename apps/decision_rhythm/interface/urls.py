@@ -4,12 +4,11 @@ Decision Rhythm URL Configuration
 决策频率约束和配额管理的 URL 路由配置。
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from . import views as decision_rhythm_views
 from . import api_views as decision_rhythm_api_views
-
+from . import views as decision_rhythm_views
 
 # 创建路由器
 router = DefaultRouter()

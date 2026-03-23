@@ -8,21 +8,23 @@ Tests for:
 - Dynamic weight calculation
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 from apps.regime.domain.entities import (
-    ConfidenceConfig,
     ConfidenceBreakdown,
+    ConfidenceConfig,
     IndicatorPredictivePower,
     RegimeProbabilities,
     SignalConflict,
 )
 from apps.regime.domain.services import (
-    calculate_confidence,
-    calculate_bayesian_confidence,
-    resolve_signal_conflict,
-    calculate_dynamic_weight,
     ConfidenceCalculator,
+    calculate_bayesian_confidence,
+    calculate_confidence,
+    calculate_dynamic_weight,
+    resolve_signal_conflict,
 )
 
 

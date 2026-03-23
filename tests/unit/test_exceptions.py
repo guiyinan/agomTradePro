@@ -7,35 +7,36 @@ Tests for:
 - custom_exception_handler for DRF
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
-from rest_framework.response import Response
-from rest_framework import status
+
+import pytest
 from django.http import Http404
+from rest_framework import status
+from rest_framework.response import Response
 
 from core.exceptions import (
     AgomTradeProException,
-    ValidationError,
-    InvalidInputError,
-    MissingRequiredFieldError,
+    AIServiceError,
+    AKShareError,
     AuthenticationError,
     AuthorizationError,
-    ResourceNotFoundError,
-    DuplicateResourceError,
     BusinessLogicError,
-    RegimeNotDeterminedError,
-    SignalValidationError,
-    IneligibleAssetError,
-    ExternalServiceError,
-    DataFetchError,
-    AIServiceError,
-    TushareError,
-    AKShareError,
-    TimeoutError,
     ConfigurationError,
-    MissingConfigError,
-    InsufficientDataError,
+    DataFetchError,
     DataValidationError,
+    DuplicateResourceError,
+    ExternalServiceError,
+    IneligibleAssetError,
+    InsufficientDataError,
+    InvalidInputError,
+    MissingConfigError,
+    MissingRequiredFieldError,
+    RegimeNotDeterminedError,
+    ResourceNotFoundError,
+    SignalValidationError,
+    TimeoutError,
+    TushareError,
+    ValidationError,
     custom_exception_handler,
 )
 

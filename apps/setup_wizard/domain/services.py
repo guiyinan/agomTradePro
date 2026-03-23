@@ -5,6 +5,7 @@ Domain services for Setup Wizard.
 """
 
 from typing import Optional
+
 from .entities import (
     AdminConfig,
     AIProviderConfigDTO,
@@ -43,7 +44,7 @@ class SetupValidator:
         return True, ""
 
     @staticmethod
-    def validate_admin_email(email: Optional[str]) -> tuple[bool, str]:
+    def validate_admin_email(email: str | None) -> tuple[bool, str]:
         """
         验证管理员邮箱
 
@@ -91,7 +92,7 @@ class SetupProgressCalculator:
     """安装进度计算器（纯算法）"""
 
     @staticmethod
-    def get_next_step(current: WizardStep) -> Optional[WizardStep]:
+    def get_next_step(current: WizardStep) -> WizardStep | None:
         """
         获取下一步骤
 
@@ -118,7 +119,7 @@ class SetupProgressCalculator:
             return None
 
     @staticmethod
-    def get_previous_step(current: WizardStep) -> Optional[WizardStep]:
+    def get_previous_step(current: WizardStep) -> WizardStep | None:
         """
         获取上一步骤
 

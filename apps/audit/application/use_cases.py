@@ -2,39 +2,39 @@
 Use Cases for Audit Operations.
 """
 
-from dataclasses import dataclass
-from typing import List, Optional
-from datetime import date, datetime
 import logging
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from typing import List, Optional
 
+from apps.audit.domain.entities import (
+    DynamicWeightConfig,
+    IndicatorPerformanceReport,
+    IndicatorThresholdConfig,
+    RegimeSnapshot,
+    ThresholdValidationReport,
+    ValidationStatus,
+)
 from apps.audit.domain.services import (
     AttributionAnalyzer,
-    analyze_attribution,
     AttributionConfig,
     AttributionResult,
     IndicatorPerformanceAnalyzer,
     ThresholdValidator,
+    analyze_attribution,
 )
-from apps.audit.domain.entities import (
-    IndicatorThresholdConfig,
-    IndicatorPerformanceReport,
-    ThresholdValidationReport,
-    ValidationStatus,
-    RegimeSnapshot,
-    DynamicWeightConfig,
-)
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.audit.infrastructure.models import (
     IndicatorPerformanceModel,
     IndicatorThresholdConfigModel,
     ValidationSummaryModel,
 )
+from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.macro.infrastructure.models import MacroIndicator
 from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from core.exceptions import InsufficientDataError, DataValidationError
+from core.exceptions import DataValidationError, InsufficientDataError
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +49,8 @@ class GenerateAttributionReportRequest:
 class GenerateAttributionReportResponse:
     """生成归因报告响应"""
     success: bool
-    report_id: Optional[int] = None
-    error: Optional[str] = None
+    report_id: int | None = None
+    error: str | None = None
 
 
 class GenerateAttributionReportUseCase:
@@ -113,8 +113,8 @@ class GenerateAttributionReportUseCase:
 
             @dataclass
             class SimpleBacktestResult:
-                equity_curve: List[tuple]
-                trades: List
+                equity_curve: list[tuple]
+                trades: list
                 total_return: float
 
             normalized_regime_history = []
@@ -410,6 +410,7 @@ class GenerateAttributionReportUseCase:
             ValueError: 当无法获取真实数据时
         """
         from datetime import timedelta
+
         from apps.backtest.infrastructure.adapters.composite_price_adapter import (
             create_default_price_adapter,
         )
@@ -581,17 +582,17 @@ class GenerateAttributionReportUseCase:
 @dataclass
 class GetAuditSummaryRequest:
     """获取审计摘要请求"""
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    backtest_id: Optional[int] = None
+    start_date: date | None = None
+    end_date: date | None = None
+    backtest_id: int | None = None
 
 
 @dataclass
 class GetAuditSummaryResponse:
     """获取审计摘要响应"""
     success: bool
-    reports: List[dict] = None
-    error: Optional[str] = None
+    reports: list[dict] = None
+    error: str | None = None
 
 
 class GetAuditSummaryUseCase:
@@ -658,9 +659,9 @@ class EvaluateIndicatorPerformanceRequest:
 class EvaluateIndicatorPerformanceResponse:
     """评估指标表现响应"""
     success: bool
-    report: Optional[IndicatorPerformanceReport] = None
-    report_id: Optional[int] = None
-    error: Optional[str] = None
+    report: IndicatorPerformanceReport | None = None
+    report_id: int | None = None
+    error: str | None = None
 
 
 class EvaluateIndicatorPerformanceUseCase:
@@ -818,7 +819,7 @@ class ValidateThresholdsRequest:
     """验证阈值请求"""
     start_date: date
     end_date: date
-    indicator_codes: Optional[List[str]] = None  # None 表示验证所有指标
+    indicator_codes: list[str] | None = None  # None 表示验证所有指标
     use_shadow_mode: bool = False
 
 
@@ -826,9 +827,9 @@ class ValidateThresholdsRequest:
 class ValidateThresholdsResponse:
     """验证阈值响应"""
     success: bool
-    validation_report: Optional[ThresholdValidationReport] = None
-    validation_run_id: Optional[str] = None
-    error: Optional[str] = None
+    validation_report: ThresholdValidationReport | None = None
+    validation_run_id: str | None = None
+    error: str | None = None
 
 
 class ValidateThresholdsUseCase:
@@ -1028,8 +1029,8 @@ class AdjustIndicatorWeightsRequest:
 class AdjustIndicatorWeightsResponse:
     """调整指标权重响应"""
     success: bool
-    adjusted_weights: List[DynamicWeightConfig] = None
-    error: Optional[str] = None
+    adjusted_weights: list[DynamicWeightConfig] = None
+    error: str | None = None
 
 
 class AdjustIndicatorWeightsUseCase:
@@ -1162,26 +1163,26 @@ class AdjustIndicatorWeightsUseCase:
 class LogOperationRequest:
     """记录操作日志请求"""
     request_id: str
-    user_id: Optional[int] = None
+    user_id: int | None = None
     username: str = "anonymous"
     source: str = "MCP"  # MCP/SDK/API
     operation_type: str = "MCP_CALL"  # MCP_CALL/API_ACCESS/DATA_MODIFY
     module: str = ""
     action: str = "READ"  # CREATE/READ/UPDATE/DELETE/EXECUTE
-    mcp_tool_name: Optional[str] = None
-    request_params: Optional[dict] = None
-    response_payload: Optional[object] = None
+    mcp_tool_name: str | None = None
+    request_params: dict | None = None
+    response_payload: object | None = None
     response_text: str = ""
     response_status: int = 200
     response_message: str = ""
     error_code: str = ""
     exception_traceback: str = ""
-    duration_ms: Optional[int] = None
-    ip_address: Optional[str] = None
+    duration_ms: int | None = None
+    ip_address: str | None = None
     user_agent: str = ""
     client_id: str = ""
     resource_type: str = ""
-    resource_id: Optional[str] = None
+    resource_id: str | None = None
     mcp_client_id: str = ""
     mcp_role: str = ""
     sdk_version: str = ""
@@ -1193,8 +1194,8 @@ class LogOperationRequest:
 class LogOperationResponse:
     """记录操作日志响应"""
     success: bool
-    log_id: Optional[str] = None
-    error: Optional[str] = None
+    log_id: str | None = None
+    error: str | None = None
 
 
 class LogOperationUseCase:
@@ -1328,36 +1329,36 @@ class LogOperationUseCase:
 @dataclass
 class QueryOperationLogsRequest:
     """查询操作日志请求"""
-    user_id: Optional[int] = None
-    username: Optional[str] = None
-    operation_type: Optional[str] = None
-    module: Optional[str] = None
-    action: Optional[str] = None
-    mcp_tool_name: Optional[str] = None
-    mcp_client_id: Optional[str] = None
-    mcp_role: Optional[str] = None
-    response_status: Optional[int] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    resource_id: Optional[str] = None
-    source: Optional[str] = None
+    user_id: int | None = None
+    username: str | None = None
+    operation_type: str | None = None
+    module: str | None = None
+    action: str | None = None
+    mcp_tool_name: str | None = None
+    mcp_client_id: str | None = None
+    mcp_role: str | None = None
+    response_status: int | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    resource_id: str | None = None
+    source: str | None = None
     ordering: str = "-timestamp"
     page: int = 1
     page_size: int = 20
     # 权限控制
     is_admin: bool = False
-    current_user_id: Optional[int] = None
+    current_user_id: int | None = None
 
 
 @dataclass
 class QueryOperationLogsResponse:
     """查询操作日志响应"""
     success: bool
-    logs: Optional[List[dict]] = None
+    logs: list[dict] | None = None
     total_count: int = 0
     page: int = 1
     page_size: int = 20
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class QueryOperationLogsUseCase:
@@ -1422,7 +1423,7 @@ class QueryOperationLogsUseCase:
 class GetOperationLogDetailRequest:
     """获取操作日志详情请求"""
     log_id: str
-    current_user_id: Optional[int] = None
+    current_user_id: int | None = None
     is_admin: bool = False
 
 
@@ -1430,8 +1431,8 @@ class GetOperationLogDetailRequest:
 class GetOperationLogDetailResponse:
     """获取操作日志详情响应"""
     success: bool
-    log: Optional[dict] = None
-    error: Optional[str] = None
+    log: dict | None = None
+    error: str | None = None
 
 
 class GetOperationLogDetailUseCase:
@@ -1481,18 +1482,18 @@ class GetOperationLogDetailUseCase:
 @dataclass
 class ExportOperationLogsRequest:
     """导出操作日志请求"""
-    user_id: Optional[int] = None
-    username: Optional[str] = None
-    operation_type: Optional[str] = None
-    module: Optional[str] = None
-    action: Optional[str] = None
-    mcp_tool_name: Optional[str] = None
-    mcp_client_id: Optional[str] = None
-    response_status: Optional[int] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    resource_id: Optional[str] = None
-    source: Optional[str] = None
+    user_id: int | None = None
+    username: str | None = None
+    operation_type: str | None = None
+    module: str | None = None
+    action: str | None = None
+    mcp_tool_name: str | None = None
+    mcp_client_id: str | None = None
+    response_status: int | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    resource_id: str | None = None
+    source: str | None = None
     format: str = "csv"  # csv 或 json
     # 导出限制
     max_rows: int = 10000
@@ -1503,10 +1504,10 @@ class ExportOperationLogsRequest:
 class ExportOperationLogsResponse:
     """导出操作日志响应"""
     success: bool
-    data: Optional[str] = None  # CSV 或 JSON 字符串
-    filename: Optional[str] = None
+    data: str | None = None  # CSV 或 JSON 字符串
+    filename: str | None = None
     row_count: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class ExportOperationLogsUseCase:
@@ -1526,6 +1527,7 @@ class ExportOperationLogsUseCase:
         try:
             import json
             from datetime import datetime, timezone
+
             from django.conf import settings
 
             # 从 settings 读取配置
@@ -1565,7 +1567,7 @@ class ExportOperationLogsUseCase:
             )
 
             # 生成文件名
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             filename = f"operation_logs_{timestamp}.{request.format}"
 
             # 格式化输出
@@ -1603,8 +1605,8 @@ class ExportOperationLogsUseCase:
 @dataclass
 class GetOperationStatsRequest:
     """获取操作统计请求"""
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
     group_by: str = "module"  # module/tool/user/status
 
 
@@ -1612,8 +1614,8 @@ class GetOperationStatsRequest:
 class GetOperationStatsResponse:
     """获取操作统计响应"""
     success: bool
-    stats: Optional[dict] = None
-    error: Optional[str] = None
+    stats: dict | None = None
+    error: str | None = None
 
 
 class GetOperationStatsUseCase:

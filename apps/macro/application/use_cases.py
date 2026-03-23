@@ -6,7 +6,7 @@ Application layer orchestrating the workflow of syncing macro data from various 
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 from ..domain.entities import MacroIndicator
 from .indicator_service import IndicatorUnitService
@@ -16,8 +16,8 @@ from .indicator_service import IndicatorUnitService
 class SyncMacroDataRequest:
     """同步宏观数据的请求 DTO"""
     start_date: date
-    end_date: Optional[date] = None
-    indicators: Optional[List[str]] = None
+    end_date: date | None = None
+    indicators: list[str] | None = None
     force_refresh: bool = False
 
 
@@ -27,7 +27,7 @@ class SyncMacroDataResponse:
     success: bool
     synced_count: int
     skipped_count: int
-    errors: List[str]
+    errors: list[str]
 
 
 @dataclass
@@ -36,7 +36,7 @@ class MacroDataPoint:
     code: str
     value: float
     observed_at: date
-    published_at: Optional[date]
+    published_at: date | None
     source: str
     unit: str = ""
     original_unit: str = ""  # 原始单位（数据源返回的单位）
@@ -52,7 +52,7 @@ class SyncMacroDataUseCase:
     3. 批量保存到数据库
     """
 
-    def __init__(self, repository, adapters: Optional[Dict[str, object]] = None):
+    def __init__(self, repository, adapters: dict[str, object] | None = None):
         """
         Args:
             repository: MacroRepository 实例
@@ -157,7 +157,7 @@ class SyncMacroDataUseCase:
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取指标数据
 
@@ -181,7 +181,7 @@ class SyncMacroDataUseCase:
 
         return []
 
-    def _get_adapter_for_indicator(self, indicator_code: str) -> Optional[object]:
+    def _get_adapter_for_indicator(self, indicator_code: str) -> object | None:
         """
         根据指标代码获取适配器
 
@@ -200,16 +200,16 @@ class SyncMacroDataUseCase:
 
     def _filter_new_or_changed_indicators(
         self,
-        indicators: List[MacroIndicator],
+        indicators: list[MacroIndicator],
         force_refresh: bool = False
-    ) -> tuple[List[MacroIndicator], int]:
+    ) -> tuple[list[MacroIndicator], int]:
         """
         过滤需要保存的指标：
         - 不存在 -> 保存
         - 存在但内容有变化 -> 保存（走更新）
         - 存在且内容完全一致 -> 跳过
         """
-        indicators_to_save: List[MacroIndicator] = []
+        indicators_to_save: list[MacroIndicator] = []
         skipped = 0
 
         for indicator in indicators:
@@ -245,7 +245,7 @@ class SyncMacroDataUseCase:
             or existing.period_type != incoming.period_type
         )
 
-    def _get_default_indicators(self) -> List[str]:
+    def _get_default_indicators(self) -> list[str]:
         """
         获取默认支持的指标列表
 
@@ -293,15 +293,15 @@ class SyncMacroDataUseCase:
 @dataclass
 class GetLatestMacroDataRequest:
     """获取最新宏观数据的请求 DTO"""
-    indicator_codes: List[str]
-    as_of_date: Optional[date] = None
+    indicator_codes: list[str]
+    as_of_date: date | None = None
 
 
 @dataclass
 class GetLatestMacroDataResponse:
     """获取最新宏观数据的响应 DTO"""
-    data: Dict[str, Optional[MacroIndicator]]
-    missing: List[str]
+    data: dict[str, MacroIndicator | None]
+    missing: list[str]
 
 
 class GetLatestMacroDataUseCase:

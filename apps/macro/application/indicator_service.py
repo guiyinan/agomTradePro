@@ -4,11 +4,12 @@
 提供指标查询、元数据获取、单位转换等功能
 """
 
-from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 from django.utils import timezone
 
-from apps.macro.infrastructure.models import MacroIndicator, IndicatorUnitConfig
+from apps.macro.infrastructure.models import IndicatorUnitConfig, MacroIndicator
 
 
 class UnitDisplayService:
@@ -22,7 +23,7 @@ class UnitDisplayService:
         stored_value: float,
         storage_unit: str,
         original_unit: str
-    ) -> Tuple[float, str]:
+    ) -> tuple[float, str]:
         """
         将存储值转换为展示值
 
@@ -102,7 +103,7 @@ class UnitDisplayService:
         return f"{display_value:.{precision}f}{display_unit}"
 
     @classmethod
-    def get_indicator_config(cls, indicator_code: str, source: str = None) -> Optional[IndicatorUnitConfig]:
+    def get_indicator_config(cls, indicator_code: str, source: str = None) -> IndicatorUnitConfig | None:
         """
         获取指标的单位配置
 
@@ -161,7 +162,7 @@ class IndicatorUnitService:
     """指标单位服务"""
 
     # 指标单位映射（指标代码 -> 单位）
-    INDICATOR_UNITS: Dict[str, str] = {
+    INDICATOR_UNITS: dict[str, str] = {
         # 景气指标
         'CN_PMI': '指数',
         'CN_PMI_MANUFACTURING': '指数',
@@ -281,7 +282,7 @@ class IndicatorUnitService:
 class IndicatorService:
     """宏观经济指标服务"""
 
-    CODE_ALIASES: Dict[str, List[str]] = {
+    CODE_ALIASES: dict[str, list[str]] = {
         'CN_PMI_MANUFACTURING': ['CN_PMI_MANUFACTURING', 'CN_PMI'],
         'CN_PMI_NON_MANUFACTURING': ['CN_PMI_NON_MANUFACTURING', 'CN_NON_MAN_PMI'],
         'CN_CPI_YOY': ['CN_CPI_YOY', 'CN_CPI_NATIONAL_YOY', 'CN_CPI'],
@@ -505,7 +506,7 @@ class IndicatorService:
     }
 
     @classmethod
-    def get_indicator_metadata_map(cls) -> Dict[str, Dict]:
+    def get_indicator_metadata_map(cls) -> dict[str, dict]:
         from apps.account.infrastructure.models import SystemSettingsModel
 
         metadata = dict(cls.INDICATOR_METADATA)
@@ -513,7 +514,7 @@ class IndicatorService:
         return metadata
 
     @classmethod
-    def get_code_candidates(cls, code: str) -> List[str]:
+    def get_code_candidates(cls, code: str) -> list[str]:
         aliases = cls.CODE_ALIASES.get(code, [code])
         seen = set()
         ordered = []
@@ -524,7 +525,7 @@ class IndicatorService:
         return ordered
 
     @classmethod
-    def get_available_indicators(cls, include_stats: bool = True) -> List[Dict]:
+    def get_available_indicators(cls, include_stats: bool = True) -> list[dict]:
         """
         获取所有可用的指标列表
 
@@ -594,7 +595,7 @@ class IndicatorService:
         return indicators
 
     @classmethod
-    def get_indicator_by_code(cls, code: str) -> Optional[Dict]:
+    def get_indicator_by_code(cls, code: str) -> dict | None:
         """获取单个指标的详细信息"""
         try:
             latest = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period').first()
@@ -625,7 +626,7 @@ class IndicatorService:
             return None
 
     @classmethod
-    def get_indicator_history(cls, code: str, periods: int = 12) -> List[Dict]:
+    def get_indicator_history(cls, code: str, periods: int = 12) -> list[dict]:
         """获取指标历史数据（返回展示值）"""
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=periods * 35)
@@ -655,7 +656,7 @@ class IndicatorService:
         ]
 
 
-def get_available_indicators_for_frontend(include_stats: bool = False) -> List[Dict]:
+def get_available_indicators_for_frontend(include_stats: bool = False) -> list[dict]:
     """
     获取前端需要的指标列表
 
@@ -678,10 +679,10 @@ def get_available_indicators_for_frontend(include_stats: bool = False) -> List[D
     # avoid scanning all historical indicator codes and per-code aggregation.
     metadata = IndicatorService.get_indicator_metadata_map()
     known_codes = list(metadata.keys())
-    latest_by_code: Dict[str, float] = {}
-    candidate_to_requested: Dict[str, List[str]] = {}
+    latest_by_code: dict[str, float] = {}
+    candidate_to_requested: dict[str, list[str]] = {}
 
-    query_codes: List[str] = []
+    query_codes: list[str] = []
     for code in known_codes:
         for candidate in IndicatorService.get_code_candidates(code):
             candidate_to_requested.setdefault(candidate, []).append(code)

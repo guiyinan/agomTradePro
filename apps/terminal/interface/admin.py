@@ -5,7 +5,12 @@ Django Admin配置。
 """
 
 from django.contrib import admin
-from ..infrastructure.models import TerminalAuditLogORM, TerminalCommandORM, TerminalRuntimeSettingsORM
+
+from ..infrastructure.models import (
+    TerminalAuditLogORM,
+    TerminalCommandORM,
+    TerminalRuntimeSettingsORM,
+)
 
 
 @admin.register(TerminalCommandORM)

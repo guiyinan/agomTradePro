@@ -4,14 +4,15 @@
 
 from django.http import JsonResponse
 from django.urls import path
-from apps.asset_analysis.interface.views import (
-    MultiDimScreenAPIView,
-    WeightConfigsAPIView,
-    CurrentWeightAPIView,
-)
+
 from apps.asset_analysis.interface.pool_views import (
     AssetPoolScreenAPIView,
     AssetPoolSummaryAPIView,
+)
+from apps.asset_analysis.interface.views import (
+    CurrentWeightAPIView,
+    MultiDimScreenAPIView,
+    WeightConfigsAPIView,
 )
 
 app_name = "asset_analysis"

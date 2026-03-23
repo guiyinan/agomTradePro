@@ -5,8 +5,9 @@
 import asyncio
 import json
 import re
-from playwright.async_api import async_playwright
 from datetime import datetime
+
+from playwright.async_api import async_playwright
 
 # NBS PMI 新闻页面URL（最新的PMI发布页面）
 NBS_PMI_NEWS_URL = "http://www.stats.gov.cn/sj/zxfb/202502/t20250207_1954758.html"
@@ -47,7 +48,7 @@ async def fetch_pmi_from_news_page():
             with open("pmi_news_content.txt", "w", encoding="utf-8") as f:
                 f.write(content)
 
-            print(f"\n解析到的 PMI 数据:")
+            print("\n解析到的 PMI 数据:")
             print(json.dumps(pmi_data, ensure_ascii=False, indent=2))
 
             # 也尝试提取发布日期

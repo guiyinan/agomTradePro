@@ -105,8 +105,8 @@ class TestDomainCalculationLatency:
 
     def test_factor_scoring_latency(self):
         """Factor scoring for 300 stocks should complete within 500ms."""
+        from apps.factor.domain.entities import FactorCategory, FactorDefinition
         from apps.factor.domain.services import FactorCalculationContext, FactorEngine
-        from apps.factor.domain.entities import FactorDefinition, FactorCategory
 
         universe = [f"{i:06d}" for i in range(1, 301)]
         definitions = [

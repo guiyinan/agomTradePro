@@ -3,8 +3,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,8 +24,11 @@ from apps.share.application.use_cases import (
     ShareLinkUseCases,
     ShareSnapshotUseCases,
 )
-from apps.share.infrastructure.models import ShareDisclaimerConfigModel, ShareLinkModel, ShareSnapshotModel
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from apps.share.infrastructure.models import (
+    ShareDisclaimerConfigModel,
+    ShareLinkModel,
+    ShareSnapshotModel,
+)
 from apps.share.interface.serializers import (
     CreateShareLinkSerializer,
     PublicShareLinkSerializer,
@@ -35,7 +37,7 @@ from apps.share.interface.serializers import (
     ShareSnapshotSerializer,
     UpdateShareLinkSerializer,
 )
-
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 DECISION_STATUS_DISPLAY = {
     "pending": "待处理",

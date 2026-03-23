@@ -7,7 +7,7 @@ Application层:
 - 筛选有有效信号的资产
 """
 import logging
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 from apps.asset_analysis.domain.pool import PoolType
 from apps.simulated_trading.application.ports import (
@@ -38,7 +38,7 @@ class AssetPoolQueryService:
         asset_type: str = "equity",
         min_score: float = 60.0,
         limit: int = 50
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取可投池资产
 
@@ -79,7 +79,7 @@ class AssetPoolQueryService:
         asset_type: str = "equity",
         min_score: float = 60.0,
         limit: int = 50
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取可投池且有有效信号的资产
 
@@ -122,7 +122,7 @@ class AssetPoolQueryService:
 
         return candidates_with_signals
 
-    def get_asset_pool_type(self, asset_code: str) -> Optional[str]:
+    def get_asset_pool_type(self, asset_code: str) -> str | None:
         """
         获取资产所在的池类型
 
@@ -138,7 +138,7 @@ class AssetPoolQueryService:
             logger.error(f"查询资产池类型失败: {asset_code}, 错误: {e}")
             return None
 
-    def get_pool_summary(self, asset_type: str = None) -> Dict[str, int]:
+    def get_pool_summary(self, asset_type: str = None) -> dict[str, int]:
         """
         获取资产池摘要统计
 

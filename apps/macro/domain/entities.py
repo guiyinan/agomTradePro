@@ -7,12 +7,11 @@ No Django, Pandas, or external dependencies allowed.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Dict, Tuple
 from enum import Enum
-
+from typing import Dict, Optional, Tuple
 
 # 单位转换因子（相对于"元"的倍数）
-UNIT_CONVERSION_FACTORS: Dict[str, float] = {
+UNIT_CONVERSION_FACTORS: dict[str, float] = {
     '元': 1,
     '万元': 10000,
     '亿元': 100000000,
@@ -28,7 +27,7 @@ def normalize_currency_unit(
     value: float,
     unit: str,
     exchange_rate: float = 1.0
-) -> Tuple[float, str]:
+) -> tuple[float, str]:
     """
     将货币类数据统一转换为"元"层级
 
@@ -111,7 +110,7 @@ class MacroIndicator:
     period_type: PeriodType = PeriodType.DAY
     unit: str = ""  # 存储单位
     original_unit: str = ""  # 原始单位（用于展示）
-    published_at: Optional[date] = None
+    published_at: date | None = None
     source: str = "unknown"
 
     @property
@@ -163,7 +162,7 @@ class HighFrequencyIndicator:
     period_type: PeriodType
     regime_sensitivity: RegimeSensitivity
     predictive_power: float = 0.5
-    lead_time_months: Optional[int] = None
+    lead_time_months: int | None = None
     source: str = "unknown"
 
     def to_macro_indicator(self) -> MacroIndicator:
@@ -202,7 +201,7 @@ class RegimeSignal:
     confidence: float
     signal_date: date
     regime_sensitivity: RegimeSensitivity
-    lead_time_months: Optional[int] = None
+    lead_time_months: int | None = None
     source: str = "DAILY_HIGH_FREQ"
 
     @property
@@ -252,9 +251,9 @@ class BondYieldCurve:
     bond_10y: float
     bond_5y: float
     bond_2y: float
-    bond_1y: Optional[float] = None
+    bond_1y: float | None = None
     term_spread_10y2y: float = 0.0
-    term_spread_10y1y: Optional[float] = None
+    term_spread_10y1y: float | None = None
     is_inverted: bool = False
     inversion_severity: float = 0.0
 

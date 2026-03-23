@@ -8,8 +8,8 @@ See: docs/plans/ai-native/vendor-baseline-contract.md Section 5
 """
 
 from dataclasses import dataclass, replace
-from typing import List, Optional, Dict, Any, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class InvalidStateTransitionError(Exception):
@@ -27,8 +27,8 @@ class InvalidStateTransitionError(Exception):
         self,
         current_status: str,
         target_status: str,
-        allowed_transitions: List[str],
-        message: Optional[str] = None
+        allowed_transitions: list[str],
+        message: str | None = None
     ):
         self.current_status = current_status
         self.target_status = target_status
@@ -83,7 +83,7 @@ class TaskStateMachine:
 
     # Define allowed transitions as per contract Section 5.1
     # Format: (from_status, to_status): (trigger, requires_human)
-    _TRANSITIONS: Dict[Tuple[str, str], StateTransition] = {
+    _TRANSITIONS: dict[tuple[str, str], StateTransition] = {
         # draft transitions
         ("draft", "context_ready"): StateTransition("draft", "context_ready", "Context aggregation complete", False),
         ("draft", "cancelled"): StateTransition("draft", "cancelled", "User cancellation", True),
@@ -158,7 +158,7 @@ class TaskStateMachine:
         key = (current, target)
         return key in self._TRANSITIONS
 
-    def get_allowed_transitions(self, current_status: str) -> List[str]:
+    def get_allowed_transitions(self, current_status: str) -> list[str]:
         """
         Get all allowed target statuses from the current status.
 
@@ -182,7 +182,7 @@ class TaskStateMachine:
 
         return allowed
 
-    def get_transition_info(self, current_status: str, target_status: str) -> Optional[StateTransition]:
+    def get_transition_info(self, current_status: str, target_status: str) -> StateTransition | None:
         """
         Get detailed information about a transition.
 
@@ -203,7 +203,7 @@ class TaskStateMachine:
         self,
         task: Any,  # AgentTask - avoid circular import by using Any
         target_status: str,
-        reason: Optional[str] = None
+        reason: str | None = None
     ) -> Any:
         """
         Perform a state transition on a task.
@@ -302,7 +302,7 @@ class TaskStateMachine:
     # They wrap the core transition logic with semantic naming and validation.
     # =========================================================================
 
-    def mark_context_ready(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_context_ready(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as having context ready (draft -> context_ready).
 
@@ -318,7 +318,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "context_ready", reason=reason)
 
-    def mark_proposal_generated(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_proposal_generated(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as having proposal generated (context_ready -> proposal_generated).
 
@@ -334,7 +334,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "proposal_generated", reason=reason)
 
-    def mark_awaiting_approval(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_awaiting_approval(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as awaiting approval (proposal_generated -> awaiting_approval).
 
@@ -350,7 +350,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "awaiting_approval", reason=reason)
 
-    def mark_approved(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_approved(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as approved (awaiting_approval -> approved).
 
@@ -368,7 +368,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "approved", reason=reason)
 
-    def mark_rejected(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_rejected(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as rejected (awaiting_approval -> rejected).
 
@@ -386,7 +386,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "rejected", reason=reason)
 
-    def mark_executing(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_executing(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as executing (approved -> executing).
 
@@ -402,7 +402,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "executing", reason=reason)
 
-    def mark_completed(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_completed(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as completed (executing -> completed).
 
@@ -420,7 +420,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "completed", reason=reason)
 
-    def mark_failed(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_failed(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as failed (executing -> failed).
 
@@ -438,7 +438,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "failed", reason=reason)
 
-    def mark_needs_human(self, task: Any, reason: Optional[str] = None) -> Any:
+    def mark_needs_human(self, task: Any, reason: str | None = None) -> Any:
         """
         Mark task as needing human intervention.
 
@@ -458,7 +458,7 @@ class TaskStateMachine:
         """
         return self.transition(task, "needs_human", reason=reason)
 
-    def cancel_task(self, task: Any, reason: Optional[str] = None) -> Any:
+    def cancel_task(self, task: Any, reason: str | None = None) -> Any:
         """
         Cancel a task.
 
@@ -483,8 +483,8 @@ class TaskStateMachine:
     def resume_task(
         self,
         task: Any,
-        target_status: Optional[str] = None,
-        reason: Optional[str] = None
+        target_status: str | None = None,
+        reason: str | None = None
     ) -> Any:
         """
         Resume a task from a resumable state (failed, needs_human).
@@ -525,7 +525,7 @@ class TaskStateMachine:
 
         return self.transition(task, target_status, reason=reason)
 
-    def retry_from_rejected(self, task: Any, reason: Optional[str] = None) -> Any:
+    def retry_from_rejected(self, task: Any, reason: str | None = None) -> Any:
         """
         Retry from rejected state (rejected -> proposal_generated).
 
@@ -545,7 +545,7 @@ class TaskStateMachine:
 
 
 # Singleton instance for use across the application
-_task_state_machine: Optional[TaskStateMachine] = None
+_task_state_machine: TaskStateMachine | None = None
 
 
 def get_task_state_machine() -> TaskStateMachine:

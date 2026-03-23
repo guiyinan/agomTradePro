@@ -4,9 +4,15 @@ Terminal API URL Configuration.
 API路由配置。
 """
 
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from django.urls import path, include
-from .api_views import TerminalCommandViewSet, TerminalSessionView, TerminalAuditView, TerminalChatView
+
+from .api_views import (
+    TerminalAuditView,
+    TerminalChatView,
+    TerminalCommandViewSet,
+    TerminalSessionView,
+)
 
 app_name = 'terminal_api'
 

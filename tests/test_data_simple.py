@@ -6,25 +6,30 @@ AgomTradePro 综合数据连接测试脚本（简化版）
 使用方法:
     D:/githv/agomTradePro/agomtradepro/Scripts/python.exe D:/githv/agomTradePro/manage.py shell < test_data_simple.py
 """
+import json
 import os
 import sys
-import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 # Django already set up when running via shell
 from django.contrib.auth import get_user_model
+from django.db.models import Avg, Count, Sum
 from django.utils import timezone
-from django.db.models import Count, Sum, Avg
+
+from apps.account.infrastructure.models import (
+    AccountProfileModel,
+    AssetCategoryModel,
+    CurrencyModel,
+    PortfolioModel,
+    PositionModel,
+)
 
 # Import models
-from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
-from apps.regime.infrastructure.models import RegimeLog
+from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
 from apps.policy.infrastructure.models import PolicyLog
+from apps.regime.infrastructure.models import RegimeLog
 from apps.signal.infrastructure.models import InvestmentSignalModel
-from apps.account.infrastructure.models import (
-    PortfolioModel, PositionModel, AccountProfileModel, CurrencyModel, AssetCategoryModel
-)
 
 User = get_user_model()
 
@@ -209,8 +214,8 @@ class DataConnectionTester:
         print("="*60)
 
         try:
-            from apps.policy.infrastructure.repositories import DjangoPolicyRepository
             from apps.policy.application.use_cases import GetPolicyStatusUseCase
+            from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 
             repo = DjangoPolicyRepository()
 

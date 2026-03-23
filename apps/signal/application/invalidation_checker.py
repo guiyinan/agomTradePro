@@ -9,25 +9,25 @@ Application 层：编排 Domain 层业务逻辑和 Infrastructure 层数据获�
 - Application 层：编排两者，提供检查服务
 """
 
-import logging
 import importlib
+import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Protocol, Any
+from typing import Any, Dict, List, Optional, Protocol
 
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-from apps.signal.domain.invalidation import (
-    InvalidationRule,
-    InvalidationCheckResult,
-    IndicatorValue,
-    evaluate_rule,
-)
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
 from apps.signal.domain.interfaces import (
     InvestmentSignalRepositoryProtocol,
     UserRepositoryProtocol,
+)
+from apps.signal.domain.invalidation import (
+    IndicatorValue,
+    InvalidationCheckResult,
+    InvalidationRule,
+    evaluate_rule,
 )
 
 
@@ -49,10 +49,10 @@ class NotificationServiceProtocol(Protocol):
         self,
         subject: str,
         body: str,
-        recipients: List[str],
-        html_body: Optional[str] = None,
+        recipients: list[str],
+        html_body: str | None = None,
         priority: Any = None,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Send email notification"""
         ...
 
@@ -65,10 +65,10 @@ class InvalidationCheckService:
 
     def __init__(
         self,
-        signal_repository: Optional[InvestmentSignalRepositoryProtocol] = None,
-        user_repository: Optional[UserRepositoryProtocol] = None,
-        notification_service: Optional[NotificationServiceProtocol] = None,
-        macro_repository: Optional[Any] = None,
+        signal_repository: InvestmentSignalRepositoryProtocol | None = None,
+        user_repository: UserRepositoryProtocol | None = None,
+        notification_service: NotificationServiceProtocol | None = None,
+        macro_repository: Any | None = None,
     ):
         """初始化服务
 
@@ -93,7 +93,7 @@ class InvalidationCheckService:
             from apps.macro.infrastructure.repositories import DjangoMacroRepository
             self.macro_repo = DjangoMacroRepository()
 
-    def check_signal(self, signal_id: int) -> Optional[InvalidationCheckResult]:
+    def check_signal(self, signal_id: int) -> InvalidationCheckResult | None:
         """检查单个信号的证伪状态
 
         Args:
@@ -108,7 +108,7 @@ class InvalidationCheckService:
 
         return self._check_signal_entity(signal)
 
-    def _check_signal_model(self, signal_model: Any) -> Optional[InvalidationCheckResult]:
+    def _check_signal_model(self, signal_model: Any) -> InvalidationCheckResult | None:
         """Backward-compatible wrapper for legacy callers/tests using ORM models."""
         if not hasattr(signal_model, "to_domain_entity"):
             return None
@@ -129,7 +129,7 @@ class InvalidationCheckService:
 
         return result
 
-    def _check_signal_entity(self, signal: InvestmentSignal) -> Optional[InvalidationCheckResult]:
+    def _check_signal_entity(self, signal: InvestmentSignal) -> InvalidationCheckResult | None:
         """检查信号实体的证伪状态
 
         Args:
@@ -160,7 +160,7 @@ class InvalidationCheckService:
 
         return result
 
-    def _fetch_indicator_values(self, rule: InvalidationRule) -> Dict[str, IndicatorValue]:
+    def _fetch_indicator_values(self, rule: InvalidationRule) -> dict[str, IndicatorValue]:
         """获取规则中所有指标的当前值
 
         Args:
@@ -214,7 +214,7 @@ class InvalidationCheckService:
         self,
         signal: Any,
         result: InvalidationCheckResult,
-        current_status: Optional[str] = None,
+        current_status: str | None = None,
     ):
         """标记信号为已证伪或已拒绝
 
@@ -284,8 +284,8 @@ class InvalidationCheckService:
         """
         try:
             from shared.infrastructure.notification_service import (
-                get_notification_service,
                 NotificationPriority,
+                get_notification_service,
             )
 
             # 如果没有注入通知服务，使用默认的
@@ -314,26 +314,26 @@ class InvalidationCheckService:
 
             body_lines = [
                 f"# 投资信号{status_text}通知",
-                f"",
-                f"## 信号信息",
+                "",
+                "## 信号信息",
                 f"- **资产代码**: {signal.asset_code}",
                 f"- **逻辑描述**: {signal.logic_desc or 'N/A'}",
                 f"- **状态**: {signal.status.value}",
                 f"- **证伪时间**: {timezone.now()}",
-                f"",
-                f"## 证伪原因",
+                "",
+                "## 证伪原因",
                 f"{result.reason}",
-                f"",
-                f"## 条件详情",
+                "",
+                "## 条件详情",
             ]
             body_lines.extend(condition_details)
             body_lines.extend([
-                f"",
-                f"## 原始投资逻辑",
+                "",
+                "## 原始投资逻辑",
                 f"{signal.invalidation_description or 'N/A'}",
-                f"",
-                f"---",
-                f"请登录系统查看详情并处理相关持仓。",
+                "",
+                "---",
+                "请登录系统查看详情并处理相关持仓。",
             ])
 
             body = "\n".join(body_lines)
@@ -420,7 +420,7 @@ class InvalidationCheckService:
         except Exception as e:
             logger.error(f"发送信号 #{signal.id} 证伪通知失败: {e}", exc_info=True)
 
-    def _get_signal_recipients(self, signal: InvestmentSignal) -> List[str]:
+    def _get_signal_recipients(self, signal: InvestmentSignal) -> list[str]:
         """
         获取信号通知收件人列表
 
@@ -454,7 +454,7 @@ class InvalidationCheckService:
 
         return recipients
 
-    def check_all_approved_signals(self) -> List[str]:
+    def check_all_approved_signals(self) -> list[str]:
         """检查所有已批准的信号
 
         返回需要证伪的信号ID列表，并自动更新其状态。
@@ -488,7 +488,7 @@ class InvalidationCheckService:
 
         return invalidated_ids
 
-    def check_pending_signals(self) -> List[str]:
+    def check_pending_signals(self) -> list[str]:
         """检查所有待处理的信号
 
         检查 pending 状态的信号是否满足证伪条件，
@@ -523,7 +523,7 @@ class InvalidationCheckService:
 
         return rejected_ids
 
-    def check_signal_by_id(self, signal_id: int) -> Optional[InvalidationCheckResult]:
+    def check_signal_by_id(self, signal_id: int) -> InvalidationCheckResult | None:
         """通过ID检查信号（别名，保持向后兼容）
 
         Args:
@@ -537,7 +537,7 @@ class InvalidationCheckService:
 
 # ==================== 导出函数，供 Celery 任务使用 ====================
 
-def check_and_invalidate_signals() -> Dict:
+def check_and_invalidate_signals() -> dict:
     """检查并证伪满足条件的信号
 
     这是一个导出函数，供 Celery 任务调用。

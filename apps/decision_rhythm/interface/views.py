@@ -7,56 +7,55 @@ Decision Rhythm DRF Views
 """
 
 import logging
-from typing import Any, Dict, List, Optional
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
 
 from django.shortcuts import render
 from django.utils import timezone
-from rest_framework import viewsets, status
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from ..application.use_cases import (
-    SubmitDecisionRequestUseCase,
-    SubmitBatchRequestUseCase,
-    GetQuotaStatusUseCase,
-    GetRhythmSummaryUseCase,
-    ResetQuotaUseCase,
-    GetRhythmSummaryRequest,
     GetQuotaStatusRequest,
     GetQuotaStatusResponse,
+    GetQuotaStatusUseCase,
+    GetRhythmSummaryRequest,
     GetRhythmSummaryResponse,
+    GetRhythmSummaryUseCase,
     ResetQuotaRequest,
     ResetQuotaResponse,
-    SubmitDecisionRequestRequest,
-    SubmitDecisionRequestResponse,
+    ResetQuotaUseCase,
     SubmitBatchRequestRequest,
     SubmitBatchRequestResponse,
+    SubmitBatchRequestUseCase,
+    SubmitDecisionRequestRequest,
+    SubmitDecisionRequestResponse,
+    SubmitDecisionRequestUseCase,
 )
 from ..domain.entities import DecisionPriority, QuotaPeriod
 from ..domain.services import (
-    RhythmManager,
-    QuotaManager,
     CooldownManager,
     DecisionScheduler,
+    QuotaManager,
+    RhythmManager,
 )
 from ..infrastructure.repositories import (
-    get_quota_repository,
     get_cooldown_repository,
+    get_quota_repository,
     get_request_repository,
 )
 from .serializers import (
-    DecisionQuotaSerializer,
     CooldownPeriodSerializer,
+    DecisionQuotaSerializer,
     DecisionRequestSerializer,
-    SubmitDecisionRequestRequestSerializer,
-    SubmitBatchRequestRequestSerializer,
     ResetQuotaRequestSerializer,
+    SubmitBatchRequestRequestSerializer,
+    SubmitDecisionRequestRequestSerializer,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -508,12 +507,13 @@ class SubmitDecisionRequestView(APIView):
                 # Legacy 接口转调：创建或更新 UnifiedRecommendation
                 recommendation_id = None
                 try:
-                    from ..infrastructure.models import (
-                        UnifiedRecommendationModel,
-                        DecisionFeatureSnapshotModel,
-                    )
-                    from ..domain.entities import RecommendationStatus
                     from uuid import uuid4
+
+                    from ..domain.entities import RecommendationStatus
+                    from ..infrastructure.models import (
+                        DecisionFeatureSnapshotModel,
+                        UnifiedRecommendationModel,
+                    )
 
                     # 获取账户 ID（支持多账户场景）
                     account_id = data.get("account_id") or "default"
@@ -595,10 +595,10 @@ class SubmitDecisionRequestView(APIView):
                 # 提交成功后收口候选状态，避免继续停留在 ACTIONABLE
                 if response.response.approved and response.decision_request.candidate_id:
                     try:
+                        from apps.alpha_trigger.domain.entities import CandidateStatus
                         from apps.alpha_trigger.infrastructure.repositories import (
                             get_candidate_repository,
                         )
-                        from apps.alpha_trigger.domain.entities import CandidateStatus
 
                         candidate_repo = get_candidate_repository()
                         candidate_repo.update_status(
@@ -888,6 +888,7 @@ class TrendDataView(APIView):
         """
         try:
             from datetime import datetime, timedelta
+
             from django.utils import timezone
 
             days = int(request.query_params.get("days", 7))
@@ -972,12 +973,13 @@ def decision_rhythm_quota_view(request):
     支持按账户查看配额。
     """
     try:
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
         from ..infrastructure.models import (
-            DecisionQuotaModel,
             CooldownPeriodModel,
+            DecisionQuotaModel,
             DecisionRequestModel,
         )
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
         # 获取用户的投资账户列表
         accounts = []
@@ -1077,8 +1079,9 @@ def decision_rhythm_config_view(request):
     支持按账户查看和配置配额。
     """
     try:
-        from ..infrastructure.models import DecisionQuotaModel
         from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        from ..infrastructure.models import DecisionQuotaModel
 
         # 获取用户的投资账户列表
         accounts = []
@@ -1136,12 +1139,12 @@ class PrecheckDecisionView(APIView):
     def __init__(self, **kwargs):
         """初始化视图"""
         super().__init__(**kwargs)
+        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
         from apps.beta_gate.infrastructure.repositories import get_config_repository
         from apps.decision_rhythm.infrastructure.repositories import (
-            get_quota_repository,
             get_cooldown_repository,
+            get_quota_repository,
         )
-        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
 
         self.beta_gate_repo = get_config_repository()
         self.quota_repo = get_quota_repository()
@@ -1161,8 +1164,8 @@ class PrecheckDecisionView(APIView):
             "candidate_id": "cand_xxx"
         }
         """
-        from ..domain.services import QuotaManager, CooldownManager
         from ..domain.entities import QuotaPeriod
+        from ..domain.services import CooldownManager, QuotaManager
 
         try:
             candidate_id = request.data.get("candidate_id")
@@ -1260,13 +1263,14 @@ class ExecuteDecisionRequestView(APIView):
     def __init__(self, **kwargs):
         """初始化视图"""
         super().__init__(**kwargs)
-        from ..infrastructure.repositories import get_request_repository
         from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
         from apps.simulated_trading.infrastructure.repositories import (
-            DjangoSimulatedAccountRepository,
             DjangoPositionRepository,
+            DjangoSimulatedAccountRepository,
             DjangoTradeRepository,
         )
+
+        from ..infrastructure.repositories import get_request_repository
 
         self.request_repo = get_request_repository()
         self.candidate_repo = get_candidate_repository()
@@ -1293,7 +1297,7 @@ class ExecuteDecisionRequestView(APIView):
             "reason": "按决策请求执行"
         }
         """
-        from ..application.use_cases import ExecuteDecisionUseCase, ExecuteDecisionRequest
+        from ..application.use_cases import ExecuteDecisionRequest, ExecuteDecisionUseCase
         from ..domain.entities import ExecutionTarget
 
         try:
@@ -1386,8 +1390,9 @@ class CancelDecisionRequestView(APIView):
     def __init__(self, **kwargs):
         """初始化视图"""
         super().__init__(**kwargs)
-        from ..infrastructure.repositories import get_request_repository
         from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
+
+        from ..infrastructure.repositories import get_request_repository
 
         self.request_repo = get_request_repository()
         self.candidate_repo = get_candidate_repository()
@@ -1478,8 +1483,9 @@ class UpdateQuotaConfigView(APIView):
         }
         """
         try:
-            from ..infrastructure.models import DecisionQuotaModel
             import uuid
+
+            from ..infrastructure.models import DecisionQuotaModel
 
             data = request.data
 

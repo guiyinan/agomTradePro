@@ -4,10 +4,11 @@ Account Module Unit Tests - Market Price Service
 单元测试：市场价格服务的基本功能
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date, datetime
+from decimal import Decimal
 from unittest.mock import Mock, patch
+
+import pytest
 
 from apps.account.infrastructure.market_price_service import MarketPriceService
 
@@ -232,13 +233,12 @@ class TestMarketPriceServiceSingleton:
 
     def test_get_market_price_service_creates_instance_on_first_call(self):
         """测试首次调用创建实例"""
-        from apps.account.infrastructure.market_price_service import (
-            get_market_price_service,
-            _price_service_instance,
-        )
-
         # 清除现有实例
         import apps.account.infrastructure.market_price_service as mps_module
+        from apps.account.infrastructure.market_price_service import (
+            _price_service_instance,
+            get_market_price_service,
+        )
         mps_module._price_service_instance = None
 
         service = get_market_price_service()

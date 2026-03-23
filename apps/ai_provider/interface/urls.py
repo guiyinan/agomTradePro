@@ -1,6 +1,7 @@
 """URL Configuration for AI Provider Management."""
 
 from django.urls import include, path
+
 from . import views
 
 app_name = 'ai_provider'

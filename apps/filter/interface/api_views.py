@@ -4,29 +4,29 @@ DRF API Views for Filter Operations.
 REST API endpoints for filter operations.
 """
 
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..application.use_cases import (
-    ApplyFilterUseCase,
-    GetFilterDataUseCase,
-    CompareFiltersUseCase,
     ApplyFilterRequest,
-    GetFilterDataRequest,
+    ApplyFilterUseCase,
     CompareFiltersRequest,
+    CompareFiltersUseCase,
+    GetFilterDataRequest,
+    GetFilterDataUseCase,
 )
 from ..domain.entities import FilterType
 from ..infrastructure.repositories import DjangoFilterRepository
 from .serializers import (
     ApplyFilterRequestSerializer,
     ApplyFilterResponseSerializer,
-    GetFilterDataRequestSerializer,
-    GetFilterDataResponseSerializer,
     CompareFiltersRequestSerializer,
     CompareFiltersResponseSerializer,
     FilterSeriesSerializer,
+    GetFilterDataRequestSerializer,
+    GetFilterDataResponseSerializer,
 )
 
 

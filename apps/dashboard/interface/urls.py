@@ -4,6 +4,7 @@ Dashboard URL Configuration
 
 from django.urls import include, path
 from django.views.generic import RedirectView
+
 from apps.dashboard.interface import views
 
 app_name = 'dashboard'

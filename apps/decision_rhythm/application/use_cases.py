@@ -9,35 +9,47 @@ Decision Rhythm Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from django.utils import timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+
+from django.utils import timezone
+
+from apps.alpha_trigger.domain.entities import CandidateStatus
+from apps.events.domain.entities import DomainEvent, EventType, create_event
 
 from ..domain.entities import (
-    DecisionQuota,
     CooldownPeriod,
+    DecisionPriority,
+    DecisionQuota,
     DecisionRequest,
     DecisionResponse,
-    RhythmConfig,
-    DecisionPriority,
-    QuotaPeriod,
-    ExecutionTarget,
     ExecutionStatus,
+    ExecutionTarget,
+    QuotaPeriod,
+    RhythmConfig,
 )
 from ..domain.services import (
-    QuotaManager,
-    CooldownManager,
-    RhythmManager,
-    DecisionScheduler,
-    QuotaCheckResult,
+    CandidateStatusStateMachine,
     CooldownCheckResult,
-    PrecheckResult,
+    CooldownManager,
+    DecisionScheduler,
     ExecutionResult,
     ExecutionStatusStateMachine,
-    CandidateStatusStateMachine,
+    PrecheckResult,
+    QuotaCheckResult,
+    QuotaManager,
+    RhythmManager,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
-from apps.alpha_trigger.domain.entities import CandidateStatus
+
+if TYPE_CHECKING:
+    from ..domain.entities import (
+        DecisionFeatureSnapshot,
+        GatePenalties,
+        ModelParamAuditLog,
+        ModelParamConfig,
+        ModelWeights,
+        UnifiedRecommendation,
+    from ..infrastructure.models import UnifiedRecommendationModel
 
 
 logger = logging.getLogger(__name__)
@@ -69,12 +81,12 @@ class SubmitDecisionRequestRequest:
     asset_class: str
     direction: str
     priority: DecisionPriority
-    trigger_id: Optional[str] = None
-    candidate_id: Optional[str] = None
+    trigger_id: str | None = None
+    candidate_id: str | None = None
     reason: str = ""
     expected_confidence: float = 0.0
-    quantity: Optional[int] = None
-    notional: Optional[float] = None
+    quantity: int | None = None
+    notional: float | None = None
     quota_period: QuotaPeriod = QuotaPeriod.WEEKLY
 
 
@@ -90,9 +102,9 @@ class SubmitDecisionRequestResponse:
     """
 
     success: bool
-    response: Optional[DecisionResponse] = None
-    decision_request: Optional[DecisionRequest] = None
-    error: Optional[str] = None
+    response: DecisionResponse | None = None
+    decision_request: DecisionRequest | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -119,8 +131,8 @@ class GetQuotaStatusResponse:
     """
 
     success: bool
-    status: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    status: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -146,8 +158,8 @@ class GetRhythmSummaryResponse:
     """
 
     success: bool
-    summary: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    summary: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -160,7 +172,7 @@ class SubmitBatchRequestRequest:
         quota_period: 使用的配额周期
     """
 
-    requests: List[SubmitDecisionRequestRequest]
+    requests: list[SubmitDecisionRequestRequest]
     quota_period: QuotaPeriod = QuotaPeriod.WEEKLY
 
 
@@ -177,10 +189,10 @@ class SubmitBatchRequestResponse:
     """
 
     success: bool
-    responses: List[DecisionResponse] = field(default_factory=list)
-    decision_requests: List[DecisionRequest] = field(default_factory=list)
-    summary: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    responses: list[DecisionResponse] = field(default_factory=list)
+    decision_requests: list[DecisionRequest] = field(default_factory=list)
+    summary: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
 @dataclass
@@ -192,7 +204,7 @@ class ResetQuotaRequest:
         period: 配额周期（可选，None 表示重置所有）
     """
 
-    period: Optional[QuotaPeriod] = None
+    period: QuotaPeriod | None = None
 
 
 @dataclass
@@ -208,7 +220,7 @@ class ResetQuotaResponse:
 
     success: bool
     message: str = ""
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # ========== Use Cases ==========
@@ -420,7 +432,7 @@ class SubmitBatchRequestUseCase:
                 error=str(e),
             )
 
-    def _calculate_summary(self, responses: List[DecisionResponse]) -> Dict[str, Any]:
+    def _calculate_summary(self, responses: list[DecisionResponse]) -> dict[str, Any]:
         """计算摘要统计"""
         total = len(responses)
         approved = sum(1 for r in responses if r.approved)
@@ -439,7 +451,7 @@ class SubmitBatchRequestUseCase:
             "approval_rate": approved / total if total > 0 else 0,
         }
 
-    def _publish_summary_event(self, responses: List[DecisionResponse], summary: Dict[str, Any]):
+    def _publish_summary_event(self, responses: list[DecisionResponse], summary: dict[str, Any]):
         """发布汇总事件"""
         if self.event_bus is None:
             return
@@ -646,7 +658,7 @@ class GetDecisionQueueUseCase:
         """
         self.scheduler = scheduler
 
-    def execute(self) -> Dict[str, Any]:
+    def execute(self) -> dict[str, Any]:
         """
         获取队列摘要
 
@@ -683,8 +695,8 @@ class PrecheckResponse:
     """
 
     success: bool
-    result: Optional[PrecheckResult] = None
-    error: Optional[str] = None
+    result: PrecheckResult | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -712,17 +724,17 @@ class ExecuteDecisionRequest:
     request_id: str
     target: ExecutionTarget
     # 模拟盘参数
-    sim_account_id: Optional[int] = None
-    asset_code: Optional[str] = None
-    action: Optional[str] = None  # "buy" or "sell"
-    quantity: Optional[int] = None
-    price: Optional[float] = None
+    sim_account_id: int | None = None
+    asset_code: str | None = None
+    action: str | None = None  # "buy" or "sell"
+    quantity: int | None = None
+    price: float | None = None
     reason: str = ""
     # 实盘账户参数
-    portfolio_id: Optional[int] = None
-    shares: Optional[int] = None
-    avg_cost: Optional[float] = None
-    current_price: Optional[float] = None
+    portfolio_id: int | None = None
+    shares: int | None = None
+    avg_cost: float | None = None
+    current_price: float | None = None
 
 
 @dataclass
@@ -737,8 +749,8 @@ class ExecuteDecisionResponse:
     """
 
     success: bool
-    result: Optional[ExecutionResult] = None
-    error: Optional[str] = None
+    result: ExecutionResult | None = None
+    error: str | None = None
 
 
 class PrecheckDecisionUseCase:
@@ -804,9 +816,9 @@ class PrecheckDecisionUseCase:
         Returns:
             预检查响应
         """
-        warnings: List[str] = []
-        errors: List[str] = []
-        details: Dict[str, Any] = {}
+        warnings: list[str] = []
+        errors: list[str] = []
+        details: dict[str, Any] = {}
 
         try:
             # 1. 检查候选是否存在
@@ -1063,7 +1075,7 @@ class ExecuteDecisionUseCase:
         self,
         request: ExecuteDecisionRequest,
         decision_request: DecisionRequest,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行模拟盘交易
 
@@ -1123,7 +1135,7 @@ class ExecuteDecisionUseCase:
         self,
         request: ExecuteDecisionRequest,
         decision_request: DecisionRequest,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行实盘账户操作（记录持仓）
 
@@ -1137,8 +1149,9 @@ class ExecuteDecisionUseCase:
             执行引用
         """
         # P2-11: 使用仓储而非直接操作 ORM
-        from apps.account.infrastructure.repositories import PositionRepository
         from decimal import Decimal
+
+        from apps.account.infrastructure.repositories import PositionRepository
 
         position_repo = PositionRepository()
 
@@ -1163,7 +1176,7 @@ class ExecuteDecisionUseCase:
         self,
         decision_request: DecisionRequest,
         candidate,
-        execution_ref: Dict[str, Any],
+        execution_ref: dict[str, Any],
     ):
         """发布事件"""
         if self.event_bus is None:
@@ -1205,9 +1218,9 @@ class CreateValuationSnapshotRequest:
     valuation_method: str
     fair_value: float
     current_price: float
-    input_parameters: Dict[str, Any]
-    stop_loss_pct: Optional[float] = None
-    target_upside_pct: Optional[float] = None
+    input_parameters: dict[str, Any]
+    stop_loss_pct: float | None = None
+    target_upside_pct: float | None = None
 
 
 @dataclass
@@ -1222,8 +1235,8 @@ class CreateValuationSnapshotResponse:
     """
 
     success: bool
-    snapshot: Optional[Any] = None  # ValuationSnapshot
-    error: Optional[str] = None
+    snapshot: Any | None = None  # ValuationSnapshot
+    error: str | None = None
 
 
 @dataclass
@@ -1236,7 +1249,7 @@ class GetAggregatedWorkspaceRequest:
         include_executed: 是否包含已执行的建议
     """
 
-    account_id: Optional[str] = None
+    account_id: str | None = None
     include_executed: bool = False
 
 
@@ -1253,9 +1266,9 @@ class GetAggregatedWorkspaceResponse:
     """
 
     success: bool
-    aggregated_recommendations: List[Dict[str, Any]] = field(default_factory=list)
-    regime_context: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    aggregated_recommendations: list[dict[str, Any]] = field(default_factory=list)
+    regime_context: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -1287,9 +1300,9 @@ class PreviewExecutionResponse:
     """
 
     success: bool
-    preview: Optional[Dict[str, Any]] = None
-    risk_checks: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    preview: dict[str, Any] | None = None
+    risk_checks: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -1305,7 +1318,7 @@ class ApproveExecutionRequest:
 
     approval_request_id: str
     reviewer_comments: str
-    market_price: Optional[float] = None
+    market_price: float | None = None
 
 
 @dataclass
@@ -1320,8 +1333,8 @@ class ApproveExecutionResponse:
     """
 
     success: bool
-    approval_request: Optional[Any] = None  # ExecutionApprovalRequest
-    error: Optional[str] = None
+    approval_request: Any | None = None  # ExecutionApprovalRequest
+    error: str | None = None
 
 
 @dataclass
@@ -1350,8 +1363,8 @@ class RejectExecutionResponse:
     """
 
     success: bool
-    approval_request: Optional[Any] = None  # ExecutionApprovalRequest
-    error: Optional[str] = None
+    approval_request: Any | None = None  # ExecutionApprovalRequest
+    error: str | None = None
 
 
 class CreateValuationSnapshotUseCase:
@@ -1398,6 +1411,7 @@ class CreateValuationSnapshotUseCase:
         """
         try:
             from decimal import Decimal
+
             from ..domain.entities import create_valuation_snapshot
 
             # 创建估值快照
@@ -1496,7 +1510,7 @@ class GetAggregatedWorkspaceUseCase:
                 consolidation_service = RecommendationConsolidationService()
 
             # 按账户分组聚合
-            account_groups: Dict[str, List[Any]] = {}
+            account_groups: dict[str, list[Any]] = {}
             for rec in recommendations:
                 # 从 recommendation 中提取账户信息
                 # 这里简化处理，实际应该从关联关系获取
@@ -1536,7 +1550,7 @@ class GetAggregatedWorkspaceUseCase:
                 error=str(e),
             )
 
-    def _format_recommendation(self, rec, account_id: str) -> Dict[str, Any]:
+    def _format_recommendation(self, rec, account_id: str) -> dict[str, Any]:
         """格式化建议为 API 响应格式"""
         return {
             "aggregation_key": f"{account_id}:{rec.security_code}:{rec.side}",
@@ -1623,7 +1637,8 @@ class PreviewExecutionUseCase:
         """
         try:
             from decimal import Decimal
-            from ..domain.entities import create_execution_approval_request, ApprovalStatus
+
+            from ..domain.entities import ApprovalStatus, create_execution_approval_request
 
             # 获取投资建议
             recommendation = self.recommendation_repo.get_by_id(request.recommendation_id)
@@ -1696,7 +1711,7 @@ class PreviewExecutionUseCase:
         self,
         recommendation,
         market_price,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """执行风控检查"""
         risk_checks = {}
 
@@ -1793,6 +1808,7 @@ class ApproveExecutionUseCase:
         """
         try:
             from decimal import Decimal
+
             from ..domain.services import ExecutionApprovalService
 
             # 获取审批请求
@@ -1962,7 +1978,19 @@ class RejectExecutionUseCase:
 # ============================================================================
 
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from ..domain.entities import (
+        DecisionFeatureSnapshot,
+        GatePenalties
+        ModelParamAuditLog
+        ModelParamConfig
+        ModelWeights
+        UnifiedRecommendation
+    from ..infrastructure.models import (
+        UnifiedRecommendationModel,
+    )
 
 
 class ModelParamConfigRepositoryProtocol(Protocol):
@@ -1976,7 +2004,7 @@ class ModelParamConfigRepositoryProtocol(Protocol):
         """获取参数配置"""
         ...
 
-    def get_all_params(self, env: str) -> List["ModelParamConfig"]:
+    def get_all_params(self, env: str) -> list["ModelParamConfig"]:
         """获取所有参数配置"""
         ...
 
@@ -2021,8 +2049,8 @@ class GetModelParamsUseCase:
 
     def execute(
         self,
-        env: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        env: str | None = None,
+    ) -> dict[str, Any]:
         """
         获取所有模型参数
 
@@ -2053,7 +2081,7 @@ class GetModelParamsUseCase:
     def get_param(
         self,
         param_key: str,
-        env: Optional[str] = None,
+        env: str | None = None,
     ) -> Any:
         """
         获取单个参数
@@ -2083,7 +2111,7 @@ class GetModelParamsUseCase:
 
     def get_model_weights(
         self,
-        env: Optional[str] = None,
+        env: str | None = None,
     ) -> "ModelWeights":
         """
         获取模型权重配置
@@ -2108,7 +2136,7 @@ class GetModelParamsUseCase:
 
     def get_gate_penalties(
         self,
-        env: Optional[str] = None,
+        env: str | None = None,
     ) -> "GatePenalties":
         """
         获取 Gate 惩罚参数
@@ -2183,8 +2211,9 @@ class UpdateModelParamUseCase:
         Returns:
             更新响应
         """
-        from ..domain.entities import ModelParamConfig, ModelParamAuditLog
         from uuid import uuid4
+
+        from ..domain.entities import ModelParamAuditLog, ModelParamConfig
 
         try:
             # 获取旧值
@@ -2262,11 +2291,11 @@ class UpdateModelParamUseCase:
 class FeatureDataProviderProtocol(Protocol):
     """特征数据提供者协议"""
 
-    def get_regime(self) -> Optional[Dict[str, Any]]:
+    def get_regime(self) -> dict[str, Any] | None:
         """获取当前 Regime 状态"""
         ...
 
-    def get_policy_level(self) -> Optional[str]:
+    def get_policy_level(self) -> str | None:
         """获取当前政策档位"""
         ...
 
@@ -2301,7 +2330,7 @@ class ValuationProviderProtocol(Protocol):
     def get_valuation(
         self,
         security_code: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """获取估值数据"""
         ...
 
@@ -2311,8 +2340,8 @@ class SignalProviderProtocol(Protocol):
 
     def get_active_signals(
         self,
-        security_code: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        security_code: str | None = None,
+    ) -> list[dict[str, Any]]:
         """获取活跃信号"""
         ...
 
@@ -2322,8 +2351,8 @@ class CandidateProviderProtocol(Protocol):
 
     def get_active_candidates(
         self,
-        account_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        account_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """获取活跃候选"""
         ...
 
@@ -2342,12 +2371,12 @@ class UnifiedRecommendationRepositoryProtocol(Protocol):
     def get_by_account(
         self,
         account_id: str,
-        status: Optional[str] = None,
-    ) -> List["UnifiedRecommendation"]:
+        status: str | None = None,
+    ) -> list["UnifiedRecommendation"]:
         """按账户获取推荐"""
         ...
 
-    def get_conflicts(self, account_id: str) -> List["UnifiedRecommendation"]:
+    def get_conflicts(self, account_id: str) -> list["UnifiedRecommendation"]:
         """获取冲突推荐"""
         ...
 
@@ -2361,7 +2390,7 @@ class GenerateRecommendationsRequest:
     """生成推荐请求"""
 
     account_id: str
-    security_codes: Optional[List[str]] = None
+    security_codes: list[str] | None = None
     force_refresh: bool = False
 
 
@@ -2370,8 +2399,8 @@ class GenerateRecommendationsResponse:
     """生成推荐响应"""
 
     success: bool
-    recommendations: List["UnifiedRecommendation"] = field(default_factory=list)
-    conflicts: List["UnifiedRecommendation"] = field(default_factory=list)
+    recommendations: list["UnifiedRecommendation"] = field(default_factory=list)
+    conflicts: list["UnifiedRecommendation"] = field(default_factory=list)
     error: str = ""
 
 
@@ -2428,16 +2457,17 @@ class GenerateUnifiedRecommendationsUseCase:
         Returns:
             生成响应
         """
+        from uuid import uuid4
+
         from ..domain.entities import (
-            UnifiedRecommendation,
             DecisionFeatureSnapshot,
             RecommendationStatus,
+            UnifiedRecommendation,
         )
         from ..domain.services import (
             CompositeScoreCalculator,
             RecommendationAggregator,
         )
-        from uuid import uuid4
 
         def _to_float(value: Any, default: float) -> float:
             try:
@@ -2447,7 +2477,7 @@ class GenerateUnifiedRecommendationsUseCase:
 
         try:
             # 获取模型参数
-            params: Dict[str, Any] = {}
+            params: dict[str, Any] = {}
             if hasattr(self.param_use_case, "execute"):
                 raw_params = self.param_use_case.execute()
                 if isinstance(raw_params, dict):
@@ -2476,7 +2506,7 @@ class GenerateUnifiedRecommendationsUseCase:
                 security_codes = list(set(c.get("security_code") for c in candidates if c.get("security_code")))
 
             # 2. 生成推荐
-            raw_recommendations: List[UnifiedRecommendation] = []
+            raw_recommendations: list[UnifiedRecommendation] = []
 
             for security_code in security_codes:
                 # 检查 Beta Gate
@@ -2574,12 +2604,12 @@ class GenerateUnifiedRecommendationsUseCase:
             deduplicated, conflicts, conflict_pairs = aggregator.aggregate(raw_recommendations)
 
             # 保存推荐和冲突
-            saved_recommendations: List[UnifiedRecommendation] = []
+            saved_recommendations: list[UnifiedRecommendation] = []
             for rec in deduplicated:
                 saved = self.recommendation_repo.save(rec)
                 saved_recommendations.append(saved)
 
-            saved_conflicts: List[UnifiedRecommendation] = []
+            saved_conflicts: list[UnifiedRecommendation] = []
             for conflict in conflicts:
                 self.recommendation_repo.mark_as_conflict(conflict.recommendation_id)
                 saved_conflicts.append(conflict)
@@ -2632,7 +2662,7 @@ class GenerateUnifiedRecommendationsUseCase:
         self,
         snapshot: "DecisionFeatureSnapshot",
         composite_score: float,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         生成原因代码
 
@@ -2706,7 +2736,7 @@ class GetRecommendationsRequest:
     """获取推荐请求"""
 
     account_id: str
-    status: Optional[str] = None
+    status: str | None = None
     page: int = 1
     page_size: int = 20
 
@@ -2716,7 +2746,7 @@ class GetRecommendationsResponse:
     """获取推荐响应"""
 
     success: bool
-    recommendations: List["UnifiedRecommendation"] = field(default_factory=list)
+    recommendations: list["UnifiedRecommendation"] = field(default_factory=list)
     total_count: int = 0
     error: str = ""
 
@@ -2785,7 +2815,7 @@ class GetConflictsResponse:
     """获取冲突响应"""
 
     success: bool
-    conflicts: List["UnifiedRecommendation"] = field(default_factory=list)
+    conflicts: list["UnifiedRecommendation"] = field(default_factory=list)
     total_count: int = 0
     error: str = ""
 

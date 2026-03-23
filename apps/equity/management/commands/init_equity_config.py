@@ -5,8 +5,9 @@ Django Management Command: 初始化个股/板块/基金配置
     python manage.py init_equity_config
 """
 
-from django.core.management.base import BaseCommand
 from decimal import Decimal
+
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

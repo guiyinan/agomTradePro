@@ -5,8 +5,9 @@ Django ORM models for factor stock selection system.
 Follows four-layer architecture.
 """
 
-from django.db import models
 from decimal import Decimal
+
+from django.db import models
 
 
 class FactorDefinitionModel(models.Model):
@@ -92,7 +93,7 @@ class FactorDefinitionModel(models.Model):
 
     def to_domain(self):
         """Convert to domain entity"""
-        from apps.factor.domain.entities import FactorDefinition, FactorCategory, FactorDirection
+        from apps.factor.domain.entities import FactorCategory, FactorDefinition, FactorDirection
 
         direction_map = {
             'positive': FactorDirection.POSITIVE,

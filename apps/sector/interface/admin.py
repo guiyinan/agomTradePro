@@ -3,10 +3,11 @@ Django Admin configuration for Sector Module.
 """
 
 from django.contrib import admin
+
 from apps.sector.infrastructure.models import (
-    SectorInfoModel,
-    SectorIndexModel,
     SectorConstituentModel,
+    SectorIndexModel,
+    SectorInfoModel,
     SectorRelativeStrengthModel,
 )
 

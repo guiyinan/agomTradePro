@@ -6,9 +6,9 @@ This middleware adds deprecation headers to requests using the old route pattern
 - New pattern: /api/{module}/{resource}/
 """
 
-import re
 import logging
-from typing import Callable
+import re
+from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
 

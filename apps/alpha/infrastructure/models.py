@@ -11,10 +11,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
-from django.db import models, transaction
 from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from django.utils import timezone
-
 
 logger = logging.getLogger(__name__)
 

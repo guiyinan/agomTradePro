@@ -18,15 +18,14 @@ from apps.realtime.domain.entities import (
     PricePollingConfig,
     PriceSnapshot,
     PriceUpdate,
-    PriceUpdateStatus
+    PriceUpdateStatus,
 )
 from apps.realtime.domain.protocols import (
-    RealtimePriceRepositoryProtocol,
     PriceDataProviderProtocol,
-    WatchlistProviderProtocol
+    RealtimePriceRepositoryProtocol,
+    WatchlistProviderProtocol,
 )
 from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedAccountModel
-
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +99,7 @@ class PricePollingService:
             failed_count=failed_count
         )
 
-    def poll_single_asset(self, asset_code: str) -> Optional[PriceUpdate]:
+    def poll_single_asset(self, asset_code: str) -> PriceUpdate | None:
         """轮询单个资产的价格
 
         Args:
@@ -154,7 +153,7 @@ class PricePollingService:
 
         return update
 
-    def _update_position_prices(self, prices) -> List[PriceUpdate]:
+    def _update_position_prices(self, prices) -> list[PriceUpdate]:
         """更新持仓模型中的当前价格
 
         Args:
@@ -234,14 +233,14 @@ class PricePollingUseCase:
 
     def __init__(self):
         # 延迟导入，避免循环依赖
-        from apps.realtime.infrastructure.repositories import (
-            RedisRealtimePriceRepository,
-            AKSharePriceDataProvider,
-            TusharePriceDataProvider,
-            CompositePriceDataProvider,
-            DatabaseWatchlistProvider
-        )
         from apps.realtime.domain.entities import PricePollingConfig
+        from apps.realtime.infrastructure.repositories import (
+            AKSharePriceDataProvider,
+            CompositePriceDataProvider,
+            DatabaseWatchlistProvider,
+            RedisRealtimePriceRepository,
+            TusharePriceDataProvider,
+        )
 
         # 初始化依赖
         self.price_repository = RedisRealtimePriceRepository()
@@ -287,7 +286,7 @@ class PricePollingUseCase:
         snapshot = self.service.poll_and_update_prices()
         return snapshot.to_dict()
 
-    def get_latest_prices(self, asset_codes: List[str]) -> List[dict]:
+    def get_latest_prices(self, asset_codes: list[str]) -> list[dict]:
         """获取最新价格
 
         Args:

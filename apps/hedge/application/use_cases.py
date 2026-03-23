@@ -5,22 +5,23 @@ Application use cases for the hedge module.
 Orchestrates domain services and infrastructure adapters.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Dict, List, Optional
 
-from apps.hedge.domain.entities import HedgePair, HedgeAlert
-from apps.hedge.domain.services import (
-    HedgeContext,
-    HedgePortfolioService,
-    CorrelationMonitor,
-)
 from apps.hedge.application.dtos import (
-    HedgeEffectivenessRequest,
-    HedgeEffectivenessResponse,
     CorrelationMatrixRequest,
     CorrelationMatrixResponse,
     HedgeAlertResponse,
+    HedgeEffectivenessRequest,
+    HedgeEffectivenessResponse,
+)
+from apps.hedge.domain.entities import HedgeAlert, HedgePair
+from apps.hedge.domain.services import (
+    CorrelationMonitor,
+    HedgeContext,
+    HedgePortfolioService,
 )
 
 
@@ -28,12 +29,12 @@ from apps.hedge.application.dtos import (
 class HedgeUseCaseContext:
     """Context for hedge use case execution"""
     calc_date: date
-    hedge_pairs: List[HedgePair]
+    hedge_pairs: list[HedgePair]
 
     # Repository accessors (injected)
-    get_asset_prices: Callable[[str, date, int], Optional[List[float]]]
-    get_asset_name: Callable[[str], Optional[str]]
-    get_hedge_pair: Callable[[str], Optional[HedgePair]]
+    get_asset_prices: Callable[[str, date, int], list[float] | None]
+    get_asset_name: Callable[[str], str | None]
+    get_hedge_pair: Callable[[str], HedgePair | None]
 
 
 class CheckHedgeEffectivenessUseCase:
@@ -121,7 +122,7 @@ class MonitorHedgeAlertsUseCase:
     def __init__(self, context: HedgeUseCaseContext):
         self.context = context
 
-    def execute(self) -> List[HedgeAlertResponse]:
+    def execute(self) -> list[HedgeAlertResponse]:
         """Execute hedge monitoring"""
         # Create domain context
         domain_context = HedgeContext(
@@ -159,7 +160,7 @@ class UpdateHedgePortfolioUseCase:
     def __init__(self, context: HedgeUseCaseContext):
         self.context = context
 
-    def execute(self, pair_name: str) -> Optional[Dict]:
+    def execute(self, pair_name: str) -> dict | None:
         """Execute hedge portfolio update"""
         # Get hedge pair
         pair = self.context.get_hedge_pair(pair_name)
@@ -202,16 +203,16 @@ class UpdateHedgePortfolioUseCase:
 @dataclass
 class HedgePairsViewRequest:
     """Request for hedge pairs view"""
-    is_active: Optional[bool] = None
-    hedge_method: Optional[str] = None
-    search: Optional[str] = None
+    is_active: bool | None = None
+    hedge_method: str | None = None
+    search: str | None = None
 
 
 @dataclass
 class HedgePairsViewResponse:
     """Response for hedge pairs view"""
-    pairs: List[Dict[str, Any]]
-    stats: Dict[str, int]
+    pairs: list[dict[str, Any]]
+    stats: dict[str, int]
 
 
 class GetHedgePairsForViewUseCase:
@@ -249,7 +250,7 @@ class GetHedgePairsForViewUseCase:
             stats=stats,
         )
 
-    def _filter_pairs(self, request: HedgePairsViewRequest) -> List[HedgePair]:
+    def _filter_pairs(self, request: HedgePairsViewRequest) -> list[HedgePair]:
         """Filter pairs based on request parameters"""
         pairs = self.pair_repo.get_all(active_only=False)
 
@@ -270,7 +271,7 @@ class GetHedgePairsForViewUseCase:
 
         return pairs
 
-    def _build_pair_info(self, pair: HedgePair) -> Dict[str, Any]:
+    def _build_pair_info(self, pair: HedgePair) -> dict[str, Any]:
         """Build pair info dict with correlation and snapshot data"""
         pair_info = {
             'id': pair.id if hasattr(pair, 'id') else id(pair),
@@ -331,7 +332,7 @@ class GetHedgePairsForViewUseCase:
         }
         return display_names.get(method, method)
 
-    def _calculate_stats(self) -> Dict[str, int]:
+    def _calculate_stats(self) -> dict[str, int]:
         """Calculate statistics for all pairs"""
         all_pairs = self.pair_repo.get_all(active_only=False)
         active_pairs = self.pair_repo.get_all(active_only=True)
@@ -346,17 +347,17 @@ class GetHedgePairsForViewUseCase:
 @dataclass
 class HedgeSnapshotsViewRequest:
     """Request for hedge snapshots view"""
-    pair_name: Optional[str] = None
-    rebalance_needed: Optional[bool] = None
+    pair_name: str | None = None
+    rebalance_needed: bool | None = None
     limit: int = 50
 
 
 @dataclass
 class HedgeSnapshotsViewResponse:
     """Response for hedge snapshots view"""
-    snapshots: List[Dict[str, Any]]
-    stats: Dict[str, int]
-    pair_names: List[str]
+    snapshots: list[dict[str, Any]]
+    stats: dict[str, int]
+    pair_names: list[str]
 
 
 class GetHedgeSnapshotsForViewUseCase:
@@ -390,7 +391,7 @@ class GetHedgeSnapshotsForViewUseCase:
             pair_names=pair_names,
         )
 
-    def _get_pair_names(self) -> List[str]:
+    def _get_pair_names(self) -> list[str]:
         """Get all pair names for filter dropdown"""
         pairs = self.pair_repo.get_all(active_only=False)
         return sorted([p.name for p in pairs])
@@ -399,21 +400,21 @@ class GetHedgeSnapshotsForViewUseCase:
 @dataclass
 class HedgeAlertsViewRequest:
     """Request for hedge alerts view"""
-    pair_name: Optional[str] = None
-    severity: Optional[str] = None
-    alert_type: Optional[str] = None
-    is_resolved: Optional[bool] = None
+    pair_name: str | None = None
+    severity: str | None = None
+    alert_type: str | None = None
+    is_resolved: bool | None = None
     limit: int = 100
 
 
 @dataclass
 class HedgeAlertsViewResponse:
     """Response for hedge alerts view"""
-    alerts: List[Dict[str, Any]]
-    stats: Dict[str, int]
-    pair_names: List[str]
-    alert_types: List[tuple]
-    severity_choices: List[tuple]
+    alerts: list[dict[str, Any]]
+    stats: dict[str, int]
+    pair_names: list[str]
+    alert_types: list[tuple]
+    severity_choices: list[tuple]
 
 
 class GetHedgeAlertsForViewUseCase:
@@ -452,7 +453,7 @@ class GetHedgeAlertsForViewUseCase:
             severity_choices=severity_choices,
         )
 
-    def _get_alerts(self, request: HedgeAlertsViewRequest) -> List[HedgeAlert]:
+    def _get_alerts(self, request: HedgeAlertsViewRequest) -> list[HedgeAlert]:
         """Get alerts with filtering"""
         # For resolved filter
         if request.is_resolved is True:
@@ -474,7 +475,7 @@ class GetHedgeAlertsForViewUseCase:
 
         return alerts[:request.limit]
 
-    def _format_alert(self, alert: HedgeAlert) -> Dict[str, Any]:
+    def _format_alert(self, alert: HedgeAlert) -> dict[str, Any]:
         """Format alert for display"""
         return {
             'id': alert.id if hasattr(alert, 'id') else id(alert),
@@ -494,7 +495,7 @@ class GetHedgeAlertsForViewUseCase:
             'created_at': getattr(alert, 'created_at', None),
         }
 
-    def _calculate_stats(self) -> Dict[str, int]:
+    def _calculate_stats(self) -> dict[str, int]:
         """Calculate statistics for alerts"""
         all_alerts = self.alert_repo.get_recent_alerts(days=365)
         active_alerts = self.alert_repo.get_active_alerts()
@@ -510,12 +511,12 @@ class GetHedgeAlertsForViewUseCase:
             'high': high_count,
         }
 
-    def _get_pair_names(self) -> List[str]:
+    def _get_pair_names(self) -> list[str]:
         """Get all pair names for filter dropdown"""
         pairs = self.pair_repo.get_all(active_only=False)
         return sorted([p.name for p in pairs])
 
-    def _get_alert_type_choices(self) -> List[tuple]:
+    def _get_alert_type_choices(self) -> list[tuple]:
         """Get alert type choices for filter"""
         return [
             ('correlation_breakdown', '相关性失效'),
@@ -524,7 +525,7 @@ class GetHedgeAlertsForViewUseCase:
             ('liquidity_risk', '流动性风险'),
         ]
 
-    def _get_severity_choices(self) -> List[tuple]:
+    def _get_severity_choices(self) -> list[tuple]:
         """Get severity choices for filter"""
         return [
             ('low', '低'),
@@ -565,7 +566,7 @@ class ActivateHedgePairResponse:
     """Response for activating hedge pair"""
     success: bool
     message: str
-    pair_name: Optional[str] = None
+    pair_name: str | None = None
 
 
 class ActivateHedgePairUseCase:
@@ -604,7 +605,7 @@ class DeactivateHedgePairResponse:
     """Response for deactivating hedge pair"""
     success: bool
     message: str
-    pair_name: Optional[str] = None
+    pair_name: str | None = None
 
 
 class DeactivateHedgePairUseCase:
@@ -643,7 +644,7 @@ class ResolveHedgeAlertResponse:
     """Response for resolving hedge alert"""
     success: bool
     message: str
-    alert_id: Optional[int] = None
+    alert_id: int | None = None
 
 
 class ResolveHedgeAlertUseCase:

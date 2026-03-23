@@ -4,7 +4,7 @@ Infrastructure Layer for Filter App.
 ORM models, repositories, and external adapters.
 """
 
-from .models import FilterResultModel, KalmanStateModel, FilterConfig
+from .models import FilterConfig, FilterResultModel, KalmanStateModel
 from .repositories import (
     DjangoFilterRepository,
     HPFilterAdapter,

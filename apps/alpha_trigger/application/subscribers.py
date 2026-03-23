@@ -10,10 +10,11 @@ Alpha Trigger Event Subscribers.
 """
 
 import logging
-from typing import Callable, Dict
+from collections.abc import Callable
+from typing import Dict
 
-from apps.events.domain.registry import get_event_subscriber_registry
 from apps.events.domain.entities import EventType
+from apps.events.domain.registry import get_event_subscriber_registry
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ def _create_candidate_promotion_handler():
         raise
 
 
-def get_handler_factories() -> Dict[EventType, Callable]:
+def get_handler_factories() -> dict[EventType, Callable]:
     """
     获取处理器工厂
 

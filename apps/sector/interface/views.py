@@ -7,23 +7,23 @@
 - 调用 Application 层用例
 """
 
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..application.use_cases import (
-    AnalyzeSectorRotationUseCase,
-    UpdateSectorDataUseCase,
     AnalyzeSectorRotationRequest,
-    UpdateSectorDataRequest
+    AnalyzeSectorRotationUseCase,
+    UpdateSectorDataRequest,
+    UpdateSectorDataUseCase,
 )
-from ..infrastructure.repositories import DjangoSectorRepository
 from ..infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
+from ..infrastructure.repositories import DjangoSectorRepository
 from .serializers import (
     AnalyzeSectorRotationRequestSerializer,
     SectorRotationResultSerializer,
-    UpdateSectorDataRequestSerializer
+    UpdateSectorDataRequestSerializer,
 )
 
 

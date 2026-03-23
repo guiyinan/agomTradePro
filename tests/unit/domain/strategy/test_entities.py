@@ -7,24 +7,24 @@ Domain 层实体单元测试
 - 枚举类型
 - 边界条件测试
 """
-import pytest
 from datetime import datetime
 
+import pytest
+
 from apps.strategy.domain.entities import (
-    StrategyType,
     ActionType,
-    RuleType,
+    AIConfig,
     ApprovalMode,
     RiskControlParams,
-    StrategyConfig,
-    ScriptConfig,
-    AIConfig,
-    Strategy,
     RuleCondition,
+    RuleType,
+    ScriptConfig,
     SignalRecommendation,
-    StrategyExecutionResult
+    Strategy,
+    StrategyConfig,
+    StrategyExecutionResult,
+    StrategyType,
 )
-
 
 # ========================================================================
 # 值对象测试

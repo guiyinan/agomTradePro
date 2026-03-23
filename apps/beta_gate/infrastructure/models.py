@@ -10,12 +10,11 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils import timezone
 
 from ..domain.entities import GateStatus, RiskProfile
-
 
 logger = logging.getLogger(__name__)
 
@@ -174,8 +173,14 @@ class GateConfigModel(models.Model):
 
     def to_domain(self):
         """转换为 Domain 层实体"""
-        from ..domain.entities import GateConfig, RegimeConstraint, PolicyConstraint, PortfolioConstraint
         from datetime import date
+
+        from ..domain.entities import (
+            GateConfig,
+            PolicyConstraint,
+            PortfolioConstraint,
+            RegimeConstraint,
+        )
 
         return GateConfig(
             config_id=self.config_id,
@@ -299,7 +304,8 @@ class GateDecisionModel(models.Model):
 
     def to_domain(self):
         """转换为 Domain 层实体"""
-        from ..domain.entities import GateDecision as DomainGateDecision, GateStatus
+        from ..domain.entities import GateDecision as DomainGateDecision
+        from ..domain.entities import GateStatus
 
         details = self.evaluation_details or {}
 

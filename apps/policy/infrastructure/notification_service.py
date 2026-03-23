@@ -10,19 +10,18 @@ Infrastructure Layer - Notification Service Implementations
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.mail import send_mail
 
+from ..domain.entities import PolicyEvent, PolicyLevel
 from ..domain.interfaces import (
+    NotificationChannel,
+    NotificationMessage,
     NotificationServicePort,
     PolicyAlertServicePort,
-    NotificationMessage,
-    NotificationChannel,
 )
-from ..domain.entities import PolicyLevel, PolicyEvent
-
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ class LoggingNotificationService:
 
         return True
 
-    def send_batch(self, messages: List[NotificationMessage]) -> dict:
+    def send_batch(self, messages: list[NotificationMessage]) -> dict:
         """批量记录通知"""
         success_count = 0
         errors = []
@@ -92,7 +91,7 @@ class EmailNotificationService(LoggingNotificationService):
     def __init__(
         self,
         enabled: bool = True,
-        default_recipients: Optional[List[str]] = None,
+        default_recipients: list[str] | None = None,
     ):
         super().__init__(enabled)
         self.default_recipients = default_recipients or getattr(
@@ -138,7 +137,7 @@ class EmailNotificationService(LoggingNotificationService):
             # 降级到日志记录
             return super().send(message)
 
-    def send_batch(self, messages: List[NotificationMessage]) -> dict:
+    def send_batch(self, messages: list[NotificationMessage]) -> dict:
         """批量发送邮件（合并发送）"""
         if not messages:
             return {"success": 0, "failed": 0, "errors": []}
@@ -232,7 +231,7 @@ class InAppNotificationService:
             logger.error(f"Failed to create in-app notification: {e}", exc_info=True)
             return False
 
-    def send_batch(self, messages: List[NotificationMessage]) -> dict:
+    def send_batch(self, messages: list[NotificationMessage]) -> dict:
         """批量创建站内通知"""
         success_count = 0
         errors = []
@@ -260,8 +259,8 @@ class PolicyAlertService(PolicyAlertServicePort):
 
     def __init__(
         self,
-        email_service: Optional[EmailNotificationService] = None,
-        in_app_service: Optional[InAppNotificationService] = None,
+        email_service: EmailNotificationService | None = None,
+        in_app_service: InAppNotificationService | None = None,
     ):
         self.email_service = email_service
         self.in_app_service = in_app_service
@@ -326,7 +325,7 @@ class PolicyAlertService(PolicyAlertServicePort):
             logger.error(f"Failed to send policy alert: {e}", exc_info=True)
             return False
 
-    def send_transition_summary(self, changes: List[dict]) -> bool:
+    def send_transition_summary(self, changes: list[dict]) -> bool:
         """发送档位变更摘要"""
         if not changes:
             return True
@@ -440,7 +439,7 @@ P2/P3 超时: {p23_count} 项
 """
         return content
 
-    def _build_transition_content(self, changes: List[dict]) -> str:
+    def _build_transition_content(self, changes: list[dict]) -> str:
         """构建变更摘要内容"""
         content = "**政策档位变更摘要**\n\n"
 
@@ -464,9 +463,9 @@ class NotificationServiceFactory:
     根据配置创建通知服务实例。
     """
 
-    _email_service: Optional[EmailNotificationService] = None
-    _in_app_service: Optional[InAppNotificationService] = None
-    _alert_service: Optional[PolicyAlertService] = None
+    _email_service: EmailNotificationService | None = None
+    _in_app_service: InAppNotificationService | None = None
+    _alert_service: PolicyAlertService | None = None
 
     @classmethod
     def get_email_service(cls) -> EmailNotificationService:

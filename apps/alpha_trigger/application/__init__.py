@@ -6,29 +6,28 @@ Alpha 事件触发的 Application 层。
 负责用例编排和事件处理。
 """
 
+from .handlers import (
+    AlphaTriggerEventHandler,
+    CandidatePromotionHandler,
+    TriggerInvalidationHandler,
+)
 from .use_cases import (
+    CheckInvalidationRequest,
+    CheckInvalidationResponse,
+    CheckTriggerInvalidationUseCase,
+    # Use Cases
+    CreateAlphaTriggerUseCase,
     # DTOs
     CreateTriggerRequest,
     CreateTriggerResponse,
-    CheckInvalidationRequest,
-    CheckInvalidationResponse,
+    EvaluateAlphaTriggerUseCase,
     EvaluateTriggerRequest,
     EvaluateTriggerResponse,
     GenerateCandidateRequest,
     GenerateCandidateResponse,
+    GenerateCandidateUseCase,
     GetActiveTriggersRequest,
     GetActiveTriggersResponse,
-    # Use Cases
-    CreateAlphaTriggerUseCase,
-    CheckTriggerInvalidationUseCase,
-    EvaluateAlphaTriggerUseCase,
-    GenerateCandidateUseCase,
-)
-
-from .handlers import (
-    AlphaTriggerEventHandler,
-    TriggerInvalidationHandler,
-    CandidatePromotionHandler,
 )
 
 __all__ = [

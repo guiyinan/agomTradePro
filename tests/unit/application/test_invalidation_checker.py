@@ -4,9 +4,10 @@ Unit tests for InvalidationCheckService Application Layer.
 Tests for checking pending and approved signals with invalidation rules.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from apps.signal.application.invalidation_checker import (
     InvalidationCheckService,
@@ -14,13 +15,13 @@ from apps.signal.application.invalidation_checker import (
 )
 from apps.signal.domain.entities import SignalStatus
 from apps.signal.domain.invalidation import (
-    InvalidationRule,
-    InvalidationCondition,
-    IndicatorValue,
     ComparisonOperator,
-    LogicOperator,
     IndicatorType,
+    IndicatorValue,
     InvalidationCheckResult,
+    InvalidationCondition,
+    InvalidationRule,
+    LogicOperator,
 )
 from apps.signal.infrastructure.models import InvestmentSignalModel
 

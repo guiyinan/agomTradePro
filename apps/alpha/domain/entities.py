@@ -60,14 +60,14 @@ class InvalidationCondition:
     """
 
     condition_type: InvalidationType
-    threshold_value: Optional[float] = None
-    cross_direction: Optional[str] = None
-    max_holding_days: Optional[int] = None
-    required_regime: Optional[str] = None
-    min_ic: Optional[float] = None
+    threshold_value: float | None = None
+    cross_direction: str | None = None
+    max_holding_days: int | None = None
+    required_regime: str | None = None
+    min_ic: float | None = None
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "condition_type": self.condition_type.value,
@@ -80,7 +80,7 @@ class InvalidationCondition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "InvalidationCondition":
+    def from_dict(cls, data: dict[str, Any]) -> "InvalidationCondition":
         """从字典创建"""
         return cls(
             condition_type=InvalidationType(data.get("condition_type", "manual")),
@@ -132,21 +132,21 @@ class StockScore:
     code: str
     score: float
     rank: int
-    factors: Dict[str, float]
+    factors: dict[str, float]
     source: str
     confidence: float
 
     # 审计字段（复现/排障必需）
-    model_id: Optional[str] = None
-    model_artifact_hash: Optional[str] = None
-    asof_date: Optional[date] = None
-    intended_trade_date: Optional[date] = None
-    universe_id: Optional[str] = None
-    feature_set_id: Optional[str] = None
-    label_id: Optional[str] = None
-    data_version: Optional[str] = None
+    model_id: str | None = None
+    model_artifact_hash: str | None = None
+    asof_date: date | None = None
+    intended_trade_date: date | None = None
+    universe_id: str | None = None
+    feature_set_id: str | None = None
+    label_id: str | None = None
+    data_version: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "code": self.code,
@@ -166,7 +166,7 @@ class StockScore:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "StockScore":
+    def from_dict(cls, data: dict[str, Any]) -> "StockScore":
         """从字典创建"""
         factors = data.get("factors", {})
         asof_date = data.get("asof_date")
@@ -220,17 +220,17 @@ class AlphaResult:
     """
 
     success: bool
-    scores: List[StockScore]
+    scores: list[StockScore]
     source: str
     timestamp: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     status: str = "available"
-    latency_ms: Optional[int] = None
-    staleness_days: Optional[int] = None
-    invalidation_conditions: List[InvalidationCondition] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    latency_ms: int | None = None
+    staleness_days: int | None = None
+    invalidation_conditions: list[InvalidationCondition] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "success": self.success,
@@ -277,7 +277,7 @@ class AlphaProviderConfig:
     retry_delay_seconds: int = 5
     timeout_seconds: int = 30
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "max_staleness_days": self.max_staleness_days,
@@ -290,7 +290,7 @@ class AlphaProviderConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AlphaProviderConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "AlphaProviderConfig":
         """从字典创建"""
         return cls(
             max_staleness_days=data.get("max_staleness_days", 2),
@@ -330,12 +330,12 @@ class UniverseDefinition:
     universe_id: str
     name: str
     description: str = ""
-    stock_codes: List[str] = field(default_factory=list)
-    index_code: Optional[str] = None
+    stock_codes: list[str] = field(default_factory=list)
+    index_code: str | None = None
     weight_method: str = "equal_weight"
     rebalance_frequency: str = "monthly"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "universe_id": self.universe_id,

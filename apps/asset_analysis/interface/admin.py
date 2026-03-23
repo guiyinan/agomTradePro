@@ -3,11 +3,12 @@
 """
 
 from django.contrib import admin
+
 from ..infrastructure.models import (
-    WeightConfigModel,
+    AssetAnalysisAlert,
     AssetScoreCache,
     AssetScoringLog,
-    AssetAnalysisAlert,
+    WeightConfigModel,
 )
 
 

@@ -2,12 +2,14 @@
 Integration tests for Operation Audit Log API.
 """
 
-import pytest
 import uuid
+from datetime import datetime, timedelta, timezone
+
+import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
+
 from apps.audit.infrastructure.models import OperationLogModel
-from datetime import datetime, timezone, timedelta
 
 pytestmark = [pytest.mark.django_db]
 

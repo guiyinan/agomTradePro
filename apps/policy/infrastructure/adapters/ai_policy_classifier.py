@@ -5,25 +5,25 @@ AI Policy Classifier - 政策AI分类服务
 使用现有的ai_provider基础设施进行AI调用。
 """
 
-import logging
 import json
+import logging
 import re
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
-from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter, AIFailoverHelper
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.ai_provider.domain.services import AICostCalculator
+from apps.ai_provider.infrastructure.adapters import AIFailoverHelper, OpenAICompatibleAdapter
+from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.policy.domain.entities import (
-    RSSItem,
     AIClassificationResult,
-    StructuredPolicyData,
-    InfoCategory,
     AuditStatus,
-    RiskImpact,
+    InfoCategory,
     PolicyLevel,
+    RiskImpact,
+    RSSItem,
+    StructuredPolicyData,
 )
 from apps.policy.domain.interfaces import PolicyClassifierProtocol
 from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
@@ -74,7 +74,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
     def classify_rss_item(
         self,
         item: RSSItem,
-        content: Optional[str] = None
+        content: str | None = None
     ) -> AIClassificationResult:
         """
         对单个RSS条目进行分类
@@ -184,8 +184,8 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
 
     def batch_classify(
         self,
-        items: List[tuple[RSSItem, Optional[str]]]
-    ) -> List[AIClassificationResult]:
+        items: list[tuple[RSSItem, str | None]]
+    ) -> list[AIClassificationResult]:
         """
         批量分类
 
@@ -201,7 +201,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             results.append(result)
         return results
 
-    def _log_ai_usage(self, ai_result: Dict[str, Any], request_type: str):
+    def _log_ai_usage(self, ai_result: dict[str, Any], request_type: str):
         """记录AI使用日志"""
         try:
             # 获取提供商
@@ -244,8 +244,8 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
     def _build_classification_prompt(
         self,
         item: RSSItem,
-        content: Optional[str] = None
-    ) -> List[Dict[str, str]]:
+        content: str | None = None
+    ) -> list[dict[str, str]]:
         """
         构建AI分类提示词
 
@@ -324,7 +324,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             {"role": "user", "content": user_prompt}
         ]
 
-    def _parse_ai_response(self, response: str) -> Dict[str, Any]:
+    def _parse_ai_response(self, response: str) -> dict[str, Any]:
         """
         解析AI返回的JSON响应
 
@@ -365,7 +365,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             }
 
 
-def create_ai_policy_classifier() -> Optional[AIPolicyClassifier]:
+def create_ai_policy_classifier() -> AIPolicyClassifier | None:
     """
     创建AI分类器实例（使用数据库配置的AI服务）
 

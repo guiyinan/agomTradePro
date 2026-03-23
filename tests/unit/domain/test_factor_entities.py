@@ -4,18 +4,20 @@ Unit tests for Factor Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import date
 from decimal import Decimal
+
+import pytest
+
 from apps.factor.domain.entities import (
     FactorCategory,
-    FactorDirection,
     FactorDefinition,
+    FactorDirection,
     FactorExposure,
-    FactorScore,
+    FactorPerformance,
     FactorPortfolioConfig,
     FactorPortfolioHolding,
-    FactorPerformance,
+    FactorScore,
     create_default_factor_config,
     get_common_factors,
 )

@@ -9,25 +9,31 @@ AgomTradePro 综合数据连接测试脚本
 import json
 from datetime import datetime, timedelta
 from decimal import Decimal
-from django.core.management.base import BaseCommand
+
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django.db.models import Avg, Count, Sum
 from django.utils import timezone
-from django.db.models import Count, Sum, Avg
+
+from apps.account.infrastructure.models import (
+    AccountProfileModel,
+    AssetCategoryModel,
+    CurrencyModel,
+    PortfolioModel,
+    PositionModel,
+)
+from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 
 # Import models and repositories
-from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
+from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.application.use_cases import SyncMacroDataUseCase, SyncMacroDataRequest
-from apps.regime.infrastructure.models import RegimeLog
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
+from apps.regime.infrastructure.models import RegimeLog
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
-from apps.account.infrastructure.models import (
-    PortfolioModel, PositionModel, AccountProfileModel, CurrencyModel, AssetCategoryModel
-)
 
 User = get_user_model()
 
@@ -353,10 +359,12 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
-            from apps.dashboard.application.use_cases import GetDashboardDataUseCase
             from apps.account.infrastructure.repositories import (
-                AccountRepository, PortfolioRepository, PositionRepository
+                AccountRepository,
+                PortfolioRepository,
+                PositionRepository,
             )
+            from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 
             # Get first user for testing
             user = User.objects.first()

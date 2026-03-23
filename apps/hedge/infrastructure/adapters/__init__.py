@@ -5,9 +5,9 @@ Data source adapters with failover support for hedge portfolio management.
 Follows the failover pattern: Primary (Tushare) → Secondary (Mock/Cache)
 """
 
+import logging
 from datetime import date, timedelta
 from typing import List, Optional
-import logging
 
 from shared.config.secrets import get_secrets
 
@@ -22,7 +22,7 @@ class HedgeDataSource:
         asset_code: str,
         end_date: date,
         days: int = 60
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """
         Get historical prices for an asset.
 
@@ -68,7 +68,7 @@ class TushareHedgeAdapter(HedgeDataSource):
         asset_code: str,
         end_date: date,
         days: int = 60
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """Get ETF prices from Tushare"""
         self._init_tushare()
 
@@ -133,7 +133,7 @@ class AkshareHedgeAdapter(HedgeDataSource):
         asset_code: str,
         end_date: date,
         days: int = 60
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """Get ETF prices from Akshare"""
         try:
             import akshare as ak
@@ -176,7 +176,7 @@ HEDGE_PRICE_CACHE_PREFIX = "hedge:prices"
 HEDGE_PRICE_CACHE_TIMEOUT = 86400  # 24 hours
 
 
-def _cache_hedge_prices(asset_code: str, prices: List[float]) -> None:
+def _cache_hedge_prices(asset_code: str, prices: list[float]) -> None:
     """Cache successfully fetched prices for fallback use"""
     try:
         from django.core.cache import cache
@@ -186,7 +186,7 @@ def _cache_hedge_prices(asset_code: str, prices: List[float]) -> None:
         logger.debug(f"Failed to cache hedge prices for {asset_code}: {e}")
 
 
-def _get_cached_hedge_prices(asset_code: str) -> Optional[List[float]]:
+def _get_cached_hedge_prices(asset_code: str) -> list[float] | None:
     """Retrieve cached prices from a previous successful fetch"""
     try:
         from django.core.cache import cache
@@ -211,7 +211,7 @@ class CachedHedgeAdapter(HedgeDataSource):
         asset_code: str,
         end_date: date,
         days: int = 60
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """Return cached prices from previous successful fetches"""
         # 1. Try Django cache (last-known-good from Tushare/Akshare)
         cached = _get_cached_hedge_prices(asset_code)
@@ -228,7 +228,7 @@ class CachedHedgeAdapter(HedgeDataSource):
         return None
 
     @staticmethod
-    def _get_realtime_price(asset_code: str) -> Optional[float]:
+    def _get_realtime_price(asset_code: str) -> float | None:
         """Try to get latest price from realtime cache"""
         try:
             from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
@@ -260,7 +260,7 @@ class FailoverHedgeAdapter(HedgeDataSource):
         asset_code: str,
         end_date: date,
         days: int = 60
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """Get prices with automatic failover and caching"""
         last_error = None
 

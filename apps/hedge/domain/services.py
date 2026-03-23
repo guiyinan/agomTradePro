@@ -9,23 +9,24 @@ Uses only:
 - Pure business algorithms
 """
 
+import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple, Callable
-import math
+from typing import Dict, List, Optional, Tuple
 
 from apps.hedge.domain.entities import (
-    HedgeMethod,
-    HedgePair,
     CorrelationMetric,
-    HedgePortfolio,
     HedgeAlert,
     HedgeAlertType,
+    HedgeMethod,
+    HedgePair,
+    HedgePortfolio,
     get_common_hedge_pairs,
 )
 from shared.infrastructure.correlation import (
-    RollingCorrelationCalculator,
     CorrelationResult,
+    RollingCorrelationCalculator,
 )
 
 
@@ -33,11 +34,11 @@ from shared.infrastructure.correlation import (
 class HedgeContext:
     """Context for hedge calculation"""
     calc_date: date
-    hedge_pairs: List[HedgePair]
+    hedge_pairs: list[HedgePair]
 
     # Data accessors (injected from Infrastructure layer)
-    get_asset_prices: Callable[[str, date, int], Optional[List[float]]]  # (asset, end_date, days) -> [prices]
-    get_asset_name: Callable[[str], Optional[str]]  # (asset_code) -> asset_name
+    get_asset_prices: Callable[[str, date, int], list[float] | None]  # (asset, end_date, days) -> [prices]
+    get_asset_name: Callable[[str], str | None]  # (asset_code) -> asset_name
 
 
 class CorrelationMonitor:
@@ -56,7 +57,7 @@ class CorrelationMonitor:
         asset1: str,
         asset2: str,
         window_days: int = 60
-    ) -> Optional[CorrelationMetric]:
+    ) -> CorrelationMetric | None:
         """
         Calculate correlation metrics between two assets.
 
@@ -128,9 +129,9 @@ class CorrelationMonitor:
 
     def calculate_correlation_matrix(
         self,
-        asset_codes: List[str],
+        asset_codes: list[str],
         window_days: int = 60
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Calculate correlation matrix for multiple assets.
 
@@ -155,8 +156,8 @@ class CorrelationMonitor:
 
     def monitor_hedge_pairs(
         self,
-        pairs: Optional[List[HedgePair]] = None
-    ) -> List[HedgeAlert]:
+        pairs: list[HedgePair] | None = None
+    ) -> list[HedgeAlert]:
         """
         Monitor all hedge pairs and generate alerts if needed.
 
@@ -213,8 +214,8 @@ class CorrelationMonitor:
 
     def _calculate_correlation_trend(
         self,
-        prices1: List[float],
-        prices2: List[float],
+        prices1: list[float],
+        prices2: list[float],
         window_days: int
     ) -> str:
         """Determine if correlation is trending up, down, or stable"""
@@ -248,7 +249,7 @@ class CorrelationMonitor:
         asset1: str,
         asset2: str,
         correlation: float
-    ) -> Tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         """Check if correlation triggers an alert"""
         # Find the hedge pair for these assets
         for pair in self.context.hedge_pairs:
@@ -270,8 +271,8 @@ class CorrelationMonitor:
 
     def _calculate_rolling_correlation_ma(
         self,
-        prices1: List[float],
-        prices2: List[float],
+        prices1: list[float],
+        prices2: list[float],
         window_days: int
     ) -> float:
         """Calculate moving average of correlation"""
@@ -316,7 +317,7 @@ class HedgeRatioCalculator:
     def calculate_hedge_ratio(
         self,
         pair: HedgePair
-    ) -> Tuple[float, Dict]:
+    ) -> tuple[float, dict]:
         """
         Calculate optimal hedge ratio for a hedge pair.
 
@@ -378,10 +379,10 @@ class HedgeRatioCalculator:
 
     def _calculate_beta_hedge_ratio(
         self,
-        long_prices: List[float],
-        hedge_prices: List[float],
-        beta_target: Optional[float] = None
-    ) -> Tuple[float, Dict]:
+        long_prices: list[float],
+        hedge_prices: list[float],
+        beta_target: float | None = None
+    ) -> tuple[float, dict]:
         """Calculate beta-based hedge ratio"""
         beta = self.correlation_calculator.calculate_beta(
             long_prices,
@@ -403,9 +404,9 @@ class HedgeRatioCalculator:
 
     def _calculate_min_variance_hedge_ratio(
         self,
-        long_prices: List[float],
-        hedge_prices: List[float]
-    ) -> Tuple[float, Dict]:
+        long_prices: list[float],
+        hedge_prices: list[float]
+    ) -> tuple[float, dict]:
         """
         Calculate minimum variance hedge ratio.
 
@@ -450,9 +451,9 @@ class HedgeRatioCalculator:
 
     def _calculate_equal_risk_hedge_ratio(
         self,
-        long_prices: List[float],
-        hedge_prices: List[float]
-    ) -> Tuple[float, Dict]:
+        long_prices: list[float],
+        hedge_prices: list[float]
+    ) -> tuple[float, dict]:
         """
         Calculate equal risk contribution hedge ratio.
 
@@ -485,9 +486,9 @@ class HedgeRatioCalculator:
 
     def _calculate_dollar_neutral_ratio(
         self,
-        long_prices: List[float],
-        hedge_prices: List[float]
-    ) -> Tuple[float, Dict]:
+        long_prices: list[float],
+        hedge_prices: list[float]
+    ) -> tuple[float, dict]:
         """
         Calculate dollar neutral hedge ratio.
 
@@ -510,7 +511,7 @@ class HedgeRatioCalculator:
             "hedge_price": hedge_price,
         }
 
-    def _calculate_returns(self, prices: List[float]) -> List[float]:
+    def _calculate_returns(self, prices: list[float]) -> list[float]:
         """Calculate simple returns from price series"""
         returns = []
         for i in range(1, len(prices)):
@@ -519,7 +520,7 @@ class HedgeRatioCalculator:
                 returns.append(ret)
         return returns
 
-    def _calculate_volatility(self, prices: List[float]) -> float:
+    def _calculate_volatility(self, prices: list[float]) -> float:
         """Calculate annualized volatility"""
         returns = self._calculate_returns(prices)
 
@@ -548,7 +549,7 @@ class HedgePortfolioService:
     def update_hedge_portfolio(
         self,
         pair: HedgePair
-    ) -> Optional[HedgePortfolio]:
+    ) -> HedgePortfolio | None:
         """
         Update hedge portfolio state for a given pair.
 
@@ -607,9 +608,9 @@ class HedgePortfolioService:
 
     def get_correlation_matrix(
         self,
-        asset_codes: List[str],
+        asset_codes: list[str],
         window_days: int = 60
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """Get correlation matrix for specified assets"""
         return self.correlation_monitor.calculate_correlation_matrix(
             asset_codes, window_days
@@ -618,7 +619,7 @@ class HedgePortfolioService:
     def check_hedge_effectiveness(
         self,
         pair: HedgePair
-    ) -> Dict:
+    ) -> dict:
         """
         Check effectiveness of a hedge pair.
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from io import StringIO
-import os
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
@@ -15,13 +15,16 @@ from apps.account.infrastructure.models import (
 )
 from apps.audit.infrastructure.models import ConfidenceConfigModel, IndicatorThresholdConfigModel
 from apps.decision_rhythm.infrastructure.models import DecisionModelParamConfigModel
-from apps.equity.infrastructure.models import StockInfoModel
-from apps.equity.infrastructure.models import ScoringWeightConfigModel
+from apps.equity.infrastructure.models import ScoringWeightConfigModel, StockInfoModel
 from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
 from apps.regime.infrastructure.models import RegimeThresholdConfig
-from apps.rotation.infrastructure.models import AssetClassModel, RotationConfigModel, RotationTemplateModel
+from apps.rotation.infrastructure.models import (
+    AssetClassModel,
+    RotationConfigModel,
+    RotationTemplateModel,
+)
 from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
 
 

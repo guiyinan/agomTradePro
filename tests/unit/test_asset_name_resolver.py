@@ -6,18 +6,20 @@ Asset Name Resolver - 资产名称解析服务测试
 """
 
 import os
-import django
 from datetime import datetime, timezone
+
+import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
 django.setup()
 
 from django.test import TestCase
+
 from shared.infrastructure.asset_name_resolver import (
     AssetNameResolver,
-    resolve_asset_names,
-    resolve_asset_name,
     enrich_with_asset_names,
+    resolve_asset_name,
+    resolve_asset_names,
 )
 
 

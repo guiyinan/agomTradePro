@@ -5,25 +5,26 @@ Application use cases for the factor module.
 Orchestrates domain services and infrastructure adapters.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Dict, List, Optional
 
+from apps.factor.application.dtos import (
+    FactorCalculationRequest,
+    FactorPortfolioRequest,
+    FactorPortfolioResponse,
+    FactorScoreResponse,
+)
 from apps.factor.domain.entities import (
     FactorPortfolioConfig,
-    FactorScore,
     FactorPortfolioHolding,
+    FactorScore,
 )
 from apps.factor.domain.services import (
     FactorCalculationContext,
     FactorEngine,
     ScoringService,
-)
-from apps.factor.application.dtos import (
-    FactorCalculationRequest,
-    FactorScoreResponse,
-    FactorPortfolioRequest,
-    FactorPortfolioResponse,
 )
 
 
@@ -31,12 +32,12 @@ from apps.factor.application.dtos import (
 class FactorUseCaseContext:
     """Context for use case execution"""
     trade_date: date
-    universe: List[str]
+    universe: list[str]
 
     # Repository accessors (injected)
-    get_factor_value: Callable[[str, str, date], Optional[float]]
-    get_stock_info: Callable[[str], Optional[Dict]]
-    get_factor_definitions: Callable[[], List]
+    get_factor_value: Callable[[str, str, date], float | None]
+    get_stock_info: Callable[[str], dict | None]
+    get_factor_definitions: Callable[[], list]
 
 
 class CalculateFactorScoresUseCase:
@@ -49,7 +50,7 @@ class CalculateFactorScoresUseCase:
     def __init__(self, context: FactorUseCaseContext):
         self.context = context
 
-    def execute(self, request: FactorCalculationRequest) -> List[FactorScoreResponse]:
+    def execute(self, request: FactorCalculationRequest) -> list[FactorScoreResponse]:
         """Execute factor score calculation"""
         # Get factor definitions
         factor_definitions = self.context.get_factor_definitions()
@@ -84,10 +85,10 @@ class CalculateFactorScoresUseCase:
             for score in scores
         ]
 
-    def _get_default_weights(self, factor_codes: List[str]) -> Dict[str, float]:
+    def _get_default_weights(self, factor_codes: list[str]) -> dict[str, float]:
         """Get default equal weights for factors"""
         n = len(factor_codes)
-        return {code: 1.0 / n for code in factor_codes}
+        return dict.fromkeys(factor_codes, 1.0 / n)
 
 
 class CreateFactorPortfolioUseCase:
@@ -154,9 +155,9 @@ class GetTopStocksUseCase:
 
     def execute(
         self,
-        factor_weights: Dict[str, float],
+        factor_weights: dict[str, float],
         top_n: int = 30
-    ) -> List[FactorScoreResponse]:
+    ) -> list[FactorScoreResponse]:
         """Execute top stocks query"""
         # Get factor definitions
         factor_definitions = self.context.get_factor_definitions()
@@ -198,36 +199,36 @@ class GetTopStocksUseCase:
 @dataclass
 class FactorListViewRequest:
     """Request for listing factor definitions"""
-    category: Optional[str] = None
-    is_active: Optional[bool] = None
-    search: Optional[str] = None
+    category: str | None = None
+    is_active: bool | None = None
+    search: str | None = None
 
 
 @dataclass
 class FactorListViewResponse:
     """Response for factor list view"""
-    factors: List[Any]
-    stats: Dict
-    categories: List[Dict]
-    category_choices: Dict
+    factors: list[Any]
+    stats: dict
+    categories: list[dict]
+    category_choices: dict
 
 
 @dataclass
 class PortfolioListViewRequest:
     """Request for listing portfolio configurations"""
-    is_active: Optional[bool] = None
-    search: Optional[str] = None
+    is_active: bool | None = None
+    search: str | None = None
 
 
 @dataclass
 class PortfolioListViewResponse:
     """Response for portfolio list view"""
-    configs: List[Any]
-    stats: Dict
-    factor_definitions: List[Any]
-    universe_choices: Dict
-    weight_method_choices: Dict
-    rebalance_choices: Dict
+    configs: list[Any]
+    stats: dict
+    factor_definitions: list[Any]
+    universe_choices: dict
+    weight_method_choices: dict
+    rebalance_choices: dict
 
 
 @dataclass
@@ -235,21 +236,21 @@ class FactorCalculateViewRequest:
     """Request for factor calculation view"""
     trade_date: date
     top_n: int = 30
-    config_id: Optional[int] = None
+    config_id: int | None = None
 
 
 @dataclass
 class FactorCalculateViewResponse:
     """Response for factor calculation view"""
-    configs: List[Any]
-    factors: List[Any]
-    factors_by_category: Dict
-    category_choices: Dict
-    selected_config: Optional[Any]
-    calculated_results: Optional[Dict]
+    configs: list[Any]
+    factors: list[Any]
+    factors_by_category: dict
+    category_choices: dict
+    selected_config: Any | None
+    calculated_results: dict | None
     trade_date: date
     top_n: int
-    config_id: Optional[int]
+    config_id: int | None
 
 
 @dataclass
@@ -261,21 +262,21 @@ class CreatePortfolioConfigRequest:
     top_n: int
     rebalance_frequency: str
     weight_method: str
-    factor_weights: Dict[str, float]
-    min_market_cap: Optional[float] = None
-    max_market_cap: Optional[float] = None
-    max_pe: Optional[float] = None
-    max_pb: Optional[float] = None
-    max_debt_ratio: Optional[float] = None
+    factor_weights: dict[str, float]
+    min_market_cap: float | None = None
+    max_market_cap: float | None = None
+    max_pe: float | None = None
+    max_pb: float | None = None
+    max_debt_ratio: float | None = None
 
 
 @dataclass
 class CreatePortfolioConfigResponse:
     """Response for creating portfolio configuration"""
     success: bool
-    config_id: Optional[int] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
+    config_id: int | None = None
+    message: str | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -297,10 +298,10 @@ class CalculateScoresRequest:
 class CalculateScoresResponse:
     """Response for calculating factor scores"""
     success: bool
-    total_scores: Optional[int] = None
-    scores: Optional[List[Dict]] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
+    total_scores: int | None = None
+    scores: list[dict] | None = None
+    message: str | None = None
+    error: str | None = None
 
 
 class GetFactorDefinitionsForViewUseCase:
@@ -311,8 +312,9 @@ class GetFactorDefinitionsForViewUseCase:
 
     def execute(self, request: FactorListViewRequest) -> FactorListViewResponse:
         """Get factor definitions with filters for the view"""
-        from apps.factor.infrastructure.models import FactorDefinitionModel
         from django.db.models import Count, Q
+
+        from apps.factor.infrastructure.models import FactorDefinitionModel
 
         # Base queryset
         queryset = FactorDefinitionModel._default_manager.all()
@@ -369,11 +371,12 @@ class GetPortfolioConfigsForViewUseCase:
 
     def execute(self, request: PortfolioListViewRequest) -> PortfolioListViewResponse:
         """Get portfolio configurations with filters for the view"""
-        from apps.factor.infrastructure.models import (
-            FactorPortfolioConfigModel,
-            FactorDefinitionModel,
-        )
         from django.db.models import Q
+
+        from apps.factor.infrastructure.models import (
+            FactorDefinitionModel,
+            FactorPortfolioConfigModel,
+        )
 
         # Base queryset
         queryset = FactorPortfolioConfigModel._default_manager.all()
@@ -454,8 +457,8 @@ class GetFactorCalculationDataUseCase:
     def execute(self, request: FactorCalculateViewRequest) -> FactorCalculateViewResponse:
         """Get calculation page data"""
         from apps.factor.infrastructure.models import (
-            FactorPortfolioConfigModel,
             FactorDefinitionModel,
+            FactorPortfolioConfigModel,
             FactorPortfolioHoldingModel,
         )
 
@@ -588,7 +591,7 @@ class UpdatePortfolioConfigUseCase:
         self.portfolio_repo = portfolio_repo
         self.integration_service = integration_service
 
-    def execute(self, request: PortfolioConfigActionRequest) -> Dict:
+    def execute(self, request: PortfolioConfigActionRequest) -> dict:
         """Execute portfolio config action"""
         from apps.factor.infrastructure.models import FactorPortfolioConfigModel
 

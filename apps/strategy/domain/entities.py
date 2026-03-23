@@ -10,8 +10,7 @@ Domain 层实体定义
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-from typing import List, Dict, Optional, Any
-
+from typing import Any, Dict, List, Optional
 
 # ========================================================================
 # 枚举类型
@@ -58,7 +57,7 @@ class RiskControlParams:
     """风控参数（值对象）"""
     max_position_pct: float = 20.0
     max_total_position_pct: float = 95.0
-    stop_loss_pct: Optional[float] = None
+    stop_loss_pct: float | None = None
 
     def __post_init__(self):
         """验证数据有效性"""
@@ -86,8 +85,8 @@ class ScriptConfig:
     """脚本配置（值对象）"""
     script_code: str
     script_language: str = "python"
-    allowed_modules: List[str] = field(default_factory=list)
-    sandbox_config: Dict[str, Any] = field(default_factory=dict)
+    allowed_modules: list[str] = field(default_factory=list)
+    sandbox_config: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """验证脚本语言"""
@@ -102,9 +101,9 @@ class AIConfig:
     confidence_threshold: float = 0.8
     temperature: float = 0.7
     max_tokens: int = 2000
-    prompt_template_id: Optional[int] = None
-    chain_config_id: Optional[int] = None
-    ai_provider_id: Optional[int] = None
+    prompt_template_id: int | None = None
+    chain_config_id: int | None = None
+    ai_provider_id: int | None = None
 
     def __post_init__(self):
         """验证参数"""
@@ -125,7 +124,7 @@ class AIConfig:
 @dataclass
 class Strategy:
     """策略实体"""
-    strategy_id: Optional[int]  # None 表示未持久化
+    strategy_id: int | None  # None 表示未持久化
     name: str
     strategy_type: StrategyType
     version: int
@@ -137,14 +136,14 @@ class Strategy:
     risk_params: RiskControlParams
 
     # 可选配置（根据策略类型）
-    rule_conditions: Optional[List['RuleCondition']] = None
-    script_config: Optional[ScriptConfig] = None
-    ai_config: Optional[AIConfig] = None
+    rule_conditions: list['RuleCondition'] | None = None
+    script_config: ScriptConfig | None = None
+    ai_config: AIConfig | None = None
 
     # 元数据
     description: str = ""
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def __post_init__(self):
         """验证数据一致性"""
@@ -165,27 +164,27 @@ class Strategy:
 @dataclass
 class RuleCondition:
     """规则条件实体"""
-    rule_id: Optional[int]  # None 表示未持久化
-    strategy_id: Optional[int]
+    rule_id: int | None  # None 表示未持久化
+    strategy_id: int | None
 
     # 规则标识
     rule_name: str
     rule_type: RuleType
 
     # 条件表达式（JSON格式）
-    condition_json: Dict[str, Any]
+    condition_json: dict[str, Any]
 
     # 触发动作
     action: ActionType
-    weight: Optional[float] = None
-    target_assets: List[str] = field(default_factory=list)
+    weight: float | None = None
+    target_assets: list[str] = field(default_factory=list)
 
     # 控制参数
     priority: int = 0
     is_enabled: bool = True
 
     # 元数据
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     def __post_init__(self):
         """验证数据"""
@@ -208,11 +207,11 @@ class SignalRecommendation:
     asset_code: str
     asset_name: str
     action: ActionType
-    weight: Optional[float] = None
-    quantity: Optional[int] = None
+    weight: float | None = None
+    quantity: int | None = None
     reason: str = ""
     confidence: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """验证数据"""
@@ -233,12 +232,12 @@ class StrategyExecutionResult:
     execution_duration_ms: int
 
     # 执行结果
-    signals: List[SignalRecommendation]
+    signals: list[SignalRecommendation]
     is_success: bool
     error_message: str = ""
 
     # 上下文信息
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """转换为字典（用于序列化）"""
@@ -332,14 +331,14 @@ class RiskSnapshot:
     # 市场状态
     current_regime: str
     regime_confidence: float
-    volatility_index: Optional[float] = None
+    volatility_index: float | None = None
 
     # 风控参数
     max_position_limit_pct: float = 20.0
     daily_loss_limit_pct: float = 5.0
     daily_trade_limit: int = 10
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             'total_equity': self.total_equity,
@@ -366,7 +365,7 @@ class SizingResult:
     sizing_method: str            # 计算方法
     sizing_explain: str           # 计算说明
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             'target_notional': self.target_notional,
@@ -381,12 +380,12 @@ class SizingResult:
 class DecisionResult:
     """决策结果（值对象）"""
     action: DecisionAction
-    reason_codes: List[str]
+    reason_codes: list[str]
     reason_text: str
-    valid_until: Optional[datetime] = None
+    valid_until: datetime | None = None
     confidence: float = 1.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             'action': self.action.value,
@@ -412,15 +411,15 @@ class OrderIntent:
     decision: DecisionResult              # 决策结果
     sizing: SizingResult                  # 仓位计算结果
     risk_snapshot: RiskSnapshot           # 风险快照
-    limit_price: Optional[float] = None   # 限价（None 表示市价单）
+    limit_price: float | None = None   # 限价（None 表示市价单）
     time_in_force: TimeInForce = TimeInForce.DAY
 
     # 元数据
     reason: str = ""                      # 下单原因
     idempotency_key: str = ""             # 幂等键
     status: OrderStatus = OrderStatus.DRAFT
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def __post_init__(self):
         """验证数据"""
@@ -437,7 +436,7 @@ class OrderIntent:
             # 默认使用 intent_id 作为幂等键
             object.__setattr__(self, 'idempotency_key', self.intent_id)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典（用于序列化）"""
         return {
             'intent_id': self.intent_id,

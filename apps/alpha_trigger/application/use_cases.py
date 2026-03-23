@@ -14,24 +14,24 @@ from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
+from apps.events.domain.entities import DomainEvent, EventType, create_event
+
 from ..domain.entities import (
-    AlphaTrigger,
     AlphaCandidate,
+    AlphaTrigger,
+    InvalidationCondition,
+    SignalStrength,
     TriggerConfig,
     TriggerStatus,
     TriggerType,
-    SignalStrength,
-    InvalidationCondition,
 )
 from ..domain.services import (
-    TriggerEvaluator,
-    TriggerInvalidator,
     CandidateGenerator,
     InvalidationCheckResult,
+    TriggerEvaluator,
+    TriggerInvalidator,
     calculate_strength,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
-
 
 logger = logging.getLogger(__name__)
 
@@ -63,14 +63,14 @@ class CreateTriggerRequest:
     asset_code: str
     asset_class: str
     direction: str
-    trigger_condition: Dict[str, Any]
-    invalidation_conditions: List[Dict[str, Any]]
+    trigger_condition: dict[str, Any]
+    invalidation_conditions: list[dict[str, Any]]
     confidence: float
     thesis: str = ""
-    expires_in_days: Optional[int] = None
-    related_regime: Optional[str] = None
-    related_policy_level: Optional[int] = None
-    source_signal_id: Optional[str] = None
+    expires_in_days: int | None = None
+    related_regime: str | None = None
+    related_policy_level: int | None = None
+    source_signal_id: str | None = None
 
 
 @dataclass
@@ -85,8 +85,8 @@ class CreateTriggerResponse:
     """
 
     success: bool
-    trigger: Optional[AlphaTrigger] = None
-    error: Optional[str] = None
+    trigger: AlphaTrigger | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -102,9 +102,9 @@ class CheckInvalidationRequest:
     """
 
     trigger_id: str
-    current_indicator_values: Dict[str, float]
-    current_regime: Optional[str] = None
-    triggered_at: Optional[datetime] = None
+    current_indicator_values: dict[str, float]
+    current_regime: str | None = None
+    triggered_at: datetime | None = None
 
 
 @dataclass
@@ -123,8 +123,8 @@ class CheckInvalidationResponse:
     success: bool
     is_invalidated: bool = False
     reason: str = ""
-    conditions_met: List[str] = field(default_factory=list)
-    error: Optional[str] = None
+    conditions_met: list[str] = field(default_factory=list)
+    error: str | None = None
 
 
 @dataclass
@@ -138,7 +138,7 @@ class EvaluateTriggerRequest:
     """
 
     trigger_id: str
-    current_data: Dict[str, Any]
+    current_data: dict[str, Any]
 
 
 @dataclass
@@ -156,7 +156,7 @@ class EvaluateTriggerResponse:
     success: bool
     should_trigger: bool = False
     reason: str = ""
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -185,8 +185,8 @@ class GenerateCandidateResponse:
     """
 
     success: bool
-    candidate: Optional[AlphaCandidate] = None
-    error: Optional[str] = None
+    candidate: AlphaCandidate | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -200,8 +200,8 @@ class GetActiveTriggersRequest:
         limit: 返回数量限制（可选）
     """
 
-    asset_code: Optional[str] = None
-    min_strength: Optional[SignalStrength] = None
+    asset_code: str | None = None
+    min_strength: SignalStrength | None = None
     limit: int = 100
 
 
@@ -217,8 +217,8 @@ class GetActiveTriggersResponse:
     """
 
     success: bool
-    triggers: List[AlphaTrigger] = field(default_factory=list)
-    error: Optional[str] = None
+    triggers: list[AlphaTrigger] = field(default_factory=list)
+    error: str | None = None
 
 
 # ========== Use Cases ==========
@@ -578,7 +578,7 @@ class EvaluateAlphaTriggerUseCase:
                 error=str(e),
             )
 
-    def _publish_triggered_event(self, trigger: AlphaTrigger, reason: str, current_data: Dict[str, Any]):
+    def _publish_triggered_event(self, trigger: AlphaTrigger, reason: str, current_data: dict[str, Any]):
         """发布触发事件"""
         if self.event_bus is None:
             return

@@ -2,11 +2,12 @@
 Signal page object for investment signal testing.
 """
 from typing import List
+
 from playwright.sync_api import Page, expect
 
-from tests.playwright.pages.base_page import BasePage
-from tests.playwright.config.test_config import config
 from tests.playwright.config.selectors import common
+from tests.playwright.config.test_config import config
+from tests.playwright.pages.base_page import BasePage
 
 
 class SignalPage(BasePage):
@@ -81,7 +82,7 @@ class SignalPage(BasePage):
         if index < len(buttons):
             buttons[index].click()
 
-    def get_signals(self) -> List[dict]:
+    def get_signals(self) -> list[dict]:
         """Get all signals from the list.
 
         Returns:

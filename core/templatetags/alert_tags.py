@@ -21,7 +21,7 @@ def render_alerts(alerts):
         return ''
 
     html = '<div class="global-alerts-container">'
-    
+
     for alert in alerts:
         alert_type = alert.get('type', 'info')
         icon = alert.get('icon', 'ℹ️')
@@ -30,7 +30,7 @@ def render_alerts(alerts):
         action_url = alert.get('action_url', '')
         action_text = alert.get('action_text', '查看')
         dismissible = alert.get('dismissible', True)
-        
+
         html += f'''
         <div class="alert alert-{alert_type}" data-dismissible="{str(dismissible).lower()}">
             <span class="alert-icon">{icon}</span>
@@ -39,21 +39,21 @@ def render_alerts(alerts):
                 <span>{message}</span>
             </div>
         '''
-        
+
         if action_url:
             html += f'''
             <a href="{action_url}" class="alert-action">{action_text}</a>
             '''
-        
+
         if dismissible:
             html += '''
             <button class="alert-close" onclick="dismissAlert(this)">&times;</button>
             '''
-        
+
         html += '</div>'
-    
+
     html += '</div>'
-    
+
     return mark_safe(html)
 
 

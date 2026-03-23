@@ -5,6 +5,7 @@ DRF序列化器定义。
 """
 
 from rest_framework import serializers
+
 from ..infrastructure.models import TerminalCommandORM
 
 

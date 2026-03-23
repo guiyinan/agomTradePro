@@ -6,70 +6,72 @@
 - 禁止业务逻辑
 - 包含 API 视图（DRF）
 """
-from typing import Optional
 from datetime import date, datetime
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
-from django.views.decorators.http import require_http_methods
-from django.http import Http404
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError as DjangoValidationError
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
+from typing import Optional
 
-from apps.simulated_trading.application.use_cases import (
-    CreateSimulatedAccountUseCase,
-    GetAccountPerformanceUseCase,
-    ExecuteBuyOrderUseCase,
-    ExecuteSellOrderUseCase,
-    ListAccountsUseCase,
-)
-from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
-from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
-from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
-from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
-    DjangoPositionRepository,
-    DjangoTradeRepository,
-    DjangoFeeConfigRepository,
-)
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
-from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_http_methods
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
+from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
+from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
+from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.simulated_trading.application.use_cases import (
+    CreateSimulatedAccountUseCase,
+    ExecuteBuyOrderUseCase,
+    ExecuteSellOrderUseCase,
+    GetAccountPerformanceUseCase,
+    ListAccountsUseCase,
+)
+from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
+from apps.simulated_trading.infrastructure.models import (
+    DailyInspectionNotificationConfigModel,
+    DailyInspectionReportModel,
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
+)
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoFeeConfigRepository,
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
+    DjangoTradeRepository,
+)
+
 from .serializers import (
-    CreateAccountRequestSerializer,
-    AccountResponseSerializer,
-    AccountListResponseSerializer,
-    AccountDeleteResponseSerializer,
     AccountBatchDeleteRequestSerializer,
     AccountBatchDeleteResponseSerializer,
-    PositionResponseSerializer,
-    PositionListResponseSerializer,
-    TradeListRequestSerializer,
-    TradeResponseSerializer,
-    TradeListResponseSerializer,
-    PerformanceResponseSerializer,
-    FeeConfigResponseSerializer,
-    FeeConfigListResponseSerializer,
-    ManualTradeRequestSerializer,
-    ManualTradeResponseSerializer,
-    EquityCurveRequestSerializer,
-    EquityCurveResponseSerializer,
+    AccountDeleteResponseSerializer,
+    AccountListResponseSerializer,
+    AccountResponseSerializer,
     AutoTradingRunRequestSerializer,
     AutoTradingRunResponseSerializer,
-    DailyInspectionRunRequestSerializer,
+    CreateAccountRequestSerializer,
     DailyInspectionReportListResponseSerializer,
-)
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    DailyInspectionReportModel,
-    DailyInspectionNotificationConfigModel,
+    DailyInspectionRunRequestSerializer,
+    EquityCurveRequestSerializer,
+    EquityCurveResponseSerializer,
+    FeeConfigListResponseSerializer,
+    FeeConfigResponseSerializer,
+    ManualTradeRequestSerializer,
+    ManualTradeResponseSerializer,
+    PerformanceResponseSerializer,
+    PositionListResponseSerializer,
+    PositionResponseSerializer,
+    TradeListRequestSerializer,
+    TradeListResponseSerializer,
+    TradeResponseSerializer,
 )
 
 
@@ -136,8 +138,9 @@ def my_accounts_page(request):
     GET /simulated-trading/my-accounts/
     POST /simulated-trading/my-accounts/
     """
-    from django.contrib import messages
     from decimal import Decimal
+
+    from django.contrib import messages
 
     if request.method == "POST":
         # 创建新的投资组合

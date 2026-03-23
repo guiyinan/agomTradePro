@@ -33,13 +33,13 @@ class IndicatorDefinition:
     name: str                     # 中文名称
     category: IndicatorCategory   # 类别
     unit: str                     # 单位
-    aliases: List[str]            # 别名（用于解析自然语言）
-    suggested_threshold: Optional[float] = None  # 建议阈值
+    aliases: list[str]            # 别名（用于解析自然语言）
+    suggested_threshold: float | None = None  # 建议阈值
 
 
 # 指标注册表
 # 所有指标定义的单一事实来源
-INDICATOR_REGISTRY: Dict[str, IndicatorDefinition] = {
+INDICATOR_REGISTRY: dict[str, IndicatorDefinition] = {
     # ==================== 增长指标 ====================
     "CN_PMI_MANUFACTURING": IndicatorDefinition(
         code="CN_PMI_MANUFACTURING",
@@ -180,7 +180,7 @@ INDICATOR_REGISTRY: Dict[str, IndicatorDefinition] = {
 
 # ==================== 公共函数 ====================
 
-def get_indicator(code: str) -> Optional[IndicatorDefinition]:
+def get_indicator(code: str) -> IndicatorDefinition | None:
     """获取指标定义
 
     Args:
@@ -192,7 +192,7 @@ def get_indicator(code: str) -> Optional[IndicatorDefinition]:
     return INDICATOR_REGISTRY.get(code)
 
 
-def find_indicator_by_alias(alias: str) -> Optional[IndicatorDefinition]:
+def find_indicator_by_alias(alias: str) -> IndicatorDefinition | None:
     """通过别名查找指标
 
     支持模糊匹配，用于解析自然语言输入。
@@ -233,7 +233,7 @@ def find_indicator_by_alias(alias: str) -> Optional[IndicatorDefinition]:
     return best_match
 
 
-def get_all_indicators() -> List[IndicatorDefinition]:
+def get_all_indicators() -> list[IndicatorDefinition]:
     """获取所有指标
 
     Returns:
@@ -242,7 +242,7 @@ def get_all_indicators() -> List[IndicatorDefinition]:
     return list(INDICATOR_REGISTRY.values())
 
 
-def get_indicators_by_category(category: IndicatorCategory) -> List[IndicatorDefinition]:
+def get_indicators_by_category(category: IndicatorCategory) -> list[IndicatorDefinition]:
     """按类别获取指标
 
     Args:

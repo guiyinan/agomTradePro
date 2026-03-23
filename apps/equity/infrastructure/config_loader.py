@@ -10,14 +10,13 @@ from typing import Optional
 
 from django.core.cache import cache
 
-from shared.infrastructure.models import StockScreeningRuleConfigModel
 from apps.equity.domain.rules import StockScreeningRule
-
+from shared.infrastructure.models import StockScreeningRuleConfigModel
 
 logger = logging.getLogger(__name__)
 
 
-def get_stock_screening_rule(regime: str) -> Optional[StockScreeningRule]:
+def get_stock_screening_rule(regime: str) -> StockScreeningRule | None:
     """
     获取个股筛选规则（带缓存）
 

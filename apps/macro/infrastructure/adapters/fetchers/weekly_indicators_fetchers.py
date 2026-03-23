@@ -11,13 +11,14 @@ Weekly Indicators Data Fetchers（Regime 滞后性改进 Phase 2）
 参考文档: docs/development/regime-lag-improvement-plan.md
 """
 
-import pandas as pd
-from datetime import date, timedelta
-from typing import List, Optional, Dict
 import logging
 import re
+from datetime import date, timedelta
+from typing import Dict, List, Optional
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class WeeklyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取发电量数据
 
         发电量是实时工业活动的重要指标。
@@ -124,7 +125,7 @@ class WeeklyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取高炉开工率数据（使用钢铁指数作为替代）
 
         由于高炉开工率需要商业数据源（Mysteel），这里使用钢铁行业指数（000819）
@@ -190,7 +191,7 @@ class WeeklyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国出口集装箱运价指数(CCFI)
 
         由于 CCFI 需要商业数据源授权，这里使用 BDI（波罗的海干散货指数）
@@ -258,7 +259,7 @@ class WeeklyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取上海出口集装箱运价指数(SCFI)
 
         由于 SCFI 需要商业数据源授权，这里使用 BCI（波罗的海海岬型船运价指数）

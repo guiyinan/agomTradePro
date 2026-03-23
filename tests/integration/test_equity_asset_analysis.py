@@ -4,26 +4,27 @@ Equity 模块集成测试（通用资产分析框架）
 测试 Equity 模块与 asset_analysis 模块的集成。
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
 
-from apps.equity.domain.entities import (
-    StockInfo,
-    EquityAssetScore,
-    ValuationMetrics,
-    FinancialData,
-    TechnicalIndicators,
-)
-from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
-from apps.equity.application.services import EquityMultiDimScorer
+import pytest
+
 from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.equity.application.services import EquityMultiDimScorer
+from apps.equity.domain.entities import (
+    EquityAssetScore,
+    FinancialData,
+    StockInfo,
+    TechnicalIndicators,
+    ValuationMetrics,
+)
 from apps.equity.infrastructure.models import (
-    StockInfoModel,
-    StockDailyModel,
     FinancialDataModel,
+    StockDailyModel,
+    StockInfoModel,
     ValuationModel,
 )
+from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
 
 
 @pytest.fixture

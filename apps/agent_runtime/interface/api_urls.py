@@ -5,13 +5,13 @@ FROZEN: Routes must not change.
 See: docs/plans/ai-native/implementation-contract.md
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.agent_runtime.interface.views import (
-    AgentTaskViewSet,
-    AgentTaskHealthViewSet,
     AgentProposalViewSet,
+    AgentTaskHealthViewSet,
+    AgentTaskViewSet,
     ContextSnapshotViewSet,
     OperatorDashboardViewSet,
 )

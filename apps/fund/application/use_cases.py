@@ -8,22 +8,22 @@
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Dict, List, Optional
 
-from ..domain.entities import FundInfo, FundPerformance, FundSectorAllocation, FundScore
-from ..domain.services import FundScreener, FundStyleAnalyzer, FundPerformanceCalculator
+from ..domain.entities import FundInfo, FundPerformance, FundScore, FundSectorAllocation
+from ..domain.services import FundPerformanceCalculator, FundScreener, FundStyleAnalyzer
 from ..infrastructure.repositories import DjangoFundRepository
 
 
 @dataclass
 class ScreenFundsRequest:
     """筛选基金请求"""
-    regime: Optional[str] = None  # 如果为 None，自动获取最新 Regime
-    custom_types: Optional[List[str]] = None  # 自定义基金类型
-    custom_styles: Optional[List[str]] = None  # 自定义投资风格
-    min_scale: Optional[Decimal] = None  # 最低规模
+    regime: str | None = None  # 如果为 None，自动获取最新 Regime
+    custom_types: list[str] | None = None  # 自定义基金类型
+    custom_styles: list[str] | None = None  # 自定义投资风格
+    min_scale: Decimal | None = None  # 最低规模
     max_count: int = 30
 
 
@@ -32,17 +32,17 @@ class ScreenFundsResponse:
     """筛选基金响应"""
     success: bool
     regime: str
-    fund_codes: List[str]
-    fund_names: List[str]  # 对应的基金名称
+    fund_codes: list[str]
+    fund_names: list[str]  # 对应的基金名称
     screening_criteria: dict
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
 class AnalyzeFundStyleRequest:
     """分析基金风格请求"""
     fund_code: str
-    report_date: Optional[date] = None
+    report_date: date | None = None
 
 
 @dataclass
@@ -51,9 +51,9 @@ class AnalyzeFundStyleResponse:
     success: bool
     fund_code: str
     fund_name: str
-    style_weights: Dict[str, float]  # {风格: 权重}
-    sector_concentration: Dict[str, float]  # {指标: 值}
-    error: Optional[str] = None
+    style_weights: dict[str, float]  # {风格: 权重}
+    sector_concentration: dict[str, float]  # {指标: 值}
+    error: str | None = None
 
 
 @dataclass
@@ -70,8 +70,8 @@ class CalculateFundPerformanceResponse:
     success: bool
     fund_code: str
     fund_name: str
-    performance: Optional[FundPerformance] = None
-    error: Optional[str] = None
+    performance: FundPerformance | None = None
+    error: str | None = None
 
 
 class ScreenFundsUseCase:
@@ -182,7 +182,7 @@ class RankFundsUseCase:
         self,
         regime: str,
         max_count: int = 50
-    ) -> List[FundScore]:
+    ) -> list[FundScore]:
         """
         执行基金排名
 
@@ -204,7 +204,7 @@ class RankFundsUseCase:
 
         # 将类型偏好转换为权重字典
         preferred_types = get_fund_type_preferences(regime)
-        regime_weights = {fund_type: 1.0 for fund_type in preferred_types}
+        regime_weights = dict.fromkeys(preferred_types, 1.0)
 
         # 3. 排名（调用 Domain 服务）
         fund_scores = self.screener.rank_funds(
@@ -409,7 +409,7 @@ class SyncFundDataUseCase:
         """初始化用例"""
         self.fund_repo = fund_repository
 
-    def sync_fund_list(self) -> Dict[str, int]:
+    def sync_fund_list(self) -> dict[str, int]:
         """
         同步基金列表
 
@@ -424,7 +424,7 @@ class SyncFundDataUseCase:
         fund_code: str,
         start_date: str,
         end_date: str
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
         同步单个基金净值
 

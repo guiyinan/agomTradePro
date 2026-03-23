@@ -4,8 +4,8 @@ Pandas-based Trend Calculators.
 Infrastructure layer implementation using Pandas for performance.
 """
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from statsmodels.tsa.filters.hp_filter import hpfilter
 
 from ..domain.interfaces import TrendCalculatorProtocol, TrendResult

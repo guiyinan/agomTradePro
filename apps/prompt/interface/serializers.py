@@ -5,8 +5,12 @@ Django Rest Framework serializers for request/response validation.
 """
 
 from rest_framework import serializers
+
 from ..infrastructure.models import (
-    PromptTemplateORM, ChainConfigORM, PromptExecutionLogORM, ChatSessionORM
+    ChainConfigORM,
+    ChatSessionORM,
+    PromptExecutionLogORM,
+    PromptTemplateORM,
 )
 
 
@@ -68,7 +72,12 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
     def create(self, validated_data):
         """创建模板"""
         # 从域服务创建
-        from ..domain.entities import PromptTemplate, PlaceholderDef, PlaceholderType, PromptCategory
+        from ..domain.entities import (
+            PlaceholderDef,
+            PlaceholderType,
+            PromptCategory,
+            PromptTemplate,
+        )
 
         placeholders_data = validated_data.pop('placeholders', [])
 
@@ -158,7 +167,7 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
 
     def create(self, validated_data):
         """创建链配置"""
-        from ..domain.entities import ChainConfig, ChainStep, PromptCategory, ChainExecutionMode
+        from ..domain.entities import ChainConfig, ChainExecutionMode, ChainStep, PromptCategory
 
         steps_data = validated_data.pop('steps')
         aggregate_data = validated_data.pop('aggregate_step', None)

@@ -6,20 +6,19 @@ Domain 层服务
 - 不依赖 Django 或其他外部库
 - 实现纯算法和业务规则
 """
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
 from apps.strategy.domain.entities import (
-    OrderStatus,
     OrderEvent,
+    OrderStatus,
 )
-
 
 # ========================================================================
 # 订单状态机
 # ========================================================================
 
 # 状态转换表：(当前状态, 事件) -> 新状态
-_ORDER_TRANSITIONS: Dict[Tuple[OrderStatus, OrderEvent], OrderStatus] = {
+_ORDER_TRANSITIONS: dict[tuple[OrderStatus, OrderEvent], OrderStatus] = {
     # DRAFT 状态的转换
     (OrderStatus.DRAFT, OrderEvent.SUBMIT): OrderStatus.PENDING_APPROVAL,
 
@@ -128,7 +127,7 @@ class OrderStateMachine:
         ]
 
     @classmethod
-    def validate_transition_path(cls, path: list[Tuple[OrderStatus, OrderEvent]]) -> bool:
+    def validate_transition_path(cls, path: list[tuple[OrderStatus, OrderEvent]]) -> bool:
         """
         验证状态转换路径是否有效
 
@@ -226,9 +225,9 @@ class DecisionPolicyEngine:
         regime_confidence: float,
         daily_pnl_pct: float,
         daily_trade_count: int,
-        volatility_z: Optional[float] = None,
-        target_regime: Optional[str] = None,
-    ) -> Tuple[str, list[str], str, Optional[float]]:
+        volatility_z: float | None = None,
+        target_regime: str | None = None,
+    ) -> tuple[str, list[str], str, float | None]:
         """
         评估是否应该执行交易
 
@@ -250,7 +249,8 @@ class DecisionPolicyEngine:
             - reason_text: 人类可读的原因描述
             - valid_until: 决策有效期（秒）
         """
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         from apps.strategy.domain.entities import DecisionAction
 
         reason_codes: list[str] = []
@@ -381,11 +381,11 @@ class SizingEngine:
         method: str,
         account_equity: float,
         current_price: float,
-        stop_loss_price: Optional[float] = None,
-        atr: Optional[float] = None,
+        stop_loss_price: float | None = None,
+        atr: float | None = None,
         current_position_value: float = 0.0,
         atr_risk_multiplier: float = 2.0,
-    ) -> Tuple[float, int, float, str, str]:
+    ) -> tuple[float, int, float, str, str]:
         """
         计算仓位
 
@@ -419,8 +419,8 @@ class SizingEngine:
         self,
         account_equity: float,
         current_price: float,
-        stop_loss_price: Optional[float],
-    ) -> Tuple[float, int, float, str, str]:
+        stop_loss_price: float | None,
+    ) -> tuple[float, int, float, str, str]:
         """
         固定风险比例仓位计算
 
@@ -472,9 +472,9 @@ class SizingEngine:
         self,
         account_equity: float,
         current_price: float,
-        atr: Optional[float],
+        atr: float | None,
         atr_risk_multiplier: float = 2.0,
-    ) -> Tuple[float, int, float, str, str]:
+    ) -> tuple[float, int, float, str, str]:
         """
         基于 ATR 的风险仓位计算
 
@@ -562,8 +562,8 @@ class PreTradeRiskGate:
         current_position_value: float,
         daily_trade_count: int,
         daily_pnl_pct: float,
-        avg_volume: Optional[float] = None,
-    ) -> Tuple[bool, list[str], list[str], dict]:
+        avg_volume: float | None = None,
+    ) -> tuple[bool, list[str], list[str], dict]:
         """
         执行风控检查
 

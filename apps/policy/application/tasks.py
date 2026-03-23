@@ -6,25 +6,25 @@ Application Layer - Celery Tasks for Policy Management
 
 import logging
 from datetime import date, timedelta
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
-from django.db.models import Count, Q
 from django.db import DatabaseError, IntegrityError
+from django.db.models import Count, Q
 from django.utils import timezone
 
-from ..domain.entities import PolicyLevel, PolicyEvent
-from ..infrastructure.repositories import DjangoPolicyRepository
-from ..infrastructure.notification_service import NotificationServiceFactory
-from .use_cases import GetPolicyStatusUseCase
-
 from core.exceptions import (
-    ExternalServiceError,
-    DataFetchError,
     BusinessLogicError,
+    DataFetchError,
+    ExternalServiceError,
 )
 from core.metrics import record_exception
+
+from ..domain.entities import PolicyEvent, PolicyLevel
+from ..infrastructure.notification_service import NotificationServiceFactory
+from ..infrastructure.repositories import DjangoPolicyRepository
+from .use_cases import GetPolicyStatusUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def _get_notification_service():
     time_limit=600,
     soft_time_limit=570,
 )
-def check_policy_status_alert(self, as_of_date_str: Optional[str] = None):
+def check_policy_status_alert(self, as_of_date_str: str | None = None):
     """
     定时检查政策状态并发送告警（如需要）
 
@@ -180,8 +180,9 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
         days_to_keep: 保留天数（默认 365 天）
     """
     try:
-        from ..infrastructure.models import PolicyLog
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyLog
 
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
@@ -272,7 +273,7 @@ def _send_transition_summary(changes: list):
     time_limit=600,
     soft_time_limit=570,
 )
-def fetch_rss_sources(self, source_id: Optional[int] = None):
+def fetch_rss_sources(self, source_id: int | None = None):
     """
     定时抓取RSS源（增强版 - 集成AI分类）
 
@@ -281,9 +282,9 @@ def fetch_rss_sources(self, source_id: Optional[int] = None):
     Args:
         source_id: 指定源ID，None表示抓取所有启用的源
     """
-    from .use_cases import FetchRSSUseCase, FetchRSSInput
-    from ..infrastructure.repositories import RSSRepository
     from ..infrastructure.adapters.ai_policy_classifier import create_ai_policy_classifier
+    from ..infrastructure.repositories import RSSRepository
+    from .use_cases import FetchRSSInput, FetchRSSUseCase
 
     try:
         rss_repo = RSSRepository()
@@ -379,9 +380,10 @@ def auto_assign_pending_audits(max_per_user: int = 10):
         max_per_user: 每个用户最多分配数量
     """
     try:
-        from ..infrastructure.models import PolicyAuditQueue
         from django.contrib.auth.models import User
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyAuditQueue
 
         # 获取所有待审核且未分配的政策
         unassigned = PolicyAuditQueue._default_manager.filter(
@@ -446,8 +448,9 @@ def cleanup_old_audit_queues(days_to_keep: int = 30):
         days_to_keep: 保留天数
     """
     try:
-        from ..infrastructure.models import PolicyAuditQueue
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyAuditQueue
 
         cutoff_date = timezone.now() - timedelta(days=days_to_keep)
 
@@ -473,8 +476,9 @@ def generate_daily_policy_summary():
     汇总当天的政策状态，包括AI分类统计
     """
     try:
-        from ..infrastructure.models import PolicyLog, PolicyAuditQueue
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyAuditQueue, PolicyLog
 
         today = timezone.now().date()
 
@@ -556,9 +560,12 @@ def trigger_signal_reevaluation(
         dict: 重评结果
     """
     try:
-        from apps.signal.infrastructure.repositories import DjangoSignalRepository
-        from apps.signal.application.use_cases import ReevaluateSignalsUseCase, ReevaluateSignalsRequest
         from apps.regime.application.current_regime import resolve_current_regime
+        from apps.signal.application.use_cases import (
+            ReevaluateSignalsRequest,
+            ReevaluateSignalsUseCase,
+        )
+        from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
         logger.info(
             f"Starting signal reevaluation for policy level P{new_level}, "
@@ -632,9 +639,10 @@ def monitor_sla_exceeded_task():
     该任务应由 Celery Beat 定时调用（如每 10 分钟一次）
     """
     try:
-        from ..infrastructure.repositories import WorkbenchRepository
-        from ..infrastructure.models import PolicyLog, PolicyIngestionConfig
         from django.utils import timezone
+
+        from ..infrastructure.models import PolicyIngestionConfig, PolicyLog
+        from ..infrastructure.repositories import WorkbenchRepository
 
         workbench_repo = WorkbenchRepository()
         config = workbench_repo.get_ingestion_config()
@@ -691,10 +699,11 @@ def refresh_gate_constraints_task():
     该任务应由 Celery Beat 定时调用（如每 5 分钟一次）
     """
     try:
-        from ..infrastructure.repositories import WorkbenchRepository
+        from django.db.models import Avg
+
         from ..domain.rules import calculate_gate_level
         from ..infrastructure.models import PolicyLog, SentimentGateConfig
-        from django.db.models import Avg
+        from ..infrastructure.repositories import WorkbenchRepository
 
         workbench_repo = WorkbenchRepository()
 

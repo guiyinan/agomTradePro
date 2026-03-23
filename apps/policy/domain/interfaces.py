@@ -4,9 +4,9 @@ Domain Layer - Protocol Interfaces for Policy
 本文件定义Policy模块的Protocol接口，用于依赖注入和解耦。
 """
 
-from typing import Protocol, List, Optional
-from .entities import RSSItem, AIClassificationResult
-from .entities import PolicyLevel, PolicyEvent
+from typing import List, Optional, Protocol
+
+from .entities import AIClassificationResult, PolicyEvent, PolicyLevel, RSSItem
 
 
 class NotificationChannel:
@@ -22,7 +22,7 @@ class NotificationMessage:
     content: str
     channel: str
     priority: str  # low, normal, high, critical
-    recipients: List[str]
+    recipients: list[str]
     metadata: dict
 
     def __init__(
@@ -31,8 +31,8 @@ class NotificationMessage:
         content: str,
         channel: str = NotificationChannel.IN_APP,
         priority: str = "normal",
-        recipients: Optional[List[str]] = None,
-        metadata: Optional[dict] = None
+        recipients: list[str] | None = None,
+        metadata: dict | None = None
     ):
         self.title = title
         self.content = content
@@ -60,7 +60,7 @@ class NotificationServicePort(Protocol):
         """
         ...
 
-    def send_batch(self, messages: List[NotificationMessage]) -> dict:
+    def send_batch(self, messages: list[NotificationMessage]) -> dict:
         """批量发送通知
 
         Args:
@@ -96,7 +96,7 @@ class PolicyAlertServicePort(Protocol):
         """
         ...
 
-    def send_transition_summary(self, changes: List[dict]) -> bool:
+    def send_transition_summary(self, changes: list[dict]) -> bool:
         """发送档位变更摘要
 
         Args:
@@ -126,7 +126,7 @@ class PolicyClassifierProtocol(Protocol):
     def classify_rss_item(
         self,
         item: RSSItem,
-        content: Optional[str] = None
+        content: str | None = None
     ) -> AIClassificationResult:
         """
         对RSS条目进行AI分类和结构化提取
@@ -142,8 +142,8 @@ class PolicyClassifierProtocol(Protocol):
 
     def batch_classify(
         self,
-        items: List[tuple[RSSItem, Optional[str]]]
-    ) -> List[AIClassificationResult]:
+        items: list[tuple[RSSItem, str | None]]
+    ) -> list[AIClassificationResult]:
         """
         批量分类
 

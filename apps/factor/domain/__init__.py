@@ -5,10 +5,10 @@ from apps.factor.domain.entities import (
     FactorDefinition,
     FactorDirection,
     FactorExposure,
+    FactorPerformance,
     FactorPortfolioConfig,
     FactorPortfolioHolding,
     FactorScore,
-    FactorPerformance,
 )
 
 __all__ = [

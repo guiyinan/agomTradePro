@@ -7,16 +7,17 @@ Integration Tests for Backtest Execution
 3. 性能指标计算
 """
 
-import pytest
 from datetime import date, timedelta
 from unittest.mock import Mock
 
+import pytest
+
+from apps.backtest.application.use_cases import RunBacktestRequest, RunBacktestUseCase
 from apps.backtest.domain.entities import BacktestConfig, BacktestResult, BacktestStatus, Trade
 from apps.backtest.domain.services import BacktestEngine
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.backtest.application.use_cases import RunBacktestUseCase, RunBacktestRequest
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.domain.entities import RegimeSnapshot
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 
 
 @pytest.mark.django_db
@@ -501,8 +502,8 @@ class TestBacktestAuditIntegration:
         2. 审计状态在响应中正确反映
         3. 审计失败不影响回测结果
         """
-        from apps.audit.infrastructure.repositories import DjangoAuditRepository
         from apps.audit.infrastructure.models import AttributionReport
+        from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
         base_date = date(2022, 1, 1)
 
@@ -575,7 +576,8 @@ class TestBacktestAuditIntegration:
         2. 当审计失败时，响应包含 audit_error 错误信息
         3. 审计失败不影响回测结果本身
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
+
         from apps.audit.application.use_cases import GenerateAttributionReportResponse
 
         base_date = date(2022, 1, 1)
@@ -645,7 +647,10 @@ class TestBacktestAuditIntegration:
         3. 审计异常不影响回测结果本身
         """
         from unittest.mock import patch
-        from apps.audit.application.use_cases import GenerateAttributionReportUseCase as OriginalAuditUC
+
+        from apps.audit.application.use_cases import (
+            GenerateAttributionReportUseCase as OriginalAuditUC,
+        )
 
         base_date = date(2022, 1, 1)
 

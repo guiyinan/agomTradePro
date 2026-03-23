@@ -6,16 +6,20 @@ Application layer orchestrating filter workflows.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 from ..domain.entities import (
-    FilterType, FilterSeries, FilterResult,
-    HPFilterParams, KalmanFilterParams, KalmanFilterState
+    FilterResult,
+    FilterSeries,
+    FilterType,
+    HPFilterParams,
+    KalmanFilterParams,
+    KalmanFilterState,
 )
 from ..infrastructure.repositories import (
     DjangoFilterRepository,
     HPFilterAdapter,
-    KalmanFilterAdapter
+    KalmanFilterAdapter,
 )
 
 
@@ -24,8 +28,8 @@ class ApplyFilterRequest:
     """应用滤波器的请求 DTO"""
     indicator_code: str  # 指标代码 (e.g., "PMI", "CPI")
     filter_type: FilterType  # 滤波器类型
-    start_date: Optional[date] = None  # 开始日期
-    end_date: Optional[date] = None  # 结束日期
+    start_date: date | None = None  # 开始日期
+    end_date: date | None = None  # 结束日期
     limit: int = 200  # 最大数据点数
     save_results: bool = True  # 是否保存结果
 
@@ -34,9 +38,9 @@ class ApplyFilterRequest:
 class ApplyFilterResponse:
     """应用滤波器的响应 DTO"""
     success: bool
-    series: Optional[FilterSeries] = None
-    error: Optional[str] = None
-    warnings: List[str] = None
+    series: FilterSeries | None = None
+    error: str | None = None
+    warnings: list[str] = None
 
     def __post_init__(self):
         if self.warnings is None:
@@ -48,29 +52,29 @@ class GetFilterDataRequest:
     """获取滤波数据的请求"""
     indicator_code: str
     filter_type: FilterType
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 @dataclass
 class GetFilterDataResponse:
     """获取滤波数据的响应"""
     success: bool
-    results: List[FilterResult] = None
-    error: Optional[str] = None
+    results: list[FilterResult] = None
+    error: str | None = None
     # 可序列化的数据
-    dates: List[str] = None
-    original_values: List[float] = None
-    filtered_values: List[float] = None
-    slopes: List[Optional[float]] = None
+    dates: list[str] = None
+    original_values: list[float] = None
+    filtered_values: list[float] = None
+    slopes: list[float | None] = None
 
 
 @dataclass
 class CompareFiltersRequest:
     """对比滤波器的请求"""
     indicator_code: str
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
     limit: int = 200
 
 
@@ -78,9 +82,9 @@ class CompareFiltersRequest:
 class CompareFiltersResponse:
     """对比滤波器的响应"""
     success: bool
-    hp_results: Optional[Dict] = None
-    kalman_results: Optional[Dict] = None
-    error: Optional[str] = None
+    hp_results: dict | None = None
+    kalman_results: dict | None = None
+    error: str | None = None
 
 
 class ApplyFilterUseCase:
@@ -171,9 +175,9 @@ class ApplyFilterUseCase:
     def _apply_hp_filter(
         self,
         indicator_code: str,
-        dates: List[date],
-        values: List[float],
-        config: Dict
+        dates: list[date],
+        values: list[float],
+        config: dict
     ) -> FilterSeries:
         """应用 HP 滤波"""
         adapter = HPFilterAdapter()
@@ -203,9 +207,9 @@ class ApplyFilterUseCase:
     def _apply_kalman_filter(
         self,
         indicator_code: str,
-        dates: List[date],
-        values: List[float],
-        config: Dict
+        dates: list[date],
+        values: list[float],
+        config: dict
     ) -> FilterSeries:
         """应用 Kalman 滤波"""
         # 获取保存的状态（用于增量更新）
@@ -351,7 +355,7 @@ class CompareFiltersUseCase:
                 error=str(e)
             )
 
-    def _serialize_series(self, series: FilterSeries) -> Dict:
+    def _serialize_series(self, series: FilterSeries) -> dict:
         """序列化滤波序列为字典"""
         return {
             'indicator_code': series.indicator_code,

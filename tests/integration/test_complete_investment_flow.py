@@ -18,6 +18,7 @@ import os
 import sys
 from datetime import date
 from typing import Optional
+
 import pytest
 
 # Add project root to path
@@ -66,8 +67,8 @@ def test_complete_investment_flow() -> None:
     print("INTEGRATION TEST: Complete Investment Flow")
     print("="*60)
 
-    client: Optional[AgomTradeProClient] = None
-    signal_id: Optional[int] = None
+    client: AgomTradeProClient | None = None
+    signal_id: int | None = None
 
     try:
         # ====================================================================
@@ -155,7 +156,7 @@ def test_complete_investment_flow() -> None:
         print(f"  Existing signals: {len(signals_before)}")
 
         if signals_before:
-            print(f"  Most recent signal:")
+            print("  Most recent signal:")
             print(f"    Asset: {signals_before[0].asset_code}")
             print(f"    Logic: {signals_before[0].logic_desc[:50]}...")
 
@@ -203,7 +204,7 @@ def test_complete_investment_flow() -> None:
                 break
 
         if found_signal:
-            print(f"  Signal found in list")
+            print("  Signal found in list")
             print(f"  Asset: {found_signal.asset_code}")
             print(f"  Logic: {found_signal.logic_desc}")
 

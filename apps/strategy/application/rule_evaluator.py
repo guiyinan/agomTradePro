@@ -8,8 +8,8 @@
 - 纯业务逻辑，无外部依赖
 """
 import logging
-from typing import Dict, Any, List, Optional
 from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 from apps.strategy.domain.entities import RuleCondition, RuleType
 from apps.strategy.domain.protocols import RuleEvaluatorProtocol
@@ -25,7 +25,7 @@ class BaseEvaluator(ABC):
     """评估器基类"""
 
     @abstractmethod
-    def evaluate(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def evaluate(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """
         评估条件是否满足
 
@@ -38,7 +38,7 @@ class BaseEvaluator(ABC):
         """
         pass
 
-    def _get_value(self, data: Dict[str, Any], key: str, default: Any = None) -> Any:
+    def _get_value(self, data: dict[str, Any], key: str, default: Any = None) -> Any:
         """
         安全获取嵌套字典中的值
 
@@ -99,7 +99,7 @@ class MacroIndicatorEvaluator(BaseEvaluator):
     }
     """
 
-    def evaluate(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def evaluate(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """
         评估宏观指标条件
 
@@ -169,7 +169,7 @@ class MacroIndicatorEvaluator(BaseEvaluator):
             return False
 
     @staticmethod
-    def _normalize_operator(operator: Optional[str]) -> Optional[str]:
+    def _normalize_operator(operator: str | None) -> str | None:
         """兼容前端历史写法（gt/gte/eq...）"""
         mapping = {
             'gt': '>',
@@ -181,7 +181,7 @@ class MacroIndicatorEvaluator(BaseEvaluator):
         }
         return mapping.get(operator, operator)
 
-    def _evaluate_trend(self, condition: Dict[str, Any], macro_data: Dict[str, Any]) -> bool:
+    def _evaluate_trend(self, condition: dict[str, Any], macro_data: dict[str, Any]) -> bool:
         """
         评估趋势条件
 
@@ -257,7 +257,7 @@ class RegimeEvaluator(BaseEvaluator):
     }
     """
 
-    def evaluate(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def evaluate(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """
         评估 Regime 条件
 
@@ -303,7 +303,7 @@ class RegimeEvaluator(BaseEvaluator):
             logger.error(f"Error evaluating regime condition: {e}, condition: {condition}")
             return False
 
-    def _evaluate_transitions(self, condition: Dict[str, Any], regime_data: Dict[str, Any]) -> bool:
+    def _evaluate_transitions(self, condition: dict[str, Any], regime_data: dict[str, Any]) -> bool:
         """
         评估 Regime 变换条件
 
@@ -327,7 +327,7 @@ class RegimeEvaluator(BaseEvaluator):
         return previous_regime == from_regime and current_regime == to_regime
 
     @staticmethod
-    def _normalize_regime(regime: Optional[str]) -> Optional[str]:
+    def _normalize_regime(regime: str | None) -> str | None:
         """统一 Regime 表示：兼容 HG/HD/LG/LD 与英文全称。"""
         if regime is None:
             return None
@@ -379,7 +379,7 @@ class SignalEvaluator(BaseEvaluator):
     }
     """
 
-    def evaluate(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def evaluate(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """
         评估信号条件
 
@@ -424,7 +424,7 @@ class SignalEvaluator(BaseEvaluator):
             logger.error(f"Error evaluating signal condition: {e}, condition: {condition}")
             return False
 
-    def _evaluate_score(self, condition: Dict[str, Any], signals: List[Dict]) -> bool:
+    def _evaluate_score(self, condition: dict[str, Any], signals: list[dict]) -> bool:
         """评估信号评分条件"""
         asset_code = condition.get('asset_code')
         min_score = condition.get('min_score', 0)
@@ -436,7 +436,7 @@ class SignalEvaluator(BaseEvaluator):
 
         return False
 
-    def _evaluate_and(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_and(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 AND 条件"""
         sub_conditions = condition.get('conditions', [])
         return all(
@@ -444,7 +444,7 @@ class SignalEvaluator(BaseEvaluator):
             for cond in sub_conditions
         )
 
-    def _evaluate_or(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_or(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 OR 条件"""
         sub_conditions = condition.get('conditions', [])
         return any(
@@ -452,7 +452,7 @@ class SignalEvaluator(BaseEvaluator):
             for cond in sub_conditions
         )
 
-    def _evaluate_not(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_not(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 NOT 条件"""
         sub_condition = condition.get('condition')
         if sub_condition:
@@ -495,7 +495,7 @@ class CompositeEvaluator(BaseEvaluator):
         self.regime_evaluator = RegimeEvaluator()
         self.signal_evaluator = SignalEvaluator()
 
-    def evaluate(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def evaluate(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """
         评估组合条件
 
@@ -530,7 +530,7 @@ class CompositeEvaluator(BaseEvaluator):
             logger.error(f"Error evaluating composite condition: {e}, condition: {condition}")
             return False
 
-    def _evaluate_and(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_and(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 AND 条件"""
         sub_conditions = condition.get('conditions', [])
 
@@ -540,7 +540,7 @@ class CompositeEvaluator(BaseEvaluator):
 
         return True
 
-    def _evaluate_or(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_or(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 OR 条件"""
         sub_conditions = condition.get('conditions', [])
 
@@ -550,7 +550,7 @@ class CompositeEvaluator(BaseEvaluator):
 
         return False
 
-    def _evaluate_not(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_not(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """评估 NOT 条件"""
         sub_condition = condition.get('condition')
 
@@ -559,7 +559,7 @@ class CompositeEvaluator(BaseEvaluator):
 
         return False
 
-    def _evaluate_sub_condition(self, condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    def _evaluate_sub_condition(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         """
         评估子条件
 
@@ -616,7 +616,7 @@ class CompositeRuleEvaluator:
     def evaluate(
         self,
         rule: RuleCondition,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> bool:
         """
         评估规则条件
@@ -661,9 +661,9 @@ class CompositeRuleEvaluator:
 
     def evaluate_batch(
         self,
-        rules: List[RuleCondition],
-        context: Dict[str, Any]
-    ) -> Dict[int, bool]:
+        rules: list[RuleCondition],
+        context: dict[str, Any]
+    ) -> dict[int, bool]:
         """
         批量评估规则
 

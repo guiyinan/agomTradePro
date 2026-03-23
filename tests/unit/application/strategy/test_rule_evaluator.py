@@ -9,15 +9,15 @@
 - CompositeRuleEvaluator
 """
 import pytest
+
 from apps.strategy.application.rule_evaluator import (
+    CompositeEvaluator,
+    CompositeRuleEvaluator,
     MacroIndicatorEvaluator,
     RegimeEvaluator,
     SignalEvaluator,
-    CompositeEvaluator,
-    CompositeRuleEvaluator
 )
-from apps.strategy.domain.entities import RuleCondition, RuleType, ActionType
-
+from apps.strategy.domain.entities import ActionType, RuleCondition, RuleType
 
 # ========================================================================
 # 宏观指标评估器测试

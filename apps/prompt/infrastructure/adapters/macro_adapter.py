@@ -5,12 +5,12 @@ This adapter fetches macroeconomic data and resolves placeholders
 in prompt templates.
 """
 
-from typing import Dict, Any, List, Optional, Union
 from datetime import date, timedelta
 from decimal import Decimal
+from typing import Any, Dict, List, Optional, Union
 
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.macro.domain.entities import MacroIndicator
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 
 
 class MacroDataAdapter:
@@ -51,8 +51,8 @@ class MacroDataAdapter:
     def get_indicator_value(
         self,
         indicator_code: str,
-        as_of_date: Optional[date] = None
-    ) -> Optional[float]:
+        as_of_date: date | None = None
+    ) -> float | None:
         """获取单个指标最新值
 
         Args:
@@ -85,7 +85,7 @@ class MacroDataAdapter:
         start_date: date,
         end_date: date,
         use_pit: bool = True
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取指标时序数据
 
         Args:
@@ -119,9 +119,9 @@ class MacroDataAdapter:
 
     def get_macro_summary(
         self,
-        as_of_date: Optional[date] = None,
-        indicators: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        as_of_date: date | None = None,
+        indicators: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         获取宏观指标摘要（用于{{MACRO_DATA}}占位符）
 
@@ -181,8 +181,8 @@ class MacroDataAdapter:
     def resolve_placeholder(
         self,
         placeholder_name: str,
-        as_of_date: Optional[date] = None
-    ) -> Optional[Union[float, Dict[str, Any]]]:
+        as_of_date: date | None = None
+    ) -> float | dict[str, Any] | None:
         """
         解析占位符
 
@@ -217,7 +217,7 @@ class MacroDataAdapter:
     def _calculate_change(
         self,
         indicator_code: str,
-        as_of_date: Optional[date]
+        as_of_date: date | None
     ) -> tuple:
         """计算指标变化
 
@@ -279,7 +279,7 @@ class FunctionExecutor:
     def execute_function(
         self,
         function_name: str,
-        params: Dict[str, Any]
+        params: dict[str, Any]
     ) -> Any:
         """
         执行函数
@@ -305,7 +305,7 @@ class FunctionExecutor:
         else:
             raise ValueError(f"Unknown function: {function_name}")
 
-    def _execute_latest(self, params: Dict[str, Any]) -> Optional[float]:
+    def _execute_latest(self, params: dict[str, Any]) -> float | None:
         """执行LATEST函数"""
         indicator = params.get("indicator")
         as_of_date = params.get("as_of_date")
@@ -315,7 +315,7 @@ class FunctionExecutor:
 
         return self.macro_adapter.get_indicator_value(indicator, as_of_date)
 
-    def _execute_series(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _execute_series(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         """执行SERIES函数"""
         indicator = params.get("indicator")
         days = params.get("days", 30)
@@ -331,7 +331,7 @@ class FunctionExecutor:
             indicator, start_date, end_date
         )
 
-    def _execute_trend(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_trend(self, params: dict[str, Any]) -> dict[str, Any]:
         """执行TREND函数"""
         indicator = params.get("indicator")
         period = params.get("period", "3m")

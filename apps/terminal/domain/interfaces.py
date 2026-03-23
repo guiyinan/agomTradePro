@@ -4,8 +4,9 @@ Terminal Domain Interfaces - Repository Protocols.
 定义仓储接口协议，供基础设施层实现。
 """
 
-from typing import Protocol, Optional
-from .entities import TerminalCommand, TerminalAuditEntry
+from typing import Optional, Protocol
+
+from .entities import TerminalAuditEntry, TerminalCommand
 
 
 class TerminalCommandRepository(Protocol):
@@ -15,11 +16,11 @@ class TerminalCommandRepository(Protocol):
     定义命令持久化的抽象接口。
     """
 
-    def get_by_id(self, command_id: str) -> Optional[TerminalCommand]:
+    def get_by_id(self, command_id: str) -> TerminalCommand | None:
         """根据ID获取命令"""
         ...
 
-    def get_by_name(self, name: str) -> Optional[TerminalCommand]:
+    def get_by_name(self, name: str) -> TerminalCommand | None:
         """根据名称获取命令"""
         ...
 
@@ -39,7 +40,7 @@ class TerminalCommandRepository(Protocol):
         """删除命令"""
         ...
 
-    def exists_by_name(self, name: str, exclude_id: Optional[str] = None) -> bool:
+    def exists_by_name(self, name: str, exclude_id: str | None = None) -> bool:
         """检查名称是否存在"""
         ...
 
@@ -54,9 +55,9 @@ class TerminalAuditRepository(Protocol):
     def get_recent(
         self,
         limit: int = 50,
-        username: Optional[str] = None,
-        command_name: Optional[str] = None,
-        result_status: Optional[str] = None,
+        username: str | None = None,
+        command_name: str | None = None,
+        result_status: str | None = None,
     ) -> list[TerminalAuditEntry]:
         """获取最近的审计条目"""
         ...

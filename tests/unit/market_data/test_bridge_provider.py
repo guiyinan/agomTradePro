@@ -4,10 +4,11 @@ Bridge Provider 测试
 测试 MarketDataBridgePriceProvider 将 QuoteSnapshot 转换为 RealtimePrice。
 """
 
-import pytest
+from datetime import UTC, datetime, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
-from datetime import datetime, timezone
+
+import pytest
 
 from apps.market_data.application.bridge_providers import MarketDataBridgePriceProvider
 from apps.market_data.domain.entities import QuoteSnapshot
@@ -37,7 +38,7 @@ class TestMarketDataBridgePriceProvider:
                 change_pct=1.97,
                 volume=1000000,
                 source="eastmoney",
-                fetched_at=datetime.now(timezone.utc),
+                fetched_at=datetime.now(UTC),
             ),
         ]
         registry = self._make_registry_with_mock(snapshots)
@@ -57,7 +58,7 @@ class TestMarketDataBridgePriceProvider:
                 stock_code="600000.SH",
                 price=Decimal("8.88"),
                 source="eastmoney",
-                fetched_at=datetime.now(timezone.utc),
+                fetched_at=datetime.now(UTC),
             ),
         ]
         registry = self._make_registry_with_mock(snapshots)

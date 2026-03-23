@@ -4,16 +4,18 @@ Unit tests for Regime Domain Services.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 from apps.regime.domain.services import (
-    sigmoid,
-    calculate_regime_distribution,
+    RegimeCalculationResult,
+    RegimeCalculator,
     calculate_momentum,
+    calculate_regime_distribution,
     calculate_rolling_zscore,
     find_dominant_regime,
-    RegimeCalculator,
-    RegimeCalculationResult,
+    sigmoid,
 )
 
 

@@ -4,11 +4,13 @@ Unit tests for Sentiment Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from apps.sentiment.domain.entities import (
-    SentimentCategory,
     SentimentAnalysisResult,
+    SentimentCategory,
     SentimentIndex,
     SentimentSource,
 )

@@ -2,9 +2,10 @@
 DRF Serializers for Backtest Module.
 """
 
-from rest_framework import serializers
 from datetime import date
 from typing import Optional
+
+from rest_framework import serializers
 
 from ..infrastructure.models import BacktestResultModel, BacktestTradeModel
 

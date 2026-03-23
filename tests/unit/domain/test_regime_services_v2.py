@@ -4,18 +4,20 @@ Test Regime Calculation V2 (Level-based)
 测试基于绝对水平的 Regime 判定逻辑
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 from apps.regime.domain.services_v2 import (
     RegimeCalculatorV2,
-    ThresholdConfig,
     RegimeType,
+    ThresholdConfig,
+    TrendIndicator,
+    calculate_momentum_simple,
     calculate_regime_by_level,
     calculate_regime_distribution_by_level,
-    calculate_momentum_simple,
     classify_momentum_strength,
     generate_prediction,
-    TrendIndicator,
 )
 
 

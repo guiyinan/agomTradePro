@@ -5,14 +5,17 @@
 仓储实现了 Domain 层定义的 Protocol 接口。
 """
 
-from typing import Optional, List, Union, Dict
 from datetime import date
+from typing import Dict, List, Optional, Union
 
-from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol, AssetRepositoryProtocol
-from apps.asset_analysis.domain.value_objects import WeightConfig
-from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle, AssetSize
+from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle, AssetType
+from apps.asset_analysis.domain.interfaces import (
+    AssetRepositoryProtocol,
+    WeightConfigRepositoryProtocol,
+)
 from apps.asset_analysis.domain.pool import PoolType
-from apps.asset_analysis.infrastructure.models import WeightConfigModel, AssetPoolEntry
+from apps.asset_analysis.domain.value_objects import WeightConfig
+from apps.asset_analysis.infrastructure.models import AssetPoolEntry, WeightConfigModel
 
 
 class AssetRepositoryFactory:
@@ -75,7 +78,7 @@ class EmptyAssetRepository(AssetRepositoryProtocol):
         asset_type: str,
         filters: dict,
         max_count: int = 100
-    ) -> List:
+    ) -> list:
         """返回空列表"""
         return []
 
@@ -93,8 +96,8 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
 
     def get_active_weights(
         self,
-        asset_type: Optional[str] = None,
-        market_condition: Optional[str] = None
+        asset_type: str | None = None,
+        market_condition: str | None = None
     ) -> WeightConfig:
         """
         获取当前生效的权重配置
@@ -134,7 +137,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
         # 4. 降级到默认值
         return WeightConfig()
 
-    def list_all_configs(self) -> List[dict]:
+    def list_all_configs(self) -> list[dict]:
         """
         列出所有权重配置
 
@@ -166,8 +169,8 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
         policy_weight: float,
         sentiment_weight: float,
         signal_weight: float,
-        asset_type: Optional[str] = None,
-        market_condition: Optional[str] = None,
+        asset_type: str | None = None,
+        market_condition: str | None = None,
         is_active: bool = True,
         priority: int = 0
     ) -> None:
@@ -234,7 +237,7 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         asset_type: str,
         filters: dict,
         max_count: int = 100
-    ) -> List:
+    ) -> list:
         """
         根据过滤条件获取资产列表
 
@@ -261,7 +264,7 @@ class DjangoAssetPoolQueryRepository:
         asset_type: str,
         min_score: float,
         limit: int,
-    ) -> List[dict]:
+    ) -> list[dict]:
         pool_entries = AssetPoolEntry._default_manager.filter(
             pool_type=PoolType.INVESTABLE.value,
             asset_category=asset_type,
@@ -286,14 +289,14 @@ class DjangoAssetPoolQueryRepository:
             })
         return candidates
 
-    def get_latest_pool_type(self, asset_code: str) -> Optional[str]:
+    def get_latest_pool_type(self, asset_code: str) -> str | None:
         entry = AssetPoolEntry._default_manager.filter(
             asset_code=asset_code,
             is_active=True,
         ).order_by("-entry_date").first()
         return entry.pool_type if entry else None
 
-    def summarize_pool_counts(self, asset_type: Optional[str] = None) -> Dict[str, int]:
+    def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]:
         queryset = AssetPoolEntry._default_manager.filter(is_active=True)
         if asset_type:
             queryset = queryset.filter(asset_category=asset_type)

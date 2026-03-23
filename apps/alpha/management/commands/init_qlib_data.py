@@ -4,15 +4,14 @@ Initialize Qlib Data Management Command
 初始化 Qlib 数据的 Django 管理命令。
 """
 
+import logging
 import os
 import sys
-import logging
-from pathlib import Path
 from datetime import date, timedelta
+from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +84,7 @@ class Command(BaseCommand):
         region = options.get('region', 'CN')
         provider_uri = options.get('provider_uri', '~/.qlib/qlib_data/cn_data')
 
-        self.stdout.write(self.style.SUCCESS(f'Qlib 数据初始化'))
+        self.stdout.write(self.style.SUCCESS('Qlib 数据初始化'))
         self.stdout.write(f'  股票池: {universe}')
         self.stdout.write(f'  天数: {days}')
         self.stdout.write(f'  区域: {region}')
@@ -135,7 +134,7 @@ class Command(BaseCommand):
             )
             return False
 
-        self.stdout.write(self.style.SUCCESS(f'  ✓ 数据目录存在'))
+        self.stdout.write(self.style.SUCCESS('  ✓ 数据目录存在'))
 
         # 检查股票池数据
         try:
@@ -170,11 +169,11 @@ class Command(BaseCommand):
                 )
                 if not df.empty:
                     self.stdout.write(
-                        self.style.SUCCESS(f'  ✓ 最近 7 天数据存在')
+                        self.style.SUCCESS('  ✓ 最近 7 天数据存在')
                     )
                 else:
                     self.stdout.write(
-                        self.style.WARNING(f'  ⚠ 最近 7 天数据为空')
+                        self.style.WARNING('  ⚠ 最近 7 天数据为空')
                     )
             except Exception as e:
                 self.stdout.write(
@@ -214,9 +213,10 @@ class Command(BaseCommand):
         self.stdout.write(f'\n准备 {universe} 数据...')
 
         try:
+            from datetime import datetime, timedelta
+
             import qlib
             from qlib.data import D
-            from datetime import datetime, timedelta
 
             # 初始化 Qlib
             qlib.init(provider_uri=str(data_path), region="cn")

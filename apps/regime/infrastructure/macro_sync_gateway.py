@@ -15,7 +15,7 @@ class DjangoMacroSyncTaskGateway(MacroSyncTaskGatewayProtocol):
     def build_sync_signature(
         self,
         source: str,
-        indicator: Optional[str],
+        indicator: str | None,
         days_back: int,
     ):
         from apps.macro.application.tasks import sync_macro_data

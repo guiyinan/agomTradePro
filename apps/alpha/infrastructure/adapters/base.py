@@ -7,14 +7,13 @@ Alpha 提供者的基类实现，包含通用功能和装饰器。
 import logging
 import time
 import traceback
-from functools import wraps
-from typing import Any, Callable, Dict, List, Optional
-
+from collections.abc import Callable
 from datetime import date
+from functools import wraps
+from typing import Any, Dict, List, Optional
 
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProvider, AlphaProviderStatus
-
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +117,7 @@ class BaseAlphaProvider(AlphaProvider):
         ...         return 100
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """
         初始化 Provider
 
@@ -127,7 +126,7 @@ class BaseAlphaProvider(AlphaProvider):
         """
         self._initialized = False
         self._config = config or {}
-        self._last_health_message: Optional[str] = None
+        self._last_health_message: str | None = None
 
     def initialize(self) -> None:
         """
@@ -155,7 +154,7 @@ class BaseAlphaProvider(AlphaProvider):
         self,
         stock_code: str,
         trade_date: date
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         获取因子暴露（默认实现）
 
@@ -172,10 +171,10 @@ class BaseAlphaProvider(AlphaProvider):
 
     def _create_success_result(
         self,
-        scores: List[StockScore],
-        latency_ms: Optional[int] = None,
-        staleness_days: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        scores: list[StockScore],
+        latency_ms: int | None = None,
+        staleness_days: int | None = None,
+        metadata: dict[str, Any] | None = None
     ) -> AlphaResult:
         """
         创建成功结果
@@ -226,7 +225,7 @@ class BaseAlphaProvider(AlphaProvider):
 
     def _create_degraded_result(
         self,
-        scores: List[StockScore],
+        scores: list[StockScore],
         staleness_days: int,
         reason: str = ""
     ) -> AlphaResult:
@@ -290,7 +289,7 @@ def create_stock_score(
     score: float,
     rank: int,
     source: str,
-    factors: Optional[Dict[str, float]] = None,
+    factors: dict[str, float] | None = None,
     confidence: float = 0.5,
     **kwargs
 ) -> StockScore:

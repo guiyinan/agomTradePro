@@ -11,15 +11,14 @@ Fault Injection Tests
 5. 重试机制
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
 import threading
+from datetime import UTC, datetime, timezone
+from unittest.mock import MagicMock, Mock, patch
 
-from django.db import OperationalError
+import pytest
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import OperationalError
 
-from apps.events.domain.entities import DomainEvent, EventType, create_event
 from apps.events.application.decision_execution_handlers import (
     DecisionApprovedHandler,
     DecisionExecutedHandler,
@@ -29,6 +28,7 @@ from apps.events.application.event_retry import (
     EventRetryManager,
     get_event_retry_manager,
 )
+from apps.events.domain.entities import DomainEvent, EventType, create_event
 
 
 @pytest.mark.django_db
@@ -228,7 +228,7 @@ class TestEventRetryMechanism:
         pending = manager.get_pending_events()
         if pending:
             # next_retry_at 应该在未来
-            assert pending[0].next_retry_at > datetime.now(timezone.utc)
+            assert pending[0].next_retry_at > datetime.now(UTC)
 
 
 @pytest.mark.django_db
@@ -419,8 +419,8 @@ class TestHealthCheckIntegration:
     def test_health_check_passes_after_initialization(self):
         """测试初始化后健康检查通过"""
         from apps.events.application.health_check import check_event_bus_health
-        from apps.events.domain.services import reset_event_bus, get_event_bus
         from apps.events.domain.entities import EventBusConfig
+        from apps.events.domain.services import get_event_bus, reset_event_bus
 
         # 重置并初始化事件总线
         reset_event_bus()

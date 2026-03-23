@@ -8,8 +8,8 @@ import logging
 from typing import Optional
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType, create_event
-from ..domain.entities import DecisionPriority, QuotaPeriod
 
+from ..domain.entities import DecisionPriority, QuotaPeriod
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class DecisionRhythmEventHandler(EventHandler):
             cooldown_manager: 冷却管理器（可选）
             event_bus: 事件总线（可选）
         """
-        from ..domain.services import QuotaManager, CooldownManager
+        from ..domain.services import CooldownManager, QuotaManager
 
         self.quota_manager = quota_manager or QuotaManager()
         self.cooldown_manager = cooldown_manager or CooldownManager()

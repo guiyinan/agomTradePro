@@ -5,28 +5,29 @@ DRF 视图定义。
 """
 
 import logging
+
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from apps.task_monitor.application.use_cases import (
+    CheckCeleryHealthUseCase,
+    GetTaskStatisticsUseCase,
     GetTaskStatusUseCase,
     ListTasksUseCase,
-    GetTaskStatisticsUseCase,
-    CheckCeleryHealthUseCase,
 )
 from apps.task_monitor.infrastructure.repositories import (
-    DjangoTaskRecordRepository,
     CeleryHealthChecker,
+    DjangoTaskRecordRepository,
 )
 from apps.task_monitor.interface.serializers import (
-    TaskStatusSerializer,
-    TaskListSerializer,
     HealthCheckSerializer,
+    TaskListSerializer,
     TaskStatisticsSerializer,
     TaskStatusRequestSerializer,
+    TaskStatusSerializer,
 )
 
 logger = logging.getLogger(__name__)

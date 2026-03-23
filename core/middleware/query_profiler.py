@@ -27,7 +27,7 @@ import logging
 import re
 import time
 from collections import defaultdict
-from typing import Callable
+from collections.abc import Callable
 
 from django.conf import settings
 from django.db import connection

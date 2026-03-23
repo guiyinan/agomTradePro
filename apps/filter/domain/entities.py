@@ -6,8 +6,8 @@ Pure data classes using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Dict, Optional
 from enum import Enum
+from typing import Dict, List, Optional
 
 
 class FilterType(Enum):
@@ -43,7 +43,7 @@ class KalmanFilterParams:
     level_variance: float = 0.01
     slope_variance: float = 0.001
     observation_variance: float = 1.0
-    initial_level: Optional[float] = None
+    initial_level: float | None = None
     initial_slope: float = 0.0
 
     @classmethod
@@ -62,8 +62,8 @@ class FilterResult:
     date: date
     original_value: float
     filtered_value: float
-    trend: Optional[float] = None  # 仅 Kalman 有
-    slope: Optional[float] = None  # 仅 Kalman 有
+    trend: float | None = None  # 仅 Kalman 有
+    slope: float | None = None  # 仅 Kalman 有
 
 
 @dataclass(frozen=True)
@@ -71,27 +71,27 @@ class FilterSeries:
     """滤波序列结果"""
     indicator_code: str  # 指标代码 (e.g., "PMI", "CPI")
     filter_type: FilterType
-    params: Dict
-    results: List[FilterResult]
+    params: dict
+    results: list[FilterResult]
     calculated_at: date
 
     @property
-    def dates(self) -> List[date]:
+    def dates(self) -> list[date]:
         """获取日期列表"""
         return [r.date for r in self.results]
 
     @property
-    def original_values(self) -> List[float]:
+    def original_values(self) -> list[float]:
         """获取原始值列表"""
         return [r.original_value for r in self.results]
 
     @property
-    def filtered_values(self) -> List[float]:
+    def filtered_values(self) -> list[float]:
         """获取滤波后值列表"""
         return [r.filtered_value for r in self.results]
 
     @property
-    def slopes(self) -> List[Optional[float]]:
+    def slopes(self) -> list[float | None]:
         """获取斜率列表（Kalman 滤波）"""
         return [r.slope for r in self.results]
 

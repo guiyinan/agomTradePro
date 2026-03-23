@@ -5,9 +5,10 @@ This module manages the registry of functions that AI can call
 during tool calling mode (OpenAI Function Calling format).
 """
 
-from typing import Dict, Callable, Any, List, Optional, Protocol
-from dataclasses import dataclass
 import json
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Protocol
 
 
 @dataclass
@@ -22,10 +23,10 @@ class ToolDefinition:
     """
     name: str
     description: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     function: Callable
 
-    def to_openai_format(self) -> Dict[str, Any]:
+    def to_openai_format(self) -> dict[str, Any]:
         """转换为OpenAI Function Calling格式"""
         return {
             "type": "function",
@@ -45,7 +46,7 @@ class FunctionRegistry:
     """
 
     def __init__(self):
-        self._tools: Dict[str, ToolDefinition] = {}
+        self._tools: dict[str, ToolDefinition] = {}
 
     def register(self, tool: ToolDefinition):
         """
@@ -66,7 +67,7 @@ class FunctionRegistry:
         if name in self._tools:
             del self._tools[name]
 
-    def get_tool(self, name: str) -> Optional[ToolDefinition]:
+    def get_tool(self, name: str) -> ToolDefinition | None:
         """
         获取工具
 
@@ -78,7 +79,7 @@ class FunctionRegistry:
         """
         return self._tools.get(name)
 
-    def list_tools(self) -> List[ToolDefinition]:
+    def list_tools(self) -> list[ToolDefinition]:
         """
         列出所有工具
 
@@ -87,7 +88,7 @@ class FunctionRegistry:
         """
         return list(self._tools.values())
 
-    def execute(self, name: str, parameters: Dict[str, Any]) -> Any:
+    def execute(self, name: str, parameters: dict[str, Any]) -> Any:
         """
         执行工具
 
@@ -114,7 +115,7 @@ class FunctionRegistry:
                 "parameters": parameters
             }
 
-    def to_openai_format(self) -> List[Dict[str, Any]]:
+    def to_openai_format(self) -> list[dict[str, Any]]:
         """
         转换为OpenAI Function Calling格式
 
@@ -123,7 +124,7 @@ class FunctionRegistry:
         """
         return [tool.to_openai_format() for tool in self._tools.values()]
 
-    def get_tool_names(self) -> List[str]:
+    def get_tool_names(self) -> list[str]:
         """
         获取所有工具名称
 
@@ -310,7 +311,7 @@ def create_builtin_tools(
 def create_custom_function(
     name: str,
     description: str,
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     func: Callable
 ) -> ToolDefinition:
     """

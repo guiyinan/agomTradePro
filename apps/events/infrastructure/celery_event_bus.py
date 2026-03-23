@@ -11,7 +11,6 @@ from typing import Optional
 from ..domain.entities import DomainEvent, EventBusConfig
 from ..domain.services import InMemoryEventBus
 
-
 logger = logging.getLogger(__name__)
 
 

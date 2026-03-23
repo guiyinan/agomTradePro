@@ -79,10 +79,10 @@ class Command(BaseCommand):
         self.stdout.flush()
         start = time.monotonic()
         try:
-            from apps.macro.infrastructure.models import MacroIndicator
-
             # Cache latest value per indicator code
             from django.db.models import Max
+
+            from apps.macro.infrastructure.models import MacroIndicator
 
             latest_dates = (
                 MacroIndicator.objects

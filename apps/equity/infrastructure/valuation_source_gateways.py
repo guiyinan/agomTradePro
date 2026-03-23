@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class ValuationSyncBatch:
     source_provider: str
     stock_code: str
-    records: List[ValuationMetrics]
+    records: list[ValuationMetrics]
 
 
 class AKShareValuationGateway:
@@ -64,10 +64,10 @@ class AKShareValuationGateway:
         merged = merged.sort_values("trade_date")
         return merged
 
-    def _to_metrics(self, stock_code: str, merged) -> List[ValuationMetrics]:
-        records: List[ValuationMetrics] = []
-        previous_pb: Optional[float] = None
-        previous_pe: Optional[float] = None
+    def _to_metrics(self, stock_code: str, merged) -> list[ValuationMetrics]:
+        records: list[ValuationMetrics] = []
+        previous_pb: float | None = None
+        previous_pe: float | None = None
 
         for row in merged.itertuples(index=False):
             pb = float(row.pb) if row.pb == row.pb else None
@@ -154,9 +154,9 @@ class TushareValuationGateway:
 
         df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.date
         df = df.sort_values("trade_date")
-        records: List[ValuationMetrics] = []
-        previous_pb: Optional[float] = None
-        previous_pe: Optional[float] = None
+        records: list[ValuationMetrics] = []
+        previous_pb: float | None = None
+        previous_pe: float | None = None
 
         for row in df.itertuples(index=False):
             pb = float(row.pb) if row.pb == row.pb else None

@@ -7,32 +7,31 @@ high-risk action migration, and audit enrichment.
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from django.utils import timezone
 
+from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
+    TERMINAL_PROPOSAL_STATUSES,
     AgentProposal,
-    ProposalStatus,
     ApprovalStatus,
-    RiskLevel,
     EventSource,
     GuardrailDecision,
-    TERMINAL_PROPOSAL_STATUSES,
+    ProposalStatus,
+    RiskLevel,
 )
 from apps.agent_runtime.domain.guardrails import (
-    GuardrailEngine,
-    GuardrailCheckOutput,
     HIGH_RISK_PROPOSAL_TYPES,
+    GuardrailCheckOutput,
+    GuardrailEngine,
     get_guardrail_engine,
 )
-from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.infrastructure.repositories import (
     AgentProposalRepository,
     AgentTaskRepository,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ def _generate_proposal_request_id() -> str:
 
 # ── Proposal state transitions ──────────────────────────────
 
-_PROPOSAL_TRANSITIONS: Dict[str, List[str]] = {
+_PROPOSAL_TRANSITIONS: dict[str, list[str]] = {
     ProposalStatus.DRAFT.value: [
         ProposalStatus.GENERATED.value,
         ProposalStatus.EXPIRED.value,
@@ -83,8 +82,8 @@ class InvalidProposalTransitionError(Exception):
         self,
         current_status: str,
         target_status: str,
-        allowed: List[str],
-        message: Optional[str] = None,
+        allowed: list[str],
+        message: str | None = None,
     ):
         self.current_status = current_status
         self.target_status = target_status
@@ -109,13 +108,13 @@ def _validate_proposal_transition(current: str, target: str) -> None:
 
 @dataclass
 class CreateProposalInput:
-    task_id: Optional[int] = None
+    task_id: int | None = None
     proposal_type: str = ""
     risk_level: str = RiskLevel.MEDIUM.value
     approval_required: bool = True
-    proposal_payload: Optional[Dict[str, Any]] = None
-    approval_reason: Optional[str] = None
-    created_by: Optional[int] = None
+    proposal_payload: dict[str, Any] | None = None
+    approval_reason: str | None = None
+    created_by: int | None = None
 
 
 @dataclass
@@ -134,7 +133,7 @@ class GetProposalOutput:
 class SubmitApprovalOutput:
     proposal: AgentProposal
     request_id: str
-    guardrail_decision: Optional[Dict[str, Any]] = None
+    guardrail_decision: dict[str, Any] | None = None
 
 
 @dataclass
@@ -147,8 +146,8 @@ class ApproveRejectOutput:
 class ExecuteProposalOutput:
     proposal: AgentProposal
     request_id: str
-    execution_record_id: Optional[int] = None
-    guardrail_decision: Optional[Dict[str, Any]] = None
+    execution_record_id: int | None = None
+    guardrail_decision: dict[str, Any] | None = None
 
 
 # ── Use Cases ────────────────────────────────────────────────
@@ -158,10 +157,10 @@ class CreateProposalUseCase:
 
     def __init__(
         self,
-        timeline_service: Optional[TimelineEventWriterService] = None,
-        audit_service: Optional[Any] = None,
-        proposal_repo: Optional[AgentProposalRepository] = None,
-        task_repo: Optional[AgentTaskRepository] = None,
+        timeline_service: TimelineEventWriterService | None = None,
+        audit_service: Any | None = None,
+        proposal_repo: AgentProposalRepository | None = None,
+        task_repo: AgentTaskRepository | None = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
@@ -250,7 +249,7 @@ class CreateProposalUseCase:
 class GetProposalUseCase:
     """Retrieve a single proposal."""
 
-    def __init__(self, proposal_repo: Optional[AgentProposalRepository] = None):
+    def __init__(self, proposal_repo: AgentProposalRepository | None = None):
         self.proposal_repo = proposal_repo or AgentProposalRepository()
 
     def execute(self, proposal_id: int) -> GetProposalOutput:
@@ -266,9 +265,9 @@ class SubmitProposalForApprovalUseCase:
 
     def __init__(
         self,
-        guardrail_engine: Optional[GuardrailEngine] = None,
-        timeline_service: Optional[TimelineEventWriterService] = None,
-        proposal_repo: Optional[AgentProposalRepository] = None,
+        guardrail_engine: GuardrailEngine | None = None,
+        timeline_service: TimelineEventWriterService | None = None,
+        proposal_repo: AgentProposalRepository | None = None,
     ):
         self.guardrail_engine = guardrail_engine or get_guardrail_engine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
@@ -277,8 +276,8 @@ class SubmitProposalForApprovalUseCase:
     def execute(
         self,
         proposal_id: int,
-        actor: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        actor: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> SubmitApprovalOutput:
         proposal = self.proposal_repo.get_proposal(proposal_id)
 
@@ -336,8 +335,8 @@ class ApproveProposalUseCase:
 
     def __init__(
         self,
-        timeline_service: Optional[TimelineEventWriterService] = None,
-        proposal_repo: Optional[AgentProposalRepository] = None,
+        timeline_service: TimelineEventWriterService | None = None,
+        proposal_repo: AgentProposalRepository | None = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.proposal_repo = proposal_repo or AgentProposalRepository()
@@ -345,8 +344,8 @@ class ApproveProposalUseCase:
     def execute(
         self,
         proposal_id: int,
-        reason: Optional[str] = None,
-        actor: Optional[Dict[str, Any]] = None,
+        reason: str | None = None,
+        actor: dict[str, Any] | None = None,
     ) -> ApproveRejectOutput:
         proposal = self.proposal_repo.get_proposal(proposal_id)
 
@@ -377,8 +376,8 @@ class RejectProposalUseCase:
 
     def __init__(
         self,
-        timeline_service: Optional[TimelineEventWriterService] = None,
-        proposal_repo: Optional[AgentProposalRepository] = None,
+        timeline_service: TimelineEventWriterService | None = None,
+        proposal_repo: AgentProposalRepository | None = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.proposal_repo = proposal_repo or AgentProposalRepository()
@@ -386,8 +385,8 @@ class RejectProposalUseCase:
     def execute(
         self,
         proposal_id: int,
-        reason: Optional[str] = None,
-        actor: Optional[Dict[str, Any]] = None,
+        reason: str | None = None,
+        actor: dict[str, Any] | None = None,
     ) -> ApproveRejectOutput:
         proposal = self.proposal_repo.get_proposal(proposal_id)
 
@@ -422,10 +421,10 @@ class ExecuteProposalUseCase:
 
     def __init__(
         self,
-        guardrail_engine: Optional[GuardrailEngine] = None,
-        timeline_service: Optional[TimelineEventWriterService] = None,
-        audit_service: Optional[Any] = None,
-        proposal_repo: Optional[AgentProposalRepository] = None,
+        guardrail_engine: GuardrailEngine | None = None,
+        timeline_service: TimelineEventWriterService | None = None,
+        audit_service: Any | None = None,
+        proposal_repo: AgentProposalRepository | None = None,
     ):
         self.guardrail_engine = guardrail_engine or get_guardrail_engine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
@@ -441,8 +440,8 @@ class ExecuteProposalUseCase:
     def execute(
         self,
         proposal_id: int,
-        actor: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        actor: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ExecuteProposalOutput:
         proposal = self.proposal_repo.get_proposal(proposal_id)
 
@@ -559,7 +558,7 @@ class GuardrailBlockedError(Exception):
         decision: str,
         reason_code: str,
         message: str,
-        evidence: Optional[Dict[str, Any]] = None,
+        evidence: dict[str, Any] | None = None,
     ):
         self.decision = decision
         self.reason_code = reason_code

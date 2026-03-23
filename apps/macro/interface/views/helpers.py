@@ -2,10 +2,11 @@
 Helper functions for Macro views.
 """
 
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+import logging
+
 from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.adapters import AKShareAdapter
-import logging
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 
 logger = logging.getLogger(__name__)
 

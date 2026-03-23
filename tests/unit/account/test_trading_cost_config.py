@@ -4,6 +4,7 @@
 测试 Domain 层 TradingCostConfig 实体的费用计算逻辑。
 """
 import pytest
+
 from apps.account.domain.entities import TradingCostConfig
 
 

@@ -14,8 +14,8 @@ from typing import Dict, List, Optional
 class FactorCalculationRequest:
     """Request DTO for factor calculation"""
     trade_date: date
-    universe: List[str]  # Stock universe
-    factor_codes: List[str]  # Factors to calculate
+    universe: list[str]  # Stock universe
+    factor_codes: list[str]  # Factors to calculate
 
 
 @dataclass
@@ -25,9 +25,9 @@ class FactorScoreResponse:
     stock_name: str
     composite_score: float
     percentile_rank: float
-    factor_scores: Dict[str, float]
+    factor_scores: dict[str, float]
     sector: str
-    market_cap: Optional[Decimal]
+    market_cap: Decimal | None
 
 
 @dataclass
@@ -35,7 +35,7 @@ class FactorPortfolioRequest:
     """Request DTO for creating a factor portfolio"""
     config_name: str
     trade_date: date
-    top_n: Optional[int] = None
+    top_n: int | None = None
 
 
 @dataclass
@@ -43,5 +43,5 @@ class FactorPortfolioResponse:
     """Response DTO for factor portfolio"""
     config_name: str
     trade_date: date
-    holdings: List[Dict]
+    holdings: list[dict]
     total_weight: float

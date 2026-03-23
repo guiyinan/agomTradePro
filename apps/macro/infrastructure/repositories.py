@@ -5,11 +5,11 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date, datetime
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 from django.db import transaction
-from django.utils import timezone
 from django.db.models import Max, Q
+from django.utils import timezone
 
 from ..domain.entities import MacroIndicator, PeriodType
 from .models import MacroIndicator as MacroIndicatorORM
@@ -70,7 +70,7 @@ class DjangoMacroRepository:
         self,
         indicator: MacroIndicator,
         revision_number: int = 1,
-        period_type_override: Optional[str] = None
+        period_type_override: str | None = None
     ) -> MacroIndicator:
         """
         保存单个指标
@@ -128,9 +128,9 @@ class DjangoMacroRepository:
 
     def save_indicators_batch(
         self,
-        indicators: List[MacroIndicator],
+        indicators: list[MacroIndicator],
         revision_number: int = 1
-    ) -> List[MacroIndicator]:
+    ) -> list[MacroIndicator]:
         """
         批量保存指标
 
@@ -151,8 +151,8 @@ class DjangoMacroRepository:
         self,
         code: str,
         observed_at: date,
-        revision_number: Optional[int] = None
-    ) -> Optional[MacroIndicator]:
+        revision_number: int | None = None
+    ) -> MacroIndicator | None:
         """
         按代码和日期查询指标
 
@@ -185,11 +185,11 @@ class DjangoMacroRepository:
     def get_series(
         self,
         code: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None
-    ) -> List[MacroIndicator]:
+        source: str | None = None
+    ) -> list[MacroIndicator]:
         """
         获取指定指标的时序数据
 
@@ -236,11 +236,11 @@ class DjangoMacroRepository:
     def get_growth_series(
         self,
         indicator_code: str = "PMI",
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None
-    ) -> List[float]:
+        source: str | None = None
+    ) -> list[float]:
         """
         获取增长指标序列（用于 Regime 计算）
 
@@ -262,11 +262,11 @@ class DjangoMacroRepository:
     def get_growth_series_full(
         self,
         indicator_code: str = "PMI",
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None
-    ) -> List[MacroIndicator]:
+        source: str | None = None
+    ) -> list[MacroIndicator]:
         """
         获取增长指标完整序列（包含日期等元数据）
 
@@ -286,11 +286,11 @@ class DjangoMacroRepository:
     def get_inflation_series(
         self,
         indicator_code: str = "CPI",
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None
-    ) -> List[float]:
+        source: str | None = None
+    ) -> list[float]:
         """
         获取通胀指标序列（用于 Regime 计算）
 
@@ -321,11 +321,11 @@ class DjangoMacroRepository:
     def get_inflation_series_full(
         self,
         indicator_code: str = "CPI",
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         use_pit: bool = False,
-        source: Optional[str] = None
-    ) -> List[MacroIndicator]:
+        source: str | None = None
+    ) -> list[MacroIndicator]:
         """
         获取通胀指标完整序列（包含日期等元数据）
 
@@ -350,7 +350,7 @@ class DjangoMacroRepository:
         if indicator_code != "CPI":
             return indicators
 
-        normalized: List[MacroIndicator] = []
+        normalized: list[MacroIndicator] = []
         for ind in indicators:
             normalized.append(
                 MacroIndicator(
@@ -369,8 +369,8 @@ class DjangoMacroRepository:
     def get_latest_observation_date(
         self,
         code: str,
-        as_of_date: Optional[date] = None
-    ) -> Optional[date]:
+        as_of_date: date | None = None
+    ) -> date | None:
         """
         获取指定日期前可用的最新观测日期
 
@@ -399,8 +399,8 @@ class DjangoMacroRepository:
     def get_latest_observation(
         self,
         code: str,
-        before_date: Optional[date] = None
-    ) -> Optional[MacroIndicator]:
+        before_date: date | None = None
+    ) -> MacroIndicator | None:
         """
         获取指定指标在某个日期前的最新观测值
 
@@ -425,10 +425,10 @@ class DjangoMacroRepository:
 
     def get_available_dates(
         self,
-        codes: Optional[List[str]] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
-    ) -> List[date]:
+        codes: list[str] | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None
+    ) -> list[date]:
         """
         获取指定指标的可用日期列表
 
@@ -459,7 +459,7 @@ class DjangoMacroRepository:
         self,
         code: str,
         observed_at: date,
-        revision_number: Optional[int] = None
+        revision_number: int | None = None
     ) -> bool:
         """
         删除指定指标
@@ -485,7 +485,7 @@ class DjangoMacroRepository:
 
     def get_indicator_count(
         self,
-        code: Optional[str] = None
+        code: str | None = None
     ) -> int:
         """
         获取指标数量
@@ -503,10 +503,10 @@ class DjangoMacroRepository:
 
     def delete_by_conditions(
         self,
-        indicator_code: Optional[str] = None,
-        source: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        indicator_code: str | None = None,
+        source: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None
     ) -> int:
         """
         按条件删除数据
@@ -534,7 +534,7 @@ class DjangoMacroRepository:
         count, _ = query.delete()
         return count
 
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> dict:
         """
         获取数据统计信息
 
@@ -578,7 +578,7 @@ class DjangoMacroRepository:
             'sources': sources_stats
         }
 
-    def get_recent_syncs(self, limit: int = 10) -> List[Dict]:
+    def get_recent_syncs(self, limit: int = 10) -> list[dict]:
         """
         获取最近的同步记录
 

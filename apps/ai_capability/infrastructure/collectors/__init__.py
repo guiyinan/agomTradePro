@@ -4,16 +4,16 @@ AI Capability Catalog Domain Services.
 Pure Python logic for capability retrieval, scoring, and decision.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Any, Optional
-import re
 
 from .entities import (
-    CapabilityDefinition,
     CapabilityDecision,
+    CapabilityDefinition,
+    RouteGroup,
     RoutingContext,
     RoutingDecision,
-    RouteGroup,
     SourceType,
 )
 
@@ -320,7 +320,7 @@ class BuiltinCapabilityRegistry:
         return cls.BUILTIN_CAPABILITIES.copy()
 
     @classmethod
-    def get_by_key(cls, key: str) -> Optional[dict[str, Any]]:
+    def get_by_key(cls, key: str) -> dict[str, Any] | None:
         """Get a builtin capability by key."""
         for cap in cls.BUILTIN_CAPABILITIES:
             if cap["capability_key"] == key:

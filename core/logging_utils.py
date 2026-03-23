@@ -7,10 +7,10 @@
 
 import json
 import logging
+import sys
 import threading
 import uuid
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Dict, Optional
 
 
@@ -42,8 +42,8 @@ class StructuredFormatter(logging.Formatter):
             JSON 格式的日志字符串
         """
         # 基础日志数据
-        log_data: Dict[str, Any] = {
-            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+        log_data: dict[str, Any] = {
+            'timestamp': datetime.now(UTC).isoformat().replace('+00:00', 'Z'),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
@@ -137,7 +137,7 @@ class TraceContextFilter(logging.Filter):
 _thread_local = threading.local()
 
 
-def get_trace_id() -> Optional[str]:
+def get_trace_id() -> str | None:
     """
     获取当前请求的 trace_id。
 
@@ -147,7 +147,7 @@ def get_trace_id() -> Optional[str]:
     return getattr(_thread_local, 'trace_id', None)
 
 
-def set_trace_id(trace_id: Optional[str] = None) -> str:
+def set_trace_id(trace_id: str | None = None) -> str:
     """
     设置当前请求的 trace_id。
 
@@ -192,7 +192,7 @@ class StructuredLoggerAdapter(logging.LoggerAdapter):
         >>> logger.info("Processing request", extra={'request_id': 'req-123'})
     """
 
-    def process(self, msg: Any, kwargs: Dict[str, Any]) -> tuple:
+    def process(self, msg: Any, kwargs: dict[str, Any]) -> tuple:
         """
         处理日志消息和参数。
 

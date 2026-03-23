@@ -8,13 +8,13 @@ Supports Redis and in-memory cache with Prometheus metrics tracking.
 import hashlib
 import json
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional, List, Dict
+from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest
-from django.conf import settings
-
 from prometheus_client import Counter, Histogram
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class CacheKeyBuilder:
     def build(
         prefix: str,
         request: HttpRequest,
-        vary_on: Optional[List[str]] = None,
+        vary_on: list[str] | None = None,
         include_user: bool = False,
     ) -> str:
         """
@@ -188,7 +188,7 @@ class cached_api:
         self,
         key_prefix: str,
         ttl_seconds: int = 900,
-        vary_on: Optional[List[str]] = None,
+        vary_on: list[str] | None = None,
         include_user: bool = False,
         skip_param: str = 'force_refresh',
         cache_empty: bool = True,
@@ -211,7 +211,7 @@ class cached_api:
             backends only store serializable data while preserving status/headers.
             """
             if hasattr(response, 'data'):
-                headers: Dict[str, str] = {}
+                headers: dict[str, str] = {}
                 try:
                     headers = dict(response.items())
                 except Exception:
@@ -328,7 +328,7 @@ class cached_function:
         self,
         prefix: str,
         ttl_seconds: int = 900,
-        vary_on: Optional[List[str]] = None,
+        vary_on: list[str] | None = None,
     ):
         self.prefix = prefix
         self.ttl_seconds = ttl_seconds
@@ -413,7 +413,7 @@ def invalidate_pattern(pattern: str) -> int:
         return 0
 
 
-def get_cache_stats() -> Dict[str, Any]:
+def get_cache_stats() -> dict[str, Any]:
     """
     Get cache statistics for monitoring.
 

@@ -25,7 +25,7 @@ class AssetNameResolver:
     支持股票、基金、指数等多种资产类型。
     """
 
-    def resolve_asset_names(self, codes: List[str]) -> Dict[str, str]:
+    def resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         """
         批量解析资产代码对应的名称。
 
@@ -35,11 +35,11 @@ class AssetNameResolver:
         Returns:
             Dict[str, str]: 资产代码到名称的映射，未找到的代码不会出现在结果中
         """
-        code_set: Set[str] = {code for code in codes if code}
+        code_set: set[str] = {code for code in codes if code}
         if not code_set:
             return {}
 
-        resolved: Dict[str, str] = {}
+        resolved: dict[str, str] = {}
 
         resolved.update(self._resolve_stocks(code_set - set(resolved.keys())))
         resolved.update(self._resolve_funds(code_set - set(resolved.keys())))
@@ -63,12 +63,12 @@ class AssetNameResolver:
         result = self.resolve_asset_names([code])
         return result.get(code, code)
 
-    def _resolve_stocks(self, codes: Set[str]) -> Dict[str, str]:
+    def _resolve_stocks(self, codes: set[str]) -> dict[str, str]:
         """从股票信息表解析名称"""
         if not codes:
             return {}
 
-        resolved: Dict[str, str] = {}
+        resolved: dict[str, str] = {}
         try:
             from apps.equity.infrastructure.models import StockInfoModel
 
@@ -83,12 +83,12 @@ class AssetNameResolver:
 
         return resolved
 
-    def _resolve_funds(self, codes: Set[str]) -> Dict[str, str]:
+    def _resolve_funds(self, codes: set[str]) -> dict[str, str]:
         """从基金信息表解析名称"""
         if not codes:
             return {}
 
-        resolved: Dict[str, str] = {}
+        resolved: dict[str, str] = {}
         try:
             from apps.fund.infrastructure.models import FundInfoModel
 
@@ -105,12 +105,12 @@ class AssetNameResolver:
 
         return resolved
 
-    def _resolve_indices(self, codes: Set[str]) -> Dict[str, str]:
+    def _resolve_indices(self, codes: set[str]) -> dict[str, str]:
         """从资产池条目表解析名称"""
         if not codes:
             return {}
 
-        resolved: Dict[str, str] = {}
+        resolved: dict[str, str] = {}
         try:
             from apps.asset_analysis.infrastructure.models import AssetPoolEntry
 
@@ -128,14 +128,14 @@ class AssetNameResolver:
         return resolved
 
 
-def _build_cache_key(codes: List[str]) -> str:
+def _build_cache_key(codes: list[str]) -> str:
     """构建缓存键"""
     sorted_codes = sorted(set(c for c in codes if c))
     codes_hash = hashlib.md5(json.dumps(sorted_codes).encode()).hexdigest()
     return f"{CACHE_PREFIX}:{codes_hash}"
 
 
-def resolve_asset_names(codes: List[str]) -> Dict[str, str]:
+def resolve_asset_names(codes: list[str]) -> dict[str, str]:
     """
     批量解析资产代码对应的名称（带缓存）。
 
@@ -187,8 +187,8 @@ def resolve_asset_name(code: str) -> str:
 
 
 def enrich_with_asset_names(
-    items: List[dict], code_field: str = "asset_code", name_field: str = "asset_name"
-) -> List[dict]:
+    items: list[dict], code_field: str = "asset_code", name_field: str = "asset_name"
+) -> list[dict]:
     """
     为字典列表批量添加资产名称字段。
 

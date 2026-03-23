@@ -8,19 +8,20 @@ E2E tests for Observer Grant flow.
 - 授权过期后自动失效
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (
-    PortfolioObserverGrantModel,
-    PortfolioModel,
-    PositionModel,
     AssetCategoryModel,
     CurrencyModel,
+    PortfolioModel,
+    PortfolioObserverGrantModel,
+    PositionModel,
 )
 
 
@@ -248,7 +249,7 @@ class TestObserverGrantE2E:
             owner_user_id=data['user_a'],
             observer_user_id=data['user_b'],
             status='active',
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
         )
 
         # B 尝试访问
@@ -268,7 +269,7 @@ class TestObserverGrantE2E:
             owner_user_id=data['user_a'],
             observer_user_id=data['user_b'],
             status='active',
-            expires_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+            expires_at=datetime.now(UTC) + timedelta(minutes=1),
         )
 
         # B 可以访问
@@ -286,7 +287,7 @@ class TestObserverGrantE2E:
         # A 创建 30 天有效的授权
         api_client.force_authenticate(user=data['user_a'])
 
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        expires_at = datetime.now(UTC) + timedelta(days=30)
 
         grant_payload = {
             'observer_user_id': data['user_b'].id,
@@ -375,7 +376,7 @@ class TestObserverGrantE2E:
 
         # 3. A 更新过期时间
         api_client.force_authenticate(user=data['user_a'])
-        new_expires = datetime.now(timezone.utc) + timedelta(days=60)
+        new_expires = datetime.now(UTC) + timedelta(days=60)
         update_response = api_client.put(
             f'/account/api/observer-grants/{grant_id}/',
             {'expires_at': new_expires.isoformat()}

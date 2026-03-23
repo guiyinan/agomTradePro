@@ -6,18 +6,17 @@ Domain 层 Protocol 接口定义
 - 通过依赖注入实现松耦合
 - 不依赖具体实现
 """
-from typing import List, Optional, Protocol, Dict, Any
 from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Protocol
 
 from .entities import (
-    Strategy,
-    RuleCondition,
-    StrategyExecutionResult,
-    SignalRecommendation,
+    AIConfig,
     RiskControlParams,
-    AIConfig
+    RuleCondition,
+    SignalRecommendation,
+    Strategy,
+    StrategyExecutionResult,
 )
-
 
 # ========================================================================
 # Repository Protocol
@@ -38,7 +37,7 @@ class StrategyRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_by_id(self, strategy_id: int) -> Optional[Strategy]:
+    def get_by_id(self, strategy_id: int) -> Strategy | None:
         """
         根据ID获取策略
 
@@ -54,7 +53,7 @@ class StrategyRepositoryProtocol(Protocol):
         self,
         user_id: int,
         is_active: bool = True
-    ) -> List[Strategy]:
+    ) -> list[Strategy]:
         """
         获取用户的策略列表
 
@@ -70,7 +69,7 @@ class StrategyRepositoryProtocol(Protocol):
     def get_active_strategies_for_portfolio(
         self,
         portfolio_id: int
-    ) -> List[Strategy]:
+    ) -> list[Strategy]:
         """
         获取投资组合的激活策略
 
@@ -110,7 +109,7 @@ class RuleConditionRepositoryProtocol(Protocol):
         """
         ...
 
-    def get_by_strategy(self, strategy_id: int) -> List[RuleCondition]:
+    def get_by_strategy(self, strategy_id: int) -> list[RuleCondition]:
         """
         获取策略的所有规则条件
 
@@ -154,7 +153,7 @@ class StrategyExecutionLogRepositoryProtocol(Protocol):
         self,
         strategy_id: int,
         limit: int = 100
-    ) -> List[StrategyExecutionResult]:
+    ) -> list[StrategyExecutionResult]:
         """
         获取策略的执行日志
 
@@ -171,7 +170,7 @@ class StrategyExecutionLogRepositoryProtocol(Protocol):
         self,
         portfolio_id: int,
         limit: int = 100
-    ) -> List[StrategyExecutionResult]:
+    ) -> list[StrategyExecutionResult]:
         """
         获取投资组合的执行日志
 
@@ -195,7 +194,7 @@ class RuleEvaluatorProtocol(Protocol):
     def evaluate(
         self,
         condition: RuleCondition,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> bool:
         """
         评估规则条件
@@ -216,9 +215,9 @@ class ScriptExecutorProtocol(Protocol):
     def execute(
         self,
         script_code: str,
-        context: Dict[str, Any],
-        allowed_modules: List[str]
-    ) -> List[SignalRecommendation]:
+        context: dict[str, Any],
+        allowed_modules: list[str]
+    ) -> list[SignalRecommendation]:
         """
         执行策略脚本
 
@@ -239,9 +238,9 @@ class AIStrategyExecutorProtocol(Protocol):
     def execute(
         self,
         strategy_id: int,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         ai_config: AIConfig
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         执行AI策略
 
@@ -263,7 +262,7 @@ class AIStrategyExecutorProtocol(Protocol):
 class MacroDataProviderProtocol(Protocol):
     """宏观数据提供者接口"""
 
-    def get_indicator(self, indicator_code: str) -> Optional[float]:
+    def get_indicator(self, indicator_code: str) -> float | None:
         """
         获取宏观指标值
 
@@ -275,7 +274,7 @@ class MacroDataProviderProtocol(Protocol):
         """
         ...
 
-    def get_all_indicators(self) -> Dict[str, float]:
+    def get_all_indicators(self) -> dict[str, float]:
         """
         获取所有宏观指标
 
@@ -288,7 +287,7 @@ class MacroDataProviderProtocol(Protocol):
 class RegimeProviderProtocol(Protocol):
     """Regime 提供者接口"""
 
-    def get_current_regime(self) -> Dict[str, Any]:
+    def get_current_regime(self) -> dict[str, Any]:
         """
         获取当前Regime状态
 
@@ -309,7 +308,7 @@ class AssetPoolProviderProtocol(Protocol):
         self,
         min_score: float = 60.0,
         limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取可投资产列表
 
@@ -331,7 +330,7 @@ class AssetPoolProviderProtocol(Protocol):
 class SignalProviderProtocol(Protocol):
     """信号提供者接口"""
 
-    def get_valid_signals(self) -> List[Dict[str, Any]]:
+    def get_valid_signals(self) -> list[dict[str, Any]]:
         """
         获取有效信号列表
 
@@ -349,7 +348,7 @@ class SignalProviderProtocol(Protocol):
 class PortfolioDataProviderProtocol(Protocol):
     """投资组合数据提供者接口"""
 
-    def get_positions(self, portfolio_id: int) -> List[Dict[str, Any]]:
+    def get_positions(self, portfolio_id: int) -> list[dict[str, Any]]:
         """
         获取投资组合持仓
 
@@ -382,7 +381,7 @@ class PortfolioDataProviderProtocol(Protocol):
 class AssetNameResolverProtocol(Protocol):
     """资产名称解析接口"""
 
-    def resolve_asset_names(self, codes: List[str]) -> Dict[str, str]:
+    def resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         """
         批量解析资产名称。
 
@@ -425,7 +424,7 @@ class ExecutionAdapterProtocol(Protocol):
         ...
 
     @abstractmethod
-    def query_order_status(self, broker_order_id: str) -> Dict[str, Any]:
+    def query_order_status(self, broker_order_id: str) -> dict[str, Any]:
         """
         查询订单状态
 
@@ -533,7 +532,7 @@ class OrderIntentRepositoryProtocol(Protocol):
         ...
 
     @abstractmethod
-    def get_pending_intents(self, portfolio_id: int) -> List['OrderIntent']:
+    def get_pending_intents(self, portfolio_id: int) -> list['OrderIntent']:
         """
         获取待处理的订单意图
 

@@ -6,14 +6,14 @@ Validates that all API routes follow the naming conventions defined in the PRD:
 - API routes: /api/module-name/action/
 - Clear separation between page and data endpoints
 """
-import pytest
 import re
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
+import pytest
+from django.conf import settings
 from django.test import Client
 from django.urls import reverse
-from django.conf import settings
 
 
 class TestAPINamingConvention:
@@ -24,7 +24,7 @@ class TestAPINamingConvention:
         """Create a test client for API requests."""
         return Client()
 
-    def collect_all_url_patterns(self) -> List[Dict[str, str]]:
+    def collect_all_url_patterns(self) -> list[dict[str, str]]:
         """Collect all URL patterns from the project.
 
         Returns:
@@ -107,7 +107,7 @@ class TestAPINamingConvention:
         url_patterns = self.collect_all_url_patterns()
 
         # Group routes by path (without /api/ prefix)
-        route_groups: Dict[str, List[Dict]] = {}
+        route_groups: dict[str, list[dict]] = {}
         for pattern_info in url_patterns:
             # Normalize path
             path = pattern_info['pattern'].rstrip('^$')
@@ -277,7 +277,7 @@ class TestAPIDocumentation:
 
 
 # Helper functions for reporting
-def generate_api_compliance_report() -> Dict:
+def generate_api_compliance_report() -> dict:
     """Generate API compliance report.
 
     Returns:

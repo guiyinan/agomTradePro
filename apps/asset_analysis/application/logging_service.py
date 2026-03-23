@@ -6,15 +6,14 @@
 
 import logging
 import traceback
-from typing import Optional, Dict, Any, List
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
 from apps.asset_analysis.domain.entities import AssetScore
-from apps.asset_analysis.domain.value_objects import WeightConfig, ScoreContext
-
+from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class ScoringLogEntry:
     """评分日志条目"""
     asset_type: str
     request_source: str
-    user_id: Optional[int] = None
+    user_id: int | None = None
     regime: str = ""
     policy_level: str = ""
     sentiment_index: float = 0.0
@@ -34,14 +33,14 @@ class ScoringLogEntry:
     policy_weight: float = 0.0
     sentiment_weight: float = 0.0
     signal_weight: float = 0.0
-    filters: Dict[str, Any] = field(default_factory=dict)
+    filters: dict[str, Any] = field(default_factory=dict)
     total_assets: int = 0
     scored_assets: int = 0
     filtered_assets: int = 0
-    execution_time_ms: Optional[int] = None
+    execution_time_ms: int | None = None
     cache_hit: bool = False
     status: str = "success"
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class ScoringLogger:
@@ -58,7 +57,7 @@ class ScoringLogger:
     def log_scoring(
         self,
         entry: ScoringLogEntry,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         记录评分日志
 
@@ -111,14 +110,14 @@ class ScoringLogger:
         request_source: str,
         context: ScoreContext,
         weights: WeightConfig,
-        filters: Dict[str, Any],
+        filters: dict[str, Any],
         total_assets: int,
         filtered_assets: int,
-        execution_time_ms: Optional[int] = None,
-        user_id: Optional[int] = None,
+        execution_time_ms: int | None = None,
+        user_id: int | None = None,
         status: str = "success",
-        error_message: Optional[str] = None,
-    ) -> Optional[int]:
+        error_message: str | None = None,
+    ) -> int | None:
         """
         从评分上下文记录日志
 
@@ -180,11 +179,11 @@ class AlertService:
         alert_type: str,
         title: str,
         message: str,
-        asset_type: Optional[str] = None,
-        asset_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-        stack_trace: Optional[str] = None,
-    ) -> Optional[int]:
+        asset_type: str | None = None,
+        asset_code: str | None = None,
+        context: dict[str, Any] | None = None,
+        stack_trace: str | None = None,
+    ) -> int | None:
         """
         创建告警
 
@@ -229,9 +228,9 @@ class AlertService:
         self,
         asset_type: str,
         error_message: str,
-        context: Optional[Dict[str, Any]] = None,
-        stack_trace: Optional[str] = None,
-    ) -> Optional[int]:
+        context: dict[str, Any] | None = None,
+        stack_trace: str | None = None,
+    ) -> int | None:
         """
         创建评分错误告警
 
@@ -258,8 +257,8 @@ class AlertService:
         self,
         asset_type: str,
         error_message: str,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        context: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         创建权重配置错误告警
 
@@ -285,8 +284,8 @@ class AlertService:
         asset_type: str,
         execution_time_ms: int,
         threshold_ms: int = 5000,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        context: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         创建性能告警
 
@@ -319,9 +318,9 @@ class AlertService:
         self,
         asset_type: str,
         issue_description: str,
-        asset_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        asset_code: str | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> int | None:
         """
         创建数据质量问题告警
 
@@ -348,9 +347,9 @@ class AlertService:
         self,
         api_name: str,
         error_message: str,
-        context: Optional[Dict[str, Any]] = None,
-        stack_trace: Optional[str] = None,
-    ) -> Optional[int]:
+        context: dict[str, Any] | None = None,
+        stack_trace: str | None = None,
+    ) -> int | None:
         """
         创建 API 调用失败告警
 
@@ -374,10 +373,10 @@ class AlertService:
 
     def get_unresolved_alerts(
         self,
-        severity: Optional[str] = None,
-        alert_type: Optional[str] = None,
+        severity: str | None = None,
+        alert_type: str | None = None,
         limit: int = 100,
-    ) -> List:
+    ) -> list:
         """
         获取未解决的告警
 
@@ -406,7 +405,7 @@ class AlertService:
         self,
         alert_id: int,
         resolved_by: int,
-        resolution_notes: Optional[str] = None,
+        resolution_notes: str | None = None,
     ) -> bool:
         """
         解决告警

@@ -7,7 +7,7 @@ Infrastructure Layer for Backtest Module.
 """
 
 from .models import BacktestResultModel, BacktestTradeModel
-from .repositories import DjangoBacktestRepository, BacktestRepositoryError
+from .repositories import BacktestRepositoryError, DjangoBacktestRepository
 
 __all__ = [
     "BacktestResultModel",

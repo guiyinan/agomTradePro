@@ -1,8 +1,8 @@
 """URL configuration for Macro app."""
-from django.urls import include, path
 from django.shortcuts import redirect
-from . import views
+from django.urls import include, path
 
+from . import views
 
 app_name = 'macro'
 

@@ -13,9 +13,9 @@ CI groups:
 """
 
 import asyncio
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 
 # ── agent_runtime_unit: Domain invariants ─────────────────────
 
@@ -84,7 +84,7 @@ class TestRouteRegistration:
 
     @pytest.fixture(autouse=True)
     def _resolve(self):
-        from django.urls import resolve, reverse, NoReverseMatch
+        from django.urls import NoReverseMatch, resolve, reverse
         self.resolve = resolve
         self.reverse = reverse
         self.NoReverseMatch = NoReverseMatch

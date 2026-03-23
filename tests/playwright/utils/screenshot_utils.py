@@ -15,7 +15,7 @@ from tests.playwright.config.test_config import config
 class ScreenshotUtils:
     """Utility class for taking and managing screenshots."""
 
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: str | None = None):
         """Initialize screenshot utilities.
 
         Args:
@@ -67,7 +67,7 @@ class ScreenshotUtils:
         page: Page,
         issue_id: str,
         state: str = "before",
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> str:
         """Capture a screenshot for a UX issue.
 
@@ -94,7 +94,7 @@ class ScreenshotUtils:
         page: Page,
         flow_name: str,
         step_number: int,
-        step_description: Optional[str] = None,
+        step_description: str | None = None,
     ) -> str:
         """Capture a screenshot for a step in a user flow.
 
@@ -120,7 +120,7 @@ class ScreenshotUtils:
         self,
         page: Page,
         test_name: str,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> str:
         """Capture a screenshot when an error occurs.
 

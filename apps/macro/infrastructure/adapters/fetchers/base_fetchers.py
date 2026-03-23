@@ -4,13 +4,14 @@
 包含 PMI、CPI、PPI、M2 等核心宏观经济指标的获取逻辑。
 """
 
-import pandas as pd
-from datetime import date
-from typing import List
 import logging
 import re
+from datetime import date
+from typing import List
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class BaseIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 PMI 数据"""
         try:
             df = self.ak.macro_china_pmi()
@@ -100,7 +101,7 @@ class BaseIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 CPI 数据"""
         try:
             df = self.ak.macro_china_cpi()
@@ -147,7 +148,7 @@ class BaseIndicatorFetcher:
         start_date: date,
         end_date: date,
         indicator_code: str
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 CPI 细分数据"""
         try:
             df = self.ak.macro_china_cpi()
@@ -209,7 +210,7 @@ class BaseIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 PPI 数据"""
         try:
             df = self.ak.macro_china_ppi()
@@ -255,7 +256,7 @@ class BaseIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 PPI 同比数据"""
         try:
             df = self.ak.macro_china_ppi()
@@ -301,7 +302,7 @@ class BaseIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国 M2 货币供应量数据"""
         try:
             df = self.ak.macro_china_money_supply()
@@ -348,7 +349,7 @@ class BaseIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取中国非制造业PMI数据"""
         try:
             df = self.ak.macro_china_non_man_pmi()

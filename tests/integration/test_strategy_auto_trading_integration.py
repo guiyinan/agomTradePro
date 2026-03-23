@@ -6,50 +6,49 @@ Phase 5 端到端测试：
 - 测试规则策略的完整流程
 - 测试向后兼容（无策略时使用原有逻辑）
 """
-import pytest
 import uuid
-from django.test import TestCase
 from datetime import date, datetime
 from decimal import Decimal
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from django.contrib.auth.models import User
-from apps.account.infrastructure.models import AccountProfileModel
+from django.test import TestCase
 
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    PositionModel,
-    SimulatedTradeModel,
-    FeeConfigModel,
-)
-from apps.simulated_trading.infrastructure.repositories import (
-    DjangoSimulatedAccountRepository,
-    DjangoPositionRepository,
-    DjangoTradeRepository,
-)
+from apps.account.infrastructure.models import AccountProfileModel
+from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.use_cases import (
     CreateSimulatedAccountUseCase,
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
 )
-from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.domain.entities import SimulatedAccount
-
-from apps.strategy.infrastructure.models import (
-    StrategyModel,
-    RuleConditionModel,
-    AIStrategyConfigModel,
-    PortfolioStrategyAssignmentModel,
+from apps.simulated_trading.infrastructure.models import (
+    FeeConfigModel,
+    PositionModel,
+    SimulatedAccountModel,
+    SimulatedTradeModel,
 )
-from apps.strategy.domain.entities import (
-    Strategy,
-    StrategyType,
-    RuleCondition,
-    ActionType,
-    SignalRecommendation,
-    StrategyExecutionResult,
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
+    DjangoTradeRepository,
 )
 from apps.strategy.application.strategy_executor import StrategyExecutor
+from apps.strategy.domain.entities import (
+    ActionType,
+    RuleCondition,
+    SignalRecommendation,
+    Strategy,
+    StrategyExecutionResult,
+    StrategyType,
+)
+from apps.strategy.infrastructure.models import (
+    AIStrategyConfigModel,
+    PortfolioStrategyAssignmentModel,
+    RuleConditionModel,
+    StrategyModel,
+)
 
 
 @pytest.mark.django_db
@@ -202,6 +201,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
         # 4. Mock 策略执行网关（engine 内部使用 gateway，不再直接使用 strategy_executor）
         from apps.strategy.application.execution_gateway import (
             ExecutionResult as GatewayExecutionResult,
+        )
+        from apps.strategy.application.execution_gateway import (
             SignalInfo,
         )
 
@@ -318,6 +319,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
         # 4. Mock 策略执行网关（返回卖出信号）
         from apps.strategy.application.execution_gateway import (
             ExecutionResult as GatewayExecutionResult,
+        )
+        from apps.strategy.application.execution_gateway import (
             SignalInfo,
         )
 

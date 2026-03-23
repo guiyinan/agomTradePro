@@ -4,6 +4,7 @@ Django production settings for AgomTradePro project.
 
 import logging
 import os
+
 from django.core.exceptions import ImproperlyConfigured
 
 
@@ -243,8 +244,8 @@ LOGGING = {
 _sentry_dsn = os.environ.get('SENTRY_DSN', '')
 if _sentry_dsn:
     import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.integrations.logging import LoggingIntegration
 
     sentry_sdk.init(

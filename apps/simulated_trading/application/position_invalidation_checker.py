@@ -5,14 +5,14 @@
 """
 
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 from django.utils import timezone
 
 from apps.signal.domain.invalidation import (
-    InvalidationRule,
-    InvalidationCheckResult,
     IndicatorValue,
+    InvalidationCheckResult,
+    InvalidationRule,
     evaluate_rule,
 )
 from apps.simulated_trading.domain.entities import Position
@@ -32,7 +32,7 @@ class PositionInvalidationChecker:
         self.macro_repo = DjangoMacroRepository()
         self.position_repo = DjangoPositionRepository()
 
-    def check_all_positions(self) -> List[Dict]:
+    def check_all_positions(self) -> list[dict]:
         """
         检查所有有证伪规则的持仓
 
@@ -59,7 +59,7 @@ class PositionInvalidationChecker:
 
         return invalidated
 
-    def check_position(self, position_id: int) -> Optional[InvalidationCheckResult]:
+    def check_position(self, position_id: int) -> InvalidationCheckResult | None:
         """
         检查单个持仓的证伪状态
 
@@ -74,7 +74,7 @@ class PositionInvalidationChecker:
             return None
         return self._check_position(position)
 
-    def _check_position(self, position: Position) -> Optional[InvalidationCheckResult]:
+    def _check_position(self, position: Position) -> InvalidationCheckResult | None:
         """
         检查持仓的证伪状态
 
@@ -109,7 +109,7 @@ class PositionInvalidationChecker:
 
         return result
 
-    def _fetch_indicator_values(self, rule: InvalidationRule) -> Dict[str, IndicatorValue]:
+    def _fetch_indicator_values(self, rule: InvalidationRule) -> dict[str, IndicatorValue]:
         """
         获取规则中所有指标的当前值
 
@@ -182,7 +182,7 @@ class PositionInvalidationChecker:
             f"持仓证伪: {position.account_id} - {position.asset_code} - {result.reason}"
         )
 
-    def get_positions_to_close(self) -> List[dict]:
+    def get_positions_to_close(self) -> list[dict]:
         """
         获取所有应该平仓的持仓（已证伪）
 
@@ -194,7 +194,7 @@ class PositionInvalidationChecker:
 
 # ==================== 导出函数，供 Celery 任务使用 ====================
 
-def check_and_invalidate_positions() -> Dict:
+def check_and_invalidate_positions() -> dict:
     """
     检查并证伪满足条件的持仓
 
@@ -213,7 +213,7 @@ def check_and_invalidate_positions() -> Dict:
     }
 
 
-def get_invalidated_positions_summary() -> List[Dict]:
+def get_invalidated_positions_summary() -> list[dict]:
     """
     获取已证伪持仓的摘要
 

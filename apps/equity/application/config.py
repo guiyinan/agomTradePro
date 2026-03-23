@@ -65,7 +65,7 @@ _SETTINGS_MAPPING = {
 }
 
 
-def _get_config_from_db() -> Optional[ValuationRepairConfig]:
+def _get_config_from_db() -> ValuationRepairConfig | None:
     """从数据库获取激活的配置"""
     try:
         from apps.equity.infrastructure.models import ValuationRepairConfigModel

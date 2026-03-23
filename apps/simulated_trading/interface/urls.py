@@ -1,16 +1,17 @@
 """模拟盘交易模块 URL 配置。"""
 from django.shortcuts import redirect
 from django.urls import include, path
+
 from .views import (
+    account_detail_page,
     # 页面视图
     dashboard_page,
-    account_detail_page,
+    my_account_detail_page,
     # 用户专属视图（重构）
     my_accounts_page,
-    my_account_detail_page,
+    my_inspection_notify_page,
     my_positions_page,
     my_trades_page,
-    my_inspection_notify_page,
 )
 
 app_name = 'simulated_trading'

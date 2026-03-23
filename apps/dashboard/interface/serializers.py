@@ -4,32 +4,32 @@ Dashboard Interface Serializers
 仪表盘 DRF 序列化器定义。
 """
 
-from rest_framework import serializers
 from datetime import datetime
 
+from rest_framework import serializers
+
 from apps.dashboard.domain.entities import (
-    DashboardCard,
-    DashboardWidget,
-    DashboardLayout,
-    ChartConfig,
-    MetricCard,
     AlertConfig,
-    DashboardPreferences,
-    CardType,
-    WidgetType,
     AlertSeverity,
+    CardType,
+    ChartConfig,
+    DashboardCard,
+    DashboardLayout,
+    DashboardPreferences,
+    DashboardWidget,
+    MetricCard,
+    WidgetType,
 )
 from apps.dashboard.domain.services import (
     LayoutResolutionResult,
     MetricCalculationResult,
 )
 from apps.dashboard.infrastructure.models import (
+    DashboardAlertModel,
+    DashboardCardModel,
     DashboardConfigModel,
     DashboardUserConfigModel,
-    DashboardCardModel,
-    DashboardAlertModel,
 )
-
 
 # ========== Domain Entity Serializers ==========
 

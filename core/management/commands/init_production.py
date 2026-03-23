@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Init scripts in dependency order.
 # Each entry: (module_path, display_name, description)
-INIT_SCRIPTS: List[Tuple[str, str, str]] = [
+INIT_SCRIPTS: list[tuple[str, str, str]] = [
     ("scripts.init_indicators", "indicators", "宏观指标配置"),
     ("scripts.init_thresholds", "thresholds", "Regime 阈值配置"),
     ("scripts.init_config", "config", "系统基础配置"),

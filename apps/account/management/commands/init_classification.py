@@ -4,14 +4,16 @@ Initialize Asset Categories and Currencies.
 初始化资产分类和币种数据。
 """
 
+from datetime import date
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
+
 from apps.account.infrastructure.models import (
     AssetCategoryModel,
     CurrencyModel,
     ExchangeRateModel,
 )
-from decimal import Decimal
-from datetime import date
 
 
 class Command(BaseCommand):
@@ -183,7 +185,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'  ~ Update exchange rate: {from_code} -> {to_code} = {rate}')
 
         self.stdout.write('\n[OK] Initialization complete!')
-        self.stdout.write(f'\nStatistics:')
+        self.stdout.write('\nStatistics:')
         self.stdout.write(f'  - Currencies: {CurrencyModel._default_manager.count()}')
         self.stdout.write(f'  - Top-level categories: {AssetCategoryModel._default_manager.filter(level=1).count()}')
         self.stdout.write(f'  - Sub-categories: {AssetCategoryModel._default_manager.filter(level=2).count()}')

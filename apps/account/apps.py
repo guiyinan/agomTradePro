@@ -10,5 +10,5 @@ class AccountConfig(AppConfig):
         """
         应用启动时导入信号处理器和 Celery 任务
         """
-        import apps.account.infrastructure.signals  # noqa: F401
         import apps.account.application.tasks  # noqa: F401 - Import Celery tasks
+        import apps.account.infrastructure.signals  # noqa: F401

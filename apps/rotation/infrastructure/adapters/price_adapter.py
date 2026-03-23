@@ -5,9 +5,9 @@ Rotation Module Infrastructure Layer - Price Data Adapter
 不再直连 Tushare/AkShare，统一走 SourceRegistry failover + 熔断机制。
 """
 
+import logging
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
-import logging
 
 from django.utils import timezone
 
@@ -18,14 +18,14 @@ class PriceDataCache:
     """Simple cache for price data to reduce API calls"""
 
     def __init__(self, ttl_seconds: int = 3600):
-        self._cache: Dict[str, tuple[List[float], datetime]] = {}
+        self._cache: dict[str, tuple[list[float], datetime]] = {}
         self._ttl = timedelta(seconds=ttl_seconds)
 
     def get(
         self,
         asset_code: str,
         end_date: date
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """Get cached prices if available and not expired"""
         cache_key = f"{asset_code}_{end_date}"
 
@@ -42,7 +42,7 @@ class PriceDataCache:
         self,
         asset_code: str,
         end_date: date,
-        prices: List[float]
+        prices: list[float]
     ) -> None:
         """Cache prices"""
         cache_key = f"{asset_code}_{end_date}"
@@ -63,7 +63,7 @@ class RotationPriceDataService:
 
     def __init__(
         self,
-        cache: Optional[PriceDataCache] = None,
+        cache: PriceDataCache | None = None,
     ):
         self.cache = cache or PriceDataCache()
 
@@ -72,7 +72,7 @@ class RotationPriceDataService:
         asset_code: str,
         end_date: date,
         days_back: int = 252
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """
         获取资产历史收盘价。
 
@@ -99,10 +99,10 @@ class RotationPriceDataService:
 
     def get_multiple_prices(
         self,
-        asset_codes: List[str],
+        asset_codes: list[str],
         end_date: date,
         days_back: int = 252
-    ) -> Dict[str, List[float]]:
+    ) -> dict[str, list[float]]:
         """批量获取多个资产的历史价格。"""
         result = {}
 
@@ -122,7 +122,7 @@ class RotationPriceDataService:
         asset_code: str,
         end_date: date,
         days_back: int,
-    ) -> Optional[List[float]]:
+    ) -> list[float] | None:
         """通过 market_data SourceRegistry 获取历史价格"""
         try:
             from apps.market_data.application.registry_factory import get_registry

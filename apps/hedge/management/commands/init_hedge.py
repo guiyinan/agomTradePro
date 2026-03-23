@@ -9,6 +9,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.hedge.infrastructure.models import HedgePairModel
 
 

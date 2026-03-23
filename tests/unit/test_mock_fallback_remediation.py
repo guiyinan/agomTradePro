@@ -11,7 +11,9 @@ import pytest
 from django.core.cache import cache
 from django.core.management.base import CommandError
 
-from apps.account.management.commands.bootstrap_mcp_cold_start import Command as BootstrapMcpColdStartCommand
+from apps.account.management.commands.bootstrap_mcp_cold_start import (
+    Command as BootstrapMcpColdStartCommand,
+)
 from apps.dashboard.application.queries import AlphaVisualizationQuery
 from apps.rotation.infrastructure.adapters.price_adapter import RotationPriceDataService
 from apps.sector.application.use_cases import (

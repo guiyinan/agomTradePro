@@ -10,33 +10,34 @@ Tests verify:
 - State transitions are enforced server-side
 """
 
-import pytest
 from datetime import datetime, timezone
 
-from apps.agent_runtime.infrastructure.models import (
-    AgentTaskModel,
-    AgentTimelineEventModel,
-)
-from apps.agent_runtime.domain.entities import (
-    TaskDomain,
-    TaskStatus,
-    TimelineEventType,
-    EventSource,
-)
-from apps.agent_runtime.domain.services import (
-    TaskStateMachine,
-    get_task_state_machine,
-    InvalidStateTransitionError,
-)
+import pytest
+
 from apps.agent_runtime.application.use_cases import (
+    CancelTaskInput,
+    CancelTaskUseCase,
+    CreateTaskInput,
     CreateTaskUseCase,
     GetTaskUseCase,
     ListTasksUseCase,
-    ResumeTaskUseCase,
-    CancelTaskUseCase,
-    CreateTaskInput,
     ResumeTaskInput,
-    CancelTaskInput,
+    ResumeTaskUseCase,
+)
+from apps.agent_runtime.domain.entities import (
+    EventSource,
+    TaskDomain,
+    TaskStatus,
+    TimelineEventType,
+)
+from apps.agent_runtime.domain.services import (
+    InvalidStateTransitionError,
+    TaskStateMachine,
+    get_task_state_machine,
+)
+from apps.agent_runtime.infrastructure.models import (
+    AgentTaskModel,
+    AgentTimelineEventModel,
 )
 
 

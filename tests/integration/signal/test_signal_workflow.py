@@ -7,27 +7,27 @@ Integration Tests for Signal Complete Lifecycle
 3. Policy 否决逻辑
 """
 
-import pytest
 from datetime import date, timedelta
 from unittest.mock import Mock
 
-from apps.signal.domain.entities import InvestmentSignal, SignalStatus
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
-from apps.signal.application.use_cases import (
-    ValidateSignalUseCase,
-    ValidateSignalRequest,
-    CheckSignalInvalidationUseCase,
-    CheckSignalInvalidationRequest,
-    ReevaluateSignalsUseCase,
-    ReevaluateSignalsRequest,
-)
-from apps.policy.domain.entities import PolicyLevel
+import pytest
+
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.regime.domain.entities import RegimeSnapshot
+from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-from apps.policy.domain.entities import PolicyEvent
+from apps.regime.domain.entities import RegimeSnapshot
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.signal.application.use_cases import (
+    CheckSignalInvalidationRequest,
+    CheckSignalInvalidationUseCase,
+    ReevaluateSignalsRequest,
+    ReevaluateSignalsUseCase,
+    ValidateSignalRequest,
+    ValidateSignalUseCase,
+)
+from apps.signal.domain.entities import InvestmentSignal, SignalStatus
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 @pytest.mark.django_db
@@ -321,8 +321,8 @@ class TestSignalCompleteWorkflow:
         验证在不同 Regime 下获取推荐资产列表
         """
         from apps.signal.application.use_cases import (
+            GetRecommendedAssetsRequest,
             GetRecommendedAssetsUseCase,
-            GetRecommendedAssetsRequest
         )
 
         use_case = GetRecommendedAssetsUseCase()

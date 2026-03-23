@@ -10,19 +10,18 @@ Stress Tests for Qlib Failure Scenarios
 6. 全链路降级
 """
 
-import pytest
 from datetime import date, timedelta
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from django.db import close_old_connections, connections
 from django.utils import timezone
 
 from apps.alpha.application.services import AlphaService
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from apps.alpha.application.tasks import qlib_predict_scores
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from shared.infrastructure.metrics import get_alpha_metrics
-
 
 # --- Helper: mock ETF constituents so ETF fallback returns real data ---
 _ETF_CONSTITUENTS_PATH = (
@@ -524,7 +523,7 @@ class TestNetworkFailure:
         """测试 ETF Provider 的韧性"""
         # 即使其他 Provider 都失败，ETF 也应该工作
         # Mock 返回正常结果
-        from apps.alpha.domain.entities import StockScore, AlphaResult
+        from apps.alpha.domain.entities import AlphaResult, StockScore
 
         mock_etf.return_value = AlphaResult(
             success=True,

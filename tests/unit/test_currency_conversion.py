@@ -5,7 +5,8 @@ Unit tests for Currency Unit Conversion
 """
 
 import pytest
-from apps.macro.domain.entities import normalize_currency_unit, UNIT_CONVERSION_FACTORS
+
+from apps.macro.domain.entities import UNIT_CONVERSION_FACTORS, normalize_currency_unit
 
 
 class TestNormalizeCurrencyUnit:

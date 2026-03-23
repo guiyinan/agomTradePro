@@ -8,29 +8,29 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 from django.utils import timezone
 
 from apps.dashboard.domain.entities import (
-    DashboardLayout,
-    DashboardCard,
-    DashboardWidget,
-    DashboardPreferences,
     AlertConfig,
-    CardType,
-    WidgetType,
     AlertSeverity,
+    CardType,
+    DashboardCard,
+    DashboardLayout,
+    DashboardPreferences,
+    DashboardWidget,
+    WidgetType,
 )
 from apps.dashboard.domain.services import LayoutResolutionResult
-from .models import (
-    DashboardConfigModel,
-    DashboardUserConfigModel,
-    DashboardCardModel,
-    DashboardAlertModel,
-    DashboardSnapshotModel,
-)
 
+from .models import (
+    DashboardAlertModel,
+    DashboardCardModel,
+    DashboardConfigModel,
+    DashboardSnapshotModel,
+    DashboardUserConfigModel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class DashboardConfigRepository:
         >>> cards = repo.get_cards_for_config(config.config_id)
     """
 
-    def get_default_config(self) -> Optional[DashboardConfigModel]:
+    def get_default_config(self) -> DashboardConfigModel | None:
         """
         获取默认配置
 
@@ -65,7 +65,7 @@ class DashboardConfigRepository:
             logger.error(f"Error getting default config: {e}")
             return None
 
-    def get_config_by_id(self, config_id: str) -> Optional[DashboardConfigModel]:
+    def get_config_by_id(self, config_id: str) -> DashboardConfigModel | None:
         """
         按 ID 获取配置
 
@@ -80,7 +80,7 @@ class DashboardConfigRepository:
         except DashboardConfigModel.DoesNotExist:
             return None
 
-    def get_all_active_configs(self) -> List[DashboardConfigModel]:
+    def get_all_active_configs(self) -> list[DashboardConfigModel]:
         """
         获取所有激活的配置
 
@@ -93,8 +93,8 @@ class DashboardConfigRepository:
         self,
         config_id: str,
         name: str,
-        layout_config: Dict[str, Any],
-        card_configs: List[Dict[str, Any]],
+        layout_config: dict[str, Any],
+        card_configs: list[dict[str, Any]],
         is_default: bool = False,
         description: str = "",
     ) -> DashboardConfigModel:
@@ -130,7 +130,7 @@ class DashboardConfigRepository:
         self,
         config_id: str,
         **kwargs
-    ) -> Optional[DashboardConfigModel]:
+    ) -> DashboardConfigModel | None:
         """
         更新配置
 
@@ -163,7 +163,7 @@ class DashboardPreferencesRepository:
         >>> prefs = repo.get_or_create_preferences(user_id)
     """
 
-    def get_preferences(self, user_id: int) -> Optional[DashboardPreferences]:
+    def get_preferences(self, user_id: int) -> DashboardPreferences | None:
         """
         获取用户偏好
 
@@ -213,7 +213,7 @@ class DashboardPreferencesRepository:
         self,
         user_id: int,
         **kwargs
-    ) -> Optional[DashboardPreferences]:
+    ) -> DashboardPreferences | None:
         """
         更新用户偏好
 
@@ -329,7 +329,7 @@ class DashboardPreferencesRepository:
         except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
             return False
 
-    def update_card_order(self, user_id: int, card_order: List[str]) -> bool:
+    def update_card_order(self, user_id: int, card_order: list[str]) -> bool:
         """
         更新卡片顺序
 
@@ -376,7 +376,7 @@ class DashboardCardRepository:
         >>> card = repo.get_card_by_id("portfolio_summary")
     """
 
-    def get_card_by_id(self, card_id: str) -> Optional[DashboardCardModel]:
+    def get_card_by_id(self, card_id: str) -> DashboardCardModel | None:
         """
         按 ID 获取卡片
 
@@ -391,7 +391,7 @@ class DashboardCardRepository:
         except DashboardCardModel.DoesNotExist:
             return None
 
-    def get_all_visible_cards(self) -> List[DashboardCardModel]:
+    def get_all_visible_cards(self) -> list[DashboardCardModel]:
         """
         获取所有可见卡片
 
@@ -400,7 +400,7 @@ class DashboardCardRepository:
         """
         return list(DashboardCardModel._default_manager.filter(is_visible=True))
 
-    def get_cards_by_type(self, card_type: CardType) -> List[DashboardCardModel]:
+    def get_cards_by_type(self, card_type: CardType) -> list[DashboardCardModel]:
         """
         按类型获取卡片
 
@@ -477,7 +477,7 @@ class DashboardAlertRepository:
         >>> alerts = repo.get_enabled_alerts()
     """
 
-    def get_alert_by_id(self, alert_id: str) -> Optional[DashboardAlertModel]:
+    def get_alert_by_id(self, alert_id: str) -> DashboardAlertModel | None:
         """
         按 ID 获取告警
 
@@ -492,7 +492,7 @@ class DashboardAlertRepository:
         except DashboardAlertModel.DoesNotExist:
             return None
 
-    def get_enabled_alerts(self) -> List[DashboardAlertModel]:
+    def get_enabled_alerts(self) -> list[DashboardAlertModel]:
         """
         获取所有启用的告警
 
@@ -501,7 +501,7 @@ class DashboardAlertRepository:
         """
         return list(DashboardAlertModel._default_manager.filter(is_enabled=True))
 
-    def get_alerts_by_severity(self, severity: AlertSeverity) -> List[DashboardAlertModel]:
+    def get_alerts_by_severity(self, severity: AlertSeverity) -> list[DashboardAlertModel]:
         """
         按严重级别获取告警
 
@@ -581,8 +581,8 @@ class DashboardSnapshotRepository:
     def create_snapshot(
         self,
         user_id: int,
-        snapshot_data: Dict[str, Any]
-    ) -> Optional[DashboardSnapshotModel]:
+        snapshot_data: dict[str, Any]
+    ) -> DashboardSnapshotModel | None:
         """
         创建快照
 
@@ -607,7 +607,7 @@ class DashboardSnapshotRepository:
         self,
         user_id: int,
         limit: int = 10
-    ) -> List[DashboardSnapshotModel]:
+    ) -> list[DashboardSnapshotModel]:
         """
         获取最近的快照
 

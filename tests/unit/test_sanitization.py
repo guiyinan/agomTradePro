@@ -9,14 +9,15 @@ Tests verify that:
 """
 
 import pytest
+
 from shared.infrastructure.sanitization import (
-    sanitize_plain_text,
-    sanitize_rich_text,
-    sanitize_field,
-    sanitize_inputs,
-    get_sanitization_config,
     SAFE_TAGS,
     SAFE_URL_SCHEMES,
+    get_sanitization_config,
+    sanitize_field,
+    sanitize_inputs,
+    sanitize_plain_text,
+    sanitize_rich_text,
 )
 
 

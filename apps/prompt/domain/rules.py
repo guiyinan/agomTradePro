@@ -5,16 +5,16 @@ This file contains pure validation logic using only Python standard library.
 """
 
 import re
-from typing import List, Optional
 from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass(frozen=True)
 class ValidationResult:
     """验证结果"""
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
     @staticmethod
     def success() -> "ValidationResult":
@@ -22,7 +22,7 @@ class ValidationResult:
         return ValidationResult(is_valid=True, errors=[], warnings=[])
 
     @staticmethod
-    def failure(errors: List[str], warnings: Optional[List[str]] = None) -> "ValidationResult":
+    def failure(errors: list[str], warnings: list[str] | None = None) -> "ValidationResult":
         """创建失败的验证结果"""
         return ValidationResult(
             is_valid=False,
@@ -131,7 +131,7 @@ def validate_placeholder_name(name: str) -> ValidationResult:
 
 
 def validate_chain_steps(
-    steps: List,
+    steps: list,
     execution_mode: str
 ) -> ValidationResult:
     """验证链式步骤配置
@@ -190,7 +190,7 @@ def validate_chain_steps(
     )
 
 
-def _detect_cycle(steps: List) -> Optional[List[str]]:
+def _detect_cycle(steps: list) -> list[str] | None:
     """检测步骤依赖中的循环
 
     Args:

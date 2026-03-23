@@ -7,12 +7,13 @@
 参考文档: docs/development/regime-lag-improvement-plan.md
 """
 
-import pandas as pd
-from datetime import date
-from typing import List, Optional, Dict
 import logging
+from datetime import date
+from typing import Dict, List, Optional
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +47,9 @@ class HighFrequencyIndicatorFetcher:
         self.source_name = source_name
         self._validate = validate_fn
         self._sort_and_deduplicate = sort_dedup_fn
-        self._bond_cache: Optional[pd.DataFrame] = None
+        self._bond_cache: pd.DataFrame | None = None
 
-    def _get_bond_yields(self) -> Optional[pd.DataFrame]:
+    def _get_bond_yields(self) -> pd.DataFrame | None:
         """获取中美国债收益率数据（带缓存）
 
         使用 ak.bond_zh_us_rate() 获取中美两国国债收益率数据。
@@ -117,7 +118,7 @@ class HighFrequencyIndicatorFetcher:
         start_date: date,
         end_date: date,
         country: str = "CN"
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取国债收益率
 
         Args:
@@ -170,10 +171,10 @@ class HighFrequencyIndicatorFetcher:
         self,
         long_term: str = "10Y",
         short_term: str = "2Y",
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         country: str = "CN"
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """计算期限利差（长端收益率 - 短端收益率）
 
         Args:
@@ -238,7 +239,7 @@ class HighFrequencyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取南华商品指数
 
         南华商品指数反映工业品通胀和实体经济需求。
@@ -292,7 +293,7 @@ class HighFrequencyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取人民币汇率中间价
 
         注意: AKShare 的 fx_spot_quote 只返回当前报价，不返回历史数据。
@@ -348,7 +349,7 @@ class HighFrequencyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取美国10年期国债收益率
 
         从 bond_zh_us_rate() 数据中提取。
@@ -359,7 +360,7 @@ class HighFrequencyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """计算信用利差
 
         注意: 当前 AKShare 不直接提供企业债收益率数据。
@@ -379,7 +380,7 @@ class HighFrequencyIndicatorFetcher:
         rating: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取企业债收益率
 
         注意: 当前 AKShare 不直接提供企业债收益率数据。
@@ -398,7 +399,7 @@ class HighFrequencyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取美元指数
 
         注意: 当前 AKShare 不直接提供美元指数历史数据。
@@ -417,7 +418,7 @@ class HighFrequencyIndicatorFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取VIX波动率指数
 
         注意: 当前 AKShare 的 VIX 相关函数主要是中国指数的 QVIX，

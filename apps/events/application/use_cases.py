@@ -6,27 +6,26 @@ Events Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from ..domain.entities import (
     DomainEvent,
-    EventType,
-    EventSubscription,
     EventHandler,
     # InMemoryEventBus is in services, not entities
     EventMetrics,
+    EventSubscription,
+    EventType,
     create_event,
     create_subscription,
 )
-from ..domain.services import get_event_bus, InMemoryEventBus
+from ..domain.services import InMemoryEventBus, get_event_bus
 from ..infrastructure.event_store import (
     DatabaseEventStore,
     SnapshotStore,
     get_event_store,
     get_snapshot_store,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +37,12 @@ logger = logging.getLogger(__name__)
 class PublishEventRequest:
     """发布事件请求"""
     event_type: EventType
-    payload: Dict[str, Any]
-    metadata: Optional[Dict[str, Any]] = None
-    event_id: Optional[str] = None
-    occurred_at: Optional[datetime] = None
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
+    payload: dict[str, Any]
+    metadata: dict[str, Any] | None = None
+    event_id: str | None = None
+    occurred_at: datetime | None = None
+    correlation_id: str | None = None
+    causation_id: str | None = None
 
 
 @dataclass
@@ -53,7 +52,7 @@ class PublishEventResponse:
     event_id: str
     published_at: datetime
     subscribers_notified: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -61,7 +60,7 @@ class SubscribeToEventRequest:
     """订阅事件请求"""
     event_type: EventType
     handler: EventHandler
-    filter_criteria: Optional[Dict[str, Any]] = None
+    filter_criteria: dict[str, Any] | None = None
     priority: int = 100
 
 
@@ -71,17 +70,17 @@ class SubscribeToEventResponse:
     success: bool
     subscription_id: str
     subscribed_at: datetime
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
 class QueryEventsRequest:
     """查询事件请求"""
-    event_type: Optional[EventType] = None
-    event_types: Optional[List[EventType]] = None
-    correlation_id: Optional[str] = None
-    since: Optional[datetime] = None
-    until: Optional[datetime] = None
+    event_type: EventType | None = None
+    event_types: list[EventType] | None = None
+    correlation_id: str | None = None
+    since: datetime | None = None
+    until: datetime | None = None
     limit: int = 100
 
 
@@ -91,10 +90,10 @@ class EventDTO:
     event_id: str
     event_type: str
     occurred_at: datetime
-    payload: Dict[str, Any]
-    metadata: Dict[str, Any]
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
+    payload: dict[str, Any]
+    metadata: dict[str, Any]
+    correlation_id: str | None = None
+    causation_id: str | None = None
     version: int = 1
 
 
@@ -102,20 +101,20 @@ class EventDTO:
 class QueryEventsResponse:
     """查询事件响应"""
     success: bool
-    events: List[EventDTO]
+    events: list[EventDTO]
     total_count: int
     queried_at: datetime
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
 class ReplayEventsRequest:
     """重放事件请求"""
-    event_type: Optional[EventType] = None
-    since: Optional[datetime] = None
-    until: Optional[datetime] = None
+    event_type: EventType | None = None
+    since: datetime | None = None
+    until: datetime | None = None
     limit: int = 1000
-    target_handler: Optional[EventHandler] = None
+    target_handler: EventHandler | None = None
 
 
 @dataclass
@@ -124,7 +123,7 @@ class ReplayEventsResponse:
     success: bool
     events_replayed: int
     replayed_at: datetime
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -135,7 +134,7 @@ class GetEventMetricsResponse:
     total_failed: int
     total_subscribers: int
     avg_processing_time_ms: float
-    last_event_at: Optional[datetime]
+    last_event_at: datetime | None
 
 
 # ========== Use Cases ==========
@@ -158,8 +157,8 @@ class PublishEventUseCase:
 
     def __init__(
         self,
-        event_bus: Optional[InMemoryEventBus] = None,
-        event_store: Optional[DatabaseEventStore] = None,
+        event_bus: InMemoryEventBus | None = None,
+        event_store: DatabaseEventStore | None = None,
     ):
         """
         初始化用例
@@ -210,7 +209,7 @@ class PublishEventUseCase:
             return PublishEventResponse(
                 success=True,
                 event_id=event.event_id,
-                published_at=datetime.now(timezone.utc),
+                published_at=datetime.now(UTC),
                 subscribers_notified=subscribers_notified,
             )
 
@@ -219,7 +218,7 @@ class PublishEventUseCase:
             return PublishEventResponse(
                 success=False,
                 event_id=request.event_id or "unknown",
-                published_at=datetime.now(timezone.utc),
+                published_at=datetime.now(UTC),
                 error_message=str(e),
             )
 
@@ -239,7 +238,7 @@ class SubscribeToEventUseCase:
         >>> response = use_case.execute(request)
     """
 
-    def __init__(self, event_bus: Optional[InMemoryEventBus] = None):
+    def __init__(self, event_bus: InMemoryEventBus | None = None):
         """
         初始化用例
 
@@ -273,7 +272,7 @@ class SubscribeToEventUseCase:
             return SubscribeToEventResponse(
                 success=True,
                 subscription_id=subscription.subscription_id,
-                subscribed_at=datetime.now(timezone.utc),
+                subscribed_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -281,7 +280,7 @@ class SubscribeToEventUseCase:
             return SubscribeToEventResponse(
                 success=False,
                 subscription_id="",
-                subscribed_at=datetime.now(timezone.utc),
+                subscribed_at=datetime.now(UTC),
                 error_message=str(e),
             )
 
@@ -301,7 +300,7 @@ class QueryEventsUseCase:
         >>> response = use_case.execute(request)
     """
 
-    def __init__(self, event_store: Optional[DatabaseEventStore] = None):
+    def __init__(self, event_store: DatabaseEventStore | None = None):
         """
         初始化用例
 
@@ -350,7 +349,7 @@ class QueryEventsUseCase:
                 success=True,
                 events=event_dtos,
                 total_count=len(event_dtos),
-                queried_at=datetime.now(timezone.utc),
+                queried_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -359,7 +358,7 @@ class QueryEventsUseCase:
                 success=False,
                 events=[],
                 total_count=0,
-                queried_at=datetime.now(timezone.utc),
+                queried_at=datetime.now(UTC),
                 error_message=str(e),
             )
 
@@ -381,7 +380,7 @@ class ReplayEventsUseCase:
 
     def __init__(
         self,
-        event_store: Optional[DatabaseEventStore] = None,
+        event_store: DatabaseEventStore | None = None,
     ):
         """
         初始化用例
@@ -416,7 +415,7 @@ class ReplayEventsUseCase:
             return ReplayEventsResponse(
                 success=True,
                 events_replayed=count,
-                replayed_at=datetime.now(timezone.utc),
+                replayed_at=datetime.now(UTC),
             )
 
         except Exception as e:
@@ -424,7 +423,7 @@ class ReplayEventsUseCase:
             return ReplayEventsResponse(
                 success=False,
                 events_replayed=0,
-                replayed_at=datetime.now(timezone.utc),
+                replayed_at=datetime.now(UTC),
                 error_message=str(e),
             )
 
@@ -442,8 +441,8 @@ class GetEventMetricsUseCase:
 
     def __init__(
         self,
-        event_bus: Optional[InMemoryEventBus] = None,
-        event_store: Optional[DatabaseEventStore] = None,
+        event_bus: InMemoryEventBus | None = None,
+        event_store: DatabaseEventStore | None = None,
     ):
         """
         初始化用例

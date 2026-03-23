@@ -26,11 +26,11 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class AlphaVisualizationData:
     """Alpha 可视化数据"""
-    stock_scores: List[Dict[str, Any]]
-    provider_status: Dict[str, Any]
-    coverage_metrics: Dict[str, Any]
-    ic_trends: List[Dict[str, Any]]
-    ic_trends_meta: Dict[str, Any]
+    stock_scores: list[dict[str, Any]]
+    provider_status: dict[str, Any]
+    coverage_metrics: dict[str, Any]
+    ic_trends: list[dict[str, Any]]
+    ic_trends_meta: dict[str, Any]
 
 
 class AlphaVisualizationQuery:
@@ -65,7 +65,7 @@ class AlphaVisualizationQuery:
             ic_trends_meta=self._build_ic_trends_meta(ic_trends),
         )
 
-    def _get_stock_scores(self, top_n: int) -> List[Dict[str, Any]]:
+    def _get_stock_scores(self, top_n: int) -> list[dict[str, Any]]:
         """获取 Alpha 选股评分结果"""
         try:
             from apps.alpha.application.services import AlphaService
@@ -99,13 +99,13 @@ class AlphaVisualizationQuery:
             logger.warning(f"Failed to get alpha stock scores: {e}")
             return []
 
-    def _resolve_security_names(self, codes: List[str]) -> Dict[str, str]:
+    def _resolve_security_names(self, codes: list[str]) -> dict[str, str]:
         """根据代码解析证券名称"""
         unique_codes = [c for c in {code for code in codes if code}]
         if not unique_codes:
             return {}
 
-        name_map: Dict[str, str] = {}
+        name_map: dict[str, str] = {}
 
         # 尝试从股票信息获取
         try:
@@ -138,7 +138,7 @@ class AlphaVisualizationQuery:
 
         return name_map
 
-    def _get_provider_status(self) -> Dict[str, Any]:
+    def _get_provider_status(self) -> dict[str, Any]:
         """获取 Alpha Provider 状态"""
         try:
             from apps.alpha.application.services import AlphaService
@@ -183,7 +183,7 @@ class AlphaVisualizationQuery:
                 "warning_message": "provider_status_unavailable",
             }
 
-    def _get_coverage_metrics(self) -> Dict[str, Any]:
+    def _get_coverage_metrics(self) -> dict[str, Any]:
         """获取 Alpha 覆盖率指标"""
         try:
             from shared.infrastructure.metrics import get_alpha_metrics
@@ -215,7 +215,7 @@ class AlphaVisualizationQuery:
                 "warning_message": "coverage_metrics_unavailable",
             }
 
-    def _get_ic_trends(self, days: int) -> List[Dict[str, Any]]:
+    def _get_ic_trends(self, days: int) -> list[dict[str, Any]]:
         """获取 Alpha IC/ICIR 趋势数据"""
         try:
             from apps.alpha.infrastructure.models import QlibModelRegistryModel
@@ -256,7 +256,7 @@ class AlphaVisualizationQuery:
             logger.warning(f"Failed to get alpha IC trends: {e}")
             return self._empty_ic_data(days)
 
-    def _empty_ic_data(self, days: int) -> List[Dict[str, Any]]:
+    def _empty_ic_data(self, days: int) -> list[dict[str, Any]]:
         """返回显式 unavailable 的空 IC 时间序列。"""
         trends = []
         base_date = date.today()
@@ -272,7 +272,7 @@ class AlphaVisualizationQuery:
 
         return trends
 
-    def _build_ic_trends_meta(self, trends: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _build_ic_trends_meta(self, trends: list[dict[str, Any]]) -> dict[str, Any]:
         has_live_data = any(
             row.get("ic") is not None or row.get("icir") is not None or row.get("rank_ic") is not None
             for row in trends
@@ -305,8 +305,8 @@ class DecisionPlaneData:
     quota_used: int
     quota_remaining: int
     quota_usage_percent: float
-    actionable_candidates: List[Any]
-    pending_requests: List[Any]
+    actionable_candidates: list[Any]
+    pending_requests: list[Any]
 
 
 class DecisionPlaneQuery:
@@ -374,8 +374,8 @@ class DecisionPlaneQuery:
     def _get_quota_total(self) -> int:
         """获取决策配额总数"""
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
             from apps.decision_rhythm.domain.entities import QuotaPeriod
+            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
 
             quota = (
                 DecisionQuotaModel._default_manager
@@ -391,8 +391,8 @@ class DecisionPlaneQuery:
     def _get_quota_used(self) -> int:
         """获取已使用的决策配额"""
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
             from apps.decision_rhythm.domain.entities import QuotaPeriod
+            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
 
             quota = (
                 DecisionQuotaModel._default_manager
@@ -408,8 +408,8 @@ class DecisionPlaneQuery:
     def _get_quota_remaining(self) -> int:
         """获取剩余决策配额"""
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
             from apps.decision_rhythm.domain.entities import QuotaPeriod
+            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
 
             quota = (
                 DecisionQuotaModel._default_manager
@@ -438,7 +438,7 @@ class DecisionPlaneQuery:
             logger.warning(f"Failed to get quota usage percent: {e}")
             return 0.0
 
-    def _get_actionable_candidates(self, max_count: int) -> List[Any]:
+    def _get_actionable_candidates(self, max_count: int) -> list[Any]:
         """获取可操作候选列表"""
         try:
             from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
@@ -514,7 +514,7 @@ class DecisionPlaneQuery:
             logger.warning(f"Failed to get actionable candidates: {e}")
             return []
 
-    def _get_pending_requests(self, max_count: int) -> List[Any]:
+    def _get_pending_requests(self, max_count: int) -> list[Any]:
         """获取待处理请求列表"""
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
@@ -553,15 +553,15 @@ class DecisionPlaneQuery:
 class RegimeSummaryData:
     """Regime 摘要数据"""
     current_regime: str
-    regime_date: Optional[date]
+    regime_date: date | None
     regime_confidence: float
     growth_momentum_z: float
     inflation_momentum_z: float
-    pmi_value: Optional[float]
-    cpi_value: Optional[float]
-    regime_distribution: Dict[str, int]
+    pmi_value: float | None
+    cpi_value: float | None
+    regime_distribution: dict[str, int]
     regime_data_health: bool
-    regime_warnings: List[str]
+    regime_warnings: list[str]
 
 
 class RegimeSummaryQuery:
@@ -576,7 +576,7 @@ class RegimeSummaryQuery:
         >>> print(data.current_regime)
     """
 
-    def execute(self, user_id: Optional[int] = None) -> RegimeSummaryData:
+    def execute(self, user_id: int | None = None) -> RegimeSummaryData:
         """
         执行查询
 
@@ -635,7 +635,7 @@ class RegimeSummaryQuery:
                 regime_warnings=[str(e)]
             )
 
-    def _get_latest_macro_value(self, indicator_code: str) -> Optional[float]:
+    def _get_latest_macro_value(self, indicator_code: str) -> float | None:
         """获取最新宏观指标值"""
         try:
             from apps.macro.infrastructure.models import MacroIndicator
@@ -657,7 +657,7 @@ class RegimeSummaryQuery:
 class DashboardDetailQuery:
     """Dashboard 详情查询服务。"""
 
-    def get_position_detail(self, user_id: int, asset_code: str) -> Dict[str, Any]:
+    def get_position_detail(self, user_id: int, asset_code: str) -> dict[str, Any]:
         """获取持仓详情和相关信号。"""
         try:
             from apps.account.infrastructure.models import PositionModel
@@ -695,17 +695,17 @@ class DashboardDetailQuery:
                 "error": str(e),
             }
 
-    def generate_alpha_candidates(self) -> Dict[str, int]:
+    def generate_alpha_candidates(self) -> dict[str, int]:
         """批量生成 Alpha 候选并返回统计结果。"""
         from apps.alpha_trigger.application.use_cases import (
-            GenerateCandidateUseCase,
             GenerateCandidateRequest,
+            GenerateCandidateUseCase,
         )
         from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
         from apps.alpha_trigger.infrastructure.repositories import (
-            get_trigger_repository,
             get_candidate_repository,
+            get_trigger_repository,
         )
 
         trigger_repo = get_trigger_repository()
@@ -767,10 +767,10 @@ class DashboardDetailQuery:
 # Singleton accessors
 # ============================================================================
 
-_alpha_visualization_query: Optional[AlphaVisualizationQuery] = None
-_decision_plane_query: Optional[DecisionPlaneQuery] = None
-_regime_summary_query: Optional[RegimeSummaryQuery] = None
-_dashboard_detail_query: Optional[DashboardDetailQuery] = None
+_alpha_visualization_query: AlphaVisualizationQuery | None = None
+_decision_plane_query: DecisionPlaneQuery | None = None
+_regime_summary_query: RegimeSummaryQuery | None = None
+_dashboard_detail_query: DashboardDetailQuery | None = None
 
 
 def get_alpha_visualization_query() -> AlphaVisualizationQuery:

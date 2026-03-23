@@ -4,21 +4,22 @@ Unit Tests for Policy Domain Rules
 测试政策档位响应规则和业务逻辑。
 """
 
-import pytest
 from datetime import date
+
+import pytest
 
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.domain.rules import (
+    PolicyResponse,
+    analyze_policy_transition,
+    get_cash_allocation_adjustment,
     get_policy_response,
+    get_recommendations_for_level,
+    is_high_risk_level,
+    requires_manual_intervention,
     should_pause_trading_signals,
     should_trigger_alert,
-    requires_manual_intervention,
-    get_cash_allocation_adjustment,
-    is_high_risk_level,
     validate_policy_event,
-    analyze_policy_transition,
-    get_recommendations_for_level,
-    PolicyResponse,
 )
 
 

@@ -12,8 +12,8 @@ Uses only:
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 class HedgeMethod(Enum):
@@ -59,7 +59,7 @@ class HedgePair:
 
     # Risk limits
     max_hedge_cost: float = 0.05           # Maximum acceptable hedge cost (5%)
-    beta_target: Optional[float] = None    # Target beta for beta hedging
+    beta_target: float | None = None    # Target beta for beta hedging
 
     # Status
     is_active: bool = True                 # Whether this pair is active
@@ -106,8 +106,8 @@ class CorrelationMetric:
     correlation_ma: float = 0.0            # Moving average of correlation
 
     # Alert information
-    alert: Optional[str] = None            # Alert message if any
-    alert_type: Optional[str] = None       # Type of alert
+    alert: str | None = None            # Alert message if any
+    alert_type: str | None = None       # Type of alert
 
     def __post_init__(self):
         """Validate correlation metric"""
@@ -195,7 +195,7 @@ class HedgeAlert:
 
     # Status
     is_resolved: bool = False               # Whether alert has been resolved
-    resolved_at: Optional[datetime] = None  # When alert was resolved
+    resolved_at: datetime | None = None  # When alert was resolved
 
     def __post_init__(self):
         """Validate hedge alert"""
@@ -244,7 +244,7 @@ class HedgePerformance:
 
 # Domain factory functions
 
-def get_common_hedge_pairs() -> List[HedgePair]:
+def get_common_hedge_pairs() -> list[HedgePair]:
     """Get list of commonly used hedge pairs"""
     return [
         # Equity-Bond hedge

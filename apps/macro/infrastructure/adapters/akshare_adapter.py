@@ -8,25 +8,26 @@ Infrastructure layer - fetches China macro data from AKShare.
 - 主适配器现在只负责路由请求到相应的 fetcher
 """
 
-import pandas as pd
+import logging
 from datetime import date
 from typing import List
-import logging
+
+import pandas as pd
 
 from .base import (
     BaseMacroAdapter,
-    MacroDataPoint,
     DataSourceUnavailableError,
+    MacroDataPoint,
 )
 from .fetchers import (
     BaseIndicatorFetcher,
     EconomicIndicatorFetcher,
-    TradeIndicatorFetcher,
     FinancialIndicatorFetcher,
-    OtherIndicatorFetcher,
     HighFrequencyIndicatorFetcher,
-    WeeklyIndicatorFetcher,
+    OtherIndicatorFetcher,
     PMISubitemsFetcher,
+    TradeIndicatorFetcher,
+    WeeklyIndicatorFetcher,
 )
 
 logger = logging.getLogger(__name__)
@@ -229,7 +230,7 @@ class AKShareAdapter(BaseMacroAdapter):
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取指定指标的数据
 

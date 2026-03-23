@@ -5,8 +5,8 @@ DTO 用于在 Interface 层和 Application 层之间传输数据。
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List
 from datetime import date
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -15,8 +15,8 @@ class ScreenRequest:
     多维度筛选请求 DTO
     """
     asset_type: str                           # 资产类型：fund/equity/bond
-    filters: Dict[str, object] = field(default_factory=dict)   # 过滤条件
-    weights: Optional[Dict[str, float]] = None  # 自定义权重（可选）
+    filters: dict[str, object] = field(default_factory=dict)   # 过滤条件
+    weights: dict[str, float] | None = None  # 自定义权重（可选）
     max_count: int = 30                       # 最大返回数量
 
     def __post_init__(self):
@@ -42,16 +42,16 @@ class AssetScoreDTO:
     asset_code: str
     asset_name: str
     asset_type: str
-    style: Optional[str] = None
-    size: Optional[str] = None
-    sector: Optional[str] = None
+    style: str | None = None
+    size: str | None = None
+    sector: str | None = None
 
     # 各维度得分
     regime_score: float = 0.0
     policy_score: float = 0.0
     sentiment_score: float = 0.0
     signal_score: float = 0.0
-    custom_scores: Dict[str, float] = field(default_factory=dict)
+    custom_scores: dict[str, float] = field(default_factory=dict)
 
     # 综合得分
     total_score: float = 0.0
@@ -91,10 +91,10 @@ class ScreenResponse:
     """
     success: bool
     timestamp: str
-    context: Dict[str, object]                # 评分上下文
-    weights: Dict[str, float]                 # 使用的权重
-    assets: List[AssetScoreDTO]               # 资产评分列表
-    message: Optional[str] = None             # 额外消息
+    context: dict[str, object]                # 评分上下文
+    weights: dict[str, float]                 # 使用的权重
+    assets: list[AssetScoreDTO]               # 资产评分列表
+    message: str | None = None             # 额外消息
 
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -114,13 +114,13 @@ class WeightConfigDTO:
     权重配置响应 DTO
     """
     name: str
-    description: Optional[str]
+    description: str | None
     regime_weight: float
     policy_weight: float
     sentiment_weight: float
     signal_weight: float
-    asset_type: Optional[str]
-    market_condition: Optional[str]
+    asset_type: str | None
+    market_condition: str | None
     is_active: bool
     priority: int
 

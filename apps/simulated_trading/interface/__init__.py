@@ -6,41 +6,36 @@ AI 策略执行器 - Application 层
 - 支持三种审核模式（always/conditional/auto）
 - 解析 AI 响应为信号列表
 """
-import logging
 import json
+import logging
 import time
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
-from apps.strategy.domain.entities import (
-    Strategy,
-    SignalRecommendation,
-    ActionType,
-    AIConfig
-)
-from apps.strategy.domain.protocols import (
-    MacroDataProviderProtocol,
-    RegimeProviderProtocol,
-    AssetPoolProviderProtocol,
-    SignalProviderProtocol,
-    PortfolioDataProviderProtocol
-)
+from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 
 # 复用系统内置的 AI 中台
 from apps.prompt.application.use_cases import (
-    ExecutePromptUseCase,
+    ExecuteChainRequest,
     ExecuteChainUseCase,
     ExecutePromptRequest,
-    ExecuteChainRequest
+    ExecutePromptUseCase,
 )
 from apps.prompt.infrastructure.repositories import (
-    DjangoPromptRepository,
     DjangoChainRepository,
-    DjangoExecutionLogRepository
+    DjangoExecutionLogRepository,
+    DjangoPromptRepository,
 )
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+from apps.strategy.domain.entities import ActionType, AIConfig, SignalRecommendation, Strategy
+from apps.strategy.domain.protocols import (
+    AssetPoolProviderProtocol,
+    MacroDataProviderProtocol,
+    PortfolioDataProviderProtocol,
+    RegimeProviderProtocol,
+    SignalProviderProtocol,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +60,7 @@ class AIResponseParser:
     def parse_signals(
         ai_content: str,
         default_confidence: float = 0.5
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         解析 AI 响应为信号列表
 
@@ -110,9 +105,9 @@ class AIResponseParser:
 
     @staticmethod
     def _parse_signal_item(
-        item: Dict[str, Any],
+        item: dict[str, Any],
         default_confidence: float
-    ) -> Optional[SignalRecommendation]:
+    ) -> SignalRecommendation | None:
         """
         解析单个信号项
 
@@ -179,7 +174,7 @@ class AIResponseParser:
     def _parse_text_format(
         text: str,
         default_confidence: float
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         解析纯文本格式
 
@@ -293,7 +288,7 @@ class AIStrategyExecutor:
         self,
         strategy: Strategy,
         portfolio_id: int
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         执行 AI 驱动策略
 
@@ -350,7 +345,7 @@ class AIStrategyExecutor:
             logger.error(f"AI strategy execution failed: {e}", exc_info=True)
             raise
 
-    def _prepare_context(self, portfolio_id: int) -> Dict[str, Any]:
+    def _prepare_context(self, portfolio_id: int) -> dict[str, Any]:
         """
         准备 AI 执行上下文
 
@@ -406,7 +401,7 @@ class AIStrategyExecutor:
     def _execute_prompt_strategy(
         self,
         ai_config: AIConfig,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> str:
         """
         执行单个 Prompt 策略
@@ -439,7 +434,7 @@ class AIStrategyExecutor:
     def _execute_chain_strategy(
         self,
         ai_config: AIConfig,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> str:
         """
         执行链式策略
@@ -468,10 +463,10 @@ class AIStrategyExecutor:
 
     def _apply_approval_mode(
         self,
-        signals: List[SignalRecommendation],
+        signals: list[SignalRecommendation],
         approval_mode: str,
         confidence_threshold: float
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         根据审核模式过滤信号
 
@@ -544,7 +539,7 @@ class PendingApprovalQueue:
         self,
         strategy_id: int,
         portfolio_id: int,
-        signals: List[SignalRecommendation]
+        signals: list[SignalRecommendation]
     ) -> None:
         """
         添加待审核信号到队列
@@ -565,7 +560,7 @@ class PendingApprovalQueue:
         self,
         strategy_id: int,
         portfolio_id: int
-    ) -> List[SignalRecommendation]:
+    ) -> list[SignalRecommendation]:
         """
         获取待审核信号
 

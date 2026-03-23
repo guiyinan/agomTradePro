@@ -155,7 +155,7 @@ class SetupAIProviderUseCase:
         self.state_repo = SetupStateRepository()
         self.validator = SetupValidator()
 
-    def execute(self, config: Optional[AIProviderConfigDTO]) -> SetupAIProviderResult:
+    def execute(self, config: AIProviderConfigDTO | None) -> SetupAIProviderResult:
         """
         执行设置 AI Provider
 
@@ -198,7 +198,7 @@ class SetupDataSourceUseCase:
         self.data_source_repo = DataSourceRepository()
         self.state_repo = SetupStateRepository()
 
-    def execute(self, config: Optional[DataSourceConfigDTO]) -> SetupAIProviderResult:
+    def execute(self, config: DataSourceConfigDTO | None) -> SetupAIProviderResult:
         """
         执行设置数据源
 
@@ -273,7 +273,7 @@ class GetNextStepUseCase:
     def __init__(self):
         self.calculator = SetupProgressCalculator()
 
-    def execute(self, current_step: WizardStep) -> Optional[WizardStep]:
+    def execute(self, current_step: WizardStep) -> WizardStep | None:
         """
         执行获取下一步骤
 

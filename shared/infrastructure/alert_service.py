@@ -7,8 +7,8 @@ Alert Service - Infrastructure Layer
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -29,7 +29,7 @@ class AlertResult:
     channel: str
     level: AlertLevel
     message: str
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class AlertChannel(ABC):
@@ -41,7 +41,7 @@ class AlertChannel(ABC):
         level: AlertLevel,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """
         发送告警
@@ -67,7 +67,7 @@ class AlertChannel(ABC):
         level: AlertLevel,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """
         兼容旧接口：send_alert -> send
@@ -92,7 +92,7 @@ class SlackAlertChannel(AlertChannel):
         level: AlertLevel,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """发送 Slack 告警"""
         try:
@@ -183,7 +183,7 @@ class EmailAlertChannel(AlertChannel):
         username: str,
         password: str,
         from_email: str,
-        to_emails: List[str]
+        to_emails: list[str]
     ):
         """
         初始化邮件告警渠道
@@ -208,13 +208,13 @@ class EmailAlertChannel(AlertChannel):
         level: AlertLevel,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """发送邮件告警"""
         try:
             import smtplib
-            from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
 
             # 构建邮件
             msg = MIMEMultipart("alternative")
@@ -285,7 +285,7 @@ class ConsoleAlertChannel(AlertChannel):
         level: AlertLevel,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """打印告警到控制台"""
         try:
@@ -338,7 +338,7 @@ class MultiChannelAlertService:
     支持同时发送告警到多个渠道
     """
 
-    def __init__(self, channels: List[AlertChannel]):
+    def __init__(self, channels: list[AlertChannel]):
         """
         初始化多渠道告警服务
 
@@ -352,7 +352,7 @@ class MultiChannelAlertService:
         level: str,
         title: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> bool:
         """
         发送告警到所有可用渠道
@@ -404,8 +404,8 @@ class MultiChannelAlertService:
 
 
 def create_default_alert_service(
-    slack_webhook: Optional[str] = None,
-    email_config: Optional[Dict[str, Any]] = None,
+    slack_webhook: str | None = None,
+    email_config: dict[str, Any] | None = None,
     use_console: bool = True
 ) -> MultiChannelAlertService:
     """

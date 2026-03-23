@@ -4,13 +4,13 @@ AgomTradePro Custom Exceptions
 Provides standardized exception classes for consistent error handling across the application.
 """
 
-from typing import Optional, Dict, Any, Union
 import logging
+from typing import Any, Dict, Optional, Union
 
 from django.http import Http404
-from rest_framework.views import exception_handler
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import exception_handler
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +28,10 @@ class AgomTradeProException(Exception):
 
     def __init__(
         self,
-        message: Optional[str] = None,
-        code: Optional[str] = None,
-        status_code: Optional[int] = None,
-        details: Optional[Dict[str, Any]] = None
+        message: str | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None
     ):
         self.message = message or self.default_message
         self.code = code or self.default_code
@@ -39,7 +39,7 @@ class AgomTradeProException(Exception):
         self.details = details or {}
         super().__init__(self.message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API responses."""
         result = {
             "error": self.message,
@@ -224,7 +224,7 @@ class DataValidationError(BusinessLogicError):
 
 # ========== DRF Exception Handler ==========
 
-def custom_exception_handler(exc: Exception, context: dict) -> Optional[Response]:
+def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
     """
     Custom exception handler for Django REST Framework.
 

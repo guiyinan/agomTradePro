@@ -13,6 +13,7 @@ Django Management Command: Initialize Enhanced Investment Rules
 """
 
 from django.core.management.base import BaseCommand
+
 from apps.account.infrastructure.models import InvestmentRuleModel
 
 

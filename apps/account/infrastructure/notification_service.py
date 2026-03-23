@@ -8,14 +8,14 @@ Notification Service - Account Module
 import logging
 from typing import Optional
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from django.conf import settings
 
 from apps.account.domain.interfaces import (
-    StopLossNotificationPort,
     StopLossNotificationData,
+    StopLossNotificationPort,
 )
 from apps.events.domain.entities import DomainEvent, EventType, create_event
 from core.exceptions import ExternalServiceError

@@ -12,28 +12,28 @@ from typing import Optional
 
 from celery import Task
 from celery.signals import (
-    task_prerun,
-    task_postrun,
     task_failure,
+    task_postrun,
+    task_prerun,
     task_retry,
     task_revoked,
 )
 from django.utils import timezone
 
-from apps.task_monitor.domain.entities import (
-    TaskStatus,
-    TaskPriority,
-    TaskExecutionRecord,
-)
 from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
+from apps.task_monitor.domain.entities import (
+    TaskExecutionRecord,
+    TaskPriority,
+    TaskStatus,
+)
 from apps.task_monitor.infrastructure.repositories import DjangoTaskRecordRepository
-from shared.infrastructure.alert_service import create_default_alert_service
 from shared.config.secrets import get_secrets
+from shared.infrastructure.alert_service import create_default_alert_service
 
 logger = logging.getLogger(__name__)
 
 # 全局仓储实例
-_repository: Optional[DjangoTaskRecordRepository] = None
+_repository: DjangoTaskRecordRepository | None = None
 
 
 def get_repository() -> DjangoTaskRecordRepository:
@@ -64,10 +64,10 @@ def get_use_case() -> RecordTaskExecutionUseCase:
 @task_prerun.connect
 def task_prerun_handler(
     sender=None,
-    task_id: Optional[str] = None,
-    task: Optional[Task] = None,
-    args: Optional[tuple] = None,
-    kwargs: Optional[dict] = None,
+    task_id: str | None = None,
+    task: Task | None = None,
+    args: tuple | None = None,
+    kwargs: dict | None = None,
     **kwds
 ) -> None:
     """任务开始前记录"""
@@ -103,12 +103,12 @@ def task_prerun_handler(
 @task_postrun.connect
 def task_postrun_handler(
     sender=None,
-    task_id: Optional[str] = None,
-    task: Optional[Task] = None,
-    args: Optional[tuple] = None,
-    kwargs: Optional[dict] = None,
-    retval: Optional[any] = None,
-    state: Optional[str] = None,
+    task_id: str | None = None,
+    task: Task | None = None,
+    args: tuple | None = None,
+    kwargs: dict | None = None,
+    retval: any | None = None,
+    state: str | None = None,
     **kwds
 ) -> None:
     """任务完成后记录"""
@@ -173,10 +173,10 @@ def task_postrun_handler(
 @task_failure.connect
 def task_failure_handler(
     sender=None,
-    task_id: Optional[str] = None,
-    exception: Optional[Exception] = None,
-    traceback: Optional[str] = None,
-    einfo: Optional[any] = None,
+    task_id: str | None = None,
+    exception: Exception | None = None,
+    traceback: str | None = None,
+    einfo: any | None = None,
     **kwds
 ) -> None:
     """任务失败记录"""
@@ -233,10 +233,10 @@ def task_failure_handler(
 @task_retry.connect
 def task_retry_handler(
     sender=None,
-    task_id: Optional[str] = None,
-    request: Optional[any] = None,
-    reason: Optional[str] = None,
-    einfo: Optional[any] = None,
+    task_id: str | None = None,
+    request: any | None = None,
+    reason: str | None = None,
+    einfo: any | None = None,
     **kwds
 ) -> None:
     """任务重试记录"""
@@ -278,10 +278,10 @@ def task_retry_handler(
 @task_revoked.connect
 def task_revoked_handler(
     sender=None,
-    task_id: Optional[str] = None,
-    signum: Optional[int] = None,
-    terminated: Optional[bool] = None,
-    expired: Optional[bool] = None,
+    task_id: str | None = None,
+    signum: int | None = None,
+    terminated: bool | None = None,
+    expired: bool | None = None,
     **kwds
 ) -> None:
     """任务撤销记录"""
@@ -374,7 +374,7 @@ def backup_database_task(
     self,
     keep_days: int = 7,
     compress: bool = True,
-    output_dir: Optional[str] = None,
+    output_dir: str | None = None,
 ) -> dict:
     """
     P1-2: 数据库备份 Celery 任务
@@ -391,9 +391,10 @@ def backup_database_task(
         dict: 备份结果，包含备份文件路径和清理统计
     """
     import subprocess
-    from pathlib import Path
-    from django.core.management import call_command
     from io import StringIO
+    from pathlib import Path
+
+    from django.core.management import call_command
 
     try:
         # 捕获管理命令输出

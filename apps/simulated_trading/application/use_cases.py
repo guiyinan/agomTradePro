@@ -6,23 +6,23 @@ Application层:
 - 通过依赖倒置使用Infrastructure层
 - 实现具体的业务流程
 """
-from typing import List, Optional, Protocol
-from datetime import date, datetime
 import logging
 from dataclasses import replace
+from datetime import date, datetime
+from typing import List, Optional, Protocol
 
 from django.utils import timezone
 
+from apps.simulated_trading.application.ports import SignalQueryRepositoryProtocol
 from apps.simulated_trading.domain.entities import (
-    SimulatedAccount,
-    Position,
-    SimulatedTrade,
     AccountType,
+    OrderStatus,
+    Position,
+    SimulatedAccount,
+    SimulatedTrade,
     TradeAction,
-    OrderStatus
 )
 from apps.simulated_trading.domain.rules import TradingConstraintRule
-from apps.simulated_trading.application.ports import SignalQueryRepositoryProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -31,26 +31,26 @@ logger = logging.getLogger(__name__)
 class SimulatedAccountRepositoryProtocol(Protocol):
     """模拟账户Repository接口"""
     def save(self, account: SimulatedAccount) -> int: ...
-    def get_by_id(self, account_id: int) -> Optional[SimulatedAccount]: ...
-    def get_by_name(self, account_name: str) -> Optional[SimulatedAccount]: ...
-    def get_active_accounts(self) -> List[SimulatedAccount]: ...
-    def get_all_accounts(self) -> List[SimulatedAccount]: ...
+    def get_by_id(self, account_id: int) -> SimulatedAccount | None: ...
+    def get_by_name(self, account_name: str) -> SimulatedAccount | None: ...
+    def get_active_accounts(self) -> list[SimulatedAccount]: ...
+    def get_all_accounts(self) -> list[SimulatedAccount]: ...
     def delete(self, account_id: int) -> bool: ...
 
 
 class PositionRepositoryProtocol(Protocol):
     """持仓Repository接口"""
     def save(self, position: Position) -> int: ...
-    def get_by_account(self, account_id: int) -> List[Position]: ...
-    def get_position(self, account_id: int, asset_code: str) -> Optional[Position]: ...
+    def get_by_account(self, account_id: int) -> list[Position]: ...
+    def get_position(self, account_id: int, asset_code: str) -> Position | None: ...
     def delete(self, account_id: int, asset_code: str) -> bool: ...
 
 
 class TradeRepositoryProtocol(Protocol):
     """交易记录Repository接口"""
     def save(self, trade: SimulatedTrade) -> int: ...
-    def get_by_account(self, account_id: int) -> List[SimulatedTrade]: ...
-    def get_by_date_range(self, account_id: int, start: date, end: date) -> List[SimulatedTrade]: ...
+    def get_by_account(self, account_id: int) -> list[SimulatedTrade]: ...
+    def get_by_date_range(self, account_id: int, start: date, end: date) -> list[SimulatedTrade]: ...
 
 
 class CreateSimulatedAccountUseCase:
@@ -65,7 +65,7 @@ class CreateSimulatedAccountUseCase:
         initial_capital: float,
         auto_trading_enabled: bool = True,
         max_position_pct: float = 20.0,
-        stop_loss_pct: Optional[float] = None,
+        stop_loss_pct: float | None = None,
         commission_rate: float = 0.0003,
         slippage_rate: float = 0.001
     ) -> SimulatedAccount:
@@ -197,7 +197,7 @@ class ExecuteBuyOrderUseCase:
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
         trade_repo: TradeRepositoryProtocol,
-        signal_repo: Optional[SignalQueryRepositoryProtocol] = None,
+        signal_repo: SignalQueryRepositoryProtocol | None = None,
     ):
         self.account_repo = account_repo
         self.position_repo = position_repo
@@ -213,7 +213,7 @@ class ExecuteBuyOrderUseCase:
         quantity: int,
         price: float,
         reason: str = "",
-        signal_id: Optional[int] = None
+        signal_id: int | None = None
     ) -> SimulatedTrade:
         """
         执行买入订单
@@ -540,7 +540,7 @@ class ListAccountsUseCase:
     def __init__(self, account_repo: SimulatedAccountRepositoryProtocol):
         self.account_repo = account_repo
 
-    def execute(self, active_only: bool = True) -> List[SimulatedAccount]:
+    def execute(self, active_only: bool = True) -> list[SimulatedAccount]:
         """
         列出所有账户
 

@@ -8,7 +8,7 @@ All external APIs are mocked. Tests verify data flows correctly through layers.
 """
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -94,8 +94,9 @@ class TestDataPipelineFlow(TestCase):
         """Verify data freshness monitoring works."""
         self._load_macro_fixtures_to_db()
 
-        from apps.macro.infrastructure.models import MacroIndicator
         from django.db.models import Max
+
+        from apps.macro.infrastructure.models import MacroIndicator
 
         # Check latest dates per indicator
         latest_dates = (
@@ -132,7 +133,7 @@ class TestDataPipelineFlow(TestCase):
         event = DomainEvent(
             event_id="test-regime-change-001",
             event_type=EventType.REGIME_CHANGED,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
             payload={
                 "old_regime": "growth_inflation",
                 "new_regime": "growth_deflation",

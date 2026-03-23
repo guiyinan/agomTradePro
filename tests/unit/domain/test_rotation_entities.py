@@ -4,21 +4,23 @@ Unit tests for Rotation Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import date
 from decimal import Decimal
+
+import pytest
+
 from apps.rotation.domain.entities import (
     AssetCategory,
-    RotationStrategyType,
     AssetClass,
     MomentumScore,
     RotationConfig,
-    RotationSignal,
     RotationPortfolio,
-    get_common_etf_assets,
-    create_default_regime_allocation,
+    RotationSignal,
+    RotationStrategyType,
     create_default_momentum_config,
+    create_default_regime_allocation,
     create_default_regime_config,
+    get_common_etf_assets,
 )
 
 

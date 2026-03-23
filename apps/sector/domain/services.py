@@ -7,11 +7,11 @@
 - 通过依赖注入接收数据
 """
 
-from typing import List, Dict, Tuple
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
+from typing import Dict, List, Tuple
 
-from .entities import SectorIndex, SectorRelativeStrength, SectorScore, SectorInfo
+from .entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
 
 
 class SectorRotationAnalyzer:
@@ -25,9 +25,9 @@ class SectorRotationAnalyzer:
 
     def calculate_relative_strength(
         self,
-        sector_returns: Dict[date, float],
-        market_returns: Dict[date, float]
-    ) -> Dict[date, float]:
+        sector_returns: dict[date, float],
+        market_returns: dict[date, float]
+    ) -> dict[date, float]:
         """计算板块相对强弱
 
         Args:
@@ -57,7 +57,7 @@ class SectorRotationAnalyzer:
 
     def calculate_momentum(
         self,
-        sector_returns: List[float],
+        sector_returns: list[float],
         lookback_days: int = 20
     ) -> float:
         """计算板块动量
@@ -91,13 +91,13 @@ class SectorRotationAnalyzer:
 
     def rank_sectors_by_regime(
         self,
-        sectors_data: List[Tuple[SectorInfo, SectorIndex, SectorRelativeStrength]],
-        regime_weights: Dict[str, float],
+        sectors_data: list[tuple[SectorInfo, SectorIndex, SectorRelativeStrength]],
+        regime_weights: dict[str, float],
         momentum_window: int = 20,
         momentum_weight: float = 0.3,
         rs_weight: float = 0.4,
         regime_weight: float = 0.3
-    ) -> List[SectorScore]:
+    ) -> list[SectorScore]:
         """基于 Regime 对板块进行综合评分和排名
 
         Args:
@@ -207,8 +207,8 @@ class SectorRotationAnalyzer:
 
     def calculate_beta(
         self,
-        sector_returns: List[float],
-        market_returns: List[float]
+        sector_returns: list[float],
+        market_returns: list[float]
     ) -> float:
         """计算板块贝塔系数（相对于大盘）
 

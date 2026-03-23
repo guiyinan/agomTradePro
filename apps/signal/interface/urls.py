@@ -1,12 +1,12 @@
 """
 URL configuration for Signal app.
 """
-from django.urls import path, include
 from django.shortcuts import redirect
-from . import views
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .api_views import SignalViewSet, SignalHealthView
 
+from . import views
+from .api_views import SignalHealthView, SignalViewSet
 
 app_name = 'signal'
 

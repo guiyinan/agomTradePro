@@ -7,8 +7,9 @@ Tests:
 - Structured failure handling
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from sdk.agomtradepro.modules.agent_proposal import AgentProposalModule
 

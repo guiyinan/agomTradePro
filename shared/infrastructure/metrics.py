@@ -7,16 +7,15 @@ Alpha 模块监控指标定义和导出。
 仅使用 Python 标准库。
 """
 
+import json
 import logging
 import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 from enum import Enum
-import json
-
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +33,8 @@ class MetricValue:
     """单个指标值"""
     name: str
     value: float
-    labels: Dict[str, str] = field(default_factory=dict)
-    timestamp: Optional[datetime] = None
+    labels: dict[str, str] = field(default_factory=dict)
+    timestamp: datetime | None = None
     metric_type: MetricType = MetricType.GAUGE
 
     def to_prometheus(self) -> str:
@@ -75,11 +74,11 @@ class HistogramBucket:
 class HistogramValue:
     """直方图指标值"""
     name: str
-    buckets: List[HistogramBucket] = field(default_factory=list)
+    buckets: list[HistogramBucket] = field(default_factory=list)
     sum: float = 0.0
     count: int = 0
-    labels: Dict[str, str] = field(default_factory=dict)
-    timestamp: Optional[datetime] = None
+    labels: dict[str, str] = field(default_factory=dict)
+    timestamp: datetime | None = None
 
     def observe(self, value: float):
         """观测一个值"""
@@ -148,18 +147,18 @@ class MetricsRegistry:
             return
 
         # 存储: {metric_name: {label_tuple: MetricValue}}
-        self._counters: Dict[str, Dict[Tuple, MetricValue]] = defaultdict(dict)
-        self._gauges: Dict[str, Dict[Tuple, MetricValue]] = defaultdict(dict)
-        self._histograms: Dict[str, Dict[Tuple, HistogramValue]] = defaultdict(dict)
+        self._counters: dict[str, dict[tuple, MetricValue]] = defaultdict(dict)
+        self._gauges: dict[str, dict[tuple, MetricValue]] = defaultdict(dict)
+        self._histograms: dict[str, dict[tuple, HistogramValue]] = defaultdict(dict)
 
         # 指标元数据
-        self._metric_help: Dict[str, str] = {}
+        self._metric_help: dict[str, str] = {}
 
         self._last_pytest_test = current_test
 
         self._initialized = True
 
-    def _make_label_key(self, labels: Dict[str, str]) -> Tuple:
+    def _make_label_key(self, labels: dict[str, str]) -> tuple:
         """将标签字典转换为不可变的键"""
         if not labels:
             return ()
@@ -174,7 +173,7 @@ class MetricsRegistry:
         self,
         name: str,
         value: float = 1.0,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """增加计数器"""
         label_key = self._make_label_key(labels or {})
@@ -193,7 +192,7 @@ class MetricsRegistry:
         self,
         name: str,
         value: float,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """设置仪表盘值"""
         label_key = self._make_label_key(labels or {})
@@ -212,8 +211,8 @@ class MetricsRegistry:
         self,
         name: str,
         value: float,
-        buckets: Optional[List[float]] = None,
-        labels: Optional[Dict[str, str]] = None
+        buckets: list[float] | None = None,
+        labels: dict[str, str] | None = None
     ):
         """观测直方图值"""
         if buckets is None:
@@ -230,7 +229,7 @@ class MetricsRegistry:
 
         self._histograms[name][label_key].observe(value)
 
-    def get_metric(self, name: str, labels: Optional[Dict[str, str]] = None) -> Optional[MetricValue]:
+    def get_metric(self, name: str, labels: dict[str, str] | None = None) -> MetricValue | None:
         """获取指标值"""
         label_key = self._make_label_key(labels or {})
 
@@ -306,7 +305,7 @@ class MetricsRegistry:
 
         return "\n".join(lines) + "\n"
 
-    def reset_metrics(self, pattern: Optional[str] = None):
+    def reset_metrics(self, pattern: str | None = None):
         """重置指标"""
         if pattern:
             # 重置匹配模式的指标
@@ -434,7 +433,7 @@ class AlphaMetrics:
         provider_name: str,
         success: bool,
         latency_ms: float,
-        staleness_days: Optional[float] = None
+        staleness_days: float | None = None
     ):
         """记录 Provider 调用"""
         labels = {"provider": provider_name}
@@ -468,7 +467,7 @@ class AlphaMetrics:
     def record_ic_metrics(
         self,
         current_ic: float,
-        historical_ics: List[float],
+        historical_ics: list[float],
         window: int = 20
     ):
         """记录 IC 指标"""
@@ -539,7 +538,7 @@ class AlphaMetrics:
 
 
 # 全局单例
-_alpha_metrics: Optional[AlphaMetrics] = None
+_alpha_metrics: AlphaMetrics | None = None
 
 
 def get_alpha_metrics() -> AlphaMetrics:
@@ -603,7 +602,7 @@ class AlertRule:
     duration_seconds: int = 300  # 持续多久才触发
     message_template: str = ""
 
-    def evaluate(self, current_value: float) -> Optional[str]:
+    def evaluate(self, current_value: float) -> str | None:
         """评估是否触发告警"""
         triggered = False
 
@@ -691,12 +690,12 @@ class AlertManager:
         ),
     ]
 
-    def __init__(self, rules: Optional[List[AlertRule]] = None):
+    def __init__(self, rules: list[AlertRule] | None = None):
         self.rules = rules or self.ALPHA_ALERT_RULES
         self.metrics = get_alpha_metrics()
-        self._alert_states: Dict[str, float] = {}  # 记录首次触发时间
+        self._alert_states: dict[str, float] = {}  # 记录首次触发时间
 
-    def evaluate_all(self) -> List[str]:
+    def evaluate_all(self) -> list[str]:
         """评估所有告警规则"""
         alerts = []
 

@@ -16,21 +16,21 @@ import time
 from datetime import datetime
 
 import pytest
-from django.test import RequestFactory
 from django.http import HttpResponse
+from django.test import RequestFactory
 
 from core.logging_utils import (
     StructuredFormatter,
     StructuredFormatterVerbose,
-    get_trace_id,
-    set_trace_id,
+    bind_logger,
     clear_trace_id,
     generate_full_trace_id,
-    bind_logger,
+    get_trace_id,
+    set_trace_id,
 )
 from core.middleware.logging import (
-    TraceIDMiddleware,
     RequestLoggingMiddleware,
+    TraceIDMiddleware,
 )
 
 

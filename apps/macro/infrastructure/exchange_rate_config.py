@@ -11,8 +11,8 @@
 
 import logging
 import os
-from typing import Optional
 from datetime import date
+from typing import Optional
 
 from django.core.cache import cache
 
@@ -23,7 +23,7 @@ class ExchangeRateService:
     """汇率服务"""
 
     @staticmethod
-    def get_usd_cny_rate(as_of_date: Optional[date] = None) -> float:
+    def get_usd_cny_rate(as_of_date: date | None = None) -> float:
         """
         获取 USD/CNY 汇率
 

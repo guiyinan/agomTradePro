@@ -6,7 +6,8 @@ Infrastructure 层实现这些接口，Application 层通过接口调用。
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import List, Optional
+
 from apps.asset_analysis.domain.value_objects import WeightConfig
 
 
@@ -20,8 +21,8 @@ class WeightConfigRepositoryProtocol(ABC):
     @abstractmethod
     def get_active_weights(
         self,
-        asset_type: Optional[str] = None,
-        market_condition: Optional[str] = None
+        asset_type: str | None = None,
+        market_condition: str | None = None
     ) -> WeightConfig:
         """
         获取当前生效的权重配置
@@ -42,7 +43,7 @@ class WeightConfigRepositoryProtocol(ABC):
         pass
 
     @abstractmethod
-    def list_all_configs(self) -> List[dict]:
+    def list_all_configs(self) -> list[dict]:
         """
         列出所有权重配置
 
@@ -59,8 +60,8 @@ class WeightConfigRepositoryProtocol(ABC):
         policy_weight: float,
         sentiment_weight: float,
         signal_weight: float,
-        asset_type: Optional[str] = None,
-        market_condition: Optional[str] = None,
+        asset_type: str | None = None,
+        market_condition: str | None = None,
         is_active: bool = True,
         priority: int = 0
     ) -> None:
@@ -94,7 +95,7 @@ class AssetRepositoryProtocol(ABC):
         asset_type: str,
         filters: dict,
         max_count: int = 100
-    ) -> List:
+    ) -> list:
         """
         根据过滤条件获取资产列表
 

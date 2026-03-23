@@ -13,7 +13,7 @@ Architecture:
 import logging
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from django.utils import timezone
 
@@ -53,7 +53,7 @@ class MarketPriceService:
             self._provider = MarketDataProvider(cache_ttl_minutes=self.cache_ttl_minutes)
         return self._provider
 
-    def get_current_price(self, asset_code: str, trade_date: date = None) -> Optional[Decimal]:
+    def get_current_price(self, asset_code: str, trade_date: date = None) -> Decimal | None:
         """
         获取资产当前价格
 
@@ -91,7 +91,7 @@ class MarketPriceService:
         self,
         asset_codes: list[str],
         trade_date: date = None
-    ) -> Dict[str, Optional[Decimal]]:
+    ) -> dict[str, Decimal | None]:
         """
         批量获取资产价格
 
@@ -111,7 +111,7 @@ class MarketPriceService:
         self,
         asset_code: str,
         trade_date: date = None
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取资产价格及元数据
 
@@ -194,7 +194,7 @@ class MarketPriceService:
 
 
 # 全局单例（延迟初始化）
-_price_service_instance: Optional[MarketPriceService] = None
+_price_service_instance: MarketPriceService | None = None
 
 
 def get_market_price_service() -> MarketPriceService:

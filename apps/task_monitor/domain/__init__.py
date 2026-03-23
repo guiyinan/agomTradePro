@@ -3,12 +3,12 @@ Task Monitor Domain Layer
 """
 
 from apps.task_monitor.domain.entities import (
-    TaskStatus,
-    TaskPriority,
+    CeleryHealthStatus,
     TaskExecutionRecord,
     TaskFailureAlert,
-    CeleryHealthStatus,
+    TaskPriority,
     TaskStatistics,
+    TaskStatus,
 )
 
 __all__ = [

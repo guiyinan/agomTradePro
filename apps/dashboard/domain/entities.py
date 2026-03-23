@@ -88,22 +88,22 @@ class MetricCard:
     """
 
     title: str
-    value: Union[float, int, str, Decimal]
-    unit: Optional[str] = None
-    prefix: Optional[str] = None
-    suffix: Optional[str] = None
-    trend: Optional[str] = None  # "up", "down", "flat"
-    trend_value: Optional[float] = None
-    trend_period: Optional[str] = None  # "1d", "1w", "1m"
-    comparison_value: Optional[float] = None
-    comparison_label: Optional[str] = None
-    format_pattern: Optional[str] = None
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    threshold_warning: Optional[float] = None
-    threshold_critical: Optional[float] = None
-    data_source: Optional[str] = None
-    last_updated: Optional[datetime] = None
+    value: float | int | str | Decimal
+    unit: str | None = None
+    prefix: str | None = None
+    suffix: str | None = None
+    trend: str | None = None  # "up", "down", "flat"
+    trend_value: float | None = None
+    trend_period: str | None = None  # "1d", "1w", "1m"
+    comparison_value: float | None = None
+    comparison_label: str | None = None
+    format_pattern: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    threshold_warning: float | None = None
+    threshold_critical: float | None = None
+    data_source: str | None = None
+    last_updated: datetime | None = None
 
     def get_formatted_value(self) -> str:
         """
@@ -127,7 +127,7 @@ class MetricCard:
             parts.append(self.suffix)
         return "".join(parts)
 
-    def get_alert_level(self) -> Optional[AlertSeverity]:
+    def get_alert_level(self) -> AlertSeverity | None:
         """
         获取告警级别
 
@@ -173,17 +173,17 @@ class ChartConfig:
 
     chart_type: WidgetType
     data_type: ChartDataType = ChartDataType.TIME_SERIES
-    title: Optional[str] = None
-    x_axis_label: Optional[str] = None
-    y_axis_label: Optional[str] = None
-    series: List[Dict[str, Any]] = field(default_factory=list)
-    colors: Dict[str, str] = field(default_factory=dict)
+    title: str | None = None
+    x_axis_label: str | None = None
+    y_axis_label: str | None = None
+    series: list[dict[str, Any]] = field(default_factory=list)
+    colors: dict[str, str] = field(default_factory=dict)
     show_legend: bool = True
     show_grid: bool = True
     interactive: bool = True
     height: int = 300
     width: str = "100%"
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -210,16 +210,16 @@ class DashboardWidget:
 
     widget_id: str
     widget_type: WidgetType
-    title: Optional[str] = None
-    config: Optional[Union[ChartConfig, MetricCard, Dict]] = None
-    data_source: Optional[str] = None
+    title: str | None = None
+    config: ChartConfig | MetricCard | dict | None = None
+    data_source: str | None = None
     refresh_interval: int = 60  # 默认60秒刷新
     cache_ttl: int = 300  # 默认缓存5分钟
     is_visible: bool = True
     is_collapsed: bool = False
     is_loading: bool = False
-    error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error_message: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_cache_key(self) -> str:
         """
@@ -257,20 +257,20 @@ class DashboardCard:
 
     card_id: str
     card_type: CardType
-    title: Optional[str] = None
-    widgets: List[DashboardWidget] = field(default_factory=list)
-    layout: Optional[str] = None
-    position: Optional[Dict[str, int]] = None  # {"row": 0, "col": 0}
-    size: Optional[Dict[str, int]] = None  # {"width": 4, "height": 3}
+    title: str | None = None
+    widgets: list[DashboardWidget] = field(default_factory=list)
+    layout: str | None = None
+    position: dict[str, int] | None = None  # {"row": 0, "col": 0}
+    size: dict[str, int] | None = None  # {"width": 4, "height": 3}
     is_visible: bool = True
     is_collapsible: bool = True
     is_collapsed: bool = False
     is_draggable: bool = True
     is_resizable: bool = True
-    dependencies: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def get_all_widgets(self) -> List[DashboardWidget]:
+    def get_all_widgets(self) -> list[DashboardWidget]:
         """
         获取所有组件
 
@@ -279,7 +279,7 @@ class DashboardCard:
         """
         return self.widgets
 
-    def get_visible_widgets(self) -> List[DashboardWidget]:
+    def get_visible_widgets(self) -> list[DashboardWidget]:
         """
         获取可见组件
 
@@ -310,15 +310,15 @@ class DashboardLayout:
 
     layout_id: str
     name: str
-    description: Optional[str] = None
-    cards: List[DashboardCard] = field(default_factory=list)
+    description: str | None = None
+    cards: list[DashboardCard] = field(default_factory=list)
     columns: int = 12  # 使用12列网格
     row_height: int = 60
     gutter: int = 16
     is_default: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def get_visible_cards(self) -> List[DashboardCard]:
+    def get_visible_cards(self) -> list[DashboardCard]:
         """
         获取可见卡片
 
@@ -359,15 +359,15 @@ class AlertConfig:
 
     alert_id: str
     name: str
-    description: Optional[str] = None
-    metric: Optional[str] = None
-    condition: Optional[str] = None
+    description: str | None = None
+    metric: str | None = None
+    condition: str | None = None
     severity: AlertSeverity = AlertSeverity.WARNING
-    threshold: Optional[float] = None
-    notification_channels: List[str] = field(default_factory=list)
+    threshold: float | None = None
+    notification_channels: list[str] = field(default_factory=list)
     is_enabled: bool = True
     cooldown: int = 300  # 默认5分钟冷却
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def should_alert(self, current_value: float) -> bool:
         """
@@ -408,20 +408,20 @@ class DashboardPreferences:
 
     user_id: int
     layout_id: str
-    hidden_cards: List[str] = field(default_factory=list)
-    collapsed_cards: List[str] = field(default_factory=list)
-    card_order: List[str] = field(default_factory=list)
-    custom_card_config: Dict[str, Any] = field(default_factory=dict)
+    hidden_cards: list[str] = field(default_factory=list)
+    collapsed_cards: list[str] = field(default_factory=list)
+    card_order: list[str] = field(default_factory=list)
+    custom_card_config: dict[str, Any] = field(default_factory=dict)
     theme: str = "light"
     refresh_enabled: bool = True
     refresh_interval: int = 60
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
 
 # ========== 类型别名 ==========
 
-WidgetData = Dict[str, Any]
+WidgetData = dict[str, Any]
 """组件数据类型别名"""
 
-CardData = Dict[str, Any]
+CardData = dict[str, Any]
 """卡片数据类型别名"""

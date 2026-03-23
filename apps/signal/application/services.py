@@ -6,13 +6,12 @@ Policy Influence Service - 政策影响服务
 """
 
 import logging
-from typing import List, Dict, Any, Optional
 from datetime import timedelta
-
-from django.utils import timezone
-from django.db.models import Q
-
 from signal.domain.entities import InvestmentSignal
+from typing import Any, Dict, List, Optional
+
+from django.db.models import Q
+from django.utils import timezone
 from policy.infrastructure.models import PolicyLog
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ class PolicyInfluenceService:
     def apply_policy_influences(
         self,
         signal: InvestmentSignal
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用政策影响到信号
 
@@ -142,7 +141,7 @@ class PolicyInfluenceService:
 
         return influences
 
-    def _check_blacklist(self, asset_code: str) -> List[PolicyLog]:
+    def _check_blacklist(self, asset_code: str) -> list[PolicyLog]:
         """
         检查黑名单
 
@@ -167,7 +166,7 @@ class PolicyInfluenceService:
 
         return list(direct_blacklist) + list(high_risk_macro)
 
-    def _check_whitelist(self, asset_code: str) -> List[PolicyLog]:
+    def _check_whitelist(self, asset_code: str) -> list[PolicyLog]:
         """
         检查白名单
 
@@ -182,7 +181,7 @@ class PolicyInfluenceService:
             structured_data__affected_stocks__contains=asset_code
         ))
 
-    def _check_sector_influence(self, asset_code: str) -> List[PolicyLog]:
+    def _check_sector_influence(self, asset_code: str) -> list[PolicyLog]:
         """
         检查板块政策影响
 
@@ -220,7 +219,7 @@ class PolicyInfluenceService:
 
         return affected
 
-    def _check_sentiment_influence(self, asset_code: str) -> List[PolicyLog]:
+    def _check_sentiment_influence(self, asset_code: str) -> list[PolicyLog]:
         """
         检查个股舆情影响
 
@@ -240,7 +239,7 @@ class PolicyInfluenceService:
             created_at__gte=cutoff_date
         ))
 
-    def _build_sector_mapping(self) -> Dict[str, List[str]]:
+    def _build_sector_mapping(self) -> dict[str, list[str]]:
         """
         从板块成分股表构建股票到板块名称的映射。
 
@@ -268,7 +267,7 @@ class PolicyInfluenceService:
                 ).values("sector_code", "sector_name")
             }
 
-            mapping: Dict[str, List[str]] = {}
+            mapping: dict[str, list[str]] = {}
             for row in constituent_rows:
                 stock_code = row.get("stock_code")
                 sector_name = sector_name_map.get(row.get("sector_code"))

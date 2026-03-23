@@ -6,11 +6,9 @@ Pure business logic using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Dict, Tuple, Optional, Protocol
-from .entities import (
-    FilterType, FilterResult, FilterSeries,
-    HPFilterParams, KalmanFilterParams
-)
+from typing import Dict, List, Optional, Protocol, Tuple
+
+from .entities import FilterResult, FilterSeries, FilterType, HPFilterParams, KalmanFilterParams
 
 
 class FilterProtocol(Protocol):
@@ -18,9 +16,9 @@ class FilterProtocol(Protocol):
 
     def filter_series(
         self,
-        dates: List[date],
-        values: List[float],
-        params: Optional[Dict] = None
+        dates: list[date],
+        values: list[float],
+        params: dict | None = None
     ) -> FilterSeries:
         """对完整序列进行滤波"""
         ...
@@ -42,9 +40,9 @@ class HPFilterService:
 
     def filter_series(
         self,
-        dates: List[date],
-        values: List[float],
-        params: Optional[HPFilterParams] = None
+        dates: list[date],
+        values: list[float],
+        params: HPFilterParams | None = None
     ) -> FilterSeries:
         """
         使用扩张窗口进行 HP 滤波
@@ -93,7 +91,7 @@ class HPFilterService:
             calculated_at=date.today()
         )
 
-    def _get_expanding_hp_trend(self, series: List[float], lamb: float) -> float:
+    def _get_expanding_hp_trend(self, series: list[float], lamb: float) -> float:
         """
         扩张窗口 HP 滤波
 
@@ -132,10 +130,10 @@ class KalmanFilterService:
 
     def filter_series(
         self,
-        dates: List[date],
-        values: List[float],
-        params: Optional[KalmanFilterParams] = None,
-        initial_state: Optional[Dict] = None
+        dates: list[date],
+        values: list[float],
+        params: KalmanFilterParams | None = None,
+        initial_state: dict | None = None
     ) -> FilterSeries:
         """
         Kalman 滤波
@@ -164,14 +162,14 @@ class KalmanFilterService:
 class FilterComparison:
     """滤波器对比结果"""
     indicator_code: str
-    hp_results: Optional[FilterSeries]
-    kalman_results: Optional[FilterSeries]
+    hp_results: FilterSeries | None
+    kalman_results: FilterSeries | None
     comparison_date: date
 
 
 def compare_filters(
-    dates: List[date],
-    values: List[float],
+    dates: list[date],
+    values: list[float],
     indicator_code: str = "UNKNOWN"
 ) -> FilterComparison:
     """
@@ -205,9 +203,9 @@ def compare_filters(
 
 
 def detect_turning_points(
-    results: List[FilterResult],
+    results: list[FilterResult],
     window: int = 3
-) -> List[Dict]:
+) -> list[dict]:
     """
     检测趋势转折点
 

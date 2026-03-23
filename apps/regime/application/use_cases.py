@@ -8,19 +8,23 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional, List, Dict, Set, Tuple
-
-
-from ..domain.services import RegimeCalculator, calculate_momentum, calculate_absolute_momentum, calculate_rolling_zscore
-from ..domain.entities import RegimeSnapshot
-from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+from typing import Dict, List, Optional, Set, Tuple
 
 from core.exceptions import (
+    BusinessLogicError,
     DataFetchError,
     InsufficientDataError,
-    BusinessLogicError,
 )
 from core.metrics import record_exception
+from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+
+from ..domain.entities import RegimeSnapshot
+from ..domain.services import (
+    RegimeCalculator,
+    calculate_absolute_momentum,
+    calculate_momentum,
+    calculate_rolling_zscore,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +57,13 @@ class CalculateTermSpreadRequest:
 class CalculateTermSpreadResponse:
     """Calculate term spread response DTO"""
     success: bool
-    spread_value: Optional[float]  # BP (基点)
-    long_yield: Optional[float]  # %
-    short_yield: Optional[float]  # %
+    spread_value: float | None  # BP (基点)
+    long_yield: float | None  # %
+    short_yield: float | None  # %
     is_inverted: bool
     inversion_severity: float  # BP (0 if not inverted)
     curve_shape: str  # INVERTED, FLAT, NORMAL, STEEP
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class CalculateTermSpreadUseCase:
@@ -183,12 +187,12 @@ class HighFrequencySignalRequest:
 class HighFrequencySignalResponse:
     """High-frequency signal response DTO"""
     success: bool
-    signal_direction: Optional[str]  # BULLISH, BEARISH, NEUTRAL
+    signal_direction: str | None  # BULLISH, BEARISH, NEUTRAL
     signal_strength: float  # 0-1
     confidence: float  # 0-1
-    contributing_indicators: List[Dict]  # Indicators that contributed to the signal
-    warning_signals: List[str]  # Any warning signals (e.g., yield curve inversion)
-    error: Optional[str] = None
+    contributing_indicators: list[dict]  # Indicators that contributed to the signal
+    warning_signals: list[str]  # Any warning signals (e.g., yield curve inversion)
+    error: str | None = None
 
 
 class HighFrequencySignalUseCase:
@@ -341,7 +345,7 @@ class HighFrequencySignalUseCase:
                 error=str(e)
             )
 
-    def _evaluate_term_spread(self, as_of_date: date) -> Dict:
+    def _evaluate_term_spread(self, as_of_date: date) -> dict:
         """Evaluate term spread indicator"""
         try:
             # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
@@ -378,7 +382,7 @@ class HighFrequencySignalUseCase:
             logger.warning(f"Error evaluating term spread: {e}")
             return {'success': False}
 
-    def _evaluate_nhci(self, as_of_date: date, lookback_days: int) -> Dict:
+    def _evaluate_nhci(self, as_of_date: date, lookback_days: int) -> dict:
         """Evaluate NHCI (南华商品指数) indicator"""
         try:
             # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
@@ -429,7 +433,7 @@ class HighFrequencySignalUseCase:
             logger.warning(f"Error evaluating NHCI: {e}")
             return {'success': False}
 
-    def _evaluate_us_bond(self, as_of_date: date) -> Dict:
+    def _evaluate_us_bond(self, as_of_date: date) -> dict:
         """Evaluate US 10Y bond yield indicator"""
         try:
             # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
@@ -482,7 +486,7 @@ class ResolveSignalConflictRequest:
     daily_duration_days: int  # How many days daily signal has persisted
     monthly_signal: str
     monthly_confidence: float
-    weekly_signal: Optional[str] = None  # Optional weekly signal
+    weekly_signal: str | None = None  # Optional weekly signal
 
 
 @dataclass
@@ -574,7 +578,7 @@ class CalculateRegimeRequest:
     use_pit: bool = False
     growth_indicator: str = "PMI"
     inflation_indicator: str = "CPI"
-    data_source: Optional[str] = None  # 数据源过滤（akshare, tushare等）
+    data_source: str | None = None  # 数据源过滤（akshare, tushare等）
     skip_cache: bool = False  # 跳过缓存，强制重新计算
 
 
@@ -582,13 +586,13 @@ class CalculateRegimeRequest:
 class CalculateRegimeResponse:
     """计算 Regime 的响应 DTO"""
     success: bool
-    snapshot: Optional[RegimeSnapshot]
-    warnings: List[str]
-    error: Optional[str] = None
+    snapshot: RegimeSnapshot | None
+    warnings: list[str]
+    error: str | None = None
     # 新增：详细数据
-    raw_data: Optional[Dict] = None  # 原始数据
-    intermediate_data: Optional[Dict] = None  # 中间计算值
-    history_data: Optional[List] = None  # 历史趋势
+    raw_data: dict | None = None  # 原始数据
+    intermediate_data: dict | None = None  # 中间计算值
+    history_data: list | None = None  # 历史趋势
 
 
 class CalculateRegimeUseCase:
@@ -611,7 +615,7 @@ class CalculateRegimeUseCase:
     CRITICAL_INDICATORS = {'CN_PMI', 'CN_CPI', 'CN_CPI_NATIONAL_YOY'}  # 关键指标
     MAX_FALLBACK_COUNT = 3  # 最大降级次数限制（防止无限循环）
 
-    def __init__(self, repository, regime_repository=None, calculator: Optional[RegimeCalculator] = None):
+    def __init__(self, repository, regime_repository=None, calculator: RegimeCalculator | None = None):
         """
         Args:
             repository: MacroRepository 实例
@@ -625,11 +629,11 @@ class CalculateRegimeUseCase:
 
     def _check_data_completeness(
         self,
-        growth_series: List[float],
-        inflation_series: List[float],
+        growth_series: list[float],
+        inflation_series: list[float],
         growth_code: str,
         inflation_code: str
-    ) -> Set[str]:
+    ) -> set[str]:
         """
         检查数据完整性
 
@@ -659,10 +663,10 @@ class CalculateRegimeUseCase:
         growth_code: str,
         inflation_code: str,
         end_date: date,
-        missing_indicators: Set[str],
+        missing_indicators: set[str],
         use_pit: bool,
-        source: Optional[str]
-    ) -> Dict[str, Optional[List[float]]]:
+        source: str | None
+    ) -> dict[str, list[float] | None]:
         """
         使用前值填充缺失数据
 
@@ -738,7 +742,7 @@ class CalculateRegimeUseCase:
 
         return result
 
-    def _is_critical_data_missing(self, missing_indicators: Set[str]) -> bool:
+    def _is_critical_data_missing(self, missing_indicators: set[str]) -> bool:
         """
         检查是否有关键数据缺失
 
@@ -902,10 +906,10 @@ class CalculateRegimeUseCase:
                 # 更新数据
                 if filled_data.get('growth'):
                     growth_series = filled_data['growth']
-                    warnings_list.append(f"增长指标使用前值填充")
+                    warnings_list.append("增长指标使用前值填充")
                 if filled_data.get('inflation'):
                     inflation_series = filled_data['inflation']
-                    warnings_list.append(f"通胀指标使用前值填充")
+                    warnings_list.append("通胀指标使用前值填充")
 
             # 5. 再次检查数据完整性
             missing_indicators = self._check_data_completeness(
@@ -1081,7 +1085,7 @@ class CalculateRegimeUseCase:
         growth_indicator: str = "PMI",
         inflation_indicator: str = "CPI",
         use_pit: bool = False
-    ) -> List[CalculateRegimeResponse]:
+    ) -> list[CalculateRegimeResponse]:
         """
         批量计算历史 Regime
 
@@ -1131,7 +1135,7 @@ class CalculateRegimeV2Request:
     use_pit: bool = False
     growth_indicator: str = "PMI"
     inflation_indicator: str = "CPI"
-    data_source: Optional[str] = None
+    data_source: str | None = None
     skip_cache: bool = False
 
 
@@ -1140,9 +1144,9 @@ class CalculateRegimeV2Response:
     """计算 Regime V2 的响应 DTO"""
     success: bool
     result: Optional["RegimeCalculationResult"]
-    warnings: List[str]
-    error: Optional[str] = None
-    raw_data: Optional[Dict] = None
+    warnings: list[str]
+    error: str | None = None
+    raw_data: dict | None = None
 
 
 class CalculateRegimeV2UseCase:
@@ -1163,7 +1167,7 @@ class CalculateRegimeV2UseCase:
     def _load_threshold_config(self) -> "ThresholdConfig":
         """从数据库加载阈值配置"""
         from ..domain.services_v2 import ThresholdConfig
-        from ..infrastructure.models import RegimeThresholdConfig, RegimeIndicatorThreshold
+        from ..infrastructure.models import RegimeIndicatorThreshold, RegimeThresholdConfig
 
         try:
             # 获取激活的配置
@@ -1241,7 +1245,7 @@ class CalculateRegimeV2UseCase:
                     success=False,
                     result=None,
                     warnings=[],
-                    error=f"数据不足：需要 PMI 和 CPI 数据"
+                    error="数据不足：需要 PMI 和 CPI 数据"
                 )
 
             # 加载阈值配置

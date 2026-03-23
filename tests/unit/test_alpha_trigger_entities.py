@@ -4,19 +4,20 @@ Unit Tests for Alpha Trigger Domain Entities
 测试 AlphaTrigger 和 AlphaCandidate 实体的行为。
 """
 
-import pytest
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from apps.alpha_trigger.domain.entities import (
-    AlphaTrigger,
     AlphaCandidate,
-    TriggerType,
-    TriggerStatus,
-    SignalStrength,
+    AlphaTrigger,
+    CandidateStatus,
     InvalidationCondition,
     InvalidationType,
-    CandidateStatus,
+    SignalStrength,
+    TriggerStatus,
+    TriggerType,
 )
 
 

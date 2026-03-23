@@ -6,36 +6,36 @@ Account Application - Stop Loss Use Cases
 """
 
 import logging
-from decimal import Decimal
-from typing import List, Dict, Optional
-from datetime import datetime, timezone
 from dataclasses import dataclass
+from datetime import UTC, datetime, timezone
+from decimal import Decimal
+from typing import Dict, List, Optional
 
 from apps.account.domain.entities import (
     Position,
     StopLossConfig,
+    StopLossStatus,
     StopLossTrigger,
     StopLossType,
-    StopLossStatus,
-)
-from apps.account.domain.services import (
-    StopLossService,
-    StopLossCheckResult,
-    TakeProfitService,
-    TakeProfitCheckResult,
 )
 from apps.account.domain.interfaces import (
     MarketDataPort,
-    StopLossNotificationPort,
     StopLossNotificationData,
+    StopLossNotificationPort,
 )
+from apps.account.domain.services import (
+    StopLossCheckResult,
+    StopLossService,
+    TakeProfitCheckResult,
+    TakeProfitService,
+)
+from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.account.infrastructure.models import (
     PositionModel,
     StopLossConfigModel,
-    TakeProfitConfigModel,
     StopLossTriggerModel,
+    TakeProfitConfigModel,
 )
-from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.account.infrastructure.notification_service import InMemoryStopLossNotificationService
 from core.exceptions import DataFetchError
 
@@ -64,7 +64,7 @@ class TakeProfitCheckOutput:
     current_price: float
     unrealized_pnl: Decimal
     unrealized_pnl_pct: float
-    partial_level: Optional[int] = None
+    partial_level: int | None = None
 
 
 class AutoStopLossUseCase:
@@ -76,8 +76,8 @@ class AutoStopLossUseCase:
 
     def __init__(
         self,
-        market_data_service: Optional[MarketDataPort] = None,
-        notification_service: Optional[StopLossNotificationPort] = None,
+        market_data_service: MarketDataPort | None = None,
+        notification_service: StopLossNotificationPort | None = None,
     ):
         """
         初始化自动止损用例
@@ -89,7 +89,7 @@ class AutoStopLossUseCase:
         self.market_data_service = market_data_service or _MarketDataAdapter()
         self.notification_service = notification_service or InMemoryStopLossNotificationService()
 
-    def check_and_execute_stop_loss(self, user_id: Optional[int] = None) -> List[StopLossCheckOutput]:
+    def check_and_execute_stop_loss(self, user_id: int | None = None) -> list[StopLossCheckOutput]:
         """
         检查并执行止损
 
@@ -119,7 +119,7 @@ class AutoStopLossUseCase:
 
         return results
 
-    def _check_single_position(self, config: StopLossConfigModel) -> Optional[StopLossCheckOutput]:
+    def _check_single_position(self, config: StopLossConfigModel) -> StopLossCheckOutput | None:
         """
         检查单个持仓的止损
 
@@ -155,7 +155,7 @@ class AutoStopLossUseCase:
         elif config.stop_loss_type == 'time_based' and config.max_holding_days:
             check_result = StopLossService.check_time_stop_loss(
                 opened_at=position.opened_at,
-                current_time=datetime.now(timezone.utc),
+                current_time=datetime.now(UTC),
                 max_holding_days=config.max_holding_days,
             )
         else:
@@ -166,7 +166,7 @@ class AutoStopLossUseCase:
             new_highest, new_time = StopLossService.update_trailing_stop_highest(
                 current_highest=highest_price,
                 current_price=current_price,
-                current_price_time=datetime.now(timezone.utc),
+                current_price_time=datetime.now(UTC),
                 last_update_time=config.highest_price_updated_at,
             )
             if new_highest != highest_price:
@@ -187,7 +187,7 @@ class AutoStopLossUseCase:
             unrealized_pnl_pct=check_result.unrealized_pnl_pct,
         )
 
-    def _get_current_price(self, asset_code: str) -> Optional[float]:
+    def _get_current_price(self, asset_code: str) -> float | None:
         """
         从行情接口获取当前价格
 
@@ -230,7 +230,7 @@ class AutoStopLossUseCase:
 
         # 更新止损配置状态
         config.status = 'triggered'
-        config.triggered_at = datetime.now(timezone.utc)
+        config.triggered_at = datetime.now(UTC)
         config.save(update_fields=['status', 'triggered_at'])
 
         # 创建触发记录
@@ -238,11 +238,11 @@ class AutoStopLossUseCase:
             position=position,
             trigger_type=config.stop_loss_type,
             trigger_price=current_price,
-            trigger_time=datetime.now(timezone.utc),
+            trigger_time=datetime.now(UTC),
             trigger_reason=check_result.check_result.trigger_reason,
             pnl=check_result.unrealized_pnl,
             pnl_pct=check_result.unrealized_pnl_pct,
-            notes=f"自动止损执行",
+            notes="自动止损执行",
         )
 
         # 发送通知
@@ -278,7 +278,7 @@ class AutoStopLossUseCase:
                 asset_code=position.asset_code,
                 trigger_type=config.stop_loss_type,
                 trigger_price=Decimal(str(check_result.current_price)),
-                trigger_time=datetime.now(timezone.utc),
+                trigger_time=datetime.now(UTC),
                 trigger_reason=check_result.check_result.trigger_reason,
                 pnl=check_result.unrealized_pnl,
                 pnl_pct=check_result.unrealized_pnl_pct,
@@ -306,8 +306,8 @@ class AutoTakeProfitUseCase:
 
     def __init__(
         self,
-        market_data_service: Optional[MarketDataPort] = None,
-        notification_service: Optional[StopLossNotificationPort] = None,
+        market_data_service: MarketDataPort | None = None,
+        notification_service: StopLossNotificationPort | None = None,
     ):
         """
         初始化自动止盈用例
@@ -319,7 +319,7 @@ class AutoTakeProfitUseCase:
         self.market_data_service = market_data_service or _MarketDataAdapter()
         self.notification_service = notification_service or InMemoryStopLossNotificationService()
 
-    def check_and_execute_take_profit(self, user_id: Optional[int] = None) -> List[TakeProfitCheckOutput]:
+    def check_and_execute_take_profit(self, user_id: int | None = None) -> list[TakeProfitCheckOutput]:
         """
         检查并执行止盈
 
@@ -347,7 +347,7 @@ class AutoTakeProfitUseCase:
 
         return results
 
-    def _check_single_position(self, config: TakeProfitConfigModel) -> Optional[TakeProfitCheckOutput]:
+    def _check_single_position(self, config: TakeProfitConfigModel) -> TakeProfitCheckOutput | None:
         """
         检查单个持仓的止盈
 
@@ -389,7 +389,7 @@ class AutoTakeProfitUseCase:
             partial_level=check_result.partial_level,
         )
 
-    def _get_current_price(self, asset_code: str) -> Optional[float]:
+    def _get_current_price(self, asset_code: str) -> float | None:
         """
         从行情接口获取当前价格
 
@@ -456,7 +456,7 @@ class AutoTakeProfitUseCase:
         position: PositionModel,
         config: TakeProfitConfigModel,
         check_result: TakeProfitCheckOutput,
-        sell_shares: Optional[float],
+        sell_shares: float | None,
     ):
         """
         发送止盈触发通知
@@ -479,7 +479,7 @@ class AutoTakeProfitUseCase:
                 asset_code=position.asset_code,
                 trigger_type="take_profit",
                 trigger_price=Decimal(str(check_result.current_price)),
-                trigger_time=datetime.now(timezone.utc),
+                trigger_time=datetime.now(UTC),
                 trigger_reason=check_result.check_result.trigger_reason,
                 pnl=check_result.unrealized_pnl,
                 pnl_pct=check_result.unrealized_pnl_pct,
@@ -508,8 +508,8 @@ class CreateStopLossConfigUseCase:
         position_id: int,
         stop_loss_type: str,
         stop_loss_pct: float,
-        trailing_stop_pct: Optional[float] = None,
-        max_holding_days: Optional[int] = None,
+        trailing_stop_pct: float | None = None,
+        max_holding_days: int | None = None,
     ) -> StopLossConfigModel:
         """
         创建止损配置
@@ -557,7 +557,7 @@ class CreateTakeProfitConfigUseCase:
         self,
         position_id: int,
         take_profit_pct: float,
-        partial_profit_levels: Optional[List[float]] = None,
+        partial_profit_levels: list[float] | None = None,
     ) -> TakeProfitConfigModel:
         """
         创建止盈配置
@@ -607,7 +607,7 @@ class _MarketDataAdapter(MarketDataPort):
     def __init__(self):
         self._service = MarketPriceService()
 
-    def get_current_price(self, asset_code: str) -> Optional[Decimal]:
+    def get_current_price(self, asset_code: str) -> Decimal | None:
         """获取当前价格"""
         try:
             return self._service.get_current_price(asset_code)
@@ -615,7 +615,7 @@ class _MarketDataAdapter(MarketDataPort):
             logger.error(f"获取资产 {asset_code} 价格失败: {e}")
             return None
 
-    def get_prices_batch(self, asset_codes: List[str]) -> Dict[str, Optional[Decimal]]:
+    def get_prices_batch(self, asset_codes: list[str]) -> dict[str, Decimal | None]:
         """批量获取价格"""
         return self._service.get_prices_batch(asset_codes)
 

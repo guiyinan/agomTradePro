@@ -4,9 +4,9 @@ Asset Classification and Multi-Currency Models.
 资产分类体系和多币种支持模型。
 """
 
-from django.db import models
 from decimal import Decimal
 
+from django.db import models
 
 # ============================================================
 # 资产分类模型

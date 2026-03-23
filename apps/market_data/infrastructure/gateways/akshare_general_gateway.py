@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 _SUPPORTED = {DataCapability.REALTIME_QUOTE, DataCapability.TECHNICAL_FACTORS}
 
 
-def _safe_decimal(value: object) -> Optional[Decimal]:
+def _safe_decimal(value: object) -> Decimal | None:
     if value is None:
         return None
     try:
@@ -32,7 +32,7 @@ def _safe_decimal(value: object) -> Optional[Decimal]:
         return None
 
 
-def _safe_float(value: object) -> Optional[float]:
+def _safe_float(value: object) -> float | None:
     if value is None:
         return None
     try:
@@ -42,7 +42,7 @@ def _safe_float(value: object) -> Optional[float]:
         return None
 
 
-def _safe_int(value: object) -> Optional[int]:
+def _safe_int(value: object) -> int | None:
     if value is None:
         return None
     try:
@@ -85,8 +85,8 @@ class AKShareGeneralGateway(MarketDataProviderProtocol):
         return capability in _SUPPORTED
 
     def get_quote_snapshots(
-        self, stock_codes: List[str]
-    ) -> List[QuoteSnapshot]:
+        self, stock_codes: list[str]
+    ) -> list[QuoteSnapshot]:
         """批量获取实时行情"""
         try:
             import akshare as ak
@@ -98,11 +98,11 @@ class AKShareGeneralGateway(MarketDataProviderProtocol):
 
             df["代码"] = df["代码"].astype(str).str.strip()
 
-            ak_to_ts: Dict[str, str] = {
+            ak_to_ts: dict[str, str] = {
                 _to_akshare_code(c): c for c in stock_codes
             }
 
-            results: List[QuoteSnapshot] = []
+            results: list[QuoteSnapshot] = []
             for ak_code, ts_code in ak_to_ts.items():
                 matched = df[df["代码"] == ak_code]
                 if matched.empty:
@@ -144,7 +144,7 @@ class AKShareGeneralGateway(MarketDataProviderProtocol):
 
     def get_technical_snapshot(
         self, stock_code: str
-    ) -> Optional[TechnicalSnapshot]:
+    ) -> TechnicalSnapshot | None:
         """从行情中提取技术指标"""
         snapshots = self.get_quote_snapshots([stock_code])
         if not snapshots:

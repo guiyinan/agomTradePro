@@ -17,19 +17,20 @@ Celery Prometheus Metrics Signal Handlers
 import logging
 import time
 from typing import Any, Dict
+
+from celery.exceptions import Retry, SoftTimeLimitExceeded, TimeLimitExceeded
 from celery.signals import (
-    task_prerun,
-    task_postrun,
-    task_retry,
     task_failure,
+    task_postrun,
+    task_prerun,
+    task_retry,
     task_revoked,
 )
-from celery.exceptions import Retry, SoftTimeLimitExceeded, TimeLimitExceeded
 
 logger = logging.getLogger(__name__)
 
 # 存储任务开始时间的字典
-_task_start_times: Dict[str, float] = {}
+_task_start_times: dict[str, float] = {}
 
 
 @task_prerun.connect
@@ -67,7 +68,7 @@ def task_postrun_handler(sender=None, task_id=None, task=None, retval=None, **kw
         **kwargs: 其他参数
     """
     try:
-        from core.metrics import celery_task_total, celery_task_duration_seconds
+        from core.metrics import celery_task_duration_seconds, celery_task_total
 
         # 获取任务名称
         task_name = task.name if task else 'unknown'
@@ -218,7 +219,7 @@ def task_revoked_handler(sender=None, request=None, terminated=None, signum=None
 
 # ==================== 辅助函数 ====================
 
-def get_task_queue_metrics() -> Dict[str, Any]:
+def get_task_queue_metrics() -> dict[str, Any]:
     """
     获取 Celery 队列指标
 
@@ -269,7 +270,7 @@ def update_queue_metrics():
     可通过定时任务定期调用以更新 Gauge 类型的指标。
     """
     try:
-        from core.metrics import celery_queue_length, celery_active_workers
+        from core.metrics import celery_active_workers, celery_queue_length
 
         metrics = get_task_queue_metrics()
 
@@ -306,7 +307,8 @@ def track_celery_task(func):
             ...
     """
     from functools import wraps
-    from core.metrics import celery_task_total, celery_task_duration_seconds
+
+    from core.metrics import celery_task_duration_seconds, celery_task_total
 
     @wraps(func)
     def wrapper(*args, **kwargs):

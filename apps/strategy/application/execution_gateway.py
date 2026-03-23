@@ -22,7 +22,7 @@ Application 层网关服务， 为 simulated_trading 模块提供策略执行的
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional, Dict, Any, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -42,11 +42,11 @@ class ExecutionRequest:
 @dataclass(frozen=True)
 class SignalInfo:
     """信号信息"""
-    signal_id: Optional[int]
+    signal_id: int | None
     asset_code: str
     asset_name: str
     action: str  # buy / sell
-    quantity: Optional[int]
+    quantity: int | None
     confidence: float
     reason: str
 
@@ -55,19 +55,19 @@ class SignalInfo:
 class ExecutionResult:
     """策略执行结果"""
     success: bool
-    signals: List[SignalInfo]
-    error_message: Optional[str] = None
-    execution_time: Optional[float] = None
+    signals: list[SignalInfo]
+    error_message: str | None = None
+    execution_time: float | None = None
 
 
 @dataclass(frozen=True)
 class InspectionSelection:
     """巡检所需的策略与仓位规则摘要。"""
-    strategy_id: Optional[int]
-    position_rule_id: Optional[int]
-    rule_metadata: Dict[str, Any]
-    strategy_name: Optional[str] = None
-    strategy_type: Optional[str] = None
+    strategy_id: int | None
+    position_rule_id: int | None
+    rule_metadata: dict[str, Any]
+    strategy_name: str | None = None
+    strategy_type: str | None = None
 
 
 # ============================================================================
@@ -81,8 +81,8 @@ class StrategyExecutorProtocol(Protocol):
         self,
         strategy_id: int,
         account_id: int,
-        as_of_date: Optional[date] = None
-    ) -> Dict[str, Any]:
+        as_of_date: date | None = None
+    ) -> dict[str, Any]:
         """
         执行策略
 
@@ -100,24 +100,24 @@ class StrategyExecutorProtocol(Protocol):
 class StrategyGatewayQueryProtocol(Protocol):
     """策略只读查询协议。"""
 
-    def get_strategy_info(self, strategy_id: int) -> Optional[Dict[str, Any]]:
+    def get_strategy_info(self, strategy_id: int) -> dict[str, Any] | None:
         ...
 
-    def get_active_strategy_binding(self, account_id: int) -> Optional[Dict[str, Any]]:
+    def get_active_strategy_binding(self, account_id: int) -> dict[str, Any] | None:
         ...
 
     def get_inspection_selection(
         self,
         account_id: int,
-        strategy_id: Optional[int] = None,
+        strategy_id: int | None = None,
     ) -> InspectionSelection:
         ...
 
     def evaluate_position_rule(
         self,
-        rule_id: Optional[int],
-        context: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+        rule_id: int | None,
+        context: dict[str, Any],
+    ) -> dict[str, Any] | None:
         ...
 
 
@@ -146,8 +146,8 @@ class StrategyExecutionGateway:
 
     def __init__(
         self,
-        executor: Optional[StrategyExecutorProtocol] = None,
-        query_repository: Optional[StrategyGatewayQueryProtocol] = None,
+        executor: StrategyExecutorProtocol | None = None,
+        query_repository: StrategyGatewayQueryProtocol | None = None,
     ):
         """
         初始化网关
@@ -170,16 +170,16 @@ class StrategyExecutionGateway:
         if self._executor is None:
             # 延迟导入避免循环依赖
             from apps.strategy.application.strategy_executor import StrategyExecutor
-            from apps.strategy.infrastructure.repositories import (
-                DjangoStrategyRepository,
-                DjangoStrategyExecutionLogRepository,
-            )
             from apps.strategy.infrastructure.providers import (
-                DjangoMacroDataProvider,
-                DjangoRegimeProvider,
                 DjangoAssetPoolProvider,
-                DjangoSignalProvider,
+                DjangoMacroDataProvider,
                 DjangoPortfolioDataProvider,
+                DjangoRegimeProvider,
+                DjangoSignalProvider,
+            )
+            from apps.strategy.infrastructure.repositories import (
+                DjangoStrategyExecutionLogRepository,
+                DjangoStrategyRepository,
             )
             self._executor = StrategyExecutor(
                 strategy_repository=DjangoStrategyRepository(),
@@ -203,7 +203,7 @@ class StrategyExecutionGateway:
         self,
         strategy_id: int,
         account_id: int,
-        as_of_date: Optional[date] = None
+        as_of_date: date | None = None
     ) -> ExecutionResult:
         """
         为账户执行策略
@@ -259,7 +259,7 @@ class StrategyExecutionGateway:
                 error_message=str(e)
             )
 
-    def get_strategy_info(self, strategy_id: int) -> Optional[Dict[str, Any]]:
+    def get_strategy_info(self, strategy_id: int) -> dict[str, Any] | None:
         """
         获取策略信息
 
@@ -275,7 +275,7 @@ class StrategyExecutionGateway:
             logger.error(f"Error getting strategy info: {e}")
             return None
 
-    def get_active_strategy_binding(self, account_id: int) -> Optional[Dict[str, Any]]:
+    def get_active_strategy_binding(self, account_id: int) -> dict[str, Any] | None:
         """
         获取账户当前激活的策略绑定信息。
 
@@ -307,7 +307,7 @@ class StrategyExecutionGateway:
     def get_inspection_selection(
         self,
         account_id: int,
-        strategy_id: Optional[int] = None,
+        strategy_id: int | None = None,
     ) -> InspectionSelection:
         """获取日更巡检需要的策略和规则信息。"""
         try:
@@ -325,9 +325,9 @@ class StrategyExecutionGateway:
 
     def evaluate_position_rule(
         self,
-        rule_id: Optional[int],
-        context: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+        rule_id: int | None,
+        context: dict[str, Any],
+    ) -> dict[str, Any] | None:
         """评估仓位管理规则并返回字典结果。"""
         if not rule_id:
             return None
@@ -343,7 +343,7 @@ class StrategyExecutionGateway:
 # 全局单例
 # ============================================================================
 
-_gateway_instance: Optional[StrategyExecutionGateway] = None
+_gateway_instance: StrategyExecutionGateway | None = None
 
 
 def get_strategy_execution_gateway() -> StrategyExecutionGateway:

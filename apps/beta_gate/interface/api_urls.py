@@ -5,8 +5,8 @@ Provides API-only routes for /api/beta-gate/.
 """
 
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
+from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
 from apps.beta_gate.interface import views as beta_gate_views

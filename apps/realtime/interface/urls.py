@@ -1,12 +1,12 @@
-from django.urls import path
 from django.http import JsonResponse
+from django.urls import path
 
 from apps.realtime.interface.views import (
+    HealthCheckView,
     MarketSummaryView,
+    PricePollingTriggerView,
     RealtimePriceView,
     SingleAssetPriceView,
-    PricePollingTriggerView,
-    HealthCheckView
 )
 
 app_name = "realtime"

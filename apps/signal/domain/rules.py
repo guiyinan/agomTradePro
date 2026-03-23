@@ -4,15 +4,18 @@ Eligibility Rules for Investment Signals.
 Domain 层纯业务逻辑，只使用 Python 标准库。
 """
 
-from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-from .entities import SignalStatus
+from typing import Dict, List, Optional, Tuple
+
 from shared.domain.asset_eligibility import (
     Eligibility,
-    check_eligibility as _check_eligibility,
     get_eligibility_matrix,
 )
+from shared.domain.asset_eligibility import (
+    check_eligibility as _check_eligibility,
+)
 
+from .entities import SignalStatus
 
 # 证伪逻辑量化关键词
 QUANTIFIABLE_KEYWORDS = [
@@ -31,8 +34,8 @@ INVALIDATION_PATTERNS = [
 class ValidationResult:
     """验证结果"""
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
 
 @dataclass(frozen=True)
@@ -49,7 +52,7 @@ class RejectionRecord:
 def check_eligibility(
     asset_class: str,
     regime: str,
-    custom_matrix: Optional[Dict[str, Dict[str, Eligibility]]] = None
+    custom_matrix: dict[str, dict[str, Eligibility]] | None = None
 ) -> Eligibility:
     """
     检查资产在当前 Regime 下的适配性
@@ -114,7 +117,7 @@ def should_reject_signal(
     current_regime: str,
     policy_level: int,
     confidence: float = 0.0
-) -> Tuple[bool, Optional[str], Optional[Eligibility]]:
+) -> tuple[bool, str | None, Eligibility | None]:
     """
     判断是否应该拒绝信号
 
@@ -176,7 +179,7 @@ def create_rejection_record(
     current_regime: str,
     policy_level: int,
     confidence: float
-) -> Optional[RejectionRecord]:
+) -> RejectionRecord | None:
     """
     创建拒绝记录
 
@@ -207,7 +210,7 @@ def create_rejection_record(
     return None
 
 
-def get_recommended_asset_classes(regime: str) -> List[str]:
+def get_recommended_asset_classes(regime: str) -> list[str]:
     """
     获取指定 Regime 下推荐的资产类别
 
@@ -235,7 +238,7 @@ def get_recommended_asset_classes(regime: str) -> List[str]:
 def analyze_regime_transition(
     from_regime: str,
     to_regime: str
-) -> List[str]:
+) -> list[str]:
     """
     分析 Regime 转换对资产的影响
 

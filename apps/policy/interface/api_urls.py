@@ -4,33 +4,33 @@ API URL configuration for policy module.
 This file intentionally exposes API endpoints only.
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    PolicyStatusView,
-    PolicyEventListView,
-    PolicyEventDetailView,
-    RSSSourceConfigViewSet,
-    RSSFetchLogViewSet,
-    PolicyLevelKeywordViewSet,
+    ApproveEventView,
     AuditQueueView,
-    ReviewPolicyItemView,
-    BulkReviewView,
     AutoAssignAuditsView,
+    BulkReviewView,
+    IngestionConfigView,
+    OverrideEventView,
+    PolicyEventDetailView,
+    PolicyEventListView,
+    PolicyLevelKeywordViewSet,
+    PolicyStatusView,
+    RejectEventView,
+    ReviewPolicyItemView,
+    RollbackEventView,
+    RSSFetchLogViewSet,
+    RSSSourceConfigViewSet,
+    SentimentGateConfigView,
+    SentimentGateStateView,
+    WorkbenchBootstrapView,
+    WorkbenchFetchView,
+    WorkbenchItemDetailView,
+    WorkbenchItemsView,
     # 工作台视图
     WorkbenchSummaryView,
-    WorkbenchItemsView,
-    WorkbenchBootstrapView,
-    WorkbenchItemDetailView,
-    WorkbenchFetchView,
-    ApproveEventView,
-    RejectEventView,
-    RollbackEventView,
-    OverrideEventView,
-    SentimentGateStateView,
-    IngestionConfigView,
-    SentimentGateConfigView,
 )
 
 app_name = "policy"

@@ -5,20 +5,21 @@ Django ORM 模型定义，负责数据持久化。
 将 Domain 层实体映射到数据库表。
 """
 
-from django.db import models
-from django.db.models import Sum, F
-from django.contrib.auth.models import User
-from django.conf import settings
-from decimal import Decimal
-from apps.account.application.rbac import ROLE_CHOICES
-import uuid
-from django.core.exceptions import ValidationError
-from datetime import datetime, timezone
 import base64
 import hashlib
 import secrets
+import uuid
+from datetime import UTC, datetime, timezone
+from decimal import Decimal
 
 from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import F, Sum
+
+from apps.account.application.rbac import ROLE_CHOICES
 
 
 def _build_app_fernet() -> Fernet:
@@ -276,7 +277,7 @@ class PortfolioModel(models.Model):
     @property
     def total_cost(self):
         """总成本"""
-        from django.db.models import F, DecimalField
+        from django.db.models import DecimalField, F
 
         result = self.positions.filter(is_closed=False).aggregate(
             total=Sum(F("shares") * F("avg_cost"), output_field=DecimalField())
@@ -1456,7 +1457,7 @@ class SystemSettingsModel(models.Model):
     def is_backup_due(self, now=None) -> bool:
         if not self.backup_enabled or not self.backup_email or not self.get_backup_password():
             return False
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if self.backup_last_sent_at is None:
             return True
         return (now - self.backup_last_sent_at).days >= self.backup_interval_days
@@ -1844,7 +1845,7 @@ class UserAccessTokenModel(models.Model):
     def create_token(cls, *, user: User, name: str, created_by: User | None = None):
         raw_name = (
             name or ""
-        ).strip() or f"token-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        ).strip() or f"token-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
         raw_key = cls.generate_key()
         token = cls._default_manager.create(
             user=user,
@@ -1865,7 +1866,7 @@ class UserAccessTokenModel(models.Model):
 
     def revoke(self):
         self.is_active = False
-        self.revoked_at = datetime.now(timezone.utc)
+        self.revoked_at = datetime.now(UTC)
         self.save(update_fields=["is_active", "revoked_at", "updated_at"])
 
 
@@ -1984,7 +1985,7 @@ class PortfolioObserverGrantModel(models.Model):
         """检查授权是否有效"""
         if self.status != "active":
             return False
-        if self.expires_at and self.expires_at < datetime.now(timezone.utc):
+        if self.expires_at and self.expires_at < datetime.now(UTC):
             return False
         return True
 
@@ -1992,11 +1993,11 @@ class PortfolioObserverGrantModel(models.Model):
         """检查授权是否已过期"""
         if self.expires_at is None:
             return False
-        return self.expires_at < datetime.now(timezone.utc)
+        return self.expires_at < datetime.now(UTC)
 
     def revoke(self, revoked_by_user):
         """撤销授权"""
         self.status = "revoked"
-        self.revoked_at = datetime.now(timezone.utc)
+        self.revoked_at = datetime.now(UTC)
         self.revoked_by = revoked_by_user
         self.save()

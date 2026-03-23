@@ -9,7 +9,7 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 
 @dataclass(frozen=True)
@@ -118,8 +118,8 @@ class ValuationMetrics:
     circ_mv: Decimal
     dividend_yield: float
     source_provider: str = "unknown"
-    source_updated_at: Optional[datetime] = None
-    fetched_at: Optional[datetime] = None
+    source_updated_at: datetime | None = None
+    fetched_at: datetime | None = None
     pe_type: str = "dynamic"
     is_valid: bool = True
     quality_flag: str = "ok"
@@ -155,15 +155,15 @@ class TechnicalIndicators:
     trade_date: date
 
     close: Decimal
-    ma5: Optional[Decimal]
-    ma20: Optional[Decimal]
-    ma60: Optional[Decimal]
+    ma5: Decimal | None
+    ma20: Decimal | None
+    ma60: Decimal | None
 
-    macd: Optional[float]
-    macd_signal: Optional[float]
-    macd_hist: Optional[float]
+    macd: float | None
+    macd_signal: float | None
+    macd_hist: float | None
 
-    rsi: Optional[float]
+    rsi: float | None
 
 
 # ==================== 通用资产分析框架集成 ====================
@@ -186,29 +186,29 @@ class EquityAssetScore:
     list_date: date                                # 上市日期
 
     # ========== 估值指标 ==========
-    pe_ratio: Optional[float] = None               # 市盈率
-    pb_ratio: Optional[float] = None               # 市净率
-    ps_ratio: Optional[float] = None               # 市销率
-    market_cap: Optional[Decimal] = None           # 总市值（元）
-    dividend_yield: Optional[float] = None         # 股息率
+    pe_ratio: float | None = None               # 市盈率
+    pb_ratio: float | None = None               # 市净率
+    ps_ratio: float | None = None               # 市销率
+    market_cap: Decimal | None = None           # 总市值（元）
+    dividend_yield: float | None = None         # 股息率
 
     # ========== 财务指标 ==========
-    roe: Optional[float] = None                    # 净资产收益率
-    revenue_growth: Optional[float] = None         # 营收增长率
-    net_profit_growth: Optional[float] = None      # 净利润增长率
-    debt_ratio: Optional[float] = None             # 资产负债率
+    roe: float | None = None                    # 净资产收益率
+    revenue_growth: float | None = None         # 营收增长率
+    net_profit_growth: float | None = None      # 净利润增长率
+    debt_ratio: float | None = None             # 资产负债率
 
     # ========== 技术指标 ==========
-    current_price: Optional[Decimal] = None        # 当前价格
-    ma5: Optional[Decimal] = None                  # 5日均线
-    ma20: Optional[Decimal] = None                 # 20日均线
-    ma60: Optional[Decimal] = None                 # 60日均线
-    rsi: Optional[float] = None                    # RSI指标
+    current_price: Decimal | None = None        # 当前价格
+    ma5: Decimal | None = None                  # 5日均线
+    ma20: Decimal | None = None                 # 20日均线
+    ma60: Decimal | None = None                 # 60日均线
+    rsi: float | None = None                    # RSI指标
 
     # ========== 通用维度得分（来自 asset_analysis） ==========
     asset_type: str = "equity"                     # 固定为 "equity"
-    style: Optional[str] = None                    # growth/value/blend/defensive
-    size: Optional[str] = None                     # large/mid/small
+    style: str | None = None                    # growth/value/blend/defensive
+    size: str | None = None                     # large/mid/small
 
     # 四大维度得分（0-100）
     regime_score: float = 0.0                      # 宏观环境得分
@@ -232,7 +232,7 @@ class EquityAssetScore:
 
     # ========== 元信息 ==========
     score_date: date = field(default_factory=date.today)
-    context: Optional[Dict] = None                 # 评分上下文
+    context: dict | None = None                 # 评分上下文
 
     def __post_init__(self):
         """初始化后处理"""
@@ -258,7 +258,7 @@ class EquityAssetScore:
                 size = "small"
             object.__setattr__(self, 'size', size)
 
-    def get_custom_scores(self) -> Dict[str, float]:
+    def get_custom_scores(self) -> dict[str, float]:
         """获取个股特有得分（用于传递给通用框架）"""
         return {
             "technical": self.technical_score,

@@ -3,10 +3,10 @@
 
 当用户创建或注册时，自动为用户创建实仓和模拟仓账户。
 """
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 from apps.account.infrastructure.models import AccountProfileModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel

@@ -1,8 +1,8 @@
 """Equity infrastructure package."""
 
 from .adapters import (
-    RegimeRepositoryAdapter,
     MarketDataRepositoryAdapter,
+    RegimeRepositoryAdapter,
     StockPoolRepositoryAdapter,
 )
 

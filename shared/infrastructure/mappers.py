@@ -5,10 +5,9 @@ Entity-ORM Mapper Base Classes
 遵循四层架构约束：Domain 层不依赖 Django ORM。
 """
 
-from typing import TypeVar, Generic, Type, Optional, List
 from abc import ABC, abstractmethod
 from decimal import Decimal
-
+from typing import Generic, List, Optional, Type, TypeVar
 
 TEntity = TypeVar('TEntity')
 TModel = TypeVar('TModel')
@@ -35,15 +34,15 @@ class EntityMapper(Generic[TEntity, TModel], ABC):
         pass
 
     @abstractmethod
-    def to_model(self, entity: TEntity, model: Optional[TModel] = None) -> TModel:
+    def to_model(self, entity: TEntity, model: TModel | None = None) -> TModel:
         """将 Domain Entity 转换为 ORM Model"""
         pass
 
-    def batch_to_entities(self, models: List[TModel]) -> List[TEntity]:
+    def batch_to_entities(self, models: list[TModel]) -> list[TEntity]:
         """批量转换为 Entities"""
         return [self.to_entity(m) for m in models]
 
-    def batch_to_models(self, entities: List[TEntity]) -> List[TModel]:
+    def batch_to_models(self, entities: list[TEntity]) -> list[TModel]:
         """批量转换为 Models"""
         return [self.to_model(e) for e in entities]
 
@@ -82,11 +81,11 @@ class DataclassMapper(EntityMapper[TEntity, TModel], ABC):
 _mapper_registry: dict = {}
 
 
-def register_mapper(entity_class: Type, mapper_class: Type[EntityMapper]):
+def register_mapper(entity_class: type, mapper_class: type[EntityMapper]):
     """注册 Mapper"""
     _mapper_registry[entity_class] = mapper_class
 
 
-def get_mapper(entity_class: Type) -> Optional[Type[EntityMapper]]:
+def get_mapper(entity_class: type) -> type[EntityMapper] | None:
     """获取 Entity 对应的 Mapper 类"""
     return _mapper_registry.get(entity_class)

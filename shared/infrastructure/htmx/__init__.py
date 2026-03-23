@@ -14,33 +14,32 @@ Usage:
     )
 """
 
+from shared.infrastructure.htmx.decorators import (
+    admin_htmx_view,
+    ajax_required,
+    cache_per_user,
+    conditionally,
+    error_message,
+    htmx_only,
+    htmx_redirect,
+    htmx_trigger,
+    htmx_view,
+    login_htmx_view,
+    staff_required,
+    success_message,
+    superuser_required,
+)
 from shared.infrastructure.htmx.views import (
-    is_htmx,
-    HtmxTemplateView,
-    HtmxListView,
-    HtmxFormView,
-    HtmxDetailView,
     HtmxDeleteView,
+    HtmxDetailView,
+    HtmxFormView,
+    HtmxListView,
     HtmxPartialView,
     HtmxResponseMixin,
+    HtmxTemplateView,
     StaffRequiredMixin,
     SuperuserRequiredMixin,
-)
-
-from shared.infrastructure.htmx.decorators import (
-    staff_required,
-    superuser_required,
-    ajax_required,
-    htmx_only,
-    conditionally,
-    htmx_view,
-    htmx_trigger,
-    htmx_redirect,
-    success_message,
-    error_message,
-    cache_per_user,
-    admin_htmx_view,
-    login_htmx_view,
+    is_htmx,
 )
 
 __all__ = [

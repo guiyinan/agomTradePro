@@ -4,8 +4,7 @@ Terminal Domain Services.
 纯领域逻辑，无 Django 依赖。
 """
 
-from .entities import TerminalCommand, TerminalRiskLevel, TerminalMode
-
+from .entities import TerminalCommand, TerminalMode, TerminalRiskLevel
 
 # 风险等级 → 允许角色 映射
 RISK_ROLE_MAP: dict[TerminalRiskLevel, set[str]] = {

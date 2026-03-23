@@ -10,8 +10,8 @@ Usage:
     python manage.py init_all --force         # Force overwrite existing data
 """
 
-from django.core.management.base import BaseCommand
 from django.core import management
+from django.core.management.base import BaseCommand
 from django.db import connection
 
 

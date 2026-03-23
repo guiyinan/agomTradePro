@@ -11,10 +11,11 @@ NO Django, pandas, or numpy imports.
 """
 
 import math
-import pytest
 from datetime import date
 from decimal import Decimal
 from typing import Dict, List, Optional
+
+import pytest
 
 from apps.factor.domain.entities import (
     FactorCategory,
@@ -37,7 +38,6 @@ from tests.factories.domain_factories import (
     make_factor_score,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ from tests.factories.domain_factories import (
 TRADE_DATE = date(2025, 6, 15)
 
 # Stock universe with deterministic factor values
-STOCK_DATA: Dict[str, Dict[str, float]] = {
+STOCK_DATA: dict[str, dict[str, float]] = {
     "000001": {"pe_ttm": 8.0, "roe": 12.0, "momentum_3m": 0.05},
     "000002": {"pe_ttm": 15.0, "roe": 18.0, "momentum_3m": 0.10},
     "000003": {"pe_ttm": 25.0, "roe": 8.0, "momentum_3m": -0.02},
@@ -53,7 +53,7 @@ STOCK_DATA: Dict[str, Dict[str, float]] = {
     "000005": {"pe_ttm": 30.0, "roe": 5.0, "momentum_3m": -0.08},
 }
 
-STOCK_INFO: Dict[str, Dict] = {
+STOCK_INFO: dict[str, dict] = {
     "000001": {"name": "Stock A", "sector": "Finance", "market_cap": 300_000_000_000},
     "000002": {"name": "Stock B", "sector": "Tech", "market_cap": 150_000_000_000},
     "000003": {"name": "Stock C", "sector": "Finance", "market_cap": 50_000_000_000},
@@ -62,7 +62,7 @@ STOCK_INFO: Dict[str, Dict] = {
 }
 
 
-def _get_factor_value(stock_code: str, factor_code: str, td: date) -> Optional[float]:
+def _get_factor_value(stock_code: str, factor_code: str, td: date) -> float | None:
     """Mock factor value accessor."""
     stock = STOCK_DATA.get(stock_code)
     if stock is None:
@@ -70,14 +70,14 @@ def _get_factor_value(stock_code: str, factor_code: str, td: date) -> Optional[f
     return stock.get(factor_code)
 
 
-def _get_stock_info(stock_code: str) -> Optional[Dict]:
+def _get_stock_info(stock_code: str) -> dict | None:
     """Mock stock info accessor."""
     return STOCK_INFO.get(stock_code)
 
 
 def _make_context(
-    universe: Optional[List[str]] = None,
-    factor_defs: Optional[List[FactorDefinition]] = None,
+    universe: list[str] | None = None,
+    factor_defs: list[FactorDefinition] | None = None,
     get_factor_value=_get_factor_value,
     get_stock_info=_get_stock_info,
 ) -> FactorCalculationContext:
@@ -280,7 +280,7 @@ class TestCalculateFactorScores:
     def test_stock_with_no_info_excluded(self) -> None:
         """Stocks whose get_stock_info returns None are excluded."""
 
-        def _no_info(stock_code: str) -> Optional[Dict]:
+        def _no_info(stock_code: str) -> dict | None:
             if stock_code == "000003":
                 return None
             return STOCK_INFO.get(stock_code)
@@ -477,7 +477,7 @@ class TestSelectPortfolio:
 
         # All factor values are 0 -> all exposures map to z=0 -> normalized ~ 50
         # Not truly zero composite, but let's force it via mock
-        def _zero_values(stock: str, factor: str, td: date) -> Optional[float]:
+        def _zero_values(stock: str, factor: str, td: date) -> float | None:
             return 0.0
 
         factor_defs = [
@@ -650,7 +650,7 @@ class TestCalculationCorrectness:
 
     def test_percentile_with_ties(self) -> None:
         """Tied values share the same percentile."""
-        def _tied_values(stock: str, factor: str, td: date) -> Optional[float]:
+        def _tied_values(stock: str, factor: str, td: date) -> float | None:
             return {"A": 10.0, "B": 10.0, "C": 20.0}[stock]
 
         factor_def = make_factor_definition(code="f1", name="F1")
@@ -680,7 +680,7 @@ class TestEdgeCases:
 
     def test_all_same_values_z_score_zero(self) -> None:
         """When all stocks have the same value, std=0 -> z_score=0."""
-        def _same_value(stock: str, factor: str, td: date) -> Optional[float]:
+        def _same_value(stock: str, factor: str, td: date) -> float | None:
             return 50.0
 
         factor_def = make_factor_definition(code="f1", name="F1")

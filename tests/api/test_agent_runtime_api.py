@@ -6,13 +6,13 @@ WP-M1-07: Tests (027-030)
 FROZEN: Tests verify that only allowed endpoints are exposed.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from unittest.mock import MagicMock, patch
 
+import pytest
 from django.urls import reverse
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 
 class TestAgentTaskAPI:
@@ -49,8 +49,8 @@ class TestAgentTaskAPI:
         mock.created_by_id = 1
         mock.created_by = MagicMock()
         mock.created_by.username = "test_user"
-        mock.created_at = datetime.now(timezone.utc)
-        mock.updated_at = datetime.now(timezone.utc)
+        mock.created_at = datetime.now(UTC)
+        mock.updated_at = datetime.now(UTC)
         # Add relationships
         mock.steps = MagicMock()
         mock.steps.count.return_value = 0
@@ -97,8 +97,8 @@ class TestAgentTaskAPI:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = 1
-        mock_task.created_at = datetime.now(timezone.utc)
-        mock_task.updated_at = datetime.now(timezone.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -192,8 +192,8 @@ class TestAgentTaskAPI:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = 1
-        mock_task.created_at = datetime.now(timezone.utc)
-        mock_task.updated_at = datetime.now(timezone.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -331,8 +331,8 @@ class TestAgentTaskAPI:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = 1
-        mock_task.created_at = datetime.now(timezone.utc)
-        mock_task.updated_at = datetime.now(timezone.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -435,8 +435,8 @@ class TestAgentTaskAPI:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = 1
-        mock_task.created_at = datetime.now(timezone.utc)
-        mock_task.updated_at = datetime.now(timezone.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task

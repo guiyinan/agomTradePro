@@ -12,14 +12,15 @@ PMI Sub-items Data Fetcher（Regime 滞后性改进 Phase 3）
 参考文档: docs/development/regime-lag-improvement-plan.md
 """
 
-import pandas as pd
-from datetime import date, timedelta
-from typing import List, Optional, Dict
-import logging
 import json
+import logging
 import os
+from datetime import date, timedelta
+from typing import Dict, List, Optional
 
-from ..base import MacroDataPoint, DataValidationError
+import pandas as pd
+
+from ..base import DataValidationError, MacroDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +57,14 @@ class PMISubitemsFetcher:
         self._sort_and_deduplicate = sort_dedup_fn
         self._data_file_path = os.path.abspath(MANUAL_DATA_FILE)
 
-    def _load_manual_data(self) -> List[Dict]:
+    def _load_manual_data(self) -> list[dict]:
         """从手动维护的文件加载数据"""
         if not os.path.exists(self._data_file_path):
             logger.warning(f"PMI 分项数据文件不存在: {self._data_file_path}")
             return []
 
         try:
-            with open(self._data_file_path, 'r', encoding='utf-8') as f:
+            with open(self._data_file_path, encoding='utf-8') as f:
                 data = json.load(f)
 
             records = data.get('data', [])
@@ -83,12 +84,12 @@ class PMISubitemsFetcher:
 
     def _convert_to_data_points(
         self,
-        records: List[Dict],
+        records: list[dict],
         field_name: str,
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """将记录转换为数据点列表"""
         data_points = []
         unit, original_unit = PMI_SUBITEM_UNITS.get(indicator_code, ("指数", "指数"))
@@ -137,7 +138,7 @@ class PMISubitemsFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取 PMI 新订单指数
 
         新订单指数是 PMI 的先行指标，反映市场需求状况。
@@ -168,7 +169,7 @@ class PMISubitemsFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取 PMI 产成品库存指数
 
         产成品库存反映企业库存周期：
@@ -200,7 +201,7 @@ class PMISubitemsFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取 PMI 原材料库存指数
 
         原材料库存反映企业采购意愿和对未来的预期。
@@ -230,7 +231,7 @@ class PMISubitemsFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取 PMI 采购量指数
 
         采购量指数反映企业生产活跃度。
@@ -260,7 +261,7 @@ class PMISubitemsFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取 PMI 生产指数
 
         生产指数反映企业生产活动活跃度。
@@ -290,7 +291,7 @@ class PMISubitemsFetcher:
         self,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """获取 PMI 从业人员指数
 
         从业人员指数反映就业状况。

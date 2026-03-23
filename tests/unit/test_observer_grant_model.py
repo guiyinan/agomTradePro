@@ -8,9 +8,10 @@ Unit tests for PortfolioObserverGrantModel.
 - revoke() 方法
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
@@ -57,7 +58,7 @@ class TestObserverGrantModelFields:
             username=f"observer_{uuid.uuid4().hex[:8]}",
             password="test_pass_456"
         )
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        expires_at = datetime.now(UTC) + timedelta(days=30)
 
         grant = PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=owner,
@@ -288,7 +289,7 @@ class TestObserverGrantModelIsValid:
             owner_user_id=owner,
             observer_user_id=observer,
             status='active',
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
 
         assert grant.is_valid() is True
@@ -308,7 +309,7 @@ class TestObserverGrantModelIsValid:
             owner_user_id=owner,
             observer_user_id=observer,
             status='active',
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+            expires_at=datetime.now(UTC) - timedelta(days=1),
         )
 
         assert grant.is_valid() is False
@@ -387,7 +388,7 @@ class TestObserverGrantModelIsValid:
             owner_user_id=owner,
             observer_user_id=observer,
             status='active',
-            expires_at=datetime.now(timezone.utc) - timedelta(milliseconds=100),
+            expires_at=datetime.now(UTC) - timedelta(milliseconds=100),
         )
 
         assert grant.is_valid() is False
@@ -431,7 +432,7 @@ class TestObserverGrantModelRevoke:
             password="test_pass_456"
         )
 
-        before_revoke = datetime.now(timezone.utc)
+        before_revoke = datetime.now(UTC)
 
         grant = PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=owner,
@@ -488,7 +489,7 @@ class TestObserverGrantModelRevoke:
             owner_user_id=owner,
             observer_user_id=observer,
             status='revoked',
-            revoked_at=datetime.now(timezone.utc),
+            revoked_at=datetime.now(UTC),
             revoked_by=owner,
         )
 

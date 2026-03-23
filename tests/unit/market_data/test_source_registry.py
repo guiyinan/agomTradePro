@@ -4,16 +4,17 @@ SourceRegistry 测试
 测试 provider 注册、优先级、failover、熔断。
 """
 
-import pytest
 from typing import List, Optional
 from unittest.mock import patch
 
-from apps.market_data.domain.entities import QuoteSnapshot, CapitalFlowSnapshot
+import pytest
+
+from apps.market_data.domain.entities import CapitalFlowSnapshot, QuoteSnapshot
 from apps.market_data.domain.enums import DataCapability, ProviderHealth
 from apps.market_data.domain.protocols import MarketDataProviderProtocol
 from apps.market_data.infrastructure.registries.source_registry import (
-    SourceRegistry,
     _CIRCUIT_OPEN_THRESHOLD,
+    SourceRegistry,
 )
 
 

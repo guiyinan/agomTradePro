@@ -9,13 +9,13 @@ Tests verify:
 - Audit trail exists for mutating runtime calls
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
+from unittest.mock import MagicMock, patch
 
+import pytest
 from django.urls import reverse
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 
 @pytest.mark.django_db
@@ -171,7 +171,8 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.CreateTaskUseCase")
     def test_create_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify create task operation creates audit log."""
-        from datetime import datetime, timezone as tz
+        from datetime import datetime
+        from datetime import timezone as tz
 
         # Setup mock with JSON-serializable attributes (avoid MagicMock infinite loop)
         mock_use_case = MagicMock()
@@ -189,8 +190,8 @@ class TestAuditTrail:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = None
-        mock_task.created_at = datetime.now(tz.utc)
-        mock_task.updated_at = datetime.now(tz.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -214,8 +215,8 @@ class TestAuditTrail:
         mock_model.last_error = None
         mock_model.requires_human = False
         mock_model.created_by = None
-        mock_model.created_at = datetime.now(tz.utc)
-        mock_model.updated_at = datetime.now(tz.utc)
+        mock_model.created_at = datetime.now(UTC)
+        mock_model.updated_at = datetime.now(UTC)
 
         with patch(
             "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.get"
@@ -235,7 +236,8 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.ResumeTaskUseCase")
     def test_resume_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify resume task operation creates audit log."""
-        from datetime import datetime, timezone as tz
+        from datetime import datetime
+        from datetime import timezone as tz
 
         # Setup mock with JSON-serializable attributes
         mock_use_case = MagicMock()
@@ -253,8 +255,8 @@ class TestAuditTrail:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = None
-        mock_task.created_at = datetime.now(tz.utc)
-        mock_task.updated_at = datetime.now(tz.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -286,7 +288,8 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.CancelTaskUseCase")
     def test_cancel_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify cancel task operation creates audit log."""
-        from datetime import datetime, timezone as tz
+        from datetime import datetime
+        from datetime import timezone as tz
 
         # Setup mock with JSON-serializable attributes
         mock_use_case = MagicMock()
@@ -304,8 +307,8 @@ class TestAuditTrail:
         mock_task.last_error = None
         mock_task.requires_human = False
         mock_task.created_by = None
-        mock_task.created_at = datetime.now(tz.utc)
-        mock_task.updated_at = datetime.now(tz.utc)
+        mock_task.created_at = datetime.now(UTC)
+        mock_task.updated_at = datetime.now(UTC)
 
         mock_output = MagicMock()
         mock_output.task = mock_task

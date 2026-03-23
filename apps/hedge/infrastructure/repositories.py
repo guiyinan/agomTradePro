@@ -6,24 +6,24 @@ Provides clean separation between domain logic and data persistence.
 """
 
 from datetime import date
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 from django.db.models import Q
 
 from apps.hedge.domain.entities import (
-    HedgePair,
-    HedgeMethod,
     CorrelationMetric,
-    HedgePortfolio,
     HedgeAlert,
     HedgeAlertType,
+    HedgeMethod,
+    HedgePair,
+    HedgePortfolio,
 )
 from apps.hedge.infrastructure.models import (
-    HedgePairModel,
     CorrelationHistoryModel,
-    HedgePortfolioSnapshotModel,
     HedgeAlertModel,
+    HedgePairModel,
     HedgePerformanceModel,
+    HedgePortfolioSnapshotModel,
 )
 
 
@@ -38,7 +38,7 @@ def _attach_domain_meta(entity, model, fields: tuple[str, ...]):
 class HedgePairRepository:
     """Repository for HedgePair entities"""
 
-    def get_all(self, active_only: bool = True) -> List[HedgePair]:
+    def get_all(self, active_only: bool = True) -> list[HedgePair]:
         """Get all hedge pairs"""
         queryset = HedgePairModel._default_manager.all()
         if active_only:
@@ -49,7 +49,7 @@ class HedgePairRepository:
             for model in queryset
         ]
 
-    def get_by_name(self, name: str) -> Optional[HedgePair]:
+    def get_by_name(self, name: str) -> HedgePair | None:
         """Get hedge pair by name"""
         try:
             model = HedgePairModel._default_manager.get(name=name)
@@ -57,7 +57,7 @@ class HedgePairRepository:
         except HedgePairModel.DoesNotExist:
             return None
 
-    def get_by_id(self, pair_id: int) -> Optional[HedgePair]:
+    def get_by_id(self, pair_id: int) -> HedgePair | None:
         """Get hedge pair by ID"""
         try:
             model = HedgePairModel._default_manager.get(id=pair_id)
@@ -65,7 +65,7 @@ class HedgePairRepository:
         except HedgePairModel.DoesNotExist:
             return None
 
-    def get_by_assets(self, long_asset: str, hedge_asset: str) -> Optional[HedgePair]:
+    def get_by_assets(self, long_asset: str, hedge_asset: str) -> HedgePair | None:
         """Get hedge pair by asset codes"""
         try:
             model = HedgePairModel._default_manager.get(
@@ -96,7 +96,7 @@ class HedgePairRepository:
         model.save()
         return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
 
-    def update(self, pair: HedgePair) -> Optional[HedgePair]:
+    def update(self, pair: HedgePair) -> HedgePair | None:
         """Update existing hedge pair"""
         model = HedgePairModel._default_manager.filter(name=pair.name).first()
         if not model:
@@ -115,7 +115,7 @@ class HedgePairRepository:
 
         return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
 
-    def set_active(self, pair_id: int, is_active: bool) -> Optional[HedgePair]:
+    def set_active(self, pair_id: int, is_active: bool) -> HedgePair | None:
         """Set active status for a hedge pair"""
         model = HedgePairModel._default_manager.filter(id=pair_id).first()
         if not model:
@@ -135,7 +135,7 @@ class CorrelationHistoryRepository:
         asset1: str,
         asset2: str,
         window_days: int = 60
-    ) -> Optional[CorrelationMetric]:
+    ) -> CorrelationMetric | None:
         """Get latest correlation metric for a pair"""
         model = CorrelationHistoryModel._default_manager.filter(
             asset1=asset1,
@@ -152,9 +152,9 @@ class CorrelationHistoryRepository:
         asset1: str,
         asset2: str,
         start_date: date,
-        end_date: Optional[date] = None,
+        end_date: date | None = None,
         window_days: int = 60
-    ) -> List[CorrelationMetric]:
+    ) -> list[CorrelationMetric]:
         """Get correlation history for a date range"""
         queryset = CorrelationHistoryModel._default_manager.filter(
             asset1=asset1,
@@ -194,7 +194,7 @@ class CorrelationHistoryRepository:
         self,
         days: int = 30,
         window_days: int = 60
-    ) -> List[CorrelationMetric]:
+    ) -> list[CorrelationMetric]:
         """Get all recent correlation metrics"""
         from datetime import timedelta
         cutoff_date = date.today() - timedelta(days=days)
@@ -249,7 +249,7 @@ class HedgePortfolioRepository:
 
         return portfolio
 
-    def get_latest_portfolio(self, pair_name: str) -> Optional[HedgePortfolio]:
+    def get_latest_portfolio(self, pair_name: str) -> HedgePortfolio | None:
         """Get latest portfolio state for a pair"""
         model = HedgePortfolioSnapshotModel._default_manager.filter(
             pair__name=pair_name
@@ -263,8 +263,8 @@ class HedgePortfolioRepository:
         self,
         pair_name: str,
         start_date: date,
-        end_date: Optional[date] = None
-    ) -> List[HedgePortfolio]:
+        end_date: date | None = None
+    ) -> list[HedgePortfolio]:
         """Get portfolio history for a date range"""
         queryset = HedgePortfolioSnapshotModel._default_manager.filter(
             pair__name=pair_name,
@@ -278,10 +278,10 @@ class HedgePortfolioRepository:
 
     def get_recent_snapshots(
         self,
-        pair_name: Optional[str] = None,
-        rebalance_needed: Optional[bool] = None,
+        pair_name: str | None = None,
+        rebalance_needed: bool | None = None,
         limit: int = 50
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Get recent snapshots with filtering.
         Returns dict representations for view rendering.
@@ -323,7 +323,7 @@ class HedgePortfolioRepository:
             for s in snapshots
         ]
 
-    def get_statistics(self) -> Dict[str, int]:
+    def get_statistics(self) -> dict[str, int]:
         """Get statistics for snapshots"""
         from django.db.models import Count
 
@@ -345,7 +345,7 @@ class HedgePortfolioRepository:
 class HedgeAlertRepository:
     """Repository for hedge alerts"""
 
-    def get_active_alerts(self, pair_name: Optional[str] = None) -> List[HedgeAlert]:
+    def get_active_alerts(self, pair_name: str | None = None) -> list[HedgeAlert]:
         """Get all active (unresolved) alerts"""
         queryset = HedgeAlertModel._default_manager.filter(is_resolved=False)
 
@@ -360,8 +360,8 @@ class HedgeAlertRepository:
     def get_recent_alerts(
         self,
         days: int = 7,
-        pair_name: Optional[str] = None
-    ) -> List[HedgeAlert]:
+        pair_name: str | None = None
+    ) -> list[HedgeAlert]:
         """Get alerts from recent days"""
         from datetime import timedelta
         cutoff_date = date.today() - timedelta(days=days)
@@ -395,7 +395,7 @@ class HedgeAlertRepository:
 
         return _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
 
-    def resolve_alert(self, alert_id: int) -> Optional[HedgeAlert]:
+    def resolve_alert(self, alert_id: int) -> HedgeAlert | None:
         """Mark alert as resolved"""
         try:
             model = HedgeAlertModel._default_manager.get(id=alert_id)
@@ -442,8 +442,8 @@ class HedgePerformanceRepository:
         self,
         pair_name: str,
         start_date: date,
-        end_date: Optional[date] = None
-    ) -> List[dict]:
+        end_date: date | None = None
+    ) -> list[dict]:
         """Get performance history for a pair"""
         queryset = HedgePerformanceModel._default_manager.filter(
             pair__name=pair_name,

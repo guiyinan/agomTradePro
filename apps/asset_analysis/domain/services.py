@@ -5,7 +5,8 @@
 这些匹配器是纯函数实现，不依赖外部状态，符合 Domain 层的设计原则。
 """
 
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
+
 from apps.asset_analysis.domain.entities import AssetScore, AssetType
 
 
@@ -18,7 +19,7 @@ class RegimeMatcher:
     """
 
     # Regime × 风格 矩阵
-    REGIME_STYLE_MATRIX: Dict[Tuple[str, str], float] = {
+    REGIME_STYLE_MATRIX: dict[tuple[str, str], float] = {
         ("Recovery", "growth"): 90,
         ("Recovery", "value"): 75,
         ("Recovery", "blend"): 80,
@@ -42,7 +43,7 @@ class RegimeMatcher:
     }
 
     # Regime × 资产类型 矩阵
-    REGIME_ASSET_TYPE_MATRIX: Dict[Tuple[str, str], float] = {
+    REGIME_ASSET_TYPE_MATRIX: dict[tuple[str, str], float] = {
         ("Recovery", "equity"): 90,
         ("Recovery", "fund"): 85,
         ("Recovery", "bond"): 50,
@@ -116,7 +117,7 @@ class RegimeMatcher:
         Returns:
             行业匹配得分（0-100）
         """
-        SECTOR_REGIME_SCORE: Dict[Tuple[str, str], float] = {
+        SECTOR_REGIME_SCORE: dict[tuple[str, str], float] = {
             # Recovery 行业偏好
             ("金融", "Recovery"): 85,
             ("科技", "Recovery"): 95,
@@ -152,7 +153,7 @@ class PolicyMatcher:
     """
 
     # Policy × 资产类型 矩阵
-    POLICY_ASSET_TYPE_MATRIX: Dict[Tuple[str, str], float] = {
+    POLICY_ASSET_TYPE_MATRIX: dict[tuple[str, str], float] = {
         ("P0", "equity"): 90,
         ("P0", "fund"): 90,
         ("P0", "bond"): 70,
@@ -263,7 +264,7 @@ class SignalMatcher:
     """
 
     @classmethod
-    def match(cls, asset: AssetScore, active_signals: List) -> float:
+    def match(cls, asset: AssetScore, active_signals: list) -> float:
         """
         计算信号匹配得分
 

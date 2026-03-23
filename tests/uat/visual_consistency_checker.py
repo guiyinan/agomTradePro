@@ -3,10 +3,10 @@ Visual Consistency Checker for UAT
 Automated checks for visual design tokens and component consistency.
 """
 import re
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
-from dataclasses import dataclass
-from collections import Counter
 
 
 @dataclass
@@ -31,7 +31,7 @@ class VisualConsistencyChecker:
         """
         self.base_dir = base_dir
         self.template_dir = base_dir / "apps"
-        self.issues: List[StyleIssue] = []
+        self.issues: list[StyleIssue] = []
 
         # Design tokens that should be used
         self.design_tokens = {
@@ -66,7 +66,7 @@ class VisualConsistencyChecker:
         for template_file in template_files:
             self._check_file(template_file)
 
-    def _find_template_files(self) -> List[Path]:
+    def _find_template_files(self) -> list[Path]:
         """Find all HTML template files."""
         templates = []
         for pattern in ['**/*.html', '**/*.htm']:
@@ -131,15 +131,15 @@ class VisualConsistencyChecker:
                 snippet=line.strip()
             ))
 
-    def get_issues_by_severity(self, severity: str) -> List[StyleIssue]:
+    def get_issues_by_severity(self, severity: str) -> list[StyleIssue]:
         """Get issues filtered by severity."""
         return [i for i in self.issues if i.severity == severity]
 
-    def get_issues_by_type(self, issue_type: str) -> List[StyleIssue]:
+    def get_issues_by_type(self, issue_type: str) -> list[StyleIssue]:
         """Get issues filtered by type."""
         return [i for i in self.issues if i.issue_type == issue_type]
 
-    def generate_report(self) -> Dict:
+    def generate_report(self) -> dict:
         """Generate a summary report."""
         total = len(self.issues)
         by_severity = {

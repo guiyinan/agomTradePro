@@ -38,9 +38,9 @@ class AgentRuntime:
     def __init__(
         self,
         ai_client_factory,
-        tool_registry: Optional[FunctionRegistry] = None,
-        context_builder: Optional[Any] = None,
-        execution_logger: Optional[Any] = None,
+        tool_registry: FunctionRegistry | None = None,
+        context_builder: Any | None = None,
+        execution_logger: Any | None = None,
     ):
         """
         Args:
@@ -236,7 +236,7 @@ class AgentRuntime:
                 None, None, [],
             )
 
-    def _build_context(self, request: AgentExecutionRequest) -> Optional[ContextBundle]:
+    def _build_context(self, request: AgentExecutionRequest) -> ContextBundle | None:
         """根据 scope 构建 ContextBundle。"""
         if not self.context_builder:
             return None
@@ -250,10 +250,10 @@ class AgentRuntime:
     def _build_messages(
         self,
         request: AgentExecutionRequest,
-        context_bundle: Optional[ContextBundle],
-    ) -> List[Dict[str, str]]:
+        context_bundle: ContextBundle | None,
+    ) -> list[dict[str, str]]:
         """构建首轮 messages。"""
-        messages: list[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
 
         # System prompt
         system_parts: list[str] = []
@@ -278,8 +278,8 @@ class AgentRuntime:
         return messages
 
     def _get_tools_schema(
-        self, tool_names: Optional[List[str]]
-    ) -> Optional[List[Dict[str, Any]]]:
+        self, tool_names: list[str] | None
+    ) -> list[dict[str, Any]] | None:
         """获取指定工具的 OpenAI Function Calling schema。"""
         if not tool_names:
             return None
@@ -298,8 +298,8 @@ class AgentRuntime:
         return filtered if filtered else None
 
     def _execute_tool_calls(
-        self, tool_calls_data: List[Dict[str, Any]]
-    ) -> List[ToolCallRecord]:
+        self, tool_calls_data: list[dict[str, Any]]
+    ) -> list[ToolCallRecord]:
         """执行一组工具调用，返回记录列表。"""
         records: list[ToolCallRecord] = []
 
@@ -375,16 +375,16 @@ class AgentRuntime:
 
     def _append_tool_results(
         self,
-        messages: List[Dict[str, str]],
-        assistant_content: Optional[str],
-        tool_calls_data: List[Dict[str, Any]],
-        tool_records: List[ToolCallRecord],
-    ) -> List[Dict[str, str]]:
+        messages: list[dict[str, str]],
+        assistant_content: str | None,
+        tool_calls_data: list[dict[str, Any]],
+        tool_records: list[ToolCallRecord],
+    ) -> list[dict[str, str]]:
         """将工具执行结果添加到 messages 以继续推理。"""
         new_messages = list(messages)
 
         # 添加 assistant 消息（含 tool_calls）
-        assistant_msg: Dict[str, Any] = {"role": "assistant"}
+        assistant_msg: dict[str, Any] = {"role": "assistant"}
         if assistant_content:
             assistant_msg["content"] = assistant_content
         else:
@@ -430,7 +430,7 @@ class AgentRuntime:
         return str(result) if result is not None else ""
 
     @staticmethod
-    def _parse_structured_output(content: str) -> Optional[Dict[str, Any]]:
+    def _parse_structured_output(content: str) -> dict[str, Any] | None:
         """尝试从文本中解析 JSON 结构化输出。"""
         if not content:
             return None
@@ -455,13 +455,13 @@ class AgentRuntime:
         error_msg: str,
         execution_id: str,
         start_time: float,
-        tool_calls: List[ToolCallRecord],
-        turns: List[AgentTurnResult],
+        tool_calls: list[ToolCallRecord],
+        turns: list[AgentTurnResult],
         prompt_tokens: int,
         completion_tokens: int,
-        provider_used: Optional[str],
-        model_used: Optional[str],
-        used_context: List[str],
+        provider_used: str | None,
+        model_used: str | None,
+        used_context: list[str],
     ) -> AgentExecutionResponse:
         """构建错误响应。"""
         return AgentExecutionResponse(

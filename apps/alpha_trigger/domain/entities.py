@@ -8,7 +8,7 @@ Alpha 事件触发的核心实体定义。
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -169,19 +169,19 @@ class InvalidationCondition:
     """
 
     condition_type: Any
-    indicator_code: Optional[str] = None
-    threshold_value: Optional[float] = None
-    cross_direction: Optional[str] = None
-    max_holding_days: Optional[int] = None
-    required_regime: Optional[str] = None
-    time_window_hours: Optional[int] = None
+    indicator_code: str | None = None
+    threshold_value: float | None = None
+    cross_direction: str | None = None
+    max_holding_days: int | None = None
+    required_regime: str | None = None
+    time_window_hours: int | None = None
     compare_with_prev: bool = False
-    prev_diff_threshold: Optional[float] = None
+    prev_diff_threshold: float | None = None
     # Backward-compatible aliases
-    threshold: Optional[float] = None
-    direction: Optional[str] = None
-    time_limit_hours: Optional[int] = None
-    custom_condition: Optional[Dict[str, Any]] = None
+    threshold: float | None = None
+    direction: str | None = None
+    time_limit_hours: int | None = None
+    custom_condition: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Normalize legacy field names and enum values."""
@@ -212,7 +212,7 @@ class InvalidationCondition:
             if expected:
                 object.__setattr__(self, "required_regime", expected)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "condition_type": self.condition_type.value if isinstance(self.condition_type, InvalidationType) else self.condition_type,
@@ -227,7 +227,7 @@ class InvalidationCondition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "InvalidationCondition":
+    def from_dict(cls, data: dict[str, Any]) -> "InvalidationCondition":
         """从字典创建"""
         return cls(**data)
 
@@ -281,20 +281,20 @@ class AlphaTrigger:
     asset_code: str
     asset_class: str
     direction: str
-    trigger_condition: Dict[str, Any]
-    invalidation_conditions: List[InvalidationCondition]
+    trigger_condition: dict[str, Any]
+    invalidation_conditions: list[InvalidationCondition]
     strength: SignalStrength
     confidence: float
     created_at: datetime
-    expires_at: Optional[datetime] = None
+    expires_at: datetime | None = None
     status: TriggerStatus = TriggerStatus.ACTIVE
-    triggered_at: Optional[datetime] = None
-    invalidated_at: Optional[datetime] = None
-    source_signal_id: Optional[str] = None
-    related_regime: Optional[str] = None
-    related_policy_level: Optional[int] = None
+    triggered_at: datetime | None = None
+    invalidated_at: datetime | None = None
+    source_signal_id: str | None = None
+    related_regime: str | None = None
+    related_policy_level: int | None = None
     thesis: str = ""
-    evidence_refs: List[str] = field(default_factory=list)
+    evidence_refs: list[str] = field(default_factory=list)
 
     @property
     def is_active(self) -> bool:
@@ -311,7 +311,7 @@ class AlphaTrigger:
         """是否已过期"""
         if self.expires_at is None:
             return False
-        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now(timezone.utc)
+        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now(UTC)
         return now > self.expires_at
 
     @property
@@ -322,24 +322,24 @@ class AlphaTrigger:
     @property
     def days_since_creation(self) -> int:
         """创建后天数"""
-        return (datetime.now(timezone.utc) - self.created_at).days
+        return (datetime.now(UTC) - self.created_at).days
 
     @property
-    def days_since_trigger(self) -> Optional[int]:
+    def days_since_trigger(self) -> int | None:
         """触发后天数"""
         if self.triggered_at is None:
             return None
-        return (datetime.now(timezone.utc) - self.triggered_at).days
+        return (datetime.now(UTC) - self.triggered_at).days
 
     @property
-    def remaining_days(self) -> Optional[int]:
+    def remaining_days(self) -> int | None:
         """剩余有效天数"""
         if self.expires_at is None:
             return None
-        delta = self.expires_at - datetime.now(timezone.utc)
+        delta = self.expires_at - datetime.now(UTC)
         return max(0, delta.days)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "trigger_id": self.trigger_id,
@@ -364,7 +364,7 @@ class AlphaTrigger:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AlphaTrigger":
+    def from_dict(cls, data: dict[str, Any]) -> "AlphaTrigger":
         """从字典创建"""
         return cls(
             trigger_id=data["trigger_id"],
@@ -425,14 +425,14 @@ class TriggerEvent:
     trigger_id: str
     event_type: str
     occurred_at: datetime
-    trigger_value: Optional[float] = None
-    indicator_value: Optional[float] = None
+    trigger_value: float | None = None
+    indicator_value: float | None = None
     reason: str = ""
-    current_regime: Optional[str] = None
-    policy_level: Optional[int] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    current_regime: str | None = None
+    policy_level: int | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "event_id": self.event_id,
@@ -505,18 +505,18 @@ class AlphaCandidate:
     status: Any = CandidateStatus.CANDIDATE
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
-    audit_trail: List[str] = field(default_factory=list)
+    audit_trail: list[str] = field(default_factory=list)
     # Backward-compatible fields
-    entry_zone: Optional[Dict[str, Any]] = None
-    exit_zone: Optional[Dict[str, Any]] = None
-    time_horizon: Optional[int] = None
-    expected_return: Optional[float] = None
-    risk_level: Optional[str] = None
-    status_changed_at: Optional[datetime] = None
-    promoted_to_signal_at: Optional[datetime] = None
+    entry_zone: dict[str, Any] | None = None
+    exit_zone: dict[str, Any] | None = None
+    time_horizon: int | None = None
+    expected_return: float | None = None
+    risk_level: str | None = None
+    status_changed_at: datetime | None = None
+    promoted_to_signal_at: datetime | None = None
     # 新增字段：首页主流程闭环改造
-    last_decision_request_id: Optional[str] = None
-    last_execution_status: Optional[str] = None
+    last_decision_request_id: str | None = None
+    last_execution_status: str | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.status, str):
@@ -562,7 +562,7 @@ class AlphaCandidate:
         """是否已过期"""
         return date.today() > self.time_window_end
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "candidate_id": self.candidate_id,
@@ -631,7 +631,7 @@ class TriggerConfig:
     max_active_triggers: int = 100
 
     @property
-    def strength_thresholds(self) -> Dict[SignalStrength, float]:
+    def strength_thresholds(self) -> dict[SignalStrength, float]:
         """Backward-compatible threshold mapping."""
         return {
             SignalStrength.VERY_WEAK: 0.0,
@@ -662,7 +662,7 @@ class TriggerConfig:
         else:
             return SignalStrength.VERY_WEAK
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "weak_threshold": self.weak_threshold,
@@ -676,7 +676,7 @@ class TriggerConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TriggerConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "TriggerConfig":
         """从字典创建"""
         return cls(
             weak_threshold=data.get("weak_threshold", 0.3),
@@ -694,10 +694,10 @@ class TriggerConfig:
 
 
 def create_invalidations(
-    threshold_invalidations: Optional[List[Dict[str, Any]]] = None,
-    time_decay_days: Optional[int] = None,
-    regime_mismatch: Optional[str] = None,
-) -> List[InvalidationCondition]:
+    threshold_invalidations: list[dict[str, Any]] | None = None,
+    time_decay_days: int | None = None,
+    regime_mismatch: str | None = None,
+) -> list[InvalidationCondition]:
     """
     创建证伪条件列表的便捷函数
 
@@ -719,7 +719,7 @@ def create_invalidations(
         ...     time_decay_days=30
         ... )
     """
-    conditions: List[InvalidationCondition] = []
+    conditions: list[InvalidationCondition] = []
 
     if threshold_invalidations:
         for inv in threshold_invalidations:
@@ -751,7 +751,7 @@ def create_invalidations(
     return conditions
 
 
-def calculate_strength(confidence: float, config: Optional[TriggerConfig] = None) -> SignalStrength:
+def calculate_strength(confidence: float, config: TriggerConfig | None = None) -> SignalStrength:
     """
     计算信号强度的便捷函数
 

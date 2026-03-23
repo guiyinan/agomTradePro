@@ -8,12 +8,12 @@ from .use_cases import (
     ApplyFilterRequest,
     ApplyFilterResponse,
     ApplyFilterUseCase,
-    GetFilterDataRequest,
-    GetFilterDataResponse,
-    GetFilterDataUseCase,
     CompareFiltersRequest,
     CompareFiltersResponse,
     CompareFiltersUseCase,
+    GetFilterDataRequest,
+    GetFilterDataResponse,
+    GetFilterDataUseCase,
 )
 
 __all__ = [

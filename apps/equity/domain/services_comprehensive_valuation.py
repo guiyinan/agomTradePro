@@ -5,9 +5,9 @@
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Literal
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Dict, List, Literal, Optional
 
 from apps.equity.domain.entities import FinancialData, ValuationMetrics
 
@@ -18,7 +18,7 @@ class ValuationScore:
     method: str  # 估值方法
     score: float  # 评分（0-100）
     signal: Literal['undervalued', 'fair', 'overvalued']  # 信号
-    details: Dict  # 详细信息
+    details: dict  # 详细信息
 
 
 @dataclass
@@ -27,7 +27,7 @@ class ComprehensiveValuationResult:
     stock_code: str
     overall_score: float  # 综合评分（0-100）
     overall_signal: Literal['strong_buy', 'buy', 'hold', 'sell', 'strong_sell']
-    scores: List[ValuationScore]
+    scores: list[ValuationScore]
     recommendation: str
     confidence: float  # 置信度（0-1）
 
@@ -48,8 +48,8 @@ class ComprehensiveValuationAnalyzer:
         stock_code: str,
         financial: FinancialData,
         valuation: ValuationMetrics,
-        historical_pe: List[float],
-        historical_pb: List[float],
+        historical_pe: list[float],
+        historical_pb: list[float],
         industry_avg_pe: float = 20.0,
         industry_avg_pb: float = 2.0,
         risk_free_rate: float = 0.03
@@ -128,8 +128,8 @@ class ComprehensiveValuationAnalyzer:
     def _analyze_pe_pb_percentile(
         self,
         valuation: ValuationMetrics,
-        historical_pe: List[float],
-        historical_pb: List[float]
+        historical_pe: list[float],
+        historical_pb: list[float]
     ) -> ValuationScore:
         """PE/PB 百分位分析"""
         from apps.equity.domain.services import ValuationAnalyzer
@@ -340,7 +340,7 @@ class ComprehensiveValuationAnalyzer:
     def _generate_recommendation(
         self,
         overall_signal: str,
-        scores: List[ValuationScore]
+        scores: list[ValuationScore]
     ) -> str:
         """生成推荐建议"""
         # 统计各信号的数量
@@ -351,9 +351,9 @@ class ComprehensiveValuationAnalyzer:
         # 生成建议文本
         recommendations = {
             'strong_buy': f"强烈推荐买入。综合评分显示股票被显著低估，{signal_counts['undervalued']}种方法支持低估判断。",
-            'buy': f"推荐买入。股票估值偏低，具有投资价值。",
-            'hold': f"持有观望。估值处于合理区间，等待更好的入场时机。",
-            'sell': f"建议减仓。股票估值偏高，注意风险。",
+            'buy': "推荐买入。股票估值偏低，具有投资价值。",
+            'hold': "持有观望。估值处于合理区间，等待更好的入场时机。",
+            'sell': "建议减仓。股票估值偏高，注意风险。",
             'strong_sell': f"强烈建议卖出。股票被显著高估，{signal_counts['overvalued']}种方法支持高估判断。"
         }
 
@@ -361,7 +361,7 @@ class ComprehensiveValuationAnalyzer:
 
     def _calculate_confidence(
         self,
-        scores: List[ValuationScore]
+        scores: list[ValuationScore]
     ) -> float:
         """
         计算置信度（基于各方法的一致性）

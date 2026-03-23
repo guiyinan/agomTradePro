@@ -7,11 +7,16 @@ Alpha Provider Protocol Interface
 仅使用 Python 标准库。
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from .entities import AlphaResult
 
 
 class AlphaProviderStatus(Enum):
@@ -128,10 +133,7 @@ class AlphaProvider(ABC):
 
     @abstractmethod
     def get_stock_scores(
-        self,
-        universe_id: str,
-        intended_trade_date: date,
-        top_n: int = 30
+        self, universe_id: str, intended_trade_date: date, top_n: int = 30
     ) -> "AlphaResult":
         """
         获取股票评分
@@ -152,11 +154,7 @@ class AlphaProvider(ABC):
         pass
 
     @abstractmethod
-    def get_factor_exposure(
-        self,
-        stock_code: str,
-        trade_date: date
-    ) -> Dict[str, float]:
+    def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict[str, float]:
         """
         获取因子暴露
 
@@ -208,7 +206,7 @@ class AlphaProviderRegistry(ABC):
         pass
 
     @abstractmethod
-    def get_provider(self, name: str) -> Optional[AlphaProvider]:
+    def get_provider(self, name: str) -> AlphaProvider | None:
         """
         获取指定名称的 Provider
 
@@ -221,7 +219,7 @@ class AlphaProviderRegistry(ABC):
         pass
 
     @abstractmethod
-    def get_all_providers(self) -> List[AlphaProvider]:
+    def get_all_providers(self) -> list[AlphaProvider]:
         """
         获取所有已注册的 Provider
 
@@ -231,7 +229,7 @@ class AlphaProviderRegistry(ABC):
         pass
 
     @abstractmethod
-    def get_active_providers(self) -> List[AlphaProvider]:
+    def get_active_providers(self) -> list[AlphaProvider]:
         """
         获取所有可用的 Provider
 

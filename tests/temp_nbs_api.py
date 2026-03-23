@@ -1,9 +1,10 @@
 """
 使用 NBS API 获取 PMI 分项数据
 """
-import requests
 import json
 from datetime import datetime
+
+import requests
 
 # NBS API endpoint
 NBS_API_URL = "http://data.stats.gov.cn/easyquery.htm"

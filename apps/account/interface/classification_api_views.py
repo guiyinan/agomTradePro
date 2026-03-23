@@ -4,13 +4,14 @@ DRF API Views for Asset Classification and Multi-Currency Support.
 资产分类、币种和汇率管理的 API 视图。
 """
 
-from rest_framework import viewsets, status
+from decimal import Decimal
+
+from django.db.models import Sum
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from django.db.models import Sum
-from decimal import Decimal
 
 from apps.account.infrastructure.models import (
     AssetCategoryModel,
@@ -19,17 +20,17 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PositionModel,
 )
+
 from .classification_serializers import (
+    AssetAllocationSerializer,
     AssetCategorySerializer,
     AssetCategoryTreeSerializer,
-    CurrencySerializer,
-    ExchangeRateSerializer,
-    ExchangeRateCreateSerializer,
-    CurrencyConvertSerializer,
-    AssetAllocationSerializer,
     CurrencyAllocationSerializer,
+    CurrencyConvertSerializer,
+    CurrencySerializer,
+    ExchangeRateCreateSerializer,
+    ExchangeRateSerializer,
 )
-
 
 # ==================== Asset Category ViewSet ====================
 

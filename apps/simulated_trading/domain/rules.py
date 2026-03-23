@@ -7,7 +7,8 @@ Domain层业务规则：
 - 纯Python实现，无外部依赖
 """
 from typing import List, Optional, Tuple
-from .entities import SimulatedAccount, Position
+
+from .entities import Position, SimulatedAccount
 
 
 class PositionSizingRule:
@@ -18,7 +19,7 @@ class PositionSizingRule:
         account: SimulatedAccount,
         asset_price: float,
         asset_score: float,
-        existing_positions: List[Position]
+        existing_positions: list[Position]
     ) -> int:
         """
         计算买入数量
@@ -61,7 +62,7 @@ class PositionSizingRule:
         position: Position,
         signal_valid: bool,
         regime_match: bool,
-        stop_loss_pct: Optional[float]
+        stop_loss_pct: float | None
     ) -> bool:
         """
         判断是否应该卖出持仓
@@ -105,7 +106,7 @@ class TradingConstraintRule:
         quantity: int,
         price: float,
         current_position_value: float = 0.0
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         验证买入订单
 
@@ -160,7 +161,7 @@ class TradingConstraintRule:
     def validate_sell_order(
         position: Position,
         quantity: int
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         验证卖出订单
 

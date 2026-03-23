@@ -4,11 +4,12 @@
 测试 Domain 层的 SectorRotationAnalyzer 服务
 """
 
-import pytest
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
 
-from apps.sector.domain.entities import SectorInfo, SectorIndex, SectorRelativeStrength
+import pytest
+
+from apps.sector.domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength
 from apps.sector.domain.services import SectorRotationAnalyzer
 
 

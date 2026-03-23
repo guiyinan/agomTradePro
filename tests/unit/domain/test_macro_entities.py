@@ -4,8 +4,10 @@ Unit tests for Macro Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-import pytest
 from datetime import date
+
+import pytest
+
 from apps.macro.domain.entities import MacroIndicator
 
 

@@ -5,10 +5,11 @@ FROZEN: These entity names and field names must not change.
 See: docs/plans/ai-native/implementation-contract.md
 """
 
-from dataclasses import dataclass, field, replace as dataclass_replace
+from dataclasses import dataclass, field
+from dataclasses import replace as dataclass_replace
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 
 class TaskDomain(str, Enum):
@@ -114,19 +115,19 @@ class AgentTask:
         created_at: Server timestamp
         updated_at: Server timestamp
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     schema_version: str = "v1"
     task_domain: TaskDomain = TaskDomain.RESEARCH
     task_type: str = ""
     status: TaskStatus = TaskStatus.DRAFT
-    input_payload: Dict[str, Any] = field(default_factory=dict)
-    current_step: Optional[str] = None
-    last_error: Optional[Dict[str, Any]] = None
+    input_payload: dict[str, Any] = field(default_factory=dict)
+    current_step: str | None = None
+    last_error: dict[str, Any] | None = None
     requires_human: bool = False
-    created_by: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_by: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def replace(self, **changes: Any) -> "AgentTask":
         """Compatibility helper for tests and transition workflows."""
@@ -151,18 +152,18 @@ class AgentTaskStep:
         error_message: Error if failed
         output_data: Step output
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     task_id: int = 0
     step_key: str = ""
     step_name: str = ""
     step_index: int = 0
     status: str = "pending"
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
-    output_data: Optional[Dict[str, Any]] = None
-    created_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
+    output_data: dict[str, Any] | None = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -179,14 +180,14 @@ class AgentContextSnapshot:
         generated_at: Snapshot generation time
         data_freshness: Data freshness metrics
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     task_id: int = 0
     domain: TaskDomain = TaskDomain.RESEARCH
-    snapshot_data: Dict[str, Any] = field(default_factory=dict)
-    generated_at: Optional[datetime] = None
-    data_freshness: Optional[Dict[str, Any]] = None
-    created_at: Optional[datetime] = None
+    snapshot_data: dict[str, Any] = field(default_factory=dict)
+    generated_at: datetime | None = None
+    data_freshness: dict[str, Any] | None = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -212,20 +213,20 @@ class AgentProposal:
         created_at: Server timestamp
         updated_at: Server timestamp
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     schema_version: str = "v1"
-    task_id: Optional[int] = None
+    task_id: int | None = None
     proposal_type: str = ""
     status: ProposalStatus = ProposalStatus.DRAFT
     risk_level: RiskLevel = RiskLevel.MEDIUM
     approval_required: bool = True
     approval_status: ApprovalStatus = ApprovalStatus.PENDING
-    proposal_payload: Dict[str, Any] = field(default_factory=dict)
-    approval_reason: Optional[str] = None
-    created_by: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    proposal_payload: dict[str, Any] = field(default_factory=dict)
+    approval_reason: str | None = None
+    created_by: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -244,16 +245,16 @@ class AgentExecutionRecord:
         completed_at: Execution completion time
         error_details: Error details if failed
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     task_id: int = 0
-    proposal_id: Optional[int] = None
+    proposal_id: int | None = None
     execution_status: str = "pending"
-    execution_output: Optional[Dict[str, Any]] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error_details: Optional[Dict[str, Any]] = None
-    created_at: Optional[datetime] = None
+    execution_output: dict[str, Any] | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_details: dict[str, Any] | None = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -272,15 +273,15 @@ class AgentArtifact:
         content_type: MIME type
         created_at: Creation timestamp
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     task_id: int = 0
     artifact_type: str = ""
     artifact_name: str = ""
-    artifact_data: Optional[Dict[str, Any]] = None
-    file_path: Optional[str] = None
+    artifact_data: dict[str, Any] | None = None
+    file_path: str | None = None
     content_type: str = "application/json"
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -301,15 +302,15 @@ class AgentTimelineEvent:
         event_payload: Event details
         created_at: Server timestamp
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     task_id: int = 0
-    proposal_id: Optional[int] = None
+    proposal_id: int | None = None
     event_type: TimelineEventType = TimelineEventType.TASK_CREATED
     event_source: EventSource = EventSource.SYSTEM
-    step_index: Optional[int] = None
-    event_payload: Dict[str, Any] = field(default_factory=dict)
-    created_at: Optional[datetime] = None
+    step_index: int | None = None
+    event_payload: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -328,15 +329,15 @@ class AgentHandoff:
         handoff_status: Handoff status
         created_at: Creation timestamp
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
     task_id: int = 0
     from_agent: str = ""
     to_agent: str = ""
     handoff_reason: str = ""
-    handoff_payload: Optional[Dict[str, Any]] = None
+    handoff_payload: dict[str, Any] | None = None
     handoff_status: str = "pending"
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -358,16 +359,16 @@ class AgentGuardrailDecision:
         requires_human: Convenience flag
         created_at: Server timestamp
     """
-    id: Optional[int] = None
+    id: int | None = None
     request_id: str = ""
-    task_id: Optional[int] = None
-    proposal_id: Optional[int] = None
+    task_id: int | None = None
+    proposal_id: int | None = None
     decision: GuardrailDecision = GuardrailDecision.ALLOWED
     reason_code: str = ""
     message: str = ""
-    evidence: Dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     requires_human: bool = False
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 # Terminal states for tasks (no further transitions allowed)

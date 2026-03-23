@@ -7,20 +7,22 @@ Events Module
 """
 
 from .domain import (
-    EventType,
     DomainEvent,
-    EventHandler,
-    EventSubscription,
+    EventBus,
     EventBusConfig,
+    EventHandler,
     EventMetrics,
     EventSnapshot,
+    EventSubscription,
+    EventType,
+    InMemoryEventBus,
     create_event,
     create_subscription,
-    EventBus,
-    InMemoryEventBus,
-    get_event_bus as get_domain_event_bus,
-    reset_event_bus,
     event_handler,
+    reset_event_bus,
+)
+from .domain import (
+    get_event_bus as get_domain_event_bus,
 )
 
 # 不在模块级别导入 application 层，避免 Django 初始化时的循环依赖

@@ -16,7 +16,7 @@ class AICostCalculator:
     """
 
     # 预设模型价格表（每1K tokens，单位：美元）
-    MODEL_PRICING: Dict[str, Dict[str, float]] = {
+    MODEL_PRICING: dict[str, dict[str, float]] = {
         # OpenAI 模型
         "gpt-4": {"input": 0.03, "output": 0.06},
         "gpt-4-turbo": {"input": 0.01, "output": 0.03},
@@ -62,7 +62,7 @@ class AICostCalculator:
         return round(input_cost + output_cost, 6)
 
     @classmethod
-    def get_pricing(cls, model: str) -> Dict[str, float]:
+    def get_pricing(cls, model: str) -> dict[str, float]:
         """
         获取模型定价信息
 
@@ -102,7 +102,7 @@ class BudgetChecker:
     def check_budget_limit(
         current_spend: float,
         budget_limit: float | None
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         检查预算限制
 

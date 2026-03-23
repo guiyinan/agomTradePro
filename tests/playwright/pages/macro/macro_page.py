@@ -3,8 +3,8 @@ Macro data page object for macro data testing.
 """
 from playwright.sync_api import Page, expect
 
-from tests.playwright.pages.base_page import BasePage
 from tests.playwright.config.test_config import config
+from tests.playwright.pages.base_page import BasePage
 
 
 class MacroPage(BasePage):

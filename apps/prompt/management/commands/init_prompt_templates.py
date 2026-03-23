@@ -18,14 +18,11 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.prompt.infrastructure.fixtures.templates import (
+    get_predefined_chains,
     get_predefined_templates,
-    get_predefined_chains
 )
-from apps.prompt.infrastructure.repositories import (
-    DjangoPromptRepository,
-    DjangoChainRepository
-)
-from apps.prompt.infrastructure.models import PromptTemplateORM, ChainConfigORM
+from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
+from apps.prompt.infrastructure.repositories import DjangoChainRepository, DjangoPromptRepository
 
 
 class Command(BaseCommand):
@@ -192,9 +189,10 @@ def load_predefined_templates(repository=None) -> int:
     if repository is None:
         repository = DjangoPromptRepository()
 
-    from django.core.management import call_command
     import io
     from contextlib import redirect_stdout
+
+    from django.core.management import call_command
 
     # 捕获命令输出
     f = io.StringIO()
@@ -218,9 +216,10 @@ def load_predefined_chains(repository=None) -> int:
     if repository is None:
         repository = DjangoChainRepository()
 
-    from django.core.management import call_command
     import io
     from contextlib import redirect_stdout
+
+    from django.core.management import call_command
 
     # 捕获命令输出
     f = io.StringIO()

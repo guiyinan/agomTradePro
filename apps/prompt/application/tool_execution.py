@@ -51,9 +51,9 @@ class EnhancedToolRegistry:
     - 每会话调用次数限制
     """
 
-    def __init__(self, base_registry: Optional[FunctionRegistry] = None):
+    def __init__(self, base_registry: FunctionRegistry | None = None):
         self._registry = base_registry or FunctionRegistry()
-        self._metadata: Dict[str, ToolMetadata] = {}
+        self._metadata: dict[str, ToolMetadata] = {}
 
     @property
     def registry(self) -> FunctionRegistry:
@@ -63,13 +63,13 @@ class EnhancedToolRegistry:
     def register(
         self,
         tool: ToolDefinition,
-        metadata: Optional[ToolMetadata] = None,
+        metadata: ToolMetadata | None = None,
     ) -> None:
         """注册工具及其元数据。"""
         self._registry.register(tool)
         self._metadata[tool.name] = metadata or ToolMetadata()
 
-    def get_readonly_tools(self) -> List[str]:
+    def get_readonly_tools(self) -> list[str]:
         """返回所有只读工具名称。"""
         return [
             name for name, meta in self._metadata.items()
@@ -77,8 +77,8 @@ class EnhancedToolRegistry:
         ]
 
     def get_tools_schema(
-        self, whitelist: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
+        self, whitelist: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         """获取 OpenAI 格式的工具 schema（按白名单过滤）。"""
         all_tools = self._registry.to_openai_format()
         if whitelist is None:
@@ -89,7 +89,7 @@ class EnhancedToolRegistry:
             if t.get("function", {}).get("name") in whiteset
         ]
 
-    def get_tool_names(self) -> List[str]:
+    def get_tool_names(self) -> list[str]:
         return self._registry.get_tool_names()
 
 

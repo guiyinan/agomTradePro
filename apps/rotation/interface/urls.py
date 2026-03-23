@@ -4,20 +4,20 @@ Rotation Module Interface Layer - URL Configuration
 URL patterns for the rotation module API and pages.
 """
 
-from django.urls import path, include
 from django.shortcuts import redirect
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.rotation.interface.views import (
     AssetClassViewSet,
+    RotationActionViewSet,
     RotationConfigViewSet,
     RotationSignalViewSet,
-    RotationActionViewSet,
+    rotation_account_config_view,
     rotation_assets_view,
     rotation_configs_view,
-    rotation_signals_view,
     rotation_generate_signal_view,
-    rotation_account_config_view,
+    rotation_signals_view,
 )
 
 app_name = 'rotation'

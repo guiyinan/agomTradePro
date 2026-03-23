@@ -2,21 +2,22 @@
 Sentiment 模块单元测试
 """
 
-import pytest
 from datetime import date, datetime
 
-from apps.sentiment.domain.entities import (
-    SentimentAnalysisResult,
-    SentimentIndex,
-    SentimentSource,
-    SentimentCategory,
-)
+import pytest
+
 from apps.sentiment.application.services import (
     SentimentIndexCalculator,
 )
+from apps.sentiment.domain.entities import (
+    SentimentAnalysisResult,
+    SentimentCategory,
+    SentimentIndex,
+    SentimentSource,
+)
 from apps.sentiment.infrastructure.repositories import (
-    SentimentIndexRepository,
     SentimentCacheRepository,
+    SentimentIndexRepository,
 )
 
 

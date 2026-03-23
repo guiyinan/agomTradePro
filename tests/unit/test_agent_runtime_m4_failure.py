@@ -11,8 +11,8 @@ Tests verify:
 import pytest
 
 from apps.agent_runtime.domain.failure_classifier import (
-    FailureType,
     FailureClassification,
+    FailureType,
     classify_failure,
 )
 

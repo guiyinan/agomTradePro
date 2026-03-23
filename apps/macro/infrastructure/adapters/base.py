@@ -5,9 +5,9 @@ Infrastructure layer - defines the interface that all adapters must implement.
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Protocol
-from dataclasses import dataclass
 
 
 class DataSourceUnavailableError(Exception):
@@ -108,7 +108,7 @@ class MacroDataPoint:
     code: str
     value: float
     observed_at: date
-    published_at: Optional[date] = None
+    published_at: date | None = None
     source: str = "unknown"
     unit: str = ""
     original_unit: str = ""  # 原始单位（数据源返回的单位）
@@ -149,7 +149,7 @@ class MacroAdapterProtocol(Protocol):
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """
         获取指定指标的数据
 
@@ -186,7 +186,7 @@ class BaseMacroAdapter(ABC):
         indicator_code: str,
         start_date: date,
         end_date: date
-    ) -> List[MacroDataPoint]:
+    ) -> list[MacroDataPoint]:
         """默认实现：子类必须覆盖"""
         raise NotImplementedError
 
@@ -215,8 +215,8 @@ class BaseMacroAdapter(ABC):
 
     def _sort_and_deduplicate(
         self,
-        data_points: List[MacroDataPoint]
-    ) -> List[MacroDataPoint]:
+        data_points: list[MacroDataPoint]
+    ) -> list[MacroDataPoint]:
         """
         排序并去重
 

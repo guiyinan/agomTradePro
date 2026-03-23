@@ -10,24 +10,24 @@ from typing import List, Optional
 
 from django.utils import timezone
 
+from apps.task_monitor.application.dtos import (
+    HealthCheckResponse,
+    TaskListResponse,
+    TaskStatisticsResponse,
+    TaskStatusResponse,
+)
 from apps.task_monitor.domain.entities import (
-    TaskStatus,
-    TaskPriority,
+    CeleryHealthStatus,
     TaskExecutionRecord,
     TaskFailureAlert,
-    CeleryHealthStatus,
+    TaskPriority,
     TaskStatistics,
+    TaskStatus,
 )
 from apps.task_monitor.domain.interfaces import (
-    TaskRecordRepositoryProtocol,
-    CeleryHealthCheckerProtocol,
     AlertChannelProtocol,
-)
-from apps.task_monitor.application.dtos import (
-    TaskStatusResponse,
-    TaskListResponse,
-    HealthCheckResponse,
-    TaskStatisticsResponse,
+    CeleryHealthCheckerProtocol,
+    TaskRecordRepositoryProtocol,
 )
 from core.exceptions import ExternalServiceError
 
@@ -40,7 +40,7 @@ class RecordTaskExecutionUseCase:
     def __init__(
         self,
         repository: TaskRecordRepositoryProtocol,
-        alert_channels: Optional[List[AlertChannelProtocol]] = None,
+        alert_channels: list[AlertChannelProtocol] | None = None,
     ):
         """
         初始化用例
@@ -125,7 +125,7 @@ class GetTaskStatusUseCase:
         """
         self.repository = repository
 
-    def execute(self, task_id: str) -> Optional[TaskStatusResponse]:
+    def execute(self, task_id: str) -> TaskStatusResponse | None:
         """
         执行获取任务状态
 
@@ -167,8 +167,8 @@ class ListTasksUseCase:
 
     def execute(
         self,
-        task_name: Optional[str] = None,
-        status: Optional[str] = None,
+        task_name: str | None = None,
+        status: str | None = None,
         limit: int = 100,
         failures_only: bool = False,
     ) -> TaskListResponse:
@@ -229,7 +229,7 @@ class GetTaskStatisticsUseCase:
         """
         self.repository = repository
 
-    def execute(self, task_name: str, days: int = 7) -> Optional[TaskStatisticsResponse]:
+    def execute(self, task_name: str, days: int = 7) -> TaskStatisticsResponse | None:
         """
         执行获取任务统计
 

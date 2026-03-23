@@ -11,7 +11,8 @@ Prometheus Metrics Middleware for API Requests
 
 import logging
 import time
-from typing import Callable
+from collections.abc import Callable
+
 from django.http import HttpRequest, HttpResponse
 
 logger = logging.getLogger(__name__)
@@ -65,9 +66,9 @@ class PrometheusMetricsMiddleware:
         """记录 Prometheus 指标"""
         try:
             from core.metrics import (
-                api_request_total,
-                api_request_latency_seconds,
                 api_error_total,
+                api_request_latency_seconds,
+                api_request_total,
             )
 
             # 获取视图名称（从 response 或 request）

@@ -8,25 +8,26 @@ Tests:
 - Audit payload enrichment
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from apps.agent_runtime.application.proposal_use_cases import (
+    InvalidProposalTransitionError,
+    _validate_proposal_transition,
+)
 from apps.agent_runtime.domain.entities import (
     AgentProposal,
-    ProposalStatus,
     ApprovalStatus,
-    RiskLevel,
     GuardrailDecision,
+    ProposalStatus,
+    RiskLevel,
 )
 from apps.agent_runtime.domain.guardrails import (
+    HIGH_RISK_PROPOSAL_TYPES,
     GuardrailEngine,
     GuardrailResult,
-    HIGH_RISK_PROPOSAL_TYPES,
-)
-from apps.agent_runtime.application.proposal_use_cases import (
-    _validate_proposal_transition,
-    InvalidProposalTransitionError,
 )
 
 

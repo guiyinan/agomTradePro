@@ -17,8 +17,8 @@ Requirements:
 import json
 import os
 import sys
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 # Add project root and sdk directory to Python path
 project_root = Path(__file__).parent.parent.parent
@@ -90,8 +90,9 @@ def test_list_tools() -> None:
     """Test 3: List Available Tools"""
     print_test("Test 3: List Available Tools")
     try:
-        from agomtradepro_mcp.server import server
         import asyncio
+
+        from agomtradepro_mcp.server import server
 
         tools = asyncio.run(server.list_tools())
         assert len(tools) > 0, "No MCP tools registered"
@@ -112,9 +113,9 @@ def test_list_resources() -> None:
     """Test 4: List Available Resources"""
     print_test("Test 4: List Available Resources")
     try:
-        from agomtradepro_mcp.server import list_resources
-
         import asyncio
+
+        from agomtradepro_mcp.server import list_resources
 
         resources = asyncio.run(list_resources())
 
@@ -129,9 +130,9 @@ def test_read_resource() -> None:
     """Test 5: Read Resource Content"""
     print_test("Test 5: Read Resource Content")
     try:
-        from agomtradepro_mcp.server import read_resource
-
         import asyncio
+
+        from agomtradepro_mcp.server import read_resource
 
         # Read current regime resource
         content = asyncio.run(read_resource("agomtradepro://regime/current"))
@@ -147,9 +148,9 @@ def test_list_prompts() -> None:
     """Test 6: List Available Prompts"""
     print_test("Test 6: List Available Prompts")
     try:
-        from agomtradepro_mcp.server import list_prompts
-
         import asyncio
+
+        from agomtradepro_mcp.server import list_prompts
 
         prompts = asyncio.run(list_prompts())
 
@@ -167,9 +168,9 @@ def test_get_prompt() -> None:
     """Test 7: Get Prompt Content"""
     print_test("Test 7: Get Prompt Content")
     try:
-        from agomtradepro_mcp.server import get_prompt
-
         import asyncio
+
+        from agomtradepro_mcp.server import get_prompt
 
         # Get analyze_macro_environment prompt
         prompt = asyncio.run(get_prompt("analyze_macro_environment"))
