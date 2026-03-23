@@ -90,6 +90,8 @@
                         统一推荐列表
                         <span class="badge badge-primary" id="rec-count-badge">-</span>
                     </h2>
+                    <!-- 投资免责声明 -->
+                    {% include 'components/investment_disclaimer.html' with compact=true %}
                     <div class="section-actions">
                         <select id="account-selector" class="form-select form-select-sm" onchange="loadRecommendations()">
                             <option value="">选择账户...</option>

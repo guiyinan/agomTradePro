@@ -386,17 +386,33 @@ a {
 
 .footer-content {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
     max-width: calc(1920px - var(--data-nav-width));
     margin: 0 auto;
-    padding: 0 var(--spacing-xl);
+    padding: 8px var(--spacing-xl);
+    gap: 8px;
 }
 
 .footer-content p {
     color: var(--text-muted);
     font-size: 12px;
+}
+
+.footer-content a {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.footer-content a:hover {
+    color: var(--primary-color-dark);
+}
+
+.footer-content .footer-disclaimer {
+    color: #b45309;
+    font-size: 11px;
 }
 
 /* ========================================

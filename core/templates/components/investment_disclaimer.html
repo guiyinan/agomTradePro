@@ -1,0 +1,69 @@
+{% load i18n %}
+<div class="investment-disclaimer{% if compact %} compact{% endif %}{% if dark %} dark{% endif %}{% if inline %} inline{% endif %}">
+    <div class="disclaimer-icon">⚠️</div>
+    <div class="disclaimer-text">
+        {% if compact %}
+            <strong>免责声明：</strong>本系统提供的资产推荐、配置建议仅供系统开发研究，<span class="highlight">不构成实际投资建议</span>。
+        {% else %}
+            <strong>免责声明：</strong>本系统提供的所有资产推荐、配置建议、选股信号等信息均仅供系统开发、研究和测试使用，<span class="highlight">不构成任何实际投资建议</span>。投资者应根据自身情况独立判断，投资有风险，决策需谨慎。
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.investment-disclaimer {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.investment-disclaimer .disclaimer-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.investment-disclaimer .disclaimer-text {
+    line-height: 1.6;
+}
+
+.investment-disclaimer .highlight {
+    font-weight: 600;
+    color: #b45309;
+}
+
+.investment-disclaimer.compact {
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-size: 12px;
+}
+
+.investment-disclaimer.compact .disclaimer-icon {
+    font-size: 14px;
+}
+
+.investment-disclaimer.inline {
+    display: inline-flex;
+    padding: 6px 10px;
+    margin: 0;
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+.investment-disclaimer.dark {
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.3);
+    color: #fbbf24;
+}
+
+.investment-disclaimer.dark .highlight {
+    color: #fcd34d;
+}
+</style>

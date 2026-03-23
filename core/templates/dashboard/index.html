@@ -372,6 +372,9 @@
                 </span>
             </div>
 
+            <!-- 投资免责声明 -->
+            {% include 'components/investment_disclaimer.html' %}
+
             <!-- Alpha 指标卡片 -->
             <div class="alpha-metrics-grid">
                 <!-- 覆盖率指标 -->
@@ -515,6 +518,8 @@
                 <h2 class="section-title">🎯 资产配置建议</h2>
                 <span class="advice-badge">{{ allocation_advice.risk_profile_display }}</span>
             </div>
+            <!-- 投资免责声明 -->
+            {% include 'components/investment_disclaimer.html' %}
             <div class="allocation-advice-content">
                 <!-- 配置对比 -->
                 <div class="allocation-compare">
@@ -666,7 +671,8 @@
                     <span class="chart-account-label" id="allocationAccountLabel">全部账户</span>
                 </div>
                 <div class="card-body" id="allocationChartWrap">
-                    <canvas id="allocationChart" width="400" height="300"></canvas>
+                    <div id="allocationChart" style="width:100%;height:300px;"></div>
+                    <p class="text-muted" id="allocationEmpty" style="display:none;text-align:center;padding:40px 0;">暂无资产配置数据</p>
                 </div>
             </section>
 
@@ -676,7 +682,8 @@
                     <span class="chart-account-label" id="performanceAccountLabel">全部账户</span>
                 </div>
                 <div class="card-body" id="performanceChartWrap">
-                    <canvas id="performanceChart" width="400" height="300"></canvas>
+                    <div id="performanceChart" style="width:100%;height:300px;"></div>
+                    <p class="text-muted" id="performanceEmpty" style="display:none;text-align:center;padding:40px 0;">暂无收益数据</p>
                 </div>
             </section>
         </div>
@@ -1126,27 +1133,23 @@ document.addEventListener('DOMContentLoaded', checkQlibStatus);
 
 // 资产配置饼图
 let allocationChartInstance = null;
+const allocationEl = document.getElementById('allocationChart');
+const allocationEmptyEl = document.getElementById('allocationEmpty');
+
+if (allocationEl) {
+    allocationChartInstance = echarts.init(allocationEl);
+    window.addEventListener('resize', () => { if (allocationChartInstance) allocationChartInstance.resize(); });
+}
 
 function renderAllocationChart(chartData) {
-    const container = document.getElementById('allocationChartWrap');
-    if (!container) return;
-    let canvas = document.getElementById('allocationChart');
-
-    // 如果 canvas 被替换成了提示文字，重新创建
-    if (!canvas) {
-        container.innerHTML = '<canvas id="allocationChart" width="400" height="300"></canvas>';
-        canvas = document.getElementById('allocationChart');
-    }
-
-    const dataKeys = Object.keys(chartData);
-    const dataValues = Object.values(chartData);
+    if (!allocationEl) return;
+    const dataKeys = Object.keys(chartData || {});
+    const dataValues = Object.values(chartData || {});
     const hasData = dataValues.some(v => v > 0);
 
     if (hasData) {
-        if (!allocationChartInstance || allocationChartInstance.isDisposed()) {
-            allocationChartInstance = echarts.init(canvas);
-            window.addEventListener('resize', () => { if (allocationChartInstance && !allocationChartInstance.isDisposed()) allocationChartInstance.resize(); });
-        }
+        allocationEl.style.display = '';
+        allocationEmptyEl.style.display = 'none';
         allocationChartInstance.setOption({
             tooltip: {
                 trigger: 'item',
@@ -1171,11 +1174,8 @@ function renderAllocationChart(chartData) {
             }]
         }, true);
     } else {
-        if (allocationChartInstance && !allocationChartInstance.isDisposed()) {
-            allocationChartInstance.dispose();
-            allocationChartInstance = null;
-        }
-        container.innerHTML = '<p class="text-muted">暂无资产配置数据</p>';
+        allocationEl.style.display = 'none';
+        allocationEmptyEl.style.display = '';
     }
 }
 
@@ -1184,25 +1184,21 @@ renderAllocationChart({{ allocation_data|safe }});
 
 // 收益趋势图
 let performanceChartInstance = null;
+const performanceEl = document.getElementById('performanceChart');
+const performanceEmptyEl = document.getElementById('performanceEmpty');
+
+if (performanceEl) {
+    performanceChartInstance = echarts.init(performanceEl);
+    window.addEventListener('resize', () => { if (performanceChartInstance) performanceChartInstance.resize(); });
+}
 
 function renderPerformanceChart(performanceData) {
-    const container = document.getElementById('performanceChartWrap');
-    if (!container) return;
-    let canvas = document.getElementById('performanceChart');
-
-    // 如果 canvas 被替换成了提示文字，重新创建
-    if (!canvas) {
-        container.innerHTML = '<canvas id="performanceChart" width="400" height="300"></canvas>';
-        canvas = document.getElementById('performanceChart');
-    }
-
+    if (!performanceEl) return;
     const hasData = performanceData && performanceData.length > 0;
 
     if (hasData) {
-        if (!performanceChartInstance || performanceChartInstance.isDisposed()) {
-            performanceChartInstance = echarts.init(canvas);
-            window.addEventListener('resize', () => { if (performanceChartInstance && !performanceChartInstance.isDisposed()) performanceChartInstance.resize(); });
-        }
+        performanceEl.style.display = '';
+        performanceEmptyEl.style.display = 'none';
         performanceChartInstance.setOption({
             tooltip: {
                 trigger: 'axis',
@@ -1253,11 +1249,8 @@ function renderPerformanceChart(performanceData) {
             }]
         }, true);
     } else {
-        if (performanceChartInstance && !performanceChartInstance.isDisposed()) {
-            performanceChartInstance.dispose();
-            performanceChartInstance = null;
-        }
-        container.innerHTML = '<p class="text-muted">暂无收益数据</p>';
+        performanceEl.style.display = 'none';
+        performanceEmptyEl.style.display = '';
     }
 }
 
