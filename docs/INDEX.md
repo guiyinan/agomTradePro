@@ -99,6 +99,10 @@
 | [ai-native/execution-backlog.md](plans/ai-native/execution-backlog.md) | **AI Native 执行积压** | 进行中 |
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
+| [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | 🆕 设计完成 |
+| [phase-1-regime-navigator-pulse-mvp.md](plans/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | 🆕 待实施 |
+| [phase-2-decision-funnel.md](plans/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | 🆕 待实施 |
+| [phase-3-enrichment-polish.md](plans/phase-3-enrichment-polish.md) | Phase 3: 增强与打磨（Pulse V2 + 配置化 + 历史回溯） | 🆕 待实施 |
 
 ### 5. 测试文档 (`testing/`)
 
