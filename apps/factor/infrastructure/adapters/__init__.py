@@ -80,6 +80,8 @@ class TushareFactorAdapter(FactorDataSource):
         self, ts_code: str, factor_code: str, trade_date: date
     ) -> float | None:
         """Get valuation factor (PE, PB, PS)"""
+        import pandas as pd
+
         # Get daily basic data
         end_date = trade_date.strftime("%Y%m%d")
         start_date = (trade_date - timedelta(days=10)).strftime("%Y%m%d")

@@ -211,8 +211,8 @@ class PolicyInfluenceService:
         for policy in policies:
             policy_sectors = policy.structured_data.get('affected_sectors', [])
             if any(
-                sector in policy_sectors or
-                any(policy_sector in sector for sector in sectors)
+                policy_sector in sectors or
+                any(policy_sector in sector_name for sector_name in sectors)
                 for policy_sector in policy_sectors
             ):
                 affected.append(policy)

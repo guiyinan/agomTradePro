@@ -31,6 +31,9 @@ from apps.agent_runtime.domain.services import (
 )
 from apps.agent_runtime.infrastructure.repositories import AgentTaskRepository
 
+if TYPE_CHECKING:
+    from apps.agent_runtime.application.services.audit_service import AgentRuntimeAuditService
+
 logger = logging.getLogger(__name__)
 
 

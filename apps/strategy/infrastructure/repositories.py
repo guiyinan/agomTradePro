@@ -46,6 +46,7 @@ from apps.strategy.domain.protocols import (
 from apps.strategy.infrastructure.models import (
     AIStrategyConfigModel,
     OrderIntentModel,
+    PositionManagementRuleModel,
     PortfolioStrategyAssignmentModel,
     RuleConditionModel,
     ScriptConfigModel,

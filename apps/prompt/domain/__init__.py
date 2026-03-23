@@ -8,6 +8,7 @@ during tool calling mode (OpenAI Function Calling format).
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Dict, List, Optional, Protocol
 
 

@@ -7,7 +7,7 @@ AgomTradePro 综合数据连接测试脚本
     python manage.py test_data_connections
 """
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model

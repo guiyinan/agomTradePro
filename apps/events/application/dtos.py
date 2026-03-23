@@ -9,6 +9,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from django.utils import timezone
+
+from ..domain.entities import EventType
+
 if TYPE_CHECKING:
     from .use_cases import PublishEventRequest
 

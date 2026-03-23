@@ -13,6 +13,7 @@ from datetime import date, datetime
 from typing import List, Optional
 
 import akshare as ak
+import pandas as pd
 
 
 class AkShareFundAdapter:
