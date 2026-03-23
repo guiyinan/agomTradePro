@@ -375,6 +375,10 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 git clone https://github.com/guiyinan/agomTradePro.git
 cd agomTradePro
 
+# 复制环境变量模板
+copy .env.example .env   # Windows
+# cp .env.example .env   # Linux/Mac
+
 # 创建虚拟环境
 python -m venv agomtradepro
 source agomtradepro/bin/activate  # Linux/Mac
@@ -396,6 +400,58 @@ python manage.py runserver
 1. 创建管理员账户
 2. 配置 AI 服务商（可选）
 3. 配置数据源（可选）
+
+### 初次安装容易踩坑
+
+#### 1. `SECRET_KEY`
+
+开发环境虽然有默认值，但你最好在 `.env` 里显式设置自己的 `SECRET_KEY`：
+
+```env
+SECRET_KEY=your-own-django-secret-key
+```
+
+生产环境必须设置，且不能使用默认占位值。
+
+#### 2. `AGOMTRADEPRO_ENCRYPTION_KEY`
+
+这个非常容易忽略。  
+如果不设置，系统仍然能启动，但**新的 AI Provider API Key 将无法写入**。
+
+生成方式：
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+然后写入 `.env`：
+
+```env
+AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
+```
+
+#### 3. `DATABASE_URL`
+
+`.env.example` 里默认给的是 PostgreSQL 示例连接。  
+如果你只是本地快速体验，**可以直接留空或删掉 `DATABASE_URL`，项目会默认使用根目录下的 SQLite**。
+
+#### 4. `REDIS_URL` / Celery
+
+Redis 不是本地首次体验的强制依赖。
+
+- 本地没有配置 `REDIS_URL` 时，Celery 会退化为同步执行模式
+- 如果你要体验完整异步任务、worker、beat，再去配置 Redis
+
+#### 5. 首次只想跑起来，最小可用配置
+
+如果你只是想先把系统启动并打开页面，最少建议确认这几项：
+
+```env
+SECRET_KEY=your-own-django-secret-key
+AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+```
 
 ### 安装 SDK（可选）
 

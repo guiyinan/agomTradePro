@@ -373,6 +373,10 @@ AI speed for analysis. Human judgment for execution. Full traceability for revie
 git clone https://github.com/guiyinan/agomTradePro.git
 cd agomTradePro
 
+# Copy env template
+copy .env.example .env   # Windows
+# cp .env.example .env   # Linux/Mac
+
 # Virtual environment
 python -m venv agomtradepro
 source agomtradepro/bin/activate  # Linux/Mac
@@ -387,6 +391,66 @@ python manage.py createsuperuser
 
 # Start development server
 python manage.py runserver
+```
+
+Then open:
+
+```text
+http://localhost:8000/setup/
+```
+
+to complete the setup wizard.
+
+### Common First-Run Pitfalls
+
+#### 1. `SECRET_KEY`
+
+Development mode has a fallback value, but you should still set your own `SECRET_KEY` in `.env`:
+
+```env
+SECRET_KEY=your-own-django-secret-key
+```
+
+In production, this is mandatory.
+
+#### 2. `AGOMTRADEPRO_ENCRYPTION_KEY`
+
+This is easy to miss.  
+If it is not set, the app can still start, but **new AI provider API keys cannot be written**.
+
+Generate one with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Then put it in `.env`:
+
+```env
+AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
+```
+
+#### 3. `DATABASE_URL`
+
+`.env.example` includes a PostgreSQL example connection string.  
+If you just want a quick local run, you can **remove or leave `DATABASE_URL` empty**, and the project will fall back to local SQLite.
+
+#### 4. `REDIS_URL` / Celery
+
+Redis is not required for a first local run.
+
+- without `REDIS_URL`, Celery falls back to eager/synchronous execution
+- only set up Redis when you want the full async worker/beat flow
+
+#### 5. Minimal config for “just get it running”
+
+If your goal is to boot the app and explore the UI first, these are the most important variables to set:
+
+```env
+SECRET_KEY=your-own-django-secret-key
+AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
 ### Install SDK (optional)
