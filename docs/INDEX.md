@@ -14,6 +14,7 @@
 | **系统概览** | [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) | **完整系统说明书（技术+功能）** |
 | **系统基线** | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **单一叙事来源（版本/模块/部署/测试）** |
 | **新用户** | [QUICK_START.md](QUICK_START.md) | **个人实战上手手册（冷启动版）** |
+| **Git 工作流** | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | **分支命名、commit 规范、main/dev 工作流** |
 | 开发人员 | [development/quick-reference.md](development/quick-reference.md) | 命令速查、API端点、模块速查 |
 | 新加入者 | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | 系统基线、模块清单、核心链路 |
 | AI Agent/集成开发 | [../sdk/README.md](../sdk/README.md) | SDK 与 MCP 服务接入、认证、工具清单 |
@@ -69,6 +70,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-02-20 更新 |
+| [../GIT_WORKFLOW.md](GIT_WORKFLOW.md) | **Git 工作流规范（`dev/*` 分支、commit、合并流程）** | ✅ 2026-03-23 新增 |
 | [outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包团队工作指南** | ✅ 必读 |
 | [api_structure_guide.md](development/api_structure_guide.md) | API 结构指南 | 完整 |
 | [coding_standards.md](development/coding_standards.md) | 代码规范 | 完整 |

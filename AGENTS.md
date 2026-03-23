@@ -399,6 +399,93 @@ celery -A core worker -l info
 pytest tests/unit/test_regime_services.py -v
 ```
 
+## Git 工作流规范
+
+> 公开仓库后的默认 Git 规则：`main` 保持稳定展示，日常开发统一使用 `dev/*` 分支。
+> 详细说明参见 `docs/GIT_WORKFLOW.md`。
+
+### 1. 分支命名
+
+- 开发分支统一使用 `dev/` 前缀
+- 不再使用 `codex/` 作为仓库开发分支命名
+- 格式：
+
+```text
+dev/<type>-<scope>-<short-description>
+```
+
+示例：
+
+```text
+dev/feat-terminal-routing
+dev/fix-mcp-tool-toggle
+dev/refactor-decision-workflow
+dev/docs-readme-polish
+dev/test-regime-api-contract
+```
+
+### 2. main 分支约束
+
+- `main` 只放可展示、可合并、相对稳定的内容
+- 非紧急情况不要直接在 `main` 上开发
+- README、API、SDK、MCP、大功能修改也应优先走分支后再合并
+
+### 3. 标准开发流程
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b dev/feat-terminal-routing
+```
+
+开发完成后：
+
+```bash
+git add .
+git commit -m "feat: improve terminal command routing"
+git push origin dev/feat-terminal-routing
+```
+
+再通过 PR 或本地验证后合并回 `main`。
+
+### 4. Commit 规范
+
+提交信息统一采用：
+
+```text
+<type>: <summary>
+```
+
+推荐类型：
+
+- `feat`
+- `fix`
+- `refactor`
+- `docs`
+- `test`
+- `chore`
+- `perf`
+
+示例：
+
+```text
+feat: add terminal routing controls
+fix: correct ai capability toggle behavior
+docs: add git workflow and commit conventions
+test: add contract coverage for regime api
+```
+
+### 5. 提交要求
+
+- 一个 commit 尽量只做一件事
+- 提交主题使用英文，简短明确
+- 禁止使用无意义提交信息，如：
+  - `update`
+  - `fix bug`
+  - `wip`
+  - `misc`
+  - `final`
+
 ## 数据源 API
 
 ### Tushare Pro（行情数据）
