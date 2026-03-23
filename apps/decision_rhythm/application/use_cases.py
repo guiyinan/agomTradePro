@@ -49,6 +49,7 @@ if TYPE_CHECKING:
         ModelParamConfig,
         ModelWeights,
         UnifiedRecommendation,
+    )
     from ..infrastructure.models import UnifiedRecommendationModel
 
 
@@ -320,7 +321,9 @@ class SubmitDecisionRequestUseCase:
         if self.event_bus is None:
             return
 
-        event_type = EventType.DECISION_APPROVED if response.approved else EventType.DECISION_REJECTED
+        event_type = (
+            EventType.DECISION_APPROVED if response.approved else EventType.DECISION_REJECTED
+        )
 
         event = create_event(
             event_type=event_type,
@@ -861,7 +864,9 @@ class PrecheckDecisionUseCase:
                         policy_level=policy_level,
                     )
                     beta_gate_passed = decision.is_passed
-                    details["beta_gate_decision"] = decision.to_dict() if hasattr(decision, 'to_dict') else {}
+                    details["beta_gate_decision"] = (
+                        decision.to_dict() if hasattr(decision, "to_dict") else {}
+                    )
                     if not beta_gate_passed:
                         errors.append(f"Beta Gate 未通过: {decision.blocking_reason}")
                 except Exception as e:
@@ -1430,7 +1435,9 @@ class CreateValuationSnapshotUseCase:
             # 保存到仓储
             self.valuation_snapshot_repo.save(snapshot)
 
-            logger.info(f"Valuation snapshot created: {snapshot.snapshot_id} for {request.security_code}")
+            logger.info(
+                f"Valuation snapshot created: {snapshot.snapshot_id} for {request.security_code}"
+            )
 
             return CreateValuationSnapshotResponse(
                 success=True,
@@ -1720,7 +1727,9 @@ class PreviewExecutionUseCase:
             price_valid = market_price <= recommendation.entry_price_high
             risk_checks["price_validation"] = {
                 "passed": price_valid,
-                "reason": "" if price_valid else f"市场价格 {market_price} 高于入场上限 {recommendation.entry_price_high}",
+                "reason": ""
+                if price_valid
+                else f"市场价格 {market_price} 高于入场上限 {recommendation.entry_price_high}",
             }
         else:
             price_valid = True  # SELL 不限制价格
@@ -1733,6 +1742,7 @@ class PreviewExecutionUseCase:
         if self.quota_repo:
             try:
                 from ..domain.entities import QuotaPeriod
+
                 quota = self.quota_repo.get_quota(QuotaPeriod.WEEKLY)
                 quota_ok = quota and not quota.is_quota_exceeded
                 risk_checks["quota"] = {
@@ -1753,7 +1763,9 @@ class PreviewExecutionUseCase:
                 risk_checks["cooldown"] = {
                     "passed": cooldown_ok,
                     "hours_remaining": cooldown.decision_ready_in_hours if cooldown else 0,
-                    "reason": "" if cooldown_ok else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
+                    "reason": ""
+                    if cooldown_ok
+                    else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
                 }
             except Exception as e:
                 risk_checks["cooldown"] = {"passed": True, "reason": f"检查失败（跳过）: {e}"}
@@ -1983,11 +1995,12 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from ..domain.entities import (
         DecisionFeatureSnapshot,
-        GatePenalties
-        ModelParamAuditLog
-        ModelParamConfig
-        ModelWeights
-        UnifiedRecommendation
+        GatePenalties,
+        ModelParamAuditLog,
+        ModelParamConfig,
+        ModelWeights,
+        UnifiedRecommendation,
+    )
     from ..infrastructure.models import (
         UnifiedRecommendationModel,
     )
@@ -2364,7 +2377,9 @@ class UnifiedRecommendationRepositoryProtocol(Protocol):
         """保存推荐"""
         ...
 
-    def save_feature_snapshot(self, snapshot: "DecisionFeatureSnapshot") -> "DecisionFeatureSnapshot":
+    def save_feature_snapshot(
+        self, snapshot: "DecisionFeatureSnapshot"
+    ) -> "DecisionFeatureSnapshot":
         """保存特征快照"""
         ...
 
@@ -2491,7 +2506,9 @@ class GenerateUnifiedRecommendationsUseCase:
             sell_score_threshold = _to_float(params.get("sell_score_threshold", 0.35), 0.35)
             sell_alpha_threshold = _to_float(params.get("sell_alpha_threshold", 0.30), 0.30)
             default_position_pct = _to_float(params.get("default_position_pct", 5.0), 5.0)
-            max_capital_per_trade_raw = _to_float(params.get("max_capital_per_trade", 50000.0), 50000.0)
+            max_capital_per_trade_raw = _to_float(
+                params.get("max_capital_per_trade", 50000.0), 50000.0
+            )
             max_capital_per_trade = Decimal(str(max_capital_per_trade_raw))
 
             # 1. 数据汇聚
@@ -2503,7 +2520,9 @@ class GenerateUnifiedRecommendationsUseCase:
             if not security_codes:
                 # 从候选获取证券列表
                 candidates = self.candidate_provider.get_active_candidates(request.account_id)
-                security_codes = list(set(c.get("security_code") for c in candidates if c.get("security_code")))
+                security_codes = list(
+                    set(c.get("security_code") for c in candidates if c.get("security_code"))
+                )
 
             # 2. 生成推荐
             raw_recommendations: list[UnifiedRecommendation] = []
@@ -2559,7 +2578,8 @@ class GenerateUnifiedRecommendationsUseCase:
                 # 获取来源候选
                 candidates = self.candidate_provider.get_active_candidates(request.account_id)
                 candidate_ids = [
-                    c.get("candidate_id") for c in candidates
+                    c.get("candidate_id")
+                    for c in candidates
                     if c.get("security_code") == security_code and c.get("candidate_id")
                 ]
 
@@ -2579,15 +2599,29 @@ class GenerateUnifiedRecommendationsUseCase:
                     fundamental_score=snapshot.fundamental_score,
                     alpha_model_score=snapshot.alpha_model_score,
                     composite_score=composite_score,
-                    confidence=min(snapshot.regime_confidence + snapshot.alpha_model_score, 1.0) / 2,
-                    reason_codes=penalty_reasons + self._generate_reason_codes(snapshot, composite_score),
+                    confidence=min(snapshot.regime_confidence + snapshot.alpha_model_score, 1.0)
+                    / 2,
+                    reason_codes=penalty_reasons
+                    + self._generate_reason_codes(snapshot, composite_score),
                     human_rationale=self._generate_rationale(snapshot, composite_score, side),
-                    fair_value=Decimal(str(valuation.get("fair_value", 0))) if valuation else Decimal("0"),
-                    entry_price_low=Decimal(str(valuation.get("entry_price_low", 0))) if valuation else Decimal("0"),
-                    entry_price_high=Decimal(str(valuation.get("entry_price_high", 0))) if valuation else Decimal("0"),
-                    target_price_low=Decimal(str(valuation.get("target_price_low", 0))) if valuation else Decimal("0"),
-                    target_price_high=Decimal(str(valuation.get("target_price_high", 0))) if valuation else Decimal("0"),
-                    stop_loss_price=Decimal(str(valuation.get("stop_loss_price", 0))) if valuation else Decimal("0"),
+                    fair_value=Decimal(str(valuation.get("fair_value", 0)))
+                    if valuation
+                    else Decimal("0"),
+                    entry_price_low=Decimal(str(valuation.get("entry_price_low", 0)))
+                    if valuation
+                    else Decimal("0"),
+                    entry_price_high=Decimal(str(valuation.get("entry_price_high", 0)))
+                    if valuation
+                    else Decimal("0"),
+                    target_price_low=Decimal(str(valuation.get("target_price_low", 0)))
+                    if valuation
+                    else Decimal("0"),
+                    target_price_high=Decimal(str(valuation.get("target_price_high", 0)))
+                    if valuation
+                    else Decimal("0"),
+                    stop_loss_price=Decimal(str(valuation.get("stop_loss_price", 0)))
+                    if valuation
+                    else Decimal("0"),
                     position_pct=default_position_pct,
                     suggested_quantity=0,  # 需要根据账户资金计算
                     max_capital=max_capital_per_trade,

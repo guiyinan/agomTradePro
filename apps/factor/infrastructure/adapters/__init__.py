@@ -15,12 +15,7 @@ logger = logging.getLogger(__name__)
 class FactorDataSource:
     """Factor data source adapter"""
 
-    def get_factor_value(
-        self,
-        stock_code: str,
-        factor_code: str,
-        trade_date: date
-    ) -> float | None:
+    def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value for a stock on a date"""
         raise NotImplementedError
 
@@ -41,6 +36,7 @@ class TushareFactorAdapter(FactorDataSource):
             import tushare as ts
 
             from shared.config.secrets import get_secrets
+
             secrets = get_secrets()
             token = secrets.data_sources.tushare_token
             self._pro = ts.pro_api(token)
@@ -49,12 +45,7 @@ class TushareFactorAdapter(FactorDataSource):
             logger.warning(f"Failed to connect to Tushare: {e}")
             self._connected = False
 
-    def get_factor_value(
-        self,
-        stock_code: str,
-        factor_code: str,
-        trade_date: date
-    ) -> float | None:
+    def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value from Tushare"""
         self._connect()
 
@@ -65,17 +56,17 @@ class TushareFactorAdapter(FactorDataSource):
             ts_code = self._convert_to_tushare_code(stock_code)
 
             # Map factor codes to Tushare API calls
-            if factor_code in ['pe_ttm', 'pb', 'ps']:
+            if factor_code in ["pe_ttm", "pb", "ps"]:
                 return self._get_valuation_factor(ts_code, factor_code, trade_date)
-            elif factor_code in ['roe', 'roa', 'current_ratio', 'debt_ratio']:
+            elif factor_code in ["roe", "roa", "current_ratio", "debt_ratio"]:
                 return self._get_financial_factor(ts_code, factor_code, trade_date)
-            elif factor_code in ['revenue_growth', 'profit_growth']:
+            elif factor_code in ["revenue_growth", "profit_growth"]:
                 return self._get_growth_factor(ts_code, factor_code, trade_date)
-            elif factor_code in ['dividend_yield']:
+            elif factor_code in ["dividend_yield"]:
                 return self._get_dividend_factor(ts_code, trade_date)
-            elif factor_code.startswith('momentum_'):
+            elif factor_code.startswith("momentum_"):
                 return None  # Calculated from price data
-            elif factor_code.startswith('volatility_'):
+            elif factor_code.startswith("volatility_"):
                 return None  # Calculated from price data
             else:
                 logger.warning(f"Unknown factor code: {factor_code}")
@@ -86,47 +77,40 @@ class TushareFactorAdapter(FactorDataSource):
             return None
 
     def _get_valuation_factor(
-        self,
-        ts_code: str,
-        factor_code: str,
-        trade_date: date
+        self, ts_code: str, factor_code: str, trade_date: date
     ) -> float | None:
         """Get valuation factor (PE, PB, PS)"""
         # Get daily basic data
-        end_date = trade_date.strftime('%Y%m%d')
-        start_date = (trade_date - timedelta(days=10)).strftime('%Y%m%d')
+        end_date = trade_date.strftime("%Y%m%d")
+        start_date = (trade_date - timedelta(days=10)).strftime("%Y%m%d")
 
         df = self._pro.daily_basic(
             ts_code=ts_code,
             start_date=start_date,
             end_date=end_date,
-            fields='trade_date,pe_ttm,pb,ps,dv_ratio'
+            fields="trade_date,pe_ttm,pb,ps,dv_ratio",
         )
 
         if df is None or df.empty:
             return None
 
         # Get most recent data
-        df = df.sort_values('trade_date').iloc[-1]
+        df = df.sort_values("trade_date").iloc[-1]
 
-        factor_map = {
-            'pe_ttm': 'pe_ttm',
-            'pb': 'pb',
-            'ps': 'ps',
-            'dividend_yield': 'dv_ratio'
-        }
+        factor_map = {"pe_ttm": "pe_ttm", "pb": "pb", "ps": "ps", "dividend_yield": "dv_ratio"}
         field = factor_map.get(factor_code)
-    except ValueError:
-        # fallback
-        return None
-
-(Showing lines 115-144 of 459. Use offset=145 to continue.)
+        if field is None:
+            return None
+        try:
+            value = df[field]
+            if pd.isna(value):
+                return None
+            return float(value)
+        except (KeyError, TypeError):
+            return None
 
     def _get_financial_factor(
-        self,
-        ts_code: str,
-        factor_code: str,
-        trade_date: date
+        self, ts_code: str, factor_code: str, trade_date: date
     ) -> float | None:
         """Get financial factor (ROE, ROA, etc.)"""
         import pandas as pd
@@ -134,22 +118,22 @@ class TushareFactorAdapter(FactorDataSource):
         # Get latest financial data
         df = self._pro.income(
             ts_code=ts_code,
-            start_date=(trade_date - timedelta(days=400)).strftime('%Y%m%d'),
-            end_date=trade_date.strftime('%Y%m%d'),
-            fields='end_date,roe,roa,current_ratio,debt_to_assets'
+            start_date=(trade_date - timedelta(days=400)).strftime("%Y%m%d"),
+            end_date=trade_date.strftime("%Y%m%d"),
+            fields="end_date,roe,roa,current_ratio,debt_to_assets",
         )
 
         if df is None or df.empty:
             return None
 
         # Get most recent report
-        df = df.sort_values('end_date').iloc[-1]
+        df = df.sort_values("end_date").iloc[-1]
 
         factor_map = {
-            'roe': 'roe',
-            'roa': 'roa',
-            'current_ratio': 'current_ratio',
-            'debt_ratio': 'debt_to_assets',
+            "roe": "roe",
+            "roa": "roa",
+            "current_ratio": "current_ratio",
+            "debt_ratio": "debt_to_assets",
         }
 
         field = factor_map.get(factor_code)
@@ -159,32 +143,27 @@ class TushareFactorAdapter(FactorDataSource):
 
         return None
 
-    def _get_growth_factor(
-        self,
-        ts_code: str,
-        factor_code: str,
-        trade_date: date
-    ) -> float | None:
+    def _get_growth_factor(self, ts_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get growth factor (revenue_growth, profit_growth)"""
         import pandas as pd
 
         # Get growth data
         df = self._pro.fina_growth_type(
             ts_code=ts_code,
-            start_date=(trade_date - timedelta(days=400)).strftime('%Y%m%d'),
-            end_date=trade_date.strftime('%Y%m%d'),
-            fields='end_date,or_yoy,netprofit_yoy'
+            start_date=(trade_date - timedelta(days=400)).strftime("%Y%m%d"),
+            end_date=trade_date.strftime("%Y%m%d"),
+            fields="end_date,or_yoy,netprofit_yoy",
         )
 
         if df is None or df.empty:
             return None
 
         # Get most recent report
-        df = df.sort_values('end_date').iloc[-1]
+        df = df.sort_values("end_date").iloc[-1]
 
         factor_map = {
-            'revenue_growth': 'or_yoy',
-            'profit_growth': 'netprofit_yoy',
+            "revenue_growth": "or_yoy",
+            "profit_growth": "netprofit_yoy",
         }
 
         field = factor_map.get(factor_code)
@@ -195,20 +174,16 @@ class TushareFactorAdapter(FactorDataSource):
 
         return None
 
-    def _get_dividend_factor(
-        self,
-        ts_code: str,
-        trade_date: date
-    ) -> float | None:
+    def _get_dividend_factor(self, ts_code: str, trade_date: date) -> float | None:
         """Get dividend yield"""
-        return self._get_valuation_factor(ts_code, 'dividend_yield', trade_date)
+        return self._get_valuation_factor(ts_code, "dividend_yield", trade_date)
 
     def _convert_to_tushare_code(self, stock_code: str) -> str:
         """Convert stock code to Tushare format"""
         if len(stock_code) == 6:
-            if stock_code.startswith('6'):
+            if stock_code.startswith("6"):
                 return f"{stock_code}.SH"
-            elif stock_code.startswith(('0', '3')):
+            elif stock_code.startswith(("0", "3")):
                 return f"{stock_code}.SZ"
         return stock_code
 
@@ -216,19 +191,14 @@ class TushareFactorAdapter(FactorDataSource):
 class AkshareFactorAdapter(FactorDataSource):
     """Akshare factor data adapter (backup source)"""
 
-    def get_factor_value(
-        self,
-        stock_code: str,
-        factor_code: str,
-        trade_date: date
-    ) -> float | None:
+    def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value from Akshare"""
         try:
             import akshare as ak
 
-            if factor_code in ['pe_ttm', 'pb']:
+            if factor_code in ["pe_ttm", "pb"]:
                 return self._get_valuation_akshare(stock_code, factor_code)
-            elif factor_code in ['roe', 'revenue_growth']:
+            elif factor_code in ["roe", "revenue_growth"]:
                 return self._get_financial_akshare(stock_code, factor_code)
             else:
                 return None
@@ -248,14 +218,14 @@ class AkshareFactorAdapter(FactorDataSource):
             # Get most recent data
             df = df.tail(60)
 
-            if factor_code == 'pe_ttm':
+            if factor_code == "pe_ttm":
                 # Simple PE calculation using recent data
-                if '收盘' in df.columns:
+                if "收盘" in df.columns:
                     # Use TTM logic or latest available
                     # For simplicity, use a placeholder
                     return None
 
-            elif factor_code == 'pb':
+            elif factor_code == "pb":
                 return None
 
         return None
@@ -277,15 +247,11 @@ class CachedFactorAdapter(FactorDataSource):
 
     def __init__(self, price_adapter=None):
         from apps.rotation.infrastructure.adapters.price_adapter import RotationPriceDataService
+
         self.price_service = price_adapter or RotationPriceDataService()
         self._cache = {}
 
-    def get_factor_value(
-        self,
-        stock_code: str,
-        factor_code: str,
-        trade_date: date
-    ) -> float | None:
+    def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value, calculate from prices if needed"""
         # Check cache first
         cache_key = f"{stock_code}_{factor_code}_{trade_date}"
@@ -293,30 +259,27 @@ class CachedFactorAdapter(FactorDataSource):
             return self._cache[cache_key]
 
         # Calculate momentum/volatility factors from prices
-        if factor_code.startswith('momentum_') or factor_code.startswith('volatility_'):
+        if factor_code.startswith("momentum_") or factor_code.startswith("volatility_"):
             return self._calculate_from_prices(stock_code, factor_code, trade_date)
 
         # For fundamental factors, return None (will be fetched from other adapters)
         return None
 
     def _calculate_from_prices(
-        self,
-        stock_code: str,
-        factor_code: str,
-        trade_date: date
+        self, stock_code: str, factor_code: str, trade_date: date
     ) -> float | None:
         """Calculate factor from price data"""
         try:
             from apps.account.infrastructure.models import SystemSettingsModel
 
             # Determine period from factor code
-            if '1m' in factor_code:
+            if "1m" in factor_code:
                 days = 20
-            elif '3m' in factor_code:
+            elif "3m" in factor_code:
                 days = 60
-            elif '6m' in factor_code:
+            elif "6m" in factor_code:
                 days = 120
-            elif '12m' in factor_code:
+            elif "12m" in factor_code:
                 days = 252
             else:
                 days = 60
@@ -326,11 +289,11 @@ class CachedFactorAdapter(FactorDataSource):
             if not prices or len(prices) < days:
                 return None
 
-            if factor_code.startswith('momentum_'):
+            if factor_code.startswith("momentum_"):
                 return self._calculate_momentum(prices, days)
-            elif factor_code.startswith('volatility_'):
+            elif factor_code.startswith("volatility_"):
                 return self._calculate_volatility(prices, days)
-            elif factor_code == 'beta':
+            elif factor_code == "beta":
                 benchmark_code = SystemSettingsModel.get_runtime_benchmark_code(
                     "factor_beta_benchmark"
                 )
@@ -382,10 +345,7 @@ class CachedFactorAdapter(FactorDataSource):
         return std * math.sqrt(252)
 
     def _calculate_beta(
-        self,
-        asset_prices: list[float],
-        benchmark_prices: list[float],
-        days: int
+        self, asset_prices: list[float], benchmark_prices: list[float], days: int
     ) -> float:
         """Calculate beta to benchmark"""
         if len(asset_prices) < days or len(benchmark_prices) < days:
@@ -404,7 +364,9 @@ class CachedFactorAdapter(FactorDataSource):
 
         for i in range(1, len(benchmark_prices)):
             if benchmark_prices[i - 1] > 0:
-                benchmark_returns.append((benchmark_prices[i] - benchmark_prices[i - 1]) / benchmark_prices[i - 1])
+                benchmark_returns.append(
+                    (benchmark_prices[i] - benchmark_prices[i - 1]) / benchmark_prices[i - 1]
+                )
 
         if len(asset_returns) != len(benchmark_returns):
             return 1.0
@@ -433,12 +395,7 @@ class FailoverFactorAdapter(FactorDataSource):
         self.secondary_adapter = AkshareFactorAdapter()
         self.cached_adapter = CachedFactorAdapter()
 
-    def get_factor_value(
-        self,
-        stock_code: str,
-        factor_code: str,
-        trade_date: date
-    ) -> float | None:
+    def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value with failover"""
         # Try price-based factors first (fastest)
         value = self.cached_adapter.get_factor_value(stock_code, factor_code, trade_date)
