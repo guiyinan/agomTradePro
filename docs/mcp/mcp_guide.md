@@ -360,6 +360,12 @@ decision_workflow_precheck(candidate_id)
 decision_workflow_list_recommendations(account_id, status, user_action, security_code, recommendation_id, include_ignored, page, page_size)
 decision_workflow_refresh_recommendations(account_id, security_codes, force, async_mode)
 decision_workflow_apply_recommendation_action(recommendation_id, action, account_id, note)
+decision_workflow_get_funnel_context(trade_id, backtest_id)
+get_pulse_current()
+get_pulse_history(limit)
+get_regime_navigator()
+get_action_recommendation()
+explain_pulse_dimensions()
 ```
 
 Notes:
@@ -367,6 +373,12 @@ Notes:
 - `decision_workflow_list_recommendations` returns unified recommendation objects from the decision workspace.
 - `decision_workflow_refresh_recommendations` is the bridge from homepage/equity recommendations into the decision workspace.
 - `decision_workflow_apply_recommendation_action` records the user's explicit choice on a recommendation.
+- `decision_workflow_get_funnel_context` retrieves the complete end-to-end macro context evaluation spanning steps 1 to 3 (environment, direction, sector) and step 6 (audit/attribution). `backtest_id` should be passed when the agent needs deterministic audit replay instead of latest-backtest fallback.
+- `get_pulse_current` returns the latest tactical pulse snapshot.
+- `get_pulse_history` returns recent pulse history for trend inspection.
+- `get_regime_navigator` returns the richer regime navigator output beyond the basic current regime.
+- `get_action_recommendation` returns the current top-down allocation recommendation derived from regime + pulse.
+- `explain_pulse_dimensions` gives a built-in semantic explanation of the pulse framework for agents.
 - `action` supports: `watch`, `adopt`, `ignore`, `pending`.
 
 ### Simulated Trading Inspection Tools

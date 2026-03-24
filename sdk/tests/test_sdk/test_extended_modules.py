@@ -13,6 +13,7 @@ class TestAgomTradeProClientExtendedModules:
         assert client.events is not None
         assert client.decision_rhythm is not None
         assert client.decision_workflow is not None
+        assert client.pulse is not None
         assert client.beta_gate is not None
         assert client.alpha is not None
         assert client.alpha_trigger is not None
@@ -31,3 +32,4 @@ class TestAgomTradeProClientExtendedModules:
         assert client.sentiment is client.sentiment
         assert client.alpha is client.alpha
         assert client.decision_workflow is client.decision_workflow
+        assert client.pulse is client.pulse

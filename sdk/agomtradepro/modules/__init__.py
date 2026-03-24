@@ -29,6 +29,7 @@ from .macro import MacroModule
 from .market_data import MarketDataModule
 from .policy import PolicyModule
 from .prompt import PromptModule
+from .pulse import PulseModule
 from .realtime import RealtimeModule
 from .regime import RegimeModule
 from .rotation import RotationModule
@@ -74,4 +75,5 @@ __all__ = [
     "TaskMonitorModule",
     "FilterModule",
     "MarketDataModule",
+    "PulseModule",
 ]

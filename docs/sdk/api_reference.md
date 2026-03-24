@@ -280,9 +280,23 @@ client.decision_workflow.apply_recommendation_action(
     account_id=None,
     note=None,
 ) -> dict
+client.decision_workflow.get_funnel_context(
+    trade_id="unknown",
+    backtest_id=None,
+) -> dict
 ```
 
 `action` 支持：`watch` / `adopt` / `ignore` / `pending`
+
+### Pulse Module
+
+```python
+client.pulse.get_current() -> dict
+client.pulse.get_history(limit=30) -> list[dict]
+client.pulse.calculate() -> dict
+client.pulse.get_navigator() -> dict
+client.pulse.get_action_recommendation() -> dict
+```
 
 ## Realtime Module
 

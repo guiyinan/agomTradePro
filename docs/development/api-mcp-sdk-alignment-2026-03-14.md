@@ -44,6 +44,7 @@
 | equity | `/api/equity/` | valuation repair config 已对齐 |
 | market_data | `/api/market-data/` | MCP 外部市场数据链已打通 |
 | audit | `/api/audit/` | `/audit/api/` 仅保留页面/历史兼容 |
+| decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
 
 ## 已修复的典型错配
 

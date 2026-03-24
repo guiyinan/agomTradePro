@@ -335,6 +335,9 @@ python test_sdk_connection.py
 | Backtest | `client.backtest.list()` | 返回回测列表 | ☐ |
 | Account | `client.account.get_portfolios()` | 返回投资组合 | ☐ |
 | SimulatedTrading | `client.simulated_trading.list_accounts()` | 返回模拟账户 | ☐ |
+| DecisionWorkflow | `client.decision_workflow.get_funnel_context()` | 返回决策漏斗上下文 | ☐ |
+| Pulse | `client.pulse.get_current()` | 返回最新脉搏快照 | ☐ |
+| Pulse | `client.pulse.get_history(limit=5)` | 返回脉搏历史序列 | ☐ |
 
 ---
 

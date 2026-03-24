@@ -179,6 +179,20 @@ client.decision_workflow.apply_recommendation_action(
 )
 ```
 
+### 8. Read Pulse And Funnel Context
+
+```python
+pulse = client.pulse.get_current()
+print(pulse["composite_score"], pulse["regime_strength"])
+
+context = client.decision_workflow.get_funnel_context(
+    trade_id="trade-001",
+    backtest_id=123,
+)
+print(context["step1_environment"]["regime_name"])
+print(context["step6_audit"]["attribution_method"])
+```
+
 ## Module Overview
 
 | Module | Description |

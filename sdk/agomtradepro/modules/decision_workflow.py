@@ -105,3 +105,23 @@ class DecisionWorkflowModule(BaseModule):
         if note is not None:
             payload["note"] = note
         return self._client.post("/api/decision/workspace/recommendations/action/", json=payload)
+
+    def get_funnel_context(
+        self,
+        trade_id: str = "unknown",
+        *,
+        backtest_id: int | None = None,
+    ) -> dict[str, Any]:
+        """获取决策工作台全链路漏斗上下文。
+
+        获取环境评估(Step1)、方向选择(Step2)、板块偏好(Step3)以后的基础环境，
+        以及针对指定交易的归因复盘(Step6)。
+
+        Args:
+            trade_id: 获取 Step 6 需要的归因交易 ID，默认为 'unknown'
+            backtest_id: 直接指定归因回测 ID，用于 Step 6 精确定位审计报告
+        """
+        params: dict[str, Any] = {"trade_id": trade_id}
+        if backtest_id is not None:
+            params["backtest_id"] = backtest_id
+        return self._client.get("/api/decision/funnel/context/", params=params)

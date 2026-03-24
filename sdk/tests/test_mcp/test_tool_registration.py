@@ -25,6 +25,7 @@ def test_extended_mcp_tools_registered():
         "publish_event",
         "submit_decision_request",
         "decision_workflow_precheck",
+        "decision_workflow_get_funnel_context",
         "list_beta_gate_configs",
         "list_alpha_triggers",
         "get_dashboard_summary_v1",
@@ -37,6 +38,11 @@ def test_extended_mcp_tools_registered():
         "apply_rotation_template_to_account_config",
         "get_alpha_stock_scores",
         "upload_alpha_scores",
+        "get_pulse_current",
+        "get_pulse_history",
+        "get_regime_navigator",
+        "get_action_recommendation",
+        "explain_pulse_dimensions",
     }
 
     missing = expected - names
