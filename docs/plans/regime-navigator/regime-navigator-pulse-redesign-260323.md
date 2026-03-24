@@ -2,7 +2,7 @@
 
 > **日期**: 2026-03-23
 > **版本**: 1.0
-> **状态**: 设计完成，待实施
+> **状态**: 已实施并验收收口
 > **涉及模块**: regime, pulse(新), dashboard, decision, rotation, beta_gate
 > **预估周期**: Phase 1 (5-6周) + Phase 2 (4-5周) + Phase 3 (3-4周)
 
@@ -323,6 +323,14 @@ Pulse 在区间内微调：`weight = lower + (upper - lower) * (composite_score 
 
 ### Phase 3 完成标准
 
-- [ ] DR007 + 央行净投放 fetcher 上线
-- [ ] Pulse 指标权重支持数据库配置
-- [ ] 历史 Regime + Pulse 叠加时序图可查看
+- [x] DR007 + 央行净投放 fetcher 上线
+- [x] Pulse 指标权重支持数据库配置
+- [x] 历史 Regime + Pulse 叠加时序图可查看
+- [x] Dashboard / 决策工作台色调和引导打磨完成
+- [x] Pulse 变化提醒已进入“今日关注”，并支持浏览器本地通知开关
+
+### 当前实现备注
+
+- `beta_gate`、`alpha_trigger`、`decision_rhythm` 仍作为系统内部能力存在，但不再作为首页/顶部导航中的独立主入口暴露；统一收束到“决策工作台 / 决策模式”中承接。
+- 历史叠加图落地在 `Regime` 页面，通过 `/api/regime/navigator/history/` 获取数据并用 ECharts 渲染三层时序。
+- 浏览器通知采用本地偏好开关（`localStorage` + Notification API）实现，不新增后端设置表。

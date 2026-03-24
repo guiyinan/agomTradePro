@@ -17,11 +17,15 @@ class RegimeLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'regime_log'
+        db_table = "regime_log"
         ordering = ['-observed_at']
+        indexes = [
+            models.Index(fields=['dominant_regime']),
+            models.Index(fields=['observed_at']),
+        ]
 
     def __str__(self):
-        return f"{self.observed_at}: {self.dominant_regime}"
+        return f"{self.observed_at} - {self.dominant_regime} ({self.confidence:.2f})"
 
     def get_dominant_regime_display(self):
         """获取 Regime 的中文显示名称"""
@@ -123,3 +127,28 @@ class RegimeTrendIndicator(models.Model):
 
     def __str__(self):
         return f"{self.indicator_code}: period={self.momentum_period}m, weight={self.trend_weight}"
+
+
+class ActionRecommendationLog(models.Model):
+    """联合行动建议历史记录"""
+    observed_at = models.DateField("观测日期", db_index=True)
+    regime_name = models.CharField("当期 Regime", max_length=20)
+    pulse_strength = models.CharField("Pulse 强弱", max_length=20)
+    
+    # 资产权重 (JSON)
+    asset_weights = models.JSONField("资产权重", default=dict)
+    risk_budget_pct = models.FloatField("风险预算 %")
+    
+    # 其他推荐
+    recommended_sectors = models.JSONField("推荐板块", default=list)
+    benefiting_styles = models.JSONField("受益风格", default=list)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "action_recommendation_log"
+        ordering = ["-observed_at"]
+
+    def __str__(self):
+        return f"{self.observed_at}: {self.regime_name} (risk: {self.risk_budget_pct}%)"
+

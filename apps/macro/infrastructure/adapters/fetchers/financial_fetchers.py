@@ -24,6 +24,8 @@ INDICATOR_UNITS = {
     "CN_NEW_CREDIT": ("亿元", "亿元"),
     "CN_RMB_DEPOSIT": ("亿元", "亿元"),
     "CN_RMB_LOAN": ("亿元", "亿元"),
+    "CN_DR007": ("%", "%"),
+    "CN_PBOC_NET_INJECTION": ("亿元", "亿元"),
 }
 
 
@@ -45,6 +47,18 @@ def parse_chinese_full_date(date_str: str) -> str:
             year, month, day = match.groups()
             return f'{year}-{month.zfill(2)}-{day.zfill(2)}'
     return date_str
+
+
+def _safe_float(value, default=0.0):
+    """安全地将值转换为 float，处理 None、空字符串、非数字值。"""
+    if value in (None, ""):
+        return default
+    try:
+        if isinstance(value, str):
+            value = value.replace(',', '').replace('%', '').strip()
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 class FinancialIndicatorFetcher:
@@ -84,7 +98,8 @@ class FinancialIndicatorFetcher:
             for _, row in df.iterrows():
                 try:
                     # 原始单位是万美元，转换为万亿美元
-                    value_in_trillions = float(row['value']) / 10000
+                    value = _safe_float(row['value'])
+                    value_in_trillions = value / 10000
                     point = MacroDataPoint(
                         code="CN_FX_RESERVES",
                         value=value_in_trillions,
@@ -274,7 +289,7 @@ class FinancialIndicatorFetcher:
             for _, row in df.iterrows():
                 try:
                     # 原始数据已经是亿元
-                    value = float(row['value'])
+                    value = _safe_float(row['value'])
                     point = MacroDataPoint(
                         code="CN_NEW_CREDIT",
                         value=value,
@@ -394,4 +409,114 @@ class FinancialIndicatorFetcher:
 
         except Exception as e:
             logger.error(f"获取人民币贷款数据失败: {e}")
+            raise
+
+    def fetch_dr007(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> list[MacroDataPoint]:
+        """获取 DR007 数据"""
+        try:
+            if not hasattr(self.ak, 'repo_rate_hist'):
+                logger.warning("当前 akshare 版本不支持 repo_rate_hist, 无法获取 DR007")
+                return []
+            
+            # 使用 ak.repo_rate_hist 替代假定的宏观利率函数
+            df = self.ak.repo_rate_hist()
+            if df.empty:
+                logger.warning("DR007 数据为空")
+                return []
+
+            date_col = 'date' if 'date' in df.columns else df.columns[0]
+            # DR007 对应的回购利率列名可能是 DR007 或别的，根据实际情况适配
+            value_col = 'DR007' if 'DR007' in df.columns else df.columns[2]
+
+            df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
+            df = df[['date', value_col]].dropna()
+            df.columns = ['observed_at', 'value']
+            df = df[
+                (df['observed_at'].dt.date >= start_date) &
+                (df['observed_at'].dt.date <= end_date)
+            ]
+
+            data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_DR007", ("%", "%"))
+            for _, row in df.iterrows():
+                try:
+                    value = _safe_float(row['value'])
+                    value_decimal = value / 100 if value > 1 else value
+                    point = MacroDataPoint(
+                        code="CN_DR007",
+                        value=value_decimal,
+                        observed_at=row['observed_at'].date(),
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
+                    )
+                    self._validate(point)
+                    data_points.append(point)
+                except (ValueError, DataValidationError) as e:
+                    logger.warning(f"跳过无效 DR007 数据: {row}, 错误: {e}")
+
+            return self._sort_and_deduplicate(data_points)
+
+        except Exception as e:
+            logger.error(f"获取 DR007 数据失败: {e}")
+            raise
+
+    def fetch_pboc_open_market(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> list[MacroDataPoint]:
+        """获取央行公开市场操作净投放数据"""
+        try:
+            if not hasattr(self.ak, 'macro_china_pboc_open_market'):
+                logger.warning("当前 akshare 版本不支持 macro_china_pboc_open_market, 无法获取央行公开市场操作数据")
+                return []
+
+            df = self.ak.macro_china_pboc_open_market()
+            if df.empty:
+                logger.warning("央行公开市场操作数据为空")
+                return []
+
+            date_col = '日期' if '日期' in df.columns else df.columns[0]
+            value_col = '净投放' if '净投放' in df.columns else (df.columns[-1] if len(df.columns) > 0 else None)
+            
+            if not value_col:
+                return []
+
+            df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
+            df = df[['date', value_col]].dropna()
+            df.columns = ['observed_at', 'value']
+            df = df[
+                (df['observed_at'].dt.date >= start_date) &
+                (df['observed_at'].dt.date <= end_date)
+            ]
+
+            data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_PBOC_NET_INJECTION", ("亿元", "亿元"))
+            for _, row in df.iterrows():
+                try:
+                    value_str = str(row['value']).replace('亿', '').replace('元', '').replace(',', '')
+                    value = _safe_float(value_str)
+                    
+                    point = MacroDataPoint(
+                        code="CN_PBOC_NET_INJECTION",
+                        value=value,
+                        observed_at=row['observed_at'].date(),
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
+                    )
+                    self._validate(point)
+                    data_points.append(point)
+                except (ValueError, DataValidationError) as e:
+                    logger.warning(f"跳过无效央行公开市场操作数据: {row}, 错误: {e}")
+
+            return self._sort_and_deduplicate(data_points)
+
+        except Exception as e:
+            logger.error(f"获取央行公开市场操作数据失败: {e}")
             raise

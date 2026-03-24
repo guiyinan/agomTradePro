@@ -318,6 +318,30 @@ def _build_attention_items_context(data, navigator, pulse) -> dict:
     }
 
 
+def _build_browser_notification_context(navigator, pulse) -> dict:
+    """Build optional browser-notification payload for dashboard alerts."""
+    payload: dict[str, str] | None = None
+
+    if pulse and pulse.transition_warning:
+        reasons = "；".join((pulse.transition_reasons or [])[:2]) or "多维脉搏与当前 Regime 产生冲突。"
+        payload = {
+            "title": f"Pulse 转向 {pulse.transition_direction or '待确认'} 预警",
+            "body": reasons,
+            "tag": f"pulse-{pulse.observed_at.isoformat()}-{pulse.transition_direction or 'warning'}",
+        }
+    elif navigator and navigator.is_transitioning:
+        payload = {
+            "title": f"Regime 可能转向 {navigator.movement.transition_target or '新象限'}",
+            "body": navigator.movement.momentum_summary,
+            "tag": f"regime-{navigator.generated_at.isoformat()}-{navigator.movement.transition_target or 'warning'}",
+        }
+
+    return {
+        "browser_notification_enabled": True,
+        "browser_notification_payload": payload,
+    }
+
+
 # ========================================
 # Alpha 可视化数据获取函数（委托至 Query Services）
 # ========================================
@@ -591,6 +615,7 @@ def dashboard_view(request):
     context.update(_build_pulse_card_context(pulse))
     context.update(_build_action_recommendation_context(action))
     context.update(_build_attention_items_context(data, navigator, pulse))
+    context.update(_build_browser_notification_context(navigator, pulse))
 
     return render(request, 'dashboard/index.html', context)
 

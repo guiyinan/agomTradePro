@@ -3,7 +3,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .api_views import RegimeActionView, RegimeHealthView, RegimeNavigatorView, RegimeViewSet
+from .api_views import RegimeActionView, RegimeHealthView, RegimeNavigatorHistoryView, RegimeNavigatorView, RegimeViewSet
 
 app_name = "regime_api"
 
@@ -15,5 +15,6 @@ urlpatterns = [
     path("health/", RegimeHealthView.as_view(), name="health"),
     path("navigator/", RegimeNavigatorView.as_view(), name="regime-navigator"),
     path("action/", RegimeActionView.as_view(), name="regime-action"),
+    path("navigator/history/", RegimeNavigatorHistoryView.as_view(), name="regime-navigator-history"),
 ]
 

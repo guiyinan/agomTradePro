@@ -246,7 +246,7 @@ class GetActionRecommendationUseCase:
                 for wr in guidance.weight_ranges
             ]
 
-            return map_regime_pulse_to_action(
+            action_rec = map_regime_pulse_to_action(
                 regime_name=navigator.regime_name,
                 weight_ranges=weight_ranges,
                 risk_budget=guidance.risk_budget_pct,
@@ -259,6 +259,123 @@ class GetActionRecommendationUseCase:
                 as_of_date=target_date,
             )
 
+            # 持久化 ActionRecommendationLog
+            try:
+                from apps.regime.infrastructure.repositories import DjangoNavigatorRepository
+                repo = DjangoNavigatorRepository()
+                repo.save_action_recommendation(
+                    observed_at=target_date,
+                    data={
+                        "regime_name": navigator.regime_name,
+                        "pulse_strength": pulse_strength,
+                        "asset_weights": action_rec.asset_weights,
+                        "risk_budget_pct": action_rec.risk_budget_pct,
+                        "recommended_sectors": action_rec.recommended_sectors,
+                        "benefiting_styles": action_rec.benefiting_styles,
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save ActionRecommendationLog: {e}")
+
+            return action_rec
+
         except Exception as e:
             logger.exception(f"Error getting action recommendation: {e}")
             return None
+
+
+class GetRegimeNavigatorHistoryUseCase:
+    """
+    获 Regime 导航仪的历史数据叠加
+
+    输出格式：
+    {
+      "period": {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"},
+      "regime_transitions": [...],
+      "pulse_history": [...],
+      "action_history": [...]
+    }
+    """
+
+    def execute(self, start_date: date, end_date: date) -> dict:
+        try:
+            from apps.regime.infrastructure.repositories import DjangoNavigatorRepository
+            repo = DjangoNavigatorRepository()
+
+            # 1. Regime Transitions
+            regimes = repo.get_regimes_in_range(start_date, end_date)
+
+            regime_transitions = []
+            last_regime = None
+            for r in regimes:
+                if r.dominant_regime != last_regime:
+                    regime_transitions.append({
+                        "date": r.observed_at.isoformat(),
+                        "from_regime": last_regime,
+                        "to_regime": r.dominant_regime,
+                        "confidence": r.confidence,
+                    })
+                    last_regime = r.dominant_regime
+
+            # 如果在这段时间内没有发生变化，也要在开头放一个当前状态
+            if not regime_transitions and regimes.exists():
+                r = regimes.first()
+                regime_transitions.append({
+                    "date": r.observed_at.isoformat(),
+                    "from_regime": None,
+                    "to_regime": r.dominant_regime,
+                    "confidence": r.confidence,
+                })
+
+            # 2. Pulse History
+            pulses = repo.get_pulses_in_range(start_date, end_date)
+            
+            pulse_history = [
+                {
+                    "date": p.observed_at.isoformat(),
+                    "composite_score": p.composite_score,
+                    "growth_score": p.growth_score,
+                    "inflation_score": p.inflation_score,
+                    "liquidity_score": p.liquidity_score,
+                    "sentiment_score": p.sentiment_score,
+                }
+                for p in pulses
+            ]
+
+            # 3. Action History
+            actions = repo.get_actions_in_range(start_date, end_date)
+            
+            action_history = [
+                {
+                    "date": a.observed_at.isoformat(),
+                    "risk_budget_pct": a.risk_budget_pct,
+                    "equity_weight": a.asset_weights.get("equity", 0),
+                    "bond_weight": a.asset_weights.get("bond", 0),
+                    "commodity_weight": a.asset_weights.get("commodity", 0),
+                    "cash_weight": a.asset_weights.get("cash", 0),
+                }
+                for a in actions
+            ]
+
+            return {
+                "period": {
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
+                },
+                "regime_transitions": regime_transitions,
+                "pulse_history": pulse_history,
+                "action_history": action_history,
+            }
+
+        except Exception as e:
+            logger.exception(f"Error getting regime navigator history: {e}")
+            return {
+                "period": {
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
+                },
+                "regime_transitions": [],
+                "pulse_history": [],
+                "action_history": [],
+                "error": str(e)
+            }

@@ -169,3 +169,29 @@ class NavigatorAssetConfigModel(models.Model):
 
     def __str__(self) -> str:
         return f"{self.regime_name}: risk={self.risk_budget}"
+
+
+class PulseWeightConfig(models.Model):
+    """Pulse 指标权重整体配置"""
+
+    name = models.CharField("配置名称", max_length=100)
+    is_active = models.BooleanField("是否激活", default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "pulse_weight_config"
+
+
+class PulseIndicatorWeight(models.Model):
+    """单个指标的权重配置（维度间或者维度内按需分配）"""
+
+    config = models.ForeignKey(PulseWeightConfig, on_delete=models.CASCADE, related_name="weights")
+    indicator_code = models.CharField("指标代码", max_length=50)
+    dimension = models.CharField("维度", max_length=20)
+    weight = models.FloatField("权重", default=1.0)
+    is_enabled = models.BooleanField("是否启用", default=True)
+
+    class Meta:
+        db_table = "pulse_indicator_weight"
+

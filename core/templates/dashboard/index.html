@@ -20,6 +20,7 @@
 <!-- Hidden JSON data for JavaScript -->
 {{ alpha_provider_status|json_script:"providerData" }}
 {{ alpha_ic_trends|json_script:"icTrendsData" }}
+{{ browser_notification_payload|json_script:"browserNotificationPayload" }}
 
 <div class="home-layout">
     <!-- 左侧导航栏 -->
@@ -66,23 +67,6 @@
                 <a href="{% url 'filter:dashboard' %}" class="nav-item">
                     <span class="nav-icon">🔍</span>
                     <span class="nav-text">股票筛选</span>
-                </a>
-            </div>
-
-            <!-- 决策平面 -->
-            <div class="nav-section">
-                <div class="nav-section-title">决策平面</div>
-                <a href="{% url 'beta_gate:config' %}" class="nav-item">
-                    <span class="nav-icon">🚪</span>
-                    <span class="nav-text">Beta 闸门</span>
-                </a>
-                <a href="{% url 'alpha_trigger:list' %}" class="nav-item">
-                    <span class="nav-icon">⚡</span>
-                    <span class="nav-text">Alpha 触发器</span>
-                </a>
-                <a href="{% url 'decision_rhythm:quota' %}" class="nav-item">
-                    <span class="nav-icon">⏱️</span>
-                    <span class="nav-text">决策配额</span>
                 </a>
             </div>
 
@@ -154,6 +138,12 @@
                 <p class="home-subtitle">AgomTradePro 战略资产配置框架 - 投资指挥中心</p>
             </div>
             <div class="header-actions">
+                <a href="{% url 'decision-workspace' %}" class="refresh-btn" style="text-decoration: none;">
+                    <span>🧭 发起新决策</span>
+                </a>
+                <button type="button" id="pulseNotifyToggle" class="refresh-btn">
+                    <span>🔔 Pulse 通知</span>
+                </button>
             </div>
         </header>
 
@@ -275,10 +265,11 @@
         </section>
         {% endif %}
 
-        <!-- 决策平面状态卡片 -->
+        <!-- 决策模式状态卡片 -->
         <section class="decision-plane-section">
             <div class="section-header">
-                <h2 class="section-title">🎯 决策平面</h2>
+                <h2 class="section-title">🎯 决策模式状态</h2>
+                <a href="{% url 'decision-workspace' %}" class="section-link">进入决策模式 →</a>
             </div>
             <div class="decision-plane-grid">
                 <!-- Beta Gate 状态 -->
@@ -286,7 +277,7 @@
                     <div class="decision-card-header">
                         <span class="decision-icon">🚪</span>
                         <span class="decision-title">Beta 闸门</span>
-                        <a href="{% url 'beta_gate:config' %}" class="decision-link">详情 →</a>
+                        <a href="{% url 'decision-workspace' %}" class="decision-link">进入步骤 →</a>
                     </div>
                     <div class="decision-card-body">
                         <div class="decision-status">
@@ -301,7 +292,7 @@
                     <div class="decision-card-header">
                         <span class="decision-icon">⚡</span>
                         <span class="decision-title">Alpha 面板</span>
-                        <a href="{% url 'alpha_trigger:list' %}" class="decision-link">详情 →</a>
+                        <a href="{% url 'decision-workspace' %}" class="decision-link">进入步骤 →</a>
                     </div>
                     <div class="decision-card-body">
                         <div class="decision-stats">
@@ -326,7 +317,7 @@
                     <div class="decision-card-header">
                         <span class="decision-icon">⏱️</span>
                         <span class="decision-title">决策配额</span>
-                        <a href="{% url 'decision_rhythm:quota' %}" class="decision-link">详情 →</a>
+                        <a href="{% url 'decision-workspace' %}" class="decision-link">进入步骤 →</a>
                     </div>
                     <div class="decision-card-body">
                         <div class="decision-status">
@@ -2727,4 +2718,78 @@ chatSendBtn.onclick = async function() {
         .catch(err => console.error('Failed to load widget config:', err));
 </script>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const storageKey = 'dashboard:pulse-browser-notification-enabled';
+    const toggle = document.getElementById('pulseNotifyToggle');
+    const payloadNode = document.getElementById('browserNotificationPayload');
+    const payload = payloadNode ? JSON.parse(payloadNode.textContent) : null;
+
+    function updateToggle() {
+        if (!toggle) {
+            return;
+        }
+        const enabled = localStorage.getItem(storageKey) === '1';
+        toggle.innerHTML = enabled ? '<span>🔔 Pulse 通知已开启</span>' : '<span>🔕 开启 Pulse 通知</span>';
+    }
+
+    async function ensurePermission() {
+        if (!('Notification' in window)) {
+            return false;
+        }
+        if (Notification.permission === 'granted') {
+            return true;
+        }
+        if (Notification.permission === 'denied') {
+            return false;
+        }
+        const result = await Notification.requestPermission();
+        return result === 'granted';
+    }
+
+    async function toggleNotifications() {
+        const enabled = localStorage.getItem(storageKey) === '1';
+        if (enabled) {
+            localStorage.setItem(storageKey, '0');
+            updateToggle();
+            return;
+        }
+
+        const permitted = await ensurePermission();
+        if (permitted) {
+            localStorage.setItem(storageKey, '1');
+        }
+        updateToggle();
+    }
+
+    function showNotificationIfNeeded() {
+        if (!payload || !('Notification' in window)) {
+            return;
+        }
+        if (localStorage.getItem(storageKey) !== '1' || Notification.permission !== 'granted') {
+            return;
+        }
+
+        const dedupeKey = `dashboard:notified:${payload.tag}`;
+        if (sessionStorage.getItem(dedupeKey) === '1') {
+            return;
+        }
+
+        sessionStorage.setItem(dedupeKey, '1');
+        new Notification(payload.title, {
+            body: payload.body,
+            tag: payload.tag,
+        });
+    }
+
+    updateToggle();
+    if (toggle) {
+        toggle.addEventListener('click', toggleNotifications);
+    }
+    showNotificationIfNeeded();
+})();
+</script>
 {% endblock %}

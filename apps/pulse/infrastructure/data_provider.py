@@ -96,6 +96,25 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         signal_multiplier=0.3,
     ),
     PulseIndicatorDef(
+        code="CN_DR007",
+        name="DR007",
+        dimension="liquidity",
+        frequency="daily",
+        signal_type="zscore",
+        bullish_threshold=-1.0,     # <逆回购利率为宽松
+        bearish_threshold=1.0,      # >逆回购利率为紧缩
+        signal_multiplier=-0.4,
+    ),
+    PulseIndicatorDef(
+        code="CN_PBOC_NET_INJECTION",
+        name="央行净投放",
+        dimension="liquidity",
+        frequency="daily",          # 这里先标记daily, 在逻辑中可能是周频
+        signal_type="level",
+        bullish_threshold=1000.0,
+        bearish_threshold=-500.0,
+    ),
+    PulseIndicatorDef(
         code="VIX_INDEX",
         name="VIX恐慌指数",
         dimension="sentiment",
@@ -135,29 +154,62 @@ class DjangoPulseDataProvider:
             return self._indicator_defs
 
         try:
-            from apps.pulse.infrastructure.models import PulseIndicatorConfigModel
+            from apps.pulse.infrastructure.models import PulseIndicatorConfigModel, PulseWeightConfig
 
             db_configs = list(
                 PulseIndicatorConfigModel.objects.filter(is_active=True)
             )
+
+            # Override weights from active PulseWeightConfig
+            active_weight_cfg = PulseWeightConfig.objects.filter(is_active=True).first()
+            weight_overrides = {}
+            if active_weight_cfg:
+                weight_overrides = {
+                    w.indicator_code: w 
+                    for w in active_weight_cfg.weights.all()
+                }
+
             if db_configs:
-                self._indicator_defs = [
-                    PulseIndicatorDef(
-                        code=c.indicator_code,
-                        name=c.indicator_name,
-                        dimension=c.dimension,
-                        frequency=c.frequency,
-                        weight=c.weight,
-                        signal_type=c.signal_type,
-                        bullish_threshold=c.bullish_threshold,
-                        bearish_threshold=c.bearish_threshold,
-                        neutral_band=c.neutral_band,
-                        signal_multiplier=c.signal_multiplier,
+                self._indicator_defs = []
+                for c in db_configs:
+                    w_model = weight_overrides.get(c.indicator_code)
+                    if w_model and not w_model.is_enabled:
+                        continue # If explicitly disabled, skip
+                    weight = w_model.weight if w_model else c.weight
+                    self._indicator_defs.append(
+                        PulseIndicatorDef(
+                            code=c.indicator_code,
+                            name=c.indicator_name,
+                            dimension=c.dimension,
+                            frequency=c.frequency,
+                            weight=weight,
+                            signal_type=c.signal_type,
+                            bullish_threshold=c.bullish_threshold,
+                            bearish_threshold=c.bearish_threshold,
+                            neutral_band=c.neutral_band,
+                            signal_multiplier=c.signal_multiplier,
+                        )
                     )
-                    for c in db_configs
-                ]
                 logger.info(f"Loaded {len(self._indicator_defs)} pulse indicators from DB")
                 return self._indicator_defs
+
+            # 如果没有 PulseIndicatorConfigModel，可以尝试用 weight_overrides 覆盖 DEFAULT_PULSE_INDICATORS
+            self._indicator_defs = []
+            for default_ind in DEFAULT_PULSE_INDICATORS:
+                w_model = weight_overrides.get(default_ind.code)
+                if w_model and not w_model.is_enabled:
+                    continue
+                weight = w_model.weight if w_model else default_ind.weight
+                
+                # Copy and update weight
+                ind_kwargs = {
+                    k: getattr(default_ind, k) for k in default_ind.__annotations__.keys()
+                }
+                ind_kwargs["weight"] = weight
+                self._indicator_defs.append(PulseIndicatorDef(**ind_kwargs))
+
+            return self._indicator_defs
+
         except Exception as e:
             logger.warning(f"Failed to load pulse indicator configs from DB: {e}")
 

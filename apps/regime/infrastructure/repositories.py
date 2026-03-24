@@ -291,3 +291,34 @@ class DjangoRegimeRepository:
 def get_regime_repository() -> DjangoRegimeRepository:
     """Backward-compatible repository factory."""
     return DjangoRegimeRepository()
+
+
+class DjangoNavigatorRepository:
+    """
+    Django ORM 实现的 Navigator 数据仓储
+    """
+
+    def save_action_recommendation(self, observed_at: date, data: dict):
+        from .models import ActionRecommendationLog
+        ActionRecommendationLog.objects.update_or_create(
+            observed_at=observed_at,
+            defaults=data
+        )
+
+    def get_regimes_in_range(self, start_date: date, end_date: date):
+        from .models import RegimeLog
+        return RegimeLog.objects.filter(
+            observed_at__range=(start_date, end_date)
+        ).order_by("observed_at")
+
+    def get_actions_in_range(self, start_date: date, end_date: date):
+        from .models import ActionRecommendationLog
+        return ActionRecommendationLog.objects.filter(
+            observed_at__range=(start_date, end_date)
+        ).order_by("observed_at")
+
+    def get_pulses_in_range(self, start_date: date, end_date: date):
+        from apps.pulse.infrastructure.models import PulseLog
+        return PulseLog.objects.filter(
+            observed_at__range=(start_date, end_date)
+        ).order_by("observed_at")
