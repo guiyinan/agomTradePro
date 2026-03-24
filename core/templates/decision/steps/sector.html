@@ -1,0 +1,73 @@
+<div class="funnel-step-content" style="animation: fadeIn 0.3s ease-in-out;">
+    <h3 style="margin-bottom: 20px;">阶段 3: 板块选择与风格映射</h3>
+    
+    <div class="attention-card" style="margin-bottom: 20px;">
+        <h4 class="attention-card__title">推荐偏好依据</h4>
+        <p style="margin-top: 10px;">基于当前所处的宏观主线，结合板块动量引擎输出。</p>
+    </div>
+
+    <div class="status-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- 板块推荐列表 -->
+        <div class="attention-card">
+            <h4 class="attention-card__title">Regime + 动量板块</h4>
+            <div class="table-responsive" style="margin-top: 15px;">
+                <table class="table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th align="left">板块</th>
+                            <th align="center">契合度</th>
+                            <th align="center">综合评分</th>
+                            <th align="center">当前动能</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sector in sector_recommendations %}
+                        <tr>
+                            <td><strong>{{ sector.name }}</strong></td>
+                            <td align="center">
+                                <span class="badge {% if sector.alignment == 'high' %}badge-success{% elif sector.alignment == 'medium' %}badge-warning{% else %}badge-neutral{% endif %}">{{ sector.alignment }}</span>
+                            </td>
+                            <td align="center">{{ sector.score }}</td>
+                            <td align="center">
+                                {% if sector.momentum == 'up' %}
+                                    <span style="color: #22c55e;">↗</span>
+                                {% elif sector.momentum == 'down' %}
+                                    <span style="color: #ef4444;">↘</span>
+                                {% else %}
+                                    <span style="color: #9ca3af;">→</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not sector_recommendations %}
+                        <tr>
+                            <td colspan="4" align="center" style="color: var(--color-text-muted); padding: 20px;">无明确板块推荐</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 具体的轮动信号 -->
+        <div class="attention-card">
+            <h4 class="attention-card__title">风格轮动信号 (Rotation)</h4>
+            <ul style="margin-top: 15px; list-style: none; padding: 0;">
+                {% for signal in rotation_signals %}
+                    <li style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--color-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <strong>{{ signal.sector }}</strong>
+                            <span class="badge {% if signal.signal == 'BUY' %}badge-primary{% elif signal.signal == 'SELL' %}badge-danger{% else %}badge-neutral{% endif %}">{{ signal.signal }}</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--color-text-secondary);">
+                            信号强度: <div class="score-bar" style="display: inline-block; width: 60px; margin-left: 5px; vertical-align: middle;"><div class="score-fill" style="width: {{ signal.strength|floatformat:2 }}%;"></div></div>
+                        </div>
+                    </li>
+                {% endfor %}
+                {% if not rotation_signals %}
+                    <li style="color: var(--color-text-muted); padding: 20px; text-align: center;">无强烈轮动信号</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
