@@ -297,7 +297,7 @@ def _build_attention_items_context(data, navigator, pulse) -> dict:
             {
                 "level": "low",
                 "title": "当前无持仓",
-                "detail": "可以从行动建议或决策工作台开始新的配置决策。",
+                "detail": "可以直接进入新决策 Workflow，按 6-step funnel 完成配置决策。",
                 "meta": "来源: account",
             }
         )

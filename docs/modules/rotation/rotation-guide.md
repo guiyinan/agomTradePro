@@ -25,7 +25,7 @@ apps/rotation/
 | `GET /api/rotation/signals/` | 轮动信号 |
 | `GET /api/rotation/account-configs/` | 账户配置列表 |
 | `POST /api/rotation/account-configs/` | 创建账户配置 |
-| `POST /api/rotation/account-configs/{id}/apply-template/` | 应用预设模板 |
+| `POST account-config detail action: apply-template` | 对指定账户配置应用预设模板 |
 | `POST /api/rotation/` | 执行操作 |
 
 ## 管理命令

@@ -110,7 +110,7 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 ```
 
 - `/dashboard/` routes to Streamlit when enabled.
-- `/dashboard/legacy/` remains available as rollback entry.
+- Legacy dashboard rollback entry is no longer exposed as a public URL.
 
 ## 7. Risks and follow-up
 

@@ -23,7 +23,7 @@
 ## 2. 一张图看全流程
 
 1. 环境判断: `/macro/` -> `/regime/dashboard/` -> `/policy/dashboard/`
-2. 标的筛选: `/asset-analysis/screen/` + `/equity/screen/`/`/fund/screen/`
+2. 标的筛选: `/api/asset-analysis/screen/equity/` + `/equity/screen/` / `/api/fund/screen/`
 3. 执行闸门: `/beta-gate/config/` + `/beta-gate/test/` + `/decision/workspace/`
 4. 仓位与风险: `/strategy/` + `/simulated-trading/my-accounts/` + `/api/account/...`
 5. 再平衡: 回测频率 + 模拟盘巡检建议
@@ -62,7 +62,7 @@
 
 1. 统一筛选页: `/asset-analysis/screen/`
 2. 股票筛选: `/equity/screen/`
-3. 基金筛选: `/fund/screen/`
+3. 基金筛选: `/api/fund/screen/`
 
 ### 4.2 推荐 API 主链
 

@@ -157,7 +157,7 @@ path('api/alpha/scores/', views.get_stock_scores, name='get_stock_scores')  # al
 
 ## 4. 命名冲突解决策略
 
-### 4.1 `/dashboard/` 与 `/dashboard/legacy/` 问题
+### 4.1 `/dashboard/` 与 legacy dashboard 问题
 
 **现状**: `apps/dashboard/interface/urls.py` 中存在：
 ```python
@@ -225,7 +225,7 @@ path('dashboard/v1/', views.old_dashboard, name='dashboard-v1')  # 不应同时�
 | 路由 | 类型 | 状态 | 说明 |
 |------|------|------|------|
 | `/dashboard/` | 页面 | 规范 | 主入口 |
-| `/dashboard/legacy/` | 页面 | 需治理 | 应移除或改为内部路径 |
+| legacy dashboard path | 页面 | 已治理 | 不再作为用户可见入口 |
 | `/dashboard/position/<code>/` | HTMX | 需调整 | 应改为 `/api/dashboard/position/` |
 | `/api/dashboard/allocation/` | API | 规范 | canonical dashboard API |
 | `/api/dashboard/v1/*` | API | 规范 | 版本化 API |
@@ -239,10 +239,10 @@ path('dashboard/v1/', views.old_dashboard, name='dashboard-v1')  # 不应同时�
 | `regime` | `/api/regime/` | `/regime/dashboard/` | 已调整 |
 | `strategy` | `/api/strategy/` | `/strategy/` | 规范 |
 | `simulated_trading` | `/api/simulated-trading/` | `/simulated-trading/*` | 规范 |
-| `policy` | `/policy/api/` | `/policy/*` | 规范 |
-| `factor` | `/factor/api/` | 无 | 规范 |
-| `rotation` | `/rotation/api/` | 无 | 规范 |
-| `hedge` | `/hedge/api/` | 无 | 规范 |
+| `policy` | `/api/policy/` | `policy/api` | 规范 |
+| `factor` | `/api/factor/` | `factor/api` | 规范 |
+| `rotation` | `/api/rotation/` | `rotation/api` | 规范 |
+| `hedge` | `/api/hedge/` | `hedge/api` | 规范 |
 
 ### 5.2 迁移步骤
 

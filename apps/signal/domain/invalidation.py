@@ -12,7 +12,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
@@ -328,7 +328,7 @@ def evaluate_rule(
         is_invalidated=is_invalidated,
         reason=reason,
         checked_conditions=checked_conditions,
-        checked_at=datetime.utcnow().isoformat()
+        checked_at=datetime.now(timezone.utc).isoformat()
     )
 
 

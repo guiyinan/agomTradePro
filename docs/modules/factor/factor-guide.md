@@ -20,9 +20,9 @@ apps/factor/
 
 | 端点 | 说明 |
 |------|------|
-| `GET /factor/api/definitions/` | 因子定义 |
-| `GET /factor/api/configs/` | 配置 |
-| `POST /factor/api/` | 执行操作 |
+| `GET /api/factor/definitions/` | 因子定义 |
+| `GET /api/factor/configs/` | 配置 |
+| `POST /api/factor/` | 执行操作 |
 
 ## 管理命令
 
