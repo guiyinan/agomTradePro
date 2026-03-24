@@ -11,7 +11,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-1%2C600+-brightgreen.svg)](#testing)
-[![Modules](https://img.shields.io/badge/business_modules-32-purple.svg)](#architecture)
+[![Modules](https://img.shields.io/badge/business_modules-34-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-65+-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -19,6 +19,26 @@
 [Quick Start](#quick-start) · [Why This Exists](#why-this-exists) · [Why Fork / Star](#why-fork--star) · [Architecture](#architecture) · [AI Integration](#ai-native-integration) · [Screenshots](#screenshots) · [Docs](docs/INDEX.md)
 
 </div>
+
+---
+
+## What's New
+
+> This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-03-24
+
+- The full Regime Navigator + Pulse redesign rollout is now closed out across Dashboard, Decision Workspace, and the Regime page
+- Dashboard navigation has been tightened, and `beta_gate`, `alpha_trigger`, and `decision_rhythm` are no longer exposed as standalone primary homepage entries
+- The Regime page now includes a historical `Regime + Pulse + Action` layered time-series chart
+- The Dashboard now supports optional browser-level Pulse transition notifications
+- SDK, MCP, and docs are aligned around `decision_workflow.get_funnel_context(trade_id, backtest_id)` and `client.pulse.*`
+
+### Maintenance Rule
+
+- Only record changes that matter to users, integrators, or fork maintainers
+- Keep the same-day updates under the same date instead of creating noise
+- Anything important beyond one week should be moved into `CHANGELOG.md`
 
 ---
 
@@ -47,6 +67,7 @@ If what you want is not “another dashboard” but “a base for building your 
 > The more accurate way to read it right now is as a system that is gradually becoming a **data foundation and decision framework for AI**, rather than a frozen SaaS product; public updates will continue refining the UI, interaction flow, monitoring, and documentation.
 
 - Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
+- The new primary flow is in place: Dashboard daily mode + Decision Workspace decision mode + Regime Navigator / Pulse linkage
 - AI-native surfaces are already in place: **native MCP, Terminal CLI, Agent Runtime, Capability Catalog**
 - Still being improved: scheduled task monitoring, more public demo paths, documentation polish, deployment experience
 
@@ -134,7 +155,7 @@ Your Idea → Regime Gate → Policy Gate → Signal Validation → Approval →
 
 Not just an API wrapper. AgomTradePro is built for the AI agent era:
 
-- **Python SDK** — full programmatic access to all 32 modules
+- **Python SDK** — full programmatic access across the system's business modules
 - **MCP Server (65+ tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
 - **Terminal CLI** — AI-interactive command interface
 - **Agent Runtime** — task orchestration with proposal → approval → execution lifecycle
