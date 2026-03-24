@@ -1,0 +1,81 @@
+<!-- pulse_card.html — Pulse 四维仪表盘 -->
+<div class="pulse-dashboard-card" id="pulseDashboardCard"
+     hx-get="/api/dashboard/pulse-card/"
+     hx-trigger="every 300s"
+     hx-swap="innerHTML"
+     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+    <div class="pulse-card__header">
+        <h3 class="pulse-card__title">📡 Pulse 脉搏</h3>
+        {% if pulse_observed_at %}
+        <span class="pulse-card__date">{{ pulse_observed_at }}</span>
+        {% endif %}
+    </div>
+
+    <!-- 综合分数 -->
+    <div class="pulse-composite">
+        <div class="pulse-composite__score pulse-composite--{{ pulse_strength|default:'moderate' }}">
+            {{ pulse_composite|default:0|floatformat:2 }}
+        </div>
+        <div class="pulse-composite__label">
+            {% if pulse_strength == 'strong' %}Regime 偏强
+            {% elif pulse_strength == 'weak' %}Regime 偏弱
+            {% else %}Regime 中等{% endif %}
+        </div>
+    </div>
+
+    <!-- 四维仪表 -->
+    <div class="pulse-dimensions">
+        <div class="pulse-dim pulse-dim--{{ growth_signal|default:'neutral' }}">
+            <div class="pulse-dim__label">增长</div>
+            <div class="pulse-dim__score">{{ growth_score|default:0|floatformat:2 }}</div>
+            <div class="pulse-dim__bar">
+                <div class="pulse-dim__fill" style="width: {{ growth_pct|default:50 }}%; background: var(--pulse-fill-color);"></div>
+            </div>
+        </div>
+
+        <div class="pulse-dim pulse-dim--{{ inflation_signal|default:'neutral' }}">
+            <div class="pulse-dim__label">通胀</div>
+            <div class="pulse-dim__score">{{ inflation_score|default:0|floatformat:2 }}</div>
+            <div class="pulse-dim__bar">
+                <div class="pulse-dim__fill" style="width: {{ inflation_pct|default:50 }}%; background: var(--pulse-fill-color);"></div>
+            </div>
+        </div>
+
+        <div class="pulse-dim pulse-dim--{{ liquidity_signal|default:'neutral' }}">
+            <div class="pulse-dim__label">流动性</div>
+            <div class="pulse-dim__score">{{ liquidity_score|default:0|floatformat:2 }}</div>
+            <div class="pulse-dim__bar">
+                <div class="pulse-dim__fill" style="width: {{ liquidity_pct|default:50 }}%; background: var(--pulse-fill-color);"></div>
+            </div>
+        </div>
+
+        <div class="pulse-dim pulse-dim--{{ sentiment_signal|default:'neutral' }}">
+            <div class="pulse-dim__label">情绪</div>
+            <div class="pulse-dim__score">{{ sentiment_score|default:0|floatformat:2 }}</div>
+            <div class="pulse-dim__bar">
+                <div class="pulse-dim__fill" style="width: {{ sentiment_pct|default:50 }}%; background: var(--pulse-fill-color);"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 转折预警 -->
+    {% if pulse_transition_warning %}
+    <div class="pulse-warning">
+        <span class="pulse-warning__icon">⚠️</span>
+        <span class="pulse-warning__text">
+            转向 {{ pulse_transition_direction }} 预警
+            {% for reason in pulse_transition_reasons %}
+                · {{ reason }}
+            {% endfor %}
+        </span>
+    </div>
+    {% endif %}
+
+    <!-- 数据可靠性 -->
+    {% if not pulse_is_reliable %}
+    <div class="pulse-stale-notice">
+        ⏳ 部分数据已过期 ({{ pulse_stale_count }} 个指标)
+    </div>
+    {% endif %}
+</div>

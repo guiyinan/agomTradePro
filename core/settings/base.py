@@ -161,6 +161,8 @@ INSTALLED_APPS = [
     "django_prometheus",  # Prometheus 指标导出（新增）
     # ========== 新模块：安装向导 ==========
     "apps.setup_wizard",  # 系统初始化向导（新增）
+    # ========== 新模块：Pulse 脉搏层 ==========
+    "apps.pulse",  # Pulse 战术层脉搏模块（新增）
 ]
 
 MIDDLEWARE = [
@@ -676,6 +678,15 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute="*/5"),  # 每 5 分钟
         "options": {
             "expires": 180,  # 3 分钟超时
+        },
+    },
+    # ============================================
+    # ========== Pulse 脉搏层 ==========
+    "pulse-weekly-calculate": {
+        "task": "pulse.calculate_weekly",
+        "schedule": crontab(hour=17, minute=15, day_of_week="fri"),  # 每周五 17:15
+        "options": {
+            "expires": 1800,  # 30 分钟超时
         },
     },
     # ============================================

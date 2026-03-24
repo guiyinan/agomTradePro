@@ -1,0 +1,62 @@
+<!-- regime_status_bar.html — Regime 导航仪状态栏 -->
+<!-- 固定在 dashboard 顶部，自动刷新 (HTMX) -->
+<div class="regime-status-bar regime-bg-{{ regime_name|default:'unknown'|lower }}"
+     id="regimeStatusBar"
+     hx-get="/api/dashboard/regime-status/"
+     hx-trigger="every 300s"
+     hx-swap="innerHTML"
+     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="regime-status-bar__inner">
+        <!-- Regime 象限 -->
+        <span class="regime-badge regime-badge--{{ regime_name|default:'unknown'|lower }}">
+            {% if regime_name == 'Recovery' %}复苏期
+            {% elif regime_name == 'Overheat' %}过热期
+            {% elif regime_name == 'Stagflation' %}滞胀期
+            {% elif regime_name == 'Deflation' %}通缩期
+            {% else %}加载中...{% endif %}
+        </span>
+
+        <!-- 方向箭头 -->
+        <span class="regime-direction">
+            {% if is_transitioning %}
+                <span class="regime-arrow regime-arrow--warn">▸</span>
+                <span class="regime-target">转向 {{ transition_target }}</span>
+            {% else %}
+                <span class="regime-arrow regime-arrow--stable">●</span>
+                <span class="regime-target">稳定</span>
+            {% endif %}
+        </span>
+
+        <!-- 置信度 -->
+        <span class="regime-confidence">
+            <span class="regime-confidence__label">置信度</span>
+            <span class="regime-confidence__value">{{ confidence_pct|default:0|floatformat:0 }}%</span>
+        </span>
+
+        <span class="regime-divider">│</span>
+
+        <!-- Pulse 强度 -->
+        <span class="pulse-badge pulse-badge--{{ pulse_strength|default:'moderate' }}">
+            脉搏:
+            {% if pulse_strength == 'strong' %}偏强
+            {% elif pulse_strength == 'weak' %}偏弱
+            {% else %}中等{% endif %}
+        </span>
+
+        <span class="regime-divider">│</span>
+
+        <!-- 风险预算 -->
+        <span class="regime-risk-budget">
+            <span class="regime-risk-budget__label">风险预算</span>
+            <span class="regime-risk-budget__value">{{ risk_budget_pct|default:0|floatformat:0 }}%</span>
+        </span>
+
+        <!-- 转折预警 -->
+        {% if transition_warning %}
+        <span class="regime-divider">│</span>
+        <span class="regime-warning-badge">
+            ⚠️ 转折预警
+        </span>
+        {% endif %}
+    </div>
+</div>

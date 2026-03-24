@@ -157,6 +157,17 @@
             </div>
         </header>
 
+        {% include "components/regime_status_bar.html" %}
+
+        <div class="status-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--gap); margin-bottom: var(--gap);">
+            {% include "components/attention_items.html" %}
+            {% include "components/action_recommendation.html" %}
+        </div>
+
+        <div style="margin-bottom: var(--gap);">
+            {% include "components/pulse_card.html" %}
+        </div>
+
         <section class="account-overview-section">
             <div class="section-header">
                 <h2 class="section-title">我的账户</h2>

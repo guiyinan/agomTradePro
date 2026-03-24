@@ -1,0 +1,27 @@
+<!-- attention_items.html — Dashboard 今日关注卡片 -->
+<div class="attention-card" id="attentionItemsCard"
+     hx-get="/api/dashboard/attention-items/"
+     hx-trigger="every 300s"
+     hx-swap="outerHTML"
+     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="attention-card__header">
+        <h3 class="attention-card__title">今日关注</h3>
+        <span class="attention-card__count">{{ attention_count|default:0 }}</span>
+    </div>
+
+    <div class="attention-card__body">
+        {% for item in attention_items %}
+        <div class="attention-item attention-item--{{ item.level|default:'low' }}">
+            <div class="attention-item__title">{{ item.title }}</div>
+            <div class="attention-item__detail">{{ item.detail }}</div>
+            <div class="attention-item__meta">{{ item.meta }}</div>
+        </div>
+        {% empty %}
+        <div class="attention-item attention-item--low">
+            <div class="attention-item__title">暂无待办</div>
+            <div class="attention-item__detail">当前未发现需要立即处理的事项。</div>
+            <div class="attention-item__meta">来源: dashboard</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>

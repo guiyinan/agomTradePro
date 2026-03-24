@@ -246,3 +246,124 @@ class RegimeHealthView(APIView):
                 'service': 'regime',
                 'error': str(e)
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class RegimeNavigatorView(APIView):
+    """Regime 导航仪完整输出
+
+    GET /api/regime/navigator/
+    """
+
+    def get(self, request):
+        try:
+            from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
+
+            as_of_date_str = request.query_params.get("as_of_date")
+            as_of_date = (
+                date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
+            )
+
+            use_case = BuildRegimeNavigatorUseCase()
+            navigator = use_case.execute(as_of_date)
+
+            if not navigator:
+                return Response(
+                    {"success": False, "error": "Navigator data not available"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            data = {
+                "regime_name": navigator.regime_name,
+                "confidence": navigator.confidence,
+                "distribution": navigator.distribution,
+                "generated_at": navigator.generated_at.isoformat(),
+                "data_freshness": navigator.data_freshness,
+                "is_transitioning": navigator.is_transitioning,
+                "movement": {
+                    "direction": navigator.movement.direction,
+                    "transition_target": navigator.movement.transition_target,
+                    "transition_probability": navigator.movement.transition_probability,
+                    "leading_indicators": navigator.movement.leading_indicators,
+                    "momentum_summary": navigator.movement.momentum_summary,
+                },
+                "asset_guidance": {
+                    "weight_ranges": [
+                        {
+                            "category": wr.category,
+                            "lower": wr.lower,
+                            "upper": wr.upper,
+                            "label": wr.label,
+                        }
+                        for wr in navigator.asset_guidance.weight_ranges
+                    ],
+                    "risk_budget_pct": navigator.asset_guidance.risk_budget_pct,
+                    "recommended_sectors": navigator.asset_guidance.recommended_sectors,
+                    "benefiting_styles": navigator.asset_guidance.benefiting_styles,
+                    "reasoning": navigator.asset_guidance.reasoning,
+                },
+                "watch_indicators": [
+                    {
+                        "code": w.code,
+                        "name": w.name,
+                        "threshold": w.threshold,
+                        "significance": w.significance,
+                    }
+                    for w in navigator.watch_indicators
+                ],
+            }
+
+            return Response({"success": True, "data": data})
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class RegimeActionView(APIView):
+    """Regime + Pulse 联合行动建议
+
+    GET /api/regime/action/
+    """
+
+    def get(self, request):
+        try:
+            from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
+
+            as_of_date_str = request.query_params.get("as_of_date")
+            as_of_date = (
+                date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
+            )
+
+            use_case = GetActionRecommendationUseCase()
+            action = use_case.execute(as_of_date)
+
+            if not action:
+                return Response(
+                    {"success": False, "error": "Action recommendation not available"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            data = {
+                "asset_weights": action.asset_weights,
+                "risk_budget_pct": action.risk_budget_pct,
+                "position_limit_pct": action.position_limit_pct,
+                "recommended_sectors": action.recommended_sectors,
+                "benefiting_styles": action.benefiting_styles,
+                "hedge_recommendation": action.hedge_recommendation,
+                "reasoning": action.reasoning,
+                "regime_contribution": action.regime_contribution,
+                "pulse_contribution": action.pulse_contribution,
+                "generated_at": action.generated_at.isoformat(),
+                "confidence": action.confidence,
+            }
+
+            return Response({"success": True, "data": data})
+
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

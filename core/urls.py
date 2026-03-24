@@ -75,6 +75,7 @@ def api_root_view(request):
                 "policy": "/api/policy/",
                 "portfolio": "/api/portfolio/",
                 "prompt": "/api/prompt/",
+                "pulse": "/api/pulse/",
                 "realtime": "/api/realtime/",
                 "regime": "/api/regime/",
                 "rotation": "/api/rotation/",
@@ -273,6 +274,11 @@ module_patterns = [
     # P2: Regime 模块
     path(
         "api/regime/", include(("apps.regime.interface.api_urls", "regime"), namespace="api_regime")
+    ),
+    # Pulse 脉搏层 API
+    path(
+        "api/pulse/",
+        include(("apps.pulse.interface.api_urls", "pulse"), namespace="api_pulse"),
     ),
     # P2: Policy 模块（仅挂载 API 路由，避免与页面路由冲突）
     path(

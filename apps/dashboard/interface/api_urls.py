@@ -13,6 +13,10 @@ def dashboard_api_root(request):
     return JsonResponse(
         {
             "endpoints": {
+                "attention_items": "/api/dashboard/attention-items/",
+                "regime_status": "/api/dashboard/regime-status/",
+                "pulse_card": "/api/dashboard/pulse-card/",
+                "action_recommendation": "/api/dashboard/action-recommendation/",
                 "position_detail": "/api/dashboard/position/{asset_code}/",
                 "positions": "/api/dashboard/positions/",
                 "allocation": "/api/dashboard/allocation/",
@@ -34,6 +38,14 @@ def dashboard_api_root(request):
 
 urlpatterns = [
     path("", dashboard_api_root, name="api_root"),
+    path("attention-items/", views.attention_items_htmx, name="attention_items"),
+    path("regime-status/", views.regime_status_htmx, name="regime_status"),
+    path("pulse-card/", views.pulse_card_htmx, name="pulse_card"),
+    path(
+        "action-recommendation/",
+        views.action_recommendation_htmx,
+        name="action_recommendation",
+    ),
     path("position/<str:asset_code>/", views.position_detail_htmx, name="position_detail"),
     path("positions/", views.positions_list_htmx, name="positions_list"),
     path("allocation/", views.allocation_chart_htmx, name="allocation"),
