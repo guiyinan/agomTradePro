@@ -188,21 +188,33 @@ class AIProviderRepository:
         """
         保存 AI Provider 配置
 
+        优先使用加密字段 api_key_encrypted 存储，
+        仅在加密服务不可用时回退到明文存储。
+
         Args:
             config: AI Provider 配置
         """
         from apps.ai_provider.infrastructure.models import AIProviderConfig
+        from shared.infrastructure.crypto import get_encryption_service
+
+        defaults = {
+            "provider_type": config.provider_type,
+            "base_url": config.base_url,
+            "default_model": config.default_model,
+            "is_active": config.is_active,
+            "priority": config.priority,
+        }
+
+        crypto = get_encryption_service()
+        if crypto and config.api_key:
+            defaults["api_key_encrypted"] = crypto.encrypt(config.api_key)
+            defaults["api_key"] = ""  # Clear deprecated plaintext field
+        else:
+            defaults["api_key"] = config.api_key
 
         AIProviderConfig.objects.update_or_create(
             name=config.name,
-            defaults={
-                "provider_type": config.provider_type,
-                "base_url": config.base_url,
-                "api_key": config.api_key,
-                "default_model": config.default_model,
-                "is_active": config.is_active,
-                "priority": config.priority,
-            },
+            defaults=defaults,
         )
 
     def has_active_provider(self) -> bool:

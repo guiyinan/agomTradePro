@@ -180,7 +180,7 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 
 ![Setup Wizard](docs/images/readme/setup_wizard.png)
 
-*A clearer first impression for public visitors: admin bootstrap, AI provider setup, and data source onboarding in one flow.*
+*First launch auto-generates security keys, creates admin, and configures AI provider and data sources — no manual .env editing required.*
 
 </details>
 
@@ -415,64 +415,88 @@ pip install -r requirements.txt
 
 # Database setup
 python manage.py migrate
-python manage.py createsuperuser
 
 # Start development server
 python manage.py runserver
+
+# Visit http://localhost:8000/setup/ to complete the setup wizard
 ```
 
-Then open:
+The setup wizard will guide you through:
+1. **Auto-generate security keys** — `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` are generated automatically and written to `.env` if not already configured
+2. Create an admin account
+3. Configure AI provider (optional) — API keys are encrypted at rest with Fernet
+4. Configure data sources (optional)
 
-```text
-http://localhost:8000/setup/
+> **No manual key setup required.** When you click “Start” on the welcome page, the wizard checks for missing keys and generates them automatically. If you prefer to set them manually in `.env` beforehand, the wizard will skip already-configured keys.
+
+### Docker Deployment
+
+```bash
+# Local Docker (SQLite + Redis)
+copy .env.example .env       # Windows
+docker-compose up -d
+
+# VPS production
+cd deploy
+copy .env.vps.example .env   # edit as needed
+docker compose -f ../docker/docker-compose.vps.yml up -d
 ```
 
-to complete the setup wizard.
+**Security keys are handled automatically in Docker too:**
+
+- `entrypoint.prod.sh` checks `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` before Django starts
+- If not provided, keys are auto-generated and persisted to `/app/data/.env.generated` (inside the data volume)
+- web, celery_worker, and celery_beat containers share the same keys; they survive container restarts
+- If you explicitly set keys in `deploy/.env`, those take precedence over auto-generated values
 
 ### Common First-Run Pitfalls
 
-#### 1. `SECRET_KEY`
+#### 1. `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`
 
-Development mode has a fallback value, but you should still set your own `SECRET_KEY` in `.env`:
+**Usually no manual setup needed.** Both the setup wizard and Docker entrypoint auto-generate these keys.
+
+If you prefer to set them manually:
+
+```bash
+# Django SECRET_KEY
+python -c “from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())”
+
+# Encryption key (Fernet)
+python -c “from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())”
+```
+
+Then add to `.env`:
 
 ```env
 SECRET_KEY=your-own-django-secret-key
-```
-
-In production, this is mandatory.
-
-#### 2. `AGOMTRADEPRO_ENCRYPTION_KEY`
-
-This is easy to miss.  
-If it is not set, the app can still start, but **new AI provider API keys cannot be written**.
-
-Generate one with:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Then put it in `.env`:
-
-```env
 AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
 ```
 
-#### 3. `DATABASE_URL`
+#### 2. `DATABASE_URL`
 
-`.env.example` includes a PostgreSQL example connection string.  
+`.env.example` includes a PostgreSQL example connection string.
 If you just want a quick local run, you can **remove or leave `DATABASE_URL` empty**, and the project will fall back to local SQLite.
 
-#### 4. `REDIS_URL` / Celery
+#### 3. `REDIS_URL` / Celery
 
 Redis is not required for a first local run.
 
 - without `REDIS_URL`, Celery falls back to eager/synchronous execution
 - only set up Redis when you want the full async worker/beat flow
 
-#### 5. Minimal config for “just get it running”
+#### 4. Minimal config for “just get it running”
 
-If your goal is to boot the app and explore the UI first, these are the most important variables to set:
+After copying `.env.example`, you don't even need to change any keys — the setup wizard handles it:
+
+```bash
+copy .env.example .env
+python manage.py migrate
+python manage.py runserver
+# Visit http://localhost:8000/setup/ → click “Start”
+```
+
+If you want to skip the wizard and configure manually, these are the essential variables:
 
 ```env
 SECRET_KEY=your-own-django-secret-key

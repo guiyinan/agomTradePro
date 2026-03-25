@@ -37,7 +37,7 @@ services:
       # SQLite-first, but allow override via deploy/.env (e.g., Postgres) without editing compose.
       DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:-}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
       TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}
@@ -84,7 +84,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:-}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
       AGOMTRADEPRO_ENCRYPTION_KEY: ${AGOMTRADEPRO_ENCRYPTION_KEY:-}
@@ -121,7 +121,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:-}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
       AGOMTRADEPRO_ENCRYPTION_KEY: ${AGOMTRADEPRO_ENCRYPTION_KEY:-}

@@ -15,6 +15,7 @@ from django.views.generic import View
 from apps.setup_wizard.application.use_cases import (
     CheckSetupStatusUseCase,
     CompleteSetupUseCase,
+    EnsureSecurityKeysUseCase,
     GetNextStepUseCase,
     SetupAdminUseCase,
     SetupAIProviderUseCase,
@@ -147,6 +148,22 @@ class SetupStepView(View):
 
     def _handle_welcome(self, request: HttpRequest) -> HttpResponse:
         """处理欢迎页"""
+        # Auto-generate security keys (SECRET_KEY / AGOMTRADEPRO_ENCRYPTION_KEY)
+        # so that AI API key encryption works in subsequent steps.
+        use_case = EnsureSecurityKeysUseCase()
+        result = use_case.execute()
+
+        generated = []
+        if result.get("secret_key_generated"):
+            generated.append("Django SECRET_KEY")
+        if result.get("encryption_key_generated"):
+            generated.append("数据加密密钥")
+        if generated:
+            messages.info(
+                request,
+                f"已自动生成 {'、'.join(generated)} 并写入 .env 文件，请妥善保管。",
+            )
+
         request.session.setdefault("setup_wizard", {})["current_step"] = "admin_password"
         request.session.modified = True
         return redirect("/setup/")
