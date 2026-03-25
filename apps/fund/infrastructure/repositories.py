@@ -23,8 +23,6 @@ from ..domain.entities import (
     FundPerformance,
     FundSectorAllocation,
 )
-from .adapters.akshare_fund_adapter import AkShareFundAdapter
-from .adapters.tushare_fund_adapter import TushareFundAdapter
 from .models import (
     FundHoldingModel,
     FundInfoModel,
@@ -143,6 +141,9 @@ class DjangoFundRepository:
 
     def __init__(self):
         """初始化仓储"""
+        from .adapters.akshare_fund_adapter import AkShareFundAdapter
+        from .adapters.tushare_fund_adapter import TushareFundAdapter
+
         self.tushare_adapter = TushareFundAdapter()
         self.akshare_adapter = AkShareFundAdapter()
 
