@@ -14,6 +14,13 @@
 4. 冲突列表查询
 5. 模型参数查询与更新
 
+### 1.1 前端账户绑定约定
+
+- 工作台顶部“选择账户”与推荐/审批/冲突筛选使用模拟账户接口 `/api/simulated-trading/accounts/`
+- 该接口前端应读取 `accounts` 数组，单项字段使用 `account_id`、`account_name`
+- 审批弹窗中的“账户落地”使用真实投资组合接口 `/account/api/portfolios/`
+- 该接口为 DRF 分页列表，前端应读取 `results` 数组，并将 `id` 作为 `portfolio_id`
+
 ## 2. 统一推荐列表
 
 - 方法: `GET`

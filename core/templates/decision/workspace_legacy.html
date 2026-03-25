@@ -422,8 +422,10 @@
 
                 <div id="account-fields" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label">组合 ID <span class="required">*</span></label>
-                        <input id="modal-portfolio-id" type="number" class="form-input" min="1" />
+                        <label class="form-label">投资组合 <span class="required">*</span></label>
+                        <select id="modal-portfolio-id" class="form-select">
+                            <option value="">请选择投资组合</option>
+                        </select>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -461,6 +463,7 @@ let currentTab = 'recommendations';
 let currentRecommendation = null;
 let approvalRequestId = null;
 let userAccounts = [];
+let executionPortfolios = [];
 const workspaceParams = new URLSearchParams(window.location.search);
 const workspaceBridge = {
     source: workspaceParams.get('source') || '',
@@ -587,6 +590,7 @@ async function bootstrapWorkspaceBridge() {
 document.addEventListener('DOMContentLoaded', async function() {
     // 加载账户列表
     await loadUserAccounts();
+    await loadExecutionPortfolios();
     await bootstrapWorkspaceBridge();
     // 加载推荐数据
     loadRecommendations();
@@ -637,11 +641,11 @@ async function loadUserAccounts() {
         });
         const data = await res.json();
 
-        if (data.success && Array.isArray(data.results)) {
-            userAccounts = data.results;
+        if (data.success && Array.isArray(data.accounts)) {
+            userAccounts = data.accounts;
             const options = '<option value="">选择账户...</option>' +
                 userAccounts.map(acc =>
-                    `<option value="${acc.account_id}">${acc.name} (${acc.initial_capital}元)</option>`
+                    `<option value="${acc.account_id}">${acc.account_name} (${acc.initial_capital}元)</option>`
                 ).join('');
 
             // 填充所有账户选择器
@@ -662,6 +666,34 @@ async function loadUserAccounts() {
         }
     } catch (error) {
         console.error('加载账户失败:', error);
+    }
+}
+
+async function loadExecutionPortfolios() {
+    try {
+        const res = await fetch('/account/api/portfolios/?page_size=100', {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+
+        if (Array.isArray(data.results)) {
+            executionPortfolios = data.results;
+            const select = document.getElementById('modal-portfolio-id');
+            if (!select) {
+                return;
+            }
+
+            select.innerHTML = '<option value="">请选择投资组合</option>' +
+                executionPortfolios.map(portfolio =>
+                    `<option value="${portfolio.id}">${portfolio.name} (ID ${portfolio.id})</option>`
+                ).join('');
+
+            if (executionPortfolios.length > 0 && !select.value) {
+                select.value = String(executionPortfolios[0].id);
+            }
+        }
+    } catch (error) {
+        console.error('加载投资组合失败:', error);
     }
 }
 
@@ -1354,11 +1386,11 @@ async function loadSimulatedAccounts() {
         });
         const data = await res.json();
 
-        if (data.success && Array.isArray(data.results)) {
+        if (data.success && Array.isArray(data.accounts)) {
             const select = document.getElementById('modal-sim-account');
             select.innerHTML = '<option value="">请选择账户</option>' +
-                data.results.map(acc =>
-                    `<option value="${acc.account_id}">${acc.name} (${acc.initial_capital}元)</option>`
+                data.accounts.map(acc =>
+                    `<option value="${acc.account_id}">${acc.account_name} (${acc.initial_capital}元)</option>`
                 ).join('');
         }
     } catch (error) {
