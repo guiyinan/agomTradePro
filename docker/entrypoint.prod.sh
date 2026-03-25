@@ -12,32 +12,74 @@ export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-core.settings.productio
 ENV_GENERATED="/app/data/.env.generated"
 mkdir -p /app/data
 
+_read_generated_key() {
+  key_name="$1"
+  python - "$ENV_GENERATED" "$key_name" <<'PY'
+from pathlib import Path
+import sys
+
+env_path = Path(sys.argv[1])
+target_key = sys.argv[2]
+
+if not env_path.exists():
+    raise SystemExit(0)
+
+for line in env_path.read_text(encoding="utf-8").splitlines():
+    key, sep, value = line.partition("=")
+    if sep and key == target_key:
+        sys.stdout.write(value)
+        break
+PY
+}
+
 _load_generated_env() {
-  if [ -f "$ENV_GENERATED" ]; then
-    # Source only KEY=VALUE lines (no export prefix needed — we export below)
-    while IFS='=' read -r key value; do
-      case "$key" in
-        SECRET_KEY|AGOMTRADEPRO_ENCRYPTION_KEY)
-          if [ -n "$value" ]; then
-            eval "export $key=\"$value\""
-          fi
-          ;;
-      esac
-    done < "$ENV_GENERATED"
+  if [ -z "${SECRET_KEY:-}" ]; then
+    saved_secret="$(_read_generated_key SECRET_KEY)"
+    if [ -n "$saved_secret" ]; then
+      SECRET_KEY="$saved_secret"
+      export SECRET_KEY
+    fi
+  fi
+
+  if [ -z "${AGOMTRADEPRO_ENCRYPTION_KEY:-}" ]; then
+    saved_encryption_key="$(_read_generated_key AGOMTRADEPRO_ENCRYPTION_KEY)"
+    if [ -n "$saved_encryption_key" ]; then
+      AGOMTRADEPRO_ENCRYPTION_KEY="$saved_encryption_key"
+      export AGOMTRADEPRO_ENCRYPTION_KEY
+    fi
   fi
 }
 
 _save_generated_key() {
   key_name="$1"
   key_value="$2"
-  if [ -f "$ENV_GENERATED" ] && grep -q "^${key_name}=" "$ENV_GENERATED"; then
-    # Replace existing line (platform-safe: write to tmp then move)
-    tmp="${ENV_GENERATED}.tmp"
-    sed "s|^${key_name}=.*|${key_name}=${key_value}|" "$ENV_GENERATED" > "$tmp"
-    mv "$tmp" "$ENV_GENERATED"
-  else
-    echo "${key_name}=${key_value}" >> "$ENV_GENERATED"
-  fi
+  python - "$ENV_GENERATED" "$key_name" "$key_value" <<'PY'
+from pathlib import Path
+import sys
+
+env_path = Path(sys.argv[1])
+target_key = sys.argv[2]
+target_value = sys.argv[3]
+
+lines: list[str] = []
+if env_path.exists():
+    lines = env_path.read_text(encoding="utf-8").splitlines()
+
+updated = False
+output_lines: list[str] = []
+for line in lines:
+    key, sep, value = line.partition("=")
+    if sep and key == target_key:
+      output_lines.append(f"{target_key}={target_value}")
+      updated = True
+    else:
+      output_lines.append(line)
+
+if not updated:
+    output_lines.append(f"{target_key}={target_value}")
+
+env_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
+PY
 }
 
 # Load any previously generated keys first

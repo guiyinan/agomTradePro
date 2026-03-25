@@ -172,3 +172,31 @@ class TestEnsureAllKeys:
         content = env_path.read_text(encoding="utf-8")
         assert "SECRET_KEY=" in content
         assert "AGOMTRADEPRO_ENCRYPTION_KEY=" in content
+
+    def test_can_skip_generation_for_existing_install(self, work_dir):
+        env_path = work_dir / ".env"
+        env_path.write_text(
+            "SECRET_KEY=django-insecure-test\nAGOMTRADEPRO_ENCRYPTION_KEY=\n"
+        )
+
+        with patch("apps.setup_wizard.infrastructure.encryption_setup.settings") as mock_settings:
+            mock_settings.SECRET_KEY = "django-insecure-test"
+            mock_settings.AGOMTRADEPRO_ENCRYPTION_KEY = ""
+            mock_settings.BASE_DIR = work_dir
+            with patch.dict(
+                os.environ,
+                {"SECRET_KEY": "django-insecure-test", "AGOMTRADEPRO_ENCRYPTION_KEY": ""},
+                clear=False,
+            ):
+                result = ensure_all_keys(
+                    generate_secret_key=False,
+                    generate_encryption_key=False,
+                )
+
+        assert result["secret_key_generated"] is False
+        assert result["encryption_key_generated"] is False
+        assert result["secret_key_configured"] is False
+        assert result["encryption_key_configured"] is False
+        assert env_path.read_text(encoding="utf-8") == (
+            "SECRET_KEY=django-insecure-test\nAGOMTRADEPRO_ENCRYPTION_KEY=\n"
+        )

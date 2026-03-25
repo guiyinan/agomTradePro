@@ -88,7 +88,7 @@ pwsh -File .\scripts\package-for-vps-aggressive.ps1 -AllowOnlinePipFallback
 - Keys are persisted to `/app/data/.env.generated` (inside the `sqlite_data` volume)
 - All containers (web, celery_worker, celery_beat) share the same keys via the shared volume
 - Keys survive container restarts and redeployments
-- If you explicitly set keys in `deploy/.env`, those take precedence
+- If you explicitly set keys in `deploy/.env`, those take precedence and are never overwritten by persisted generated values
 
 To provide keys manually instead of auto-generating:
 

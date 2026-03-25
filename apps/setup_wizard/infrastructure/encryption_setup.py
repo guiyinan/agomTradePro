@@ -22,16 +22,23 @@ logger = logging.getLogger(__name__)
 _INSECURE_PATTERNS = ("django-insecure", "change-this", "change_this")
 
 
-def ensure_all_keys() -> dict[str, bool]:
+def ensure_all_keys(
+    *, generate_secret_key: bool = True, generate_encryption_key: bool = True
+) -> dict[str, bool]:
     """
     确保 SECRET_KEY 和 AGOMTRADEPRO_ENCRYPTION_KEY 均已正确配置。
 
     Returns:
-        Dict with 'secret_key_generated' and 'encryption_key_generated' flags
+        Dict with generation and configuration flags
     """
+    secret_key_generated = ensure_secret_key() if generate_secret_key else False
+    encryption_key_generated = ensure_encryption_key() if generate_encryption_key else False
+
     return {
-        "secret_key_generated": ensure_secret_key(),
-        "encryption_key_generated": ensure_encryption_key(),
+        "secret_key_generated": secret_key_generated,
+        "encryption_key_generated": encryption_key_generated,
+        "secret_key_configured": has_secure_secret_key(),
+        "encryption_key_configured": has_encryption_key(),
     }
 
 
@@ -77,6 +84,20 @@ def ensure_encryption_key() -> bool:
 
     logger.info("Setup wizard: auto-generated new AGOMTRADEPRO_ENCRYPTION_KEY")
     return True
+
+
+def has_secure_secret_key() -> bool:
+    """Return True when SECRET_KEY is configured and not an insecure placeholder."""
+    current = getattr(settings, "SECRET_KEY", "") or os.environ.get("SECRET_KEY", "")
+    return bool(current) and not _is_insecure_secret_key(current)
+
+
+def has_encryption_key() -> bool:
+    """Return True when AGOMTRADEPRO_ENCRYPTION_KEY is configured."""
+    current = getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", "") or os.environ.get(
+        "AGOMTRADEPRO_ENCRYPTION_KEY", ""
+    )
+    return bool(current)
 
 
 def _is_insecure_secret_key(key: str) -> bool:

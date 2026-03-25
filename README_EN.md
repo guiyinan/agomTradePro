@@ -73,6 +73,21 @@ If what you want is not “another dashboard” but “a base for building your 
 
 ---
 
+## Quick Start
+
+For now, the **simplest installation path** is:
+
+1. Clone this repository locally
+2. Let **OpenClaw** or **Claude Code** read the repo and handle dependency install, environment setup, migrations, and startup for you
+3. If you prefer a manual path, continue with `deploy/README_DEPLOY.md` and the docs under `docs/deployment/`
+
+### Notes
+
+- The public install flow is still being simplified, so the easiest option today is to let OpenClaw or Claude Code install it for you
+- A more direct **Docker package / deployment bundle** will be provided later by the author
+
+---
+
 ## Contact
 
 If you want to discuss the project's direction or follow-up iterations, you can reach me on WeChat: `Uncleliou`

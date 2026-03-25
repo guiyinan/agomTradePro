@@ -237,7 +237,9 @@
       "Bash(gh workflow:*)",
       "Bash(PATH=$PATH:/c/Users/muku/gh/bin)",
       "Bash(find /d/githv/agomTradePro -type f \\\\\\(-iname *.png -o -iname *.jpg -o -iname *.gif -o -iname *.svg \\\\\\))",
-      "Bash(find . -name \"*.py\" -type f -exec grep -l \"str\\(pattern.pattern\\)\" {})"
+      "Bash(find . -name \"*.py\" -type f -exec grep -l \"str\\(pattern.pattern\\)\" {})",
+      "Bash(bash -n docker/entrypoint.prod.sh)",
+      "Bash(gh api:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

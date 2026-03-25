@@ -246,10 +246,10 @@ for %%C in (agomtradepro_redis_dev agomtradepro_postgres_dev) do (
 exit /b 0
 
 :stop_conflicting_redis_containers
-REM Stop any running Docker containers already binding host port 6379,
-REM except the target agomtradepro_redis_dev container managed by this project.
-for /f "usebackq delims=" %%C in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$names = docker ps --filter 'publish=6379' --format '{{.Names}}'; foreach($name in $names){ if($name -and $name -ne 'agomtradepro_redis_dev'){ Write-Output $name } }"`) do (
-    echo [INFO] Stopping conflicting Redis container %%C on port 6379
+REM Stop only AgomTradePro-managed Redis containers already binding port 6379,
+REM leaving unrelated project containers untouched.
+for /f "usebackq delims=" %%C in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$names = docker ps --filter 'publish=6379' --format '{{.Names}}'; foreach($name in $names){ if($name -like 'agomtradepro_redis*' -and $name -ne 'agomtradepro_redis_dev'){ Write-Output $name } }"`) do (
+    echo [INFO] Stopping AgomTradePro Redis container %%C on port 6379
     docker stop %%C >nul 2>&1
 )
 exit /b 0
