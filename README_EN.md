@@ -11,7 +11,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-1%2C600+-brightgreen.svg)](#testing)
-[![Modules](https://img.shields.io/badge/business_modules-32-purple.svg)](#architecture)
+[![Modules](https://img.shields.io/badge/business_modules-34-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-65+-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -19,6 +19,26 @@
 [Quick Start](#quick-start) · [Why This Exists](#why-this-exists) · [Why Fork / Star](#why-fork--star) · [Architecture](#architecture) · [AI Integration](#ai-native-integration) · [Screenshots](#screenshots) · [Docs](docs/INDEX.md)
 
 </div>
+
+---
+
+## What's New
+
+> This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-03-24
+
+- The full Regime Navigator + Pulse redesign rollout is now closed out across Dashboard, Decision Workspace, and the Regime page
+- Dashboard navigation has been tightened, and `beta_gate`, `alpha_trigger`, and `decision_rhythm` are no longer exposed as standalone primary homepage entries
+- The Regime page now includes a historical `Regime + Pulse + Action` layered time-series chart
+- The Dashboard now supports optional browser-level Pulse transition notifications
+- SDK, MCP, and docs are aligned around `decision_workflow.get_funnel_context(trade_id, backtest_id)` and `client.pulse.*`
+
+### Maintenance Rule
+
+- Only record changes that matter to users, integrators, or fork maintainers
+- Keep the same-day updates under the same date instead of creating noise
+- Anything important beyond one week should be moved into `CHANGELOG.md`
 
 ---
 
@@ -47,8 +67,28 @@ If what you want is not “another dashboard” but “a base for building your 
 > The more accurate way to read it right now is as a system that is gradually becoming a **data foundation and decision framework for AI**, rather than a frozen SaaS product; public updates will continue refining the UI, interaction flow, monitoring, and documentation.
 
 - Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
+- The new primary flow is in place: Dashboard daily mode + Decision Workspace decision mode + Regime Navigator / Pulse linkage
 - AI-native surfaces are already in place: **native MCP, Terminal CLI, Agent Runtime, Capability Catalog**
 - Still being improved: scheduled task monitoring, more public demo paths, documentation polish, deployment experience
+
+---
+
+## Quick Start
+
+For now, the **simplest installation path** is:
+
+1. Clone this repository locally
+2. On Windows, run `install.bat` from the repository root to create the local virtual environment and install dependencies
+3. Then run `start.bat` and choose `Quick Start`
+4. Or let **OpenClaw** or **Claude Code** read the repo and handle dependency install, environment setup, migrations, and startup for you
+5. If you prefer a manual path, continue with `deploy/README_DEPLOY.md` and the docs under `docs/deployment/`
+
+### Notes
+
+- The local virtual environment is expected at `agomtradepro/`. It is a **local-only development environment**, is ignored by git, and is **not** stored in the repository
+- If you are on **Windows** and your local Python environment and project dependencies are already prepared, you can usually clone the repo, run `start.bat` from the repository root, and choose `Quick Start`
+- The public install flow is still being simplified, so the easiest option today is to let OpenClaw or Claude Code install it for you
+- A more direct **Docker package / deployment bundle** will be provided later by the author
 
 ---
 
@@ -134,7 +174,7 @@ Your Idea → Regime Gate → Policy Gate → Signal Validation → Approval →
 
 Not just an API wrapper. AgomTradePro is built for the AI agent era:
 
-- **Python SDK** — full programmatic access to all 32 modules
+- **Python SDK** — full programmatic access across the system's business modules
 - **MCP Server (65+ tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
 - **Terminal CLI** — AI-interactive command interface
 - **Agent Runtime** — task orchestration with proposal → approval → execution lifecycle
@@ -159,7 +199,7 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 
 ![Setup Wizard](docs/images/readme/setup_wizard.png)
 
-*A clearer first impression for public visitors: admin bootstrap, AI provider setup, and data source onboarding in one flow.*
+*First launch auto-generates security keys, creates admin, and configures AI provider and data sources — no manual .env editing required.*
 
 </details>
 
@@ -394,64 +434,88 @@ pip install -r requirements.txt
 
 # Database setup
 python manage.py migrate
-python manage.py createsuperuser
 
 # Start development server
 python manage.py runserver
+
+# Visit http://localhost:8000/setup/ to complete the setup wizard
 ```
 
-Then open:
+The setup wizard will guide you through:
+1. **Auto-generate security keys** — `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` are generated automatically and written to `.env` if not already configured
+2. Create an admin account
+3. Configure AI provider (optional) — API keys are encrypted at rest with Fernet
+4. Configure data sources (optional)
 
-```text
-http://localhost:8000/setup/
+> **No manual key setup required.** When you click “Start” on the welcome page, the wizard checks for missing keys and generates them automatically. If you prefer to set them manually in `.env` beforehand, the wizard will skip already-configured keys.
+
+### Docker Deployment
+
+```bash
+# Local Docker (SQLite + Redis)
+copy .env.example .env       # Windows
+docker-compose up -d
+
+# VPS production
+cd deploy
+copy .env.vps.example .env   # edit as needed
+docker compose -f ../docker/docker-compose.vps.yml up -d
 ```
 
-to complete the setup wizard.
+**Security keys are handled automatically in Docker too:**
+
+- `entrypoint.prod.sh` checks `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` before Django starts
+- If not provided, keys are auto-generated and persisted to `/app/data/.env.generated` (inside the data volume)
+- web, celery_worker, and celery_beat containers share the same keys; they survive container restarts
+- If you explicitly set keys in `deploy/.env`, those take precedence over auto-generated values
 
 ### Common First-Run Pitfalls
 
-#### 1. `SECRET_KEY`
+#### 1. `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`
 
-Development mode has a fallback value, but you should still set your own `SECRET_KEY` in `.env`:
+**Usually no manual setup needed.** Both the setup wizard and Docker entrypoint auto-generate these keys.
+
+If you prefer to set them manually:
+
+```bash
+# Django SECRET_KEY
+python -c “from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())”
+
+# Encryption key (Fernet)
+python -c “from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())”
+```
+
+Then add to `.env`:
 
 ```env
 SECRET_KEY=your-own-django-secret-key
-```
-
-In production, this is mandatory.
-
-#### 2. `AGOMTRADEPRO_ENCRYPTION_KEY`
-
-This is easy to miss.  
-If it is not set, the app can still start, but **new AI provider API keys cannot be written**.
-
-Generate one with:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Then put it in `.env`:
-
-```env
 AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
 ```
 
-#### 3. `DATABASE_URL`
+#### 2. `DATABASE_URL`
 
-`.env.example` includes a PostgreSQL example connection string.  
+`.env.example` includes a PostgreSQL example connection string.
 If you just want a quick local run, you can **remove or leave `DATABASE_URL` empty**, and the project will fall back to local SQLite.
 
-#### 4. `REDIS_URL` / Celery
+#### 3. `REDIS_URL` / Celery
 
 Redis is not required for a first local run.
 
 - without `REDIS_URL`, Celery falls back to eager/synchronous execution
 - only set up Redis when you want the full async worker/beat flow
 
-#### 5. Minimal config for “just get it running”
+#### 4. Minimal config for “just get it running”
 
-If your goal is to boot the app and explore the UI first, these are the most important variables to set:
+After copying `.env.example`, you don't even need to change any keys — the setup wizard handles it:
+
+```bash
+copy .env.example .env
+python manage.py migrate
+python manage.py runserver
+# Visit http://localhost:8000/setup/ → click “Start”
+```
+
+If you want to skip the wizard and configure manually, these are the essential variables:
 
 ```env
 SECRET_KEY=your-own-django-secret-key

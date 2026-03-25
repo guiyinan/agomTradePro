@@ -1,0 +1,21 @@
+<div class="funnel-step-content" style="animation: fadeIn 0.3s ease-in-out;">
+    <h3 style="margin-bottom: 20px;">阶段 1: 宏观环境评估</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="attention-card">
+            <h4 class="attention-card__title" style="margin-bottom: 10px;">📉 战略基准 (Regime)</h4>
+            <p><strong>当前象限：</strong> <span class="badge regime-{{ regime_name|default:'unknown'|lower }}">{{ regime_name|default:"未知" }}</span></p>
+            <p><strong>宏观裁决：</strong> {{ overall_verdict }}</p>
+            <p style="color: var(--color-text-muted); font-size: 13px; margin-top: 10px;">Regime 基于低频（月度）通胀和增长数据判定，决定基础仓位上下限。</p>
+        </div>
+        <div class="attention-card">
+            <h4 class="attention-card__title" style="margin-bottom: 10px;">💓 战术调整 (Pulse)</h4>
+            <p><strong>综合分层：</strong> <span class="badge">{{ regime_strength }}</span></p>
+            <p><strong>脉搏动量：</strong> {{ pulse_composite|floatformat:2 }}</p>
+            <p style="color: var(--color-text-muted); font-size: 13px; margin-top: 10px;">Pulse 基于高频（周度）指标，对当前 Regime 进行力度修正与转折预测。</p>
+        </div>
+        <div class="attention-card" style="grid-column: 1 / -1; border-left: 4px solid #6366f1;">
+            <h4 class="attention-card__title" style="margin-bottom: 10px;">🏛️ 政策档位 (Policy)</h4>
+            <p><strong>当前环境定调：</strong> <span class="badge policy-{{ policy_level|default:'P0'|lower }}">{{ policy_level|default:"P0" }}</span></p>
+        </div>
+    </div>
+</div>

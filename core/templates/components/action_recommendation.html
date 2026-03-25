@@ -1,0 +1,77 @@
+<!-- action_recommendation.html — Regime + Pulse 联合行动建议卡片 -->
+<div class="action-rec-card" id="actionRecommendationCard"
+     hx-get="/api/dashboard/action-recommendation/"
+     hx-trigger="every 600s"
+     hx-swap="innerHTML"
+     hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+
+    <div class="action-rec__header">
+        <h3 class="action-rec__title">🎯 行动建议</h3>
+        <span class="action-rec__confidence">
+            置信度 {{ action_confidence|default:0|floatformat:0 }}%
+        </span>
+    </div>
+
+    <!-- 资产配置条 -->
+    <div class="action-rec__allocations">
+        {% for category, weight in action_weights.items %}
+        <div class="action-alloc-item">
+            <span class="action-alloc__label">
+                {% if category == 'equity' %}权益类
+                {% elif category == 'bond' %}债券类
+                {% elif category == 'commodity' %}商品类
+                {% elif category == 'cash' %}现金类
+                {% else %}{{ category }}{% endif %}
+            </span>
+            <div class="action-alloc__bar">
+                <div class="action-alloc__fill action-alloc__fill--{{ category }}"
+                     style="width: {{ weight|floatformat:0 }}%;"></div>
+            </div>
+            <span class="action-alloc__value">{{ weight|floatformat:0 }}%</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 风险预算 -->
+    <div class="action-rec__risk-row">
+        <span>风险预算 {{ action_risk_budget|default:0|floatformat:0 }}%</span>
+        <span>单一持仓上限 {{ action_position_limit|default:0|floatformat:0 }}%</span>
+    </div>
+
+    <!-- 推荐板块/风格 -->
+    {% if action_sectors %}
+    <div class="action-rec__tags">
+        <span class="action-rec__tags-label">推荐板块:</span>
+        {% for sector in action_sectors %}
+        <span class="action-tag action-tag--sector">{{ sector }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if action_styles %}
+    <div class="action-rec__tags">
+        <span class="action-rec__tags-label">受益风格:</span>
+        {% for style in action_styles %}
+        <span class="action-tag action-tag--style">{{ style }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 对冲建议 -->
+    {% if action_hedge %}
+    <div class="action-rec__hedge">
+        <span class="action-rec__hedge-icon">🛡️</span>
+        <span>{{ action_hedge }}</span>
+    </div>
+    {% endif %}
+
+    <!-- 可解释性 -->
+    <div class="action-rec__reasoning">
+        <details>
+            <summary>决策逻辑</summary>
+            <p class="action-rec__regime-contrib">{{ action_regime_contribution }}</p>
+            <p class="action-rec__pulse-contrib">{{ action_pulse_contribution }}</p>
+            <p class="action-rec__reasoning-text">{{ action_reasoning }}</p>
+        </details>
+    </div>
+</div>

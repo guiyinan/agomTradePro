@@ -33,7 +33,7 @@
   - 旧: `/regime/api`
   - 新: `/api/regime`
 - `sdk/agomtradepro/modules/realtime.py`
-  - 旧: `/realtime/api`
+  - 旧: `realtime/api`
   - 新: `/api/realtime`
 
 说明:

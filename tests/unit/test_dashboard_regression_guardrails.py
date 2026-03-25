@@ -38,6 +38,26 @@ def test_dashboard_page_does_not_log_known_regression_warnings(caplog):
 
 
 @pytest.mark.django_db
+def test_dashboard_homepage_uses_unified_decision_workflow_entry():
+    user = get_user_model().objects.create_user(
+        username="dashboard_workflow_user",
+        password="x",
+    )
+    client = Client()
+    client.force_login(user)
+
+    response = client.get("/dashboard/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "环境评估 → 方向选择 → 板块偏好 → 推优筛选 → 审批执行 → 审计复盘" in content
+    assert "环境 → 候选 → 决策 → 执行 → 回写" not in content
+    assert 'href="/decision/workspace/"' in content
+    assert "决策工作台" in content
+    assert "进入新 Workflow" in content
+
+
+@pytest.mark.django_db
 def test_dashboard_use_case_generates_allocation_advice_for_domain_profile():
     user = get_user_model().objects.create_user(
         username="allocation_guardrail_user",

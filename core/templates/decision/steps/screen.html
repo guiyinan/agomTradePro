@@ -1,0 +1,50 @@
+<div class="funnel-step-content" x-init="$nextTick(() => loadRecommendations())" style="animation: fadeIn 0.3s ease-in-out;">
+    <h3 style="margin-bottom: 20px;">阶段 4: 推优筛选</h3>
+    
+    <div class="attention-card" style="margin-bottom: 20px;">
+        <h4 class="attention-card__title">统一工作流 (Unified Recommendations)</h4>
+        <p style="margin-top: 10px; color: var(--color-text-muted);">
+            该列表已经历 Top-down 软硬 Gate（频率控制、仓位配额、宏观截断）与 Bottom-up 多因子打分融合引擎。
+        </p>
+    </div>
+
+    <section class="recommendations-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">⚡</span>
+                统一推荐列表
+                <span class="badge badge-primary" id="rec-count-badge">-</span>
+            </h2>
+            <!-- 投资免责声明 -->
+            {% include 'components/investment_disclaimer.html' with compact=true %}
+            <div class="section-actions" style="display: flex; gap: 10px; align-items: center;">
+                <select id="account-selector" class="form-select form-select-sm" onchange="loadRecommendations()">
+                    <option value="">选择账户...</option>
+                </select>
+                <select id="status-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
+                    <option value="">全部状态</option>
+                    <option value="NEW">新建</option>
+                    <option value="REVIEWING">审核中</option>
+                    <option value="APPROVED">已批准</option>
+                </select>
+                <select id="decision-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
+                    <option value="">全部用户动作</option>
+                    <option value="PENDING">待决策</option>
+                    <option value="WATCHING">观察中</option>
+                    <option value="ADOPTED">已采纳</option>
+                    <option value="IGNORED">已忽略</option>
+                </select>
+                <button class="btn btn-outline btn-sm" onclick="loadRecommendations()"><i class="bi bi-arrow-clockwise"></i> 刷新推荐</button>
+            </div>
+        </div>
+
+        <div id="recommendation-bridge-banner" class="bridge-banner" style="display: none;"></div>
+
+        <div id="recommendations-list" class="recommendations-list" style="margin-top: 20px;">
+            <div class="app-loading-state app-loading-state--compact">
+                <div class="app-spinner" aria-hidden="true"></div>
+                <p class="app-loading-text">加载中...</p>
+            </div>
+        </div>
+    </section>
+</div>

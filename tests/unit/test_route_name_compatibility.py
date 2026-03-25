@@ -105,6 +105,22 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     assert '{% url "api_macro:get_supported_indicators" %}' in macro_controller
 
 
+def test_regime_redesign_templates_reflect_closure():
+    template_dir = Path("core/templates")
+
+    dashboard_template = (template_dir / "dashboard/index.html").read_text(encoding="utf-8")
+    base_template = (template_dir / "base.html").read_text(encoding="utf-8")
+    regime_template = (template_dir / "regime/dashboard.html").read_text(encoding="utf-8")
+
+    assert '<div class="nav-section-title">决策平面</div>' not in dashboard_template
+    assert "{% url 'beta_gate:config' %}" not in dashboard_template
+    assert "{% url 'alpha_trigger:list' %}" not in dashboard_template
+    assert "{% url 'decision_rhythm:quota' %}" not in dashboard_template
+    assert "决策引擎" not in base_template
+    assert "navigatorHistoryChart" in regime_template
+    assert '{% url "regime_api:regime-navigator-history" %}' in regime_template
+
+
 def test_legacy_compatibility_routes_resolvable():
     assert resolve("/signal/list/").view_name.endswith("list_legacy")
     assert resolve("/signal/list/validate/").view_name.endswith("list_validate_legacy")

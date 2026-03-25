@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 宏观环境准入系统
-> **最后更新**: 2026-03-23
+> **最后更新**: 2026-03-24
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -99,10 +99,10 @@
 | [ai-native/execution-backlog.md](plans/ai-native/execution-backlog.md) | **AI Native 执行积压** | 进行中 |
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
-| [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | 🆕 设计完成 |
-| [phase-1-regime-navigator-pulse-mvp.md](plans/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | 🆕 待实施 |
-| [phase-2-decision-funnel.md](plans/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | 🆕 待实施 |
-| [phase-3-enrichment-polish.md](plans/phase-3-enrichment-polish.md) | Phase 3: 增强与打磨（Pulse V2 + 配置化 + 历史回溯） | 🆕 待实施 |
+| [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
+| [phase-1-regime-navigator-pulse-mvp.md](plans/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |
+| [phase-2-decision-funnel.md](plans/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | ✅ 已完成 |
+| [phase-3-enrichment-polish.md](plans/phase-3-enrichment-polish.md) | Phase 3: 增强与打磨（Pulse V2 + 配置化 + 历史回溯） | ✅ 已完成 |
 
 ### 5. 测试文档 (`testing/`)
 
@@ -249,10 +249,11 @@
 - 本地 MCP 回归：`98 passed`（tool registration + tool execution + RBAC）
 - 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
 
-### 导航口径快照（2026-03-02）
+### 导航口径快照（2026-03-24）
 
 - 宏观环境统一入口文案：`政策/情绪/热点工作台`（`/policy/workbench/`）
-- 顶部导航按主流程重构：`系统首页 -> 决策工作台 -> 账户与执行 -> 策略研究 -> 决策引擎`
+- 顶部导航按主流程重构：`系统首页 -> 决策工作台 -> 账户与执行 -> 策略研究 -> 系统`
+- Dashboard 左侧不再单独暴露 `beta_gate` / `alpha_trigger` / `decision_rhythm`；这些能力统一收束到“决策工作台 / 决策模式”
 - 投资管理账户入口文案：`我的投资账户`（替代"我的模拟仓"）
 - API 文档入口：仅保留"系统"菜单中的 `/api/docs/`
 - 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径

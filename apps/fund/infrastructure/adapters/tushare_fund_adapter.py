@@ -11,7 +11,6 @@ from datetime import date, datetime
 from typing import List, Optional
 
 import pandas as pd
-import tushare as ts
 
 from shared.config.secrets import get_secrets
 
@@ -26,6 +25,8 @@ class TushareFundAdapter:
     def _ensure_initialized(self):
         """确保已初始化"""
         if self.pro is None:
+            import tushare as ts
+
             token = get_secrets().data_sources.tushare_token
             if not token:
                 raise ValueError("Tushare token 未配置")

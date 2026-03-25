@@ -237,6 +237,26 @@ class SetupDataSourceUseCase:
             )
 
 
+class EnsureSecurityKeysUseCase:
+    """确保安全密钥已配置用例"""
+
+    def execute(
+        self, *, generate_secret_key: bool = True, generate_encryption_key: bool = True
+    ) -> dict[str, bool]:
+        """
+        检查并自动生成安全密钥（SECRET_KEY / AGOMTRADEPRO_ENCRYPTION_KEY）。
+
+        Returns:
+            Dict with generation flags
+        """
+        from apps.setup_wizard.infrastructure.encryption_setup import ensure_all_keys
+
+        return ensure_all_keys(
+            generate_secret_key=generate_secret_key,
+            generate_encryption_key=generate_encryption_key,
+        )
+
+
 class CompleteSetupUseCase:
     """完成安装用例"""
 

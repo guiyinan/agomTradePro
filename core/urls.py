@@ -40,6 +40,11 @@ from core.admin_log_views import (
 )
 from core.api_views import ConfigCapabilitiesView, ConfigCenterSnapshotView
 
+from core.api_views_decision_funnel import (
+    decision_audit_api_view,
+    decision_funnel_context_api_view,
+)
+
 # 核心视图
 from core.views import (
     asset_screen_view,
@@ -50,6 +55,14 @@ from core.views import (
     index_view,
     ops_center_view,
     readiness_view,
+)
+from core.views_decision_funnel import (
+    funnel_step1_view,
+    funnel_step2_view,
+    funnel_step3_view,
+    funnel_step4_view,
+    funnel_step5_view,
+    funnel_step6_view,
 )
 
 
@@ -75,6 +88,7 @@ def api_root_view(request):
                 "policy": "/api/policy/",
                 "portfolio": "/api/portfolio/",
                 "prompt": "/api/prompt/",
+                "pulse": "/api/pulse/",
                 "realtime": "/api/realtime/",
                 "regime": "/api/regime/",
                 "rotation": "/api/rotation/",
@@ -127,6 +141,19 @@ core_patterns = [
     ),
     path("asset-analysis/screen/", asset_screen_view, name="asset-screen"),
     path("decision/workspace/", decision_workspace_view, name="decision-workspace"),
+    
+    # 决策漏斗（Stepper）局部加载 HTMX
+    path("api/decision/context/step1/", funnel_step1_view, name="funnel-step-1"),
+    path("api/decision/context/step2/", funnel_step2_view, name="funnel-step-2"),
+    path("api/decision/context/step3/", funnel_step3_view, name="funnel-step-3"),
+    path("api/decision/context/step4/", funnel_step4_view, name="funnel-step-4"),
+    path("api/decision/context/step5/", funnel_step5_view, name="funnel-step-5"),
+    path("api/decision/context/step6/", funnel_step6_view, name="funnel-step-6"),
+
+    # REST JSON API for SDK & MCP
+    path("api/decision/funnel/context/", decision_funnel_context_api_view, name="api-decision-funnel-context"),
+    path("api/decision/audit/", decision_audit_api_view, name="api-decision-audit"),
+
     path("ops/", ops_center_view, name="ops-center"),
     path("ops/mcp-tools/", mcp_tools_page, name="ops-mcp-tools"),
     path("ops/mcp-tools/sync/", sync_mcp_tools_view, name="ops-mcp-tools-sync"),
@@ -273,6 +300,11 @@ module_patterns = [
     # P2: Regime 模块
     path(
         "api/regime/", include(("apps.regime.interface.api_urls", "regime"), namespace="api_regime")
+    ),
+    # Pulse 脉搏层 API
+    path(
+        "api/pulse/",
+        include(("apps.pulse.interface.api_urls", "pulse"), namespace="api_pulse"),
     ),
     # P2: Policy 模块（仅挂载 API 路由，避免与页面路由冲突）
     path(

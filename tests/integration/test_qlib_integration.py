@@ -333,7 +333,12 @@ class TestQlibEndToEnd:
     )
     def test_full_prediction_flow(self):
         """测试完整的预测流程（使用模拟数据）"""
+        from apps.account.infrastructure.models import SystemSettingsModel
         from apps.alpha.application.tasks import _execute_qlib_prediction
+
+        qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+        if not qlib_config.get("enabled"):
+            pytest.skip("Qlib installed but not enabled in runtime config")
 
         # 创建一个模拟的激活模型
         model = QlibModelRegistryModel.objects.create(

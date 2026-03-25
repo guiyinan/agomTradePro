@@ -15,6 +15,7 @@ from django.views.generic import View
 from apps.setup_wizard.application.use_cases import (
     CheckSetupStatusUseCase,
     CompleteSetupUseCase,
+    EnsureSecurityKeysUseCase,
     GetNextStepUseCase,
     SetupAdminUseCase,
     SetupAIProviderUseCase,
@@ -147,6 +148,40 @@ class SetupStepView(View):
 
     def _handle_welcome(self, request: HttpRequest) -> HttpResponse:
         """处理欢迎页"""
+        setup_status = CheckSetupStatusUseCase().execute()
+        allow_key_generation = setup_status.is_first_time
+
+        # Auto-generate security keys (SECRET_KEY / AGOMTRADEPRO_ENCRYPTION_KEY)
+        # only during first-time setup to avoid runtime key rotation.
+        use_case = EnsureSecurityKeysUseCase()
+        result = use_case.execute(
+            generate_secret_key=allow_key_generation,
+            generate_encryption_key=allow_key_generation,
+        )
+
+        generated = []
+        if result.get("secret_key_generated"):
+            generated.append("Django SECRET_KEY")
+        if result.get("encryption_key_generated"):
+            generated.append("数据加密密钥")
+        if generated:
+            messages.info(
+                request,
+                f"已自动生成 {'、'.join(generated)} 并写入 .env 文件，请妥善保管。",
+            )
+        elif not allow_key_generation:
+            warnings = []
+            if not result.get("secret_key_configured"):
+                warnings.append(
+                    "检测到当前 SECRET_KEY 仍为占位值。为避免运行中轮换密钥，已安装系统不会在向导中自动改写，请通过部署环境离线更新。"
+                )
+            if not result.get("encryption_key_configured"):
+                warnings.append(
+                    "检测到当前数据加密密钥缺失。为避免影响现有加密数据，已安装系统不会在向导中自动补写，请通过部署环境离线配置。"
+                )
+            for warning_message in warnings:
+                messages.warning(request, warning_message)
+
         request.session.setdefault("setup_wizard", {})["current_step"] = "admin_password"
         request.session.modified = True
         return redirect("/setup/")

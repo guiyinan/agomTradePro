@@ -49,6 +49,17 @@ class _FakeClient:
         )
         self.decision_workflow = SimpleNamespace(
             precheck=lambda candidate_id: {"candidate_id": candidate_id, "ok": True},
+            get_funnel_context=lambda trade_id="unknown", backtest_id=None: {
+                "trade_id": trade_id,
+                "backtest_id": backtest_id,
+                "ok": True,
+            },
+        )
+        self.pulse = SimpleNamespace(
+            get_current=lambda: {"composite_score": 0.2, "regime_strength": "moderate"},
+            get_history=lambda limit=20: [{"limit": limit, "composite_score": 0.2}],
+            get_navigator=lambda: {"regime_name": "Recovery", "movement": {"direction": "stable"}},
+            get_action_recommendation=lambda: {"risk_budget_pct": 0.7, "asset_weights": {"equity": 0.6}},
         )
         self.beta_gate = SimpleNamespace(
             list_configs=lambda: [{"config_id": "c1"}],
@@ -189,6 +200,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomtradepro_mcp.tools.filter_tools",
         "agomtradepro_mcp.tools.rotation_tools",
         "agomtradepro_mcp.tools.alpha_tools",
+        "agomtradepro_mcp.tools.pulse_tools",
     ]
     for module_name in module_names:
         mod = importlib.import_module(module_name)
@@ -234,6 +246,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_decision_rhythm_summary", {"payload": {"window_days": 7}}),
         ("reset_decision_quota", {"payload": {"user_id": "u1"}}),
         ("decision_workflow_precheck", {"candidate_id": "cand-1"}),
+        ("decision_workflow_get_funnel_context", {"trade_id": "trade-1", "backtest_id": 123}),
         ("list_beta_gate_configs", {}),
         ("create_beta_gate_config", {"payload": {"name": "cfg1"}}),
         ("test_beta_gate", {"payload": {"config_id": "cfg1"}}),
@@ -303,6 +316,11 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("apply_rotation_template_to_account_config", {"config_id": 2, "template_key": "moderate"}),
         ("get_alpha_stock_scores", {"universe": "csi300", "trade_date": "2026-03-10", "top_n": 10, "user_id": 12}),
         ("upload_alpha_scores", {"universe_id": "csi300", "asof_date": "2026-03-08", "intended_trade_date": "2026-03-10", "scores": [{"code": "000001.SZ", "score": 0.9, "rank": 1}], "scope": "user"}),
+        ("get_pulse_current", {}),
+        ("get_pulse_history", {"limit": 5}),
+        ("get_regime_navigator", {}),
+        ("get_action_recommendation", {}),
+        ("explain_pulse_dimensions", {}),
     ],
 )
 def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict):

@@ -8,10 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- (TBD)
+- README 新增可日更维护的 `What's New` 区域，便于对外同步最近 1-7 天的重要变化
+- Dashboard 增加可选浏览器级 Pulse 转向提醒（本地 Notification 开关）
+- Regime 页面增加历史 `Regime + Pulse + Action` 三层叠加时序图
 
 ### Changed
-- (TBD)
+- Dashboard 与顶部导航完成 redesign 收口，`beta_gate` / `alpha_trigger` / `decision_rhythm` 不再作为首页独立主入口暴露
+- Dashboard 首页决策入口统一到新的 `decision/workspace` 6-step workflow，不再混用旧的 5-step 主流程表述
+- SDK / MCP / 文档口径统一到当前 canonical 契约，补充 `client.pulse.*` 与 `decision_workflow_get_funnel_context(trade_id, backtest_id)` 使用说明
+- 文档索引同步为当前事实：Regime Navigator + Pulse redesign Phase 1-3 已完成
 
 ### Deprecated
 - (TBD)
@@ -20,7 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
-- (TBD)
+- Regime Navigator redesign 相关文档仍标记“待实施”的事实漂移
+- SDK/MCP 集成测试计划中的认证描述，改回真实的 `Authorization: Token <token>` 口径
+- GitHub `Consistency Check` 新增的 4 处文档路由漂移，已改为当前可解析的 canonical 路径表述
+- `apps/signal/domain/invalidation.py` 改为 timezone-aware UTC 时间戳，消除 `datetime.utcnow()` 弃用警告
 
 ### Security
 - (TBD)
@@ -152,4 +160,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Maintained by**: AgomTradePro Team
-**Last Updated**: 2026-03-23
+**Last Updated**: 2026-03-24

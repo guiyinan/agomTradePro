@@ -1,0 +1,47 @@
+<div class="funnel-step-content" style="animation: fadeIn 0.3s ease-in-out;">
+    <h3 style="margin-bottom: 20px;">阶段 6: 审计与归因复盘</h3>
+    
+    <div class="attention-card" style="margin-bottom: 20px;">
+        <h4 class="attention-card__title">损失归因与绩效审查 (Audit & Attribution)</h4>
+        <p style="margin-top: 10px; color: var(--color-text-muted);">
+            该阶段将结合实际交易记录进行 Brinson 归因，剥离出由于 Regime 判断失误或选股失误造成的超额收益/亏损，反哺系统。
+        </p>
+    </div>
+
+    <!-- UI placeholder for later integration -->
+    <div class="card" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+        <h4 style="margin-bottom: 20px;">📉 Brinson 模型归因报告</h4>
+        <div style="margin-bottom: 20px; text-align: left; color: var(--color-text-secondary);">
+            <p><strong>关联回测:</strong> {{ audit_data.backtest_id|default:"未指定" }}</p>
+            <p><strong>报告编号:</strong> {{ audit_data.report_id|default:"未生成" }}</p>
+            <p><strong>归因方法:</strong> {{ audit_data.attribution_method }}</p>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; text-align: left; margin-top: 20px;">
+            <div class="attention-card">
+                <strong>基准收益:</strong> {{ audit_data.benchmark_return|floatformat:2 }}%
+            </div>
+            <div class="attention-card">
+                <strong>投资组合收益:</strong> {{ audit_data.portfolio_return|floatformat:2 }}%
+            </div>
+            <div class="attention-card" style="border-left: 4px solid {% if audit_data.excess_return >= 0 %}#22c55e{% else %}#ef4444{% endif %};">
+                <strong>超额收益:</strong> 
+                <span style="color: {% if audit_data.excess_return >= 0 %}#22c55e{% else %}#ef4444{% endif %};">
+                    {{ audit_data.excess_return|floatformat:2 }}%
+                </span>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px; text-align: left;">
+            <p><strong>大类资产配置效应 (Allocation Effect):</strong> {{ audit_data.allocation_effect|floatformat:2 }}%</p>
+            <p><strong>底层资产选股效应 (Selection Effect):</strong> {{ audit_data.selection_effect|floatformat:2 }}%</p>
+            <p><strong>交互效应 (Interaction Effect):</strong> {{ audit_data.interaction_effect|floatformat:2 }}%</p>
+            <p><strong>Regime 准确率:</strong> {{ audit_data.regime_accuracy|default:0|floatformat:2 }}</p>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; text-align: left; color: #991b1b;">
+            <h4 style="margin-bottom: 10px;">🛑 损失溯源 (Loss Source)</h4>
+            <p>{{ audit_data.loss_source|default:"暂无分析记录" }}</p>
+            <p style="margin-top: 10px;"><strong>经验教训:</strong> {{ audit_data.lesson_learned }}</p>
+        </div>
+    </div>
+</div>

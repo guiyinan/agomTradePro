@@ -1131,19 +1131,59 @@ class GetDashboardDataUseCase:
         return allocation_chart_data
 
     def _generate_performance_chart_data(
-        self, user_id: int, account_id: int | None = None, days: int = 30
+        self,
+        user_id: int | None = None,
+        account_id: int | None = None,
+        days: int = 30,
+        portfolio_id: int | None = None,
+        current_total_return_pct: float | None = None,
     ) -> list[dict]:
         """
-        生成收益趋势图表数据（基于 DailyNetValueModel）
+        生成收益趋势图表数据。
 
         Args:
             user_id: 用户ID
             account_id: 可选账户ID，为 None 时汇总所有账户
             days: 获取最近N天的数据
+            portfolio_id: 向后兼容参数，使用组合快照生成趋势图
+            current_total_return_pct: 向后兼容参数，当前未使用
 
         Returns:
             List[Dict]: [{"date": "2026-01-01", "return_pct": 5.2}, ...]
         """
+        if portfolio_id is not None:
+            from apps.account.infrastructure.models import PortfolioDailySnapshotModel
+
+            snapshots = list(
+                PortfolioDailySnapshotModel._default_manager.filter(
+                    portfolio_id=portfolio_id
+                ).order_by("snapshot_date")
+            )
+            if not snapshots:
+                return []
+
+            base_value = float(snapshots[0].total_value) if snapshots[0].total_value else 1.0
+            if base_value <= 0:
+                base_value = 1.0
+
+            return [
+                {
+                    "date": snapshot.snapshot_date.isoformat(),
+                    "portfolio_value": float(snapshot.total_value),
+                    "return_pct": round(
+                        ((float(snapshot.total_value) - base_value) / base_value) * 100,
+                        2,
+                    ),
+                    "cash_balance": float(snapshot.cash_balance),
+                    "invested_value": float(snapshot.invested_value),
+                    "position_count": snapshot.position_count,
+                }
+                for snapshot in snapshots
+            ]
+
+        if user_id is None:
+            return []
+
         from apps.simulated_trading.infrastructure.models import (
             DailyNetValueModel,
             SimulatedAccountModel,

@@ -184,31 +184,6 @@
                 </div>
                 {% endif %}
 
-                <!-- 决策引擎：下拉菜单 -->
-                {% if user.is_staff %}
-                <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">决策引擎</button>
-                    <div class="dropdown-menu">
-                        <a href="{% url 'beta_gate:config' %}" class="dropdown-item">
-                            <i class="bi bi-door-closed"></i> Beta 闸门
-                        </a>
-                        <a href="{% url 'alpha_trigger:list' %}" class="dropdown-item">
-                            <i class="bi bi-lightning"></i> Alpha 触发器
-                        </a>
-                        <a href="{% url 'alpha_trigger:performance' %}" class="dropdown-item">
-                            <i class="bi bi-graph-up"></i> Alpha 表现
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'decision_rhythm:quota' %}" class="dropdown-item">
-                            <i class="bi bi-clock-history"></i> 决策配额
-                        </a>
-                        <a href="{% url 'decision_rhythm:config' %}" class="dropdown-item">
-                            <i class="bi bi-sliders"></i> 决策节奏配置
-                        </a>
-                    </div>
-                </div>
-                {% endif %}
-
                 {% endif %}
 
                 <!-- 系统：下拉菜单 -->

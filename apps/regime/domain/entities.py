@@ -279,3 +279,81 @@ class ConfidenceBreakdown:
             "daily_consistent": self.daily_consistent,
             "indicators_count": self.indicators_count,
         }
+
+
+# ==================== Regime Navigator Entities ====================
+
+
+@dataclass(frozen=True)
+class RegimeMovement:
+    """Regime 移动方向判定
+
+    描述当前 regime 是稳定还是正在向另一个象限转移。
+    """
+    direction: str  # 'stable', 'transitioning'
+    transition_target: str | None  # 目标象限名称，如 "Overheat"
+    transition_probability: float  # 0-1, 转折概率
+    leading_indicators: list[str]  # 触发转折预警的指标说明列表
+    momentum_summary: str  # "PMI 上升 + CPI 持平" 等描述
+
+
+@dataclass(frozen=True)
+class AssetWeightRange:
+    """资产类别权重区间"""
+    category: str  # 'equity', 'bond', 'commodity', 'cash'
+    lower: float   # 下限百分比 (0-1)
+    upper: float   # 上限百分比 (0-1)
+    label: str     # 中文标签，如 "权益类"
+
+
+@dataclass(frozen=True)
+class RegimeAssetGuidance:
+    """Regime 资产配置指引
+
+    基于当前 regime 给出的大方向资产配置建议。
+    提供的是区间而非精确值——精确值由 Pulse 微调产生。
+    """
+    weight_ranges: list[AssetWeightRange]
+    risk_budget_pct: float  # 总仓位上限 (0-1)
+    recommended_sectors: list[str]  # ["消费", "科技"] 等
+    benefiting_styles: list[str]  # ["成长", "价值"] 等
+    reasoning: str  # 配置逻辑说明
+
+
+@dataclass(frozen=True)
+class WatchIndicator:
+    """关注指标"""
+    code: str            # 指标代码
+    name: str            # 人类可读名称
+    threshold: str       # "PMI 跌破 50" 等描述
+    significance: str    # 'high', 'medium', 'low'
+
+
+@dataclass(frozen=True)
+class RegimeNavigatorOutput:
+    """Regime 导航仪完整输出
+
+    组合 RegimeCalculationResult + Movement + AssetGuidance + WatchIndicators。
+    这是 Regime 模块对外输出的最完整形态。
+    """
+    # 基础 regime 判定（复用现有 V2 结果）
+    regime_name: str          # e.g. "Recovery"
+    confidence: float         # 置信度 0-1
+    distribution: dict[str, float]  # 四象限概率分布
+
+    # 扩展：移动方向
+    movement: RegimeMovement
+
+    # 扩展：资产配置指引
+    asset_guidance: RegimeAssetGuidance
+
+    # 扩展：关注指标列表
+    watch_indicators: list[WatchIndicator]
+
+    # 元数据
+    generated_at: date
+    data_freshness: str  # 'fresh', 'stale', 'degraded'
+
+    @property
+    def is_transitioning(self) -> bool:
+        return self.movement.direction == 'transitioning'

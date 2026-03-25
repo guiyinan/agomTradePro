@@ -108,3 +108,25 @@ def register_decision_workflow_tools(server: FastMCP) -> None:
                 "action": action,
                 "error": str(exc),
             }
+
+    @server.tool()
+    def decision_workflow_get_funnel_context(
+        trade_id: str = "unknown",
+        backtest_id: int | None = None,
+    ) -> dict[str, Any]:
+        """获取全链路漏斗上下文。
+
+        查询新版决策引擎的漏斗前3步环境判定(环境/方向/板块)，以及第6步(归因复盘)。
+        这有助于 Agent 给出一笔端到端的分析背景。
+        """
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.get_funnel_context(
+                trade_id=trade_id,
+                backtest_id=backtest_id,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+            }

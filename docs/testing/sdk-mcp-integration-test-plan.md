@@ -1,7 +1,7 @@
 # AgomTradePro SDK & MCP 集成测试计划
 
 > **版本**: 2.0
-> **更新日期**: 2026-02-05
+> **更新日期**: 2026-03-24
 > **状态**: 已修订（根据架构评审反馈）
 
 ---
@@ -56,7 +56,7 @@
 │  Location: sdk/agomtradepro/client.py                           │
 │  - Retry Strategy                                          │
 │  - Error Propagation                                       │
-│  - Authentication (Bearer Token)                           │
+│  - Authentication (DRF Token)                              │
 └────────────────────────┬────────────────────────────────────┘
                          │ HTTP REST API
                          ▼
@@ -110,7 +110,7 @@ AI Agent → MCP Server → SDK Client → HTTP Request → Django API → Busin
 2. SDK Client 初始化
    client = AgomTradeProClient()
    ↓ 读取环境变量
-   ↓ 构建请求头: Authorization: Bearer <token>
+   ↓ 构建请求头: Authorization: Token <token>
 
 3. Django API 认证中间件
    验证 Token → 提取用户信息 → 注入 request.user
@@ -335,6 +335,11 @@ python test_sdk_connection.py
 | Backtest | `client.backtest.list()` | 返回回测列表 | ☐ |
 | Account | `client.account.get_portfolios()` | 返回投资组合 | ☐ |
 | SimulatedTrading | `client.simulated_trading.list_accounts()` | 返回模拟账户 | ☐ |
+| DecisionWorkflow | `client.decision_workflow.get_funnel_context()` | 返回决策漏斗上下文 | ☐ |
+| Pulse | `client.pulse.get_current()` | 返回最新脉搏快照 | ☐ |
+| Pulse | `client.pulse.get_history(limit=5)` | 返回脉搏历史序列 | ☐ |
+| Pulse | `client.pulse.get_navigator()` | 返回 Regime Navigator 完整输出 | ☐ |
+| Pulse | `client.pulse.get_action_recommendation()` | 返回 Regime + Pulse 联合配置建议 | ☐ |
 
 ---
 
@@ -410,6 +415,11 @@ python -m agomtradepro_mcp.server
 | Macro | `list_macro_indicators` | "列出宏观指标" | 返回指标列表 | ☐ |
 | Policy | `get_policy_status` | "获取政策状态" | 返回政策档位 | ☐ |
 | Backtest | `list_backtests` | "列出回测" | 返回回测列表 | ☐ |
+| DecisionWorkflow | `decision_workflow_get_funnel_context` | "获取 trade-001 的决策漏斗上下文" | 返回 step1-step6 上下文 | ☐ |
+| Pulse | `get_pulse_current` | "获取当前 Pulse 脉搏" | 返回最新脉搏快照 | ☐ |
+| Pulse | `get_pulse_history` | "查看最近 5 条 Pulse 历史" | 返回脉搏历史 | ☐ |
+| Pulse | `get_regime_navigator` | "获取 Regime Navigator 输出" | 返回 richer navigator JSON | ☐ |
+| Pulse | `get_action_recommendation` | "获取当前联合行动建议" | 返回资产配置建议 | ☐ |
 
 ### 7.3 MCP 资源测试
 
@@ -419,6 +429,14 @@ python -m agomtradepro_mcp.server
 |----------|----------|----------|------|
 | `agomtradepro://regime/current` | 通过 Claude Code 读取 | 返回当前象限文本 | ☐ |
 | `agomtradepro://policy/status` | 通过 Claude Code 读取 | 返回政策状态文本 | ☐ |
+
+### 7.5 Regime Navigator / Pulse 专项
+
+重点验证 redesign 收口后的对外接入一致性：
+
+1. MCP 不依赖 dashboard HTML 抽取数据，而是直接调用 `/api/regime/navigator/`、`/api/regime/action/`、`/api/pulse/*`。
+2. `decision_workflow_get_funnel_context` 同时覆盖 `trade_id` 与 `backtest_id` 两种入口。
+3. 历史时序图数据来源固定为 `/api/regime/navigator/history/`，SDK/MCP 无需解析页面图表。
 
 ### 7.4 MCP Prompts 测试
 

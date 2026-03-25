@@ -12,7 +12,6 @@ AKShare 提供了更丰富的基金数据接口，适合作为 Tushare 的补充
 from datetime import date, datetime
 from typing import List, Optional
 
-import akshare as ak
 import pandas as pd
 
 
@@ -106,7 +105,7 @@ class AkShareFundAdapter:
             DataFrame with columns: 股票代码, 股票名称, 持有数量, etc.
         """
         try:
-            df = ak.fund_portfolio_hold(symbol=fund_code, year=year, quarter=quarter)
+            df = self.ak.fund_portfolio_hold(symbol=fund_code, year=year, quarter=quarter)
             return df
         except Exception as e:
             print(f"AKShare 获取基金 {fund_code} 持仓失败: {e}")
@@ -124,7 +123,7 @@ class AkShareFundAdapter:
             DataFrame with columns: 代码, 名称, etc.
         """
         try:
-            df = ak.fund_open_fund_rank_em(symbol="全部基金", indicator=indicator)
+            df = self.ak.fund_open_fund_rank_em(symbol="全部基金", indicator=indicator)
             return df
         except Exception as e:
             print(f"AKShare 获取基金排名失败: {e}")
@@ -143,7 +142,7 @@ class AkShareFundAdapter:
         """
         try:
             # AKShare 的 fund_portfolio_hold 包含行业信息
-            df = ak.fund_portfolio_hold(symbol=fund_code, year=year, quarter=quarter)
+            df = self.ak.fund_portfolio_hold(symbol=fund_code, year=year, quarter=quarter)
             return df
         except Exception as e:
             print(f"AKShare 获取基金 {fund_code} 行业配置失败: {e}")
@@ -156,7 +155,7 @@ class AkShareFundAdapter:
             DataFrame with columns: 基金代码, 基金名称, 基金规模, etc.
         """
         try:
-            df = ak.fund_open_fund_rank_em(symbol="全部基金", indicator="规模")
+            df = self.ak.fund_open_fund_rank_em(symbol="全部基金", indicator="规模")
             return df
         except Exception as e:
             print(f"AKShare 获取基金规模排名失败: {e}")

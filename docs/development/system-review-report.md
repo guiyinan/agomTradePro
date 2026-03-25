@@ -66,7 +66,7 @@
 | `/api/health/` | ✅ 200 | 健康检查正常 |
 | `/api/alpha/scores/` | ✅ 200 | ETF 兜底数据正常 |
 | `/api/realtime/api/prices/` | ✅ 200 | 实时价格服务正常 |
-| `/rotation/api/` | ✅ 200 | 轮动 API 正常 |
+| `/api/rotation/` | ✅ 200 | 轮动 API 正常 |
 
 ### 3.2 受保护端点 (需要认证)
 
@@ -74,9 +74,9 @@
 |------|------|------|
 | `/api/regime/` | 🔒 403 | 需要认证 |
 | `/api/signal/api/` | 🔒 403 | 需要认证 |
-| `/api/policy/api/events/` | 🔒 403 | 需要认证 |
-| `/api/factor/api/definitions/` | 🔒 403 | 需要认证 |
-| `/api/hedge/api/pairs/` | 🔒 403 | 需要认证 |
+| `/api/policy/events/` | 🔒 403 | 需要认证 |
+| `/api/factor/definitions/` | 🔒 403 | 需要认证 |
+| `/api/hedge/pairs/` | 🔒 403 | 需要认证 |
 | `/api/debug/server-logs/stream/` | 🔒 401 | 需要 Token |
 
 ### 3.3 404 端点

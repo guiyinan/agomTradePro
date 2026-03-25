@@ -91,6 +91,8 @@ class AKShareAdapter(BaseMacroAdapter):
         "CN_NEW_CREDIT": "新增信贷",
         "CN_RMB_DEPOSIT": "人民币存款",
         "CN_RMB_LOAN": "人民币贷款",
+        "CN_DR007": "存款类机构7天期回购加权平均利率",
+        "CN_PBOC_NET_INJECTION": "央行公开市场净投放",
 
         # ============ 高频指标（Regime 滞后性改进 Phase 1）============
         "CN_BOND_10Y": "10年期国债收益率",
@@ -304,6 +306,10 @@ class AKShareAdapter(BaseMacroAdapter):
                 return self.financial_fetcher.fetch_rmb_deposit(start_date, end_date)
             elif indicator_code == "CN_RMB_LOAN":
                 return self.financial_fetcher.fetch_rmb_loan(start_date, end_date)
+            elif indicator_code == "CN_DR007":
+                return self.financial_fetcher.fetch_dr007(start_date, end_date)
+            elif indicator_code == "CN_PBOC_NET_INJECTION":
+                return self.financial_fetcher.fetch_pboc_open_market(start_date, end_date)
 
             # ============ 高频指标（Regime 滞后性改进 Phase 1）============
             elif indicator_code in ["CN_BOND_10Y", "CN_BOND_5Y", "CN_BOND_2Y", "CN_BOND_1Y"]:

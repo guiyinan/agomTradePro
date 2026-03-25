@@ -141,8 +141,8 @@ GET /api/regime/health/
 | `/policy/events/{event_date}/` | GET | 获取指定日期政策事件 (页面路由) |
 | `/policy/events/create/` | POST | 创建政策事件 |
 | `/policy/status/` | GET | 获取当前政策档位 |
-| `/policy/hedges/` | GET | 获取对冲头寸 |
-| `/policy/hedges/execute/` | POST | 执行对冲操作 |
+| `/api/hedge/pairs/` | GET | 获取对冲配对 |
+| `/api/hedge/actions/` | POST | 执行对冲相关计算/动作 |
 
 #### 请求示例
 
@@ -293,10 +293,9 @@ POST /api/equity/screen/
 | 端点 | 方法 | 描述 |
 |------|------|------|
 | `/sector/rotation/` | GET | 获取板块轮动分析 |
-| `/sector/sectors/` | GET | 获取板块列表 |
-| `/sector/sectors/{sector_code}/performance/` | GET | 获取板块表现 |
-| `/sector/update-data/` | POST | 更新板块数据 |
-| `/sector/relative-strength/` | GET | 获取相对强弱 |
+| `/api/sector/analyze/` | POST | 分析板块轮动 |
+| `/api/sector/rotation/` | GET | 获取板块轮动推荐 |
+| `/api/sector/update-data/` | POST | 更新板块数据 |
 
 #### 请求示例
 
@@ -305,7 +304,7 @@ POST /api/equity/screen/
 GET /api/sector/rotation/?window=20
 
 # 获取板块表现
-GET /api/sector/sectors/801010/performance/?start_date=2024-01-01
+GET /api/sector/rotation/?regime=Recovery&top_n=10
 ```
 
 ---
@@ -391,14 +390,14 @@ POST /api/backtest/api/run/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/account/portfolios/` | GET | 获取投资组合列表 |
-| `/account/portfolios/{id}/` | GET | 获取组合详情 |
-| `/account/positions/` | GET | 获取持仓列表 |
-| `/account/transactions/` | GET | 获取交易记录 |
-| `/account/capital-flows/` | GET | 获取资金流水 |
-| `/account/profile/` | GET | 获取账户配置 |
-| `/account/allocation/` | GET | 获取资产配置 |
-| `/account/api/health/` | GET | 账户健康检查 |
+| `/api/account/portfolios/` | GET | 获取投资组合列表 |
+| `/api/account/portfolios/{id}/` | GET | 获取组合详情 |
+| `/api/account/positions/` | GET | 获取持仓列表 |
+| `/api/account/transactions/` | GET | 获取交易记录 |
+| `/api/account/capital-flows/` | GET | 获取资金流水 |
+| `/api/account/profile/` | GET | 获取账户配置 |
+| `/api/account/portfolios/{id}/allocation/` | GET | 获取资产配置 |
+| `/api/account/health/` | GET | 账户健康检查 |
 
 ---
 
@@ -408,10 +407,10 @@ POST /api/backtest/api/run/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/audit/reports/` | GET | 获取审计报告列表 |
-| `/audit/reports/{id}/` | GET | 获取审计报告详情 |
-| `/audit/attribution/` | POST | 生成归因分析 |
-| `/audit/analyze/` | POST | 分析投资结果 |
+| `/api/audit/reports/generate/` | POST | 生成审计/归因报告 |
+| `/api/audit/summary/` | GET | 获取审计汇总 |
+| `/api/audit/operation-logs/` | GET | 获取操作日志 |
+| `/api/audit/decision-traces/` | GET | 获取决策轨迹 |
 
 ---
 
@@ -422,13 +421,13 @@ POST /api/backtest/api/run/
 | 端点 | 方法 | 描述 |
 |------|------|------|
 | `/api/chat/web/` | POST | 网页端统一聊天接口，供首页与 `AgomChatWidget` 复用 |
-| `/prompt/chat/` | POST | AI 对话 |
-| `/prompt/providers/` | GET | 获取 AI 提供商列表 |
-| `/prompt/models/` | GET | 获取 AI 模型列表 |
-| `/prompt/signal-generation/` | POST | 生成投资信号 |
-| `/prompt/report-generation/` | POST | 生成分析报告 |
-| `/prompt/chains/` | GET | 获取 Chain 列表 |
-| `/prompt/templates/` | GET | 获取 Prompt 模板 |
+| `/api/prompt/chat` | POST | AI 对话 |
+| `/api/prompt/chat/providers` | GET | 获取 AI 提供商列表 |
+| `/api/prompt/chat/models` | GET | 获取 AI 模型列表 |
+| `/api/prompt/signals/generate` | POST | 生成投资信号 |
+| `/api/prompt/reports/generate` | POST | 生成分析报告 |
+| `/api/prompt/chains/` | GET | 获取 Chain 列表 |
+| `/api/prompt/templates/` | GET | 获取 Prompt 模板 |
 
 补充文档：
 
@@ -473,10 +472,10 @@ POST /api/prompt/report-generation/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/filter/filters/` | GET | 获取筛选器列表 |
-| `/filter/filters/{id}/` | GET | 获取筛选器详情 |
-| `/filter/apply/` | POST | 应用筛选器 |
-| `/filter/api/health/` | GET | 筛选器健康检查 |
+| `/api/filter/` | GET | 获取筛选器列表 |
+| `/api/filter/get-data/` | POST | 获取已保存筛选/滤波数据 |
+| `/api/filter/` | POST | 应用筛选器 |
+| `/api/filter/health/` | GET | 筛选器健康检查 |
 
 ---
 

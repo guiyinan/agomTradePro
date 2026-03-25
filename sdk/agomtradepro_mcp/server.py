@@ -24,6 +24,7 @@ from agomtradepro_mcp.tools.macro_tools import register_macro_tools
 from agomtradepro_mcp.tools.market_data_tools import register_market_data_tools
 from agomtradepro_mcp.tools.policy_tools import register_policy_tools
 from agomtradepro_mcp.tools.prompt_tools import register_prompt_tools
+from agomtradepro_mcp.tools.pulse_tools import register_pulse_tools
 from agomtradepro_mcp.tools.realtime_tools import register_realtime_tools
 from agomtradepro_mcp.tools.regime_tools import register_regime_tools
 from agomtradepro_mcp.tools.rotation_tools import register_rotation_tools
@@ -105,6 +106,9 @@ def register_all_tools() -> None:
 
     # Agent Proposal tools (M3)
     register_agent_proposal_tools(server)
+
+    # Pulse + Navigator tools
+    register_pulse_tools(server)
 
 
 def apply_tool_rbac_guards() -> None:

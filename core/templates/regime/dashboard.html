@@ -6,6 +6,25 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/regime.css' %}">
 <link rel="stylesheet" href="{% static 'css/teaching.css' %}">
+{% if regime_result %}
+<style>
+    :root {
+        {% if regime_result.quadrant == 'Recovery' %}
+        --color-primary: #10B981; /* Green */
+        --color-primary-light: #D1FAE5;
+        {% elif regime_result.quadrant == 'Overheat' %}
+        --color-primary: #EF4444; /* Red */
+        --color-primary-light: #FEE2E2;
+        {% elif regime_result.quadrant == 'Stagflation' %}
+        --color-primary: #F59E0B; /* Orange */
+        --color-primary-light: #FEF3C7;
+        {% elif regime_result.quadrant == 'Deflation' %}
+        --color-primary: #3B82F6; /* Blue */
+        --color-primary-light: #DBEAFE;
+        {% endif %}
+    }
+</style>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -53,6 +72,9 @@
                 <span class="btn-icon">📚</span>
                 <span class="btn-text">学习Regime判定</span>
             </button>
+            <a href="#navigatorHistorySection" class="config-link" title="查看历史叠加时序图">
+                <span>🕰️</span>
+            </a>
         </div>
     </div>
 </div>
@@ -253,6 +275,31 @@ async function clearRegimeCache() {
     </div>
 </div>
 
+<div id="navigatorHistorySection" class="card" style="margin-bottom: 20px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+            <h3 class="card-header-title">历史 Regime + Pulse 叠加时序图</h3>
+            <p style="margin: 6px 0 0; color: var(--text-secondary);">上方为 Regime 象限带，中间为 Pulse 脉搏，下方为行动建议资产权重。</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <label for="historyMonthsSelect">时间范围</label>
+            <select id="historyMonthsSelect">
+                <option value="3">近 3 个月</option>
+                <option value="6">近 6 个月</option>
+                <option value="12" selected>近 12 个月</option>
+                <option value="24">近 24 个月</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="navigatorHistoryChart" class="chart-canvas" style="height: 560px;"></div>
+        <div id="navigatorHistoryEmpty" class="empty-state" style="display: none;">
+            <div class="empty-icon">🕰️</div>
+            <p>当前时间范围内暂无可用的 Regime / Pulse / Action 历史数据</p>
+        </div>
+    </div>
+</div>
+
 <!-- 判定详情 -->
 <div class="card">
     <div class="card-header">
@@ -400,6 +447,228 @@ if (typeof echarts !== 'undefined') {
         inflationChart.resize();
     });
 }
+
+if (typeof echarts !== 'undefined') {
+    const historyContainer = document.getElementById('navigatorHistoryChart');
+    const historyEmptyState = document.getElementById('navigatorHistoryEmpty');
+    const historyMonthsSelect = document.getElementById('historyMonthsSelect');
+    const historyChart = echarts.init(historyContainer);
+    const regimeColors = {
+        Recovery: '#10B981',
+        Overheat: '#EF4444',
+        Stagflation: '#F59E0B',
+        Deflation: '#3B82F6',
+        Unknown: '#94A3B8',
+    };
+
+    function buildTimeline(historyData) {
+        const dates = new Set();
+        (historyData.pulse_history || []).forEach(item => dates.add(item.date));
+        (historyData.action_history || []).forEach(item => dates.add(item.date));
+        (historyData.regime_transitions || []).forEach(item => dates.add(item.date));
+        return Array.from(dates).sort();
+    }
+
+    function buildRegimeBand(dates, transitions) {
+        if (!dates.length) {
+            return [];
+        }
+
+        const sortedTransitions = [...(transitions || [])].sort((a, b) => a.date.localeCompare(b.date));
+        let cursor = 0;
+        let currentRegime = sortedTransitions.length ? (sortedTransitions[0].to_regime || 'Unknown') : 'Unknown';
+
+        return dates.map(currentDate => {
+            while (cursor + 1 < sortedTransitions.length && sortedTransitions[cursor + 1].date <= currentDate) {
+                cursor += 1;
+                currentRegime = sortedTransitions[cursor].to_regime || 'Unknown';
+            }
+            return currentRegime;
+        });
+    }
+
+    function valueByDate(items, valueKey, dates) {
+        const lookup = new Map((items || []).map(item => [item.date, item[valueKey]]));
+        return dates.map(itemDate => {
+            const value = lookup.get(itemDate);
+            return value === undefined || value === null ? null : value;
+        });
+    }
+
+    function percentageByDate(items, valueKey, dates) {
+        return valueByDate(items, valueKey, dates).map(value => value === null ? null : Number(value) * 100);
+    }
+
+    function renderHistoryChart(historyData) {
+        const dates = buildTimeline(historyData);
+        if (!dates.length) {
+            historyContainer.style.display = 'none';
+            historyEmptyState.style.display = 'flex';
+            historyChart.clear();
+            return;
+        }
+
+        historyContainer.style.display = 'block';
+        historyEmptyState.style.display = 'none';
+
+        const regimeBand = buildRegimeBand(dates, historyData.regime_transitions || []);
+
+        historyChart.setOption({
+            animation: false,
+            tooltip: {
+                trigger: 'axis',
+            },
+            legend: {
+                top: 8,
+                data: ['Regime', 'Pulse 综合', '增长', '通胀', '流动性', '情绪', '权益', '债券', '商品', '现金'],
+            },
+            grid: [
+                { left: 56, right: 24, top: 56, height: 70 },
+                { left: 56, right: 24, top: 170, height: 150 },
+                { left: 56, right: 24, top: 370, height: 140 },
+            ],
+            xAxis: [
+                { type: 'category', gridIndex: 0, data: dates, axisLabel: { show: false } },
+                { type: 'category', gridIndex: 1, data: dates, axisLabel: { show: false } },
+                { type: 'category', gridIndex: 2, data: dates, axisLabel: { rotate: 45 } },
+            ],
+            yAxis: [
+                { type: 'value', gridIndex: 0, min: 0, max: 1, axisLabel: { show: false }, splitLine: { show: false } },
+                { type: 'value', gridIndex: 1, min: -1, max: 1, name: 'Pulse', splitLine: { lineStyle: { type: 'dashed' } } },
+                { type: 'value', gridIndex: 2, min: 0, max: 100, name: '权重%', splitLine: { lineStyle: { type: 'dashed' } } },
+            ],
+            series: [
+                {
+                    name: 'Regime',
+                    type: 'bar',
+                    xAxisIndex: 0,
+                    yAxisIndex: 0,
+                    data: regimeBand.map(regime => ({
+                        value: 1,
+                        itemStyle: { color: regimeColors[regime] || regimeColors.Unknown },
+                    })),
+                    barCategoryGap: '0%',
+                    silent: true,
+                    label: {
+                        show: true,
+                        position: 'inside',
+                        color: '#fff',
+                        fontSize: 10,
+                        formatter: params => regimeBand[params.dataIndex],
+                    },
+                },
+                {
+                    name: 'Pulse 综合',
+                    type: 'line',
+                    smooth: true,
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: valueByDate(historyData.pulse_history, 'composite_score', dates),
+                    lineStyle: { width: 3, color: '#111827' },
+                },
+                {
+                    name: '增长',
+                    type: 'line',
+                    smooth: true,
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: valueByDate(historyData.pulse_history, 'growth_score', dates),
+                    lineStyle: { color: '#2563EB' },
+                },
+                {
+                    name: '通胀',
+                    type: 'line',
+                    smooth: true,
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: valueByDate(historyData.pulse_history, 'inflation_score', dates),
+                    lineStyle: { color: '#DC2626' },
+                },
+                {
+                    name: '流动性',
+                    type: 'line',
+                    smooth: true,
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: valueByDate(historyData.pulse_history, 'liquidity_score', dates),
+                    lineStyle: { color: '#059669' },
+                },
+                {
+                    name: '情绪',
+                    type: 'line',
+                    smooth: true,
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: valueByDate(historyData.pulse_history, 'sentiment_score', dates),
+                    lineStyle: { color: '#7C3AED' },
+                },
+                {
+                    name: '权益',
+                    type: 'line',
+                    stack: 'allocation',
+                    areaStyle: {},
+                    smooth: true,
+                    xAxisIndex: 2,
+                    yAxisIndex: 2,
+                    data: percentageByDate(historyData.action_history, 'equity_weight', dates),
+                    lineStyle: { color: '#2563EB' },
+                },
+                {
+                    name: '债券',
+                    type: 'line',
+                    stack: 'allocation',
+                    areaStyle: {},
+                    smooth: true,
+                    xAxisIndex: 2,
+                    yAxisIndex: 2,
+                    data: percentageByDate(historyData.action_history, 'bond_weight', dates),
+                    lineStyle: { color: '#0F766E' },
+                },
+                {
+                    name: '商品',
+                    type: 'line',
+                    stack: 'allocation',
+                    areaStyle: {},
+                    smooth: true,
+                    xAxisIndex: 2,
+                    yAxisIndex: 2,
+                    data: percentageByDate(historyData.action_history, 'commodity_weight', dates),
+                    lineStyle: { color: '#D97706' },
+                },
+                {
+                    name: '现金',
+                    type: 'line',
+                    stack: 'allocation',
+                    areaStyle: {},
+                    smooth: true,
+                    xAxisIndex: 2,
+                    yAxisIndex: 2,
+                    data: percentageByDate(historyData.action_history, 'cash_weight', dates),
+                    lineStyle: { color: '#6B7280' },
+                },
+            ],
+        });
+    }
+
+    async function loadNavigatorHistory(months) {
+        try {
+            const response = await fetch(`{% url "regime_api:regime-navigator-history" %}?months=${months}`);
+            const payload = await response.json();
+            renderHistoryChart(payload.data || {});
+        } catch (error) {
+            historyContainer.style.display = 'none';
+            historyEmptyState.style.display = 'flex';
+            historyEmptyState.querySelector('p').textContent = `历史叠加图加载失败: ${error.message}`;
+        }
+    }
+
+    historyMonthsSelect.addEventListener('change', () => loadNavigatorHistory(historyMonthsSelect.value));
+    loadNavigatorHistory(historyMonthsSelect.value);
+
+    window.addEventListener('resize', () => {
+        historyChart.resize();
+    });
+}
 </script>
 
 {% else %}
@@ -421,5 +690,44 @@ if (typeof echarts !== 'undefined') {
 
 <!-- Teaching Modal Template -->
 {% include "dashboard/teaching_modal.html" %}
+
+<!-- Onboarding Overlay -->
+<div id="onboardingOverlay" class="onboarding-overlay" style="display: none;">
+    <div class="onboarding-dialog">
+        <h3>欢迎使用 Regime Navigator! 🧭</h3>
+        <p>AgomTradePro 的核心决策系统。系统会根据当前宏观环境 (Regime)，自动调整界面色调：</p>
+        <ul style="text-align: left; margin: 15px 0 20px 0; list-style: none; padding-left: 10px;">
+            <li><span style="color:#10B981; font-size: 1.2em;">●</span> 绿：复苏 (Recovery)</li>
+            <li><span style="color:#EF4444; font-size: 1.2em;">●</span> 红：过热 (Overheat)</li>
+            <li><span style="color:#F59E0B; font-size: 1.2em;">●</span> 橘：滞胀 (Stagflation)</li>
+            <li><span style="color:#3B82F6; font-size: 1.2em;">●</span> 蓝：通缩 (Deflation)</li>
+        </ul>
+        <button onclick="closeOnboarding()" class="btn" style="background:var(--color-primary); color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">开始探索</button>
+    </div>
+</div>
+<style>
+    .onboarding-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.6); z-index: 10000;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    .onboarding-dialog {
+        background: var(--bg-panel); padding: 30px; border-radius: 12px;
+        max-width: 400px; text-align: center; color: var(--text-primary);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        if (!localStorage.getItem("regime_onboarding_done")) {
+            document.getElementById("onboardingOverlay").style.display = "flex";
+        }
+    });
+    function closeOnboarding() {
+        localStorage.setItem("regime_onboarding_done", "true");
+        document.getElementById("onboardingOverlay").style.display = "none";
+    }
+</script>
 
 {% endblock %}

@@ -22,6 +22,7 @@
 | 模块 | canonical API | 说明 |
 |------|---------------|------|
 | regime | `/api/regime/` | SDK/MCP 使用 V2 current/history/distribution |
+| pulse | `/api/pulse/current/` | Pulse canonical 读入口；历史与计算分别使用 `/api/pulse/history/`、`/api/pulse/calculate/` |
 | policy | `/api/policy/` | SDK/MCP 不再走 `/policy/...` |
 | macro | `/api/macro/` | 旧 `/macro/api/` 已废弃 |
 | account | `/api/account/` | 旧 `/account/api/` 仅保留兼容 |
@@ -44,6 +45,17 @@
 | equity | `/api/equity/` | valuation repair config 已对齐 |
 | market_data | `/api/market-data/` | MCP 外部市场数据链已打通 |
 | audit | `/api/audit/` | `/audit/api/` 仅保留页面/历史兼容 |
+| decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
+
+其中 redesign 相关新增 canonical 端点为：
+
+- `/api/regime/navigator/`
+- `/api/regime/action/`
+- `/api/regime/navigator/history/`
+- `/api/pulse/current/`
+- `/api/pulse/history/`
+- `/api/pulse/calculate/`
+- `/api/decision/funnel/context/`
 
 ## 已修复的典型错配
 
@@ -64,6 +76,8 @@
 - hedge SDK: `hedge/api/*` -> `/api/hedge/*`
 - factor SDK: `factor/api/*` -> `/api/factor/*`
 - regime SDK: distribution 不再通过 `history(limit=10000)` 侧算，改为 `/api/regime/distribution/`
+- pulse SDK/MCP: 统一走 `/api/pulse/current/`、`/api/pulse/history/`、`/api/pulse/calculate/`，不再从 dashboard JSON 或页面模板提取数据
+- decision funnel SDK/MCP: `get_funnel_context()` 对齐 `/api/decision/funnel/context/`，同时支持 `trade_id` 和 `backtest_id`
 - backtest SDK: `results/*` -> 当前 `/api/backtest/backtests/*`
 - equity SDK: 历史 `stocks/*` -> 当前 `pool/`、`screen/`、`valuation/{stock_code}/`
 - sector SDK: 历史 `sectors/*` / `hot-sectors/` / `compare/` -> 当前 `rotation/` + 本地兼容聚合

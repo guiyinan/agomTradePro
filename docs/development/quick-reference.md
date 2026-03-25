@@ -219,24 +219,24 @@ mypy apps/ --strict
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/factor/api/definitions/` | GET | 因子定义列表 (需认证) |
-| `/factor/api/configs/` | GET | 因子配置列表 (需认证) |
+| `/api/factor/definitions/` | GET | 因子定义列表 (需认证) |
+| `/api/factor/configs/` | GET | 因子配置列表 (需认证) |
 
 ### Rotation API (板块轮动)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/rotation/api/` | GET | API 操作列表 |
-| `/rotation/api/recommendation/` | GET | 轮动建议 |
-| `/rotation/api/signals/` | GET | 轮动信号 |
-| `/rotation/api/compare/` | POST | 资产比较 |
+| `/api/rotation/` | GET | API 操作列表 |
+| `/api/rotation/assets/` | GET | 资产类别 |
+| `/api/rotation/signals/` | GET | 轮动信号 |
+| `/api/rotation/account-configs/` | GET | 账户级轮动配置 |
 
 ### Hedge API (对冲策略)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/hedge/api/pairs/` | GET | 对冲配对列表 (需认证) |
-| `/hedge/api/alerts/` | GET | 对冲告警 (需认证) |
+| `/api/hedge/pairs/` | GET | 对冲配对列表 (需认证) |
+| `/api/hedge/alerts/` | GET | 对冲告警 (需认证) |
 
 ### Dashboard v1 API (Streamlit)
 

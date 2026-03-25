@@ -80,6 +80,28 @@ If local wheel cache is still incomplete, allow network fallback:
 pwsh -File .\scripts\package-for-vps-aggressive.ps1 -AllowOnlinePipFallback
 ```
 
+## Security Keys
+
+`SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` are **auto-generated on first boot** if not provided in `deploy/.env`:
+
+- The entrypoint script generates missing keys before Django starts
+- Keys are persisted to `/app/data/.env.generated` (inside the `sqlite_data` volume)
+- All containers (web, celery_worker, celery_beat) share the same keys via the shared volume
+- Keys survive container restarts and redeployments
+- If you explicitly set keys in `deploy/.env`, those take precedence and are never overwritten by persisted generated values
+
+To provide keys manually instead of auto-generating:
+
+```bash
+# Generate
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# Add to deploy/.env
+SECRET_KEY=<generated-value>
+AGOMTRADEPRO_ENCRYPTION_KEY=<generated-value>
+```
+
 ## Backup Critical VPS Secrets
 
 Back up the current VPS `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` to a local ignored file:

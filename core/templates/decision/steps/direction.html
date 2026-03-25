@@ -1,0 +1,31 @@
+<div class="funnel-step-content" style="animation: fadeIn 0.3s ease-in-out;">
+    <h3 style="margin-bottom: 20px;">阶段 2: 大类资产方向</h3>
+    
+    <div class="attention-card" style="margin-bottom: 20px;">
+        <h4 class="attention-card__title">配置逻辑 (Action Recommendation)</h4>
+        <p style="margin-top: 10px;">{{ action_recommendation.reasoning }}</p>
+        <p style="color: var(--color-text-muted); font-size: 13px; margin-top: 5px;">{{ action_recommendation.regime_contribution }} | {{ action_recommendation.pulse_contribution }}</p>
+    </div>
+
+    <div class="status-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="attention-card">
+            <h4 class="attention-card__title">建议仓位比例</h4>
+            <ul style="margin-top: 15px; list-style: none; padding: 0;">
+                {% for asset, weight in asset_weights.items %}
+                    <li style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <strong>{{ asset|title }}</strong>
+                        <span class="badge badge-primary">{{ weight|floatformat:2 }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="attention-card">
+            <h4 class="attention-card__title">风险预算 (Risk Budget)</h4>
+            <div style="font-size: 36px; font-weight: 700; color: var(--color-text-primary); margin: 20px 0;">
+                {{ risk_budget_pct|floatformat:2 }}
+            </div>
+            <p style="color: var(--color-text-muted); font-size: 13px;">最大允许暴露度（Beta Gate硬约束）。</p>
+        </div>
+    </div>
+</div>

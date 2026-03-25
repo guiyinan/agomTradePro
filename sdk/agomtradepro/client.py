@@ -46,6 +46,7 @@ from .modules.macro import MacroModule
 from .modules.market_data import MarketDataModule
 from .modules.policy import PolicyModule
 from .modules.prompt import PromptModule
+from .modules.pulse import PulseModule
 from .modules.realtime import RealtimeModule
 from .modules.regime import RegimeModule
 from .modules.rotation import RotationModule
@@ -108,6 +109,7 @@ class AgomTradeProClient:
     _agent_runtime: Optional[AgentRuntimeModule] = None
     _agent_context: Optional[AgentContextModule] = None
     _agent_proposal: Optional[AgentProposalModule] = None
+    _pulse: Optional[PulseModule] = None
 
     def __init__(
         self,
@@ -612,6 +614,13 @@ class AgomTradeProClient:
         if self._agent_proposal is None:
             self._agent_proposal = AgentProposalModule(self)
         return self._agent_proposal
+
+    @property
+    def pulse(self) -> PulseModule:
+        """Pulse 脉搏模块"""
+        if self._pulse is None:
+            self._pulse = PulseModule(self)
+        return self._pulse
 
     # ========================================================================
     # 会话管理

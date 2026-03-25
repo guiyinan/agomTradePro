@@ -481,7 +481,7 @@ def _execute_qlib_prediction(
 
         if not qlib_config.get('enabled'):
             logger.warning("Qlib 未启用，跳过预测")
-            return None
+            return []
 
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
         region = _normalize_qlib_region(qlib_config.get('region', 'CN'))

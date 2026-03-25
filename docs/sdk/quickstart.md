@@ -179,6 +179,36 @@ client.decision_workflow.apply_recommendation_action(
 )
 ```
 
+### 8. Read Pulse And Funnel Context
+
+```python
+pulse = client.pulse.get_current()
+print(pulse["composite_score"], pulse["regime_strength"])
+
+context = client.decision_workflow.get_funnel_context(
+    trade_id="trade-001",
+    backtest_id=123,
+)
+print(context["step1_environment"]["regime_name"])
+print(context["step6_audit"]["attribution_method"])
+```
+
+### 9. Read Regime Navigator And Top-Down Action
+
+```python
+navigator = client.pulse.get_navigator()
+print(navigator["regime_name"], navigator["movement"]["direction"])
+
+action = client.pulse.get_action_recommendation()
+print(action["asset_weights"])
+print(action["risk_budget_pct"])
+```
+
+Notes:
+
+- `client.decision_workflow.get_funnel_context()` supports both `trade_id` and `backtest_id`.
+- `client.pulse.*` reads canonical JSON APIs directly; it does not depend on dashboard HTML rendering.
+
 ## Module Overview
 
 | Module | Description |

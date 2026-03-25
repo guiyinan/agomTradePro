@@ -275,6 +275,31 @@ class DocumentationParser:
             # URL format
             r'`(/[a-z]+/[a-z0-9_-]+/?)`',
         ]
+        self.ignored_doc_parts = {
+            "archive",
+            "migration",
+        }
+        self.ignored_route_prefixes = (
+            "/opt/",
+            "/rsshub/",
+            "/mof/",
+            "/docs/",
+        )
+
+    def _should_skip_file(self, md_file: Path) -> bool:
+        """Skip historical/migration docs that intentionally mention legacy routes."""
+        relative_parts = {part.lower() for part in md_file.relative_to(self.docs_dir.parent).parts}
+        return bool(relative_parts & self.ignored_doc_parts)
+
+    def _should_ignore_route(self, route: str) -> bool:
+        """Ignore non-canonical route examples that are not meant for Django route validation."""
+        if route.startswith(self.ignored_route_prefixes):
+            return True
+        if any(token in route for token in ("...", "{", "}", "<", ">", "?")):
+            return True
+        if route.startswith("/admin/"):
+            return True
+        return False
 
     def extract_route_references(self) -> dict[str, list[tuple[str, int]]]:
         """Extract all route references from documentation files."""
@@ -282,6 +307,8 @@ class DocumentationParser:
 
         for md_file in self.docs_dir.rglob("*.md"):
             try:
+                if self._should_skip_file(md_file):
+                    continue
                 content = md_file.read_text(encoding="utf-8")
                 file_routes: list[tuple[str, int]] = []
 
@@ -293,6 +320,8 @@ class DocumentationParser:
                             # Clean up the route
                             route = route.strip('`\'"')
                             if not route.startswith('/'):
+                                continue
+                            if self._should_ignore_route(route):
                                 continue
                             file_routes.append((route, line_num))
 
@@ -385,6 +414,28 @@ class SDKParser:
         return endpoints
 
 
+def _route_pattern_to_regex(route: str) -> re.Pattern[str] | None:
+    """Convert Django route patterns to a regex that matches concrete doc examples."""
+    normalized = route.strip()
+    if not normalized:
+        return None
+
+    if not normalized.startswith("/"):
+        normalized = "/" + normalized
+
+    # Resolver output for DRF actions may contain regex fragments after mount prefixes.
+    normalized = normalized.replace("^", "").replace("$", "")
+    normalized = re.sub(r"<[^>]+>", r"[^/]+", normalized)
+    normalized = re.sub(r":\w+", r"[^/]+", normalized)
+    normalized = re.sub(r"\(\?P<[^>]+>[^)]+\)", r"[^/]+", normalized)
+    normalized = normalized.replace(r"\.", r"\.")
+
+    try:
+        return re.compile(f"^{normalized.rstrip('/')}/?$")
+    except re.error:
+        return None
+
+
 def load_baseline(path: Path) -> dict[str, Any]:
     """Load baseline issues file."""
     if not path.exists():
@@ -430,6 +481,10 @@ def check_consistency(
     print("Extracting Django routes...")
     route_extractor = RouteExtractor(project_root)
     django_routes = route_extractor.extract_all_routes()
+    django_route_patterns = [
+        _route_pattern_to_regex(route_info.path)
+        for route_info in django_routes.values()
+    ]
     print(f"  Found {len(django_routes)} routes")
 
     # Step 2: Extract documentation references
@@ -458,6 +513,11 @@ def check_consistency(
                 if normalized_route == django_route.path.rstrip('/'):
                     found = True
                     break
+            if not found:
+                for route_pattern in django_route_patterns:
+                    if route_pattern and route_pattern.match(route):
+                        found = True
+                        break
 
             if not found:
                 # Check if it's in baseline

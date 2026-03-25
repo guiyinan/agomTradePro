@@ -73,6 +73,38 @@ class TestSetupWizardStepSubmission:
             response = client.post("/setup/step/welcome/", follow=True)
             assert response.status_code in [200, 302, 400]
 
+    def test_existing_install_welcome_does_not_generate_keys(self, client):
+        session = client.session
+        session["setup_wizard_authenticated"] = True
+        session["setup_wizard"] = {"current_step": "welcome"}
+        session.save()
+
+        with patch("apps.setup_wizard.interface.views.CheckSetupStatusUseCase") as mock_check:
+            mock_result = MagicMock()
+            mock_result.is_first_time = False
+            mock_result.requires_auth = True
+            mock_result.current_step = WizardStep.WELCOME
+            mock_result.state = MagicMock()
+            mock_check.return_value.execute.return_value = mock_result
+
+            with patch(
+                "apps.setup_wizard.interface.views.EnsureSecurityKeysUseCase"
+            ) as mock_ensure:
+                mock_ensure.return_value.execute.return_value = {
+                    "secret_key_generated": False,
+                    "encryption_key_generated": False,
+                    "secret_key_configured": False,
+                    "encryption_key_configured": False,
+                }
+
+                response = client.post("/setup/step/welcome/", follow=True)
+
+        assert response.status_code in [200, 302]
+        mock_ensure.return_value.execute.assert_called_once_with(
+            generate_secret_key=False,
+            generate_encryption_key=False,
+        )
+
     def test_admin_password_step_password_mismatch(self, client):
         with patch("apps.setup_wizard.interface.views.CheckSetupStatusUseCase") as mock_check:
             mock_result = MagicMock()

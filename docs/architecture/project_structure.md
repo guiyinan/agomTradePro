@@ -597,14 +597,14 @@ apps/macro/
 **API端点：**
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/providers/` | GET | 获取提供商列表 |
-| `/api/providers/` | POST | 创建新提供商 |
-| `/api/providers/{id}/` | PUT/PATCH | 更新提供商 |
-| `/api/providers/{id}/` | DELETE | 删除提供商 |
-| `/api/providers/{id}/toggle_active/` | POST | 切换启用状态 |
-| `/api/providers/{id}/usage_stats/` | GET | 获取使用统计 |
-| `/api/providers/overall_stats/` | GET | 获取总体统计 |
-| `/api/logs/` | GET | 获取使用日志 |
+| `/api/ai/providers/` | GET | 获取提供商列表 |
+| `/api/ai/providers/` | POST | 创建新提供商 |
+| `/api/ai/providers/{id}/` | PUT/PATCH | 更新提供商 |
+| `/api/ai/providers/{id}/` | DELETE | 删除提供商 |
+| `/api/ai/providers/{id}/toggle_active/` | POST | 切换启用状态 |
+| `/api/ai/providers/{id}/usage_stats/` | GET | 获取使用统计 |
+| `/api/ai/providers/overall_stats/` | GET | 获取总体统计 |
+| `/api/ai/logs/` | GET | 获取使用日志 |
 
 ### 6.7 prompt 应用 - AI Prompt管理系统
 

@@ -130,6 +130,218 @@ def _ensure_dashboard_positions(data, user_id: int):
     return data
 
 
+def _load_phase1_macro_components(as_of_date: date | None = None):
+    """Load navigator, pulse, and action recommendation objects for dashboard widgets."""
+    target_date = as_of_date or date.today()
+    navigator = None
+    pulse = None
+    action = None
+
+    try:
+        from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
+
+        navigator = BuildRegimeNavigatorUseCase().execute(target_date)
+    except Exception as exc:
+        logger.warning("Failed to load regime navigator widget data: %s", exc)
+
+    try:
+        from apps.pulse.application.use_cases import GetLatestPulseUseCase
+
+        pulse = GetLatestPulseUseCase().execute()
+    except Exception as exc:
+        logger.warning("Failed to load pulse widget data: %s", exc)
+
+    try:
+        from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
+
+        action = GetActionRecommendationUseCase().execute(target_date)
+    except Exception as exc:
+        logger.warning("Failed to load action recommendation widget data: %s", exc)
+
+    return navigator, pulse, action
+
+
+def _score_to_percent(score: float) -> int:
+    """Map a pulse score in [-1, 1] to a percentage width in [0, 100]."""
+    bounded = max(-1.0, min(1.0, score))
+    return int(round((bounded + 1.0) * 50))
+
+
+def _build_regime_status_context(navigator, pulse, action) -> dict:
+    """Build template context for the regime status bar widget."""
+    movement = getattr(navigator, "movement", None)
+    asset_guidance = getattr(navigator, "asset_guidance", None)
+    risk_budget_pct = 0.0
+
+    if action:
+        risk_budget_pct = action.risk_budget_pct * 100
+    elif asset_guidance:
+        risk_budget_pct = asset_guidance.risk_budget_pct * 100
+
+    return {
+        "regime_name": navigator.regime_name if navigator else "Unknown",
+        "is_transitioning": bool(navigator and navigator.is_transitioning),
+        "transition_target": movement.transition_target if movement else None,
+        "confidence_pct": (navigator.confidence * 100) if navigator else 0.0,
+        "pulse_strength": getattr(pulse, "regime_strength", "moderate"),
+        "risk_budget_pct": risk_budget_pct,
+        "transition_warning": bool(pulse and pulse.transition_warning),
+    }
+
+
+def _build_pulse_card_context(pulse) -> dict:
+    """Build template context for the Pulse dashboard widget."""
+    dimensions = {ds.dimension: ds for ds in getattr(pulse, "dimension_scores", [])}
+
+    def _dim_value(name: str, field: str, default):
+        entry = dimensions.get(name)
+        return getattr(entry, field, default) if entry else default
+
+    return {
+        "pulse_observed_at": pulse.observed_at.isoformat() if pulse else "",
+        "pulse_composite": getattr(pulse, "composite_score", 0.0),
+        "pulse_strength": getattr(pulse, "regime_strength", "moderate"),
+        "growth_score": _dim_value("growth", "score", 0.0),
+        "growth_signal": _dim_value("growth", "signal", "neutral"),
+        "growth_pct": _score_to_percent(_dim_value("growth", "score", 0.0)),
+        "inflation_score": _dim_value("inflation", "score", 0.0),
+        "inflation_signal": _dim_value("inflation", "signal", "neutral"),
+        "inflation_pct": _score_to_percent(_dim_value("inflation", "score", 0.0)),
+        "liquidity_score": _dim_value("liquidity", "score", 0.0),
+        "liquidity_signal": _dim_value("liquidity", "signal", "neutral"),
+        "liquidity_pct": _score_to_percent(_dim_value("liquidity", "score", 0.0)),
+        "sentiment_score": _dim_value("sentiment", "score", 0.0),
+        "sentiment_signal": _dim_value("sentiment", "signal", "neutral"),
+        "sentiment_pct": _score_to_percent(_dim_value("sentiment", "score", 0.0)),
+        "pulse_transition_warning": bool(pulse and pulse.transition_warning),
+        "pulse_transition_direction": getattr(pulse, "transition_direction", None),
+        "pulse_transition_reasons": getattr(pulse, "transition_reasons", []),
+        "pulse_is_reliable": bool(pulse and pulse.is_reliable),
+        "pulse_stale_count": getattr(pulse, "stale_indicator_count", 0),
+    }
+
+
+def _build_action_recommendation_context(action) -> dict:
+    """Build template context for the action recommendation widget."""
+    if not action:
+        return {
+            "action_weights": {},
+            "action_risk_budget": 0.0,
+            "action_position_limit": 0.0,
+            "action_sectors": [],
+            "action_styles": [],
+            "action_hedge": None,
+            "action_regime_contribution": "",
+            "action_pulse_contribution": "",
+            "action_reasoning": "当前暂无联合行动建议，请先完成 Regime 与 Pulse 数据计算。",
+            "action_confidence": 0.0,
+        }
+
+    return {
+        "action_weights": {
+            category: weight * 100 for category, weight in action.asset_weights.items()
+        },
+        "action_risk_budget": action.risk_budget_pct * 100,
+        "action_position_limit": action.position_limit_pct * 100,
+        "action_sectors": action.recommended_sectors,
+        "action_styles": action.benefiting_styles,
+        "action_hedge": action.hedge_recommendation,
+        "action_regime_contribution": action.regime_contribution,
+        "action_pulse_contribution": action.pulse_contribution,
+        "action_reasoning": action.reasoning,
+        "action_confidence": action.confidence * 100,
+    }
+
+
+def _build_attention_items_context(data, navigator, pulse) -> dict:
+    """Build template context for the dashboard attention widget."""
+    items: list[dict[str, str]] = []
+    active_signals = list(getattr(data, "active_signals", []) or [])
+
+    if active_signals:
+        first_signal = active_signals[0]
+        items.append(
+            {
+                "level": "high",
+                "title": f"{len(active_signals)} 条信号待跟进",
+                "detail": (
+                    f"优先处理 {first_signal.get('asset_code', '未知标的')}"
+                    " 的已批准信号。"
+                ),
+                "meta": "来源: signal",
+            }
+        )
+
+    if pulse and pulse.transition_warning:
+        reasons = "；".join(pulse.transition_reasons[:2]) or "多维脉搏与当前 Regime 产生冲突。"
+        items.append(
+            {
+                "level": "medium",
+                "title": f"Pulse 转向 {pulse.transition_direction or '待确认'} 预警",
+                "detail": reasons,
+                "meta": "来源: pulse",
+            }
+        )
+    elif navigator and navigator.is_transitioning:
+        items.append(
+            {
+                "level": "medium",
+                "title": f"Regime 可能转向 {navigator.movement.transition_target or '新象限'}",
+                "detail": navigator.movement.momentum_summary,
+                "meta": "来源: regime",
+            }
+        )
+
+    if getattr(data, "position_count", 0) == 0:
+        items.append(
+            {
+                "level": "low",
+                "title": "当前无持仓",
+                "detail": "可以直接进入新决策 Workflow，按 6-step funnel 完成配置决策。",
+                "meta": "来源: account",
+            }
+        )
+
+    if not items:
+        items.append(
+            {
+                "level": "low",
+                "title": "当前无紧急待办",
+                "detail": "Regime、Pulse 与持仓状态稳定，可按计划例行复核。",
+                "meta": "来源: dashboard",
+            }
+        )
+
+    return {
+        "attention_items": items[:4],
+        "attention_count": len(items[:4]),
+    }
+
+
+def _build_browser_notification_context(navigator, pulse) -> dict:
+    """Build optional browser-notification payload for dashboard alerts."""
+    payload: dict[str, str] | None = None
+
+    if pulse and pulse.transition_warning:
+        reasons = "；".join((pulse.transition_reasons or [])[:2]) or "多维脉搏与当前 Regime 产生冲突。"
+        payload = {
+            "title": f"Pulse 转向 {pulse.transition_direction or '待确认'} 预警",
+            "body": reasons,
+            "tag": f"pulse-{pulse.observed_at.isoformat()}-{pulse.transition_direction or 'warning'}",
+        }
+    elif navigator and navigator.is_transitioning:
+        payload = {
+            "title": f"Regime 可能转向 {navigator.movement.transition_target or '新象限'}",
+            "body": navigator.movement.momentum_summary,
+            "tag": f"regime-{navigator.generated_at.isoformat()}-{navigator.movement.transition_target or 'warning'}",
+        }
+
+    return {
+        "browser_notification_enabled": True,
+        "browser_notification_payload": payload,
+    }
+
+
 # ========================================
 # Alpha 可视化数据获取函数（委托至 Query Services）
 # ========================================
@@ -319,6 +531,7 @@ def dashboard_view(request):
     # 获取首页数据
     data = _build_dashboard_data(request.user.id)
     data = _ensure_dashboard_positions(data, request.user.id)
+    navigator, pulse, action = _load_phase1_macro_components()
 
     # 补充用户名
     data.username = request.user.username
@@ -398,6 +611,11 @@ def dashboard_view(request):
         "alpha_factor_panel": _build_alpha_factor_panel(initial_alpha_stock, top_n=10),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
+    context.update(_build_regime_status_context(navigator, pulse, action))
+    context.update(_build_pulse_card_context(pulse))
+    context.update(_build_action_recommendation_context(action))
+    context.update(_build_attention_items_context(data, navigator, pulse))
+    context.update(_build_browser_notification_context(navigator, pulse))
 
     return render(request, 'dashboard/index.html', context)
 
@@ -405,6 +623,40 @@ def dashboard_view(request):
 # ========================================
 # HTMX 专用视图
 # ========================================
+
+
+@login_required(login_url="/account/login/")
+def regime_status_htmx(request):
+    """Render the regime status bar partial for HTMX refreshes."""
+    navigator, pulse, action = _load_phase1_macro_components()
+    context = _build_regime_status_context(navigator, pulse, action)
+    return render(request, "components/regime_status_bar.html", context)
+
+
+@login_required(login_url="/account/login/")
+def pulse_card_htmx(request):
+    """Render the Pulse card partial for HTMX refreshes."""
+    _, pulse, _ = _load_phase1_macro_components()
+    context = _build_pulse_card_context(pulse)
+    return render(request, "components/pulse_card.html", context)
+
+
+@login_required(login_url="/account/login/")
+def action_recommendation_htmx(request):
+    """Render the action recommendation partial for HTMX refreshes."""
+    _, _, action = _load_phase1_macro_components()
+    context = _build_action_recommendation_context(action)
+    return render(request, "components/action_recommendation.html", context)
+
+
+@login_required(login_url="/account/login/")
+def attention_items_htmx(request):
+    """Render today's attention-items partial for HTMX refreshes."""
+    data = _ensure_dashboard_positions(_build_dashboard_data(request.user.id), request.user.id)
+    navigator, pulse, _ = _load_phase1_macro_components()
+    context = _build_attention_items_context(data, navigator, pulse)
+    return render(request, "components/attention_items.html", context)
+
 
 @login_required(login_url="/account/login/")
 def position_detail_htmx(request, asset_code: str):
@@ -514,9 +766,13 @@ def performance_chart_htmx(request):
     account_id_str = request.GET.get('account_id', '')
     account_id = int(account_id_str) if account_id_str else None
 
-    from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-
-    use_case = GetDashboardDataUseCase()
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
     performance_data = use_case._generate_performance_chart_data(
         user_id=request.user.id,
         account_id=account_id,
