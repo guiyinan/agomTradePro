@@ -424,7 +424,7 @@
         {% for report in recent_reports %}
         <div class="report-card">
             <div class="report-info">
-                <h3>{{ report.backtest_name|default:report.backtest_id }}</h3>
+                <h3>{{ report.backtest.name|default:report.backtest_id }}</h3>
                 <div class="report-meta">
                     区间：{{ report.period_start|date:"Y-m-d" }} - {{ report.period_end|date:"Y-m-d" }}<br>
                     创建时间：{{ report.created_at|date:"Y-m-d H:i" }}

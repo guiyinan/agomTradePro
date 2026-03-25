@@ -766,9 +766,13 @@ def performance_chart_htmx(request):
     account_id_str = request.GET.get('account_id', '')
     account_id = int(account_id_str) if account_id_str else None
 
-    from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-
-    use_case = GetDashboardDataUseCase()
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
     performance_data = use_case._generate_performance_chart_data(
         user_id=request.user.id,
         account_id=account_id,
