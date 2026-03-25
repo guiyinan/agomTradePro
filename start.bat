@@ -22,12 +22,13 @@ echo   [5] Activate venv only
 echo   [6] Stop all services
 echo   [7] Quick Start + URL/API Scan
 echo   [8] Quick Start (Verbose Django Logs)
+echo   [9] Install local environment
 echo   [0] Exit
 echo.
 echo ========================================
 echo.
 
-set /p choice="Enter choice [0-8]: "
+set /p choice="Enter choice [0-9]: "
 
 if "%choice%"=="1" goto quick
 if "%choice%"=="2" goto sqlite_redis_celery
@@ -37,6 +38,7 @@ if "%choice%"=="5" goto venv
 if "%choice%"=="6" goto stop
 if "%choice%"=="7" goto quick_scan
 if "%choice%"=="8" goto quick_verbose
+if "%choice%"=="9" goto install_env
 if "%choice%"=="0" goto end
 goto menu
 
@@ -104,6 +106,11 @@ set DJANGO_LOG_LEVEL=DEBUG
 echo.
 echo [INFO] Verbose Django logging enabled ^(DJANGO_LOG_LEVEL=DEBUG^)
 call scripts\dev.bat
+goto menu
+
+:install_env
+call install.bat
+pause
 goto menu
 
 :end

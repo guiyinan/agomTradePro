@@ -78,11 +78,15 @@ If what you want is not “another dashboard” but “a base for building your 
 For now, the **simplest installation path** is:
 
 1. Clone this repository locally
-2. Let **OpenClaw** or **Claude Code** read the repo and handle dependency install, environment setup, migrations, and startup for you
-3. If you prefer a manual path, continue with `deploy/README_DEPLOY.md` and the docs under `docs/deployment/`
+2. On Windows, run `install.bat` from the repository root to create the local virtual environment and install dependencies
+3. Then run `start.bat` and choose `Quick Start`
+4. Or let **OpenClaw** or **Claude Code** read the repo and handle dependency install, environment setup, migrations, and startup for you
+5. If you prefer a manual path, continue with `deploy/README_DEPLOY.md` and the docs under `docs/deployment/`
 
 ### Notes
 
+- The local virtual environment is expected at `agomtradepro/`. It is a **local-only development environment**, is ignored by git, and is **not** stored in the repository
+- If you are on **Windows** and your local Python environment and project dependencies are already prepared, you can usually clone the repo, run `start.bat` from the repository root, and choose `Quick Start`
 - The public install flow is still being simplified, so the easiest option today is to let OpenClaw or Claude Code install it for you
 - A more direct **Docker package / deployment bundle** will be provided later by the author
 
