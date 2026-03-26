@@ -1,5 +1,20 @@
 <div class="funnel-step-content" style="animation: fadeIn 0.3s ease-in-out;">
     <h3 style="margin-bottom: 20px;">阶段 1: 宏观环境评估</h3>
+    <div class="attention-card" style="margin-bottom: 20px; border-left: 4px solid #0f766e;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+            <div>
+                <h4 class="attention-card__title" style="margin-bottom: 8px;">当前决策账户</h4>
+                <p style="margin: 0 0 6px 0;"><strong data-workspace-account-name>默认账户</strong></p>
+                <p style="margin: 0; color: var(--color-text-muted); font-size: 13px;">
+                    已选账户会作为当前工作台上下文展示，并驱动后续推荐、审批和冲突刷新。
+                </p>
+            </div>
+            <span class="badge badge-neutral">系统级分析</span>
+        </div>
+        <p style="margin: 12px 0 0 0; color: var(--color-text-secondary); font-size: 13px;">
+            本阶段结论仍基于全局 Regime / Pulse / Policy 模型，不按单账户持仓重新计算。
+        </p>
+    </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         <div class="attention-card">
             <h4 class="attention-card__title" style="margin-bottom: 10px;">📉 战略基准 (Regime)</h4>

@@ -16,9 +16,7 @@
                 <span class="badge badge-success" id="approval-count-badge">-</span>
             </h2>
             <div class="section-actions" style="display: flex; gap: 10px;">
-                <select id="approval-account-selector" class="form-select form-select-sm" onchange="loadApprovals()">
-                    <option value="">选择账户...</option>
-                </select>
+                <span class="badge badge-success">当前账户：<span data-workspace-account-name>默认账户</span></span>
                 <button class="btn btn-outline btn-sm" onclick="loadApprovals()"><i class="bi bi-arrow-clockwise"></i> 刷新审批</button>
             </div>
         </div>
@@ -39,9 +37,7 @@
                 <span class="badge badge-warning" id="conflict-count-badge">-</span>
             </h2>
             <div class="section-actions" style="display: flex; gap: 10px;">
-                <select id="conflict-account-selector" class="form-select form-select-sm" onchange="loadConflicts()">
-                    <option value="">选择账户...</option>
-                </select>
+                <span class="badge badge-warning">当前账户：<span data-workspace-account-name>默认账户</span></span>
             </div>
         </div>
 

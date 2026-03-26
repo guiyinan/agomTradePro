@@ -18,9 +18,7 @@
             <!-- 投资免责声明 -->
             {% include 'components/investment_disclaimer.html' with compact=true %}
             <div class="section-actions" style="display: flex; gap: 10px; align-items: center;">
-                <select id="account-selector" class="form-select form-select-sm" onchange="loadRecommendations()">
-                    <option value="">选择账户...</option>
-                </select>
+                <span class="badge badge-primary">当前账户：<span data-workspace-account-name>默认账户</span></span>
                 <select id="status-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
                     <option value="">全部状态</option>
                     <option value="NEW">新建</option>

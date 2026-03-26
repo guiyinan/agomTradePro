@@ -18,6 +18,105 @@
     margin-bottom: 30px;
 }
 
+.workspace-shell {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.workspace-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 20px;
+}
+
+.workspace-sidebar-card {
+    background: var(--color-card-bg, #ffffff);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+}
+
+.workspace-sidebar-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--color-text-primary);
+}
+
+.workspace-sidebar-subtitle {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.workspace-kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.workspace-kpi {
+    background: var(--color-bg-secondary, #f8fafc);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.workspace-kpi-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+}
+
+.workspace-kpi-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.workspace-position-list {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.workspace-position-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-position-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.workspace-position-code {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.workspace-position-meta {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.workspace-main {
+    min-width: 0;
+}
+
 .funnel-title {
     font-size: 28px;
     font-weight: 700;
@@ -35,7 +134,8 @@
     justify-content: space-between;
     margin-bottom: 40px;
     position: relative;
-    background: var(--color-card-bg);
+    isolation: isolate;
+    background: var(--color-card-bg, #ffffff);
     padding: 20px;
     border-radius: 16px;
     box-shadow: var(--shadow-sm);
@@ -49,13 +149,14 @@
     right: 40px;
     height: 2px;
     background: var(--color-border);
-    z-index: 1;
+    z-index: 0;
+    pointer-events: none;
 }
 
 .step-button {
     position: relative;
-    z-index: 2;
-    background: var(--color-card-bg);
+    z-index: 1;
+    background: var(--color-card-bg, #ffffff);
     border: 2px solid var(--color-border);
     border-radius: 20px;
     padding: 8px 16px;
@@ -68,10 +169,28 @@
     gap: 8px;
 }
 
+.step-button::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 999px;
+    background: var(--color-card-bg, #ffffff);
+    z-index: 0;
+}
+
+.step-button > span {
+    position: relative;
+    z-index: 1;
+}
+
 .step-button.completed {
     background: #f0fdf4;
     border-color: #22c55e;
     color: #166534;
+}
+
+.step-button.completed::before {
+    background: #f0fdf4;
 }
 
 .step-button.active {
@@ -81,19 +200,25 @@
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
+.step-button.active::before {
+    background: #eff6ff;
+}
+
 .step-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
 .step-number {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-secondary, #f1f5f9);
     font-size: 12px;
 }
 
@@ -108,7 +233,7 @@
 }
 
 .funnel-content-area {
-    background: var(--color-card-bg);
+    background: var(--color-card-bg, #ffffff);
     border-radius: 16px;
     box-shadow: var(--shadow-sm);
     padding: 30px;
@@ -128,8 +253,15 @@
     display: block;
 }
 
-/* Hide modal and block tabs by default when injected from legacy */
-.workspace-tabs { display: none !important; }
+@media (max-width: 1100px) {
+    .workspace-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-sidebar {
+        position: static;
+    }
+}
 </style>
 {% endblock %}
 
@@ -141,101 +273,173 @@
         <p class="funnel-subtitle">统一工作流：从宏观环境评估到落地执行，最终审计复盘闭环。</p>
     </div>
 
-    <!-- Stepper Navigation -->
-    <div class="funnel-stepper">
-        <template x-for="step in steps" :key="step.n">
-            <button 
-                class="step-button"
-                :class="{
-                    'active': currentStep === step.n, 
-                    'completed': step.n < currentStep
-                }"
-                :disabled="step.n > maxReached"
-                @click="goToStep(step.n)"
-            >
-                <span class="step-number" x-text="step.n < currentStep ? '✓' : step.n"></span>
-                <span x-text="step.label"></span>
-            </button>
-        </template>
-    </div>
+    <div class="workspace-shell">
+        <aside class="workspace-sidebar">
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">决策账户</div>
+                <p class="workspace-sidebar-subtitle">页面级直接切换账户。后续推荐、审批和冲突都按该账户口径刷新。</p>
+                <select id="workspace-account-selector" name="account_id" class="form-select" style="width: 100%; margin-top: 14px;" onchange="handleWorkspaceAccountChange()">
+                    <option value="">加载账户中...</option>
+                </select>
+            </div>
 
-    <!-- Content Area loaded via HTMX -->
-    <div class="funnel-content-area">
-        <div id="funnel-loading-indicator" class="htmx-indicator">
-            <div class="app-spinner"></div>
-            <p>正在加载上下文...</p>
-        </div>
-        
-        <!-- Step 1 Container -->
-        <div x-show="currentStep === 1" 
-             id="step-1-container"
-             hx-get="/api/decision/context/step1/" 
-             hx-trigger="load, stepChanged1 from:body" 
-             hx-target="#step-1-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-1-content"></div>
-        </div>
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">账户现状</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <div>
+                        <div style="font-weight: 700; color: var(--color-text-primary);" data-workspace-account-name>默认账户</div>
+                        <div id="workspace-account-meta" class="workspace-sidebar-subtitle">等待账户加载</div>
+                    </div>
+                    <span id="workspace-account-status" class="badge badge-neutral">未加载</span>
+                </div>
 
-        <!-- Step 2 Container -->
-        <div x-show="currentStep === 2" 
-             id="step-2-container"
-             hx-get="/api/decision/context/step2/" 
-             hx-trigger="stepChanged2 from:body" 
-             hx-target="#step-2-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-2-content"></div>
-        </div>
+                <div class="workspace-kpi-grid">
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">总资产</span>
+                        <span class="workspace-kpi-value" id="workspace-total-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">现金</span>
+                        <span class="workspace-kpi-value" id="workspace-cash-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">持仓市值</span>
+                        <span class="workspace-kpi-value" id="workspace-market-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">收益率</span>
+                        <span class="workspace-kpi-value" id="workspace-return-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">持仓数</span>
+                        <span class="workspace-kpi-value" id="workspace-position-count">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">最大回撤</span>
+                        <span class="workspace-kpi-value" id="workspace-drawdown-value">-</span>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Step 3 Container -->
-        <div x-show="currentStep === 3" 
-             id="step-3-container"
-             hx-get="/api/decision/context/step3/" 
-             hx-trigger="stepChanged3 from:body" 
-             hx-target="#step-3-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-3-content"></div>
-        </div>
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">当前持仓摘要</div>
+                <ul id="workspace-position-list" class="workspace-position-list">
+                    <li class="workspace-sidebar-subtitle">等待账户加载</li>
+                </ul>
+            </div>
 
-        <!-- Step 4 Container (Unified Recommendations list) -->
-        <div x-show="currentStep === 4" 
-             id="step-4-container"
-             hx-get="/api/decision/context/step4/" 
-             hx-trigger="stepChanged4 from:body" 
-             hx-target="#step-4-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-4-content"></div>
-        </div>
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">口径说明</div>
+                <p class="workspace-sidebar-subtitle">
+                    Step 1-3 会显示当前账户上下文，但分析结论仍是系统级宏观口径；
+                    Step 4-5 的推荐、审批和冲突才真正按账户决策口径刷新。
+                </p>
+            </div>
+        </aside>
 
-        <!-- Step 5 Container (Approvals & Execution) -->
-        <div x-show="currentStep === 5" 
-             id="step-5-container"
-             hx-get="/api/decision/context/step5/" 
-             hx-trigger="stepChanged5 from:body" 
-             hx-target="#step-5-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-5-content"></div>
-        </div>
+        <div class="workspace-main">
+            <!-- Stepper Navigation -->
+            <div class="funnel-stepper">
+                <template x-for="step in steps" :key="step.n">
+                    <button 
+                        class="step-button"
+                        :class="{
+                            'active': currentStep === step.n, 
+                            'completed': step.n < currentStep
+                        }"
+                        :disabled="step.n > maxReached"
+                        @click="goToStep(step.n)"
+                    >
+                        <span class="step-number" x-text="step.n < currentStep ? '✓' : step.n"></span>
+                        <span x-text="step.label"></span>
+                    </button>
+                </template>
+            </div>
 
-        <!-- Step 6 Container (Audit Loop) -->
-        <div x-show="currentStep === 6" 
-             id="step-6-container"
-             hx-get="/api/decision/context/step6/" 
-             hx-vals='js:getDecisionAuditParams()'
-             hx-trigger="stepChanged6 from:body" 
-             hx-target="#step-6-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-6-content"></div>
-        </div>
-        
-        <!-- Next Step Control Panel -->
-        <div style="margin-top: 30px; display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 20px;">
-            <button class="btn btn-outline" x-show="currentStep > 1" @click="goToStep(currentStep - 1)">
-                ← 返回上一步
-            </button>
-            <div style="flex-grow: 1;"></div>
-            <button class="btn btn-primary" x-show="currentStep < 6" @click="progressToNextStep()">
-                <span x-text="'进入 ' + getNextStepName() + ' →'"></span>
-            </button>
+            <!-- Content Area loaded via HTMX -->
+            <div class="funnel-content-area">
+                <div id="funnel-loading-indicator" class="htmx-indicator">
+                    <div class="app-spinner"></div>
+                    <p>正在加载上下文...</p>
+                </div>
+                
+                <!-- Step 1 Container -->
+                <div x-show="currentStep === 1" 
+                     id="step-1-container"
+                     hx-get="/api/decision/context/step1/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="load, stepChanged1 from:body" 
+                     hx-target="#step-1-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-1-content"></div>
+                </div>
+
+                <!-- Step 2 Container -->
+                <div x-show="currentStep === 2" 
+                     id="step-2-container"
+                     hx-get="/api/decision/context/step2/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged2 from:body" 
+                     hx-target="#step-2-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-2-content"></div>
+                </div>
+
+                <!-- Step 3 Container -->
+                <div x-show="currentStep === 3" 
+                     id="step-3-container"
+                     hx-get="/api/decision/context/step3/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged3 from:body" 
+                     hx-target="#step-3-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-3-content"></div>
+                </div>
+
+                <!-- Step 4 Container (Unified Recommendations list) -->
+                <div x-show="currentStep === 4" 
+                     id="step-4-container"
+                     hx-get="/api/decision/context/step4/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged4 from:body" 
+                     hx-target="#step-4-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-4-content"></div>
+                </div>
+
+                <!-- Step 5 Container (Approvals & Execution) -->
+                <div x-show="currentStep === 5" 
+                     id="step-5-container"
+                     hx-get="/api/decision/context/step5/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged5 from:body" 
+                     hx-target="#step-5-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-5-content"></div>
+                </div>
+
+                <!-- Step 6 Container (Audit Loop) -->
+                <div x-show="currentStep === 6" 
+                     id="step-6-container"
+                     hx-get="/api/decision/context/step6/" 
+                     hx-vals='js:getDecisionAuditParams()'
+                     hx-trigger="stepChanged6 from:body" 
+                     hx-target="#step-6-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-6-content"></div>
+                </div>
+                
+                <!-- Next Step Control Panel -->
+                <div style="margin-top: 30px; display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 20px;">
+                    <button class="btn btn-outline" x-show="currentStep > 1" @click="goToStep(currentStep - 1)">
+                        ← 返回上一步
+                    </button>
+                    <div style="flex-grow: 1;"></div>
+                    <button class="btn btn-primary" x-show="currentStep < 6" @click="progressToNextStep()">
+                        <span x-text="'进入 ' + getNextStepName() + ' →'"></span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -263,12 +467,13 @@ document.addEventListener('alpine:init', () => {
         ],
         
         init() {
+            window.decisionFunnelState = this;
             // Check URL parameters to see if we should jump to a specific step
             const params = new URLSearchParams(window.location.search);
             const requestedStep = parseInt(params.get('step'));
             
-            if (window.initializeLegacyWorkspace) {
-                window.initializeLegacyWorkspace();
+            if (window.initializeDecisionWorkspace) {
+                window.initializeDecisionWorkspace();
             }
 
             if (requestedStep && requestedStep >= 1 && requestedStep <= 6) {
@@ -594,11 +799,11 @@ document.addEventListener('alpine:init', () => {
 
 <script>
 // ===== 全局状态 =====
-let currentTab = 'recommendations';
 let currentRecommendation = null;
 let approvalRequestId = null;
 let userAccounts = [];
 let executionPortfolios = [];
+let workspaceInitialized = false;
 const workspaceParams = new URLSearchParams(window.location.search);
 const workspaceBridge = {
     source: workspaceParams.get('source') || '',
@@ -607,6 +812,7 @@ const workspaceBridge = {
     handled: false,
     highlightedRecommendationId: '',
 };
+const requestedWorkspaceAccountId = workspaceParams.get('account_id') || '';
 
 function formatRepairPercent(value) {
     if (value === null || value === undefined || value === '') return '-';
@@ -649,12 +855,236 @@ function getUserActionText(action) {
     }[action] || action || '待决策';
 }
 
+function getWorkspaceAccountSelector() {
+    return document.getElementById('workspace-account-selector');
+}
+
+function getSelectedWorkspaceAccountId() {
+    return getWorkspaceAccountSelector()?.value || 'default';
+}
+
+function getSelectedWorkspaceAccountName() {
+    const selector = getWorkspaceAccountSelector();
+    if (!selector) {
+        return '默认账户';
+    }
+    const option = selector.options[selector.selectedIndex];
+    return option?.textContent?.trim() || '默认账户';
+}
+
+function syncWorkspaceAccountSummary() {
+    const selectedName = getSelectedWorkspaceAccountName();
+    document.querySelectorAll('[data-workspace-account-name]').forEach(node => {
+        node.textContent = selectedName;
+    });
+}
+
+function formatWorkspaceCurrency(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return '-';
+    }
+    return new Intl.NumberFormat('zh-CN', {
+        style: 'currency',
+        currency: 'CNY',
+        maximumFractionDigits: 0,
+    }).format(numericValue);
+}
+
+function formatWorkspacePercent(value, digits = 2) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return '-';
+    }
+    return `${numericValue.toFixed(digits)}%`;
+}
+
+function setWorkspaceSnapshotValue(id, value) {
+    const node = document.getElementById(id);
+    if (node) {
+        node.textContent = value;
+    }
+}
+
+function renderWorkspacePositionList(positions, emptyMessage) {
+    const list = document.getElementById('workspace-position-list');
+    if (!list) {
+        return;
+    }
+
+    if (!Array.isArray(positions) || positions.length === 0) {
+        list.innerHTML = `<li class="workspace-sidebar-subtitle">${escapeHtml(emptyMessage)}</li>`;
+        return;
+    }
+
+    list.innerHTML = positions.slice(0, 5).map(position => {
+        const assetName = position.asset_name || position.asset_code || '-';
+        const pnlValue = Number(position.unrealized_pnl_pct);
+        const pnlText = formatWorkspacePercent(position.unrealized_pnl_pct);
+        const pnlColor = Number.isFinite(pnlValue) && pnlValue < 0
+            ? 'var(--color-danger)'
+            : 'var(--color-success)';
+        return `
+            <li class="workspace-position-item">
+                <div>
+                    <div class="workspace-position-code">${escapeHtml(position.asset_code || '-')}</div>
+                    <div class="workspace-position-meta">${escapeHtml(assetName)} · ${position.quantity || 0}股 · 成本 ${formatWorkspaceCurrency(position.avg_cost)}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="workspace-position-code">${formatWorkspaceCurrency(position.market_value)}</div>
+                    <div class="workspace-position-meta" style="color: ${pnlColor};">浮盈 ${pnlText}</div>
+                </div>
+            </li>
+        `;
+    }).join('');
+}
+
+function renderWorkspaceDefaultSnapshot() {
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+
+    if (meta) {
+        meta.textContent = '系统默认口径，未绑定模拟账户快照';
+    }
+    if (status) {
+        status.className = 'badge badge-neutral';
+        status.textContent = '系统级';
+    }
+
+    setWorkspaceSnapshotValue('workspace-total-value', '-');
+    setWorkspaceSnapshotValue('workspace-cash-value', '-');
+    setWorkspaceSnapshotValue('workspace-market-value', '-');
+    setWorkspaceSnapshotValue('workspace-return-value', '-');
+    setWorkspaceSnapshotValue('workspace-position-count', '-');
+    setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
+    renderWorkspacePositionList([], '默认账户仅展示系统级上下文，不展示持仓快照。');
+}
+
+function renderWorkspaceAccountSnapshot(detailData, positionsData) {
+    const account = detailData?.account || {};
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+    const accountTypeText = account.account_type === 'real' ? '实盘账户' : '模拟账户';
+    const autoTradingText = account.auto_trading_enabled ? '自动交易开启' : '人工决策模式';
+
+    if (meta) {
+        meta.textContent = `${accountTypeText} · ${autoTradingText} · 仓位上限 ${formatWorkspacePercent(account.max_position_pct)}`;
+    }
+    if (status) {
+        status.className = account.is_active ? 'badge badge-success' : 'badge badge-neutral';
+        status.textContent = account.is_active ? '运行中' : '已停用';
+    }
+
+    setWorkspaceSnapshotValue('workspace-total-value', formatWorkspaceCurrency(account.total_value));
+    setWorkspaceSnapshotValue('workspace-cash-value', formatWorkspaceCurrency(account.current_cash));
+    setWorkspaceSnapshotValue('workspace-market-value', formatWorkspaceCurrency(account.current_market_value));
+    setWorkspaceSnapshotValue('workspace-return-value', formatWorkspacePercent(account.total_return));
+    setWorkspaceSnapshotValue(
+        'workspace-position-count',
+        String(positionsData?.total_positions ?? detailData?.total_positions ?? positionsData?.positions?.length ?? 0)
+    );
+    setWorkspaceSnapshotValue('workspace-drawdown-value', formatWorkspacePercent(account.max_drawdown));
+
+    renderWorkspacePositionList(
+        positionsData?.positions || [],
+        '当前账户暂无持仓，可继续使用工作台筛选和审批。'
+    );
+}
+
+async function loadWorkspaceAccountSnapshot() {
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
+    if (!accountId || accountId === 'default') {
+        renderWorkspaceDefaultSnapshot();
+        return;
+    }
+
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+
+    if (meta) {
+        meta.textContent = '正在同步账户快照...';
+    }
+    if (status) {
+        status.className = 'badge badge-neutral';
+        status.textContent = '加载中';
+    }
+    renderWorkspacePositionList([], '正在加载持仓摘要...');
+
+    try {
+        const [detailRes, positionsRes] = await Promise.all([
+            fetch(`/api/simulated-trading/accounts/${encodeURIComponent(accountId)}/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            }),
+            fetch(`/api/simulated-trading/accounts/${encodeURIComponent(accountId)}/positions/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            }),
+        ]);
+        const [detailData, positionsData] = await Promise.all([
+            detailRes.json(),
+            positionsRes.json(),
+        ]);
+
+        if (!detailData?.success) {
+            throw new Error(detailData?.error || '账户详情加载失败');
+        }
+        if (!positionsData?.success) {
+            throw new Error(positionsData?.error || '账户持仓加载失败');
+        }
+
+        renderWorkspaceAccountSnapshot(detailData, positionsData);
+    } catch (error) {
+        console.error('加载账户快照失败:', error);
+        if (meta) {
+            meta.textContent = '账户快照加载失败';
+        }
+        if (status) {
+            status.className = 'badge badge-danger';
+            status.textContent = '异常';
+        }
+        setWorkspaceSnapshotValue('workspace-total-value', '-');
+        setWorkspaceSnapshotValue('workspace-cash-value', '-');
+        setWorkspaceSnapshotValue('workspace-market-value', '-');
+        setWorkspaceSnapshotValue('workspace-return-value', '-');
+        setWorkspaceSnapshotValue('workspace-position-count', '-');
+        setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
+        renderWorkspacePositionList([], `账户快照加载失败: ${error.message}`);
+    }
+}
+
+function refreshCurrentDecisionStep() {
+    const currentStep = Number(window.decisionFunnelState?.currentStep || 1);
+    if (currentStep >= 1 && currentStep <= 5) {
+        document.body.dispatchEvent(new Event(`stepChanged${currentStep}`));
+    }
+}
+
+function refreshWorkspaceDecisionLists() {
+    loadRecommendations();
+    loadApprovals();
+    loadConflicts();
+}
+
+function handleWorkspaceAccountChange() {
+    const accountId = getSelectedWorkspaceAccountId();
+    const url = new URL(window.location.href);
+    if (accountId && accountId !== 'default') {
+        url.searchParams.set('account_id', accountId);
+    } else {
+        url.searchParams.delete('account_id');
+    }
+    window.history.replaceState({}, '', url.toString());
+    loadWorkspaceAccountSnapshot();
+    refreshCurrentDecisionStep();
+    refreshWorkspaceDecisionLists();
+}
+
 async function bootstrapWorkspaceBridge() {
     if (!workspaceBridge.securityCode || workspaceBridge.handled) {
         return;
     }
 
-    const accountId = document.getElementById('account-selector')?.value || 'default';
+    const accountId = getSelectedWorkspaceAccountId();
     showBridgeBanner(`正在将 ${workspaceBridge.securityCode} 同步到决策工作台...`);
 
     try {
@@ -722,17 +1152,17 @@ async function bootstrapWorkspaceBridge() {
 }
 
 // ===== 初始化 =====
-window.initializeLegacyWorkspace = async function() {
+window.initializeDecisionWorkspace = async function() {
+    if (workspaceInitialized) {
+        return;
+    }
+    workspaceInitialized = true;
+
     // 加载账户列表
     await loadUserAccounts();
     await loadExecutionPortfolios();
     await bootstrapWorkspaceBridge();
-    // 加载推荐数据
-    loadRecommendations();
-    // 加载审批数据
-    loadApprovals();
-    // 加载冲突数据
-    loadConflicts();
+    refreshWorkspaceDecisionLists();
     // 加载模拟账户
     loadSimulatedAccounts();
 
@@ -742,63 +1172,53 @@ window.initializeLegacyWorkspace = async function() {
             closeApprovalModal();
         }
     });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('workspace-account-selector') && window.initializeDecisionWorkspace) {
+        window.initializeDecisionWorkspace();
+    }
 });
 
-// ===== Tab 切换 =====
-function switchTab(tabName) {
-    currentTab = tabName;
-
-    // 更新 Tab 按钮状态
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-
-    // 更新内容显示
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.toggle('active', content.id === `tab-${tabName}`);
-    });
-
-    // 根据当前 Tab 加载数据
-    if (tabName === 'recommendations') {
-        loadRecommendations();
-    } else if (tabName === 'approvals') {
-        loadApprovals();
-    } else if (tabName === 'conflicts') {
-        loadConflicts();
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    const targetId = event.detail?.target?.id;
+    if (targetId && targetId.startsWith('step-')) {
+        syncWorkspaceAccountSummary();
     }
-}
+});
 
 // ===== 加载用户账户 =====
 async function loadUserAccounts() {
     try {
-        const res = await fetch('/api/simulated-trading/accounts/', {
+        const res = await fetch('/api/simulated-trading/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         const data = await res.json();
 
         if (data.success && Array.isArray(data.accounts)) {
             userAccounts = data.accounts;
-            const options = '<option value="">选择账户...</option>' +
+            const selector = getWorkspaceAccountSelector();
+            if (!selector) {
+                return;
+            }
+
+            const options = '<option value="default">默认账户</option>' +
                 userAccounts.map(acc =>
                     `<option value="${acc.account_id}">${acc.account_name} (${acc.initial_capital}元)</option>`
                 ).join('');
 
-            // 填充所有账户选择器
-            ['account-selector', 'approval-account-selector', 'conflict-account-selector'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = options;
-            });
+            selector.innerHTML = options;
 
-            // 默认选中第一个账户，避免首次加载无 account_id
-            if (userAccounts.length > 0) {
-                ['account-selector', 'approval-account-selector', 'conflict-account-selector'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el && !el.value) {
-                        el.value = String(userAccounts[0].account_id);
-                    }
-                });
+            if (requestedWorkspaceAccountId && userAccounts.some(acc => String(acc.account_id) === requestedWorkspaceAccountId)) {
+                selector.value = requestedWorkspaceAccountId;
+            } else if (userAccounts.length > 0) {
+                selector.value = String(userAccounts[0].account_id);
+            } else {
+                selector.value = 'default';
             }
         }
+        await loadWorkspaceAccountSnapshot();
+        refreshCurrentDecisionStep();
     } catch (error) {
         console.error('加载账户失败:', error);
     }
@@ -835,7 +1255,11 @@ async function loadExecutionPortfolios() {
 // ===== 加载推荐列表 =====
 async function loadRecommendations() {
     const container = document.getElementById('recommendations-list');
-    const accountId = document.getElementById('account-selector')?.value || '';
+    if (!container) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
     const statusFilter = document.getElementById('status-filter')?.value || '';
     const decisionFilter = document.getElementById('decision-filter')?.value || '';
 
@@ -882,8 +1306,17 @@ async function loadRecommendations() {
 // ===== 渲染推荐列表 =====
 function renderRecommendations(recommendations, totalCount) {
     const container = document.getElementById('recommendations-list');
-    document.getElementById('recommendations-count').textContent = totalCount;
-    document.getElementById('rec-count-badge').textContent = totalCount;
+    if (!container) {
+        return;
+    }
+    const recommendationsCount = document.getElementById('recommendations-count');
+    if (recommendationsCount) {
+        recommendationsCount.textContent = totalCount;
+    }
+    const recCountBadge = document.getElementById('rec-count-badge');
+    if (recCountBadge) {
+        recCountBadge.textContent = totalCount;
+    }
 
     if (!recommendations || recommendations.length === 0) {
         container.innerHTML = `
@@ -1025,7 +1458,7 @@ function renderValuationRepairSummary(repair) {
 }
 
 async function applyRecommendationAction(recommendationId, action) {
-    const accountId = document.getElementById('account-selector')?.value || 'default';
+    const accountId = getSelectedWorkspaceAccountId();
 
     try {
         const res = await fetch('/api/decision/workspace/recommendations/action/', {
@@ -1061,7 +1494,11 @@ async function applyRecommendationAction(recommendationId, action) {
 // ===== 加载审批列表 =====
 async function loadApprovals() {
     const container = document.getElementById('approvals-list');
-    const accountId = document.getElementById('approval-account-selector')?.value || '';
+    if (!container) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
 
     container.innerHTML = `
         <div class="app-loading-state app-loading-state--compact">
@@ -1103,8 +1540,17 @@ async function loadApprovals() {
 // ===== 渲染审批列表 =====
 function renderApprovals(approvals, totalCount) {
     const container = document.getElementById('approvals-list');
-    document.getElementById('approvals-count').textContent = totalCount;
-    document.getElementById('approval-count-badge').textContent = totalCount;
+    if (!container) {
+        return;
+    }
+    const approvalsCount = document.getElementById('approvals-count');
+    if (approvalsCount) {
+        approvalsCount.textContent = totalCount;
+    }
+    const approvalCountBadge = document.getElementById('approval-count-badge');
+    if (approvalCountBadge) {
+        approvalCountBadge.textContent = totalCount;
+    }
 
     if (!approvals || approvals.length === 0) {
         container.innerHTML = `
@@ -1141,7 +1587,11 @@ function renderApprovals(approvals, totalCount) {
 // ===== 加载冲突列表 =====
 async function loadConflicts() {
     const container = document.getElementById('conflicts-list');
-    const accountId = document.getElementById('conflict-account-selector')?.value || '';
+    if (!container) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
 
     container.innerHTML = `
         <div class="app-loading-state app-loading-state--compact">
@@ -1182,8 +1632,17 @@ async function loadConflicts() {
 // ===== 渲染冲突列表 =====
 function renderConflicts(conflicts, totalCount) {
     const container = document.getElementById('conflicts-list');
-    document.getElementById('conflicts-count').textContent = totalCount;
-    document.getElementById('conflict-count-badge').textContent = totalCount;
+    if (!container) {
+        return;
+    }
+    const conflictsCount = document.getElementById('conflicts-count');
+    if (conflictsCount) {
+        conflictsCount.textContent = totalCount;
+    }
+    const conflictCountBadge = document.getElementById('conflict-count-badge');
+    if (conflictCountBadge) {
+        conflictCountBadge.textContent = totalCount;
+    }
 
     if (!conflicts || conflicts.length === 0) {
         container.innerHTML = `
@@ -1238,16 +1697,15 @@ async function refreshRecommendations() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': window.csrfToken
             },
-            body: JSON.stringify({})
+            body: JSON.stringify({
+                account_id: getSelectedWorkspaceAccountId()
+            })
         });
         const data = await res.json();
 
         if (data.success) {
             window.showToast('推荐已刷新', 'success');
-            // 重新加载当前 Tab 数据
-            if (currentTab === 'recommendations') loadRecommendations();
-            else if (currentTab === 'approvals') loadApprovals();
-            else if (currentTab === 'conflicts') loadConflicts();
+            refreshWorkspaceDecisionLists();
         } else {
             window.showToast('刷新失败: ' + (data.error || '未知错误'), 'error');
         }
@@ -1267,7 +1725,7 @@ async function openApprovalModal(recommendationId) {
     // 如果传入的是 ID，需要先获取推荐详情
     if (typeof recommendationId === 'string') {
         try {
-            const accountId = document.getElementById('account-selector')?.value || 'default';
+            const accountId = getSelectedWorkspaceAccountId();
             const res = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}`, {
                 headers: { 'X-CSRFToken': window.csrfToken }
             });
@@ -1423,7 +1881,7 @@ async function loadExecutionPreview() {
             },
             body: JSON.stringify({
                 recommendation_id: currentRecommendation.recommendation_id,
-                account_id: document.getElementById('account-selector')?.value || 'default'
+                account_id: getSelectedWorkspaceAccountId()
             })
         });
         const data = await res.json();
@@ -1516,7 +1974,7 @@ function toggleExecutionFields() {
 // ===== 加载模拟账户 =====
 async function loadSimulatedAccounts() {
     try {
-        const res = await fetch('/api/simulated-trading/accounts/', {
+        const res = await fetch('/api/simulated-trading/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         const data = await res.json();
@@ -1607,9 +2065,7 @@ async function approveRecommendation() {
         if (data.success) {
             window.showToast('审批通过并执行成功', 'success');
             closeApprovalModal();
-            // 刷新列表
-            if (currentTab === 'recommendations') loadRecommendations();
-            else if (currentTab === 'approvals') loadApprovals();
+            refreshWorkspaceDecisionLists();
         } else {
             window.showToast('执行失败: ' + (data.error || '未知错误'), 'error');
             approveBtn.disabled = false;
@@ -1654,9 +2110,7 @@ async function rejectRecommendation() {
         if (data.success) {
             window.showToast('已拒绝该推荐', 'success');
             closeApprovalModal();
-            // 刷新列表
-            if (currentTab === 'recommendations') loadRecommendations();
-            else if (currentTab === 'approvals') loadApprovals();
+            refreshWorkspaceDecisionLists();
         } else {
             window.showToast('拒绝失败: ' + (data.error || '未知错误'), 'error');
             rejectBtn.disabled = false;
@@ -1755,38 +2209,6 @@ function getStatusText(status) {
 .badge-value.policy-p1 { color: #f59e0b; }
 .badge-value.policy-p2 { color: #10b981; }
 
-/* Tab 导航 */
-.workspace-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.tab-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-size: 14px;
-    color: #64748b;
-    transition: all 0.2s;
-}
-
-.tab-button:hover {
-    color: #334155;
-    background: #f8fafc;
-}
-
-.tab-button.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
-}
-
 .tab-count {
     background: #e2e8f0;
     color: #475569;
@@ -1794,11 +2216,6 @@ function getStatusText(status) {
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
-}
-
-.tab-button.active .tab-count {
-    background: #667eea;
-    color: white;
 }
 
 /* Tab 内容 */

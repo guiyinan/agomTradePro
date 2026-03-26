@@ -16,8 +16,17 @@
 
 ### 1.1 前端账户绑定约定
 
+- 工作台页面头部必须提供全局账户 selector，作为当前决策口径的唯一入口
+- 工作台左侧栏应显示当前账户现状，包括账户状态、资产概览和持仓摘要
+- Step 1-3 需要显式展示当前账户上下文，但必须标注为“系统级分析”，不得误导为按单账户重算
+- Step 1-5 的 HTMX 请求应透传 `account_id`，保证页面刷新与 URL 中的账户口径一致
 - 工作台顶部“选择账户”与推荐/审批/冲突筛选使用模拟账户接口 `/api/simulated-trading/accounts/`
+- 工作台应显式请求 `active_only=false`，确保账户 selector 与 `/simulated-trading/my-accounts/` 展示口径一致
+- 工作台中的“刷新推荐”动作也应携带当前 `account_id`，避免刷新任务与当前页面账户口径脱节
 - 该接口前端应读取 `accounts` 数组，单项字段使用 `account_id`、`account_name`
+- 该接口后端只允许返回当前登录用户拥有的账户，不得返回其他用户的活跃账户
+- 历史模板 `core/templates/decision/workspace_legacy.html` 已废弃并移除，工作台只允许维护 `core/templates/decision/workspace.html`
+- 左侧栏账户现状使用 `/api/simulated-trading/accounts/{id}/` 和 `/api/simulated-trading/accounts/{id}/positions/`
 - 审批弹窗中的“账户落地”使用真实投资组合接口 `/account/api/portfolios/`
 - 该接口为 DRF 分页列表，前端应读取 `results` 数组，并将 `id` 作为 `portfolio_id`
 

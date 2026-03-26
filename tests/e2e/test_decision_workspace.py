@@ -138,6 +138,9 @@ class TestWorkspacePageFlow:
         content = response.content.decode('utf-8')
         # 验证页面包含关键元素
         assert '决策' in content or 'workspace' in content.lower()
+        assert 'workspace-account-selector' in content
+        assert '账户现状' in content
+        assert '当前持仓摘要' in content
 
     def test_recommendations_api_returns_data(self):
         """

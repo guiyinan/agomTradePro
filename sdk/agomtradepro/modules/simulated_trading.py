@@ -41,7 +41,7 @@ class SimulatedTradingModule(BaseModule):
             limit: 返回数量限制
 
         Returns:
-            模拟账户列表
+            当前认证用户可访问的模拟账户列表
 
         Example:
             >>> client = AgomTradeProClient()

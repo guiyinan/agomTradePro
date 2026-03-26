@@ -192,11 +192,11 @@ mypy apps/ --strict
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/simulated-trading/accounts/` | POST | 创建模拟账户 |
-| `/api/simulated-trading/accounts/{id}/` | GET | 获取账户详情 |
-| `/api/simulated-trading/accounts/{id}/positions/` | GET | 获取持仓列表 |
-| `/api/simulated-trading/accounts/{id}/trades/` | GET | 获取交易记录 |
-| `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取账户绩效 |
+| `/api/simulated-trading/accounts/` | GET/POST | 获取当前登录用户的账户列表 / 创建模拟账户 |
+| `/api/simulated-trading/accounts/{id}/` | GET | 获取当前登录用户名下账户详情 |
+| `/api/simulated-trading/accounts/{id}/positions/` | GET | 获取当前登录用户名下账户持仓列表 |
+| `/api/simulated-trading/accounts/{id}/trades/` | GET | 获取当前登录用户名下账户交易记录 |
+| `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
 
 ### Realtime Price API

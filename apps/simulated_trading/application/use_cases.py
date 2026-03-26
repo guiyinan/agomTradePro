@@ -35,6 +35,7 @@ class SimulatedAccountRepositoryProtocol(Protocol):
     def get_by_name(self, account_name: str) -> SimulatedAccount | None: ...
     def get_active_accounts(self) -> list[SimulatedAccount]: ...
     def get_all_accounts(self) -> list[SimulatedAccount]: ...
+    def get_by_user(self, user_id: int) -> list[SimulatedAccount]: ...
     def delete(self, account_id: int) -> bool: ...
 
 
@@ -540,16 +541,27 @@ class ListAccountsUseCase:
     def __init__(self, account_repo: SimulatedAccountRepositoryProtocol):
         self.account_repo = account_repo
 
-    def execute(self, active_only: bool = True) -> list[SimulatedAccount]:
+    def execute(
+        self,
+        active_only: bool = True,
+        user_id: int | None = None,
+    ) -> list[SimulatedAccount]:
         """
         列出所有账户
 
         Args:
             active_only: 是否只返回活跃账户
+            user_id: 可选，限制为当前用户拥有的账户
 
         Returns:
             账户列表
         """
+        if user_id is not None:
+            accounts = self.account_repo.get_by_user(user_id)
+            if active_only:
+                return [account for account in accounts if account.is_active]
+            return accounts
+
         if active_only:
             return self.account_repo.get_active_accounts()
         else:

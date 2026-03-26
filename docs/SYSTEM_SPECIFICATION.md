@@ -1275,11 +1275,11 @@ def check_invalidation(
 
 | 端点 | 方法 | 说明 | 认证 |
 |------|------|------|------|
-| `/api/simulated-trading/accounts/` | GET/POST | 账户列表/创建 | 需要 |
-| `/api/simulated-trading/accounts/{id}/` | GET | 账户详情 | 需要 |
-| `/api/simulated-trading/accounts/{id}/positions/` | GET | 持仓列表 | 需要 |
-| `/api/simulated-trading/accounts/{id}/trades/` | GET | 交易记录 | 需要 |
-| `/api/simulated-trading/accounts/{id}/performance/` | GET | 账户绩效 | 需要 |
+| `/api/simulated-trading/accounts/` | GET/POST | 当前登录用户账户列表/创建 | 需要 |
+| `/api/simulated-trading/accounts/{id}/` | GET | 当前登录用户账户详情 | 需要 |
+| `/api/simulated-trading/accounts/{id}/positions/` | GET | 当前登录用户持仓列表 | 需要 |
+| `/api/simulated-trading/accounts/{id}/trades/` | GET | 当前登录用户交易记录 | 需要 |
+| `/api/simulated-trading/accounts/{id}/performance/` | GET | 当前登录用户账户绩效 | 需要 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 | 需要 |
 
 #### 5.2.7 Dashboard API
