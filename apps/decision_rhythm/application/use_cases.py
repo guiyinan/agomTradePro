@@ -50,7 +50,6 @@ if TYPE_CHECKING:
         ModelWeights,
         UnifiedRecommendation,
     )
-    from ..infrastructure.models import UnifiedRecommendationModel
 
 
 logger = logging.getLogger(__name__)
@@ -1989,23 +1988,6 @@ class RejectExecutionUseCase:
 # 统一推荐参数管理用例（Top-down + Bottom-up 融合）
 # ============================================================================
 
-
-from typing import TYPE_CHECKING, Protocol
-
-if TYPE_CHECKING:
-    from ..domain.entities import (
-        DecisionFeatureSnapshot,
-        GatePenalties,
-        ModelParamAuditLog,
-        ModelParamConfig,
-        ModelWeights,
-        UnifiedRecommendation,
-    )
-    from ..infrastructure.models import (
-        UnifiedRecommendationModel,
-    )
-
-
 class ModelParamConfigRepositoryProtocol(Protocol):
     """模型参数配置仓储协议"""
 
@@ -2236,7 +2218,7 @@ class UpdateModelParamUseCase:
             # 创建或更新配置
             if old_config:
                 config = ModelParamConfig(
-                    config_id=old_config.config_id,
+                    config_id=f"mpc_{uuid4().hex[:12]}",
                     param_key=request.param_key,
                     param_value=request.param_value,
                     param_type=request.param_type,

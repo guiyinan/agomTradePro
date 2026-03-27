@@ -24,18 +24,18 @@
 | regime | `/api/regime/` | SDK/MCP 使用 V2 current/history/distribution |
 | pulse | `/api/pulse/current/` | Pulse canonical 读入口；历史与计算分别使用 `/api/pulse/history/`、`/api/pulse/calculate/` |
 | policy | `/api/policy/` | SDK/MCP 不再走 `/policy/...` |
-| macro | `/api/macro/` | 旧 `/macro/api/` 已废弃 |
-| account | `/api/account/` | 旧 `/account/api/` 仅保留兼容 |
-| filter | `/api/filter/` | 旧 `/filter/api/` 仅保留兼容 |
-| backtest | `/api/backtest/` | 旧 `/backtest/api/` 仅保留兼容 |
-| ai_provider | `/api/ai/` | 旧 `/ai/api/` 仅保留兼容 |
-| prompt | `/api/prompt/` | 旧 `/prompt/api/` 仅保留兼容 |
-| strategy | `/api/strategy/` | 旧 `/strategy/api/` 仅保留兼容 |
-| simulated_trading | `/api/simulated-trading/` | 旧 `/simulated-trading/api/` 仅保留兼容 |
+| macro | `/api/macro/` | 历史 module-first 前缀已废弃 |
+| account | `/api/account/` | 历史 module-first 前缀仅保留兼容 |
+| filter | `/api/filter/` | 历史 module-first 前缀仅保留兼容 |
+| backtest | `/api/backtest/` | 历史 module-first 前缀仅保留兼容 |
+| ai_provider | `/api/ai/` | 历史 module-first 前缀仅保留兼容 |
+| prompt | `/api/prompt/` | 历史 module-first 前缀仅保留兼容 |
+| strategy | `/api/strategy/` | 历史 module-first 前缀仅保留兼容 |
+| simulated_trading | `/api/simulated-trading/` | 历史 module-first 前缀仅保留兼容 |
 | realtime | `/api/realtime/` | root 不再重定向到子路径 |
 | system | `/api/system/` | task monitor root 已补齐 |
-| events | `/api/events/` | 旧 `/events/api/` 仅保留兼容 |
-| dashboard | `/api/dashboard/` | 旧 `/dashboard/api/` 仅保留兼容 |
+| events | `/api/events/` | 历史 module-first 前缀仅保留兼容 |
+| dashboard | `/api/dashboard/` | 历史 module-first 前缀仅保留兼容 |
 | fund | `/api/fund/` | 读取 `rank/info/nav/holding/style` |
 | sector | `/api/sector/` | 当前对外可用入口为 `rotation/` |
 | rotation | `/api/rotation/` | recommendation/assets/configs/signals/templates/account-configs |
@@ -44,7 +44,7 @@
 | backtest | `/api/backtest/` | `api/backtests/` 与 `api/run/` 为当前挂载结果 |
 | equity | `/api/equity/` | valuation repair config 已对齐 |
 | market_data | `/api/market-data/` | MCP 外部市场数据链已打通 |
-| audit | `/api/audit/` | `/audit/api/` 仅保留页面/历史兼容 |
+| audit | `/api/audit/` | 历史页面式前缀仅保留兼容 |
 | decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
 
 其中 redesign 相关新增 canonical 端点为：
@@ -59,22 +59,22 @@
 
 ## 已修复的典型错配
 
-- macro SDK: `/macro/api/*` -> `/api/macro/*`
-- account SDK: `/account/api/*` -> `/api/account/*`
-- filter SDK: `/filter/api/*` -> `/api/filter/*`
-- backtest SDK: `/backtest/api/*` -> `/api/backtest/*`
-- ai provider SDK: `/ai/api/*` -> `/api/ai/*`
-- prompt SDK: `/prompt/api/*` -> `/api/prompt/*`
-- strategy SDK: `/strategy/api/*` -> `/api/strategy/*`
-- simulated trading SDK: `/simulated-trading/api/*` -> `/api/simulated-trading/*`
-- events SDK: `/events/api/*` -> `/api/events/*`
-- dashboard SDK: `/dashboard/api/*` -> `/api/dashboard/*`
+- macro SDK: 历史 module-first 前缀 -> `/api/macro/*`
+- account SDK: 历史 module-first 前缀 -> `/api/account/*`
+- filter SDK: 历史 module-first 前缀 -> `/api/filter/*`
+- backtest SDK: 历史 module-first 前缀 -> `/api/backtest/*`
+- ai provider SDK: 历史 module-first 前缀 -> `/api/ai/*`
+- prompt SDK: 历史 module-first 前缀 -> `/api/prompt/*`
+- strategy SDK: 历史 module-first 前缀 -> `/api/strategy/*`
+- simulated trading SDK: 历史 module-first 前缀 -> `/api/simulated-trading/*`
+- events SDK: 历史 module-first 前缀 -> `/api/events/*`
+- dashboard SDK: 历史 module-first 前缀 -> `/api/dashboard/*`
 - policy SDK: `/policy/...` -> `/api/policy/...`
 - fund SDK: 历史 `funds/*` -> 当前 `rank/info/nav/holding/style`
 - sector SDK: 历史 `sectors/*` -> 当前 `rotation/`
-- rotation SDK: `rotation/api/*` -> `/api/rotation/*`
-- hedge SDK: `hedge/api/*` -> `/api/hedge/*`
-- factor SDK: `factor/api/*` -> `/api/factor/*`
+- rotation SDK: 历史 module-first 前缀 -> `/api/rotation/*`
+- hedge SDK: 历史 module-first 前缀 -> `/api/hedge/*`
+- factor SDK: 历史 module-first 前缀 -> `/api/factor/*`
 - regime SDK: distribution 不再通过 `history(limit=10000)` 侧算，改为 `/api/regime/distribution/`
 - pulse SDK/MCP: 统一走 `/api/pulse/current/`、`/api/pulse/history/`、`/api/pulse/calculate/`，不再从 dashboard JSON 或页面模板提取数据
 - decision funnel SDK/MCP: `get_funnel_context()` 对齐 `/api/decision/funnel/context/`，同时支持 `trade_id` 和 `backtest_id`
@@ -82,7 +82,7 @@
 - equity SDK: 历史 `stocks/*` -> 当前 `pool/`、`screen/`、`valuation/{stock_code}/`
 - sector SDK: 历史 `sectors/*` / `hot-sectors/` / `compare/` -> 当前 `rotation/` + 本地兼容聚合
 - fund SDK: 历史 `funds/*/performance/` -> 当前 `performance/calculate/`
-- audit API: 混合 `urls.py` 拆分为 `api_urls.py`，canonical `/api/audit/*` 与 legacy `/audit/api/*` 指向同一套视图
+- audit API: 混合 `urls.py` 拆分为 `api_urls.py`，以 canonical `/api/audit/*` 为唯一文档化入口
 
 ## 根因总结
 
@@ -92,7 +92,7 @@
 2. 个别模块把页面路由和 API 路由混挂在同一入口，导致 `/api/...` 命中重定向或错误 View。
 3. DRF action 的路径正则曾使用 `[^/.]+`，会把 `000001.SZ` 这类带点代码挡掉，形成“接口存在但调用 404”的假象。
 4. 缺少覆盖 SDK/MCP 路由的自动护栏测试，导致后端改完后，SDK/MCP 仍可长期保留陈旧地址。
-5. `audit` 这类页面/API 混合模块如果继续直接挂到 `core` 的 `/api/{module}/`，会出现 `/api/audit/api/*` 这种双前缀畸形路径。
+5. `audit` 这类页面/API 混合模块如果继续直接挂到 `core` 的 `/api/{module}/`，会出现双前缀畸形路径。
 
 ## 新增护栏
 

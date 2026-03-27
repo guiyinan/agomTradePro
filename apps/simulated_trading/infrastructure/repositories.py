@@ -442,6 +442,20 @@ class DjangoPositionRepository:
         models = PositionModel._default_manager.filter(account_id=account_id)
         return [PositionMapper.to_entity(m) for m in models]
 
+    def get_position_snapshots(self, account_id: int) -> list[dict]:
+        """返回交易计划所需的持仓快照。"""
+        return list(
+            PositionModel._default_manager.filter(account_id=account_id).values(
+                "asset_code",
+                "asset_name",
+                "quantity",
+                "avg_cost",
+                "current_price",
+                "market_value",
+                "unrealized_pnl_pct",
+            )
+        )
+
     def get_position(self, account_id: int, asset_code: str) -> Position | None:
         """获取特定持仓"""
         try:

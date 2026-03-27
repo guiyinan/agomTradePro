@@ -538,6 +538,27 @@ class DjangoSignalRepository:
             invalidation_rule_json = json.dumps(signal['invalidation_rule_json'], ensure_ascii=False)
         return invalidation_rule_json, (signal.get('invalidation_description') or "")
 
+    def get_invalidation_payloads(self, signal_ids: list[int]) -> dict[str, dict[str, Any]]:
+        """批量获取信号证伪载荷。"""
+        normalized_ids = [signal_id for signal_id in signal_ids if signal_id]
+        if not normalized_ids:
+            return {}
+
+        rows = self._model.objects.filter(id__in=normalized_ids).values(
+            "id",
+            "invalidation_rule_json",
+            "invalidation_description",
+            "invalidation_logic",
+        )
+        return {
+            str(row["id"]): {
+                "invalidation_rule_json": row.get("invalidation_rule_json") or {},
+                "invalidation_description": row.get("invalidation_description") or "",
+                "invalidation_logic": row.get("invalidation_logic") or "",
+            }
+            for row in rows
+        }
+
     @staticmethod
     def _orm_to_entity(orm_obj: InvestmentSignalModel) -> InvestmentSignal:
         """将 ORM 对象转换为 Domain 实体"""
