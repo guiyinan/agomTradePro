@@ -26,6 +26,12 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-03-27
+
+- 真实仓持仓 API 已在预上线阶段直接切到统一账本：`/api/account/positions/*` 现在就是唯一 canonical 实仓持仓入口
+- 取消单独的 `/api/account/unified-positions/` 路径，避免真实仓出现两条正式读口径
+- 持仓修改、部分平仓、全平仓统一走 `UnifiedPositionService`，派生字段与交易记录链路同步收口
+
 ### 2026-03-24
 
 - Regime Navigator + Pulse redesign 三阶段已全部收口，Dashboard / 决策工作台 / Regime 页面主线统一

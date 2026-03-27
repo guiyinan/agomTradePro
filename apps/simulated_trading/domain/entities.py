@@ -203,9 +203,9 @@ class Position:
     asset_name: str
     asset_type: str  # equity/fund/bond
 
-    # 持仓数量
-    quantity: int               # 持仓数量(股/份)
-    available_quantity: int     # 可卖数量(T+1)
+    # 持仓数量 (Decimal 支持非整数股份)
+    quantity: float             # 持仓数量(股/份)
+    available_quantity: float   # 可卖数量(T+1)
 
     # 成本信息
     avg_cost: float             # 平均成本(元)
@@ -262,7 +262,7 @@ class SimulatedTrade:
 
     # 交易信息
     action: TradeAction         # BUY/SELL
-    quantity: int               # 交易数量
+    quantity: float             # 交易数量
     price: float                # 成交价格(元)
     amount: float               # 成交金额(元)
 

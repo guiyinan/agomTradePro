@@ -582,11 +582,112 @@ def check_consistency(
                     )
                 issues.append(issue)
 
-    # Check 3: Check for deprecated route patterns
-    print("\nChecking for deprecated route patterns...")
-    # Skip this check for now - deprecated routes are known issues
-    # They exist for backward compatibility and are documented
-    # We could enable this check later with proper baseline tracking
+    # Check 3: Unified ledger static rules (account-refactor-260327)
+    print("\nChecking unified ledger alignment rules...")
+    issues.extend(_check_unified_ledger_rules(project_root))
+
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Unified ledger static rules (added 2026-03-27)
+# ---------------------------------------------------------------------------
+
+# Files to scan (relative to project_root)
+_LEDGER_SCAN_TARGETS = [
+    "sdk/agomtradepro_mcp/tools/account_tools.py",
+    "sdk/agomtradepro_mcp/tools/simulated_trading_tools.py",
+    "sdk/agomtradepro_mcp/server.py",
+    "sdk/agomtradepro_mcp/rbac.py",
+    "sdk/agomtradepro/modules/account.py",
+    "sdk/agomtradepro/modules/simulated_trading.py",
+    "docs/development/api-mcp-sdk-alignment-2026-03-14.md",
+    "docs/INDEX.md",
+]
+
+# Pattern → description of violation
+_LEGACY_PATTERNS = [
+    (re.compile(r'["\'`]account/api/'), "Legacy path 'account/api/…' — must use canonical '/api/account/…'"),
+    (re.compile(r'["\'`]/account/api/'), "Legacy path '/account/api/…' — must use canonical '/api/account/…'"),
+]
+
+# Patterns that indicate old two-ledger mental model in docs / SDK
+_WRONG_SEMANTICS_PATTERNS = [
+    (
+        re.compile(r"两套持仓|两套账本|两套系统", re.IGNORECASE),
+        "Deprecated two-ledger framing — update to 'account_type=real|simulated' unified model",
+    ),
+    (
+        re.compile(r"real.*独立账本|simulated.*独立账本", re.IGNORECASE),
+        "Deprecated phrasing: real/simulated as separate ledger systems",
+    ),
+]
+
+# Ensure these canonical endpoints are used instead of deprecated patterns
+_REQUIRED_CANONICAL_PAIRS = [
+    # (deprecated_pattern, canonical_replacement, applies_to_glob)
+    (
+        re.compile(r"account/api/positions/"),
+        "/api/account/positions/",
+        "sdk/**/*.py",
+    ),
+    (
+        re.compile(r"account/api/portfolios/"),
+        "/api/account/portfolios/",
+        "sdk/**/*.py",
+    ),
+]
+
+
+def _check_unified_ledger_rules(project_root: Path) -> list[ConsistencyIssue]:
+    """Check SDK and MCP files for unified ledger alignment violations."""
+    issues: list[ConsistencyIssue] = []
+
+    for rel_path in _LEDGER_SCAN_TARGETS:
+        fpath = project_root / rel_path
+        if not fpath.exists():
+            continue
+
+        text = fpath.read_text(encoding="utf-8", errors="replace")
+        lines = text.splitlines()
+
+        for lineno, line in enumerate(lines, start=1):
+            # Skip markdown lines that intentionally describe legacy / deprecated paths
+            # as historical context (migration tables, "禁用 X" rules, "已替换" notes)
+            if rel_path.endswith(".md") and re.search(
+                r"旧.*路径|compat|兼容|legacy|backward|禁用|已替换|替换为|仅兼容|历史",
+                line,
+                re.IGNORECASE,
+            ):
+                continue
+            # Skip lines that are describing what was fixed/migrated (past-tense history)
+            if rel_path.endswith(".md") and re.search(r"原系统|旧账本|两套.*账本|两套.*系统", line, re.IGNORECASE):
+                continue
+
+            for pattern, description in _LEGACY_PATTERNS:
+                if pattern.search(line):
+                    issues.append(ConsistencyIssue(
+                        type="deprecated_route",
+                        source=rel_path,
+                        route="account/api/",
+                        details=description,
+                        line=lineno,
+                    ))
+
+            for pattern, description in _WRONG_SEMANTICS_PATTERNS:
+                if pattern.search(line):
+                    issues.append(ConsistencyIssue(
+                        type="deprecated_route",
+                        source=rel_path,
+                        route="(semantic)",
+                        details=description,
+                        line=lineno,
+                    ))
+
+    if not issues:
+        print("  ✓ No unified ledger violations found")
+    else:
+        print(f"  ✗ {len(issues)} unified ledger violation(s) found")
 
     return issues
 

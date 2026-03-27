@@ -55,7 +55,7 @@ def _get_role_from_backend() -> str | None:
         from agomtradepro import AgomTradeProClient
 
         client = AgomTradeProClient()
-        payload = client.get("account/api/profile/")
+        payload = client.get("api/account/profile/")
         role = _normalize_role(payload.get("rbac_role") if isinstance(payload, dict) else None)
         _BACKEND_ROLE_CACHE = role
         return role
@@ -366,7 +366,7 @@ def _get_user_id() -> int | None:
     try:
         from agomtradepro import AgomTradeProClient
         client = AgomTradeProClient()
-        payload = client.get("account/api/profile/")
+        payload = client.get("api/account/profile/")
         if isinstance(payload, dict):
             return payload.get("id")
     except Exception:
@@ -379,7 +379,7 @@ def _get_username() -> str:
     try:
         from agomtradepro import AgomTradeProClient
         client = AgomTradeProClient()
-        payload = client.get("account/api/profile/")
+        payload = client.get("api/account/profile/")
         if isinstance(payload, dict):
             return payload.get("username", "anonymous")
     except Exception:

@@ -340,5 +340,49 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 
 补充说明：
 
-- `factor` 模块为支持冷启动，已改成“缺单个因子值时跳过该因子，不整组合失败”
+- `factor` 模块为支持冷启动，已改成”缺单个因子值时跳过该因子，不整组合失败”
 - 同时修掉了服务层对已移除字段 `style/size/valuation_score` 的历史访问
+
+---
+
+## 账户账本统一（2026-03-27）
+
+### 背景
+
+原系统存在两套持仓账本：`apps/account`（真实仓，基于 `PortfolioModel / PositionModel / TransactionModel`）和 `apps/simulated_trading`（基于 `SimulatedAccountModel / PositionModel / SimulatedTradeModel`）。本次统一目标：
+
+- 以 `simulated_trading` 数据表为唯一账本，`account_type=real|simulated` 作为唯一区分维度
+- 两套外部入口（`/api/account/*` 和 `/api/simulated-trading/*`）底层都改用统一账本服务
+- 禁止双写和规则漂移
+
+### 统一后的语义规则
+
+| 规则 | 说明 |
+|------|------|
+| 真实/模拟是账户属性 | 不是两套持仓系统，仅靠 `account_type` 区分 |
+| SDK/MCP 只走 canonical 路径 | `/api/account/*` 或 `/api/simulated-trading/*`，禁用 `account/api/*` |
+| 旧 `account/api/*` 仅兼容 | 不作为对外契约，不写入 SDK/MCP 主调用链 |
+| 平仓必须写交易账本 | 禁止接口层仅改 `is_closed`，必须通过 close use case |
+| 派生字段必须在服务层重算 | 任何持仓更新后，`market_value / unrealized_pnl / unrealized_pnl_pct` 需联动 |
+
+### 已修复 Bug（Phase 1-2，2026-03-27）
+
+1. **真实仓更新派生字段不重算**：`/api/account/positions/{id}/` 已改为统一走 `UnifiedPositionService.update_position()`，派生字段在统一账本服务层重算。
+2. **平仓不写交易记录**：`/api/account/positions/{id}/close/` 已改为统一走 `UnifiedPositionService.close_position()`，平仓交易先写入统一账本，再同步 account 投影。
+3. **真实仓仍暴露第二条 canonical 读路径**：预上线阶段已取消 `/api/account/unified-positions/`，`/api/account/positions/` 直接成为 canonical 实仓持仓读写入口。
+
+### 已建立接口（Phase 2，2026-03-27）
+
+- **`shared/domain/position_calculations.py`**：纯 Python `recalculate_derived_fields(shares, avg_cost, current_price)`，被 account 与 simulated_trading 共用。
+- **`shared/domain/investment_protocols.py`**：`InvestmentAccountRepositoryProtocol` / `PositionLedgerRepositoryProtocol` / `TradeLedgerRepositoryProtocol` 统一协议定义。
+- **`apps/simulated_trading/application/unified_position_service.py`**：`UnifiedPositionService` 封装统一账本的增删改查，account_type 无关，自动重算派生字段并记录交易。
+- **`/api/account/positions/`**：预上线硬切后的 canonical 实仓持仓入口，读写都直接围绕统一账本执行。
+
+### MCP 路径修正（Phase 2，2026-03-27）
+
+所有 MCP 文件（`account_tools.py`、`server.py`、`rbac.py`）及 MCP 测试文件已将 `account/api/` 全部替换为 `api/account/`，与 SDK 模块路径完全一致。
+
+### 下一步
+
+- 继续压缩 `apps/account` 投影用途，仅保留 account 专属展示字段与过渡期统计支撑
+- 将 `transactions` 等剩余 real-account 读写入口进一步收口到同一统一账本服务

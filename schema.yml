@@ -1408,7 +1408,22 @@ paths:
   /api/account/positions/:
     get:
       operationId: api_account_positions_get
-      description: 列表查询时记录观察员访问
+      description: |-
+        持仓 API ViewSet
+
+        提供以下接口:
+        - GET /api/account/positions/ - 获取持仓列表
+        - POST /api/account/positions/ - 创建持仓
+        - GET /api/account/positions/{id}/ - 获取持仓详情
+        - PUT /api/account/positions/{id}/ - 更新持仓
+        - DELETE /api/account/positions/{id}/ - 删除持仓
+        - POST /api/account/positions/{id}/close/ - 平仓
+
+        权限说明:
+        - 账户拥有者：完全访问权限
+        - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+        注意：观察员授权已撤销/过期时返回 403 而非 404
       parameters:
       - name: page
         required: false
@@ -1431,9 +1446,21 @@ paths:
     post:
       operationId: api_account_positions_post
       description: |-
-        创建持仓
+        持仓 API ViewSet
 
-        关键：观察员尝试创建时返回 403 而非 400/404
+        提供以下接口:
+        - GET /api/account/positions/ - 获取持仓列表
+        - POST /api/account/positions/ - 创建持仓
+        - GET /api/account/positions/{id}/ - 获取持仓详情
+        - PUT /api/account/positions/{id}/ - 更新持仓
+        - DELETE /api/account/positions/{id}/ - 删除持仓
+        - POST /api/account/positions/{id}/close/ - 平仓
+
+        权限说明:
+        - 账户拥有者：完全访问权限
+        - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+        注意：观察员授权已撤销/过期时返回 403 而非 404
       tags:
       - account
       requestBody:
@@ -1461,7 +1488,22 @@ paths:
   /api/account/positions/{id}/:
     get:
       operationId: api_account_positions_by_id_get
-      description: 获取持仓详情时记录观察员访问
+      description: |-
+        持仓 API ViewSet
+
+        提供以下接口:
+        - GET /api/account/positions/ - 获取持仓列表
+        - POST /api/account/positions/ - 创建持仓
+        - GET /api/account/positions/{id}/ - 获取持仓详情
+        - PUT /api/account/positions/{id}/ - 更新持仓
+        - DELETE /api/account/positions/{id}/ - 删除持仓
+        - POST /api/account/positions/{id}/close/ - 平仓
+
+        权限说明:
+        - 账户拥有者：完全访问权限
+        - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+        注意：观察员授权已撤销/过期时返回 403 而非 404
       parameters:
       - in: path
         name: id
@@ -1483,9 +1525,21 @@ paths:
     put:
       operationId: api_account_positions_by_id_put
       description: |-
-        更新持仓
+        持仓 API ViewSet
 
-        关键：观察员尝试更新时返回 403
+        提供以下接口:
+        - GET /api/account/positions/ - 获取持仓列表
+        - POST /api/account/positions/ - 创建持仓
+        - GET /api/account/positions/{id}/ - 获取持仓详情
+        - PUT /api/account/positions/{id}/ - 更新持仓
+        - DELETE /api/account/positions/{id}/ - 删除持仓
+        - POST /api/account/positions/{id}/close/ - 平仓
+
+        权限说明:
+        - 账户拥有者：完全访问权限
+        - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+        注意：观察员授权已撤销/过期时返回 403 而非 404
       parameters:
       - in: path
         name: id
@@ -1566,9 +1620,21 @@ paths:
     delete:
       operationId: api_account_positions_by_id_delete
       description: |-
-        删除持仓
+        持仓 API ViewSet
 
-        关键：观察员尝试删除时返回 403
+        提供以下接口:
+        - GET /api/account/positions/ - 获取持仓列表
+        - POST /api/account/positions/ - 创建持仓
+        - GET /api/account/positions/{id}/ - 获取持仓详情
+        - PUT /api/account/positions/{id}/ - 更新持仓
+        - DELETE /api/account/positions/{id}/ - 删除持仓
+        - POST /api/account/positions/{id}/close/ - 平仓
+
+        权限说明:
+        - 账户拥有者：完全访问权限
+        - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+        注意：观察员授权已撤销/过期时返回 403 而非 404
       parameters:
       - in: path
         name: id
@@ -1587,9 +1653,21 @@ paths:
     post:
       operationId: api_account_positions_by_id_close_post
       description: |-
-        平仓
+        持仓 API ViewSet
 
-        POST /api/account/positions/{id}/close/
+        提供以下接口:
+        - GET /api/account/positions/ - 获取持仓列表
+        - POST /api/account/positions/ - 创建持仓
+        - GET /api/account/positions/{id}/ - 获取持仓详情
+        - PUT /api/account/positions/{id}/ - 更新持仓
+        - DELETE /api/account/positions/{id}/ - 删除持仓
+        - POST /api/account/positions/{id}/close/ - 平仓
+
+        权限说明:
+        - 账户拥有者：完全访问权限
+        - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+        注意：观察员授权已撤销/过期时返回 403 而非 404
       parameters:
       - in: path
         name: id
@@ -1598,18 +1676,6 @@ paths:
         required: true
       tags:
       - account
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PositionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PositionRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PositionRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -5542,8 +5608,10 @@ paths:
     get:
       operationId: api_decision_funnel_context_get
       description: |-
-        Returns the full decision funnel context (Steps 1, 2, 3, 6) in JSON format.
+        Returns the system-level decision funnel context (Steps 1, 2, 3) in JSON format.
         Steps 4 and 5 are dynamic lists and use their own endpoints.
+        When a legacy audit query is provided, include the historical Step 6 audit
+        payload as a backward-compatible extension.
       tags:
       - decision
       security:
@@ -5580,6 +5648,30 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/decision/workspace/invalidation/ai-draft/:
+    post:
+      operationId: api_decision_workspace_invalidation_ai_draft_post
+      description: POST /api/decision/workspace/invalidation/ai-draft/
+      tags:
+      - decision
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/decision/workspace/invalidation/template/:
+    post:
+      operationId: api_decision_workspace_invalidation_template_post
+      description: POST /api/decision/workspace/invalidation/template/
+      tags:
+      - decision
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/decision/workspace/params/:
     get:
       operationId: api_decision_workspace_params_get
@@ -5608,6 +5700,54 @@ paths:
             param_type: 参数类型（默认 float）
             env: 环境（默认 dev）
             updated_reason: 变更原因（必填）
+      tags:
+      - decision
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/decision/workspace/plans/{plan_id}/:
+    get:
+      operationId: api_decision_workspace_plans_by_plan_id_get
+      description: GET /api/decision/workspace/plans/<str:plan_id>/
+      parameters:
+      - in: path
+        name: plan_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - decision
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/decision/workspace/plans/{plan_id}/update/:
+    post:
+      operationId: api_decision_workspace_plans_by_plan_id_update_post
+      description: POST /api/decision/workspace/plans/<str:plan_id>/update/
+      parameters:
+      - in: path
+        name: plan_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - decision
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/decision/workspace/plans/generate/:
+    post:
+      operationId: api_decision_workspace_plans_generate_post
+      description: POST /api/decision/workspace/plans/generate/
       tags:
       - decision
       security:
@@ -22976,7 +23116,7 @@ components:
         metadata: {}
     PatchedPositionUpdateRequest:
       type: object
-      description: 持仓更新序列化器
+      description: 持仓更新序列化器 — 平仓状态只能通过 close 接口变更，不能通过 PATCH/PUT 直接修改
       properties:
         shares:
           type: number
@@ -22993,9 +23133,6 @@ components:
           pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
           nullable: true
           title: 当前市价
-        is_closed:
-          type: boolean
-          title: 是否已平仓
     PatchedPromptTemplateRequest:
       type: object
       description: Prompt模板序列化器
@@ -24275,28 +24412,27 @@ components:
       - strategy
     Position:
       type: object
-      description: 持仓序列化器
+      description: 统一账本持仓输出序列化器。
       properties:
         id:
           type: integer
           readOnly: true
         portfolio:
           type: integer
-          title: 投资组合
+          readOnly: true
         portfolio_name:
           type: string
           readOnly: true
         asset_code:
           type: string
-          title: 资产代码
-          maxLength: 20
+          readOnly: true
         asset_name:
           type: string
           readOnly: true
         category:
           type: integer
+          readOnly: true
           nullable: true
-          title: 资产分类
         category_code:
           type: string
           readOnly: true
@@ -24311,8 +24447,8 @@ components:
           nullable: true
         currency:
           type: integer
+          readOnly: true
           nullable: true
-          title: 币种
         currency_code:
           type: string
           readOnly: true
@@ -24326,32 +24462,31 @@ components:
           readOnly: true
           nullable: true
         asset_class:
-          allOf:
-          - $ref: '#/components/schemas/AssetClassEnum'
-          title: 资产大类
+          type: string
+          readOnly: true
+          nullable: true
         region:
-          allOf:
-          - $ref: '#/components/schemas/RegionEnum'
-          title: 地区
+          type: string
+          readOnly: true
+          nullable: true
         cross_border:
-          allOf:
-          - $ref: '#/components/schemas/CrossBorderEnum'
-          title: 跨境标识
+          type: string
+          readOnly: true
+          nullable: true
         shares:
           type: number
           format: double
-          title: 持仓数量
+          readOnly: true
         avg_cost:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
-          title: 平均成本价
+          readOnly: true
         current_price:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
-          nullable: true
-          title: 当前市价
+          readOnly: true
         market_value:
           type: string
           format: decimal
@@ -24367,47 +24502,35 @@ components:
           format: double
           readOnly: true
         source:
-          allOf:
-          - $ref: '#/components/schemas/SourceEnum'
-          title: 来源
+          type: string
+          readOnly: true
         source_id:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          readOnly: true
           nullable: true
-          title: 来源ID
         is_closed:
           type: boolean
-          title: 是否已平仓
+          readOnly: true
         opened_at:
           type: string
           format: date-time
           readOnly: true
-          title: 开仓时间
+          nullable: true
         closed_at:
           type: string
           format: date-time
+          readOnly: true
           nullable: true
-          title: 平仓时间
         created_at:
           type: string
           format: date-time
           readOnly: true
-          title: 创建时间
+          nullable: true
         updated_at:
           type: string
           format: date-time
           readOnly: true
-          title: 更新时间
-      required:
-      - asset_class
-      - asset_code
-      - avg_cost
-      - cross_border
-      - portfolio
-      - region
-      - shares
+          nullable: true
     PositionCreate:
       type: object
       description: 持仓创建序列化器
@@ -24745,80 +24868,6 @@ components:
       - stop_loss_expr
       - strategy
       - take_profit_expr
-    PositionRequest:
-      type: object
-      description: 持仓序列化器
-      properties:
-        portfolio:
-          type: integer
-          title: 投资组合
-        asset_code:
-          type: string
-          minLength: 1
-          title: 资产代码
-          maxLength: 20
-        category:
-          type: integer
-          nullable: true
-          title: 资产分类
-        currency:
-          type: integer
-          nullable: true
-          title: 币种
-        asset_class:
-          allOf:
-          - $ref: '#/components/schemas/AssetClassEnum'
-          title: 资产大类
-        region:
-          allOf:
-          - $ref: '#/components/schemas/RegionEnum'
-          title: 地区
-        cross_border:
-          allOf:
-          - $ref: '#/components/schemas/CrossBorderEnum'
-          title: 跨境标识
-        shares:
-          type: number
-          format: double
-          title: 持仓数量
-        avg_cost:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
-          title: 平均成本价
-        current_price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
-          nullable: true
-          title: 当前市价
-        source:
-          allOf:
-          - $ref: '#/components/schemas/SourceEnum'
-          title: 来源
-        source_id:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          nullable: true
-          title: 来源ID
-        is_closed:
-          type: boolean
-          title: 是否已平仓
-        closed_at:
-          type: string
-          format: date-time
-          nullable: true
-          title: 平仓时间
-      required:
-      - asset_class
-      - asset_code
-      - avg_cost
-      - cross_border
-      - portfolio
-      - region
-      - shares
     PositionResponse:
       type: object
       description: 持仓响应序列化器
@@ -24906,7 +24955,7 @@ components:
       - unrealized_pnl_pct
     PositionUpdate:
       type: object
-      description: 持仓更新序列化器
+      description: 持仓更新序列化器 — 平仓状态只能通过 close 接口变更，不能通过 PATCH/PUT 直接修改
       properties:
         shares:
           type: number
@@ -24923,15 +24972,12 @@ components:
           pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
           nullable: true
           title: 当前市价
-        is_closed:
-          type: boolean
-          title: 是否已平仓
       required:
       - avg_cost
       - shares
     PositionUpdateRequest:
       type: object
-      description: 持仓更新序列化器
+      description: 持仓更新序列化器 — 平仓状态只能通过 close 接口变更，不能通过 PATCH/PUT 直接修改
       properties:
         shares:
           type: number
@@ -24948,9 +24994,6 @@ components:
           pattern: ^-?\d{0,16}(?:\.\d{0,4})?$
           nullable: true
           title: 当前市价
-        is_closed:
-          type: boolean
-          title: 是否已平仓
       required:
       - avg_cost
       - shares

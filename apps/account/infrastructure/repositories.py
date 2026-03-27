@@ -6,6 +6,7 @@ Account Infrastructure Repositories
 """
 
 import logging
+import warnings
 from datetime import date, datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -468,7 +469,19 @@ class PositionRepository:
         source: str = "manual",
         source_id: int | None = None,
     ) -> Position:
-        """创建新持仓"""
+        """创建新持仓
+
+        .. deprecated::
+            此方法写入旧账本表（apps/account）。
+            新代码请使用 UnifiedPositionService（apps/simulated_trading）。
+            旧路径将于 2026-09-27 停用。
+        """
+        warnings.warn(
+            "PositionRepository.create_position() is deprecated and will be removed on 2026-09-27. "
+            "Use apps.simulated_trading.application.unified_position_service.UnifiedPositionService instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # 获取资产元数据
         try:
             asset_meta = AssetMetadataModel._default_manager.get(asset_code=asset_code)
@@ -538,6 +551,18 @@ class PositionRepository:
             model.closed_at = timezone.now()
         else:
             model.shares -= shares
+
+        # Recalculate derived fields
+        from shared.domain.position_calculations import recalculate_derived_fields
+        price = float(model.current_price or model.avg_cost)
+        mv, pnl, pnl_pct = recalculate_derived_fields(
+            shares=model.shares if not model.is_closed else 0,
+            avg_cost=float(model.avg_cost),
+            current_price=price,
+        )
+        model.market_value = mv
+        model.unrealized_pnl = pnl
+        model.unrealized_pnl_pct = pnl_pct
 
         model.save()
 

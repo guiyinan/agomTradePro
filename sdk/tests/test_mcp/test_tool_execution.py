@@ -170,7 +170,7 @@ class _FakeClient:
         )
 
     def get(self, path, params=None):
-        if path == "account/api/trading-cost-configs/":
+        if path == "api/account/trading-cost-configs/":
             return {"results": [{"id": 1, "portfolio": params.get("portfolio_id", 1) if params else 1}]}
         return {"ok": True, "path": path, "params": params}
 

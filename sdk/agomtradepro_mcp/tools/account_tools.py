@@ -178,7 +178,7 @@ def register_account_tools(server: FastMCP) -> None:
             >>> portfolios = list_portfolios()
         """
         client = AgomTradeProClient()
-        payload = client.get("account/api/portfolios/", params={"limit": limit})
+        payload = client.get("api/account/portfolios/", params={"limit": limit})
         rows = _extract_results(payload)
         return [
             {
@@ -207,8 +207,8 @@ def register_account_tools(server: FastMCP) -> None:
             >>> portfolio = get_portfolio(1)
         """
         client = AgomTradeProClient()
-        portfolio = client.get(f"account/api/portfolios/{portfolio_id}/")
-        pos_payload = client.get("account/api/positions/", params={"portfolio_id": portfolio_id, "limit": 200})
+        portfolio = client.get(f"api/account/portfolios/{portfolio_id}/")
+        pos_payload = client.get("api/account/positions/", params={"portfolio_id": portfolio_id, "limit": 200})
         pos_rows = [r for r in _extract_results(pos_payload) if not r.get("is_closed")]
 
         return {
@@ -259,7 +259,7 @@ def register_account_tools(server: FastMCP) -> None:
         if asset_code:
             params["asset_code"] = asset_code
 
-        payload = client.get("account/api/positions/", params=params)
+        payload = client.get("api/account/positions/", params=params)
         rows = _extract_results(payload)
         return [
             {
@@ -315,7 +315,7 @@ def register_account_tools(server: FastMCP) -> None:
             "region": "CN",
             "cross_border": "domestic",
         }
-        created = client.post("account/api/positions/", json=payload)
+        created = client.post("api/account/positions/", json=payload)
         return {
             "id": created.get("id"),
             "portfolio": created.get("portfolio"),
@@ -353,7 +353,7 @@ def register_account_tools(server: FastMCP) -> None:
             if portfolio_id is not None:
                 params["portfolio_id"] = portfolio_id
 
-            payload = client.get("account/api/positions/", params=params)
+            payload = client.get("api/account/positions/", params=params)
             rows = _extract_results(payload)
             if not rows:
                 break
@@ -507,7 +507,7 @@ def register_account_tools(server: FastMCP) -> None:
                 if "source_id" in row:
                     payload["source_id"] = row["source_id"]
                 try:
-                    client.post("account/api/positions/", json=payload)
+                    client.post("api/account/positions/", json=payload)
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append({
                         "operation": "create",
@@ -524,7 +524,7 @@ def register_account_tools(server: FastMCP) -> None:
                 if item["data"].get("current_price") is not None:
                     payload["current_price"] = item["data"]["current_price"]
                 try:
-                    client.patch(f"account/api/positions/{item['id']}/", json=payload)
+                    client.patch(f"api/account/positions/{item['id']}/", json=payload)
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append({
                         "operation": "update",
@@ -535,7 +535,7 @@ def register_account_tools(server: FastMCP) -> None:
 
             for row in to_close:
                 try:
-                    client.post(f"account/api/positions/{row['id']}/close/", json={})
+                    client.post(f"api/account/positions/{row['id']}/close/", json={})
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append({
                         "operation": "close",
@@ -591,7 +591,7 @@ def register_account_tools(server: FastMCP) -> None:
         获取交易明细（含 transaction id）
         """
         client = AgomTradeProClient()
-        rows = _list_endpoint_rows(client, "account/api/transactions/", limit=limit)
+        rows = _list_endpoint_rows(client, "api/account/transactions/", limit=limit)
         if portfolio_id is not None:
             rows = [r for r in rows if r.get("portfolio") == portfolio_id]
         return rows[:limit]
@@ -678,7 +678,7 @@ def register_account_tools(server: FastMCP) -> None:
             if mode == "replace":
                 for row in existing:
                     try:
-                        client.delete(f"account/api/transactions/{row['id']}/")
+                        client.delete(f"api/account/transactions/{row['id']}/")
                     except Exception as exc:  # noqa: BLE001
                         runtime_errors.append({
                             "operation": "delete",
@@ -699,7 +699,7 @@ def register_account_tools(server: FastMCP) -> None:
                 if "commission" in row:
                     payload["commission"] = row["commission"]
                 try:
-                    client.post("account/api/transactions/", json=payload)
+                    client.post("api/account/transactions/", json=payload)
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append({
                         "operation": "create",
@@ -750,7 +750,7 @@ def register_account_tools(server: FastMCP) -> None:
         获取资金流水明细（含 flow id）
         """
         client = AgomTradeProClient()
-        rows = _list_endpoint_rows(client, "account/api/capital-flows/", limit=limit)
+        rows = _list_endpoint_rows(client, "api/account/capital-flows/", limit=limit)
         if portfolio_id is not None:
             rows = [r for r in rows if r.get("portfolio") == portfolio_id]
         return rows[:limit]
@@ -833,7 +833,7 @@ def register_account_tools(server: FastMCP) -> None:
             if mode == "replace":
                 for row in existing:
                     try:
-                        client.delete(f"account/api/capital-flows/{row['id']}/")
+                        client.delete(f"api/account/capital-flows/{row['id']}/")
                     except Exception as exc:  # noqa: BLE001
                         runtime_errors.append({
                             "operation": "delete",
@@ -850,7 +850,7 @@ def register_account_tools(server: FastMCP) -> None:
                     "notes": row["notes"],
                 }
                 try:
-                    client.post("account/api/capital-flows/", json=payload)
+                    client.post("api/account/capital-flows/", json=payload)
                 except Exception as exc:  # noqa: BLE001
                     runtime_errors.append({
                         "operation": "create",
@@ -898,7 +898,7 @@ def register_account_tools(server: FastMCP) -> None:
         获取组合统计摘要
         """
         client = AgomTradeProClient()
-        return client.get(f"account/api/portfolios/{portfolio_id}/statistics/")
+        return client.get(f"api/account/portfolios/{portfolio_id}/statistics/")
 
     @server.tool()
     def export_account_bundle_json(
@@ -914,7 +914,7 @@ def register_account_tools(server: FastMCP) -> None:
         包含：portfolio、statistics、positions、transactions、capital_flows。
         """
         client = AgomTradeProClient()
-        portfolio = client.get(f"account/api/portfolios/{portfolio_id}/")
+        portfolio = client.get(f"api/account/portfolios/{portfolio_id}/")
         statistics = get_portfolio_statistics(portfolio_id=portfolio_id)
         positions = get_positions_detailed(
             portfolio_id=portfolio_id,
@@ -963,7 +963,7 @@ def register_account_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         payload = client.get(
-            "account/api/trading-cost-configs/",
+            "api/account/trading-cost-configs/",
             params={"limit": 100},
         )
         rows = _extract_results(payload)
@@ -995,7 +995,7 @@ def register_account_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         return client.post(
-            "account/api/trading-cost-configs/",
+            "api/account/trading-cost-configs/",
             json={
                 "portfolio": portfolio_id,
                 "commission_rate": commission_rate,
@@ -1041,7 +1041,7 @@ def register_account_tools(server: FastMCP) -> None:
         if is_active is not None:
             data["is_active"] = is_active
         return client.patch(
-            f"account/api/trading-cost-configs/{config_id}/",
+            f"api/account/trading-cost-configs/{config_id}/",
             json=data,
         )
 
@@ -1066,7 +1066,7 @@ def register_account_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         result = client.post(
-            f"account/api/trading-cost-configs/{config_id}/calculate/",
+            f"api/account/trading-cost-configs/{config_id}/calculate/",
             json={
                 "action": action,
                 "amount": amount,

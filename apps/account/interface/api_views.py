@@ -5,6 +5,7 @@ DRF API Views for Account Module.
 """
 
 from decimal import Decimal
+from typing import Any
 
 from django.db import models
 from django.db.models import Count, Q, Sum
@@ -54,9 +55,280 @@ from .serializers import (
     TransactionSerializer,
 )
 
+
+class UnifiedLedgerMixin:
+    """Helpers for wiring account real-holding APIs to the unified ledger."""
+
+    def _get_or_create_real_account(self, portfolio) -> int:
+        from django.db import transaction as db_transaction
+
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+            SimulatedAccountModel,
+        )
+
+        try:
+            mapping = LedgerMigrationMapModel._default_manager.get(
+                source_app="account",
+                source_table="portfolio",
+                source_id=portfolio.id,
+            )
+            return mapping.target_id
+        except LedgerMigrationMapModel.DoesNotExist:
+            pass
+
+        with db_transaction.atomic():
+            real_account = SimulatedAccountModel._default_manager.create(
+                user=portfolio.user,
+                account_name=portfolio.name,
+                account_type="real",
+                initial_capital=0,
+                current_cash=0,
+                current_market_value=0,
+                total_value=0,
+                is_active=portfolio.is_active,
+                auto_trading_enabled=False,
+            )
+            LedgerMigrationMapModel._default_manager.create(
+                source_app="account",
+                source_table="portfolio",
+                source_id=portfolio.id,
+                target_table="simulated_account",
+                target_id=real_account.id,
+            )
+        return real_account.id
+
+    def _get_portfolio_for_account(self, account_id: int) -> PortfolioModel | None:
+        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+
+        mapping = LedgerMigrationMapModel._default_manager.filter(
+            source_app="account",
+            source_table="portfolio",
+            target_table="simulated_account",
+            target_id=account_id,
+        ).first()
+        if not mapping:
+            return None
+        return PortfolioModel._default_manager.filter(id=mapping.source_id).first()
+
+    def _get_legacy_projection_for_unified_position(self, unified_position_id: int) -> PositionModel | None:
+        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+
+        mapping = LedgerMigrationMapModel._default_manager.filter(
+            source_app="account",
+            source_table="position",
+            target_table="simulated_position",
+            target_id=unified_position_id,
+        ).first()
+        if not mapping:
+            return None
+        return (
+            PositionModel._default_manager.filter(pk=mapping.source_id)
+            .select_related("portfolio", "category", "currency")
+            .first()
+        )
+
+    def _sync_unified_position_from_legacy(self, legacy_position: PositionModel):
+        """Bootstrap a legacy real holding into the unified ledger exactly once."""
+        from apps.simulated_trading.application.unified_position_service import (
+            UnifiedPositionService,
+        )
+        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+        from apps.simulated_trading.management.commands.migrate_account_ledger import (
+            _map_asset_type,
+        )
+
+        existing = LedgerMigrationMapModel._default_manager.filter(
+            source_app="account",
+            source_table="position",
+            source_id=legacy_position.id,
+        ).first()
+        if existing:
+            from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+
+            unified_existing = UnifiedPositionModel._default_manager.filter(pk=existing.target_id).first()
+            if unified_existing is not None:
+                return unified_existing
+            existing.delete()
+
+        unified_model = UnifiedPositionService.default().create_position(
+            account_id=self._get_or_create_real_account(legacy_position.portfolio),
+            asset_code=legacy_position.asset_code,
+            shares=float(legacy_position.shares),
+            price=float(legacy_position.avg_cost),
+            current_price=float(legacy_position.current_price or legacy_position.avg_cost),
+            asset_name=legacy_position.asset_code,
+            asset_type=_map_asset_type(legacy_position.asset_class),
+            source=legacy_position.source,
+            source_id=legacy_position.source_id,
+            entry_reason=f"bootstrap from account.position:{legacy_position.id}",
+        )
+        LedgerMigrationMapModel._default_manager.create(
+            source_app="account",
+            source_table="position",
+            source_id=legacy_position.id,
+            target_table="simulated_position",
+            target_id=unified_model.id,
+        )
+        return unified_model
+
+    def _ensure_portfolio_ledger_synced(self, portfolio) -> int:
+        """
+        Ensure a portfolio has a real account mapping and all active legacy positions
+        are bootstrapped into the unified ledger.
+        """
+        account_id = self._get_or_create_real_account(portfolio)
+        legacy_positions = (
+            portfolio.positions.filter(is_closed=False)
+            .select_related("category", "currency", "portfolio")
+            .order_by("id")
+        )
+        for legacy_position in legacy_positions:
+            self._sync_unified_position_from_legacy(legacy_position)
+        return account_id
+
+    def _sync_legacy_projection_from_unified(
+        self,
+        *,
+        unified_position,
+        portfolio,
+        asset_class: str,
+        region: str,
+        cross_border: str,
+        category=None,
+        currency=None,
+        source: str = "manual",
+        source_id: int | None = None,
+        close_projection: bool = False,
+    ) -> PositionModel:
+        """
+        Keep apps/account.PositionModel as a read projection for account-specific fields.
+        The unified ledger remains the source of truth.
+        """
+        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+
+        legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
+        if legacy_projection is None:
+            legacy_projection = PositionModel._default_manager.filter(
+                portfolio=portfolio,
+                asset_code=unified_position.asset_code,
+                is_closed=False,
+            ).first()
+
+        if legacy_projection is None:
+            legacy_projection = PositionModel._default_manager.create(
+                portfolio=portfolio,
+                asset_code=unified_position.asset_code,
+                category=category,
+                currency=currency,
+                asset_class=asset_class,
+                region=region,
+                cross_border=cross_border,
+                shares=float(unified_position.quantity),
+                avg_cost=unified_position.avg_cost,
+                current_price=unified_position.current_price,
+                market_value=unified_position.market_value,
+                unrealized_pnl=unified_position.unrealized_pnl,
+                unrealized_pnl_pct=unified_position.unrealized_pnl_pct,
+                source=source,
+                source_id=source_id,
+                is_closed=False,
+            )
+        else:
+            legacy_projection.category = category
+            legacy_projection.currency = currency
+            legacy_projection.asset_class = asset_class
+            legacy_projection.region = region
+            legacy_projection.cross_border = cross_border
+            legacy_projection.shares = float(unified_position.quantity)
+            legacy_projection.avg_cost = unified_position.avg_cost
+            legacy_projection.current_price = unified_position.current_price
+            legacy_projection.market_value = unified_position.market_value
+            legacy_projection.unrealized_pnl = unified_position.unrealized_pnl
+            legacy_projection.unrealized_pnl_pct = unified_position.unrealized_pnl_pct
+            legacy_projection.source = source
+            legacy_projection.source_id = source_id
+            if not close_projection:
+                legacy_projection.is_closed = False
+                legacy_projection.closed_at = None
+            legacy_projection.save()
+
+        LedgerMigrationMapModel._default_manager.update_or_create(
+            source_app="account",
+            source_table="position",
+            source_id=legacy_projection.id,
+            defaults={
+                "target_table": "simulated_position",
+                "target_id": unified_position.id,
+            },
+        )
+        return legacy_projection
+
+    def _build_position_payload(self, unified_position, portfolio: PortfolioModel | None = None) -> dict[str, Any]:
+        legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
+        if portfolio is None:
+            portfolio = legacy_projection.portfolio if legacy_projection else self._get_portfolio_for_account(
+                unified_position.account_id
+            )
+
+        asset_metadata = AssetMetadataModel._default_manager.filter(
+            asset_code=unified_position.asset_code
+        ).first()
+
+        category = legacy_projection.category if legacy_projection else None
+        currency = legacy_projection.currency if legacy_projection else getattr(portfolio, "base_currency", None)
+        asset_class = (
+            legacy_projection.asset_class
+            if legacy_projection
+            else getattr(asset_metadata, "asset_class", unified_position.asset_type)
+        )
+        region = (
+            legacy_projection.region
+            if legacy_projection
+            else getattr(asset_metadata, "region", "CN")
+        )
+        cross_border = (
+            legacy_projection.cross_border
+            if legacy_projection
+            else getattr(asset_metadata, "cross_border", "domestic")
+        )
+
+        return {
+            "id": unified_position.id,
+            "portfolio": portfolio.id if portfolio else None,
+            "portfolio_name": portfolio.name if portfolio else "",
+            "asset_code": unified_position.asset_code,
+            "asset_name": getattr(asset_metadata, "name", None) or unified_position.asset_name or unified_position.asset_code,
+            "category": category.id if category else None,
+            "category_code": category.code if category else None,
+            "category_name": category.name if category else None,
+            "category_path": category.get_full_path() if category else None,
+            "currency": currency.id if currency else None,
+            "currency_code": currency.code if currency else None,
+            "currency_name": currency.name if currency else None,
+            "currency_symbol": currency.symbol if currency else None,
+            "asset_class": asset_class,
+            "region": region,
+            "cross_border": cross_border,
+            "shares": float(unified_position.quantity),
+            "avg_cost": unified_position.avg_cost,
+            "current_price": unified_position.current_price,
+            "market_value": unified_position.market_value,
+            "unrealized_pnl": unified_position.unrealized_pnl,
+            "unrealized_pnl_pct": unified_position.unrealized_pnl_pct,
+            "source": legacy_projection.source if legacy_projection else "manual",
+            "source_id": unified_position.signal_id,
+            "is_closed": False,
+            "opened_at": legacy_projection.opened_at if legacy_projection else None,
+            "closed_at": legacy_projection.closed_at if legacy_projection else None,
+            "created_at": getattr(unified_position, "created_at", None),
+            "updated_at": getattr(unified_position, "updated_at", None),
+        }
+
+
 # ==================== Portfolio ViewSet ====================
 
-class PortfolioViewSet(viewsets.ModelViewSet):
+class PortfolioViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
     """
     投资组合 API ViewSet
 
@@ -200,12 +472,15 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         # 记录观察员访问审计日志
         self._log_observer_access_if_needed(request, portfolio, 'positions')
 
-        positions = portfolio.positions.filter(is_closed=False).select_related()
+        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
 
-        serializer = PositionSerializer(positions, many=True)
+        account_id = self._ensure_portfolio_ledger_synced(portfolio)
+        positions = UnifiedPositionModel._default_manager.filter(account_id=account_id).select_related("account")
+        payload = [self._build_position_payload(pos, portfolio) for pos in positions]
+        serializer = PositionSerializer(payload, many=True)
         return Response({
             'success': True,
-            'count': positions.count(),
+            'count': len(payload),
             'data': serializer.data
         })
 
@@ -361,7 +636,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
 # ==================== Position ViewSet ====================
 
-class PositionViewSet(viewsets.ModelViewSet):
+class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
     """
     持仓 API ViewSet
 
@@ -381,70 +656,65 @@ class PositionViewSet(viewsets.ModelViewSet):
     """
 
     permission_classes = [IsAuthenticated, ObserverAccessPermission]
+    queryset = PositionModel._default_manager.none()
 
     def get_queryset(self):
-        """返回用户可访问的投资组合的持仓"""
-        from .permissions import get_accessible_portfolios
-        accessible_portfolios = get_accessible_portfolios(self.request.user)
-        return PositionModel._default_manager.filter(portfolio__in=accessible_portfolios)
+        """持仓列表读取已改为 unified ledger，自定义 list 不再依赖 queryset。"""
+        return self.queryset
 
-    def get_object(self):
-        """
-        获取单个对象，区分 404 和 403
-
-        关键：观察员授权已撤销/过期时返回 403 而非 404
-        """
+    def _validate_portfolio_access(self, portfolio: PortfolioModel) -> PortfolioModel:
         from django.core.exceptions import PermissionDenied
-        from django.utils import timezone
         from rest_framework.exceptions import NotFound
 
-        from apps.account.infrastructure.models import (
-            PortfolioModel,
-            PortfolioObserverGrantModel,
-            PositionModel,
-        )
+        if portfolio is None:
+            raise NotFound("投资组合不存在")
 
-        # 先尝试获取对象（不限制 queryset）
-        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
-        pk = self.kwargs[lookup_url_kwarg]
+        if portfolio.user == self.request.user:
+            return portfolio
+
+        grant = PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id=portfolio.user,
+            observer_user_id=self.request.user,
+            status="active",
+        ).first()
+        if grant:
+            if grant.is_valid():
+                return portfolio
+            raise PermissionDenied("观察员授权已过期")
+
+        revoked_grant = PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id=portfolio.user,
+            observer_user_id=self.request.user,
+        ).exclude(status="active").first()
+        if revoked_grant:
+            raise PermissionDenied(f"观察员授权已{revoked_grant.get_status_display()}")
+        raise PermissionDenied("无权访问此持仓")
+
+    def _resolve_position_context(self, pk: int):
+        from rest_framework.exceptions import NotFound
+
+        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
 
         try:
-            position = PositionModel._default_manager.select_related('portfolio', 'portfolio__user').get(pk=pk)
-        except (PositionModel.DoesNotExist, ValueError):
+            unified_position = UnifiedPositionModel._default_manager.select_related("account").get(pk=pk)
+            portfolio = self._validate_portfolio_access(
+                self._get_portfolio_for_account(unified_position.account_id)
+            )
+            return unified_position, portfolio
+        except (UnifiedPositionModel.DoesNotExist, ValueError):
+            pass
+
+        legacy_projection = (
+            PositionModel._default_manager.filter(pk=pk)
+            .select_related("portfolio", "portfolio__user", "category", "currency")
+            .first()
+        )
+        if legacy_projection is None:
             raise NotFound(f"持仓 {pk} 不存在")
 
-        portfolio = position.portfolio
-        user = self.request.user
-
-        # 1. 拥有者：完全访问权限
-        if portfolio.user == user:
-            self.check_object_permissions(self.request, position)
-            return position
-
-        # 2. 非拥有者：检查观察员授权
-        now = timezone.now()
-        try:
-            grant = PortfolioObserverGrantModel._default_manager.get(
-                owner_user_id=portfolio.user,
-                observer_user_id=user,
-                status='active',
-            )
-
-            if grant.is_valid():
-                self.check_object_permissions(self.request, position)
-                return position
-            else:
-                raise PermissionDenied("观察员授权已过期")
-        except PortfolioObserverGrantModel.DoesNotExist:
-            revoked_grant = PortfolioObserverGrantModel._default_manager.filter(
-                owner_user_id=portfolio.user,
-                observer_user_id=user,
-            ).exclude(status='active').first()
-
-            if revoked_grant:
-                raise PermissionDenied(f"观察员授权已{revoked_grant.get_status_display()}")
-
-        raise PermissionDenied("无权访问此持仓")
+        portfolio = self._validate_portfolio_access(legacy_projection.portfolio)
+        unified_position = self._sync_unified_position_from_legacy(legacy_projection)
+        return unified_position, portfolio
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -454,40 +724,126 @@ class PositionViewSet(viewsets.ModelViewSet):
             return PositionUpdateSerializer
         return PositionSerializer
 
-    def create(self, request, *args, **kwargs):
-        """
-        创建持仓
+    def _get_filtered_accessible_portfolios(self):
+        from .permissions import get_accessible_portfolios
 
-        关键：观察员尝试创建时返回 403 而非 400/404
-        """
-        portfolio_id = request.data.get('portfolio')
-        if not portfolio_id:
-            return Response({
-                'success': False,
-                'error': '缺少 portfolio 参数'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        portfolios = get_accessible_portfolios(self.request.user).select_related("user", "base_currency")
+        portfolio_id = self.request.query_params.get("portfolio_id")
+        if portfolio_id:
+            portfolios = portfolios.filter(id=portfolio_id)
+        return portfolios
 
-        # 检查投资组合是否存在
+    def _get_or_create_real_account(self, portfolio) -> int:
+        """
+        Return the SimulatedAccountModel ID for the given portfolio.
+
+        Each portfolio maps 1-to-1 to a dedicated real account.  If no mapping
+        exists yet (pre-migration), a new account is created and the mapping
+        recorded so subsequent calls are idempotent.
+        """
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+            SimulatedAccountModel,
+        )
+        from django.db import transaction as db_transaction
+
         try:
-            portfolio = PortfolioModel._default_manager.select_related('user').get(id=portfolio_id)
-        except PortfolioModel.DoesNotExist:
-            return Response({
-                'success': False,
-                'error': f'投资组合 {portfolio_id} 不存在'
-            }, status=status.HTTP_404_NOT_FOUND)
+            mapping = LedgerMigrationMapModel._default_manager.get(
+                source_app="account",
+                source_table="portfolio",
+                source_id=portfolio.id,
+            )
+            return mapping.target_id
+        except LedgerMigrationMapModel.DoesNotExist:
+            pass
 
-        # 关键：检查是否是拥有者（观察员不能创建持仓）
+        with db_transaction.atomic():
+            real_account = SimulatedAccountModel._default_manager.create(
+                user=portfolio.user,
+                account_name=portfolio.name,
+                account_type="real",
+                initial_capital=0,
+                current_cash=0,
+                current_market_value=0,
+                total_value=0,
+                is_active=portfolio.is_active,
+                auto_trading_enabled=False,
+            )
+            LedgerMigrationMapModel._default_manager.create(
+                source_app="account",
+                source_table="portfolio",
+                source_id=portfolio.id,
+                target_table="simulated_account",
+                target_id=real_account.id,
+            )
+        return real_account.id
+
+    def create(self, request, *args, **kwargs):
+        from apps.simulated_trading.application.unified_position_service import (
+            UnifiedPositionService,
+        )
+        from apps.simulated_trading.management.commands.migrate_account_ledger import (
+            _map_asset_type,
+        )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        portfolio_id = request.data.get("portfolio")
+        if not portfolio_id:
+            return Response({"success": False, "error": "缺少 portfolio 参数"}, status=status.HTTP_400_BAD_REQUEST)
+
+        portfolio = PortfolioModel._default_manager.select_related("user", "base_currency").filter(id=portfolio_id).first()
+        if portfolio is None:
+            return Response({"success": False, "error": f"投资组合 {portfolio_id} 不存在"}, status=status.HTTP_404_NOT_FOUND)
         if portfolio.user != request.user:
-            return Response({
-                'success': False,
-                'error': '观察员无权创建持仓，只有账户拥有者可以执行此操作'
-            }, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"success": False, "error": "观察员无权创建持仓，只有账户拥有者可以执行此操作"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        # 拥有者：继续正常创建流程
-        return super().create(request, *args, **kwargs)
+        account_id = self._ensure_portfolio_ledger_synced(portfolio)
+        unified_model = UnifiedPositionService.default().create_position(
+            account_id=account_id,
+            asset_code=serializer.validated_data["asset_code"],
+            shares=float(serializer.validated_data["shares"]),
+            price=float(serializer.validated_data["avg_cost"]),
+            current_price=float(serializer.validated_data.get("current_price") or serializer.validated_data["avg_cost"]),
+            asset_type=_map_asset_type(serializer.validated_data.get("asset_class", "equity")),
+            source=serializer.validated_data.get("source", "manual"),
+            source_id=serializer.validated_data.get("source_id"),
+        )
+        self._sync_legacy_projection_from_unified(
+            unified_position=unified_model,
+            portfolio=portfolio,
+            asset_class=serializer.validated_data.get("asset_class", "equity"),
+            region=serializer.validated_data.get("region", "CN"),
+            cross_border=serializer.validated_data.get("cross_border", "domestic"),
+            category=serializer.validated_data.get("category"),
+            currency=serializer.validated_data.get("currency"),
+            source=serializer.validated_data.get("source", "manual"),
+            source_id=serializer.validated_data.get("source_id"),
+        )
+        payload = self._build_position_payload(unified_model, portfolio)
+        return Response(PositionSerializer(payload).data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        """创建时需要指定投资组合（只有拥有者可以创建）"""
+        """
+        Create position: write to unified ledger (primary), then mirror to apps/account.
+
+        The unified ledger (simulated_trading) is the source of truth.
+        apps/account.PositionModel is kept as a compatibility mirror so that
+        existing list/retrieve queries continue to work during the migration period.
+        """
+        from shared.domain.position_calculations import recalculate_derived_fields
+        from apps.simulated_trading.application.unified_position_service import (
+            UnifiedPositionService,
+        )
+        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+        from apps.simulated_trading.management.commands.migrate_account_ledger import (
+            _map_asset_type,
+        )
+
         portfolio_id = self.request.data.get('portfolio')
         portfolio = get_object_or_404(
             PortfolioModel,
@@ -495,164 +851,327 @@ class PositionViewSet(viewsets.ModelViewSet):
             user=self.request.user
         )
 
-        # 计算市值和盈亏
         shares = serializer.validated_data['shares']
         avg_cost = serializer.validated_data['avg_cost']
         current_price = serializer.validated_data.get('current_price', avg_cost)
-        market_value = shares * float(current_price)
-        unrealized_pnl = market_value - (shares * float(avg_cost))
-        unrealized_pnl_pct = (unrealized_pnl / (shares * float(avg_cost)) * 100) if avg_cost > 0 else 0
+        mv, pnl, pnl_pct = recalculate_derived_fields(
+            float(shares), float(avg_cost), float(current_price)
+        )
 
-        serializer.save(
+        # ── Primary write: unified ledger ──────────────────────────────────
+        account_id = self._get_or_create_real_account(portfolio)
+        asset_code = serializer.validated_data['asset_code']
+        asset_class = serializer.validated_data.get('asset_class', 'equity')
+        service = UnifiedPositionService.default()
+        unified_model = service.create_position(
+            account_id=account_id,
+            asset_code=asset_code,
+            shares=float(shares),
+            price=float(avg_cost),
+            current_price=float(current_price),
+            asset_type=_map_asset_type(asset_class),
+            source=serializer.validated_data.get('source', 'manual'),
+            source_id=serializer.validated_data.get('source_id'),
+        )
+
+        # ── Mirror write: apps/account (backward compat for reads) ─────────
+        account_pos = serializer.save(
             portfolio=portfolio,
-            market_value=market_value,
-            unrealized_pnl=unrealized_pnl,
-            unrealized_pnl_pct=unrealized_pnl_pct
+            market_value=mv,
+            unrealized_pnl=pnl,
+            unrealized_pnl_pct=pnl_pct,
+        )
+
+        # Record position-level mapping so update/close can find the unified record
+        LedgerMigrationMapModel._default_manager.get_or_create(
+            source_app="account",
+            source_table="position",
+            source_id=account_pos.id,
+            defaults={
+                "target_table": "simulated_position",
+                "target_id": unified_model.id,
+            },
         )
 
     def retrieve(self, request, *args, **kwargs):
-        """获取持仓详情时记录观察员访问"""
-        instance = self.get_object()
-
-        # 如果访问者不是拥有者，记录为观察员访问
-        if instance.portfolio.user != request.user:
-            self._log_observer_access_if_needed(request, instance, 'detail')
-
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        unified_position, portfolio = self._resolve_position_context(kwargs["pk"])
+        if portfolio.user != request.user:
+            self._log_observer_access_if_needed(request, portfolio, unified_position.asset_code, "detail")
+        payload = self._build_position_payload(unified_position, portfolio)
+        return Response(PositionSerializer(payload).data)
 
     def update(self, request, *args, **kwargs):
-        """
-        更新持仓
+        from apps.simulated_trading.application.unified_position_service import (
+            UnifiedPositionService,
+        )
+        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
 
-        关键：观察员尝试更新时返回 403
-        """
-        position = self.get_object()
+        partial = kwargs.pop("partial", False)
+        unified_position, portfolio = self._resolve_position_context(kwargs["pk"])
+        legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
 
-        # 检查是否是拥有者
-        if position.portfolio.user != request.user:
-            return Response({
-                'success': False,
-                'error': '观察员无权更新持仓，只有账户拥有者可以执行此操作'
-            }, status=status.HTTP_403_FORBIDDEN)
-
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        """
-        删除持仓
-
-        关键：观察员尝试删除时返回 403
-        """
-        position = self.get_object()
-
-        # 检查是否是拥有者
-        if position.portfolio.user != request.user:
-            return Response({
-                'success': False,
-                'error': '观察员无权删除持仓，只有账户拥有者可以执行此操作'
-            }, status=status.HTTP_403_FORBIDDEN)
-
-        return super().destroy(request, *args, **kwargs)
-
-    def list(self, request, *args, **kwargs):
-        """列表查询时记录观察员访问"""
-        response = super().list(request, *args, **kwargs)
-
-        # 检查是否有观察员访问的情况
-        for portfolio_id in self._get_observer_accessed_portfolios(request):
-            self._log_audit_action(
-                request=request,
-                action='READ',
-                resource_type='position_via_observer_grant',
-                resource_id=f'portfolio_{portfolio_id}',
-                response_status=200,
-                extra_context={
-                    'portfolio_id': str(portfolio_id),
-                }
+        if portfolio.user != request.user:
+            return Response(
+                {"success": False, "error": "观察员无权更新持仓，只有账户拥有者可以执行此操作"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
-        return response
+        serializer = self.get_serializer(data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        UnifiedPositionService.default().update_position(
+            account_id=unified_position.account_id,
+            asset_code=unified_position.asset_code,
+            shares=float(validated["shares"]) if "shares" in validated else None,
+            avg_cost=float(validated["avg_cost"]) if "avg_cost" in validated else None,
+            current_price=float(validated["current_price"]) if "current_price" in validated else None,
+        )
+        unified_model = UnifiedPositionModel._default_manager.get(pk=unified_position.id)
+        self._sync_legacy_projection_from_unified(
+            unified_position=unified_model,
+            portfolio=portfolio,
+            asset_class=legacy_projection.asset_class if legacy_projection else "equity",
+            region=legacy_projection.region if legacy_projection else "CN",
+            cross_border=legacy_projection.cross_border if legacy_projection else "domestic",
+            category=legacy_projection.category if legacy_projection else None,
+            currency=legacy_projection.currency if legacy_projection else None,
+            source=legacy_projection.source if legacy_projection else "manual",
+            source_id=legacy_projection.source_id if legacy_projection else unified_model.signal_id,
+        )
+        payload = self._build_position_payload(unified_model, portfolio)
+        return Response(PositionSerializer(payload).data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        """
+        Update position: write to unified ledger (primary), then sync apps/account mirror.
+
+        Derived fields are always recalculated to maintain consistency.
+        """
+        from shared.domain.position_calculations import recalculate_derived_fields
+        from apps.simulated_trading.application.unified_position_service import (
+            UnifiedPositionService,
+        )
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+        )
+
+        # ── Mirror write: apps/account (for backward compat reads) ─────────
+        instance = serializer.save()
+        shares = instance.shares
+        avg_cost = float(instance.avg_cost)
+        current_price = float(instance.current_price or instance.avg_cost)
+        mv, pnl, pnl_pct = recalculate_derived_fields(shares, avg_cost, current_price)
+        instance.market_value = mv
+        instance.unrealized_pnl = pnl
+        instance.unrealized_pnl_pct = pnl_pct
+        instance.save(update_fields=['market_value', 'unrealized_pnl', 'unrealized_pnl_pct'])
+
+        # ── Primary write: unified ledger ──────────────────────────────────
+        try:
+            mapping = LedgerMigrationMapModel._default_manager.get(
+                source_app="account",
+                source_table="position",
+                source_id=instance.id,
+            )
+            # Resolve account_id for the unified position
+            account_mapping = LedgerMigrationMapModel._default_manager.get(
+                source_app="account",
+                source_table="portfolio",
+                source_id=instance.portfolio_id,
+            )
+            UnifiedPositionService.default().update_position(
+                account_id=account_mapping.target_id,
+                asset_code=instance.asset_code,
+                shares=float(shares),
+                avg_cost=avg_cost,
+                current_price=current_price,
+            )
+        except LedgerMigrationMapModel.DoesNotExist:
+            # Position has not been migrated yet; apps/account mirror is the only store.
+            pass
+
+    def destroy(self, request, *args, **kwargs):
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+            PositionModel as UnifiedPositionModel,
+        )
+
+        unified_position, portfolio = self._resolve_position_context(kwargs["pk"])
+        if portfolio.user != request.user:
+            return Response(
+                {"success": False, "error": "观察员无权删除持仓，只有账户拥有者可以执行此操作"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
+        UnifiedPositionModel._default_manager.filter(pk=unified_position.id).delete()
+        LedgerMigrationMapModel._default_manager.filter(
+            source_app="account",
+            source_table="position",
+            target_table="simulated_position",
+            target_id=unified_position.id,
+        ).delete()
+        if legacy_projection is not None:
+            legacy_projection.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def list(self, request, *args, **kwargs):
+        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+
+        portfolios = list(self._get_filtered_accessible_portfolios())
+        account_to_portfolio: dict[int, PortfolioModel] = {}
+        for portfolio in portfolios:
+            account_to_portfolio[self._ensure_portfolio_ledger_synced(portfolio)] = portfolio
+
+        queryset = UnifiedPositionModel._default_manager.filter(
+            account_id__in=list(account_to_portfolio.keys())
+        ).select_related("account").order_by("-market_value", "asset_code")
+
+        asset_code = request.query_params.get("asset_code")
+        if asset_code:
+            queryset = queryset.filter(asset_code=asset_code)
+
+        page = self.paginate_queryset(queryset)
+        positions = page if page is not None else queryset
+        payload = [
+            self._build_position_payload(pos, account_to_portfolio.get(pos.account_id))
+            for pos in positions
+        ]
+
+        for portfolio in portfolios:
+            if portfolio.user != request.user:
+                self._log_audit_action(
+                    request=request,
+                    action="READ",
+                    resource_type="position_via_observer_grant",
+                    resource_id=f"portfolio_{portfolio.id}",
+                    response_status=200,
+                    extra_context={"portfolio_id": str(portfolio.id)},
+                )
+
+        serializer = PositionSerializer(payload, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def close(self, request, pk=None):
-        """
-        平仓
+        from apps.simulated_trading.application.unified_position_service import (
+            UnifiedPositionService,
+        )
+        from apps.simulated_trading.infrastructure.models import (
+            LedgerMigrationMapModel,
+            PositionModel as UnifiedPositionModel,
+        )
 
-        POST /api/account/positions/{id}/close/
-        """
-        position = self.get_object()
+        unified_position, portfolio = self._resolve_position_context(pk)
+        legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
 
-        # 观察员不能平仓
-        if position.portfolio.user != request.user:
-            return Response({
-                'success': False,
-                'error': '观察员无权执行平仓操作，只有账户拥有者可以平仓'
-            }, status=status.HTTP_403_FORBIDDEN)
+        if portfolio.user != request.user:
+            return Response(
+                {"success": False, "error": "观察员无权执行平仓操作，只有账户拥有者可以平仓"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if legacy_projection is not None and legacy_projection.is_closed:
+            return Response({"success": False, "error": "该持仓已平仓"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if position.is_closed:
-            return Response({
-                'success': False,
-                'error': '该持仓已平仓'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        close_shares_raw = request.data.get("shares", None)
+        close_shares = float(close_shares_raw) if close_shares_raw is not None else None
 
-        position.is_closed = True
-        position.closed_at = timezone.now()
-        position.save()
+        result = UnifiedPositionService.default().close_position(
+            account_id=unified_position.account_id,
+            asset_code=unified_position.asset_code,
+            close_shares=close_shares,
+            reason="账户平仓",
+        )
 
-        serializer = PositionSerializer(position)
+        if legacy_projection is not None:
+            closed_position = PositionRepository().close_position(legacy_projection.id, close_shares)
+            if closed_position is None:
+                return Response({"success": False, "error": "平仓失败"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            legacy_projection.refresh_from_db()
+
+        if result is None:
+            LedgerMigrationMapModel._default_manager.filter(
+                source_app="account",
+                source_table="position",
+                target_table="simulated_position",
+                target_id=unified_position.id,
+            ).delete()
+            payload = {
+                "id": unified_position.id,
+                "portfolio": portfolio.id,
+                "portfolio_name": portfolio.name,
+                "asset_code": unified_position.asset_code,
+                "asset_name": unified_position.asset_name,
+                "category": legacy_projection.category_id if legacy_projection else None,
+                "category_code": legacy_projection.category.code if legacy_projection and legacy_projection.category else None,
+                "category_name": legacy_projection.category.name if legacy_projection and legacy_projection.category else None,
+                "category_path": legacy_projection.category.get_full_path() if legacy_projection and legacy_projection.category else None,
+                "currency": legacy_projection.currency_id if legacy_projection else None,
+                "currency_code": legacy_projection.currency.code if legacy_projection and legacy_projection.currency else None,
+                "currency_name": legacy_projection.currency.name if legacy_projection and legacy_projection.currency else None,
+                "currency_symbol": legacy_projection.currency.symbol if legacy_projection and legacy_projection.currency else None,
+                "asset_class": legacy_projection.asset_class if legacy_projection else "equity",
+                "region": legacy_projection.region if legacy_projection else "CN",
+                "cross_border": legacy_projection.cross_border if legacy_projection else "domestic",
+                "shares": 0.0,
+                "avg_cost": legacy_projection.avg_cost if legacy_projection else unified_position.avg_cost,
+                "current_price": legacy_projection.current_price if legacy_projection else unified_position.current_price,
+                "market_value": Decimal("0.00"),
+                "unrealized_pnl": Decimal("0.00"),
+                "unrealized_pnl_pct": 0.0,
+                "source": legacy_projection.source if legacy_projection else "manual",
+                "source_id": legacy_projection.source_id if legacy_projection else unified_position.signal_id,
+                "is_closed": True,
+                "opened_at": legacy_projection.opened_at if legacy_projection else None,
+                "closed_at": legacy_projection.closed_at if legacy_projection else timezone.now(),
+                "created_at": getattr(legacy_projection, "created_at", None),
+                "updated_at": getattr(legacy_projection, "updated_at", None),
+            }
+        else:
+            unified_model = UnifiedPositionModel._default_manager.get(
+                account_id=unified_position.account_id,
+                asset_code=unified_position.asset_code,
+            )
+            if legacy_projection is not None:
+                self._sync_legacy_projection_from_unified(
+                    unified_position=unified_model,
+                    portfolio=portfolio,
+                    asset_class=legacy_projection.asset_class,
+                    region=legacy_projection.region,
+                    cross_border=legacy_projection.cross_border,
+                    category=legacy_projection.category,
+                    currency=legacy_projection.currency,
+                    source=legacy_projection.source,
+                    source_id=legacy_projection.source_id,
+                )
+            payload = self._build_position_payload(unified_model, portfolio)
+
         return Response({
-            'success': True,
-            'message': '持仓已平仓',
-            'data': serializer.data
+            "success": True,
+            "message": "持仓已平仓",
+            "data": PositionSerializer(payload).data,
         })
 
-    def _get_observer_accessed_portfolios(self, request):
-        """
-        获取观察员访问的投资组合ID列表
-
-        Returns:
-            list: 被观察的投资组合ID列表
-        """
-        from django.utils import timezone
-
-        from apps.account.infrastructure.models import PortfolioObserverGrantModel
-
-        now = timezone.now()
-        active_grants = PortfolioObserverGrantModel._default_manager.filter(
-            observer_user_id=request.user,
-            status='active',
-        ).filter(
-            # 未过期
-            models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=now)
-        ).values_list('owner_user_id', flat=True)
-
-        # 获取这些拥有者的投资组合ID
-        return list(PortfolioModel._default_manager.filter(
-            user__in=active_grants
-        ).values_list('id', flat=True))
-
-    def _log_observer_access_if_needed(self, request, position, action: str):
-        """
-        记录观察员访问审计日志
-
-        Args:
-            request: 请求对象
-            position: 被访问的持仓
-            action: 操作动作
-        """
-        # 如果访问者不是拥有者，记录为观察员访问
-        if position.portfolio.user != request.user:
+    def _log_observer_access_if_needed(self, request, portfolio, asset_code: str, action: str):
+        """记录观察员访问审计日志。"""
+        if portfolio.user != request.user:
             self._log_audit_action(
                 request=request,
                 action='READ',
                 resource_type='position_via_observer_grant',
-                resource_id=str(position.id),
+                resource_id=f"{portfolio.id}:{asset_code}",
                 response_status=200,
                 extra_context={
-                    'portfolio_owner': position.portfolio.user.username,
-                    'portfolio_name': position.portfolio.name,
-                    'position_asset': position.asset_code,
+                    'portfolio_owner': portfolio.user.username,
+                    'portfolio_name': portfolio.name,
+                    'position_asset': asset_code,
                     'access_action': action,
                 }
             )
@@ -1344,4 +1863,3 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
         cost['cost_ratio'] = round(cost['total'] / amount * 100, 4) if amount > 0 else 0
 
         return Response({'success': True, 'data': cost})
-

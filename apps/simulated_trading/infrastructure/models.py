@@ -140,9 +140,9 @@ class PositionModel(models.Model):
         ]
     )
 
-    # 持仓数量
-    quantity = models.IntegerField("持仓数量")
-    available_quantity = models.IntegerField("可卖数量")
+    # 持仓数量 (DecimalField 支持非整数股份，兼容旧账本浮点 shares)
+    quantity = models.DecimalField("持仓数量", max_digits=20, decimal_places=6)
+    available_quantity = models.DecimalField("可卖数量", max_digits=20, decimal_places=6)
 
     # 成本信息
     avg_cost = models.DecimalField("平均成本(元)", max_digits=10, decimal_places=4)
@@ -240,7 +240,7 @@ class SimulatedTradeModel(models.Model):
         max_length=10,
         choices=[("buy", "买入"), ("sell", "卖出")]
     )
-    quantity = models.IntegerField("交易数量")
+    quantity = models.DecimalField("交易数量", max_digits=20, decimal_places=6)
     price = models.DecimalField("成交价格(元)", max_digits=10, decimal_places=4)
     amount = models.DecimalField("成交金额(元)", max_digits=15, decimal_places=2)
 
@@ -956,4 +956,52 @@ class NotificationHistoryModel(models.Model):
 
 # Backward compatibility alias for legacy imports
 SimulatedPositionModel = PositionModel
+
+
+class LedgerMigrationMapModel(models.Model):
+    """
+    账本迁移映射表
+
+    跟踪 apps/account 旧模型记录迁移到 simulated_trading 统一账本的 ID 对应关系。
+    用于幂等重跑和迁移校验。
+
+    Phase-3 产物，迁移完成后可废弃但建议保留以便审计。
+    """
+
+    SOURCE_APP_CHOICES = [
+        ("account", "account app"),
+    ]
+    SOURCE_TABLE_CHOICES = [
+        ("portfolio", "PortfolioModel"),
+        ("position", "PositionModel (account)"),
+        ("transaction", "TransactionModel"),
+    ]
+    TARGET_TABLE_CHOICES = [
+        ("simulated_account", "SimulatedAccountModel"),
+        ("simulated_position", "PositionModel (simulated_trading)"),
+        ("simulated_trade", "SimulatedTradeModel"),
+    ]
+
+    source_app = models.CharField(
+        "来源应用", max_length=50, choices=SOURCE_APP_CHOICES, default="account"
+    )
+    source_table = models.CharField("来源表", max_length=50, choices=SOURCE_TABLE_CHOICES)
+    source_id = models.IntegerField("来源ID")
+    target_table = models.CharField("目标表", max_length=50, choices=TARGET_TABLE_CHOICES)
+    target_id = models.IntegerField("目标ID")
+    migrated_at = models.DateTimeField("迁移时间", auto_now_add=True)
+    notes = models.CharField("备注", max_length=500, blank=True)
+
+    class Meta:
+        db_table = "ledger_migration_map"
+        verbose_name = "账本迁移映射"
+        verbose_name_plural = "账本迁移映射"
+        unique_together = [["source_app", "source_table", "source_id"]]
+        indexes = [
+            models.Index(fields=["source_app", "source_table", "source_id"]),
+            models.Index(fields=["target_table", "target_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.source_table}:{self.source_id} → {self.target_table}:{self.target_id}"
 
