@@ -529,9 +529,15 @@ class AutoTradingEngine:
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取当前价格"""
         if self.market_data:
-            if hasattr(self.market_data, "require_price"):
-                return self.market_data.require_price(asset_code, trade_date)
-            return self.market_data.get_price(asset_code, trade_date)
+            get_price = getattr(self.market_data, "get_price", None)
+            if callable(get_price):
+                price = get_price(asset_code, trade_date)
+                if price is not None:
+                    return price
+
+            require_price = getattr(self.market_data, "require_price", None)
+            if callable(require_price):
+                return require_price(asset_code, trade_date)
         return None
 
     def _update_account_performance(self, account_id: int, trade_date: date):

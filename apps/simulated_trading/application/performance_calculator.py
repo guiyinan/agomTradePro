@@ -45,6 +45,30 @@ class PerformanceCalculator:
         self.position_repo = DjangoPositionRepository()
         self.market_data_provider = UnifiedPriceService()
 
+    def _require_market_price(self, asset_code: str, trade_date: date) -> float:
+        """
+        Resolve price from the configured market data provider.
+
+        Prefer ``get_price`` first so tests and adapters that expose the
+        nullable API can override pricing cleanly. If it returns ``None``,
+        fall back to the strict ``require_price`` path and keep the
+        production rule of failing loudly when no market price exists.
+        """
+        get_price = getattr(self.market_data_provider, "get_price", None)
+        if callable(get_price):
+            price = get_price(asset_code, trade_date)
+            if price is not None:
+                return price
+
+        require_price = getattr(self.market_data_provider, "require_price", None)
+        if callable(require_price):
+            return require_price(asset_code, trade_date)
+
+        raise DataFetchError(
+            message=f"无法获取 {asset_code} 在 {trade_date} 的历史价格",
+            code="PRICE_UNAVAILABLE",
+        )
+
     def calculate_and_update_performance(
         self,
         account_id: int,
@@ -329,7 +353,7 @@ class PerformanceCalculator:
             # 获取当日持仓的市值
             market_value = 0.0
             for asset_code, quantity in positions.items():
-                price = self.market_data_provider.require_price(asset_code, trade_date)
+                price = self._require_market_price(asset_code, trade_date)
                 market_value += price * quantity
 
             # 计算净值

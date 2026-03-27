@@ -116,6 +116,10 @@ core_patterns = [
         "setup/",
         include(("apps.setup_wizard.interface.urls", "setup_wizard"), namespace="setup_wizard"),
     ),
+    path(
+        "api/setup/",
+        include(("apps.setup_wizard.interface.api_urls", "setup_wizard_api"), namespace="setup_wizard_api"),
+    ),
     path("api/", api_root_view, name="api-root"),
     path("api/health/", health_view, name="health"),
     path("api/ready/", readiness_view, name="readiness"),

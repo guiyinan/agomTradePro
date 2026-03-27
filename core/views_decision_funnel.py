@@ -80,5 +80,20 @@ def funnel_step5_view(request):
 
 @login_required
 def funnel_step6_view(request):
-    """Step 6: 审批执行"""
+    """Step 6: 审批执行 with legacy audit compatibility."""
+    trade_id = request.GET.get("trade_id")
+    backtest_id = request.GET.get("backtest_id")
+
+    if trade_id or backtest_id:
+        use_case = DecisionContextUseCase()
+        audit_data = use_case.get_step6_audit(
+            trade_id=trade_id,
+            backtest_id=int(backtest_id) if backtest_id and backtest_id.isdigit() else None,
+        )
+        return render(
+            request,
+            "decision/steps/audit.html",
+            {"audit_data": audit_data},
+        )
+
     return render(request, "decision/steps/execute.html")
