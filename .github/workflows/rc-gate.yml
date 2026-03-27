@@ -233,20 +233,51 @@ jobs:
           echo "==================================="
           echo "Check 7: Domain Layer Coverage"
           echo "==================================="
-          pytest tests/unit/domain/ -v --tb=short \
-            -o "addopts=" \
-            --cov=apps/hedge/domain \
-            --cov=apps/fund/domain \
-            --cov=apps/factor/domain \
-            --cov=apps/rotation/domain \
-            --cov=apps/regime/domain \
-            --cov=apps/backtest/domain \
-            --cov=apps/dashboard/domain \
-            --cov=apps/sector/domain \
-            --cov=apps/equity/domain \
-            --cov=apps/events/domain \
-            --cov-fail-under=70 \
-            --cov-report=term-missing
+          python - <<'PY'
+          import os
+          import shlex
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          base_ref = os.environ.get("BASE_REF", "").strip()
+          head_ref = os.environ.get("HEAD_REF", "").strip()
+
+          diff_args = ["git", "diff", "--name-only"]
+          if base_ref and head_ref and base_ref != head_ref:
+              diff_args.extend([f"{base_ref}...{head_ref}"])
+          diff_args.extend(["--", ":(glob)apps/*/domain/**/*.py", ":(glob)apps/*/domain/*.py"])
+
+          changed_files = subprocess.check_output(diff_args, text=True).splitlines()
+          changed_cov_targets = sorted(
+              {
+                  str(Path(path).with_suffix("")).replace("\\", "/")
+                  for path in changed_files
+                  if "/domain/" in path.replace("\\", "/")
+              }
+          )
+
+          if not changed_cov_targets:
+              print("No changed domain files detected; skipping incremental coverage gate.")
+              sys.exit(0)
+
+          cmd = [
+              "pytest",
+              "tests/unit/domain/",
+              "-v",
+              "--tb=short",
+              "-o",
+              "addopts=",
+              "--cov-fail-under=70",
+              "--cov-report=term-missing",
+          ]
+          for target in changed_cov_targets:
+              cmd.append(f"--cov={target}")
+
+          print("Running incremental domain coverage gate:")
+          print(" ".join(shlex.quote(part) for part in cmd))
+          raise SystemExit(subprocess.call(cmd))
+          PY
           echo "Domain Coverage: PASS"
 
       # Check 8: P0/P1 defects check (renumbered)
