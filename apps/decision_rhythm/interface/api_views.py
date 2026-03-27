@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import re
+from dataclasses import replace
 from datetime import UTC
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional
@@ -13,11 +16,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 
 from ..domain.entities import (
     ApprovalStatus,
+    PortfolioTransitionPlan,
     QuotaPeriod,
+    RecommendationStatus,
+    TransitionOrder,
+    TransitionPlanStatus,
     UserDecisionAction,
+    create_portfolio_transition_plan,
     create_execution_approval_request,
 )
 from ..domain.services import (
@@ -30,6 +40,7 @@ from ..infrastructure.repositories import (
     CooldownRepository,
     ExecutionApprovalRequestRepository,
     InvestmentRecommendationRepository,
+    PortfolioTransitionPlanRepository,
     QuotaRepository,
     ValuationSnapshotRepository,
 )
@@ -159,6 +170,329 @@ def _risk_checks(recommendation, market_price: Decimal | None) -> dict[str, Any]
     return result
 
 
+def _serialize_transition_plan(plan: PortfolioTransitionPlan) -> dict[str, Any]:
+    return plan.to_dict()
+
+
+def _pulse_context() -> dict[str, Any]:
+    try:
+        snapshot = GetLatestPulseUseCase().execute()
+    except Exception as exc:
+        logger.warning(f"Failed to load pulse context for invalidation template: {exc}")
+        snapshot = None
+
+    if snapshot is None:
+        return {
+            "observed_at": None,
+            "composite_score": 0.0,
+            "regime_strength": "unknown",
+            "transition_warning": False,
+            "transition_direction": "",
+            "transition_reasons": [],
+        }
+
+    return {
+        "observed_at": snapshot.observed_at.isoformat(),
+        "composite_score": snapshot.composite_score,
+        "regime_strength": snapshot.regime_strength,
+        "transition_warning": snapshot.transition_warning,
+        "transition_direction": snapshot.transition_direction,
+        "transition_reasons": snapshot.transition_reasons,
+    }
+
+
+def _build_system_invalidation_template(
+    security_code: str,
+    side: str,
+    *,
+    rationale: str = "",
+) -> dict[str, Any]:
+    regime = _regime_context()
+    pulse = _pulse_context()
+
+    pulse_threshold = round(min(float(pulse.get("composite_score", 0.0) or 0.0) - 0.15, -0.05), 2)
+    confidence_floor = round(max(float(regime.get("confidence", 0.0) or 0.0) - 0.2, 0.25), 2)
+    logic = "AND"
+    description = "当系统脉搏和宏观判定失效时，当前交易逻辑被证伪。"
+    if side == "SELL":
+        logic = "OR"
+        description = "当风险环境修复或宏观卖出逻辑失效时，当前减仓/清仓逻辑被证伪。"
+
+    conditions = [
+        {
+            "indicator_code": "PULSE_COMPOSITE",
+            "indicator_type": "pulse",
+            "operator": "<" if side != "SELL" else ">",
+            "threshold": pulse_threshold if side != "SELL" else max(pulse_threshold + 0.35, 0.1),
+        },
+        {
+            "indicator_code": "REGIME_CONFIDENCE",
+            "indicator_type": "regime",
+            "operator": "<",
+            "threshold": confidence_floor,
+        },
+    ]
+    if pulse.get("transition_warning"):
+        conditions.append(
+            {
+                "indicator_code": "PULSE_TRANSITION_WARNING",
+                "indicator_type": "pulse",
+                "operator": "==",
+                "threshold": 1,
+            }
+        )
+
+    return {
+        "logic": logic,
+        "conditions": conditions,
+        "requires_user_confirmation": False,
+        "meta": {
+            "security_code": security_code,
+            "side": side,
+            "regime": regime.get("current_regime"),
+            "regime_confidence": regime.get("confidence"),
+            "pulse_composite_score": pulse.get("composite_score"),
+            "pulse_regime_strength": pulse.get("regime_strength"),
+            "transition_warning": pulse.get("transition_warning"),
+            "transition_direction": pulse.get("transition_direction"),
+            "transition_reasons": pulse.get("transition_reasons"),
+            "rationale": rationale,
+        },
+        "description": description,
+    }
+
+
+def _extract_json_payload(text: str) -> dict[str, Any]:
+    raw = (text or "").strip()
+    if not raw:
+        raise ValueError("AI 返回为空")
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", raw, flags=re.DOTALL)
+    if fenced:
+        raw = fenced.group(1)
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start >= 0 and end > start:
+        raw = raw[start:end + 1]
+    parsed = json.loads(raw)
+    if not isinstance(parsed, dict):
+        raise ValueError("AI 返回不是 JSON 对象")
+    return parsed
+
+
+def _load_signal_payloads(signal_ids: list[str]) -> dict[str, dict[str, Any]]:
+    normalized_ids = [int(signal_id) for signal_id in signal_ids if str(signal_id).isdigit()]
+    if not normalized_ids:
+        return {}
+
+    from apps.signal.infrastructure.models import InvestmentSignalModel
+
+    rows = InvestmentSignalModel.objects.filter(id__in=normalized_ids).values(
+        "id",
+        "invalidation_rule_json",
+        "invalidation_description",
+        "invalidation_logic",
+    )
+    return {
+        str(row["id"]): {
+            "invalidation_rule_json": row.get("invalidation_rule_json") or {},
+            "invalidation_description": row.get("invalidation_description") or "",
+            "invalidation_logic": row.get("invalidation_logic") or "",
+        }
+        for row in rows
+    }
+
+
+def _build_plan_risk_checks(plan: PortfolioTransitionPlan) -> dict[str, Any]:
+    risk_checks: dict[str, Any] = {
+        "plan_validation": {
+            "passed": plan.can_enter_approval,
+            "reason": "" if plan.can_enter_approval else "；".join(plan.blocking_issues),
+        }
+    }
+
+    try:
+        quota = QuotaRepository().get_quota(QuotaPeriod.WEEKLY)
+        quota_ok = bool(quota and not quota.is_quota_exceeded)
+        risk_checks["quota"] = {
+            "passed": quota_ok,
+            "remaining": quota.remaining_decisions if quota else 0,
+            "reason": "" if quota_ok else "周配额不足",
+        }
+    except Exception as exc:
+        risk_checks["quota"] = {"passed": True, "reason": f"quota check skipped: {exc}"}
+
+    cooldown_failures: list[str] = []
+    cooldown_repo = CooldownRepository()
+    for order in plan.orders:
+        if order.action == "HOLD":
+            continue
+        try:
+            cooldown = cooldown_repo.get_active_cooldown(order.security_code)
+            if cooldown and not cooldown.is_decision_ready:
+                cooldown_failures.append(
+                    f"{order.security_code}: 剩余 {cooldown.decision_ready_in_hours:.1f} 小时"
+                )
+        except Exception:
+            continue
+
+    risk_checks["cooldown"] = {
+        "passed": not cooldown_failures,
+        "reason": "" if not cooldown_failures else "；".join(cooldown_failures),
+    }
+    return risk_checks
+
+
+def _build_transition_plan_for_account(
+    account_id: str,
+    recommendation_ids: list[str] | None = None,
+    *,
+    persist: bool = True,
+) -> PortfolioTransitionPlan:
+    from apps.decision_rhythm.infrastructure.models import UnifiedRecommendationModel
+    from apps.simulated_trading.infrastructure.models import PositionModel
+
+    recommendation_queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id).order_by("-created_at")
+    if recommendation_ids:
+        recommendation_queryset = recommendation_queryset.filter(recommendation_id__in=recommendation_ids)
+    else:
+        recommendation_queryset = recommendation_queryset.filter(user_action=UserDecisionAction.ADOPTED.value)
+
+    recommendation_models = list(recommendation_queryset)
+    if not recommendation_models:
+        raise ValueError("当前账户没有可生成交易计划的已采纳推荐")
+
+    signal_ids = sorted(
+        {
+            str(signal_id)
+            for recommendation in recommendation_models
+            for signal_id in (recommendation.source_signal_ids or [])
+            if signal_id
+        }
+    )
+    signal_payloads = _load_signal_payloads(signal_ids)
+
+    current_positions = list(
+        PositionModel.objects.filter(account_id=account_id).values(
+            "asset_code",
+            "asset_name",
+            "quantity",
+            "avg_cost",
+            "current_price",
+            "market_value",
+            "unrealized_pnl_pct",
+        )
+    )
+    plan = create_portfolio_transition_plan(
+        account_id=account_id,
+        recommendations=[recommendation.to_domain() for recommendation in recommendation_models],
+        current_positions=current_positions,
+        signal_payloads=signal_payloads,
+    )
+    if persist:
+        plan = PortfolioTransitionPlanRepository().save(plan)
+    return plan
+
+
+def _update_transition_plan_from_payload(
+    plan: PortfolioTransitionPlan,
+    payload: dict[str, Any],
+) -> PortfolioTransitionPlan:
+    order_updates = payload.get("orders") or []
+    order_update_map = {
+        (
+            str(item.get("source_recommendation_id") or ""),
+            str(item.get("security_code") or ""),
+        ): item
+        for item in order_updates
+    }
+    updated_orders: list[TransitionOrder] = []
+    for order in plan.orders:
+        patch = order_update_map.get((order.source_recommendation_id, order.security_code), {})
+        invalidation_rule = patch.get("invalidation_rule", order.invalidation_rule)
+        if invalidation_rule is None:
+            invalidation_rule = {}
+        updated_order = replace(
+            order,
+            stop_loss_price=(
+                _decimal(patch.get("stop_loss_price"), default=order.stop_loss_price)
+                if "stop_loss_price" in patch
+                else order.stop_loss_price
+            ),
+            invalidation_rule=invalidation_rule,
+            invalidation_description=str(
+                patch.get("invalidation_description", order.invalidation_description)
+            ),
+            requires_user_confirmation=bool(
+                invalidation_rule.get("requires_user_confirmation", False)
+            ),
+            review_by=patch.get("review_by", order.review_by),
+        )
+        updated_orders.append(updated_order)
+
+    updated_plan = replace(
+        plan,
+        orders=updated_orders,
+        risk_contract=payload.get("risk_contract", plan.risk_contract),
+        status=TransitionPlanStatus.DRAFT,
+    )
+    if updated_plan.can_enter_approval:
+        updated_plan = replace(updated_plan, status=TransitionPlanStatus.READY_FOR_APPROVAL)
+    return updated_plan
+
+
+def _create_approval_from_plan(
+    plan: PortfolioTransitionPlan,
+    account_id: str,
+    risk_checks: dict[str, Any],
+    regime_source: str,
+    market_price: Decimal | None,
+):
+    from uuid import uuid4
+
+    from apps.decision_rhythm.infrastructure.models import (
+        ExecutionApprovalRequestModel,
+        PortfolioTransitionPlanModel,
+    )
+
+    pending_exists = ExecutionApprovalRequestModel.objects.filter(
+        transition_plan__plan_id=plan.plan_id,
+        approval_status=ApprovalStatus.PENDING.value,
+    ).exists()
+    if pending_exists:
+        raise ValueError("当前交易计划已存在待审批请求")
+
+    plan_model = PortfolioTransitionPlanModel.objects.get(plan_id=plan.plan_id)
+    active_orders = [order for order in plan.orders if order.action != "HOLD"]
+    total_quantity = sum(abs(order.delta_qty) for order in active_orders) or 1
+    price_lows = [order.price_band_low for order in active_orders] or [Decimal("0")]
+    price_highs = [order.price_band_high for order in active_orders] or [Decimal("0")]
+
+    approval_model = ExecutionApprovalRequestModel.objects.create(
+        request_id=f"apr_{uuid4().hex[:12]}",
+        transition_plan=plan_model,
+        account_id=account_id,
+        security_code="PLAN",
+        side="HOLD",
+        approval_status=ApprovalStatus.PENDING.value,
+        suggested_quantity=total_quantity,
+        market_price_at_review=market_price,
+        price_range_low=min(price_lows),
+        price_range_high=max(price_highs),
+        stop_loss_price=Decimal("0"),
+        risk_check_results=risk_checks,
+        reviewer_comments="",
+        regime_source=regime_source,
+        execution_params_json={
+            "preview_type": "transition_plan",
+            "plan_snapshot": plan.to_dict(),
+        },
+    )
+    plan_model.status = TransitionPlanStatus.APPROVAL_PENDING.value
+    plan_model.approval_request_id = approval_model.request_id
+    plan_model.save(update_fields=["status", "approval_request_id", "updated_at"])
+    return approval_model.to_domain()
+
+
 class ValuationSnapshotDetailView(APIView):
     """GET /api/valuation/snapshot/{snapshot_id}/"""
 
@@ -256,16 +590,243 @@ class AggregatedWorkspaceView(APIView):
         )
 
 
+class TransitionPlanGenerateView(APIView):
+    """POST /api/decision/workspace/plans/generate/"""
+
+    def post(self, request) -> Response:
+        account_id = (request.data or {}).get("account_id") or "default"
+        recommendation_ids = (request.data or {}).get("recommendation_ids") or None
+
+        try:
+            plan = _build_transition_plan_for_account(
+                account_id=account_id,
+                recommendation_ids=recommendation_ids,
+                persist=True,
+            )
+        except ValueError as exc:
+            return Response({"success": False, "error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.error(f"Failed to generate transition plan: {exc}", exc_info=True)
+            return Response({"success": False, "error": "生成交易计划失败"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"success": True, "data": _serialize_transition_plan(plan)}, status=status.HTTP_201_CREATED)
+
+
+class TransitionPlanDetailView(APIView):
+    """GET /api/decision/workspace/plans/<str:plan_id>/"""
+
+    def get(self, request, plan_id: str) -> Response:
+        plan = PortfolioTransitionPlanRepository().get_by_id(plan_id)
+        if plan is None:
+            return Response({"success": False, "error": "Transition plan not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"success": True, "data": _serialize_transition_plan(plan)})
+
+
+class TransitionPlanUpdateView(APIView):
+    """POST /api/decision/workspace/plans/<str:plan_id>/update/"""
+
+    def post(self, request, plan_id: str) -> Response:
+        repo = PortfolioTransitionPlanRepository()
+        plan = repo.get_by_id(plan_id)
+        if plan is None:
+            return Response({"success": False, "error": "Transition plan not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            updated_plan = _update_transition_plan_from_payload(plan, request.data or {})
+            updated_plan = repo.save(updated_plan)
+        except Exception as exc:
+            logger.error(f"Failed to update transition plan {plan_id}: {exc}", exc_info=True)
+            return Response({"success": False, "error": "更新交易计划失败"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"success": True, "data": _serialize_transition_plan(updated_plan)})
+
+
+class InvalidationTemplateView(APIView):
+    """POST /api/decision/workspace/invalidation/template/"""
+
+    def post(self, request) -> Response:
+        security_code = str((request.data or {}).get("security_code") or "").strip().upper()
+        side = str((request.data or {}).get("side") or "BUY").strip().upper()
+        rationale = str((request.data or {}).get("rationale") or "").strip()
+
+        if not security_code:
+            return Response({"success": False, "error": "security_code is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        template = _build_system_invalidation_template(
+            security_code=security_code,
+            side=side,
+            rationale=rationale,
+        )
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "template": template,
+                    "pulse_context": _pulse_context(),
+                    "regime_context": _regime_context(),
+                },
+            }
+        )
+
+
+class InvalidationAIDraftView(APIView):
+    """POST /api/decision/workspace/invalidation/ai-draft/"""
+
+    def post(self, request) -> Response:
+        security_code = str((request.data or {}).get("security_code") or "").strip().upper()
+        side = str((request.data or {}).get("side") or "BUY").strip().upper()
+        rationale = str((request.data or {}).get("rationale") or "").strip()
+        user_prompt = str((request.data or {}).get("user_prompt") or "").strip()
+        existing_rule = (request.data or {}).get("existing_rule") or {}
+
+        if not security_code:
+            return Response({"success": False, "error": "security_code is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        pulse = _pulse_context()
+        regime = _regime_context()
+        system_template = _build_system_invalidation_template(
+            security_code=security_code,
+            side=side,
+            rationale=rationale,
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "你是投资系统的证伪逻辑助手。只返回一个 JSON 对象。"
+                    "字段必须包含 logic, conditions, requires_user_confirmation, description。"
+                    "conditions 中每项必须包含 indicator_code, indicator_type, operator, threshold。"
+                    "不要输出 Markdown，不要解释。"
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "task": "生成适用于交易计划审批前的证伪逻辑草稿",
+                        "security_code": security_code,
+                        "side": side,
+                        "rationale": rationale,
+                        "user_prompt": user_prompt,
+                        "existing_rule": existing_rule,
+                        "pulse_context": pulse,
+                        "regime_context": regime,
+                        "system_template": system_template,
+                    },
+                    ensure_ascii=False,
+                ),
+            },
+        ]
+
+        ai_client = AIClientFactory().get_client()
+        ai_response = ai_client.chat_completion(messages=messages, temperature=0.2, max_tokens=500)
+        if ai_response.get("status") != "success":
+            return Response(
+                {
+                    "success": False,
+                    "error": ai_response.get("error_message") or "AI 生成失败",
+                    "fallback_template": system_template,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            draft = _extract_json_payload(ai_response.get("content", ""))
+        except Exception as exc:
+            return Response(
+                {
+                    "success": False,
+                    "error": f"AI 返回解析失败: {exc}",
+                    "fallback_template": system_template,
+                    "raw_content": ai_response.get("content", ""),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        draft.setdefault("logic", "AND")
+        draft.setdefault("conditions", [])
+        draft.setdefault("requires_user_confirmation", False)
+        draft.setdefault("description", "AI 生成的证伪草稿")
+        draft.setdefault("meta", {})
+        draft["meta"]["security_code"] = security_code
+        draft["meta"]["side"] = side
+        draft["meta"]["pulse_context"] = pulse
+        draft["meta"]["regime_context"] = regime
+
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "draft": draft,
+                    "pulse_context": pulse,
+                    "regime_context": regime,
+                    "provider_used": ai_response.get("provider_used", ""),
+                    "model": ai_response.get("model", ""),
+                },
+            }
+        )
+
+
 class ExecutionPreviewView(APIView):
     """POST /api/decision/execute/preview/"""
 
     def post(self, request) -> Response:
+        plan_id = (request.data or {}).get("plan_id")
         recommendation_id = (request.data or {}).get("recommendation_id")
         account_id = (request.data or {}).get("account_id") or "default"
         market_price = _decimal((request.data or {}).get("market_price"))
 
+        if plan_id:
+            plan_repo = PortfolioTransitionPlanRepository()
+            plan = plan_repo.get_by_id(plan_id)
+            if plan is None:
+                return Response({"success": False, "error": "Transition plan not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            risk_checks = _build_plan_risk_checks(plan)
+            if not risk_checks["plan_validation"]["passed"]:
+                return Response(
+                    {
+                        "success": False,
+                        "error": risk_checks["plan_validation"]["reason"],
+                        "blocking_issues": plan.blocking_issues,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            regime_source = _regime_context()["source"]
+            try:
+                approval_request = _create_approval_from_plan(
+                    plan=plan,
+                    account_id=account_id,
+                    risk_checks=risk_checks,
+                    regime_source=regime_source,
+                    market_price=market_price,
+                )
+            except ValueError as exc:
+                return Response({"success": False, "error": str(exc)}, status=status.HTTP_409_CONFLICT)
+
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "request_id": approval_request.request_id,
+                        "plan_id": plan.plan_id,
+                        "recommendation_type": "plan",
+                        "preview": {
+                            "orders_count": len(plan.orders),
+                            "active_orders_count": len([order for order in plan.orders if order.action != "HOLD"]),
+                            "summary": plan.summary,
+                            "risk_contract": plan.risk_contract,
+                        },
+                        "risk_checks": risk_checks,
+                    },
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
         if not recommendation_id:
-            return Response({"success": False, "error": "recommendation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "error": "plan_id or recommendation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 优先查找 UnifiedRecommendation（M2 融合推荐）
         from ..domain.entities import UnifiedRecommendation
@@ -458,6 +1019,7 @@ class ExecutionPreviewView(APIView):
         approval_model = ExecutionApprovalRequestModel(
             request_id=f"apr_{uuid4().hex[:12]}",
             unified_recommendation=uni_rec_model,
+            transition_plan=None,
             account_id=account_id,
             security_code=uni_rec.security_code,
             side=uni_rec.side,
@@ -526,11 +1088,23 @@ class ExecutionApproveView(APIView):
 
             # 获取关联的 candidate_id
             from ..infrastructure.models import ExecutionApprovalRequestModel
+            from ..infrastructure.models import UnifiedRecommendationModel
             model = ExecutionApprovalRequestModel.objects.get(request_id=approval_request.request_id)
 
             candidate_ids = []
             if model.unified_recommendation:
                 candidate_ids = model.unified_recommendation.source_candidate_ids or []
+            elif model.transition_plan:
+                source_ids = model.transition_plan.source_recommendation_ids or []
+                candidate_ids = list(
+                    UnifiedRecommendationModel.objects.filter(recommendation_id__in=source_ids)
+                    .values_list("source_candidate_ids", flat=True)
+                )
+                candidate_ids = [
+                    candidate_id
+                    for group in candidate_ids
+                    for candidate_id in (group or [])
+                ]
 
             if candidate_ids:
                 event = create_event(
@@ -594,11 +1168,23 @@ class ExecutionRejectView(APIView):
 
             # 获取关联的 candidate_id
             from ..infrastructure.models import ExecutionApprovalRequestModel
+            from ..infrastructure.models import UnifiedRecommendationModel
             model = ExecutionApprovalRequestModel.objects.get(request_id=approval_request.request_id)
 
             candidate_ids = []
             if model.unified_recommendation:
                 candidate_ids = model.unified_recommendation.source_candidate_ids or []
+            elif model.transition_plan:
+                source_ids = model.transition_plan.source_recommendation_ids or []
+                candidate_ids = list(
+                    UnifiedRecommendationModel.objects.filter(recommendation_id__in=source_ids)
+                    .values_list("source_candidate_ids", flat=True)
+                )
+                candidate_ids = [
+                    candidate_id
+                    for group in candidate_ids
+                    for candidate_id in (group or [])
+                ]
 
             event = create_event(
                 event_type=EventType.DECISION_REJECTED,

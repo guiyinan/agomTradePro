@@ -132,6 +132,10 @@ mypy apps/ --strict
 > - 统一格式: `/api/{module}/{endpoint}/` (所有 API 端点)
 > - 页面路由: `/{module}/dashboard/` 等需要登录
 > - 旧格式 (`/api/{module}/api/` 和 `/{module}/api/`) 仍保持向后兼容
+>
+> **Schema 生成说明**:
+> - `python manage.py spectacular --file schema.yml` 只输出规范化 `/api/*` 端点
+> - 枚举组件名已做稳定映射，避免生成带哈希后缀的临时 enum 名
 
 ### Regime API
 

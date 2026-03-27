@@ -728,7 +728,7 @@ class Position:
     account_id: str
     asset_code: str
     quantity: float
-    cost_basis: float
+    cost_basis: float  # 含买入侧手续费和滑点摊薄后的持仓成本
     current_price: float
     market_value: float
     profit_loss: float
@@ -749,7 +749,7 @@ class Position:
 | 任务 | 时间 | 说明 |
 |------|------|------|
 | 自动交易 | 工作日 15:30 | 执行待处理信号 |
-| 更新价格 | 工作日 16:00 | 更新持仓价格 |
+| 更新价格 | 工作日 16:00 | 通过 `apps/market_data` 统一价格接口更新持仓价格；若无价格则任务失败并返回错误，不允许静默补 0 或编造价格 |
 | 计算绩效 | 周日 2:00 | 计算周度绩效 |
 | 清理账户 | 周日 3:00 | 清理不活跃账户 |
 | 发送摘要 | 工作日 17:00 | 发送每日摘要 |
@@ -1277,7 +1277,7 @@ def check_invalidation(
 |------|------|------|------|
 | `/api/simulated-trading/accounts/` | GET/POST | 当前登录用户账户列表/创建 | 需要 |
 | `/api/simulated-trading/accounts/{id}/` | GET | 当前登录用户账户详情 | 需要 |
-| `/api/simulated-trading/accounts/{id}/positions/` | GET | 当前登录用户持仓列表 | 需要 |
+| `/api/simulated-trading/accounts/{id}/positions/` | GET | 当前登录用户持仓列表，`avg_cost` 为含买入侧手续费和滑点的摊薄成本 | 需要 |
 | `/api/simulated-trading/accounts/{id}/trades/` | GET | 当前登录用户交易记录 | 需要 |
 | `/api/simulated-trading/accounts/{id}/performance/` | GET | 当前登录用户账户绩效 | 需要 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 | 需要 |

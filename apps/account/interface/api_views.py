@@ -61,13 +61,13 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     投资组合 API ViewSet
 
     提供以下接口:
-    - GET /account/api/portfolios/ - 获取投资组合列表
-    - POST /account/api/portfolios/ - 创建投资组合
-    - GET /account/api/portfolios/{id}/ - 获取组合详情
-    - PUT /account/api/portfolios/{id}/ - 更新组合
-    - DELETE /account/api/portfolios/{id}/ - 删除组合
-    - GET /account/api/portfolios/{id}/positions/ - 获取组合持仓
-    - GET /account/api/portfolios/{id}/statistics/ - 获取统计信息
+    - GET /api/account/portfolios/ - 获取投资组合列表
+    - POST /api/account/portfolios/ - 创建投资组合
+    - GET /api/account/portfolios/{id}/ - 获取组合详情
+    - PUT /api/account/portfolios/{id}/ - 更新组合
+    - DELETE /api/account/portfolios/{id}/ - 删除组合
+    - GET /api/account/portfolios/{id}/positions/ - 获取组合持仓
+    - GET /api/account/portfolios/{id}/statistics/ - 获取统计信息
 
     权限说明:
     - 账户拥有者：完全访问权限
@@ -193,7 +193,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         """
         获取投资组合的持仓列表
 
-        GET /account/api/portfolios/{id}/positions/
+        GET /api/account/portfolios/{id}/positions/
         """
         portfolio = self.get_object()
 
@@ -214,7 +214,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         """
         获取投资组合统计信息
 
-        GET /account/api/portfolios/{id}/statistics/
+        GET /api/account/portfolios/{id}/statistics/
         """
         portfolio = self.get_object()
 
@@ -366,12 +366,12 @@ class PositionViewSet(viewsets.ModelViewSet):
     持仓 API ViewSet
 
     提供以下接口:
-    - GET /account/api/positions/ - 获取持仓列表
-    - POST /account/api/positions/ - 创建持仓
-    - GET /account/api/positions/{id}/ - 获取持仓详情
-    - PUT /account/api/positions/{id}/ - 更新持仓
-    - DELETE /account/api/positions/{id}/ - 删除持仓
-    - POST /account/api/positions/{id}/close/ - 平仓
+    - GET /api/account/positions/ - 获取持仓列表
+    - POST /api/account/positions/ - 创建持仓
+    - GET /api/account/positions/{id}/ - 获取持仓详情
+    - PUT /api/account/positions/{id}/ - 更新持仓
+    - DELETE /api/account/positions/{id}/ - 删除持仓
+    - POST /api/account/positions/{id}/close/ - 平仓
 
     权限说明:
     - 账户拥有者：完全访问权限
@@ -579,7 +579,7 @@ class PositionViewSet(viewsets.ModelViewSet):
         """
         平仓
 
-        POST /account/api/positions/{id}/close/
+        POST /api/account/positions/{id}/close/
         """
         position = self.get_object()
 
@@ -727,9 +727,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
     交易记录 API ViewSet
 
     提供以下接口:
-    - GET /account/api/transactions/ - 获取交易列表
-    - POST /account/api/transactions/ - 创建交易记录
-    - GET /account/api/transactions/{id}/ - 获取交易详情
+    - GET /api/account/transactions/ - 获取交易列表
+    - POST /api/account/transactions/ - 创建交易记录
+    - GET /api/account/transactions/{id}/ - 获取交易详情
     """
 
     permission_classes = [IsAuthenticated, TradingPermission]
@@ -768,10 +768,10 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
     资金流水 API ViewSet
 
     提供以下接口:
-    - GET /account/api/capital-flows/ - 获取资金流水列表
-    - POST /account/api/capital-flows/ - 创建资金流水
-    - GET /account/api/capital-flows/{id}/ - 获取流水详情
-    - DELETE /account/api/capital-flows/{id}/ - 删除流水
+    - GET /api/account/capital-flows/ - 获取资金流水列表
+    - POST /api/account/capital-flows/ - 创建资金流水
+    - GET /api/account/capital-flows/{id}/ - 获取流水详情
+    - DELETE /api/account/capital-flows/{id}/ - 删除流水
     """
 
     permission_classes = [IsAuthenticated, TradingPermission]
@@ -804,8 +804,8 @@ class AccountProfileView(APIView):
     """
     账户配置 API
 
-    - GET /account/api/profile/ - 获取账户配置
-    - PUT /account/api/profile/ - 更新账户配置
+    - GET /api/account/profile/ - 获取账户配置
+    - PUT /api/account/profile/ - 更新账户配置
     """
 
     permission_classes = [IsAuthenticated, GeneralPermission]
@@ -839,9 +839,9 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
     """
     资产元数据 API ViewSet (只读)
 
-    - GET /account/api/assets/ - 获取资产列表
-    - GET /account/api/assets/{id}/ - 获取资产详情
-    - GET /account/api/assets/by-class/{asset_class}/ - 按类别查询
+    - GET /api/account/assets/ - 获取资产列表
+    - GET /api/account/assets/{id}/ - 获取资产详情
+    - GET /api/account/assets/by-class/{asset_class}/ - 按类别查询
     """
 
     queryset = AssetMetadataModel._default_manager.all()
@@ -853,7 +853,7 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
         """
         按资产类别查询
 
-        GET /account/api/assets/by-class/{asset_class}/
+        GET /api/account/assets/by-class/{asset_class}/
         """
         assets = self.get_queryset().filter(asset_class=asset_class)
         serializer = AssetMetadataSerializer(assets, many=True)
@@ -894,11 +894,11 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
     观察员授权 API ViewSet
 
     提供以下接口:
-    - GET /account/api/observer-grants/ - 获取当前用户的授权列表
-    - POST /account/api/observer-grants/ - 创建观察员授权
-    - GET /account/api/observer-grants/{id}/ - 获取授权详情
-    - PUT /account/api/observer-grants/{id}/ - 更新授权（过期时间）
-    - DELETE /account/api/observer-grants/{id}/ - 撤销授权
+    - GET /api/account/observer-grants/ - 获取当前用户的授权列表
+    - POST /api/account/observer-grants/ - 创建观察员授权
+    - GET /api/account/observer-grants/{id}/ - 获取授权详情
+    - PUT /api/account/observer-grants/{id}/ - 更新授权（过期时间）
+    - DELETE /api/account/observer-grants/{id}/ - 撤销授权
     """
 
     permission_classes = [IsAuthenticated, GeneralPermission]
@@ -949,7 +949,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
         """
         获取授权对应账户的持仓列表（观察员专用）
 
-        GET /account/api/observer-grants/{id}/positions/
+        GET /api/account/observer-grants/{id}/positions/
         """
         grant = self.get_object()
 
@@ -1069,7 +1069,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
         """
         撤销授权（软删除）
 
-        DELETE /account/api/observer-grants/{id}/
+        DELETE /api/account/observer-grants/{id}/
         """
         grant = self.get_object()
 
@@ -1110,7 +1110,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
         """
         创建观察员授权
 
-        POST /account/api/observer-grants/
+        POST /api/account/observer-grants/
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1207,7 +1207,7 @@ class UserSearchView(APIView):
 
     用于协作页面添加观察员时的用户搜索
 
-    - GET /account/api/users/search/?q=xxx - 搜索用户
+    - GET /api/account/users/search/?q=xxx - 搜索用户
     """
 
     permission_classes = [IsAuthenticated, GeneralPermission]
@@ -1272,12 +1272,12 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
     交易费率配置 API ViewSet
 
     提供以下接口:
-    - GET /account/api/trading-cost-configs/ - 获取费率配置列表
-    - POST /account/api/trading-cost-configs/ - 创建费率配置
-    - GET /account/api/trading-cost-configs/{id}/ - 获取费率配置详情
-    - PUT /account/api/trading-cost-configs/{id}/ - 更新费率配置
-    - DELETE /account/api/trading-cost-configs/{id}/ - 删除费率配置
-    - POST /account/api/trading-cost-configs/{id}/calculate/ - 计算交易费用
+    - GET /api/account/trading-cost-configs/ - 获取费率配置列表
+    - POST /api/account/trading-cost-configs/ - 创建费率配置
+    - GET /api/account/trading-cost-configs/{id}/ - 获取费率配置详情
+    - PUT /api/account/trading-cost-configs/{id}/ - 更新费率配置
+    - DELETE /api/account/trading-cost-configs/{id}/ - 删除费率配置
+    - POST /api/account/trading-cost-configs/{id}/calculate/ - 计算交易费用
     """
 
     permission_classes = [IsAuthenticated, TradingPermission]
@@ -1315,7 +1315,7 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
         """
         计算交易费用
 
-        POST /account/api/trading-cost-configs/{id}/calculate/
+        POST /api/account/trading-cost-configs/{id}/calculate/
 
         Body:
             {
@@ -1344,3 +1344,4 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
         cost['cost_ratio'] = round(cost['total'] / amount * 100, 4) if amount > 0 else 0
 
         return Response({'success': True, 'data': cost})
+

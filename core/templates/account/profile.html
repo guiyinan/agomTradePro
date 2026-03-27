@@ -626,7 +626,7 @@
 <script>
 async function loadVolatilityData() {
     try {
-        const response = await fetch('{% url "account:api_volatility" %}');
+                const response = await fetch('{% url "api_account:volatility" %}');
         const result = await response.json();
 
         if (!result.success) {

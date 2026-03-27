@@ -1,0 +1,69 @@
+<div class="funnel-step-content" x-init="$nextTick(() => { loadTransitionPlanStep(); loadConflicts(); })" style="animation: fadeIn 0.3s ease-in-out;">
+    <h3 style="margin-bottom: 20px;">阶段 5: 交易计划</h3>
+
+    <div class="attention-card" style="margin-bottom: 20px;">
+        <h4 class="attention-card__title">账户级调仓计划</h4>
+        <p style="margin-top: 10px; color: var(--color-text-muted);">
+            基于当前账户持仓、已采纳推荐和证伪条件生成“当前持仓 → 目标持仓 → 调仓 delta”计划。
+            审计复盘已移出主流程，执行完成后再进入审计模块。
+        </p>
+    </div>
+
+    <section class="approvals-section" style="margin-bottom: 32px;">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">🧭</span>
+                计划总览
+            </h2>
+            <div class="section-actions" style="display: flex; gap: 10px; align-items: center;">
+                <span class="badge badge-primary">当前账户：<span data-workspace-account-name>默认账户</span></span>
+                <button class="btn btn-outline btn-sm" onclick="loadTransitionPlanStep()"><i class="bi bi-arrow-clockwise"></i> 刷新计划</button>
+                <button class="btn btn-secondary btn-sm" onclick="generateTransitionPlan()"><i class="bi bi-diagram-3"></i> 生成交易计划</button>
+            </div>
+        </div>
+
+        <div id="transition-plan-summary" class="card" style="padding: 18px;">
+            正在加载交易计划...
+        </div>
+    </section>
+
+    <section class="approvals-section" style="margin-bottom: 32px;">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">📝</span>
+                调仓指令
+            </h2>
+            <div class="section-actions" style="display: flex; gap: 10px;">
+                <button class="btn btn-outline btn-sm" onclick="saveTransitionPlan()"><i class="bi bi-save"></i> 保存计划</button>
+                <button class="btn btn-primary btn-sm" onclick="submitTransitionPlanForApproval()"><i class="bi bi-send-check"></i> 进入审批执行</button>
+            </div>
+        </div>
+
+        <div id="transition-plan-orders" class="approvals-list">
+            <div class="app-loading-state app-loading-state--compact">
+                <div class="app-spinner" aria-hidden="true"></div>
+                <p class="app-loading-text">加载中...</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="conflicts-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">⚠️</span>
+                冲突待处理
+                <span class="badge badge-warning" id="conflict-count-badge">-</span>
+            </h2>
+            <div class="section-actions" style="display: flex; gap: 10px;">
+                <span class="badge badge-warning">当前账户：<span data-workspace-account-name>默认账户</span></span>
+            </div>
+        </div>
+
+        <div id="conflicts-list" class="conflicts-list" style="margin-top: 20px;">
+            <div class="app-loading-state app-loading-state--compact">
+                <div class="app-spinner" aria-hidden="true"></div>
+                <p class="app-loading-text">加载中...</p>
+            </div>
+        </div>
+    </section>
+</div>

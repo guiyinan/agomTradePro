@@ -11,8 +11,8 @@ def test_decision_workspace_templates_bind_simulated_accounts_and_portfolios():
         assert "Array.isArray(data.accounts)" in content
         assert "acc.account_name" in content
 
-        assert "/account/api/portfolios/?page_size=100" in content
-        assert 'id="modal-portfolio-id"' in content
+    assert "/api/account/portfolios/?page_size=100" in content
+    assert 'id="modal-portfolio-id"' in content
 
     main_workspace = templates[0].read_text(encoding="utf-8")
     assert "active_only=false" in main_workspace

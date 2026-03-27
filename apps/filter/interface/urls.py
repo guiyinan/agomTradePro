@@ -1,6 +1,6 @@
 """URL configuration for Filter app."""
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import path
 
 from . import views
 
@@ -18,7 +18,4 @@ urlpatterns = [
 
     # Page routes
     path('dashboard/', views.filter_dashboard_view, name='dashboard'),
-
-    # Legacy API compatibility under /filter/api/*
-    path('api/', include(('apps.filter.interface.api_urls', 'filter_api'), namespace='legacy_filter_api')),
 ]

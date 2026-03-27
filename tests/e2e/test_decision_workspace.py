@@ -141,6 +141,9 @@ class TestWorkspacePageFlow:
         assert 'workspace-account-selector' in content
         assert '账户现状' in content
         assert '当前持仓摘要' in content
+        assert '交易计划' in content
+        assert '审批执行' in content
+        assert '审计复盘' not in content
 
     def test_recommendations_api_returns_data(self):
         """

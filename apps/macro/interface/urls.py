@@ -1,6 +1,6 @@
 """URL configuration for Macro app."""
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import path
 
 from . import views
 
@@ -23,7 +23,4 @@ urlpatterns = [
 
     # 统一数据管理器
     path('controller/', views.data_controller_view, name='data_controller'),
-
-    # Legacy API compatibility under /macro/api/*
-    path('api/', include(('apps.macro.interface.api_urls', 'macro_api'), namespace='legacy_macro_api')),
 ]

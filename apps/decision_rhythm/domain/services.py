@@ -1313,6 +1313,7 @@ class ExecutionApprovalService:
         return ExecutionApprovalRequest(
             request_id=approval_request.request_id,
             recommendation_id=approval_request.recommendation_id,
+            plan_id=approval_request.plan_id,
             account_id=approval_request.account_id,
             security_code=approval_request.security_code,
             side=approval_request.side,
@@ -1355,6 +1356,7 @@ class ExecutionApprovalService:
         return ExecutionApprovalRequest(
             request_id=approval_request.request_id,
             recommendation_id=approval_request.recommendation_id,
+            plan_id=approval_request.plan_id,
             account_id=approval_request.account_id,
             security_code=approval_request.security_code,
             side=approval_request.side,
@@ -1395,6 +1397,7 @@ class ExecutionApprovalService:
         return ExecutionApprovalRequest(
             request_id=approval_request.request_id,
             recommendation_id=approval_request.recommendation_id,
+            plan_id=approval_request.plan_id,
             account_id=approval_request.account_id,
             security_code=approval_request.security_code,
             side=approval_request.side,
@@ -1445,6 +1448,7 @@ class ExecutionApprovalService:
         return ExecutionApprovalRequest(
             request_id=approval_request.request_id,
             recommendation_id=approval_request.recommendation_id,
+            plan_id=approval_request.plan_id,
             account_id=approval_request.account_id,
             security_code=approval_request.security_code,
             side=approval_request.side,

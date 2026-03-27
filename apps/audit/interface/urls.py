@@ -1,7 +1,7 @@
-"""URL Configuration for Audit pages and legacy API aliases."""
+"""URL configuration for audit pages."""
 
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import path
 
 from . import views
 
@@ -16,9 +16,6 @@ def audit_home_redirect(request):
 urlpatterns = [
     # Root route - redirect to audit page
     path('', audit_home_redirect, name='home'),
-    # Legacy API compatibility under /audit/api/*
-    path('api/', include(('apps.audit.interface.api_urls', 'audit_api'), namespace='legacy_audit_api')),
-
     # HTML page routes
     path('page/', views.AuditPageView.as_view(), name='audit-page'),
     path('reports/', views.ReportListView.as_view(), name='reports'),

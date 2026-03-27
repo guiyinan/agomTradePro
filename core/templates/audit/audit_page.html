@@ -43,7 +43,7 @@
             <h3>查询审计摘要</h3>
             <p>获取指定条件的审计报告摘要，支持按回测ID或日期范围查询。</p>
             <p><strong>API 端点：</strong></p>
-            <div class="api-endpoint">GET /audit/api/summary/</div>
+                        <div class="api-endpoint">GET /api/audit/summary/</div>
             <p style="margin-top: 15px;">
                 <a href="/api/docs/" class="btn btn-primary">查看 API 文档</a>
             </p>
@@ -64,7 +64,7 @@
         <p>在回测完成后，调用 <code>POST /audit/reports/generate/</code> API，传入 <code>backtest_id</code> 即可生成归因报告。</p>
 
         <h4>2. 查询报告</h4>
-        <p>使用 <code>GET /audit/api/summary/?backtest_id=1</code> 查询特定回测的归因报告，或使用日期范围查询多份报告。</p>
+                            <p>使用 <code>GET /api/audit/summary/?backtest_id=1</code> 查询特定回测的归因报告，或使用日期范围查询多份报告。</p>
 
         <h4>3. 报告内容</h4>
         <p>归因报告包含：</p>

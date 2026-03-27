@@ -12,10 +12,11 @@
 ### 1.1 核心目标
 
 1. **统一推荐对象**：Top-down 和 Bottom-up 信号融合为单一 `UnifiedRecommendation`
-2. **去重与冲突处理**：同账户同证券同方向只出现一条可执行建议
-3. **审批闭环**：执行必须经过审批模态，支持批准/拒绝
-4. **状态一致性**：Recommendation/Request/Candidate 三处状态同步
-5. **入口统一**：`/equity/screen/` 同时承接系统自动推荐和手动二次筛选，不再拆成两套页面体验
+2. **计划层落地**：执行前必须先生成账户级 `PortfolioTransitionPlan`
+3. **去重与冲突处理**：同账户同证券同方向只出现一条推荐；BUY/SELL 冲突不进入计划
+4. **审批闭环**：审批对象从单 recommendation 升级为整份 plan
+5. **状态一致性**：Recommendation/Plan/ApprovalRequest/Candidate 四处状态同步
+6. **入口统一**：`/equity/screen/` 同时承接系统自动推荐和手动二次筛选，不再拆成两套页面体验
 
 ### 1.2 架构分层
 
@@ -30,6 +31,19 @@ Infrastructure 层 (models.py, repositories.py, feature_providers.py)
 ```
 
 ## 2. 统一推荐对象数据模型
+
+### 2.0 2026-03-26 主链重构说明
+
+当前工作台主链路已经调整为：
+
+`系统级分析 -> 推荐筛选 -> 账户级交易计划 -> 审批执行 -> 审计入口`
+
+边界定义如下：
+
+- `UnifiedRecommendation`：回答“为什么做”
+- `PortfolioTransitionPlan`：回答“当前账户具体怎么调”
+- `ExecutionApprovalRequest`：回答“这份计划是否允许执行”
+- `Audit`：执行后的归因与复盘，不再属于工作台主漏斗步骤
 
 ### 1.3 2026-03-22 入口统一补充
 
@@ -49,7 +63,7 @@ Infrastructure 层 (models.py, repositories.py, feature_providers.py)
 class UnifiedRecommendation:
     """统一推荐对象
 
-    融合 Top-down 和 Bottom-up 信号，形成单一可执行建议。
+    融合 Top-down 和 Bottom-up 信号，形成统一推荐对象。
     """
     # 标识字段
     recommendation_id: str
@@ -165,7 +179,66 @@ class UnifiedRecommendationModel(models.Model):
         ]
 ```
 
-### 2.3 特征快照：DecisionFeatureSnapshot
+### 2.3 领域实体：PortfolioTransitionPlan
+
+定义位置：`apps/decision_rhythm/domain/entities.py`
+
+```python
+@dataclass(frozen=True)
+class PortfolioTransitionPlan:
+    plan_id: str
+    account_id: str
+    as_of: datetime
+    source_recommendation_ids: list[str]
+    current_positions_snapshot: list[dict[str, Any]]
+    target_positions_snapshot: list[dict[str, Any]]
+    orders: list[TransitionOrder]
+    risk_contract: dict[str, Any]
+    summary: dict[str, Any]
+    status: TransitionPlanStatus
+    approval_request_id: str | None = None
+```
+
+`TransitionOrder` v1 语义：
+
+- `BUY`：新开仓或加仓
+- `REDUCE`：减仓
+- `EXIT`：清仓
+- `HOLD`：保留不动
+
+约束：
+
+- `SELL` recommendation 只允许生成 `REDUCE` / `EXIT`
+- 不支持负仓位，不支持做空
+- 非 `HOLD` order 缺少 `invalidation_rule` 或 `stop_loss_price` 时，plan 不得进入审批
+- Step 5 提供三种证伪录入方式：
+  - 系统模板：结合 `Pulse` / `Regime` 自动生成
+  - JSON 自定义：直接人工编辑结构化规则
+  - AI 草稿：基于系统模板和用户补充提示生成
+
+### 2.4 ORM 模型：PortfolioTransitionPlanModel
+
+定义位置：`apps/decision_rhythm/infrastructure/models.py`
+
+v1 采用“计划主表 + JSON 快照”建模，不拆 order 子表：
+
+- `current_positions_snapshot`
+- `target_positions_snapshot`
+- `orders`
+- `risk_contract`
+- `summary`
+
+### 2.5 ExecutionApprovalRequest 升级
+
+`ExecutionApprovalRequest` 与 `ExecutionApprovalRequestModel` 已新增 `plan_id` / `transition_plan` 关联。
+
+升级后的语义：
+
+- recommendation-scoped preview：兼容模式
+- plan-scoped preview：主模式
+- 审批状态同步时，必须回写到 plan 和 plan 关联的全部 `UnifiedRecommendation`
+
+### 2.6 特征快照：DecisionFeatureSnapshot
 
 定义位置：`apps/decision_rhythm/domain/entities.py`
 
@@ -198,7 +271,7 @@ class DecisionFeatureSnapshot:
     created_at: datetime
 ```
 
-### 2.4 模型参数配置：ModelParamConfig
+### 2.7 模型参数配置：ModelParamConfig
 
 定义位置：`apps/decision_rhythm/domain/entities.py`
 

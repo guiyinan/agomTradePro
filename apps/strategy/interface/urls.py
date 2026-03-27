@@ -1,5 +1,5 @@
 """URL Configuration for Strategy System."""
-from django.urls import include, path
+from django.urls import path
 
 app_name = 'strategy'
 
@@ -22,6 +22,4 @@ urlpatterns = [
     path('<int:strategy_id>/toggle-status/', strategy_toggle_status, name='toggle-status'),
     path('<int:strategy_id>/execute/', strategy_execute, name='execute'),
     path('<int:strategy_id>/test/', test_strategy, name='test-strategy'),
-    # Legacy API compatibility under /strategy/api/*
-    path('api/', include(('apps.strategy.interface.api_urls', 'strategy_api'), namespace='legacy_strategy_api')),
 ]

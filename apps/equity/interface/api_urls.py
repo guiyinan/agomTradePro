@@ -3,7 +3,6 @@ Equity API URL configuration.
 
 This module is mounted under:
 - /api/equity/ (primary API prefix)
-- /equity/api/ (legacy compatibility prefix)
 """
 
 from django.urls import include, path
@@ -25,4 +24,3 @@ urlpatterns = [
     path("", include(router.urls)),
     path("multidim-screen/", EquityMultiDimScreenAPIView.as_view(), name="multidim_screen"),
 ]
-

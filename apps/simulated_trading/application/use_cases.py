@@ -23,6 +23,7 @@ from apps.simulated_trading.domain.entities import (
     TradeAction,
 )
 from apps.simulated_trading.domain.rules import TradingConstraintRule
+from apps.simulated_trading.domain.services import PositionCostBasisService
 
 logger = logging.getLogger(__name__)
 
@@ -256,6 +257,12 @@ class ExecuteBuyOrderUseCase:
         commission = max(commission, 5.0)
         slippage = amount * account.slippage_rate
         total_cost = amount + commission + slippage
+        lot_avg_cost, lot_total_cost = PositionCostBasisService.calculate_lot_cost(
+            quantity=quantity,
+            price=price,
+            commission=commission,
+            slippage=slippage,
+        )
 
         # 4. 创建交易记录
         trade = SimulatedTrade(
@@ -298,11 +305,12 @@ class ExecuteBuyOrderUseCase:
         if existing_position:
             # 加仓：更新持仓（保留原有的证伪条件）
             new_quantity = existing_position.quantity + quantity
-            new_avg_cost = (
-                (existing_position.avg_cost * existing_position.quantity + price * quantity) /
-                new_quantity
+            new_avg_cost, new_total_cost = PositionCostBasisService.merge_position_cost(
+                existing_quantity=existing_position.quantity,
+                existing_total_cost=existing_position.total_cost,
+                added_quantity=quantity,
+                added_total_cost=lot_total_cost,
             )
-            new_total_cost = new_avg_cost * new_quantity
 
             updated_position = Position(
                 account_id=account_id,
@@ -338,12 +346,12 @@ class ExecuteBuyOrderUseCase:
                 asset_type=asset_type,
                 quantity=quantity,
                 available_quantity=quantity,  # 买入当天不可卖(T+1)
-                avg_cost=price,
-                total_cost=amount,
+                avg_cost=lot_avg_cost,
+                total_cost=lot_total_cost,
                 current_price=price,
                 market_value=amount,
-                unrealized_pnl=0.0,
-                unrealized_pnl_pct=0.0,
+                unrealized_pnl=amount - lot_total_cost,
+                unrealized_pnl_pct=((price - lot_avg_cost) / lot_avg_cost) * 100,
                 first_buy_date=date.today(),
                 last_update_date=date.today(),
                 signal_id=signal_id,

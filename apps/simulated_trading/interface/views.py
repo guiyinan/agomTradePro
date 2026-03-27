@@ -34,7 +34,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
+from apps.market_data.application.price_service import UnifiedPriceService
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionNotificationConfigModel,
     DailyInspectionReportModel,
@@ -48,6 +48,7 @@ from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
+from core.exceptions import DataFetchError
 
 from .serializers import (
     AccountBatchDeleteRequestSerializer,
@@ -1273,11 +1274,22 @@ class EquityCurveAPIView(APIView):
             end_date = date.fromisoformat(end_date)
 
         # 获取净值曲线
-        data_points = self.performance_calculator.get_equity_curve(
-            account_id=account_id,
-            start_date=start_date,
-            end_date=end_date
-        )
+        try:
+            data_points = self.performance_calculator.get_equity_curve(
+                account_id=account_id,
+                start_date=start_date,
+                end_date=end_date
+            )
+        except DataFetchError as exc:
+            return Response(
+                {
+                    'success': False,
+                    'error': str(exc),
+                    'code': exc.code,
+                    'details': exc.details,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({
             'success': True,
@@ -1347,7 +1359,7 @@ class AutoTradingAPIView(APIView):
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
-        market_data = MarketDataProvider()
+        market_data = UnifiedPriceService()
         asset_pool_service = AssetPoolQueryService(
             asset_pool_repo=DjangoAssetPoolQueryRepository(),
             signal_repo=signal_repo,

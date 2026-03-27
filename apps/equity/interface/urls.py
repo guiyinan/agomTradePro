@@ -1,6 +1,6 @@
 """Equity page URL configuration."""
 
-from django.urls import include, path
+from django.urls import path
 
 from .views import (
     detail_page,
@@ -19,7 +19,4 @@ urlpatterns = [
     path('pool/', pool_page, name='pool'),
     path('valuation-repair/', valuation_repair_page, name='valuation_repair'),
     path('valuation-repair/config/', valuation_repair_config_page, name='valuation_repair_config'),
-
-    # Legacy API compatibility under /equity/api/*
-    path('api/', include('apps.equity.interface.api_urls')),
 ]

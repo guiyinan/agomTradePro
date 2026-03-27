@@ -8,6 +8,8 @@ Decision Rhythm DRF Serializers
 
 from typing import Any, Dict, List, Optional
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from ..domain.entities import (
@@ -24,6 +26,7 @@ from ..domain.entities import (
 # ========== Enum Serializers ==========
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class DecisionPrioritySerializer(serializers.Field):
     """决策优先级序列化器"""
 
@@ -37,6 +40,7 @@ class DecisionPrioritySerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid decision priority: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class QuotaPeriodSerializer(serializers.Field):
     """配额周期序列化器"""
 
@@ -50,6 +54,7 @@ class QuotaPeriodSerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid quota period: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class ExecutionTargetSerializer(serializers.Field):
     """执行目标序列化器"""
 
@@ -63,6 +68,7 @@ class ExecutionTargetSerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid execution target: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class ExecutionStatusSerializer(serializers.Field):
     """执行状态序列化器"""
 

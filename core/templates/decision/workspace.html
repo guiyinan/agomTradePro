@@ -269,8 +269,8 @@
 <div class="funnel-container" x-data="decisionFunnel()">
     
     <div class="funnel-header">
-        <h1 class="funnel-title">投资决策工作台</h1>
-        <p class="funnel-subtitle">统一工作流：从宏观环境评估到落地执行，最终审计复盘闭环。</p>
+                    <h1 class="funnel-title">投资决策工作台</h1>
+                    <p class="funnel-subtitle">统一工作流：从宏观环境评估到推荐筛选，生成账户级交易计划并审批执行。</p>
     </div>
 
     <div class="workspace-shell">
@@ -332,7 +332,7 @@
                 <div class="workspace-sidebar-title">口径说明</div>
                 <p class="workspace-sidebar-subtitle">
                     Step 1-3 会显示当前账户上下文，但分析结论仍是系统级宏观口径；
-                    Step 4-5 的推荐、审批和冲突才真正按账户决策口径刷新。
+                    Step 4-6 的推荐、交易计划和审批执行才真正按账户决策口径刷新。
                 </p>
             </div>
         </aside>
@@ -407,7 +407,7 @@
                     <div id="step-4-content"></div>
                 </div>
 
-                <!-- Step 5 Container (Approvals & Execution) -->
+                <!-- Step 5 Container (Transition Plan) -->
                 <div x-show="currentStep === 5" 
                      id="step-5-container"
                      hx-get="/api/decision/context/step5/" 
@@ -418,11 +418,10 @@
                     <div id="step-5-content"></div>
                 </div>
 
-                <!-- Step 6 Container (Audit Loop) -->
+                <!-- Step 6 Container (Approval & Execution) -->
                 <div x-show="currentStep === 6" 
                      id="step-6-container"
                      hx-get="/api/decision/context/step6/" 
-                     hx-vals='js:getDecisionAuditParams()'
                      hx-trigger="stepChanged6 from:body" 
                      hx-target="#step-6-content"
                      hx-indicator="#funnel-loading-indicator">
@@ -445,14 +444,6 @@
 </div>
 
 <script>
-function getDecisionAuditParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-        trade_id: params.get('trade_id'),
-        backtest_id: params.get('backtest_id'),
-    };
-}
-
 document.addEventListener('alpine:init', () => {
     Alpine.data('decisionFunnel', () => ({
         currentStep: 1,
@@ -462,8 +453,8 @@ document.addEventListener('alpine:init', () => {
             { n: 2, label: '方向选择' },
             { n: 3, label: '板块偏好' },
             { n: 4, label: '推优筛选' },
-            { n: 5, label: '审批执行' },
-            { n: 6, label: '审计复盘' }
+            { n: 5, label: '交易计划' },
+            { n: 6, label: '审批执行' }
         ],
         
         init() {
@@ -799,12 +790,15 @@ document.addEventListener('alpine:init', () => {
 
 <script>
 // ===== 全局状态 =====
+const workspaceParams = new URLSearchParams(window.location.search);
 let currentRecommendation = null;
 let approvalRequestId = null;
+let currentTransitionPlanId = workspaceParams.get('plan_id') || '';
+let currentPlanApprovalRequestId = '';
 let userAccounts = [];
 let executionPortfolios = [];
 let workspaceInitialized = false;
-const workspaceParams = new URLSearchParams(window.location.search);
+const selectedRecommendationIds = new Set();
 const workspaceBridge = {
     source: workspaceParams.get('source') || '',
     securityCode: workspaceParams.get('security_code') || '',
@@ -870,6 +864,17 @@ function getSelectedWorkspaceAccountName() {
     }
     const option = selector.options[selector.selectedIndex];
     return option?.textContent?.trim() || '默认账户';
+}
+
+function updateWorkspacePlanId(planId) {
+    currentTransitionPlanId = planId || '';
+    const url = new URL(window.location.href);
+    if (currentTransitionPlanId) {
+        url.searchParams.set('plan_id', currentTransitionPlanId);
+    } else {
+        url.searchParams.delete('plan_id');
+    }
+    window.history.replaceState({}, '', url.toString());
 }
 
 function syncWorkspaceAccountSummary() {
@@ -1054,7 +1059,7 @@ async function loadWorkspaceAccountSnapshot() {
 
 function refreshCurrentDecisionStep() {
     const currentStep = Number(window.decisionFunnelState?.currentStep || 1);
-    if (currentStep >= 1 && currentStep <= 5) {
+    if (currentStep >= 1 && currentStep <= 6) {
         document.body.dispatchEvent(new Event(`stepChanged${currentStep}`));
     }
 }
@@ -1063,6 +1068,8 @@ function refreshWorkspaceDecisionLists() {
     loadRecommendations();
     loadApprovals();
     loadConflicts();
+    loadTransitionPlanStep();
+    loadExecutionPlanPanel();
 }
 
 function handleWorkspaceAccountChange() {
@@ -1073,6 +1080,9 @@ function handleWorkspaceAccountChange() {
     } else {
         url.searchParams.delete('account_id');
     }
+    selectedRecommendationIds.clear();
+    currentPlanApprovalRequestId = '';
+    updateWorkspacePlanId('');
     window.history.replaceState({}, '', url.toString());
     loadWorkspaceAccountSnapshot();
     refreshCurrentDecisionStep();
@@ -1226,7 +1236,7 @@ async function loadUserAccounts() {
 
 async function loadExecutionPortfolios() {
     try {
-        const res = await fetch('/account/api/portfolios/?page_size=100', {
+        const res = await fetch('/api/account/portfolios/?page_size=100', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         const data = await res.json();
@@ -1317,6 +1327,10 @@ function renderRecommendations(recommendations, totalCount) {
     if (recCountBadge) {
         recCountBadge.textContent = totalCount;
     }
+    const selectedCount = document.getElementById('selected-rec-count');
+    if (selectedCount) {
+        selectedCount.textContent = String(selectedRecommendationIds.size);
+    }
 
     if (!recommendations || recommendations.length === 0) {
         container.innerHTML = `
@@ -1332,6 +1346,10 @@ function renderRecommendations(recommendations, totalCount) {
         <div class="recommendation-card ${workspaceBridge.highlightedRecommendationId === rec.recommendation_id ? 'recommendation-card-highlight' : ''}" data-recommendation-id="${rec.recommendation_id}">
             <div class="rec-header">
                 <div class="rec-asset">
+                    <label style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
+                        <input type="checkbox" ${selectedRecommendationIds.has(rec.recommendation_id) ? 'checked' : ''} onchange="toggleRecommendationSelection('${rec.recommendation_id}', this.checked)" />
+                        <span style="font-size: 12px; color: var(--color-text-muted);">计划</span>
+                    </label>
                     <strong>${rec.security_code}</strong>
                     <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
                     <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action)}</span>
@@ -1457,6 +1475,18 @@ function renderValuationRepairSummary(repair) {
     `;
 }
 
+function toggleRecommendationSelection(recommendationId, isSelected) {
+    if (isSelected) {
+        selectedRecommendationIds.add(recommendationId);
+    } else {
+        selectedRecommendationIds.delete(recommendationId);
+    }
+    const selectedCount = document.getElementById('selected-rec-count');
+    if (selectedCount) {
+        selectedCount.textContent = String(selectedRecommendationIds.size);
+    }
+}
+
 async function applyRecommendationAction(recommendationId, action) {
     const accountId = getSelectedWorkspaceAccountId();
 
@@ -1488,6 +1518,471 @@ async function applyRecommendationAction(recommendationId, action) {
         loadRecommendations();
     } catch (error) {
         showBridgeBanner(`更新用户动作失败: ${error.message}`, 'danger');
+    }
+}
+
+async function loadTransitionPlanStep() {
+    const summaryContainer = document.getElementById('transition-plan-summary');
+    const ordersContainer = document.getElementById('transition-plan-orders');
+    if (!summaryContainer || !ordersContainer) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+
+    if (!currentTransitionPlanId) {
+        summaryContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🧭</div>
+                <p>当前还没有交易计划。先在 Step 4 采纳推荐，再点击“生成交易计划”。</p>
+            </div>
+        `;
+        ordersContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📝</div>
+                <p>生成计划后，这里会显示当前持仓、目标持仓和 delta 调仓指令。</p>
+            </div>
+        `;
+        return;
+    }
+
+    summaryContainer.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">加载中...</p></div>';
+    ordersContainer.innerHTML = summaryContainer.innerHTML;
+
+    try {
+        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '加载交易计划失败');
+        }
+        renderTransitionPlan(payload.data);
+    } catch (error) {
+        summaryContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+        ordersContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+    }
+}
+
+function renderTransitionPlan(plan) {
+    const summaryContainer = document.getElementById('transition-plan-summary');
+    const ordersContainer = document.getElementById('transition-plan-orders');
+    if (!summaryContainer || !ordersContainer) {
+        return;
+    }
+
+    currentTransitionPlanId = plan.plan_id;
+    currentPlanApprovalRequestId = plan.approval_request_id || '';
+    updateWorkspacePlanId(plan.plan_id);
+
+    const blockingIssues = (plan.blocking_issues || []).map(issue => `<li>${escapeHtml(issue)}</li>`).join('');
+    summaryContainer.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+            <div class="attention-card"><strong>计划 ID</strong><div>${escapeHtml(plan.plan_id)}</div></div>
+            <div class="attention-card"><strong>订单数</strong><div>${plan.summary?.orders_count ?? 0}</div></div>
+            <div class="attention-card"><strong>状态</strong><div>${escapeHtml(plan.status || 'DRAFT')}</div></div>
+            <div class="attention-card"><strong>审批状态</strong><div>${plan.approval_request_id ? '已创建审批请求' : '未提交审批'}</div></div>
+        </div>
+        <div style="margin-top: 16px;">
+            <strong>计划摘要</strong>
+            <p style="margin-top: 8px; color: var(--color-text-muted);">
+                BUY ${plan.summary?.buy_count ?? 0} / REDUCE ${plan.summary?.reduce_count ?? 0} / EXIT ${plan.summary?.exit_count ?? 0} / HOLD ${plan.summary?.hold_count ?? 0}
+            </p>
+            ${plan.can_enter_approval ? '<p style="color: var(--color-success); margin-top: 8px;">证伪条件与止损信息已齐备，可进入审批执行。</p>' : `<div style="margin-top: 8px; color: var(--color-danger);"><strong>阻塞项</strong><ul style="margin: 8px 0 0 18px;">${blockingIssues}</ul></div>`}
+        </div>
+    `;
+
+    const orders = plan.orders || [];
+    if (orders.length === 0) {
+        ordersContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>当前计划没有可执行订单。</p>
+            </div>
+        `;
+        return;
+    }
+
+    ordersContainer.innerHTML = orders.map(order => `
+        <div class="approval-card" data-plan-order-row="${escapeHtml(order.source_recommendation_id || '')}" data-security-code="${escapeHtml(order.security_code)}">
+            <div class="approval-header">
+                <strong>${escapeHtml(order.security_code)}</strong>
+                <span class="approval-side approval-side-${String(order.action || 'hold').toLowerCase()}">${escapeHtml(order.action)}</span>
+            </div>
+            <div class="approval-body">
+                <div class="approval-info" style="margin-bottom: 12px;">
+                    <span>当前 ${order.current_qty}</span>
+                    <span>目标 ${order.target_qty}</span>
+                    <span>Delta ${order.delta_qty}</span>
+                    <span>目标权重 ${order.target_weight}%</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">止损价</label>
+                        <input class="form-input" data-plan-stop-loss type="number" min="0" step="0.01" value="${order.stop_loss_price || ''}" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">复核日期</label>
+                        <input class="form-input" data-plan-review-by type="date" value="${order.review_by || ''}" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label class="form-label" style="margin-bottom: 0;">证伪条件 JSON</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline btn-sm" onclick="applySystemInvalidationTemplate('${escapeHtml(order.source_recommendation_id || '')}', '${escapeHtml(order.security_code)}', '${escapeHtml(order.action)}')">系统建议</button>
+                            <button class="btn btn-secondary btn-sm" onclick="generateAIInvalidationDraft('${escapeHtml(order.source_recommendation_id || '')}', '${escapeHtml(order.security_code)}', '${escapeHtml(order.action)}')">AI 生成</button>
+                        </div>
+                    </div>
+                    <input class="form-input" data-plan-ai-prompt placeholder="可选：补充你的交易假设、关注指标、触发条件偏好" style="margin-bottom: 8px;" />
+                    <div class="workspace-sidebar-subtitle" data-plan-context-note>可先用系统建议接入 Pulse/Regime，再用 AI 细化 JSON。</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">证伪条件 JSON</label>
+                    <textarea class="form-input" data-plan-invalidation rows="4">${escapeHtml(JSON.stringify(order.invalidation_rule || {}, null, 2))}</textarea>
+                </div>
+                <div class="workspace-sidebar-subtitle">${escapeHtml(order.invalidation_description || '待补充证伪逻辑')}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function generateTransitionPlan() {
+    try {
+        const body = {
+            account_id: getSelectedWorkspaceAccountId(),
+        };
+        if (selectedRecommendationIds.size > 0) {
+            body.recommendation_ids = Array.from(selectedRecommendationIds);
+        }
+        const response = await fetch('/api/decision/workspace/plans/generate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '生成交易计划失败');
+        }
+        renderTransitionPlan(payload.data);
+        window.showToast('交易计划已生成', 'success');
+    } catch (error) {
+        window.showToast(`生成交易计划失败: ${error.message}`, 'error');
+    }
+}
+
+function collectTransitionPlanPayload() {
+    const rows = Array.from(document.querySelectorAll('[data-plan-order-row]'));
+    return {
+        risk_contract: {
+            plan_owner: getSelectedWorkspaceAccountId(),
+        },
+        orders: rows.map(row => {
+            let invalidationRule = {};
+            const invalidationText = row.querySelector('[data-plan-invalidation]')?.value || '{}';
+            try {
+                invalidationRule = JSON.parse(invalidationText);
+            } catch (error) {
+                invalidationRule = {
+                    requires_user_confirmation: true,
+                    parse_error: error.message,
+                    raw: invalidationText,
+                };
+            }
+            return {
+                source_recommendation_id: row.dataset.planOrderRow,
+                security_code: row.dataset.securityCode,
+                stop_loss_price: row.querySelector('[data-plan-stop-loss]')?.value || null,
+                review_by: row.querySelector('[data-plan-review-by]')?.value || null,
+                invalidation_rule: invalidationRule,
+            };
+        }),
+    };
+}
+
+function getPlanOrderRow(recommendationId, securityCode) {
+    return document.querySelector(
+        `[data-plan-order-row="${CSS.escape(recommendationId)}"][data-security-code="${CSS.escape(securityCode)}"]`
+    );
+}
+
+async function fetchRecommendationById(recommendationId) {
+    const accountId = getSelectedWorkspaceAccountId();
+    const response = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}&include_ignored=true`, {
+        headers: { 'X-CSRFToken': window.csrfToken }
+    });
+    const payload = await response.json();
+    if (!payload.success || !payload.data?.recommendations?.length) {
+        return null;
+    }
+    return payload.data.recommendations[0];
+}
+
+async function applySystemInvalidationTemplate(recommendationId, securityCode, action) {
+    const row = getPlanOrderRow(recommendationId, securityCode);
+    if (!row) {
+        return;
+    }
+
+    try {
+        const recommendation = await fetchRecommendationById(recommendationId);
+        const side = action === 'BUY' ? 'BUY' : 'SELL';
+        const response = await fetch('/api/decision/workspace/invalidation/template/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                security_code: securityCode,
+                side: side,
+                rationale: recommendation?.human_rationale || '',
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data?.template) {
+            throw new Error(payload.error || '生成系统模板失败');
+        }
+        row.querySelector('[data-plan-invalidation]').value = JSON.stringify(payload.data.template, null, 2);
+        const note = row.querySelector('[data-plan-context-note]');
+        if (note) {
+            const pulse = payload.data.pulse_context || {};
+            note.textContent = `已接入系统上下文：Pulse=${pulse.composite_score ?? '-'}，强弱=${pulse.regime_strength || '-'}。`;
+        }
+        window.showToast('已生成系统级证伪模板', 'success');
+    } catch (error) {
+        window.showToast(`系统模板生成失败: ${error.message}`, 'error');
+    }
+}
+
+async function generateAIInvalidationDraft(recommendationId, securityCode, action) {
+    const row = getPlanOrderRow(recommendationId, securityCode);
+    if (!row) {
+        return;
+    }
+
+    try {
+        const recommendation = await fetchRecommendationById(recommendationId);
+        const side = action === 'BUY' ? 'BUY' : 'SELL';
+        let existingRule = {};
+        try {
+            existingRule = JSON.parse(row.querySelector('[data-plan-invalidation]').value || '{}');
+        } catch (parseError) {
+            existingRule = {
+                requires_user_confirmation: true,
+                raw: row.querySelector('[data-plan-invalidation]').value || '{}',
+            };
+        }
+        const userPrompt = row.querySelector('[data-plan-ai-prompt]')?.value || '';
+        const response = await fetch('/api/decision/workspace/invalidation/ai-draft/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                security_code: securityCode,
+                side: side,
+                rationale: recommendation?.human_rationale || '',
+                user_prompt: userPrompt,
+                existing_rule: existingRule,
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data?.draft) {
+            throw new Error(payload.error || 'AI 生成失败');
+        }
+        row.querySelector('[data-plan-invalidation]').value = JSON.stringify(payload.data.draft, null, 2);
+        const note = row.querySelector('[data-plan-context-note]');
+        if (note) {
+            note.textContent = `AI 已生成草稿：${payload.data.provider_used || 'AI provider'} / ${payload.data.model || 'default model'}`;
+        }
+        window.showToast('AI 证伪草稿已生成', 'success');
+    } catch (error) {
+        window.showToast(`AI 生成失败: ${error.message}`, 'error');
+    }
+}
+
+async function saveTransitionPlan() {
+    if (!currentTransitionPlanId) {
+        window.showToast('请先生成交易计划', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify(collectTransitionPlanPayload()),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '保存交易计划失败');
+        }
+        renderTransitionPlan(payload.data);
+        window.showToast('交易计划已保存', 'success');
+    } catch (error) {
+        window.showToast(`保存交易计划失败: ${error.message}`, 'error');
+    }
+}
+
+async function submitTransitionPlanForApproval() {
+    if (!currentTransitionPlanId) {
+        window.showToast('请先生成交易计划', 'warning');
+        return;
+    }
+    await saveTransitionPlan();
+
+    try {
+        const response = await fetch('/api/decision/execute/preview/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                plan_id: currentTransitionPlanId,
+                account_id: getSelectedWorkspaceAccountId(),
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.error || '创建审批请求失败');
+        }
+        currentPlanApprovalRequestId = payload.data?.request_id || '';
+        window.showToast('审批请求已创建，进入 Step 6 审批执行', 'success');
+        if (window.decisionFunnelState) {
+            window.decisionFunnelState.maxReached = Math.max(window.decisionFunnelState.maxReached, 6);
+            window.decisionFunnelState.goToStep(6);
+        }
+    } catch (error) {
+        window.showToast(`进入审批执行失败: ${error.message}`, 'error');
+    }
+}
+
+async function loadExecutionPlanPanel() {
+    const container = document.getElementById('execution-plan-panel');
+    if (!container) {
+        return;
+    }
+
+    if (!currentTransitionPlanId) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>当前还没有交易计划。请先在 Step 5 生成并提交审批请求。</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">加载中...</p></div>';
+    try {
+        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '加载审批面板失败');
+        }
+        const plan = payload.data;
+        currentPlanApprovalRequestId = plan.approval_request_id || '';
+        container.innerHTML = `
+            <div class="approval-card">
+                <div class="approval-header">
+                    <strong>${escapeHtml(plan.plan_id)}</strong>
+                    <span class="approval-side approval-side-${String(plan.status || 'draft').toLowerCase()}">${escapeHtml(plan.status)}</span>
+                </div>
+                <div class="approval-body">
+                    <div class="approval-info" style="margin-bottom: 12px;">
+                        <span>账户 ${escapeHtml(plan.account_id)}</span>
+                        <span>订单 ${plan.summary?.orders_count ?? 0}</span>
+                        <span>审批请求 ${escapeHtml(plan.approval_request_id || '未创建')}</span>
+                    </div>
+                    <textarea id="execution-plan-comments" class="form-input" rows="4" placeholder="填写审批意见、执行约束、落地说明（必填）"></textarea>
+                </div>
+                <div class="approval-footer" style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" onclick="submitTransitionPlanForApproval()">刷新审批请求</button>
+                    <button class="btn btn-secondary" onclick="rejectCurrentTransitionPlan()" ${!plan.approval_request_id ? 'disabled' : ''}>拒绝</button>
+                    <button class="btn btn-primary" onclick="approveCurrentTransitionPlan()" ${!plan.approval_request_id ? 'disabled' : ''}>批准并执行</button>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        container.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+    }
+}
+
+async function approveCurrentTransitionPlan() {
+    if (!currentPlanApprovalRequestId) {
+        window.showToast('当前没有待审批请求', 'warning');
+        return;
+    }
+    const reviewerComments = (document.getElementById('execution-plan-comments')?.value || '').trim();
+    if (!reviewerComments) {
+        window.showToast('请填写审批意见', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/decision/execute/approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                approval_request_id: currentPlanApprovalRequestId,
+                reviewer_comments: reviewerComments,
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.error || '审批失败');
+        }
+        window.showToast('交易计划已批准', 'success');
+        loadExecutionPlanPanel();
+    } catch (error) {
+        window.showToast(`审批失败: ${error.message}`, 'error');
+    }
+}
+
+async function rejectCurrentTransitionPlan() {
+    if (!currentPlanApprovalRequestId) {
+        window.showToast('当前没有待审批请求', 'warning');
+        return;
+    }
+    const reviewerComments = (document.getElementById('execution-plan-comments')?.value || '').trim();
+    if (!reviewerComments) {
+        window.showToast('请填写拒绝理由', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/decision/execute/reject/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                approval_request_id: currentPlanApprovalRequestId,
+                reviewer_comments: reviewerComments,
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.error || '拒绝失败');
+        }
+        window.showToast('交易计划已拒绝', 'success');
+        loadExecutionPlanPanel();
+    } catch (error) {
+        window.showToast(`拒绝失败: ${error.message}`, 'error');
     }
 }
 

@@ -7,23 +7,23 @@ from django.urls import resolve, reverse
 
 def test_dashboard_legacy_api_route_names_resolvable():
     names = [
-        "dashboard:api_positions_list",
-        "dashboard:api_allocation",
-        "dashboard:api_performance",
-        "dashboard:api_v1_summary",
-        "dashboard:api_v1_regime_quadrant",
-        "dashboard:api_v1_equity_curve",
-        "dashboard:api_v1_signal_status",
-        "dashboard:api_alpha_stocks",
-        "dashboard:api_alpha_provider_status",
-        "dashboard:api_alpha_coverage",
-        "dashboard:api_alpha_ic_trends",
-        "dashboard:api_workflow_refresh_candidates",
+        "api_dashboard:positions_list",
+        "api_dashboard:allocation",
+        "api_dashboard:performance",
+        "api_dashboard:v1_summary",
+        "api_dashboard:v1_regime_quadrant",
+        "api_dashboard:v1_equity_curve",
+        "api_dashboard:v1_signal_status",
+        "api_dashboard:alpha_stocks",
+        "api_dashboard:alpha_provider_status",
+        "api_dashboard:alpha_coverage",
+        "api_dashboard:alpha_ic_trends",
+        "api_dashboard:workflow_refresh_candidates",
     ]
     for name in names:
         assert reverse(name)
 
-    assert reverse("dashboard:api_position_detail", args=["000001.SZ"])
+    assert reverse("api_dashboard:position_detail", args=["000001.SZ"])
 
 
 def test_equity_fund_page_route_names_resolvable():
@@ -75,8 +75,8 @@ def test_macro_legacy_and_new_api_routes_resolvable():
     assert reverse("api_macro:quick_sync")
     assert reverse("api_macro:get_indicator_data")
 
-    assert resolve("/macro/api/quick-sync/").view_name.endswith("quick_sync")
-    assert resolve("/macro/api/indicator-data/").view_name.endswith("get_indicator_data")
+    assert resolve("/api/macro/quick-sync/").view_name.endswith("quick_sync")
+    assert resolve("/api/macro/indicator-data/").view_name.endswith("get_indicator_data")
 
 
 def test_dashboard_page_does_not_raise_reverse_error(db):

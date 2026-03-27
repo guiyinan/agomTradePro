@@ -1004,6 +1004,63 @@ class InvestmentRecommendationRepository:
             return False
 
 
+class PortfolioTransitionPlanRepository:
+    """账户级调仓计划仓储。"""
+
+    def save(self, plan) -> Any:
+        from .models import PortfolioTransitionPlanModel
+
+        model, _ = PortfolioTransitionPlanModel.objects.update_or_create(
+            plan_id=plan.plan_id,
+            defaults={
+                "account_id": plan.account_id,
+                "source_recommendation_ids": plan.source_recommendation_ids,
+                "current_positions_snapshot": plan.current_positions_snapshot,
+                "target_positions_snapshot": plan.target_positions_snapshot,
+                "orders": [order.to_dict() for order in plan.orders],
+                "risk_contract": plan.risk_contract,
+                "summary": plan.summary,
+                "status": plan.status.value,
+                "approval_request_id": plan.approval_request_id or "",
+                "as_of": plan.as_of,
+            },
+        )
+        return model.to_domain()
+
+    def get_by_id(self, plan_id: str) -> Any | None:
+        from .models import PortfolioTransitionPlanModel
+
+        try:
+            return PortfolioTransitionPlanModel.objects.get(plan_id=plan_id).to_domain()
+        except PortfolioTransitionPlanModel.DoesNotExist:
+            return None
+
+    def get_latest_for_account(self, account_id: str) -> Any | None:
+        from .models import PortfolioTransitionPlanModel
+
+        model = PortfolioTransitionPlanModel.objects.filter(account_id=account_id).order_by("-created_at").first()
+        return model.to_domain() if model else None
+
+    def update_status(
+        self,
+        plan_id: str,
+        status_value: str,
+        approval_request_id: str | None = None,
+    ) -> Any | None:
+        from .models import PortfolioTransitionPlanModel
+
+        try:
+            model = PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
+        except PortfolioTransitionPlanModel.DoesNotExist:
+            return None
+
+        model.status = status_value
+        if approval_request_id is not None:
+            model.approval_request_id = approval_request_id
+        model.save(update_fields=["status", "approval_request_id", "updated_at"])
+        return model.to_domain()
+
+
 class ExecutionApprovalRequestRepository:
     """
     执行审批请求仓储
@@ -1162,7 +1219,7 @@ class ExecutionApprovalRequestRepository:
         Returns:
             更新后的实体，不存在则返回 None
         """
-        from ..domain.entities import RecommendationStatus
+        from ..domain.entities import RecommendationStatus, TransitionPlanStatus
         from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
 
         try:
@@ -1204,6 +1261,26 @@ class ExecutionApprovalRequestRepository:
                             f"Synced UnifiedRecommendation {uni_rec.recommendation_id} "
                             f"status: {old_status} -> {rec_status.value}"
                         )
+
+                    if model.transition_plan:
+                        source_ids = model.transition_plan.source_recommendation_ids or []
+                        if source_ids:
+                            UnifiedRecommendationModel.objects.filter(
+                                recommendation_id__in=source_ids
+                            ).update(status=rec_status.value)
+
+                        plan_status_mapping = {
+                            ApprovalStatus.PENDING: TransitionPlanStatus.APPROVAL_PENDING.value,
+                            ApprovalStatus.APPROVED: TransitionPlanStatus.APPROVED.value,
+                            ApprovalStatus.REJECTED: TransitionPlanStatus.REJECTED.value,
+                            ApprovalStatus.EXECUTED: TransitionPlanStatus.EXECUTED.value,
+                            ApprovalStatus.FAILED: TransitionPlanStatus.FAILED.value,
+                        }
+                        target_plan_status = plan_status_mapping.get(approval_status)
+                        if target_plan_status:
+                            model.transition_plan.status = target_plan_status
+                            model.transition_plan.approval_request_id = model.request_id
+                            model.transition_plan.save(update_fields=["status", "approval_request_id", "updated_at"])
 
                     # 更新旧的 InvestmentRecommendation 状态（兼容）
                     if model.recommendation:
@@ -1593,3 +1670,8 @@ def get_investment_recommendation_repository() -> InvestmentRecommendationReposi
 def get_execution_approval_request_repository() -> ExecutionApprovalRequestRepository:
     """获取执行审批请求仓储实例"""
     return ExecutionApprovalRequestRepository()
+
+
+def get_portfolio_transition_plan_repository() -> PortfolioTransitionPlanRepository:
+    """获取账户级调仓计划仓储实例"""
+    return PortfolioTransitionPlanRepository()

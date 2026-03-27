@@ -322,7 +322,7 @@ def api_quick_sync(request):
     """
     API: 快速同步宏观数据（用于 Dashboard 一键同步）
 
-    POST /macro/api/quick-sync/
+    POST /api/macro/quick-sync/
     Body: {
         "source": "akshare"
     }
@@ -357,3 +357,4 @@ def api_quick_sync(request):
             'success': False,
             'message': f'同步失败: {str(e)}'
         }, status=500)
+

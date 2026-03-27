@@ -74,28 +74,11 @@ def funnel_step4_view(request):
 
 @login_required
 def funnel_step5_view(request):
-    """Step 5: 审批执行 (Approvals)"""
-    # Renders the shell for the pending approvals list and conflicts.
-    return render(request, "decision/steps/execute.html")
+    """Step 5: 交易计划"""
+    return render(request, "decision/steps/plan.html")
 
 
 @login_required
 def funnel_step6_view(request):
-    """Step 6: 审计复盘"""
-    trade_id = request.GET.get("trade_id")
-    backtest_id_raw = request.GET.get("backtest_id")
-    use_case = DecisionContextUseCase()
-    audit_data = use_case.get_step6_audit(
-        trade_id=trade_id,
-        backtest_id=int(backtest_id_raw) if backtest_id_raw and backtest_id_raw.isdigit() else None,
-    )
-
-    return render(
-        request,
-        "decision/steps/audit.html",
-        {
-            "trade_id": trade_id,
-            "backtest_id": backtest_id_raw,
-            "audit_data": audit_data,
-        },
-    )
+    """Step 6: 审批执行"""
+    return render(request, "decision/steps/execute.html")

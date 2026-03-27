@@ -27,13 +27,14 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
+from apps.market_data.application.price_service import UnifiedPriceService
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
+from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def daily_auto_trading_task(
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
-        market_data = MarketDataProvider(cache_ttl_minutes=60)  # 1小时缓存
+        market_data = UnifiedPriceService()
         asset_pool_service = AssetPoolQueryService(
             asset_pool_repo=DjangoAssetPoolQueryRepository(),
             signal_repo=signal_repo,
@@ -178,7 +179,7 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
     try:
         account_repo = DjangoSimulatedAccountRepository()
         position_repo = DjangoPositionRepository()
-        market_data = MarketDataProvider()
+        market_data = UnifiedPriceService()
 
         # 获取账户列表
         if account_id:
@@ -190,19 +191,19 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
 
         updated_count = 0
         error_count = 0
+        errors: list[dict[str, Any]] = []
 
         for account in accounts:
             positions = position_repo.get_by_account(account.account_id)
+            account_has_errors = False
 
             for position in positions:
                 try:
                     # 获取最新价格
-                    current_price = market_data.get_latest_price(position.asset_code)
-
-                    if current_price is None:
-                        logger.warning(f"无法获取 {position.asset_code} 价格，跳过")
-                        error_count += 1
-                        continue
+                    current_price = market_data.require_latest_price(
+                        position.asset_code,
+                        asset_type=position.asset_type,
+                    )
 
                     # 更新持仓价格和市值
                     from apps.simulated_trading.domain.entities import Position
@@ -229,11 +230,38 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
                     position_repo.save(updated_position)
                     updated_count += 1
 
+                except DataFetchError as e:
+                    logger.error(f"更新持仓 {position.asset_code} 失败: {e}")
+                    account_has_errors = True
+                    error_count += 1
+                    errors.append(
+                        {
+                            "account_id": account.account_id,
+                            "asset_code": position.asset_code,
+                            "error": str(e),
+                            "details": e.details,
+                        }
+                    )
                 except Exception as e:
                     logger.error(f"更新持仓 {position.asset_code} 失败: {e}")
+                    account_has_errors = True
                     error_count += 1
+                    errors.append(
+                        {
+                            "account_id": account.account_id,
+                            "asset_code": position.asset_code,
+                            "error": str(e),
+                        }
+                    )
 
             # 更新账户总市值
+            if account_has_errors:
+                logger.error(
+                    "账户 %s 存在持仓价格缺失，跳过账户总市值刷新",
+                    account.account_id,
+                )
+                continue
+
             positions = position_repo.get_by_account(account.account_id)
             total_market_value = sum(p.market_value for p in positions)
             updated_account = replace(
@@ -246,9 +274,10 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
         logger.info(f"持仓价格更新完成: {updated_count} 个成功, {error_count} 个失败")
 
         return {
-            'success': True,
+            'success': error_count == 0,
             'updated_count': updated_count,
             'error_count': error_count,
+            'errors': errors,
         }
 
     except Exception as e:
