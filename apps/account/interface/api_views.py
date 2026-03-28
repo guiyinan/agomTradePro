@@ -786,9 +786,6 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
             _map_asset_type,
         )
 
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
         portfolio_id = request.data.get("portfolio")
         if not portfolio_id:
             return Response({"success": False, "error": "缺少 portfolio 参数"}, status=status.HTTP_400_BAD_REQUEST)
@@ -801,6 +798,9 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
                 {"success": False, "error": "观察员无权创建持仓，只有账户拥有者可以执行此操作"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         account_id = self._ensure_portfolio_ledger_synced(portfolio)
         unified_model = UnifiedPositionService.default().create_position(

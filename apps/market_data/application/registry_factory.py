@@ -20,6 +20,9 @@ from apps.market_data.infrastructure.gateways.qmt_gateway import QMTGateway
 from apps.market_data.infrastructure.gateways.tushare_gateway import (
     TushareGateway,
 )
+from apps.market_data.infrastructure.provider_config import (
+    load_active_qmt_provider_configs,
+)
 from apps.market_data.infrastructure.registries.source_registry import SourceRegistry
 
 logger = logging.getLogger(__name__)
@@ -117,17 +120,8 @@ def _build_registry() -> SourceRegistry:
 
 def _register_qmt_providers(registry: SourceRegistry) -> bool:
     """从统一数据源配置中注册 QMT provider。"""
-    try:
-        from apps.macro.infrastructure.models import DataSourceConfig
-
-        rows = list(
-            DataSourceConfig._default_manager.filter(
-                source_type="qmt",
-                is_active=True,
-            ).values("name", "priority", "extra_config")
-        )
-    except Exception:
-        logger.warning("读取 QMT 数据源配置失败，跳过 DB 注册", exc_info=True)
+    rows = load_active_qmt_provider_configs()
+    if not rows:
         return False
 
     registered = False

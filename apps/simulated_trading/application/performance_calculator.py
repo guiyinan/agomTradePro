@@ -353,8 +353,8 @@ class PerformanceCalculator:
             # 获取当日持仓的市值
             market_value = 0.0
             for asset_code, quantity in positions.items():
-                price = self._require_market_price(asset_code, trade_date)
-                market_value += price * quantity
+                price = float(self._require_market_price(asset_code, trade_date))
+                market_value += price * float(quantity)
 
             # 计算净值
             net_value = cash + market_value

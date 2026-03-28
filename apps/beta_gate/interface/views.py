@@ -33,16 +33,12 @@ def _activate_gate_config_model(target_config: GateConfigModel) -> GateConfigMod
     with transaction.atomic():
         list(
             GateConfigModel._default_manager.select_for_update().filter(
-                models.Q(pk=target_config.pk)
-                | (
-                    models.Q(is_active=True)
-                    & models.Q(risk_profile=target_config.risk_profile)
-                )
+                models.Q(pk=target_config.pk) | models.Q(is_active=True)
             ).values_list("pk", flat=True)
         )
-        GateConfigModel._default_manager.active().filter(
-            risk_profile=target_config.risk_profile
-        ).exclude(pk=target_config.pk).update(is_active=False)
+        GateConfigModel._default_manager.active().exclude(pk=target_config.pk).update(
+            is_active=False
+        )
         target_config.is_active = True
         target_config.effective_date = timezone.now().date()
         target_config.save(update_fields=["is_active", "effective_date", "updated_at"])
@@ -54,10 +50,7 @@ def _save_gate_config_form(form: GateConfigForm) -> GateConfigModel:
     with transaction.atomic():
         instance = form.save(commit=False)
         if instance.is_active:
-            lock_filter = models.Q(
-                is_active=True,
-                risk_profile=instance.risk_profile,
-            )
+            lock_filter = models.Q(is_active=True)
             if instance.pk:
                 lock_filter |= models.Q(pk=instance.pk)
             list(
@@ -65,10 +58,9 @@ def _save_gate_config_form(form: GateConfigForm) -> GateConfigModel:
                     "pk", flat=True
                 )
             )
-            GateConfigModel._default_manager.exclude(pk=instance.pk).filter(
-                is_active=True,
-                risk_profile=instance.risk_profile,
-            ).update(is_active=False)
+            GateConfigModel._default_manager.active().exclude(pk=instance.pk).update(
+                is_active=False
+            )
         instance.save()
     return instance
 

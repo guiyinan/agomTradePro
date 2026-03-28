@@ -28,6 +28,10 @@ from apps.simulated_trading.domain.services import PositionCostBasisService
 logger = logging.getLogger(__name__)
 
 
+def _as_float(value) -> float:
+    return float(value or 0.0)
+
+
 # Protocol接口定义（依赖倒置）
 class SimulatedAccountRepositoryProtocol(Protocol):
     """模拟账户Repository接口"""
@@ -238,27 +242,28 @@ class ExecuteBuyOrderUseCase:
         if not account:
             raise ValueError(f"账户不存在: {account_id}")
 
+        order_quantity = _as_float(quantity)
         existing_position = self.position_repo.get_position(account_id, asset_code)
         current_position_value = (
-            existing_position.quantity * price if existing_position else 0.0
+            _as_float(existing_position.quantity) * price if existing_position else 0.0
         )
 
         # 2. 验证订单
         valid, error_msg = TradingConstraintRule.validate_buy_order(
-            account, asset_code, quantity, price, current_position_value
+            account, asset_code, order_quantity, price, current_position_value
         )
         if not valid:
             raise ValueError(f"买入订单验证失败: {error_msg}")
 
         # 3. 计算费用
-        amount = quantity * price
+        amount = order_quantity * price
         commission = amount * account.commission_rate
         # 最低手续费5元
         commission = max(commission, 5.0)
         slippage = amount * account.slippage_rate
         total_cost = amount + commission + slippage
         lot_avg_cost, lot_total_cost = PositionCostBasisService.calculate_lot_cost(
-            quantity=quantity,
+            quantity=order_quantity,
             price=price,
             commission=commission,
             slippage=slippage,
@@ -272,7 +277,7 @@ class ExecuteBuyOrderUseCase:
             asset_name=asset_name,
             asset_type=asset_type,
             action=TradeAction.BUY,
-            quantity=quantity,
+            quantity=order_quantity,
             price=price,
             amount=amount,
             commission=commission,
@@ -304,11 +309,13 @@ class ExecuteBuyOrderUseCase:
 
         if existing_position:
             # 加仓：更新持仓（保留原有的证伪条件）
-            new_quantity = existing_position.quantity + quantity
+            existing_quantity = _as_float(existing_position.quantity)
+            existing_total_cost = _as_float(existing_position.total_cost)
+            new_quantity = existing_quantity + order_quantity
             new_avg_cost, new_total_cost = PositionCostBasisService.merge_position_cost(
-                existing_quantity=existing_position.quantity,
-                existing_total_cost=existing_position.total_cost,
-                added_quantity=quantity,
+                existing_quantity=existing_quantity,
+                existing_total_cost=existing_total_cost,
+                added_quantity=order_quantity,
                 added_total_cost=lot_total_cost,
             )
 
@@ -344,8 +351,8 @@ class ExecuteBuyOrderUseCase:
                 asset_code=asset_code,
                 asset_name=asset_name,
                 asset_type=asset_type,
-                quantity=quantity,
-                available_quantity=quantity,  # 买入当天不可卖(T+1)
+                quantity=order_quantity,
+                available_quantity=order_quantity,  # 买入当天不可卖(T+1)
                 avg_cost=lot_avg_cost,
                 total_cost=lot_total_cost,
                 current_price=price,
@@ -365,9 +372,9 @@ class ExecuteBuyOrderUseCase:
         # 7. 更新账户资金
         updated_account = replace(
             account,
-            current_cash=account.current_cash - total_cost,
-            current_market_value=account.current_market_value + amount,
-            total_value=account.current_cash - total_cost + account.current_market_value + amount,
+            current_cash=_as_float(account.current_cash) - total_cost,
+            current_market_value=_as_float(account.current_market_value) + amount,
+            total_value=_as_float(account.current_cash) - total_cost + _as_float(account.current_market_value) + amount,
             total_trades=account.total_trades + 1,
             last_trade_date=date.today()
         )
@@ -441,22 +448,26 @@ class ExecuteSellOrderUseCase:
         if not position:
             raise ValueError(f"持仓不存在: {asset_code}")
 
+        order_quantity = _as_float(quantity)
+        position_quantity = _as_float(position.quantity)
+        position_avg_cost = _as_float(position.avg_cost)
+
         # 2. 验证订单
         valid, error_msg = TradingConstraintRule.validate_sell_order(
-            position, quantity
+            position, order_quantity
         )
         if not valid:
             raise ValueError(f"卖出订单验证失败: {error_msg}")
 
         # 3. 计算费用
-        amount = quantity * price
+        amount = order_quantity * price
         commission = max(amount * account.commission_rate, 5.0)
         stamp_duty = amount * 0.001 if position.asset_type == "equity" else 0  # 股票印花税
         slippage = amount * account.slippage_rate
         total_cost = commission + stamp_duty + slippage
 
         # 4. 计算盈亏
-        avg_cost_total = position.avg_cost * quantity
+        avg_cost_total = position_avg_cost * order_quantity
         net_amount = amount - total_cost
         realized_pnl = net_amount - avg_cost_total
         realized_pnl_pct = (realized_pnl / avg_cost_total) * 100 if avg_cost_total else 0
@@ -469,7 +480,7 @@ class ExecuteSellOrderUseCase:
             asset_name=position.asset_name,
             asset_type=position.asset_type,
             action=TradeAction.SELL,
-            quantity=quantity,
+            quantity=order_quantity,
             price=price,
             amount=amount,
             commission=commission,
@@ -493,7 +504,7 @@ class ExecuteSellOrderUseCase:
         )
 
         # 7. 更新持仓
-        remaining_quantity = position.quantity - quantity
+        remaining_quantity = position_quantity - order_quantity
         if remaining_quantity > 0:
             # 部分卖出
             updated_position = Position(
@@ -503,12 +514,12 @@ class ExecuteSellOrderUseCase:
                 asset_type=position.asset_type,
                 quantity=remaining_quantity,
                 available_quantity=remaining_quantity,
-                avg_cost=position.avg_cost,
-                total_cost=position.avg_cost * remaining_quantity,
+                avg_cost=position_avg_cost,
+                total_cost=position_avg_cost * remaining_quantity,
                 current_price=price,
                 market_value=remaining_quantity * price,
-                unrealized_pnl=(price - position.avg_cost) * remaining_quantity,
-                unrealized_pnl_pct=((price - position.avg_cost) / position.avg_cost) * 100,
+                unrealized_pnl=(price - position_avg_cost) * remaining_quantity,
+                unrealized_pnl_pct=((price - position_avg_cost) / position_avg_cost) * 100,
                 first_buy_date=position.first_buy_date,
                 last_update_date=date.today(),
                 signal_id=position.signal_id,
@@ -520,15 +531,15 @@ class ExecuteSellOrderUseCase:
             self.position_repo.delete(account_id, asset_code)
 
         # 8. 更新账户资金
-        new_market_value = account.current_market_value - position.quantity * price
+        new_market_value = _as_float(account.current_market_value) - position_quantity * price
         if remaining_quantity > 0:
             new_market_value += remaining_quantity * price
 
         updated_account = replace(
             account,
-            current_cash=account.current_cash + net_amount,
+            current_cash=_as_float(account.current_cash) + net_amount,
             current_market_value=new_market_value,
-            total_value=account.current_cash + net_amount + new_market_value,
+            total_value=_as_float(account.current_cash) + net_amount + new_market_value,
             total_trades=account.total_trades + 1,
             winning_trades=account.winning_trades + (1 if realized_pnl > 0 else 0),
             last_trade_date=date.today()
