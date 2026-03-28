@@ -160,6 +160,55 @@ P2（持续优化）：
 
 ## 9. 测试执行记录
 
+### 2026-03-28 Strategy 页面保存回归
+
+#### 覆盖新增
+
+新增页面级回归测试：`tests/integration/strategy/test_strategy_page_save_flow.py`
+
+覆盖场景：
+
+1. `/strategy/create/` 可创建策略并保存规则、脚本配置。
+2. `/strategy/<id>/edit/` 可保存修改并替换规则、脚本配置。
+3. 编辑页清空脚本后会删除旧 `ScriptConfigModel`，不再残留历史脚本。
+4. 多个策略允许复用相同脚本内容，不再因 `script_hash` 全局唯一而保存失败。
+5. 非法规则 JSON 会返回 400，且编辑过程保持原子性，不会删掉旧规则。
+
+#### 执行结果
+
+```bash
+pytest tests/integration/strategy/test_strategy_page_save_flow.py -q
+```
+
+结果：`5 passed`
+
+### 2026-03-28 多模块一致性回归
+
+#### 覆盖新增
+
+新增回归测试：
+
+1. `tests/integration/strategy/test_strategy_binding_consistency.py`
+2. `tests/unit/test_beta_gate_activation_consistency.py`
+3. `tests/unit/test_regime_activation_consistency.py`
+4. `tests/integration/account/test_registration_consistency.py`
+5. `tests/unit/domain/test_prompt_init_command_consistency.py`
+6. `tests/guardrails/test_consistency_write_guardrails.py`
+
+覆盖场景：
+
+1. 策略绑定/解绑失败时不破坏原激活状态。
+2. Beta Gate 创建、编辑、激活失败时保持单一激活配置。
+3. Regime 激活失败不污染状态，缓存仅在事务提交后失效。
+4. 注册失败时 `User/Profile/Portfolio` 与默认账户整体回滚。
+5. Prompt 强制覆盖失败时保留旧模板/链配置，不再 delete-then-create。
+6. `beta_gate` 允许不同 `risk_profile` 各保留一个激活配置，但拒绝同画像重复激活。
+7. `regime` 数据库层拒绝多个激活阈值配置。
+
+#### 审计记录
+
+同步文档：`docs/development/consistency-audit-2026-03-28.md`
+
 ### 2026-02-24 V3.4-RC1 测试执行
 
 #### 执行结果汇总
@@ -199,4 +248,3 @@ P2（持续优化）：
 #### 结论
 
 **✅ V3.4-RC1 通过 RC Gate，可进入 RC 阶段**  
-

@@ -12,6 +12,8 @@ import re
 from dataclasses import replace
 
 from django.contrib import messages
+from django.db import transaction
+from django.db import models
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -24,6 +26,51 @@ from ..infrastructure.repositories import get_config_repository
 from .forms import GateConfigForm
 
 logger = logging.getLogger(__name__)
+
+
+def _activate_gate_config_model(target_config: GateConfigModel) -> GateConfigModel:
+    """Atomically switch the active Beta Gate config."""
+    with transaction.atomic():
+        list(
+            GateConfigModel._default_manager.select_for_update().filter(
+                models.Q(pk=target_config.pk)
+                | (
+                    models.Q(is_active=True)
+                    & models.Q(risk_profile=target_config.risk_profile)
+                )
+            ).values_list("pk", flat=True)
+        )
+        GateConfigModel._default_manager.active().filter(
+            risk_profile=target_config.risk_profile
+        ).exclude(pk=target_config.pk).update(is_active=False)
+        target_config.is_active = True
+        target_config.effective_date = timezone.now().date()
+        target_config.save(update_fields=["is_active", "effective_date", "updated_at"])
+    return target_config
+
+
+def _save_gate_config_form(form: GateConfigForm) -> GateConfigModel:
+    """Persist a GateConfig form with single-active semantics."""
+    with transaction.atomic():
+        instance = form.save(commit=False)
+        if instance.is_active:
+            lock_filter = models.Q(
+                is_active=True,
+                risk_profile=instance.risk_profile,
+            )
+            if instance.pk:
+                lock_filter |= models.Q(pk=instance.pk)
+            list(
+                GateConfigModel._default_manager.select_for_update().filter(lock_filter).values_list(
+                    "pk", flat=True
+                )
+            )
+            GateConfigModel._default_manager.exclude(pk=instance.pk).filter(
+                is_active=True,
+                risk_profile=instance.risk_profile,
+            ).update(is_active=False)
+        instance.save()
+    return instance
 
 
 class BetaGateVersionCompareAPIView(APIView):
@@ -234,13 +281,7 @@ class RollbackConfigView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            # 将当前激活的配置设置为非激活
-            GateConfigModel._default_manager.active().update(is_active=False)
-
-            # 激活目标版本
-            target_config.is_active = True
-            target_config.effective_date = timezone.now().date()
-            target_config.save()
+            _activate_gate_config_model(target_config)
 
             return Response(
                 {
@@ -1097,9 +1138,7 @@ def beta_gate_config_create_view(request):
     if request.method == "POST":
         form = GateConfigForm(request.POST)
         if form.is_valid():
-            instance = form.save()
-            if instance.is_active:
-                GateConfigModel._default_manager.exclude(pk=instance.pk).update(is_active=False)
+            instance = _save_gate_config_form(form)
             messages.success(request, f"配置 {instance.config_id} 已创建")
             return redirect("beta_gate:config")
     else:
@@ -1123,9 +1162,7 @@ def beta_gate_config_edit_view(request, config_id):
     if request.method == "POST":
         form = GateConfigForm(request.POST, instance=config)
         if form.is_valid():
-            instance = form.save()
-            if instance.is_active:
-                GateConfigModel._default_manager.exclude(pk=instance.pk).update(is_active=False)
+            instance = _save_gate_config_form(form)
             messages.success(request, f"配置 {instance.config_id} 已更新")
             return redirect("beta_gate:config")
     else:
@@ -1149,9 +1186,6 @@ def beta_gate_config_activate_view(request, config_id):
         return redirect("beta_gate:version")
 
     config = get_object_or_404(GateConfigModel, config_id=config_id)
-    GateConfigModel._default_manager.active().exclude(pk=config.pk).update(is_active=False)
-    config.is_active = True
-    config.effective_date = timezone.now().date()
-    config.save(update_fields=["is_active", "effective_date", "updated_at"])
+    _activate_gate_config_model(config)
     messages.success(request, f"已激活配置 {config.config_id}")
     return redirect("beta_gate:version")

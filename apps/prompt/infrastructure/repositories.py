@@ -338,6 +338,53 @@ class DjangoChainRepository:
 
         return self._orm_to_entity(orm_obj)
 
+    def update_chain(self, chain_id: int, chain: ChainConfig) -> ChainConfig | None:
+        """更新链配置。"""
+        try:
+            orm_obj = self._model.objects.get(id=chain_id)
+        except self._model.DoesNotExist:
+            return None
+
+        steps_data = [
+            {
+                "step_id": s.step_id,
+                "template_id": s.template_id,
+                "step_name": s.step_name,
+                "order": s.order,
+                "input_mapping": s.input_mapping,
+                "output_parser": s.output_parser,
+                "parallel_group": s.parallel_group,
+                "enable_tool_calling": s.enable_tool_calling,
+                "available_tools": s.available_tools,
+            }
+            for s in chain.steps
+        ]
+
+        aggregate_data = None
+        if chain.aggregate_step:
+            aggregate_data = {
+                "step_id": chain.aggregate_step.step_id,
+                "template_id": chain.aggregate_step.template_id,
+                "step_name": chain.aggregate_step.step_name,
+                "order": chain.aggregate_step.order,
+                "input_mapping": chain.aggregate_step.input_mapping,
+                "output_parser": chain.aggregate_step.output_parser,
+                "parallel_group": chain.aggregate_step.parallel_group,
+                "enable_tool_calling": chain.aggregate_step.enable_tool_calling,
+                "available_tools": chain.aggregate_step.available_tools,
+            }
+
+        orm_obj.name = chain.name
+        orm_obj.category = chain.category.value
+        orm_obj.description = chain.description
+        orm_obj.steps = steps_data
+        orm_obj.execution_mode = chain.execution_mode.value
+        orm_obj.aggregate_step = aggregate_data
+        orm_obj.is_active = chain.is_active
+        orm_obj.save()
+
+        return self._orm_to_entity(orm_obj)
+
     @staticmethod
     def _orm_to_entity(orm: ChainConfigORM) -> ChainConfig:
         """ORM转实体

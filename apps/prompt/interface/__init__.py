@@ -15,6 +15,7 @@ Options:
 """
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.utils import timezone
 
 from apps.prompt.infrastructure.fixtures.templates import (
@@ -115,10 +116,10 @@ class Command(BaseCommand):
                         if dry_run:
                             self.stdout.write(f'  [FORCE] {template.name} - 将覆盖')
                         else:
-                            # 删除旧模板（使用ORM）
-                            existing_orm.delete()
-                            # 创建新模板
-                            repository.create_template(template)
+                            with transaction.atomic():
+                                updated = repository.update_template(existing_orm.id, template)
+                                if updated is None:
+                                    raise ValueError(f'模板 {template.name} 更新失败')
                             self.stdout.write(self.style.SUCCESS(f'  [更新] {template.name}'))
                             count += 1
                     else:
@@ -153,10 +154,10 @@ class Command(BaseCommand):
                         if dry_run:
                             self.stdout.write(f'  [FORCE] {chain.name} - 将覆盖')
                         else:
-                            # 删除旧配置（使用ORM）
-                            existing_orm.delete()
-                            # 创建新配置
-                            repository.create_chain(chain)
+                            with transaction.atomic():
+                                updated = repository.update_chain(existing_orm.id, chain)
+                                if updated is None:
+                                    raise ValueError(f'链配置 {chain.name} 更新失败')
                             self.stdout.write(self.style.SUCCESS(f'  [更新] {chain.name}'))
                             count += 1
                     else:

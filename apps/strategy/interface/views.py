@@ -6,16 +6,18 @@ Interface层:
 - 使用DRF ViewSet组织API
 - 只做输入验证和输出格式化，禁止业务逻辑
 """
+import json
 import logging
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, serializers as drf_serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -54,6 +56,166 @@ from apps.strategy.interface.serializers import (
     StrategyExecutionLogSerializer,
     StrategySerializer,
 )
+from core.exceptions import DuplicateResourceError, InvalidInputError
+
+logger = logging.getLogger(__name__)
+
+_UNSET = object()
+DEFAULT_SCRIPT_ALLOWED_MODULES = ['math', 'datetime', 'statistics', 'pandas', 'numpy']
+DEFAULT_SCRIPT_SANDBOX_CONFIG = {'mode': 'relaxed'}
+VALID_STRATEGY_TYPES = {choice[0] for choice in StrategyModel._meta.get_field('strategy_type').choices}
+VALID_SCRIPT_LANGUAGES = {choice[0] for choice in ScriptConfigModel._meta.get_field('script_language').choices}
+
+
+def _json_error(message: str, status_code: int = status.HTTP_400_BAD_REQUEST) -> JsonResponse:
+    """Return a consistent JSON error payload for HTML form endpoints."""
+    return JsonResponse({'success': False, 'error': message}, status=status_code)
+
+
+def _format_validation_detail(detail) -> str:
+    """Flatten DRF validation details into a compact human-readable string."""
+    if isinstance(detail, dict):
+        parts = [f'{key}: {_format_validation_detail(value)}' for key, value in detail.items()]
+        return '; '.join(parts)
+    if isinstance(detail, list):
+        return '; '.join(_format_validation_detail(item) for item in detail)
+    return str(detail)
+
+
+def _parse_rules_payload(raw_value: str | None, preserve_existing: bool = False):
+    """Parse rule payload JSON from the page form."""
+    if raw_value is None:
+        return _UNSET if preserve_existing else []
+
+    try:
+        rules_payload = json.loads(raw_value)
+    except json.JSONDecodeError as exc:
+        raise InvalidInputError('规则配置格式无效，无法保存') from exc
+
+    if not isinstance(rules_payload, list):
+        raise InvalidInputError('规则配置必须是数组格式')
+    return rules_payload
+
+
+def _parse_script_payload(raw_value: str | None, preserve_existing: bool = False):
+    """Parse script payload from the page form."""
+    if raw_value is None:
+        return _UNSET if preserve_existing else ''
+    return raw_value
+
+
+def _build_strategy_serializer(request, existing_strategy: StrategyModel | None = None) -> StrategySerializer:
+    """Build a validated serializer for strategy base fields."""
+    name = (request.POST.get('name') or '').strip()
+    if not name:
+        raise InvalidInputError('策略名称不能为空')
+
+    submitted_strategy_type = (request.POST.get('strategy_type') or '').strip()
+    if existing_strategy is None:
+        strategy_type = submitted_strategy_type
+        if strategy_type not in VALID_STRATEGY_TYPES:
+            raise InvalidInputError('策略类型无效')
+        version = request.POST.get('version', 1)
+    else:
+        if submitted_strategy_type and submitted_strategy_type != existing_strategy.strategy_type:
+            raise InvalidInputError('策略类型创建后不可修改')
+        strategy_type = existing_strategy.strategy_type
+        version = existing_strategy.version + 1
+
+    serializer = StrategySerializer(
+        existing_strategy,
+        data={
+            'name': name,
+            'description': request.POST.get('description', ''),
+            'strategy_type': strategy_type,
+            'version': version,
+            'is_active': existing_strategy.is_active if existing_strategy is not None else False,
+            'max_position_pct': request.POST.get('max_position_pct', 20),
+            'max_total_position_pct': request.POST.get('max_total_position_pct', 95),
+            'stop_loss_pct': request.POST.get('stop_loss_pct') or None,
+        },
+    )
+    serializer.is_valid(raise_exception=True)
+    return serializer
+
+
+def _replace_rule_conditions(strategy: StrategyModel, rules_payload) -> None:
+    """Replace strategy rule conditions after validating the submitted payload."""
+    if rules_payload is _UNSET:
+        return
+
+    validated_rules: list[dict] = []
+    for index, rule_data in enumerate(rules_payload, start=1):
+        if not isinstance(rule_data, dict):
+            raise InvalidInputError(f'第 {index} 条规则格式无效')
+
+        rule_name = str(rule_data.get('rule_name', '')).strip()
+        if not rule_name:
+            continue
+
+        serializer = RuleConditionSerializer(
+            data={
+                'strategy': strategy.id,
+                'rule_name': rule_name,
+                'rule_type': rule_data.get('rule_type', 'macro'),
+                'condition_json': rule_data.get('condition_json', {}),
+                'action': str(rule_data.get('action', 'buy')).lower(),
+                'weight': rule_data.get('weight', 0.1),
+                'target_assets': rule_data.get('target_assets', []),
+                'priority': rule_data.get('priority', 10),
+                'is_enabled': rule_data.get('is_enabled', True),
+            }
+        )
+        try:
+            serializer.is_valid(raise_exception=True)
+        except drf_serializers.ValidationError as exc:
+            raise InvalidInputError(
+                f'第 {index} 条规则校验失败: {_format_validation_detail(exc.detail)}'
+            ) from exc
+        validated_rules.append(serializer.validated_data)
+
+    RuleConditionModel._default_manager.filter(strategy=strategy).delete()
+    for validated_rule in validated_rules:
+        RuleConditionModel._default_manager.create(**validated_rule)
+
+
+def _save_script_config(
+    strategy: StrategyModel,
+    script_code_payload,
+    script_language: str,
+) -> None:
+    """Create, update, or delete script config based on submitted form data."""
+    if script_code_payload is _UNSET:
+        return
+
+    existing_config = ScriptConfigModel._default_manager.filter(strategy=strategy).first()
+    script_code = (script_code_payload or '').strip()
+
+    if not script_code:
+        if existing_config is not None:
+            existing_config.delete()
+        return
+
+    if script_language not in VALID_SCRIPT_LANGUAGES:
+        raise InvalidInputError('脚本语言无效')
+
+    serializer = ScriptConfigSerializer(
+        existing_config,
+        data={
+            'strategy': strategy.id,
+            'script_language': script_language,
+            'script_code': script_code,
+            'sandbox_config': DEFAULT_SCRIPT_SANDBOX_CONFIG,
+            'allowed_modules': DEFAULT_SCRIPT_ALLOWED_MODULES,
+            'version': existing_config.version if existing_config is not None else '1.0',
+            'is_active': True,
+        },
+    )
+    try:
+        serializer.is_valid(raise_exception=True)
+    except drf_serializers.ValidationError as exc:
+        raise InvalidInputError(f'脚本配置校验失败: {_format_validation_detail(exc.detail)}') from exc
+    serializer.save()
 
 # ========================================================================
 # Strategy ViewSet
@@ -572,74 +734,29 @@ def strategy_list(request):
 def strategy_create(request):
     """创建策略页面"""
     if request.method == 'POST':
-        import hashlib
-        import json
-
-        name = request.POST.get('name')
-        strategy_type = request.POST.get('strategy_type')
-        description = request.POST.get('description', '')
-        max_position_pct = request.POST.get('max_position_pct', 20)
-        max_total_position_pct = request.POST.get('max_total_position_pct', 95)
-        stop_loss_pct = request.POST.get('stop_loss_pct')
-        version = request.POST.get('version', 1)
-        rules_data = request.POST.get('rules_data', '[]')
-        script_code = request.POST.get('script_code', '')
-        script_language = request.POST.get('script_language', 'python')
-
-        if not name or not strategy_type:
-            return JsonResponse({'success': False, 'error': '策略名称和类型不能为空'})
-
         try:
-            # 创建策略
-            strategy = StrategyModel._default_manager.create(
-                name=name,
-                strategy_type=strategy_type,
-                description=description,
-                max_position_pct=float(max_position_pct),
-                max_total_position_pct=float(max_total_position_pct),
-                stop_loss_pct=float(stop_loss_pct) if stop_loss_pct else None,
-                version=int(version),
-                is_active=False,
-                created_by=request.user.account_profile
-            )
+            strategy_serializer = _build_strategy_serializer(request)
+            rules_payload = _parse_rules_payload(request.POST.get('rules_data'))
+            script_code_payload = _parse_script_payload(request.POST.get('script_code'))
+            script_language = (request.POST.get('script_language') or 'python').strip()
 
-            # 创建规则条件
-            try:
-                rules = json.loads(rules_data)
-                for rule_data in rules:
-                    if rule_data.get('rule_name'):  # 只创建有名称的规则
-                        RuleConditionModel._default_manager.create(
-                            strategy=strategy,
-                            rule_name=rule_data['rule_name'],
-                            rule_type=rule_data.get('rule_type', 'macro'),
-                            condition_json=rule_data.get('condition_json', {}),
-                            action=str(rule_data.get('action', 'buy')).lower(),
-                            weight=rule_data.get('weight', 0.1),
-                            target_assets=rule_data.get('target_assets', []),
-                            priority=rule_data.get('priority', 10),
-                            is_enabled=rule_data.get('is_enabled', True)
-                        )
-            except json.JSONDecodeError:
-                pass  # 如果规则数据格式错误，忽略
-
-            # 创建脚本配置（如果有脚本代码）
-            if script_code and script_code.strip():
-                # 计算 SHA256 哈希
-                script_hash = hashlib.sha256(script_code.encode('utf-8')).hexdigest()
-
-                ScriptConfigModel._default_manager.create(
-                    strategy=strategy,
-                    script_language=script_language,
-                    script_code=script_code,
-                    script_hash=script_hash,
-                    sandbox_config='relaxed',  # 默认宽松模式
-                    allowed_modules=['math', 'datetime', 'statistics', 'pandas', 'numpy'],
-                    is_active=True
-                )
+            with transaction.atomic():
+                strategy = strategy_serializer.save(created_by=request.user.account_profile)
+                _replace_rule_conditions(strategy, rules_payload)
+                _save_script_config(strategy, script_code_payload, script_language)
 
             return JsonResponse({'success': True, 'id': strategy.id})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+        except InvalidInputError as exc:
+            return _json_error(exc.message, exc.status_code)
+        except IntegrityError as exc:
+            logger.warning('Strategy create failed due to integrity error: %s', exc)
+            duplicate_error = DuplicateResourceError('同名策略版本或脚本配置已存在')
+            return _json_error(duplicate_error.message, duplicate_error.status_code)
+        except drf_serializers.ValidationError as exc:
+            return _json_error(_format_validation_detail(exc.detail))
+        except Exception:
+            logger.exception('Unexpected error while creating strategy')
+            return _json_error('创建策略失败，请稍后重试', status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return render(request, 'strategy/create.html')
 
@@ -664,76 +781,35 @@ def strategy_edit(request, strategy_id):
     strategy = get_object_or_404(StrategyModel, id=strategy_id, created_by=request.user.account_profile)
 
     if request.method == 'POST':
-        import hashlib
-        import json
-
-        name = request.POST.get('name')
-        description = request.POST.get('description', '')
-        max_position_pct = request.POST.get('max_position_pct', 20)
-        max_total_position_pct = request.POST.get('max_total_position_pct', 95)
-        stop_loss_pct = request.POST.get('stop_loss_pct')
-        rules_data = request.POST.get('rules_data', '[]')
-        script_code = request.POST.get('script_code', '')
-        script_language = request.POST.get('script_language', 'python')
-
-        if not name:
-            return JsonResponse({'success': False, 'error': '策略名称不能为空'})
-
         try:
-            # 更新策略基本信息
-            strategy.name = name
-            strategy.description = description
-            strategy.max_position_pct = float(max_position_pct)
-            strategy.max_total_position_pct = float(max_total_position_pct)
-            strategy.stop_loss_pct = float(stop_loss_pct) if stop_loss_pct else None
-            # 版本号自动递增
-            strategy.version += 1
-            strategy.save()
+            strategy_serializer = _build_strategy_serializer(request, existing_strategy=strategy)
+            rules_payload = _parse_rules_payload(
+                request.POST.get('rules_data'),
+                preserve_existing=True,
+            )
+            script_code_payload = _parse_script_payload(
+                request.POST.get('script_code'),
+                preserve_existing=True,
+            )
+            script_language = (request.POST.get('script_language') or 'python').strip()
 
-            # 更新规则条件（删除旧规则，创建新规则）
-            try:
-                # 删除现有规则
-                strategy.rules.all().delete()
-
-                # 创建新规则
-                rules = json.loads(rules_data)
-                for rule_data in rules:
-                    if rule_data.get('rule_name'):
-                        RuleConditionModel._default_manager.create(
-                            strategy=strategy,
-                            rule_name=rule_data['rule_name'],
-                            rule_type=rule_data.get('rule_type', 'macro'),
-                            condition_json=rule_data.get('condition_json', {}),
-                            action=str(rule_data.get('action', 'buy')).lower(),
-                            weight=rule_data.get('weight', 0.1),
-                            target_assets=rule_data.get('target_assets', []),
-                            priority=rule_data.get('priority', 10),
-                            is_enabled=rule_data.get('is_enabled', True)
-                        )
-            except json.JSONDecodeError:
-                pass  # 如果规则数据格式错误，忽略
-
-            # 更新脚本配置
-            if script_code and script_code.strip():
-                script_hash = hashlib.sha256(script_code.encode('utf-8')).hexdigest()
-
-                # 删除现有脚本配置
-                ScriptConfigModel._default_manager.filter(strategy=strategy).delete()
-
-                # 创建新的脚本配置
-                ScriptConfigModel._default_manager.create(
-                    strategy=strategy,
-                    script_language=script_language,
-                    script_code=script_code,
-                    script_hash=script_hash,
-                    sandbox_config='relaxed',
-                    allowed_modules=['math', 'datetime', 'statistics', 'pandas', 'numpy'],
-                    is_active=True
-                )
+            with transaction.atomic():
+                strategy = strategy_serializer.save()
+                _replace_rule_conditions(strategy, rules_payload)
+                _save_script_config(strategy, script_code_payload, script_language)
 
             return JsonResponse({'success': True, 'id': strategy.id})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+        except InvalidInputError as exc:
+            return _json_error(exc.message, exc.status_code)
+        except IntegrityError as exc:
+            logger.warning('Strategy edit failed due to integrity error: %s', exc)
+            duplicate_error = DuplicateResourceError('策略保存失败，存在重复版本或脚本配置冲突')
+            return _json_error(duplicate_error.message, duplicate_error.status_code)
+        except drf_serializers.ValidationError as exc:
+            return _json_error(_format_validation_detail(exc.detail))
+        except Exception:
+            logger.exception('Unexpected error while editing strategy %s', strategy_id)
+            return _json_error('保存策略失败，请稍后重试', status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # GET 请求 - 渲染编辑页面
     return render(request, 'strategy/edit.html', {'strategy': strategy})
@@ -993,87 +1069,100 @@ def execution_evaluate(request):
 def bind_strategy(request):
     """绑定策略到投资组合"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
+        return _json_error('只支持 POST 请求', status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    import json
-
-    from apps.simulated_trading.application.facade import get_simulated_trading_facade
+    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
     try:
         data = json.loads(request.body)
         portfolio_id = data.get('portfolio_id')
         strategy_id = data.get('strategy_id')
+    except json.JSONDecodeError:
+        return _json_error('无效 JSON', status.HTTP_400_BAD_REQUEST)
 
+    try:
         if not portfolio_id or not strategy_id:
-            return JsonResponse({'success': False, 'error': '缺少必要参数'})
-
-        facade = get_simulated_trading_facade()
-        if not facade.user_owns_account(portfolio_id, request.user.id):
-            return JsonResponse({'success': False, 'error': '账户不存在或无权限访问'}, status=404)
+            raise InvalidInputError('缺少必要参数')
 
         strategy = get_object_or_404(
             StrategyModel,
             id=strategy_id,
-            created_by=request.user.account_profile
+            created_by=request.user.account_profile,
         )
 
-        # 一个账户只保留一个激活策略分配：先停用旧分配
-        PortfolioStrategyAssignmentModel._default_manager.filter(
-            portfolio_id=portfolio_id,
-            is_active=True
-        ).update(is_active=False)
+        with transaction.atomic():
+            portfolio = SimulatedAccountModel._default_manager.select_for_update().filter(
+                id=portfolio_id,
+                user=request.user,
+            ).first()
+            if portfolio is None:
+                return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
-        # 创建或激活新分配
-        assignment, created = PortfolioStrategyAssignmentModel._default_manager.get_or_create(
-            portfolio_id=portfolio_id,
-            strategy=strategy,
-            defaults={
-                'assigned_by': request.user.account_profile,
-                'is_active': True,
-            }
-        )
-        if not created:
-            assignment.is_active = True
-            assignment.assigned_by = request.user.account_profile
-            assignment.save(update_fields=['is_active', 'assigned_by', 'updated_at'])
+            assignments = PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
+                portfolio_id=portfolio.id
+            )
+            assignments.filter(is_active=True).exclude(strategy=strategy).update(is_active=False)
+
+            assignment, created = assignments.get_or_create(
+                portfolio_id=portfolio.id,
+                strategy=strategy,
+                defaults={
+                    'assigned_by': request.user.account_profile,
+                    'is_active': True,
+                }
+            )
+            if not created and (not assignment.is_active or assignment.assigned_by_id != request.user.account_profile.id):
+                assignment.is_active = True
+                assignment.assigned_by = request.user.account_profile
+                assignment.save(update_fields=['is_active', 'assigned_by', 'updated_at'])
 
         return JsonResponse({'success': True, 'message': '策略绑定成功'})
 
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+    except InvalidInputError as exc:
+        return _json_error(exc.message, exc.status_code)
+    except Exception:
+        logger.exception('Unexpected error while binding strategy')
+        return _json_error('策略绑定失败，请稍后重试', status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @login_required
 def unbind_strategy(request):
     """解绑投资组合的策略"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
+        return _json_error('只支持 POST 请求', status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    import json
-
-    from apps.simulated_trading.application.facade import get_simulated_trading_facade
+    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
     try:
         data = json.loads(request.body)
         portfolio_id = data.get('portfolio_id')
+    except json.JSONDecodeError:
+        return _json_error('无效 JSON', status.HTTP_400_BAD_REQUEST)
 
+    try:
         if not portfolio_id:
-            return JsonResponse({'success': False, 'error': '缺少必要参数'})
+            raise InvalidInputError('缺少必要参数')
 
-        facade = get_simulated_trading_facade()
-        if not facade.user_owns_account(portfolio_id, request.user.id):
-            return JsonResponse({'success': False, 'error': '账户不存在或无权限访问'}, status=404)
+        with transaction.atomic():
+            portfolio = SimulatedAccountModel._default_manager.select_for_update().filter(
+                id=portfolio_id,
+                user=request.user,
+            ).first()
+            if portfolio is None:
+                return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
-        # 停用该账户的全部激活策略分配
-        PortfolioStrategyAssignmentModel._default_manager.filter(
-            portfolio_id=portfolio_id,
-            is_active=True
-        ).update(is_active=False)
+            PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
+                portfolio_id=portfolio.id,
+                is_active=True,
+            ).update(is_active=False)
 
         return JsonResponse({'success': True, 'message': '策略已解绑'})
 
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+    except InvalidInputError as exc:
+        return _json_error(exc.message, exc.status_code)
+    except Exception:
+        logger.exception('Unexpected error while unbinding strategy')
+        return _json_error('策略解绑失败，请稍后重试', status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @login_required

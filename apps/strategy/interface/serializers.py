@@ -239,6 +239,14 @@ class ScriptConfigSerializer(serializers.ModelSerializer):
         validated_data['script_hash'] = script_hash
         return super().create(validated_data)
 
+    def update(self, instance, validated_data):
+        """更新脚本配置时同步刷新 script_hash。"""
+        import hashlib
+
+        script_code = validated_data.get('script_code', instance.script_code)
+        validated_data['script_hash'] = hashlib.sha256(script_code.encode()).hexdigest()
+        return super().update(instance, validated_data)
+
 
 # ========================================================================
 # AI Strategy Config Serializers

@@ -3,6 +3,7 @@ ORM Models for Regime Data.
 """
 
 from django.db import models
+from django.db.models import Q
 
 
 class RegimeLog(models.Model):
@@ -52,10 +53,24 @@ class RegimeThresholdConfig(models.Model):
         verbose_name = "Regime阈值配置"
         verbose_name_plural = "Regime阈值配置"
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_active'],
+                condition=Q(is_active=True),
+                name='regime_single_active_threshold',
+            )
+        ]
 
     def __str__(self):
         status = "激活" if self.is_active else "未激活"
         return f"{self.name} ({status})"
+
+    def validate_constraints(self, exclude=None):
+        """Allow admin/form activation switches to validate before transactional toggles run."""
+        if self.is_active:
+            exclude = set(exclude or [])
+            exclude.add("is_active")
+        super().validate_constraints(exclude=exclude)
 
 
 class RegimeIndicatorThreshold(models.Model):
@@ -151,4 +166,3 @@ class ActionRecommendationLog(models.Model):
 
     def __str__(self):
         return f"{self.observed_at}: {self.regime_name} (risk: {self.risk_budget_pct}%)"
-
