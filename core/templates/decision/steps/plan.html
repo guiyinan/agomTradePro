@@ -1,4 +1,4 @@
-<div class="funnel-step-content" x-init="$nextTick(() => { loadTransitionPlanStep(); loadConflicts(); })" style="animation: fadeIn 0.3s ease-in-out;">
+<div class="funnel-step-content" x-init="$nextTick(() => { window.loadTransitionPlanStep(); window.loadConflicts(); })" style="animation: fadeIn 0.3s ease-in-out;">
     <h3 style="margin-bottom: 20px;">阶段 5: 交易计划</h3>
 
     <div class="attention-card" style="margin-bottom: 20px;">
@@ -17,8 +17,8 @@
             </h2>
             <div class="section-actions" style="display: flex; gap: 10px; align-items: center;">
                 <span class="badge badge-primary">当前账户：<span data-workspace-account-name>默认账户</span></span>
-                <button class="btn btn-outline btn-sm" onclick="loadTransitionPlanStep()"><i class="bi bi-arrow-clockwise"></i> 刷新计划</button>
-                <button class="btn btn-secondary btn-sm" onclick="generateTransitionPlan()"><i class="bi bi-diagram-3"></i> 生成交易计划</button>
+                <button class="btn btn-outline btn-sm" onclick="window.loadTransitionPlanStep()"><i class="bi bi-arrow-clockwise"></i> 刷新计划</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.generateTransitionPlan()"><i class="bi bi-diagram-3"></i> 生成交易计划</button>
             </div>
         </div>
 
@@ -34,8 +34,8 @@
                 调仓指令
             </h2>
             <div class="section-actions" style="display: flex; gap: 10px;">
-                <button class="btn btn-outline btn-sm" onclick="saveTransitionPlan()"><i class="bi bi-save"></i> 保存计划</button>
-                <button class="btn btn-primary btn-sm" onclick="submitTransitionPlanForApproval()"><i class="bi bi-send-check"></i> 进入审批执行</button>
+                <button class="btn btn-outline btn-sm" onclick="window.saveTransitionPlan()"><i class="bi bi-save"></i> 保存计划</button>
+                <button class="btn btn-primary btn-sm" onclick="window.submitTransitionPlanForApproval()"><i class="bi bi-send-check"></i> 进入审批执行</button>
             </div>
         </div>
 

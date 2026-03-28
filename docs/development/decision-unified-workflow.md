@@ -1,8 +1,8 @@
 # 决策工作台统一工作流技术文档
 
-> 文档版本: v1.0
+> 文档版本: v1.2
 > 创建日期: 2026-03-03
-> 最后更新: 2026-03-22
+> 最后更新: 2026-03-29
 > 适用范围: 决策工作台 Top-down + Bottom-up 融合系统
 
 ## 1. 概述
@@ -44,6 +44,20 @@ Infrastructure 层 (models.py, repositories.py, feature_providers.py)
 - `PortfolioTransitionPlan`：回答“当前账户具体怎么调”
 - `ExecutionApprovalRequest`：回答“这份计划是否允许执行”
 - `Audit`：执行后的归因与复盘，不再属于工作台主漏斗步骤
+
+### 2.0.1 2026-03-28 前端收口说明
+
+- Step 5 片段通过 `window.*` 调用主模板中暴露的工作台函数，避免 HTMX 局部更新后出现函数未定义
+- Step 6 固定为 `审批执行`，不再根据 `backtest_id` 或 `trade_id` 回退渲染审计片段
+- 审计只保留为执行后的独立入口，由 `/audit/` 承接
+
+### 2.0.2 2026-03-29 Step 4 推荐可见性修复
+
+- Step 4 首次加载为空时，前端会自动触发一次 `/api/decision/workspace/recommendations/refresh/`，避免只显示空白壳子
+- `CompositeFeatureProvider` 修复多继承下的 `_repository` / `_use_case` / `_service` 冲突，避免特征读取串线
+- `AlphaTrigger` / `AlphaCandidate` ORM 映射补齐大小写与兼容字段归一化，真实 `trigger -> candidate -> recommendation` 链路可直接落库
+- `Beta Gate` 未通过时不再把资产静默过滤掉，而是保留为 `HOLD` 推荐，并写入 `BETA_GATE_BLOCKED` 原因码与解释文案
+- 当前 Step 4 的含义调整为“候选可见性 + 执行约束展示”，而不是“只展示已通过执行闸门的资产”
 
 ### 1.3 2026-03-22 入口统一补充
 

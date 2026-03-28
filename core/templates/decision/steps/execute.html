@@ -1,4 +1,4 @@
-<div class="funnel-step-content" x-init="$nextTick(() => loadExecutionPlanPanel())" style="animation: fadeIn 0.3s ease-in-out;">
+<div class="funnel-step-content" x-init="$nextTick(() => window.loadExecutionPlanPanel())" style="animation: fadeIn 0.3s ease-in-out;">
     <h3 style="margin-bottom: 20px;">阶段 6: 审批执行</h3>
     
     <div class="attention-card" style="margin-bottom: 20px;">
@@ -16,7 +16,7 @@
             </h2>
             <div class="section-actions" style="display: flex; gap: 10px;">
                 <span class="badge badge-success">当前账户：<span data-workspace-account-name>默认账户</span></span>
-                <button class="btn btn-outline btn-sm" onclick="loadExecutionPlanPanel()"><i class="bi bi-arrow-clockwise"></i> 刷新审批</button>
+                <button class="btn btn-outline btn-sm" onclick="window.loadExecutionPlanPanel()"><i class="bi bi-arrow-clockwise"></i> 刷新审批</button>
             </div>
         </div>
 
@@ -31,8 +31,8 @@
     <section class="conflicts-section">
         <div class="section-header">
             <h2 class="section-title">
-                <span class="title-icon">📉</span>
-                审计入口
+                <span class="title-icon">⚙️</span>
+                执行接入规划
             </h2>
             <div class="section-actions" style="display: flex; gap: 10px;">
                 <a class="btn btn-outline btn-sm" href="/audit/">打开审计模块</a>
@@ -40,7 +40,7 @@
         </div>
 
         <div class="card" style="padding: 18px;">
-            执行完成后，请通过审计模块查看归因、损失来源和经验回写。
+            当前 Step 6 负责审批与执行预览。后续会在这里接入自动交易系统，把“卖多少、买多少、怎么下单”直接落到执行引擎；执行完成后再进入审计模块做归因复盘。
         </div>
     </section>
 </div>

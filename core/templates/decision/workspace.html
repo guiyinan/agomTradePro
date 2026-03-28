@@ -799,6 +799,7 @@ let userAccounts = [];
 let executionPortfolios = [];
 let workspaceInitialized = false;
 const selectedRecommendationIds = new Set();
+const recommendationAutoRefreshAttempts = new Set();
 const workspaceBridge = {
     source: workspaceParams.get('source') || '',
     securityCode: workspaceParams.get('security_code') || '',
@@ -1296,7 +1297,39 @@ async function loadRecommendations() {
         const data = await res.json();
 
         if (data.success && data.data) {
-            renderRecommendations(data.data.recommendations || [], data.data.total_count || 0);
+            const recommendations = data.data.recommendations || [];
+            const totalCount = data.data.total_count || 0;
+
+            if (
+                recommendations.length === 0 &&
+                !workspaceBridge.securityCode &&
+                !statusFilter &&
+                !decisionFilter &&
+                !recommendationAutoRefreshAttempts.has(accountId || 'default')
+            ) {
+                recommendationAutoRefreshAttempts.add(accountId || 'default');
+                try {
+                    const refreshRes = await fetch('/api/decision/workspace/recommendations/refresh/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.csrfToken
+                        },
+                        body: JSON.stringify({
+                            account_id: accountId || 'default',
+                            force: true,
+                        })
+                    });
+                    const refreshData = await refreshRes.json();
+                    if (refreshData.success) {
+                        return loadRecommendations();
+                    }
+                } catch (error) {
+                    console.error('自动刷新推荐失败:', error);
+                }
+            }
+
+            renderRecommendations(recommendations, totalCount);
         } else {
             container.innerHTML = `
                 <div class="error-state">
@@ -2631,6 +2664,16 @@ function getStatusText(status) {
     };
     return statusMap[status] || status;
 }
+
+Object.assign(window, {
+    loadRecommendations,
+    loadTransitionPlanStep,
+    generateTransitionPlan,
+    saveTransitionPlan,
+    submitTransitionPlanForApproval,
+    loadExecutionPlanPanel,
+    loadConflicts,
+});
 </script>
 
 <style>
