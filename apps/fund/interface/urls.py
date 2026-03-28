@@ -8,6 +8,7 @@ from .views import dashboard_view
 app_name = 'fund'
 
 urlpatterns = [
+    path("", RedirectView.as_view(url="/fund/dashboard/", permanent=False), name="home"),
     # 仪表盘页面
     path('dashboard/', dashboard_view, name='dashboard'),
 

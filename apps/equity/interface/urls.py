@@ -1,6 +1,7 @@
 """Equity page URL configuration."""
 
 from django.urls import path
+from django.views.generic import RedirectView
 
 from .views import (
     detail_page,
@@ -13,6 +14,7 @@ from .views import (
 app_name = 'equity'
 
 urlpatterns = [
+    path("", RedirectView.as_view(url="/equity/screen/", permanent=False), name="home"),
     # Page routes
     path('screen/', screen_page, name='screen'),
     path('detail/<str:stock_code>/', detail_page, name='detail'),

@@ -27,11 +27,15 @@ def test_dashboard_legacy_api_route_names_resolvable():
 
 
 def test_equity_fund_page_route_names_resolvable():
+    assert reverse("equity:home") == "/equity/"
     assert reverse("equity:screen")
     assert reverse("equity:pool")
     assert reverse("equity:detail", args=["000001.SZ"])
+    assert reverse("fund:home") == "/fund/"
     assert reverse("fund:dashboard")
     assert reverse("fund:multidim_screen_page")
+    assert reverse("prompt:home") == "/prompt/"
+    assert reverse("account:home") == "/account/"
 
 
 def test_policy_workbench_and_rss_page_routes_resolvable():
@@ -60,6 +64,22 @@ def test_policy_and_account_root_redirects(db):
 
     # /api/account/ now serves API root directly (200), no longer redirects
     assert account_response.status_code in (200, 301, 302)
+
+
+def test_module_page_root_redirects():
+    client = Client()
+
+    cases = {
+        "/account/": "/account/login/",
+        "/equity/": "/equity/screen/",
+        "/fund/": "/fund/dashboard/",
+        "/prompt/": "/prompt/manage/",
+    }
+
+    for path, expected in cases.items():
+        response = client.get(path, follow=False)
+        assert response.status_code in (301, 302)
+        assert response["Location"].endswith(expected)
 
 
 def test_regime_dashboard_does_not_return_500(db):

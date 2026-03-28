@@ -26,46 +26,17 @@ class PulseCurrentView(APIView):
             snapshot = use_case.execute()
 
             if not snapshot:
+                from apps.pulse.application.use_cases import CalculatePulseUseCase
+
+                snapshot = CalculatePulseUseCase().execute()
+
+            if not snapshot:
                 return Response(
                     {"success": False, "error": "No pulse data available"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            data = {
-                "observed_at": snapshot.observed_at.isoformat(),
-                "regime_context": snapshot.regime_context,
-                "composite_score": snapshot.composite_score,
-                "regime_strength": snapshot.regime_strength,
-                "transition_warning": snapshot.transition_warning,
-                "transition_direction": snapshot.transition_direction,
-                "transition_reasons": snapshot.transition_reasons,
-                "data_source": snapshot.data_source,
-                "is_reliable": snapshot.is_reliable,
-                "dimensions": {
-                    ds.dimension: {
-                        "score": ds.score,
-                        "signal": ds.signal,
-                        "indicator_count": ds.indicator_count,
-                        "description": ds.description,
-                    }
-                    for ds in snapshot.dimension_scores
-                },
-                "indicators": [
-                    {
-                        "code": r.code,
-                        "name": r.name,
-                        "dimension": r.dimension,
-                        "value": r.value,
-                        "signal": r.signal,
-                        "signal_score": r.signal_score,
-                        "direction": r.direction,
-                        "is_stale": r.is_stale,
-                    }
-                    for r in snapshot.indicator_readings
-                ],
-            }
-
-            return Response({"success": True, "data": data})
+            return Response({"success": True, "data": _serialize_snapshot(snapshot)})
 
         except Exception as e:
             logger.exception(f"Error getting pulse: {e}")
@@ -157,3 +128,40 @@ class PulseCalculateView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+def _serialize_snapshot(snapshot) -> dict:
+    """Serialize a pulse snapshot into the public API contract."""
+    return {
+        "observed_at": snapshot.observed_at.isoformat(),
+        "regime_context": snapshot.regime_context,
+        "composite_score": snapshot.composite_score,
+        "regime_strength": snapshot.regime_strength,
+        "transition_warning": snapshot.transition_warning,
+        "transition_direction": snapshot.transition_direction,
+        "transition_reasons": snapshot.transition_reasons,
+        "data_source": snapshot.data_source,
+        "is_reliable": snapshot.is_reliable,
+        "dimensions": {
+            ds.dimension: {
+                "score": ds.score,
+                "signal": ds.signal,
+                "indicator_count": ds.indicator_count,
+                "description": ds.description,
+            }
+            for ds in snapshot.dimension_scores
+        },
+        "indicators": [
+            {
+                "code": r.code,
+                "name": r.name,
+                "dimension": r.dimension,
+                "value": r.value,
+                "signal": r.signal,
+                "signal_score": r.signal_score,
+                "direction": r.direction,
+                "is_stale": r.is_stale,
+            }
+            for r in snapshot.indicator_readings
+        ],
+    }

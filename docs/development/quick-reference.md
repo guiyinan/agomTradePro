@@ -228,6 +228,13 @@ mypy apps/ --strict
 | `/api/macro/datasources/{id}/` | GET | 获取单个数据源配置 |
 | `/api/macro/datasources/{id}/` | PATCH/PUT | 更新数据源配置 |
 
+### 路由兼容与快捷入口
+
+- 页面根路径快捷入口：`/account/ -> /account/login/`、`/equity/ -> /equity/screen/`、`/fund/ -> /fund/dashboard/`、`/prompt/ -> /prompt/manage/`
+- `GET /api/filter/` 返回可发现的 API 根信息；真正执行滤波仍使用 `POST /api/filter/`
+- `/api/macro/indicator-data/` 同时接受 `code` 与 `indicator_code` 查询参数
+- `/api/pulse/current/` 在无历史快照时会尝试按需计算一次当前 Pulse
+
 ### 数据源中台提示
 
 - Tushare 第三方代理地址统一配置在 `DataSourceConfig.http_url`
