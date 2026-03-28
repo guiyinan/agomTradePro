@@ -366,7 +366,7 @@ class TushareAdapter:
     从 Tushare 获取宏观经济数据。
     """
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None, http_url: str | None = None):
         """
         初始化 Tushare 适配器
 
@@ -374,14 +374,19 @@ class TushareAdapter:
             token: Tushare API token
         """
         self.token = token
+        self.http_url = http_url
         self._pro = None
 
     def _get_pro(self):
         """获取 Tushare pro 接口"""
         if self._pro is None:
             try:
-                import tushare as ts
-                self._pro = ts.pro_api(self.token)
+                from shared.infrastructure.tushare_client import create_tushare_pro_client
+
+                self._pro = create_tushare_pro_client(
+                    token=self.token,
+                    http_url=self.http_url,
+                )
             except Exception as e:
                 logger.error(f"Tushare 初始化失败: {e}")
         return self._pro

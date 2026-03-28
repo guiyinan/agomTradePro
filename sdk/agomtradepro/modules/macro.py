@@ -201,6 +201,29 @@ class MacroModule(BaseModule):
         }
         return self._post("fetch/", json=data)
 
+    def list_datasources(self) -> list[dict[str, Any]]:
+        """列出财经数据源中台中的宏观数据源配置。"""
+        response = self._get("datasources/")
+        if isinstance(response, dict):
+            return response.get("results", response.get("data", []))
+        return response
+
+    def create_datasource(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """创建宏观数据源配置。"""
+        return self._post("datasources/", json=payload)
+
+    def update_datasource(
+        self,
+        source_id: int,
+        payload: dict[str, Any],
+        *,
+        partial: bool = True,
+    ) -> dict[str, Any]:
+        """更新宏观数据源配置。"""
+        if partial:
+            return self._patch(f"datasources/{source_id}/", json=payload)
+        return self._put(f"datasources/{source_id}/", json=payload)
+
     def _normalize_indicator_code(self, indicator_code: str) -> str:
         """Map legacy short names used by MCP/SDK docs to backend codes."""
         return self.INDICATOR_ALIASES.get(indicator_code, indicator_code)

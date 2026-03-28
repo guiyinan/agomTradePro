@@ -11,6 +11,7 @@ from typing import List, Optional
 import pandas as pd
 
 from shared.config.secrets import get_secrets
+from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 from .base import (
     BaseMacroAdapter,
@@ -33,7 +34,7 @@ class TushareAdapter(BaseMacroAdapter):
 
     source_name = "tushare"
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None, http_url: str | None = None):
         """
         Args:
             token: Tushare Pro Token（如果不提供，从环境变量读取）
@@ -42,6 +43,7 @@ class TushareAdapter(BaseMacroAdapter):
             token = get_secrets().data_sources.tushare_token
 
         self.token = token
+        self.http_url = http_url
         self._pro = None
 
     @property
@@ -49,8 +51,10 @@ class TushareAdapter(BaseMacroAdapter):
         """延迟初始化 tushare pro API"""
         if self._pro is None:
             try:
-                import tushare as ts
-                self._pro = ts.pro_api(self.token)
+                self._pro = create_tushare_pro_client(
+                    token=self.token,
+                    http_url=self.http_url,
+                )
                 logger.info("Tushare API 初始化成功")
             except ImportError:
                 raise DataSourceUnavailableError("tushare 库未安装，请运行: pip install tushare")

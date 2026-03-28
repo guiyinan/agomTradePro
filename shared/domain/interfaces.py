@@ -45,6 +45,7 @@ class DataSourceSecretsDTO:
     """数据源密钥数据传输对象"""
     tushare_token: str
     fred_api_key: str
+    tushare_http_url: str | None = None
     juhe_api_key: str | None = None
 
 

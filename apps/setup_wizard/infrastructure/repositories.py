@@ -240,7 +240,9 @@ class DataSourceRepository:
             DataSourceConfig.objects.update_or_create(
                 source_type="tushare",
                 defaults={
+                    "name": "Tushare Pro",
                     "api_key": config.tushare_token,
+                    "http_url": config.tushare_http_url or "",
                     "is_active": True,
                 },
             )
@@ -249,6 +251,7 @@ class DataSourceRepository:
             DataSourceConfig.objects.update_or_create(
                 source_type="fred",
                 defaults={
+                    "name": "FRED",
                     "api_key": config.fred_api_key,
                     "is_active": True,
                 },

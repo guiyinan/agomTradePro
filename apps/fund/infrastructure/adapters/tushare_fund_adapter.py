@@ -13,24 +13,28 @@ from typing import List, Optional
 import pandas as pd
 
 from shared.config.secrets import get_secrets
+from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 
 class TushareFundAdapter:
     """Tushare 基金数据适配器"""
 
-    def __init__(self):
+    def __init__(self, token: str | None = None, http_url: str | None = None):
         """延迟初始化（避免启动时必须有 token）"""
+        self._token = token
+        self._http_url = http_url
         self.pro = None
 
     def _ensure_initialized(self):
         """确保已初始化"""
         if self.pro is None:
-            import tushare as ts
-
-            token = get_secrets().data_sources.tushare_token
+            token = self._token or get_secrets().data_sources.tushare_token
             if not token:
                 raise ValueError("Tushare token 未配置")
-            self.pro = ts.pro_api(token)
+            self.pro = create_tushare_pro_client(
+                token=token,
+                http_url=self._http_url,
+            )
 
     def fetch_fund_list(
         self,

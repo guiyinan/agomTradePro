@@ -23,12 +23,14 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
         configs = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
 
         tushare_token = None
+        tushare_http_url = None
         fred_api_key = ""
         juhe_api_key = None
 
         for config in configs:
             if config.source_type == 'tushare' and config.api_key:
                 tushare_token = config.api_key
+                tushare_http_url = config.http_url or None
             elif config.source_type == 'fred' and config.api_key:
                 fred_api_key = config.api_key
             elif config.source_type == 'juhe' and config.api_key:
@@ -37,6 +39,7 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
         if tushare_token:
             return DataSourceSecretsDTO(
                 tushare_token=tushare_token,
+                tushare_http_url=tushare_http_url,
                 fred_api_key=fred_api_key,
                 juhe_api_key=juhe_api_key,
             )

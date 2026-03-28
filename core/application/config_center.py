@@ -64,15 +64,19 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
     ),
     ConfigCapability(
         key="macro_datasources",
-        name="宏观数据源配置",
+        name="财经数据源配置",
         module="macro",
         section="数据源",
-        description="AKShare、Tushare 等宏观数据源配置与优先级。",
+        description="Tushare、AKShare、QMT 等统一财经数据源配置与优先级。",
         permission="staff",
         frontend_url="/macro/datasources/",
-        api_url=None,
-        sdk_module=None,
-        mcp_tools=(),
+        api_url="/api/macro/datasources/",
+        sdk_module="macro",
+        mcp_tools=(
+            "list_macro_datasources",
+            "create_macro_datasource",
+            "update_macro_datasource",
+        ),
         supports_edit=True,
         docs_ref="docs/business/config-center-matrix.md#macro_datasources",
     ),
@@ -236,6 +240,7 @@ def get_macro_datasource_summary() -> dict[str, Any]:
             "name",
             "is_active",
             "api_key",
+            "http_url",
         )
     )
     if not rows:
@@ -256,6 +261,12 @@ def get_macro_datasource_summary() -> dict[str, Any]:
         status = "missing"
     elif missing_key_count > 0:
         status = "attention"
+    custom_http_url_count = sum(
+        1
+        for row in active_rows
+        if row["source_type"] == "tushare"
+        and (row.get("http_url") or "").strip()
+    )
     return {
         "status": status,
         "summary": {
@@ -263,6 +274,7 @@ def get_macro_datasource_summary() -> dict[str, Any]:
             "active_sources": len(active_rows),
             "source_types": sorted({row["source_type"] for row in active_rows}),
             "missing_api_key_count": missing_key_count,
+            "custom_http_url_count": custom_http_url_count,
         },
     }
 

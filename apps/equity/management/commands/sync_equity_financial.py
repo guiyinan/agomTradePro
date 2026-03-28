@@ -4,7 +4,6 @@
 
 from datetime import date
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.equity.infrastructure.financial_source_gateway import (
@@ -13,6 +12,7 @@ from apps.equity.infrastructure.financial_source_gateway import (
     TushareFinancialGateway,
 )
 from apps.equity.infrastructure.models import FinancialDataModel, StockInfoModel
+from shared.config.secrets import get_secrets
 
 
 class Command(BaseCommand):
@@ -39,10 +39,16 @@ class Command(BaseCommand):
 
         # 初始化网关
         if source == "tushare":
-            tushare_token = getattr(settings, "TUSHARE_TOKEN", None) or getattr(settings, "TUSHARE_PRO_TOKEN", None)
-            if not tushare_token:
-                raise CommandError("TUSHARE_TOKEN 未配置，请设置环境变量或在 settings 中配置")
-            gateway = TushareFinancialGateway(token=tushare_token)
+            try:
+                tushare_settings = get_secrets().data_sources
+            except OSError as exc:
+                raise CommandError("TUSHARE_TOKEN 未配置，请先在数据源中台配置") from exc
+            if not tushare_settings.tushare_token:
+                raise CommandError("TUSHARE_TOKEN 未配置，请先在数据源中台配置")
+            gateway = TushareFinancialGateway(
+                token=tushare_settings.tushare_token,
+                http_url=tushare_settings.tushare_http_url,
+            )
         else:
             gateway = AKShareFinancialGateway()
 

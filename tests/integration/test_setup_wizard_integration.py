@@ -179,6 +179,7 @@ class TestSetupDataSourceUseCase:
     def test_execute_with_tushare_token(self):
         config = DataSourceConfigDTO(
             tushare_token="test-token",
+            tushare_http_url="https://proxy.example.com",
             akshare_enabled=True,
         )
 

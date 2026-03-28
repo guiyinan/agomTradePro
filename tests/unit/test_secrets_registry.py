@@ -31,6 +31,7 @@ class TestSecretsRegistry:
         def mock_loader():
             return DataSourceSecretsDTO(
                 tushare_token="test_token_from_db",
+                tushare_http_url="https://proxy.example.com",
                 fred_api_key="test_fred_key",
                 juhe_api_key=None,
             )
@@ -42,6 +43,7 @@ class TestSecretsRegistry:
         secrets = get_secrets()
 
         assert secrets.data_sources.tushare_token == "test_token_from_db"
+        assert secrets.data_sources.tushare_http_url == "https://proxy.example.com"
         assert secrets.data_sources.fred_api_key == "test_fred_key"
 
         # Clean up
@@ -63,9 +65,10 @@ class TestSecretsRegistry:
         secrets_module._database_secrets_loader = None
 
         # Set environment variable
-        with patch.dict(os.environ, {'TUSHARE_TOKEN': 'env_token'}):
+        with patch.dict(os.environ, {'TUSHARE_TOKEN': 'env_token', 'TUSHARE_HTTP_URL': 'https://env-proxy.example.com'}):
             secrets = get_secrets()
             assert secrets.data_sources.tushare_token == 'env_token'
+            assert secrets.data_sources.tushare_http_url == 'https://env-proxy.example.com'
 
         # Clean up
         clear_secrets_cache()
@@ -112,11 +115,13 @@ class TestDataSourceSecretsDTO:
 
         dto = DataSourceSecretsDTO(
             tushare_token="token123",
+            tushare_http_url="https://proxy.example.com",
             fred_api_key="fred456",
             juhe_api_key="juhe789",
         )
 
         assert dto.tushare_token == "token123"
+        assert dto.tushare_http_url == "https://proxy.example.com"
         assert dto.fred_api_key == "fred456"
         assert dto.juhe_api_key == "juhe789"
 
@@ -126,6 +131,7 @@ class TestDataSourceSecretsDTO:
 
         dto = DataSourceSecretsDTO(
             tushare_token="token123",
+            tushare_http_url="https://proxy.example.com",
             fred_api_key="fred456",
         )
 
@@ -138,6 +144,7 @@ class TestDataSourceSecretsDTO:
 
         dto = DataSourceSecretsDTO(
             tushare_token="token123",
+            tushare_http_url="https://proxy.example.com",
             fred_api_key="fred456",
             # juhe_api_key omitted
         )
@@ -154,6 +161,7 @@ class TestAppSecrets:
 
         ds = DataSourceSecrets(
             tushare_token="token",
+            tushare_http_url="https://proxy.example.com",
             fred_api_key="fred",
         )
 
@@ -164,6 +172,7 @@ class TestAppSecrets:
         )
 
         assert app.data_sources.tushare_token == "token"
+        assert app.data_sources.tushare_http_url == "https://proxy.example.com"
         assert app.slack_webhook == "https://hooks.slack.com/..."
         assert app.alert_email == "alert@example.com"
 
@@ -173,6 +182,7 @@ class TestAppSecrets:
 
         ds = DataSourceSecrets(
             tushare_token="token",
+            tushare_http_url="https://proxy.example.com",
             fred_api_key="fred",
         )
 
@@ -199,6 +209,7 @@ class TestGetTushareToken:
         def mock_loader():
             return DataSourceSecretsDTO(
                 tushare_token="convenience_token",
+                tushare_http_url="https://proxy.example.com",
                 fred_api_key="",
             )
 

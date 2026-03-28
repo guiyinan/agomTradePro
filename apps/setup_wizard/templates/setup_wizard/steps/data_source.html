@@ -19,6 +19,16 @@
     </div>
 
     <div class="form-group">
+        <label for="tushare_http_url">Tushare 自定义 HTTP URL</label>
+        <input type="url"
+               id="tushare_http_url"
+               name="tushare_http_url"
+               class="form-control"
+               placeholder="可选，例如第三方 Tushare 代理地址">
+        <div class="hint">如果你使用第三方 Tushare 数据源，在这里填写代理地址。系统会统一下发到所有 Tushare 调用链。</div>
+    </div>
+
+    <div class="form-group">
         <label for="fred_api_key">FRED API Key</label>
         <input type="text" 
                id="fred_api_key" 

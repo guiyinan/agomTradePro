@@ -198,11 +198,18 @@ class BacktestViewSet(viewsets.ViewSet):
 
             # 创建价格适配器（使用组合适配器支持 failover）
             try:
-                token = get_secrets().data_sources.tushare_token
+                tushare_settings = get_secrets().data_sources
             except Exception:
-                token = None
+                tushare_settings = None
 
-            adapter = create_default_price_adapter(tushare_token=token)
+            adapter = create_default_price_adapter(
+                tushare_token=(
+                    tushare_settings.tushare_token if tushare_settings else None
+                ),
+                tushare_http_url=(
+                    tushare_settings.tushare_http_url if tushare_settings else None
+                ),
+            )
             return adapter.get_price(asset_class, as_of_date)
 
         use_case = RunBacktestUseCase(self.repository, get_regime, get_asset_price)
@@ -315,11 +322,18 @@ def run_backtest_api_view(request):
         from ..infrastructure.adapters import create_default_price_adapter
 
         try:
-            token = get_secrets().data_sources.tushare_token
+            tushare_settings = get_secrets().data_sources
         except Exception:
-            token = None
+            tushare_settings = None
 
-        adapter = create_default_price_adapter(tushare_token=token)
+        adapter = create_default_price_adapter(
+            tushare_token=(
+                tushare_settings.tushare_token if tushare_settings else None
+            ),
+            tushare_http_url=(
+                tushare_settings.tushare_http_url if tushare_settings else None
+            ),
+        )
         return adapter.get_price(asset_class, as_of_date)
 
     use_case = RunBacktestUseCase(repository, get_regime, get_asset_price)

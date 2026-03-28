@@ -251,12 +251,16 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         return merged_data
 
 
-def create_default_adapter(tushare_token: str | None = None) -> "MacroAdapterProtocol":
+def create_default_adapter(
+    tushare_token: str | None = None,
+    tushare_http_url: str | None = None,
+) -> "MacroAdapterProtocol":
     """
     创建默认的容错适配器配置（从数据库读取设置）
 
     Args:
         tushare_token: Tushare Token（可选，优先从数据库读取）
+        tushare_http_url: Tushare 自定义 HTTP URL（可选）
 
     Returns:
         MacroAdapterProtocol: 配置好的适配器（可能是单个或 FailoverAdapter）
@@ -305,7 +309,10 @@ def create_default_adapter(tushare_token: str | None = None) -> "MacroAdapterPro
         logger.warning(f"AKShare 适配器初始化失败: {e}")
 
     try:
-        tushare_adapter = TushareAdapter(token=tushare_token)
+        tushare_adapter = TushareAdapter(
+            token=tushare_token,
+            http_url=tushare_http_url,
+        )
         logger.info("已初始化 Tushare 适配器")
     except Exception as e:
         logger.warning(f"Tushare 适配器初始化失败: {e}")

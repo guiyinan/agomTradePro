@@ -24,6 +24,7 @@ class DataSourceSecrets:
     """数据源 API 密钥"""
     tushare_token: str
     fred_api_key: str
+    tushare_http_url: str | None = None
     juhe_api_key: str | None = None
 
 
@@ -59,11 +60,13 @@ def register_database_secrets_loader(loader: Callable[[], DataSourceSecretsDTO |
 def _load_from_env() -> AppSecrets:
     """从环境变量加载密钥（降级方案）"""
     tushare_token = os.environ.get("TUSHARE_TOKEN", "")
+    tushare_http_url = os.environ.get("TUSHARE_HTTP_URL")
 
     # 不在启动时强制要求 token，允许从数据库读取
     return AppSecrets(
         data_sources=DataSourceSecrets(
             tushare_token=tushare_token,
+            tushare_http_url=tushare_http_url,
             fred_api_key=os.environ.get("FRED_API_KEY", ""),
             juhe_api_key=os.environ.get("JUHE_API_KEY"),
         ),
@@ -92,6 +95,7 @@ def _load_from_database() -> AppSecrets | None:
             return AppSecrets(
                 data_sources=DataSourceSecrets(
                     tushare_token=db_secrets.tushare_token,
+                    tushare_http_url=db_secrets.tushare_http_url,
                     fred_api_key=db_secrets.fred_api_key,
                     juhe_api_key=db_secrets.juhe_api_key,
                 ),
@@ -154,3 +158,13 @@ def get_tushare_token() -> str:
         str: Tushare Token
     """
     return get_secrets().data_sources.tushare_token
+
+
+def get_tushare_http_url() -> str | None:
+    """
+    获取 Tushare 自定义 HTTP URL。
+
+    Returns:
+        Optional[str]: 自定义 URL，未配置则返回 None
+    """
+    return get_secrets().data_sources.tushare_http_url

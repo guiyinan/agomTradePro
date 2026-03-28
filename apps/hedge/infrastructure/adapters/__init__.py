@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from typing import List, Optional
 
 from shared.config.secrets import get_secrets
+from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +55,9 @@ class TushareHedgeAdapter(HedgeDataSource):
             return
 
         try:
-            import tushare as ts
             secrets = get_secrets()
             token = secrets.data_sources.tushare_token
-            self._ts_pro = ts.pro_api(token)
+            self._ts_pro = create_tushare_pro_client(token=token)
             self._initialized = True
         except Exception as e:
             logger.warning(f"Failed to initialize Tushare: {e}")

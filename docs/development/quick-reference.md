@@ -219,6 +219,24 @@ mypy apps/ --strict
 | `/api/alpha/scores/` | GET | 获取股票评分 |
 | `/api/alpha/providers/status/` | GET | Provider 状态 |
 
+### Macro Datasource API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/macro/datasources/` | GET | 列出统一财经数据源中台中的宏观数据源配置 |
+| `/api/macro/datasources/` | POST | 创建数据源配置（支持 Tushare `http_url` 和 QMT `extra_config`） |
+| `/api/macro/datasources/{id}/` | GET | 获取单个数据源配置 |
+| `/api/macro/datasources/{id}/` | PATCH/PUT | 更新数据源配置 |
+
+### 数据源中台提示
+
+- Tushare 第三方代理地址统一配置在 `DataSourceConfig.http_url`
+- 运行时会自动下发到 `pro._DataApi__http_url`
+- 不需要在 `equity / backtest / market_data / fund / sector / factor / hedge` 分别配置
+- QMT 行情源统一配置在 `DataSourceConfig.source_type=qmt`
+- `extra_config` 可承载 `client_path`、`data_dir`、`dividend_type` 等本地 XtQuant 参数
+- `market_data` registry 会优先从统一数据源配置表注册 QMT provider，未配置时才回退到 `MARKET_DATA_QMT_*` settings
+
 ### Factor API (因子管理)
 
 | 端点 | 方法 | 说明 |

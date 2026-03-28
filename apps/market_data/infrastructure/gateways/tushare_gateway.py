@@ -159,13 +159,9 @@ class TushareGateway(MarketDataProviderProtocol):
     ) -> list[HistoricalPriceBar]:
         """从 Tushare 获取历史 K 线"""
         try:
-            import tushare as ts
+            from shared.infrastructure.tushare_client import create_tushare_pro_client
 
-            from shared.config.secrets import get_secrets
-
-            secrets = get_secrets()
-            token = secrets.data_sources.tushare_token
-            pro = ts.pro_api(token)
+            pro = create_tushare_pro_client()
 
             code = asset_code.split(".")[0] if "." in asset_code else asset_code
             ts_code = self._to_tushare_code(code)

@@ -8,13 +8,57 @@ import json
 import logging
 from datetime import datetime
 
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
 
 from apps.macro.application.data_management import DeleteDataRequest, DeleteDataUseCase
+from apps.macro.infrastructure.models import DataSourceConfig
+from apps.macro.interface.serializers import DataSourceConfigSerializer
 
 from .helpers import get_repository
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def api_datasource_list_create(request):
+    """List or create datasource configs."""
+    if request.method == "GET":
+        queryset = DataSourceConfig._default_manager.all().order_by("priority", "name")
+        serializer = DataSourceConfigSerializer(queryset, many=True)
+        return Response({"results": serializer.data})
+
+    serializer = DataSourceConfigSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    instance = serializer.save()
+    from shared.config.secrets import clear_secrets_cache
+
+    clear_secrets_cache()
+    return Response(DataSourceConfigSerializer(instance).data, status=201)
+
+
+@api_view(["GET", "PATCH", "PUT"])
+@permission_classes([IsAdminUser])
+def api_datasource_detail(request, source_id: int):
+    """Retrieve or update a datasource config."""
+    instance = get_object_or_404(DataSourceConfig, id=source_id)
+
+    if request.method == "GET":
+        return Response(DataSourceConfigSerializer(instance).data)
+
+    partial = request.method == "PATCH"
+    serializer = DataSourceConfigSerializer(instance, data=request.data, partial=partial)
+    serializer.is_valid(raise_exception=True)
+    updated = serializer.save()
+
+    from shared.config.secrets import clear_secrets_cache
+
+    clear_secrets_cache()
+    return Response(DataSourceConfigSerializer(updated).data)
 
 
 def api_delete_data(request):

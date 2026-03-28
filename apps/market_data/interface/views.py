@@ -78,11 +78,14 @@ def _build_market_data_unavailable_hint(market_closed: bool) -> str:
         hint_parts.append("当前应优先展示盘中实时行情。")
 
     try:
-        get_secrets()
+        secrets = get_secrets().data_sources
     except OSError:
         hint_parts.append("检测到未配置 Tushare Token，收盘价备用源当前不可用。")
+    else:
+        if secrets.tushare_http_url:
+            hint_parts.append("Tushare 备用源当前使用自定义 HTTP URL。")
 
-    hint_parts.append("请检查东方财富连接状态，或在后台/环境变量中补齐 TUSHARE_TOKEN。")
+    hint_parts.append("请检查东方财富连接状态，或在数据源中台补齐 Tushare Token/HTTP URL。")
     return " ".join(hint_parts)
 
 
