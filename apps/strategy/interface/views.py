@@ -1071,8 +1071,6 @@ def bind_strategy(request):
     if request.method != 'POST':
         return _json_error('只支持 POST 请求', status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
     try:
         data = json.loads(request.body)
         portfolio_id = data.get('portfolio_id')
@@ -1083,28 +1081,26 @@ def bind_strategy(request):
     try:
         if not portfolio_id or not strategy_id:
             raise InvalidInputError('缺少必要参数')
+        portfolio_id = int(portfolio_id)
 
         strategy = get_object_or_404(
             StrategyModel,
             id=strategy_id,
             created_by=request.user.account_profile,
         )
+        from apps.simulated_trading.application.facade import get_simulated_trading_facade
+
+        if not get_simulated_trading_facade().user_owns_account(portfolio_id, request.user.id):
+            return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
         with transaction.atomic():
-            portfolio = SimulatedAccountModel._default_manager.select_for_update().filter(
-                id=portfolio_id,
-                user=request.user,
-            ).first()
-            if portfolio is None:
-                return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
-
             assignments = PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
-                portfolio_id=portfolio.id
+                portfolio_id=portfolio_id
             )
             assignments.filter(is_active=True).exclude(strategy=strategy).update(is_active=False)
 
             assignment, created = assignments.get_or_create(
-                portfolio_id=portfolio.id,
+                portfolio_id=portfolio_id,
                 strategy=strategy,
                 defaults={
                     'assigned_by': request.user.account_profile,
@@ -1131,8 +1127,6 @@ def unbind_strategy(request):
     if request.method != 'POST':
         return _json_error('只支持 POST 请求', status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
     try:
         data = json.loads(request.body)
         portfolio_id = data.get('portfolio_id')
@@ -1142,17 +1136,15 @@ def unbind_strategy(request):
     try:
         if not portfolio_id:
             raise InvalidInputError('缺少必要参数')
+        portfolio_id = int(portfolio_id)
+        from apps.simulated_trading.application.facade import get_simulated_trading_facade
+
+        if not get_simulated_trading_facade().user_owns_account(portfolio_id, request.user.id):
+            return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
         with transaction.atomic():
-            portfolio = SimulatedAccountModel._default_manager.select_for_update().filter(
-                id=portfolio_id,
-                user=request.user,
-            ).first()
-            if portfolio is None:
-                return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
-
             PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
-                portfolio_id=portfolio.id,
+                portfolio_id=portfolio_id,
                 is_active=True,
             ).update(is_active=False)
 
