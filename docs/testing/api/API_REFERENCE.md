@@ -8,7 +8,7 @@
 
 ## 概述
 
-AgomTradePro 提供完整的 RESTful API，支持宏观环境准入系统的全部功能，包括：
+AgomTradePro 提供完整的 RESTful API，支持个人投研平台的全部功能，包括：
 - 宏观数据采集与 Regime 判定
 - 政策事件管理与投资信号验证
 - 个股/板块/基金分析
@@ -529,7 +529,7 @@ Authorization: Token your_api_token_here
 
 | 检查项 | 说明 |
 |--------|------|
-| `beta_gate_passed` | 资产是否通过 Beta Gate（宏观环境准入） |
+| `beta_gate_passed` | 资产是否通过 Beta Gate（环境准入） |
 | `quota_ok` | 配额是否充足（决策次数限制） |
 | `cooldown_ok` | 是否在冷却期外 |
 | `candidate_valid` | 候选状态是否仍有效（ACTIONABLE） |

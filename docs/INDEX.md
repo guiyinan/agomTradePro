@@ -1,6 +1,6 @@
 # AgomTradePro 文档索引
 
-> **AgomTradePro 0.7.0** - 宏观环境准入系统
+> **AgomTradePro 0.7.0** - 个人投研平台
 > **最后更新**: 2026-03-28
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)

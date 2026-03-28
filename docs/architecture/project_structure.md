@@ -7,7 +7,7 @@
 
 ## 1. 项目概述
 
-AgomTradePro (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
+AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **系统状态**: 生产就绪
 **测试覆盖**: 1,600+个测试用例，100%通过率

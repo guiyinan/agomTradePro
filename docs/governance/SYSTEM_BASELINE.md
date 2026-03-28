@@ -12,7 +12,7 @@
 
 **名称**: AgomTradePro (Agom Strategic Asset Allocation Framework)
 
-**定位**: 基于宏观环境准入机制的投资决策辅助系统
+**定位**: 个人投研平台
 
 **核心理念**: 通过 **Regime（增长/通胀象限）** 和 **Policy（政策档位）** 双重过滤，确保投资者 **"不在错误的宏观环境中下注"**
 

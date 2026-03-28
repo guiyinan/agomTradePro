@@ -1623,7 +1623,7 @@ class SystemSettingsModel(models.Model):
         """默认用户协议内容"""
         return """
 <h2>AgomTradePro 用户服务协议</h2>
-<p>欢迎使用 AgomTradePro（宏观环境准入系统）！在使用本系统前，请仔细阅读以下条款：</p>
+<p>欢迎使用 AgomTradePro（个人投研平台）！在使用本系统前，请仔细阅读以下条款：</p>
 
 <h3>一、服务说明</h3>
 <p>AgomTradePro 是一个辅助投资决策工具，通过宏观环境分析和策略回测帮助用户制定投资计划。本系统提供的所有信息仅供参考，不构成任何投资建议。</p>
@@ -1843,9 +1843,7 @@ class UserAccessTokenModel(models.Model):
 
     @classmethod
     def create_token(cls, *, user: User, name: str, created_by: User | None = None):
-        raw_name = (
-            name or ""
-        ).strip() or f"token-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
+        raw_name = (name or "").strip() or f"token-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
         raw_key = cls.generate_key()
         token = cls._default_manager.create(
             user=user,
