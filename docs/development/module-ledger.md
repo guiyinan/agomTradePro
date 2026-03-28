@@ -1,10 +1,10 @@
 # Module Ledger
 
-> Rules version: `2026-03-23.v1`
-> Generated at: `2026-03-23`
+> Rules version: `2026-03-28.v1`
+> Generated at: `2026-03-28`
 > Boundary rules: `4`
 > Violations: `0`
-> Business Modules: `34`
+> Business Modules: `35`
 
 ## Boundary Baseline
 
@@ -54,6 +54,7 @@
 | `terminal` |  | 1 | 0 |  | out: prompt; Terminal CLI, AI interaction interface |
 | `ai_capability` |  | 1 | 0 |  | out: terminal; AI Capability Catalog, unified routing |
 | `setup_wizard` |  | 0 | 0 |  | System initialization wizard, first-time setup guide |
+| `pulse` |  | 2 | 3 |  | out: macro, regime; in: decision_rhythm, dashboard, regime; Pulse tactical layer — indicator aggregation and transition warning |
 
 ## Violations
 
