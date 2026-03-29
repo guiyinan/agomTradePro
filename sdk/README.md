@@ -198,7 +198,7 @@ Canonical API routing for SDK/MCP is documented in:
 - **Rotation**: `list_rotation_regimes`, `list_rotation_templates`, `list_account_rotation_configs`, `get_account_rotation_config`, `create_account_rotation_config`, `update_account_rotation_config`, `apply_rotation_template_to_account_config`
 - **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
 - **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`
-- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_get_funnel_context`
+- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_list_recommendations`, `decision_workflow_refresh_recommendations`, `decision_workflow_apply_recommendation_action`, `decision_workflow_get_funnel_context`
 - **Pulse + Navigator**: `get_pulse_current`, `get_pulse_history`, `get_regime_navigator`, `get_action_recommendation`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
 - **Config Center**: `list_config_capabilities`, `get_config_center_snapshot`

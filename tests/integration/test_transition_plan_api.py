@@ -13,7 +13,9 @@ DecisionQuotaModel = apps.get_model("decision_rhythm", "DecisionQuotaModel")
 DecisionFeatureSnapshotModel = apps.get_model("decision_rhythm", "DecisionFeatureSnapshotModel")
 UnifiedRecommendationModel = apps.get_model("decision_rhythm", "UnifiedRecommendationModel")
 SimulatedAccountModel = apps.get_model("simulated_trading", "SimulatedAccountModel")
+PositionModel = apps.get_model("simulated_trading", "PositionModel")
 PulseLog = apps.get_model("pulse", "PulseLog")
+StockInfoModel = apps.get_model("equity", "StockInfoModel")
 
 
 @pytest.mark.django_db
@@ -53,6 +55,15 @@ def test_transition_plan_generate_update_and_preview_flow():
         beta_gate_passed=True,
     )
 
+    StockInfoModel.objects.create(
+        stock_code="000001.SH",
+        name="平安银行",
+        sector="银行",
+        market="SH",
+        list_date=timezone.now().date(),
+        is_active=True,
+    )
+
     recommendation = UnifiedRecommendationModel.objects.create(
         recommendation_id="plan_api_rec",
         account_id=str(account.id),
@@ -80,6 +91,22 @@ def test_transition_plan_generate_update_and_preview_flow():
         user_action=UserDecisionAction.ADOPTED.value,
     )
 
+    PositionModel.objects.create(
+        account=account,
+        asset_code="000001.SH",
+        asset_name="Ping An Bank",
+        asset_type="equity",
+        quantity=Decimal("100"),
+        available_quantity=Decimal("100"),
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("11.0000"),
+        market_value=Decimal("1100.00"),
+        unrealized_pnl=Decimal("100.00"),
+        unrealized_pnl_pct=10.0,
+        first_buy_date=timezone.now().date(),
+    )
+
     generate_response = client.post(
         "/api/decision/workspace/plans/generate/",
         data={"account_id": str(account.id)},
@@ -90,6 +117,11 @@ def test_transition_plan_generate_update_and_preview_flow():
     assert generate_payload["plan_id"]
     assert generate_payload["orders"][0]["source_recommendation_id"] == recommendation.recommendation_id
     assert generate_payload["can_enter_approval"] is False
+    assert generate_payload["current_positions"][0]["asset_code"] == "000001.SH"
+    assert generate_payload["current_positions"][0]["security_name"] == "Ping An Bank"
+    assert str(generate_payload["current_positions"][0]["market_value"]) == "1100.00"
+    assert generate_payload["target_positions"][0]["security_name"] == "平安银行"
+    assert generate_payload["orders"][0]["security_name"] == "平安银行"
 
     update_response = client.post(
         f"/api/decision/workspace/plans/{generate_payload['plan_id']}/update/",

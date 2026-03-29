@@ -169,6 +169,7 @@ recommendations = client.decision_workflow.list_recommendations(
     security_code="600519.SH",
 )
 recommendation = recommendations["data"]["recommendations"][0]
+print(recommendation["security_name"], recommendation["security_code"])
 
 # 3) Mark user's choice
 client.decision_workflow.apply_recommendation_action(
@@ -207,6 +208,8 @@ print(action["risk_budget_pct"])
 Notes:
 
 - `client.decision_workflow.get_funnel_context()` supports both `trade_id` and `backtest_id`.
+- `client.decision_workflow.list_recommendations()` returns the same unified recommendation payload as the Decision Workspace API, including `security_name`.
+- SDK 当前内建的是 `precheck / list_recommendations / refresh_recommendations / apply_recommendation_action / get_funnel_context`；交易计划生成与审批仍使用 HTTP Decision Workspace API。
 - `client.pulse.*` reads canonical JSON APIs directly; it does not depend on dashboard HTML rendering.
 
 ## Module Overview

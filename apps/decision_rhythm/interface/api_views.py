@@ -12,6 +12,7 @@ from typing import Any
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from shared.infrastructure.asset_name_resolver import resolve_asset_names
 
 from apps.ai_provider.application.chat_completion import AIClientFactory, generate_chat_completion
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
@@ -116,7 +117,46 @@ def _risk_checks(recommendation, market_price: Decimal | None) -> dict[str, Any]
 
 
 def _serialize_transition_plan(plan: PortfolioTransitionPlan) -> dict[str, Any]:
-    return plan.to_dict()
+    payload = plan.to_dict()
+    security_codes = [
+        str(item.get("asset_code") or "").upper()
+        for item in payload.get("current_positions", [])
+        if item.get("asset_code")
+    ]
+    security_codes.extend(
+        [
+            str(item.get("security_code") or "").upper()
+            for item in payload.get("target_positions", [])
+            if item.get("security_code")
+        ]
+    )
+    security_codes.extend(
+        [
+            str(item.get("security_code") or "").upper()
+            for item in payload.get("orders", [])
+            if item.get("security_code")
+        ]
+    )
+    security_name_map = resolve_asset_names(security_codes)
+
+    for position in payload.get("current_positions", []):
+        asset_code = str(position.get("asset_code") or "").upper()
+        if not position.get("asset_name") and asset_code:
+            position["asset_name"] = security_name_map.get(asset_code, asset_code)
+        if asset_code:
+            position["security_name"] = position.get("asset_name") or security_name_map.get(asset_code, asset_code)
+
+    for position in payload.get("target_positions", []):
+        security_code = str(position.get("security_code") or "").upper()
+        if security_code:
+            position["security_name"] = security_name_map.get(security_code, security_code)
+
+    for order in payload.get("orders", []):
+        security_code = str(order.get("security_code") or "").upper()
+        if security_code:
+            order["security_name"] = security_name_map.get(security_code, security_code)
+
+    return payload
 
 
 def _pulse_context() -> dict[str, Any]:

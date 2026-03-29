@@ -213,6 +213,7 @@
     "orders": [
       {
         "security_code": "000001.SH",
+        "security_name": "平安银行",
         "action": "BUY",
         "current_qty": 0,
         "target_qty": 500,
@@ -228,6 +229,11 @@
   }
 }
 ```
+
+说明：
+
+- 推荐列表、交易计划、冲突列表中的证券对象会返回 `security_name`，前端应优先展示“简称 + 代码”。
+- `current_positions`、`target_positions`、`orders` 等计划快照中的金额/价格字段会以 JSON 安全格式返回；涉及 `Decimal` 的值会序列化为字符串，避免持仓快照落库时报 500。
 
 ### 6.3 查询交易计划
 

@@ -523,7 +523,7 @@ document.addEventListener('alpine:init', () => {
                         <span class="info-value" id="modal-recommendation-id">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">证券代码:</span>
+                        <span class="info-label">证券:</span>
                         <span class="info-value" id="modal-security-code">-</span>
                     </div>
                     <div class="info-item">
@@ -839,6 +839,21 @@ function escapeHtml(value) {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#39;');
+}
+
+function renderSecurityLabel(securityName, securityCode, extraClass = '') {
+    const code = String(securityCode || '').trim();
+    const name = String(securityName || '').trim();
+    const classAttr = extraClass ? ` security-display ${extraClass}` : ' security-display';
+    if (!name || name === code) {
+        return `<span class="${classAttr.trim()}"><span class="security-display-name">${escapeHtml(code || '-')}</span></span>`;
+    }
+    return `
+        <span class="${classAttr.trim()}">
+            <span class="security-display-name">${escapeHtml(name)}</span>
+            <span class="security-display-code">${escapeHtml(code)}</span>
+        </span>
+    `;
 }
 
 function getUserActionText(action) {
@@ -1377,13 +1392,13 @@ function renderRecommendations(recommendations, totalCount) {
 
     container.innerHTML = recommendations.map(rec => `
         <div class="recommendation-card ${workspaceBridge.highlightedRecommendationId === rec.recommendation_id ? 'recommendation-card-highlight' : ''}" data-recommendation-id="${rec.recommendation_id}">
-            <div class="rec-header">
-                <div class="rec-asset">
-                    <label style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
-                        <input type="checkbox" ${selectedRecommendationIds.has(rec.recommendation_id) ? 'checked' : ''} onchange="toggleRecommendationSelection('${rec.recommendation_id}', this.checked)" />
-                        <span style="font-size: 12px; color: var(--color-text-muted);">计划</span>
-                    </label>
-                    <strong>${rec.security_code}</strong>
+                <div class="rec-header">
+                    <div class="rec-asset">
+                        <label style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
+                            <input type="checkbox" ${selectedRecommendationIds.has(rec.recommendation_id) ? 'checked' : ''} onchange="toggleRecommendationSelection('${rec.recommendation_id}', this.checked)" />
+                            <span style="font-size: 12px; color: var(--color-text-muted);">计划</span>
+                        </label>
+                    ${renderSecurityLabel(rec.security_name, rec.security_code, 'rec-asset-title')}
                     <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
                     <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action)}</span>
                 </div>
@@ -1451,6 +1466,7 @@ function renderRecommendations(recommendations, totalCount) {
                             onclick="openApprovalModal('${rec.recommendation_id}')"
                             data-recommendation-id="${rec.recommendation_id}"
                             data-security-code="${rec.security_code}"
+                            data-security-name="${escapeHtml(rec.security_name || rec.security_code)}"
                             data-side="${rec.side}"
                             data-confidence="${rec.confidence}"
                             data-composite-score="${rec.composite_score}"
@@ -1638,7 +1654,7 @@ function renderTransitionPlan(plan) {
     ordersContainer.innerHTML = orders.map(order => `
         <div class="approval-card" data-plan-order-row="${escapeHtml(order.source_recommendation_id || '')}" data-security-code="${escapeHtml(order.security_code)}">
             <div class="approval-header">
-                <strong>${escapeHtml(order.security_code)}</strong>
+                ${renderSecurityLabel(order.security_name, order.security_code, 'approval-asset-title')}
                 <span class="approval-side approval-side-${String(order.action || 'hold').toLowerCase()}">${escapeHtml(order.action)}</span>
             </div>
             <div class="approval-body">
@@ -2093,7 +2109,7 @@ function renderApprovals(approvals, totalCount) {
     container.innerHTML = approvals.map(rec => `
         <div class="approval-card">
             <div class="approval-header">
-                <strong>${rec.security_code}</strong>
+                ${renderSecurityLabel(rec.security_name, rec.security_code, 'approval-asset-title')}
                 <span class="approval-side approval-side-${rec.side.toLowerCase()}">${rec.side}</span>
             </div>
             <div class="approval-body">
@@ -2185,7 +2201,7 @@ function renderConflicts(conflicts, totalCount) {
     container.innerHTML = conflicts.map(conflict => `
         <div class="conflict-card">
             <div class="conflict-header">
-                <strong>${conflict.security_code}</strong>
+                ${renderSecurityLabel(conflict.security_name, conflict.security_code, 'conflict-asset-title')}
                 <span class="conflict-badge">BUY/SELL 冲突</span>
             </div>
             <div class="conflict-body">
@@ -2275,6 +2291,7 @@ async function openApprovalModal(recommendationId) {
         currentRecommendation = {
             recommendation_id: button.dataset.recommendationId,
             security_code: button.dataset.securityCode,
+            security_name: button.dataset.securityName || button.dataset.securityCode,
             side: button.dataset.side,
             confidence: parseFloat(button.dataset.confidence) || 0,
             composite_score: parseFloat(button.dataset.compositeScore) || 0,
@@ -2308,7 +2325,11 @@ async function openApprovalModal(recommendationId) {
 
     // 填充模态框基本信息
     document.getElementById('modal-recommendation-id').textContent = currentRecommendation.recommendation_id;
-    document.getElementById('modal-security-code').textContent = currentRecommendation.security_code;
+    document.getElementById('modal-security-code').innerHTML = renderSecurityLabel(
+        currentRecommendation.security_name,
+        currentRecommendation.security_code,
+        'modal-security-display'
+    );
     const sideEl = document.getElementById('modal-side');
     sideEl.textContent = currentRecommendation.side;
     sideEl.className = `info-value direction direction-${currentRecommendation.side.toLowerCase()}`;
@@ -2832,6 +2853,41 @@ Object.assign(window, {
 
 .rec-asset strong {
     font-size: 18px;
+}
+
+.security-display {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    line-height: 1.1;
+    min-width: 0;
+}
+
+.security-display-name {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.security-display-code {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+}
+
+.rec-asset-title .security-display-name,
+.approval-asset-title .security-display-name,
+.conflict-asset-title .security-display-name {
+    font-size: 18px;
+}
+
+.modal-security-display .security-display-name {
+    font-size: 14px;
+}
+
+.modal-security-display .security-display-code {
+    font-size: 11px;
 }
 
 .rec-side {

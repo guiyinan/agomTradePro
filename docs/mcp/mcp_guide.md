@@ -386,7 +386,7 @@ explain_pulse_dimensions()
 
 Notes:
 
-- `decision_workflow_list_recommendations` returns unified recommendation objects from the decision workspace.
+- `decision_workflow_list_recommendations` returns unified recommendation objects from the decision workspace, including `security_name` for UI/agent display.
 - `decision_workflow_refresh_recommendations` is the bridge from homepage/equity recommendations into the decision workspace.
 - `decision_workflow_apply_recommendation_action` records the user's explicit choice on a recommendation.
 - `decision_workflow_get_funnel_context` retrieves the complete end-to-end macro context evaluation spanning steps 1 to 3 (environment, direction, sector) and step 6 (audit/attribution). `backtest_id` should be passed when the agent needs deterministic audit replay instead of latest-backtest fallback.
@@ -396,6 +396,7 @@ Notes:
 - `get_action_recommendation` returns the current top-down allocation recommendation derived from regime + pulse.
 - `explain_pulse_dimensions` gives a built-in semantic explanation of the pulse framework for agents.
 - `action` supports: `watch`, `adopt`, `ignore`, `pending`.
+- MCP / SDK 当前覆盖的是“推荐刷新、读取、用户动作、漏斗上下文”链路；`plans/generate`、`plans/update`、`execute/preview(plan_id)` 仍走 HTTP Decision Workspace API，而不是独立 MCP 工具。
 - UI 层已将 `beta_gate` / `alpha_trigger` / `decision_rhythm` 收束到“决策工作台 / 决策模式”；MCP 仍可保留这些模块级工具用于自动化和运维，不代表它们是前台主导航入口。
 
 Recommended reading order for agents:

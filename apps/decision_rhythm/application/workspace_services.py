@@ -10,6 +10,7 @@ from typing import Any
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 from apps.signal.application.query_services import get_signal_invalidation_payloads
 from apps.simulated_trading.application.query_services import get_position_snapshots
+from shared.infrastructure.asset_name_resolver import resolve_asset_names
 
 from ..domain.entities import (
     ApprovalStatus,
@@ -51,6 +52,21 @@ from .use_cases import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_security_name_map(security_codes: list[str]) -> dict[str, str]:
+    """Resolve display names for workspace security codes."""
+    normalized_codes = [str(code or "").upper() for code in security_codes if str(code or "").strip()]
+    if not normalized_codes:
+        return {}
+    return resolve_asset_names(normalized_codes)
+
+
+def _attach_security_name(dto: UnifiedRecommendationDTO, security_name_map: dict[str, str]) -> UnifiedRecommendationDTO:
+    """Populate DTO display name without mutating domain entities."""
+    security_code = str(dto.security_code or "").upper()
+    dto.security_name = security_name_map.get(security_code, dto.security_code)
+    return dto
 
 
 def get_valuation_repair_map(security_codes: list[str]) -> dict[str, dict[str, Any]]:
@@ -383,7 +399,7 @@ def list_workspace_recommendations(
     recommendation_id: str | None,
     page: int,
     page_size: int,
-) -> tuple[list[UnifiedRecommendationDTO], int]:
+    ) -> tuple[list[UnifiedRecommendationDTO], int]:
     """Return DTOs for workspace recommendations and the total count."""
     recommendations, total_count = UnifiedRecommendationRepository().list_for_workspace(
         account_id=account_id,
@@ -395,10 +411,12 @@ def list_workspace_recommendations(
         page=page,
         page_size=page_size,
     )
+    security_name_map = _resolve_security_name_map([rec.security_code for rec in recommendations])
     valuation_repair_map = get_valuation_repair_map([rec.security_code for rec in recommendations])
     dtos: list[UnifiedRecommendationDTO] = []
     for recommendation in recommendations:
         dto = UnifiedRecommendationDTO.from_domain(recommendation)
+        _attach_security_name(dto, security_name_map)
         dto.valuation_repair = valuation_repair_map.get((recommendation.security_code or "").upper())
         dtos.append(dto)
     return dtos, total_count
@@ -421,6 +439,7 @@ def update_workspace_recommendation_action(
     if recommendation is None:
         return None
     dto = UnifiedRecommendationDTO.from_domain(recommendation)
+    _attach_security_name(dto, _resolve_security_name_map([recommendation.security_code]))
     dto.valuation_repair = get_valuation_repair_map([recommendation.security_code]).get(
         (recommendation.security_code or "").upper()
     )
@@ -466,6 +485,7 @@ def refresh_workspace_recommendations(dto: RefreshRecommendationsRequestDTO) -> 
 def list_workspace_conflicts(account_id: str) -> list[ConflictDTO]:
     """Return grouped workspace conflicts."""
     conflicts = UnifiedRecommendationRepository().get_conflicts(account_id)
+    security_name_map = _resolve_security_name_map([rec.security_code for rec in conflicts])
     security_groups: dict[str, list[Any]] = defaultdict(list)
     for recommendation in conflicts:
         security_groups[recommendation.security_code].append(recommendation)
@@ -476,6 +496,7 @@ def list_workspace_conflicts(account_id: str) -> list[ConflictDTO]:
         sell_rec = None
         for recommendation in grouped:
             dto = UnifiedRecommendationDTO.from_domain(recommendation)
+            _attach_security_name(dto, security_name_map)
             if recommendation.side == "BUY":
                 buy_rec = dto
             elif recommendation.side == "SELL":
@@ -484,6 +505,7 @@ def list_workspace_conflicts(account_id: str) -> list[ConflictDTO]:
             results.append(
                 ConflictDTO(
                     security_code=security_code,
+                    security_name=security_name_map.get(security_code, security_code),
                     account_id=account_id,
                     buy_recommendation=buy_rec,
                     sell_recommendation=sell_rec,
