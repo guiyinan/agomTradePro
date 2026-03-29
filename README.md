@@ -11,7 +11,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-1%2C600+-brightgreen.svg)](#测试)
-[![Modules](https://img.shields.io/badge/业务模块-34-purple.svg)](#架构)
+[![Modules](https://img.shields.io/badge/业务模块-35-purple.svg)](#架构)
 [![MCP Tools](https://img.shields.io/badge/MCP_工具-65+-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -26,11 +26,26 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-03-29
+
+- 决策工作台 6-step workflow 已进一步收口：第 5 步推荐刷新与第 6 步执行流稳定，执行主线不再回退成审计页
+- 决策工作台推荐链路补齐了账户级真实刷新与阻断原因展示，前端 HTMX/Alpine 片段替换后的 `ReferenceError` 已清理
+- 页面级 UAT 脚本已对齐当前界面结构，`decision/workspace` 步骤识别和 Regime 控件检测恢复为稳定可回归状态
+- GitHub Actions 的架构门禁历史误报点已从热路径代码中清掉，`main` / `dev` 当前 checks 全绿
+
+### 2026-03-28
+
+- 金融数据源运行时统一到新的 registry/factory 路径，补入 QMT 行情接入与配置中心可见配置
+- `strategy` 绑定链路改经 facade 收口，减少页面层与底层存储的耦合
+- 多模块写一致性继续加固：`strategy` / `beta_gate` / `regime` / `prompt` 的关键写路径补充事务与唯一激活约束
+- 文档基线已同步到当前事实：系统对外口径更新为 35 个业务模块、个人投研平台
+
 ### 2026-03-27
 
 - 真实仓持仓 API 已在预上线阶段直接切到统一账本：`/api/account/positions/*` 现在就是唯一 canonical 实仓持仓入口
 - 取消单独的 `/api/account/unified-positions/` 路径，避免真实仓出现两条正式读口径
-- 持仓修改、部分平仓、全平仓统一走 `UnifiedPositionService`，派生字段与交易记录链路同步收口
+- 持仓修改、部分平仓、全平仓统一走 `UnifiedPositionService`，派生字段、交易记录和平仓行为链路同步收口
+- 决策工作台主链和定价/审批相关接口继续清理，CI guardrails 也一并补强
 
 ### 2026-03-24
 
@@ -147,7 +162,7 @@ AgomTradePro 只相信一个原则：
 
 - **它不是 demo 站，而是一套可运行的投资系统骨架**：登录、配置、分析、决策、审批、执行、审计已经串起来了
 - **它不是 AI wrapper，而是 AI-native**：原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog 都在系统内部，不靠外面硬接
-- **它不是单点脚本，而是可扩展架构**：34 个业务模块、DDD 四层、明确边界，适合继续长功能
+- **它不是单点脚本，而是可扩展架构**：35 个业务模块、DDD 四层、明确边界，适合继续长功能
 - **它不是“只能作者自己维护”的代码**：模块拆分清楚，文档量够大，适合二开、Fork、做私有策略内核
 - **它有明显的产品感**：Setup Wizard、Dashboard、CLI、MCP 管理台都已经能展示“这是个系统”，而不是一堆脚本拼盘
 

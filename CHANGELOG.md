@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README 新增可日更维护的 `What's New` 区域，便于对外同步最近 1-7 天的重要变化
 - Dashboard 增加可选浏览器级 Pulse 转向提醒（本地 Notification 开关）
 - Regime 页面增加历史 `Regime + Pulse + Action` 三层叠加时序图
+- 金融数据源运行时补入 QMT 行情接入，并提供统一 registry / factory 配置路径
+- 新增本地回归入口与浏览器级 UAT harness，补充 Playwright 页面巡检脚本
+- 新增架构门禁回归测试，锁定 2026-03-29 `Architecture Layer Guard` 命中的历史越层导入点
 
 ### Changed
 - Dashboard 与顶部导航完成 redesign 收口，`beta_gate` / `alpha_trigger` / `decision_rhythm` 不再作为首页独立主入口暴露
@@ -19,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 文档索引同步为当前事实：Regime Navigator + Pulse redesign Phase 1-3 已完成
 - 预上线阶段将真实仓持仓主链直接切到统一账本：`/api/account/positions/*` 成为唯一 canonical 实仓持仓入口，移除单独的 `/api/account/unified-positions/`
 - GitHub Actions 的日常门禁 workflow 现在对 `dev/**` 分支的 push / pull request 也会自动触发，不再只覆盖 `main`
+- `strategy` 绑定链路改经 facade 收口，减少页面层直接耦合
+- `decision/workspace` 推荐与执行主线进一步收口：第 5 步以账户级推荐刷新为主，第 6 步固定为执行入口，不再回退成审计主流程
+- 文档与 README 对外口径同步到 35 个业务模块、个人投研平台
 
 ### Deprecated
 - (TBD)
@@ -32,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub `Consistency Check` 新增的 4 处文档路由漂移，已改为当前可解析的 canonical 路径表述
 - `apps/signal/domain/invalidation.py` 改为 timezone-aware UTC 时间戳，消除 `datetime.utcnow()` 弃用警告
 - 真实仓持仓的修改 / 保存 / 平仓链条统一走 `UnifiedPositionService`，派生字段重算、平仓写交易账本、旧账本 bootstrap 和 API 路径口径已一并收口
+- `decision/workspace` Step 5 的 HTMX/Alpine 片段替换后函数未绑定问题，导致的 `loadTransitionPlanStep` / `generateTransitionPlan` / `submitTransitionPlanForApproval` 报错已修复
+- `decision/workspace` 推荐空白时现在会触发真实刷新，并保留 `HOLD` / `BETA_GATE_BLOCKED` 等阻断原因而不是静默消失
+- Pulse bootstrap、历史兼容路由、估值任务导入和若干 decimal / CI guardrail 回归已修复
+- Playwright UAT 选择器已对齐当前页面结构，`Regime` 控件检查与 `Decision Workspace` 步骤检测恢复稳定
+- 清理 `account` / `macro` / `simulated_trading` 热路径里的直接基础设施导入，修复历史 `Architecture Layer Guard` 失败根因
 
 ### Security
 - (TBD)
@@ -55,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 任务编排和 Facade 模式
 
 ### Changed
-- **模块总数**: 从 30 个增加到 34 个业务模块
+- **模块总数**: 从 30 个增加到 35 个业务模块
 - **项目状态**: 核心功能已完成 (99%)
 
 ---
@@ -163,4 +174,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Maintained by**: AgomTradePro Team
-**Last Updated**: 2026-03-27
+**Last Updated**: 2026-03-29
