@@ -1,3 +1,4 @@
+from django.conf import settings
 from celery import shared_task
 from apps.equity.application.use_cases_valuation_repair import (
     ScanValuationRepairsRequest,
