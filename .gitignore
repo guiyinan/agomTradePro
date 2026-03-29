@@ -103,3 +103,4 @@ docs/DEV_DIARY.md
 *.type
 /mlruns
 /tests/screenshots
+/.tmp

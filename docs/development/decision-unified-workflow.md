@@ -59,6 +59,11 @@ Infrastructure 层 (models.py, repositories.py, feature_providers.py)
 - `Beta Gate` 未通过时不再把资产静默过滤掉，而是保留为 `HOLD` 推荐，并写入 `BETA_GATE_BLOCKED` 原因码与解释文案
 - 当前 Step 4 的含义调整为“候选可见性 + 执行约束展示”，而不是“只展示已通过执行闸门的资产”
 
+### 2.0.3 2026-03-29 DTO 初始化稳定性修复
+
+- `UnifiedRecommendationDTO.security_name` 调整为 keyword-only 可选字段，避免在 DTO 字段扩展或重排时触发 dataclass 的“default field before non-default field”导入错误
+- 新增 `tests/unit/decision_rhythm/test_application_dtos.py`，覆盖 DTO 最小初始化与 `security_name` 关键字传参回归
+
 ### 1.3 2026-03-22 入口统一补充
 
 本轮调整把首页 Alpha 推荐、`/equity/screen/` 和决策工作台串成同一条路径：

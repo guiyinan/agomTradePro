@@ -28,6 +28,9 @@
 # 启动开发服务器
 agomtradepro/Scripts/python manage.py runserver
 
+# 启动开发菜单
+start.bat
+
 # 数据库迁移
 agomtradepro/Scripts/python manage.py makemigrations
 agomtradepro/Scripts/python manage.py migrate
@@ -53,6 +56,8 @@ agomtradepro/Scripts/python manage.py activate_model --model-name mlp_csi300 --v
 agomtradepro/Scripts/python manage.py rollback_model --model-name mlp_csi300
 agomtradepro/Scripts/python manage.py list_models
 ```
+
+- `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，菜单窗口会立即返回。
 
 ### Streamlit 命令
 

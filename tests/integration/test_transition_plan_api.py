@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from django.apps import apps
@@ -18,14 +19,9 @@ PulseLog = apps.get_model("pulse", "PulseLog")
 StockInfoModel = apps.get_model("equity", "StockInfoModel")
 
 
-@pytest.mark.django_db
-def test_transition_plan_generate_update_and_preview_flow():
-    user = User.objects.create_user(username="plan_api_user", password="x")
-    client = Client()
-    client.force_login(user)
-
+def _create_workspace_quota(quota_id: str) -> None:
     DecisionQuotaModel.objects.create(
-        quota_id="plan_api_quota",
+        quota_id=quota_id,
         period=QuotaPeriod.WEEKLY.value,
         max_decisions=100,
         used_decisions=0,
@@ -33,9 +29,11 @@ def test_transition_plan_generate_update_and_preview_flow():
         used_executions=0,
     )
 
-    account = SimulatedAccountModel.objects.create(
+
+def _create_simulated_account(user: Any, account_name: str) -> Any:
+    return SimulatedAccountModel.objects.create(
         user=user,
-        account_name="Plan API Account",
+        account_name=account_name,
         account_type="simulated",
         initial_capital=Decimal("100000"),
         current_cash=Decimal("100000"),
@@ -45,9 +43,11 @@ def test_transition_plan_generate_update_and_preview_flow():
         auto_trading_enabled=True,
     )
 
-    snapshot = DecisionFeatureSnapshotModel.objects.create(
-        snapshot_id="plan_api_snapshot",
-        security_code="000001.SH",
+
+def _create_feature_snapshot(snapshot_id: str, security_code: str) -> Any:
+    return DecisionFeatureSnapshotModel.objects.create(
+        snapshot_id=snapshot_id,
+        security_code=security_code,
         snapshot_time=timezone.now(),
         regime="REGIME_1",
         regime_confidence=0.8,
@@ -55,19 +55,30 @@ def test_transition_plan_generate_update_and_preview_flow():
         beta_gate_passed=True,
     )
 
+
+def _create_stock_info(security_code: str, security_name: str) -> None:
     StockInfoModel.objects.create(
-        stock_code="000001.SH",
-        name="平安银行",
+        stock_code=security_code,
+        name=security_name,
         sector="银行",
         market="SH",
         list_date=timezone.now().date(),
         is_active=True,
     )
 
-    recommendation = UnifiedRecommendationModel.objects.create(
-        recommendation_id="plan_api_rec",
-        account_id=str(account.id),
-        security_code="000001.SH",
+
+def _create_recommendation(
+    *,
+    recommendation_id: str,
+    account_id: str,
+    security_code: str,
+    feature_snapshot: Any,
+    user_action: str,
+) -> Any:
+    return UnifiedRecommendationModel.objects.create(
+        recommendation_id=recommendation_id,
+        account_id=account_id,
+        security_code=security_code,
         side="BUY",
         regime="REGIME_1",
         regime_confidence=0.8,
@@ -86,8 +97,27 @@ def test_transition_plan_generate_update_and_preview_flow():
         max_capital=Decimal("50000"),
         source_signal_ids=[],
         source_candidate_ids=["cand1"],
-        feature_snapshot=snapshot,
+        feature_snapshot=feature_snapshot,
         status="NEW",
+        user_action=user_action,
+    )
+
+
+@pytest.mark.django_db
+def test_transition_plan_generate_update_and_preview_flow():
+    user = User.objects.create_user(username="plan_api_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    _create_workspace_quota("plan_api_quota")
+    account = _create_simulated_account(user, "Plan API Account")
+    snapshot = _create_feature_snapshot("plan_api_snapshot", "000001.SH")
+    _create_stock_info("000001.SH", "平安银行")
+    recommendation = _create_recommendation(
+        recommendation_id="plan_api_rec",
+        account_id=str(account.id),
+        security_code="000001.SH",
+        feature_snapshot=snapshot,
         user_action=UserDecisionAction.ADOPTED.value,
     )
 
@@ -162,6 +192,54 @@ def test_transition_plan_generate_update_and_preview_flow():
     assert preview_payload["plan_id"] == generate_payload["plan_id"]
     assert preview_payload["recommendation_type"] == "plan"
     assert preview_payload["request_id"]
+
+
+@pytest.mark.django_db
+def test_transition_plan_generate_with_explicit_recommendation_ids_uses_selected_recommendations():
+    user = User.objects.create_user(username="plan_api_selected_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    _create_workspace_quota("plan_selected_quota")
+    account = _create_simulated_account(user, "Plan Selected Account")
+
+    adopted_snapshot = _create_feature_snapshot("plan_selected_snapshot_1", "000001.SH")
+    selected_snapshot = _create_feature_snapshot("plan_selected_snapshot_2", "600519.SH")
+    _create_stock_info("000001.SH", "平安银行")
+    _create_stock_info("600519.SH", "贵州茅台")
+
+    _create_recommendation(
+        recommendation_id="plan_selected_default_rec",
+        account_id=str(account.id),
+        security_code="000001.SH",
+        feature_snapshot=adopted_snapshot,
+        user_action=UserDecisionAction.ADOPTED.value,
+    )
+    selected_recommendation = _create_recommendation(
+        recommendation_id="plan_selected_explicit_rec",
+        account_id=str(account.id),
+        security_code="600519.SH",
+        feature_snapshot=selected_snapshot,
+        user_action=UserDecisionAction.IGNORED.value,
+    )
+
+    generate_response = client.post(
+        "/api/decision/workspace/plans/generate/",
+        data={
+            "account_id": str(account.id),
+            "recommendation_ids": [selected_recommendation.recommendation_id],
+        },
+        content_type="application/json",
+    )
+
+    assert generate_response.status_code == 201
+    generate_payload = generate_response.json()["data"]
+    assert generate_payload["source_recommendation_ids"] == [selected_recommendation.recommendation_id]
+    assert generate_payload["current_positions"] == []
+    assert [item["security_code"] for item in generate_payload["target_positions"]] == ["600519.SH"]
+    assert [item["security_code"] for item in generate_payload["orders"]] == ["600519.SH"]
+    assert generate_payload["target_positions"][0]["security_name"] == "贵州茅台"
+    assert generate_payload["orders"][0]["security_name"] == "贵州茅台"
 
 
 @pytest.mark.django_db

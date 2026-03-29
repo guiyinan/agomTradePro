@@ -60,7 +60,7 @@ class UnifiedRecommendationDTO:
     account_id: str
     security_code: str
     side: str
-    security_name: str = ""
+    security_name: str = field(default="", kw_only=True)
     # Top-down
     regime: str = ""
     regime_confidence: float = 0.0
