@@ -8,6 +8,7 @@ import json
 import logging
 from datetime import datetime
 
+from django.apps import apps as django_apps
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from rest_framework.decorators import api_view, permission_classes
@@ -15,12 +16,12 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from apps.macro.application.data_management import DeleteDataRequest, DeleteDataUseCase
-from apps.macro.infrastructure.models import DataSourceConfig
 from apps.macro.interface.serializers import DataSourceConfigSerializer
 
 from .helpers import get_repository
 
 logger = logging.getLogger(__name__)
+DataSourceConfig = django_apps.get_model("macro", "DataSourceConfig")
 
 
 @api_view(["GET", "POST"])

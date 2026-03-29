@@ -7,6 +7,7 @@ DRF API Views for Account Module.
 from decimal import Decimal
 from typing import Any
 
+from django.apps import apps as django_apps
 from django.db import models
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404
@@ -56,16 +57,33 @@ from .serializers import (
 )
 
 
+def _get_simulated_trading_model(model_name: str):
+    """Resolve simulated_trading ORM models without direct infrastructure imports."""
+    return django_apps.get_model("simulated_trading", model_name)
+
+
+def _map_account_asset_type(asset_class: str) -> str:
+    """Map account asset classes to unified ledger asset types."""
+    mapping = {
+        "equity": "equity",
+        "fund": "fund",
+        "fixed_income": "bond",
+        "commodity": "equity",
+        "currency": "fund",
+        "cash": "fund",
+        "derivative": "equity",
+        "other": "equity",
+    }
+    return mapping.get(asset_class, "equity")
+
+
 class UnifiedLedgerMixin:
     """Helpers for wiring account real-holding APIs to the unified ledger."""
 
     def _get_or_create_real_account(self, portfolio) -> int:
         from django.db import transaction as db_transaction
-
-        from apps.simulated_trading.infrastructure.models import (
-            LedgerMigrationMapModel,
-            SimulatedAccountModel,
-        )
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
+        SimulatedAccountModel = _get_simulated_trading_model("SimulatedAccountModel")
 
         try:
             mapping = LedgerMigrationMapModel._default_manager.get(
@@ -99,7 +117,7 @@ class UnifiedLedgerMixin:
         return real_account.id
 
     def _get_portfolio_for_account(self, account_id: int) -> PortfolioModel | None:
-        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
 
         mapping = LedgerMigrationMapModel._default_manager.filter(
             source_app="account",
@@ -112,7 +130,7 @@ class UnifiedLedgerMixin:
         return PortfolioModel._default_manager.filter(id=mapping.source_id).first()
 
     def _get_legacy_projection_for_unified_position(self, unified_position_id: int) -> PositionModel | None:
-        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
 
         mapping = LedgerMigrationMapModel._default_manager.filter(
             source_app="account",
@@ -133,10 +151,8 @@ class UnifiedLedgerMixin:
         from apps.simulated_trading.application.unified_position_service import (
             UnifiedPositionService,
         )
-        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
-        from apps.simulated_trading.management.commands.migrate_account_ledger import (
-            _map_asset_type,
-        )
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         existing = LedgerMigrationMapModel._default_manager.filter(
             source_app="account",
@@ -144,8 +160,6 @@ class UnifiedLedgerMixin:
             source_id=legacy_position.id,
         ).first()
         if existing:
-            from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
-
             unified_existing = UnifiedPositionModel._default_manager.filter(pk=existing.target_id).first()
             if unified_existing is not None:
                 return unified_existing
@@ -158,7 +172,7 @@ class UnifiedLedgerMixin:
             price=float(legacy_position.avg_cost),
             current_price=float(legacy_position.current_price or legacy_position.avg_cost),
             asset_name=legacy_position.asset_code,
-            asset_type=_map_asset_type(legacy_position.asset_class),
+            asset_type=_map_account_asset_type(legacy_position.asset_class),
             source=legacy_position.source,
             source_id=legacy_position.source_id,
             entry_reason=f"bootstrap from account.position:{legacy_position.id}",
@@ -205,7 +219,7 @@ class UnifiedLedgerMixin:
         Keep apps/account.PositionModel as a read projection for account-specific fields.
         The unified ledger remains the source of truth.
         """
-        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
 
         legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
         if legacy_projection is None:
@@ -472,7 +486,7 @@ class PortfolioViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         # 记录观察员访问审计日志
         self._log_observer_access_if_needed(request, portfolio, 'positions')
 
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         account_id = self._ensure_portfolio_ledger_synced(portfolio)
         positions = UnifiedPositionModel._default_manager.filter(account_id=account_id).select_related("account")
@@ -692,8 +706,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
 
     def _resolve_position_context(self, pk: int):
         from rest_framework.exceptions import NotFound
-
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         try:
             unified_position = UnifiedPositionModel._default_manager.select_related("account").get(pk=pk)
@@ -741,11 +754,9 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         exists yet (pre-migration), a new account is created and the mapping
         recorded so subsequent calls are idempotent.
         """
-        from apps.simulated_trading.infrastructure.models import (
-            LedgerMigrationMapModel,
-            SimulatedAccountModel,
-        )
         from django.db import transaction as db_transaction
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
+        SimulatedAccountModel = _get_simulated_trading_model("SimulatedAccountModel")
 
         try:
             mapping = LedgerMigrationMapModel._default_manager.get(
@@ -782,9 +793,6 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         from apps.simulated_trading.application.unified_position_service import (
             UnifiedPositionService,
         )
-        from apps.simulated_trading.management.commands.migrate_account_ledger import (
-            _map_asset_type,
-        )
 
         portfolio_id = request.data.get("portfolio")
         if not portfolio_id:
@@ -809,7 +817,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
             shares=float(serializer.validated_data["shares"]),
             price=float(serializer.validated_data["avg_cost"]),
             current_price=float(serializer.validated_data.get("current_price") or serializer.validated_data["avg_cost"]),
-            asset_type=_map_asset_type(serializer.validated_data.get("asset_class", "equity")),
+            asset_type=_map_account_asset_type(serializer.validated_data.get("asset_class", "equity")),
             source=serializer.validated_data.get("source", "manual"),
             source_id=serializer.validated_data.get("source_id"),
         )
@@ -839,10 +847,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         from apps.simulated_trading.application.unified_position_service import (
             UnifiedPositionService,
         )
-        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
-        from apps.simulated_trading.management.commands.migrate_account_ledger import (
-            _map_asset_type,
-        )
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
 
         portfolio_id = self.request.data.get('portfolio')
         portfolio = get_object_or_404(
@@ -869,7 +874,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
             shares=float(shares),
             price=float(avg_cost),
             current_price=float(current_price),
-            asset_type=_map_asset_type(asset_class),
+            asset_type=_map_account_asset_type(asset_class),
             source=serializer.validated_data.get('source', 'manual'),
             source_id=serializer.validated_data.get('source_id'),
         )
@@ -904,7 +909,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         from apps.simulated_trading.application.unified_position_service import (
             UnifiedPositionService,
         )
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         partial = kwargs.pop("partial", False)
         unified_position, portfolio = self._resolve_position_context(kwargs["pk"])
@@ -956,9 +961,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         from apps.simulated_trading.application.unified_position_service import (
             UnifiedPositionService,
         )
-        from apps.simulated_trading.infrastructure.models import (
-            LedgerMigrationMapModel,
-        )
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
 
         # ── Mirror write: apps/account (for backward compat reads) ─────────
         instance = serializer.save()
@@ -996,10 +999,8 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
             pass
 
     def destroy(self, request, *args, **kwargs):
-        from apps.simulated_trading.infrastructure.models import (
-            LedgerMigrationMapModel,
-            PositionModel as UnifiedPositionModel,
-        )
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         unified_position, portfolio = self._resolve_position_context(kwargs["pk"])
         if portfolio.user != request.user:
@@ -1021,7 +1022,7 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def list(self, request, *args, **kwargs):
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         portfolios = list(self._get_filtered_accessible_portfolios())
         account_to_portfolio: dict[int, PortfolioModel] = {}
@@ -1064,10 +1065,8 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         from apps.simulated_trading.application.unified_position_service import (
             UnifiedPositionService,
         )
-        from apps.simulated_trading.infrastructure.models import (
-            LedgerMigrationMapModel,
-            PositionModel as UnifiedPositionModel,
-        )
+        LedgerMigrationMapModel = _get_simulated_trading_model("LedgerMigrationMapModel")
+        UnifiedPositionModel = _get_simulated_trading_model("PositionModel")
 
         unified_position, portfolio = self._resolve_position_context(pk)
         legacy_projection = self._get_legacy_projection_for_unified_position(unified_position.id)
