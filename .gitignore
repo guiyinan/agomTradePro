@@ -102,3 +102,4 @@ docs/DEV_DIARY.md
 /data/*.json
 *.type
 /mlruns
+/tests/screenshots
