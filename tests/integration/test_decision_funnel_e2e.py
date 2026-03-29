@@ -11,6 +11,8 @@ from django.test import Client
 from apps.audit.infrastructure.models import AttributionReport, ExperienceSummary, LossAnalysis
 from apps.backtest.infrastructure.models import BacktestResultModel
 
+pytestmark = pytest.mark.timeout(90)
+
 
 def _action_recommendation_stub(*recommended_sectors):
     """Build a minimal action recommendation compatible with Step 2 and Step 3."""
