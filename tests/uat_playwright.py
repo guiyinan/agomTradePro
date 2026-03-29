@@ -1,5 +1,6 @@
 """AgomTradePro UAT + E2E Browser Tests via Playwright"""
 
+import os
 import time
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from playwright.sync_api import sync_playwright
 
 BASE = "http://localhost:8000"
 TOKEN = "56d30eb16b230581312397997d27b3b613941811"
+LOGIN_USERNAME = os.environ.get("AGOM_UAT_USERNAME", "admin")
+LOGIN_PASSWORD = os.environ.get("AGOM_UAT_PASSWORD", "Aa123456")
 SCREENSHOT_DIR = Path("tests/screenshots")
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -32,8 +35,8 @@ def login_via_session(page, browser_context):
     username_input = page.locator('input[name="username"]')
     password_input = page.locator('input[name="password"]')
     if username_input.count() > 0 and password_input.count() > 0:
-        username_input.fill("admin")
-        password_input.fill("admin")
+        username_input.fill(LOGIN_USERNAME)
+        password_input.fill(LOGIN_PASSWORD)
         submit = page.locator('button[type="submit"], input[type="submit"]')
         if submit.count() > 0:
             submit.first.click()
@@ -107,15 +110,27 @@ def test_regime_page_interactions(page):
         page.goto(f"{BASE}/regime/", wait_until="networkidle", timeout=15000)
         page.screenshot(path=str(SCREENSHOT_DIR / "regime_initial.png"))
 
-        tabs = page.locator("[data-bs-toggle='tab'], .nav-link, .tab-btn")
-        if tabs.count() > 0:
-            tabs.first.click()
-            page.wait_for_timeout(500)
-            record("Regime tab interaction", "PASS", f"clicked tab, {tabs.count()} tabs available")
+        controls = page.locator(
+            "input#dateSelect:visible, select#sourceSelect:visible, button#syncBtn:visible, button#clearCacheBtn:visible"
+        )
+        if controls.count() > 0:
+            source_select = page.locator("select#sourceSelect:visible").first
+            source_value = ""
+            if source_select.count() > 0:
+                source_value = source_select.input_value()
+            date_input = page.locator("input#dateSelect:visible").first
+            date_value = ""
+            if date_input.count() > 0:
+                date_value = date_input.input_value()
+            record(
+                "Regime page controls",
+                "PASS",
+                f"found {controls.count()} controls, date={date_value or 'n/a'}, source={source_value or 'n/a'}",
+            )
         else:
-            record("Regime tab interaction", "SKIP", "no tabs found")
+            record("Regime page controls", "FAIL", "no interactive controls found")
     except Exception as e:
-        record("Regime page interactions", "FAIL", str(e)[:100])
+        record("Regime page controls", "FAIL", str(e)[:100])
 
 
 def test_terminal_page(page):
@@ -143,11 +158,11 @@ def test_decision_workspace(page):
         title = page.title()
         record("Decision workspace loads", "PASS", f"title={title[:50]}")
 
-        funnel_steps = page.locator("[data-step], .step-indicator, .funnel-step")
+        funnel_steps = page.locator(".funnel-stepper .step-button")
         if funnel_steps.count() > 0:
             record("Funnel steps visible", "PASS", f"{funnel_steps.count()} steps")
         else:
-            record("Funnel steps visible", "SKIP", "no step indicators found")
+            record("Funnel steps visible", "FAIL", "no step buttons found")
     except Exception as e:
         record("Decision workspace", "FAIL", str(e)[:100])
 
