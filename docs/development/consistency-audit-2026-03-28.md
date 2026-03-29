@@ -14,6 +14,7 @@
 2. `account` 用户创建信号更新为与当前模型一致的幂等初始化逻辑，移除对已删除字段的写入。
 3. 新增静态 guardrail，持续检查高风险写路径是否保留事务保护，阻止 `prompt` 回退到 delete-then-create。
 4. 为 `beta_gate` / `regime` 补充数据库层条件唯一约束，并通过迁移在落约束前自动清理历史重复激活数据。
+5. 清理 `account` / `macro` / `simulated_trading` 历史热路径里会触发 `Architecture Layer Guard` 的直接基础设施导入，并补充回归测试锁定该组失败点。
 
 ## 后续继续审计的方向
 

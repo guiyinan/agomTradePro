@@ -20,6 +20,7 @@ import logging
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.apps import apps as django_apps
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
@@ -33,6 +34,11 @@ _VALUE_PLACES = Decimal("0.01")
 def _to_decimal(value, places: Decimal) -> Decimal:
     """Convert a numeric value to Decimal with the given precision."""
     return Decimal(str(value)).quantize(places, rounding=ROUND_HALF_UP)
+
+
+def _get_simulated_trading_model(model_name: str):
+    """Resolve simulated_trading ORM models without direct infrastructure imports."""
+    return django_apps.get_model("simulated_trading", model_name)
 
 
 class UnifiedPositionService:
@@ -89,10 +95,8 @@ class UnifiedPositionService:
         Returns the created/updated PositionModel ORM instance.
         """
         from shared.domain.position_calculations import recalculate_derived_fields
-        from apps.simulated_trading.infrastructure.models import (
-            PositionModel,
-            SimulatedTradeModel,
-        )
+        PositionModel = _get_simulated_trading_model("PositionModel")
+        SimulatedTradeModel = _get_simulated_trading_model("SimulatedTradeModel")
 
         qty = _to_decimal(shares, _QUANTITY_PLACES)
         avg_cost_d = _to_decimal(price, _COST_PLACES)
@@ -190,7 +194,7 @@ class UnifiedPositionService:
         Returns the updated Position domain entity.
         """
         from shared.domain.position_calculations import recalculate_derived_fields
-        from apps.simulated_trading.infrastructure.models import PositionModel
+        PositionModel = _get_simulated_trading_model("PositionModel")
 
         model = PositionModel._default_manager.get(
             account_id=account_id,
@@ -236,10 +240,8 @@ class UnifiedPositionService:
         Returns the updated Position domain entity, or None on full close.
         """
         from shared.domain.position_calculations import recalculate_derived_fields
-        from apps.simulated_trading.infrastructure.models import (
-            PositionModel,
-            SimulatedTradeModel,
-        )
+        PositionModel = _get_simulated_trading_model("PositionModel")
+        SimulatedTradeModel = _get_simulated_trading_model("SimulatedTradeModel")
 
         model = PositionModel._default_manager.get(
             account_id=account_id,

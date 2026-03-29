@@ -2,9 +2,11 @@
 DRF Serializers for Macro Data API.
 """
 
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
-from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
+DataSourceConfig = django_apps.get_model("macro", "DataSourceConfig")
+MacroIndicator = django_apps.get_model("macro", "MacroIndicator")
 
 
 class MacroIndicatorSerializer(serializers.ModelSerializer):
