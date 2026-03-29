@@ -51,7 +51,8 @@ class DailyInspectionService:
             account=account,
             selection=selection,
         )
-        summary = cls._build_summary(account=account, checks=checks)
+        checks = cls._to_json_safe(checks)
+        summary = cls._to_json_safe(cls._build_summary(account=account, checks=checks))
         status = "warning" if summary["rebalance_required_count"] > 0 else "ok"
 
         report = cls.inspection_repo.upsert_report(
@@ -194,6 +195,18 @@ class DailyInspectionService:
             "current_cash": float(account.current_cash or Decimal("0")),
             "current_market_value": float(account.current_market_value or Decimal("0")),
         }
+
+    @classmethod
+    def _to_json_safe(cls, value: Any) -> Any:
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, list):
+            return [cls._to_json_safe(item) for item in value]
+        if isinstance(value, tuple):
+            return [cls._to_json_safe(item) for item in value]
+        if isinstance(value, dict):
+            return {key: cls._to_json_safe(item) for key, item in value.items()}
+        return value
 
     @staticmethod
     def _latest_regime() -> str:

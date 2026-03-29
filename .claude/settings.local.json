@@ -239,7 +239,8 @@
       "Bash(find /d/githv/agomTradePro -type f \\\\\\(-iname *.png -o -iname *.jpg -o -iname *.gif -o -iname *.svg \\\\\\))",
       "Bash(find . -name \"*.py\" -type f -exec grep -l \"str\\(pattern.pattern\\)\" {})",
       "Bash(bash -n docker/entrypoint.prod.sh)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(python manage.py shell -c \":*)"
     ]
   },
   "enableAllProjectMcpServers": true,

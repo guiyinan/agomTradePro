@@ -1,6 +1,6 @@
 """URL configuration for Regime app."""
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import path
 
 from . import views
 
@@ -19,7 +19,4 @@ urlpatterns = [
     # Page routes
     path('dashboard/', views.regime_dashboard_view, name='dashboard'),
     path('clear-cache/', views.clear_regime_cache, name='clear_cache'),
-
-    # Legacy API compatibility under /regime/api/*
-    path('api/', include(('apps.regime.interface.api_urls', 'regime_api'), namespace='legacy_regime_api')),
 ]

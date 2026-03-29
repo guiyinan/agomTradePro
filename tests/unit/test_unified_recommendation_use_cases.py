@@ -248,8 +248,8 @@ class TestGenerateUnifiedRecommendationsUseCase:
         assert rec.composite_score > 0
         assert rec.beta_gate_passed is True
 
-    def test_generate_filters_beta_gate_failed(self, setup):
-        """测试 Beta Gate 不通过时过滤"""
+    def test_generate_marks_blocked_recommendation_as_hold(self, setup):
+        """测试 Beta Gate 不通过时仍展示资产，但保持 HOLD。"""
         # 设置数据
         setup["feature_provider"].set_beta_gate("000001.SZ", False)
         setup["feature_provider"].set_scores("000001.SZ", {"alpha": 0.9})
@@ -260,9 +260,14 @@ class TestGenerateUnifiedRecommendationsUseCase:
             security_codes=["000001.SZ"],
         ))
 
-        # 验证：应该被过滤
+        # 验证：仍然展示，但标记为 blocked / HOLD
         assert response.success is True
-        assert len(response.recommendations) == 0
+        assert len(response.recommendations) == 1
+        recommendation = response.recommendations[0]
+        assert recommendation.side == "HOLD"
+        assert recommendation.beta_gate_passed is False
+        assert "BETA_GATE_BLOCKED" in recommendation.reason_codes
+        assert "Beta Gate 未通过" in recommendation.human_rationale
 
     def test_generate_with_valuation_data(self, setup):
         """测试包含估值数据"""

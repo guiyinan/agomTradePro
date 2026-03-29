@@ -74,9 +74,12 @@ from .serializers import (
     ScanValuationRepairsResponseSerializer,
     ScreenStocksRequestSerializer,
     ScreenStocksResponseSerializer,
+    SyncFinancialDataRequestSerializer,
+    SyncFinancialDataResponseSerializer,
     SyncValuationDataRequestSerializer,
     SyncValuationDataResponseSerializer,
     ValidateValuationDataRequestSerializer,
+    ValuationRepairConfigSerializer,
     ValuationFreshnessResponseSerializer,
     ValuationQualitySnapshotResponseSerializer,
     ValuationRepairHistoryResponseSerializer,
@@ -550,7 +553,7 @@ class EquityViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="pool")
     def get_pool(self, request):
         """
-        GET /equity/api/pool/
+        GET /api/equity/pool/
 
         获取当前股票池
         """
@@ -656,7 +659,7 @@ class EquityViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="pool/refresh")
     def refresh_pool(self, request):
         """
-        POST /equity/api/pool/refresh/
+        POST /api/equity/pool/refresh/
 
         刷新股票池
 
@@ -1051,19 +1054,8 @@ class EquityViewSet(viewsets.ViewSet):
     @extend_schema(
         summary="同步财务数据",
         description="同步指定股票的财务数据（ROE、营收、利润等）",
-        request={
-            "type": "object",
-            "properties": {
-                "stock_codes": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "股票代码列表",
-                },
-                "periods": {"type": "integer", "default": 8, "description": "获取最近几个报告期"},
-                "source": {"type": "string", "default": "akshare", "description": "数据源"},
-            },
-        },
-        responses={200: {"type": "object", "properties": {"success": {"type": "boolean"}}}},
+        request=SyncFinancialDataRequestSerializer,
+        responses={200: SyncFinancialDataResponseSerializer},
     )
     @action(detail=False, methods=["post"], url_path="financial-data/sync")
     def sync_financial_data(self, request):
@@ -1289,7 +1281,7 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="获取当前激活配置",
         description="返回当前生效中的估值修复策略参数",
-        responses={200: "ValuationRepairConfigSerializer"},
+        responses={200: ValuationRepairConfigSerializer},
     )
     @action(detail=False, methods=["get"])
     def active(self, request):
@@ -1346,7 +1338,7 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="激活指定配置",
         description="将指定版本的配置设置为激活状态（同时停用其他配置）",
-        responses={200: "ValuationRepairConfigSerializer"},
+        responses={200: ValuationRepairConfigSerializer},
     )
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
@@ -1372,7 +1364,7 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
     @extend_schema(
         summary="回滚到指定版本",
         description="激活指定版本的配置（activate 的别名）",
-        responses={200: "ValuationRepairConfigSerializer"},
+        responses={200: ValuationRepairConfigSerializer},
     )
     @action(detail=True, methods=["post"])
     def rollback(self, request, pk=None):
@@ -1410,3 +1402,4 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
         from apps.equity.application.config import clear_config_cache
 
         clear_config_cache()
+

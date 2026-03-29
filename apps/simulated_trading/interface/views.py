@@ -34,7 +34,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
+from apps.market_data.application.price_service import UnifiedPriceService
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionNotificationConfigModel,
     DailyInspectionReportModel,
@@ -48,6 +48,7 @@ from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
+from core.exceptions import DataFetchError
 
 from .serializers import (
     AccountBatchDeleteRequestSerializer,
@@ -80,6 +81,30 @@ def _can_manage_account(user, account: SimulatedAccountModel) -> bool:
     if not getattr(user, "is_authenticated", False):
         return False
     return bool(user.is_superuser or account.user_id == user.id)
+
+
+def _get_owned_account_or_response(request, account_id: int, action: str = "访问"):
+    """Return owned account model or an error response."""
+    if not request.user or not request.user.is_authenticated:
+        return Response(
+            {'success': False, 'error': f'请先登录后再{action}账户'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
+    if not account:
+        return Response(
+            {'success': False, 'error': f'账户不存在: {account_id}'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not _can_manage_account(request.user, account):
+        return Response(
+            {'success': False, 'error': f'无权{action}该账户'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return account
 
 
 def _delete_account_with_summary(account: SimulatedAccountModel) -> dict:
@@ -416,10 +441,19 @@ class AccountListAPIView(APIView):
             "accounts": [...]
         }
         """
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {'success': False, 'error': '请先登录后再查看账户列表'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
         active_only = request.query_params.get('active_only', 'true').lower() == 'true'
 
         use_case = ListAccountsUseCase(self.account_repo)
-        accounts = use_case.execute(active_only=active_only)
+        accounts = use_case.execute(
+            active_only=active_only,
+            user_id=request.user.id,
+        )
 
         # 序列化账户
         account_list = []
@@ -570,6 +604,10 @@ class AccountDetailAPIView(APIView):
             "account": {...}
         }
         """
+        account_model = _get_owned_account_or_response(request, account_id, action="查看")
+        if isinstance(account_model, Response):
+            return account_model
+
         account = self.account_repo.get_by_id(account_id)
         if not account:
             return Response({
@@ -720,6 +758,10 @@ class PositionListAPIView(APIView):
             "positions": [...]
         }
         """
+        account_model = _get_owned_account_or_response(request, account_id, action="查看")
+        if isinstance(account_model, Response):
+            return account_model
+
         account = self.account_repo.get_by_id(account_id)
         if not account:
             return Response({
@@ -805,6 +847,10 @@ class TradeListAPIView(APIView):
             "trades": [...]
         }
         """
+        account_model = _get_owned_account_or_response(request, account_id, action="查看")
+        if isinstance(account_model, Response):
+            return account_model
+
         account = self.account_repo.get_by_id(account_id)
         if not account:
             return Response({
@@ -923,6 +969,10 @@ class PerformanceAPIView(APIView):
             }
         }
         """
+        account_model = _get_owned_account_or_response(request, account_id, action="查看")
+        if isinstance(account_model, Response):
+            return account_model
+
         use_case = GetAccountPerformanceUseCase(
             self.account_repo,
             self.position_repo,
@@ -1019,6 +1069,10 @@ class ManualTradeAPIView(APIView):
             "trade": {...}
         }
         """
+        account_model = _get_owned_account_or_response(request, account_id, action="操作")
+        if isinstance(account_model, Response):
+            return account_model
+
         # 1. 验证请求
         serializer = ManualTradeRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1194,6 +1248,10 @@ class EquityCurveAPIView(APIView):
             ]
         }
         """
+        account_model = _get_owned_account_or_response(request, account_id, action="查看")
+        if isinstance(account_model, Response):
+            return account_model
+
         account = self.account_repo.get_by_id(account_id)
         if not account:
             return Response({
@@ -1216,11 +1274,22 @@ class EquityCurveAPIView(APIView):
             end_date = date.fromisoformat(end_date)
 
         # 获取净值曲线
-        data_points = self.performance_calculator.get_equity_curve(
-            account_id=account_id,
-            start_date=start_date,
-            end_date=end_date
-        )
+        try:
+            data_points = self.performance_calculator.get_equity_curve(
+                account_id=account_id,
+                start_date=start_date,
+                end_date=end_date
+            )
+        except DataFetchError as exc:
+            return Response(
+                {
+                    'success': False,
+                    'error': str(exc),
+                    'code': exc.code,
+                    'details': exc.details,
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         return Response({
             'success': True,
@@ -1290,7 +1359,7 @@ class AutoTradingAPIView(APIView):
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
-        market_data = MarketDataProvider()
+        market_data = UnifiedPriceService()
         asset_pool_service = AssetPoolQueryService(
             asset_pool_repo=DjangoAssetPoolQueryRepository(),
             signal_repo=signal_repo,
@@ -1344,6 +1413,10 @@ class DailyInspectionRunAPIView(APIView):
         responses={200: DailyInspectionReportListResponseSerializer},
     )
     def post(self, request, account_id):
+        account_model = _get_owned_account_or_response(request, account_id, action="执行")
+        if isinstance(account_model, Response):
+            return account_model
+
         serializer = DailyInspectionRunRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -1384,11 +1457,9 @@ class DailyInspectionReportListAPIView(APIView):
         responses={200: DailyInspectionReportListResponseSerializer},
     )
     def get(self, request, account_id):
-        if not SimulatedAccountModel._default_manager.filter(id=account_id).exists():
-            return Response(
-                {"success": False, "error": f"账户不存在: {account_id}"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        account_model = _get_owned_account_or_response(request, account_id, action="查看")
+        if isinstance(account_model, Response):
+            return account_model
 
         limit = int(request.query_params.get("limit", 20))
         inspection_date_raw = request.query_params.get("inspection_date")
@@ -1425,4 +1496,3 @@ class DailyInspectionReportListAPIView(APIView):
                 "reports": payload,
             }
         )
-

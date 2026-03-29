@@ -9,10 +9,12 @@
 """
 from datetime import date, datetime
 from decimal import Decimal
+from unittest.mock import Mock, patch
 
 import pytest
 from django.test import TestCase
 
+from apps.simulated_trading.application.tasks import update_position_prices_task
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.use_cases import (
     CreateSimulatedAccountUseCase,
@@ -33,6 +35,7 @@ from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
+from core.exceptions import DataFetchError
 
 
 @pytest.mark.django_db
@@ -125,7 +128,7 @@ class TestSimulatedTradingE2E(TestCase):
         position1 = self.position_repo.get_position(account.account_id, '000001.SZ')
         self.assertIsNotNone(position1)
         self.assertEqual(position1.quantity, 1000)
-        self.assertEqual(float(position1.avg_cost), 12.50)
+        self.assertAlmostEqual(float(position1.avg_cost), 12.5175, places=4)
 
         position2 = self.position_repo.get_position(account.account_id, '600519.SH')
         self.assertIsNotNone(position2)
@@ -194,6 +197,79 @@ class TestSimulatedTradingE2E(TestCase):
         # 检查交易记录
         trades = self.trade_repo.get_by_account(account.account_id)
         self.assertEqual(len(trades), 4)
+
+    def test_buy_position_avg_cost_includes_buy_side_fees(self):
+        create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
+        account = create_use_case.execute(
+            account_name='成本价测试账户',
+            initial_capital=100000.00,
+            max_position_pct=100.0,
+            commission_rate=0.0003,
+            slippage_rate=0.001,
+        )
+
+        buy_use_case = ExecuteBuyOrderUseCase(
+            self.account_repo,
+            self.position_repo,
+            self.trade_repo,
+        )
+
+        trade = buy_use_case.execute(
+            account_id=account.account_id,
+            asset_code='000001.SZ',
+            asset_name='平安银行',
+            asset_type='equity',
+            quantity=1000,
+            price=10.00,
+            reason='测试成本价',
+        )
+
+        position = self.position_repo.get_position(account.account_id, '000001.SZ')
+        self.assertIsNotNone(position)
+        self.assertAlmostEqual(float(position.total_cost), float(trade.total_cost), places=2)
+        self.assertAlmostEqual(float(position.avg_cost), 10.015, places=4)
+        self.assertAlmostEqual(float(position.unrealized_pnl), -15.0, places=2)
+
+    def test_weighted_avg_cost_uses_existing_total_cost_basis(self):
+        create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
+        account = create_use_case.execute(
+            account_name='加仓成本价测试账户',
+            initial_capital=100000.00,
+            max_position_pct=100.0,
+            commission_rate=0.0003,
+            slippage_rate=0.001,
+        )
+
+        buy_use_case = ExecuteBuyOrderUseCase(
+            self.account_repo,
+            self.position_repo,
+            self.trade_repo,
+        )
+
+        buy_use_case.execute(
+            account_id=account.account_id,
+            asset_code='000001.SZ',
+            asset_name='平安银行',
+            asset_type='equity',
+            quantity=1000,
+            price=10.00,
+            reason='第一次买入',
+        )
+        buy_use_case.execute(
+            account_id=account.account_id,
+            asset_code='000001.SZ',
+            asset_name='平安银行',
+            asset_type='equity',
+            quantity=1000,
+            price=12.00,
+            reason='第二次买入',
+        )
+
+        position = self.position_repo.get_position(account.account_id, '000001.SZ')
+        self.assertIsNotNone(position)
+        self.assertEqual(position.quantity, 2000)
+        self.assertAlmostEqual(float(position.total_cost), 22032.00, places=2)
+        self.assertAlmostEqual(float(position.avg_cost), 11.0160, places=4)
 
 
 @pytest.mark.django_db
@@ -322,6 +398,7 @@ class TestPerformanceCalculation(TestCase):
     def test_total_return_calculation(self):
         """测试总收益率计算"""
         calculator = PerformanceCalculator()
+        calculator.market_data_provider.require_price = Mock(return_value=10.50)
         metrics = calculator.calculate_and_update_performance(
             account_id=self.account.account_id,
             trade_date=date.today()
@@ -337,6 +414,7 @@ class TestPerformanceCalculation(TestCase):
     def test_win_rate_calculation(self):
         """测试胜率计算"""
         calculator = PerformanceCalculator()
+        calculator.market_data_provider.require_price = Mock(return_value=10.50)
         metrics = calculator.calculate_and_update_performance(
             account_id=self.account.account_id,
             trade_date=date.today()
@@ -462,7 +540,7 @@ class TestStopLoss(TestCase):
         # 如果价格跌到9元（10%亏损），应该触发止损
         # 这个逻辑在自动交易引擎中实现
         # 这里只验证数据结构
-        self.assertEqual(float(position.avg_cost), 10.00)
+        self.assertAlmostEqual(float(position.avg_cost), 10.015, places=4)
 
 
 @pytest.mark.django_db
@@ -499,6 +577,7 @@ class testEquityCurve(TestCase):
     def test_get_equity_curve(self):
         """测试获取净值曲线"""
         calculator = PerformanceCalculator()
+        calculator.market_data_provider.require_price = Mock(return_value=10.20)
         curve = calculator.get_equity_curve(
             account_id=self.account.account_id,
             start_date=date.today(),
@@ -525,3 +604,67 @@ class testEquityCurve(TestCase):
                 point['cash'] + point['market_value'],
                 places=2
             )
+
+    def test_get_equity_curve_raises_when_price_missing(self):
+        """测试净值曲线在缺失价格时显式报错。"""
+        calculator = PerformanceCalculator()
+        calculator.market_data_provider.require_price = Mock(
+            side_effect=DataFetchError(
+                message="无法获取 000001.SZ 在 2026-03-27 的历史价格",
+                code="PRICE_UNAVAILABLE",
+            )
+        )
+
+        with self.assertRaises(DataFetchError):
+            calculator.get_equity_curve(
+                account_id=self.account.account_id,
+                start_date=date.today(),
+                end_date=date.today()
+            )
+
+
+@pytest.mark.django_db
+class TestPriceUpdateTask(TestCase):
+    """测试持仓价格更新任务在缺价时显式失败。"""
+
+    def setUp(self):
+        self.account_repo = DjangoSimulatedAccountRepository()
+        self.position_repo = DjangoPositionRepository()
+        self.trade_repo = DjangoTradeRepository()
+
+        create_use_case = CreateSimulatedAccountUseCase(self.account_repo)
+        self.account = create_use_case.execute(
+            account_name='价格更新任务测试',
+            initial_capital=100000.00,
+        )
+
+        buy_use_case = ExecuteBuyOrderUseCase(
+            self.account_repo,
+            self.position_repo,
+            self.trade_repo,
+        )
+        buy_use_case.execute(
+            account_id=self.account.account_id,
+            asset_code='510300.SH',
+            asset_name='沪深300ETF',
+            asset_type='etf',
+            quantity=1000,
+            price=5.00,
+        )
+
+    def test_update_position_prices_task_returns_error_when_price_missing(self):
+        with patch(
+            "apps.simulated_trading.application.tasks.UnifiedPriceService.require_latest_price",
+            side_effect=DataFetchError(
+                message="无法获取 510300.SH 的最新价格",
+                code="PRICE_UNAVAILABLE",
+                details={"requested_code": "510300.SH", "asset_type": "etf"},
+            ),
+        ):
+            result = update_position_prices_task.__wrapped__(account_id=self.account.account_id)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["updated_count"], 0)
+        self.assertEqual(result["error_count"], 1)
+        self.assertEqual(result["errors"][0]["asset_code"], "510300.SH")
+        self.assertEqual(result["errors"][0]["details"]["asset_type"], "etf")

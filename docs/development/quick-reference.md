@@ -132,6 +132,10 @@ mypy apps/ --strict
 > - 统一格式: `/api/{module}/{endpoint}/` (所有 API 端点)
 > - 页面路由: `/{module}/dashboard/` 等需要登录
 > - 旧格式 (`/api/{module}/api/` 和 `/{module}/api/`) 仍保持向后兼容
+>
+> **Schema 生成说明**:
+> - `python manage.py spectacular --file schema.yml` 只输出规范化 `/api/*` 端点
+> - 枚举组件名已做稳定映射，避免生成带哈希后缀的临时 enum 名
 
 ### Regime API
 
@@ -192,11 +196,11 @@ mypy apps/ --strict
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/simulated-trading/accounts/` | POST | 创建模拟账户 |
-| `/api/simulated-trading/accounts/{id}/` | GET | 获取账户详情 |
-| `/api/simulated-trading/accounts/{id}/positions/` | GET | 获取持仓列表 |
-| `/api/simulated-trading/accounts/{id}/trades/` | GET | 获取交易记录 |
-| `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取账户绩效 |
+| `/api/simulated-trading/accounts/` | GET/POST | 获取当前登录用户的账户列表 / 创建模拟账户 |
+| `/api/simulated-trading/accounts/{id}/` | GET | 获取当前登录用户名下账户详情 |
+| `/api/simulated-trading/accounts/{id}/positions/` | GET | 获取当前登录用户名下账户持仓列表 |
+| `/api/simulated-trading/accounts/{id}/trades/` | GET | 获取当前登录用户名下账户交易记录 |
+| `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
 
 ### Realtime Price API
@@ -214,6 +218,31 @@ mypy apps/ --strict
 |------|------|------|
 | `/api/alpha/scores/` | GET | 获取股票评分 |
 | `/api/alpha/providers/status/` | GET | Provider 状态 |
+
+### Macro Datasource API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/macro/datasources/` | GET | 列出统一财经数据源中台中的宏观数据源配置 |
+| `/api/macro/datasources/` | POST | 创建数据源配置（支持 Tushare `http_url` 和 QMT `extra_config`） |
+| `/api/macro/datasources/{id}/` | GET | 获取单个数据源配置 |
+| `/api/macro/datasources/{id}/` | PATCH/PUT | 更新数据源配置 |
+
+### 路由兼容与快捷入口
+
+- 页面根路径快捷入口：`/account/ -> /account/login/`、`/equity/ -> /equity/screen/`、`/fund/ -> /fund/dashboard/`、`/prompt/ -> /prompt/manage/`
+- `GET /api/filter/` 返回可发现的 API 根信息；真正执行滤波仍使用 `POST /api/filter/`
+- `/api/macro/indicator-data/` 同时接受 `code` 与 `indicator_code` 查询参数
+- `/api/pulse/current/` 在无历史快照时会尝试按需计算一次当前 Pulse
+
+### 数据源中台提示
+
+- Tushare 第三方代理地址统一配置在 `DataSourceConfig.http_url`
+- 运行时会自动下发到 `pro._DataApi__http_url`
+- 不需要在 `equity / backtest / market_data / fund / sector / factor / hedge` 分别配置
+- QMT 行情源统一配置在 `DataSourceConfig.source_type=qmt`
+- `extra_config` 可承载 `client_path`、`data_dir`、`dividend_type` 等本地 XtQuant 参数
+- `market_data` registry 会优先从统一数据源配置表注册 QMT provider，未配置时才回退到 `MARKET_DATA_QMT_*` settings
 
 ### Factor API (因子管理)
 

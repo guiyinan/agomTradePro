@@ -953,6 +953,44 @@ class DjangoValuationRepairRepository:
         except ValuationRepairTrackingModel.DoesNotExist:
             return None
 
+    def get_snapshot_map(self, stock_codes: list[str]) -> dict[str, dict]:
+        """批量获取估值修复快照映射。"""
+        normalized_codes = [str(code).upper() for code in stock_codes if code]
+        if not normalized_codes:
+            return {}
+
+        from .models import ValuationRepairTrackingModel
+
+        rows = ValuationRepairTrackingModel._default_manager.filter(
+            stock_code__in=normalized_codes,
+            is_active=True,
+        ).values(
+            "stock_code",
+            "current_phase",
+            "signal",
+            "composite_percentile",
+            "repair_progress",
+            "repair_speed_per_30d",
+            "estimated_days_to_target",
+            "confidence",
+            "as_of_date",
+            "is_stalled",
+        )
+        return {
+            str(row["stock_code"]).upper(): {
+                "phase": row.get("current_phase"),
+                "signal": row.get("signal"),
+                "composite_percentile": row.get("composite_percentile"),
+                "repair_progress": row.get("repair_progress"),
+                "repair_speed_per_30d": row.get("repair_speed_per_30d"),
+                "estimated_days_to_target": row.get("estimated_days_to_target"),
+                "confidence": row.get("confidence"),
+                "is_stalled": row.get("is_stalled"),
+                "as_of_date": row["as_of_date"].isoformat() if row.get("as_of_date") else None,
+            }
+            for row in rows
+        }
+
 
 class DjangoValuationDataQualityRepository:
     """估值数据质量快照仓储"""

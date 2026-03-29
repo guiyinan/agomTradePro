@@ -484,8 +484,8 @@ def resource_account_summary() -> str:
     if portfolio_id is None:
         return "未找到可用投资组合。"
 
-    portfolio = client.get(f"account/api/portfolios/{portfolio_id}/")
-    stats = client.get(f"account/api/portfolios/{portfolio_id}/statistics/")
+    portfolio = client.get(f"api/account/portfolios/{portfolio_id}/")
+    stats = client.get(f"api/account/portfolios/{portfolio_id}/statistics/")
 
     return f"""默认组合ID: {portfolio_id}
 组合名称: {portfolio.get('name')}
@@ -512,7 +512,7 @@ def resource_account_positions() -> str:
     if portfolio_id is None:
         return "未找到可用投资组合。"
 
-    payload = client.get("account/api/positions/", params={"portfolio_id": portfolio_id, "limit": 20})
+    payload = client.get("api/account/positions/", params={"portfolio_id": portfolio_id, "limit": 20})
     rows = payload.get("results", payload) if isinstance(payload, dict) else payload
     if not rows:
         return f"组合 {portfolio_id} 当前无持仓。"
@@ -548,7 +548,7 @@ def resource_account_recent_transactions() -> str:
     if portfolio_id is None:
         return "未找到可用投资组合。"
 
-    payload = client.get("account/api/transactions/", params={"limit": 20})
+    payload = client.get("api/account/transactions/", params={"limit": 20})
     rows = payload.get("results", payload) if isinstance(payload, dict) else payload
     rows = [r for r in rows if r.get("portfolio") == portfolio_id]
 

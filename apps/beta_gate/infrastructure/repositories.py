@@ -7,6 +7,9 @@ Beta Gate Repositories
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.db import transaction
+from django.db.models import Q
+
 from .models import (
     GateConfigModel,
     GateDecisionModel,
@@ -40,7 +43,20 @@ class GateConfigRepository:
     def save(self, config) -> Any:
         """保存配置"""
         model = GateConfigModel.from_domain(config)
-        model.save()
+        with transaction.atomic():
+            if model.is_active:
+                lock_filter = Q(is_active=True) & Q(risk_profile=model.risk_profile)
+                if model.pk:
+                    lock_filter |= Q(pk=model.pk)
+                list(
+                    GateConfigModel._default_manager.select_for_update().filter(lock_filter).values_list(
+                        "pk", flat=True
+                    )
+                )
+                GateConfigModel._default_manager.active().filter(
+                    risk_profile=model.risk_profile
+                ).exclude(pk=model.pk).update(is_active=False)
+            model.save()
         return model
 
     def get_history(self, risk_profile=None, limit=100) -> list[Any]:

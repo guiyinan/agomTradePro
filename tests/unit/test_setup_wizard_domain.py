@@ -141,16 +141,19 @@ class TestDataSourceConfigDTO:
     def test_create_data_source_config(self):
         config = DataSourceConfigDTO(
             tushare_token="test-token",
+            tushare_http_url="https://proxy.example.com",
             fred_api_key="fred-key",
             akshare_enabled=True,
         )
         assert config.tushare_token == "test-token"
+        assert config.tushare_http_url == "https://proxy.example.com"
         assert config.fred_api_key == "fred-key"
         assert config.akshare_enabled is True
 
     def test_create_data_source_config_defaults(self):
         config = DataSourceConfigDTO()
         assert config.tushare_token is None
+        assert config.tushare_http_url is None
         assert config.fred_api_key is None
         assert config.akshare_enabled is True
 

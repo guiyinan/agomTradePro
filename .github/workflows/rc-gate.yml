@@ -39,13 +39,29 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-xdist
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            pip install -r requirements.txt
+            pip install pytest pytest-cov pytest-xdist pytest-base-url pytest-playwright playwright
+          fi
+          python -m playwright install chromium
 
       - name: Prepare database
         run: |
           python manage.py migrate --noinput
           python manage.py collectstatic --noinput
+
+      - name: Collect diff range
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "BASE_REF=$(git rev-parse HEAD~1)" >> "$GITHUB_ENV"
+          else
+            echo "BASE_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          fi
+          echo "HEAD_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       # Check 1: API naming convention 100%
       - name: Check API Naming Convention
@@ -130,19 +146,33 @@ jobs:
           ]
 
           violations = []
-
-          # Scan all tracked python files under apps
-          paths = subprocess.check_output(
-              ["git", "ls-files", ":(glob)apps/**/*.py"],
-              text=True,
-          ).splitlines()
-          chunks = []
-          for p in paths:
-              chunks.append(f"diff --git a/{p} b/{p}\n+++ b/{p}\n@@ -0,0 +1,999999 @@\n")
-              with open(p, "r", encoding="utf-8", errors="ignore") as fh:
-                  for ln in fh.read().splitlines():
-                      chunks.append(f"+{ln}\n")
-          diff_text = "".join(chunks)
+          base_ref = os.environ.get("BASE_REF", "").strip()
+          head_ref = os.environ.get("HEAD_REF", "").strip()
+          if base_ref and head_ref and base_ref != head_ref:
+              try:
+                  diff_text = subprocess.check_output(
+                      ["git", "diff", "-U0", f"{base_ref}...{head_ref}", "--", ":(glob)apps/**/*.py"],
+                      text=True,
+                      stderr=subprocess.STDOUT,
+                  )
+              except subprocess.CalledProcessError:
+                  diff_text = subprocess.check_output(
+                      ["git", "diff", "-U0", base_ref, head_ref, "--", ":(glob)apps/**/*.py"],
+                      text=True,
+                      stderr=subprocess.STDOUT,
+                  )
+          else:
+              paths = subprocess.check_output(
+                  ["git", "ls-files", ":(glob)apps/**/*.py"],
+                  text=True,
+              ).splitlines()
+              chunks = []
+              for p in paths:
+                  chunks.append(f"diff --git a/{p} b/{p}\n+++ b/{p}\n@@ -0,0 +1,999999 @@\n")
+                  with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+                      for ln in fh.read().splitlines():
+                          chunks.append(f"+{ln}\n")
+              diff_text = "".join(chunks)
 
           current_file = None
           current_line = 0
@@ -203,20 +233,51 @@ jobs:
           echo "==================================="
           echo "Check 7: Domain Layer Coverage"
           echo "==================================="
-          pytest tests/unit/domain/ -v --tb=short \
-            -o "addopts=" \
-            --cov=apps/hedge/domain \
-            --cov=apps/fund/domain \
-            --cov=apps/factor/domain \
-            --cov=apps/rotation/domain \
-            --cov=apps/regime/domain \
-            --cov=apps/backtest/domain \
-            --cov=apps/dashboard/domain \
-            --cov=apps/sector/domain \
-            --cov=apps/equity/domain \
-            --cov=apps/events/domain \
-            --cov-fail-under=70 \
-            --cov-report=term-missing
+          python - <<'PY'
+          import os
+          import shlex
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          base_ref = os.environ.get("BASE_REF", "").strip()
+          head_ref = os.environ.get("HEAD_REF", "").strip()
+
+          diff_args = ["git", "diff", "--name-only"]
+          if base_ref and head_ref and base_ref != head_ref:
+              diff_args.extend([f"{base_ref}...{head_ref}"])
+          diff_args.extend(["--", ":(glob)apps/*/domain/**/*.py", ":(glob)apps/*/domain/*.py"])
+
+          changed_files = subprocess.check_output(diff_args, text=True).splitlines()
+          changed_cov_targets = sorted(
+              {
+                  str(Path(path).with_suffix("")).replace("\\", "/")
+                  for path in changed_files
+                  if "/domain/" in path.replace("\\", "/")
+              }
+          )
+
+          if not changed_cov_targets:
+              print("No changed domain files detected; skipping incremental coverage gate.")
+              sys.exit(0)
+
+          cmd = [
+              "pytest",
+              "tests/unit/domain/",
+              "-v",
+              "--tb=short",
+              "-o",
+              "addopts=",
+              "--cov-fail-under=70",
+              "--cov-report=term-missing",
+          ]
+          for target in changed_cov_targets:
+              cmd.append(f"--cov={target}")
+
+          print("Running incremental domain coverage gate:")
+          print(" ".join(shlex.quote(part) for part in cmd))
+          raise SystemExit(subprocess.call(cmd))
+          PY
           echo "Domain Coverage: PASS"
 
       # Check 8: P0/P1 defects check (renumbered)

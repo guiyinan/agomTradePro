@@ -266,11 +266,13 @@ class SetupStepView(View):
             return redirect("/setup/")
 
         tushare_token = request.POST.get("tushare_token", "").strip()
+        tushare_http_url = request.POST.get("tushare_http_url", "").strip()
         fred_api_key = request.POST.get("fred_api_key", "").strip()
         akshare_enabled = request.POST.get("akshare_enabled") == "on"
 
         config = DataSourceConfigDTO(
             tushare_token=tushare_token or None,
+            tushare_http_url=tushare_http_url or None,
             fred_api_key=fred_api_key or None,
             akshare_enabled=akshare_enabled,
         )

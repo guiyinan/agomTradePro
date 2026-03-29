@@ -15,13 +15,14 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from pandas import DataFrame
 
+from apps.market_data.application.price_service import UnifiedPriceService
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
+from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,31 @@ class PerformanceCalculator:
         self.account_repo = DjangoSimulatedAccountRepository()
         self.trade_repo = DjangoTradeRepository()
         self.position_repo = DjangoPositionRepository()
-        self.market_data_provider = MarketDataProvider()
+        self.market_data_provider = UnifiedPriceService()
+
+    def _require_market_price(self, asset_code: str, trade_date: date) -> float:
+        """
+        Resolve price from the configured market data provider.
+
+        Prefer ``get_price`` first so tests and adapters that expose the
+        nullable API can override pricing cleanly. If it returns ``None``,
+        fall back to the strict ``require_price`` path and keep the
+        production rule of failing loudly when no market price exists.
+        """
+        get_price = getattr(self.market_data_provider, "get_price", None)
+        if callable(get_price):
+            price = get_price(asset_code, trade_date)
+            if price is not None:
+                return price
+
+        require_price = getattr(self.market_data_provider, "require_price", None)
+        if callable(require_price):
+            return require_price(asset_code, trade_date)
+
+        raise DataFetchError(
+            message=f"无法获取 {asset_code} 在 {trade_date} 的历史价格",
+            code="PRICE_UNAVAILABLE",
+        )
 
     def calculate_and_update_performance(
         self,
@@ -175,6 +200,8 @@ class PerformanceCalculator:
 
             return max_dd
 
+        except DataFetchError:
+            raise
         except Exception as e:
             logger.error(f"计算最大回撤失败: {e}")
             return 0.0
@@ -326,12 +353,8 @@ class PerformanceCalculator:
             # 获取当日持仓的市值
             market_value = 0.0
             for asset_code, quantity in positions.items():
-                price = self.market_data_provider.get_price(asset_code, trade_date)
-                if price is not None:
-                    market_value += price * quantity
-                else:
-                    # 如果无法获取价格，使用0（保守估计）
-                    logger.warning(f"无法获取 {asset_code} 在 {trade_date} 的价格，市值记为0")
+                price = float(self._require_market_price(asset_code, trade_date))
+                market_value += price * float(quantity)
 
             # 计算净值
             net_value = cash + market_value
@@ -391,6 +414,8 @@ class PerformanceCalculator:
 
             return result
 
+        except DataFetchError:
+            raise
         except Exception as e:
             logger.error(f"获取净值曲线失败: {e}")
-            return []
+            raise

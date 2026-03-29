@@ -1,6 +1,5 @@
-from celery import shared_task
 from django.conf import settings
-
+from celery import shared_task
 from apps.equity.application.use_cases_valuation_repair import (
     ScanValuationRepairsRequest,
     ScanValuationRepairsUseCase,
@@ -22,6 +21,7 @@ from apps.equity.infrastructure.repositories import (
     DjangoValuationDataQualityRepository,
     DjangoValuationRepairRepository,
 )
+from shared.config.secrets import get_secrets
 
 
 @shared_task(
@@ -167,10 +167,16 @@ def sync_financial_data_task(
 
     # 初始化网关
     if source == "tushare":
-        tushare_token = getattr(settings, "TUSHARE_TOKEN", None) or getattr(settings, "TUSHARE_PRO_TOKEN", None)
-        if not tushare_token:
+        try:
+            tushare_settings = get_secrets().data_sources
+        except OSError:
+            tushare_settings = None
+        if not tushare_settings or not tushare_settings.tushare_token:
             return {"success": False, "error": "TUSHARE_TOKEN 未配置"}
-        gateway = TushareFinancialGateway(token=tushare_token)
+        gateway = TushareFinancialGateway(
+            token=tushare_settings.tushare_token,
+            http_url=tushare_settings.tushare_http_url,
+        )
     else:
         gateway = AKShareFinancialGateway()
 

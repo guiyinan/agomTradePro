@@ -1,12 +1,14 @@
 """Account URL Configuration."""
 
-from django.urls import include, path
+from django.urls import path
+from django.views.generic import RedirectView
 
 from apps.account.interface import views
 
 app_name = 'account'
 
 urlpatterns = [
+    path("", RedirectView.as_view(url="/account/login/", permanent=False), name="home"),
     # 页面视图
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
@@ -37,10 +39,4 @@ urlpatterns = [
     path('admin/users/<int:user_id>/role/', views.set_user_role_view, name='set_user_role'),
     path('admin/users/<int:user_id>/reset/', views.reset_user_status_view, name='reset_user_status'),
     path('admin/settings/', views.system_settings_view, name='system_settings'),
-
-    # 页面内嵌 API（直接挂在 account 命名空间下）
-    path('api/volatility/', views.portfolio_volatility_api_view, name='api_volatility'),
-
-    # Legacy API compatibility under /account/api/*
-    path('api/', include(('apps.account.interface.api_urls', 'account_api'), namespace='legacy_account_api')),
 ]

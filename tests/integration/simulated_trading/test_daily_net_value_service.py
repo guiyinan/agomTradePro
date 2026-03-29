@@ -140,10 +140,11 @@ class TestDailyNetValueService(TestCase):
             else:
                 # 更新持仓价格（模拟市值变化）
                 position = PositionModel.objects.get(account_id=self.account.account_id)
-                position.current_price = price
-                position.market_value = position.quantity * price
-                position.unrealized_pnl = (price - float(position.avg_cost)) * position.quantity
-                position.unrealized_pnl_pct = ((price - float(position.avg_cost)) / float(position.avg_cost)) * 100
+                price_decimal = Decimal(str(price))
+                position.current_price = price_decimal
+                position.market_value = position.quantity * price_decimal
+                position.unrealized_pnl = (price_decimal - position.avg_cost) * position.quantity
+                position.unrealized_pnl_pct = ((float(price_decimal) - float(position.avg_cost)) / float(position.avg_cost)) * 100
                 position.save()
 
                 # 更新账户市值
@@ -206,10 +207,11 @@ class TestDailyNetValueService(TestCase):
                 )
             else:
                 position = PositionModel.objects.get(account_id=self.account.account_id)
-                position.current_price = price
-                position.market_value = position.quantity * price
-                position.unrealized_pnl = (price - float(position.avg_cost)) * position.quantity
-                position.unrealized_pnl_pct = ((price - float(position.avg_cost)) / float(position.avg_cost)) * 100
+                price_decimal = Decimal(str(price))
+                position.current_price = price_decimal
+                position.market_value = position.quantity * price_decimal
+                position.unrealized_pnl = (price_decimal - position.avg_cost) * position.quantity
+                position.unrealized_pnl_pct = ((float(price_decimal) - float(position.avg_cost)) / float(position.avg_cost)) * 100
                 position.save()
 
                 account_model = SimulatedAccountModel.objects.get(id=self.account.account_id)
@@ -328,9 +330,9 @@ class TestDailyNetValueService(TestCase):
         # 第二天价格上涨
         day2 = day1 + timedelta(days=1)
         position = PositionModel.objects.get(account_id=self.account.account_id)
-        position.current_price = 11.00  # 涨10%
+        position.current_price = Decimal("11.00")  # 涨10%
         position.market_value = position.quantity * position.current_price
-        position.unrealized_pnl = (float(position.current_price) - float(position.avg_cost)) * position.quantity
+        position.unrealized_pnl = (position.current_price - position.avg_cost) * position.quantity
         position.unrealized_pnl_pct = ((float(position.current_price) - float(position.avg_cost)) / float(position.avg_cost)) * 100
         position.save()
 
@@ -380,10 +382,11 @@ class TestDailyNetValueService(TestCase):
                 )
             else:
                 position = PositionModel.objects.get(account_id=self.account.account_id)
-                position.current_price = price
-                position.market_value = position.quantity * price
-                position.unrealized_pnl = (price - float(position.avg_cost)) * position.quantity
-                position.unrealized_pnl_pct = ((price - float(position.avg_cost)) / float(position.avg_cost)) * 100
+                price_decimal = Decimal(str(price))
+                position.current_price = price_decimal
+                position.market_value = position.quantity * price_decimal
+                position.unrealized_pnl = (price_decimal - position.avg_cost) * position.quantity
+                position.unrealized_pnl_pct = ((float(price_decimal) - float(position.avg_cost)) / float(position.avg_cost)) * 100
                 position.save()
 
                 account_model = SimulatedAccountModel.objects.get(id=self.account.account_id)

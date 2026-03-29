@@ -66,6 +66,79 @@ class TestTushareGateway:
         assert gw.get_technical_snapshot("000001.SZ") is None
 
 
+class TestQMTGateway:
+    def test_provider_name(self):
+        from apps.market_data.infrastructure.gateways.qmt_gateway import QMTGateway
+
+        gw = QMTGateway()
+        assert gw.provider_name() == "qmt"
+
+    def test_supports(self):
+        from apps.market_data.infrastructure.gateways.qmt_gateway import QMTGateway
+
+        gw = QMTGateway()
+        assert gw.supports(DataCapability.REALTIME_QUOTE)
+        assert gw.supports(DataCapability.TECHNICAL_FACTORS)
+        assert gw.supports(DataCapability.HISTORICAL_PRICE)
+        assert not gw.supports(DataCapability.CAPITAL_FLOW)
+        assert not gw.supports(DataCapability.STOCK_NEWS)
+
+    def test_get_quote_snapshots(self):
+        from apps.market_data.infrastructure.gateways.qmt_gateway import QMTGateway
+
+        fake_xtdata = MagicMock()
+        fake_xtdata.get_full_tick.return_value = {
+            "000001.SZ": {
+                "lastPrice": 15.5,
+                "lastClose": 15.2,
+                "open": 15.3,
+                "high": 15.8,
+                "low": 15.1,
+                "volume": 1000000,
+                "amount": 15500000,
+                "turnoverRate": 3.2,
+                "volumeRatio": 1.1,
+            }
+        }
+
+        gw = QMTGateway()
+        with patch.object(gw, "_load_xtdata", return_value=fake_xtdata):
+            results = gw.get_quote_snapshots(["000001.SZ"])
+
+        assert len(results) == 1
+        assert results[0].stock_code == "000001.SZ"
+        assert results[0].price == Decimal("15.5")
+        assert results[0].pre_close == Decimal("15.2")
+        assert results[0].source == "qmt"
+
+    def test_get_historical_prices(self):
+        from apps.market_data.infrastructure.gateways.qmt_gateway import QMTGateway
+
+        fake_xtdata = MagicMock()
+        fake_xtdata.get_market_data_ex.return_value = {
+            "000001.SZ": pd.DataFrame(
+                {
+                    "time": ["20260325", "20260326"],
+                    "open": [15.1, 15.2],
+                    "high": [15.6, 15.7],
+                    "low": [14.9, 15.0],
+                    "close": [15.4, 15.5],
+                    "volume": [1000, 1200],
+                    "amount": [15000, 18000],
+                }
+            )
+        }
+
+        gw = QMTGateway()
+        with patch.object(gw, "_load_xtdata", return_value=fake_xtdata):
+            results = gw.get_historical_prices("000001.SZ", "20260325", "20260326")
+
+        assert len(results) == 2
+        assert results[0].asset_code == "000001.SZ"
+        assert results[0].close == 15.4
+        assert results[0].source == "qmt"
+
+
 class TestAKShareGeneralGateway:
     def test_provider_name(self):
         from apps.market_data.infrastructure.gateways.akshare_general_gateway import (
@@ -194,6 +267,8 @@ class TestRegistryFactory:
         mock_settings.MARKET_DATA_EASTMONEY_ENABLED = True
         mock_settings.MARKET_DATA_EASTMONEY_INTERVAL_SEC = 0.5
         mock_settings.MARKET_DATA_EASTMONEY_PRIORITY = 10
+        mock_settings.MARKET_DATA_QMT_ENABLED = True
+        mock_settings.MARKET_DATA_QMT_PRIORITY = 15
         mock_settings.MARKET_DATA_AKSHARE_GENERAL_ENABLED = True
         mock_settings.MARKET_DATA_AKSHARE_GENERAL_PRIORITY = 20
         mock_settings.MARKET_DATA_TUSHARE_ENABLED = True
@@ -204,6 +279,7 @@ class TestRegistryFactory:
         names = [p.provider_name() for p in providers]
 
         assert "eastmoney" in names
+        assert "qmt" in names
         assert "akshare_general" in names
         assert "tushare" in names
         # eastmoney should be first (priority 10)
@@ -216,6 +292,7 @@ class TestRegistryFactory:
         )
 
         mock_settings.MARKET_DATA_EASTMONEY_ENABLED = False
+        mock_settings.MARKET_DATA_QMT_ENABLED = False
         mock_settings.MARKET_DATA_AKSHARE_GENERAL_ENABLED = False
         mock_settings.MARKET_DATA_TUSHARE_ENABLED = True
         mock_settings.MARKET_DATA_TUSHARE_PRIORITY = 30
@@ -225,5 +302,6 @@ class TestRegistryFactory:
         names = [p.provider_name() for p in providers]
 
         assert "eastmoney" not in names
+        assert "qmt" not in names
         assert "akshare_general" not in names
         assert "tushare" in names

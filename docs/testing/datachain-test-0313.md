@@ -30,7 +30,7 @@
 修复内容:
 
 - `sdk/agomtradepro/modules/regime.py`
-  - 旧: `/regime/api`
+  - 旧: 历史 module-first API 前缀
   - 新: `/api/regime`
 - `sdk/agomtradepro/modules/realtime.py`
   - 旧: `realtime/api`

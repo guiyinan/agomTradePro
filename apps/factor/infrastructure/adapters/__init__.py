@@ -9,6 +9,8 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
 
+from shared.infrastructure.tushare_client import create_tushare_pro_client
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,13 +35,7 @@ class TushareFactorAdapter(FactorDataSource):
             return
 
         try:
-            import tushare as ts
-
-            from shared.config.secrets import get_secrets
-
-            secrets = get_secrets()
-            token = secrets.data_sources.tushare_token
-            self._pro = ts.pro_api(token)
+            self._pro = create_tushare_pro_client()
             self._connected = True
         except Exception as e:
             logger.warning(f"Failed to connect to Tushare: {e}")

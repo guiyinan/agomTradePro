@@ -16,8 +16,12 @@ from apps.market_data.infrastructure.gateways.akshare_eastmoney_gateway import (
 from apps.market_data.infrastructure.gateways.akshare_general_gateway import (
     AKShareGeneralGateway,
 )
+from apps.market_data.infrastructure.gateways.qmt_gateway import QMTGateway
 from apps.market_data.infrastructure.gateways.tushare_gateway import (
     TushareGateway,
+)
+from apps.market_data.infrastructure.provider_config import (
+    load_active_qmt_provider_configs,
 )
 from apps.market_data.infrastructure.registries.source_registry import SourceRegistry
 
@@ -42,6 +46,7 @@ def _build_registry() -> SourceRegistry:
 
     注册顺序和优先级：
       - 东方财富 (priority=10) — 主源，覆盖 4 种能力
+      - QMT (priority=15) — 本地终端直连行情源
       - AKShare 通用 (priority=20) — 备用，行情+技术指标
       - Tushare (priority=30) — 第三备用，日线级行情
 
@@ -65,7 +70,19 @@ def _build_registry() -> SourceRegistry:
         except Exception:
             logger.warning("东方财富 provider 注册失败，跳过", exc_info=True)
 
-    # 2. AKShare 通用 — 备用数据源
+    # 2. QMT — 本地终端行情源
+    qmt_registered = _register_qmt_providers(registry)
+    if not qmt_registered:
+        qmt_enabled = getattr(settings, "MARKET_DATA_QMT_ENABLED", False)
+        if qmt_enabled:
+            try:
+                qmt_priority = getattr(settings, "MARKET_DATA_QMT_PRIORITY", 15)
+                registry.register(QMTGateway(), priority=qmt_priority)
+                logger.info("已注册 QMT provider (priority=%d)", qmt_priority)
+            except Exception:
+                logger.warning("QMT provider 注册失败，跳过", exc_info=True)
+
+    # 3. AKShare 通用 — 备用数据源
     akshare_general_enabled = getattr(
         settings, "MARKET_DATA_AKSHARE_GENERAL_ENABLED", True
     )
@@ -80,7 +97,7 @@ def _build_registry() -> SourceRegistry:
         except Exception:
             logger.warning("AKShare 通用 provider 注册失败，跳过", exc_info=True)
 
-    # 3. Tushare — 第三备用数据源
+    # 4. Tushare — 第三备用数据源
     tushare_enabled = getattr(
         settings, "MARKET_DATA_TUSHARE_ENABLED", True
     )
@@ -99,6 +116,31 @@ def _build_registry() -> SourceRegistry:
         logger.error("所有数据源注册失败！系统将无法获取行情数据")
 
     return registry
+
+
+def _register_qmt_providers(registry: SourceRegistry) -> bool:
+    """从统一数据源配置中注册 QMT provider。"""
+    rows = load_active_qmt_provider_configs()
+    if not rows:
+        return False
+
+    registered = False
+    for row in rows:
+        try:
+            gateway = QMTGateway(
+                source_name=row["name"],
+                extra_config=row.get("extra_config") or {},
+            )
+            registry.register(gateway, priority=row["priority"])
+            logger.info(
+                "已从统一数据源配置注册 QMT provider: %s (priority=%d)",
+                row["name"],
+                row["priority"],
+            )
+            registered = True
+        except Exception:
+            logger.warning("QMT 数据源 %s 注册失败，跳过", row.get("name"), exc_info=True)
+    return registered
 
 
 def reset_registry() -> None:

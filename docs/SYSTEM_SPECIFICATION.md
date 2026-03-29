@@ -2,7 +2,7 @@
 
 > **版本**: 0.7.0
 > **生成日期**: 2026-03-05
-> **更新日期**: 2026-03-23
+> **更新日期**: 2026-03-28
 > **项目状态**: 生产就绪
 > **文档性质**: 技术与功能完整说明
 > **版本管理**: [VERSION.md](VERSION.md)
@@ -28,7 +28,7 @@
 
 ### 1.1 系统定位
 
-**AgomTradePro** (Agom Strategic Asset Allocation Framework) 是一个基于宏观环境准入机制的投资决策辅助系统。
+**AgomTradePro** (Agom Strategic Asset Allocation Framework) 是个人投研平台。
 
 **核心理念**: 通过 **Regime（增长/通胀象限）** 和 **Policy（政策档位）** 双重过滤，确保投资者 **"不在错误的宏观环境中下注"**。
 
@@ -36,7 +36,7 @@
 
 | 指标 | 数值 |
 |------|------|
-| 业务模块 | 33个 |
+| 业务模块 | 35个 |
 | 测试用例 | 1,600+ |
 | 代码行数 | 50,000+ |
 | API 端点 | 100+ |
@@ -227,6 +227,8 @@ AgomTradePro/
 │   ├── terminal/                 # 终端交互
 │   ├── agent_runtime/            # Agent 运行时
 │   ├── ai_capability/            # AI 能力目录
+│   ├── pulse/                    # Pulse 脉搏层
+│   ├── setup_wizard/             # 系统初始化向导
 │   ├── share/                    # 分享功能
 │   └── task_monitor/             # 任务监控
 │
@@ -728,7 +730,7 @@ class Position:
     account_id: str
     asset_code: str
     quantity: float
-    cost_basis: float
+    cost_basis: float  # 含买入侧手续费和滑点摊薄后的持仓成本
     current_price: float
     market_value: float
     profit_loss: float
@@ -749,7 +751,7 @@ class Position:
 | 任务 | 时间 | 说明 |
 |------|------|------|
 | 自动交易 | 工作日 15:30 | 执行待处理信号 |
-| 更新价格 | 工作日 16:00 | 更新持仓价格 |
+| 更新价格 | 工作日 16:00 | 通过 `apps/market_data` 统一价格接口更新持仓价格；若无价格则任务失败并返回错误，不允许静默补 0 或编造价格 |
 | 计算绩效 | 周日 2:00 | 计算周度绩效 |
 | 清理账户 | 周日 3:00 | 清理不活跃账户 |
 | 发送摘要 | 工作日 17:00 | 发送每日摘要 |
@@ -1275,11 +1277,11 @@ def check_invalidation(
 
 | 端点 | 方法 | 说明 | 认证 |
 |------|------|------|------|
-| `/api/simulated-trading/accounts/` | GET/POST | 账户列表/创建 | 需要 |
-| `/api/simulated-trading/accounts/{id}/` | GET | 账户详情 | 需要 |
-| `/api/simulated-trading/accounts/{id}/positions/` | GET | 持仓列表 | 需要 |
-| `/api/simulated-trading/accounts/{id}/trades/` | GET | 交易记录 | 需要 |
-| `/api/simulated-trading/accounts/{id}/performance/` | GET | 账户绩效 | 需要 |
+| `/api/simulated-trading/accounts/` | GET/POST | 当前登录用户账户列表/创建 | 需要 |
+| `/api/simulated-trading/accounts/{id}/` | GET | 当前登录用户账户详情 | 需要 |
+| `/api/simulated-trading/accounts/{id}/positions/` | GET | 当前登录用户持仓列表，`avg_cost` 为含买入侧手续费和滑点的摊薄成本 | 需要 |
+| `/api/simulated-trading/accounts/{id}/trades/` | GET | 当前登录用户交易记录 | 需要 |
+| `/api/simulated-trading/accounts/{id}/performance/` | GET | 当前登录用户账户绩效 | 需要 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 | 需要 |
 
 #### 5.2.7 Dashboard API

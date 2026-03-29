@@ -186,12 +186,16 @@ class CompositeAssetPriceAdapter:
         return list(assets)
 
 
-def create_default_price_adapter(tushare_token: str | None = None) -> CompositeAssetPriceAdapter:
+def create_default_price_adapter(
+    tushare_token: str | None = None,
+    tushare_http_url: str | None = None,
+) -> CompositeAssetPriceAdapter:
     """
     创建默认的资产价格适配器
 
     Args:
         tushare_token: Tushare API token（可选）
+        tushare_http_url: Tushare 自定义 HTTP URL（可选）
 
     Returns:
         CompositeAssetPriceAdapter: 组合适配器
@@ -203,7 +207,12 @@ def create_default_price_adapter(tushare_token: str | None = None) -> CompositeA
     # 添加 Tushare 适配器（如果提供了 token）
     if tushare_token:
         try:
-            adapters.append(TushareAssetPriceAdapter(token=tushare_token))
+            adapters.append(
+                TushareAssetPriceAdapter(
+                    token=tushare_token,
+                    http_url=tushare_http_url,
+                )
+            )
         except Exception as e:
             logger.warning(f"无法初始化 Tushare 适配器: {e}")
 

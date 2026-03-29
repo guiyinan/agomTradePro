@@ -286,7 +286,7 @@ APP_BASE_URL = env("APP_BASE_URL", default="")
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "core.schema.AgomAutoSchema",
     # 异常处理器（P0-1：统一异常返回格式）
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
     # 认证配置
@@ -376,6 +376,59 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": "/api/",
     "COMPONENT_SPLIT_REQUEST": True,
     "COMPONENT_NO_READ_ONLY_REQUIRED": True,
+    "PREPROCESSING_HOOKS": [
+        "core.schema.api_only_endpoints_preprocessing_hook",
+    ],
+    "ENUM_NAME_OVERRIDES": {
+        "AgentTaskStatusEnum": "apps.agent_runtime.domain.entities.TaskStatus",
+        "AgentTaskDomainEnum": "apps.agent_runtime.domain.entities.TaskDomain",
+        "SignalDirectionEnum": [
+            ("LONG", "Long"),
+            ("SHORT", "Short"),
+            ("NEUTRAL", "Neutral"),
+        ],
+        "AlphaTriggerDirectionEnum": [
+            ("LONG", "LONG"),
+            ("SHORT", "SHORT"),
+            ("NEUTRAL", "NEUTRAL"),
+        ],
+        "TerminalCommandRiskLevelEnum": [
+            ("read", "只读"),
+            ("write_low", "低风险写入"),
+            ("write_high", "高风险写入"),
+            ("admin", "管理员"),
+        ],
+        "PromptCategoryEnum": [
+            ("report", "Report Analysis"),
+            ("signal", "Signal Generation"),
+            ("analysis", "Data Analysis"),
+            ("chat", "Chat"),
+        ],
+        "PolicySourceCategoryEnum": [
+            ("gov_docs", "政府文件库"),
+            ("central_bank", "央行公告"),
+            ("mof", "财政部"),
+            ("csrc", "证监会"),
+            ("media", "财经媒体"),
+            ("other", "其他"),
+        ],
+        "TradeActionEnum": [
+            ("buy", "买入"),
+            ("sell", "卖出"),
+        ],
+        "StrategyActionEnum": [
+            ("buy", "买入"),
+            ("sell", "卖出"),
+            ("hold", "持有"),
+            ("weight", "设置权重"),
+        ],
+        "StrategyTypeEnum": [
+            ("rule_based", "规则驱动"),
+            ("script_based", "脚本驱动"),
+            ("hybrid", "混合模式"),
+            ("ai_driven", "AI驱动"),
+        ],
+    },
     # UI optimizations
     "SWAGGER_UI_SETTINGS": {
         "defaultModelsExpandDepth": 1,
@@ -769,6 +822,10 @@ MARKET_DATA_EASTMONEY_ENABLED = env.bool("MARKET_DATA_EASTMONEY_ENABLED", defaul
 MARKET_DATA_EASTMONEY_INTERVAL_SEC = env.float("MARKET_DATA_EASTMONEY_INTERVAL_SEC", default=0.5)
 # 东方财富 provider 优先级（数字越小越优先）
 MARKET_DATA_EASTMONEY_PRIORITY = env.int("MARKET_DATA_EASTMONEY_PRIORITY", default=10)
+# QMT provider 开关（优先读取统一数据源配置中的 qmt 条目）
+MARKET_DATA_QMT_ENABLED = env.bool("MARKET_DATA_QMT_ENABLED", default=False)
+# QMT provider 优先级（仅在未配置 DB 条目时生效）
+MARKET_DATA_QMT_PRIORITY = env.int("MARKET_DATA_QMT_PRIORITY", default=15)
 # 是否保存原始 payload
 MARKET_DATA_ENABLE_RAW_PAYLOAD = env.bool("MARKET_DATA_ENABLE_RAW_PAYLOAD", default=True)
 # Fail open 模式（provider 失败时是否允许降级）

@@ -95,11 +95,18 @@ def run_backtest_task(
             from ..infrastructure.adapters import create_default_price_adapter
 
             try:
-                token = get_secrets().data_sources.tushare_token
+                tushare_settings = get_secrets().data_sources
             except Exception:
-                token = None
+                tushare_settings = None
 
-            adapter = create_default_price_adapter(tushare_token=token)
+            adapter = create_default_price_adapter(
+                tushare_token=(
+                    tushare_settings.tushare_token if tushare_settings else None
+                ),
+                tushare_http_url=(
+                    tushare_settings.tushare_http_url if tushare_settings else None
+                ),
+            )
             return adapter.get_price(asset_class, as_of_date)
 
         # 5. 创建 PIT 处理器（如果需要）

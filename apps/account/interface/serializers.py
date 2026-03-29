@@ -76,35 +76,38 @@ class PortfolioCreateSerializer(serializers.ModelSerializer):
 
 # ==================== Position ====================
 
-class PositionSerializer(serializers.ModelSerializer):
-    """持仓序列化器"""
+class PositionSerializer(serializers.Serializer):
+    """统一账本持仓输出序列化器。"""
 
-    portfolio_name = serializers.CharField(source='portfolio.name', read_only=True)
-    asset_name = serializers.CharField(source='asset_code', read_only=True)
-    category_code = serializers.CharField(source='category.code', read_only=True, allow_null=True)
-    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
-    category_path = serializers.CharField(source='category.get_full_path', read_only=True, allow_null=True)
-    currency_code = serializers.CharField(source='currency.code', read_only=True, allow_null=True)
-    currency_name = serializers.CharField(source='currency.name', read_only=True, allow_null=True)
-    currency_symbol = serializers.CharField(source='currency.symbol', read_only=True, allow_null=True)
+    id = serializers.IntegerField(read_only=True)
+    portfolio = serializers.IntegerField(read_only=True)
+    portfolio_name = serializers.CharField(read_only=True)
+    asset_code = serializers.CharField(read_only=True)
+    asset_name = serializers.CharField(read_only=True)
+    category = serializers.IntegerField(read_only=True, allow_null=True)
+    category_code = serializers.CharField(read_only=True, allow_null=True)
+    category_name = serializers.CharField(read_only=True, allow_null=True)
+    category_path = serializers.CharField(read_only=True, allow_null=True)
+    currency = serializers.IntegerField(read_only=True, allow_null=True)
+    currency_code = serializers.CharField(read_only=True, allow_null=True)
+    currency_name = serializers.CharField(read_only=True, allow_null=True)
+    currency_symbol = serializers.CharField(read_only=True, allow_null=True)
+    asset_class = serializers.CharField(read_only=True, allow_null=True)
+    region = serializers.CharField(read_only=True, allow_null=True)
+    cross_border = serializers.CharField(read_only=True, allow_null=True)
+    shares = serializers.FloatField(read_only=True)
+    avg_cost = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
+    current_price = serializers.DecimalField(max_digits=20, decimal_places=4, read_only=True)
     market_value = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
     unrealized_pnl = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
     unrealized_pnl_pct = serializers.FloatField(read_only=True)
-
-    class Meta:
-        model = PositionModel
-        fields = [
-            'id', 'portfolio', 'portfolio_name', 'asset_code', 'asset_name',
-            'category', 'category_code', 'category_name', 'category_path',
-            'currency', 'currency_code', 'currency_name', 'currency_symbol',
-            'asset_class', 'region', 'cross_border',
-            'shares', 'avg_cost', 'current_price',
-            'market_value', 'unrealized_pnl', 'unrealized_pnl_pct',
-            'source', 'source_id', 'is_closed',
-            'opened_at', 'closed_at', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['market_value', 'unrealized_pnl', 'unrealized_pnl_pct',
-                           'opened_at', 'created_at', 'updated_at']
+    source = serializers.CharField(read_only=True, allow_blank=True)
+    source_id = serializers.IntegerField(read_only=True, allow_null=True)
+    is_closed = serializers.BooleanField(read_only=True)
+    opened_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    created_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    updated_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
 
 class PositionCreateSerializer(serializers.ModelSerializer):
@@ -130,11 +133,11 @@ class PositionCreateSerializer(serializers.ModelSerializer):
 
 
 class PositionUpdateSerializer(serializers.ModelSerializer):
-    """持仓更新序列化器"""
+    """持仓更新序列化器 — 平仓状态只能通过 close 接口变更，不能通过 PATCH/PUT 直接修改"""
 
     class Meta:
         model = PositionModel
-        fields = ['shares', 'avg_cost', 'current_price', 'is_closed']
+        fields = ['shares', 'avg_cost', 'current_price']
 
 
 # ==================== Transaction ====================

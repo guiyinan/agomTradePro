@@ -56,7 +56,7 @@
     <!-- 快速测试 -->
     <div class="md-test-section">
         <h2><i class="bi bi-lightning"></i> 快速测试</h2>
-        <p class="md-test-guidance">A 股收盘后，行情测试应优先回退到最近一个交易日收盘价；如果东方财富不可用且未配置 <code>TUSHARE_TOKEN</code>，这里会明确提示备用源不可用，而不是只显示“实时行情失败”。</p>
+        <p class="md-test-guidance">A 股收盘后，行情测试应优先回退到最近一个交易日收盘价；如果已配置 QMT，本地 XtQuant 行情也会出现在 provider 列表中。东方财富不可用且未配置 Tushare/QMT 时，这里会明确提示备用源不可用，而不是只显示“实时行情失败”。</p>
         <div class="md-test-input">
             <input type="text" id="testStockCode" placeholder="输入股票代码（如 000001.SZ）" value="000001.SZ">
             <button onclick="testQuote()">行情</button>
@@ -83,7 +83,7 @@ async function loadProviders() {
         const result = await apiFetch('/api/market-data/providers/health/');
         const data = result.data || [];
         if (data.length === 0) {
-            container.innerHTML = '<div class="md-empty"><i class="bi bi-info-circle" style="font-size: 24px;"></i><br>暂无已注册的 Provider<br><small>检查 MARKET_DATA_EASTMONEY_ENABLED 配置</small></div>';
+            container.innerHTML = '<div class="md-empty"><i class="bi bi-info-circle" style="font-size: 24px;"></i><br>暂无已注册的 Provider<br><small>检查统一数据源配置中的 qmt 条目，或检查 MARKET_DATA_EASTMONEY_ENABLED / MARKET_DATA_QMT_ENABLED</small></div>';
             return;
         }
         // Group by provider

@@ -4,7 +4,11 @@ Views package for Macro app.
 This package contains all view functions organized by functionality.
 """
 
-from .config_api import api_delete_data
+from .config_api import (
+    api_datasource_detail,
+    api_datasource_list_create,
+    api_delete_data,
+)
 from .fetch_api import (
     api_fetch_data,
     api_fetch_data_stream,
@@ -52,4 +56,6 @@ __all__ = [
     'api_update_record',
     # Config API
     'api_delete_data',
+    'api_datasource_list_create',
+    'api_datasource_detail',
 ]

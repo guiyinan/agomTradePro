@@ -134,14 +134,14 @@ class AKShareValuationGateway:
 class TushareValuationGateway:
     """Tushare 备源网关。"""
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, http_url: str | None = None):
         self.token = token
+        self.http_url = http_url
 
     def fetch(self, stock_code: str, start_date: date, end_date: date) -> ValuationSyncBatch:
         import pandas as pd
-        import tushare as ts
 
-        pro = ts.pro_api(self.token)
+        pro = create_tushare_pro_client(token=self.token, http_url=self.http_url)
         df = pro.daily_basic(
             ts_code=stock_code,
             start_date=start_date.strftime("%Y%m%d"),
@@ -207,3 +207,4 @@ class TushareValuationGateway:
             previous_pe = pe
 
         return ValuationSyncBatch(source_provider="tushare", stock_code=stock_code, records=records)
+from shared.infrastructure.tushare_client import create_tushare_pro_client

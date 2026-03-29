@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
 from apps.macro.interface.forms import DataSourceConfigForm
+from shared.config.secrets import clear_secrets_cache
 
 
 def safe_float(value):
@@ -278,6 +279,7 @@ def datasource_create_view(request):
         form = DataSourceConfigForm(request.POST)
         if form.is_valid():
             form.save()
+            clear_secrets_cache()
             messages.success(request, "数据源配置已创建")
             return redirect("macro:datasources")
     else:
@@ -298,6 +300,7 @@ def datasource_edit_view(request, source_id: int):
         form = DataSourceConfigForm(request.POST, instance=source)
         if form.is_valid():
             form.save()
+            clear_secrets_cache()
             messages.success(request, "数据源配置已更新")
             return redirect("macro:datasources")
     else:

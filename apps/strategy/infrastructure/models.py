@@ -259,7 +259,7 @@ class ScriptConfigModel(models.Model):
     script_hash = models.CharField(
         "脚本哈希",
         max_length=64,
-        unique=True,
+        db_index=True,
         help_text="SHA256哈希，用于检测脚本变更"
     )
 

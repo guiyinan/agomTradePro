@@ -5,6 +5,8 @@ Interface层:
 - 负责输入验证和输出格式化
 - 使用DRF Serializer进行数据转换
 """
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from django.core.validators import MaxValueValidator, MinValueValidator
 from rest_framework import serializers
 
@@ -70,15 +72,18 @@ class StrategyDetailSerializer(StrategySerializer):
             'rules_count', 'has_script_config', 'has_ai_config'
         ]
 
-    def get_rules_count(self, obj):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_rules_count(self, obj) -> int:
         """获取规则数量"""
         return obj.rules.count()
 
-    def get_has_script_config(self, obj):
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_has_script_config(self, obj) -> bool:
         """是否有脚本配置"""
         return hasattr(obj, 'script_config')
 
-    def get_has_ai_config(self, obj):
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_has_ai_config(self, obj) -> bool:
         """是否有 AI 配置"""
         return hasattr(obj, 'ai_config')
 
@@ -233,6 +238,14 @@ class ScriptConfigSerializer(serializers.ModelSerializer):
         script_hash = hashlib.sha256(script_code.encode()).hexdigest()
         validated_data['script_hash'] = script_hash
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """更新脚本配置时同步刷新 script_hash。"""
+        import hashlib
+
+        script_code = validated_data.get('script_code', instance.script_code)
+        validated_data['script_hash'] = hashlib.sha256(script_code.encode()).hexdigest()
+        return super().update(instance, validated_data)
 
 
 # ========================================================================

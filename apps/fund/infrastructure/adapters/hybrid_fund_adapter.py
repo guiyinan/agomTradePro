@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class HybridFundAdapter:
     """混合基金数据适配器 - 自动切换数据源"""
 
-    def __init__(self, tushare_token: str | None = None):
+    def __init__(self, tushare_token: str | None = None, tushare_http_url: str | None = None):
         """
         初始化混合适配器
 
@@ -31,6 +31,7 @@ class HybridFundAdapter:
             tushare_token: Tushare API token（可选）
         """
         self.tushare_token = tushare_token
+        self.tushare_http_url = tushare_http_url
         self._akshare_adapter = None
         self._tushare_adapter = None
 
@@ -49,7 +50,10 @@ class HybridFundAdapter:
             if not self.tushare_token:
                 raise ValueError("Tushare token 未配置")
             from .tushare_fund_adapter import TushareFundAdapter
-            self._tushare_adapter = TushareFundAdapter(self.tushare_token)
+            self._tushare_adapter = TushareFundAdapter(
+                token=self.tushare_token,
+                http_url=self.tushare_http_url,
+            )
         return self._tushare_adapter
 
     @retry_on_error(

@@ -79,7 +79,7 @@ def test_public_share_page_renders_position_details_without_duplicate_risk_notic
     assert "政策回暖后试仓" in content
     assert "跌破 9.80 重新评估" in content
     assert "本分享由" not in content
-    assert "数据来源: AgomTradePro 宏观环境准入系统" not in content
+    assert "数据来源: AgomTradePro 个人投研平台" not in content
 
 
 @pytest.mark.django_db
@@ -374,7 +374,9 @@ def test_refresh_share_link_creates_snapshot(client, test_user, active_share_lin
 
 
 @pytest.mark.django_db
-def test_refresh_share_link_includes_decision_rhythm_chain(client, test_user, active_share_link, test_account):
+def test_refresh_share_link_includes_decision_rhythm_chain(
+    client, test_user, active_share_link, test_account
+):
     client.force_login(test_user)
     now = timezone.now()
 
@@ -479,7 +481,9 @@ def test_refresh_share_link_includes_decision_rhythm_chain(client, test_user, ac
 
     assert response.status_code == 302
 
-    snapshot = ShareSnapshotModel.objects.filter(share_link=active_share_link).latest("snapshot_version")
+    snapshot = ShareSnapshotModel.objects.filter(share_link=active_share_link).latest(
+        "snapshot_version"
+    )
     assert snapshot.decision_payload["items"][0]["asset_code"] == "000001.SH"
     assert snapshot.decision_payload["items"][0]["status"] == "executed"
     assert snapshot.decision_payload["items"][0]["get_status_display"] == "已执行"
@@ -487,4 +491,6 @@ def test_refresh_share_link_includes_decision_rhythm_chain(client, test_user, ac
     assert snapshot.decision_payload["items"][0]["invalidation_logic"] == "跌破 9.80 重新评估"
     assert snapshot.decision_payload["evidence"][0]["reason_codes"] == ["trend", "macro"]
     assert snapshot.decision_payload["evidence"][0]["regime"] == "risk_on"
-    assert snapshot.decision_payload["evidence"][0]["execution_ref"]["account_id"] == test_account.id
+    assert (
+        snapshot.decision_payload["evidence"][0]["execution_ref"]["account_id"] == test_account.id
+    )

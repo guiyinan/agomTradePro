@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 
 from shared.config.secrets import get_secrets
+from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 from ..domain.ports import MarketDataPort, RegimeDataPort, StockPoolPort
 
@@ -42,7 +43,7 @@ class TushareStockAdapter:
         token = get_secrets().data_sources.tushare_token
         if not token:
             raise ValueError("Tushare token 未配置")
-        self._pro = ts.pro_api(token)
+        self._pro = create_tushare_pro_client(token=token)
 
     def fetch_stock_list(self) -> pd.DataFrame:
         """获取 A 股基础信息。"""

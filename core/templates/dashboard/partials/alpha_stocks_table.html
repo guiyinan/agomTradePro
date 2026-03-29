@@ -24,7 +24,7 @@
         <tr class="alpha-stock-row"
             data-code="{{ stock.code }}"
             onclick="document.querySelectorAll('.alpha-stock-row').forEach((row) => row.classList.remove('is-selected')); this.classList.add('is-selected');"
-            hx-get="{% url 'dashboard:api_alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}"
+        hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}"
             hx-trigger="click"
             hx-target="#alphaFactorPanel"
             hx-swap="innerHTML">

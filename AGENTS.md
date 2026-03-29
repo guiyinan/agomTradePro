@@ -5,18 +5,19 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-03-23
+> **最后更新**: 2026-03-28
 > **系统版本**: AgomTradePro 0.7.0
 > **项目状态**: 生产就绪
-> **业务模块**: 34个
+> **业务模块**: 35个
 > **测试覆盖**: 1,600+ 个测试用例
 
-AgomTradePro (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
+AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **最新完成** (0.7.0):
 - 新增 Setup Wizard 模块（系统初始化向导）
 - 新增 AI Capability Catalog 模块（系统级 AI 能力目录与统一路由）
 - 新增 Terminal CLI 模块（终端风格 AI 交互界面）
+- 新增 Pulse 脉搏层模块（战术层脉搏指标聚合与转折预警）
 - 完整的 DDD 四层架构实现
 
 **版本管理**: 参见 [docs/VERSION.md](docs/VERSION.md)
@@ -72,7 +73,7 @@ AgomTradePro/
 │   │   └── production.py
 │   ├── urls.py
 │   └── celery.py
-├── apps/                     # 33个业务模块
+├── apps/                     # 35个业务模块
 │   ├── macro/                # 宏观数据采集
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理
@@ -104,6 +105,7 @@ AgomTradePro/
 │   ├── terminal/             # 终端 CLI（AI 交互界面）
 │   ├── agent_runtime/        # Agent 运行时（Terminal AI 后端）
 │   ├── ai_capability/        # AI 能力目录（统一路由）
+│   ├── pulse/                # Pulse 脉搏层（战术指标聚合与转折预警）
 │   ├── share/                # 分享功能
 │   ├── task_monitor/         # 任务监控
 │   └── setup_wizard/         # 系统初始化向导
@@ -541,6 +543,7 @@ ak.macro_china_money_supply()
 - ✅ Market Data 模块（市场数据统一接口）
 - ✅ Share 模块（决策分享）
 - ✅ Task Monitor 模块（任务监控）
+- ✅ Pulse 模块（脉搏层，战术指标聚合与转折预警）
 
 **Phase 8: 功能完善** (进行中):
 - [x] Audit 模块补全 ✅ (含 Brinson 归因 + 完整测试覆盖)

@@ -9,8 +9,8 @@ Decision Rhythm Repositories
 
 import logging
 import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -24,9 +24,7 @@ from ..domain.entities import (
     DecisionRequest,
     DecisionResponse,
     ExecutionStatus,
-    ExecutionTarget,
     QuotaPeriod,
-    RecommendationSide,
 )
 from .models import (
     CooldownPeriodModel,
@@ -471,8 +469,8 @@ class DecisionRequestRepository:
 
                 return model.to_domain(request_model.to_domain())
 
-        except ObjectDoesNotExist:
-            raise ValueError(f"Request not found: {request_id}")
+        except ObjectDoesNotExist as exc:
+            raise ValueError(f"Request not found: {request_id}") from exc
 
     def update_execution_status_to_executed(
         self,
@@ -1004,6 +1002,63 @@ class InvestmentRecommendationRepository:
             return False
 
 
+class PortfolioTransitionPlanRepository:
+    """账户级调仓计划仓储。"""
+
+    def save(self, plan) -> Any:
+        from .models import PortfolioTransitionPlanModel
+
+        model, _ = PortfolioTransitionPlanModel.objects.update_or_create(
+            plan_id=plan.plan_id,
+            defaults={
+                "account_id": plan.account_id,
+                "source_recommendation_ids": plan.source_recommendation_ids,
+                "current_positions_snapshot": plan.current_positions_snapshot,
+                "target_positions_snapshot": plan.target_positions_snapshot,
+                "orders": [order.to_dict() for order in plan.orders],
+                "risk_contract": plan.risk_contract,
+                "summary": plan.summary,
+                "status": plan.status.value,
+                "approval_request_id": plan.approval_request_id or "",
+                "as_of": plan.as_of,
+            },
+        )
+        return model.to_domain()
+
+    def get_by_id(self, plan_id: str) -> Any | None:
+        from .models import PortfolioTransitionPlanModel
+
+        try:
+            return PortfolioTransitionPlanModel.objects.get(plan_id=plan_id).to_domain()
+        except PortfolioTransitionPlanModel.DoesNotExist:
+            return None
+
+    def get_latest_for_account(self, account_id: str) -> Any | None:
+        from .models import PortfolioTransitionPlanModel
+
+        model = PortfolioTransitionPlanModel.objects.filter(account_id=account_id).order_by("-created_at").first()
+        return model.to_domain() if model else None
+
+    def update_status(
+        self,
+        plan_id: str,
+        status_value: str,
+        approval_request_id: str | None = None,
+    ) -> Any | None:
+        from .models import PortfolioTransitionPlanModel
+
+        try:
+            model = PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
+        except PortfolioTransitionPlanModel.DoesNotExist:
+            return None
+
+        model.status = status_value
+        if approval_request_id is not None:
+            model.approval_request_id = approval_request_id
+        model.save(update_fields=["status", "approval_request_id", "updated_at"])
+        return model.to_domain()
+
+
 class ExecutionApprovalRequestRepository:
     """
     执行审批请求仓储
@@ -1033,8 +1088,10 @@ class ExecutionApprovalRequestRepository:
             recommendation_model = InvestmentRecommendationModel.objects.get(
                 recommendation_id=approval_request.recommendation_id
             )
-        except InvestmentRecommendationModel.DoesNotExist:
-            raise ValueError(f"Investment recommendation not found: {approval_request.recommendation_id}")
+        except InvestmentRecommendationModel.DoesNotExist as exc:
+            raise ValueError(
+                f"Investment recommendation not found: {approval_request.recommendation_id}"
+            ) from exc
 
         model = ExecutionApprovalRequestModel.from_domain(approval_request, recommendation_model)
         model.save()
@@ -1162,7 +1219,7 @@ class ExecutionApprovalRequestRepository:
         Returns:
             更新后的实体，不存在则返回 None
         """
-        from ..domain.entities import RecommendationStatus
+        from ..domain.entities import RecommendationStatus, TransitionPlanStatus
         from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
 
         try:
@@ -1205,6 +1262,26 @@ class ExecutionApprovalRequestRepository:
                             f"status: {old_status} -> {rec_status.value}"
                         )
 
+                    if model.transition_plan:
+                        source_ids = model.transition_plan.source_recommendation_ids or []
+                        if source_ids:
+                            UnifiedRecommendationModel.objects.filter(
+                                recommendation_id__in=source_ids
+                            ).update(status=rec_status.value)
+
+                        plan_status_mapping = {
+                            ApprovalStatus.PENDING: TransitionPlanStatus.APPROVAL_PENDING.value,
+                            ApprovalStatus.APPROVED: TransitionPlanStatus.APPROVED.value,
+                            ApprovalStatus.REJECTED: TransitionPlanStatus.REJECTED.value,
+                            ApprovalStatus.EXECUTED: TransitionPlanStatus.EXECUTED.value,
+                            ApprovalStatus.FAILED: TransitionPlanStatus.FAILED.value,
+                        }
+                        target_plan_status = plan_status_mapping.get(approval_status)
+                        if target_plan_status:
+                            model.transition_plan.status = target_plan_status
+                            model.transition_plan.approval_request_id = model.request_id
+                            model.transition_plan.save(update_fields=["status", "approval_request_id", "updated_at"])
+
                     # 更新旧的 InvestmentRecommendation 状态（兼容）
                     if model.recommendation:
                         old_rec = model.recommendation
@@ -1246,6 +1323,139 @@ class ExecutionApprovalRequestRepository:
             side=side,
             approval_status=ApprovalStatus.PENDING.value,
         ).exists()
+
+    def has_pending_request_for_plan(self, plan_id: str) -> bool:
+        """检查指定交易计划是否存在待审批请求。"""
+        from .models import ExecutionApprovalRequestModel
+
+        return ExecutionApprovalRequestModel.objects.filter(
+            transition_plan__plan_id=plan_id,
+            approval_status=ApprovalStatus.PENDING.value,
+        ).exists()
+
+    def create_for_transition_plan(
+        self,
+        plan,
+        *,
+        account_id: str,
+        risk_checks: dict[str, Any],
+        regime_source: str,
+        market_price,
+    ) -> Any:
+        """为账户级调仓计划创建审批请求。"""
+        from uuid import uuid4
+
+        from .models import ExecutionApprovalRequestModel, PortfolioTransitionPlanModel
+
+        if self.has_pending_request_for_plan(plan.plan_id):
+            raise ValueError("当前交易计划已存在待审批请求")
+
+        plan_model = PortfolioTransitionPlanModel.objects.get(plan_id=plan.plan_id)
+        active_orders = [order for order in plan.orders if order.action != "HOLD"]
+        total_quantity = sum(abs(order.delta_qty) for order in active_orders) or 1
+        price_lows = [order.price_band_low for order in active_orders] or [0]
+        price_highs = [order.price_band_high for order in active_orders] or [0]
+
+        approval_model = ExecutionApprovalRequestModel.objects.create(
+            request_id=f"apr_{uuid4().hex[:12]}",
+            transition_plan=plan_model,
+            account_id=account_id,
+            security_code="PLAN",
+            side="HOLD",
+            approval_status=ApprovalStatus.PENDING.value,
+            suggested_quantity=total_quantity,
+            market_price_at_review=market_price,
+            price_range_low=min(price_lows),
+            price_range_high=max(price_highs),
+            stop_loss_price=0,
+            risk_check_results=risk_checks,
+            reviewer_comments="",
+            regime_source=regime_source,
+            execution_params_json={
+                "preview_type": "transition_plan",
+                "plan_snapshot": plan.to_dict(),
+            },
+        )
+
+        plan_model.status = "APPROVAL_PENDING"
+        plan_model.approval_request_id = approval_model.request_id
+        plan_model.save(update_fields=["status", "approval_request_id", "updated_at"])
+        return approval_model.to_domain()
+
+    def create_for_unified_recommendation(
+        self,
+        recommendation,
+        *,
+        account_id: str,
+        risk_checks: dict[str, Any],
+        regime_source: str,
+        market_price,
+    ) -> Any:
+        """为统一推荐创建审批请求。"""
+        from datetime import datetime
+        from uuid import uuid4
+
+        from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
+
+        recommendation_model = UnifiedRecommendationModel.objects.filter(
+            recommendation_id=recommendation.recommendation_id
+        ).first()
+        if recommendation_model is None:
+            raise ValueError("Unified recommendation not found")
+
+        entry_mid = (recommendation.entry_price_low + recommendation.entry_price_high) / 2
+        suggested_qty = int(recommendation.max_capital / entry_mid) if entry_mid > 0 else 0
+
+        approval_model = ExecutionApprovalRequestModel.objects.create(
+            request_id=f"apr_{uuid4().hex[:12]}",
+            unified_recommendation=recommendation_model,
+            transition_plan=None,
+            account_id=account_id,
+            security_code=recommendation.security_code,
+            side=recommendation.side,
+            approval_status=ApprovalStatus.PENDING.value,
+            suggested_quantity=suggested_qty,
+            market_price_at_review=market_price,
+            price_range_low=recommendation.entry_price_low,
+            price_range_high=recommendation.entry_price_high,
+            stop_loss_price=recommendation.stop_loss_price,
+            risk_check_results=risk_checks,
+            reviewer_comments="",
+            regime_source=regime_source,
+            created_at=datetime.now(UTC),
+        )
+        recommendation_model.status = "REVIEWING"
+        recommendation_model.save(update_fields=["status", "updated_at"])
+        return approval_model.to_domain()
+
+    def get_related_candidate_ids(self, request_id: str) -> list[str]:
+        """返回审批请求关联的候选 ID 列表。"""
+        from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
+
+        model = (
+            ExecutionApprovalRequestModel.objects
+            .select_related("unified_recommendation", "transition_plan")
+            .filter(request_id=request_id)
+            .first()
+        )
+        if model is None:
+            return []
+
+        candidate_ids: list[str] = []
+        if model.unified_recommendation:
+            candidate_ids = list(model.unified_recommendation.source_candidate_ids or [])
+        elif model.transition_plan:
+            source_ids = model.transition_plan.source_recommendation_ids or []
+            raw_lists = UnifiedRecommendationModel.objects.filter(
+                recommendation_id__in=source_ids
+            ).values_list("source_candidate_ids", flat=True)
+            candidate_ids = [
+                str(candidate_id)
+                for row in raw_lists
+                for candidate_id in (row or [])
+                if candidate_id
+            ]
+        return list(dict.fromkeys(candidate_ids))
 
     def get_by_regime_source(
         self,
@@ -1320,7 +1530,6 @@ class UnifiedRecommendationRepository:
         Returns:
             保存后的实体
         """
-        from ..domain.entities import RecommendationStatus
         from .models import UnifiedRecommendationModel
 
         # 转换 reason_codes 和其他列表字段
@@ -1423,6 +1632,139 @@ class UnifiedRecommendationRepository:
         query = query.order_by("-created_at")
         return [self._model_to_entity(model) for model in query]
 
+    def get_by_recommendation_id(
+        self,
+        recommendation_id: str,
+        *,
+        account_id: str | None = None,
+    ) -> Any | None:
+        """按 recommendation_id 获取推荐。"""
+        from .models import UnifiedRecommendationModel
+
+        query = UnifiedRecommendationModel.objects.filter(recommendation_id=recommendation_id)
+        if account_id:
+            query = query.filter(account_id=account_id)
+        model = query.select_related("feature_snapshot").first()
+        return self._model_to_entity(model) if model else None
+
+    def get_by_recommendation_ids(
+        self,
+        recommendation_ids: list[str],
+        *,
+        account_id: str | None = None,
+    ) -> list[Any]:
+        """按 recommendation_id 列表获取推荐。"""
+        from .models import UnifiedRecommendationModel
+
+        if not recommendation_ids:
+            return []
+        query = UnifiedRecommendationModel.objects.filter(recommendation_id__in=recommendation_ids)
+        if account_id:
+            query = query.filter(account_id=account_id)
+        models = query.select_related("feature_snapshot").order_by("-created_at")
+        return [self._model_to_entity(model) for model in models]
+
+    def list_for_workspace(
+        self,
+        *,
+        account_id: str,
+        status: str | None = None,
+        user_action: str | None = None,
+        security_code: str | None = None,
+        include_ignored: bool = False,
+        recommendation_id: str | None = None,
+        exclude_conflicts: bool = True,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[Any], int]:
+        """按工作台筛选条件返回推荐及总数。"""
+        from ..domain.entities import UserDecisionAction
+        from .models import UnifiedRecommendationModel
+
+        queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id).select_related(
+            "feature_snapshot"
+        )
+        if exclude_conflicts:
+            queryset = queryset.exclude(status="CONFLICT")
+        if not include_ignored:
+            queryset = queryset.exclude(user_action=UserDecisionAction.IGNORED.value)
+        if status:
+            queryset = queryset.filter(status=status)
+        if user_action:
+            queryset = queryset.filter(user_action=user_action)
+        if security_code:
+            queryset = queryset.filter(security_code=security_code)
+        if recommendation_id:
+            queryset = queryset.filter(recommendation_id=recommendation_id)
+
+        queryset = queryset.order_by("-composite_score", "-created_at")
+        total_count = queryset.count()
+        start = max(page - 1, 0) * page_size
+        end = start + page_size
+        models = queryset[start:end]
+        return [self._model_to_entity(model) for model in models], total_count
+
+    def get_plan_candidates(
+        self,
+        account_id: str,
+        recommendation_ids: list[str] | None = None,
+    ) -> list[Any]:
+        """返回可生成交易计划的推荐。"""
+        from ..domain.entities import RecommendationStatus, UserDecisionAction
+        from .models import UnifiedRecommendationModel
+
+        queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id).exclude(
+            status=RecommendationStatus.CONFLICT.value
+        )
+        if recommendation_ids:
+            queryset = queryset.filter(recommendation_id__in=recommendation_ids)
+        else:
+            queryset = queryset.filter(user_action=UserDecisionAction.ADOPTED.value)
+        models = queryset.select_related("feature_snapshot").order_by("-created_at")
+        return [self._model_to_entity(model) for model in models]
+
+    def update_user_action(
+        self,
+        *,
+        recommendation_id: str,
+        user_action,
+        note: str = "",
+        account_id: str | None = None,
+    ) -> Any | None:
+        """更新用户动作并返回最新推荐。"""
+        from .models import UnifiedRecommendationModel
+
+        queryset = UnifiedRecommendationModel.objects.filter(recommendation_id=recommendation_id)
+        if account_id:
+            queryset = queryset.filter(account_id=account_id)
+
+        model = queryset.select_related("feature_snapshot").first()
+        if model is None:
+            return None
+
+        model.user_action = user_action.value if hasattr(user_action, "value") else str(user_action)
+        model.user_action_note = note
+        model.user_action_at = timezone.now()
+        model.save(update_fields=["user_action", "user_action_note", "user_action_at", "updated_at"])
+        return self._model_to_entity(model)
+
+    def get_candidate_ids_for_recommendations(self, recommendation_ids: list[str]) -> list[str]:
+        """返回推荐集合关联的候选 ID。"""
+        from .models import UnifiedRecommendationModel
+
+        if not recommendation_ids:
+            return []
+        raw_lists = UnifiedRecommendationModel.objects.filter(
+            recommendation_id__in=recommendation_ids
+        ).values_list("source_candidate_ids", flat=True)
+        candidate_ids = [
+            str(candidate_id)
+            for row in raw_lists
+            for candidate_id in (row or [])
+            if candidate_id
+        ]
+        return list(dict.fromkeys(candidate_ids))
+
     def get_conflicts(self, account_id: str) -> list[Any]:
         """
         获取冲突推荐
@@ -1472,6 +1814,7 @@ class UnifiedRecommendationRepository:
         from ..domain.entities import (
             RecommendationStatus,
             UnifiedRecommendation,
+            UserDecisionAction,
         )
 
         # 解析状态
@@ -1479,6 +1822,10 @@ class UnifiedRecommendationRepository:
             status = RecommendationStatus(model.status)
         except ValueError:
             status = RecommendationStatus.NEW
+        try:
+            user_action = UserDecisionAction(getattr(model, "user_action", UserDecisionAction.PENDING.value))
+        except ValueError:
+            user_action = UserDecisionAction.PENDING
 
         return UnifiedRecommendation(
             recommendation_id=model.recommendation_id,
@@ -1511,6 +1858,11 @@ class UnifiedRecommendationRepository:
             source_candidate_ids=model.source_candidate_ids or [],
             feature_snapshot_id=getattr(model, "feature_snapshot_id", ""),
             status=status,
+            user_action=user_action,
+            user_action_note=getattr(model, "user_action_note", ""),
+            user_action_at=getattr(model, "user_action_at", None),
+            created_at=getattr(model, "created_at", None),
+            updated_at=getattr(model, "updated_at", None),
         )
 
 
@@ -1541,6 +1893,27 @@ class DecisionModelParamConfigRepository:
             .order_by("param_key")
         )
         return [model.to_domain() for model in models]
+
+    def get_active_param_details(self, env: str) -> list[dict[str, Any]]:
+        """返回当前环境激活参数的展示明细。"""
+        from .models import DecisionModelParamConfigModel
+
+        models = (
+            DecisionModelParamConfigModel.objects
+            .filter(env=env, is_active=True)
+            .order_by("param_key")
+        )
+        return [
+            {
+                "param_key": model.param_key,
+                "value": model.param_value,
+                "type": model.param_type,
+                "description": model.description,
+                "updated_by": model.updated_by,
+                "updated_at": model.updated_at.isoformat() if model.updated_at else None,
+            }
+            for model in models
+        ]
 
     def save_param(self, config):
         from .models import DecisionModelParamConfigModel
@@ -1593,3 +1966,8 @@ def get_investment_recommendation_repository() -> InvestmentRecommendationReposi
 def get_execution_approval_request_repository() -> ExecutionApprovalRequestRepository:
     """获取执行审批请求仓储实例"""
     return ExecutionApprovalRequestRepository()
+
+
+def get_portfolio_transition_plan_repository() -> PortfolioTransitionPlanRepository:
+    """获取账户级调仓计划仓储实例"""
+    return PortfolioTransitionPlanRepository()

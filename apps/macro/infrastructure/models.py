@@ -77,6 +77,7 @@ class DataSourceConfig(models.Model):
     SOURCE_TYPE_CHOICES = [
         ('tushare', 'Tushare Pro'),
         ('akshare', 'AKShare'),
+        ('qmt', 'QMT (XtQuant)'),
         ('fred', 'FRED'),
         ('wind', 'Wind'),
         ('choice', 'Choice'),
@@ -91,6 +92,10 @@ class DataSourceConfig(models.Model):
     is_active = models.BooleanField(default=True, help_text="是否启用")
     priority = models.IntegerField(default=0, help_text="优先级（数字越小越优先）")
     api_endpoint = models.URLField(blank=True, help_text="API 端点 URL")
+    http_url = models.URLField(
+        blank=True,
+        help_text="自定义 HTTP URL（Tushare 可用于第三方代理源）"
+    )
     api_key = models.CharField(max_length=200, blank=True, help_text="API 密钥")
     api_secret = models.CharField(max_length=200, blank=True, help_text="API 密钥（如需要）")
     extra_config = models.JSONField(default=dict, blank=True, help_text="额外配置参数")

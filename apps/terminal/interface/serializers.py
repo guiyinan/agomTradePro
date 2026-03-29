@@ -4,6 +4,8 @@ Terminal Interface Serializers.
 DRF序列化器定义。
 """
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from ..infrastructure.models import TerminalCommandORM
@@ -40,7 +42,8 @@ class TerminalCommandSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
-    def get_param_count(self, obj):
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_param_count(self, obj) -> int:
         return len(obj.parameters) if obj.parameters else 0
 
 

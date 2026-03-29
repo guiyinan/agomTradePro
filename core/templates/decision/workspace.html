@@ -18,6 +18,105 @@
     margin-bottom: 30px;
 }
 
+.workspace-shell {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.workspace-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 20px;
+}
+
+.workspace-sidebar-card {
+    background: var(--color-card-bg, #ffffff);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+}
+
+.workspace-sidebar-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--color-text-primary);
+}
+
+.workspace-sidebar-subtitle {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.workspace-kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.workspace-kpi {
+    background: var(--color-bg-secondary, #f8fafc);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.workspace-kpi-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+}
+
+.workspace-kpi-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.workspace-position-list {
+    list-style: none;
+    padding: 0;
+    margin: 14px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.workspace-position-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-position-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.workspace-position-code {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.workspace-position-meta {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.workspace-main {
+    min-width: 0;
+}
+
 .funnel-title {
     font-size: 28px;
     font-weight: 700;
@@ -35,7 +134,8 @@
     justify-content: space-between;
     margin-bottom: 40px;
     position: relative;
-    background: var(--color-card-bg);
+    isolation: isolate;
+    background: var(--color-card-bg, #ffffff);
     padding: 20px;
     border-radius: 16px;
     box-shadow: var(--shadow-sm);
@@ -49,13 +149,14 @@
     right: 40px;
     height: 2px;
     background: var(--color-border);
-    z-index: 1;
+    z-index: 0;
+    pointer-events: none;
 }
 
 .step-button {
     position: relative;
-    z-index: 2;
-    background: var(--color-card-bg);
+    z-index: 1;
+    background: var(--color-card-bg, #ffffff);
     border: 2px solid var(--color-border);
     border-radius: 20px;
     padding: 8px 16px;
@@ -68,10 +169,28 @@
     gap: 8px;
 }
 
+.step-button::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 999px;
+    background: var(--color-card-bg, #ffffff);
+    z-index: 0;
+}
+
+.step-button > span {
+    position: relative;
+    z-index: 1;
+}
+
 .step-button.completed {
     background: #f0fdf4;
     border-color: #22c55e;
     color: #166534;
+}
+
+.step-button.completed::before {
+    background: #f0fdf4;
 }
 
 .step-button.active {
@@ -81,19 +200,25 @@
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
+.step-button.active::before {
+    background: #eff6ff;
+}
+
 .step-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
 .step-number {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-secondary, #f1f5f9);
     font-size: 12px;
 }
 
@@ -108,7 +233,7 @@
 }
 
 .funnel-content-area {
-    background: var(--color-card-bg);
+    background: var(--color-card-bg, #ffffff);
     border-radius: 16px;
     box-shadow: var(--shadow-sm);
     padding: 30px;
@@ -128,8 +253,15 @@
     display: block;
 }
 
-/* Hide modal and block tabs by default when injected from legacy */
-.workspace-tabs { display: none !important; }
+@media (max-width: 1100px) {
+    .workspace-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-sidebar {
+        position: static;
+    }
+}
 </style>
 {% endblock %}
 
@@ -137,118 +269,181 @@
 <div class="funnel-container" x-data="decisionFunnel()">
     
     <div class="funnel-header">
-        <h1 class="funnel-title">投资决策工作台</h1>
-        <p class="funnel-subtitle">统一工作流：从宏观环境评估到落地执行，最终审计复盘闭环。</p>
+                    <h1 class="funnel-title">投资决策工作台</h1>
+                    <p class="funnel-subtitle">统一工作流：从宏观环境评估到推荐筛选，生成账户级交易计划并审批执行。</p>
     </div>
 
-    <!-- Stepper Navigation -->
-    <div class="funnel-stepper">
-        <template x-for="step in steps" :key="step.n">
-            <button 
-                class="step-button"
-                :class="{
-                    'active': currentStep === step.n, 
-                    'completed': step.n < currentStep
-                }"
-                :disabled="step.n > maxReached"
-                @click="goToStep(step.n)"
-            >
-                <span class="step-number" x-text="step.n < currentStep ? '✓' : step.n"></span>
-                <span x-text="step.label"></span>
-            </button>
-        </template>
-    </div>
+    <div class="workspace-shell">
+        <aside class="workspace-sidebar">
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">决策账户</div>
+                <p class="workspace-sidebar-subtitle">页面级直接切换账户。后续推荐、审批和冲突都按该账户口径刷新。</p>
+                <select id="workspace-account-selector" name="account_id" class="form-select" style="width: 100%; margin-top: 14px;" onchange="handleWorkspaceAccountChange()">
+                    <option value="">加载账户中...</option>
+                </select>
+            </div>
 
-    <!-- Content Area loaded via HTMX -->
-    <div class="funnel-content-area">
-        <div id="funnel-loading-indicator" class="htmx-indicator">
-            <div class="app-spinner"></div>
-            <p>正在加载上下文...</p>
-        </div>
-        
-        <!-- Step 1 Container -->
-        <div x-show="currentStep === 1" 
-             id="step-1-container"
-             hx-get="/api/decision/context/step1/" 
-             hx-trigger="load, stepChanged1 from:body" 
-             hx-target="#step-1-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-1-content"></div>
-        </div>
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">账户现状</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <div>
+                        <div style="font-weight: 700; color: var(--color-text-primary);" data-workspace-account-name>默认账户</div>
+                        <div id="workspace-account-meta" class="workspace-sidebar-subtitle">等待账户加载</div>
+                    </div>
+                    <span id="workspace-account-status" class="badge badge-neutral">未加载</span>
+                </div>
 
-        <!-- Step 2 Container -->
-        <div x-show="currentStep === 2" 
-             id="step-2-container"
-             hx-get="/api/decision/context/step2/" 
-             hx-trigger="stepChanged2 from:body" 
-             hx-target="#step-2-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-2-content"></div>
-        </div>
+                <div class="workspace-kpi-grid">
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">总资产</span>
+                        <span class="workspace-kpi-value" id="workspace-total-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">现金</span>
+                        <span class="workspace-kpi-value" id="workspace-cash-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">持仓市值</span>
+                        <span class="workspace-kpi-value" id="workspace-market-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">收益率</span>
+                        <span class="workspace-kpi-value" id="workspace-return-value">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">持仓数</span>
+                        <span class="workspace-kpi-value" id="workspace-position-count">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">最大回撤</span>
+                        <span class="workspace-kpi-value" id="workspace-drawdown-value">-</span>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Step 3 Container -->
-        <div x-show="currentStep === 3" 
-             id="step-3-container"
-             hx-get="/api/decision/context/step3/" 
-             hx-trigger="stepChanged3 from:body" 
-             hx-target="#step-3-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-3-content"></div>
-        </div>
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">当前持仓摘要</div>
+                <ul id="workspace-position-list" class="workspace-position-list">
+                    <li class="workspace-sidebar-subtitle">等待账户加载</li>
+                </ul>
+            </div>
 
-        <!-- Step 4 Container (Unified Recommendations list) -->
-        <div x-show="currentStep === 4" 
-             id="step-4-container"
-             hx-get="/api/decision/context/step4/" 
-             hx-trigger="stepChanged4 from:body" 
-             hx-target="#step-4-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-4-content"></div>
-        </div>
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">口径说明</div>
+                <p class="workspace-sidebar-subtitle">
+                    Step 1-3 会显示当前账户上下文，但分析结论仍是系统级宏观口径；
+                    Step 4-6 的推荐、交易计划和审批执行才真正按账户决策口径刷新。
+                </p>
+            </div>
+        </aside>
 
-        <!-- Step 5 Container (Approvals & Execution) -->
-        <div x-show="currentStep === 5" 
-             id="step-5-container"
-             hx-get="/api/decision/context/step5/" 
-             hx-trigger="stepChanged5 from:body" 
-             hx-target="#step-5-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-5-content"></div>
-        </div>
+        <div class="workspace-main">
+            <!-- Stepper Navigation -->
+            <div class="funnel-stepper">
+                <template x-for="step in steps" :key="step.n">
+                    <button 
+                        class="step-button"
+                        :class="{
+                            'active': currentStep === step.n, 
+                            'completed': step.n < currentStep
+                        }"
+                        :disabled="step.n > maxReached"
+                        @click="goToStep(step.n)"
+                    >
+                        <span class="step-number" x-text="step.n < currentStep ? '✓' : step.n"></span>
+                        <span x-text="step.label"></span>
+                    </button>
+                </template>
+            </div>
 
-        <!-- Step 6 Container (Audit Loop) -->
-        <div x-show="currentStep === 6" 
-             id="step-6-container"
-             hx-get="/api/decision/context/step6/" 
-             hx-vals='js:getDecisionAuditParams()'
-             hx-trigger="stepChanged6 from:body" 
-             hx-target="#step-6-content"
-             hx-indicator="#funnel-loading-indicator">
-            <div id="step-6-content"></div>
-        </div>
-        
-        <!-- Next Step Control Panel -->
-        <div style="margin-top: 30px; display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 20px;">
-            <button class="btn btn-outline" x-show="currentStep > 1" @click="goToStep(currentStep - 1)">
-                ← 返回上一步
-            </button>
-            <div style="flex-grow: 1;"></div>
-            <button class="btn btn-primary" x-show="currentStep < 6" @click="progressToNextStep()">
-                <span x-text="'进入 ' + getNextStepName() + ' →'"></span>
-            </button>
+            <!-- Content Area loaded via HTMX -->
+            <div class="funnel-content-area">
+                <div id="funnel-loading-indicator" class="htmx-indicator">
+                    <div class="app-spinner"></div>
+                    <p>正在加载上下文...</p>
+                </div>
+                
+                <!-- Step 1 Container -->
+                <div x-show="currentStep === 1" 
+                     id="step-1-container"
+                     hx-get="/api/decision/context/step1/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="load, stepChanged1 from:body" 
+                     hx-target="#step-1-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-1-content"></div>
+                </div>
+
+                <!-- Step 2 Container -->
+                <div x-show="currentStep === 2" 
+                     id="step-2-container"
+                     hx-get="/api/decision/context/step2/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged2 from:body" 
+                     hx-target="#step-2-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-2-content"></div>
+                </div>
+
+                <!-- Step 3 Container -->
+                <div x-show="currentStep === 3" 
+                     id="step-3-container"
+                     hx-get="/api/decision/context/step3/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged3 from:body" 
+                     hx-target="#step-3-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-3-content"></div>
+                </div>
+
+                <!-- Step 4 Container (Unified Recommendations list) -->
+                <div x-show="currentStep === 4" 
+                     id="step-4-container"
+                     hx-get="/api/decision/context/step4/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged4 from:body" 
+                     hx-target="#step-4-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-4-content"></div>
+                </div>
+
+                <!-- Step 5 Container (Transition Plan) -->
+                <div x-show="currentStep === 5" 
+                     id="step-5-container"
+                     hx-get="/api/decision/context/step5/" 
+                     hx-include="#workspace-account-selector"
+                     hx-trigger="stepChanged5 from:body" 
+                     hx-target="#step-5-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-5-content"></div>
+                </div>
+
+                <!-- Step 6 Container (Approval & Execution) -->
+                <div x-show="currentStep === 6" 
+                     id="step-6-container"
+                     hx-get="/api/decision/context/step6/" 
+                     hx-trigger="stepChanged6 from:body" 
+                     hx-target="#step-6-content"
+                     hx-indicator="#funnel-loading-indicator">
+                    <div id="step-6-content"></div>
+                </div>
+                
+                <!-- Next Step Control Panel -->
+                <div style="margin-top: 30px; display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 20px;">
+                    <button class="btn btn-outline" x-show="currentStep > 1" @click="goToStep(currentStep - 1)">
+                        ← 返回上一步
+                    </button>
+                    <div style="flex-grow: 1;"></div>
+                    <button class="btn btn-primary" x-show="currentStep < 6" @click="progressToNextStep()">
+                        <span x-text="'进入 ' + getNextStepName() + ' →'"></span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-function getDecisionAuditParams() {
-    const params = new URLSearchParams(window.location.search);
-    return {
-        trade_id: params.get('trade_id'),
-        backtest_id: params.get('backtest_id'),
-    };
-}
-
 document.addEventListener('alpine:init', () => {
     Alpine.data('decisionFunnel', () => ({
         currentStep: 1,
@@ -258,17 +453,18 @@ document.addEventListener('alpine:init', () => {
             { n: 2, label: '方向选择' },
             { n: 3, label: '板块偏好' },
             { n: 4, label: '推优筛选' },
-            { n: 5, label: '审批执行' },
-            { n: 6, label: '审计复盘' }
+            { n: 5, label: '交易计划' },
+            { n: 6, label: '审批执行' }
         ],
         
         init() {
+            window.decisionFunnelState = this;
             // Check URL parameters to see if we should jump to a specific step
             const params = new URLSearchParams(window.location.search);
             const requestedStep = parseInt(params.get('step'));
             
-            if (window.initializeLegacyWorkspace) {
-                window.initializeLegacyWorkspace();
+            if (window.initializeDecisionWorkspace) {
+                window.initializeDecisionWorkspace();
             }
 
             if (requestedStep && requestedStep >= 1 && requestedStep <= 6) {
@@ -594,12 +790,16 @@ document.addEventListener('alpine:init', () => {
 
 <script>
 // ===== 全局状态 =====
-let currentTab = 'recommendations';
+const workspaceParams = new URLSearchParams(window.location.search);
 let currentRecommendation = null;
 let approvalRequestId = null;
+let currentTransitionPlanId = workspaceParams.get('plan_id') || '';
+let currentPlanApprovalRequestId = '';
 let userAccounts = [];
 let executionPortfolios = [];
-const workspaceParams = new URLSearchParams(window.location.search);
+let workspaceInitialized = false;
+const selectedRecommendationIds = new Set();
+const recommendationAutoRefreshAttempts = new Set();
 const workspaceBridge = {
     source: workspaceParams.get('source') || '',
     securityCode: workspaceParams.get('security_code') || '',
@@ -607,6 +807,7 @@ const workspaceBridge = {
     handled: false,
     highlightedRecommendationId: '',
 };
+const requestedWorkspaceAccountId = workspaceParams.get('account_id') || '';
 
 function formatRepairPercent(value) {
     if (value === null || value === undefined || value === '') return '-';
@@ -649,12 +850,252 @@ function getUserActionText(action) {
     }[action] || action || '待决策';
 }
 
+function getWorkspaceAccountSelector() {
+    return document.getElementById('workspace-account-selector');
+}
+
+function getSelectedWorkspaceAccountId() {
+    return getWorkspaceAccountSelector()?.value || 'default';
+}
+
+function getSelectedWorkspaceAccountName() {
+    const selector = getWorkspaceAccountSelector();
+    if (!selector) {
+        return '默认账户';
+    }
+    const option = selector.options[selector.selectedIndex];
+    return option?.textContent?.trim() || '默认账户';
+}
+
+function updateWorkspacePlanId(planId) {
+    currentTransitionPlanId = planId || '';
+    const url = new URL(window.location.href);
+    if (currentTransitionPlanId) {
+        url.searchParams.set('plan_id', currentTransitionPlanId);
+    } else {
+        url.searchParams.delete('plan_id');
+    }
+    window.history.replaceState({}, '', url.toString());
+}
+
+function syncWorkspaceAccountSummary() {
+    const selectedName = getSelectedWorkspaceAccountName();
+    document.querySelectorAll('[data-workspace-account-name]').forEach(node => {
+        node.textContent = selectedName;
+    });
+}
+
+function formatWorkspaceCurrency(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return '-';
+    }
+    return new Intl.NumberFormat('zh-CN', {
+        style: 'currency',
+        currency: 'CNY',
+        maximumFractionDigits: 0,
+    }).format(numericValue);
+}
+
+function formatWorkspacePercent(value, digits = 2) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return '-';
+    }
+    return `${numericValue.toFixed(digits)}%`;
+}
+
+function setWorkspaceSnapshotValue(id, value) {
+    const node = document.getElementById(id);
+    if (node) {
+        node.textContent = value;
+    }
+}
+
+function renderWorkspacePositionList(positions, emptyMessage) {
+    const list = document.getElementById('workspace-position-list');
+    if (!list) {
+        return;
+    }
+
+    if (!Array.isArray(positions) || positions.length === 0) {
+        list.innerHTML = `<li class="workspace-sidebar-subtitle">${escapeHtml(emptyMessage)}</li>`;
+        return;
+    }
+
+    list.innerHTML = positions.slice(0, 5).map(position => {
+        const assetName = position.asset_name || position.asset_code || '-';
+        const pnlValue = Number(position.unrealized_pnl_pct);
+        const pnlText = formatWorkspacePercent(position.unrealized_pnl_pct);
+        const pnlColor = Number.isFinite(pnlValue) && pnlValue < 0
+            ? 'var(--color-danger)'
+            : 'var(--color-success)';
+        return `
+            <li class="workspace-position-item">
+                <div>
+                    <div class="workspace-position-code">${escapeHtml(position.asset_code || '-')}</div>
+                    <div class="workspace-position-meta">${escapeHtml(assetName)} · ${position.quantity || 0}股 · 成本 ${formatWorkspaceCurrency(position.avg_cost)}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="workspace-position-code">${formatWorkspaceCurrency(position.market_value)}</div>
+                    <div class="workspace-position-meta" style="color: ${pnlColor};">浮盈 ${pnlText}</div>
+                </div>
+            </li>
+        `;
+    }).join('');
+}
+
+function renderWorkspaceDefaultSnapshot() {
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+
+    if (meta) {
+        meta.textContent = '系统默认口径，未绑定模拟账户快照';
+    }
+    if (status) {
+        status.className = 'badge badge-neutral';
+        status.textContent = '系统级';
+    }
+
+    setWorkspaceSnapshotValue('workspace-total-value', '-');
+    setWorkspaceSnapshotValue('workspace-cash-value', '-');
+    setWorkspaceSnapshotValue('workspace-market-value', '-');
+    setWorkspaceSnapshotValue('workspace-return-value', '-');
+    setWorkspaceSnapshotValue('workspace-position-count', '-');
+    setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
+    renderWorkspacePositionList([], '默认账户仅展示系统级上下文，不展示持仓快照。');
+}
+
+function renderWorkspaceAccountSnapshot(detailData, positionsData) {
+    const account = detailData?.account || {};
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+    const accountTypeText = account.account_type === 'real' ? '实盘账户' : '模拟账户';
+    const autoTradingText = account.auto_trading_enabled ? '自动交易开启' : '人工决策模式';
+
+    if (meta) {
+        meta.textContent = `${accountTypeText} · ${autoTradingText} · 仓位上限 ${formatWorkspacePercent(account.max_position_pct)}`;
+    }
+    if (status) {
+        status.className = account.is_active ? 'badge badge-success' : 'badge badge-neutral';
+        status.textContent = account.is_active ? '运行中' : '已停用';
+    }
+
+    setWorkspaceSnapshotValue('workspace-total-value', formatWorkspaceCurrency(account.total_value));
+    setWorkspaceSnapshotValue('workspace-cash-value', formatWorkspaceCurrency(account.current_cash));
+    setWorkspaceSnapshotValue('workspace-market-value', formatWorkspaceCurrency(account.current_market_value));
+    setWorkspaceSnapshotValue('workspace-return-value', formatWorkspacePercent(account.total_return));
+    setWorkspaceSnapshotValue(
+        'workspace-position-count',
+        String(positionsData?.total_positions ?? detailData?.total_positions ?? positionsData?.positions?.length ?? 0)
+    );
+    setWorkspaceSnapshotValue('workspace-drawdown-value', formatWorkspacePercent(account.max_drawdown));
+
+    renderWorkspacePositionList(
+        positionsData?.positions || [],
+        '当前账户暂无持仓，可继续使用工作台筛选和审批。'
+    );
+}
+
+async function loadWorkspaceAccountSnapshot() {
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
+    if (!accountId || accountId === 'default') {
+        renderWorkspaceDefaultSnapshot();
+        return;
+    }
+
+    const meta = document.getElementById('workspace-account-meta');
+    const status = document.getElementById('workspace-account-status');
+
+    if (meta) {
+        meta.textContent = '正在同步账户快照...';
+    }
+    if (status) {
+        status.className = 'badge badge-neutral';
+        status.textContent = '加载中';
+    }
+    renderWorkspacePositionList([], '正在加载持仓摘要...');
+
+    try {
+        const [detailRes, positionsRes] = await Promise.all([
+            fetch(`/api/simulated-trading/accounts/${encodeURIComponent(accountId)}/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            }),
+            fetch(`/api/simulated-trading/accounts/${encodeURIComponent(accountId)}/positions/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            }),
+        ]);
+        const [detailData, positionsData] = await Promise.all([
+            detailRes.json(),
+            positionsRes.json(),
+        ]);
+
+        if (!detailData?.success) {
+            throw new Error(detailData?.error || '账户详情加载失败');
+        }
+        if (!positionsData?.success) {
+            throw new Error(positionsData?.error || '账户持仓加载失败');
+        }
+
+        renderWorkspaceAccountSnapshot(detailData, positionsData);
+    } catch (error) {
+        console.error('加载账户快照失败:', error);
+        if (meta) {
+            meta.textContent = '账户快照加载失败';
+        }
+        if (status) {
+            status.className = 'badge badge-danger';
+            status.textContent = '异常';
+        }
+        setWorkspaceSnapshotValue('workspace-total-value', '-');
+        setWorkspaceSnapshotValue('workspace-cash-value', '-');
+        setWorkspaceSnapshotValue('workspace-market-value', '-');
+        setWorkspaceSnapshotValue('workspace-return-value', '-');
+        setWorkspaceSnapshotValue('workspace-position-count', '-');
+        setWorkspaceSnapshotValue('workspace-drawdown-value', '-');
+        renderWorkspacePositionList([], `账户快照加载失败: ${error.message}`);
+    }
+}
+
+function refreshCurrentDecisionStep() {
+    const currentStep = Number(window.decisionFunnelState?.currentStep || 1);
+    if (currentStep >= 1 && currentStep <= 6) {
+        document.body.dispatchEvent(new Event(`stepChanged${currentStep}`));
+    }
+}
+
+function refreshWorkspaceDecisionLists() {
+    loadRecommendations();
+    loadApprovals();
+    loadConflicts();
+    loadTransitionPlanStep();
+    loadExecutionPlanPanel();
+}
+
+function handleWorkspaceAccountChange() {
+    const accountId = getSelectedWorkspaceAccountId();
+    const url = new URL(window.location.href);
+    if (accountId && accountId !== 'default') {
+        url.searchParams.set('account_id', accountId);
+    } else {
+        url.searchParams.delete('account_id');
+    }
+    selectedRecommendationIds.clear();
+    currentPlanApprovalRequestId = '';
+    updateWorkspacePlanId('');
+    window.history.replaceState({}, '', url.toString());
+    loadWorkspaceAccountSnapshot();
+    refreshCurrentDecisionStep();
+    refreshWorkspaceDecisionLists();
+}
+
 async function bootstrapWorkspaceBridge() {
     if (!workspaceBridge.securityCode || workspaceBridge.handled) {
         return;
     }
 
-    const accountId = document.getElementById('account-selector')?.value || 'default';
+    const accountId = getSelectedWorkspaceAccountId();
     showBridgeBanner(`正在将 ${workspaceBridge.securityCode} 同步到决策工作台...`);
 
     try {
@@ -722,17 +1163,17 @@ async function bootstrapWorkspaceBridge() {
 }
 
 // ===== 初始化 =====
-window.initializeLegacyWorkspace = async function() {
+window.initializeDecisionWorkspace = async function() {
+    if (workspaceInitialized) {
+        return;
+    }
+    workspaceInitialized = true;
+
     // 加载账户列表
     await loadUserAccounts();
     await loadExecutionPortfolios();
     await bootstrapWorkspaceBridge();
-    // 加载推荐数据
-    loadRecommendations();
-    // 加载审批数据
-    loadApprovals();
-    // 加载冲突数据
-    loadConflicts();
+    refreshWorkspaceDecisionLists();
     // 加载模拟账户
     loadSimulatedAccounts();
 
@@ -742,63 +1183,53 @@ window.initializeLegacyWorkspace = async function() {
             closeApprovalModal();
         }
     });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('workspace-account-selector') && window.initializeDecisionWorkspace) {
+        window.initializeDecisionWorkspace();
+    }
 });
 
-// ===== Tab 切换 =====
-function switchTab(tabName) {
-    currentTab = tabName;
-
-    // 更新 Tab 按钮状态
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-
-    // 更新内容显示
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.toggle('active', content.id === `tab-${tabName}`);
-    });
-
-    // 根据当前 Tab 加载数据
-    if (tabName === 'recommendations') {
-        loadRecommendations();
-    } else if (tabName === 'approvals') {
-        loadApprovals();
-    } else if (tabName === 'conflicts') {
-        loadConflicts();
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    const targetId = event.detail?.target?.id;
+    if (targetId && targetId.startsWith('step-')) {
+        syncWorkspaceAccountSummary();
     }
-}
+});
 
 // ===== 加载用户账户 =====
 async function loadUserAccounts() {
     try {
-        const res = await fetch('/api/simulated-trading/accounts/', {
+        const res = await fetch('/api/simulated-trading/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         const data = await res.json();
 
         if (data.success && Array.isArray(data.accounts)) {
             userAccounts = data.accounts;
-            const options = '<option value="">选择账户...</option>' +
+            const selector = getWorkspaceAccountSelector();
+            if (!selector) {
+                return;
+            }
+
+            const options = '<option value="default">默认账户</option>' +
                 userAccounts.map(acc =>
                     `<option value="${acc.account_id}">${acc.account_name} (${acc.initial_capital}元)</option>`
                 ).join('');
 
-            // 填充所有账户选择器
-            ['account-selector', 'approval-account-selector', 'conflict-account-selector'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = options;
-            });
+            selector.innerHTML = options;
 
-            // 默认选中第一个账户，避免首次加载无 account_id
-            if (userAccounts.length > 0) {
-                ['account-selector', 'approval-account-selector', 'conflict-account-selector'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el && !el.value) {
-                        el.value = String(userAccounts[0].account_id);
-                    }
-                });
+            if (requestedWorkspaceAccountId && userAccounts.some(acc => String(acc.account_id) === requestedWorkspaceAccountId)) {
+                selector.value = requestedWorkspaceAccountId;
+            } else if (userAccounts.length > 0) {
+                selector.value = String(userAccounts[0].account_id);
+            } else {
+                selector.value = 'default';
             }
         }
+        await loadWorkspaceAccountSnapshot();
+        refreshCurrentDecisionStep();
     } catch (error) {
         console.error('加载账户失败:', error);
     }
@@ -806,7 +1237,7 @@ async function loadUserAccounts() {
 
 async function loadExecutionPortfolios() {
     try {
-        const res = await fetch('/account/api/portfolios/?page_size=100', {
+        const res = await fetch('/api/account/portfolios/?page_size=100', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         const data = await res.json();
@@ -835,7 +1266,11 @@ async function loadExecutionPortfolios() {
 // ===== 加载推荐列表 =====
 async function loadRecommendations() {
     const container = document.getElementById('recommendations-list');
-    const accountId = document.getElementById('account-selector')?.value || '';
+    if (!container) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
     const statusFilter = document.getElementById('status-filter')?.value || '';
     const decisionFilter = document.getElementById('decision-filter')?.value || '';
 
@@ -862,7 +1297,39 @@ async function loadRecommendations() {
         const data = await res.json();
 
         if (data.success && data.data) {
-            renderRecommendations(data.data.recommendations || [], data.data.total_count || 0);
+            const recommendations = data.data.recommendations || [];
+            const totalCount = data.data.total_count || 0;
+
+            if (
+                recommendations.length === 0 &&
+                !workspaceBridge.securityCode &&
+                !statusFilter &&
+                !decisionFilter &&
+                !recommendationAutoRefreshAttempts.has(accountId || 'default')
+            ) {
+                recommendationAutoRefreshAttempts.add(accountId || 'default');
+                try {
+                    const refreshRes = await fetch('/api/decision/workspace/recommendations/refresh/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.csrfToken
+                        },
+                        body: JSON.stringify({
+                            account_id: accountId || 'default',
+                            force: true,
+                        })
+                    });
+                    const refreshData = await refreshRes.json();
+                    if (refreshData.success) {
+                        return loadRecommendations();
+                    }
+                } catch (error) {
+                    console.error('自动刷新推荐失败:', error);
+                }
+            }
+
+            renderRecommendations(recommendations, totalCount);
         } else {
             container.innerHTML = `
                 <div class="error-state">
@@ -882,8 +1349,21 @@ async function loadRecommendations() {
 // ===== 渲染推荐列表 =====
 function renderRecommendations(recommendations, totalCount) {
     const container = document.getElementById('recommendations-list');
-    document.getElementById('recommendations-count').textContent = totalCount;
-    document.getElementById('rec-count-badge').textContent = totalCount;
+    if (!container) {
+        return;
+    }
+    const recommendationsCount = document.getElementById('recommendations-count');
+    if (recommendationsCount) {
+        recommendationsCount.textContent = totalCount;
+    }
+    const recCountBadge = document.getElementById('rec-count-badge');
+    if (recCountBadge) {
+        recCountBadge.textContent = totalCount;
+    }
+    const selectedCount = document.getElementById('selected-rec-count');
+    if (selectedCount) {
+        selectedCount.textContent = String(selectedRecommendationIds.size);
+    }
 
     if (!recommendations || recommendations.length === 0) {
         container.innerHTML = `
@@ -899,6 +1379,10 @@ function renderRecommendations(recommendations, totalCount) {
         <div class="recommendation-card ${workspaceBridge.highlightedRecommendationId === rec.recommendation_id ? 'recommendation-card-highlight' : ''}" data-recommendation-id="${rec.recommendation_id}">
             <div class="rec-header">
                 <div class="rec-asset">
+                    <label style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
+                        <input type="checkbox" ${selectedRecommendationIds.has(rec.recommendation_id) ? 'checked' : ''} onchange="toggleRecommendationSelection('${rec.recommendation_id}', this.checked)" />
+                        <span style="font-size: 12px; color: var(--color-text-muted);">计划</span>
+                    </label>
                     <strong>${rec.security_code}</strong>
                     <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
                     <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action)}</span>
@@ -1024,8 +1508,20 @@ function renderValuationRepairSummary(repair) {
     `;
 }
 
+function toggleRecommendationSelection(recommendationId, isSelected) {
+    if (isSelected) {
+        selectedRecommendationIds.add(recommendationId);
+    } else {
+        selectedRecommendationIds.delete(recommendationId);
+    }
+    const selectedCount = document.getElementById('selected-rec-count');
+    if (selectedCount) {
+        selectedCount.textContent = String(selectedRecommendationIds.size);
+    }
+}
+
 async function applyRecommendationAction(recommendationId, action) {
-    const accountId = document.getElementById('account-selector')?.value || 'default';
+    const accountId = getSelectedWorkspaceAccountId();
 
     try {
         const res = await fetch('/api/decision/workspace/recommendations/action/', {
@@ -1058,10 +1554,479 @@ async function applyRecommendationAction(recommendationId, action) {
     }
 }
 
+async function loadTransitionPlanStep() {
+    const summaryContainer = document.getElementById('transition-plan-summary');
+    const ordersContainer = document.getElementById('transition-plan-orders');
+    if (!summaryContainer || !ordersContainer) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+
+    if (!currentTransitionPlanId) {
+        summaryContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🧭</div>
+                <p>当前还没有交易计划。先在 Step 4 采纳推荐，再点击“生成交易计划”。</p>
+            </div>
+        `;
+        ordersContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📝</div>
+                <p>生成计划后，这里会显示当前持仓、目标持仓和 delta 调仓指令。</p>
+            </div>
+        `;
+        return;
+    }
+
+    summaryContainer.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">加载中...</p></div>';
+    ordersContainer.innerHTML = summaryContainer.innerHTML;
+
+    try {
+        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '加载交易计划失败');
+        }
+        renderTransitionPlan(payload.data);
+    } catch (error) {
+        summaryContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+        ordersContainer.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+    }
+}
+
+function renderTransitionPlan(plan) {
+    const summaryContainer = document.getElementById('transition-plan-summary');
+    const ordersContainer = document.getElementById('transition-plan-orders');
+    if (!summaryContainer || !ordersContainer) {
+        return;
+    }
+
+    currentTransitionPlanId = plan.plan_id;
+    currentPlanApprovalRequestId = plan.approval_request_id || '';
+    updateWorkspacePlanId(plan.plan_id);
+
+    const blockingIssues = (plan.blocking_issues || []).map(issue => `<li>${escapeHtml(issue)}</li>`).join('');
+    summaryContainer.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+            <div class="attention-card"><strong>计划 ID</strong><div>${escapeHtml(plan.plan_id)}</div></div>
+            <div class="attention-card"><strong>订单数</strong><div>${plan.summary?.orders_count ?? 0}</div></div>
+            <div class="attention-card"><strong>状态</strong><div>${escapeHtml(plan.status || 'DRAFT')}</div></div>
+            <div class="attention-card"><strong>审批状态</strong><div>${plan.approval_request_id ? '已创建审批请求' : '未提交审批'}</div></div>
+        </div>
+        <div style="margin-top: 16px;">
+            <strong>计划摘要</strong>
+            <p style="margin-top: 8px; color: var(--color-text-muted);">
+                BUY ${plan.summary?.buy_count ?? 0} / REDUCE ${plan.summary?.reduce_count ?? 0} / EXIT ${plan.summary?.exit_count ?? 0} / HOLD ${plan.summary?.hold_count ?? 0}
+            </p>
+            ${plan.can_enter_approval ? '<p style="color: var(--color-success); margin-top: 8px;">证伪条件与止损信息已齐备，可进入审批执行。</p>' : `<div style="margin-top: 8px; color: var(--color-danger);"><strong>阻塞项</strong><ul style="margin: 8px 0 0 18px;">${blockingIssues}</ul></div>`}
+        </div>
+    `;
+
+    const orders = plan.orders || [];
+    if (orders.length === 0) {
+        ordersContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>当前计划没有可执行订单。</p>
+            </div>
+        `;
+        return;
+    }
+
+    ordersContainer.innerHTML = orders.map(order => `
+        <div class="approval-card" data-plan-order-row="${escapeHtml(order.source_recommendation_id || '')}" data-security-code="${escapeHtml(order.security_code)}">
+            <div class="approval-header">
+                <strong>${escapeHtml(order.security_code)}</strong>
+                <span class="approval-side approval-side-${String(order.action || 'hold').toLowerCase()}">${escapeHtml(order.action)}</span>
+            </div>
+            <div class="approval-body">
+                <div class="approval-info" style="margin-bottom: 12px;">
+                    <span>当前 ${order.current_qty}</span>
+                    <span>目标 ${order.target_qty}</span>
+                    <span>Delta ${order.delta_qty}</span>
+                    <span>目标权重 ${order.target_weight}%</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">止损价</label>
+                        <input class="form-input" data-plan-stop-loss type="number" min="0" step="0.01" value="${order.stop_loss_price || ''}" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">复核日期</label>
+                        <input class="form-input" data-plan-review-by type="date" value="${order.review_by || ''}" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label class="form-label" style="margin-bottom: 0;">证伪条件 JSON</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-outline btn-sm" onclick="applySystemInvalidationTemplate('${escapeHtml(order.source_recommendation_id || '')}', '${escapeHtml(order.security_code)}', '${escapeHtml(order.action)}')">系统建议</button>
+                            <button class="btn btn-secondary btn-sm" onclick="generateAIInvalidationDraft('${escapeHtml(order.source_recommendation_id || '')}', '${escapeHtml(order.security_code)}', '${escapeHtml(order.action)}')">AI 生成</button>
+                        </div>
+                    </div>
+                    <input class="form-input" data-plan-ai-prompt placeholder="可选：补充你的交易假设、关注指标、触发条件偏好" style="margin-bottom: 8px;" />
+                    <div class="workspace-sidebar-subtitle" data-plan-context-note>可先用系统建议接入 Pulse/Regime，再用 AI 细化 JSON。</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">证伪条件 JSON</label>
+                    <textarea class="form-input" data-plan-invalidation rows="4">${escapeHtml(JSON.stringify(order.invalidation_rule || {}, null, 2))}</textarea>
+                </div>
+                <div class="workspace-sidebar-subtitle">${escapeHtml(order.invalidation_description || '待补充证伪逻辑')}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function generateTransitionPlan() {
+    try {
+        const body = {
+            account_id: getSelectedWorkspaceAccountId(),
+        };
+        if (selectedRecommendationIds.size > 0) {
+            body.recommendation_ids = Array.from(selectedRecommendationIds);
+        }
+        const response = await fetch('/api/decision/workspace/plans/generate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '生成交易计划失败');
+        }
+        renderTransitionPlan(payload.data);
+        window.showToast('交易计划已生成', 'success');
+    } catch (error) {
+        window.showToast(`生成交易计划失败: ${error.message}`, 'error');
+    }
+}
+
+function collectTransitionPlanPayload() {
+    const rows = Array.from(document.querySelectorAll('[data-plan-order-row]'));
+    return {
+        risk_contract: {
+            plan_owner: getSelectedWorkspaceAccountId(),
+        },
+        orders: rows.map(row => {
+            let invalidationRule = {};
+            const invalidationText = row.querySelector('[data-plan-invalidation]')?.value || '{}';
+            try {
+                invalidationRule = JSON.parse(invalidationText);
+            } catch (error) {
+                invalidationRule = {
+                    requires_user_confirmation: true,
+                    parse_error: error.message,
+                    raw: invalidationText,
+                };
+            }
+            return {
+                source_recommendation_id: row.dataset.planOrderRow,
+                security_code: row.dataset.securityCode,
+                stop_loss_price: row.querySelector('[data-plan-stop-loss]')?.value || null,
+                review_by: row.querySelector('[data-plan-review-by]')?.value || null,
+                invalidation_rule: invalidationRule,
+            };
+        }),
+    };
+}
+
+function getPlanOrderRow(recommendationId, securityCode) {
+    return document.querySelector(
+        `[data-plan-order-row="${CSS.escape(recommendationId)}"][data-security-code="${CSS.escape(securityCode)}"]`
+    );
+}
+
+async function fetchRecommendationById(recommendationId) {
+    const accountId = getSelectedWorkspaceAccountId();
+    const response = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}&include_ignored=true`, {
+        headers: { 'X-CSRFToken': window.csrfToken }
+    });
+    const payload = await response.json();
+    if (!payload.success || !payload.data?.recommendations?.length) {
+        return null;
+    }
+    return payload.data.recommendations[0];
+}
+
+async function applySystemInvalidationTemplate(recommendationId, securityCode, action) {
+    const row = getPlanOrderRow(recommendationId, securityCode);
+    if (!row) {
+        return;
+    }
+
+    try {
+        const recommendation = await fetchRecommendationById(recommendationId);
+        const side = action === 'BUY' ? 'BUY' : 'SELL';
+        const response = await fetch('/api/decision/workspace/invalidation/template/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                security_code: securityCode,
+                side: side,
+                rationale: recommendation?.human_rationale || '',
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data?.template) {
+            throw new Error(payload.error || '生成系统模板失败');
+        }
+        row.querySelector('[data-plan-invalidation]').value = JSON.stringify(payload.data.template, null, 2);
+        const note = row.querySelector('[data-plan-context-note]');
+        if (note) {
+            const pulse = payload.data.pulse_context || {};
+            note.textContent = `已接入系统上下文：Pulse=${pulse.composite_score ?? '-'}，强弱=${pulse.regime_strength || '-'}。`;
+        }
+        window.showToast('已生成系统级证伪模板', 'success');
+    } catch (error) {
+        window.showToast(`系统模板生成失败: ${error.message}`, 'error');
+    }
+}
+
+async function generateAIInvalidationDraft(recommendationId, securityCode, action) {
+    const row = getPlanOrderRow(recommendationId, securityCode);
+    if (!row) {
+        return;
+    }
+
+    try {
+        const recommendation = await fetchRecommendationById(recommendationId);
+        const side = action === 'BUY' ? 'BUY' : 'SELL';
+        let existingRule = {};
+        try {
+            existingRule = JSON.parse(row.querySelector('[data-plan-invalidation]').value || '{}');
+        } catch (parseError) {
+            existingRule = {
+                requires_user_confirmation: true,
+                raw: row.querySelector('[data-plan-invalidation]').value || '{}',
+            };
+        }
+        const userPrompt = row.querySelector('[data-plan-ai-prompt]')?.value || '';
+        const response = await fetch('/api/decision/workspace/invalidation/ai-draft/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                security_code: securityCode,
+                side: side,
+                rationale: recommendation?.human_rationale || '',
+                user_prompt: userPrompt,
+                existing_rule: existingRule,
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data?.draft) {
+            throw new Error(payload.error || 'AI 生成失败');
+        }
+        row.querySelector('[data-plan-invalidation]').value = JSON.stringify(payload.data.draft, null, 2);
+        const note = row.querySelector('[data-plan-context-note]');
+        if (note) {
+            note.textContent = `AI 已生成草稿：${payload.data.provider_used || 'AI provider'} / ${payload.data.model || 'default model'}`;
+        }
+        window.showToast('AI 证伪草稿已生成', 'success');
+    } catch (error) {
+        window.showToast(`AI 生成失败: ${error.message}`, 'error');
+    }
+}
+
+async function saveTransitionPlan() {
+    if (!currentTransitionPlanId) {
+        window.showToast('请先生成交易计划', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify(collectTransitionPlanPayload()),
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '保存交易计划失败');
+        }
+        renderTransitionPlan(payload.data);
+        window.showToast('交易计划已保存', 'success');
+    } catch (error) {
+        window.showToast(`保存交易计划失败: ${error.message}`, 'error');
+    }
+}
+
+async function submitTransitionPlanForApproval() {
+    if (!currentTransitionPlanId) {
+        window.showToast('请先生成交易计划', 'warning');
+        return;
+    }
+    await saveTransitionPlan();
+
+    try {
+        const response = await fetch('/api/decision/execute/preview/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                plan_id: currentTransitionPlanId,
+                account_id: getSelectedWorkspaceAccountId(),
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.error || '创建审批请求失败');
+        }
+        currentPlanApprovalRequestId = payload.data?.request_id || '';
+        window.showToast('审批请求已创建，进入 Step 6 审批执行', 'success');
+        if (window.decisionFunnelState) {
+            window.decisionFunnelState.maxReached = Math.max(window.decisionFunnelState.maxReached, 6);
+            window.decisionFunnelState.goToStep(6);
+        }
+    } catch (error) {
+        window.showToast(`进入审批执行失败: ${error.message}`, 'error');
+    }
+}
+
+async function loadExecutionPlanPanel() {
+    const container = document.getElementById('execution-plan-panel');
+    if (!container) {
+        return;
+    }
+
+    if (!currentTransitionPlanId) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>当前还没有交易计划。请先在 Step 5 生成并提交审批请求。</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">加载中...</p></div>';
+    try {
+        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            throw new Error(payload.error || '加载审批面板失败');
+        }
+        const plan = payload.data;
+        currentPlanApprovalRequestId = plan.approval_request_id || '';
+        container.innerHTML = `
+            <div class="approval-card">
+                <div class="approval-header">
+                    <strong>${escapeHtml(plan.plan_id)}</strong>
+                    <span class="approval-side approval-side-${String(plan.status || 'draft').toLowerCase()}">${escapeHtml(plan.status)}</span>
+                </div>
+                <div class="approval-body">
+                    <div class="approval-info" style="margin-bottom: 12px;">
+                        <span>账户 ${escapeHtml(plan.account_id)}</span>
+                        <span>订单 ${plan.summary?.orders_count ?? 0}</span>
+                        <span>审批请求 ${escapeHtml(plan.approval_request_id || '未创建')}</span>
+                    </div>
+                    <textarea id="execution-plan-comments" class="form-input" rows="4" placeholder="填写审批意见、执行约束、落地说明（必填）"></textarea>
+                </div>
+                <div class="approval-footer" style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" onclick="submitTransitionPlanForApproval()">刷新审批请求</button>
+                    <button class="btn btn-secondary" onclick="rejectCurrentTransitionPlan()" ${!plan.approval_request_id ? 'disabled' : ''}>拒绝</button>
+                    <button class="btn btn-primary" onclick="approveCurrentTransitionPlan()" ${!plan.approval_request_id ? 'disabled' : ''}>批准并执行</button>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        container.innerHTML = `<div class="error-state"><p>${escapeHtml(error.message)}</p></div>`;
+    }
+}
+
+async function approveCurrentTransitionPlan() {
+    if (!currentPlanApprovalRequestId) {
+        window.showToast('当前没有待审批请求', 'warning');
+        return;
+    }
+    const reviewerComments = (document.getElementById('execution-plan-comments')?.value || '').trim();
+    if (!reviewerComments) {
+        window.showToast('请填写审批意见', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/decision/execute/approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                approval_request_id: currentPlanApprovalRequestId,
+                reviewer_comments: reviewerComments,
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.error || '审批失败');
+        }
+        window.showToast('交易计划已批准', 'success');
+        loadExecutionPlanPanel();
+    } catch (error) {
+        window.showToast(`审批失败: ${error.message}`, 'error');
+    }
+}
+
+async function rejectCurrentTransitionPlan() {
+    if (!currentPlanApprovalRequestId) {
+        window.showToast('当前没有待审批请求', 'warning');
+        return;
+    }
+    const reviewerComments = (document.getElementById('execution-plan-comments')?.value || '').trim();
+    if (!reviewerComments) {
+        window.showToast('请填写拒绝理由', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/decision/execute/reject/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                approval_request_id: currentPlanApprovalRequestId,
+                reviewer_comments: reviewerComments,
+            }),
+        });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.error || '拒绝失败');
+        }
+        window.showToast('交易计划已拒绝', 'success');
+        loadExecutionPlanPanel();
+    } catch (error) {
+        window.showToast(`拒绝失败: ${error.message}`, 'error');
+    }
+}
+
 // ===== 加载审批列表 =====
 async function loadApprovals() {
     const container = document.getElementById('approvals-list');
-    const accountId = document.getElementById('approval-account-selector')?.value || '';
+    if (!container) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
 
     container.innerHTML = `
         <div class="app-loading-state app-loading-state--compact">
@@ -1103,8 +2068,17 @@ async function loadApprovals() {
 // ===== 渲染审批列表 =====
 function renderApprovals(approvals, totalCount) {
     const container = document.getElementById('approvals-list');
-    document.getElementById('approvals-count').textContent = totalCount;
-    document.getElementById('approval-count-badge').textContent = totalCount;
+    if (!container) {
+        return;
+    }
+    const approvalsCount = document.getElementById('approvals-count');
+    if (approvalsCount) {
+        approvalsCount.textContent = totalCount;
+    }
+    const approvalCountBadge = document.getElementById('approval-count-badge');
+    if (approvalCountBadge) {
+        approvalCountBadge.textContent = totalCount;
+    }
 
     if (!approvals || approvals.length === 0) {
         container.innerHTML = `
@@ -1141,7 +2115,11 @@ function renderApprovals(approvals, totalCount) {
 // ===== 加载冲突列表 =====
 async function loadConflicts() {
     const container = document.getElementById('conflicts-list');
-    const accountId = document.getElementById('conflict-account-selector')?.value || '';
+    if (!container) {
+        return;
+    }
+    syncWorkspaceAccountSummary();
+    const accountId = getSelectedWorkspaceAccountId();
 
     container.innerHTML = `
         <div class="app-loading-state app-loading-state--compact">
@@ -1182,8 +2160,17 @@ async function loadConflicts() {
 // ===== 渲染冲突列表 =====
 function renderConflicts(conflicts, totalCount) {
     const container = document.getElementById('conflicts-list');
-    document.getElementById('conflicts-count').textContent = totalCount;
-    document.getElementById('conflict-count-badge').textContent = totalCount;
+    if (!container) {
+        return;
+    }
+    const conflictsCount = document.getElementById('conflicts-count');
+    if (conflictsCount) {
+        conflictsCount.textContent = totalCount;
+    }
+    const conflictCountBadge = document.getElementById('conflict-count-badge');
+    if (conflictCountBadge) {
+        conflictCountBadge.textContent = totalCount;
+    }
 
     if (!conflicts || conflicts.length === 0) {
         container.innerHTML = `
@@ -1238,16 +2225,15 @@ async function refreshRecommendations() {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': window.csrfToken
             },
-            body: JSON.stringify({})
+            body: JSON.stringify({
+                account_id: getSelectedWorkspaceAccountId()
+            })
         });
         const data = await res.json();
 
         if (data.success) {
             window.showToast('推荐已刷新', 'success');
-            // 重新加载当前 Tab 数据
-            if (currentTab === 'recommendations') loadRecommendations();
-            else if (currentTab === 'approvals') loadApprovals();
-            else if (currentTab === 'conflicts') loadConflicts();
+            refreshWorkspaceDecisionLists();
         } else {
             window.showToast('刷新失败: ' + (data.error || '未知错误'), 'error');
         }
@@ -1267,7 +2253,7 @@ async function openApprovalModal(recommendationId) {
     // 如果传入的是 ID，需要先获取推荐详情
     if (typeof recommendationId === 'string') {
         try {
-            const accountId = document.getElementById('account-selector')?.value || 'default';
+            const accountId = getSelectedWorkspaceAccountId();
             const res = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}`, {
                 headers: { 'X-CSRFToken': window.csrfToken }
             });
@@ -1423,7 +2409,7 @@ async function loadExecutionPreview() {
             },
             body: JSON.stringify({
                 recommendation_id: currentRecommendation.recommendation_id,
-                account_id: document.getElementById('account-selector')?.value || 'default'
+                account_id: getSelectedWorkspaceAccountId()
             })
         });
         const data = await res.json();
@@ -1516,7 +2502,7 @@ function toggleExecutionFields() {
 // ===== 加载模拟账户 =====
 async function loadSimulatedAccounts() {
     try {
-        const res = await fetch('/api/simulated-trading/accounts/', {
+        const res = await fetch('/api/simulated-trading/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
         const data = await res.json();
@@ -1607,9 +2593,7 @@ async function approveRecommendation() {
         if (data.success) {
             window.showToast('审批通过并执行成功', 'success');
             closeApprovalModal();
-            // 刷新列表
-            if (currentTab === 'recommendations') loadRecommendations();
-            else if (currentTab === 'approvals') loadApprovals();
+            refreshWorkspaceDecisionLists();
         } else {
             window.showToast('执行失败: ' + (data.error || '未知错误'), 'error');
             approveBtn.disabled = false;
@@ -1654,9 +2638,7 @@ async function rejectRecommendation() {
         if (data.success) {
             window.showToast('已拒绝该推荐', 'success');
             closeApprovalModal();
-            // 刷新列表
-            if (currentTab === 'recommendations') loadRecommendations();
-            else if (currentTab === 'approvals') loadApprovals();
+            refreshWorkspaceDecisionLists();
         } else {
             window.showToast('拒绝失败: ' + (data.error || '未知错误'), 'error');
             rejectBtn.disabled = false;
@@ -1682,6 +2664,16 @@ function getStatusText(status) {
     };
     return statusMap[status] || status;
 }
+
+Object.assign(window, {
+    loadRecommendations,
+    loadTransitionPlanStep,
+    generateTransitionPlan,
+    saveTransitionPlan,
+    submitTransitionPlanForApproval,
+    loadExecutionPlanPanel,
+    loadConflicts,
+});
 </script>
 
 <style>
@@ -1755,38 +2747,6 @@ function getStatusText(status) {
 .badge-value.policy-p1 { color: #f59e0b; }
 .badge-value.policy-p2 { color: #10b981; }
 
-/* Tab 导航 */
-.workspace-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.tab-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-size: 14px;
-    color: #64748b;
-    transition: all 0.2s;
-}
-
-.tab-button:hover {
-    color: #334155;
-    background: #f8fafc;
-}
-
-.tab-button.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
-}
-
 .tab-count {
     background: #e2e8f0;
     color: #475569;
@@ -1794,11 +2754,6 @@ function getStatusText(status) {
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
-}
-
-.tab-button.active .tab-count {
-    background: #667eea;
-    color: white;
 }
 
 /* Tab 内容 */

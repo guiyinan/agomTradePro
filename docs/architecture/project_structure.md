@@ -1,16 +1,16 @@
 # AgomTradePro 项目结构说明
 
 > 生成时间: 2025-12-30
-> 更新时间: 2026-03-22
-> 项目版本: 1.3
-> 模块数量: 33个业务模块
+> 更新时间: 2026-03-28
+> 项目版本: 1.4
+> 模块数量: 35个业务模块
 
 ## 1. 项目概述
 
-AgomTradePro (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
+AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **系统状态**: 生产就绪
-**测试覆盖**: 1,395个测试用例，100%通过率
+**测试覆盖**: 1,600+个测试用例，100%通过率
 
 ## 2. 技术栈
 
@@ -297,21 +297,30 @@ AgomTradePro/
 │   │   ├── domain/
 │   │   ├── application/
 │   │   └── infrastructure/
-│
+│   │
 │   ├── task_monitor/            # ⭐ 任务监控
 │   │   ├── domain/
 │   │   ├── application/
 │   │   └── infrastructure/
-│
+│   │
+│   ├── setup_wizard/            # ⭐ 系统初始化向导
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── interface/
+│   │
+│   ├── pulse/                   # ⭐ Pulse 脉搏层（战术指标聚合与转折预警）
+│   │   ├── domain/              #   PulseDimension, PulseIndicatorReading, PulseSnapshot
+│   │   ├── application/         #   CalculatePulseUseCase, GetLatestPulseUseCase
+│   │   ├── infrastructure/      #   models.py, repositories.py, data_provider.py
+│   │   ├── interface/           #   api_views.py, admin.py
+│   │   ├── management/commands/ #   init_pulse_config, set_pulse_weight, etc.
+│   │   └── migrations/
+│   │
 │   ├── dashboard/               # 仪表盘
 │   │   ├── application/         #   应用层：仪表盘数据聚合
 │   │   └── interface/           #   接口层
 │   │       └── views.py         #     页面视图
-│
-│   └── shared/                  # 共享技术组件（apps/下，待迁移）
-│       └── interface/           #   HTMX 视图基类、装饰器
-│           ├── views.py         #     HtmxTemplateView, HtmxListView 等
-│           └── decorators.py     #     HTMX 装饰器
 │
 ├── core/                        # Django 核心配置
 │   ├── settings/                #   分环境配置
@@ -370,32 +379,31 @@ AgomTradePro/
 │
 ├── docs/                        # 项目文档（重组）
 │   ├── architecture/            #   架构文档
-│   │   ├── SYSTEM_OVERVIEW.md  #     系统全景
 │   │   ├── project_structure.md #     项目结构
+│   │   ├── MODULE_DEPENDENCIES.md #   模块依赖关系
 │   │   ├── asset_analysis_framework.md
 │   │   ├── simulated_trading_design.md
 │   │   ├── strategy_system_design.md
 │   │   └── frontend_design_guide.md
 │   ├── business/                #   业务文档
-│   │   ├── AgomTradePro_V3.5.md    #     业务需求
+│   │   ├── AgomTradePro_V3.4.md    #     业务需求
 │   │   ├── signal_and_position.md
 │   │   └── equity-valuation-logic.md
 │   ├── development/             #   开发文档
 │   │   ├── coding_standards.md
 │   │   ├── api_structure_guide.md
-│   │   └── module-dependency-graph.md
+│   │   ├── quick-reference.md
+│   │   └── module-ledger.md
 │   ├── testing/                 #   测试文档
-│   │   └── test_progress_report_260102.md
-│   ├── fixes/                   #   修复记录
+│   ├── governance/              #   治理文档
+│   │   ├── SYSTEM_BASELINE.md  #     系统基线
+│   │   ├── MODULE_CLASSIFICATION.md # 模块分级
+│   │   └── DEVELOPMENT_BANLIST.md   # 开发禁令
+│   ├── modules/                 #   模块文档
 │   └── deployment/              #   部署文档
 │
-├── scripts/                     # 脚本文件
-│   ├── run_backtest.py          #   运行回测
-│   ├── validate_backtest.py     #   验证回测结果
-│   └── migrate_*.py             #   数据迁移脚本
-│
 ├── manage.py                    # Django 管理脚本
-├── CLAUDE.md                    # 项目开发规则（306行）
+├── AGENTS.md                    # 项目开发规则
 ├── pyproject.toml               # Python 项目配置
 ├── pytest.ini                   # pytest 配置
 ├── package.json                 # Node.js 配置
@@ -955,15 +963,26 @@ rg -n "from .*infrastructure\\." apps/*/interface -S
 
 ## 14. 相关文档
 
-- [业务需求文档](../business/AgomTradePro_V3.5.md)
+- [业务需求文档](../business/AgomTradePro_V3.4.md)
 - [前端设计指南](frontend_design_guide.md)
-- [项目开发规则](../../CLAUDE.md)
+- [项目开发规则](../../AGENTS.md)
 - [AI Prompt系统使用文档](../ai/ai_prompt_system.md)
-- [实时价格监控系统文档](../integration/realtime_data_system.md) ⭐
+- [实时价格监控系统文档](../integration/realtime_data_system.md)
+- [模块依赖关系](MODULE_DEPENDENCIES.md)
 
 ## 15. 更新记录
 
-### 2026-01-14
+### 2026-03-28
+
+1. **文档全面对齐更新**
+   - 更新模块数量 (33 → 35)
+   - 新增 pulse 模块文档（战术指标聚合与转折预警）
+   - 新增 setup_wizard 模块目录
+   - 删除已归档的 `apps/shared/` 引用
+   - 修正 `CLAUDE.md` → `AGENTS.md`
+   - 修正 `SYSTEM_OVERVIEW.md` → 已归档
+   - 更新测试用例数 (1,395 → 1,600+)
+   - 更新 docs 目录树，反映当前实际结构
 
 1. **新增 realtime 模块**
    - 实现实时价格监控系统

@@ -50,7 +50,6 @@ if TYPE_CHECKING:
         ModelWeights,
         UnifiedRecommendation,
     )
-    from ..infrastructure.models import UnifiedRecommendationModel
 
 
 logger = logging.getLogger(__name__)
@@ -1989,23 +1988,6 @@ class RejectExecutionUseCase:
 # 统一推荐参数管理用例（Top-down + Bottom-up 融合）
 # ============================================================================
 
-
-from typing import TYPE_CHECKING, Protocol
-
-if TYPE_CHECKING:
-    from ..domain.entities import (
-        DecisionFeatureSnapshot,
-        GatePenalties,
-        ModelParamAuditLog,
-        ModelParamConfig,
-        ModelWeights,
-        UnifiedRecommendation,
-    )
-    from ..infrastructure.models import (
-        UnifiedRecommendationModel,
-    )
-
-
 class ModelParamConfigRepositoryProtocol(Protocol):
     """模型参数配置仓储协议"""
 
@@ -2236,7 +2218,7 @@ class UpdateModelParamUseCase:
             # 创建或更新配置
             if old_config:
                 config = ModelParamConfig(
-                    config_id=old_config.config_id,
+                    config_id=f"mpc_{uuid4().hex[:12]}",
                     param_key=request.param_key,
                     param_value=request.param_value,
                     param_type=request.param_type,
@@ -2531,11 +2513,6 @@ class GenerateUnifiedRecommendationsUseCase:
                 # 检查 Beta Gate
                 beta_gate_passed = self.feature_provider.check_beta_gate(security_code)
 
-                # 如果 Beta Gate 不通过，跳过（Hard Gate）
-                if not beta_gate_passed:
-                    logger.debug(f"Beta Gate not passed for {security_code}, skipping")
-                    continue
-
                 # 收集特征
                 snapshot = DecisionFeatureSnapshot(
                     snapshot_id=f"fsn_{uuid4().hex[:12]}",
@@ -2570,6 +2547,8 @@ class GenerateUnifiedRecommendationsUseCase:
                     sell_score_threshold=sell_score_threshold,
                     sell_alpha_threshold=sell_alpha_threshold,
                 )
+                if not beta_gate_passed:
+                    side = "HOLD"
 
                 # 获取来源信号
                 signals = self.signal_provider.get_active_signals(security_code)
@@ -2719,6 +2698,8 @@ class GenerateUnifiedRecommendationsUseCase:
 
         if snapshot.beta_gate_passed:
             codes.append("BETA_GATE_PASS")
+        else:
+            codes.append("BETA_GATE_BLOCKED")
 
         if composite_score >= 0.7:
             codes.append("COMPOSITE_HIGH")
@@ -2761,6 +2742,9 @@ class GenerateUnifiedRecommendationsUseCase:
 
         if snapshot.policy_level:
             parts.append(f"政策档位: {snapshot.policy_level}")
+
+        if not snapshot.beta_gate_passed:
+            parts.append("Beta Gate 未通过，当前仅展示观察，不进入执行")
 
         return "。".join(parts) + "。"
 

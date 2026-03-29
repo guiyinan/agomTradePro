@@ -67,14 +67,14 @@ class PolicyFeatureProvider:
     """
 
     def __init__(self):
-        self._repository = None
+        self._policy_repository = None
 
-    def _get_repository(self):
+    def _get_policy_repository(self):
         """延迟加载 repository"""
-        if self._repository is None:
+        if self._policy_repository is None:
             from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-            self._repository = DjangoPolicyRepository()
-        return self._repository
+            self._policy_repository = DjangoPolicyRepository()
+        return self._policy_repository
 
     def get_policy_level(self) -> str | None:
         """
@@ -84,7 +84,7 @@ class PolicyFeatureProvider:
             政策档位字符串
         """
         try:
-            repo = self._get_repository()
+            repo = self._get_policy_repository()
             level = repo.get_current_policy_level(date.today())
 
             if level:
@@ -105,16 +105,16 @@ class BetaGateFeatureProvider:
     """
 
     def __init__(self):
-        self._use_case = None
+        self._beta_gate_use_case = None
 
-    def _get_use_case(self):
+    def _get_beta_gate_use_case(self):
         """延迟加载 use case"""
-        if self._use_case is None:
+        if self._beta_gate_use_case is None:
             from apps.beta_gate.application.use_cases import EvaluateBetaGateUseCase
             from apps.beta_gate.domain.services import GateConfigSelector
             config_selector = GateConfigSelector()
-            self._use_case = EvaluateBetaGateUseCase(config_selector)
-        return self._use_case
+            self._beta_gate_use_case = EvaluateBetaGateUseCase(config_selector)
+        return self._beta_gate_use_case
 
     def check_beta_gate(
         self,
@@ -151,7 +151,7 @@ class BetaGateFeatureProvider:
                 except (ValueError, AttributeError):
                     policy_int = 0
 
-            use_case = self._get_use_case()
+            use_case = self._get_beta_gate_use_case()
             request = EvaluateGateRequest(
                 asset_code=security_code,
                 asset_class="EQUITY",
@@ -164,7 +164,15 @@ class BetaGateFeatureProvider:
             response = use_case.execute(request)
 
             if response.success and response.decision:
-                return response.decision.gate_status.value in ("PASS", "PASS_WITH_WARNING")
+                decision = response.decision
+                if hasattr(decision, "is_passed"):
+                    return bool(decision.is_passed)
+
+                gate_status = getattr(getattr(decision, "gate_status", None), "value", None)
+                if gate_status is None:
+                    gate_status = getattr(getattr(decision, "status", None), "value", None)
+                if gate_status is not None:
+                    return str(gate_status).lower() in ("pass", "pass_with_warning", "passed")
 
             return False
 
@@ -187,14 +195,14 @@ class SentimentFeatureProvider:
     """
 
     def __init__(self):
-        self._repository = None
+        self._sentiment_repository = None
 
-    def _get_repository(self):
+    def _get_sentiment_repository(self):
         """延迟加载 repository"""
-        if self._repository is None:
+        if self._sentiment_repository is None:
             from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
-            self._repository = SentimentIndexRepository()
-        return self._repository
+            self._sentiment_repository = SentimentIndexRepository()
+        return self._sentiment_repository
 
     def get_sentiment_score(self, security_code: str) -> float:
         """
@@ -208,7 +216,7 @@ class SentimentFeatureProvider:
         """
         try:
             from datetime import date
-            repo = self._get_repository()
+            repo = self._get_sentiment_repository()
 
             # 获取最新的舆情指数（市场级别）
             latest = repo.get_by_date(date.today())
@@ -234,14 +242,14 @@ class FlowFeatureProvider:
     """
 
     def __init__(self):
-        self._repository = None
+        self._flow_repository = None
 
-    def _get_repository(self):
+    def _get_flow_repository(self):
         """延迟加载 repository"""
-        if self._repository is None:
+        if self._flow_repository is None:
             from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
-            self._repository = RedisRealtimePriceRepository()
-        return self._repository
+            self._flow_repository = RedisRealtimePriceRepository()
+        return self._flow_repository
 
     def get_flow_score(self, security_code: str) -> float:
         """
@@ -255,7 +263,7 @@ class FlowFeatureProvider:
         """
         try:
             # 尝试从行情数据获取资金流向
-            repo = self._get_repository()
+            repo = self._get_flow_repository()
             price = repo.get_latest_price(security_code)
 
             if price:
@@ -286,14 +294,14 @@ class TechnicalFeatureProvider:
     """
 
     def __init__(self):
-        self._repository = None
+        self._technical_repository = None
 
-    def _get_repository(self):
+    def _get_technical_repository(self):
         """延迟加载 repository"""
-        if self._repository is None:
+        if self._technical_repository is None:
             from apps.equity.infrastructure.repositories import DjangoStockRepository
-            self._repository = DjangoStockRepository()
-        return self._repository
+            self._technical_repository = DjangoStockRepository()
+        return self._technical_repository
 
     def get_technical_score(self, security_code: str) -> float:
         """
@@ -308,7 +316,7 @@ class TechnicalFeatureProvider:
         try:
             # 尝试从 equity 模块获取技术评分
             # 目前返回默认值，后续可以集成技术分析模块
-            repo = self._get_repository()
+            repo = self._get_technical_repository()
             stocks = repo.get_all_stocks_with_fundamentals()
 
             # 查找对应股票
@@ -333,14 +341,14 @@ class FundamentalFeatureProvider:
     """
 
     def __init__(self):
-        self._repository = None
+        self._fundamental_repository = None
 
-    def _get_repository(self):
+    def _get_fundamental_repository(self):
         """延迟加载 repository"""
-        if self._repository is None:
+        if self._fundamental_repository is None:
             from apps.equity.infrastructure.repositories import DjangoStockRepository
-            self._repository = DjangoStockRepository()
-        return self._repository
+            self._fundamental_repository = DjangoStockRepository()
+        return self._fundamental_repository
 
     def get_fundamental_score(self, security_code: str) -> float:
         """
@@ -354,7 +362,7 @@ class FundamentalFeatureProvider:
         """
         try:
             # 尝试从 equity 模块获取基本面评分
-            repo = self._get_repository()
+            repo = self._get_fundamental_repository()
             stocks = repo.get_all_stocks_with_fundamentals()
 
             # 查找对应股票
@@ -383,17 +391,35 @@ class AlphaModelFeatureProvider:
     """
 
     def __init__(self):
-        self._service = None
+        self._alpha_service = None
 
-    def _get_service(self):
+    def _get_alpha_service(self):
         """延迟加载 service"""
-        if self._service is None:
+        if self._alpha_service is None:
             try:
                 from apps.alpha.application.services import AlphaService
-                self._service = AlphaService()
+                self._alpha_service = AlphaService()
             except ImportError:
                 pass
-        return self._service
+        return self._alpha_service
+
+    @staticmethod
+    def _normalize_candidate_alpha_score(candidate: Any) -> float:
+        """从 Alpha 候选实体推导 0-1 分数。"""
+        confidence = float(getattr(candidate, "confidence", 0.5) or 0.5)
+        confidence = max(0.0, min(1.0, confidence))
+
+        strength = getattr(candidate, "strength", "")
+        strength_value = getattr(strength, "value", strength)
+        strength_floor_map = {
+            "very_weak": 0.20,
+            "weak": 0.35,
+            "moderate": 0.60,
+            "strong": 0.75,
+            "very_strong": 0.90,
+        }
+        floor = strength_floor_map.get(str(strength_value).lower(), 0.5)
+        return max(confidence, floor)
 
     def get_alpha_model_score(self, security_code: str) -> float:
         """
@@ -406,7 +432,7 @@ class AlphaModelFeatureProvider:
             Alpha 模型分数 (0-1)
         """
         try:
-            service = self._get_service()
+            service = self._get_alpha_service()
 
             if service:
                 # 获取股票池评分，然后查找目标股票
@@ -430,7 +456,8 @@ class AlphaModelFeatureProvider:
                 # 取最新的候选
                 top_candidate = candidates[0]
                 if hasattr(top_candidate, "alpha_score"):
-                    return float(top_candidate.alpha_score)
+                    return max(0.0, min(1.0, float(top_candidate.alpha_score)))
+                return self._normalize_candidate_alpha_score(top_candidate)
 
             return 0.5
 
@@ -460,6 +487,15 @@ class CompositeFeatureProvider(
 
     实现所有特征获取接口。
     """
+
+    def __init__(self) -> None:
+        PolicyFeatureProvider.__init__(self)
+        BetaGateFeatureProvider.__init__(self)
+        SentimentFeatureProvider.__init__(self)
+        FlowFeatureProvider.__init__(self)
+        TechnicalFeatureProvider.__init__(self)
+        FundamentalFeatureProvider.__init__(self)
+        AlphaModelFeatureProvider.__init__(self)
 
     def get_regime(self) -> dict[str, Any] | None:
         return RegimeFeatureProvider.get_regime(self)

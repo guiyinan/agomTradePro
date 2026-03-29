@@ -47,6 +47,10 @@ class MarketDataProviderProtocol(Protocol):
         """获取指定日期的价格"""
         ...
 
+    def require_price(self, asset_code: str, trade_date: date) -> float:
+        """严格获取指定日期价格，缺失时抛错。"""
+        ...
+
 
 class RegimeServiceProtocol(Protocol):
     """Regime服务接口"""
@@ -525,7 +529,15 @@ class AutoTradingEngine:
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取当前价格"""
         if self.market_data:
-            return self.market_data.get_price(asset_code, trade_date)
+            get_price = getattr(self.market_data, "get_price", None)
+            if callable(get_price):
+                price = get_price(asset_code, trade_date)
+                if price is not None:
+                    return price
+
+            require_price = getattr(self.market_data, "require_price", None)
+            if callable(require_price):
+                return require_price(asset_code, trade_date)
         return None
 
     def _update_account_performance(self, account_id: int, trade_date: date):
@@ -579,4 +591,11 @@ class MockMarketDataProvider:
     def get_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取指定日期的价格(模拟)"""
         return self._prices.get(asset_code)
+
+    def require_price(self, asset_code: str, trade_date: date) -> float:
+        """严格获取指定日期的价格(模拟)。"""
+        price = self.get_price(asset_code, trade_date)
+        if price is None:
+            raise ValueError(f"缺少价格: {asset_code} @ {trade_date}")
+        return price
 

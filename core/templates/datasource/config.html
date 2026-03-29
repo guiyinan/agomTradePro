@@ -6,7 +6,7 @@
 <div class="page-header">
     <h1>数据源配置</h1>
     <p class="subtitle">Data Source Configuration</p>
-    <p class="description">管理 Tushare、AKShare 等数据源的 API 密钥和配置</p>
+    <p class="description">管理 Tushare、AKShare、QMT 等统一财经数据源的连接与优先级配置</p>
 </div>
 
 <!-- 快速开始指南 -->
@@ -96,7 +96,9 @@
                     </div>
                     <div class="ds-meta">
                         <span class="ds-type-badge type-{{ ds.source_type }}">{{ ds.get_source_type_display }}</span>
-                        {% if ds.api_endpoint %}
+                        {% if ds.http_url %}
+                        <span class="ds-endpoint">{{ ds.http_url }}</span>
+                        {% elif ds.api_endpoint %}
                         <span class="ds-endpoint">{{ ds.api_endpoint }}</span>
                         {% endif %}
                     </div>
@@ -107,6 +109,18 @@
                         <span class="config-label">API Key:</span>
                         <span class="config-value">{% if ds.api_key %}{{ ds.api_key|slice:":8" }}...{% else %}<span class="empty-value">未配置</span>{% endif %}</span>
                     </div>
+                    {% if ds.http_url %}
+                    <div class="config-row">
+                        <span class="config-label">HTTP URL:</span>
+                        <span class="config-value">{{ ds.http_url }}</span>
+                    </div>
+                    {% endif %}
+                    {% if ds.extra_config %}
+                    <div class="config-row">
+                        <span class="config-label">Extra Config:</span>
+                        <span class="config-value">{{ ds.extra_config }}</span>
+                    </div>
+                    {% endif %}
                     {% if ds.api_secret %}
                     <div class="config-row">
                         <span class="config-label">API Secret:</span>
@@ -193,6 +207,11 @@
                         <td>你的 Token</td>
                         <td>粘贴从 Tushare 复制的 Token</td>
                     </tr>
+                    <tr>
+                        <td>自定义 HTTP URL</td>
+                        <td>可留空</td>
+                        <td>接入第三方 Tushare 代理源时填写，系统会写入 `pro._DataApi__http_url`</td>
+                    </tr>
                 </table>
             </div>
 
@@ -262,6 +281,71 @@
             </div>
         </div>
     </div>
+
+    <!-- QMT -->
+    <div class="guide-item-full">
+        <div class="guide-header">
+            <h3 class="guide-title-large">QMT (XtQuant)</h3>
+            <span class="guide-badge guide-enterprise">本地终端</span>
+        </div>
+        <div class="guide-body">
+            <p class="guide-intro">QMT 行情通道适合把本地 XtQuant / QMT 终端纳入统一财经数据源中台。当前版本只接入行情、技术快照和日线历史 K 线，不包含下单交易。</p>
+
+            <div class="guide-subsection">
+                <h4>接入前提：</h4>
+                <ol class="guide-steps">
+                    <li>Windows 环境已安装并可正常启动 QMT / XtQuant</li>
+                    <li>Python 运行环境已安装 `xtquant`</li>
+                    <li>本机能正常读取 QMT 行情数据</li>
+                </ol>
+            </div>
+
+            <div class="guide-subsection">
+                <h4>配置参数：</h4>
+                <table class="guide-table">
+                    <tr>
+                        <th>参数</th>
+                        <th>值</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>数据源名称</td>
+                        <td>QMT 行情</td>
+                        <td>建议区分本地机房或终端实例</td>
+                    </tr>
+                    <tr>
+                        <td>数据源类型</td>
+                        <td>QMT (XtQuant)</td>
+                        <td>下拉选择</td>
+                    </tr>
+                    <tr>
+                        <td>优先级</td>
+                        <td>15</td>
+                        <td>建议放在东方财富之后、AKShare/Tushare 之前或由你自定</td>
+                    </tr>
+                    <tr>
+                        <td>API Key / Secret</td>
+                        <td>通常留空</td>
+                        <td>QMT 行情通道不依赖远程 Token</td>
+                    </tr>
+                    <tr>
+                        <td>额外配置 JSON</td>
+                        <td>{"client_path":"C:/qmt","data_dir":"D:/qmt/data"}</td>
+                        <td>可选，适合指定本地终端路径、数据目录、复权参数等</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="guide-subsection">
+                <h4>当前支持能力：</h4>
+                <div class="tag-list">
+                    <span class="indicator-tag">实时行情快照</span>
+                    <span class="indicator-tag">技术快照</span>
+                    <span class="indicator-tag">日线历史 K 线</span>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- FAQ -->
@@ -290,6 +374,18 @@
             <div class="faq-question">Q: Tushare Pro 有积分限制怎么办？</div>
             <div class="faq-answer">
                 A: Tushare Pro 采用积分制，普通用户每日有一定的调用次数限制。建议将 AKShare 配置为备用源，可以分担部分请求。如需更高额度，可以考虑升级会员。
+            </div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Q: 第三方 Tushare 数据源怎么接？</div>
+            <div class="faq-answer">
+                A: 在 Tushare 数据源配置中填写 Token，并把第三方代理地址填到“自定义 HTTP URL”。保存后，系统级数据源中台会把该地址统一下发到所有 Tushare 调用链。
+            </div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Q: QMT 行情通道需要新建单独模块吗？</div>
+            <div class="faq-answer">
+                A: 不需要。当前已经作为统一 `market_data` provider 接入，配置入口复用现有数据源中台；只要把 `source_type` 设为 `QMT (XtQuant)` 并补充本地参数即可。
             </div>
         </div>
         <div class="faq-item">
@@ -458,6 +554,7 @@
 
 .type-tushare { background: #D5E9FF; color: var(--color-info); }
 .type-akshare { background: #F4C2C2; color: var(--color-error); }
+.type-qmt { background: #E6D9FF; color: #6b21a8; }
 .type-fred { background: #C8D8B8; color: var(--color-success); }
 .type-wind { background: #FEF7E2; color: var(--color-warning); }
 .type-choice { background: #F0F8FF; color: #4682B4; }
@@ -593,6 +690,7 @@
 
 .type-tushare { background: #D5E9FF; color: var(--color-info); }
 .type-akshare { background: #F4C2C2; color: var(--color-error); }
+.type-qmt { background: #E6D9FF; color: #6b21a8; }
 .type-fred { background: #C8D8B8; color: var(--color-success); }
 .type-wind { background: #FEF7E2; color: var(--color-warning); }
 .type-choice { background: #F0F8FF; color: #4682B4; }
@@ -731,6 +829,11 @@
 .guide-free {
     background: #D5E9FF;
     color: var(--color-info);
+}
+
+.guide-enterprise {
+    background: #EDE9FE;
+    color: #6b21a8;
 }
 
 .guide-body {

@@ -1,25 +1,21 @@
-"""
-基金分析模块 - URL 配置
-"""
+"""基金分析模块页面路由。"""
 
-from django.urls import include, path
+from django.urls import path
 from django.views.generic import RedirectView
 
-from .views import (
-    FundMultiDimScreenAPIView,
-    dashboard_view,
-)
+from .views import dashboard_view
 
 app_name = 'fund'
 
 urlpatterns = [
+    path("", RedirectView.as_view(url="/fund/dashboard/", permanent=False), name="home"),
     # 仪表盘页面
     path('dashboard/', dashboard_view, name='dashboard'),
 
-    # Legacy compatibility
-    path('multidim-screen/', RedirectView.as_view(url='/fund/api/multidim-screen/', permanent=False)),
-    path('api/multidim-screen/', FundMultiDimScreenAPIView.as_view(), name='multidim_screen_page'),
-
-    # Legacy API compatibility under /fund/api/*
-    path('api/', include('apps.fund.interface.api_urls')),
+    # 兼容旧入口，跳转到统一 API 前缀
+    path(
+        'multidim-screen/',
+        RedirectView.as_view(url='/api/fund/multidim-screen/', permanent=False),
+        name='multidim_screen_page',
+    ),
 ]

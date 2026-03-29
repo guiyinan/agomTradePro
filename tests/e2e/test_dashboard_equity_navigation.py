@@ -42,7 +42,7 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
         ],
     )
 
-    response = authenticated_client.get("/dashboard/api/alpha/stocks/?format=json&top_n=5")
+    response = authenticated_client.get("/api/dashboard/alpha/stocks/?format=json&top_n=5")
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
@@ -60,7 +60,7 @@ def test_equity_screen_page_contains_dashboard_alpha_navigation(authenticated_cl
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
-    assert "/dashboard/api/alpha/stocks/?format=json&top_n=10" in content
+    assert "/api/dashboard/alpha/stocks/?format=json&top_n=10" in content
     assert "系统自动推荐" in content
     assert "手动二次筛选" in content
     assert "/decision/workspace/?source=equity-screen&security_code=" in content

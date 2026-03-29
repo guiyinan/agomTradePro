@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from shared.config.secrets import get_secrets
+from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 try:
     import tushare as ts
@@ -49,7 +50,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
 
     source_name = "tushare"
 
-    def __init__(self, token: str | None = None):
+    def __init__(self, token: str | None = None, http_url: str | None = None):
         """
         初始化 Tushare 适配器
 
@@ -59,7 +60,9 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         if ts is None:
             raise ImportError("tushare 库未安装，请运行: pip install tushare")
 
-        self._token = token or get_secrets().data_sources.tushare_token
+        secrets = get_secrets().data_sources
+        self._token = token or secrets.tushare_token
+        self._http_url = http_url if http_url is not None else secrets.tushare_http_url
         self._pro = None
 
     def _get_pro(self):
@@ -67,7 +70,10 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         if self._pro is None:
             if not self._token:
                 raise AssetPriceUnavailableError("Tushare token 未配置")
-            self._pro = ts.pro_api(self._token)
+            self._pro = create_tushare_pro_client(
+                token=self._token,
+                http_url=self._http_url,
+            )
         return self._pro
 
     def supports(self, asset_class: str) -> bool:

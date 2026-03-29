@@ -431,8 +431,11 @@ class GenerateAttributionReportUseCase:
 
         # 创建价格适配器（使用 Tushare 作为数据源）
         try:
-            tushare_token = get_secrets().data_sources.tushare_token
-            price_adapter = create_default_price_adapter(tushare_token=tushare_token)
+            tushare_settings = get_secrets().data_sources
+            price_adapter = create_default_price_adapter(
+                tushare_token=tushare_settings.tushare_token,
+                tushare_http_url=tushare_settings.tushare_http_url,
+            )
         except Exception as e:
             logger.error(f"无法初始化价格适配器: {e}")
             raise ValueError(

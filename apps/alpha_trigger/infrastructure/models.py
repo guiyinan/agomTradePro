@@ -57,18 +57,28 @@ class AlphaTriggerModel(models.Model):
     """
 
     # Trigger Type Choices
+    THRESHOLD_CROSS = "THRESHOLD_CROSS"
     MOMENTUM_SIGNAL = "MOMENTUM_SIGNAL"
     MEAN_REVERSION = "MEAN_REVERSION"
     BREAKOUT = "BREAKOUT"
     REGIME_TRANSITION = "REGIME_TRANSITION"
     POLICY_CHANGE = "POLICY_CHANGE"
+    MANUAL_OVERRIDE = "MANUAL_OVERRIDE"
+    STRUCTURAL_MISALIGNMENT = "STRUCTURAL_MISALIGNMENT"
+    SUPPLY_SHOCK = "SUPPLY_SHOCK"
+    CREDIT_SPREAD = "CREDIT_SPREAD"
     CUSTOM = "CUSTOM"
     TRIGGER_TYPE_CHOICES = [
+        (THRESHOLD_CROSS, "阈值穿越"),
         (MOMENTUM_SIGNAL, "动量信号"),
         (MEAN_REVERSION, "均值回归"),
         (BREAKOUT, "突破"),
         (REGIME_TRANSITION, "Regime 转换"),
         (POLICY_CHANGE, "Policy 变化"),
+        (MANUAL_OVERRIDE, "手动覆盖"),
+        (STRUCTURAL_MISALIGNMENT, "结构性错位"),
+        (SUPPLY_SHOCK, "供给冲击"),
+        (CREDIT_SPREAD, "信用利差"),
         (CUSTOM, "自定义"),
     ]
 
@@ -269,17 +279,17 @@ class AlphaTriggerModel(models.Model):
             for c in self.invalidation_conditions
         ]
 
-        return AlphaTrigger(
+        trigger = AlphaTrigger(
             trigger_id=self.trigger_id,
-            trigger_type=TriggerType(self.trigger_type),
+            trigger_type=self._to_domain_trigger_type(self.trigger_type),
             asset_code=self.asset_code,
             asset_class=self.asset_class,
             direction=self.direction,
             trigger_condition=self.trigger_condition,
             invalidation_conditions=invalidation_conditions,
-            strength=SignalStrength(self.strength),
+            strength=SignalStrength(str(self.strength).lower()),
             confidence=self.confidence,
-            status=TriggerStatus(self.status),
+            status=TriggerStatus(str(self.status).lower()),
             created_at=self.created_at,
             triggered_at=self.triggered_at,
             invalidated_at=self.invalidated_at,
@@ -288,8 +298,9 @@ class AlphaTriggerModel(models.Model):
             related_regime=self.related_regime or None,
             related_policy_level=self.related_policy_level,
             thesis=self.thesis,
-            custom_data=self.custom_data,
         )
+        setattr(trigger, "custom_data", self.custom_data or {})
+        return trigger
 
     @classmethod
     def from_domain(cls, trigger: AlphaTrigger) -> "AlphaTriggerModel":
@@ -310,15 +321,15 @@ class AlphaTriggerModel(models.Model):
 
         return cls(
             trigger_id=trigger.trigger_id,
-            trigger_type=trigger.trigger_type.value,
+            trigger_type=cls._to_model_trigger_type(trigger.trigger_type),
             asset_code=trigger.asset_code,
             asset_class=trigger.asset_class,
             direction=trigger.direction,
             trigger_condition=trigger.trigger_condition,
             invalidation_conditions=invalidation_conditions,
-            strength=trigger.strength.value,
+            strength=str(trigger.strength.value).upper(),
             confidence=trigger.confidence,
-            status=trigger.status.value,
+            status=str(trigger.status.value).upper(),
             thesis=trigger.thesis,
             created_at=trigger.created_at,
             triggered_at=trigger.triggered_at,
@@ -327,8 +338,33 @@ class AlphaTriggerModel(models.Model):
             source_signal_id=trigger.source_signal_id or "",
             related_regime=trigger.related_regime or "",
             related_policy_level=trigger.related_policy_level,
-            custom_data=trigger.custom_data,
+            custom_data=getattr(trigger, "custom_data", {}) or {},
         )
+
+    @staticmethod
+    def _to_domain_trigger_type(value: str) -> TriggerType:
+        """将 ORM 值归一化到 Domain 触发器类型。"""
+        normalized = str(value).lower()
+        legacy_map = {
+            "mean_reversion": TriggerType.MOMENTUM_SIGNAL,
+            "breakout": TriggerType.MOMENTUM_SIGNAL,
+            "custom": TriggerType.MANUAL_OVERRIDE,
+        }
+        if normalized in legacy_map:
+            mapped = legacy_map[normalized]
+            logger.warning(
+                "Mapping legacy alpha trigger type '%s' to domain type '%s'",
+                value,
+                mapped.value,
+            )
+            return mapped
+        return TriggerType(normalized)
+
+    @staticmethod
+    def _to_model_trigger_type(trigger_type: TriggerType | str) -> str:
+        """将 Domain 触发器类型归一化到 ORM 存储值。"""
+        raw_value = getattr(trigger_type, "value", trigger_type)
+        return str(raw_value).upper()
 
 
 class AlphaCandidateModel(models.Model):
@@ -637,15 +673,15 @@ class AlphaCandidateModel(models.Model):
             asset_code=candidate.asset_code,
             asset_class=candidate.asset_class,
             direction=candidate.direction,
-            strength=candidate.strength.value,
+            strength=str(candidate.strength.value).upper(),
             confidence=candidate.confidence,
             status=candidate.status.value,
             thesis=candidate.thesis,
-            entry_zone=candidate.entry_zone,
-            exit_zone=candidate.exit_zone,
+            entry_zone=candidate.entry_zone or {},
+            exit_zone=candidate.exit_zone or {},
             time_horizon=candidate.time_horizon,
             expected_return=candidate.expected_return,
-            risk_level=candidate.risk_level,
+            risk_level=candidate.risk_level or cls.MEDIUM,
             created_at=candidate.created_at,
             updated_at=candidate.updated_at,
             status_changed_at=candidate.status_changed_at,
@@ -674,7 +710,7 @@ class AlphaTriggerQuerySet(models.QuerySet):
 
     def by_type(self, trigger_type: TriggerType):
         """按类型过滤"""
-        return self.filter(trigger_type=trigger_type.value)
+        return self.filter(trigger_type=str(trigger_type.value).upper())
 
     def by_regime(self, regime: str):
         """按相关 Regime 过滤"""

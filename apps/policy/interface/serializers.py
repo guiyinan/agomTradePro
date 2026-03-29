@@ -9,6 +9,8 @@ P1-4: 接入输入消毒，防止 XSS 攻击
 from datetime import date
 from typing import Optional
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from shared.infrastructure.sanitization import sanitize_plain_text
@@ -22,6 +24,7 @@ from ..infrastructure.models import (
 )
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class PolicyLevelField(serializers.Field):
     """政策档位字段"""
 
@@ -269,14 +272,16 @@ class WorkbenchSummarySerializer(serializers.Serializer):
     effective_today_count = serializers.IntegerField()
     last_fetch_at = serializers.DateTimeField(allow_null=True)
 
-    def get_policy_level(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_policy_level(self, obj) -> str | None:
         """获取政策档位字符串值"""
         level = getattr(obj, 'policy_level', None)
         if level is None:
             return None
         return level.value if hasattr(level, 'value') else str(level)
 
-    def get_global_gate_level(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_global_gate_level(self, obj) -> str | None:
         """获取闸门等级字符串值"""
         level = getattr(obj, 'global_gate_level', None)
         if level is None:

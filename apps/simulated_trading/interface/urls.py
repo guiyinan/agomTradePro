@@ -1,6 +1,6 @@
 """模拟盘交易模块 URL 配置。"""
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import path
 
 from .views import (
     account_detail_page,
@@ -31,7 +31,4 @@ urlpatterns = [
     path('my-accounts/<int:account_id>/positions/', my_positions_page, name='my-positions'),
     path('my-accounts/<int:account_id>/trades/', my_trades_page, name='my-trades'),
     path('my-accounts/<int:account_id>/inspection-notify/', my_inspection_notify_page, name='my-inspection-notify'),
-
-    # Legacy API compatibility under /simulated-trading/api/*
-    path('api/', include(('apps.simulated_trading.interface.api_urls', 'simulated_trading_api'), namespace='legacy_simulated_trading_api')),
 ]

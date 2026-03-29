@@ -74,9 +74,13 @@
 │  │  2. 扫描资产池(可投池)                        │  │
 │  │  3. 检查有效信号                             │  │
 │  │  4. 自动生成买入/卖出订单                     │  │
-│  │  5. 更新模拟账户持仓和资金                    │  │
+ │  │  5. 更新模拟账户持仓和资金                    │  │
 │  │  6. 记录交易日志                             │  │
 │  └──────────────────────────────────────────────┘  │
+│  价格入口统一通过 apps.market_data 中台获取，      │
+│  不再由 simulated_trading 私有 provider 直接拉源   │
+│  若 market_data 无法返回价格，则任务/API 显式报错   │
+│  禁止将缺失价格静默记为 0 或伪造最新价             │
 │                                                     │
 │  ┌──────────────────────────────────────────────┐  │
 │  │  模拟盘报告生成器                             │  │
@@ -191,8 +195,8 @@ class Position:
     available_quantity: int     # 可卖数量(T+1)
 
     # 成本信息
-    avg_cost: float             # 平均成本(元)
-    total_cost: float           # 总成本 = quantity * avg_cost
+    avg_cost: float             # 平均成本(元, 含买入侧手续费和滑点摊薄)
+    total_cost: float           # 总成本 = 买入成交额 + 买入侧手续费 + 滑点
 
     # 当前信息
     current_price: float        # 当前价格(元)
@@ -1335,7 +1339,7 @@ class SimulatedPositionListAPIView(APIView):
             "asset_code": p.asset_code,
             "asset_name": p.asset_name,
             "quantity": p.quantity,
-            "avg_cost": float(p.avg_cost),
+            "avg_cost": float(p.avg_cost),  # 含买入侧手续费和滑点摊薄
             "current_price": float(p.current_price),
             "market_value": float(p.market_value),
             "unrealized_pnl": float(p.unrealized_pnl),

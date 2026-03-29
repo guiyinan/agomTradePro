@@ -235,12 +235,12 @@ class DjangoPulseDataProvider:
     ) -> PulseIndicatorReading | None:
         """获取单个指标的读数"""
         try:
-            from apps.macro.infrastructure.models import MacroObservation
+            from apps.macro.infrastructure.models import MacroIndicator
 
             # 获取最近的观测值
             obs = (
-                MacroObservation.objects
-                .filter(indicator__code=ind_def.code, reporting_period__lte=as_of_date)
+                MacroIndicator.objects
+                .filter(code=ind_def.code, reporting_period__lte=as_of_date)
                 .order_by("-reporting_period")
                 .first()
             )
@@ -262,9 +262,9 @@ class DjangoPulseDataProvider:
             # 获取历史数据计算 z-score
             lookback = as_of_date - timedelta(days=365)
             history_qs = (
-                MacroObservation.objects
+                MacroIndicator.objects
                 .filter(
-                    indicator__code=ind_def.code,
+                    code=ind_def.code,
                     reporting_period__gte=lookback,
                     reporting_period__lte=as_of_date,
                 )

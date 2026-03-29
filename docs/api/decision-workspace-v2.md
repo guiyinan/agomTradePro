@@ -6,18 +6,39 @@
 
 ## 1. 概述
 
-本文件定义决策工作台统一推荐相关 API（Top-down + Bottom-up 融合）：
+本文件定义决策工作台主链路 API。当前主链路已从“推荐解释 -> 直接审批”收敛为：
+
+`系统级分析 -> 推荐筛选 -> 账户级交易计划 -> 审批执行 -> 审计入口`
+
+其中：
+
+- `UnifiedRecommendation` 只代表推荐层对象，不再视为最终执行单
+- 工作台真正的执行产物是 `PortfolioTransitionPlan`
+- `审计复盘` 已移出主流程，执行完成后进入 `/audit/`
+
+当前 API 范围包括：
 
 1. 推荐列表查询
 2. 推荐刷新触发
 3. 推荐用户动作写入
 4. 冲突列表查询
-5. 模型参数查询与更新
+5. 交易计划生成与更新
+6. 审批执行预览
+7. 模型参数查询与更新
 
 ### 1.1 前端账户绑定约定
 
+- 工作台页面头部必须提供全局账户 selector，作为当前决策口径的唯一入口
+- 工作台左侧栏应显示当前账户现状，包括账户状态、资产概览和持仓摘要
+- Step 1-3 需要显式展示当前账户上下文，但必须标注为“系统级分析”，不得误导为按单账户重算
+- Step 1-6 的 HTMX 请求应透传 `account_id`，保证页面刷新与 URL 中的账户口径一致
 - 工作台顶部“选择账户”与推荐/审批/冲突筛选使用模拟账户接口 `/api/simulated-trading/accounts/`
+- 工作台应显式请求 `active_only=false`，确保账户 selector 与 `/simulated-trading/my-accounts/` 展示口径一致
+- 工作台中的“刷新推荐”动作也应携带当前 `account_id`，避免刷新任务与当前页面账户口径脱节
 - 该接口前端应读取 `accounts` 数组，单项字段使用 `account_id`、`account_name`
+- 该接口后端只允许返回当前登录用户拥有的账户，不得返回其他用户的活跃账户
+- 历史模板 `core/templates/decision/workspace_legacy.html` 已废弃并移除，工作台只允许维护 `core/templates/decision/workspace.html`
+- 左侧栏账户现状使用 `/api/simulated-trading/accounts/{id}/` 和 `/api/simulated-trading/accounts/{id}/positions/`
 - 审批弹窗中的“账户落地”使用真实投资组合接口 `/account/api/portfolios/`
 - 该接口为 DRF 分页列表，前端应读取 `results` 数组，并将 `id` 作为 `portfolio_id`
 
@@ -131,16 +152,138 @@
 - Query:
   - `account_id`（必填）
 
-## 6. 模型参数
+## 6. 交易计划
 
-### 5.1 查询参数
+### 6.1 领域约定
+
+`PortfolioTransitionPlan` 是账户级调仓计划，至少包含：
+
+- `plan_id`
+- `account_id`
+- `source_recommendation_ids`
+- `current_positions`
+- `target_positions`
+- `orders`
+- `risk_contract`
+- `summary`
+- `status`
+
+订单 `orders[*]` 至少包含：
+
+- `security_code`
+- `action`（v1 支持 `BUY` / `REDUCE` / `EXIT` / `HOLD`）
+- `current_qty`
+- `target_qty`
+- `delta_qty`
+- `target_weight`
+- `price_band_low`
+- `price_band_high`
+- `stop_loss_price`
+- `invalidation_rule`
+- `review_by`
+- `source_recommendation_id`
+
+证伪逻辑补充能力：
+
+- 系统模板：`POST /api/decision/workspace/invalidation/template/`
+  - 自动结合当前 `Pulse` 和 `Regime` 上下文生成结构化 JSON 草稿
+- AI 草稿：`POST /api/decision/workspace/invalidation/ai-draft/`
+  - 在系统模板基础上结合用户补充提示生成更细化的 JSON 规则
+- 前端仍保留 JSON 自定义编辑，允许人工直接修改 `invalidation_rule`
+
+### 6.2 生成交易计划
+
+- 方法: `POST`
+- 路径: `/api/decision/workspace/plans/generate/`
+- Body:
+  - `account_id`（必填）
+  - `recommendation_ids`（可选；为空时默认取当前账户全部 `ADOPTED` 推荐）
+
+响应示例：
+
+```json
+{
+  "success": true,
+  "data": {
+    "plan_id": "plan_xxx",
+    "account_id": "394",
+    "status": "DRAFT",
+    "can_enter_approval": false,
+    "blocking_issues": ["000001.SH: 缺少完整证伪条件"],
+    "orders": [
+      {
+        "security_code": "000001.SH",
+        "action": "BUY",
+        "current_qty": 0,
+        "target_qty": 500,
+        "delta_qty": 500,
+        "stop_loss_price": "9.5000",
+        "invalidation_rule": {
+          "logic": "AND",
+          "conditions": [],
+          "requires_user_confirmation": true
+        }
+      }
+    ]
+  }
+}
+```
+
+### 6.3 查询交易计划
+
+- 方法: `GET`
+- 路径: `/api/decision/workspace/plans/<plan_id>/`
+
+### 6.4 更新交易计划
+
+- 方法: `POST`
+- 路径: `/api/decision/workspace/plans/<plan_id>/update/`
+- Body:
+  - `orders[*].stop_loss_price`
+  - `orders[*].invalidation_rule`
+  - `orders[*].review_by`
+  - `risk_contract`
+
+## 7. 审批执行预览
+
+- 方法: `POST`
+- 路径: `/api/decision/execute/preview/`
+- 主入参: `plan_id`
+- 兼容入参: `recommendation_id`
+
+兼容策略：
+
+- 新主链路必须优先传 `plan_id`
+- 旧客户端仍可继续传 `recommendation_id`
+- `recommendation_id` 兼容路径只保留一个版本窗口，用于旧 UI/测试过渡
+
+`plan_id` 响应示例：
+
+```json
+{
+  "success": true,
+  "data": {
+    "request_id": "apr_xxx",
+    "plan_id": "plan_xxx",
+    "recommendation_type": "plan",
+    "preview": {
+      "orders_count": 2,
+      "active_orders_count": 2
+    }
+  }
+}
+```
+
+## 8. 模型参数
+
+### 8.1 查询参数
 
 - 方法: `GET`
 - 路径: `/api/decision/workspace/params/`
 - Query:
   - `env`（可选，默认 `dev`）
 
-### 5.2 更新参数
+### 8.2 更新参数
 
 - 方法: `POST`
 - 路径: `/api/decision/workspace/params/update/`
@@ -151,16 +294,16 @@
   - `env`（可选，默认 `dev`）
   - `updated_reason`（建议必填）
 
-## 7. 首页推荐到工作台的闭环
+## 9. 首页推荐到工作台的闭环
 
 - 首页 Alpha 推荐和个股筛选页可以通过 `security_code + action + source` 深链进入 `/decision/workspace/`
 - 工作台收到深链后会：
   1. 调用 `/api/decision/workspace/recommendations/refresh/` 按证券同步统一推荐
   2. 调用 `/api/decision/workspace/recommendations/` 拉回对应推荐
   3. 可选调用 `/api/decision/workspace/recommendations/action/` 写入用户动作
-- 这使得链路统一为：`系统推荐 -> 推荐解释 -> 用户动作 -> 执行审批`
+- 这使得链路统一为：`系统推荐 -> 用户动作 -> 交易计划 -> 审批执行 -> 审计入口`
 
-## 8. 默认参数初始化
+## 10. 默认参数初始化
 
 - 命令: `python manage.py init_decision_model_params --env dev`
 - 可选:

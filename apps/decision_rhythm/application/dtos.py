@@ -444,6 +444,88 @@ class ExecutionPreviewDTO:
 
 
 @dataclass
+class TransitionOrderDTO:
+    """交易计划订单 DTO。"""
+
+    security_code: str
+    action: str
+    current_qty: int
+    target_qty: int
+    delta_qty: int
+    current_weight: float
+    target_weight: float
+    price_band_low: str
+    price_band_high: str
+    max_capital: str
+    stop_loss_price: str | None
+    invalidation_rule: dict[str, Any]
+    invalidation_description: str
+    requires_user_confirmation: bool
+    review_by: str | None
+    time_horizon: str
+    source_recommendation_id: str
+    notes: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "security_code": self.security_code,
+            "action": self.action,
+            "current_qty": self.current_qty,
+            "target_qty": self.target_qty,
+            "delta_qty": self.delta_qty,
+            "current_weight": self.current_weight,
+            "target_weight": self.target_weight,
+            "price_band_low": self.price_band_low,
+            "price_band_high": self.price_band_high,
+            "max_capital": self.max_capital,
+            "stop_loss_price": self.stop_loss_price,
+            "invalidation_rule": self.invalidation_rule,
+            "invalidation_description": self.invalidation_description,
+            "requires_user_confirmation": self.requires_user_confirmation,
+            "review_by": self.review_by,
+            "time_horizon": self.time_horizon,
+            "source_recommendation_id": self.source_recommendation_id,
+            "notes": self.notes,
+        }
+
+
+@dataclass
+class PortfolioTransitionPlanDTO:
+    """账户级调仓计划 DTO。"""
+
+    plan_id: str
+    account_id: str
+    as_of: str
+    source_recommendation_ids: list[str]
+    current_positions: list[dict[str, Any]]
+    target_positions: list[dict[str, Any]]
+    orders: list[TransitionOrderDTO]
+    risk_contract: dict[str, Any]
+    summary: dict[str, Any]
+    status: str
+    approval_request_id: str | None
+    can_enter_approval: bool
+    blocking_issues: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "plan_id": self.plan_id,
+            "account_id": self.account_id,
+            "as_of": self.as_of,
+            "source_recommendation_ids": self.source_recommendation_ids,
+            "current_positions": self.current_positions,
+            "target_positions": self.target_positions,
+            "orders": [order.to_dict() for order in self.orders],
+            "risk_contract": self.risk_contract,
+            "summary": self.summary,
+            "status": self.status,
+            "approval_request_id": self.approval_request_id,
+            "can_enter_approval": self.can_enter_approval,
+            "blocking_issues": self.blocking_issues,
+        }
+
+
+@dataclass
 class ApproveExecutionRequestDTO:
     """
     批准执行请求 DTO

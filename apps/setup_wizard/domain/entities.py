@@ -75,6 +75,7 @@ class DataSourceConfigDTO:
     """数据源配置实体"""
 
     tushare_token: str | None = None
+    tushare_http_url: str | None = None
     fred_api_key: str | None = None
     akshare_enabled: bool = True
 

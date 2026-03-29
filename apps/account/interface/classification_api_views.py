@@ -39,11 +39,11 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
     资产分类 API ViewSet
 
     提供以下接口:
-    - GET /account/api/categories/ - 获取分类列表
-    - POST /account/api/categories/ - 创建分类
-    - GET /account/api/categories/tree/ - 获取分类树
-    - GET /account/api/categories/roots/ - 获取一级分类
-    - GET /account/api/categories/{id}/children/ - 获取子分类
+    - GET /api/account/categories/ - 获取分类列表
+    - POST /api/account/categories/ - 创建分类
+    - GET /api/account/categories/tree/ - 获取分类树
+    - GET /api/account/categories/roots/ - 获取一级分类
+    - GET /api/account/categories/{id}/children/ - 获取子分类
     """
 
     queryset = AssetCategoryModel._default_manager.filter(is_active=True)
@@ -61,7 +61,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
         """
         获取一级分类
 
-        GET /account/api/categories/roots/
+        GET /api/account/categories/roots/
         """
         categories = self.queryset.filter(level=1).order_by('sort_order')
         serializer = AssetCategorySerializer(categories, many=True)
@@ -75,7 +75,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
         """
         获取完整分类树
 
-        GET /account/api/categories/tree/
+        GET /api/account/categories/tree/
         """
         roots = self.queryset.filter(level=1, parent__isnull=True).order_by('sort_order')
         serializer = AssetCategoryTreeSerializer(roots, many=True)
@@ -89,7 +89,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
         """
         获取子分类
 
-        GET /account/api/categories/{id}/children/
+        GET /api/account/categories/{id}/children/
         """
         category = self.get_object()
         children = category.children.filter(is_active=True).order_by('sort_order')
@@ -106,9 +106,9 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet):
     """
     币种 API ViewSet (只读)
 
-    - GET /account/api/currencies/ - 获取币种列表
-    - GET /account/api/currencies/{id}/ - 获取币种详情
-    - GET /account/api/currencies/base/ - 获取基准货币
+    - GET /api/account/currencies/ - 获取币种列表
+    - GET /api/account/currencies/{id}/ - 获取币种详情
+    - GET /api/account/currencies/base/ - 获取基准货币
     """
 
     queryset = CurrencyModel._default_manager.filter(is_active=True)
@@ -120,7 +120,7 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet):
         """
         获取基准货币
 
-        GET /account/api/currencies/base/
+        GET /api/account/currencies/base/
         """
         currency = CurrencyModel.get_base_currency()
         if not currency:
@@ -140,10 +140,10 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
     汇率 API ViewSet
 
     提供以下接口:
-    - GET /account/api/exchange-rates/ - 获取汇率列表
-    - POST /account/api/exchange-rates/ - 创建汇率
-    - GET /account/api/exchange-rates/latest/ - 获取最新汇率
-    - POST /account/api/exchange-rates/convert/ - 货币转换
+    - GET /api/account/exchange-rates/ - 获取汇率列表
+    - POST /api/account/exchange-rates/ - 创建汇率
+    - GET /api/account/exchange-rates/latest/ - 获取最新汇率
+    - POST /api/account/exchange-rates/convert/ - 货币转换
     """
 
     queryset = ExchangeRateModel._default_manager.all()
@@ -166,7 +166,7 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
         """
         获取最新汇率
 
-        GET /account/api/exchange-rates/latest/{from_code}/{to_code}/
+        GET /api/account/exchange-rates/latest/{from_code}/{to_code}/
         """
         rate = ExchangeRateModel.get_latest_rate(from_code, to_code)
         if not rate:
@@ -183,7 +183,7 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
         """
         货币转换
 
-        POST /account/api/exchange-rates/convert/
+        POST /api/account/exchange-rates/convert/
         {
             "amount": 100,
             "from_currency": "USD",
@@ -238,7 +238,7 @@ class PortfolioAllocationView(APIView):
     """
     投资组合配置分析 API
 
-    - GET /account/api/portfolios/{id}/allocation/ - 获取资产配置
+    - GET /api/account/portfolios/{id}/allocation/ - 获取资产配置
     """
 
     permission_classes = [IsAuthenticated]
@@ -361,4 +361,5 @@ class PortfolioAllocationView(APIView):
             'total_value_base': total_value_base,
             'data': serializer.data
         })
+
 

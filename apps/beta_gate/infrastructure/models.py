@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from ..domain.entities import GateStatus, RiskProfile
@@ -151,6 +152,13 @@ class GateConfigModel(models.Model):
             models.Index(fields=["risk_profile", "is_active"]),
             models.Index(fields=["effective_date", "expires_at"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["risk_profile"],
+                condition=Q(is_active=True),
+                name="beta_gate_one_active_per_profile",
+            )
+        ]
 
     def __str__(self):
         return f"GateConfig({self.config_id}, {self.risk_profile}, v{self.version})"
@@ -158,6 +166,13 @@ class GateConfigModel(models.Model):
     def clean(self):
         """验证模型"""
         super().clean()
+
+    def validate_constraints(self, exclude=None):
+        """Allow same-profile activation switches to validate before old rows are deactivated."""
+        if self.is_active:
+            exclude = set(exclude or [])
+            exclude.update({"risk_profile", "is_active"})
+        super().validate_constraints(exclude=exclude)
 
     @property
     def is_expired(self) -> bool:

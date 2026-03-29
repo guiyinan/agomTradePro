@@ -7,9 +7,12 @@ pytest-django
 pytest-cov
 pytest-mock
 pytest-asyncio>=0.21
+pytest-base-url>=2.1
+pytest-playwright>=0.5
 pytest-xdist>=3.5
 factory-boy>=3.3
 faker>=20.0
+playwright>=1.53
 
 # Code quality
 black

@@ -13,6 +13,7 @@ from typing import Optional
 import pandas as pd
 
 from shared.config.secrets import get_secrets
+from shared.infrastructure.tushare_client import create_tushare_pro_client
 
 
 class TushareSectorAdapter:
@@ -39,7 +40,7 @@ class TushareSectorAdapter:
             token = get_secrets().data_sources.tushare_token
             if not token:
                 raise ValueError("Tushare token 未配置")
-            self.pro = ts.pro_api(token)
+            self.pro = create_tushare_pro_client(token=token)
 
     def fetch_sw_industry_classify(
         self,

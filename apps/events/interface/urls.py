@@ -1,6 +1,6 @@
 """Events URL Configuration."""
 
-from django.urls import include, path
+from django.urls import path
 from django.views.generic import RedirectView
 
 app_name = 'events'
@@ -12,6 +12,4 @@ urlpatterns = [
     path('metrics/', RedirectView.as_view(url='/api/events/metrics/', permanent=False)),
     path('status/', RedirectView.as_view(url='/api/events/status/', permanent=False)),
     path('replay/', RedirectView.as_view(url='/api/events/replay/', permanent=False)),
-    # Legacy API compatibility under /events/api/*
-    path('api/', include(('apps.events.interface.api_urls', 'events_api'), namespace='legacy_events_api')),
 ]

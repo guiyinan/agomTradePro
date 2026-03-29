@@ -8,6 +8,8 @@ from datetime import date, datetime
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from apps.alpha_trigger.domain.entities import SignalStrength
+from types import SimpleNamespace
 
 from apps.decision_rhythm.infrastructure.feature_providers import (
     AlphaCandidateProvider,
@@ -119,7 +121,7 @@ class TestBetaGateFeatureProvider:
         ) as mock_use_case_class:
             mock_use_case = MagicMock()
             mock_decision = MagicMock()
-            mock_decision.gate_status.value = "PASS"
+            mock_decision.is_passed = True
             mock_use_case.execute.return_value = MagicMock(
                 success=True,
                 decision=mock_decision,
@@ -138,7 +140,7 @@ class TestBetaGateFeatureProvider:
         ) as mock_use_case_class:
             mock_use_case = MagicMock()
             mock_decision = MagicMock()
-            mock_decision.gate_status.value = "BLOCK"
+            mock_decision.is_passed = False
             mock_use_case.execute.return_value = MagicMock(
                 success=True,
                 decision=mock_decision,
@@ -355,6 +357,29 @@ class TestAlphaModelFeatureProvider:
 
                 assert result == 0.5
 
+    def test_get_alpha_model_score_from_candidate_confidence(self):
+        """测试 Alpha 候选可回退为真实分数，而不是固定中性值"""
+        with patch(
+            "apps.alpha.application.services.AlphaService"
+        ) as mock_service_class:
+            mock_service_class.side_effect = ImportError()
+
+            with patch(
+                "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+            ) as mock_repo_class:
+                mock_repo = MagicMock()
+                mock_candidate = SimpleNamespace(
+                    confidence=0.82,
+                    strength=SignalStrength.STRONG,
+                )
+                mock_repo.get_by_asset.return_value = [mock_candidate]
+                mock_repo_class.return_value = mock_repo
+
+                provider = AlphaModelFeatureProvider()
+                result = provider.get_alpha_model_score("000001.SZ")
+
+                assert result == 0.82
+
 
 class TestCompositeFeatureProvider:
     """测试组合特征提供者"""
@@ -371,6 +396,67 @@ class TestCompositeFeatureProvider:
         assert hasattr(provider, "get_technical_score")
         assert hasattr(provider, "get_fundamental_score")
         assert hasattr(provider, "get_alpha_model_score")
+
+    def test_composite_provider_uses_independent_repository_slots(self):
+        """测试组合提供者不会复用错误的 _repository 属性。"""
+        with patch(
+            "apps.policy.infrastructure.repositories.DjangoPolicyRepository"
+        ) as mock_policy_repo_class, patch(
+            "apps.sentiment.infrastructure.repositories.SentimentIndexRepository"
+        ) as mock_sentiment_repo_class:
+            mock_policy_repo = MagicMock()
+            mock_policy_level = MagicMock()
+            mock_policy_level.value = "LEVEL_2"
+            mock_policy_repo.get_current_policy_level.return_value = mock_policy_level
+            mock_policy_repo_class.return_value = mock_policy_repo
+
+            mock_sentiment_repo = MagicMock()
+            mock_latest = MagicMock()
+            mock_latest.composite_index = 1.2
+            mock_sentiment_repo.get_by_date.return_value = mock_latest
+            mock_sentiment_repo_class.return_value = mock_sentiment_repo
+
+            provider = CompositeFeatureProvider()
+
+            assert provider.get_policy_level() == "LEVEL_2"
+            assert provider.get_sentiment_score("000001.SZ") > 0.5
+            mock_sentiment_repo.get_by_date.assert_called_once()
+
+    def test_composite_provider_initializes_use_case_and_service_slots(self):
+        """测试组合提供者会初始化独立的 use case / service 槽位。"""
+        with patch(
+            "apps.beta_gate.domain.services.GateConfigSelector"
+        ) as mock_selector_class, patch(
+            "apps.beta_gate.application.use_cases.EvaluateBetaGateUseCase"
+        ) as mock_use_case_class, patch(
+            "apps.alpha.application.services.AlphaService"
+        ) as mock_service_class:
+            mock_selector = MagicMock()
+            mock_selector_class.return_value = mock_selector
+
+            mock_use_case = MagicMock()
+            mock_response = MagicMock()
+            mock_response.success = False
+            mock_response.decision = None
+            mock_use_case.execute.return_value = mock_response
+            mock_use_case_class.return_value = mock_use_case
+
+            mock_service = MagicMock()
+            mock_result = MagicMock()
+            mock_result.success = True
+            mock_stock_score = MagicMock()
+            mock_stock_score.code = "000001.SZ"
+            mock_stock_score.score = 0.2
+            mock_result.scores = [mock_stock_score]
+            mock_service.get_stock_scores.return_value = mock_result
+            mock_service_class.return_value = mock_service
+
+            provider = CompositeFeatureProvider()
+
+            assert provider.check_beta_gate("000001.SZ") is False
+            assert abs(provider.get_alpha_model_score("000001.SZ") - 0.6) < 0.01
+            mock_use_case.execute.assert_called_once()
+            mock_service.get_stock_scores.assert_called_once()
 
 
 class TestAssetValuationProvider:

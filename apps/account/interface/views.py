@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -65,6 +65,57 @@ def _get_token_name_from_request(request, default_prefix: str = "token") -> str:
     if raw_name:
         return raw_name
     return f"{default_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+
+def _determine_registration_status(*, system_settings, user: User) -> tuple[str, str]:
+    """Compute approval status and RBAC role for a newly registered user."""
+    from django.db.models import Q
+
+    has_admin = User._default_manager.filter(Q(is_superuser=True) | Q(is_staff=True)).exclude(
+        pk=user.pk
+    ).exists()
+
+    if not system_settings.require_user_approval:
+        user.is_active = True
+        return "auto_approved", "owner"
+    if not has_admin and system_settings.auto_approve_first_admin:
+        user.is_superuser = True
+        user.is_staff = True
+        user.is_active = True
+        return "auto_approved", "admin"
+    return "pending", "owner"
+
+
+def _provision_registered_user(
+    *,
+    user: User,
+    display_name: str,
+    system_settings: SystemSettingsModel,
+    client_ip: str | None,
+    approval_status: str,
+    rbac_role: str,
+) -> None:
+    """Persist registration-related account records in one transaction."""
+    AccountProfileModel._default_manager.update_or_create(
+        user=user,
+        defaults={
+            "display_name": display_name,
+            "initial_capital": Decimal("1000000.00"),
+            "risk_tolerance": "moderate",
+            "mcp_enabled": system_settings.default_mcp_enabled,
+            "user_agreement_accepted": True,
+            "risk_warning_acknowledged": True,
+            "agreement_accepted_at": timezone.now(),
+            "agreement_ip_address": client_ip,
+            "approval_status": approval_status,
+            "rbac_role": rbac_role,
+        },
+    )
+    PortfolioModel._default_manager.get_or_create(
+        user=user,
+        name="默认组合",
+        defaults={"is_active": True},
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -144,57 +195,27 @@ def register_view(request):
 
         # 创建用户
         try:
-            user = User._default_manager.create_user(
-                username=username, email=email, password=password
-            )
-            user.is_active = False  # 初始设为未激活，等待审批（或自动批准）
+            with transaction.atomic():
+                user = User._default_manager.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    is_active=False,
+                )
+                approval_status, rbac_role = _determine_registration_status(
+                    system_settings=system_settings,
+                    user=user,
+                )
+                user.save(update_fields=["is_active", "is_superuser", "is_staff"])
 
-            # 确定审批状态
-            from django.db.models import Q
-
-            has_admin = User._default_manager.filter(
-                Q(is_superuser=True) | Q(is_staff=True)
-            ).exists()
-
-            if not system_settings.require_user_approval:
-                # 审批已关闭，自动批准
-                approval_status = "auto_approved"
-                user.is_active = True
-                rbac_role = "owner"
-            elif not has_admin and system_settings.auto_approve_first_admin:
-                # 系统无管理员，自动成为管理员并获得批准
-                user.is_superuser = True
-                user.is_staff = True
-                user.is_active = True
-                approval_status = "auto_approved"
-                rbac_role = "admin"
-            else:
-                # 需要管理员审批
-                approval_status = "pending"
-                rbac_role = "owner"
-
-            user.save()
-
-            # 获取客户端IP
-            client_ip = get_client_ip(request)
-
-            # 创建账户配置
-            AccountProfileModel._default_manager.create(
-                user=user,
-                display_name=display_name,
-                initial_capital=Decimal("1000000.00"),
-                risk_tolerance="moderate",
-                mcp_enabled=system_settings.default_mcp_enabled,
-                user_agreement_accepted=True,
-                risk_warning_acknowledged=True,
-                agreement_accepted_at=timezone.now(),
-                agreement_ip_address=client_ip,
-                approval_status=approval_status,
-                rbac_role=rbac_role,
-            )
-
-            # 创建默认投资组合
-            PortfolioModel._default_manager.create(user=user, name="默认组合", is_active=True)
+                _provision_registered_user(
+                    user=user,
+                    display_name=display_name,
+                    system_settings=system_settings,
+                    client_ip=get_client_ip(request),
+                    approval_status=approval_status,
+                    rbac_role=rbac_role,
+                )
 
             # 根据审批状态显示不同消息
             if approval_status == "pending":
@@ -210,8 +231,18 @@ def register_view(request):
                 messages.success(request, f"欢迎加入 AgomTradePro，{display_name}！{admin_msg}")
                 return redirect("/dashboard/")
 
-        except Exception as e:
-            messages.error(request, f"注册失败：{str(e)}")
+        except IntegrityError:
+            messages.error(request, "注册失败：用户名或账户资料已存在")
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
+        except Exception:
+            logger.exception("User registration failed for username=%s", username)
+            messages.error(request, "注册失败：系统忙，请稍后重试")
             return render(
                 request,
                 "account/register.html",

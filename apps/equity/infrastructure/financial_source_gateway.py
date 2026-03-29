@@ -12,6 +12,8 @@ from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 
+from shared.infrastructure.tushare_client import create_tushare_pro_client
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,8 +45,9 @@ class FinancialSyncBatch:
 class TushareFinancialGateway:
     """Tushare 财务数据网关"""
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, http_url: str | None = None):
         self.token = token
+        self.http_url = http_url
 
     def fetch(self, stock_code: str, periods: int = 8) -> FinancialSyncBatch:
         """
@@ -58,9 +61,7 @@ class TushareFinancialGateway:
             FinancialSyncBatch
         """
         import pandas as pd
-        import tushare as ts
-
-        pro = ts.pro_api(self.token)
+        pro = create_tushare_pro_client(token=self.token, http_url=self.http_url)
 
         # 1. 获取利润表
         income_df = pro.income(

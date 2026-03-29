@@ -7,6 +7,8 @@ P1-4: 接入输入消毒，防止 XSS 攻击
 from datetime import date
 from typing import Any, Dict, Optional
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.signal.domain.entities import SignalStatus
@@ -35,7 +37,8 @@ class InvestmentSignalSerializer(serializers.ModelSerializer):
             'invalidated_at', 'backtest_performance_score', 'avg_backtest_return'
         ]
 
-    def get_human_readable_invalidation(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_human_readable_invalidation(self, obj) -> str:
         """获取人类可读的证伪描述"""
         return obj.get_human_readable_rules()
 
@@ -173,4 +176,3 @@ class UnifiedSignalSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'executed_at']
-

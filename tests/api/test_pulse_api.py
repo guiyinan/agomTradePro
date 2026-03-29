@@ -94,3 +94,21 @@ def test_pulse_history_api_contract(authenticated_client):
     assert payload["success"] is True
     assert payload["count"] >= 2
     assert isinstance(payload["data"], list)
+
+
+@pytest.mark.django_db
+def test_pulse_current_bootstraps_snapshot_when_missing(authenticated_client, monkeypatch):
+    snapshot = _pulse_snapshot()
+
+    monkeypatch.setattr("apps.pulse.application.use_cases.GetLatestPulseUseCase.execute", lambda self: None)
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.CalculatePulseUseCase.execute",
+        lambda self: snapshot,
+    )
+
+    response = authenticated_client.get("/api/pulse/current/")
+
+    assert response.status_code == status.HTTP_200_OK
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["regime_context"] == snapshot.regime_context

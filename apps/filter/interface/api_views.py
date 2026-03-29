@@ -48,6 +48,26 @@ class FilterViewSet(viewsets.ViewSet):
         self.get_use_case = GetFilterDataUseCase(self.repository)
         self.compare_use_case = CompareFiltersUseCase(self.apply_use_case)
 
+    def list(self, request):
+        """
+        获取 Filter API 根信息
+
+        GET /api/filter/
+        """
+        return Response(
+            {
+                "success": True,
+                "service": "Filter API",
+                "endpoints": {
+                    "apply": {"method": "POST", "path": "/api/filter/"},
+                    "get_data": {"method": "POST", "path": "/api/filter/get-data/"},
+                    "compare": {"method": "POST", "path": "/api/filter/compare/"},
+                    "indicators": {"method": "GET", "path": "/api/filter/indicators/"},
+                    "health": {"method": "GET", "path": "/api/filter/health/"},
+                },
+            }
+        )
+
     def create(self, request):
         """
         应用滤波器

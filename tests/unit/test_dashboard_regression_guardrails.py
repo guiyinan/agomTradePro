@@ -50,7 +50,7 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
-    assert "环境评估 → 方向选择 → 板块偏好 → 推优筛选 → 审批执行 → 审计复盘" in content
+    assert "环境评估 → 方向选择 → 板块偏好 → 推优筛选 → 交易计划 → 审批执行" in content
     assert "环境 → 候选 → 决策 → 执行 → 回写" not in content
     assert 'href="/decision/workspace/"' in content
     assert "决策工作台" in content

@@ -8,6 +8,8 @@ Alpha 事件触发的 API 序列化器。
 
 from typing import Any, Dict, List, Optional
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from ..domain.entities import (
@@ -24,6 +26,7 @@ from ..domain.entities import (
 # ========== Enum Serializers ==========
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class TriggerTypeSerializer(serializers.Field):
     """触发器类型序列化器"""
 
@@ -37,6 +40,7 @@ class TriggerTypeSerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid trigger type: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class TriggerStatusSerializer(serializers.Field):
     """触发器状态序列化器"""
 
@@ -50,6 +54,7 @@ class TriggerStatusSerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid trigger status: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class SignalStrengthSerializer(serializers.Field):
     """信号强度序列化器"""
 
@@ -63,6 +68,7 @@ class SignalStrengthSerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid signal strength: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class CandidateStatusSerializer(serializers.Field):
     """候选状态序列化器"""
 
@@ -76,6 +82,7 @@ class CandidateStatusSerializer(serializers.Field):
             raise serializers.ValidationError(f"Invalid candidate status: {data}")
 
 
+@extend_schema_field(OpenApiTypes.STR)
 class InvalidationTypeSerializer(serializers.Field):
     """证伪类型序列化器"""
 

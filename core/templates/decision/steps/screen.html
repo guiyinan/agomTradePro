@@ -1,4 +1,4 @@
-<div class="funnel-step-content" x-init="$nextTick(() => loadRecommendations())" style="animation: fadeIn 0.3s ease-in-out;">
+<div class="funnel-step-content" x-init="$nextTick(() => window.loadRecommendations())" style="animation: fadeIn 0.3s ease-in-out;">
     <h3 style="margin-bottom: 20px;">阶段 4: 推优筛选</h3>
     
     <div class="attention-card" style="margin-bottom: 20px;">
@@ -18,23 +18,22 @@
             <!-- 投资免责声明 -->
             {% include 'components/investment_disclaimer.html' with compact=true %}
             <div class="section-actions" style="display: flex; gap: 10px; align-items: center;">
-                <select id="account-selector" class="form-select form-select-sm" onchange="loadRecommendations()">
-                    <option value="">选择账户...</option>
-                </select>
-                <select id="status-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
+                <span class="badge badge-primary">当前账户：<span data-workspace-account-name>默认账户</span></span>
+                <span class="badge badge-secondary">已选推荐：<span id="selected-rec-count">0</span></span>
+                <select id="status-filter" class="form-select form-select-sm" onchange="window.loadRecommendations()">
                     <option value="">全部状态</option>
                     <option value="NEW">新建</option>
                     <option value="REVIEWING">审核中</option>
                     <option value="APPROVED">已批准</option>
                 </select>
-                <select id="decision-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
+                <select id="decision-filter" class="form-select form-select-sm" onchange="window.loadRecommendations()">
                     <option value="">全部用户动作</option>
                     <option value="PENDING">待决策</option>
                     <option value="WATCHING">观察中</option>
                     <option value="ADOPTED">已采纳</option>
                     <option value="IGNORED">已忽略</option>
                 </select>
-                <button class="btn btn-outline btn-sm" onclick="loadRecommendations()"><i class="bi bi-arrow-clockwise"></i> 刷新推荐</button>
+                <button class="btn btn-outline btn-sm" onclick="window.loadRecommendations()"><i class="bi bi-arrow-clockwise"></i> 刷新推荐</button>
             </div>
         </div>
 

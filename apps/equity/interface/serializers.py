@@ -436,6 +436,29 @@ class SyncValuationDataResponseSerializer(serializers.Serializer):
     errors = serializers.ListField(child=serializers.CharField())
 
 
+class SyncFinancialDataRequestSerializer(serializers.Serializer):
+    """财务数据同步请求序列化器"""
+
+    stock_codes = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=False,
+    )
+    periods = serializers.IntegerField(required=False, default=8, min_value=1, max_value=32)
+    source = serializers.CharField(required=False, default="akshare")
+
+
+class SyncFinancialDataResponseSerializer(serializers.Serializer):
+    """财务数据同步响应序列化器"""
+
+    success = serializers.BooleanField()
+    synced_count = serializers.IntegerField(required=False)
+    error_count = serializers.IntegerField(required=False)
+    total_stocks = serializers.IntegerField(required=False)
+    error = serializers.CharField(required=False)
+    errors = serializers.ListField(child=serializers.CharField(), required=False)
+
+
 class ValuationQualitySnapshotResponseSerializer(serializers.Serializer):
     """估值数据质量快照响应序列化器"""
     as_of_date = serializers.DateField()

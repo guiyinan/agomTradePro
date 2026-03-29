@@ -113,7 +113,7 @@ class AlphaTriggerRepository:
                 self.model.STRONG,
                 self.model.VERY_STRONG,
             ]
-            min_index = strength_order.index(min_strength.value)
+            min_index = strength_order.index(str(min_strength.value).upper())
             valid_strengths = strength_order[min_index:]
             queryset = queryset.filter(strength__in=valid_strengths)
 
@@ -145,7 +145,9 @@ class AlphaTriggerRepository:
         Returns:
             AlphaTrigger 实体列表
         """
-        models = self.model.objects.filter(trigger_type=trigger_type.value).order_by("-created_at")
+        models = self.model.objects.filter(
+            trigger_type=str(trigger_type.value).upper()
+        ).order_by("-created_at")
 
         return [m.to_domain() for m in models]
 
@@ -165,10 +167,10 @@ class AlphaTriggerRepository:
         if existing:
             # 更新
             model = existing
-            model.status = trigger.status.value
+            model.status = str(trigger.status.value).upper()
             model.triggered_at = trigger.triggered_at
             model.invalidated_at = trigger.invalidated_at
-            model.custom_data = trigger.custom_data
+            model.custom_data = getattr(trigger, "custom_data", {}) or {}
 
         else:
             # 创建
@@ -208,7 +210,7 @@ class AlphaTriggerRepository:
         """
         try:
             model = self.model.objects.get(trigger_id=trigger_id)
-            model.status = status.value
+            model.status = str(status.value).upper()
 
             if triggered_at:
                 model.triggered_at = triggered_at
@@ -232,13 +234,13 @@ class AlphaTriggerRepository:
         """
         now = timezone.now()
         models = self.model.objects.filter(
-            status=TriggerStatus.ACTIVE.value,
+            status=str(TriggerStatus.ACTIVE.value).upper(),
             expires_at__lt=now,
         )
 
         # 更新状态为过期
         for model in models:
-            model.status = TriggerStatus.EXPIRED.value
+            model.status = str(TriggerStatus.EXPIRED.value).upper()
             model.save()
 
         return [m.to_domain() for m in models]
@@ -260,9 +262,9 @@ class AlphaTriggerRepository:
         queryset = self.model.objects.filter(created_at__gte=since)
 
         total = queryset.count()
-        active = queryset.filter(status=TriggerStatus.ACTIVE.value).count()
-        triggered = queryset.filter(status=TriggerStatus.TRIGGERED.value).count()
-        invalidated = queryset.filter(status=TriggerStatus.INVALIDATED.value).count()
+        active = queryset.filter(status=str(TriggerStatus.ACTIVE.value).upper()).count()
+        triggered = queryset.filter(status=str(TriggerStatus.TRIGGERED.value).upper()).count()
+        invalidated = queryset.filter(status=str(TriggerStatus.INVALIDATED.value).upper()).count()
 
         # 按类型分组
         by_type = {}
@@ -297,7 +299,7 @@ class AlphaTriggerRepository:
         """
         try:
             model = self.model.objects.get(trigger_id=trigger_id)
-            model.status = TriggerStatus.CANCELLED.value
+            model.status = str(TriggerStatus.CANCELLED.value).upper()
             model.save()
             logger.info(f"Alpha trigger cancelled: {trigger_id}")
             return True
@@ -350,7 +352,7 @@ class AlphaCandidateRepository:
             AlphaCandidate 实体或 None
         """
         try:
-            model = self.model.objects.by_trigger(trigger_id).first()
+            model = self.model.objects.filter(trigger_id=trigger_id).first()
             if model:
                 return model.to_domain()
             return None
@@ -372,7 +374,7 @@ class AlphaCandidateRepository:
         Returns:
             AlphaCandidate 实体列表
         """
-        queryset = self.model.objects.by_asset(asset_code)
+        queryset = self.model.objects.filter(asset_code=asset_code)
 
         if status:
             queryset = queryset.filter(status=status.value)
@@ -394,10 +396,19 @@ class AlphaCandidateRepository:
         Returns:
             AlphaCandidate 实体列表
         """
-        queryset = self.model.objects.actionable()
+        queryset = self.model.objects.filter(status=self.model.ACTIONABLE)
 
         if min_strength:
-            queryset = queryset.by_strength(min_strength)
+            strength_order = [
+                self.model.VERY_WEAK,
+                self.model.WEAK,
+                self.model.MODERATE,
+                self.model.STRONG,
+                self.model.VERY_STRONG,
+            ]
+            min_index = strength_order.index(min_strength.value)
+            valid_strengths = strength_order[min_index:]
+            queryset = queryset.filter(strength__in=valid_strengths)
 
         models = queryset.order_by("-strength", "-created_at")
 
@@ -411,8 +422,7 @@ class AlphaCandidateRepository:
             AlphaCandidate 实体列表
         """
         models = (
-            self.model.objects
-            .watch()
+            self.model.objects.filter(status=self.model.WATCH)
             .order_by("-created_at")
         )
 

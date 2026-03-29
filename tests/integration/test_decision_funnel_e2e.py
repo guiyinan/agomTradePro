@@ -11,6 +11,8 @@ from django.test import Client
 from apps.audit.infrastructure.models import AttributionReport, ExperienceSummary, LossAnalysis
 from apps.backtest.infrastructure.models import BacktestResultModel
 
+pytestmark = pytest.mark.timeout(90)
+
 
 def _action_recommendation_stub(*recommended_sectors):
     """Build a minimal action recommendation compatible with Step 2 and Step 3."""
@@ -155,7 +157,7 @@ def test_decision_funnel_context_and_step6_partial(
     authenticated_client,
     sample_attribution_report,
 ):
-    """Combined context API and Step 6 partial should expose audit details."""
+    """Context API may expose audit data, but Step 6 partial must stay execution-only."""
     with (
         patch(
             "core.application.decision_context.GetActionRecommendationUseCase.execute",
@@ -189,5 +191,6 @@ def test_decision_funnel_context_and_step6_partial(
 
     assert partial_response.status_code == 200
     partial_html = partial_response.content.decode("utf-8")
-    assert "Brinson 模型归因报告" in partial_html
-    assert "顺周期资产需要配合更严格的仓位控制。" in partial_html
+    assert "阶段 6: 审批执行" in partial_html
+    assert "自动交易系统" in partial_html
+    assert "Brinson 模型归因报告" not in partial_html

@@ -124,9 +124,12 @@ class SyncEquityValuationUseCase:
 
             if request.fallback_source == "tushare":
                 try:
-                    token = get_secrets().data_sources.tushare_token
-                    if token:
-                        self.tushare_gateway = TushareValuationGateway(token=token)
+                    tushare_settings = get_secrets().data_sources
+                    if tushare_settings.tushare_token:
+                        self.tushare_gateway = TushareValuationGateway(
+                            token=tushare_settings.tushare_token,
+                            http_url=tushare_settings.tushare_http_url,
+                        )
                 except Exception:
                     self.tushare_gateway = None
 
