@@ -9,9 +9,8 @@ import hashlib
 import json
 import logging
 import pickle
-from datetime import date, datetime
+from datetime import date, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from celery import shared_task
 from django.utils import timezone
@@ -34,6 +33,119 @@ def _normalize_qlib_region(region_value):
     if lowered in {"us", "reg_us"}:
         return REG_US
     return region_value
+
+
+def _normalize_calendar_date(value) -> date | None:
+    """Convert qlib calendar entries to Python dates."""
+    if value is None:
+        return None
+    if hasattr(value, "date"):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def _install_qlib_pandas_compat() -> None:
+    """Patch known qlib+pandas MultiIndex incompatibilities used by Alpha360 on local runtime."""
+    if getattr(_install_qlib_pandas_compat, "_installed", False):
+        return
+
+    import pandas as pd
+    import qlib.data.dataset.processor as qlib_processor
+    import qlib.data.dataset.utils as qlib_dataset_utils
+    import qlib.utils.paral as qlib_paral
+
+    original_datetime_groupby_apply = qlib_paral.datetime_groupby_apply
+    original_fetch_df_by_index = qlib_dataset_utils.fetch_df_by_index
+
+    def safe_datetime_groupby_apply(
+        df,
+        apply_func,
+        axis=0,
+        level="datetime",
+        resample_rule="ME",
+        n_jobs=-1,
+    ):
+        try:
+            return original_datetime_groupby_apply(
+                df,
+                apply_func,
+                axis=axis,
+                level=level,
+                resample_rule=resample_rule,
+                n_jobs=n_jobs,
+            )
+        except TypeError as exc:
+            if "DatetimeIndex" not in str(exc):
+                raise
+            if isinstance(apply_func, str):
+                return getattr(df.groupby(axis=axis, level=level, group_keys=False), apply_func)()
+            return df.groupby(level=level, group_keys=False).apply(apply_func)
+
+    def safe_fetch_df_by_index(df, selector, level, fetch_orig=True):
+        try:
+            return original_fetch_df_by_index(df, selector, level, fetch_orig=fetch_orig)
+        except KeyError as exc:
+            if "are in the [index]" not in str(exc):
+                raise
+            if level is None or isinstance(selector, pd.MultiIndex):
+                return df.loc(axis=0)[selector]
+            level_idx = qlib_dataset_utils.get_level_index(df, level)
+            level_values = df.index.get_level_values(level_idx)
+            if isinstance(selector, slice):
+                mask = pd.Series(True, index=df.index)
+                if selector.start is not None:
+                    mask &= level_values >= selector.start
+                if selector.stop is not None:
+                    mask &= level_values <= selector.stop
+                return df[mask.to_numpy()]
+            if isinstance(selector, (list, tuple, set, pd.Index)):
+                return df[level_values.isin(list(selector))]
+            return df[level_values == selector]
+
+    qlib_paral.datetime_groupby_apply = safe_datetime_groupby_apply
+    qlib_processor.datetime_groupby_apply = safe_datetime_groupby_apply
+    qlib_dataset_utils.fetch_df_by_index = safe_fetch_df_by_index
+    qlib_processor.fetch_df_by_index = safe_fetch_df_by_index
+    _install_qlib_pandas_compat._installed = True
+
+
+def _get_qlib_data_latest_date() -> date | None:
+    """Inspect the local qlib dataset and return its latest trading date."""
+    import qlib
+    from qlib.data import D
+
+    from apps.account.infrastructure.models import SystemSettingsModel
+
+    qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+    region = _normalize_qlib_region(qlib_config.get("region", "CN"))
+
+    if not hasattr(_get_qlib_data_latest_date, "_qlib_initialized"):
+        qlib.init(provider_uri=provider_uri, region=region)
+        _get_qlib_data_latest_date._qlib_initialized = True
+
+    calendar = D.calendar(start_time="2000-01-01", end_time="2100-12-31")
+    if len(calendar) == 0:
+        return None
+    return _normalize_calendar_date(calendar[-1])
+
+
+def _build_outdated_qlib_reason(trade_date: date) -> str | None:
+    """Return a clear reason when local qlib data is too old for the requested trade date."""
+    latest_data_date = _get_qlib_data_latest_date()
+    if latest_data_date is None:
+        return "本地 Qlib 数据目录为空，无法执行实时推理"
+    if trade_date > latest_data_date + timedelta(days=7):
+        return (
+            f"本地 Qlib 数据最新交易日为 {latest_data_date.isoformat()}，"
+            f"早于请求交易日 {trade_date.isoformat()}，请先同步 Qlib 数据"
+        )
+    return None
 
 
 @shared_task(
@@ -89,33 +201,99 @@ def qlib_predict_scores(
         trade_date = date.fromisoformat(intended_trade_date)
         asof_date = trade_date  # 信号日期等于交易日期（实际中可能需要调整）
 
+        latest_qlib_data_date = _get_qlib_data_latest_date()
+        outdated_reason = None
+        if latest_qlib_data_date is None:
+            outdated_reason = "本地 Qlib 数据目录为空，无法执行实时推理"
+        elif trade_date > latest_qlib_data_date + timedelta(days=7):
+            outdated_reason = (
+                f"本地 Qlib 数据最新交易日为 {latest_qlib_data_date.isoformat()}，"
+                f"早于请求交易日 {trade_date.isoformat()}，请先同步 Qlib 数据"
+            )
+        if outdated_reason:
+            fallback_result = _reuse_latest_qlib_cache(
+                active_model=active_model,
+                universe_id=universe_id,
+                trade_date=trade_date,
+                top_n=top_n,
+                failure_reason=outdated_reason,
+                extra_metadata={
+                    "qlib_data_latest_date": latest_qlib_data_date.isoformat()
+                    if latest_qlib_data_date
+                    else None,
+                },
+            )
+            if fallback_result is not None:
+                logger.warning(
+                    "Qlib 数据未更新到请求日期，已前推历史缓存: universe=%s, date=%s, reason=%s",
+                    universe_id,
+                    intended_trade_date,
+                    outdated_reason,
+                )
+                return fallback_result
+            raise RuntimeError(outdated_reason)
+
         # 3. 执行预测（使用 Qlib）
-        scores_data = _execute_qlib_prediction(
+        try:
+            scores_data = _execute_qlib_prediction(
+                active_model=active_model,
+                universe_id=universe_id,
+                trade_date=trade_date,
+                top_n=top_n
+            )
+        except Exception as exc:
+            fallback_result = _reuse_latest_qlib_cache(
+                active_model=active_model,
+                universe_id=universe_id,
+                trade_date=trade_date,
+                top_n=top_n,
+                failure_reason=str(exc),
+                extra_metadata={
+                    "qlib_data_latest_date": latest_qlib_data_date.isoformat()
+                    if latest_qlib_data_date
+                    else None,
+                },
+            )
+            if fallback_result is not None:
+                logger.warning(
+                    "Qlib 实时推理失败，已前推历史缓存: universe=%s, date=%s, error=%s",
+                    universe_id,
+                    intended_trade_date,
+                    exc,
+                )
+                return fallback_result
+            raise
+
+        if not scores_data:
+            fallback_result = _reuse_latest_qlib_cache(
+                active_model=active_model,
+                universe_id=universe_id,
+                trade_date=trade_date,
+                top_n=top_n,
+                failure_reason="Qlib 预测未返回任何评分",
+                extra_metadata={
+                    "qlib_data_latest_date": latest_qlib_data_date.isoformat()
+                    if latest_qlib_data_date
+                    else None,
+                },
+            )
+            if fallback_result is not None:
+                logger.warning(
+                    "Qlib 预测为空，已前推历史缓存: universe=%s, date=%s",
+                    universe_id,
+                    intended_trade_date,
+                )
+                return fallback_result
+            raise RuntimeError("Qlib 预测未返回任何评分")
+
+        # 4. 写入缓存
+        cache, created = _upsert_qlib_cache(
             active_model=active_model,
             universe_id=universe_id,
             trade_date=trade_date,
-            top_n=top_n
-        )
-
-        if not scores_data:
-            raise Exception("Qlib 预测未返回任何评分")
-
-        # 4. 写入缓存
-        cache, created = AlphaScoreCacheModel._default_manager.update_or_create(
-            universe_id=universe_id,
-            intended_trade_date=trade_date,
-            provider_source="qlib",
-            model_artifact_hash=active_model.artifact_hash,
-            defaults={
-                "asof_date": asof_date,
-                "model_id": active_model.model_name,
-                "model_artifact_hash": active_model.artifact_hash,
-                "feature_set_id": active_model.feature_set_id,
-                "label_id": active_model.label_id,
-                "data_version": active_model.data_version,
-                "scores": scores_data,
-                "status": AlphaScoreCacheModel.STATUS_AVAILABLE,
-            }
+            asof_date=asof_date,
+            scores_data=scores_data,
+            status=AlphaScoreCacheModel.STATUS_AVAILABLE,
         )
 
         action = "创建" if created else "更新"
@@ -447,6 +625,110 @@ def qlib_daily_inference(
 # 辅助函数
 # ========================================================================
 
+def _upsert_qlib_cache(
+    active_model,
+    universe_id: str,
+    trade_date: date,
+    asof_date: date,
+    scores_data: list[dict],
+    status: str,
+    metrics_snapshot: dict | None = None,
+):
+    """Persist a qlib cache row for the active model."""
+    from ..infrastructure.models import AlphaScoreCacheModel
+
+    return AlphaScoreCacheModel._default_manager.update_or_create(
+        universe_id=universe_id,
+        intended_trade_date=trade_date,
+        provider_source="qlib",
+        model_artifact_hash=active_model.artifact_hash,
+        defaults={
+            "asof_date": asof_date,
+            "model_id": active_model.model_name,
+            "model_artifact_hash": active_model.artifact_hash,
+            "feature_set_id": active_model.feature_set_id,
+            "label_id": active_model.label_id,
+            "data_version": active_model.data_version,
+            "scores": scores_data,
+            "status": status,
+            "metrics_snapshot": metrics_snapshot,
+            "user": None,
+        }
+    )
+
+
+def _normalize_reused_scores(scores_data: list[dict], top_n: int) -> list[dict]:
+    """Keep score payloads JSON-safe and re-rank after truncation."""
+    normalized_scores: list[dict] = []
+    for index, raw_score in enumerate(scores_data[:top_n], start=1):
+        score_item = dict(raw_score)
+        score_item["rank"] = index
+        score_item["source"] = "qlib"
+        normalized_scores.append(score_item)
+    return normalized_scores
+
+
+def _reuse_latest_qlib_cache(
+    active_model,
+    universe_id: str,
+    trade_date: date,
+    top_n: int,
+    failure_reason: str,
+    extra_metadata: dict | None = None,
+) -> dict | None:
+    """Forward-fill the latest qlib cache into today's active model slot when fresh inference fails."""
+    from ..infrastructure.models import AlphaScoreCacheModel
+
+    base_queryset = AlphaScoreCacheModel._default_manager.filter(
+        universe_id=universe_id,
+        provider_source="qlib",
+    ).exclude(scores=[])
+    latest_cache = base_queryset.filter(
+        model_artifact_hash=active_model.artifact_hash
+    ).order_by("-intended_trade_date", "-created_at").first()
+    if latest_cache is None:
+        latest_cache = base_queryset.order_by("-intended_trade_date", "-created_at").first()
+    if latest_cache is None:
+        return None
+
+    scores_data = _normalize_reused_scores(latest_cache.scores or [], top_n)
+    if not scores_data:
+        return None
+
+    metrics_snapshot = dict(latest_cache.metrics_snapshot or {})
+    metrics_snapshot.update({
+        "fallback_mode": "forward_fill_latest_qlib_cache",
+        "fallback_reason": failure_reason,
+        "fallback_source_trade_date": latest_cache.intended_trade_date.isoformat(),
+        "fallback_source_asof_date": latest_cache.asof_date.isoformat(),
+    })
+    if extra_metadata:
+        metrics_snapshot.update(extra_metadata)
+
+    _, created = _upsert_qlib_cache(
+        active_model=active_model,
+        universe_id=universe_id,
+        trade_date=trade_date,
+        asof_date=latest_cache.asof_date,
+        scores_data=scores_data,
+        status=AlphaScoreCacheModel.STATUS_DEGRADED,
+        metrics_snapshot=metrics_snapshot,
+    )
+
+    return {
+        "status": "success",
+        "cache_status": AlphaScoreCacheModel.STATUS_DEGRADED,
+        "fallback_used": True,
+        "universe_id": universe_id,
+        "trade_date": trade_date.isoformat(),
+        "cache_created": created,
+        "stock_count": len(scores_data),
+        "model_artifact_hash": active_model.artifact_hash,
+        "fallback_source_trade_date": latest_cache.intended_trade_date.isoformat(),
+        "fallback_source_asof_date": latest_cache.asof_date.isoformat(),
+        **(extra_metadata or {}),
+    }
+
 def _execute_qlib_prediction(
     active_model,
     universe_id: str,
@@ -482,6 +764,8 @@ def _execute_qlib_prediction(
         if not qlib_config.get('enabled'):
             logger.warning("Qlib 未启用，跳过预测")
             return []
+
+        _install_qlib_pandas_compat()
 
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
         region = _normalize_qlib_region(qlib_config.get('region', 'CN'))

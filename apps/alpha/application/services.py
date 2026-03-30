@@ -7,7 +7,7 @@ Alpha 服务层，实现 Provider 注册中心和 AlphaService。
 import logging
 import time
 from datetime import date, timezone
-from typing import Dict, List, Optional
+from typing import Optional
 
 from ..domain.entities import AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
@@ -29,6 +29,106 @@ def get_alpha_metrics():
 
         _alpha_metrics_instance = _get_metrics()
     return _alpha_metrics_instance
+
+
+def _derive_result_asof_date(result: AlphaResult) -> str | None:
+    """Extract the most reliable as-of date from result metadata or scores."""
+    metadata = result.metadata or {}
+    asof_date = metadata.get("asof_date") or metadata.get("fallback_source_asof_date")
+    if asof_date:
+        return str(asof_date)
+    for score in result.scores:
+        if getattr(score, "asof_date", None):
+            return score.asof_date.isoformat()
+    return None
+
+
+def _build_reliability_notice(
+    result: AlphaResult,
+    intended_trade_date: date,
+) -> dict[str, str] | None:
+    """Build a user-facing reliability notice for degraded or unavailable Alpha results."""
+    metadata = result.metadata or {}
+    asof_date = _derive_result_asof_date(result)
+    fallback_mode = metadata.get("fallback_mode")
+    qlib_latest_date = metadata.get("qlib_data_latest_date")
+
+    if not result.success:
+        message = result.error_message or "当前 Alpha 数据不可用。"
+        if qlib_latest_date:
+            message = (
+                f"{message} 本地 Qlib 数据最新交易日为 {qlib_latest_date}。"
+            )
+        return {
+            "level": "error",
+            "code": "alpha_unavailable",
+            "title": "Alpha 当前不可用",
+            "message": message,
+        }
+
+    if fallback_mode == "forward_fill_latest_qlib_cache":
+        return {
+            "level": "warning",
+            "code": "qlib_forward_filled_cache",
+            "title": "Alpha 当前使用前推缓存",
+            "message": (
+                f"Qlib 当日推理不可用，当前展示的是 {asof_date or '历史日期'} "
+                f"生成并前推到 {intended_trade_date.isoformat()} 的结果。"
+            ),
+        }
+
+    if result.status == "degraded" and result.source == "cache":
+        age_text = (
+            f"，距请求日约 {result.staleness_days} 天"
+            if result.staleness_days is not None
+            else ""
+        )
+        return {
+            "level": "warning",
+            "code": "historical_cache_result",
+            "title": "Alpha 当前使用历史缓存",
+            "message": (
+                f"当前展示的是 {asof_date or '未知日期'} 的缓存评分{age_text}。"
+            ),
+        }
+
+    if result.status == "degraded" and result.source == "qlib":
+        age_text = (
+            f"，距请求日约 {result.staleness_days} 天"
+            if result.staleness_days is not None
+            else ""
+        )
+        return {
+            "level": "warning",
+            "code": "degraded_qlib_result",
+            "title": "Alpha 当前使用降级 Qlib 结果",
+            "message": (
+                f"当前展示的是 {asof_date or '历史日期'} 的 Qlib 结果{age_text}。"
+            ),
+        }
+
+    return None
+
+
+def _enrich_result_metadata(result: AlphaResult, intended_trade_date: date) -> AlphaResult:
+    """Attach reliability metadata so API, frontend, and MCP consumers can show explicit notices."""
+    metadata = dict(result.metadata or {})
+    asof_date = _derive_result_asof_date(result)
+    notice = _build_reliability_notice(result, intended_trade_date)
+    uses_cached_data = (
+        result.source == "cache"
+        or metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache"
+        or metadata.get("provider_source") == "cache"
+    )
+    metadata.update({
+        "requested_trade_date": intended_trade_date.isoformat(),
+        "effective_asof_date": asof_date,
+        "is_degraded": result.status == "degraded",
+        "uses_cached_data": uses_cached_data,
+        "reliability_notice": notice,
+    })
+    result.metadata = metadata
+    return result
 
 
 class AlphaProviderRegistry:
@@ -230,6 +330,8 @@ class AlphaProviderRegistry:
 
         # 遍历 Provider
         attempted_providers = []
+        best_degraded_result: AlphaResult | None = None
+        best_degraded_provider_name: str | None = None
         for i, provider in enumerate(active_providers):
             provider_start_time = time.time()
             cache_hit = False
@@ -278,7 +380,6 @@ class AlphaProviderRegistry:
                     continue
 
                 # 检查 staleness
-                staleness_ok = True
                 if result.staleness_days and result.staleness_days > provider.max_staleness_days:
                     logger.warning(
                         f"[AlphaProvider] Provider {provider.name} 数据过期: {result.staleness_days} 天 "
@@ -287,7 +388,13 @@ class AlphaProviderRegistry:
 
                     # 标记 degraded
                     result.status = "degraded"
-                    staleness_ok = False
+                    if (
+                        best_degraded_result is None
+                        or (result.staleness_days or 10**9)
+                        < (best_degraded_result.staleness_days or 10**9)
+                    ):
+                        best_degraded_result = result
+                        best_degraded_provider_name = provider.name
 
                     # 如果这是最后一个 provider，返回 degraded 结果
                     if i == len(active_providers) - 1:
@@ -376,6 +483,35 @@ class AlphaProviderRegistry:
                     pass
 
                 continue
+
+        if best_degraded_result is not None and best_degraded_provider_name is not None:
+            logger.warning(
+                f"[AlphaFallback] 所有更新鲜 Provider 均失败，回退到 {best_degraded_provider_name} "
+                f"的过期结果 (staleness={best_degraded_result.staleness_days}天)"
+            )
+            self._create_fallback_alert(
+                best_degraded_provider_name,
+                attempted_providers,
+                (
+                    f"所有更新鲜 Provider 均失败，回退到 {best_degraded_provider_name} "
+                    f"的过期结果"
+                ),
+            )
+
+            try:
+                metrics = get_alpha_metrics()
+                metrics.record_provider_call(
+                    best_degraded_provider_name,
+                    success=True,
+                    latency_ms=best_degraded_result.latency_ms or 0,
+                    staleness_days=best_degraded_result.staleness_days,
+                )
+                if best_degraded_result.scores:
+                    metrics.record_coverage(len(best_degraded_result.scores), 300)
+            except Exception:
+                pass
+
+            return best_degraded_result
 
         # 所有 provider 都失败
         logger.error(f"[AlphaFailed] 所有 Provider 失败，尝试顺序: {attempted_providers}")
@@ -592,7 +728,7 @@ class AlphaService:
             f"status={result.status}, count={len(result.scores)}"
         )
 
-        return result
+        return _enrich_result_metadata(result, intended_trade_date)
 
     def get_provider_status(self) -> dict[str, dict[str, str]]:
         """
@@ -648,7 +784,7 @@ class AlphaService:
                 # 默认支持的股票池
                 universes.update(["csi300", "csi500", "sse50", "csi1000"])
 
-        return sorted(list(universes))
+        return sorted(universes)
 
     def register_provider(self, provider: AlphaProvider) -> None:
         """

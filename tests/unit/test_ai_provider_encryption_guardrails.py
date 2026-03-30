@@ -1,5 +1,6 @@
 import pytest
 
+from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.ai_provider.interface.serializers import AIProviderConfigSerializer
 from shared.infrastructure.crypto import FieldEncryptionService
@@ -40,3 +41,23 @@ def test_serializer_masks_only_last_four_characters(settings):
 
     data = AIProviderConfigSerializer(provider).data
     assert data["api_key"] == "****1234"
+
+
+@pytest.mark.django_db
+def test_repository_returns_empty_for_invalid_encrypted_api_key(settings):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+    repo = AIProviderRepository()
+    wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
+
+    provider = AIProviderConfig.objects.create(
+        name="guardrail-invalid-encrypted",
+        provider_type="custom",
+        base_url="https://example.invalid/v1",
+        api_key="",
+        api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
+        default_model="gpt-4o-mini",
+        api_mode="dual",
+        fallback_enabled=True,
+    )
+
+    assert repo.get_api_key(provider) == ""

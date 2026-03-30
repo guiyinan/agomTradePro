@@ -36,6 +36,14 @@ def base_url(base_url: str) -> str:
 
 
 @pytest.fixture(scope="session", autouse=True)
+def apply_runtime_test_config(base_url: str) -> None:
+    """Keep the global Playwright config aligned with the resolved runtime base URL."""
+    runtime_admin_url = f"{base_url.rstrip('/')}/admin"
+    object.__setattr__(config, "base_url", base_url.rstrip("/"))
+    object.__setattr__(config, "admin_url", runtime_admin_url)
+
+
+@pytest.fixture(scope="session", autouse=True)
 def ensure_playwright_admin_user(django_db_setup, django_db_blocker) -> None:
     """Ensure Playwright login credentials exist in the app database."""
     with django_db_blocker.unblock():

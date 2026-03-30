@@ -8,7 +8,6 @@ Validates that all API routes follow the naming conventions defined in the PRD:
 """
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import pytest
 from django.conf import settings
@@ -143,9 +142,6 @@ class TestAPINamingConvention:
     @pytest.mark.api_compliance
     def test_api_documentation_complete(self) -> None:
         """API documentation should be complete and synchronized."""
-        from drf_spectacular.openapi import AutoSchema
-        from rest_framework.serializers import BaseSerializer
-
         # Check if DRF Spectacular is configured
         assert 'drf_spectacular' in settings.INSTALLED_APPS, \
             "drf_spectacular should be installed for API documentation"
@@ -231,17 +227,40 @@ class TestFrontendBackendAPIConsistency:
     @pytest.mark.api_consistency
     def test_frontend_api_call_conventions(self) -> None:
         """Frontend should call APIs with consistent conventions."""
-        # Scan frontend template files for API calls
-        template_dir = Path(settings.BASE_DIR) / 'apps'
+        source_dir = Path(settings.BASE_DIR) / "apps"
+        assert source_dir.exists(), f"Source directory not found: {source_dir}"
 
-        api_call_patterns = [
-            r'fetch\(["\']/?api/([^"\']+)',
-            r'\$\.ajax\(["\']/?api/([^"\']+)',
-            r'axios\.get\(["\']/?api/([^"\']+)',
-            r'axios\.post\(["\']/?api/([^"\']+)',
+        call_patterns = [
+            re.compile(r'fetch\(\s*["\'](?P<path>/[^"\']+)'),
+            re.compile(r'axios\.(?:get|post|put|patch|delete)\(\s*["\'](?P<path>/[^"\']+)'),
+            re.compile(r'\$\.ajax\(\s*\{\s*url:\s*["\'](?P<path>/[^"\']+)', re.DOTALL),
         ]
+        file_globs = ["**/*.html", "**/*.js", "**/*.ts", "**/*.tsx"]
 
-        assert template_dir.exists(), f"Template directory not found: {template_dir}"
+        violations: list[tuple[str, int, str]] = []
+        for file_glob in file_globs:
+            for file_path in source_dir.glob(file_glob):
+                content = file_path.read_text(encoding="utf-8", errors="ignore")
+                for line_number, line in enumerate(content.splitlines(), start=1):
+                    for pattern in call_patterns:
+                        match = pattern.search(line)
+                        if not match:
+                            continue
+
+                        path = match.group("path")
+                        if path.startswith(("/api/", "//", "/static/", "/media/")):
+                            continue
+                        violations.append((str(file_path), line_number, path))
+
+        if violations:
+            formatted = "\n".join(
+                f"  - {file_path}:{line_number} -> {path}"
+                for file_path, line_number, path in violations[:20]
+            )
+            pytest.fail(
+                "Found frontend network calls that bypass the /api/ convention:\n"
+                f"{formatted}"
+            )
 
 
 class TestAPIDocumentation:

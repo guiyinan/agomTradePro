@@ -121,6 +121,13 @@ pytest -q tests/playwright/tests/uat/test_user_journeys.py -v
 pytest -q tests/uat/test_api_naming_compliance.py tests/uat/test_route_baseline_consistency.py
 ```
 
+### 4.4 正式库快照回归约束
+
+1. 禁止把 `pytest` 直接指向正在运行的正式 `db.sqlite3`，避免测试写入污染 live 数据。
+2. 需要使用正式数据验证时，先复制 `db.sqlite3` 生成快照，再通过 `DATABASE_URL=sqlite:///...` 拉起隔离实例。
+3. Playwright 回归必须显式传入 `--base-url`，并确保全局测试配置与运行时 base URL 同步，避免误打到默认 `localhost:8000`。
+4. 允许在快照库中重置测试账号口令或补齐只影响测试的配置，但不得回写正式库。
+
 ## 5. 风险与整改优先级
 
 P0（立即修）：
@@ -159,6 +166,49 @@ P2（持续优化）：
 3. 每次发布的测试证据包：日志、报告、截图、缺陷清单。
 
 ## 9. 测试执行记录
+
+### 2026-03-30 测试基线收口
+
+#### 基础设施修复
+
+1. `pytest.ini` 默认收集范围从仅 `tests/` 扩展到 `tests/` + `apps/`，避免 `apps/*/tests` 被漏跑。
+2. `tests/uat/run_uat.py` 改为基于 `--junitxml` 解析真实结果，不再使用占位统计。
+3. UAT runner 现在同时执行 `tests/uat/test_api_naming_compliance.py` 与 `tests/uat/test_route_baseline_consistency.py`。
+4. 路由基线将 `policy/manage` 的标准入口修正为 `/policy/workbench/`。
+
+#### 用例质量修复
+
+1. `tests/playwright/tests/uat/test_user_journeys.py` 中多处 `assert True`/仅校验非 404 的断言已替换为页面可用性、关键区块和错误页检测。
+2. `tests/playwright/tests/smoke/test_critical_paths.py` 增加页面正文非空、错误页排除等最小可用性断言。
+3. `tests/e2e/test_navigation_404.py` 改为校验成功/重定向状态与目标，而不再只判断“不是 404”。
+4. `tests/uat/test_api_naming_compliance.py` 增加前端源码中的 API 调用路径扫描，防止页面层绕过 `/api/` 约定。
+
+#### 定向验证
+
+```bash
+pytest tests/uat/test_route_baseline_consistency.py tests/e2e/test_navigation_404.py tests/uat/test_api_naming_compliance.py -q
+pytest --collect-only apps/share/tests apps/market_data/tests apps/dashboard/tests -q
+python tests/uat/run_uat.py --generate-report
+```
+
+结果：
+
+1. 定向契约/导航测试通过。
+2. `apps/share/tests`、`apps/market_data/tests`、`apps/dashboard/tests` 已可被默认收集。
+3. UAT runner 可生成报告文件，统计来源改为真实 JUnit XML。
+
+#### 正式库快照回归
+
+```bash
+pytest tests/playwright/tests/smoke/test_critical_paths.py --base-url http://127.0.0.1:8001 -q
+pytest tests/playwright/tests/uat/test_user_journeys.py --base-url http://127.0.0.1:8001 -q
+```
+
+结果：
+
+1. 基于正式库快照的隔离实例 `8001` 上，Playwright smoke `28 passed`。
+2. 修复 `tests/playwright/conftest.py` 后，`--base-url` 会同步覆盖全局 `config.base_url`，不再误打默认 `8000`。
+3. 基于正式库快照的 Playwright UAT `31 passed`，验证真实数据下的登录、导航和关键旅程可用。
 
 ### 2026-03-28 Strategy 页面保存回归
 
@@ -208,6 +258,22 @@ pytest tests/integration/strategy/test_strategy_page_save_flow.py -q
 #### 审计记录
 
 同步文档：`docs/development/consistency-audit-2026-03-28.md`
+
+### 2026-03-30 Alpha Dashboard 用户隔离回归
+
+#### 覆盖新增
+
+新增回归测试：
+
+1. `apps/dashboard/tests/test_alpha_queries.py`
+2. `apps/dashboard/tests/test_alpha_views.py`
+
+覆盖场景：
+
+1. `AlphaVisualizationQuery.execute()` 必须将当前登录用户透传给 `AlphaService.get_stock_scores(...)`。
+2. `GET /api/dashboard/alpha/stocks/` 必须使用 `request.user` 读取用户级 Alpha 缓存。
+3. Dashboard 因子面板必须与股票列表使用同一用户上下文，避免页面列表有数据但侧边因子为空。
+4. 当前序 Provider 失败、后序只有过期缓存时，系统必须回退到最佳 `degraded` 结果，而不是返回空白列表。
 
 ### 2026-02-24 V3.4-RC1 测试执行
 

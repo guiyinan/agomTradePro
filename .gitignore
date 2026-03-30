@@ -105,3 +105,4 @@ docs/DEV_DIARY.md
 /mlruns
 /tests/screenshots
 /.tmp
+/tests/uat/reports

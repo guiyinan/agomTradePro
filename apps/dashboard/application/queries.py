@@ -12,7 +12,7 @@ Application 层查询服务，为 Dashboard 视图提供数据聚合。
 import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils import timezone as django_timezone
 
@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 class AlphaVisualizationData:
     """Alpha 可视化数据"""
     stock_scores: list[dict[str, Any]]
+    stock_scores_meta: dict[str, Any]
     provider_status: dict[str, Any]
     coverage_metrics: dict[str, Any]
     ic_trends: list[dict[str, Any]]
@@ -45,27 +46,39 @@ class AlphaVisualizationQuery:
         >>> print(len(data.stock_scores))
     """
 
-    def execute(self, top_n: int = 10, ic_days: int = 30) -> AlphaVisualizationData:
+    def execute(
+        self,
+        top_n: int = 10,
+        ic_days: int = 30,
+        user: Any | None = None,
+    ) -> AlphaVisualizationData:
         """
         执行查询
 
         Args:
             top_n: 返回的股票数量
             ic_days: IC 趋势天数
+            user: 当前登录用户，用于读取用户级 Alpha 缓存
 
         Returns:
             AlphaVisualizationData
         """
+        stock_scores_payload = self._get_stock_scores_payload(top_n, user=user)
         ic_trends = self._get_ic_trends(ic_days)
         return AlphaVisualizationData(
-            stock_scores=self._get_stock_scores(top_n),
+            stock_scores=stock_scores_payload["items"],
+            stock_scores_meta=stock_scores_payload["meta"],
             provider_status=self._get_provider_status(),
             coverage_metrics=self._get_coverage_metrics(),
             ic_trends=ic_trends,
             ic_trends_meta=self._build_ic_trends_meta(ic_trends),
         )
 
-    def _get_stock_scores(self, top_n: int) -> list[dict[str, Any]]:
+    def _get_stock_scores_payload(
+        self,
+        top_n: int,
+        user: Any | None = None,
+    ) -> dict[str, Any]:
         """获取 Alpha 选股评分结果"""
         try:
             from apps.alpha.application.services import AlphaService
@@ -74,14 +87,16 @@ class AlphaVisualizationQuery:
             result = service.get_stock_scores(
                 universe_id="csi300",
                 intended_trade_date=date.today(),
-                top_n=top_n
+                top_n=top_n,
+                user=user,
             )
 
             if result.success and result.scores:
                 code_to_name = self._resolve_security_names(
                     [score.code for score in result.scores[:top_n]]
                 )
-                return [
+                return {
+                    "items": [
                     {
                         "code": score.code,
                         "name": code_to_name.get(score.code, ""),
@@ -93,15 +108,48 @@ class AlphaVisualizationQuery:
                         "asof_date": score.asof_date.isoformat() if score.asof_date else None,
                     }
                     for score in result.scores[:top_n]
-                ]
-            return []
+                    ],
+                    "meta": self._build_stock_scores_meta(result),
+                }
+            return {
+                "items": [],
+                "meta": self._build_stock_scores_meta(result),
+            }
         except Exception as e:
             logger.warning(f"Failed to get alpha stock scores: {e}")
-            return []
+            return {
+                "items": [],
+                "meta": {
+                    "status": "error",
+                    "source": "none",
+                    "warning_message": "alpha_stock_scores_unavailable",
+                    "is_degraded": True,
+                    "uses_cached_data": False,
+                },
+            }
+
+    def _build_stock_scores_meta(self, result) -> dict[str, Any]:
+        """Build template/API-friendly metadata for Alpha score reliability."""
+        metadata = dict(getattr(result, "metadata", {}) or {})
+        notice = metadata.get("reliability_notice") or {}
+        return {
+            "status": getattr(result, "status", "available"),
+            "source": getattr(result, "source", "none"),
+            "staleness_days": getattr(result, "staleness_days", None),
+            "is_degraded": bool(metadata.get("is_degraded", getattr(result, "status", "") == "degraded")),
+            "uses_cached_data": bool(metadata.get("uses_cached_data", False)),
+            "effective_asof_date": metadata.get("effective_asof_date"),
+            "requested_trade_date": metadata.get("requested_trade_date"),
+            "warning_title": notice.get("title"),
+            "warning_message": notice.get("message"),
+            "warning_level": notice.get("level"),
+            "warning_code": notice.get("code"),
+            "qlib_data_latest_date": metadata.get("qlib_data_latest_date"),
+        }
 
     def _resolve_security_names(self, codes: list[str]) -> dict[str, str]:
         """根据代码解析证券名称"""
-        unique_codes = [c for c in {code for code in codes if code}]
+        unique_codes = list({code for code in codes if code})
         if not unique_codes:
             return {}
 
@@ -446,7 +494,7 @@ class DecisionPlaneQuery:
             from apps.equity.infrastructure.models import ValuationRepairTrackingModel
 
             # 获取已批准但未执行的资产代码
-            pending_codes = set(
+            pending_codes = {
                 (code or "").upper()
                 for code in DecisionRequestModel._default_manager
                 .filter(
@@ -454,7 +502,7 @@ class DecisionPlaneQuery:
                     execution_status__in=['PENDING', 'FAILED']
                 )
                 .values_list('asset_code', flat=True)
-            )
+            }
 
             candidates = list(
                 AlphaCandidateModel._default_manager

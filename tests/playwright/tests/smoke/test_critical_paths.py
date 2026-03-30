@@ -12,6 +12,16 @@ from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 
 
+def _assert_page_ready(page: Page, expected_fragment: str) -> None:
+    """Assert a target page is loaded and not an error shell."""
+    page.wait_for_load_state("domcontentloaded")
+    expect(page).to_have_url(re.compile(fr".*{re.escape(expected_fragment)}.*"))
+    body_text = page.locator("body").inner_text(timeout=5000)
+    assert body_text.strip(), "Page body should not be empty"
+    assert "Page not found" not in body_text
+    assert "/404/" not in page.url
+
+
 class TestCriticalPaths:
     """Test critical paths through the application."""
 
@@ -40,67 +50,67 @@ class TestCriticalPaths:
     def test_authenticated_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that dashboard loads when authenticated."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/dashboard/.*"))
+        _assert_page_ready(authenticated_page, "/dashboard/")
 
     def test_macro_data_page_loads(self, authenticated_page: Page) -> None:
         """Test that macro data page loads."""
         authenticated_page.goto(f"{config.base_url}{config.macro_data_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/macro/data/.*"))
+        _assert_page_ready(authenticated_page, "/macro/data/")
 
     def test_regime_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that regime dashboard loads."""
         authenticated_page.goto(f"{config.base_url}{config.regime_dashboard_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/regime/dashboard/.*"))
+        _assert_page_ready(authenticated_page, "/regime/dashboard/")
 
     def test_signal_manage_loads(self, authenticated_page: Page) -> None:
         """Test that signal management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.signal_manage_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/signal/manage/.*"))
+        _assert_page_ready(authenticated_page, "/signal/manage/")
 
     def test_policy_manage_loads(self, authenticated_page: Page) -> None:
         """Test that policy management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.policy_manage_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/policy/workbench/.*"))
+        _assert_page_ready(authenticated_page, "/policy/workbench/")
 
     def test_equity_screen_loads(self, authenticated_page: Page) -> None:
         """Test that equity screening page loads."""
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/equity/screen/.*"))
+        _assert_page_ready(authenticated_page, "/equity/screen/")
 
     def test_fund_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that fund dashboard page loads."""
         authenticated_page.goto(f"{config.base_url}{config.fund_dashboard_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/fund/dashboard/.*"))
+        _assert_page_ready(authenticated_page, "/fund/dashboard/")
 
     def test_asset_analysis_screen_loads(self, authenticated_page: Page) -> None:
         """Test that asset analysis page loads."""
         authenticated_page.goto(f"{config.base_url}{config.asset_analysis_screen_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/asset-analysis/screen/.*"))
+        _assert_page_ready(authenticated_page, "/asset-analysis/screen/")
 
     def test_backtest_create_loads(self, authenticated_page: Page) -> None:
         """Test that backtest creation page loads."""
         authenticated_page.goto(f"{config.base_url}{config.backtest_create_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/backtest/create/.*"))
+        _assert_page_ready(authenticated_page, "/backtest/")
 
     def test_simulated_trading_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that simulated trading dashboard loads."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/simulated-trading/dashboard/.*"))
+        _assert_page_ready(authenticated_page, "/simulated-trading/")
 
     def test_audit_reports_loads(self, authenticated_page: Page) -> None:
         """Test that audit reports page loads."""
         authenticated_page.goto(f"{config.base_url}{config.audit_reports_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/audit/reports/.*"))
+        _assert_page_ready(authenticated_page, "/audit/")
 
     def test_filter_manage_loads(self, authenticated_page: Page) -> None:
         """Test that filter management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.filter_manage_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/filter/manage/.*"))
+        _assert_page_ready(authenticated_page, "/filter/")
 
     def test_sector_analysis_loads(self, authenticated_page: Page) -> None:
         """Test that sector analysis page loads."""
         authenticated_page.goto(f"{config.base_url}{config.sector_analysis_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/sector/analysis/.*"))
+        _assert_page_ready(authenticated_page, "/sector/")
 
 
 class TestAdminExposureSmoke:

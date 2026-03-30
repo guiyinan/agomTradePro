@@ -81,7 +81,7 @@ class TestConfig:
 
     # Page URLs - Simulated Trading
     simulated_trading_dashboard_url: str = "/simulated-trading/dashboard/"
-    simulated_trading_positions_url: str = "/simulated-trading/positions/"
+    simulated_trading_positions_url: str = "/simulated-trading/my-accounts/"
     simulated_trading_orders_url: str = "/simulated-trading/orders/"
 
     # Page URLs - Audit
@@ -89,11 +89,11 @@ class TestConfig:
     audit_logs_url: str = "/audit/logs/"
 
     # Page URLs - Filter
-    filter_manage_url: str = "/filter/manage/"
+    filter_manage_url: str = "/filter/dashboard/"
     filter_rules_url: str = "/filter/rules/"
 
     # Page URLs - Sector
-    sector_analysis_url: str = "/sector/analysis/"
+    sector_analysis_url: str = "/sector/"
     sector_rotation_url: str = "/sector/rotation/"
 
     # Admin URLs

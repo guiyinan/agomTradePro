@@ -14,11 +14,27 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from celery import current_app
+
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe, qlib_safe
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_calendar_date(value) -> date | None:
+    """Convert qlib calendar entries to Python dates."""
+    if value is None:
+        return None
+    if hasattr(value, "date"):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
 
 
 class QlibAlphaProvider(BaseAlphaProvider):
@@ -119,6 +135,14 @@ class QlibAlphaProvider(BaseAlphaProvider):
             self._last_health_message = f"模型文件不存在: {model_file_path}"
             return AlphaProviderStatus.UNAVAILABLE
 
+        latest_data_date = self._get_latest_data_date()
+        if latest_data_date and latest_data_date < date.today() - timedelta(days=7):
+            self._last_health_message = (
+                f"Qlib 本地数据最新交易日为 {latest_data_date.isoformat()}，"
+                "无法生成当天新鲜推理，将回退到缓存/降级结果"
+            )
+            return AlphaProviderStatus.DEGRADED
+
         # 检查缓存是否有数据
         has_recent_cache = self._has_recent_cache()
         if not has_recent_cache:
@@ -157,7 +181,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         if cached:
             latency_ms = int((time.time() - start_time) * 1000)
             cached.latency_ms = latency_ms
-            cached.staleness_days = 0
+            if cached.status == "available" and cached.staleness_days is None:
+                cached.staleness_days = 0
             logger.info(f"Qlib 缓存命中: {universe_id}@{intended_trade_date}")
             return cached
 
@@ -278,6 +303,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 idx = scores.index(score)
                 scores[idx] = StockScore.from_dict(object_dict)
 
+            metrics_snapshot = cache.metrics_snapshot or {}
+
             return AlphaResult(
                 success=True,
                 scores=scores,
@@ -293,6 +320,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
                     "model_type": active_model.get("model_type"),
                     "ic": active_model.get("ic"),
                     "icir": active_model.get("icir"),
+                    "metrics_snapshot": metrics_snapshot,
+                    **metrics_snapshot,
                 }
             )
 
@@ -343,6 +372,33 @@ class QlibAlphaProvider(BaseAlphaProvider):
             logger.error(f"检查缓存失败: {e}")
             return False
 
+    def _get_latest_data_date(self) -> date | None:
+        """Return the latest trading date available in the local qlib dataset."""
+        try:
+            import qlib
+            from qlib.data import D
+
+            from apps.account.infrastructure.models import SystemSettingsModel
+
+            qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+            provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+            region = qlib_config.get("region", "CN")
+
+            if not hasattr(self, "_qlib_initialized_for_calendar"):
+                qlib.init(
+                    provider_uri=provider_uri,
+                    region=str(region).lower(),
+                )
+                self._qlib_initialized_for_calendar = True
+
+            calendar = D.calendar(start_time="2000-01-01", end_time="2100-12-31")
+            if len(calendar) == 0:
+                return None
+            return _normalize_calendar_date(calendar[-1])
+        except Exception as exc:
+            logger.debug("读取本地 Qlib 数据最新日期失败: %s", exc)
+            return None
+
     def _trigger_infer_task(
         self,
         universe_id: str,
@@ -360,21 +416,53 @@ class QlibAlphaProvider(BaseAlphaProvider):
         try:
             from apps.alpha.application.tasks import qlib_predict_scores
 
+            queue_name = self._resolve_inference_queue()
+
             # 异步投递任务，不等待结果
             result = qlib_predict_scores.apply_async(
                 args=[universe_id, intended_trade_date.isoformat(), top_n],
-                queue="qlib_infer"
+                queue=queue_name
             )
 
             logger.info(
                 f"已触发 Qlib 推理任务: universe={universe_id}, "
-                f"date={intended_trade_date}, top_n={top_n}, task_id={result.id}"
+                f"date={intended_trade_date}, top_n={top_n}, "
+                f"queue={queue_name}, task_id={result.id}"
             )
 
         except Exception as e:
             logger.error(f"触发推理任务失败: {e}", exc_info=True)
             # 发送告警通知
             self._send_inference_failure_alert(universe_id, intended_trade_date, str(e))
+
+    def _resolve_inference_queue(self) -> str:
+        """Pick a live inference queue, falling back to the default worker queue in dev."""
+        preferred_queue = "qlib_infer"
+        fallback_queue = "celery"
+
+        try:
+            inspect = current_app.control.inspect(timeout=1)
+            if inspect is None:
+                return preferred_queue
+
+            active_queues = inspect.active_queues() or {}
+            queue_names = {
+                queue_info.get("name")
+                for worker_queues in active_queues.values()
+                for queue_info in worker_queues
+                if queue_info.get("name")
+            }
+            if preferred_queue in queue_names:
+                return preferred_queue
+            if fallback_queue in queue_names:
+                logger.warning(
+                    "未检测到 qlib_infer 消费者，回退到默认 celery 队列投递 Qlib 推理任务"
+                )
+                return fallback_queue
+        except Exception as exc:
+            logger.debug("检查 Celery 队列时出错，继续使用 qlib_infer: %s", exc)
+
+        return preferred_queue
 
     def _send_inference_failure_alert(
         self,
@@ -623,4 +711,3 @@ class QlibAlphaProvider(BaseAlphaProvider):
         except Exception as e:
             logger.error(f"预测失败: {e}", exc_info=True)
             return {}
-

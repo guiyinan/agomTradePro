@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from cryptography.fernet import InvalidToken
 from django.db.models import Avg, Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -57,9 +58,13 @@ class AIProviderRepository:
         if not encrypted_key:
             return ''
         try:
-            return self._crypto_service.decrypt(encrypted_key)
+            return self._crypto_service.decrypt(encrypted_key, suppress_warning=True)
+        except (InvalidToken, ValueError):
+            logger.info("Skipping encrypted API key that cannot be decrypted in current environment")
+            return ''
         except Exception:
-            # If decryption fails, return as-is (might be plaintext)
+            if encrypted_key.startswith(FieldEncryptionService.PREFIX):
+                return ''
             return encrypted_key
 
     def get_api_key(self, provider: AIProviderConfig) -> str:

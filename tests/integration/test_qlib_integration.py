@@ -6,6 +6,7 @@ Integration Tests for Qlib Alpha Module
 
 import importlib.util
 import os
+import pickle
 from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
@@ -19,6 +20,17 @@ from apps.alpha.domain.entities import AlphaResult
 from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
+
+
+class _PickleablePredictor:
+    """可序列化的预测器测试替身。"""
+
+    def predict(self, dataset):
+        import pandas as pd
+
+        return pd.Series(
+            {"SYNTH0001": 0.91, "SYNTH0002": 0.87, "SYNTH0003": 0.83}
+        )
 
 
 @pytest.mark.django_db
@@ -77,6 +89,91 @@ class TestQlibAlphaProvider:
         assert result is not None
         # 缓存未命中时，success 可能是 False（触发异步任务）
 
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
+    @patch("apps.alpha.application.tasks.qlib_predict_scores.apply_async")
+    def test_trigger_infer_task_falls_back_to_default_queue_when_needed(
+        self,
+        mock_apply_async,
+        mock_current_app,
+    ):
+        """测试本地 worker 未监听 qlib_infer 时回退到默认 celery 队列。"""
+        mock_current_app.control.inspect.return_value.active_queues.return_value = {
+            "celery@worker": [{"name": "celery"}]
+        }
+        mock_apply_async.return_value = Mock(id="task-123")
+
+        provider = QlibAlphaProvider()
+        provider._trigger_infer_task("csi300", date(2026, 2, 5), 10)
+
+        _, kwargs = mock_apply_async.call_args
+        assert kwargs["queue"] == "celery"
+
+    def test_get_stock_scores_preserves_degraded_staleness_metadata(self):
+        """测试命中前推缓存时不会把陈旧度误报为 0。"""
+        QlibModelRegistryModel.objects.create(
+            model_name="test_qlib_model",
+            artifact_hash="test_hash_meta",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-03-30",
+            model_path="/tmp/test_model.pkl",
+            is_active=True,
+        )
+
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=date.today(),
+            provider_source="qlib",
+            asof_date=date.today() - timedelta(days=22),
+            model_id="test_qlib_model",
+            model_artifact_hash="test_hash_meta",
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-03-30",
+            scores=[
+                {
+                    "code": "SYNTH0001",
+                    "score": 0.99,
+                    "rank": 1,
+                    "factors": {},
+                    "source": "qlib",
+                    "confidence": 0.8,
+                },
+                {
+                    "code": "SYNTH0002",
+                    "score": 0.98,
+                    "rank": 2,
+                    "factors": {},
+                    "source": "qlib",
+                    "confidence": 0.8,
+                },
+                {
+                    "code": "SYNTH0003",
+                    "score": 0.97,
+                    "rank": 3,
+                    "factors": {},
+                    "source": "qlib",
+                    "confidence": 0.8,
+                },
+            ],
+            status=AlphaScoreCacheModel.STATUS_DEGRADED,
+            metrics_snapshot={
+                "fallback_mode": "forward_fill_latest_qlib_cache",
+                "qlib_data_latest_date": "2020-09-25",
+            },
+        )
+
+        provider = QlibAlphaProvider()
+        result = provider.get_stock_scores("csi300", date.today(), top_n=3)
+
+        assert result.status == "degraded"
+        assert result.staleness_days == 22
+        assert result.metadata["fallback_mode"] == "forward_fill_latest_qlib_cache"
+        assert result.metadata["qlib_data_latest_date"] == "2020-09-25"
+
 
 @pytest.mark.django_db
 class TestQlibCeleryTasks:
@@ -101,9 +198,11 @@ class TestQlibCeleryTasks:
         os.environ.get('CI') == 'true',
         reason="Skip in CI - requires Celery worker"
     )
+    @patch("apps.alpha.application.tasks._get_qlib_data_latest_date")
     @patch("apps.alpha.application.tasks._execute_qlib_prediction")
-    def test_qlib_predict_scores_task(self, mock_predict):
+    def test_qlib_predict_scores_task(self, mock_predict, mock_latest_date):
         """测试 Qlib 推理任务（同步执行，避免依赖外部 broker）"""
+        mock_latest_date.return_value = date(2026, 2, 5)
         mock_predict.return_value = self._sample_scores(10)
 
         QlibModelRegistryModel.objects.create(
@@ -125,6 +224,113 @@ class TestQlibCeleryTasks:
         assert outcome["status"] == "success"
         assert "universe_id" in outcome
         assert "trade_date" in outcome
+
+    @patch("apps.alpha.application.tasks._execute_qlib_prediction")
+    def test_qlib_predict_scores_reuses_latest_cache_when_prediction_fails(self, mock_predict):
+        """测试 Qlib 推理失败时会前推最近一次可用缓存。"""
+        mock_predict.side_effect = RuntimeError("qlib runtime broken")
+
+        active_model = QlibModelRegistryModel.objects.create(
+            model_name="test_qlib_model",
+            artifact_hash="test_hash_forward_fill",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-02-06",
+            model_path="/tmp/test_model.pkl",
+            is_active=True,
+        )
+
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 2, 4),
+            provider_source="qlib",
+            asof_date=date(2026, 2, 3),
+            model_id="legacy_qlib_model",
+            model_artifact_hash="",
+            feature_set_id="legacy",
+            label_id="return_5d",
+            data_version="2026-02-03",
+            scores=self._sample_scores(5),
+            status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        )
+
+        result = qlib_predict_scores.apply(args=("csi300", "2026-02-06", 3))
+        outcome = result.get(timeout=60)
+
+        assert outcome["status"] == "success"
+        assert outcome["cache_status"] == AlphaScoreCacheModel.STATUS_DEGRADED
+        assert outcome["fallback_used"] is True
+        assert outcome["model_artifact_hash"] == active_model.artifact_hash
+
+        cache = AlphaScoreCacheModel.objects.get(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 2, 6),
+            provider_source="qlib",
+            model_artifact_hash=active_model.artifact_hash,
+        )
+        assert cache.status == AlphaScoreCacheModel.STATUS_DEGRADED
+        assert cache.asof_date == date(2026, 2, 3)
+        assert len(cache.scores) == 3
+        assert cache.metrics_snapshot["fallback_mode"] == "forward_fill_latest_qlib_cache"
+        assert cache.metrics_snapshot["fallback_source_trade_date"] == "2026-02-04"
+
+    @patch("apps.alpha.application.tasks._get_qlib_data_latest_date")
+    @patch("apps.alpha.application.tasks._execute_qlib_prediction")
+    def test_qlib_predict_scores_short_circuits_when_local_data_is_outdated(
+        self,
+        mock_predict,
+        mock_latest_date,
+    ):
+        """测试本地 qlib 数据过旧时直接前推缓存并给出清晰原因。"""
+        mock_latest_date.return_value = date(2020, 9, 25)
+
+        active_model = QlibModelRegistryModel.objects.create(
+            model_name="test_qlib_model",
+            artifact_hash="test_hash_outdated",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-03-30",
+            model_path="/tmp/test_model.pkl",
+            is_active=True,
+        )
+
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 3, 10),
+            provider_source="qlib",
+            asof_date=date(2026, 3, 8),
+            model_id="legacy_qlib_model",
+            model_artifact_hash="",
+            feature_set_id="legacy",
+            label_id="return_5d",
+            data_version="2026-03-08",
+            scores=self._sample_scores(2),
+            status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        )
+
+        result = qlib_predict_scores.apply(args=("csi300", "2026-03-30", 2))
+        outcome = result.get(timeout=60)
+
+        assert outcome["status"] == "success"
+        assert outcome["fallback_used"] is True
+        assert outcome["qlib_data_latest_date"] == "2020-09-25"
+        mock_predict.assert_not_called()
+
+        cache = AlphaScoreCacheModel.objects.get(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 3, 30),
+            provider_source="qlib",
+            model_artifact_hash=active_model.artifact_hash,
+        )
+        assert cache.status == AlphaScoreCacheModel.STATUS_DEGRADED
+        assert cache.metrics_snapshot["qlib_data_latest_date"] == "2020-09-25"
+        assert "2020-09-25" in cache.metrics_snapshot["fallback_reason"]
 
 
 @pytest.mark.django_db
@@ -331,14 +537,51 @@ class TestQlibEndToEnd:
         not importlib.util.find_spec("qlib"),
         reason="qlib not installed"
     )
-    def test_full_prediction_flow(self):
-        """测试完整的预测流程（使用模拟数据）"""
+    @patch("qlib.data.D")
+    @patch("qlib.data.dataset.DatasetH", autospec=True)
+    @patch("qlib.contrib.data.handler.Alpha360", autospec=True)
+    @patch("qlib.init", autospec=True)
+    def test_full_prediction_flow(
+        self,
+        mock_qlib_init,
+        mock_alpha360,
+        mock_dataset,
+        mock_d,
+        tmp_path,
+    ):
+        """测试完整的预测流程（使用模拟依赖与测试库软开关）"""
         from apps.account.infrastructure.models import SystemSettingsModel
         from apps.alpha.application.tasks import _execute_qlib_prediction
 
+        settings_obj = SystemSettingsModel.get_settings()
+        settings_obj.qlib_enabled = True
+        settings_obj.qlib_provider_uri = str((tmp_path / "qlib_data").resolve())
+        settings_obj.qlib_model_path = str((tmp_path / "models").resolve())
+        settings_obj.save(
+            update_fields=[
+                "qlib_enabled",
+                "qlib_provider_uri",
+                "qlib_model_path",
+                "updated_at",
+            ]
+        )
+
         qlib_config = SystemSettingsModel.get_runtime_qlib_config()
-        if not qlib_config.get("enabled"):
-            pytest.skip("Qlib installed but not enabled in runtime config")
+        assert qlib_config["enabled"] is True
+
+        model_file = tmp_path / "models" / "mock.pkl"
+        model_file.parent.mkdir(parents=True, exist_ok=True)
+        with model_file.open("wb") as fp:
+            pickle.dump(_PickleablePredictor(), fp)
+
+        (tmp_path / "qlib_data").mkdir(parents=True, exist_ok=True)
+
+        mock_alpha360.return_value = Mock(name="alpha360-handler")
+        mock_dataset.return_value = Mock(name="dataset")
+        mock_d.instruments.return_value = ["SYNTH0001", "SYNTH0002", "SYNTH0003"]
+
+        if hasattr(_execute_qlib_prediction, "_qlib_initialized"):
+            delattr(_execute_qlib_prediction, "_qlib_initialized")
 
         # 创建一个模拟的激活模型
         model = QlibModelRegistryModel.objects.create(
@@ -350,7 +593,7 @@ class TestQlibEndToEnd:
             feature_set_id="v1",
             label_id="return_5d",
             data_version="2026.02.05",
-            model_path="/models/mock.pkl"
+            model_path=str(model_file),
         )
         model.activate()
 
@@ -366,6 +609,11 @@ class TestQlibEndToEnd:
         assert len(scores) > 0
         assert all("code" in s for s in scores)
         assert all("score" in s for s in scores)
+        assert scores[0]["rank"] == 1
+        mock_qlib_init.assert_called_once()
+        mock_alpha360.assert_called_once()
+        mock_dataset.assert_called_once()
+        mock_d.instruments.assert_called_once_with(market="csi300")
 
 
 @pytest.mark.django_db

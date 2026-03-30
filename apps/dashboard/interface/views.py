@@ -10,14 +10,12 @@ Dashboard Interface Views
 """
 
 import logging
-from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import date
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
-from django.utils import timezone as django_timezone
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -33,7 +31,6 @@ from apps.dashboard.application.queries import (
     get_alpha_visualization_query,
     get_dashboard_detail_query,
     get_decision_plane_query,
-    get_regime_summary_query,
 )
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
@@ -346,7 +343,30 @@ def _build_browser_notification_context(navigator, pulse) -> dict:
 # Alpha 可视化数据获取函数（委托至 Query Services）
 # ========================================
 
-def _get_alpha_stock_scores(top_n: int = 10) -> list:
+def _get_alpha_stock_scores_payload(top_n: int = 10, user=None) -> dict:
+    """Return Alpha stock items plus reliability metadata."""
+    try:
+        query = get_alpha_visualization_query()
+        data = query.execute(top_n=top_n, ic_days=30, user=user)
+        return {
+            "items": data.stock_scores,
+            "meta": data.stock_scores_meta,
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get alpha stock scores payload: {e}")
+        return {
+            "items": [],
+            "meta": {
+                "status": "error",
+                "source": "none",
+                "warning_message": "alpha_stock_scores_unavailable",
+                "is_degraded": True,
+                "uses_cached_data": False,
+            },
+        }
+
+
+def _get_alpha_stock_scores(top_n: int = 10, user=None) -> list:
     """
     获取 Alpha 选股评分结果
 
@@ -354,16 +374,15 @@ def _get_alpha_stock_scores(top_n: int = 10) -> list:
     - 委托至 AlphaVisualizationQuery
     - 隐藏跨模块导入细节
     """
-    try:
-        query = get_alpha_visualization_query()
-        data = query.execute(top_n=top_n, ic_days=30)
-        return data.stock_scores
-    except Exception as e:
-        logger.warning(f"Failed to get alpha stock scores: {e}")
-        return []
+    return _get_alpha_stock_scores_payload(top_n=top_n, user=user)["items"]
 
 
-def _get_alpha_provider_status() -> dict:
+def _get_alpha_stock_scores_meta(top_n: int = 10, user=None) -> dict:
+    """Return stock-score reliability metadata for dashboard rendering."""
+    return _get_alpha_stock_scores_payload(top_n=top_n, user=user)["meta"]
+
+
+def _get_alpha_provider_status(user=None) -> dict:
     """
     获取 Alpha Provider 状态
 
@@ -372,7 +391,7 @@ def _get_alpha_provider_status() -> dict:
     """
     try:
         query = get_alpha_visualization_query()
-        data = query.execute(top_n=10, ic_days=30)
+        data = query.execute(top_n=10, ic_days=30, user=user)
         return data.provider_status
     except Exception as e:
         logger.warning(f"Failed to get alpha provider status: {e}")
@@ -386,7 +405,7 @@ def _get_alpha_provider_status() -> dict:
         }
 
 
-def _get_alpha_coverage_metrics() -> dict:
+def _get_alpha_coverage_metrics(user=None) -> dict:
     """
     获取 Alpha 覆盖率指标
 
@@ -395,7 +414,7 @@ def _get_alpha_coverage_metrics() -> dict:
     """
     try:
         query = get_alpha_visualization_query()
-        data = query.execute(top_n=10, ic_days=30)
+        data = query.execute(top_n=10, ic_days=30, user=user)
         return data.coverage_metrics
     except Exception as e:
         logger.warning(f"Failed to get alpha coverage metrics: {e}")
@@ -410,7 +429,7 @@ def _get_alpha_coverage_metrics() -> dict:
         }
 
 
-def _get_alpha_ic_trends_payload(days: int = 30) -> dict:
+def _get_alpha_ic_trends_payload(days: int = 30, user=None) -> dict:
     """
     获取 Alpha IC/ICIR 趋势数据
 
@@ -419,7 +438,7 @@ def _get_alpha_ic_trends_payload(days: int = 30) -> dict:
     """
     try:
         query = get_alpha_visualization_query()
-        data = query.execute(top_n=10, ic_days=days)
+        data = query.execute(top_n=10, ic_days=days, user=user)
         return {
             "items": data.ic_trends,
             "status": data.ic_trends_meta.get("status", "available"),
@@ -436,14 +455,19 @@ def _get_alpha_ic_trends_payload(days: int = 30) -> dict:
         }
 
 
-def _get_alpha_ic_trends(days: int = 30) -> list:
-    return _get_alpha_ic_trends_payload(days)["items"]
+def _get_alpha_ic_trends(days: int = 30, user=None) -> list:
+    return _get_alpha_ic_trends_payload(days, user=user)["items"]
 
 
-def _build_alpha_factor_panel(stock_code: str, source: str | None = None, top_n: int = 10) -> dict:
+def _build_alpha_factor_panel(
+    stock_code: str,
+    source: str | None = None,
+    top_n: int = 10,
+    user=None,
+) -> dict:
     """Build factor panel data for a single alpha stock."""
     selected = None
-    scores = _get_alpha_stock_scores(top_n=max(top_n, 10))
+    scores = _get_alpha_stock_scores(top_n=max(top_n, 10), user=user)
     for item in scores:
         if item.get("code") == stock_code:
             selected = item
@@ -538,7 +562,9 @@ def dashboard_view(request):
 
     actionable_candidates = _get_actionable_candidates()
     pending_requests = _get_pending_requests()
-    alpha_stock_scores = _get_alpha_stock_scores(top_n=10)
+    alpha_stock_scores_payload = _get_alpha_stock_scores_payload(top_n=10, user=request.user)
+    alpha_stock_scores = alpha_stock_scores_payload["items"]
+    alpha_stock_scores_meta = alpha_stock_scores_payload["meta"]
     initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
     investment_accounts = _get_dashboard_accounts(request.user)
     try:
@@ -605,10 +631,15 @@ def dashboard_view(request):
         "pending_count": len(pending_requests),
         # Alpha 可视化数据（新增）
         "alpha_stock_scores": alpha_stock_scores,
-        "alpha_provider_status": _get_alpha_provider_status(),
-        "alpha_coverage_metrics": _get_alpha_coverage_metrics(),
-        "alpha_ic_trends": _get_alpha_ic_trends(days=30),
-        "alpha_factor_panel": _build_alpha_factor_panel(initial_alpha_stock, top_n=10),
+        "alpha_stock_scores_meta": alpha_stock_scores_meta,
+        "alpha_provider_status": _get_alpha_provider_status(user=request.user),
+        "alpha_coverage_metrics": _get_alpha_coverage_metrics(user=request.user),
+        "alpha_ic_trends": _get_alpha_ic_trends(days=30, user=request.user),
+        "alpha_factor_panel": _build_alpha_factor_panel(
+            initial_alpha_stock,
+            top_n=10,
+            user=request.user,
+        ),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
     context.update(_build_regime_status_context(navigator, pulse, action))
@@ -1069,7 +1100,9 @@ def alpha_stocks_htmx(request):
     返回 Alpha 选股评分表格，支持动态刷新。
     """
     top_n = int(request.GET.get('top_n', 10))
-    scores = _get_alpha_stock_scores(top_n=top_n)
+    scores_payload = _get_alpha_stock_scores_payload(top_n=top_n, user=request.user)
+    scores = scores_payload["items"]
+    meta = scores_payload["meta"]
 
     if request.GET.get("format") == "json":
         return JsonResponse(
@@ -1077,6 +1110,7 @@ def alpha_stocks_htmx(request):
                 "success": True,
                 "data": {
                     "items": scores,
+                    "meta": meta,
                     "count": len(scores),
                     "top_n": top_n,
                 },
@@ -1089,6 +1123,7 @@ def alpha_stocks_htmx(request):
 
     context = {
         'alpha_stocks': scores,
+        'alpha_meta': meta,
         'top_n': top_n,
     }
 
@@ -1102,7 +1137,7 @@ def alpha_provider_status_htmx(request):
 
     返回 Provider 状态面板 JSON 数据。
     """
-    provider_status = _get_alpha_provider_status()
+    provider_status = _get_alpha_provider_status(user=request.user)
 
     return JsonResponse({
         'success': True,
@@ -1120,7 +1155,7 @@ def alpha_coverage_htmx(request):
 
     返回覆盖率指标 JSON 数据。
     """
-    coverage = _get_alpha_coverage_metrics()
+    coverage = _get_alpha_coverage_metrics(user=request.user)
 
     return JsonResponse({
         'success': True,
@@ -1139,7 +1174,7 @@ def alpha_ic_trends_htmx(request):
     返回 IC 趋势 JSON 数据。
     """
     days = int(request.GET.get('days', 30))
-    payload = _get_alpha_ic_trends_payload(days=days)
+    payload = _get_alpha_ic_trends_payload(days=days, user=request.user)
 
     return JsonResponse({
         'success': True,
@@ -1175,5 +1210,10 @@ def alpha_factor_panel_htmx(request):
             },
         )
 
-    context = _build_alpha_factor_panel(stock_code=stock_code, source=source, top_n=top_n)
+    context = _build_alpha_factor_panel(
+        stock_code=stock_code,
+        source=source,
+        top_n=top_n,
+        user=request.user,
+    )
     return render(request, 'dashboard/partials/alpha_factor_panel.html', context)

@@ -171,6 +171,51 @@ class TestETFProviderIntegration:
 class TestProviderFallbackIntegration:
     """Provider 降级集成测试"""
 
+    class _FakeProvider:
+        def __init__(
+            self,
+            name: str,
+            priority: int,
+            result: AlphaResult,
+            health: AlphaProviderStatus = AlphaProviderStatus.AVAILABLE,
+            max_staleness_days: int = 5,
+        ):
+            self._name = name
+            self._priority = priority
+            self._result = result
+            self._health = health
+            self._max_staleness_days = max_staleness_days
+
+        @property
+        def name(self) -> str:
+            return self._name
+
+        @property
+        def priority(self) -> int:
+            return self._priority
+
+        @property
+        def max_staleness_days(self) -> int:
+            return self._max_staleness_days
+
+        def health_check(self) -> AlphaProviderStatus:
+            return self._health
+
+        def supports(self, universe_id: str) -> bool:
+            return True
+
+        def get_stock_scores(
+            self,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int = 30,
+            user=None,
+        ):
+            return self._result
+
+        def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict[str, float]:
+            return {}
+
     def test_fallback_chain(self):
         """测试降级链路"""
         registry = AlphaProviderRegistry()
@@ -219,6 +264,118 @@ class TestProviderFallbackIntegration:
         # 由于 ETF Provider 可用，应该返回成功
         assert result is not None
         assert result.success is True
+
+    def test_returns_best_stale_result_when_later_providers_fail(self):
+        """测试后续 Provider 全失败时回退到最优过期结果。"""
+        registry = AlphaProviderRegistry()
+        stale_scores = [
+            StockScore(
+                code="000001.SH",
+                score=0.8,
+                rank=1,
+                factors={"quality": 0.5},
+                source="cache",
+                confidence=0.9,
+                asof_date=date.today(),
+            )
+        ]
+
+        registry.register(
+            self._FakeProvider(
+                name="qlib",
+                priority=1,
+                result=AlphaResult(
+                    success=False,
+                    scores=[],
+                    source="qlib",
+                    timestamp=date.today().isoformat(),
+                    status="unavailable",
+                    error_message="cache miss",
+                ),
+                max_staleness_days=2,
+            )
+        )
+        registry.register(
+            self._FakeProvider(
+                name="cache",
+                priority=10,
+                result=AlphaResult(
+                    success=True,
+                    scores=stale_scores,
+                    source="cache",
+                    timestamp=date.today().isoformat(),
+                    status="available",
+                    staleness_days=22,
+                ),
+                max_staleness_days=5,
+            )
+        )
+        registry.register(
+            self._FakeProvider(
+                name="etf",
+                priority=1000,
+                result=AlphaResult(
+                    success=False,
+                    scores=[],
+                    source="etf",
+                    timestamp=date.today().isoformat(),
+                    status="unavailable",
+                    error_message="no holdings",
+                ),
+                max_staleness_days=30,
+            )
+        )
+
+        result = registry.get_scores_with_fallback("csi300", date.today())
+
+        assert result.success is True
+        assert result.status == "degraded"
+        assert result.source == "cache"
+        assert result.staleness_days == 22
+        assert len(result.scores) == 1
+
+    def test_service_exposes_reliability_notice_for_degraded_cache(self):
+        """测试服务层会显式暴露缓存/降级提示给 API 与 MCP。"""
+        registry = AlphaProviderRegistry()
+        stale_scores = [
+            StockScore(
+                code="000001.SH",
+                score=0.8,
+                rank=1,
+                factors={"quality": 0.5},
+                source="cache",
+                confidence=0.9,
+                asof_date=date(2026, 3, 8),
+            )
+        ]
+        registry.register(
+            self._FakeProvider(
+                name="cache",
+                priority=10,
+                result=AlphaResult(
+                    success=True,
+                    scores=stale_scores,
+                    source="cache",
+                    timestamp="2026-03-30T09:00:00",
+                    status="degraded",
+                    staleness_days=22,
+                    metadata={"asof_date": "2026-03-08"},
+                ),
+                max_staleness_days=5,
+            )
+        )
+
+        service = AlphaService()
+        original_registry = service._registry
+        service._registry = registry
+        try:
+            result = service.get_stock_scores("csi300", date(2026, 3, 30))
+        finally:
+            service._registry = original_registry
+
+        assert result.metadata["uses_cached_data"] is True
+        assert result.metadata["is_degraded"] is True
+        assert result.metadata["reliability_notice"]["code"] == "historical_cache_result"
 
 
 @pytest.mark.django_db

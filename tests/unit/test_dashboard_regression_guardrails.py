@@ -16,6 +16,7 @@ from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from shared.infrastructure.crypto import FieldEncryptionService
 
 
 @pytest.mark.django_db
@@ -154,6 +155,59 @@ def test_dashboard_ai_insights_uses_ai_provider_config_model(monkeypatch):
 
     assert insights
     assert "保持均衡配置" in insights[0]
+
+
+@pytest.mark.django_db
+def test_dashboard_ai_insights_falls_back_when_encrypted_key_is_invalid(settings, monkeypatch):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+    wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
+
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
+
+    AIProviderConfig.objects.create(
+        name="dashboard-invalid-encrypted-provider",
+        provider_type="deepseek",
+        is_active=True,
+        priority=1,
+        base_url="https://example.test/v1",
+        api_key="",
+        api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
+        default_model="deepseek-chat",
+    )
+
+    class DummySnapshot:
+        total_value = Decimal("1000000")
+        total_return_pct = 5.0
+        positions = []
+
+        @staticmethod
+        def get_invested_ratio():
+            return 0.4
+
+    class DummyMatch:
+        total_match_score = 80.0
+        hostile_assets = []
+
+    def fail_post(*args, **kwargs):
+        raise AssertionError("requests.post should not be called when API key is unusable")
+
+    monkeypatch.setattr("requests.post", fail_post)
+
+    insights = use_case._generate_ai_insights(
+        current_regime="Recovery",
+        snapshot=DummySnapshot(),
+        match_analysis=DummyMatch(),
+        active_signals=[],
+        policy_level="P0",
+    )
+
+    assert insights
 
 
 @pytest.mark.django_db

@@ -73,6 +73,29 @@
 
 ## 6. 修复记录
 
+### 2026-03-30 测试基线收口
+
+- **任务**: 修复 UAT 统计可信度、默认测试收集缺口与页面级弱断言问题
+- **更新**: `pytest.ini`
+  - 默认测试收集范围扩展到 `tests/` 与 `apps/`
+  - `apps/share/tests`、`apps/market_data/tests`、`apps/dashboard/tests` 等 app 内测试不再漏跑
+- **更新**: `tests/uat/run_uat.py`
+  - 改为基于 `--junitxml` 解析真实执行结果
+  - 将 API 命名检查与路由基线检查并入同一 UAT runner 流程
+  - 修复原先 `exit_code` 未正确参与总结果判断的问题
+- **更新**: `tests/uat/route_baseline.json`
+  - `policy/manage` 标准入口修正为 `/policy/workbench/`
+- **增强**:
+  - `tests/playwright/tests/uat/test_user_journeys.py`
+  - `tests/playwright/tests/smoke/test_critical_paths.py`
+  - `tests/e2e/test_navigation_404.py`
+  - `tests/uat/test_api_naming_compliance.py`
+  - 以上用例由“占位/非404”检查提升为页面可用性、关键区块、状态码和前端 API 调用约定检查
+- **验证**:
+  - `pytest tests/uat/test_route_baseline_consistency.py tests/e2e/test_navigation_404.py tests/uat/test_api_naming_compliance.py -q`
+  - `pytest --collect-only apps/share/tests apps/market_data/tests apps/dashboard/tests -q`
+  - `python tests/uat/run_uat.py --generate-report`
+
 ### 2026-02-26 修复内容
 
 #### Phase 3: RTM 完善 + CI 门禁
@@ -113,4 +136,3 @@
 - **问题**: 路由名称以 `api_` 开头但路径没有 `/api/` 前缀
 - **修复**: 统一移除路由名称的 `api_` 前缀（如 `api_health` → `health`）
 - **验证**: `tests/uat/test_api_naming_compliance.py` - 10 passed ✅
-

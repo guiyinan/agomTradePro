@@ -4,14 +4,37 @@ Tests the critical paths: Research -> Selection -> Decision -> Execution -> Revi
 
 Based on: docs/frontend/ux-user-journey-checklist-2026-02-18.md
 """
-from typing import Dict, List
-
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 from tests.playwright.config.test_config import config
-from tests.playwright.pages import DashboardPage, LoginPage
+from tests.playwright.pages import LoginPage
 from tests.playwright.utils.ux_auditor import Severity, UXAuditor
+
+
+def _assert_page_loaded(page: Page, expected_path_fragment: str | None = None) -> None:
+    """Assert the current page is a usable non-error page."""
+    page.wait_for_load_state("domcontentloaded")
+    assert "/404/" not in page.url, f"Unexpected 404 page: {page.url}"
+    assert "/error/" not in page.url, f"Unexpected error page: {page.url}"
+    if expected_path_fragment:
+        assert expected_path_fragment in page.url, (
+            f"Expected path fragment {expected_path_fragment!r}, got {page.url!r}"
+        )
+
+    body_text = page.locator("body").inner_text(timeout=5000)
+    assert body_text.strip(), "Page body should not be empty"
+    assert "Page not found" not in body_text
+
+
+def _has_any(page: Page, selectors: list[str]) -> bool:
+    """Return True when any selector matches at least one element."""
+    return any(page.locator(selector).count() > 0 for selector in selectors)
+
+
+def _assert_has_any(page: Page, selectors: list[str], message: str) -> None:
+    """Assert the page exposes at least one selector from a stable set."""
+    assert _has_any(page, selectors), message
 
 
 class TestJourneyA:
@@ -103,15 +126,19 @@ class TestJourneyA:
     def test_A2_card_colors_consistent(self, authenticated_page: Page) -> None:
         """A2: Key cards (Regime/Policy/Quota) use consistent colors for status."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
+        _assert_page_loaded(authenticated_page, "/dashboard/")
 
-        # Check for status indicators
-        has_status_colors = (
-            authenticated_page.locator('[class*="success"], [class*="danger"], [class*="warning"]').count() > 0 or
-            authenticated_page.locator('[style*="green"], [style*="red"], [style*="yellow"]').count() > 0
+        _assert_has_any(
+            authenticated_page,
+            [
+                '[class*="success"]',
+                '[class*="danger"]',
+                '[class*="warning"]',
+                '[class*="badge"]',
+                '[class*="status"]',
+            ],
+            "Dashboard should expose status styling for key cards",
         )
-
-        # This is informational - we just check if status elements exist
-        assert True, "Status color consistency check completed"
 
 
 class TestJourneyB:
@@ -135,17 +162,13 @@ class TestJourneyB:
     def test_B1_policy_page_shows_current_gear(self, authenticated_page: Page) -> None:
         """B1: Policy page shows current gear + recent events + suggestions."""
         authenticated_page.goto(f"{config.base_url}{config.policy_manage_url}")
+        _assert_page_loaded(authenticated_page, "/policy/workbench/")
 
-        # Check for policy information
-        has_policy_info = (
-            authenticated_page.locator('text=档位').count() > 0 or
-            authenticated_page.locator('text=当前').count() > 0 or
-            authenticated_page.locator('text=建议').count() > 0 or
-            authenticated_page.locator('text=事件').count() > 0
+        _assert_has_any(
+            authenticated_page,
+            ['text=档位', 'text=当前', 'text=建议', 'text=事件', 'text=工作台'],
+            "Policy page should show current policy gear, events, or suggestions",
         )
-
-        # Page should load without error
-        assert authenticated_page.url != f"{config.base_url}/404/", "Policy page should not 404"
 
     @pytest.mark.uat
     @pytest.mark.journey_b
@@ -166,9 +189,7 @@ class TestJourneyB:
     def test_B2_filter_results_update_timely(self, authenticated_page: Page) -> None:
         """B2: Filter results update in timely manner with empty state hints."""
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
-
-        # Page should load
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/equity/screen/")
 
         # Check for results area or empty state
         has_results = (
@@ -186,12 +207,13 @@ class TestJourneyC:
     @pytest.mark.journey_c
     def test_C1_strategy_creation_flow(self, authenticated_page: Page) -> None:
         """C1: Strategy creation flow is logical: basic -> risk -> rules -> script/AI."""
-        # Navigate to strategy list (if exists)
         authenticated_page.goto(f"{config.base_url}/strategy/")
-
-        # Page should either load or redirect gracefully
-        # Not 404
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/strategy/")
+        _assert_has_any(
+            authenticated_page,
+            ['text=策略', 'text=Strategy', 'a:has-text("新建")', 'button:has-text("新建")'],
+            "Strategy page should expose strategy list or create entry",
+        )
 
     @pytest.mark.uat
     @pytest.mark.journey_c
@@ -212,32 +234,27 @@ class TestJourneyC:
     def test_C2_decision_workspace_visible(self, authenticated_page: Page) -> None:
         """C2: Decision Workspace shows Beta/Alpha/Quota sections on one screen."""
         authenticated_page.goto(f"{config.base_url}/decision/workspace/")
-
-        # Page should load
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/decision/workspace/")
 
         # Check for key decision sections
         has_sections = (
             authenticated_page.locator('text=Beta, text=Alpha, text=配额').count() > 0 or
             authenticated_page.locator('[class*="decision"], [class*="workspace"]').count() > 0
         )
-
-        # Page loaded successfully
-        assert True, "Decision workspace page loaded"
+        assert has_sections, "Decision workspace should expose Beta/Alpha/quota sections"
 
     @pytest.mark.uat
     @pytest.mark.journey_c
     def test_C2_alerts_are_visible_and_actionable(self, authenticated_page: Page) -> None:
         """C2: Alerts (quota shortage, candidate expiration) are prominent and actionable."""
         authenticated_page.goto(f"{config.base_url}/decision/workspace/")
+        _assert_page_loaded(authenticated_page, "/decision/workspace/")
 
-        # Check for alert/warning elements
-        has_alerts = (
-            authenticated_page.locator('[class*="alert"], [class*="warning"], [class*="notice"]').count() > 0
+        _assert_has_any(
+            authenticated_page,
+            ['[class*="alert"]', '[class*="warning"]', '[class*="notice"]', 'text=配额', 'text=过期'],
+            "Decision workspace should show alert, warning, or risk explanation",
         )
-
-        # This is informational
-        assert True, "Alert visibility check completed"
 
 
 class TestJourneyD:
@@ -248,43 +265,46 @@ class TestJourneyD:
     def test_D1_simulated_trading_entry_clear(self, authenticated_page: Page) -> None:
         """D1: Simulated trading entry page leads quickly to accounts/positions/trades."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
+        _assert_page_loaded(authenticated_page, "/simulated-trading/")
 
-        # Check for navigation to key sections
-        has_navigation = (
-            authenticated_page.locator('a:has-text("账户"), a:has-text("持仓"), a:has-text("交易")').count() > 0 or
-            authenticated_page.locator('a:has-text("Account"), a:has-text("Position"), a:has-text("Trade")').count() > 0
+        _assert_has_any(
+            authenticated_page,
+            [
+                'a:has-text("账户")',
+                'a:has-text("持仓")',
+                'a:has-text("交易")',
+                'a:has-text("Account")',
+                'a:has-text("Position")',
+                'a:has-text("Trade")',
+            ],
+            "Simulated trading page should link to accounts, positions, or trades",
         )
-
-        assert True, "Simulated trading page loaded"
 
     @pytest.mark.uat
     @pytest.mark.journey_d
     def test_D1_account_metrics_visible(self, authenticated_page: Page) -> None:
         """D1: Account detail page shows key metrics (total assets, return, position)."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
+        _assert_page_loaded(authenticated_page, "/simulated-trading/")
 
-        # Check for key financial metrics
-        has_metrics = (
-            authenticated_page.locator('text=资产, text=收益, text=仓位').count() > 0 or
-            authenticated_page.locator('text=Asset, text=Return, text=Position').count() > 0
+        _assert_has_any(
+            authenticated_page,
+            ['text=资产', 'text=收益', 'text=仓位', 'text=Asset', 'text=Return', 'text=Position'],
+            "Simulated trading dashboard should show account metrics",
         )
-
-        assert True, "Account metrics visibility check completed"
 
     @pytest.mark.uat
     @pytest.mark.journey_d
     def test_D1_position_table_has_controls(self, authenticated_page: Page) -> None:
         """D1: Position and trade tables support basic filter/sort/refresh."""
-        # Try to access positions page
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_positions_url}")
+        _assert_page_loaded(authenticated_page, "/simulated-trading/")
 
-        # Check for table or data grid
-        has_table = (
-            authenticated_page.locator('table, [class*="table"], [class*="grid"]').count() > 0
+        _assert_has_any(
+            authenticated_page,
+            ['table', '[class*="table"]', '[class*="grid"]', 'button:has-text("刷新")', 'button:has-text("Refresh")'],
+            "Position page should expose a table, grid, or refresh control",
         )
-
-        # Page should load
-        expect(authenticated_page).not_to_have_url("/404/")
 
 
 class TestJourneyE:
@@ -295,9 +315,7 @@ class TestJourneyE:
     def test_E1_backtest_list_to_detail_path_clear(self, authenticated_page: Page) -> None:
         """E1: Backtest list to detail path is clear, results page shows key metrics."""
         authenticated_page.goto(f"{config.base_url}{config.backtest_create_url}")
-
-        # Page should load
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/backtest/")
 
         # Check for form or results
         has_content = (
@@ -311,18 +329,19 @@ class TestJourneyE:
     def test_E1_audit_page_terminology_consistent(self, authenticated_page: Page) -> None:
         """E1: Audit page (attribution/threshold/metrics) uses consistent terminology."""
         authenticated_page.goto(f"{config.base_url}{config.audit_reports_url}")
-
-        # Page should load
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/audit/")
+        _assert_has_any(
+            authenticated_page,
+            ['text=审计', 'text=归因', 'text=阈值', 'text=metrics', 'text=attribution'],
+            "Audit page should expose audit terminology or key metric sections",
+        )
 
     @pytest.mark.uat
     @pytest.mark.journey_e
     def test_E2_ops_center_links_valid(self, authenticated_page: Page) -> None:
         """E2: Ops Center has complete entry points with no broken links."""
         authenticated_page.goto(f"{config.base_url}/ops/")
-
-        # Page should load
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/ops/")
 
         # Check for links to management pages
         has_links = authenticated_page.locator('a[href]').count() > 0
@@ -332,11 +351,13 @@ class TestJourneyE:
     @pytest.mark.journey_e
     def test_E2_admin_pages_complete_workflow(self, authenticated_page: Page) -> None:
         """E2: Admin pages (docs/logs/AI/Prompt) have complete operation workflows."""
-        # Test docs management
         authenticated_page.goto(f"{config.base_url}/admin/docs/manage/")
-
-        # Should not 404
-        expect(authenticated_page).not_to_have_url("/404/")
+        _assert_page_loaded(authenticated_page, "/admin/docs/manage/")
+        _assert_has_any(
+            authenticated_page,
+            ['text=文档', 'text=管理', 'text=导入', 'text=导出'],
+            "Admin docs page should expose management actions",
+        )
 
 
 class TestGlobalExperienceBaseline:
@@ -368,7 +389,12 @@ class TestGlobalExperienceBaseline:
         failed_urls = []
         for url in critical_urls:
             authenticated_page.goto(f"{config.base_url}{url}")
-            if "404" in authenticated_page.url or authenticated_page.url == f"{config.base_url}/404/":
+            body_text = authenticated_page.locator("body").inner_text(timeout=5000)
+            if (
+                "404" in authenticated_page.url
+                or authenticated_page.url == f"{config.base_url}/404/"
+                or "Page not found" in body_text
+            ):
                 failed_urls.append(url)
 
         assert len(failed_urls) == 0, f"Found 404 errors on URLs: {failed_urls}"
@@ -378,50 +404,58 @@ class TestGlobalExperienceBaseline:
     def test_visual_consistency_buttons(self, authenticated_page: Page) -> None:
         """Visual consistency: buttons have consistent styling."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
+        _assert_page_loaded(authenticated_page, "/dashboard/")
 
         # Check for button-like elements
         buttons = authenticated_page.locator('button, .btn, [class*="button"], [role="button"]').all()
-
-        # If buttons exist, they should have some styling
-        assert True, f"Found {len(buttons)} buttons on page"
+        assert len(buttons) > 0, "Dashboard should expose actionable buttons"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
     def test_feedback_loading_states(self, authenticated_page: Page) -> None:
         """Feedback: loading, success, failure, empty states are perceivable."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-
-        # Check for loading indicators in DOM (may not be visible)
-        has_feedback = (
-            authenticated_page.locator('[class*="loading"], [class*="spinner"], [class*="progress"]').count() > 0
+        _assert_page_loaded(authenticated_page, "/dashboard/")
+        _assert_has_any(
+            authenticated_page,
+            [
+                '[class*="loading"]',
+                '[class*="spinner"]',
+                '[class*="progress"]',
+                '[class*="status"]',
+                '[class*="empty"]',
+            ],
+            "Dashboard should expose loading, status, or empty-state feedback",
         )
-
-        # This is informational
-        assert True, "Feedback state check completed"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
     def test_terminology_consistency(self, authenticated_page: Page) -> None:
         """Terminology consistency: same concept uses same terminology."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-
-        # Check for consistent use of key terms
-        # This is a visual inspection task
-        assert True, "Terminology consistency check completed"
+        _assert_page_loaded(authenticated_page, "/dashboard/")
+        body_text = authenticated_page.locator("body").inner_text(timeout=5000)
+        assert (
+            ("Regime" in body_text or "环境" in body_text)
+            and ("Policy" in body_text or "政策" in body_text or "仓位" in body_text)
+        ), "Dashboard should use core investment terminology consistently"
 
     @pytest.mark.uat
     @pytest.mark.global_experience
     def test_robustness_no_js_errors(self, page: Page, login_page: LoginPage) -> None:
         """Robustness: no 404s, no JS errors, no blocking exceptions."""
+        console_errors: list[str] = []
+        page_errors: list[str] = []
+        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+        page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+
         login_page.goto()
         login_page.login_as_admin()
 
-        # Navigate to dashboard
         page.goto(f"{config.base_url}{config.dashboard_url}")
-
-        # Check for JS errors (by checking console if available)
-        # For now, just ensure page loads
-        expect(page).not_to_have_url("/error/", timeout=10000)
+        _assert_page_loaded(page, "/dashboard/")
+        assert not page_errors, f"Unhandled page errors found: {page_errors}"
+        assert not console_errors, f"Console error messages found: {console_errors}"
 
 
 class TestPriorityFocusChecks:
@@ -432,8 +466,8 @@ class TestPriorityFocusChecks:
     def test_dashboard_sidebar_links_valid(self, authenticated_page: Page) -> None:
         """Dashboard sidebar links (macro data, equity analysis) are valid."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
+        _assert_page_loaded(authenticated_page, "/dashboard/")
 
-        # Look for sidebar links and check them
         links = authenticated_page.locator('nav a, .sidebar a, [class*="nav"] a').all()
 
         valid_links = 0
@@ -445,18 +479,17 @@ class TestPriorityFocusChecks:
             except Exception:
                 pass
 
-        assert valid_links > 0 or True, "Sidebar links check completed"
+        assert valid_links > 0, "Dashboard should expose at least one navigable sidebar link"
 
     @pytest.mark.uat
     @pytest.mark.priority
     def test_decision_workspace_actions_complete(self, authenticated_page: Page) -> None:
         """Decision workspace core actions have complete confirmation and result hints."""
         authenticated_page.goto(f"{config.base_url}/decision/workspace/")
+        _assert_page_loaded(authenticated_page, "/decision/workspace/")
 
-        # Check for action buttons
         has_actions = authenticated_page.locator('button, .btn, a[class*="btn"]').count() > 0
-
-        assert True, "Decision workspace action check completed"
+        assert has_actions, "Decision workspace should expose action buttons"
 
     @pytest.mark.uat
     @pytest.mark.priority
@@ -480,7 +513,7 @@ class TestPriorityFocusChecks:
                 for issue in high_priority_issues:
                     print(f"High priority issue on {page_name}: {issue.title}")
 
-        assert True, "Cross-module UI consistency check completed"
+            assert not high_priority_issues, f"High-priority UX issues found on {page_name}"
 
 
 class TestUATSummaryReport:
@@ -490,8 +523,7 @@ class TestUATSummaryReport:
     @pytest.mark.report
     def test_uat_summary(self, request) -> None:
         """Generate UAT test summary."""
-        # This is a metadata test for reporting
-        assert True, "UAT summary"
+        assert request.node.get_closest_marker("report") is not None
 
 
 # Test data collection helpers

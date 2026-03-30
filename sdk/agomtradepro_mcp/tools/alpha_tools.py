@@ -78,12 +78,17 @@ def register_alpha_tools(server) -> None:
         """
         try:
             client = AgomTradeProClient()
-            return client.alpha.get_stock_scores(
+            result = client.alpha.get_stock_scores(
                 universe=universe,
                 trade_date=trade_date,
                 top_n=top_n,
                 user_id=user_id,
             )
+            metadata = result.get("metadata", {}) if isinstance(result, dict) else {}
+            notice = metadata.get("reliability_notice")
+            if notice:
+                result["notice"] = notice
+            return result
 
         except Exception as e:
             logger.warning(f"获取 Alpha 评分失败: {e}")

@@ -6,6 +6,20 @@
         <strong>免责声明：</strong>选股结果仅供系统开发研究，<span class="highlight">不构成投资建议</span>。
     </div>
 </div>
+{% if alpha_meta.warning_message %}
+<div class="alpha-reliability-banner alpha-reliability-banner-{{ alpha_meta.warning_level|default:'warning' }}">
+    <div class="alpha-reliability-icon">
+        {% if alpha_meta.warning_level == 'error' %}⛔{% else %}⚠️{% endif %}
+    </div>
+    <div class="alpha-reliability-body">
+        <strong>{{ alpha_meta.warning_title|default:"Alpha 当前为降级结果" }}</strong>
+        <span>{{ alpha_meta.warning_message }}</span>
+        {% if alpha_meta.qlib_data_latest_date %}
+        <span>本地 Qlib 数据最新交易日：{{ alpha_meta.qlib_data_latest_date }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 <table class="data-table alpha-stocks-table">
     <thead>
         <tr>
@@ -116,6 +130,36 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+}
+
+.alpha-reliability-banner {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin: 12px 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #f0c36d;
+    background: #fff7e6;
+    color: #8a5a00;
+}
+
+.alpha-reliability-banner-error {
+    border-color: #ef9a9a;
+    background: #ffebee;
+    color: #9a1b1b;
+}
+
+.alpha-reliability-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.alpha-reliability-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
 }
 
 .alpha-stocks-table th {

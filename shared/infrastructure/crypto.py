@@ -115,12 +115,14 @@ class FieldEncryptionService:
             logger.error(f"Encryption failed: {e}")
             raise
 
-    def decrypt(self, ciphertext: str) -> str:
+    def decrypt(self, ciphertext: str, *, suppress_warning: bool = False) -> str:
         """
         Decrypt a ciphertext value.
 
         Args:
             ciphertext: The encrypted value with prefix
+            suppress_warning: Downgrade invalid-token logs for expected fallback
+                paths such as rotated environment keys.
 
         Returns:
             Decrypted plaintext
@@ -149,7 +151,11 @@ class FieldEncryptionService:
             decrypted = self.fernet.decrypt(encrypted_bytes)
             return decrypted.decode('utf-8')
         except InvalidToken:
-            logger.warning("Decryption failed: invalid token or wrong key")
+            log_message = "Decryption failed: invalid token or wrong key"
+            if suppress_warning:
+                logger.debug(log_message)
+            else:
+                logger.warning(log_message)
             raise
         except Exception as e:
             logger.error(f"Decryption failed: {e}")

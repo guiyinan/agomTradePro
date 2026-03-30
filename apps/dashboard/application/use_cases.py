@@ -674,11 +674,18 @@ class GetDashboardDataUseCase:
                     current_regime, snapshot, match_analysis, active_signals, policy_level
                 )
 
+            api_key = provider_repo.get_api_key(provider)
+            if not api_key:
+                logger.info("AI provider %s 缺少可用 API Key，回退到规则建议", provider.name)
+                return self._enhanced_fallback_insights(
+                    current_regime, snapshot, match_analysis, active_signals, policy_level
+                )
+
             # 构建 API 请求
             api_url = _build_ai_api_url(provider.base_url)
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {provider_repo.get_api_key(provider)}",
+                "Authorization": f"Bearer {api_key}",
             }
 
             # 根据不同的提供商调整请求格式
