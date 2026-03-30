@@ -135,6 +135,7 @@ class TestExecutionApprovalChain(TestCase):
                 "recommendation_id": uni_rec.recommendation_id,
                 "account_id": "default",
                 "market_price": "10.80",
+                "create_request": True,
             },
             format="json",
         )
@@ -268,6 +269,7 @@ class TestExecutionApprovalChain(TestCase):
             data={
                 "recommendation_id": uni_rec.recommendation_id,
                 "account_id": "default",
+                "create_request": True,
             },
             format="json",
         )

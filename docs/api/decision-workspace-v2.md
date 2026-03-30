@@ -39,8 +39,7 @@
 - 该接口后端只允许返回当前登录用户拥有的账户，不得返回其他用户的活跃账户
 - 历史模板 `core/templates/decision/workspace_legacy.html` 已废弃并移除，工作台只允许维护 `core/templates/decision/workspace.html`
 - 左侧栏账户现状使用 `/api/simulated-trading/accounts/{id}/` 和 `/api/simulated-trading/accounts/{id}/positions/`
-- 审批弹窗中的“账户落地”使用真实投资组合接口 `/account/api/portfolios/`
-- 该接口为 DRF 分页列表，前端应读取 `results` 数组，并将 `id` 作为 `portfolio_id`
+- Step 4 的详情弹窗只展示推荐参数与风控预览，不得承载任何执行目标、账户落地或审批评论表单
 
 ## 2. 统一推荐列表
 
@@ -199,6 +198,12 @@
   - `account_id`（必填）
   - `recommendation_ids`（可选；为空时默认取当前账户全部 `ADOPTED` 推荐）
 
+约束：
+
+- Step 4 的勾选只是“计划候选集”，真正生成计划时仍只接受 `ADOPTED` 推荐
+- 若 `recommendation_ids` 全部不是 `ADOPTED`，接口返回 400，并提示“当前账户没有可生成交易计划的已采纳推荐”
+- 纯 `HOLD` / 无可执行订单的计划必须停留在 `DRAFT`，不得进入审批执行
+
 响应示例：
 
 ```json
@@ -213,6 +218,7 @@
     "orders": [
       {
         "security_code": "000001.SH",
+        "security_name": "平安银行",
         "action": "BUY",
         "current_qty": 0,
         "target_qty": 500,
@@ -228,6 +234,11 @@
   }
 }
 ```
+
+说明：
+
+- 推荐列表、交易计划、冲突列表中的证券对象会返回 `security_name`，前端应优先展示“简称 + 代码”。
+- `current_positions`、`target_positions`、`orders` 等计划快照中的金额/价格字段会以 JSON 安全格式返回；涉及 `Decimal` 的值会序列化为字符串，避免持仓快照落库时报 500。
 
 ### 6.3 查询交易计划
 
@@ -250,12 +261,15 @@
 - 路径: `/api/decision/execute/preview/`
 - 主入参: `plan_id`
 - 兼容入参: `recommendation_id`
+- 可选入参: `create_request`
 
 兼容策略：
 
 - 新主链路必须优先传 `plan_id`
 - 旧客户端仍可继续传 `recommendation_id`
-- `recommendation_id` 兼容路径只保留一个版本窗口，用于旧 UI/测试过渡
+- `create_request=false` 或省略时，接口只返回风控预览，不落库审批请求
+- 只有显式传入 `create_request=true` 时，才创建审批请求并返回 `request_id`
+- Step 4 只能调用预览模式；Step 5 才是唯一允许提交审批请求的入口
 
 `plan_id` 响应示例：
 

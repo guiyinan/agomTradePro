@@ -60,6 +60,7 @@ class UnifiedRecommendationDTO:
     account_id: str
     security_code: str
     side: str
+    security_name: str = field(default="", kw_only=True)
     # Top-down
     regime: str = ""
     regime_confidence: float = 0.0
@@ -117,6 +118,7 @@ class UnifiedRecommendationDTO:
             recommendation_id=recommendation.recommendation_id,
             account_id=recommendation.account_id,
             security_code=recommendation.security_code,
+            security_name=getattr(recommendation, "security_name", ""),
             side=recommendation.side,
             regime=recommendation.regime,
             regime_confidence=recommendation.regime_confidence,
@@ -162,6 +164,7 @@ class UnifiedRecommendationDTO:
             "recommendation_id": self.recommendation_id,
             "account_id": self.account_id,
             "security_code": self.security_code,
+            "security_name": self.security_name or self.security_code,
             "side": self.side,
             "regime": self.regime,
             "regime_confidence": self.regime_confidence,
@@ -291,6 +294,7 @@ class ConflictDTO:
 
     security_code: str
     account_id: str
+    security_name: str = ""
     buy_recommendation: UnifiedRecommendationDTO | None = None
     sell_recommendation: UnifiedRecommendationDTO | None = None
     conflict_type: str = "BUY_SELL_CONFLICT"
@@ -305,6 +309,7 @@ class ConflictDTO:
         """
         return {
             "security_code": self.security_code,
+            "security_name": self.security_name or self.security_code,
             "account_id": self.account_id,
             "buy_recommendation": (
                 self.buy_recommendation.to_dict() if self.buy_recommendation else None

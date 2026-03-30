@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from django.apps import apps
@@ -13,17 +14,14 @@ DecisionQuotaModel = apps.get_model("decision_rhythm", "DecisionQuotaModel")
 DecisionFeatureSnapshotModel = apps.get_model("decision_rhythm", "DecisionFeatureSnapshotModel")
 UnifiedRecommendationModel = apps.get_model("decision_rhythm", "UnifiedRecommendationModel")
 SimulatedAccountModel = apps.get_model("simulated_trading", "SimulatedAccountModel")
+PositionModel = apps.get_model("simulated_trading", "PositionModel")
 PulseLog = apps.get_model("pulse", "PulseLog")
+StockInfoModel = apps.get_model("equity", "StockInfoModel")
 
 
-@pytest.mark.django_db
-def test_transition_plan_generate_update_and_preview_flow():
-    user = User.objects.create_user(username="plan_api_user", password="x")
-    client = Client()
-    client.force_login(user)
-
+def _create_workspace_quota(quota_id: str) -> None:
     DecisionQuotaModel.objects.create(
-        quota_id="plan_api_quota",
+        quota_id=quota_id,
         period=QuotaPeriod.WEEKLY.value,
         max_decisions=100,
         used_decisions=0,
@@ -31,9 +29,11 @@ def test_transition_plan_generate_update_and_preview_flow():
         used_executions=0,
     )
 
-    account = SimulatedAccountModel.objects.create(
+
+def _create_simulated_account(user: Any, account_name: str) -> Any:
+    return SimulatedAccountModel.objects.create(
         user=user,
-        account_name="Plan API Account",
+        account_name=account_name,
         account_type="simulated",
         initial_capital=Decimal("100000"),
         current_cash=Decimal("100000"),
@@ -43,9 +43,11 @@ def test_transition_plan_generate_update_and_preview_flow():
         auto_trading_enabled=True,
     )
 
-    snapshot = DecisionFeatureSnapshotModel.objects.create(
-        snapshot_id="plan_api_snapshot",
-        security_code="000001.SH",
+
+def _create_feature_snapshot(snapshot_id: str, security_code: str) -> Any:
+    return DecisionFeatureSnapshotModel.objects.create(
+        snapshot_id=snapshot_id,
+        security_code=security_code,
         snapshot_time=timezone.now(),
         regime="REGIME_1",
         regime_confidence=0.8,
@@ -53,10 +55,30 @@ def test_transition_plan_generate_update_and_preview_flow():
         beta_gate_passed=True,
     )
 
-    recommendation = UnifiedRecommendationModel.objects.create(
-        recommendation_id="plan_api_rec",
-        account_id=str(account.id),
-        security_code="000001.SH",
+
+def _create_stock_info(security_code: str, security_name: str) -> None:
+    StockInfoModel.objects.create(
+        stock_code=security_code,
+        name=security_name,
+        sector="银行",
+        market="SH",
+        list_date=timezone.now().date(),
+        is_active=True,
+    )
+
+
+def _create_recommendation(
+    *,
+    recommendation_id: str,
+    account_id: str,
+    security_code: str,
+    feature_snapshot: Any,
+    user_action: str,
+) -> Any:
+    return UnifiedRecommendationModel.objects.create(
+        recommendation_id=recommendation_id,
+        account_id=account_id,
+        security_code=security_code,
         side="BUY",
         regime="REGIME_1",
         regime_confidence=0.8,
@@ -75,9 +97,44 @@ def test_transition_plan_generate_update_and_preview_flow():
         max_capital=Decimal("50000"),
         source_signal_ids=[],
         source_candidate_ids=["cand1"],
-        feature_snapshot=snapshot,
+        feature_snapshot=feature_snapshot,
         status="NEW",
+        user_action=user_action,
+    )
+
+
+@pytest.mark.django_db
+def test_transition_plan_generate_update_and_preview_flow():
+    user = User.objects.create_user(username="plan_api_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    _create_workspace_quota("plan_api_quota")
+    account = _create_simulated_account(user, "Plan API Account")
+    snapshot = _create_feature_snapshot("plan_api_snapshot", "000001.SH")
+    _create_stock_info("000001.SH", "平安银行")
+    recommendation = _create_recommendation(
+        recommendation_id="plan_api_rec",
+        account_id=str(account.id),
+        security_code="000001.SH",
+        feature_snapshot=snapshot,
         user_action=UserDecisionAction.ADOPTED.value,
+    )
+
+    PositionModel.objects.create(
+        account=account,
+        asset_code="000001.SH",
+        asset_name="Ping An Bank",
+        asset_type="equity",
+        quantity=Decimal("100"),
+        available_quantity=Decimal("100"),
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("11.0000"),
+        market_value=Decimal("1100.00"),
+        unrealized_pnl=Decimal("100.00"),
+        unrealized_pnl_pct=10.0,
+        first_buy_date=timezone.now().date(),
     )
 
     generate_response = client.post(
@@ -90,6 +147,11 @@ def test_transition_plan_generate_update_and_preview_flow():
     assert generate_payload["plan_id"]
     assert generate_payload["orders"][0]["source_recommendation_id"] == recommendation.recommendation_id
     assert generate_payload["can_enter_approval"] is False
+    assert generate_payload["current_positions"][0]["asset_code"] == "000001.SH"
+    assert generate_payload["current_positions"][0]["security_name"] == "Ping An Bank"
+    assert str(generate_payload["current_positions"][0]["market_value"]) == "1100.00"
+    assert generate_payload["target_positions"][0]["security_name"] == "平安银行"
+    assert generate_payload["orders"][0]["security_name"] == "平安银行"
 
     update_response = client.post(
         f"/api/decision/workspace/plans/{generate_payload['plan_id']}/update/",
@@ -122,7 +184,11 @@ def test_transition_plan_generate_update_and_preview_flow():
 
     preview_response = client.post(
         "/api/decision/execute/preview/",
-        data={"account_id": str(account.id), "plan_id": generate_payload["plan_id"]},
+        data={
+            "account_id": str(account.id),
+            "plan_id": generate_payload["plan_id"],
+            "create_request": True,
+        },
         content_type="application/json",
     )
     assert preview_response.status_code == 201
@@ -130,6 +196,84 @@ def test_transition_plan_generate_update_and_preview_flow():
     assert preview_payload["plan_id"] == generate_payload["plan_id"]
     assert preview_payload["recommendation_type"] == "plan"
     assert preview_payload["request_id"]
+
+
+@pytest.mark.django_db
+def test_transition_plan_generate_with_explicit_recommendation_ids_requires_adopted_recommendations():
+    user = User.objects.create_user(username="plan_api_selected_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    _create_workspace_quota("plan_selected_quota")
+    account = _create_simulated_account(user, "Plan Selected Account")
+
+    adopted_snapshot = _create_feature_snapshot("plan_selected_snapshot_1", "000001.SH")
+    selected_snapshot = _create_feature_snapshot("plan_selected_snapshot_2", "600519.SH")
+    _create_stock_info("000001.SH", "平安银行")
+    _create_stock_info("600519.SH", "贵州茅台")
+
+    _create_recommendation(
+        recommendation_id="plan_selected_default_rec",
+        account_id=str(account.id),
+        security_code="000001.SH",
+        feature_snapshot=adopted_snapshot,
+        user_action=UserDecisionAction.ADOPTED.value,
+    )
+    selected_recommendation = _create_recommendation(
+        recommendation_id="plan_selected_explicit_rec",
+        account_id=str(account.id),
+        security_code="600519.SH",
+        feature_snapshot=selected_snapshot,
+        user_action=UserDecisionAction.IGNORED.value,
+    )
+
+    generate_response = client.post(
+        "/api/decision/workspace/plans/generate/",
+        data={
+            "account_id": str(account.id),
+            "recommendation_ids": [selected_recommendation.recommendation_id],
+        },
+        content_type="application/json",
+    )
+
+    assert generate_response.status_code == 400
+    assert generate_response.json()["success"] is False
+    assert "已采纳推荐" in generate_response.json()["error"]
+
+
+@pytest.mark.django_db
+def test_execution_preview_without_create_request_does_not_persist_approval():
+    user = User.objects.create_user(username="plan_preview_only_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    _create_workspace_quota("plan_preview_only_quota")
+    account = _create_simulated_account(user, "Plan Preview Only Account")
+    snapshot = _create_feature_snapshot("plan_preview_only_snapshot", "000001.SH")
+    _create_stock_info("000001.SH", "平安银行")
+    recommendation = _create_recommendation(
+        recommendation_id="plan_preview_only_rec",
+        account_id=str(account.id),
+        security_code="000001.SH",
+        feature_snapshot=snapshot,
+        user_action=UserDecisionAction.ADOPTED.value,
+    )
+
+    preview_response = client.post(
+        "/api/decision/execute/preview/",
+        data={
+            "account_id": str(account.id),
+            "recommendation_id": recommendation.recommendation_id,
+        },
+        content_type="application/json",
+    )
+
+    assert preview_response.status_code == 200
+    preview_payload = preview_response.json()["data"]
+    assert preview_payload["request_id"] is None
+    assert preview_payload["recommendation_type"] == "unified"
+    recommendation.refresh_from_db()
+    assert recommendation.status == "NEW"
 
 
 @pytest.mark.django_db

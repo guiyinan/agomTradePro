@@ -9,7 +9,8 @@ Decision Rhythm Repositories
 
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -34,6 +35,19 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _json_safe_value(value: Any) -> Any:
+    """Convert nested plan snapshots into JSON-safe primitives."""
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_safe_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe_value(item) for item in value]
+    return value
 
 
 class QuotaRepository:
@@ -1012,12 +1026,12 @@ class PortfolioTransitionPlanRepository:
             plan_id=plan.plan_id,
             defaults={
                 "account_id": plan.account_id,
-                "source_recommendation_ids": plan.source_recommendation_ids,
-                "current_positions_snapshot": plan.current_positions_snapshot,
-                "target_positions_snapshot": plan.target_positions_snapshot,
-                "orders": [order.to_dict() for order in plan.orders],
-                "risk_contract": plan.risk_contract,
-                "summary": plan.summary,
+                "source_recommendation_ids": _json_safe_value(plan.source_recommendation_ids),
+                "current_positions_snapshot": _json_safe_value(plan.current_positions_snapshot),
+                "target_positions_snapshot": _json_safe_value(plan.target_positions_snapshot),
+                "orders": _json_safe_value([order.to_dict() for order in plan.orders]),
+                "risk_contract": _json_safe_value(plan.risk_contract),
+                "summary": _json_safe_value(plan.summary),
                 "status": plan.status.value,
                 "approval_request_id": plan.approval_request_id or "",
                 "as_of": plan.as_of,
@@ -1716,10 +1730,9 @@ class UnifiedRecommendationRepository:
         queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id).exclude(
             status=RecommendationStatus.CONFLICT.value
         )
+        queryset = queryset.filter(user_action=UserDecisionAction.ADOPTED.value)
         if recommendation_ids:
             queryset = queryset.filter(recommendation_id__in=recommendation_ids)
-        else:
-            queryset = queryset.filter(user_action=UserDecisionAction.ADOPTED.value)
         models = queryset.select_related("feature_snapshot").order_by("-created_at")
         return [self._model_to_entity(model) for model in models]
 

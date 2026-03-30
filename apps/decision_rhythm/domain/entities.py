@@ -1383,7 +1383,7 @@ class TransitionOrder:
     @property
     def is_ready_for_approval(self) -> bool:
         if self.is_hold:
-            return True
+            return False
         if self.stop_loss_price is None:
             return False
         if not self.invalidation_rule:
@@ -1435,9 +1435,10 @@ class PortfolioTransitionPlan:
     @property
     def blocking_issues(self) -> list[str]:
         issues: list[str] = []
-        for order in self.orders:
-            if order.is_hold:
-                continue
+        actionable_orders = [order for order in self.orders if not order.is_hold]
+        if not actionable_orders:
+            return ["当前计划没有可执行订单"]
+        for order in actionable_orders:
             if order.stop_loss_price is None:
                 issues.append(f"{order.security_code}: 缺少止损价")
             if not order.invalidation_rule or order.invalidation_rule.get("requires_user_confirmation"):

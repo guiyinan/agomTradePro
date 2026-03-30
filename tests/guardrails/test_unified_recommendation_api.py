@@ -12,6 +12,7 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionModelParamConfigModel,
     UnifiedRecommendationModel,
 )
+from apps.equity.infrastructure.models import StockInfoModel
 from apps.equity.infrastructure.models import ValuationRepairTrackingModel
 
 
@@ -53,6 +54,14 @@ class TestUnifiedRecommendationsAPI:
     def test_recommendations_list_with_data(self, authenticated_client):
         """测试推荐列表有数据"""
         # 创建测试数据
+        StockInfoModel.objects.create(
+            stock_code="000001.SZ",
+            name="平安银行",
+            sector="银行",
+            market="SZ",
+            list_date="2000-01-01",
+            is_active=True,
+        )
         UnifiedRecommendationModel.objects.create(
             recommendation_id="urec_001",
             account_id="account_001",
@@ -70,6 +79,7 @@ class TestUnifiedRecommendationsAPI:
         assert data["data"]["total_count"] == 1
         assert len(data["data"]["recommendations"]) == 1
         assert data["data"]["recommendations"][0]["user_action"] == "PENDING"
+        assert data["data"]["recommendations"][0]["security_name"] == "平安银行"
 
     def test_recommendations_list_excludes_ignored_by_default(self, authenticated_client):
         """测试默认不返回已忽略推荐"""

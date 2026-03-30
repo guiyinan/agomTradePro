@@ -108,3 +108,28 @@ def test_create_transition_plan_blocks_approval_when_invalidation_missing():
     assert order.action == "EXIT"
     assert plan.can_enter_approval is False
     assert "缺少完整证伪条件" in plan.blocking_issues[0]
+
+
+def test_create_transition_plan_blocks_hold_only_plans_from_approval():
+    plan = create_portfolio_transition_plan(
+        account_id="acct-1",
+        recommendations=[_make_recommendation("rec-hold", "000001.SH", "BUY", suggested_quantity=100)],
+        current_positions=[
+            {
+                "asset_code": "000001.SH",
+                "asset_name": "Test",
+                "quantity": 100,
+                "avg_cost": "10.00",
+                "current_price": "10.50",
+                "market_value": "1050",
+            }
+        ],
+        signal_payloads={},
+    )
+
+    assert len(plan.orders) == 1
+    assert plan.orders[0].action == "HOLD"
+    assert plan.orders[0].is_ready_for_approval is False
+    assert plan.can_enter_approval is False
+    assert plan.status.value == "DRAFT"
+    assert plan.blocking_issues == ["当前计划没有可执行订单"]
