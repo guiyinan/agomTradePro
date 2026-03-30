@@ -457,42 +457,51 @@ document.addEventListener('alpine:init', () => {
             { n: 6, label: '审批执行' }
         ],
         
-        init() {
+        async init() {
             window.decisionFunnelState = this;
-            // Check URL parameters to see if we should jump to a specific step
             const params = new URLSearchParams(window.location.search);
             const requestedStep = parseInt(params.get('step'));
-            
+
             if (window.initializeDecisionWorkspace) {
-                window.initializeDecisionWorkspace();
+                await window.initializeDecisionWorkspace();
             }
 
             if (requestedStep && requestedStep >= 1 && requestedStep <= 6) {
-                this.maxReached = requestedStep;
-                this.currentStep = requestedStep;
-                
-                // Trigger HTMX load for the requested step via custom event
+                const targetStep = normalizeDecisionStepRequest(requestedStep);
+                this.maxReached = Math.max(this.maxReached, targetStep);
+                this.currentStep = targetStep;
                 this.$nextTick(() => {
                     document.body.dispatchEvent(new Event(`stepChanged${this.currentStep}`));
                 });
+                if (targetStep !== requestedStep) {
+                    window.showToast(getDecisionStepGuardMessage(requestedStep), 'warning');
+                }
             }
         },
-        
+
         goToStep(stepNum) {
-            if (stepNum <= this.maxReached) {
-                this.currentStep = stepNum;
-                // Dispatch event to trigger HTMX load for the selected step
+            syncDecisionFunnelGuardrails();
+            const targetStep = normalizeDecisionStepRequest(stepNum);
+            if (targetStep !== stepNum) {
+                window.showToast(getDecisionStepGuardMessage(stepNum), 'warning');
+            }
+            if (targetStep <= this.maxReached) {
+                this.currentStep = targetStep;
                 document.body.dispatchEvent(new Event(`stepChanged${this.currentStep}`));
             }
         },
-        
+
         progressToNextStep() {
             if (this.currentStep < 6) {
-                this.currentStep++;
+                const nextStep = this.currentStep + 1;
+                if (!canAccessDecisionStep(nextStep)) {
+                    window.showToast(getDecisionStepGuardMessage(nextStep), 'warning');
+                    return;
+                }
+                this.currentStep = nextStep;
                 if (this.currentStep > this.maxReached) {
                     this.maxReached = this.currentStep;
                 }
-                // Dispatch event to trigger HTMX load for the new step
                 document.body.dispatchEvent(new Event(`stepChanged${this.currentStep}`));
             }
         },
@@ -510,7 +519,7 @@ document.addEventListener('alpine:init', () => {
 <div id="approvalModal" class="modal-overlay">
     <div class="modal-container approval-modal">
         <div class="modal-header">
-            <h3>执行审批</h3>
+            <h3>推荐详情与风控预览</h3>
             <button class="modal-close" onclick="closeApprovalModal()">×</button>
         </div>
         <div class="modal-body">
@@ -711,79 +720,16 @@ document.addEventListener('alpine:init', () => {
                 </div>
             </div>
 
-            <!-- 审批表单 -->
             <div class="approval-section">
-                <h4 class="section-label">审批操作</h4>
-                <div class="form-group">
-                    <label class="form-label">执行目标 <span class="required">*</span></label>
-                    <select id="modal-execution-target" class="form-select" onchange="toggleExecutionFields()">
-                        <option value="SIMULATED">模拟盘执行</option>
-                        <option value="ACCOUNT">账户落地</option>
-                    </select>
-                </div>
-
-                <div id="simulated-fields">
-                    <div class="form-group">
-                        <label class="form-label">模拟账户 <span class="required">*</span></label>
-                        <select id="modal-sim-account" class="form-select">
-                            <option value="">请选择账户</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">数量 <span class="required">*</span></label>
-                            <input id="modal-quantity" type="number" class="form-input" min="1" />
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">成交价 <span class="required">*</span></label>
-                            <input id="modal-price" type="number" class="form-input" min="0" step="0.01" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">价格下限</label>
-                            <input id="modal-price-min" type="number" class="form-input" min="0" step="0.01" />
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">价格上限</label>
-                            <input id="modal-price-max" type="number" class="form-input" min="0" step="0.01" />
-                        </div>
-                    </div>
-                </div>
-
-                <div id="account-fields" style="display: none;">
-                    <div class="form-group">
-                        <label class="form-label">投资组合 <span class="required">*</span></label>
-                        <select id="modal-portfolio-id" class="form-select">
-                            <option value="">请选择投资组合</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">持仓数量 <span class="required">*</span></label>
-                            <input id="modal-shares" type="number" class="form-input" min="1" />
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">平均成本 <span class="required">*</span></label>
-                            <input id="modal-avg-cost" type="number" class="form-input" min="0" step="0.01" />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">当前价格 <span class="required">*</span></label>
-                        <input id="modal-current-price" type="number" class="form-input" min="0" step="0.01" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">审批评论 <span class="required">*</span></label>
-                    <textarea id="modal-comments" class="form-input" rows="3" placeholder="请填写审批意见、风险说明、执行约束等（必填）"></textarea>
+                <h4 class="section-label">当前阶段说明</h4>
+                <div class="info-note" style="padding: 14px 16px; border-radius: 12px; background: rgba(14, 116, 144, 0.08); color: var(--color-text);">
+                    Step 4 仅用于查看推荐细节与风控预览，不会直接创建审批请求。请先将推荐纳入 Step 5 的交易计划，再在 Step 6 发起审批。
                 </div>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeApprovalModal()">关闭</button>
-            <button id="reject-btn" class="btn btn-secondary" onclick="rejectRecommendation()">拒绝</button>
-            <button id="approve-btn" class="btn btn-primary" onclick="approveRecommendation()">批准并执行</button>
+            <button id="queue-plan-btn" class="btn btn-primary" onclick="queueRecommendationForPlan()">纳入计划并前往 Step 5</button>
         </div>
     </div>
 </div>
@@ -792,11 +738,12 @@ document.addEventListener('alpine:init', () => {
 // ===== 全局状态 =====
 const workspaceParams = new URLSearchParams(window.location.search);
 let currentRecommendation = null;
-let approvalRequestId = null;
+let currentWorkspaceRecommendations = [];
 let currentTransitionPlanId = workspaceParams.get('plan_id') || '';
 let currentPlanApprovalRequestId = '';
+let currentTransitionPlanCanEnterApproval = false;
+let currentTransitionPlanActiveOrdersCount = 0;
 let userAccounts = [];
-let executionPortfolios = [];
 let workspaceInitialized = false;
 const selectedRecommendationIds = new Set();
 const recommendationAutoRefreshAttempts = new Set();
@@ -891,6 +838,81 @@ function updateWorkspacePlanId(planId) {
         url.searchParams.delete('plan_id');
     }
     window.history.replaceState({}, '', url.toString());
+}
+
+function applyTransitionPlanState(plan) {
+    currentTransitionPlanId = plan?.plan_id || '';
+    currentPlanApprovalRequestId = plan?.approval_request_id || '';
+    currentTransitionPlanCanEnterApproval = Boolean(plan?.can_enter_approval);
+    currentTransitionPlanActiveOrdersCount = Array.isArray(plan?.orders)
+        ? plan.orders.filter(order => order.action !== 'HOLD').length
+        : 0;
+    updateWorkspacePlanId(currentTransitionPlanId);
+    syncDecisionFunnelGuardrails();
+}
+
+function getAdoptedRecommendations() {
+    return currentWorkspaceRecommendations.filter(rec => rec.user_action === 'ADOPTED');
+}
+
+function getEligiblePlanRecommendationIds() {
+    const adoptedIds = new Set(getAdoptedRecommendations().map(rec => rec.recommendation_id));
+    if (selectedRecommendationIds.size > 0) {
+        return Array.from(selectedRecommendationIds).filter(recommendationId => adoptedIds.has(recommendationId));
+    }
+    return Array.from(adoptedIds);
+}
+
+function canAccessDecisionStep(stepNum) {
+    if (stepNum <= 4) {
+        return true;
+    }
+    if (stepNum === 5) {
+        return Boolean(currentTransitionPlanId) || getEligiblePlanRecommendationIds().length > 0;
+    }
+    if (stepNum === 6) {
+        return Boolean(currentTransitionPlanId && currentPlanApprovalRequestId);
+    }
+    return false;
+}
+
+function getDecisionStepGuardMessage(stepNum) {
+    if (stepNum === 5) {
+        return 'Step 4 需要至少 1 条已采纳推荐，才能进入交易计划。';
+    }
+    if (stepNum === 6) {
+        return 'Step 6 只接受已提交审批请求的交易计划，请先在 Step 5 完成保存并提交审批。';
+    }
+    return '当前步骤暂不可进入。';
+}
+
+function normalizeDecisionStepRequest(stepNum) {
+    if (!Number.isInteger(stepNum) || stepNum < 1 || stepNum > 6) {
+        return 1;
+    }
+    if (stepNum <= 4 || canAccessDecisionStep(stepNum)) {
+        return stepNum;
+    }
+    if (stepNum === 6 && canAccessDecisionStep(5)) {
+        return 5;
+    }
+    return 4;
+}
+
+function syncDecisionFunnelGuardrails() {
+    const funnel = window.decisionFunnelState;
+    if (!funnel) {
+        return;
+    }
+    const normalizedMax = normalizeDecisionStepRequest(Number(funnel.maxReached || 1));
+    if (normalizedMax !== funnel.maxReached) {
+        funnel.maxReached = normalizedMax;
+    }
+    const normalizedCurrent = normalizeDecisionStepRequest(Number(funnel.currentStep || 1));
+    if (normalizedCurrent !== funnel.currentStep) {
+        funnel.currentStep = normalizedCurrent;
+        document.body.dispatchEvent(new Event(`stepChanged${normalizedCurrent}`));
+    }
 }
 
 function syncWorkspaceAccountSummary() {
@@ -1097,12 +1119,12 @@ function handleWorkspaceAccountChange() {
         url.searchParams.delete('account_id');
     }
     selectedRecommendationIds.clear();
-    currentPlanApprovalRequestId = '';
-    updateWorkspacePlanId('');
+    applyTransitionPlanState(null);
     window.history.replaceState({}, '', url.toString());
     loadWorkspaceAccountSnapshot();
     refreshCurrentDecisionStep();
     refreshWorkspaceDecisionLists();
+    syncDecisionFunnelGuardrails();
 }
 
 async function bootstrapWorkspaceBridge() {
@@ -1186,11 +1208,8 @@ window.initializeDecisionWorkspace = async function() {
 
     // 加载账户列表
     await loadUserAccounts();
-    await loadExecutionPortfolios();
     await bootstrapWorkspaceBridge();
     refreshWorkspaceDecisionLists();
-    // 加载模拟账户
-    loadSimulatedAccounts();
 
     // 模态框点击外部关闭
     document.getElementById('approvalModal').addEventListener('click', function(e) {
@@ -1250,34 +1269,6 @@ async function loadUserAccounts() {
     }
 }
 
-async function loadExecutionPortfolios() {
-    try {
-        const res = await fetch('/api/account/portfolios/?page_size=100', {
-            headers: { 'X-CSRFToken': window.csrfToken }
-        });
-        const data = await res.json();
-
-        if (Array.isArray(data.results)) {
-            executionPortfolios = data.results;
-            const select = document.getElementById('modal-portfolio-id');
-            if (!select) {
-                return;
-            }
-
-            select.innerHTML = '<option value="">请选择投资组合</option>' +
-                executionPortfolios.map(portfolio =>
-                    `<option value="${portfolio.id}">${portfolio.name} (ID ${portfolio.id})</option>`
-                ).join('');
-
-            if (executionPortfolios.length > 0 && !select.value) {
-                select.value = String(executionPortfolios[0].id);
-            }
-        }
-    } catch (error) {
-        console.error('加载投资组合失败:', error);
-    }
-}
-
 // ===== 加载推荐列表 =====
 async function loadRecommendations() {
     const container = document.getElementById('recommendations-list');
@@ -1314,6 +1305,7 @@ async function loadRecommendations() {
         if (data.success && data.data) {
             const recommendations = data.data.recommendations || [];
             const totalCount = data.data.total_count || 0;
+            currentWorkspaceRecommendations = recommendations;
 
             if (
                 recommendations.length === 0 &&
@@ -1346,6 +1338,7 @@ async function loadRecommendations() {
 
             renderRecommendations(recommendations, totalCount);
         } else {
+            currentWorkspaceRecommendations = [];
             container.innerHTML = `
                 <div class="error-state">
                     <p>加载失败: ${data.error || '未知错误'}</p>
@@ -1353,6 +1346,7 @@ async function loadRecommendations() {
             `;
         }
     } catch (error) {
+        currentWorkspaceRecommendations = [];
         container.innerHTML = `
             <div class="error-state">
                 <p>网络错误: ${error.message}</p>
@@ -1367,6 +1361,7 @@ function renderRecommendations(recommendations, totalCount) {
     if (!container) {
         return;
     }
+    currentWorkspaceRecommendations = recommendations || [];
     const recommendationsCount = document.getElementById('recommendations-count');
     if (recommendationsCount) {
         recommendationsCount.textContent = totalCount;
@@ -1490,12 +1485,13 @@ function renderRecommendations(recommendations, totalCount) {
                             data-fundamental-score="${rec.fundamental_score}"
                             data-reason-codes='${JSON.stringify(rec.reason_codes)}'
                             data-rationale="${rec.human_rationale}">
-                        去执行
+                        查看详情
                     </button>
                 </div>
             </div>
         </div>
     `).join('');
+    syncDecisionFunnelGuardrails();
 }
 
 function renderValuationRepairSummary(repair) {
@@ -1564,9 +1560,11 @@ async function applyRecommendationAction(recommendationId, action) {
             workspaceBridge.highlightedRecommendationId = updated.recommendation_id;
         }
         showBridgeBanner(data.data?.message || `已更新为${getUserActionText(updated?.user_action)}`, 'success');
-        loadRecommendations();
+        await loadRecommendations();
+        return updated || null;
     } catch (error) {
         showBridgeBanner(`更新用户动作失败: ${error.message}`, 'danger');
+        return null;
     }
 }
 
@@ -1579,6 +1577,7 @@ async function loadTransitionPlanStep() {
     syncWorkspaceAccountSummary();
 
     if (!currentTransitionPlanId) {
+        applyTransitionPlanState(null);
         summaryContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">🧭</div>
@@ -1619,9 +1618,7 @@ function renderTransitionPlan(plan) {
         return;
     }
 
-    currentTransitionPlanId = plan.plan_id;
-    currentPlanApprovalRequestId = plan.approval_request_id || '';
-    updateWorkspacePlanId(plan.plan_id);
+    applyTransitionPlanState(plan);
 
     const blockingIssues = (plan.blocking_issues || []).map(issue => `<li>${escapeHtml(issue)}</li>`).join('');
     summaryContainer.innerHTML = `
@@ -1697,11 +1694,18 @@ function renderTransitionPlan(plan) {
 
 async function generateTransitionPlan() {
     try {
+        const eligibleRecommendationIds = getEligiblePlanRecommendationIds();
+        if (!currentTransitionPlanId && eligibleRecommendationIds.length === 0) {
+            throw new Error('请先在 Step 4 采纳至少 1 条推荐，再生成交易计划');
+        }
         const body = {
             account_id: getSelectedWorkspaceAccountId(),
         };
         if (selectedRecommendationIds.size > 0) {
-            body.recommendation_ids = Array.from(selectedRecommendationIds);
+            if (eligibleRecommendationIds.length === 0) {
+                throw new Error('已勾选推荐中没有已采纳项，请先采纳后再生成交易计划');
+            }
+            body.recommendation_ids = eligibleRecommendationIds;
         }
         const response = await fetch('/api/decision/workspace/plans/generate/', {
             method: 'POST',
@@ -1896,6 +1900,7 @@ async function submitTransitionPlanForApproval() {
             },
             body: JSON.stringify({
                 plan_id: currentTransitionPlanId,
+                create_request: true,
                 account_id: getSelectedWorkspaceAccountId(),
             }),
         });
@@ -1904,6 +1909,7 @@ async function submitTransitionPlanForApproval() {
             throw new Error(payload.error || '创建审批请求失败');
         }
         currentPlanApprovalRequestId = payload.data?.request_id || '';
+        syncDecisionFunnelGuardrails();
         window.showToast('审批请求已创建，进入 Step 6 审批执行', 'success');
         if (window.decisionFunnelState) {
             window.decisionFunnelState.maxReached = Math.max(window.decisionFunnelState.maxReached, 6);
@@ -1940,7 +1946,7 @@ async function loadExecutionPlanPanel() {
             throw new Error(payload.error || '加载审批面板失败');
         }
         const plan = payload.data;
-        currentPlanApprovalRequestId = plan.approval_request_id || '';
+        applyTransitionPlanState(plan);
         container.innerHTML = `
             <div class="approval-card">
                 <div class="approval-header">
@@ -2264,7 +2270,6 @@ async function refreshRecommendations() {
 // ===== 打开审批模态框 =====
 async function openApprovalModal(recommendationId) {
     currentRecommendation = null;
-    approvalRequestId = null;
 
     // 如果传入的是 ID，需要先获取推荐详情
     if (typeof recommendationId === 'string') {
@@ -2321,6 +2326,12 @@ async function openApprovalModal(recommendationId) {
     if (!currentRecommendation) {
         window.showToast('无法获取推荐信息', 'error');
         return;
+    }
+    const queueBtn = document.getElementById('queue-plan-btn');
+    if (queueBtn) {
+        queueBtn.textContent = currentRecommendation.user_action === 'ADOPTED'
+            ? '纳入计划并前往 Step 5'
+            : '采纳并纳入计划';
     }
 
     // 填充模态框基本信息
@@ -2379,10 +2390,6 @@ async function openApprovalModal(recommendationId) {
     document.getElementById('modal-human-rationale').textContent = currentRecommendation.human_rationale || '-';
     fillValuationRepairPanel(currentRecommendation.valuation_repair);
 
-    // 预填数量和价格
-    document.getElementById('modal-quantity').value = currentRecommendation.suggested_quantity || '';
-    document.getElementById('modal-price').value = currentRecommendation.entry_price_low || '';
-
     // 获取风险检查和预览
     await loadExecutionPreview();
 
@@ -2430,19 +2437,49 @@ async function loadExecutionPreview() {
             },
             body: JSON.stringify({
                 recommendation_id: currentRecommendation.recommendation_id,
+                create_request: false,
                 account_id: getSelectedWorkspaceAccountId()
             })
         });
         const data = await res.json();
 
         if (data.success && data.data) {
-            approvalRequestId = data.data.request_id || approvalRequestId;
             renderRiskChecks(data.data.risk_checks || {});
         } else {
             riskChecksContainer.innerHTML = `<div class="risk-check-error">加载失败: ${data.error || '未知错误'}</div>`;
         }
     } catch (error) {
         riskChecksContainer.innerHTML = `<div class="risk-check-error">网络错误: ${error.message}</div>`;
+    }
+}
+
+async function queueRecommendationForPlan() {
+    if (!currentRecommendation?.recommendation_id) {
+        return;
+    }
+
+    if (currentRecommendation.user_action !== 'ADOPTED') {
+        const updated = await applyRecommendationAction(currentRecommendation.recommendation_id, 'adopt');
+        if (!updated || updated.user_action !== 'ADOPTED') {
+            return;
+        }
+        currentRecommendation = {
+            ...currentRecommendation,
+            user_action: updated.user_action,
+        };
+    }
+
+    selectedRecommendationIds.add(currentRecommendation.recommendation_id);
+    const selectedCount = document.getElementById('selected-rec-count');
+    if (selectedCount) {
+        selectedCount.textContent = String(selectedRecommendationIds.size);
+    }
+
+    closeApprovalModal();
+    window.showToast('已纳入交易计划，请在 Step 5 生成并完善交易计划', 'success');
+    if (window.decisionFunnelState) {
+        window.decisionFunnelState.maxReached = Math.max(window.decisionFunnelState.maxReached, 5);
+        window.decisionFunnelState.goToStep(5);
     }
 }
 
@@ -2499,176 +2536,11 @@ function renderRiskChecks(riskChecks) {
 function closeApprovalModal() {
     document.getElementById('approvalModal').classList.remove('active');
     currentRecommendation = null;
-    approvalRequestId = null;
 
-    // 重置按钮状态
-    const approveBtn = document.getElementById('approve-btn');
-    const rejectBtn = document.getElementById('reject-btn');
-    approveBtn.disabled = false;
-    approveBtn.textContent = '批准并执行';
-    rejectBtn.disabled = false;
-    rejectBtn.textContent = '拒绝';
-
-    // 清空表单
-    document.getElementById('modal-comments').value = '';
-}
-
-// ===== 切换执行目标字段 =====
-function toggleExecutionFields() {
-    const target = document.getElementById('modal-execution-target').value;
-    document.getElementById('simulated-fields').style.display = target === 'SIMULATED' ? 'block' : 'none';
-    document.getElementById('account-fields').style.display = target === 'ACCOUNT' ? 'block' : 'none';
-}
-
-// ===== 加载模拟账户 =====
-async function loadSimulatedAccounts() {
-    try {
-        const res = await fetch('/api/simulated-trading/accounts/?active_only=false', {
-            headers: { 'X-CSRFToken': window.csrfToken }
-        });
-        const data = await res.json();
-
-        if (data.success && Array.isArray(data.accounts)) {
-            const select = document.getElementById('modal-sim-account');
-            select.innerHTML = '<option value="">请选择账户</option>' +
-                data.accounts.map(acc =>
-                    `<option value="${acc.account_id}">${acc.account_name} (${acc.initial_capital}元)</option>`
-                ).join('');
-        }
-    } catch (error) {
-        console.error('加载模拟账户失败:', error);
-    }
-}
-
-// ===== 批准并执行 =====
-async function approveRecommendation() {
-    if (!currentRecommendation) return;
-
-    const target = document.getElementById('modal-execution-target').value;
-    const comments = (document.getElementById('modal-comments').value || '').trim();
-
-    if (!comments) {
-        window.showToast('请填写审批评论（必填）', 'warning');
-        document.getElementById('modal-comments').focus();
-        return;
-    }
-
-    const payload = {
-        approval_request_id: approvalRequestId,
-        reviewer_comments: comments,
-        execution_params: {
-            target: target
-        }
-    };
-
-    if (target === 'SIMULATED') {
-        const simAccountId = document.getElementById('modal-sim-account').value;
-        const quantity = parseInt(document.getElementById('modal-quantity').value) || 0;
-        const price = parseFloat(document.getElementById('modal-price').value) || 0;
-        const priceMin = parseFloat(document.getElementById('modal-price-min').value) || 0;
-        const priceMax = parseFloat(document.getElementById('modal-price-max').value) || 0;
-
-        if (!simAccountId || !quantity || !price) {
-            window.showToast('请填写模拟账户、数量和成交价', 'warning');
-            return;
-        }
-
-        payload.execution_params.sim_account_id = simAccountId;
-        payload.execution_params.action = currentRecommendation.side === 'SELL' ? 'sell' : 'buy';
-        payload.execution_params.quantity = quantity;
-        payload.execution_params.price = price;
-        if (priceMin) payload.execution_params.price_min = priceMin;
-        if (priceMax) payload.execution_params.price_max = priceMax;
-    } else {
-        const portfolioId = parseInt(document.getElementById('modal-portfolio-id').value) || 0;
-        const shares = parseInt(document.getElementById('modal-shares').value) || 0;
-        const avgCost = parseFloat(document.getElementById('modal-avg-cost').value) || 0;
-        const currentPrice = parseFloat(document.getElementById('modal-current-price').value) || 0;
-
-        if (!portfolioId || !shares || !avgCost || !currentPrice) {
-            window.showToast('请填写账户落地参数', 'warning');
-            return;
-        }
-
-        payload.execution_params.portfolio_id = portfolioId;
-        payload.execution_params.shares = shares;
-        payload.execution_params.avg_cost = avgCost;
-        payload.execution_params.current_price = currentPrice;
-    }
-
-    const approveBtn = document.getElementById('approve-btn');
-    approveBtn.disabled = true;
-    approveBtn.textContent = '提交中...';
-
-    try {
-        const res = await fetch('/api/decision/execute/approve/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': window.csrfToken
-            },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-
-        if (data.success) {
-            window.showToast('审批通过并执行成功', 'success');
-            closeApprovalModal();
-            refreshWorkspaceDecisionLists();
-        } else {
-            window.showToast('执行失败: ' + (data.error || '未知错误'), 'error');
-            approveBtn.disabled = false;
-            approveBtn.textContent = '批准并执行';
-        }
-    } catch (error) {
-        window.showToast('网络错误: ' + error.message, 'error');
-        approveBtn.disabled = false;
-        approveBtn.textContent = '批准并执行';
-    }
-}
-
-// ===== 拒绝推荐 =====
-async function rejectRecommendation() {
-    if (!currentRecommendation) return;
-
-    const comments = (document.getElementById('modal-comments').value || '').trim();
-    if (!comments) {
-        window.showToast('请填写拒绝理由（必填）', 'warning');
-        document.getElementById('modal-comments').focus();
-        return;
-    }
-
-    const rejectBtn = document.getElementById('reject-btn');
-    rejectBtn.disabled = true;
-    rejectBtn.textContent = '提交中...';
-
-    try {
-        const res = await fetch('/api/decision/execute/reject/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': window.csrfToken
-            },
-            body: JSON.stringify({
-                approval_request_id: approvalRequestId,
-                reviewer_comments: comments
-            })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-            window.showToast('已拒绝该推荐', 'success');
-            closeApprovalModal();
-            refreshWorkspaceDecisionLists();
-        } else {
-            window.showToast('拒绝失败: ' + (data.error || '未知错误'), 'error');
-            rejectBtn.disabled = false;
-            rejectBtn.textContent = '拒绝';
-        }
-    } catch (error) {
-        window.showToast('网络错误: ' + error.message, 'error');
-        rejectBtn.disabled = false;
-        rejectBtn.textContent = '拒绝';
+    const queueBtn = document.getElementById('queue-plan-btn');
+    if (queueBtn) {
+        queueBtn.disabled = false;
+        queueBtn.textContent = '纳入计划并前往 Step 5';
     }
 }
 

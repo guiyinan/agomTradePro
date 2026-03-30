@@ -1730,10 +1730,9 @@ class UnifiedRecommendationRepository:
         queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id).exclude(
             status=RecommendationStatus.CONFLICT.value
         )
+        queryset = queryset.filter(user_action=UserDecisionAction.ADOPTED.value)
         if recommendation_ids:
             queryset = queryset.filter(recommendation_id__in=recommendation_ids)
-        else:
-            queryset = queryset.filter(user_action=UserDecisionAction.ADOPTED.value)
         models = queryset.select_related("feature_snapshot").order_by("-created_at")
         return [self._model_to_entity(model) for model in models]
 

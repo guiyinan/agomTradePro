@@ -184,7 +184,11 @@ def test_transition_plan_generate_update_and_preview_flow():
 
     preview_response = client.post(
         "/api/decision/execute/preview/",
-        data={"account_id": str(account.id), "plan_id": generate_payload["plan_id"]},
+        data={
+            "account_id": str(account.id),
+            "plan_id": generate_payload["plan_id"],
+            "create_request": True,
+        },
         content_type="application/json",
     )
     assert preview_response.status_code == 201
@@ -195,7 +199,7 @@ def test_transition_plan_generate_update_and_preview_flow():
 
 
 @pytest.mark.django_db
-def test_transition_plan_generate_with_explicit_recommendation_ids_uses_selected_recommendations():
+def test_transition_plan_generate_with_explicit_recommendation_ids_requires_adopted_recommendations():
     user = User.objects.create_user(username="plan_api_selected_user", password="x")
     client = Client()
     client.force_login(user)
@@ -232,14 +236,44 @@ def test_transition_plan_generate_with_explicit_recommendation_ids_uses_selected
         content_type="application/json",
     )
 
-    assert generate_response.status_code == 201
-    generate_payload = generate_response.json()["data"]
-    assert generate_payload["source_recommendation_ids"] == [selected_recommendation.recommendation_id]
-    assert generate_payload["current_positions"] == []
-    assert [item["security_code"] for item in generate_payload["target_positions"]] == ["600519.SH"]
-    assert [item["security_code"] for item in generate_payload["orders"]] == ["600519.SH"]
-    assert generate_payload["target_positions"][0]["security_name"] == "贵州茅台"
-    assert generate_payload["orders"][0]["security_name"] == "贵州茅台"
+    assert generate_response.status_code == 400
+    assert generate_response.json()["success"] is False
+    assert "已采纳推荐" in generate_response.json()["error"]
+
+
+@pytest.mark.django_db
+def test_execution_preview_without_create_request_does_not_persist_approval():
+    user = User.objects.create_user(username="plan_preview_only_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    _create_workspace_quota("plan_preview_only_quota")
+    account = _create_simulated_account(user, "Plan Preview Only Account")
+    snapshot = _create_feature_snapshot("plan_preview_only_snapshot", "000001.SH")
+    _create_stock_info("000001.SH", "平安银行")
+    recommendation = _create_recommendation(
+        recommendation_id="plan_preview_only_rec",
+        account_id=str(account.id),
+        security_code="000001.SH",
+        feature_snapshot=snapshot,
+        user_action=UserDecisionAction.ADOPTED.value,
+    )
+
+    preview_response = client.post(
+        "/api/decision/execute/preview/",
+        data={
+            "account_id": str(account.id),
+            "recommendation_id": recommendation.recommendation_id,
+        },
+        content_type="application/json",
+    )
+
+    assert preview_response.status_code == 200
+    preview_payload = preview_response.json()["data"]
+    assert preview_payload["request_id"] is None
+    assert preview_payload["recommendation_type"] == "unified"
+    recommendation.refresh_from_db()
+    assert recommendation.status == "NEW"
 
 
 @pytest.mark.django_db

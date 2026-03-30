@@ -326,9 +326,9 @@ class TestWorkspacePageFlow:
         测试场景 4：执行预览 API
 
         验收：
-        - 预览请求创建成功
-        - 返回完整参数信息
-        - 推荐状态更新为 REVIEWING
+        - 预览请求返回完整参数信息
+        - 不创建审批请求
+        - 推荐状态保持不变
         """
         response = self.client.post(
             '/api/decision/execute/preview/',
@@ -340,13 +340,13 @@ class TestWorkspacePageFlow:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
         assert data['success'] is True
 
         # 验证返回数据
         result_data = data['data']
-        assert 'request_id' in result_data
+        assert result_data['request_id'] is None
         assert result_data['recommendation_id'] == 'urec_workspace_test'
         assert result_data['recommendation_type'] == 'unified'
 
@@ -365,16 +365,10 @@ class TestWorkspacePageFlow:
         assert 'quota' in risk_checks
         assert 'cooldown' in risk_checks
 
-        # 验证推荐状态已更新为 REVIEWING
+        # 验证推荐状态保持为 NEW
         self.recommendation.refresh_from_db()
-        assert self.recommendation.status == 'REVIEWING'
-
-        # 验证审批请求已创建
-        request_id = result_data['request_id']
-        approval_request = ExecutionApprovalRequestModel.objects.get(request_id=request_id)
-        assert approval_request.approval_status == 'PENDING'
-        assert approval_request.security_code == '000001.SH'
-        assert approval_request.side == 'BUY'
+        assert self.recommendation.status == 'NEW'
+        assert ExecutionApprovalRequestModel.objects.count() == 0
 
     def test_execution_preview_requires_recommendation_id(self):
         """
@@ -412,6 +406,7 @@ class TestWorkspacePageFlow:
             data={
                 'recommendation_id': 'urec_workspace_test',
                 'account_id': 'default',
+                'create_request': True,
             },
             content_type='application/json'
         )
@@ -479,6 +474,7 @@ class TestWorkspacePageFlow:
             data={
                 'recommendation_id': 'urec_reject_test',
                 'account_id': 'default',
+                'create_request': True,
             },
             content_type='application/json'
         )
@@ -557,6 +553,7 @@ class TestWorkspacePageFlow:
             data={
                 'recommendation_id': 'urec_status_test',
                 'account_id': 'default',
+                'create_request': True,
             },
             content_type='application/json'
         )
@@ -1162,7 +1159,7 @@ class TestWorkspaceRiskChecks:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         risk_checks = response.json()['data']['risk_checks']
 
         # 验证价格检查通过
@@ -1188,7 +1185,7 @@ class TestWorkspaceRiskChecks:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         risk_checks = response.json()['data']['risk_checks']
 
         # 验证价格检查失败
@@ -1212,7 +1209,7 @@ class TestWorkspaceRiskChecks:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         risk_checks = response.json()['data']['risk_checks']
 
         # 验证 Beta Gate 检查
@@ -1262,7 +1259,7 @@ class TestWorkspaceRiskChecks:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         risk_checks = response.json()['data']['risk_checks']
 
         # 验证 Beta Gate 检查失败
@@ -1287,7 +1284,7 @@ class TestWorkspaceRiskChecks:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         risk_checks = response.json()['data']['risk_checks']
 
         # 验证配额检查存在
@@ -1313,7 +1310,7 @@ class TestWorkspaceRiskChecks:
             content_type='application/json'
         )
 
-        assert response.status_code == 201
+        assert response.status_code == 200
         risk_checks = response.json()['data']['risk_checks']
 
         # 验证冷却期检查存在

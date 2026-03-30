@@ -78,6 +78,14 @@ def _decimal(value: Any, *, default: Decimal | None = None) -> Decimal | None:
         return default
 
 
+def _truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _regime_context() -> dict[str, Any]:
     try:
         current = resolve_current_regime()
@@ -593,6 +601,7 @@ class ExecutionPreviewView(APIView):
     def post(self, request) -> Response:
         plan_id = (request.data or {}).get("plan_id")
         recommendation_id = (request.data or {}).get("recommendation_id")
+        create_request = _truthy((request.data or {}).get("create_request"))
         account_id = (request.data or {}).get("account_id") or "default"
         market_price = _decimal((request.data or {}).get("market_price"))
 
@@ -612,23 +621,26 @@ class ExecutionPreviewView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            regime_source = _regime_context()["source"]
-            try:
-                approval_request = _create_approval_from_plan(
-                    plan=plan,
-                    account_id=account_id,
-                    risk_checks=risk_checks,
-                    regime_source=regime_source,
-                    market_price=market_price,
-                )
-            except ValueError as exc:
-                return Response({"success": False, "error": str(exc)}, status=status.HTTP_409_CONFLICT)
+            request_id: str | None = None
+            if create_request:
+                regime_source = _regime_context()["source"]
+                try:
+                    approval_request = _create_approval_from_plan(
+                        plan=plan,
+                        account_id=account_id,
+                        risk_checks=risk_checks,
+                        regime_source=regime_source,
+                        market_price=market_price,
+                    )
+                except ValueError as exc:
+                    return Response({"success": False, "error": str(exc)}, status=status.HTTP_409_CONFLICT)
+                request_id = approval_request.request_id
 
             return Response(
                 {
                     "success": True,
                     "data": {
-                        "request_id": approval_request.request_id,
+                        "request_id": request_id,
                         "plan_id": plan.plan_id,
                         "recommendation_type": "plan",
                         "preview": {
@@ -640,7 +652,7 @@ class ExecutionPreviewView(APIView):
                         "risk_checks": risk_checks,
                     },
                 },
-                status=status.HTTP_201_CREATED,
+                status=status.HTTP_201_CREATED if create_request else status.HTTP_200_OK,
             )
 
         if not recommendation_id:
@@ -649,32 +661,30 @@ class ExecutionPreviewView(APIView):
         # 优先查找 UnifiedRecommendation（M2 融合推荐）
         uni_rec = get_unified_recommendation(recommendation_id)
         if uni_rec:
-            # 使用 UnifiedRecommendation 创建审批请求
-            # 检查是否有待审批请求
-            if has_pending_request(account_id, uni_rec.security_code, uni_rec.side):
-                return Response(
-                    {"success": False, "error": "Pending request already exists for this account/security/side"},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            # 构建 risk_checks
             risk_checks = self._risk_checks_from_unified(uni_rec, market_price)
+            request_id: str | None = None
             regime_source = _regime_context()["source"]
+            if create_request:
+                if has_pending_request(account_id, uni_rec.security_code, uni_rec.side):
+                    return Response(
+                        {"success": False, "error": "Pending request already exists for this account/security/side"},
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
-            # 创建审批请求（关联 UnifiedRecommendation）
-            approval_request = self._create_approval_from_unified(
-                uni_rec=uni_rec,
-                account_id=account_id,
-                risk_checks=risk_checks,
-                regime_source=regime_source,
-                market_price=market_price,
-            )
+                approval_request = self._create_approval_from_unified(
+                    uni_rec=uni_rec,
+                    account_id=account_id,
+                    risk_checks=risk_checks,
+                    regime_source=regime_source,
+                    market_price=market_price,
+                )
+                request_id = approval_request.request_id
 
             return Response(
                 {
                     "success": True,
                     "data": {
-                        "request_id": approval_request.request_id,
+                        "request_id": request_id,
                         "recommendation_id": uni_rec.recommendation_id,
                         "recommendation_type": "unified",
                         "preview": {
@@ -700,7 +710,7 @@ class ExecutionPreviewView(APIView):
                         "risk_checks": risk_checks,
                     },
                 },
-                status=status.HTTP_201_CREATED,
+                status=status.HTTP_201_CREATED if create_request else status.HTTP_200_OK,
             )
 
         # 回退到旧版 InvestmentRecommendation
@@ -710,26 +720,28 @@ class ExecutionPreviewView(APIView):
 
         risk_checks = _risk_checks(recommendation, market_price)
         regime_source = _regime_context()["source"]
+        request_id: str | None = None
+        if create_request:
+            if has_pending_request(account_id, recommendation.security_code, recommendation.side):
+                return Response(
+                    {"success": False, "error": "Pending request already exists for this account/security/side"},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
-        if has_pending_request(account_id, recommendation.security_code, recommendation.side):
-            return Response(
-                {"success": False, "error": "Pending request already exists for this account/security/side"},
-                status=status.HTTP_409_CONFLICT,
+            approval_request = create_legacy_approval(
+                recommendation,
+                account_id=account_id,
+                risk_checks=risk_checks,
+                regime_source=regime_source,
+                market_price=market_price,
             )
-
-        approval_request = create_legacy_approval(
-            recommendation,
-            account_id=account_id,
-            risk_checks=risk_checks,
-            regime_source=regime_source,
-            market_price=market_price,
-        )
+            request_id = approval_request.request_id
 
         return Response(
             {
                 "success": True,
                 "data": {
-                    "request_id": approval_request.request_id,
+                    "request_id": request_id,
                     "recommendation_id": recommendation.recommendation_id,
                     "recommendation_type": "legacy",
                     "valuation_snapshot_id": recommendation.valuation_snapshot_id,
@@ -749,7 +761,7 @@ class ExecutionPreviewView(APIView):
                     "risk_checks": risk_checks,
                 },
             },
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_201_CREATED if create_request else status.HTTP_200_OK,
         )
 
     def _risk_checks_from_unified(self, uni_rec, market_price) -> dict[str, Any]:

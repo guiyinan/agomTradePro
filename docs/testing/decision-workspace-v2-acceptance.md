@@ -47,7 +47,7 @@
 |------|--------|----------|----------|----------|
 | **F-001** | 同账户同证券同方向只出现一条可执行建议 | 1. 创建多个来源的同一账户同一证券同一方向候选<br>2. 访问决策工作台<br>3. 检查可执行建议列表 | 可执行建议列表中，该账户+证券+方向组合只出现一条 | [x] 通过 |
 | **F-002** | 同证券 Buy/Sell 冲突进入冲突区 | 1. 创建同一证券的 BUY 和 SELL 候选<br>2. 访问决策工作台<br>3. 检查可执行建议和冲突区域 | BUY/SELL 两者均不进入可执行区，均出现在冲突待处理区域 | [x] 通过 |
-| **F-003** | "去执行"必须弹审批模态并显示完整交易参数 | 1. 点击任意可执行建议的"去执行"按钮<br>2. 检查是否弹出审批模态<br>3. 检查模态显示内容 | 必须弹出模态，显示完整交易参数 | [x] 通过 |
+| **F-003** | "查看详情"必须弹预览模态并显示完整交易参数 | 1. 点击任意可执行建议的"查看详情"按钮<br>2. 检查是否弹出预览模态<br>3. 检查模态显示内容 | 必须弹出模态，显示完整交易参数，但不得直接创建审批请求 | [x] 通过 |
 | **F-004** | 批准必须写入评论并可追溯 | 1. 在审批模态中填写评论<br>2. 点击"批准"<br>3. 查看审批记录 | 审批记录包含完整评论内容，可通过 API 或管理页查询 | [x] 通过 |
 | **F-005** | 拒绝必须写入评论并可追溯 | 1. 在审批模态中填写评论<br>2. 点击"拒绝"<br>3. 查看审批记录 | 审批记录包含拒绝理由评论，状态为 REJECTED | [x] 通过 |
 | **F-006** | 执行成功后状态在 recommendation/request/candidate 三处一致 | 1. 执行完整的批准流程<br>2. 检查各模块状态 | 三处状态均为 EXECUTED | [x] 通过 |
@@ -60,7 +60,7 @@
 |--------|--------|----------|--------|
 | TC-F-001 | 去重规则 | `tests/e2e/test_decision_workspace.py` | `test_deduplication_same_account_security_side` |
 | TC-F-002 | 冲突分流 | `tests/e2e/test_decision_workspace.py` | `test_conflict_detection_buy_sell` |
-| TC-F-003 | 审批模态参数 | `tests/e2e/test_decision_workspace.py` | `test_execution_preview_flow` |
+| TC-F-003 | 预览模态参数 | `tests/e2e/test_decision_workspace.py` | `test_execution_preview_flow` |
 | TC-F-004 | 批准评论追溯 | `tests/integration/test_decision_execution_approval_chain.py` | `test_approve_syncs_unified_recommendation_status` |
 | TC-F-005 | 拒绝评论追溯 | `tests/integration/test_decision_execution_approval_chain.py` | `test_reject_syncs_unified_recommendation_status` |
 | TC-F-006 | 状态一致性 | `tests/integration/test_decision_execution_approval_chain.py` | `test_status_flow_new_to_reviewing_to_approved` |
@@ -147,8 +147,8 @@ pytest tests/integration/test_decision_execution_approval_chain.py -v
 
 | 测试场景 | 测试文件 | 关键断言 | 状态 |
 |----------|----------|----------|------|
-| recommendation -> preview | `tests/integration/test_decision_execution_approval_chain.py` | 状态变更为 REVIEWING | [x] |
-| preview -> approve | `tests/integration/test_decision_execution_approval_chain.py` | 状态变更为 APPROVED | [x] |
+| recommendation -> preview | `tests/integration/test_decision_execution_approval_chain.py` | 仅返回风控预览，不创建审批请求 | [x] |
+| preview(create_request=true) -> approve | `tests/integration/test_decision_execution_approval_chain.py` | 状态变更为 APPROVED | [x] |
 | approve -> execute | `tests/integration/test_decision_execution_approval_chain.py` | 状态变更为 EXECUTED | [x] |
 | approve -> reject | `tests/integration/test_decision_execution_approval_chain.py` | 状态变更为 REJECTED | [x] |
 | 参数变更后推荐变化 | `tests/e2e/test_decision_workspace.py` | 新参数生效 | [x] |
