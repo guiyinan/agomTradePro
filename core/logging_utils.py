@@ -260,3 +260,18 @@ INFO = logging.INFO
 WARNING = logging.WARNING
 ERROR = logging.ERROR
 CRITICAL = logging.CRITICAL
+
+
+def normalize_log_level(value: str | None, default: str = 'INFO') -> str:
+    """
+    标准化日志级别字符串，避免批处理环境变量尾随空格导致 Django 启动失败。
+
+    Args:
+        value: 原始日志级别字符串
+        default: 兜底日志级别
+
+    Returns:
+        去除首尾空格并转为大写后的日志级别；空值时返回默认值
+    """
+    normalized = (value or '').strip().upper()
+    return normalized or default

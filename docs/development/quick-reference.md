@@ -31,6 +31,12 @@ agomtradepro/Scripts/python manage.py runserver
 # 启动开发菜单
 start.bat
 
+# 杀掉所有 Django runserver 进程
+powershell -ExecutionPolicy Bypass -File scripts/kill-django.ps1
+
+# 只杀掉指定端口的 Django runserver 进程
+powershell -ExecutionPolicy Bypass -File scripts/kill-django.ps1 -Port 8000
+
 # 数据库迁移
 agomtradepro/Scripts/python manage.py makemigrations
 agomtradepro/Scripts/python manage.py migrate
@@ -58,6 +64,8 @@ agomtradepro/Scripts/python manage.py list_models
 ```
 
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，菜单窗口会立即返回。
+- `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，原菜单窗口会自动退出，避免重复启动。
+- Windows 下如通过环境变量覆盖 `DJANGO_LOG_LEVEL`，启动链路会自动清理首尾空格，避免日志配置导致启动失败。
 
 ### Streamlit 命令
 
