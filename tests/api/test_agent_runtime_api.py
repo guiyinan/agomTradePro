@@ -28,6 +28,7 @@ class TestAgentTaskAPI:
         """Create a mock authenticated user."""
         user = MagicMock()
         user.id = 1
+        user.pk = 1
         user.is_authenticated = True
         user.is_staff = False
         return user

@@ -136,7 +136,7 @@ class CreatePositionUseCase:
             shares = input.shares
 
         # 6. 创建持仓
-        position = self.position_repo.create_position(
+        position = self.position_repo.create_position_legacy(
             portfolio_id=portfolio_id,
             asset_code=input.asset_code,
             shares=shares,
@@ -485,7 +485,7 @@ class CreatePositionFromBacktestUseCase:
                 )
 
             # 创建持仓
-            position = self.position_repo.create_position(
+            position = self.position_repo.create_position_legacy(
                 portfolio_id=portfolio_id,
                 asset_code=asset_code,
                 shares=holding['shares'],

@@ -32,6 +32,7 @@ class TestAPIRBAC:
         """Create a mock authenticated user."""
         user = MagicMock()
         user.id = 1
+        user.pk = 1
         user.is_authenticated = True
         user.is_staff = False
         user.is_superuser = False
@@ -42,6 +43,7 @@ class TestAPIRBAC:
         """Create a mock staff user."""
         user = MagicMock()
         user.id = 2
+        user.pk = 2
         user.is_authenticated = True
         user.is_staff = True
         user.is_superuser = False
@@ -52,6 +54,7 @@ class TestAPIRBAC:
         """Create a mock superuser."""
         user = MagicMock()
         user.id = 3
+        user.pk = 3
         user.is_authenticated = True
         user.is_staff = True
         user.is_superuser = True
@@ -164,6 +167,7 @@ class TestAuditTrail:
         """Create a mock authenticated user."""
         user = MagicMock()
         user.id = 1
+        user.pk = 1
         user.is_authenticated = True
         user.is_staff = False
         return user
@@ -352,6 +356,7 @@ class TestErrorResponses:
         """Create a mock authenticated user."""
         user = MagicMock()
         user.id = 1
+        user.pk = 1
         user.is_authenticated = True
         return user
 

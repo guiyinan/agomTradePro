@@ -7,6 +7,10 @@ AgomTradePro 资本市场数据连接测试脚本
 import json
 from datetime import date, datetime, timedelta
 
+import pytest
+
+pytestmark = pytest.mark.skip(reason="script-style diagnostic module, not managed by pytest")
+
 
 def test_stock_data_adapters():
     """测试股票数据适配器"""

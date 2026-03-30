@@ -13,7 +13,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
@@ -40,7 +40,7 @@ class MetricValue:
     def to_prometheus(self) -> str:
         """转换为 Prometheus 格式"""
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(UTC)
 
         # 格式: metric_name{label1="value1",label2="value2"} value timestamp
         label_str = ""
@@ -93,7 +93,7 @@ class HistogramValue:
     def to_prometheus(self) -> str:
         """转换为 Prometheus 格式"""
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(UTC)
 
         lines = []
         timestamp_ms = int(self.timestamp.timestamp() * 1000)

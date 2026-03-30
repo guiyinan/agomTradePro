@@ -170,5 +170,8 @@ class TestConfig:
         }
 
 
+TestConfig.__test__ = False
+
+
 # Global config instance
 config = TestConfig()

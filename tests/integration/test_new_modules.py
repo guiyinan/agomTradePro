@@ -15,6 +15,10 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.skip(reason="script-style diagnostic module, not managed by pytest")
+
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))

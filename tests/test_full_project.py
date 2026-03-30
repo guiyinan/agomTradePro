@@ -24,6 +24,9 @@ class TestResult:
     screenshot: str = ""
 
 
+TestResult.__test__ = False
+
+
 @dataclass
 class Improvement:
     """改进建议"""

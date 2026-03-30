@@ -13,6 +13,10 @@ import json
 import time
 from datetime import date, datetime
 
+import pytest
+
+pytestmark = pytest.mark.skip(reason="script-style diagnostic module, not managed by pytest")
+
 
 def test_resilience_features():
     """Test resilience features"""

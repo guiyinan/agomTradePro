@@ -460,7 +460,7 @@ class PositionRepository:
             "portfolio_name": model.portfolio.name,
         }
 
-    def create_position(
+    def create_position_legacy(
         self,
         portfolio_id: int,
         asset_code: str,
@@ -469,19 +469,7 @@ class PositionRepository:
         source: str = "manual",
         source_id: int | None = None,
     ) -> Position:
-        """创建新持仓
-
-        .. deprecated::
-            此方法写入旧账本表（apps/account）。
-            新代码请使用 UnifiedPositionService（apps/simulated_trading）。
-            旧路径将于 2026-09-27 停用。
-        """
-        warnings.warn(
-            "PositionRepository.create_position() is deprecated and will be removed on 2026-09-27. "
-            "Use apps.simulated_trading.application.unified_position_service.UnifiedPositionService instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        """Create a position in the legacy `apps/account` ledger tables."""
         # 获取资产元数据
         try:
             asset_meta = AssetMetadataModel._default_manager.get(asset_code=asset_code)
@@ -521,6 +509,37 @@ class PositionRepository:
         model.save()
 
         return PortfolioRepository()._convert_to_position_entities([model])[0]
+
+    def create_position(
+        self,
+        portfolio_id: int,
+        asset_code: str,
+        shares: float,
+        price: Decimal,
+        source: str = "manual",
+        source_id: int | None = None,
+    ) -> Position:
+        """创建新持仓
+
+        .. deprecated::
+            此方法写入旧账本表（apps/account）。
+            新代码请使用 UnifiedPositionService（apps/simulated_trading）。
+            旧路径将于 2026-09-27 停用。
+        """
+        warnings.warn(
+            "PositionRepository.create_position() is deprecated and will be removed on 2026-09-27. "
+            "Use apps.simulated_trading.application.unified_position_service.UnifiedPositionService instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.create_position_legacy(
+            portfolio_id=portfolio_id,
+            asset_code=asset_code,
+            shares=shares,
+            price=price,
+            source=source,
+            source_id=source_id,
+        )
 
     def close_position(self, position_id: int, shares: float | None = None) -> Position | None:
         """平仓（全部或部分）"""
@@ -608,7 +627,7 @@ class PositionRepository:
         shares = int(max_notional / float(price))
 
         # 创建持仓
-        position = self.create_position(
+        position = self.create_position_legacy(
             portfolio_id=portfolio_id,
             asset_code=signal.asset_code,
             shares=shares,
