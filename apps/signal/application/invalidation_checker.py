@@ -14,6 +14,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Protocol
 
+from django.core.exceptions import SynchronousOnlyOperation
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,11 @@ def _resolve_investment_signal_model():
     if InvestmentSignalModel is not None and hasattr(InvestmentSignalModel, "_default_manager"):
         return InvestmentSignalModel
     return importlib.import_module("apps.signal.infrastructure.models").InvestmentSignalModel
+
+
+def _should_use_orm_fallback(exc: Exception) -> bool:
+    """Return whether the legacy ORM fallback should handle this access failure."""
+    return isinstance(exc, SynchronousOnlyOperation) or "Database access not allowed" in str(exc)
 
 
 class NotificationServiceProtocol(Protocol):
@@ -473,8 +479,8 @@ class InvalidationCheckService:
                 result = self._check_signal_entity(signal)
                 if result and result.is_invalidated:
                     invalidated_ids.append(signal.id)
-        except RuntimeError as exc:
-            if "Database access not allowed" not in str(exc):
+        except (RuntimeError, SynchronousOnlyOperation) as exc:
+            if not _should_use_orm_fallback(exc):
                 raise
             model_cls = _resolve_investment_signal_model()
             approved_signals = model_cls._default_manager.filter(
@@ -508,8 +514,8 @@ class InvalidationCheckService:
                 result = self._check_signal_entity(signal)
                 if result and result.is_invalidated:
                     rejected_ids.append(signal.id)
-        except RuntimeError as exc:
-            if "Database access not allowed" not in str(exc):
+        except (RuntimeError, SynchronousOnlyOperation) as exc:
+            if not _should_use_orm_fallback(exc):
                 raise
             model_cls = _resolve_investment_signal_model()
             pending_signals = model_cls._default_manager.filter(
@@ -564,8 +570,8 @@ def check_and_invalidate_signals() -> dict:
     try:
         approved_count = repository.count_by_status('approved')
         pending_count = repository.count_by_status('pending')
-    except RuntimeError as exc:
-        if "Database access not allowed" not in str(exc):
+    except (RuntimeError, SynchronousOnlyOperation) as exc:
+        if not _should_use_orm_fallback(exc):
             raise
         model_cls = _resolve_investment_signal_model()
         approved_count = model_cls._default_manager.filter(status='approved').count()
