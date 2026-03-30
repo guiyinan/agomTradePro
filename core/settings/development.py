@@ -4,6 +4,8 @@ Django development settings for AgomTradePro project.
 
 import os
 
+from core.logging_utils import normalize_log_level
+
 from .base import *
 
 # DEBUG
@@ -82,12 +84,17 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['console', 'in_memory'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'level': normalize_log_level(os.getenv('DJANGO_LOG_LEVEL')),
             'propagate': False,
         },
         'django.request': {
             'handlers': ['console', 'in_memory'],
             'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console', 'in_memory'],
+            'level': 'INFO',
             'propagate': False,
         },
         'apps': {

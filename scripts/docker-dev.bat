@@ -9,7 +9,8 @@ REM   docker-dev.bat [--sqlite] [--no-celery] [--no-beat] [port]
 setlocal enabledelayedexpansion
 
 REM Configuration
-set PYTHON_EXEC=agomtradepro\Scripts\python.exe
+cd /d "%~dp0.."
+set "PYTHON_EXEC=agomtradepro\Scripts\python.exe"
 set DJANGO_PORT=8000
 set START_CELERY=1
 set START_BEAT=1
@@ -158,7 +159,7 @@ REM ========== 5. Start Celery Worker ==========
 if %START_CELERY%==1 (
     call :kill_existing_celery_worker
     echo [5/5] Starting Celery Worker...
-    start "Celery Worker" cmd /k "%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo"
+    start "Celery Worker" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && .\%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo"
     timeout /t 2 >nul
     echo [OK] Celery Worker started
 )
@@ -167,12 +168,14 @@ REM ========== 6. Start Celery Beat ==========
 if %START_BEAT%==1 (
     call :kill_existing_celery_beat
     echo [INFO] Starting Celery Beat...
-    start "Celery Beat" cmd /k "%PYTHON_EXEC% -m celery -A core beat -l info"
+    start "Celery Beat" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && .\%PYTHON_EXEC% -m celery -A core beat -l info"
     timeout /t 2 >nul
     echo [OK] Celery Beat started
 )
 
 REM ========== 7. Start Django ==========
+call :kill_existing_django_server
+title Django Dev Server
 echo.
 echo ====================================
 echo   All services started!
@@ -273,4 +276,10 @@ exit /b 0
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $all=Get-CimInstance Win32_Process; foreach($p in $all){ if($p.Name -eq 'python.exe' -and $p.CommandLine -like '*celery -A core beat*'){ Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>&1
 taskkill /f /t /fi "IMAGENAME eq cmd.exe" /fi "WINDOWTITLE eq Celery Beat" >nul 2>&1
 echo [INFO] Cleared existing Celery Beat processes
+exit /b 0
+
+:kill_existing_django_server
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $all=Get-CimInstance Win32_Process; foreach($p in $all){ if($p.Name -eq 'python.exe' -and $p.CommandLine -like '*manage.py runserver %DJANGO_PORT%*'){ Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>&1
+taskkill /f /t /fi "IMAGENAME eq cmd.exe" /fi "WINDOWTITLE eq Django Dev Server" >nul 2>&1
+echo [INFO] Cleared existing Django dev server processes
 exit /b 0

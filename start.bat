@@ -49,8 +49,8 @@ call scripts\dev.bat
 goto menu
 
 :sqlite_redis_celery
-start "AgomTradePro SQLite + Redis + Celery" cmd /k "cd /d \"%~dp0\" && set PYTHONUNBUFFERED=1 && set DJANGO_LOG_LEVEL=INFO && call scripts\docker-dev.bat --sqlite"
-goto menu
+start "AgomTradePro SQLite + Redis + Celery" cmd /k "cd /d ""%~dp0."" && set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && call scripts\docker-dev.bat --sqlite"
+goto end
 
 :docker
 set PYTHONUNBUFFERED=1
