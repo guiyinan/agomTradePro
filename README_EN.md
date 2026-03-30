@@ -11,7 +11,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-1%2C600+-brightgreen.svg)](#testing)
-[![Modules](https://img.shields.io/badge/business_modules-34-purple.svg)](#architecture)
+[![Modules](https://img.shields.io/badge/business_modules-35-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-65+-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -25,6 +25,14 @@
 ## What's New
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-03-30
+
+- Alpha reliability is now explicit end to end: Dashboard, API, and MCP all surface whether the current recommendation uses cached data, whether it was forward-filled, and which signal date is actually being shown
+- When local Qlib data is stale, the system no longer pretends the result is fresh; it returns a clear `degraded` state with a user-visible reliability notice
+- The Qlib runtime soft switch remains database-driven, and the live database path settings have now been written back explicitly instead of relying only on runtime fallback
+- The pytest collection baseline now covers both `tests/` and `apps/*/tests`, and UAT summary generation is based on real JUnit XML instead of placeholder parsing
+- Playwright regression now supports a "production DB snapshot + isolated server" path so real-data browser verification can run without writing into the live `db.sqlite3`
 
 ### 2026-03-24
 
@@ -128,7 +136,7 @@ If you're looking for more than "yet another stock dashboard" and want a **base 
 
 - **It is not just a demo UI**: login, setup, analysis, decision flow, approval, execution, and audit are already connected
 - **It is not an AI wrapper**: native MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
-- **It is not a one-off script pile**: 34 business modules with explicit DDD boundaries make it suitable for long-term extension
+- **It is not a one-off script pile**: 35 business modules with explicit DDD boundaries make it suitable for long-term extension
 - **It is forkable**: the codebase is modular enough for private strategy kernels, internal research platforms, or custom agent workflows
 - **It already has product shape**: Setup Wizard, Dashboard, CLI, and MCP console make the system legible at a glance
 

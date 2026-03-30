@@ -33,6 +33,14 @@
 - 页面级 UAT 脚本已对齐当前界面结构，`decision/workspace` 步骤识别和 Regime 控件检测恢复为稳定可回归状态
 - GitHub Actions 的架构门禁历史误报点已从热路径代码中清掉，`main` / `dev` 当前 checks 全绿
 
+### 2026-03-30
+
+- Alpha 推荐链路完成可靠性收口：Dashboard、API 和 MCP 现在会明确提示当前是否使用缓存、是否为前推结果，以及对应信号日期
+- 本地 Qlib 数据停在 `2020-09-25` 时，系统不再伪装成“当天新鲜结果”，而是显式返回 `degraded` 并展示降级原因
+- 正式库中的 Qlib 软开关与路径配置已补齐到数据库，不再仅依赖运行时代码 fallback
+- 测试基线继续收口：默认 pytest 收集范围覆盖 `tests/` + `apps/*/tests`，UAT 统计改为基于真实 JUnit XML
+- Playwright 回归现在支持“正式库快照 + 隔离实例”模式，可在不污染 live `db.sqlite3` 的前提下做真实数据浏览器验收
+
 ### 2026-03-28
 
 - 金融数据源运行时统一到新的 registry/factory 路径，补入 QMT 行情接入与配置中心可见配置
