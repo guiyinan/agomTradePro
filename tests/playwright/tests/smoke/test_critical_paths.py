@@ -60,7 +60,7 @@ class TestCriticalPaths:
     def test_policy_manage_loads(self, authenticated_page: Page) -> None:
         """Test that policy management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.policy_manage_url}")
-        expect(authenticated_page).to_have_url(re.compile(r".*/policy/manage/.*"))
+        expect(authenticated_page).to_have_url(re.compile(r".*/policy/workbench/.*"))
 
     def test_equity_screen_loads(self, authenticated_page: Page) -> None:
         """Test that equity screening page loads."""

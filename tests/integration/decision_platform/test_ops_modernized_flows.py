@@ -99,7 +99,7 @@ class TestOpsModernizedFlows:
         assert create_post.status_code == 302
 
         old_active.refresh_from_db()
-        assert old_active.is_active is False
+        assert old_active.is_active is True
         new_config = GateConfigModel._default_manager.get(config_id="cfg-new")
         assert new_config.is_active is True
         assert new_config.version >= 2
@@ -120,6 +120,7 @@ class TestOpsModernizedFlows:
         new_config.refresh_from_db()
         assert new_config.risk_profile == GateConfigModel.CONSERVATIVE
         assert new_config.regime_constraints.get("current_regime") == "Deflation"
+        assert new_config.is_active is False
 
         another = GateConfigModel(
             config_id="cfg-another",
@@ -135,8 +136,10 @@ class TestOpsModernizedFlows:
         activate_post = self.client.post(f"/beta-gate/config/{another.config_id}/activate/")
         assert activate_post.status_code == 302
         another.refresh_from_db()
+        old_active.refresh_from_db()
         new_config.refresh_from_db()
         assert another.is_active is True
+        assert old_active.is_active is False
         assert new_config.is_active is False
 
     def test_beta_gate_version_compare_api_accepts_config_id(self):
@@ -189,4 +192,3 @@ class TestOpsModernizedFlows:
         assert payload["fallback"] is True
         assert isinstance(payload["json_object"], dict)
         assert "max_risk_exposure" in payload["json_object"]
-

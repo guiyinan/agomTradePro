@@ -6,22 +6,18 @@ Tests:
 - Tool execution with mocked SDK
 """
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 # Ensure MCP server has tools registered
 from agomtradepro_mcp.server import server
+from tests.utils.async_helpers import run_async_callable
 
 
 def _get_tool_names():
     """Get all registered tool names from MCP server."""
-    loop = asyncio.new_event_loop()
-    try:
-        tools = loop.run_until_complete(server.list_tools())
-    finally:
-        loop.close()
+    tools = run_async_callable(server.list_tools)
     return {t.name for t in tools}
 
 
@@ -67,11 +63,7 @@ class TestProposalToolExecution:
         register_agent_proposal_tools(test_server)
 
         # Find and call the tool
-        loop = asyncio.new_event_loop()
-        try:
-            tools = loop.run_until_complete(test_server.list_tools())
-        finally:
-            loop.close()
+        tools = run_async_callable(test_server.list_tools)
         tool_map = {t.name: t for t in tools}
         assert "create_agent_proposal" in tool_map
 

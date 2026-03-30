@@ -57,7 +57,7 @@ class TestConfig:
     signal_list_url: str = "/signal/list/"
 
     # Page URLs - Policy
-    policy_manage_url: str = "/policy/manage/"
+    policy_manage_url: str = "/policy/workbench/"
     policy_events_url: str = "/policy/events/"
 
     # Page URLs - Equity

@@ -4,10 +4,11 @@ Unit tests for Agent Runtime M2 - MCP Tools, Resources, and Prompts.
 WP-M2-04/05/06: Tests for tool/resource/prompt registration and execution.
 """
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from tests.utils.async_helpers import run_async_callable
 
 
 class TestAgentTaskToolRegistration:
@@ -17,11 +18,7 @@ class TestAgentTaskToolRegistration:
     def tool_names(self):
         """Get all registered tool names from MCP server."""
         from agomtradepro_mcp.server import server
-        loop = asyncio.new_event_loop()
-        try:
-            tools = loop.run_until_complete(server.list_tools())
-        finally:
-            loop.close()
+        tools = run_async_callable(server.list_tools)
         return [t.name for t in tools]
 
     def test_start_research_task_registered(self, tool_names):
@@ -53,11 +50,7 @@ class TestContextResourceRegistration:
     def resource_uris(self):
         """Get all registered resource URIs."""
         from agomtradepro_mcp.server import server
-        loop = asyncio.new_event_loop()
-        try:
-            resources = loop.run_until_complete(server.list_resources())
-        finally:
-            loop.close()
+        resources = run_async_callable(server.list_resources)
         return [str(r.uri) for r in resources]
 
     def test_research_context_resource(self, resource_uris):
@@ -83,11 +76,7 @@ class TestWorkflowPromptRegistration:
     def prompt_names(self):
         """Get all registered prompt names."""
         from agomtradepro_mcp.server import server
-        loop = asyncio.new_event_loop()
-        try:
-            prompts = loop.run_until_complete(server.list_prompts())
-        finally:
-            loop.close()
+        prompts = run_async_callable(server.list_prompts)
         return [p.name for p in prompts]
 
     def test_research_workflow_prompt(self, prompt_names):

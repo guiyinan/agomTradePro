@@ -12,10 +12,11 @@ CI groups:
 - agent_runtime_e2e: End-to-end workflows
 """
 
-import asyncio
 from unittest.mock import MagicMock
 
 import pytest
+
+from tests.utils.async_helpers import run_async_callable
 
 # ── agent_runtime_unit: Domain invariants ─────────────────────
 
@@ -193,11 +194,7 @@ class TestMCPRegistration:
     @pytest.fixture(autouse=True)
     def _tool_names(self):
         from agomtradepro_mcp.server import server
-        loop = asyncio.new_event_loop()
-        try:
-            tools = loop.run_until_complete(server.list_tools())
-        finally:
-            loop.close()
+        tools = run_async_callable(server.list_tools)
         self.tool_names = {t.name for t in tools}
 
     # M2 task tools
