@@ -223,6 +223,50 @@ def save_transition_plan(plan: PortfolioTransitionPlan) -> PortfolioTransitionPl
     return PortfolioTransitionPlanRepository().save(plan)
 
 
+def serialize_transition_plan_payload(plan: PortfolioTransitionPlan) -> dict[str, Any]:
+    """Serialize a transition plan and attach display names for UI payloads."""
+    payload = plan.to_dict()
+    security_codes = [
+        str(item.get("asset_code") or "").upper()
+        for item in payload.get("current_positions", [])
+        if item.get("asset_code")
+    ]
+    security_codes.extend(
+        [
+            str(item.get("security_code") or "").upper()
+            for item in payload.get("target_positions", [])
+            if item.get("security_code")
+        ]
+    )
+    security_codes.extend(
+        [
+            str(item.get("security_code") or "").upper()
+            for item in payload.get("orders", [])
+            if item.get("security_code")
+        ]
+    )
+    security_name_map = _resolve_security_name_map(security_codes)
+
+    for position in payload.get("current_positions", []):
+        asset_code = str(position.get("asset_code") or "").upper()
+        if not position.get("asset_name") and asset_code:
+            position["asset_name"] = security_name_map.get(asset_code, asset_code)
+        if asset_code:
+            position["security_name"] = position.get("asset_name") or security_name_map.get(asset_code, asset_code)
+
+    for position in payload.get("target_positions", []):
+        security_code = str(position.get("security_code") or "").upper()
+        if security_code:
+            position["security_name"] = security_name_map.get(security_code, security_code)
+
+    for order in payload.get("orders", []):
+        security_code = str(order.get("security_code") or "").upper()
+        if security_code:
+            order["security_name"] = security_name_map.get(security_code, security_code)
+
+    return payload
+
+
 def create_plan_approval(
     plan: PortfolioTransitionPlan,
     *,
