@@ -1239,9 +1239,9 @@ def _describe_drawdown_factor(factor: float, drawdown: float) -> str:
 def _derive_action_hint(multiplier: float) -> str:
     if multiplier == 0.0:
         return "暂停新仓"
-    elif multiplier < 0.5:
+    elif multiplier <= 0.5:
         return "缩半开仓"
-    elif multiplier < 0.85:
+    elif multiplier < 0.8:
         return "减仓操作"
     else:
         return "正常开仓"

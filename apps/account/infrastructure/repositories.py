@@ -1300,21 +1300,20 @@ class MacroSizingConfigRepository:
     """宏观仓位系数配置仓储。"""
 
     _DEFAULT_REGIME_TIERS = [
-        {"min_confidence": 0.8, "factor": 1.0},
-        {"min_confidence": 0.6, "factor": 0.85},
-        {"min_confidence": 0.4, "factor": 0.65},
+        {"min_confidence": 0.6, "factor": 1.0},
+        {"min_confidence": 0.4, "factor": 0.8},
         {"min_confidence": 0.0, "factor": 0.5},
     ]
     _DEFAULT_PULSE_TIERS = [
-        {"min_composite": 0.4, "max_composite": 1.0, "factor": 1.0},
-        {"min_composite": 0.0, "max_composite": 0.4, "factor": 0.85},
-        {"min_composite": -0.3, "max_composite": 0.0, "factor": 0.65},
-        {"min_composite": -1.0, "max_composite": -0.3, "factor": 0.5},
+        {"min_composite": 0.3, "max_composite": 99, "factor": 1.0},
+        {"min_composite": -0.3, "max_composite": 0.3, "factor": 0.85},
+        {"min_composite": -99, "max_composite": -0.3, "factor": 0.7},
     ]
     _DEFAULT_DRAWDOWN_TIERS = [
         {"min_drawdown": 0.15, "factor": 0.0},
         {"min_drawdown": 0.1, "factor": 0.5},
-        {"min_drawdown": 0.05, "factor": 0.75},
+        {"min_drawdown": 0.05, "factor": 0.8},
+        {"min_drawdown": 0.0, "factor": 1.0},
     ]
 
     def get_active_config(self) -> MacroSizingConfig:

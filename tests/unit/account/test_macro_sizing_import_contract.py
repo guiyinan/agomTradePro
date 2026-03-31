@@ -1,7 +1,10 @@
 import pytest
+from pathlib import Path
 
-from apps.account.infrastructure.models import MacroSizingConfigModel
+import apps.account.infrastructure.models as account_models
+
 from apps.account.infrastructure.repositories import MacroSizingConfigRepository
+from apps.account.infrastructure.models import MacroSizingConfigModel
 
 
 def test_account_api_urls_import_sizing_context_view():
@@ -30,3 +33,15 @@ def test_macro_sizing_config_repository_returns_active_config():
     assert config.get_regime_factor(0.1) == 0.7
     assert config.get_pulse_factor(0.0, warning=False) == 0.8
     assert config.get_pulse_factor(0.0, warning=True) == 0.4
+
+
+def test_macro_sizing_admin_marks_json_fields_readonly():
+    if not hasattr(account_models, "UserProfile"):
+        account_models.UserProfile = type("UserProfile", (), {})
+
+    source = Path("apps/account/infrastructure/admin.py").read_text(encoding="utf-8")
+
+    assert '"regime_tiers_json"' in source
+    assert '"pulse_tiers_json"' in source
+    assert '"drawdown_tiers_json"' in source
+    assert "readonly_fields" in source

@@ -578,5 +578,11 @@ class MacroSizingConfigAdmin(admin.ModelAdmin):
 
     list_display = ["version", "is_active", "warning_factor", "description", "created_at"]
     list_filter = ["is_active", "version", "created_at"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = [
+        "regime_tiers_json",
+        "pulse_tiers_json",
+        "drawdown_tiers_json",
+        "created_at",
+        "updated_at",
+    ]
     ordering = ["-version"]
