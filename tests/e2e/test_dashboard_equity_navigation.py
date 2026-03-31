@@ -28,18 +28,21 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
 
     monkeypatch.setattr(
         views,
-        "_get_alpha_stock_scores",
-        lambda top_n=10: [
-            {
-                "code": "600519.SH",
-                "name": "贵州茅台",
-                "score": 0.95,
-                "rank": 1,
-                "confidence": 0.91,
-                "source": "cache",
-                "asof_date": "2026-03-22",
-            }
-        ],
+        "_get_alpha_stock_scores_payload",
+        lambda top_n=10, user=None: {
+            "items": [
+                {
+                    "code": "600519.SH",
+                    "name": "贵州茅台",
+                    "score": 0.95,
+                    "rank": 1,
+                    "confidence": 0.91,
+                    "source": "cache",
+                    "asof_date": "2026-03-22",
+                }
+            ],
+            "meta": {"provider_source": "cache"},
+        },
     )
 
     response = authenticated_client.get("/api/dashboard/alpha/stocks/?format=json&top_n=5")
@@ -72,18 +75,21 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
 
     monkeypatch.setattr(
         views,
-        "_get_alpha_stock_scores",
-        lambda top_n=10: [
-            {
-                "code": "600519.SH",
-                "name": "贵州茅台",
-                "score": 0.95,
-                "rank": 1,
-                "confidence": 0.91,
-                "source": "cache",
-                "asof_date": "2026-03-22",
-            }
-        ],
+        "_get_alpha_stock_scores_payload",
+        lambda top_n=10, user=None: {
+            "items": [
+                {
+                    "code": "600519.SH",
+                    "name": "贵州茅台",
+                    "score": 0.95,
+                    "rank": 1,
+                    "confidence": 0.91,
+                    "source": "cache",
+                    "asof_date": "2026-03-22",
+                }
+            ],
+            "meta": {"provider_source": "cache"},
+        },
     )
 
     response = authenticated_client.get("/dashboard/")

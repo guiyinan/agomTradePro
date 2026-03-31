@@ -164,7 +164,7 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_provider_status_api(self):
         """测试 Provider 状态 API"""
-        response = self.client.get('/dashboard/api/alpha/provider-status/')
+        response = self.client.get('/api/dashboard/alpha/provider-status/')
 
         assert response.status_code == 200
         data = response.json()
@@ -177,7 +177,7 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_coverage_api(self):
         """测试覆盖率指标 API"""
-        response = self.client.get('/dashboard/api/alpha/coverage/')
+        response = self.client.get('/api/dashboard/alpha/coverage/')
 
         assert response.status_code == 200
         data = response.json()
@@ -191,7 +191,7 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_ic_trends_api(self):
         """测试 IC 趋势 API"""
-        response = self.client.get('/dashboard/api/alpha/ic-trends/?days=7')
+        response = self.client.get('/api/dashboard/alpha/ic-trends/?days=7')
 
         assert response.status_code == 200
         data = response.json()
@@ -411,7 +411,7 @@ class TestDashboardAPIE2E:
 
     def test_allocation_chart_api(self):
         """测试资产配置图表 API"""
-        response = self.client.get('/dashboard/api/allocation/')
+        response = self.client.get('/api/dashboard/allocation/')
 
         assert response.status_code == 200
         data = response.json()
@@ -419,7 +419,7 @@ class TestDashboardAPIE2E:
 
     def test_performance_chart_api(self):
         """测试收益趋势图表 API"""
-        response = self.client.get('/dashboard/api/performance/')
+        response = self.client.get('/api/dashboard/performance/')
 
         assert response.status_code == 200
         data = response.json()
@@ -428,7 +428,7 @@ class TestDashboardAPIE2E:
     def test_positions_htmx(self):
         """测试持仓列表 HTMX"""
         # 添加 HTMX 请求头
-        response = self.client.get('/dashboard/api/positions/', HTTP_HX_REQUEST='true')
+        response = self.client.get('/api/dashboard/positions/', HTTP_HX_REQUEST='true')
 
         # HTMX 请求应该返回内容
         assert response.status_code == 200

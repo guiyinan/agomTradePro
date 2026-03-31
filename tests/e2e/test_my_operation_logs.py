@@ -79,7 +79,7 @@ class TestMyOperationLogs:
 
         client = Client()
         client.force_login(user_a)
-        response = client.get("/audit/api/operation-logs/?user_id=999999")
+        response = client.get("/api/audit/operation-logs/?user_id=999999")
 
         assert response.status_code == 200
         payload = response.json()

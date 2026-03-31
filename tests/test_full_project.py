@@ -179,7 +179,7 @@ class AgomTradeProBrowserTest:
 
         dashboard_pages = [
             ("/dashboard/", "主仪表板"),
-            ("/dashboard/api/positions/", "持仓列表API"),
+            ("/api/dashboard/positions/", "持仓列表API"),
         ]
 
         for url, name in dashboard_pages:
@@ -211,7 +211,7 @@ class AgomTradeProBrowserTest:
             ("/api/account/profile/", "账户Profile API"),
             ("/api/account/portfolios/", "投资组合API"),
             ("/policy/api/events/", "政策事件API"),
-            ("/dashboard/api/allocation/", "配置图表API"),
+            ("/api/dashboard/allocation/", "配置图表API"),
         ]
 
         for url, name in api_endpoints:
