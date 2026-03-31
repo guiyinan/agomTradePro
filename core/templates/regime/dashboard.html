@@ -691,43 +691,4 @@ if (typeof echarts !== 'undefined') {
 <!-- Teaching Modal Template -->
 {% include "dashboard/teaching_modal.html" %}
 
-<!-- Onboarding Overlay -->
-<div id="onboardingOverlay" class="onboarding-overlay" style="display: none;">
-    <div class="onboarding-dialog">
-        <h3>欢迎使用 Regime Navigator! 🧭</h3>
-        <p>AgomTradePro 的核心决策系统。系统会根据当前宏观环境 (Regime)，自动调整界面色调：</p>
-        <ul style="text-align: left; margin: 15px 0 20px 0; list-style: none; padding-left: 10px;">
-            <li><span style="color:#10B981; font-size: 1.2em;">●</span> 绿：复苏 (Recovery)</li>
-            <li><span style="color:#EF4444; font-size: 1.2em;">●</span> 红：过热 (Overheat)</li>
-            <li><span style="color:#F59E0B; font-size: 1.2em;">●</span> 橘：滞胀 (Stagflation)</li>
-            <li><span style="color:#3B82F6; font-size: 1.2em;">●</span> 蓝：通缩 (Deflation)</li>
-        </ul>
-        <button onclick="closeOnboarding()" class="btn" style="background:var(--color-primary); color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">开始探索</button>
-    </div>
-</div>
-<style>
-    .onboarding-overlay {
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.6); z-index: 10000;
-        display: flex; align-items: center; justify-content: center;
-        backdrop-filter: blur(4px);
-    }
-    .onboarding-dialog {
-        background: var(--bg-panel); padding: 30px; border-radius: 12px;
-        max-width: 400px; text-align: center; color: var(--text-primary);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    }
-</style>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        if (!localStorage.getItem("regime_onboarding_done")) {
-            document.getElementById("onboardingOverlay").style.display = "flex";
-        }
-    });
-    function closeOnboarding() {
-        localStorage.setItem("regime_onboarding_done", "true");
-        document.getElementById("onboardingOverlay").style.display = "none";
-    }
-</script>
-
 {% endblock %}
