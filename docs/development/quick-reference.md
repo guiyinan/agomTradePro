@@ -297,7 +297,7 @@ mypy apps/ --strict
 |------|------|
 | `/ops/` | Operations Center（替代高频 Admin 入口） |
 | `/policy/events/new/` | 新增政策事件 |
-| `/policy/rss/manage/new/` | 新增 RSS 源 |
+| `/policy/rss/sources/new/` | 新增 RSS 源 |
 | `/policy/rss/keywords/new/` | 新增关键词规则 |
 | `/macro/datasources/new/` | 新增数据源配置 |
 
@@ -524,3 +524,4 @@ pip install -r requirements.txt
 | `module-dependency-graph.md` | 模块依赖关系图 |
 | `AgomTradePro_V3.4.md` | 业务需求文档 |
 | `CLAUDE.md` | 项目开发规则 |
+

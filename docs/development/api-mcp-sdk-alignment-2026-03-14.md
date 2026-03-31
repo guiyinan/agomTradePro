@@ -13,7 +13,7 @@
 
 1. SDK 与 MCP 只面向 canonical API 路径。
 2. canonical API 路径优先使用 `/api/{module}/...`。
-3. 若系统保留 `/{module}/api/...` 兼容入口，视为页面/历史兼容，不作为 SDK/MCP 契约。
+3. 预发布阶段已移除 `/{module}/api/...`、`/api/{module}/api/...` 等历史兼容入口。
 4. 本地 MCP 与生产 MCP 必须拆成两个 server 名，不允许通过改同一个 server 的 `BASE_URL` 切环境。
 5. 本地调试时，`127.0.0.1:8000` 只能保留一套 Django 进程。
 
@@ -25,16 +25,16 @@
 | pulse | `/api/pulse/current/` | Pulse canonical 读入口；历史与计算分别使用 `/api/pulse/history/`、`/api/pulse/calculate/` |
 | policy | `/api/policy/` | SDK/MCP 不再走 `/policy/...` |
 | macro | `/api/macro/` | 历史 module-first 前缀已废弃 |
-| account | `/api/account/` | 历史 module-first 前缀仅保留兼容 |
-| filter | `/api/filter/` | 历史 module-first 前缀仅保留兼容 |
-| backtest | `/api/backtest/` | 历史 module-first 前缀仅保留兼容 |
-| ai_provider | `/api/ai/` | 历史 module-first 前缀仅保留兼容 |
-| prompt | `/api/prompt/` | 历史 module-first 前缀仅保留兼容 |
-| strategy | `/api/strategy/` | 历史 module-first 前缀仅保留兼容 |
-| simulated_trading | `/api/simulated-trading/` | 历史 module-first 前缀仅保留兼容 |
+| account | `/api/account/` | 旧 module-first 前缀已移除 |
+| filter | `/api/filter/` | 旧 module-first 前缀已移除 |
+| backtest | `/api/backtest/` | 页面旧别名如 `/backtest/list/` 已移除 |
+| ai_provider | `/api/ai/` | 页面旧别名已移除 |
+| prompt | `/api/prompt/` | 仅保留 canonical |
+| strategy | `/api/strategy/` | 仅保留 canonical |
+| simulated_trading | `/api/simulated-trading/` | 下划线旧路径已移除 |
 | realtime | `/api/realtime/` | root 不再重定向到子路径 |
 | system | `/api/system/` | task monitor root 已补齐 |
-| events | `/api/events/` | 历史 module-first 前缀仅保留兼容 |
+| events | `/api/events/` | 页面式旧路径 `/events/*` 已移除 |
 | dashboard | `/api/dashboard/` | 历史 module-first 前缀仅保留兼容 |
 | fund | `/api/fund/` | 读取 `rank/info/nav/holding/style` |
 | sector | `/api/sector/` | 当前对外可用入口为 `rotation/` |
@@ -44,7 +44,7 @@
 | backtest | `/api/backtest/` | `api/backtests/` 与 `api/run/` 为当前挂载结果 |
 | equity | `/api/equity/` | valuation repair config 已对齐 |
 | market_data | `/api/market-data/` | MCP 外部市场数据链已打通 |
-| audit | `/api/audit/` | 历史页面式前缀仅保留兼容 |
+| audit | `/api/audit/` | 历史页面式前缀已移除 |
 | decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
 
 其中 redesign 相关新增 canonical 端点为：
@@ -59,16 +59,16 @@
 
 ## 已修复的典型错配
 
-- macro SDK: 历史 module-first 前缀 -> `/api/macro/*`
-- account SDK: 历史 module-first 前缀 -> `/api/account/*`
-- filter SDK: 历史 module-first 前缀 -> `/api/filter/*`
-- backtest SDK: 历史 module-first 前缀 -> `/api/backtest/*`
-- ai provider SDK: 历史 module-first 前缀 -> `/api/ai/*`
-- prompt SDK: 历史 module-first 前缀 -> `/api/prompt/*`
-- strategy SDK: 历史 module-first 前缀 -> `/api/strategy/*`
-- simulated trading SDK: 历史 module-first 前缀 -> `/api/simulated-trading/*`
-- events SDK: 历史 module-first 前缀 -> `/api/events/*`
-- dashboard SDK: 历史 module-first 前缀 -> `/api/dashboard/*`
+- macro SDK: 历史 module-first 前缀已清理，只保留 `/api/macro/*`
+- account SDK: 历史 module-first 前缀已清理，只保留 `/api/account/*`
+- filter SDK: 历史 module-first 前缀已清理，只保留 `/api/filter/*`
+- backtest SDK: 历史页面/API 别名已清理，只保留 `/api/backtest/*`
+- ai provider SDK: 历史 module-first 前缀已清理，只保留 `/api/ai/*`
+- prompt SDK: 历史 module-first 前缀已清理，只保留 `/api/prompt/*`
+- strategy SDK: 历史 module-first 前缀已清理，只保留 `/api/strategy/*`
+- simulated trading SDK: 历史下划线与 module-first 前缀已清理，只保留 `/api/simulated-trading/*`
+- events SDK: 历史页面式别名已清理，只保留 `/api/events/*`
+- dashboard SDK: 历史页面式别名已清理，只保留 `/api/dashboard/*`
 - policy SDK: `/policy/...` -> `/api/policy/...`
 - fund SDK: 历史 `funds/*` -> 当前 `rank/info/nav/holding/style`
 - sector SDK: 历史 `sectors/*` -> 当前 `rotation/`
@@ -128,9 +128,7 @@ Rotation、Sector 等依赖当前 regime 的模块，统一使用：
 - `AGOMTRADEPRO_BASE_URL`
 - `AGOMTRADEPRO_API_TOKEN`
 
-兼容历史调用时，也可额外提供：
-
-- `AGOMTRADEPRO_API_BASE_URL`
+`AGOMTRADEPRO_API_BASE_URL` 仅作为环境变量兼容读取，不代表系统继续支持旧 HTTP 路径。
 
 ## 本地运行约束
 

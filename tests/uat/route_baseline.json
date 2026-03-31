@@ -7,9 +7,9 @@
   "page_route_corrections": {
     "/macro/indicator/": "/macro/data/",
     "/regime/state/": "/regime/dashboard/",
-    "/signal/list/": "/signal/manage/",
+    "/signal/manage/": "/signal/manage/",
     "/policy/manage/": "/policy/workbench/",
-    "/backtest/history/": "/backtest/",
+    "/backtest/": "/backtest/",
     "/simulated-trading/positions/": "/simulated-trading/my-accounts/",
     "/filter/manage/": "/filter/dashboard/",
     "/sector/analysis/": "/sector/",
@@ -46,3 +46,4 @@
     "/api/system/list/"
   ]
 }
+

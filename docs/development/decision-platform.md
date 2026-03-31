@@ -274,9 +274,10 @@ class CooldownPeriod:
 | 方法 | 路径 | 描述 |
 |------|------|------|
 | POST | `/api/decision-workflow/precheck/` | 决策预检查 |
-| POST | `/api/decision-workflow/check-beta-gate/` | 检查 Beta Gate |
-| POST | `/api/decision-workflow/check-quota/` | 检查配额状态 |
-| POST | `/api/decision-workflow/check-cooldown/` | 检查冷却期 |
+| GET | `/api/decision/workspace/recommendations/` | 获取统一推荐列表 |
+| POST | `/api/decision/workspace/recommendations/refresh/` | 刷新统一推荐 |
+| POST | `/api/decision/workspace/recommendations/action/` | 记录用户对推荐的动作 |
+| GET | `/api/decision/funnel/context/` | 获取决策漏斗上下文 |
 
 ---
 

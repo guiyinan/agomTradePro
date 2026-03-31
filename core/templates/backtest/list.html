@@ -128,22 +128,15 @@ async function rerunBacktest(backtestId) {
     if (!await window.uiConfirm('确定要重新运行此回测吗？', { title: '重新运行回测' })) return;
 
     try {
-        const response = await fetch(`/api/backtest/backtests/${backtestId}/rerun/`, {
+        await window.fetchJsonOrThrow(`/api/backtest/backtests/${backtestId}/rerun/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken'),
             }
         });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            alert('回测已重新启动');
-            location.reload();
-        } else {
-            alert('操作失败：' + (data.error || '未知错误'));
-        }
+        alert('回测已重新启动');
+        location.reload();
     } catch (error) {
         alert('请求失败：' + error.message);
     }
@@ -162,13 +155,9 @@ async function deleteBacktest(backtestId, backtestName) {
             }
         });
 
-        if (response.ok) {
-            alert('回测已删除');
-            location.reload();
-        } else {
-            const data = await response.json();
-            alert('删除失败：' + (data.error || '未知错误'));
-        }
+        await window.assertOkResponse(response);
+        alert('回测已删除');
+        location.reload();
     } catch (error) {
         alert('请求失败：' + error.message);
     }

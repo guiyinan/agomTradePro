@@ -472,8 +472,10 @@ function setupEventListeners() {
 // 加载提供商列表
 async function loadProviders() {
     try {
-        const response = await fetch(API_BASE);
-        const providers = await response.json();
+        const providers = await window.fetchJsonOrThrow(API_BASE);
+        if (!Array.isArray(providers)) {
+            throw new Error('Provider list response was not an array');
+        }
         renderProviders(providers);
     } catch (error) {
         console.error('加载提供商列表失败:', error);
@@ -487,6 +489,10 @@ async function loadProviders() {
 
 // 渲染提供商列表
 function renderProviders(providers) {
+    if (!Array.isArray(providers)) {
+        throw new Error('Provider list response was not an array');
+    }
+
     if (providers.length === 0) {
         providersContainer.innerHTML = `
             <div class="card" style="text-align: center; padding: 40px;">
@@ -584,13 +590,12 @@ function getProviderTypeLabel(type) {
 // 加载总体统计
 async function loadOverallStats() {
     try {
-        const response = await fetch(`${API_BASE}overall_stats/`);
-        const stats = await response.json();
+        const stats = await window.fetchJsonOrThrow(`${API_BASE}overall_stats/`);
 
-        document.getElementById('stat-total-providers').textContent = stats.total_providers;
-        document.getElementById('stat-active-providers').textContent = stats.active_providers;
-        document.getElementById('stat-today-requests').textContent = stats.total_requests_today;
-        document.getElementById('stat-today-cost').textContent = '$' + stats.total_cost_today.toFixed(4);
+        document.getElementById('stat-total-providers').textContent = stats.total_providers ?? 0;
+        document.getElementById('stat-active-providers').textContent = stats.active_providers ?? 0;
+        document.getElementById('stat-today-requests').textContent = stats.total_requests_today ?? 0;
+        document.getElementById('stat-today-cost').textContent = '$' + Number(stats.total_cost_today ?? 0).toFixed(4);
     } catch (error) {
         console.error('加载统计失败:', error);
     }
@@ -723,8 +728,7 @@ async function handleSubmit(e) {
 // 编辑提供商
 async function editProvider(id) {
     try {
-        const response = await fetch(`${API_BASE}${id}/`);
-        const provider = await response.json();
+        const provider = await window.fetchJsonOrThrow(`${API_BASE}${id}/`);
         openProviderModal(provider);
     } catch (error) {
         console.error('加载提供商详情失败:', error);

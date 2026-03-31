@@ -190,11 +190,11 @@ class AgomTradeProBrowserTest:
         print("\n=== 测试政策管理 ===")
 
         policy_pages = [
-            ("/policy/dashboard/", "政策仪表板"),
+            ("/policy/workbench/", "政策仪表板"),
             ("/policy/events/", "政策事件列表"),
             ("/policy/status/", "政策状态"),
             ("/policy/audit/queue/", "审计队列"),
-            ("/policy/rss/manage/", "RSS管理"),
+            ("/policy/rss/sources/", "RSS管理"),
             ("/policy/rss/reader/", "RSS阅读器"),
         ]
 
@@ -208,8 +208,8 @@ class AgomTradeProBrowserTest:
         api_endpoints = [
             ("/api/schema/", "OpenAPI Schema"),
             ("/api/docs/", "Swagger UI"),
-            ("/account/api/profile/", "账户Profile API"),
-            ("/account/api/portfolios/", "投资组合API"),
+            ("/api/account/profile/", "账户Profile API"),
+            ("/api/account/portfolios/", "投资组合API"),
             ("/policy/api/events/", "政策事件API"),
             ("/dashboard/api/allocation/", "配置图表API"),
         ]
@@ -458,3 +458,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+

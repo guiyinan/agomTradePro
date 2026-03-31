@@ -1136,7 +1136,7 @@ async function bootstrapWorkspaceBridge() {
     showBridgeBanner(`正在将 ${workspaceBridge.securityCode} 同步到决策工作台...`);
 
     try {
-        const refreshRes = await fetch('/api/decision/workspace/recommendations/refresh/', {
+        const refreshData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/refresh/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1148,16 +1148,14 @@ async function bootstrapWorkspaceBridge() {
                 force: false,
             }),
         });
-        const refreshData = await refreshRes.json();
         if (!refreshData.success) {
             throw new Error(refreshData.error || '刷新失败');
         }
 
         let listUrl = `/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&security_code=${encodeURIComponent(workspaceBridge.securityCode)}&include_ignored=true`;
-        const listRes = await fetch(listUrl, {
+        const listData = await window.fetchJsonOrThrow(listUrl, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const listData = await listRes.json();
         const targetRecommendation = listData?.data?.recommendations?.[0];
 
         if (!targetRecommendation) {
@@ -1169,7 +1167,7 @@ async function bootstrapWorkspaceBridge() {
         workspaceBridge.highlightedRecommendationId = targetRecommendation.recommendation_id;
 
         if (workspaceBridge.action) {
-            const actionRes = await fetch('/api/decision/workspace/recommendations/action/', {
+            const actionData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/action/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1182,7 +1180,6 @@ async function bootstrapWorkspaceBridge() {
                     note: workspaceBridge.source ? `source=${workspaceBridge.source}` : '',
                 }),
             });
-            const actionData = await actionRes.json();
             if (!actionData.success) {
                 throw new Error(actionData.error || '用户动作写入失败');
             }
@@ -1235,10 +1232,9 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 // ===== 加载用户账户 =====
 async function loadUserAccounts() {
     try {
-        const res = await fetch('/api/simulated-trading/accounts/?active_only=false', {
+        const data = await window.fetchJsonOrThrow('/api/simulated-trading/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const data = await res.json();
 
         if (data.success && Array.isArray(data.accounts)) {
             userAccounts = data.accounts;
@@ -1297,10 +1293,9 @@ async function loadRecommendations() {
         if (workspaceBridge.securityCode) params.append('security_code', workspaceBridge.securityCode);
         if (params.toString()) url += '?' + params.toString();
 
-        const res = await fetch(url, {
+        const data = await window.fetchJsonOrThrow(url, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const data = await res.json();
 
         if (data.success && data.data) {
             const recommendations = data.data.recommendations || [];
@@ -1316,7 +1311,7 @@ async function loadRecommendations() {
             ) {
                 recommendationAutoRefreshAttempts.add(accountId || 'default');
                 try {
-                    const refreshRes = await fetch('/api/decision/workspace/recommendations/refresh/', {
+                    const refreshData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/refresh/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1327,7 +1322,6 @@ async function loadRecommendations() {
                             force: true,
                         })
                     });
-                    const refreshData = await refreshRes.json();
                     if (refreshData.success) {
                         return loadRecommendations();
                     }
@@ -1536,7 +1530,7 @@ async function applyRecommendationAction(recommendationId, action) {
     const accountId = getSelectedWorkspaceAccountId();
 
     try {
-        const res = await fetch('/api/decision/workspace/recommendations/action/', {
+        const data = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/action/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1548,7 +1542,6 @@ async function applyRecommendationAction(recommendationId, action) {
                 action: action,
             }),
         });
-        const data = await res.json();
 
         if (!data.success) {
             throw new Error(data.error || '写入用户动作失败');
@@ -1597,10 +1590,9 @@ async function loadTransitionPlanStep() {
     ordersContainer.innerHTML = summaryContainer.innerHTML;
 
     try {
-        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+        const payload = await window.fetchJsonOrThrow(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const payload = await response.json();
         if (!payload.success || !payload.data) {
             throw new Error(payload.error || '加载交易计划失败');
         }
@@ -1707,7 +1699,7 @@ async function generateTransitionPlan() {
             }
             body.recommendation_ids = eligibleRecommendationIds;
         }
-        const response = await fetch('/api/decision/workspace/plans/generate/', {
+        const payload = await window.fetchJsonOrThrow('/api/decision/workspace/plans/generate/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1715,7 +1707,6 @@ async function generateTransitionPlan() {
             },
             body: JSON.stringify(body),
         });
-        const payload = await response.json();
         if (!payload.success || !payload.data) {
             throw new Error(payload.error || '生成交易计划失败');
         }
@@ -1763,10 +1754,9 @@ function getPlanOrderRow(recommendationId, securityCode) {
 
 async function fetchRecommendationById(recommendationId) {
     const accountId = getSelectedWorkspaceAccountId();
-    const response = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}&include_ignored=true`, {
+    const payload = await window.fetchJsonOrThrow(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}&include_ignored=true`, {
         headers: { 'X-CSRFToken': window.csrfToken }
     });
-    const payload = await response.json();
     if (!payload.success || !payload.data?.recommendations?.length) {
         return null;
     }
@@ -1782,7 +1772,7 @@ async function applySystemInvalidationTemplate(recommendationId, securityCode, a
     try {
         const recommendation = await fetchRecommendationById(recommendationId);
         const side = action === 'BUY' ? 'BUY' : 'SELL';
-        const response = await fetch('/api/decision/workspace/invalidation/template/', {
+        const payload = await window.fetchJsonOrThrow('/api/decision/workspace/invalidation/template/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1794,7 +1784,6 @@ async function applySystemInvalidationTemplate(recommendationId, securityCode, a
                 rationale: recommendation?.human_rationale || '',
             }),
         });
-        const payload = await response.json();
         if (!payload.success || !payload.data?.template) {
             throw new Error(payload.error || '生成系统模板失败');
         }
@@ -1829,7 +1818,7 @@ async function generateAIInvalidationDraft(recommendationId, securityCode, actio
             };
         }
         const userPrompt = row.querySelector('[data-plan-ai-prompt]')?.value || '';
-        const response = await fetch('/api/decision/workspace/invalidation/ai-draft/', {
+        const payload = await window.fetchJsonOrThrow('/api/decision/workspace/invalidation/ai-draft/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1843,7 +1832,6 @@ async function generateAIInvalidationDraft(recommendationId, securityCode, actio
                 existing_rule: existingRule,
             }),
         });
-        const payload = await response.json();
         if (!payload.success || !payload.data?.draft) {
             throw new Error(payload.error || 'AI 生成失败');
         }
@@ -1865,7 +1853,7 @@ async function saveTransitionPlan() {
     }
 
     try {
-        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/update/`, {
+        const payload = await window.fetchJsonOrThrow(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/update/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1873,7 +1861,6 @@ async function saveTransitionPlan() {
             },
             body: JSON.stringify(collectTransitionPlanPayload()),
         });
-        const payload = await response.json();
         if (!payload.success || !payload.data) {
             throw new Error(payload.error || '保存交易计划失败');
         }
@@ -1892,7 +1879,7 @@ async function submitTransitionPlanForApproval() {
     await saveTransitionPlan();
 
     try {
-        const response = await fetch('/api/decision/execute/preview/', {
+        const payload = await window.fetchJsonOrThrow('/api/decision/execute/preview/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1904,7 +1891,6 @@ async function submitTransitionPlanForApproval() {
                 account_id: getSelectedWorkspaceAccountId(),
             }),
         });
-        const payload = await response.json();
         if (!payload.success) {
             throw new Error(payload.error || '创建审批请求失败');
         }
@@ -1938,10 +1924,9 @@ async function loadExecutionPlanPanel() {
 
     container.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">加载中...</p></div>';
     try {
-        const response = await fetch(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
+        const payload = await window.fetchJsonOrThrow(`/api/decision/workspace/plans/${encodeURIComponent(currentTransitionPlanId)}/`, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const payload = await response.json();
         if (!payload.success || !payload.data) {
             throw new Error(payload.error || '加载审批面板失败');
         }
@@ -1985,7 +1970,7 @@ async function approveCurrentTransitionPlan() {
     }
 
     try {
-        const response = await fetch('/api/decision/execute/approve/', {
+        const payload = await window.fetchJsonOrThrow('/api/decision/execute/approve/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1996,7 +1981,6 @@ async function approveCurrentTransitionPlan() {
                 reviewer_comments: reviewerComments,
             }),
         });
-        const payload = await response.json();
         if (!payload.success) {
             throw new Error(payload.error || '审批失败');
         }
@@ -2019,7 +2003,7 @@ async function rejectCurrentTransitionPlan() {
     }
 
     try {
-        const response = await fetch('/api/decision/execute/reject/', {
+        const payload = await window.fetchJsonOrThrow('/api/decision/execute/reject/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2030,7 +2014,6 @@ async function rejectCurrentTransitionPlan() {
                 reviewer_comments: reviewerComments,
             }),
         });
-        const payload = await response.json();
         if (!payload.success) {
             throw new Error(payload.error || '拒绝失败');
         }
@@ -2064,10 +2047,9 @@ async function loadApprovals() {
         params.append('status', 'APPROVED');
         if (params.toString()) url += '?' + params.toString();
 
-        const res = await fetch(url, {
+        const data = await window.fetchJsonOrThrow(url, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const data = await res.json();
 
         if (data.success && data.data) {
             renderApprovals(data.data.recommendations || [], data.data.total_count || 0);
@@ -2156,10 +2138,9 @@ async function loadConflicts() {
         params.append('account_id', accountId || 'default');
         if (params.toString()) url += '?' + params.toString();
 
-        const res = await fetch(url, {
+        const data = await window.fetchJsonOrThrow(url, {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
-        const data = await res.json();
 
         if (data.success && data.data) {
             renderConflicts(data.data.conflicts || [], data.data.total_count || 0);
@@ -2241,7 +2222,7 @@ async function refreshRecommendations() {
     btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> 刷新中...';
 
     try {
-        const res = await fetch('/api/decision/workspace/recommendations/refresh/', {
+        const data = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/refresh/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2251,7 +2232,6 @@ async function refreshRecommendations() {
                 account_id: getSelectedWorkspaceAccountId()
             })
         });
-        const data = await res.json();
 
         if (data.success) {
             window.showToast('推荐已刷新', 'success');
@@ -2275,10 +2255,9 @@ async function openApprovalModal(recommendationId) {
     if (typeof recommendationId === 'string') {
         try {
             const accountId = getSelectedWorkspaceAccountId();
-            const res = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}`, {
+            const data = await window.fetchJsonOrThrow(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}`, {
                 headers: { 'X-CSRFToken': window.csrfToken }
             });
-            const data = await res.json();
 
             if (data.success && data.data && data.data.recommendations && data.data.recommendations.length > 0) {
                 currentRecommendation = data.data.recommendations[0];
@@ -2429,7 +2408,7 @@ async function loadExecutionPreview() {
     riskChecksContainer.innerHTML = '<div class="risk-check-loading">检查中...</div>';
 
     try {
-        const res = await fetch('/api/decision/execute/preview/', {
+        const data = await window.fetchJsonOrThrow('/api/decision/execute/preview/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2441,7 +2420,6 @@ async function loadExecutionPreview() {
                 account_id: getSelectedWorkspaceAccountId()
             })
         });
-        const data = await res.json();
 
         if (data.success && data.data) {
             renderRiskChecks(data.data.risk_checks || {});

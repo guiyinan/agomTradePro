@@ -86,7 +86,6 @@ def api_root_view(request):
                 "hedge": "/api/hedge/",
                 "macro": "/api/macro/",
                 "policy": "/api/policy/",
-                "portfolio": "/api/portfolio/",
                 "prompt": "/api/prompt/",
                 "pulse": "/api/pulse/",
                 "realtime": "/api/realtime/",
@@ -96,7 +95,6 @@ def api_root_view(request):
                 "market-data": "/api/market-data/",
                 "sentiment": "/api/sentiment/",
                 "signal": "/api/signal/",
-                "signals": "/api/signals/",
                 "simulated-trading": "/api/simulated-trading/",
                 "strategy": "/api/strategy/",
                 "share": "/api/share/",
@@ -137,12 +135,6 @@ core_patterns = [
     path("chat-example/", chat_example_view, name="chat-example"),
     path("terminal/", terminal_view, name="terminal"),
     path("terminal/config/", terminal_config_view, name="terminal-config"),
-    # 301 重定向旧页面到统一工作台
-    path(
-        "policy/dashboard/",
-        RedirectView.as_view(url="/policy/workbench/", permanent=True),
-        name="policy-dashboard",
-    ),
     path("asset-analysis/screen/", asset_screen_view, name="asset-screen"),
     path("decision/workspace/", decision_workspace_view, name="decision-workspace"),
     
@@ -169,29 +161,6 @@ core_patterns = [
     # More specific pattern must come first.
     path("docs/<str:doc_slug>/", docs_view, name="docs-detail"),
     path("docs/", docs_view, name="docs"),
-    # 301 重定向 sentiment 旧页面
-    path(
-        "sentiment/dashboard/",
-        RedirectView.as_view(url="/policy/workbench/", permanent=True),
-        name="sentiment-dashboard-redirect",
-    ),
-    path(
-        "sentiment/analyze/",
-        RedirectView.as_view(url="/policy/workbench/", permanent=True),
-        name="sentiment-analyze-redirect",
-    ),
-    # Legacy page-path compatibility aliases (prevent 404 from historical links/bookmarks)
-    path(
-        "simulated_trading/my-accounts/",
-        RedirectView.as_view(url="/simulated-trading/my-accounts/", permanent=False),
-        name="simulated-trading-legacy-my-accounts",
-    ),
-    path("ai/manage/", RedirectView.as_view(url="/ai/", permanent=False), name="ai-manage-legacy"),
-    path(
-        "sector/dashboard/",
-        RedirectView.as_view(url="/sector/", permanent=False),
-        name="sector-dashboard-legacy",
-    ),
 ]
 
 admin_docs_patterns = [
@@ -318,19 +287,8 @@ module_patterns = [
     path(
         "api/signal/", include(("apps.signal.interface.api_urls", "signal"), namespace="api_signal")
     ),
-    # P2: Signal 模块（复数别名）
-    path(
-        "api/signals/",
-        include(("apps.signal.interface.api_urls", "signal"), namespace="api_signals"),
-    ),
     # P2: Macro 模块
     path("api/macro/", include(("apps.macro.interface.api_urls", "macro"), namespace="api_macro")),
-    # P2: Macro indicators 别名
-    path(
-        "api/macro/indicators/",
-        RedirectView.as_view(url="/api/macro/supported-indicators/", permanent=False),
-        name="api-macro-indicators",
-    ),
     # P2: Filter 模块
     path(
         "api/filter/",
@@ -430,12 +388,6 @@ module_patterns = [
     ),
     # Share public routes
     path("", include(("apps.share.interface.urls", "share"), namespace="share")),
-    # Portfolio API routes (alias for simulated-trading accounts)
-    path(
-        "api/portfolio/",
-        RedirectView.as_view(url="/api/simulated-trading/accounts/", permanent=False),
-        name="api-portfolio",
-    ),
     # ========== AI-native Agent Runtime (M1) ==========
     path(
         "api/agent-runtime/",

@@ -123,7 +123,7 @@ class UATRunner:
                 "/macro/data/": {200},
                 "/regime/dashboard/": {200},
                 "/signal/manage/": {200},
-                "/policy/manage/": {301, 302},
+                "/policy/workbench/": {301, 302},
                 "/equity/screen/": {200},
                 "/fund/dashboard/": {200},
                 "/asset-analysis/screen/": {200},
@@ -483,3 +483,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

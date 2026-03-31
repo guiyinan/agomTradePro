@@ -6,6 +6,7 @@ Page Views for AI Provider Management.
 """
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -20,6 +21,7 @@ from ...infrastructure.models import AIProviderConfig
 from ..forms import AIProviderConfigForm
 
 
+@login_required(login_url="/account/login/")
 def ai_manage_view(request):
     """
     AI接口管理页面
@@ -69,6 +71,7 @@ def ai_manage_view(request):
     return render(request, 'ai_provider/manage.html', context)
 
 
+@login_required(login_url="/account/login/")
 def ai_usage_logs_view(request):
     """
     AI调用日志页面
@@ -108,6 +111,7 @@ def ai_usage_logs_view(request):
     return render(request, 'ai_provider/usage_logs.html', context)
 
 
+@login_required(login_url="/account/login/")
 def ai_provider_detail_view(request, provider_id):
     """
     AI提供商详情页面
@@ -152,6 +156,7 @@ def ai_provider_detail_view(request, provider_id):
     return render(request, 'ai_provider/detail.html', context)
 
 
+@login_required(login_url="/account/login/")
 def ai_provider_edit_view(request, provider_id):
     """
     AI 提供商编辑页面（非 Admin）。

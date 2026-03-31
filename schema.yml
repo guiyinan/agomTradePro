@@ -3945,36 +3945,6 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/alpha/stocks/:
-    get:
-      operationId: api_alpha_stocks_get
-      description: |-
-        获取股票评分
-
-        GET /api/alpha/scores/
-
-        Query Parameters:
-            universe: 股票池标识（默认 csi300）
-            trade_date: 交易日期（ISO 格式，默认今天）
-            top_n: 返回前 N 只（默认 30，最大 500）
-            provider: 强制使用指定 Provider（qlib/cache/simple/etf），留空则自动降级
-
-        Returns:
-            {
-                "success": true,
-                "source": "cache",
-                "status": "available",
-                "stocks": [...],
-                ...
-            }
-      tags:
-      - alpha
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
   /api/alpha/universes/:
     get:
       operationId: api_alpha_universes_get
@@ -7220,6 +7190,20 @@ paths:
         '200':
           description: No response body
   /api/filter/:
+    get:
+      operationId: api_filter_get
+      description: |-
+        获取 Filter API 根信息
+
+        GET /api/filter/
+      tags:
+      - filter
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
     post:
       operationId: api_filter_post
       description: |-
@@ -8141,6 +8125,81 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/macro/datasources/:
+    get:
+      operationId: api_macro_datasources_get
+      description: List or create datasource configs.
+      tags:
+      - macro
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_macro_datasources_post
+      description: List or create datasource configs.
+      tags:
+      - macro
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/macro/datasources/{source_id}/:
+    get:
+      operationId: api_macro_datasources_by_source_id_get
+      description: Retrieve or update a datasource config.
+      parameters:
+      - in: path
+        name: source_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - macro
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: api_macro_datasources_by_source_id_put
+      description: Retrieve or update a datasource config.
+      parameters:
+      - in: path
+        name: source_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - macro
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_macro_datasources_by_source_id_patch
+      description: Retrieve or update a datasource config.
+      parameters:
+      - in: path
+        name: source_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - macro
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/market-data/:
     get:
       operationId: api_market_data_get
@@ -8266,421 +8325,6 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/policy/api/rss/keywords/:
-    get:
-      operationId: api_policy_api_rss_keywords_get
-      description: 政策档位关键词规则API
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: 分页结果集中的页码。
-        schema:
-          type: integer
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedPolicyLevelKeywordList'
-          description: ''
-    post:
-      operationId: api_policy_api_rss_keywords_post
-      description: 政策档位关键词规则API
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PolicyLevelKeywordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PolicyLevelKeywordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PolicyLevelKeywordRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PolicyLevelKeyword'
-          description: ''
-  /api/policy/api/rss/keywords/{id}/:
-    get:
-      operationId: api_policy_api_rss_keywords_by_id_get
-      description: 政策档位关键词规则API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PolicyLevelKeyword'
-          description: ''
-    put:
-      operationId: api_policy_api_rss_keywords_by_id_put
-      description: 政策档位关键词规则API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PolicyLevelKeywordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PolicyLevelKeywordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PolicyLevelKeywordRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PolicyLevelKeyword'
-          description: ''
-    patch:
-      operationId: api_policy_api_rss_keywords_by_id_patch
-      description: 政策档位关键词规则API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedPolicyLevelKeywordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedPolicyLevelKeywordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedPolicyLevelKeywordRequest'
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PolicyLevelKeyword'
-          description: ''
-    delete:
-      operationId: api_policy_api_rss_keywords_by_id_delete
-      description: 政策档位关键词规则API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/policy/api/rss/logs/:
-    get:
-      operationId: api_policy_api_rss_logs_get
-      description: RSS抓取日志API（只读）
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: 分页结果集中的页码。
-        schema:
-          type: integer
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedRSSFetchLogList'
-          description: ''
-  /api/policy/api/rss/logs/{id}/:
-    get:
-      operationId: api_policy_api_rss_logs_by_id_get
-      description: RSS抓取日志API（只读）
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSFetchLog'
-          description: ''
-  /api/policy/api/rss/sources/:
-    get:
-      operationId: api_policy_api_rss_sources_get
-      description: RSS源配置API
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: 分页结果集中的页码。
-        schema:
-          type: integer
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedRSSSourceConfigList'
-          description: ''
-    post:
-      operationId: api_policy_api_rss_sources_post
-      description: RSS源配置API
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigCreateRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSSourceConfigCreate'
-          description: ''
-  /api/policy/api/rss/sources/{id}/:
-    get:
-      operationId: api_policy_api_rss_sources_by_id_get
-      description: RSS源配置API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSSourceConfig'
-          description: ''
-    put:
-      operationId: api_policy_api_rss_sources_by_id_put
-      description: RSS源配置API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSSourceConfig'
-          description: ''
-    patch:
-      operationId: api_policy_api_rss_sources_by_id_patch
-      description: RSS源配置API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedRSSSourceConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedRSSSourceConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedRSSSourceConfigRequest'
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSSourceConfig'
-          description: ''
-    delete:
-      operationId: api_policy_api_rss_sources_by_id_delete
-      description: RSS源配置API
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/policy/api/rss/sources/{id}/trigger_fetch/:
-    post:
-      operationId: api_policy_api_rss_sources_by_id_trigger_fetch_post
-      description: 手动触发抓取指定源
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSSourceConfig'
-          description: ''
-  /api/policy/api/rss/sources/fetch_all/:
-    post:
-      operationId: api_policy_api_rss_sources_fetch_all_post
-      description: 抓取所有启用的源
-      tags:
-      - policy
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/RSSSourceConfigRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RSSSourceConfig'
-          description: ''
   /api/policy/audit/auto_assign/:
     post:
       operationId: api_policy_audit_auto_assign_post
@@ -9016,30 +8660,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngestionConfig'
-          description: ''
-  /api/policy/level/:
-    get:
-      operationId: api_policy_level_get
-      description: 获取当前政策档位、响应配置和操作建议
-      summary: 获取当前政策状态
-      parameters:
-      - in: query
-        name: as_of_date
-        schema:
-          type: string
-          format: date
-        description: 截止日期 (YYYY-MM-DD)，默认为今天
-      tags:
-      - Policy
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PolicyStatus'
           description: ''
   /api/policy/rss/keywords/:
     get:
@@ -10403,6 +10023,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/PromptTemplate'
           description: ''
+  /api/pulse/:
+    get:
+      operationId: api_pulse_get
+      description: Return discoverable pulse API endpoints.
+      tags:
+      - pulse
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/pulse/calculate/:
     post:
       operationId: api_pulse_calculate_post
@@ -12906,495 +12538,6 @@ paths:
       description: Get signal summary for a date range
       tags:
       - signal
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/:
-    get:
-      operationId: api_signals_get
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: 分页结果集中的页码。
-        schema:
-          type: integer
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedInvestmentSignalList'
-          description: ''
-    post:
-      operationId: api_signals_post
-      description: 创建信号后统一返回标准输出结构。
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalCreateRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignalCreate'
-          description: ''
-  /api/signals/{id}/:
-    get:
-      operationId: api_signals_by_id_get
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-    put:
-      operationId: api_signals_by_id_put
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-    patch:
-      operationId: api_signals_by_id_patch
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedInvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedInvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedInvestmentSignalRequest'
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-    delete:
-      operationId: api_signals_by_id_delete
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '204':
-          description: No response body
-  /api/signals/{id}/approve/:
-    post:
-      operationId: api_signals_by_id_approve_post
-      description: 审批信号。
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-  /api/signals/{id}/invalidate/:
-    post:
-      operationId: api_signals_by_id_invalidate_post
-      description: 证伪信号。
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-  /api/signals/{id}/reject/:
-    post:
-      operationId: api_signals_by_id_reject_post
-      description: 拒绝信号。
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-  /api/signals/{id}/validate/:
-    post:
-      operationId: api_signals_by_id_validate_post
-      description: |-
-        验证信号准入状态
-
-        POST /api/signal/{id}/validate/
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-  /api/signals/check_eligibility/:
-    post:
-      operationId: api_signals_check_eligibility_post
-      description: |-
-        检查信号准入（不创建信号）
-
-        POST /api/signal/check_eligibility/
-        {
-            "asset_code": "ASSET_CODE",
-            "logic_desc": "PMI 回升，看好大盘",
-            "invalidation_logic": "PMI 跌破 50",
-            "invalidation_threshold": 49.5
-        }
-      tags:
-      - signals
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-  /api/signals/health/:
-    get:
-      operationId: api_signals_health_get
-      description: 检查 Signal 服务健康状态
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/stats/:
-    get:
-      operationId: api_signals_stats_get
-      description: |-
-        获取信号统计信息
-
-        GET /api/signal/stats/
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvestmentSignal'
-          description: ''
-  /api/signals/unified/:
-    get:
-      operationId: api_signals_unified_get
-      description: List unified signals
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/unified/{id}/execute/:
-    post:
-      operationId: api_signals_unified_by_id_execute_post
-      description: Mark a signal as executed
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/unified/by_asset/:
-    get:
-      operationId: api_signals_unified_by_asset_get
-      description: Get signals for a specific asset
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/unified/collect/:
-    post:
-      operationId: api_signals_unified_collect_post
-      description: Collect signals from all modules
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/unified/pending/:
-    get:
-      operationId: api_signals_unified_pending_get
-      description: Get pending (unexecuted) signals
-      tags:
-      - signals
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/signals/unified/summary/:
-    get:
-      operationId: api_signals_unified_summary_get
-      description: Get signal summary for a date range
-      tags:
-      - signals
       security:
       - cookieAuth: []
       - tokenAuth: []

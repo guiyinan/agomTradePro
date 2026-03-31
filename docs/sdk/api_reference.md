@@ -247,11 +247,17 @@ client.alpha_trigger.update_candidate_status(candidate_id, status) -> dict
 
 ```python
 client.decision_rhythm.list_quotas() -> list[dict]
+client.decision_rhythm.list_cooldowns() -> list[dict]
 client.decision_rhythm.list_requests() -> list[dict]
 client.decision_rhythm.submit(payload) -> dict
 client.decision_rhythm.submit_batch(payload) -> dict
 client.decision_rhythm.summary(payload=None) -> dict
+client.decision_rhythm.trend_data(payload=None) -> dict
 client.decision_rhythm.reset_quota(payload) -> dict
+client.decision_rhythm.update_quota(payload) -> dict
+client.decision_rhythm.execute_request(request_id, payload) -> dict
+client.decision_rhythm.cancel_request(request_id, reason=None) -> dict
+client.decision_rhythm.get_request(request_id) -> dict
 ```
 
 ### Decision Workflow Module

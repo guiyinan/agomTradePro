@@ -117,7 +117,7 @@ class TestObserverGrantE2E:
             'observer_user_id': data['user_b'].id,
         }
 
-        grant_response = api_client.post('/account/api/observer-grants/', grant_payload)
+        grant_response = api_client.post('/api/account/observer-grants/', grant_payload)
 
         assert grant_response.status_code == 201
         grant_id = grant_response.data['data']['id']
@@ -126,25 +126,25 @@ class TestObserverGrantE2E:
         # 步骤 2：B 登录并查看 A 的投资组合
         api_client.force_authenticate(user=data['user_b'])
 
-        portfolio_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        portfolio_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
 
         assert portfolio_response.status_code == 200
         assert portfolio_response.data['name'] == '用户A的组合'
 
         # 步骤 3：B 查看持仓列表
-        positions_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/positions/')
+        positions_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/positions/')
 
         assert positions_response.status_code == 200
         assert positions_response.data['count'] == 1
 
         # 步骤 4：B 查看持仓详情
-        position_response = api_client.get(f'/account/api/positions/{data["position_a"].id}/')
+        position_response = api_client.get(f'/api/account/positions/{data["position_a"].id}/')
 
         assert position_response.status_code == 200
         assert position_response.data['asset_code'] == '000001.SZ'
 
         # 步骤 5：B 查看统计信息
-        stats_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/statistics/')
+        stats_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/statistics/')
 
         assert stats_response.status_code == 200
         assert 'total_value' in stats_response.data
@@ -174,7 +174,7 @@ class TestObserverGrantE2E:
             'avg_cost': 20.00,
         }
 
-        create_response = api_client.post('/account/api/positions/', create_payload)
+        create_response = api_client.post('/api/account/positions/', create_payload)
         assert create_response.status_code == 403
 
         # 尝试更新持仓
@@ -183,17 +183,17 @@ class TestObserverGrantE2E:
         }
 
         update_response = api_client.patch(
-            f'/account/api/positions/{data["position_a"].id}/',
+            f'/api/account/positions/{data["position_a"].id}/',
             update_payload
         )
         assert update_response.status_code == 403
 
         # 尝试平仓
-        close_response = api_client.post(f'/account/api/positions/{data["position_a"].id}/close/')
+        close_response = api_client.post(f'/api/account/positions/{data["position_a"].id}/close/')
         assert close_response.status_code == 403
 
         # 尝试删除持仓
-        delete_response = api_client.delete(f'/account/api/positions/{data["position_a"].id}/')
+        delete_response = api_client.delete(f'/api/account/positions/{data["position_a"].id}/')
         assert delete_response.status_code == 403
 
         # 尝试修改投资组合
@@ -202,7 +202,7 @@ class TestObserverGrantE2E:
         }
 
         portfolio_update_response = api_client.put(
-            f'/account/api/portfolios/{data["portfolio_a"].id}/',
+            f'/api/account/portfolios/{data["portfolio_a"].id}/',
             portfolio_update_payload
         )
         assert portfolio_update_response.status_code == 403
@@ -223,18 +223,18 @@ class TestObserverGrantE2E:
 
         # 验证 B 可以访问
         api_client.force_authenticate(user=data['user_b'])
-        before_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        before_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert before_response.status_code == 200
 
         # A 撤销授权
         api_client.force_authenticate(user=data['user_a'])
-        revoke_response = api_client.delete(f'/account/api/observer-grants/{grant.id}/')
+        revoke_response = api_client.delete(f'/api/account/observer-grants/{grant.id}/')
         assert revoke_response.status_code == 200
         assert revoke_response.data['data']['status'] == 'revoked'
 
         # B 尝试访问
         api_client.force_authenticate(user=data['user_b'])
-        after_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        after_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert after_response.status_code == 403
 
     def test_scenario_grant_expires_b_loses_access(self, setup_e2e_data):
@@ -254,7 +254,7 @@ class TestObserverGrantE2E:
 
         # B 尝试访问
         api_client.force_authenticate(user=data['user_b'])
-        response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert response.status_code == 403
 
     def test_scenario_grant_near_expiration_still_works(self, setup_e2e_data):
@@ -274,7 +274,7 @@ class TestObserverGrantE2E:
 
         # B 可以访问
         api_client.force_authenticate(user=data['user_b'])
-        response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert response.status_code == 200
 
     def test_scenario_a_creates_grant_with_expiration(self, setup_e2e_data):
@@ -294,14 +294,14 @@ class TestObserverGrantE2E:
             'expires_at': expires_at.isoformat(),
         }
 
-        grant_response = api_client.post('/account/api/observer-grants/', grant_payload)
+        grant_response = api_client.post('/api/account/observer-grants/', grant_payload)
 
         assert grant_response.status_code == 201
         assert grant_response.data['data']['expires_at'] is not None
 
         # B 可以访问
         api_client.force_authenticate(user=data['user_b'])
-        portfolio_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        portfolio_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert portfolio_response.status_code == 200
 
     def test_scenario_b_queries_grants_as_observer(self, setup_e2e_data):
@@ -320,7 +320,7 @@ class TestObserverGrantE2E:
 
         # B 查询作为观察员的授权
         api_client.force_authenticate(user=data['user_b'])
-        grants_response = api_client.get('/account/api/observer-grants/?as_observer=1')
+        grants_response = api_client.get('/api/account/observer-grants/?as_observer=1')
 
         assert grants_response.status_code == 200
         assert grants_response.data['count'] == 1
@@ -342,7 +342,7 @@ class TestObserverGrantE2E:
 
         # A 查询自己创建的授权
         api_client.force_authenticate(user=data['user_a'])
-        grants_response = api_client.get('/account/api/observer-grants/')
+        grants_response = api_client.get('/api/account/observer-grants/')
 
         assert grants_response.status_code == 200
         assert grants_response.data['count'] == 1
@@ -363,7 +363,7 @@ class TestObserverGrantE2E:
 
         # 1. A 创建授权
         api_client.force_authenticate(user=data['user_a'])
-        create_response = api_client.post('/account/api/observer-grants/', {
+        create_response = api_client.post('/api/account/observer-grants/', {
             'username': data['user_b'].username,
         })
         assert create_response.status_code == 201
@@ -371,31 +371,31 @@ class TestObserverGrantE2E:
 
         # 2. B 可以访问
         api_client.force_authenticate(user=data['user_b'])
-        access_response = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        access_response = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert access_response.status_code == 200
 
         # 3. A 更新过期时间
         api_client.force_authenticate(user=data['user_a'])
         new_expires = datetime.now(UTC) + timedelta(days=60)
         update_response = api_client.put(
-            f'/account/api/observer-grants/{grant_id}/',
+            f'/api/account/observer-grants/{grant_id}/',
             {'expires_at': new_expires.isoformat()}
         )
         assert update_response.status_code == 200
 
         # 4. B 仍可访问
         api_client.force_authenticate(user=data['user_b'])
-        access_response2 = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        access_response2 = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert access_response2.status_code == 200
 
         # 5. A 撤销授权
         api_client.force_authenticate(user=data['user_a'])
-        revoke_response = api_client.delete(f'/account/api/observer-grants/{grant_id}/')
+        revoke_response = api_client.delete(f'/api/account/observer-grants/{grant_id}/')
         assert revoke_response.status_code == 200
 
         # 6. B 失去访问权限
         api_client.force_authenticate(user=data['user_b'])
-        access_response3 = api_client.get(f'/account/api/portfolios/{data["portfolio_a"].id}/')
+        access_response3 = api_client.get(f'/api/account/portfolios/{data["portfolio_a"].id}/')
         assert access_response3.status_code == 403
 
 
@@ -453,7 +453,7 @@ class TestObserverGrantEdgeCases:
 
         api_client.force_authenticate(user=data['user_a'])
 
-        response = api_client.post('/account/api/observer-grants/', {
+        response = api_client.post('/api/account/observer-grants/', {
             'observer_user_id': data['user_a'].id,
         })
 
@@ -468,13 +468,13 @@ class TestObserverGrantEdgeCases:
         api_client.force_authenticate(user=data['user_a'])
 
         # 创建第一个授权
-        first_response = api_client.post('/account/api/observer-grants/', {
+        first_response = api_client.post('/api/account/observer-grants/', {
             'observer_user_id': data['user_b'].id,
         })
         assert first_response.status_code == 201
 
         # 尝试创建第二个授权
-        second_response = api_client.post('/account/api/observer-grants/', {
+        second_response = api_client.post('/api/account/observer-grants/', {
             'observer_user_id': data['user_b'].id,
         })
         assert second_response.status_code == 400
@@ -487,16 +487,16 @@ class TestObserverGrantEdgeCases:
 
         # 创建并撤销授权
         api_client.force_authenticate(user=data['user_a'])
-        create_response = api_client.post('/account/api/observer-grants/', {
+        create_response = api_client.post('/api/account/observer-grants/', {
             'observer_user_id': data['user_b'].id,
         })
         grant_id = create_response.data['data']['id']
 
-        revoke_response = api_client.delete(f'/account/api/observer-grants/{grant_id}/')
+        revoke_response = api_client.delete(f'/api/account/observer-grants/{grant_id}/')
         assert revoke_response.status_code == 200
 
         # 重新授权应该成功
-        reauth_response = api_client.post('/account/api/observer-grants/', {
+        reauth_response = api_client.post('/api/account/observer-grants/', {
             'observer_user_id': data['user_b'].id,
         })
         assert reauth_response.status_code == 201
@@ -524,7 +524,7 @@ class TestObserverGrantEdgeCases:
 
         # 创建 10 个授权
         for observer in observers:
-            response = api_client.post('/account/api/observer-grants/', {
+            response = api_client.post('/api/account/observer-grants/', {
                 'observer_user_id': observer.id,
             })
             assert response.status_code == 201
@@ -535,8 +535,9 @@ class TestObserverGrantEdgeCases:
             password='test_pass_789'
         )
 
-        response = api_client.post('/account/api/observer-grants/', {
+        response = api_client.post('/api/account/observer-grants/', {
             'observer_user_id': new_observer.id,
         })
         assert response.status_code == 400
         assert '达到观察员数量上限' in str(response.data)
+

@@ -458,14 +458,13 @@ async function togglePortfolio(id) {
     formData.append('action', isActive ? 'deactivate' : 'activate');
 
     try {
-        const res = await fetch(API_URLS.factorConfigAction(id), {
+        const data = await window.fetchJsonOrThrow(API_URLS.factorConfigAction(id), {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRFToken': window.csrfToken || ''
             }
         });
-        const data = await res.json();
 
         if (data.success) {
             showToast(data.message, 'success');
@@ -485,14 +484,13 @@ async function generatePortfolio(id) {
     formData.append('action', 'generate');
 
     try {
-        const res = await fetch(API_URLS.factorConfigAction(id), {
+        const data = await window.fetchJsonOrThrow(API_URLS.factorConfigAction(id), {
             method: 'POST',
             body: formData,
             headers: {
                 'X-CSRFToken': window.csrfToken || ''
             }
         });
-        const data = await res.json();
 
         if (data.success) {
             showToast(data.message, 'success');
@@ -509,13 +507,12 @@ async function deletePortfolio(id) {
     if (!await window.uiConfirm('确认删除该组合配置？此操作不可恢复。', { title: '删除组合', icon: 'warning' })) return;
 
     try {
-        const res = await fetch(API_URLS.factorConfigAction(id), {
+        const data = await window.fetchJsonOrThrow(API_URLS.factorConfigAction(id), {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': window.csrfToken || ''
             }
         });
-        const data = await res.json();
 
         if (data.success) {
             showToast(data.message, 'success');

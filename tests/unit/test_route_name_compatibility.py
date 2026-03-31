@@ -2,7 +2,8 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import Client
-from django.urls import resolve, reverse
+from django.urls import NoReverseMatch, resolve, reverse
+import pytest
 
 
 def test_dashboard_legacy_api_route_names_resolvable():
@@ -33,9 +34,11 @@ def test_equity_fund_page_route_names_resolvable():
     assert reverse("equity:detail", args=["000001.SZ"])
     assert reverse("fund:home") == "/fund/"
     assert reverse("fund:dashboard")
-    assert reverse("fund:multidim_screen_page")
     assert reverse("prompt:home") == "/prompt/"
     assert reverse("account:home") == "/account/"
+
+    with pytest.raises(NoReverseMatch):
+        reverse("fund:multidim_screen_page")
 
 
 def test_policy_workbench_and_rss_page_routes_resolvable():
@@ -48,7 +51,6 @@ def test_policy_workbench_and_rss_page_routes_resolvable():
 
     assert resolve("/policy/workbench/").view_name.endswith("workbench")
     assert resolve("/policy/rss/sources/").view_name.endswith("rss-manage")
-    assert resolve("/policy/rss/manage/").view_name.endswith("rss-manage-legacy")
 
 
 def test_policy_and_account_root_redirects(db):
@@ -139,17 +141,83 @@ def test_regime_redesign_templates_reflect_closure():
     assert "决策引擎" not in base_template
     assert "navigatorHistoryChart" in regime_template
     assert '{% url "regime_api:regime-navigator-history" %}' in regime_template
+    assert "onboardingOverlay" not in regime_template
+    assert "regime_onboarding_done" not in regime_template
 
 
-def test_legacy_compatibility_routes_resolvable():
-    assert resolve("/signal/list/").view_name.endswith("list_legacy")
-    assert resolve("/signal/list/validate/").view_name.endswith("list_validate_legacy")
-    assert resolve("/backtest/list/").view_name.endswith("list-legacy")
-    assert resolve("/backtest/reports/").view_name.endswith("reports-legacy")
-    assert resolve("/simulated_trading/my-accounts/").view_name.endswith("simulated-trading-legacy-my-accounts")
-    assert resolve("/ai/manage/").view_name.endswith("ai-manage-legacy")
-    assert resolve("/sector/dashboard/").view_name.endswith("sector-dashboard-legacy")
+def test_removed_legacy_page_routes_return_404():
+    client = Client()
+
+    for path in [
+        "/signal/list/",
+        "/signal/list/validate/",
+        "/backtest/list/",
+        "/backtest/reports/",
+        "/simulated_trading/my-accounts/",
+        "/ai/manage/",
+        "/sector/dashboard/",
+        "/policy/rss/manage/",
+    ]:
+        response = client.get(path, follow=False)
+        assert response.status_code == 404
+
+
+def test_canonical_api_routes_still_resolve():
     assert resolve("/api/simulated-trading/accounts/").view_name.endswith("account-list")
+
+
+def test_reported_route_aliases_are_removed():
+    client = Client()
+
+    for path in [
+        "/events/",
+        "/market-data/",
+        "/alpha-trigger/",
+        "/alpha-trigger/create/",
+        "/alpha-trigger/performance/",
+        "/beta-gate/",
+        "/beta-gate/test-asset/",
+        "/audit/attribution/",
+        "/rotation/account-config/",
+        "/decision-rhythm/quota/config/",
+        "/fund/analysis/",
+        "/fund/compare/?regime=Recovery",
+        "/equity/analysis/",
+        "/equity/screener/",
+        "/sector/heatmap/?top_n=5",
+        "/api/macro/data/?indicator_code=CPI",
+    ]:
+        response = client.get(path, follow=False)
+        assert response.status_code == 404
+
+
+def test_high_risk_business_pages_require_login():
+    client = Client()
+
+    for path in [
+        "/ai/",
+        "/ai/logs/",
+        "/equity/screen/",
+        "/equity/pool/",
+        "/equity/valuation-repair/",
+        "/equity/valuation-repair/config/",
+        "/fund/dashboard/",
+    ]:
+        response = client.get(path, follow=False)
+        assert response.status_code == 302
+        assert "/account/login/" in response["Location"]
+        assert "next=" in response["Location"]
+
+
+def test_pulse_api_root_is_discoverable(db):
+    user = get_user_model().objects.create_user(username="pulse_route_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    response = client.get("/api/pulse/")
+
+    assert response.status_code == 200
+    assert response.json()["endpoints"]["current"] == "/api/pulse/current/"
 
 
 def test_admin_problem_pages_do_not_return_500(db):

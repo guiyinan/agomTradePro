@@ -526,8 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCommands() {
     try {
-        const response = await fetch('/api/terminal/commands/');
-        const data = await response.json();
+        const data = await window.fetchJsonOrThrow('/api/terminal/commands/');
         commands = data.results || [];
         renderCommands();
     } catch (error) {
@@ -543,8 +542,7 @@ async function loadCommands() {
 
 async function loadTemplates() {
     try {
-        const response = await fetch('/api/prompt/templates/');
-        const data = await response.json();
+        const data = await window.fetchJsonOrThrow('/api/prompt/templates/');
         templates = data.results || [];
         
         const select = document.getElementById('cmd-prompt-template');
@@ -713,7 +711,7 @@ async function saveCommand() {
         const url = id ? `/api/terminal/commands/${id}/` : '/api/terminal/commands/';
         const method = id ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        await window.fetchJsonOrThrow(url, {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
@@ -721,15 +719,9 @@ async function saveCommand() {
             },
             body: JSON.stringify(data)
         });
-        
-        if (response.ok) {
-            closeModal();
-            loadCommands();
-            showToast('命令保存成功', 'success');
-        } else {
-            const error = await response.json();
-            showToast('保存失败: ' + JSON.stringify(error), 'error');
-        }
+        closeModal();
+        loadCommands();
+        showToast('命令保存成功', 'success');
     } catch (error) {
         showToast('保存失败: ' + error.message, 'error');
     }
@@ -745,11 +737,9 @@ async function deleteCommand(id) {
                 'X-CSRFToken': getCsrfToken()
             }
         });
-        
-        if (response.ok) {
-            loadCommands();
-            showToast('命令已删除', 'success');
-        }
+        await window.assertOkResponse(response);
+        loadCommands();
+        showToast('命令已删除', 'success');
     } catch (error) {
         showToast('删除失败: ' + error.message, 'error');
     }

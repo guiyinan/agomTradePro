@@ -102,7 +102,7 @@
 |------|-----|------|------|------|
 | Home | `/` | 200 | ✅ 200 | ☑ |
 | Dashboard | `/dashboard/` | 200 | ✅ 定义 | ☑ |
-| Policy Dashboard | `/policy/dashboard/` | 200 | ✅ 定义 | ☑ |
+| Policy Dashboard | `/policy/workbench/` | 200 | ✅ 定义 | ☑ |
 | Asset Screen | `/asset-analysis/screen/` | 200 | ✅ 定义 | ☑ |
 | Decision | `/decision/workspace/` | 200 | ✅ 定义 | ☑ |
 | Ops Center | `/ops/` | 200 | ✅ 定义 | ☑ |
@@ -196,3 +196,4 @@
 
 **检查清单版本**: 1.0
 **最后更新**: 2026-02-18
+

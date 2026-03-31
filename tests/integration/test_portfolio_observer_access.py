@@ -120,7 +120,7 @@ class TestPortfolioObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get('/account/api/portfolios/')
+        response = client.get('/api/account/portfolios/')
 
         assert response.status_code == 200
         assert response.data['count'] >= 1
@@ -137,7 +137,7 @@ class TestPortfolioObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
         # ID 可能是整数或字符串，使用灵活比较
@@ -160,7 +160,7 @@ class TestPortfolioObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{other_portfolio.id}/')
+        response = client.get(f'/api/account/portfolios/{other_portfolio.id}/')
 
         # 观察员可以访问拥有者的所有投资组合（因为授权是用户级别的）
         # 但如果没有授权应该返回 403
@@ -174,7 +174,7 @@ class TestPortfolioObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['unauthorized_user'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 403
 
@@ -188,7 +188,7 @@ class TestPortfolioObserverAccess:
             'name': '新组合',
         }
 
-        response = client.post('/account/api/portfolios/', payload)
+        response = client.post('/api/account/portfolios/', payload)
 
         # 观察员可以创建自己的投资组合，但不能创建别人的
         # 这里没有指定 user，所以应该创建成功
@@ -206,7 +206,7 @@ class TestPositionObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get('/account/api/positions/')
+        response = client.get('/api/account/positions/')
 
         assert response.status_code == 200
         assert response.data['count'] >= 1
@@ -217,7 +217,7 @@ class TestPositionObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/positions/{data["position"].id}/')
+        response = client.get(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 200
         assert response.data['asset_code'] == '000001.SZ'
@@ -235,7 +235,7 @@ class TestPositionObserverAccess:
             'avg_cost': 20.00,
         }
 
-        response = client.post('/account/api/positions/', payload)
+        response = client.post('/api/account/positions/', payload)
 
         assert response.status_code == 403
 
@@ -250,7 +250,7 @@ class TestPositionObserverAccess:
         }
 
         response = client.patch(
-            f'/account/api/positions/{data["position"].id}/',
+            f'/api/account/positions/{data["position"].id}/',
             payload
         )
 
@@ -262,7 +262,7 @@ class TestPositionObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.post(f'/account/api/positions/{data["position"].id}/close/')
+        response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
         assert response.status_code == 403
 
@@ -272,7 +272,7 @@ class TestPositionObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.delete(f'/account/api/positions/{data["position"].id}/')
+        response = client.delete(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 403
 
@@ -287,7 +287,7 @@ class TestPortfolioStatisticsObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/statistics/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/statistics/')
 
         assert response.status_code == 200
         assert 'total_value' in response.data
@@ -305,7 +305,7 @@ class TestPortfolioPositionsObserverAccess:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/positions/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/positions/')
 
         assert response.status_code == 200
         assert response.data['success'] is True
@@ -326,7 +326,7 @@ class TestObserverAccessRevocation:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 403
 
@@ -340,7 +340,7 @@ class TestObserverAccessRevocation:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/positions/{data["position"].id}/')
+        response = client.get(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 403
 
@@ -354,7 +354,7 @@ class TestObserverAccessRevocation:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/statistics/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/statistics/')
 
         assert response.status_code == 403
 
@@ -374,7 +374,7 @@ class TestObserverAccessExpiration:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 403
 
@@ -389,7 +389,7 @@ class TestObserverAccessExpiration:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
 
@@ -404,7 +404,7 @@ class TestObserverAccessExpiration:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
 
@@ -432,7 +432,7 @@ class TestOwnerFullAccess:
             'cross_border': 'domestic',
         }
 
-        response = client.post('/account/api/positions/', payload)
+        response = client.post('/api/account/positions/', payload)
 
         # 拥有者可以创建持仓
         assert response.status_code in [201, 200]
@@ -448,7 +448,7 @@ class TestOwnerFullAccess:
         }
 
         response = client.patch(
-            f'/account/api/positions/{data["position"].id}/',
+            f'/api/account/positions/{data["position"].id}/',
             payload
         )
 
@@ -461,7 +461,7 @@ class TestOwnerFullAccess:
         client = APIClient()
         client.force_authenticate(user=data['owner'])
 
-        response = client.post(f'/account/api/positions/{data["position"].id}/close/')
+        response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
         assert response.status_code == 200
         assert response.data['success'] is True
@@ -527,8 +527,8 @@ class TestMultiOwnerScenario:
         client.force_authenticate(user=observer)
 
         # 观察员应该可以访问两个投资组合
-        response1 = client.get(f'/account/api/portfolios/{portfolio1.id}/')
-        response2 = client.get(f'/account/api/portfolios/{portfolio2.id}/')
+        response1 = client.get(f'/api/account/portfolios/{portfolio1.id}/')
+        response2 = client.get(f'/api/account/portfolios/{portfolio2.id}/')
 
         assert response1.status_code == 200
         assert response2.status_code == 200
@@ -578,10 +578,11 @@ class TestMultiOwnerScenario:
 
         # observer1 可以访问
         client.force_authenticate(user=observer1)
-        response1 = client.get(f'/account/api/portfolios/{portfolio.id}/')
+        response1 = client.get(f'/api/account/portfolios/{portfolio.id}/')
         assert response1.status_code == 200
 
         # observer2 不能访问
         client.force_authenticate(user=observer2)
-        response2 = client.get(f'/account/api/portfolios/{portfolio.id}/')
+        response2 = client.get(f'/api/account/portfolios/{portfolio.id}/')
         assert response2.status_code == 403
+

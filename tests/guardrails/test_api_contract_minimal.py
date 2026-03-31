@@ -35,8 +35,8 @@ API_ENDPOINTS = [
     # 业务 API 端点 - 已确认实现
     ("/api/regime/current/", "Regime current state", True),
     ("/api/policy/events/", "Policy events list", False),  # 可能返回 400
-    ("/events/api/query/", "Events query", True),
-    ("/events/api/status/", "Events status", True),
+    ("/api/events/query/", "Events query", True),
+    ("/api/events/status/", "Events status", True),
     ("/api/alpha/recommendations/", "Alpha recommendations", False),  # 可能返回 400
     ("/api/asset-analysis/screen/", "Asset analysis screen", False),  # POST 接口
     ("/api/realtime/prices/", "Realtime prices", True),
@@ -137,13 +137,13 @@ class TestCriticalBusinessAPIs:
         client = _build_authenticated_client()
 
         # 测试 events query
-        response = client.get("/events/api/query/")
+        response = client.get("/api/events/query/")
         assert response.status_code != 501
         if response.status_code == 200:
             assert response.headers["Content-Type"].startswith("application/json")
 
         # 测试 events status
-        response = client.get("/events/api/status/")
+        response = client.get("/api/events/status/")
         assert response.status_code != 501
         if response.status_code == 200:
             assert response.headers["Content-Type"].startswith("application/json")
@@ -199,11 +199,12 @@ API 端点覆盖清单：
 - /api/regime/current/ - 当前 Regime 状态
 - /api/policy/events/ - 政策事件列表
 - /api/signal/ - 投资信号
-- /events/api/query/ - 事件查询
-- /events/api/status/ - 事件系统状态
+- /api/events/query/ - 事件查询
+- /api/events/status/ - 事件系统状态
 - /api/audit/ - 审计日志
 - /api/alpha/recommendations/ - Alpha 推荐信号
 - /api/backtest/ - 回测任务
 - /api/account/ - 投资账户
 - /api/strategy/strategies/ - 策略管理
 """
+

@@ -959,8 +959,7 @@ async function loadTemplates() {
         if (status === 'active') params.append('is_active', 'true');
         if (search) params.append('search', search);
 
-        const response = await fetch(`/api/prompt/templates/?${params}`);
-        const data = await response.json();
+        const data = await window.fetchJsonOrThrow(`/api/prompt/templates/?${params}`);
 
         const grid = document.getElementById('templatesGrid');
         // 处理分页和非分页两种格式
@@ -1022,8 +1021,7 @@ function closeTemplateModal() {
 
 async function editTemplate(id) {
     try {
-        const response = await fetch(`/api/prompt/templates/${id}/`);
-        const t = await response.json();
+        const t = await window.fetchJsonOrThrow(`/api/prompt/templates/${id}/`);
 
         document.getElementById('templateModalTitle').textContent = '编辑模板';
         document.getElementById('templateId').value = t.id;
@@ -1066,7 +1064,7 @@ async function saveTemplate(event) {
     const method = id ? 'PUT' : 'POST';
 
     try {
-        const response = await fetch(url, {
+        await window.fetchJsonOrThrow(url, {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
@@ -1074,15 +1072,9 @@ async function saveTemplate(event) {
             },
             body: JSON.stringify(formData)
         });
-
-        if (response.ok) {
-            closeTemplateModal();
-            loadTemplates();
-            alert('保存成功');
-        } else {
-            const error = await response.json();
-            alert('保存失败: ' + JSON.stringify(error));
-        }
+        closeTemplateModal();
+        loadTemplates();
+        alert('保存成功');
     } catch (error) {
         console.error('保存失败:', error);
         alert('保存失败: ' + error.message);
@@ -1099,13 +1091,9 @@ async function deleteTemplate(id) {
                 'X-CSRFToken': getCookie('csrftoken')
             }
         });
-
-        if (response.ok) {
-            loadTemplates();
-            alert('删除成功');
-        } else {
-            alert('删除失败');
-        }
+        await window.assertOkResponse(response);
+        loadTemplates();
+        alert('删除成功');
     } catch (error) {
         console.error('删除失败:', error);
         alert('删除失败: ' + error.message);
@@ -1141,8 +1129,7 @@ async function loadLogs() {
     const limit = document.getElementById('logLimitFilter')?.value || 20;
 
     try {
-        const response = await fetch(`/api/prompt/logs/recent/?limit=${limit}`);
-        const data = await response.json();
+        const data = await window.fetchJsonOrThrow(`/api/prompt/logs/recent/?limit=${limit}`);
 
         const tbody = document.getElementById('logsTableBody');
         if (data && data.length > 0) {
@@ -1183,8 +1170,7 @@ function viewLog(id) {
 // ==================== 测试执行 ====================
 async function loadTestTemplates() {
     try {
-        const response = await fetch('/api/prompt/templates/');
-        const data = await response.json();
+        const data = await window.fetchJsonOrThrow('/api/prompt/templates/');
 
         const select = document.getElementById('testTemplate');
         select.innerHTML = '<option value="">-- 请选择 --</option>';
@@ -1210,8 +1196,7 @@ async function loadTemplatePlaceholders() {
     }
 
     try {
-        const response = await fetch(`/api/prompt/templates/${templateId}/`);
-        const t = await response.json();
+        const t = await window.fetchJsonOrThrow(`/api/prompt/templates/${templateId}/`);
 
         if (t.placeholders && t.placeholders.length > 0) {
             container.innerHTML = '<h4 style="font-size: 13px; margin: 12px 0 8px; color: var(--color-text-primary);">占位符参数:</h4>' +
@@ -1245,7 +1230,7 @@ async function executeTest() {
     resultDiv.innerHTML = '<div class="result-placeholder"><div class="placeholder-icon">⏳</div><p>执行中...</p></div>';
 
     try {
-        const response = await fetch(`/api/prompt/templates/${templateId}/execute/`, {
+        const data = await window.fetchJsonOrThrow(`/api/prompt/templates/${templateId}/execute/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1257,8 +1242,6 @@ async function executeTest() {
                 max_tokens: parseInt(document.getElementById('testMaxTokens').value)
             })
         });
-
-        const data = await response.json();
 
         if (data.status === 'success') {
             resultDiv.innerHTML = `

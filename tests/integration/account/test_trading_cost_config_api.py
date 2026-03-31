@@ -52,7 +52,7 @@ class TestTradingCostConfigApi:
         client.force_authenticate(user=trading_cost_setup["owner"])
 
         response = client.patch(
-            f'/account/api/trading-cost-configs/{trading_cost_setup["config"].id}/',
+            f'/api/account/trading-cost-configs/{trading_cost_setup["config"].id}/',
             {"portfolio": trading_cost_setup["other_portfolio"].id},
             format="json",
         )
@@ -68,7 +68,7 @@ class TestTradingCostConfigApi:
         client.force_authenticate(user=trading_cost_setup["owner"])
 
         response = client.post(
-            f'/account/api/trading-cost-configs/{trading_cost_setup["config"].id}/calculate/',
+            f'/api/account/trading-cost-configs/{trading_cost_setup["config"].id}/calculate/',
             {"action": "buy", "amount": "abc", "is_shanghai": False},
             format="json",
         )
@@ -81,7 +81,7 @@ class TestTradingCostConfigApi:
         client.force_authenticate(user=trading_cost_setup["owner"])
 
         response = client.post(
-            f'/account/api/trading-cost-configs/{trading_cost_setup["config"].id}/calculate/',
+            f'/api/account/trading-cost-configs/{trading_cost_setup["config"].id}/calculate/',
             {"action": "buy", "amount": "100000", "is_shanghai": "false"},
         )
 
@@ -114,3 +114,4 @@ class TestTradingCostConfigSettingsView:
 
         trading_cost_setup["config"].refresh_from_db()
         assert trading_cost_setup["config"].commission_rate == 0.00025
+

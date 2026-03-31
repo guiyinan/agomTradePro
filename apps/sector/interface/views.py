@@ -27,6 +27,15 @@ from .serializers import (
 )
 
 
+def _get_sector_result_status_code(result) -> int:
+    """Map sector analysis results to user-facing HTTP status codes."""
+    if result.success:
+        return status.HTTP_200_OK
+    if getattr(result, "status", "") == "unavailable":
+        return status.HTTP_200_OK
+    return status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 class SectorRotationViewSet(viewsets.ViewSet):
     """板块轮动分析 API"""
 
@@ -85,7 +94,7 @@ class SectorRotationViewSet(viewsets.ViewSet):
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
-        response_status = status.HTTP_200_OK if result.success else status.HTTP_503_SERVICE_UNAVAILABLE
+        response_status = _get_sector_result_status_code(result)
         return Response(result_serializer.data, status=response_status)
 
     @action(detail=False, methods=['get'], url_path='rotation')
@@ -125,7 +134,7 @@ class SectorRotationViewSet(viewsets.ViewSet):
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
-        response_status = status.HTTP_200_OK if result.success else status.HTTP_503_SERVICE_UNAVAILABLE
+        response_status = _get_sector_result_status_code(result)
         return Response(result_serializer.data, status=response_status)
 
 

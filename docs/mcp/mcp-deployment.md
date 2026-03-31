@@ -41,7 +41,7 @@ pip install mcp
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMTRADEPRO_API_BASE_URL="http://127.0.0.1:8000"
+export AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
 export AGOMTRADEPRO_API_TOKEN="your-api-token"
 export AGOMTRADEPRO_MCP_ROLE="admin"  # 可选: viewer, analyst, admin
 export AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID="1"  # 可选
@@ -50,7 +50,7 @@ export AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID="1"  # 可选
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMTRADEPRO_API_BASE_URL="http://127.0.0.1:8000"
+$env:AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
 $env:AGOMTRADEPRO_API_TOKEN="your-api-token"
 $env:AGOMTRADEPRO_MCP_ROLE="admin"
 ```
@@ -95,12 +95,12 @@ npx @modelcontextprotocol/inspector python -m agomtradepro_mcp
 ```json
 {
   "mcpServers": {
-    "agomtradepro": {
+    "agomtradepro_local": {
       "command": "python",
       "args": ["-m", "agomtradepro_mcp"],
       "cwd": "/absolute/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMTRADEPRO_API_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
         "AGOMTRADEPRO_API_TOKEN": "your-actual-token",
         "AGOMTRADEPRO_MCP_ROLE": "viewer",
         "PYTHONPATH": "/absolute/path/to/agomTradePro/sdk"
@@ -133,12 +133,12 @@ npx @modelcontextprotocol/inspector python -m agomtradepro_mcp
 ```json
 {
   "servers": {
-    "agomtradepro": {
+    "agomtradepro_local": {
       "command": "python",
       "args": ["-m", "agomtradepro_mcp"],
       "cwd": "${workspaceFolder}/sdk",
       "env": {
-        "AGOMTRADEPRO_API_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
         "AGOMTRADEPRO_API_TOKEN": "${AGOMTRADEPRO_API_TOKEN}",
         "AGOMTRADEPRO_MCP_ROLE": "analyst"
       }
@@ -219,7 +219,7 @@ Connection refused: [Errno 111] Connection refused
 
 **解决方案**：
 1. 确认 AgomTradePro API 服务正在运行
-2. 检查 `AGOMTRADEPRO_API_BASE_URL` 是否正确
+2. 检查 `AGOMTRADEPRO_BASE_URL` 是否正确（`AGOMTRADEPRO_API_BASE_URL` 仅为兼容别名）
 3. 验证端口是否被占用
 
 ```bash
@@ -353,7 +353,8 @@ python -m agomtradepro_mcp
 
 | 变量名 | 必需 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `AGOMTRADEPRO_API_BASE_URL` | 是 | `http://127.0.0.1:8000` | API 服务地址 |
+| `AGOMTRADEPRO_BASE_URL` | 是 | `http://127.0.0.1:8000` | API 服务地址 |
+| `AGOMTRADEPRO_API_BASE_URL` | 否 | `http://127.0.0.1:8000` | 兼容旧配置的别名 |
 | `AGOMTRADEPRO_API_TOKEN` | 是 | - | 认证 Token |
 | `AGOMTRADEPRO_MCP_ROLE` | 否 | `viewer` | RBAC 角色 |
 | `AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID` | 否 | - | 默认组合 ID |

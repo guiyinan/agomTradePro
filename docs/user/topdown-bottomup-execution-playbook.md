@@ -22,7 +22,7 @@
 
 ## 2. 一张图看全流程
 
-1. 环境判断: `/macro/` -> `/regime/dashboard/` -> `/policy/dashboard/`
+1. 环境判断: `/macro/` -> `/regime/dashboard/` -> `/policy/workbench/`
 2. 标的筛选: `/api/asset-analysis/screen/equity/` + `/equity/screen/` / `/api/fund/screen/`
 3. 执行闸门: `/beta-gate/config/` + `/beta-gate/test/` + `/decision/workspace/`
 4. 仓位与风险: `/strategy/` + `/simulated-trading/my-accounts/` + `/api/account/...`
@@ -37,7 +37,7 @@
 
 1. 宏观数据: `/macro/`
 2. Regime 仪表盘: `/regime/dashboard/`
-3. 政策仪表盘: `/policy/dashboard/`
+3. 政策仪表盘: `/policy/workbench/`
 
 ### 3.2 API 入口
 
@@ -269,3 +269,4 @@ API：
 3. `POST /api/strategy/position-rules/{id}/evaluate/`
 4. `POST /api/simulated-trading/accounts/{id}/inspections/run/`
 5. `POST /api/audit/reports/generate/`
+

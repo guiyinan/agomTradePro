@@ -135,7 +135,7 @@
 |------|-----|------|------|
 | Home | `/` | {STATUS} | {ISSUE} |
 | Dashboard | `/dashboard/` | {STATUS} | {ISSUE} |
-| Policy Dashboard | `/policy/dashboard/` | {STATUS} | {ISSUE} |
+| Policy Dashboard | `/policy/workbench/` | {STATUS} | {ISSUE} |
 | Asset Screen | `/asset-analysis/screen/` | {STATUS} | {ISSUE} |
 | Decision Workspace | `/decision/workspace/` | {STATUS} | {ISSUE} |
 | Ops Center | `/ops/` | {STATUS} | {ISSUE} |

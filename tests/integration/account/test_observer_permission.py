@@ -118,7 +118,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['owner'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
         assert response.data['id'] == data['portfolio'].id
@@ -129,7 +129,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
         assert response.data['id'] == data['portfolio'].id
@@ -140,7 +140,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['unauthorized_user'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         # 未授权用户无法访问该投资组合，返回 403（权限拒绝）或 404（不在 queryset 中）
         assert response.status_code in (403, 404)
@@ -151,7 +151,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get('/account/api/positions/')
+        response = client.get('/api/account/positions/')
 
         assert response.status_code == 200
         assert len(response.data['results']) >= 1
@@ -162,7 +162,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/positions/{data["position"].id}/')
+        response = client.get(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 200
         assert response.data['asset_code'] == '000001.SZ'
@@ -183,7 +183,7 @@ class TestObserverAccessPermission:
             'cross_border': 'domestic',
         }
 
-        response = client.post('/account/api/positions/', payload)
+        response = client.post('/api/account/positions/', payload)
 
         # 观察员无法创建持仓 - 可能是 403（权限拒绝）或 404（找不到投资组合）
         assert response.status_code in (403, 404, 400)
@@ -199,7 +199,7 @@ class TestObserverAccessPermission:
         }
 
         response = client.patch(
-            f'/account/api/positions/{data["position"].id}/',
+            f'/api/account/positions/{data["position"].id}/',
             payload
         )
 
@@ -211,7 +211,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.post(f'/account/api/positions/{data["position"].id}/close/')
+        response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
         assert response.status_code == 403
 
@@ -221,7 +221,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.delete(f'/account/api/positions/{data["position"].id}/')
+        response = client.delete(f'/api/account/positions/{data["position"].id}/')
 
         assert response.status_code == 403
 
@@ -231,7 +231,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['owner'])
 
-        response = client.post(f'/account/api/positions/{data["position"].id}/close/')
+        response = client.post(f'/api/account/positions/{data["position"].id}/close/')
 
         assert response.status_code == 200
         assert response.data['success'] is True
@@ -242,7 +242,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/positions/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/positions/')
 
         assert response.status_code == 200
         assert response.data['count'] >= 1
@@ -253,7 +253,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/statistics/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/statistics/')
 
         assert response.status_code == 200
         assert 'total_value' in response.data
@@ -268,7 +268,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         # 过期授权的投资组合不可访问，返回 403（权限拒绝）或 404（不在 queryset 中）
         assert response.status_code in (403, 404)
@@ -283,7 +283,7 @@ class TestObserverAccessPermission:
         client = APIClient()
         client.force_authenticate(user=data['observer'])
 
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
 
         # 撤销授权的投资组合不可访问，返回 403（权限拒绝）或 404（不在 queryset 中）
         assert response.status_code in (403, 404)
@@ -301,11 +301,11 @@ class TestObserverAuditLogging:
         client.force_authenticate(user=data['observer'])
 
         # 访问投资组合 - 应该成功
-        response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        response = client.get(f'/api/account/portfolios/{data["portfolio"].id}/')
         assert response.status_code == 200
 
         # 访问持仓详情 - 应该成功
-        response = client.get(f'/account/api/positions/{data["position"].id}/')
+        response = client.get(f'/api/account/positions/{data["position"].id}/')
         assert response.status_code == 200
 
     def test_observer_position_access_logs_audit(self, setup_observer_test_data):
@@ -317,7 +317,7 @@ class TestObserverAuditLogging:
         client.force_authenticate(user=data['observer'])
 
         # 访问持仓详情
-        response = client.get(f'/account/api/positions/{data["position"].id}/')
+        response = client.get(f'/api/account/positions/{data["position"].id}/')
         assert response.status_code == 200
         assert response.data['asset_code'] == '000001.SZ'
 
@@ -353,3 +353,4 @@ class TestGetAccessiblePortfolios:
         portfolios = get_accessible_portfolios(data['unauthorized_user'])
 
         assert portfolios.count() == 0
+

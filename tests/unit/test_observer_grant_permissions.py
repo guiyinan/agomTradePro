@@ -34,7 +34,7 @@ class TestObserverAccessPermission:
     def test_has_permission_returns_false_for_unauthenticated(self):
         """测试未认证用户返回 False 或 None"""
         factory = APIRequestFactory()
-        request = factory.get('/account/api/portfolios/')
+        request = factory.get('/api/account/portfolios/')
         request.user = None
 
         permission = ObserverAccessPermission()
@@ -49,7 +49,7 @@ class TestObserverAccessPermission:
             username=f"user_{uuid.uuid4().hex[:8]}",
             password="test_pass_123"
         )
-        request = factory.get('/account/api/portfolios/')
+        request = factory.get('/api/account/portfolios/')
         request.user = user
 
         permission = ObserverAccessPermission()
@@ -110,7 +110,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_portfolio_with_grant
 
-        request = factory.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.get(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['owner']
 
         permission = ObserverAccessPermission()
@@ -121,7 +121,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_portfolio_with_grant
 
-        request = factory.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.get(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -133,7 +133,7 @@ class TestObserverAccessPermission:
         data = setup_portfolio_with_grant
 
         # 测试 POST
-        request = factory.post(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.post(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -144,7 +144,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_portfolio_with_grant
 
-        request = factory.put(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.put(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -155,7 +155,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_portfolio_with_grant
 
-        request = factory.delete(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.delete(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -166,7 +166,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_portfolio_with_grant
 
-        request = factory.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.get(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['unauthorized']
 
         permission = ObserverAccessPermission()
@@ -181,7 +181,7 @@ class TestObserverAccessPermission:
         data['grant'].expires_at = datetime.now(UTC) - timedelta(days=1)
         data['grant'].save()
 
-        request = factory.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.get(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -196,7 +196,7 @@ class TestObserverAccessPermission:
         data['grant'].status = 'revoked'
         data['grant'].save()
 
-        request = factory.get(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.get(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -207,7 +207,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_portfolio_with_grant
 
-        request = factory.put(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.put(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['owner']
 
         permission = ObserverAccessPermission()
@@ -293,7 +293,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_position_with_grant
 
-        request = factory.get(f'/account/api/positions/{data["position"].id}/')
+        request = factory.get(f'/api/account/positions/{data["position"].id}/')
         request.user = data['owner']
 
         permission = ObserverAccessPermission()
@@ -304,7 +304,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_position_with_grant
 
-        request = factory.get(f'/account/api/positions/{data["position"].id}/')
+        request = factory.get(f'/api/account/positions/{data["position"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -315,7 +315,7 @@ class TestObserverAccessPermission:
         factory = APIRequestFactory()
         data = setup_position_with_grant
 
-        request = factory.put(f'/account/api/positions/{data["position"].id}/')
+        request = factory.put(f'/api/account/positions/{data["position"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
@@ -327,14 +327,14 @@ class TestObserverAccessPermission:
         data = setup_portfolio_with_grant
 
         # OPTIONS
-        request = factory.options(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.options(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         permission = ObserverAccessPermission()
         assert permission.has_object_permission(request, None, data['portfolio']) is True
 
         # HEAD
-        request = factory.head(f'/account/api/portfolios/{data["portfolio"].id}/')
+        request = factory.head(f'/api/account/portfolios/{data["portfolio"].id}/')
         request.user = data['observer']
 
         assert permission.has_object_permission(request, None, data['portfolio']) is True
@@ -662,3 +662,4 @@ class TestGetAccessiblePortfolios:
         # 这里只有一个投资组合，所以 count 应该是 1
         assert portfolios.count() == 1
         assert list(portfolios).count(portfolio) == 1
+

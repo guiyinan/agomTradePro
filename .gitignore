@@ -106,3 +106,4 @@ docs/DEV_DIARY.md
 /tests/screenshots
 /.tmp
 /tests/uat/reports
+/test_screenshots

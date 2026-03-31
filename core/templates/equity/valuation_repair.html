@@ -275,7 +275,7 @@ async function scanValuationRepairs() {
     btn.innerHTML = '<span class="app-inline-spinner" aria-hidden="true" style="margin-right: 8px;"></span>扫描中...';
 
     try {
-        const response = await fetch('/api/equity/valuation-repair/scan/', {
+        const result = await window.fetchJsonOrThrow('/api/equity/valuation-repair/scan/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -286,8 +286,6 @@ async function scanValuationRepairs() {
                 lookback_days: 756
             })
         });
-
-        const result = await response.json();
 
         if (result.success) {
             showToast(`扫描完成：扫描 ${result.scanned_count} 只，保存 ${result.saved_count} 只`, 'success');
@@ -319,8 +317,7 @@ async function loadRepairList() {
             params.append('phase', phase);
         }
 
-        const response = await fetch(`/api/equity/valuation-repair-list/?${params}`);
-        const result = await response.json();
+        const result = await window.fetchJsonOrThrow(`/api/equity/valuation-repair-list/?${params}`);
 
         if (result.success) {
             repairList = result.results || [];
@@ -506,8 +503,7 @@ async function showDetail(stockCode) {
     document.getElementById('detailStockName').textContent = '加载中...';
 
     try {
-        const response = await fetch(`/api/equity/valuation-repair/${stockCode}/`);
-        const result = await response.json();
+        const result = await window.fetchJsonOrThrow(`/api/equity/valuation-repair/${stockCode}/`);
 
         if (result.success) {
             updateDetailContent(result);
@@ -554,8 +550,7 @@ function updateDetailContent(data) {
 // 加载历史图表
 async function loadHistoryChart(stockCode) {
     try {
-        const response = await fetch(`/api/equity/valuation-repair/${stockCode}/history/`);
-        const result = await response.json();
+        const result = await window.fetchJsonOrThrow(`/api/equity/valuation-repair/${stockCode}/history/`);
 
         if (result.success && result.points && result.points.length > 0) {
             renderHistoryChart(result.points);

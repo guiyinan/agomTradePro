@@ -228,7 +228,7 @@ document.getElementById('apply-btn').addEventListener('click', async function() 
     resultDiv.style.display = 'none';
 
     try {
-        const response = await fetch('/account/backtest/{{ backtest.id }}/apply/', {
+        const data = await window.fetchJsonOrThrow('/account/backtest/{{ backtest.id }}/apply/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -238,8 +238,6 @@ document.getElementById('apply-btn').addEventListener('click', async function() 
                 scale_factor: parseFloat(scaleFactor)
             })
         });
-
-        const data = await response.json();
 
         if (data.success) {
             resultDiv.className = 'result-message success';

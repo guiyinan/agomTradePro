@@ -13,6 +13,7 @@
 
 from typing import Any, Dict
 
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
@@ -43,6 +44,7 @@ from .serializers import (
 # 页面视图（前端）
 # ============================================================================
 
+@login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def dashboard_view(request):
     """

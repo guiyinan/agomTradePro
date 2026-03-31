@@ -11,11 +11,4 @@ urlpatterns = [
     path("", RedirectView.as_view(url="/fund/dashboard/", permanent=False), name="home"),
     # 仪表盘页面
     path('dashboard/', dashboard_view, name='dashboard'),
-
-    # 兼容旧入口，跳转到统一 API 前缀
-    path(
-        'multidim-screen/',
-        RedirectView.as_view(url='/api/fund/multidim-screen/', permanent=False),
-        name='multidim_screen_page',
-    ),
 ]

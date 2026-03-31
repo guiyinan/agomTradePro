@@ -19,7 +19,7 @@ Generate token for an existing user:
 
 ```bash
 cd .
-python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
+python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from apps.account.infrastructure.models import UserAccessTokenModel; u=User.objects.get(username='admin'); t,key=UserAccessTokenModel.create_token(user=u, name='sdk-quickstart'); print(key)"
 ```
 
 ### Environment Variables by Platform
@@ -27,7 +27,7 @@ python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.setti
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMTRADEPRO_BASE_URL="http://localhost:8000"
+$env:AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
 $env:AGOMTRADEPRO_API_TOKEN="your_token_here"
 $env:NO_PROXY="127.0.0.1,localhost"
 $env:no_proxy="127.0.0.1,localhost"
@@ -36,7 +36,7 @@ $env:no_proxy="127.0.0.1,localhost"
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMTRADEPRO_BASE_URL="http://localhost:8000"
+export AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
 export AGOMTRADEPRO_API_TOKEN="your_token_here"
 export NO_PROXY="127.0.0.1,localhost"
 export no_proxy="127.0.0.1,localhost"
@@ -51,13 +51,13 @@ from agomtradepro import AgomTradeProClient
 
 # Method 1: Using parameters
 client = AgomTradeProClient(
-    base_url="http://localhost:8000",
+    base_url="http://127.0.0.1:8000",
     api_token="your_token_here"
 )
 
 # Method 2: Using environment variables
 import os
-os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://127.0.0.1:8000"
 os.environ["AGOMTRADEPRO_API_TOKEN"] = "your_token_here"
 client = AgomTradeProClient()
 
@@ -235,7 +235,7 @@ Notes:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AGOMTRADEPRO_BASE_URL` | API base URL | `http://localhost:8000` |
+| `AGOMTRADEPRO_BASE_URL` | API base URL | `http://127.0.0.1:8000` |
 | `AGOMTRADEPRO_API_TOKEN` | API authentication token | - |
 | `AGOMTRADEPRO_USERNAME` | Username (for password auth) | - |
 | `AGOMTRADEPRO_PASSWORD` | Password (for password auth) | - |
@@ -248,7 +248,7 @@ Create `~/.agomtradepro/config.json`:
 
 ```json
 {
-  "base_url": "http://localhost:8000",
+  "base_url": "http://127.0.0.1:8000",
   "api_token": "your_token_here",
   "timeout": 30,
   "max_retries": 3

@@ -122,7 +122,7 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
                     'icon': '⏰',
                     'title': f'{expiring_candidates} 个 Alpha 候选即将过期',
                     'message': '请在过期前处理相关投资机会或更新触发器配置。',
-                    'action_url': '/alpha-triggers/list/',
+                        'action_url': '/alpha-triggers/',
                     'action_text': '查看候选',
                     'dismissible': True,
                 })
@@ -145,7 +145,7 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
                     'icon': '⏳',
                     'title': f'{expiring_triggers} 个触发器即将过期',
                     'message': '这些触发器将在一周内失效，请考虑续期或重新配置。',
-                    'action_url': '/alpha-triggers/list/',
+                        'action_url': '/alpha-triggers/',
                     'action_text': '查看触发器',
                     'dismissible': True,
                 })

@@ -663,18 +663,12 @@ async function loadDashboardAlphaRecommendations(renderResults = true) {
 
     const startTime = Date.now();
     try {
-        const response = await fetch(DASHBOARD_ALPHA_API_URL, {
+        const payload = await window.fetchJsonOrThrow(DASHBOARD_ALPHA_API_URL, {
             headers: {
                 'Accept': 'application/json'
             }
         });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const items = payload?.data?.items || [];
+        const items = Array.isArray(payload?.data?.items) ? payload.data.items : [];
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         autoRecommendationItems = items;
         renderAutoRecommendationGrid(items);

@@ -258,7 +258,7 @@ async function calculateScores() {
         formData.append('trade_date', tradeDate);
         formData.append('top_n', topN);
 
-        const res = await fetch(API_URLS.factorCalculateScores, {
+        const data = await window.fetchJsonOrThrow(API_URLS.factorCalculateScores, {
             method: 'POST',
             body: formData,
             headers: {
@@ -268,8 +268,6 @@ async function calculateScores() {
 
         clearInterval(progressInterval);
         document.getElementById('progressFill').style.width = '100%';
-
-        const data = await res.json();
 
         if (data.success) {
             document.getElementById('progressText').textContent = '计算完成！';
@@ -316,8 +314,7 @@ async function explainStock(stockCode) {
         const url = new URL(API_URLS.factorExplainStock(stockCode), window.location.origin);
         url.searchParams.set('config_id', selectedConfigId);
 
-        const res = await fetch(url);
-        const data = await res.json();
+        const data = await window.fetchJsonOrThrow(url);
 
         if (data.success && data.explanation) {
             const exp = data.explanation;
