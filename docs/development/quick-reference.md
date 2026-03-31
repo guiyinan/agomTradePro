@@ -135,6 +135,27 @@ ruff check .
 mypy apps/ --strict
 ```
 
+### API 改动同步检查
+
+如果本次提交修改了 API 路径、参数、响应字段、状态码或 fallback 语义，合入前额外执行：
+
+```bash
+# 重新生成 OpenAPI 产物
+python manage.py spectacular --file schema.yml
+python manage.py spectacular --file docs/testing/api/openapi.yaml
+python manage.py spectacular --format openapi-json --file docs/testing/api/openapi.json
+
+# 验证文档 / MCP / SDK 对齐
+pytest -q tests/unit/test_docs_route_alignment.py
+pytest sdk/tests/test_mcp/test_tool_execution.py -q
+
+# 如果改了 SDK 契约或 canonical 路径，再执行
+pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
+```
+
+- 必须同步：API 实现、SDK、MCP、OpenAPI、用户提示文案。
+- 详细规则见 `docs/development/engineering-guardrails.md` 的“API 改动同步门禁”。
+
 ---
 
 ## 核心 API 端点

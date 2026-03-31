@@ -295,6 +295,14 @@ def test_case_1():
 | 修复 bug | 在对应模块文档中添加说明 |
 | 修改配置 | `docs/deployment/` 相关文档 |
 
+**API 改动附加门禁**: 只要接口路径、参数、响应字段、状态码或前端展示文案发生变化，除上表外还必须同步检查：
+- SDK 调用层与示例文档
+- MCP 工具返回结构与示例文档
+- OpenAPI 产物：`schema.yml`、`docs/testing/api/openapi.yaml`、`docs/testing/api/openapi.json`
+- 用户可见提示：模板、页面告警、fallback/stale 提示文案
+
+**执行入口**: 统一按 `docs/development/engineering-guardrails.md` 中的“API 改动同步门禁”执行，并在 `docs/development/quick-reference.md` 复核命令。
+
 ### 4.2 API 路由一致性
 
 **当前问题**: 系统存在三种 API 路由格式：

@@ -249,18 +249,94 @@ class RotationIntegrationService:
                 'calc_date': date.today().isoformat(),
             }
 
+        config_model = self.config_repo.get_model_by_name(config.name)
+        latest_signal = (
+            self.signal_repo.get_latest_signal(config_model.id)
+            if config_model is not None
+            else None
+        )
+
+        # Decision workspace is read-heavy; when today's signal is already persisted,
+        # reuse it instead of re-fetching market data on every page request.
+        if latest_signal is not None and latest_signal.signal_date >= date.today():
+            result = self._build_recommendation_from_signal_model(latest_signal)
+            self._apply_recommendation_metadata(
+                result=result,
+                data_source='stored_signal',
+                is_stale=False,
+                strategy_type=strategy_type,
+                config_description=config.description,
+                warning_message=None,
+            )
+            return result
+
         # Generate signal
         signal = self.generate_rotation_signal(config.name)
 
         if signal:
-            signal['strategy_type'] = strategy_type
-            signal['config_description'] = config.description
+            self._apply_recommendation_metadata(
+                result=signal,
+                data_source='fresh_generation',
+                is_stale=False,
+                strategy_type=strategy_type,
+                config_description=config.description,
+                warning_message=None,
+            )
             return signal
+
+        if latest_signal is not None:
+            logger.warning(
+                "Rotation recommendation generation failed for %s, fallback to stored signal dated %s",
+                config.name,
+                latest_signal.signal_date.isoformat(),
+            )
+            result = self._build_recommendation_from_signal_model(latest_signal)
+            self._apply_recommendation_metadata(
+                result=result,
+                data_source='stored_signal_fallback',
+                is_stale=True,
+                strategy_type=strategy_type,
+                config_description=config.description,
+                warning_message=(
+                    "实时轮动重算失败，当前展示最近一次已落库信号，"
+                    "结果可能滞后。"
+                ),
+            )
+            return result
 
         return {
             'error': 'Failed to generate rotation signal',
             'calc_date': date.today().isoformat(),
         }
+
+    @staticmethod
+    def _build_recommendation_from_signal_model(signal_model) -> dict:
+        """Convert persisted RotationSignalModel into API-ready recommendation."""
+        return {
+            'config_name': signal_model.config.name if signal_model.config else '',
+            'signal_date': signal_model.signal_date.isoformat(),
+            'target_allocation': signal_model.target_allocation,
+            'current_regime': signal_model.current_regime,
+            'action_required': signal_model.action_required,
+            'reason': signal_model.reason,
+            'momentum_ranking': signal_model.momentum_ranking,
+        }
+
+    @staticmethod
+    def _apply_recommendation_metadata(
+        result: dict,
+        data_source: str,
+        is_stale: bool,
+        strategy_type: str,
+        config_description: str,
+        warning_message: str | None,
+    ) -> None:
+        """Attach source/freshness metadata for downstream UI rendering."""
+        result['data_source'] = data_source
+        result['is_stale'] = is_stale
+        result['strategy_type'] = strategy_type
+        result['config_description'] = config_description
+        result['warning_message'] = warning_message
 
     def get_asset_info(self, asset_code: str) -> dict | None:
         """

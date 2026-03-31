@@ -494,6 +494,17 @@ POST /api/prompt/report-generation/
 | `/api/decision/workspace/recommendations/action/` | POST | 记录用户对推荐的动作 |
 | `/api/decision/funnel/context/` | GET | 获取决策漏斗上下文 |
 
+#### `/api/decision/funnel/context/` Step 3 补充字段
+
+`data.step3_sectors` 除 `sector_recommendations` 和 `rotation_signals` 外，还返回轮动可靠性元数据：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `rotation_data_source` | string \| null | `fresh_generation` / `stored_signal` / `stored_signal_fallback` |
+| `rotation_is_stale` | boolean | 是否回退到历史已落库 signal |
+| `rotation_warning_message` | string \| null | 回退时给前端/Agent 的提示文案 |
+| `rotation_signal_date` | string \| null | 当前轮动信号日期 |
+
 ### 13.2 决策预检查 API
 
 `POST /api/decision-workflow/precheck/`

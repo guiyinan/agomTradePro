@@ -203,6 +203,10 @@ Canonical API routing for SDK/MCP is documented in:
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
 - **Config Center**: `list_config_capabilities`, `get_config_center_snapshot`
 
+Decision workflow note:
+
+- `decision_workflow_get_funnel_context` now exposes Step 3 freshness metadata in `step3_sectors`: `rotation_data_source`, `rotation_is_stale`, `rotation_warning_message`, `rotation_signal_date`.
+
 ## Rotation Account Config Examples
 
 ```python

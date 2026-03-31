@@ -60,6 +60,10 @@ def funnel_step3_view(request):
         {
             "sector_recommendations": sectors_data.sector_recommendations,
             "rotation_signals": sectors_data.rotation_signals,
+            "rotation_data_source": sectors_data.rotation_data_source,
+            "rotation_is_stale": sectors_data.rotation_is_stale,
+            "rotation_warning_message": sectors_data.rotation_warning_message,
+            "rotation_signal_date": sectors_data.rotation_signal_date,
         },
     )
 

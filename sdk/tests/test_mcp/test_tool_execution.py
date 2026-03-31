@@ -52,6 +52,14 @@ class _FakeClient:
             get_funnel_context=lambda trade_id="unknown", backtest_id=None: {
                 "trade_id": trade_id,
                 "backtest_id": backtest_id,
+                "data": {
+                    "step3_sectors": {
+                        "rotation_data_source": "stored_signal",
+                        "rotation_is_stale": False,
+                        "rotation_warning_message": None,
+                        "rotation_signal_date": "2026-03-31",
+                    }
+                },
                 "ok": True,
             },
         )
@@ -335,3 +343,28 @@ def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_na
 
     result = asyncio.run(server.call_tool(tool_name, arguments))
     assert result is not None
+
+
+def test_decision_workflow_funnel_context_exposes_freshness_metadata(monkeypatch: pytest.MonkeyPatch):
+    try:
+        from agomtradepro_mcp.server import server
+    except ModuleNotFoundError as exc:
+        if "mcp" in str(exc):
+            pytest.skip("mcp package not installed in current test environment")
+        raise
+
+    _patch_extended_tool_modules(monkeypatch)
+
+    result = asyncio.run(
+        server.call_tool(
+            "decision_workflow_get_funnel_context",
+            {"trade_id": "trade-1", "backtest_id": 123},
+        )
+    )
+    rendered = str(result)
+    assert "rotation_data_source" in rendered
+    assert "rotation_is_stale" in rendered
+    assert "rotation_signal_date" in rendered
+    assert "step3_status" in rendered
+    assert "step3_data_source" in rendered
+    assert "step3_signal_date" in rendered

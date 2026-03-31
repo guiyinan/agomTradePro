@@ -129,6 +129,44 @@ def test_decision_step3_partial_uses_rotation_outputs(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_decision_step3_partial_shows_rotation_fallback_warning(authenticated_client):
+    """Step 3 partial should surface stale rotation fallback hints to the user."""
+    with (
+        patch(
+            "core.application.decision_context.GetActionRecommendationUseCase.execute",
+            return_value=_action_recommendation_stub("红利", "大盘"),
+        ),
+        patch(
+            "core.application.decision_context.RotationIntegrationService.get_rotation_recommendation",
+            return_value={
+                "target_allocation": {
+                    "515180": 0.55,
+                    "510300": 0.45,
+                },
+                "data_source": "stored_signal_fallback",
+                "is_stale": True,
+                "warning_message": "实时轮动重算失败，当前展示最近一次已落库信号，结果可能滞后。",
+                "signal_date": "2026-03-30",
+            },
+        ),
+        patch(
+            "core.application.decision_context.RotationIntegrationService.get_asset_master",
+            return_value=[
+                {"code": "515180", "name": "红利ETF", "category": "equity"},
+                {"code": "510300", "name": "沪深300ETF", "category": "equity"},
+            ],
+        ),
+    ):
+        response = authenticated_client.get("/api/decision/context/step3/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "实时轮动重算失败" in content
+    assert "已回退" in content
+    assert "2026-03-30" in content
+
+
+@pytest.mark.django_db
 def test_decision_audit_api_returns_existing_report(
     authenticated_client,
     sample_attribution_report,
@@ -194,3 +232,37 @@ def test_decision_funnel_context_and_step6_partial(
     assert "阶段 6: 审批执行" in partial_html
     assert "自动交易系统" in partial_html
     assert "Brinson 模型归因报告" not in partial_html
+
+
+@pytest.mark.django_db
+def test_decision_context_api_exposes_rotation_metadata(authenticated_client):
+    """Decision funnel context API should expose rotation freshness metadata."""
+    with (
+        patch(
+            "core.application.decision_context.GetActionRecommendationUseCase.execute",
+            return_value=_action_recommendation_stub("科技"),
+        ),
+        patch(
+            "core.application.decision_context.RotationIntegrationService.get_rotation_recommendation",
+            return_value={
+                "target_allocation": {"CSI300": 0.4},
+                "data_source": "stored_signal",
+                "is_stale": False,
+                "warning_message": None,
+                "signal_date": "2026-03-31",
+            },
+        ),
+        patch(
+            "core.application.decision_context.RotationIntegrationService.get_asset_master",
+            return_value=[{"code": "CSI300", "name": "沪深300", "category": "equity"}],
+        ),
+    ):
+        response = authenticated_client.get("/api/decision/funnel/context/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    step3 = payload["data"]["step3_sectors"]
+    assert step3["rotation_data_source"] == "stored_signal"
+    assert step3["rotation_is_stale"] is False
+    assert step3["rotation_warning_message"] is None
+    assert step3["rotation_signal_date"] == "2026-03-31"
