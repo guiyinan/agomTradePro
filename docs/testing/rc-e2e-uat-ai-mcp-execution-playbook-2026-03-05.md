@@ -126,7 +126,7 @@ pytest tests/uat/test_route_baseline_consistency.py -v
 
 #### B-02 主导航人工验证（按账号 `admin`）
 1. 登录后逐个访问：
-`/dashboard/`, `/macro/data/`, `/regime/dashboard/`, `/signal/manage/`, `/policy/manage/`, `/equity/screen/`, `/fund/dashboard/`, `/backtest/create/`, `/simulated-trading/dashboard/`, `/audit/reports/`, `/ops/`
+`/dashboard/`, `/macro/data/`, `/regime/dashboard/`, `/signal/manage/`, `/policy/workbench/`, `/equity/screen/`, `/fund/dashboard/`, `/backtest/create/`, `/simulated-trading/dashboard/`, `/audit/reports/`, `/ops/`
 2. 每页动作：
 1. 页面完整加载。
 2. 点击一个主操作按钮或Tab。
