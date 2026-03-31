@@ -54,7 +54,7 @@ class TestConfig:
     # Page URLs - Signal
     signal_manage_url: str = "/signal/manage/"
     signal_create_url: str = "/signal/create/"
-    signal_list_url: str = "/signal/list/"
+    signal_list_url: str = "/signal/manage/"
 
     # Page URLs - Policy
     policy_manage_url: str = "/policy/workbench/"
@@ -63,7 +63,7 @@ class TestConfig:
     # Page URLs - Equity
     equity_screen_url: str = "/equity/screen/"
     equity_detail_url: str = "/equity/detail/"
-    equity_analysis_url: str = "/equity/analysis/"
+    equity_analysis_url: str = "/equity/screen/"
 
     # Page URLs - Fund
     fund_dashboard_url: str = "/fund/dashboard/"
@@ -77,7 +77,7 @@ class TestConfig:
     # Page URLs - Backtest
     backtest_create_url: str = "/backtest/create/"
     backtest_results_url: str = "/backtest/results/"
-    backtest_history_url: str = "/backtest/history/"
+    backtest_history_url: str = "/backtest/"
 
     # Page URLs - Simulated Trading
     simulated_trading_dashboard_url: str = "/simulated-trading/dashboard/"
@@ -175,3 +175,4 @@ TestConfig.__test__ = False
 
 # Global config instance
 config = TestConfig()
+

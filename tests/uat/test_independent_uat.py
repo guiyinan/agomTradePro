@@ -40,7 +40,7 @@ class TestAPINamingConvention:
         """Test that module-level API routes are accessible."""
         # These routes use the /module/api/ pattern
         module_api_routes = [
-            '/account/api/',  # Router root
+            '/api/account/',  # Router root
         ]
 
         for route in module_api_routes:
@@ -61,7 +61,7 @@ class TestNavigationRouteDefinition:
         nav_routes = {
             '/': 'index',
             '/dashboard/': 'dashboard',
-            '/policy/dashboard/': 'policy-dashboard',
+            '/policy/workbench/': 'policy-dashboard',
             '/asset-analysis/screen/': 'asset-screen',
             '/decision/workspace/': 'decision-workspace',
             '/ops/': 'ops-center',
@@ -162,7 +162,7 @@ class TestUserJourneyRouteAccess:
         journey_b_routes = [
             '/macro/data/',
             '/regime/dashboard/',
-            '/policy/manage/',
+            '/policy/workbench/',
             '/equity/screen/',
             '/fund/dashboard/',
         ]
@@ -310,3 +310,5 @@ class TestConfiguration:
         if missing:
             print(f"\nMissing required apps: {missing}")
             pytest.fail(f"Required apps are not registered: {missing}")
+
+

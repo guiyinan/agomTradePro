@@ -85,7 +85,7 @@
 |------|------|
 | `/api/regime/current/` | canonical 路径，需认证 |
 | `/api/regime/chart-data/` | 路由不存在 |
-| `/api/signals/` | 路由不存在，正确路径为 `/api/signal/api/` |
+| `/api/signal/` | canonical 路径，需认证 |
 
 ---
 
@@ -270,4 +270,5 @@ AgomTradePro V3.4 系统整体运行良好，核心功能可用。
 ---
 
 *报告由 Claude Code 自动生成*
+
 

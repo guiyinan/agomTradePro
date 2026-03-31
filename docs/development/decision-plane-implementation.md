@@ -772,8 +772,8 @@ POST /api/beta-gate/evaluate
 ### 7.2 Alpha Trigger API
 
 ```http
-POST /api/alpha-trigger/run
-GET  /api/alpha-candidates/?status=
+POST /api/alpha-triggers/create/
+GET  /api/alpha-triggers/candidates/?status=
 ```
 
 ### 7.3 Decision Rhythm API

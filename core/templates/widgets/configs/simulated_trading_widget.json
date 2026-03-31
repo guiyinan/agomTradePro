@@ -89,7 +89,8 @@
         {
             "label": "我的账户",
             "icon": "📊",
-            "url": "/simulated_trading/my-accounts/"
+            "url": "/simulated-trading/my-accounts/"
         }
     ]
 }
+

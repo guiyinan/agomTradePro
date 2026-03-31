@@ -173,7 +173,7 @@ SKIP_SMOKE_TESTS=true ./scripts/rollback.sh
 | Core Health | `/api/health/`, `/api/ready/` | Abort deployment |
 | Module Health | All module health endpoints | Warning only |
 | Critical Pages | `/`, `/account/login/` | Warning only |
-| Critical APIs | `/api/regime/`, `/api/signals/` | Warning only |
+| Critical APIs | `/api/regime/`, `/api/signal/` | Warning only |
 | Business Read | `/api/regime/current/` | Warning only |
 
 ---
@@ -573,3 +573,4 @@ For deployment issues:
 
 **Document Version**: 1.0
 **Last Modified**: 2026-03-04
+

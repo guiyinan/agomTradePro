@@ -205,7 +205,7 @@ document.getElementById('backtest-form').addEventListener('submit', async functi
     btnLoading.style.display = 'inline';
 
     try {
-        const response = await fetch('/api/backtest/backtests/', {
+        const data = await window.fetchJsonOrThrow('/api/backtest/backtests/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -213,17 +213,9 @@ document.getElementById('backtest-form').addEventListener('submit', async functi
             },
             body: JSON.stringify(formData)
         });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            alert('回测已创建，正在后台运行...');
-            // 跳转到回测详情页
-            window.location.href = `/backtest/${data.backtest_id}/`;
-        } else {
-            const errorMsg = data.errors ? JSON.stringify(data.errors, null, 2) : data.error || '未知错误';
-            alert('创建失败：' + errorMsg);
-        }
+        alert('回测已创建，正在后台运行...');
+        // 跳转到回测详情页
+        window.location.href = `/backtest/${data.backtest_id}/`;
     } catch (error) {
         alert('请求失败：' + error.message);
     } finally {

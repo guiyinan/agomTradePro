@@ -18,7 +18,7 @@
                 "items": [
                     {
                         "title": "相关页面",
-                        "content": "<ul><li><a href=\"/equity/screen/\">个股筛选</a></li><li><a href=\"/signal/list/\">投资信号</a></li></ul>"
+                        "content": "<ul><li><a href=\"/equity/screen/\">个股筛选</a></li><li><a href=\"/signal/manage/\">投资信号</a></li></ul>"
                     }
                 ]
             }
@@ -32,8 +32,9 @@
             {
                 "label": "我的账户",
                 "icon": "📊",
-                "url": "/simulated_trading/my-accounts/"
+                "url": "/simulated-trading/my-accounts/"
             }
         ]
     }
 }
+

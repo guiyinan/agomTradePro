@@ -16,7 +16,7 @@
                     },
                     {
                         "title": "相关页面",
-                        "content": "<ul><li><a href=\"/policy/dashboard/\">Policy 档位</a></li><li><a href=\"/signal/list/\">投资信号</a></li><li><a href=\"/macro/list/\">宏观数据</a></li></ul>"
+                        "content": "<ul><li><a href=\"/policy/workbench/\">Policy 档位</a></li><li><a href=\"/signal/manage/\">投资信号</a></li><li><a href=\"/macro/list/\">宏观数据</a></li></ul>"
                     }
                 ]
             }
@@ -30,3 +30,4 @@
         ]
     }
 }
+

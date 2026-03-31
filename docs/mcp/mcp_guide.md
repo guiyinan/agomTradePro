@@ -37,7 +37,7 @@ Create token for an existing user:
 
 ```bash
 cd .
-python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
+python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from apps.account.infrastructure.models import UserAccessTokenModel; u=User.objects.get(username='admin'); t,key=UserAccessTokenModel.create_token(user=u, name='mcp-guide'); print(key)"
 ```
 
 ### Runtime Setup by Platform
@@ -82,12 +82,12 @@ Windows path example:
 ```json
 {
   "mcpServers": {
-    "agomtradepro": {
+    "agomtradepro_local": {
       "command": "python",
-      "args": ["-m", "agomtradepro_mcp.server"],
+      "args": ["-m", "agomtradepro_mcp"],
       "cwd": "D:/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
         "AGOMTRADEPRO_API_TOKEN": "your_token_here",
         "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true",
         "AGOMTRADEPRO_MCP_ROLE": "投资经理"
@@ -102,12 +102,12 @@ Linux/macOS path example:
 ```json
 {
   "mcpServers": {
-    "agomtradepro": {
+    "agomtradepro_local": {
       "command": "python",
-      "args": ["-m", "agomtradepro_mcp.server"],
+      "args": ["-m", "agomtradepro_mcp"],
       "cwd": "/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
         "AGOMTRADEPRO_API_TOKEN": "your_token_here",
         "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true",
         "AGOMTRADEPRO_MCP_ROLE": "投资经理"
@@ -122,7 +122,7 @@ Linux/macOS path example:
 Enable RBAC:
 
 - `AGOMTRADEPRO_MCP_ENFORCE_RBAC=true`
-- 推荐：不设置 `AGOMTRADEPRO_MCP_ROLE`，MCP 会自动从 `account/api/profile/` 的 `rbac_role` 读取当前用户角色
+- 推荐：不设置 `AGOMTRADEPRO_MCP_ROLE`，MCP 会自动从 `/api/account/profile/` 的 `rbac_role` 读取当前用户角色
 - 可选覆盖：`AGOMTRADEPRO_MCP_ROLE=<role>`（强制覆盖后端角色）
 - 角色来源开关：`AGOMTRADEPRO_MCP_ROLE_SOURCE=backend`（默认）
 - 后备角色：`AGOMTRADEPRO_MCP_DEFAULT_ROLE=read_only`
@@ -154,6 +154,13 @@ What's the current macro regime?
 ```
 
 Claude should call the `get_current_regime` tool and respond with the current regime.
+
+Recommended environment split:
+
+- `agomtradepro_local` -> `http://127.0.0.1:8000`
+- `agomtradepro_prod` -> your production domain
+
+Do not switch local/prod by editing one shared server entry.
 
 You can validate tool registration locally:
 
@@ -560,7 +567,7 @@ python -m pip show mcp
 
 ### Connection Errors
 
-1. Check AgomTradePro server is running: `http://localhost:8000`
+1. Check AgomTradePro server is running: `http://127.0.0.1:8000`
 2. Verify API token is correct
 3. Check firewall settings
 4. If proxy is enabled globally, set `NO_PROXY=127.0.0.1,localhost`

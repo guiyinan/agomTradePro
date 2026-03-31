@@ -1,7 +1,7 @@
 # AgomTradePro 前端开发规范
 
 > **版本**: 1.0
-> **更新日期**: 2026-03-10
+> **更新日期**: 2026-03-31
 > **适用范围**: 所有前端页面（Django 模板 + 内联 JS/CSS）
 
 ---
@@ -74,6 +74,12 @@ apps/<module>/templates/<module>/  # App 内部模板（仅该 App 使用时）
 **选择规则**：
 - 跨模块共享 → `core/templates/`
 - 仅单模块使用 → `apps/<module>/templates/<module>/`
+
+### 2.4 认证页面约束
+
+- 任何页面只要会在加载后调用受保护的 `/api/` 端点，页面本身也必须加 `@login_required`。
+- 禁止出现“匿名用户能打开页面，但页面内 AJAX 全部 403”的半可用状态。
+- 登录保护页面统一依赖 Django 默认 `next` 参数回跳，不要手写额外跳转协议。
 
 ---
 
@@ -196,6 +202,40 @@ background: #fee2e2;
 | HTMX 增强组件 | `core/static/css/components.css` | 模态框、手风琴、标签页 |
 | 模块专属样式（多页面） | `core/static/css/<module>.css` | `macro.css` |
 | 单页面样式 | 模板内 `<style>` | 页面独有的布局 |
+
+---
+
+## Fetch / AJAX 规范
+
+### 同源请求默认值
+
+所有继承 `base.html` 的页面都应依赖基础模板提供的同源 `fetch` 默认行为：
+
+- 自动补 `credentials: 'same-origin'`
+- 对非安全方法自动补 `X-CSRFToken`
+- 可通过 `window.fetchJsonOrThrow()` 统一处理 JSON 接口
+
+新增页面不要再重复写一套 `fetch` 包装器，除非该页面不继承 `base.html`。
+
+### JSON 接口错误处理
+
+凡是调用 JSON API 的脚本，必须满足以下约束：
+
+- 先校验 `response.ok`，或直接使用 `window.fetchJsonOrThrow()`
+- 校验 `Content-Type` 为 JSON，防止登录页 HTML 被当作 JSON 解析
+- 对数组接口使用 `Array.isArray(...)` 做结构检查
+- 对数值展示使用空值兜底，例如 `Number(value ?? 0).toFixed(4)`
+
+```javascript
+const payload = await window.fetchJsonOrThrow('/api/dashboard/alpha/ic-trends/?days=30');
+const items = Array.isArray(payload?.data) ? payload.data : [];
+```
+
+### 失败兜底
+
+- 图表、统计卡、列表加载失败时，必须保留页面主体，不得因为一个接口失败导致整页白屏
+- `.catch()` 中至少记录 `console.warn/error` 并回退到空态或提示文案
+- 不要假设 403/302 一定不会发生，登录态过期是正常运行场景
 
 ### 3.4 Loading / Spinner 规范
 

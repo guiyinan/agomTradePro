@@ -52,10 +52,10 @@ class TestMacroAPILatency:
     """Macro data API endpoints latency baseline."""
 
     def test_macro_indicators_list_latency(self, client, large_macro_dataset, admin_client):
-        """GET /api/macro/indicators/ P95 < 1000ms with 1000+ data points."""
-        stats = measure_latency(admin_client, "/api/macro/indicators/", n=10)
+        """GET /api/macro/supported-indicators/ P95 < 1000ms with 1000+ data points."""
+        stats = measure_latency(admin_client, "/api/macro/supported-indicators/", n=10)
         print(
-            f"\n  /api/macro/indicators/ - median: {stats['median']:.1f}ms, "
+            f"\n  /api/macro/supported-indicators/ - median: {stats['median']:.1f}ms, "
             f"p95: {stats['p95']:.1f}ms"
         )
         # Baseline: should respond within 2 seconds
@@ -69,10 +69,10 @@ class TestSignalAPILatency:
     """Signal API endpoints latency baseline."""
 
     def test_signal_list_latency(self, admin_client, large_signal_dataset):
-        """GET /api/signal/signals/ P95 < 1000ms with 500+ signals."""
-        stats = measure_latency(admin_client, "/api/signal/signals/", n=10)
+        """GET /api/signal/ P95 < 1000ms with 500+ signals."""
+        stats = measure_latency(admin_client, "/api/signal/", n=10)
         print(
-            f"\n  /api/signal/signals/ - median: {stats['median']:.1f}ms, "
+            f"\n  /api/signal/ - median: {stats['median']:.1f}ms, "
             f"p95: {stats['p95']:.1f}ms"
         )
         assert stats["p95"] < 2000, (
@@ -145,3 +145,4 @@ class TestDomainCalculationLatency:
         print(f"\n  FactorEngine.calculate_factor_scores(300 stocks) - {elapsed_ms:.1f}ms")
         assert elapsed_ms < 500, f"Factor scoring {elapsed_ms:.1f}ms exceeds 500ms"
         assert len(scores) == 300
+

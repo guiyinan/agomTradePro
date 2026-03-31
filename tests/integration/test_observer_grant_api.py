@@ -2,9 +2,9 @@
 Integration tests for Observer Grant API.
 
 测试观察员授权 API：
-- POST /account/api/observer-grants/ - 创建授权
-- GET /account/api/observer-grants/ - 列表查询
-- DELETE /account/api/observer-grants/{id}/ - 撤销授权
+- POST /api/account/observer-grants/ - 创建授权
+- GET /api/account/observer-grants/ - 列表查询
+- DELETE /api/account/observer-grants/{id}/ - 撤销授权
 - 权限隔离测试（A 只能管理自己的授权）
 - 数量限制测试（最多 10 个）
 """
@@ -89,7 +89,7 @@ class TestObserverGrantCreateAPI:
             'observer_user_id': data['observer'].id,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 201
         assert response.data['success'] is True
@@ -111,7 +111,7 @@ class TestObserverGrantCreateAPI:
             'username': data['observer'].username,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 201
         assert response.data['data']['observer_user_id'] == data['observer'].id
@@ -128,7 +128,7 @@ class TestObserverGrantCreateAPI:
             'expires_at': expires_at.isoformat(),
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 201
         # 验证过期时间（容差1秒）
@@ -143,7 +143,7 @@ class TestObserverGrantCreateAPI:
             'observer_user_id': data['observer'].id,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 401 or response.status_code == 403
 
@@ -157,7 +157,7 @@ class TestObserverGrantCreateAPI:
             'observer_user_id': data['owner'].id,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
         assert '不能授权给自己' in str(response.data)
@@ -180,7 +180,7 @@ class TestObserverGrantCreateAPI:
             'observer_user_id': data['observer'].id,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
         assert '该用户已被授权' in str(response.data)
@@ -195,7 +195,7 @@ class TestObserverGrantCreateAPI:
             'observer_user_id': 99999,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
         assert '不存在' in str(response.data)
@@ -210,7 +210,7 @@ class TestObserverGrantCreateAPI:
             'username': 'nonexistent_user',
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
         # 错误信息可能包含 "不存在" 或 "does not exist"
@@ -229,7 +229,7 @@ class TestObserverGrantCreateAPI:
             'expires_at': past_time.isoformat(),
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
         assert '过期时间必须大于当前时间' in str(response.data)
@@ -242,7 +242,7 @@ class TestObserverGrantCreateAPI:
 
         payload = {}
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
 
@@ -269,7 +269,7 @@ class TestObserverGrantListAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        response = api_client.get('/account/api/observer-grants/')
+        response = api_client.get('/api/account/observer-grants/')
 
         assert response.status_code == 200
         assert response.data['count'] == 2
@@ -287,7 +287,7 @@ class TestObserverGrantListAPI:
 
         api_client.force_authenticate(user=data['observer'])
 
-        response = api_client.get('/account/api/observer-grants/?as_observer=1')
+        response = api_client.get('/api/account/observer-grants/?as_observer=1')
 
         assert response.status_code == 200
         assert response.data['count'] == 1
@@ -311,7 +311,7 @@ class TestObserverGrantListAPI:
         api_client.force_authenticate(user=data['owner'])
 
         # 只查询 active 状态
-        response = api_client.get('/account/api/observer-grants/?status=active')
+        response = api_client.get('/api/account/observer-grants/?status=active')
 
         assert response.status_code == 200
         assert response.data['count'] == 1
@@ -331,14 +331,14 @@ class TestObserverGrantListAPI:
         # 另一个用户查询
         api_client.force_authenticate(user=data['other_user'])
 
-        response = api_client.get('/account/api/observer-grants/')
+        response = api_client.get('/api/account/observer-grants/')
 
         assert response.status_code == 200
         assert response.data['count'] == 0
 
     def test_list_grants_requires_authentication(self, api_client):
         """测试查询列表需要认证"""
-        response = api_client.get('/account/api/observer-grants/')
+        response = api_client.get('/api/account/observer-grants/')
 
         assert response.status_code == 401 or response.status_code == 403
 
@@ -359,7 +359,7 @@ class TestObserverGrantDetailAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        response = api_client.get(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.get(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 200
         assert response.data['id'] == str(grant.id)
@@ -378,7 +378,7 @@ class TestObserverGrantDetailAPI:
 
         api_client.force_authenticate(user=data['observer'])
 
-        response = api_client.get(f'/account/api/observer-grants/{grant.id}/?as_observer=1')
+        response = api_client.get(f'/api/account/observer-grants/{grant.id}/?as_observer=1')
 
         assert response.status_code == 200
 
@@ -394,7 +394,7 @@ class TestObserverGrantDetailAPI:
 
         api_client.force_authenticate(user=data['other_user'])
 
-        response = api_client.get(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.get(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 404  # DRF 返回 404 因为不在查询集中
 
@@ -415,7 +415,7 @@ class TestObserverGrantDeleteAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        response = api_client.delete(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.delete(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 200
         assert response.data['success'] is True
@@ -438,7 +438,7 @@ class TestObserverGrantDeleteAPI:
 
         api_client.force_authenticate(user=data['other_user'])
 
-        response = api_client.delete(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.delete(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 403
 
@@ -454,7 +454,7 @@ class TestObserverGrantDeleteAPI:
 
         api_client.force_authenticate(user=data['observer'])
 
-        response = api_client.delete(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.delete(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 403
 
@@ -472,7 +472,7 @@ class TestObserverGrantDeleteAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        response = api_client.delete(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.delete(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 400
         assert '无法撤销' in str(response.data)
@@ -489,7 +489,7 @@ class TestObserverGrantDeleteAPI:
 
         api_client.force_authenticate(user=data['owner'])
 
-        response = api_client.delete(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.delete(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 400
 
@@ -532,7 +532,7 @@ class TestObserverGrantCountLimit:
             'username': new_observer.username,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         assert response.status_code == 400
         assert '达到观察员数量上限' in str(response.data)
@@ -577,7 +577,7 @@ class TestObserverGrantCountLimit:
             'username': new_observer.username,
         }
 
-        response = api_client.post('/account/api/observer-grants/', payload)
+        response = api_client.post('/api/account/observer-grants/', payload)
 
         # 打印错误信息以便调试
         if response.status_code != 201:
@@ -608,7 +608,7 @@ class TestObserverGrantUpdateAPI:
             'expires_at': new_expires.isoformat(),
         }
 
-        response = api_client.put(f'/account/api/observer-grants/{grant.id}/', payload)
+        response = api_client.put(f'/api/account/observer-grants/{grant.id}/', payload)
 
         assert response.status_code == 200
 
@@ -634,7 +634,7 @@ class TestObserverGrantUpdateAPI:
             'expires_at': past_time.isoformat(),
         }
 
-        response = api_client.put(f'/account/api/observer-grants/{grant.id}/', payload)
+        response = api_client.put(f'/api/account/observer-grants/{grant.id}/', payload)
 
         assert response.status_code == 400
 
@@ -655,7 +655,7 @@ class TestObserverGrantSerializerFields:
 
         api_client.force_authenticate(user=data['owner'])
 
-        response = api_client.get(f'/account/api/observer-grants/{grant.id}/')
+        response = api_client.get(f'/api/account/observer-grants/{grant.id}/')
 
         assert response.status_code == 200
         assert 'owner_username' in response.data
@@ -666,3 +666,4 @@ class TestObserverGrantSerializerFields:
         assert response.data['owner_username'] == data['owner'].username
         assert response.data['observer_username'] == data['observer'].username
         assert response.data['is_valid'] is True
+

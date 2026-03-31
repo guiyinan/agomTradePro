@@ -145,8 +145,7 @@ const pageSize = 20;
 // 加载股票池
 async function loadPool() {
     try {
-        const response = await fetch('/api/equity/pool/');
-        const result = await response.json();
+        const result = await window.fetchJsonOrThrow('/api/equity/pool/');
 
         if (result.success) {
             currentPool = result.stocks || [];
@@ -292,14 +291,13 @@ async function refreshPool() {
 
         const csrftoken = getCookie('csrftoken');
 
-        const response = await fetch('/api/equity/pool/refresh/', {
+        const result = await window.fetchJsonOrThrow('/api/equity/pool/refresh/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrftoken
             }
         });
-        const result = await response.json();
 
         if (result.success) {
             alert('股票池已更新');

@@ -16,7 +16,7 @@
                     },
                     {
                         "title": "相关页面",
-                        "content": "<ul><li><a href=\"/regime/dashboard/\">Regime 判定</a></li><li><a href=\"/policy/events/\">政策事件列表</a></li><li><a href=\"/signal/list/\">投资信号</a></li></ul>"
+                        "content": "<ul><li><a href=\"/regime/dashboard/\">Regime 判定</a></li><li><a href=\"/policy/events/\">政策事件列表</a></li><li><a href=\"/signal/manage/\">投资信号</a></li></ul>"
                     }
                 ]
             }
@@ -30,3 +30,4 @@
         ]
     }
 }
+

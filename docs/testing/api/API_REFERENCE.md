@@ -1,7 +1,7 @@
 # AgomTradePro API 参考文档
 
-> **版本**: v1.0
-> **更新**: 2026-03-05
+> **版本**: v1.1
+> **更新**: 2026-03-31
 > **Base URL**: `http://localhost:8000/api/`
 
 ---
@@ -137,9 +137,10 @@ GET /api/regime/health/
 |------|------|------|
 | `/api/policy/events/` | GET | 获取政策事件列表 (需认证) |
 | `/api/policy/events/{event_date}/` | GET | 获取指定日期政策事件 (需认证) |
-| `/policy/events/` | GET | 获取政策事件列表 (页面路由) |
-| `/policy/events/{event_date}/` | GET | 获取指定日期政策事件 (页面路由) |
-| `/policy/events/create/` | POST | 创建政策事件 |
+| `/api/policy/events/` | POST | 创建政策事件 (需认证) |
+| `/policy/events/` | GET | 政策事件列表页 |
+| `/policy/events/new/` | GET | 新增政策事件页面 |
+| `/policy/events/{event_date}/` | GET | 兼容详情入口，当前重定向到 `/policy/workbench/` |
 | `/policy/status/` | GET | 获取当前政策档位 |
 | `/api/hedge/pairs/` | GET | 获取对冲配对 |
 | `/api/hedge/actions/` | POST | 执行对冲相关计算/动作 |
@@ -488,9 +489,10 @@ POST /api/prompt/report-generation/
 | 端点 | 方法 | 描述 |
 |------|------|------|
 | `/api/decision-workflow/precheck/` | POST | 决策预检查 |
-| `/api/decision-workflow/check-beta-gate/` | POST | 检查 Beta Gate |
-| `/api/decision-workflow/check-quota/` | POST | 检查配额状态 |
-| `/api/decision-workflow/check-cooldown/` | POST | 检查冷却期 |
+| `/api/decision/workspace/recommendations/` | GET | 获取统一推荐列表 |
+| `/api/decision/workspace/recommendations/refresh/` | POST | 刷新统一推荐 |
+| `/api/decision/workspace/recommendations/action/` | POST | 记录用户对推荐的动作 |
+| `/api/decision/funnel/context/` | GET | 获取决策漏斗上下文 |
 
 ### 13.2 决策预检查 API
 
@@ -709,7 +711,7 @@ Authorization: Token your_api_token_here
 ### 13.1 统一数据源 API
 
 > **标准前缀**: `/api/market-data/`
-> **页面路由**: `/market-data/`（Provider 管理页面）
+> **页面路由**: `/market-data/providers/`（Provider 管理页面，`/market-data/` 为兼容跳转）
 
 统一数据源接入层，支持多 Provider（东方财富、AKShare 通用、Tushare）自动 failover 和交叉校验。
 

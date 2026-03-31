@@ -84,7 +84,8 @@
         {
             "label": "回测列表",
             "icon": "📋",
-            "url": "/backtest/list/"
+            "url": "/backtest/"
         }
     ]
 }
+

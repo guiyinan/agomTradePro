@@ -201,10 +201,10 @@ agomtradepro/Scripts/python.exe scripts/init_policy_keywords.py
 
 ```
 # 获取所有RSS源
-GET /api/policy/api/rss/sources/
+GET /api/policy/rss/sources/
 
 # 创建RSS源
-POST /api/policy/api/rss/sources/
+POST /api/policy/rss/sources/
 {
     "name": "政府文件库",
     "url": "https://rsshub.app/gov/zhengce/zhengceku/bmwj",
@@ -214,27 +214,27 @@ POST /api/policy/api/rss/sources/
 }
 
 # 手动触发抓取
-POST /api/policy/api/rss/sources/{id}/trigger_fetch/
+POST /api/policy/rss/sources/{id}/trigger_fetch/
 
 # 抓取所有源
-POST /api/policy/api/rss/sources/fetch_all/
+POST /api/policy/rss/sources/fetch_all/
 ```
 
 #### 抓取日志
 
 ```
 # 获取抓取日志
-GET /api/policy/api/rss/logs/?source={source_id}
+GET /api/policy/rss/logs/?source={source_id}
 ```
 
 #### 关键词规则
 
 ```
 # 获取所有规则
-GET /api/policy/api/rss/keywords/
+GET /api/policy/rss/keywords/
 
 # 创建规则
-POST /api/policy/api/rss/keywords/
+POST /api/policy/rss/keywords/
 {
     "level": "P2",
     "keywords": ["降息", "降准"],
@@ -530,3 +530,4 @@ url = source.get_effective_url()
   - Django Admin管理
   - REST API
   - Celery定时任务
+

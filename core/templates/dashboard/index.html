@@ -993,11 +993,13 @@ document.querySelectorAll('.suggestion-btn').forEach(btn => {
 
 // 定期刷新数据
 setInterval(() => {
-    fetch('/api/regime/current/')
-        .then(r => r.json())
-        .then(data => {
+    window.fetchJsonOrThrow('/api/regime/current/')
+        .then(() => {
             // 只刷新关键指标，不刷新整个页面
             console.log('数据已更新');
+        })
+        .catch(error => {
+            console.warn('Failed to refresh regime data:', error);
         });
 }, 300000); // 每5分钟刷新一次
 
@@ -1352,8 +1354,7 @@ if (icTrendsCtx) {
         const periodSelect = document.getElementById('icPeriodSelect');
         if (periodSelect) {
             periodSelect.addEventListener('change', function() {
-                fetch(`/api/dashboard/alpha/ic-trends/?days=${this.value}`)
-                    .then(r => r.json())
+                window.fetchJsonOrThrow(`/api/dashboard/alpha/ic-trends/?days=${this.value}`)
                     .then(response => {
                         if (response.success && response.data) {
                             const newValidData = response.data.filter(d => d.ic !== null);
@@ -1367,6 +1368,9 @@ if (icTrendsCtx) {
                                 ]
                             });
                         }
+                    })
+                    .catch(error => {
+                        console.warn('Failed to refresh IC trends:', error);
                     });
             });
         }
@@ -1394,8 +1398,7 @@ if (chartAccountFilter) {
         const qs = accountId ? '?account_id=' + accountId : '';
 
         // 刷新资产配置图表
-        fetch('/api/dashboard/allocation/' + qs, { credentials: 'same-origin' })
-            .then(r => r.json())
+        window.fetchJsonOrThrow('/api/dashboard/allocation/' + qs)
             .then(response => {
                 if (response.success && response.data) {
                     renderAllocationChart(response.data);
@@ -1404,8 +1407,7 @@ if (chartAccountFilter) {
             .catch(err => console.warn('Failed to refresh allocation chart:', err));
 
         // 刷新收益趋势图表
-        fetch('/api/dashboard/performance/' + qs, { credentials: 'same-origin' })
-            .then(r => r.json())
+        window.fetchJsonOrThrow('/api/dashboard/performance/' + qs)
             .then(response => {
                 if (response.success && response.data) {
                     renderPerformanceChart(response.data);

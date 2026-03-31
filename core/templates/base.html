@@ -410,6 +410,132 @@
     // 全局 CSRF Token
     window.csrfToken = getCookie('csrftoken');
 
+    // ===== 同源 Fetch 默认行为 =====
+    (function() {
+        if (typeof window.fetch !== 'function') {
+            return;
+        }
+
+        const nativeFetch = window.fetch.bind(window);
+        const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
+
+        function isSameOriginRequest(resource) {
+            try {
+                const rawUrl = resource instanceof Request ? resource.url : String(resource);
+                const requestUrl = new URL(rawUrl, window.location.href);
+                return requestUrl.origin === window.location.origin;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function buildFetchInit(resource, init = {}) {
+            if (!isSameOriginRequest(resource)) {
+                return init;
+            }
+
+            const finalInit = { ...init };
+            if (typeof finalInit.credentials === 'undefined') {
+                finalInit.credentials = 'same-origin';
+            }
+
+            const method = (
+                finalInit.method ||
+                (resource instanceof Request ? resource.method : 'GET') ||
+                'GET'
+            ).toUpperCase();
+
+            if (!SAFE_METHODS.has(method)) {
+                const headers = new Headers(resource instanceof Request ? resource.headers : undefined);
+                const overrideHeaders = new Headers(finalInit.headers || {});
+                overrideHeaders.forEach((value, key) => headers.set(key, value));
+
+                if (!headers.has('X-CSRFToken') && window.csrfToken) {
+                    headers.set('X-CSRFToken', window.csrfToken);
+                }
+                finalInit.headers = headers;
+            }
+
+            return finalInit;
+        }
+
+        async function extractResponseErrorMessage(response) {
+            const clone = response.clone();
+            const contentType = clone.headers.get('content-type') || '';
+
+            function flattenPayloadErrors(payload) {
+                if (!payload || typeof payload !== 'object') {
+                    return '';
+                }
+
+                if (typeof payload.errors === 'string') {
+                    return payload.errors;
+                }
+
+                if (payload.errors && typeof payload.errors === 'object') {
+                    const collected = Object.entries(payload.errors).flatMap(([field, value]) => {
+                        if (Array.isArray(value)) {
+                            return value.map((item) => `${field}: ${item}`);
+                        }
+                        if (value && typeof value === 'object') {
+                            return Object.values(value).flat().map((item) => `${field}: ${item}`);
+                        }
+                        return [`${field}: ${value}`];
+                    }).filter(Boolean);
+
+                    return collected.join('; ');
+                }
+
+                return '';
+            }
+
+            try {
+                if (contentType.includes('application/json')) {
+                    const payload = await clone.json();
+                    return (
+                        payload?.error ||
+                        payload?.detail ||
+                        flattenPayloadErrors(payload) ||
+                        payload?.message ||
+                        `HTTP ${response.status}`
+                    );
+                }
+
+                if (contentType.includes('text/html')) {
+                    return `HTTP ${response.status} (HTML response)`;
+                }
+
+                const text = (await clone.text()).trim();
+                return text || `HTTP ${response.status}`;
+            } catch (error) {
+                return `HTTP ${response.status}`;
+            }
+        }
+
+        window.fetch = function(resource, init) {
+            return nativeFetch(resource, buildFetchInit(resource, init));
+        };
+
+        window.assertOkResponse = async function(response) {
+            if (response.ok) {
+                return response;
+            }
+            throw new Error(await extractResponseErrorMessage(response));
+        };
+
+        window.fetchJsonOrThrow = async function(resource, init = {}) {
+            const response = await window.fetch(resource, init);
+            await window.assertOkResponse(response);
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error(`Expected JSON but received ${contentType || 'unknown content type'}`);
+            }
+
+            return response.json();
+        };
+    })();
+
     // ===== HTMX 配置 =====
     document.body.addEventListener('htmx:configRequest', function(evt) {
         // 为所有 HTMX 请求添加 CSRF Token

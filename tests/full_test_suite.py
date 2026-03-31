@@ -157,7 +157,7 @@ def test_core_business():
     else:
         record("Policy status", "FAIL", str(data)[:200])
 
-    ok, data = api_get("/api/signals/")
+    ok, data = api_get("/api/signal/")
     record(
         "Signals list",
         "PASS" if ok else "FAIL",
@@ -638,3 +638,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

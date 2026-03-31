@@ -10,6 +10,7 @@
 from __future__ import annotations
 from datetime import date
 
+from django.contrib.auth.decorators import login_required
 from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import render
 from django.utils import timezone
@@ -91,6 +92,7 @@ from .serializers import (
 # ============================================================================
 
 
+@login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def screen_page(request):
     """
@@ -101,6 +103,7 @@ def screen_page(request):
     return render(request, "equity/screen.html")
 
 
+@login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def detail_page(request, stock_code):
     """
@@ -112,6 +115,7 @@ def detail_page(request, stock_code):
     return render(request, "equity/detail.html", context)
 
 
+@login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def pool_page(request):
     """
@@ -122,6 +126,7 @@ def pool_page(request):
     return render(request, "equity/pool.html")
 
 
+@login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def valuation_repair_page(request):
     """
@@ -147,6 +152,7 @@ def valuation_repair_page(request):
     )
 
 
+@login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def valuation_repair_config_page(request):
     """

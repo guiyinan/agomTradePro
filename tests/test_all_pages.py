@@ -66,7 +66,7 @@ PAGE_ROUTES = [
 
     # Policy 模块
     {"url": "/policy/events/", "name": "政策事件页面", "requires_auth": True},
-    {"url": "/policy/rss/manage/", "name": "RSS 源管理", "requires_auth": True},
+    {"url": "/policy/rss/sources/", "name": "RSS 源管理", "requires_auth": True},
     {"url": "/policy/rss/reader/", "name": "RSS 阅读器", "requires_auth": True},
     {"url": "/policy/rss/keywords/", "name": "RSS 关键词", "requires_auth": True},
     {"url": "/policy/rss/logs/", "name": "RSS 抓取日志", "requires_auth": True},
@@ -395,3 +395,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+

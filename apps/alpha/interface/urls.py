@@ -12,13 +12,12 @@ from . import views
 app_name = "alpha"
 
 urlpatterns = [
-    # API 根路径（兼容旧调用）
+    # API 根路径
     path("", lambda request: JsonResponse({
         "module": "alpha",
         "endpoints": [
             "/api/alpha/scores/",
             "/api/alpha/scores/upload/",
-            "/api/alpha/stocks/",
             "/api/alpha/providers/status/",
             "/api/alpha/universes/",
             "/api/alpha/health/",
@@ -30,9 +29,6 @@ urlpatterns = [
 
     # 上传本地 Qlib 推理结果（支持用户隔离）
     path("scores/upload/", views.upload_scores, name="upload_scores"),
-
-    # 兼容旧路径
-    path("stocks/", views.get_stock_scores, name="get_stock_scores_legacy"),
 
     # Provider 状态
     path("providers/status/", views.get_provider_status, name="provider_status"),
