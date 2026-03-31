@@ -249,6 +249,13 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
 
+### Setup Wizard API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/setup/api/password-strength/` | GET | 安装向导密码强度检查（页面当前使用路径） |
+| `/api/setup/password-strength/` | GET | 安装向导密码强度检查兼容入口 |
+
 ### Realtime Price API
 
 | 端点 | 方法 | 说明 |
@@ -280,6 +287,7 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 - `GET /api/filter/` 返回可发现的 API 根信息；真正执行滤波仍使用 `POST /api/filter/`
 - `/api/macro/indicator-data/` 同时接受 `code` 与 `indicator_code` 查询参数
 - `/api/pulse/current/` 在无历史快照时会尝试按需计算一次当前 Pulse
+- Setup Wizard 密码强度检查同时支持 `/setup/api/password-strength/` 与 `/api/setup/password-strength/`
 
 ### 数据源中台提示
 

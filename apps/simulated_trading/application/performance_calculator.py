@@ -49,20 +49,31 @@ class PerformanceCalculator:
         """
         Resolve price from the configured market data provider.
 
-        Prefer ``get_price`` first so tests and adapters that expose the
-        nullable API can override pricing cleanly. If it returns ``None``,
-        fall back to the strict ``require_price`` path and keep the
-        production rule of failing loudly when no market price exists.
+        Respect explicit instance-level overrides first so tests can choose
+        either the strict ``require_price`` path or the nullable
+        ``get_price`` path. For the default provider, prefer the strict
+        ``require_price`` method to preserve the production rule of failing
+        loudly when no market price exists.
         """
+        provider_overrides = vars(self.market_data_provider)
         get_price = getattr(self.market_data_provider, "get_price", None)
-        if callable(get_price):
+        require_price = getattr(self.market_data_provider, "require_price", None)
+
+        if "require_price" in provider_overrides and callable(require_price):
+            return require_price(asset_code, trade_date)
+
+        if "get_price" in provider_overrides and callable(get_price):
             price = get_price(asset_code, trade_date)
             if price is not None:
                 return price
 
-        require_price = getattr(self.market_data_provider, "require_price", None)
         if callable(require_price):
             return require_price(asset_code, trade_date)
+
+        if callable(get_price):
+            price = get_price(asset_code, trade_date)
+            if price is not None:
+                return price
 
         raise DataFetchError(
             message=f"无法获取 {asset_code} 在 {trade_date} 的历史价格",
