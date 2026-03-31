@@ -85,7 +85,7 @@ class TestOperationLogAPI:
     def test_list_logs_as_admin(self, api_client, admin_user, sample_log):
         """测试管理员列出日志"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/operation-logs/')
+        response = api_client.get('/api/audit/operation-logs/')
 
         assert response.status_code == 200
         data = response.json()
@@ -110,7 +110,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get('/audit/api/operation-logs/')
+        response = api_client.get('/api/audit/operation-logs/')
 
         assert response.status_code == 200
         data = response.json()
@@ -135,7 +135,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get(f'/audit/api/operation-logs/{log.id}/')
+        response = api_client.get(f'/api/audit/operation-logs/{log.id}/')
 
         assert response.status_code == 200
         data = response.json()
@@ -145,14 +145,14 @@ class TestOperationLogAPI:
     def test_get_log_detail_forbidden_for_other_user(self, api_client, regular_user, sample_log):
         """测试用户不能查看他人日志"""
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get(f'/audit/api/operation-logs/{sample_log.id}/')
+        response = api_client.get(f'/api/audit/operation-logs/{sample_log.id}/')
 
         assert response.status_code == 403
 
     def test_filter_by_module(self, api_client, admin_user, sample_log):
         """测试按模块过滤"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/operation-logs/?module=signal')
+        response = api_client.get('/api/audit/operation-logs/?module=signal')
 
         assert response.status_code == 200
         data = response.json()
@@ -177,7 +177,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/operation-logs/?response_status=500')
+        response = api_client.get('/api/audit/operation-logs/?response_status=500')
 
         assert response.status_code == 200
         data = response.json()
@@ -187,7 +187,7 @@ class TestOperationLogAPI:
     def test_stats_as_admin(self, api_client, admin_user, sample_log):
         """测试管理员查看统计"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/operation-logs/stats/')
+        response = api_client.get('/api/audit/operation-logs/stats/')
 
         assert response.status_code == 200
         data = response.json()
@@ -198,14 +198,14 @@ class TestOperationLogAPI:
     def test_stats_forbidden_for_regular_user(self, api_client, regular_user):
         """测试普通用户不能查看统计"""
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get('/audit/api/operation-logs/stats/')
+        response = api_client.get('/api/audit/operation-logs/stats/')
 
         assert response.status_code == 403
 
     def test_export_as_admin(self, api_client, admin_user, sample_log):
         """测试管理员导出日志"""
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/operation-logs/export/?format=csv')
+        response = api_client.get('/api/audit/operation-logs/export/?format=csv')
 
         assert response.status_code == 200
         assert 'attachment' in response.get('Content-Disposition', '')
@@ -240,7 +240,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/operation-logs/export/?format=json&mcp_client_id=token-a')
+        response = api_client.get('/api/audit/operation-logs/export/?format=json&mcp_client_id=token-a')
 
         assert response.status_code == 200
         payload = response.json()
@@ -251,7 +251,7 @@ class TestOperationLogAPI:
     def test_export_forbidden_for_regular_user(self, api_client, regular_user):
         """测试普通用户不能导出"""
         api_client.force_authenticate(user=regular_user)
-        response = api_client.get('/audit/api/operation-logs/export/')
+        response = api_client.get('/api/audit/operation-logs/export/')
 
         assert response.status_code == 403
 
@@ -285,7 +285,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/decision-traces/')
+        response = api_client.get('/api/audit/decision-traces/')
 
         assert response.status_code == 200
         data = response.json()
@@ -325,7 +325,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/decision-traces/trace-002/')
+        response = api_client.get('/api/audit/decision-traces/trace-002/')
 
         assert response.status_code == 200
         data = response.json()
@@ -365,7 +365,7 @@ class TestOperationLogAPI:
         )
 
         api_client.force_authenticate(user=admin_user)
-        response = api_client.get('/audit/api/decision-traces/')
+        response = api_client.get('/api/audit/decision-traces/')
 
         assert response.status_code == 200
         traces = [item for item in response.json()['traces'] if item['request_id'] == 'trace-003']
@@ -380,7 +380,7 @@ class TestOperationLogIngest:
     def test_ingest_without_signature(self, api_client):
         """测试无签名写入被拒绝"""
         response = api_client.post(
-            '/audit/api/internal/operation-logs/',
+            '/api/audit/internal/operation-logs/',
             {
                 'request_id': 'req-test-005',
                 'source': 'MCP',

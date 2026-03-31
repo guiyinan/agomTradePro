@@ -62,7 +62,7 @@ class TestNavigationNo404:
 
     def test_policy_manage_url_no_404(self, authenticated_client):
         """Policy 管理 URL 应重定向到工作台。"""
-        response = authenticated_client.get('/policy/workbench/')
+        response = authenticated_client.get('/policy/')
         _assert_expected_status(response, {301, 302}, "Policy manage page should redirect")
         assert "/policy/workbench/" in response.headers["Location"]
 

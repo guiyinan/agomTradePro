@@ -58,7 +58,7 @@ class TestAuditInternalIngest:
 
         with override_settings(AUDIT_INTERNAL_SECRET_KEY=secret, DEBUG=False):
             response = client.post(
-                "/audit/api/internal/operation-logs/",
+                "/api/audit/internal/operation-logs/",
                 data=payload,
                 format="json",
                 HTTP_X_AUDIT_TIMESTAMP=ts,
@@ -88,7 +88,7 @@ class TestAuditInternalIngest:
 
         with override_settings(AUDIT_INTERNAL_SECRET_KEY="right-secret", DEBUG=False):
             response = client.post(
-                "/audit/api/internal/operation-logs/",
+                "/api/audit/internal/operation-logs/",
                 data=payload,
                 format="json",
                 HTTP_X_AUDIT_TIMESTAMP=ts,

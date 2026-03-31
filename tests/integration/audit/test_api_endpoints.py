@@ -3,7 +3,7 @@ Integration Tests for Audit Module API Endpoints.
 
 Tests for:
 - POST /audit/reports/generate/ - GenerateAttributionReportView
-- GET /audit/api/summary/ - AuditSummaryView
+- GET /api/audit/summary/ - AuditSummaryView
 - Request validation
 - Response serialization
 - Error handling
@@ -94,7 +94,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_success(self, api_client, sample_backtest):
         """Test successful generation of attribution report."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -114,7 +114,7 @@ class TestGenerateAttributionReportAPI:
         sample_backtest
     ):
         """Test that response includes loss_analyses and experience_summaries."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -126,7 +126,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_missing_backtest_id(self, api_client):
         """Test with missing backtest_id field."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {}  # Missing backtest_id
 
         response = api_client.post(url, data, format='json')
@@ -136,7 +136,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_nonexistent_backtest(self, api_client):
         """Test with non-existent backtest ID."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': 99999}  # Non-existent
 
         response = api_client.post(url, data, format='json')
@@ -146,7 +146,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_invalid_backtest_id_type(self, api_client):
         """Test with invalid backtest_id type."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': 'not_an_integer'}
 
         response = api_client.post(url, data, format='json')
@@ -159,7 +159,7 @@ class TestGenerateAttributionReportAPI:
         sample_backtest
     ):
         """Test that API creates database records."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         initial_count = AttributionReport.objects.count()
@@ -175,7 +175,7 @@ class TestGenerateAttributionReportAPI:
     def test_generate_attribution_report_unauthenticated(self):
         """Test that unauthenticated request is rejected."""
         client = APIClient()  # Not authenticated
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': 1}
 
         response = client.post(url, data, format='json')
@@ -192,7 +192,7 @@ class TestGenerateAttributionReportAPI:
         sample_backtest
     ):
         """Test generating multiple reports for the same backtest."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response1 = api_client.post(url, data, format='json')
@@ -233,7 +233,7 @@ class TestGenerateAttributionReportAPI:
             status='completed'
         )
 
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -249,7 +249,7 @@ class TestGenerateAttributionReportAPI:
 
 @pytest.mark.django_db
 class TestAuditSummaryAPI:
-    """Test GET /audit/api/summary/ endpoint."""
+    """Test GET /api/audit/summary/ endpoint."""
 
     @pytest.fixture
     def api_client(self):
@@ -295,7 +295,7 @@ class TestAuditSummaryAPI:
     def test_get_summary_by_backtest_id(self, api_client, sample_reports):
         """Test getting summary by backtest ID."""
         backtest_id = sample_reports[0].backtest_id
-        url = f'/audit/api/summary/?backtest_id={backtest_id}'
+        url = f'/api/audit/summary/?backtest_id={backtest_id}'
 
         response = api_client.get(url)
 
@@ -305,7 +305,7 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_by_date_range(self, api_client, sample_reports):
         """Test getting summary by date range."""
-        url = '/audit/api/summary/?start_date=2024-01-01&end_date=2024-12-31'
+        url = '/api/audit/summary/?start_date=2024-01-01&end_date=2024-12-31'
 
         response = api_client.get(url)
 
@@ -314,7 +314,7 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_missing_parameters(self, api_client):
         """Test with missing required parameters."""
-        url = '/audit/api/summary/'  # No parameters
+        url = '/api/audit/summary/'  # No parameters
 
         response = api_client.get(url)
 
@@ -323,7 +323,7 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_invalid_backtest_id(self, api_client):
         """Test with invalid backtest_id type."""
-        url = '/audit/api/summary/?backtest_id=not_an_integer'
+        url = '/api/audit/summary/?backtest_id=not_an_integer'
 
         response = api_client.get(url)
 
@@ -332,7 +332,7 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_invalid_date_format(self, api_client):
         """Test with invalid date format."""
-        url = '/audit/api/summary/?start_date=01-01-2024&end_date=12-31-2024'
+        url = '/api/audit/summary/?start_date=01-01-2024&end_date=12-31-2024'
 
         response = api_client.get(url)
 
@@ -360,7 +360,7 @@ class TestAuditSummaryAPI:
             priority='HIGH'
         )
 
-        url = f'/audit/api/summary/?backtest_id={backtest_id}'
+        url = f'/api/audit/summary/?backtest_id={backtest_id}'
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -371,7 +371,7 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_empty_result(self, api_client):
         """Test with no matching reports."""
-        url = '/audit/api/summary/?backtest_id=99999'
+        url = '/api/audit/summary/?backtest_id=99999'
 
         response = api_client.get(url)
 
@@ -381,7 +381,7 @@ class TestAuditSummaryAPI:
     def test_get_summary_unauthenticated(self):
         """Test that unauthenticated request is rejected."""
         client = APIClient()  # Not authenticated
-        url = '/audit/api/summary/?backtest_id=1'
+        url = '/api/audit/summary/?backtest_id=1'
 
         response = client.get(url)
 
@@ -430,7 +430,7 @@ class TestAuditAPIResponseSerialization:
 
     def test_attribution_report_data_types(self, api_client, sample_backtest):
         """Test that response data has correct types."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -449,12 +449,12 @@ class TestAuditAPIResponseSerialization:
     def test_summary_response_is_list(self, api_client, sample_backtest):
         """Test that summary API returns a list."""
         # First generate a report
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
         api_client.post(url, data, format='json')
 
         # Then get summary
-        summary_url = f'/audit/api/summary/?backtest_id={sample_backtest.id}'
+        summary_url = f'/api/audit/summary/?backtest_id={sample_backtest.id}'
         response = api_client.get(summary_url)
 
         assert response.status_code == status.HTTP_200_OK
@@ -466,7 +466,7 @@ class TestAuditAPIResponseSerialization:
         sample_backtest
     ):
         """Test that date fields are serialized correctly."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -481,7 +481,7 @@ class TestAuditAPIResponseSerialization:
 
     def test_nested_data_structure(self, api_client, sample_backtest):
         """Test that nested data has correct structure."""
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -527,7 +527,7 @@ class TestAuditAPIErrorHandling:
             backtests.append(backtest)
 
         # Generate reports concurrently (sequentially in test)
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         responses = []
         for backtest in backtests:
             data = {'backtest_id': backtest.id}
@@ -541,11 +541,11 @@ class TestAuditAPIErrorHandling:
     def test_summary_with_partial_date_range(self, api_client):
         """Test summary with only start_date or end_date."""
         # These should fail - both dates required
-        url = '/audit/api/summary/?start_date=2024-01-01'
+        url = '/api/audit/summary/?start_date=2024-01-01'
         response = api_client.get(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-        url = '/audit/api/summary/?end_date=2024-12-31'
+        url = '/api/audit/summary/?end_date=2024-12-31'
         response = api_client.get(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -567,7 +567,7 @@ class TestAuditAPIErrorHandling:
             status='in_progress'  # Not completed
         )
 
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -601,7 +601,7 @@ class TestAuditAPIErrorHandling:
             status='completed'
         )
 
-        url = '/audit/api/reports/generate/'
+        url = '/api/audit/reports/generate/'
         data = {'backtest_id': backtest.id}
 
         response = api_client.post(url, data, format='json')
