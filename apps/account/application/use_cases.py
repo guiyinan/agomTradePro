@@ -27,12 +27,20 @@ from apps.account.domain.entities import (
     Region,
     RiskTolerance,
 )
-from apps.account.domain.services import PositionService
+from apps.account.domain.services import (
+    MacroSizingContext,
+    PositionService,
+    SizingMultiplierResult,
+    calculate_macro_multiplier,
+    calculate_portfolio_drawdown,
+)
 from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.account.infrastructure.repositories import (
     AccountRepository,
     AssetMetadataRepository,
+    MacroSizingConfigRepository,
     PortfolioRepository,
+    PortfolioSnapshotRepository,
     PositionRepository,
     SystemSettingsRepository,
     TransactionRepository,
@@ -597,3 +605,87 @@ class CreatePositionFromBacktestUseCase:
             return Region.GLOBAL
         else:
             return Region.CN  # 默认中国
+
+
+@dataclass
+class SizingContextOutput:
+    """宏观仓位系数上下文输出。"""
+
+    portfolio_id: int
+    as_of_date: date
+    regime_name: str
+    regime_confidence: float
+    pulse_composite: float
+    pulse_warning: bool
+    portfolio_drawdown_pct: float
+    snapshot_count: int
+    multiplier_result: SizingMultiplierResult
+    warnings: list[str]
+
+
+class GetSizingContextUseCase:
+    """获取宏观感知仓位系数上下文。"""
+
+    def __init__(
+        self,
+        portfolio_repo: PortfolioRepository | None = None,
+        snapshot_repo: PortfolioSnapshotRepository | None = None,
+        config_repo: MacroSizingConfigRepository | None = None,
+    ):
+        self.portfolio_repo = portfolio_repo or PortfolioRepository()
+        self.snapshot_repo = snapshot_repo or PortfolioSnapshotRepository()
+        self.config_repo = config_repo or MacroSizingConfigRepository()
+
+    def execute(self, portfolio_id: int, user_id: int) -> SizingContextOutput:
+        if not self.portfolio_repo.user_owns_portfolio(portfolio_id, user_id):
+            raise ValueError(f"投资组合 {portfolio_id} 不存在或无权限")
+
+        warnings: list[str] = []
+        target_date = date.today()
+
+        regime_result = resolve_current_regime(as_of_date=target_date)
+        if regime_result.is_fallback and regime_result.warnings:
+            warnings.extend(regime_result.warnings)
+
+        from apps.pulse.application.use_cases import GetLatestPulseUseCase
+
+        pulse_snapshot = GetLatestPulseUseCase().execute()
+        if pulse_snapshot is None:
+            warnings.append("Pulse 快照不可用，已使用中性默认值")
+            pulse_composite = 0.0
+            pulse_warning = False
+        else:
+            pulse_composite = float(pulse_snapshot.composite_score)
+            pulse_warning = bool(pulse_snapshot.transition_warning)
+
+        snapshots = self.snapshot_repo.get_snapshots_for_volatility(
+            portfolio_id=portfolio_id,
+            days=180,
+        )
+        value_history = [float(snapshot["total_value"]) for snapshot in snapshots]
+        portfolio_drawdown_pct = calculate_portfolio_drawdown(value_history)
+
+        context = MacroSizingContext(
+            regime_confidence=float(regime_result.confidence),
+            regime_name=regime_result.dominant_regime,
+            pulse_composite=pulse_composite,
+            pulse_warning=pulse_warning,
+            portfolio_drawdown_pct=portfolio_drawdown_pct,
+        )
+        multiplier_result = calculate_macro_multiplier(
+            context,
+            self.config_repo.get_active_config(),
+        )
+
+        return SizingContextOutput(
+            portfolio_id=portfolio_id,
+            as_of_date=target_date,
+            regime_name=context.regime_name,
+            regime_confidence=context.regime_confidence,
+            pulse_composite=context.pulse_composite,
+            pulse_warning=context.pulse_warning,
+            portfolio_drawdown_pct=context.portfolio_drawdown_pct,
+            snapshot_count=len(snapshots),
+            multiplier_result=multiplier_result,
+            warnings=warnings,
+        )

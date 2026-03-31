@@ -3,7 +3,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.account.interface import api_views, classification_api_views, views
+from apps.account.interface import api_views, classification_api_views, sizing_views, views
 
 app_name = "account_api"
 
@@ -27,6 +27,7 @@ urlpatterns = [
     path("users/search/", api_views.UserSearchView.as_view(), name="user-search"),
     path("", include(router.urls)),
     path("volatility/", views.portfolio_volatility_api_view, name="volatility"),
+    path("sizing-context/", sizing_views.SizingContextView.as_view(), name="sizing-context"),
     path("", include(classification_router.urls)),
     path("portfolios/<int:portfolio_id>/allocation/", classification_api_views.PortfolioAllocationView.as_view(), name="portfolio_allocation"),
 ]

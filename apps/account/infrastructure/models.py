@@ -1999,3 +1999,42 @@ class PortfolioObserverGrantModel(models.Model):
         self.revoked_at = datetime.now(UTC)
         self.revoked_by = revoked_by_user
         self.save()
+
+
+# ============================================================
+# 宏观感知仓位系数配置
+# ============================================================
+
+
+class MacroSizingConfigModel(models.Model):
+    """
+    宏观感知仓位系数配置持久化模型。
+    支持多版本配置，is_active=True 且 version 最大的一条为生效配置。
+    """
+
+    regime_tiers_json = models.JSONField(
+        help_text='格式：[{"min_confidence": 0.6, "factor": 1.0}, ...]，按 min_confidence 降序'
+    )
+    pulse_tiers_json = models.JSONField(
+        help_text='格式：[{"min_composite": 0.3, "max_composite": 99, "factor": 1.0}, ...]'
+    )
+    warning_factor = models.FloatField(
+        default=0.5, help_text="Pulse 转折预警时的系数覆盖值（0.0-1.0），优先于 pulse_tiers"
+    )
+    drawdown_tiers_json = models.JSONField(
+        help_text='格式：[{"min_drawdown": 0.15, "factor": 0.0}, ...]，按 min_drawdown 降序'
+    )
+    version = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+    description = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "account"
+        ordering = ["-version"]
+        verbose_name = "宏观仓位系数配置"
+        verbose_name_plural = "宏观仓位系数配置"
+
+    def __str__(self) -> str:
+        return f"MacroSizingConfig v{self.version} (active={self.is_active})"

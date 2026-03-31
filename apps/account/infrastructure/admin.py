@@ -18,6 +18,7 @@ from .models import (
     CurrencyModel,
     DocumentationModel,
     ExchangeRateModel,
+    MacroSizingConfigModel,
     PortfolioModel,
     PositionModel,
     StopLossConfigModel,
@@ -569,3 +570,13 @@ class SystemSettingsAdmin(admin.ModelAdmin):
         """保存后重定向到列表页"""
         self.message_user(request, '系统配置已更新', messages.SUCCESS)
         return redirect('/admin/account/systemsettingsmodel/')
+
+
+@admin.register(MacroSizingConfigModel)
+class MacroSizingConfigAdmin(admin.ModelAdmin):
+    """宏观仓位系数配置管理。"""
+
+    list_display = ["version", "is_active", "warning_factor", "description", "created_at"]
+    list_filter = ["is_active", "version", "created_at"]
+    readonly_fields = ["created_at", "updated_at"]
+    ordering = ["-version"]

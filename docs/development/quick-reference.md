@@ -1,7 +1,7 @@
 # AgomTradePro 开发快速参考
 
-> **文档版本**: V1.6
-> **更新日期**: 2026-03-23
+> **文档版本**: V1.7
+> **更新日期**: 2026-03-31
 > **目标读者**: 开发人员
 
 ---
@@ -109,6 +109,9 @@ pytest tests/ -v
 pytest tests/unit/domain/ -v
 pytest tests/integration/ -v
 
+# 运行综合 UAT 回归（Playwright，需本地服务已启动）
+pytest tests/playwright/tests/uat/test_comprehensive_regression.py -m uat -q
+
 # 生成覆盖率报告
 pytest tests/ -v --cov=apps --cov-report=html
 
@@ -207,6 +210,15 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/signal/{id}/` | GET | 获取信号详情 (需认证) |
 | `/api/signal/health/` | GET | 健康检查 (需认证) |
 | `/signal/manage/` | GET | 信号管理页面 |
+
+### Account API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/account/profile/` | GET | 获取账户配置 (需认证) |
+| `/api/account/health/` | GET | 账户模块健康检查 (需认证) |
+| `/api/account/volatility/` | GET | 获取当前活跃组合波动率视图数据 (需认证) |
+| `/api/account/sizing-context/` | GET | 获取宏观仓位系数上下文与建议乘数，支持 `portfolio_id` 查询参数 (需认证) |
 
 ### Sentiment API (舆情分析)
 

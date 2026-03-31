@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 个人投研平台
-> **最后更新**: 2026-03-28
+> **最后更新**: 2026-03-31
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -69,7 +69,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-02-20 更新 |
+| [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-03-31 更新 |
 | [engineering-guardrails.md](development/engineering-guardrails.md) | **工程护栏与 PR Checklist（含 API 改动同步门禁）** | ✅ 2026-03-31 更新 |
 | [../GIT_WORKFLOW.md](GIT_WORKFLOW.md) | **Git 工作流规范（`dev/*` 分支、commit、合并流程）** | ✅ 2026-03-23 新增 |
 | [outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包团队工作指南** | ✅ 必读 |
@@ -100,6 +100,7 @@
 | [ai-native/README.md](plans/ai-native/README.md) | **AI Native 子项目索引** | 进行中 |
 | [ai-native/execution-backlog.md](plans/ai-native/execution-backlog.md) | **AI Native 执行积压** | 进行中 |
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
+| [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 待开发 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
 | [phase-1-regime-navigator-pulse-mvp.md](plans/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |

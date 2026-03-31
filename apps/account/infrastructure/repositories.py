@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from django.contrib.auth.models import User
 from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Coalesce
+from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
 from apps.account.domain.entities import (
@@ -23,10 +24,14 @@ from apps.account.domain.entities import (
     AssetClassType,
     CrossBorderFlag,
     InvestmentStyle,
+    MacroSizingConfig,
     PortfolioSnapshot,
     Position,
     PositionSource,
     PositionStatus,
+    PulseTier,
+    DrawdownTier,
+    RegimeTier,
     Region,
     RiskTolerance,
     Transaction,
@@ -34,6 +39,7 @@ from apps.account.domain.entities import (
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     AssetMetadataModel,
+    MacroSizingConfigModel,
     PortfolioDailySnapshotModel,
     PortfolioModel,
     PositionModel,
@@ -1288,3 +1294,91 @@ class SystemSettingsRepository:
         from apps.account.infrastructure.models import SystemSettingsModel
 
         return SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, default)
+
+
+class MacroSizingConfigRepository:
+    """宏观仓位系数配置仓储。"""
+
+    _DEFAULT_REGIME_TIERS = [
+        {"min_confidence": 0.8, "factor": 1.0},
+        {"min_confidence": 0.6, "factor": 0.85},
+        {"min_confidence": 0.4, "factor": 0.65},
+        {"min_confidence": 0.0, "factor": 0.5},
+    ]
+    _DEFAULT_PULSE_TIERS = [
+        {"min_composite": 0.4, "max_composite": 1.0, "factor": 1.0},
+        {"min_composite": 0.0, "max_composite": 0.4, "factor": 0.85},
+        {"min_composite": -0.3, "max_composite": 0.0, "factor": 0.65},
+        {"min_composite": -1.0, "max_composite": -0.3, "factor": 0.5},
+    ]
+    _DEFAULT_DRAWDOWN_TIERS = [
+        {"min_drawdown": 0.15, "factor": 0.0},
+        {"min_drawdown": 0.1, "factor": 0.5},
+        {"min_drawdown": 0.05, "factor": 0.75},
+    ]
+
+    def get_active_config(self) -> MacroSizingConfig:
+        """返回当前生效配置；若库中不存在则返回默认配置。"""
+        try:
+            model = (
+                MacroSizingConfigModel._default_manager.filter(is_active=True)
+                .order_by("-version")
+                .first()
+            )
+        except (OperationalError, ProgrammingError):
+            logger.warning("MacroSizingConfigModel table unavailable; using default sizing config")
+            model = None
+        if model is None:
+            return self._build_config(
+                regime_tiers=self._DEFAULT_REGIME_TIERS,
+                pulse_tiers=self._DEFAULT_PULSE_TIERS,
+                warning_factor=0.5,
+                drawdown_tiers=self._DEFAULT_DRAWDOWN_TIERS,
+                version=1,
+            )
+        return self._to_entity(model)
+
+    def _to_entity(self, model: MacroSizingConfigModel) -> MacroSizingConfig:
+        return self._build_config(
+            regime_tiers=model.regime_tiers_json,
+            pulse_tiers=model.pulse_tiers_json,
+            warning_factor=model.warning_factor,
+            drawdown_tiers=model.drawdown_tiers_json,
+            version=model.version,
+        )
+
+    def _build_config(
+        self,
+        *,
+        regime_tiers: list[dict[str, Any]],
+        pulse_tiers: list[dict[str, Any]],
+        warning_factor: float,
+        drawdown_tiers: list[dict[str, Any]],
+        version: int,
+    ) -> MacroSizingConfig:
+        return MacroSizingConfig(
+            regime_tiers=[
+                RegimeTier(
+                    min_confidence=float(item["min_confidence"]),
+                    factor=float(item["factor"]),
+                )
+                for item in regime_tiers
+            ],
+            pulse_tiers=[
+                PulseTier(
+                    min_composite=float(item["min_composite"]),
+                    max_composite=float(item.get("max_composite", item["min_composite"])),
+                    factor=float(item["factor"]),
+                )
+                for item in pulse_tiers
+            ],
+            warning_factor=float(warning_factor),
+            drawdown_tiers=[
+                DrawdownTier(
+                    min_drawdown=float(item["min_drawdown"]),
+                    factor=float(item["factor"]),
+                )
+                for item in drawdown_tiers
+            ],
+            version=version,
+        )
