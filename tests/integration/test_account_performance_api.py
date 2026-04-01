@@ -7,14 +7,13 @@
 - 观察员只读场景延续现有权限语义
 - Benchmark CRUD 与权重归一化
 """
-import json
 from datetime import date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -44,6 +43,31 @@ def user(db):
 @pytest.fixture
 def other_user(db):
     return User.objects.create_user(username="other_user", password="pass456")
+
+
+@pytest.fixture
+def observer_user(db):
+    return User.objects.create_user(username="observer_user", password="obs123")
+
+
+@pytest.fixture
+def observer_client(observer_user):
+    c = APIClient()
+    c.force_authenticate(user=observer_user)
+    return c
+
+
+@pytest.fixture
+def observer_grant(user, observer_user):
+    from apps.account.infrastructure.models import PortfolioObserverGrantModel
+
+    grant = PortfolioObserverGrantModel(
+        owner_user_id=user,
+        observer_user_id=observer_user,
+        status="active",
+    )
+    grant.save()
+    return grant
 
 
 @pytest.fixture
@@ -148,6 +172,22 @@ def account_with_snapshot(account):
         unrealized_pnl_pct=4.76,
     )
     return account
+
+
+@pytest.fixture
+def compat_portfolio(user, account):
+    from apps.account.infrastructure.models import PortfolioModel
+    from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+
+    portfolio = PortfolioModel.objects.create(user=user, name="兼容入口组合")
+    LedgerMigrationMapModel.objects.create(
+        source_app="account",
+        source_table="portfolio",
+        source_id=portfolio.pk,
+        target_table="simulated_account",
+        target_id=account.pk,
+    )
+    return portfolio
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +310,36 @@ class TestPerformanceReport:
         assert period["start_date"] == "2024-01-01"
         assert period["end_date"] == "2024-01-07"
         assert period["days"] == 6
+
+    def test_benchmark_metrics_are_numeric_when_market_data_available(
+        self,
+        client,
+        account_with_net_values,
+        account_with_benchmarks,
+    ):
+        bars = [
+            SimpleNamespace(
+                trade_date=date(2024, 1, 1) + timedelta(days=i),
+                close=100 + i * 2,
+            )
+            for i in range(7)
+        ]
+
+        with patch("apps.market_data.application.registry_factory.get_registry") as mock_get_registry:
+            mock_get_registry.return_value.call_with_failover.return_value = bars
+            resp = client.get(
+                url_performance_report(account_with_net_values.pk),
+                {"start_date": "2024-01-01", "end_date": "2024-01-07"},
+            )
+
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()
+        benchmark = data["benchmark"]
+        assert benchmark["benchmark_return"] is not None
+        assert benchmark["beta"] is not None
+        assert benchmark["alpha"] is not None
+        assert benchmark["tracking_error"] is not None
+        assert benchmark["information_ratio"] is not None
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +517,7 @@ class TestBackfill:
         data = resp.json()
         assert "account_id" in data
         assert "dnv_record_count" in data
+        assert "mirrored_capital_flows" in data
 
     def test_404_for_nonexistent_account(self):
         admin = User.objects.create_user(username="admin_bf2", password="pass", is_staff=True)
@@ -454,6 +525,81 @@ class TestBackfill:
         c.force_authenticate(user=admin)
         resp = c.post(url_backfill(99999))
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ---------------------------------------------------------------------------
+# 观察员只读访问
+# ---------------------------------------------------------------------------
+
+
+class TestObserverAccess:
+    """
+    验证持有有效 PortfolioObserverGrantModel 的观察员可以 GET 所有业绩端点，
+    但不能 PUT（写操作）。
+    """
+
+    def test_observer_can_get_performance_report(
+        self, observer_client, observer_grant, account_with_net_values
+    ):
+        resp = observer_client.get(
+            url_performance_report(account_with_net_values.pk),
+            {"start_date": "2024-01-01", "end_date": "2024-01-07"},
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_can_get_valuation_snapshot(
+        self, observer_client, observer_grant, account_with_snapshot
+    ):
+        resp = observer_client.get(
+            url_valuation_snapshot(account_with_snapshot.pk),
+            {"as_of_date": "2024-06-01"},
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_can_get_valuation_timeline(
+        self, observer_client, observer_grant, account_with_net_values
+    ):
+        resp = observer_client.get(url_valuation_timeline(account_with_net_values.pk))
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_can_get_benchmarks(
+        self, observer_client, observer_grant, account_with_benchmarks
+    ):
+        resp = observer_client.get(url_benchmarks(account_with_benchmarks.pk))
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_cannot_put_benchmarks(
+        self, observer_client, observer_grant, account
+    ):
+        """观察员只读，PUT 应被拒绝。"""
+        payload = {"components": [{"benchmark_code": "000300.SH", "weight": 1.0}]}
+        resp = observer_client.put(
+            url_benchmarks(account.pk), data=payload, format="json"
+        )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_revoked_grant_denies_access(
+        self, observer_user, user, account_with_net_values
+    ):
+        """已撤销的授权不应授予访问权限。"""
+        from apps.account.infrastructure.models import PortfolioObserverGrantModel
+
+        grant = PortfolioObserverGrantModel(
+            owner_user_id=user,
+            observer_user_id=observer_user,
+            status="active",
+        )
+        grant.save()
+        # 直接 update 绕过 save() 的 full_clean，模拟撤销
+        PortfolioObserverGrantModel.objects.filter(pk=grant.pk).update(status="revoked")
+
+        c = APIClient()
+        c.force_authenticate(user=observer_user)
+        resp = c.get(
+            url_performance_report(account_with_net_values.pk),
+            {"start_date": "2024-01-01", "end_date": "2024-01-07"},
+        )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
 # ---------------------------------------------------------------------------
@@ -496,3 +642,68 @@ class TestCompatAPI:
         c = APIClient()
         resp = c.get(f"{COMPAT_BASE}/portfolios/1/performance-report/")
         assert resp.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+
+    def test_observer_can_get_performance_report_via_compat(
+        self,
+        observer_client,
+        observer_grant,
+        compat_portfolio,
+        account_with_net_values,
+    ):
+        resp = observer_client.get(
+            f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/performance-report/",
+            {"start_date": "2024-01-01", "end_date": "2024-01-07"},
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_can_get_valuation_snapshot_via_compat(
+        self,
+        observer_client,
+        observer_grant,
+        compat_portfolio,
+        account_with_snapshot,
+    ):
+        resp = observer_client.get(
+            f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/valuation-snapshot/",
+            {"as_of_date": "2024-06-01"},
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_can_get_valuation_timeline_via_compat(
+        self,
+        observer_client,
+        observer_grant,
+        compat_portfolio,
+        account_with_net_values,
+    ):
+        resp = observer_client.get(
+            f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/valuation-timeline/"
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_can_get_benchmarks_via_compat(
+        self,
+        observer_client,
+        observer_grant,
+        compat_portfolio,
+        account_with_benchmarks,
+    ):
+        resp = observer_client.get(
+            f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/benchmarks/"
+        )
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_observer_cannot_put_benchmarks_via_compat(
+        self,
+        observer_client,
+        observer_grant,
+        compat_portfolio,
+        account,
+    ):
+        payload = {"components": [{"benchmark_code": "000300.SH", "weight": 1.0}]}
+        resp = observer_client.put(
+            f"{COMPAT_BASE}/portfolios/{compat_portfolio.pk}/benchmarks/",
+            data=payload,
+            format="json",
+        )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN

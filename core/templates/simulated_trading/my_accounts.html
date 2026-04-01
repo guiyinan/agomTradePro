@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}我的投资组合 - AgomTradePro{% endblock %}
+{% block title %}我的账户 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/simulated-trading.css' %}">
@@ -14,11 +14,11 @@
     <div class="account-header">
         <div class="header-title-row">
             <div>
-                <h1>我的投资组合</h1>
-                <p class="subtitle">管理您的实仓和模拟仓投资账户</p>
+                <h1>我的账户</h1>
+                <p class="subtitle">统一管理您的投资账户，账户类型仅作为属性区分</p>
             </div>
             <div class="header-actions">
-                <button onclick="showCreateModal()" class="btn btn-primary">+ 创建新投资组合</button>
+                <button onclick="showCreateModal()" class="btn btn-primary">+ 创建新账户</button>
             </div>
         </div>
     </div>
@@ -37,7 +37,7 @@
     <!-- 账户列表 -->
     <section class="account-section">
         <div class="section-header-row">
-            <h2 class="section-title">我的投资组合</h2>
+            <h2 class="section-title">我的账户</h2>
             {% if accounts %}
             <div class="account-bulk-actions">
                 <label class="bulk-select-all">
@@ -158,8 +158,8 @@
         {% else %}
         <div class="empty-state">
             <div class="empty-icon">📭</div>
-            <p>您还没有创建任何投资组合</p>
-            <p class="empty-hint">点击右上角"创建新投资组合"按钮开始</p>
+            <p>您还没有创建任何账户</p>
+            <p class="empty-hint">点击右上角“创建新账户”按钮开始</p>
         </div>
         {% endif %}
     </section>
@@ -174,24 +174,24 @@
     </section>
 </div>
 
-<!-- 创建投资组合弹窗 -->
+<!-- 创建账户弹窗 -->
 <div id="createModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>创建新投资组合</h2>
+            <h2>创建新账户</h2>
             <span class="close" onclick="closeCreateModal()">&times;</span>
         </div>
         <form method="post" action="{% url 'simulated_trading:my-accounts' %}">
             {% csrf_token %}
             <div class="form-group">
                 <label for="account_name">账户名称</label>
-                <input type="text" id="account_name" name="account_name" placeholder="例如：我的实仓" required maxlength="100">
+                <input type="text" id="account_name" name="account_name" placeholder="例如：我的主账户" required maxlength="100">
             </div>
             <div class="form-group">
                 <label for="account_type">账户类型</label>
                 <select id="account_type" name="account_type" required>
-                    <option value="real">实仓（真实投资）</option>
-                    <option value="simulated">模拟仓（策略测试）</option>
+                    <option value="real">真实账户</option>
+                    <option value="simulated">模拟账户</option>
                 </select>
             </div>
             <div class="form-group">
@@ -206,7 +206,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="closeCreateModal()" class="btn btn-secondary">取消</button>
-                <button type="submit" class="btn btn-primary">创建</button>
+                <button type="submit" class="btn btn-primary">创建账户</button>
             </div>
         </form>
     </div>

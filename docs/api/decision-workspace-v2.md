@@ -32,13 +32,13 @@
 - 工作台左侧栏应显示当前账户现状，包括账户状态、资产概览和持仓摘要
 - Step 1-3 需要显式展示当前账户上下文，但必须标注为“系统级分析”，不得误导为按单账户重算
 - Step 1-6 的 HTMX 请求应透传 `account_id`，保证页面刷新与 URL 中的账户口径一致
-- 工作台顶部“选择账户”与推荐/审批/冲突筛选使用模拟账户接口 `/api/simulated-trading/accounts/`
+- 工作台顶部“选择账户”与推荐/审批/冲突筛选使用统一账户接口 `/api/account/accounts/`
 - 工作台应显式请求 `active_only=false`，确保账户 selector 与 `/simulated-trading/my-accounts/` 展示口径一致
 - 工作台中的“刷新推荐”动作也应携带当前 `account_id`，避免刷新任务与当前页面账户口径脱节
 - 该接口前端应读取 `accounts` 数组，单项字段使用 `account_id`、`account_name`
 - 该接口后端只允许返回当前登录用户拥有的账户，不得返回其他用户的活跃账户
 - 历史模板 `core/templates/decision/workspace_legacy.html` 已废弃并移除，工作台只允许维护 `core/templates/decision/workspace.html`
-- 左侧栏账户现状使用 `/api/simulated-trading/accounts/{id}/` 和 `/api/simulated-trading/accounts/{id}/positions/`
+- 左侧栏账户现状使用 `/api/account/accounts/{id}/` 和 `/api/account/accounts/{id}/positions/`
 - Step 4 的详情弹窗只展示推荐参数与风控预览，不得承载任何执行目标、账户落地或审批评论表单
 - Step 3 读取轮动建议时，若当日 `rotation_signal` 已落库，应优先复用已持久化结果；仅在无可用 signal 时才触发实时重算，避免页面请求阻塞在外部行情链路
 - Step 3 partial 和 JSON context 都应返回轮动结果状态元数据：`rotation_data_source`、`rotation_is_stale`、`rotation_warning_message`、`rotation_signal_date`，前端必须显式提示用户当前是否为回退结果

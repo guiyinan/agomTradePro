@@ -109,6 +109,12 @@ class DailyNetValueRepositoryProtocol(Protocol):
         """按日期升序返回净值记录 dicts。"""
         ...
 
+    def get_record_for_date(
+        self, account_id: int, record_date: date
+    ) -> Optional[Dict[str, Any]]:
+        """返回某日净值记录（用于历史时点现金获取）。无则返回 None。"""
+        ...
+
 
 class MarketDataRepositoryProtocol(Protocol):
     """行情数据仓储接口。"""
@@ -133,6 +139,24 @@ class MarketDataRepositoryProtocol(Protocol):
         end_date: date,
     ) -> Optional[float]:
         """返回指数区间累计收益率（%）。"""
+        ...
+
+
+class CapitalFlowRepositoryProtocol(Protocol):
+    """账本现金流仓储接口（真实账户 backfill 专用）。"""
+
+    def list_for_account_via_ledger(
+        self, account_id: int
+    ) -> List[Dict[str, Any]]:
+        """通过 LedgerMigrationMapModel 返回该账户对应的全部 CapitalFlowModel 记录。"""
+        ...
+
+
+class ObserverGrantRepositoryProtocol(Protocol):
+    """观察员授权仓储接口。"""
+
+    def has_valid_grant(self, owner_user_id: int, observer_user_id: int) -> bool:
+        """返回观察员是否持有 owner 的有效授权。"""
         ...
 
 
@@ -390,15 +414,20 @@ class GetAccountValuationSnapshotUseCase:
 
     对应 GET /api/simulated-trading/accounts/{id}/valuation-snapshot/?as_of_date=...
     优先从快照缓存读取；若无快照则返回空 rows 并记录 warning。
+
+    现金口径：从 DailyNetValueModel 取 as_of_date 当日的历史现金，
+    避免用当前现金代替历史现金导致总资产失真。
     """
 
     def __init__(
         self,
         account_repo: AccountRepositoryProtocol,
         valuation_snapshot_repo: ValuationSnapshotRepositoryProtocol,
+        daily_net_value_repo: DailyNetValueRepositoryProtocol,
     ) -> None:
         self._account_repo = account_repo
         self._snapshot_repo = valuation_snapshot_repo
+        self._dnv_repo = daily_net_value_repo
 
     def execute(self, account_id: int, as_of_date: date) -> ValuationSnapshot:
         warnings: List[str] = []
@@ -441,7 +470,16 @@ class GetAccountValuationSnapshotUseCase:
         if not rows:
             warnings.append(f"{as_of_date} 无持仓估值快照，请先执行历史回填")
 
-        cash = float(account.get("current_cash", 0))
+        # 优先使用 as_of_date 当日的历史现金；无记录时降级为当前现金并警告
+        dnv_record = self._dnv_repo.get_record_for_date(account_id, as_of_date)
+        if dnv_record is not None:
+            cash = dnv_record["cash"]
+        else:
+            cash = float(account.get("current_cash", 0))
+            warnings.append(
+                f"{as_of_date} 无日净值记录，现金使用账户当前值（历史查询时可能不准确）"
+            )
+
         total_value = cash + total_market_value
         unrealized_pnl = total_market_value - total_cost
         unrealized_pnl_pct = (unrealized_pnl / total_cost * 100.0) if total_cost > 0 else 0.0
@@ -558,14 +596,16 @@ class ListAccountValuationTimelineUseCase:
 
 class BackfillUnifiedAccountHistoryUseCase:
     """
-    回填统一账户历史数据。
+    回填统一账户历史数据（best effort）。
 
-    策略（best effort）：
-    - 写入初始入金现金流（若不存在）
-    - 从 CapitalFlowModel（真实盘）镜像现金流
-    - 从 DailyNetValueModel 验证基础净值序列是否存在
+    执行步骤：
+    1. 写入初始入金现金流（幂等）
+    2. 真实盘：通过 LedgerMigrationMapModel 找到对应 portfolio，
+       从 CapitalFlowModel 镜像全部现金流到统一现金流表
+    3. 验证日净值序列是否存在
 
-    持仓快照的逐日回放由 Celery 任务异步执行，此用例仅做验证与触发。
+    持仓快照的逐日回放数据量较大，由 Celery 任务异步执行，
+    此用例仅做现金流回填与数据验证。
     """
 
     def __init__(
@@ -573,16 +613,18 @@ class BackfillUnifiedAccountHistoryUseCase:
         account_repo: AccountRepositoryProtocol,
         cash_flow_repo: UnifiedCashFlowRepositoryProtocol,
         daily_net_value_repo: DailyNetValueRepositoryProtocol,
+        capital_flow_repo: Optional[CapitalFlowRepositoryProtocol] = None,
     ) -> None:
         self._account_repo = account_repo
         self._cf_repo = cash_flow_repo
         self._dnv_repo = daily_net_value_repo
+        self._capital_flow_repo = capital_flow_repo
 
     def execute(self, account_id: int) -> Dict[str, Any]:
         """
         Returns:
             summary dict with keys: account_id, initial_capital_written,
-            dnv_record_count, warnings
+            mirrored_capital_flows, dnv_record_count, warnings
         """
         warnings: List[str] = []
 
@@ -590,6 +632,7 @@ class BackfillUnifiedAccountHistoryUseCase:
         if account is None:
             raise ValueError(f"Account {account_id} not found")
 
+        # Step 1: 写入初始入金
         initial_capital = float(account.get("initial_capital", 0))
         start_date = account.get("start_date")
         if start_date is None:
@@ -603,7 +646,20 @@ class BackfillUnifiedAccountHistoryUseCase:
             )
             initial_capital_written = True
 
-        # 检查净值序列
+        # Step 2: 真实盘 — 镜像 CapitalFlowModel
+        mirrored_capital_flows = 0
+        account_type = account.get("account_type", "simulated")
+        if account_type == "real" and self._capital_flow_repo is not None:
+            capital_flows = self._capital_flow_repo.list_for_account_via_ledger(account_id)
+            for cf in capital_flows:
+                self._cf_repo.mirror_from_capital_flow(account_id, cf)
+                mirrored_capital_flows += 1
+            if not capital_flows:
+                warnings.append("真实盘账户：未找到对应 portfolio 映射或 CapitalFlowModel 无记录")
+        elif account_type == "real" and self._capital_flow_repo is None:
+            warnings.append("真实盘账户：未注入 capital_flow_repo，跳过 CapitalFlowModel 镜像")
+
+        # Step 3: 验证净值序列
         dnv_records = self._dnv_repo.list_range(account_id)
         dnv_count = len(dnv_records)
         if dnv_count == 0:
@@ -612,6 +668,7 @@ class BackfillUnifiedAccountHistoryUseCase:
         return {
             "account_id": account_id,
             "initial_capital_written": initial_capital_written,
+            "mirrored_capital_flows": mirrored_capital_flows,
             "dnv_record_count": dnv_count,
             "warnings": warnings,
         }

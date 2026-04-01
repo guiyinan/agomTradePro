@@ -60,7 +60,7 @@ class TradeRepositoryProtocol(Protocol):
 
 
 class CreateSimulatedAccountUseCase:
-    """创建模拟账户用例"""
+    """创建统一账户用例。"""
 
     def __init__(self, account_repo: SimulatedAccountRepositoryProtocol):
         self.account_repo = account_repo
@@ -69,6 +69,7 @@ class CreateSimulatedAccountUseCase:
         self,
         account_name: str,
         initial_capital: float,
+        account_type: AccountType = AccountType.SIMULATED,
         auto_trading_enabled: bool = True,
         max_position_pct: float = 20.0,
         stop_loss_pct: float | None = None,
@@ -76,7 +77,7 @@ class CreateSimulatedAccountUseCase:
         slippage_rate: float = 0.001
     ) -> SimulatedAccount:
         """
-        创建模拟账户
+        创建账户
 
         Args:
             account_name: 账户名称
@@ -88,7 +89,7 @@ class CreateSimulatedAccountUseCase:
             slippage_rate: 滑点率
 
         Returns:
-            创建的模拟账户
+            创建的账户
         """
         # 1. 检查账户名称是否已存在
         existing = self.account_repo.get_by_name(account_name)
@@ -99,7 +100,7 @@ class CreateSimulatedAccountUseCase:
         account = SimulatedAccount(
             account_id=0,  # 由数据库生成
             account_name=account_name,
-            account_type=AccountType.SIMULATED,
+            account_type=account_type,
             initial_capital=initial_capital,
             current_cash=initial_capital,
             current_market_value=0.0,
@@ -115,7 +116,13 @@ class CreateSimulatedAccountUseCase:
         # 3. 保存到数据库
         account_id = self.account_repo.save(account)
 
-        logger.info(f"创建模拟账户成功: {account_name} (ID={account_id}), 初始资金: {initial_capital}")
+        logger.info(
+            "创建账户成功: %s (ID=%s, type=%s), 初始资金: %s",
+            account_name,
+            account_id,
+            account_type.value,
+            initial_capital,
+        )
 
         # 4. 返回带ID的账户
         return SimulatedAccount(
@@ -564,6 +571,7 @@ class ListAccountsUseCase:
         self,
         active_only: bool = True,
         user_id: int | None = None,
+        account_type: AccountType | None = None,
     ) -> list[SimulatedAccount]:
         """
         列出所有账户
@@ -571,18 +579,21 @@ class ListAccountsUseCase:
         Args:
             active_only: 是否只返回活跃账户
             user_id: 可选，限制为当前用户拥有的账户
+            account_type: 可选，按账户类型过滤
 
         Returns:
             账户列表
         """
         if user_id is not None:
             accounts = self.account_repo.get_by_user(user_id)
-            if active_only:
-                return [account for account in accounts if account.is_active]
-            return accounts
+        elif active_only:
+            accounts = self.account_repo.get_active_accounts()
+        else:
+            accounts = self.account_repo.get_all_accounts()
 
         if active_only:
-            return self.account_repo.get_active_accounts()
-        else:
-            return self.account_repo.get_all_accounts()
+            accounts = [account for account in accounts if account.is_active]
+        if account_type is not None:
+            accounts = [account for account in accounts if account.account_type == account_type]
+        return accounts
 

@@ -15,12 +15,18 @@ from rest_framework import serializers
 # ============================================================================
 
 class CreateAccountRequestSerializer(serializers.Serializer):
-    """创建模拟账户请求序列化器"""
+    """创建统一账户请求序列化器"""
 
     account_name = serializers.CharField(
         required=True,
         max_length=100,
         help_text="账户名称"
+    )
+    account_type = serializers.ChoiceField(
+        required=False,
+        choices=["real", "simulated"],
+        default="simulated",
+        help_text="账户类型：real=真实账户，simulated=模拟账户",
     )
     initial_capital = serializers.DecimalField(
         required=True,

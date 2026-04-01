@@ -234,19 +234,20 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/asset-analysis/screen/{asset_type}/` | GET | 资产筛选 |
+| `/api/asset-analysis/screen/{asset_type}/` | POST | 资产池筛选 |
 | `/api/asset-analysis/pool-summary/` | GET | 资产池摘要 |
+| `/api/asset-analysis/current-weight/` | GET | 当前生效权重 |
 | `/api/asset-analysis/score/{asset_code}/` | GET | 资产评分 |
 
 ### Simulated Trading API
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/simulated-trading/accounts/` | GET/POST | 获取当前登录用户的账户列表 / 创建模拟账户 |
-| `/api/simulated-trading/accounts/{id}/` | GET | 获取当前登录用户名下账户详情 |
-| `/api/simulated-trading/accounts/{id}/positions/` | GET | 获取当前登录用户名下账户持仓列表 |
-| `/api/simulated-trading/accounts/{id}/trades/` | GET | 获取当前登录用户名下账户交易记录 |
-| `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
+| `/api/account/accounts/` | GET/POST | 获取当前登录用户的统一账户列表 / 创建账户 |
+| `/api/account/accounts/{id}/` | GET | 获取当前登录用户名下账户详情 |
+| `/api/account/accounts/{id}/positions/` | GET | 获取当前登录用户名下账户持仓列表 |
+| `/api/account/accounts/{id}/trades/` | GET | 获取当前登录用户名下账户交易记录 |
+| `/api/account/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
 
 ### Setup Wizard API

@@ -98,7 +98,8 @@ Configure in `~/.config/claude-code/mcp_servers.json`:
       "env": {
         "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
         "AGOMTRADEPRO_API_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMTRADEPRO_API_TOKEN": "your_token_here"
+        "AGOMTRADEPRO_API_TOKEN": "your_token_here",
+        "AGOMTRADEPRO_DEFAULT_ACCOUNT_ID": "1"
       }
     }
   }
@@ -156,8 +157,8 @@ Three methods (priority order):
 | `client.macro` | Macro data - indicators, data points, sync |
 | `client.policy` | Policy events - status, event management, **workbench operations** |
 | `client.backtest` | Backtesting - run, get results, equity curve |
-| `client.account` | Account management - portfolios, positions |
-| `client.simulated_trading` | Simulated trading - accounts, execution, performance |
+| `client.account` | Unified account management - accounts, positions, performance; old portfolio APIs remain compatibility-only |
+| `client.simulated_trading` | Unified account trading/execution module; module name retained for compatibility |
 | `client.equity` | Stock analysis - scoring, recommendations, financials |
 | `client.fund` | Fund analysis - scoring, performance, holdings |
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
@@ -190,7 +191,8 @@ Canonical API routing for SDK/MCP is documented in:
 - **Gate**: `get_sentiment_gate_state`
 
 ### Extended Tools
-- **Simulated Trading**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
+- **Unified Accounts**: `list_accounts`, `get_account`, `create_account`, `get_account_positions`, `get_account_performance`
+- **Simulated Trading Compat**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
 - **Equity**: `get_stock_score`, `list_stocks`, `get_stock_recommendations`
 - **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`

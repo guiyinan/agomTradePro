@@ -17,6 +17,11 @@ def test_extended_mcp_tools_registered():
     names = {t.name for t in tools}
 
     expected = {
+        "list_accounts",
+        "get_account",
+        "create_account",
+        "get_account_positions",
+        "get_account_performance",
         "delete_simulated_account",
         "batch_delete_simulated_accounts",
         "list_ai_providers",
