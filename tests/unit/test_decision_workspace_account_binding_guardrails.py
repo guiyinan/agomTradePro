@@ -7,7 +7,8 @@ def test_decision_workspace_templates_bind_simulated_accounts_and_step4_preview_
     for template in templates:
         content = template.read_text(encoding="utf-8")
 
-        assert "/api/simulated-trading/accounts/" in content
+        assert "/api/account/accounts/" in content
+        assert "/api/simulated-trading/accounts/" not in content
         assert "Array.isArray(data.accounts)" in content
         assert "acc.account_name" in content
 

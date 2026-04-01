@@ -903,7 +903,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 加载测试账户
     const select = document.getElementById('testAccount');
     try {
-        const res = await fetch('/api/simulated-trading/accounts/');
+        const res = await fetch('/api/account/accounts/');
         const data = await res.json();
         const accounts = Array.isArray(data) ? data : (data.accounts || []);
         if (Array.isArray(accounts)) {

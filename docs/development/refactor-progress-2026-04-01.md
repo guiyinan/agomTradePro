@@ -96,6 +96,12 @@
 - Kept both setup wizard API entry paths for compatibility (`/setup/api/` and `/api/setup/`).
 - Changed the legacy `/api/setup/` include to use a distinct namespace so Django no longer reports duplicate `setup_wizard_api` namespaces during `manage.py check`.
 
+### post-commit compatibility cleanup
+
+- Updated non-simulated-trading frontends to use canonical unified account routes (`/api/account/accounts/*`) instead of the module-native simulated-trading alias.
+- Fixed the dashboard main workflow account selector to read the current account-list response shape (`accounts`, `account_name`, `account_id`) while remaining tolerant of legacy payload keys.
+- Synced the decision workspace guardrail tests with the canonical account route contract.
+
 ## Verification
 
 - `python -m py_compile` on newly created interface modules

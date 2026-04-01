@@ -362,7 +362,7 @@ function selectExecutionTarget(target) {
  */
 async function loadSimulatedAccounts() {
     try {
-        const response = await fetch('/api/simulated-trading/accounts/', {
+        const response = await fetch('/api/account/accounts/', {
             headers: {
                 'X-CSRFToken': window.csrfToken
             }
@@ -374,10 +374,11 @@ async function loadSimulatedAccounts() {
             const select = document.getElementById('simAccountId');
             select.innerHTML = '<option value="">请选择账户</option>';
 
-            data.results.forEach(account => {
+            const accounts = Array.isArray(data) ? data : (data.accounts || data.results || []);
+            accounts.forEach(account => {
                 const option = document.createElement('option');
-                option.value = account.account_id;
-                option.textContent = `${account.name} (${account.initial_capital}元)`;
+                option.value = account.account_id || account.id;
+                option.textContent = `${account.account_name || account.name} (${account.initial_capital}元)`;
                 select.appendChild(option);
             });
         }

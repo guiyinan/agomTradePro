@@ -1056,10 +1056,10 @@ async function loadWorkspaceAccountSnapshot() {
 
     try {
         const [detailRes, positionsRes] = await Promise.all([
-            fetch(`/api/simulated-trading/accounts/${encodeURIComponent(accountId)}/`, {
+            fetch(`/api/account/accounts/${encodeURIComponent(accountId)}/`, {
                 headers: { 'X-CSRFToken': window.csrfToken }
             }),
-            fetch(`/api/simulated-trading/accounts/${encodeURIComponent(accountId)}/positions/`, {
+            fetch(`/api/account/accounts/${encodeURIComponent(accountId)}/positions/`, {
                 headers: { 'X-CSRFToken': window.csrfToken }
             }),
         ]);
@@ -1232,7 +1232,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 // ===== 加载用户账户 =====
 async function loadUserAccounts() {
     try {
-        const data = await window.fetchJsonOrThrow('/api/simulated-trading/accounts/?active_only=false', {
+        const data = await window.fetchJsonOrThrow('/api/account/accounts/?active_only=false', {
             headers: { 'X-CSRFToken': window.csrfToken }
         });
 
