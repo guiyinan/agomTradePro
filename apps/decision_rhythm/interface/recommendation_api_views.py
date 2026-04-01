@@ -1,6 +1,7 @@
 """Recommendation Api Views"""
 
 from .workspace_api_support import *  # noqa: F401,F403
+from .workspace_api_support import _user_action_label
 
 class UnifiedRecommendationsView(APIView):
     """

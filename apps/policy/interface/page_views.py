@@ -1,5 +1,6 @@
 """Policy HTML page views."""
 
+from django.apps import apps as django_apps
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
@@ -7,13 +8,12 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import CreateView, ListView, UpdateView
 
-from ..infrastructure.models import (
-    PolicyLevelKeywordModel,
-    PolicyLog,
-    RSSFetchLog,
-    RSSSourceConfigModel,
-)
 from .forms import PolicyEventForm, PolicyKeywordForm, RSSSourceForm
+
+PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
+PolicyLog = django_apps.get_model("policy", "PolicyLog")
+RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
+RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
 
 class RSSSourceListView(LoginRequiredMixin, ListView):
     """RSS源管理页面"""

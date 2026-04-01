@@ -2,15 +2,11 @@
 
 import logging
 
+from django.apps import apps as django_apps
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from ..infrastructure.models import (
-    PolicyLevelKeywordModel,
-    RSSFetchLog,
-    RSSSourceConfigModel,
-)
 from .serializers import (
     PolicyLevelKeywordSerializer,
     RSSFetchLogSerializer,
@@ -20,6 +16,10 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
+RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
+RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
 
 class RSSSourceConfigViewSet(viewsets.ModelViewSet):
     """RSS源配置API"""

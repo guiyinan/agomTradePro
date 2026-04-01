@@ -93,8 +93,8 @@
 
 ### setup_wizard routing cleanup
 
-- Kept both setup wizard API entry paths for compatibility (`/setup/api/` and `/api/setup/`).
-- Changed the legacy `/api/setup/` include to use a distinct namespace so Django no longer reports duplicate `setup_wizard_api` namespaces during `manage.py check`.
+- Kept both setup wizard API include prefixes for compatibility (`setup/api` and `api/setup`).
+- Changed the legacy setup-wizard API include to use a distinct namespace so Django no longer reports duplicate `setup_wizard_api` namespaces during `manage.py check`.
 
 ### post-commit compatibility cleanup
 

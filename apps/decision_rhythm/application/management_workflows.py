@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
@@ -92,6 +91,13 @@ class GetTrendDataUseCase:
     def __init__(self, quota_repo):
         self.quota_repo = quota_repo
 
+    @staticmethod
+    def _bounded_metric(seed_value: int, upper_bound: int) -> int:
+        """Return a deterministic pseudo-series value without runtime randomness."""
+        if upper_bound <= 0:
+            return 0
+        return seed_value % (upper_bound + 1)
+
     def execute(self, request: TrendDataRequest) -> TrendDataResponse:
         """Return trend data payload for the requested period."""
         days = request.days if request.days in (7, 30) else 7
@@ -117,9 +123,10 @@ class GetTrendDataUseCase:
             current_date = start_date + timedelta(days=i)
             date_str = current_date.isoformat()
 
-            random.seed(hash(date_str))
-            decisions = min(random.randint(0, daily_quota + 2), daily_quota * 1.5)
-            executions = min(random.randint(0, decisions), decisions)
+            seed_value = current_date.toordinal() + (i + 1) * 17
+            decision_ceiling = max(int(daily_quota * 1.5), 0)
+            decisions = self._bounded_metric(seed_value, decision_ceiling)
+            executions = self._bounded_metric(seed_value // 2 + 3, decisions)
 
             daily_decisions.append(
                 {

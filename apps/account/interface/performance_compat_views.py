@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from django.apps import apps as django_apps
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -25,7 +26,7 @@ def _resolve_account_id(portfolio_id: int) -> Optional[int]:
     通过 LedgerMigrationMapModel 将 portfolio_id 映射到统一账户 ID。
     未找到映射则返回 None。
     """
-    from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
+    LedgerMigrationMapModel = django_apps.get_model("simulated_trading", "LedgerMigrationMapModel")
 
     mapping = (
         LedgerMigrationMapModel.objects.filter(

@@ -1,6 +1,7 @@
 """Account observer grant API views."""
 
 from decimal import Decimal
+from importlib import import_module
 from typing import Any
 
 from django.apps import apps as django_apps
@@ -13,21 +14,6 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    AssetMetadataModel,
-    CapitalFlowModel,
-    PortfolioModel,
-    PortfolioObserverGrantModel,
-    PositionModel,
-    TradingCostConfigModel,
-    TransactionModel,
-)
-from apps.account.infrastructure.repositories import (
-    PortfolioRepository,
-    PositionRepository,
-)
 
 from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
 from .serializers import (
@@ -51,6 +37,9 @@ from .serializers import (
     TransactionCreateSerializer,
     TransactionSerializer,
 )
+
+PortfolioModel = django_apps.get_model("account", "PortfolioModel")
+PortfolioObserverGrantModel = django_apps.get_model("account", "PortfolioObserverGrantModel")
 
 class ObserverGrantViewSet(viewsets.ModelViewSet):
     """
@@ -319,9 +308,8 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
                 OperationSource,
                 OperationType,
             )
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
-            audit_repo = DjangoAuditRepository()
+            audit_repo = import_module("apps.audit.infrastructure.repositories").DjangoAuditRepository()
 
             # 构造审计日志实体
             log_entity = OperationLog.create(

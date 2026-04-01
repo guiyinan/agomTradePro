@@ -1,7 +1,9 @@
 """Policy workbench API views."""
 
 import logging
+from importlib import import_module
 
+from django.apps import apps as django_apps
 from django.db import models
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
@@ -27,12 +29,6 @@ from ..application.use_cases import (
     WorkbenchItemsInput,
     WorkbenchSummaryInput,
 )
-from ..infrastructure.models import PolicyLog, RSSFetchLog, RSSSourceConfigModel
-from ..infrastructure.repositories import (
-    DjangoPolicyRepository,
-    RSSRepository,
-    WorkbenchRepository,
-)
 from .serializers import (
     ActionResponseSerializer,
     ApproveEventSerializer,
@@ -57,6 +53,23 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
+PolicyLog = django_apps.get_model("policy", "PolicyLog")
+RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
+RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
+SentimentGateConfig = django_apps.get_model("policy", "SentimentGateConfig")
+
+
+def _workbench_repository():
+    return import_module("apps.policy.infrastructure.repositories").WorkbenchRepository()
+
+
+def _policy_repository():
+    return import_module("apps.policy.infrastructure.repositories").DjangoPolicyRepository()
+
+
+def _rss_repository():
+    return import_module("apps.policy.infrastructure.repositories").RSSRepository()
+
 class WorkbenchSummaryView(APIView):
     """
     工作台概览视图
@@ -76,7 +89,7 @@ class WorkbenchSummaryView(APIView):
         """获取工作台概览"""
         try:
             use_case = GetWorkbenchSummaryUseCase(
-                workbench_repo=WorkbenchRepository()
+                workbench_repo=_workbench_repository()
             )
             output = use_case.execute(WorkbenchSummaryInput())
 
@@ -144,7 +157,7 @@ class WorkbenchItemsView(APIView):
                 )
 
             input_dto = WorkbenchItemsInput(**query_serializer.validated_data)
-            use_case = GetWorkbenchItemsUseCase(workbench_repo=WorkbenchRepository())
+            use_case = GetWorkbenchItemsUseCase(workbench_repo=_workbench_repository())
             output = use_case.execute(input_dto)
 
             if output.success:
@@ -197,7 +210,7 @@ class ApproveEventView(APIView):
                 user_id=request.user.id,
                 reason=serializer.validated_data.get('reason', '')
             )
-            use_case = ApproveEventUseCase(workbench_repo=WorkbenchRepository())
+            use_case = ApproveEventUseCase(workbench_repo=_workbench_repository())
             output = use_case.execute(input_dto)
 
             if output.success:
@@ -249,7 +262,7 @@ class RejectEventView(APIView):
                 user_id=request.user.id,
                 reason=serializer.validated_data['reason']
             )
-            use_case = RejectEventUseCase(workbench_repo=WorkbenchRepository())
+            use_case = RejectEventUseCase(workbench_repo=_workbench_repository())
             output = use_case.execute(input_dto)
 
             if output.success:
@@ -301,7 +314,7 @@ class RollbackEventView(APIView):
                 user_id=request.user.id,
                 reason=serializer.validated_data['reason']
             )
-            use_case = RollbackEventUseCase(workbench_repo=WorkbenchRepository())
+            use_case = RollbackEventUseCase(workbench_repo=_workbench_repository())
             output = use_case.execute(input_dto)
 
             if output.success:
@@ -354,7 +367,7 @@ class OverrideEventView(APIView):
                 reason=serializer.validated_data['reason'],
                 new_level=serializer.validated_data.get('new_level')
             )
-            use_case = OverrideEventUseCase(workbench_repo=WorkbenchRepository())
+            use_case = OverrideEventUseCase(workbench_repo=_workbench_repository())
             output = use_case.execute(input_dto)
 
             if output.success:
@@ -399,7 +412,7 @@ class SentimentGateStateView(APIView):
         try:
             asset_class = request.query_params.get('asset_class', 'all')
             input_dto = SentimentGateStateInput(asset_class=asset_class)
-            use_case = GetSentimentGateStateUseCase(workbench_repo=WorkbenchRepository())
+            use_case = GetSentimentGateStateUseCase(workbench_repo=_workbench_repository())
             output = use_case.execute(input_dto)
 
             if output.success:
@@ -444,7 +457,7 @@ class IngestionConfigView(APIView):
     def get(self, request):
         """获取摄入配置"""
         try:
-            workbench_repo = WorkbenchRepository()
+            workbench_repo = _workbench_repository()
             config = workbench_repo.get_ingestion_config()
             serializer = IngestionConfigSerializer({
                 'auto_approve_enabled': config.auto_approve_enabled,
@@ -480,7 +493,7 @@ class IngestionConfigView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            workbench_repo = WorkbenchRepository()
+            workbench_repo = _workbench_repository()
             config = workbench_repo.update_ingestion_config(
                 **serializer.validated_data,
                 updated_by=request.user
@@ -517,7 +530,7 @@ class SentimentGateConfigView(APIView):
     def get(self, request):
         """获取闸门配置列表"""
         try:
-            workbench_repo = WorkbenchRepository()
+            workbench_repo = _workbench_repository()
             configs = workbench_repo.get_all_gate_configs()
             data = [
                 {
@@ -560,8 +573,6 @@ class SentimentGateConfigView(APIView):
                     {'success': False, 'errors': serializer.errors},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            from ..infrastructure.models import SentimentGateConfig
 
             asset_class = serializer.validated_data['asset_class']
 
@@ -618,7 +629,6 @@ class WorkbenchBootstrapView(APIView):
     def get(self, request):
         """获取工作台启动数据"""
         try:
-            from ..infrastructure.models import RSSFetchLog, RSSSourceConfigModel
             from .serializers import (
                 WorkbenchBootstrapSerializer,
                 WorkbenchFetchStatusSerializer,
@@ -627,13 +637,13 @@ class WorkbenchBootstrapView(APIView):
             )
 
             # 1. 获取 summary
-            summary_use_case = GetWorkbenchSummaryUseCase(workbench_repo=WorkbenchRepository())
+            summary_use_case = GetWorkbenchSummaryUseCase(workbench_repo=_workbench_repository())
             summary_output = summary_use_case.execute(WorkbenchSummaryInput())
             summary_data = WorkbenchSummarySerializer(summary_output.summary).data if summary_output.success else {}
 
             # 2. 获取 default list (tab=all, limit=50)
             items_input = WorkbenchItemsInput(tab='all', limit=50, offset=0)
-            items_use_case = GetWorkbenchItemsUseCase(workbench_repo=WorkbenchRepository())
+            items_use_case = GetWorkbenchItemsUseCase(workbench_repo=_workbench_repository())
             items_output = items_use_case.execute(items_input)
             default_list = items_output.items if items_output.success else []
 
@@ -868,8 +878,8 @@ class WorkbenchFetchView(APIView):
                 force_refetch=force_refetch
             )
             fetch_use_case = FetchRSSUseCase(
-                rss_repository=RSSRepository(),
-                policy_repository=DjangoPolicyRepository()
+                rss_repository=_rss_repository(),
+                policy_repository=_policy_repository()
             )
             output = fetch_use_case.execute(fetch_input)
 

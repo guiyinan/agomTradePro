@@ -1,6 +1,7 @@
 """Account transaction and capital flow API views."""
 
 from decimal import Decimal
+from importlib import import_module
 from typing import Any
 
 from django.apps import apps as django_apps
@@ -13,21 +14,6 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    AssetMetadataModel,
-    CapitalFlowModel,
-    PortfolioModel,
-    PortfolioObserverGrantModel,
-    PositionModel,
-    TradingCostConfigModel,
-    TransactionModel,
-)
-from apps.account.infrastructure.repositories import (
-    PortfolioRepository,
-    PositionRepository,
-)
 
 from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
 from .serializers import (
@@ -51,6 +37,10 @@ from .serializers import (
     TransactionCreateSerializer,
     TransactionSerializer,
 )
+
+CapitalFlowModel = django_apps.get_model("account", "CapitalFlowModel")
+PortfolioModel = django_apps.get_model("account", "PortfolioModel")
+TransactionModel = django_apps.get_model("account", "TransactionModel")
 
 class TransactionViewSet(viewsets.ModelViewSet):
     """

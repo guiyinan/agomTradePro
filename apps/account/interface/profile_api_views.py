@@ -1,6 +1,7 @@
 """Account profile and reference data API views."""
 
 from decimal import Decimal
+from importlib import import_module
 from typing import Any
 
 from django.apps import apps as django_apps
@@ -13,21 +14,6 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    AssetMetadataModel,
-    CapitalFlowModel,
-    PortfolioModel,
-    PortfolioObserverGrantModel,
-    PositionModel,
-    TradingCostConfigModel,
-    TransactionModel,
-)
-from apps.account.infrastructure.repositories import (
-    PortfolioRepository,
-    PositionRepository,
-)
 
 from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
 from .serializers import (
@@ -51,6 +37,12 @@ from .serializers import (
     TransactionCreateSerializer,
     TransactionSerializer,
 )
+
+AssetMetadataModel = django_apps.get_model("account", "AssetMetadataModel")
+PortfolioModel = django_apps.get_model("account", "PortfolioModel")
+PortfolioObserverGrantModel = django_apps.get_model("account", "PortfolioObserverGrantModel")
+PositionModel = django_apps.get_model("account", "PositionModel")
+TradingCostConfigModel = django_apps.get_model("account", "TradingCostConfigModel")
 
 class AccountProfileView(APIView):
     """
@@ -151,8 +143,6 @@ class UserSearchView(APIView):
         排除当前用户和已授权的用户
         """
         from django.contrib.auth.models import User
-
-        from apps.account.infrastructure.models import PortfolioObserverGrantModel
 
         query = request.GET.get("q", "").strip()
 

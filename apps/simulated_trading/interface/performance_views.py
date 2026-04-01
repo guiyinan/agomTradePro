@@ -9,6 +9,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 from datetime import date
+from importlib import import_module
 from typing import Any
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -27,17 +28,6 @@ from apps.simulated_trading.application.performance_use_cases import (
     ListAccountValuationTimelineUseCase,
     ObserverGrantRepositoryProtocol,
 )
-from apps.simulated_trading.infrastructure.performance_repositories import (
-    DjangoBenchmarkComponentRepository,
-    DjangoCapitalFlowRepository,
-    DjangoMarketDataRepository,
-    DjangoObserverGrantRepository,
-    DjangoPerformanceAccountRepository,
-    DjangoPerformanceDailyNetValueRepository,
-    DjangoTradeHistoryRepository,
-    DjangoUnifiedCashFlowRepository,
-    DjangoValuationSnapshotRepository,
-)
 
 from .performance_serializers import (
     BenchmarkComponentResponseSerializer,
@@ -53,8 +43,50 @@ from .performance_serializers import (
 logger = logging.getLogger(__name__)
 
 _SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
-_ACCOUNT_REPO = DjangoPerformanceAccountRepository()
-_OBSERVER_GRANT_REPO = DjangoObserverGrantRepository()
+
+
+def _performance_repository_module():
+    return import_module("apps.simulated_trading.infrastructure.performance_repositories")
+
+
+def _build_account_repository():
+    return _performance_repository_module().DjangoPerformanceAccountRepository()
+
+
+def _build_observer_grant_repository():
+    return _performance_repository_module().DjangoObserverGrantRepository()
+
+
+def _build_daily_net_value_repository():
+    return _performance_repository_module().DjangoPerformanceDailyNetValueRepository()
+
+
+def _build_cash_flow_repository():
+    return _performance_repository_module().DjangoUnifiedCashFlowRepository()
+
+
+def _build_benchmark_repository():
+    return _performance_repository_module().DjangoBenchmarkComponentRepository()
+
+
+def _build_market_data_repository():
+    return _performance_repository_module().DjangoMarketDataRepository()
+
+
+def _build_trade_history_repository():
+    return _performance_repository_module().DjangoTradeHistoryRepository()
+
+
+def _build_snapshot_repository():
+    return _performance_repository_module().DjangoValuationSnapshotRepository()
+
+
+def _build_capital_flow_repository():
+    return _performance_repository_module().DjangoCapitalFlowRepository()
+
+
+_ACCOUNT_REPO = _build_account_repository()
+_OBSERVER_GRANT_REPO = _build_observer_grant_repository()
 
 
 # ---------------------------------------------------------------------------
@@ -149,12 +181,12 @@ class AccountPerformanceReportAPIView(APIView):
         end_date: date = query_ser.validated_data["end_date"]
 
         use_case = GetAccountPerformanceReportUseCase(
-            account_repo=DjangoPerformanceAccountRepository(),
-            daily_net_value_repo=DjangoPerformanceDailyNetValueRepository(),
-            cash_flow_repo=DjangoUnifiedCashFlowRepository(),
-            benchmark_repo=DjangoBenchmarkComponentRepository(),
-            market_data_repo=DjangoMarketDataRepository(),
-            trade_history_repo=DjangoTradeHistoryRepository(),
+            account_repo=_build_account_repository(),
+            daily_net_value_repo=_build_daily_net_value_repository(),
+            cash_flow_repo=_build_cash_flow_repository(),
+            benchmark_repo=_build_benchmark_repository(),
+            market_data_repo=_build_market_data_repository(),
+            trade_history_repo=_build_trade_history_repository(),
         )
         try:
             report = use_case.execute(account_id, start_date, end_date)
@@ -198,9 +230,9 @@ class AccountValuationSnapshotAPIView(APIView):
 
         as_of_date: date = query_ser.validated_data["as_of_date"]
         use_case = GetAccountValuationSnapshotUseCase(
-            account_repo=DjangoPerformanceAccountRepository(),
-            valuation_snapshot_repo=DjangoValuationSnapshotRepository(),
-            daily_net_value_repo=DjangoPerformanceDailyNetValueRepository(),
+            account_repo=_build_account_repository(),
+            valuation_snapshot_repo=_build_snapshot_repository(),
+            daily_net_value_repo=_build_daily_net_value_repository(),
         )
         try:
             snapshot = use_case.execute(account_id, as_of_date)
@@ -247,9 +279,9 @@ class AccountValuationTimelineAPIView(APIView):
         end_date = query_ser.validated_data.get("end_date")
 
         use_case = ListAccountValuationTimelineUseCase(
-            account_repo=DjangoPerformanceAccountRepository(),
-            daily_net_value_repo=DjangoPerformanceDailyNetValueRepository(),
-            cash_flow_repo=DjangoUnifiedCashFlowRepository(),
+            account_repo=_build_account_repository(),
+            daily_net_value_repo=_build_daily_net_value_repository(),
+            cash_flow_repo=_build_cash_flow_repository(),
         )
         try:
             points = use_case.execute(account_id, start_date, end_date)
@@ -285,7 +317,7 @@ class AccountBenchmarksAPIView(APIView):
             return Response({"error": "无权访问"}, status=status.HTTP_403_FORBIDDEN)
 
         use_case = BenchmarkCRUDUseCase(
-            benchmark_repo=DjangoBenchmarkComponentRepository()
+            benchmark_repo=_build_benchmark_repository()
         )
         components = use_case.get(account_id)
         return Response([dataclasses.asdict(c) for c in components], status=status.HTTP_200_OK)
@@ -314,7 +346,7 @@ class AccountBenchmarksAPIView(APIView):
             return Response(body_ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
         use_case = BenchmarkCRUDUseCase(
-            benchmark_repo=DjangoBenchmarkComponentRepository()
+            benchmark_repo=_build_benchmark_repository()
         )
         try:
             components = use_case.put(
@@ -356,10 +388,10 @@ class AccountBackfillAPIView(APIView):
             return Response({"error": "账户不存在"}, status=status.HTTP_404_NOT_FOUND)
 
         use_case = BackfillUnifiedAccountHistoryUseCase(
-            account_repo=DjangoPerformanceAccountRepository(),
-            cash_flow_repo=DjangoUnifiedCashFlowRepository(),
-            daily_net_value_repo=DjangoPerformanceDailyNetValueRepository(),
-            capital_flow_repo=DjangoCapitalFlowRepository(),
+            account_repo=_build_account_repository(),
+            cash_flow_repo=_build_cash_flow_repository(),
+            daily_net_value_repo=_build_daily_net_value_repository(),
+            capital_flow_repo=_build_capital_flow_repository(),
         )
         try:
             result = use_case.execute(account_id)
