@@ -78,7 +78,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_no_501(self):
         """确认不再返回 501"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "fund",
             "filters": {},
@@ -92,7 +92,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_fund_success(self):
         """测试多维度筛选 - 基金（成功）"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "fund",
             "filters": {"fund_type": "混合型"},
@@ -113,7 +113,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_with_custom_weights(self):
         """测试多维度筛选 - 自定义权重"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "fund",
             "filters": {},
@@ -133,7 +133,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_with_context_override(self):
         """测试多维度筛选 - 覆盖上下文"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "fund",
             "filters": {},
@@ -155,7 +155,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_invalid_asset_type(self):
         """测试多维度筛选 - 无效的资产类型"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "invalid_type",
             "filters": {},
@@ -170,7 +170,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_invalid_weights(self):
         """测试多维度筛选 - 无效的权重"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "fund",
             "filters": {},
@@ -191,7 +191,7 @@ class TestMultiDimScreenAPI(TestCase):
 
     def test_multidim_screen_response_fields_align_with_screen_asset_type(self):
         """测试 multidim-screen 响应字段与 screen/{asset_type} 对齐"""
-        url = reverse("asset_analysis:multidim_screen")
+        url = reverse("api_asset_analysis:multidim_screen")
         data = {
             "asset_type": "fund",
             "filters": {},

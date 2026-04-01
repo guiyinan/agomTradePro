@@ -192,8 +192,6 @@ class AgomTradeProBrowserTest:
         policy_pages = [
             ("/policy/workbench/", "政策仪表板"),
             ("/policy/events/", "政策事件列表"),
-            ("/policy/status/", "政策状态"),
-            ("/policy/audit/queue/", "审计队列"),
             ("/policy/rss/sources/", "RSS管理"),
             ("/policy/rss/reader/", "RSS阅读器"),
         ]

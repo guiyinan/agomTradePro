@@ -93,8 +93,8 @@ class TestConfig:
     filter_rules_url: str = "/filter/rules/"
 
     # Page URLs - Sector
-    sector_analysis_url: str = "/sector/"
-    sector_rotation_url: str = "/sector/rotation/"
+    sector_analysis_url: str = "/rotation/assets/"
+    sector_rotation_url: str = "/rotation/assets/"
 
     # Admin URLs
     admin_index: str = "/admin/"

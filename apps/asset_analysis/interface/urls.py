@@ -1,42 +1,34 @@
 """
-资产分析模块 - URL 路由配置
+Asset analysis page routes.
+
+页面路由与 API 路由分离：
+- 页面路由保留在 urls.py
+- DRF API 路由迁移到 api_urls.py
 """
 
-from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.urls import path
-
-from apps.asset_analysis.interface.pool_views import (
-    AssetPoolScreenAPIView,
-    AssetPoolSummaryAPIView,
-)
-from apps.asset_analysis.interface.views import (
-    CurrentWeightAPIView,
-    MultiDimScreenAPIView,
-    WeightConfigsAPIView,
-)
 
 app_name = "asset_analysis"
 
+
+def asset_analysis_root_redirect(request):
+    """Redirect /asset-analysis/ to the canonical asset screen page."""
+    return redirect("asset-screen")
+
+
+def asset_pool_summary_redirect(request):
+    """Redirect legacy pool summary page entry to the asset screen page."""
+    return redirect("asset-screen")
+
+
+def asset_pool_screen_redirect(request, asset_type: str):
+    """Redirect legacy pool screen URLs to the unified asset screen page."""
+    return redirect(f"/asset-analysis/screen/?asset_type={asset_type}")
+
+
 urlpatterns = [
-    # API 根路径（兼容旧调用）
-    path("", lambda request: JsonResponse({
-        "module": "asset-analysis",
-        "endpoints": [
-            "/api/asset-analysis/multidim-screen/",
-            "/api/asset-analysis/weight-configs/",
-            "/api/asset-analysis/current-weight/",
-            "/api/asset-analysis/pool-summary/",
-        ],
-    }), name="root"),
-
-    # 多维度筛选 API
-    path("multidim-screen/", MultiDimScreenAPIView.as_view(), name="multidim_screen"),
-
-    # 权重配置 API
-    path("weight-configs/", WeightConfigsAPIView.as_view(), name="weight_configs"),
-    path("current-weight/", CurrentWeightAPIView.as_view(), name="current_weight"),
-
-    # 资产池 API
-    path("screen/<str:asset_type>/", AssetPoolScreenAPIView.as_view(), name="pool_screen"),
-    path("pool-summary/", AssetPoolSummaryAPIView.as_view(), name="pool_summary"),
+    path("", asset_analysis_root_redirect, name="root"),
+    path("pool-summary/", asset_pool_summary_redirect, name="pool_summary"),
+    path("screen/<str:asset_type>/", asset_pool_screen_redirect, name="pool_screen"),
 ]

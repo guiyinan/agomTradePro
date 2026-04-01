@@ -64,7 +64,7 @@ def test_pages(page):
         ("/signal/", "Signal"),
         ("/backtest/", "Backtest"),
         ("/strategy/", "Strategy"),
-        ("/sector/", "Sector"),
+        ("/rotation/assets/", "Sector"),
         ("/equity/", "Equity"),
         ("/fund/", "Fund"),
         ("/factor/", "Factor"),
