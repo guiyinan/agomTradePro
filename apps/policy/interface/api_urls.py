@@ -7,22 +7,28 @@ This file intentionally exposes API endpoints only.
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    ApproveEventView,
+from .audit_api_views import (
     AuditQueueView,
     AutoAssignAuditsView,
     BulkReviewView,
-    IngestionConfigView,
-    OverrideEventView,
+    ReviewPolicyItemView,
+)
+from .event_api_views import (
     PolicyEventDetailView,
     PolicyEventListView,
-    PolicyLevelKeywordViewSet,
     PolicyStatusView,
-    RejectEventView,
-    ReviewPolicyItemView,
-    RollbackEventView,
+)
+from .rss_api_views import (
+    PolicyLevelKeywordViewSet,
     RSSFetchLogViewSet,
     RSSSourceConfigViewSet,
+)
+from .workbench_api_views import (
+    ApproveEventView,
+    IngestionConfigView,
+    OverrideEventView,
+    RejectEventView,
+    RollbackEventView,
     SentimentGateConfigView,
     SentimentGateStateView,
     WorkbenchBootstrapView,

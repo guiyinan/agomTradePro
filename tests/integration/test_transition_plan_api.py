@@ -145,7 +145,10 @@ def test_transition_plan_generate_update_and_preview_flow():
     assert generate_response.status_code == 201
     generate_payload = generate_response.json()["data"]
     assert generate_payload["plan_id"]
-    assert generate_payload["orders"][0]["source_recommendation_id"] == recommendation.recommendation_id
+    assert (
+        generate_payload["orders"][0]["source_recommendation_id"]
+        == recommendation.recommendation_id
+    )
     assert generate_payload["can_enter_approval"] is False
     assert generate_payload["current_positions"][0]["asset_code"] == "000001.SH"
     assert generate_payload["current_positions"][0]["security_name"] == "Ping An Bank"
@@ -335,7 +338,7 @@ def test_invalidation_template_and_ai_draft_endpoints(monkeypatch):
             }
 
     monkeypatch.setattr(
-        "apps.decision_rhythm.interface.api_views.AIClientFactory.get_client",
+        "apps.decision_rhythm.interface.valuation_api_views.AIClientFactory.get_client",
         lambda self: DummyClient(),
     )
 

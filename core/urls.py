@@ -112,7 +112,10 @@ core_patterns = [
     path("", index_view, name="index"),
     path(
         "setup/api/",
-        include(("apps.setup_wizard.interface.api_urls", "setup_wizard_api"), namespace="setup_wizard_api"),
+        include(
+            ("apps.setup_wizard.interface.api_urls", "setup_wizard_api"),
+            namespace="setup_wizard_api",
+        ),
     ),
     path(
         "setup/",
@@ -120,7 +123,10 @@ core_patterns = [
     ),
     path(
         "api/setup/",
-        include(("apps.setup_wizard.interface.api_urls", "setup_wizard_api"), namespace="setup_wizard_api"),
+        include(
+            ("apps.setup_wizard.interface.api_urls", "setup_wizard_api_legacy"),
+            namespace="setup_wizard_api_legacy",
+        ),
     ),
     path("api/", api_root_view, name="api-root"),
     path("api/health/", health_view, name="health"),
@@ -140,8 +146,12 @@ core_patterns = [
     path("terminal/", terminal_view, name="terminal"),
     path("terminal/config/", terminal_config_view, name="terminal-config"),
     path("asset-analysis/screen/", asset_screen_view, name="asset-screen"),
+    path(
+        "asset-analysis/pool-summary/",
+        RedirectView.as_view(url="/asset-analysis/screen/", permanent=False),
+        name="asset-pool-summary-page",
+    ),
     path("decision/workspace/", decision_workspace_view, name="decision-workspace"),
-    
     # 决策漏斗（Stepper）局部加载 HTMX
     path("api/decision/context/step1/", funnel_step1_view, name="funnel-step-1"),
     path("api/decision/context/step2/", funnel_step2_view, name="funnel-step-2"),
@@ -149,11 +159,13 @@ core_patterns = [
     path("api/decision/context/step4/", funnel_step4_view, name="funnel-step-4"),
     path("api/decision/context/step5/", funnel_step5_view, name="funnel-step-5"),
     path("api/decision/context/step6/", funnel_step6_view, name="funnel-step-6"),
-
     # REST JSON API for SDK & MCP
-    path("api/decision/funnel/context/", decision_funnel_context_api_view, name="api-decision-funnel-context"),
+    path(
+        "api/decision/funnel/context/",
+        decision_funnel_context_api_view,
+        name="api-decision-funnel-context",
+    ),
     path("api/decision/audit/", decision_audit_api_view, name="api-decision-audit"),
-
     path("ops/", ops_center_view, name="ops-center"),
     path("ops/mcp-tools/", mcp_tools_page, name="ops-mcp-tools"),
     path("ops/mcp-tools/sync/", sync_mcp_tools_view, name="ops-mcp-tools-sync"),
@@ -316,12 +328,13 @@ module_patterns = [
     path(
         "api/asset-analysis/",
         include(
-            ("apps.asset_analysis.interface.urls", "api_asset_analysis"),
+            ("apps.asset_analysis.interface.api_urls", "api_asset_analysis"),
             namespace="api_asset_analysis",
         ),
     ),
     path(
-        "api/sector/", include(("apps.sector.interface.urls", "api_sector"), namespace="api_sector")
+        "api/sector/",
+        include(("apps.sector.interface.api_urls", "api_sector"), namespace="api_sector"),
     ),
     path(
         "api/ai/",

@@ -38,7 +38,7 @@ from apps.decision_rhythm.infrastructure.repositories import (
     ExecutionApprovalRequestRepository,
     UnifiedRecommendationRepository,
 )
-from apps.decision_rhythm.interface.api_views import (
+from apps.decision_rhythm.interface.workspace_execution_api_views import (
     ExecutionApproveView,
     ExecutionPreviewView,
     ExecutionRejectView,
@@ -58,13 +58,11 @@ class TestExecutionApprovalChain(TestCase):
         self.uni_repo = UnifiedRecommendationRepository()
         # 创建测试用户
         self.user = User.objects.create_user(
-            username='test_user',
-            password='test_password',
-            email='test@example.com'
+            username="test_user", password="test_password", email="test@example.com"
         )
         # 创建测试配额（确保配额充足）
         DecisionQuotaModel.objects.create(
-            quota_id='test_quota',
+            quota_id="test_quota",
             period=QuotaPeriod.WEEKLY.value,
             max_decisions=100,
             used_decisions=0,
@@ -297,7 +295,11 @@ class TestExecutionApprovalChain(TestCase):
         self._force_authenticate(approve_request)
         approve_view = ExecutionApproveView.as_view()
         approve_response = approve_view(approve_request)
-        self.assertEqual(approve_response.status_code, 200, f"Expected 200, got {approve_response.status_code}: {approve_response.data}")
+        self.assertEqual(
+            approve_response.status_code,
+            200,
+            f"Expected 200, got {approve_response.status_code}: {approve_response.data}",
+        )
 
         uni_rec.refresh_from_db()
         self.assertEqual(uni_rec.status, "APPROVED")
