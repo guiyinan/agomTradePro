@@ -16,66 +16,74 @@ from typing import Dict, List, Optional
 # 资产分类系统 - 多维度灵活分类
 # ============================================================
 
+
 class RiskTolerance(Enum):
     """风险偏好"""
+
     CONSERVATIVE = "conservative"  # 保守型
-    MODERATE = "moderate"          # 稳健型
-    AGGRESSIVE = "aggressive"      # 激进型
+    MODERATE = "moderate"  # 稳健型
+    AGGRESSIVE = "aggressive"  # 激进型
 
 
 class PositionSource(Enum):
     """持仓来源"""
-    MANUAL = "manual"      # 手动录入
-    SIGNAL = "signal"      # 投资信号
+
+    MANUAL = "manual"  # 手动录入
+    SIGNAL = "signal"  # 投资信号
     BACKTEST = "backtest"  # 回测结果
 
 
 class PositionStatus(Enum):
     """持仓状态"""
-    ACTIVE = "active"      # 持有中
-    CLOSED = "closed"      # 已平仓
+
+    ACTIVE = "active"  # 持有中
+    CLOSED = "closed"  # 已平仓
 
 
 class AssetClassType(Enum):
     """资产大类（预定义，不可修改）"""
-    EQUITY = "equity"           # 股票
+
+    EQUITY = "equity"  # 股票
     FIXED_INCOME = "fixed_income"  # 固定收益/债券
-    COMMODITY = "commodity"     # 商品
-    CURRENCY = "currency"       # 外汇
-    CASH = "cash"               # 现金
-    FUND = "fund"               # 基金
-    DERIVATIVE = "derivative"   # 衍生品
-    OTHER = "other"             # 其他
+    COMMODITY = "commodity"  # 商品
+    CURRENCY = "currency"  # 外汇
+    CASH = "cash"  # 现金
+    FUND = "fund"  # 基金
+    DERIVATIVE = "derivative"  # 衍生品
+    OTHER = "other"  # 其他
 
 
 class Region(Enum):
     """地区/国别（预定义）"""
-    CN = "CN"           # 中国境内
-    US = "US"           # 美国
-    EU = "EU"           # 欧洲
-    JP = "JP"           # 日本
-    EM = "EM"           # 新兴市场
-    GLOBAL = "GLOBAL"   # 全球
-    OTHER = "OTHER"     # 其他
+
+    CN = "CN"  # 中国境内
+    US = "US"  # 美国
+    EU = "EU"  # 欧洲
+    JP = "JP"  # 日本
+    EM = "EM"  # 新兴市场
+    GLOBAL = "GLOBAL"  # 全球
+    OTHER = "OTHER"  # 其他
 
 
 class CrossBorderFlag(Enum):
     """跨境标识"""
-    DOMESTIC = "domestic"       # 境内资产
-    QDII = "qdii"               # QDII基金（境内购买境外）
+
+    DOMESTIC = "domestic"  # 境内资产
+    QDII = "qdii"  # QDII基金（境内购买境外）
     DIRECT_FOREIGN = "direct_foreign"  # 直接境外投资
 
 
 class InvestmentStyle(Enum):
     """投资风格（预定义，可扩展）"""
-    GROWTH = "growth"           # 成长
-    VALUE = "value"             # 价值
-    BLEND = "blend"             # 混合
-    CYCLICAL = "cyclical"       # 周期
-    DEFENSIVE = "defensive"     # 防御
-    QUALITY = "quality"         # 质量
-    MOMENTUM = "momentum"       # 动量
-    UNKNOWN = "unknown"         # 未知/不适用
+
+    GROWTH = "growth"  # 成长
+    VALUE = "value"  # 价值
+    BLEND = "blend"  # 混合
+    CYCLICAL = "cyclical"  # 周期
+    DEFENSIVE = "defensive"  # 防御
+    QUALITY = "quality"  # 质量
+    MOMENTUM = "momentum"  # 动量
+    UNKNOWN = "unknown"  # 未知/不适用
 
 
 @dataclass(frozen=True)
@@ -92,15 +100,16 @@ class AssetMetadata:
     - VN_QDII: 越南QDII基金 -> Fund, EM, QDII, Growth
     - TSLA.US: 特斯拉股票 -> Equity, US, DirectForeign, Growth
     """
-    asset_code: str           # 资产代码
-    name: str                 # 资产名称
+
+    asset_code: str  # 资产代码
+    name: str  # 资产名称
     asset_class: AssetClassType  # 资产大类
-    region: Region            # 地区
+    region: Region  # 地区
     cross_border: CrossBorderFlag  # 跨境标识
-    style: InvestmentStyle    # 投资风格
-    sector: str | None     # 行业板块（用户可自定义）
+    style: InvestmentStyle  # 投资风格
+    sector: str | None  # 行业板块（用户可自定义）
     sub_class: str | None  # 子类（用户可自定义，如"科技股"、"消费股"）
-    description: str          # 描述
+    description: str  # 描述
 
     def get_full_classification(self) -> str:
         """获取完整分类描述"""
@@ -115,7 +124,9 @@ class AssetMetadata:
             parts.append(self.style.value)
         return " | ".join(parts)
 
-    def is_eligible_for_regime(self, regime: str, eligibility_matrix: dict[str, dict[str, str]]) -> bool:
+    def is_eligible_for_regime(
+        self, regime: str, eligibility_matrix: dict[str, dict[str, str]]
+    ) -> bool:
         """
         检查资产在给定Regime下是否适合
 
@@ -140,6 +151,7 @@ class AccountProfile:
 
     用户的风险偏好和初始资金配置，用于计算仓位大小和投资建议。
     """
+
     user_id: int
     display_name: str
     initial_capital: Decimal
@@ -170,23 +182,24 @@ class Position:
     记录用户持有的资产信息，包括持仓数量、成本、盈亏等。
     资产分类信息通过 asset_code 关联到 AssetMetadata 获取。
     """
+
     id: int | None  # 数据库ID，新建时为None
     portfolio_id: int
     user_id: int
-    asset_code: str          # 资产代码，如 "ASSET_CODE"
-    shares: float            # 持仓数量
-    avg_cost: Decimal        # 平均成本价
-    current_price: Decimal   # 当前市价
-    market_value: Decimal    # 市值
+    asset_code: str  # 资产代码，如 "ASSET_CODE"
+    shares: float  # 持仓数量
+    avg_cost: Decimal  # 平均成本价
+    current_price: Decimal  # 当前市价
+    market_value: Decimal  # 市值
     unrealized_pnl: Decimal  # 未实现盈亏
     unrealized_pnl_pct: float  # 未实现盈亏百分比
-    opened_at: datetime      # 开仓时间
-    status: PositionStatus   # 持仓状态
-    source: PositionSource   # 持仓来源
-    source_id: int | None # 关联的signal_id或backtest_id
+    opened_at: datetime  # 开仓时间
+    status: PositionStatus  # 持仓状态
+    source: PositionSource  # 持仓来源
+    source_id: int | None  # 关联的signal_id或backtest_id
     # 以下是冗余字段，用于快速查询（从AssetMetadata同步）
     asset_class: AssetClassType  # 资产大类
-    region: Region            # 地区
+    region: Region  # 地区
     cross_border: CrossBorderFlag  # 跨境标识
 
     def calculate_pnl(self) -> tuple[Decimal, float]:
@@ -208,16 +221,17 @@ class PortfolioSnapshot:
 
     某个时刻的投资组合完整状态。
     """
+
     portfolio_id: int
     user_id: int
     name: str
     snapshot_date: datetime
-    cash_balance: Decimal     # 现金余额
-    total_value: Decimal      # 总资产
-    invested_value: Decimal   # 投资市值
-    total_return: Decimal     # 总收益
-    total_return_pct: float   # 总收益率
-    positions: list[Position] # 持仓列表
+    cash_balance: Decimal  # 现金余额
+    total_value: Decimal  # 总资产
+    invested_value: Decimal  # 投资市值
+    total_return: Decimal  # 总收益
+    total_return_pct: float  # 总收益率
+    positions: list[Position]  # 持仓列表
 
     def get_cash_ratio(self) -> float:
         """计算现金仓位比例"""
@@ -239,18 +253,19 @@ class Transaction:
 
     记录每一笔交易的详细信息。
     """
+
     id: int | None
     portfolio_id: int
     user_id: int
     position_id: int | None  # 关联的持仓ID，平仓时有值
     asset_code: str
-    action: str                 # "buy" 或 "sell"
+    action: str  # "buy" 或 "sell"
     shares: float
     price: Decimal
-    notional: Decimal           # 交易金额
-    commission: Decimal         # 手续费
+    notional: Decimal  # 交易金额
+    commission: Decimal  # 手续费
     traded_at: datetime
-    notes: str                  # 备注
+    notes: str  # 备注
 
 
 @dataclass(frozen=True)
@@ -260,12 +275,13 @@ class AssetAllocation:
 
     支持多维度统计：按大类、地区、风格等维度聚合。
     """
-    dimension: str            # 统计维度：asset_class, region, cross_border, style, sector
-    dimension_value: str      # 维度值（如 "equity", "CN", "domestic"）
-    count: int                # 持仓数量
-    market_value: Decimal     # 市值
-    percentage: float         # 占比
-    asset_codes: list[str]    # 包含的资产代码列表
+
+    dimension: str  # 统计维度：asset_class, region, cross_border, style, sector
+    dimension_value: str  # 维度值（如 "equity", "CN", "domestic"）
+    count: int  # 持仓数量
+    market_value: Decimal  # 市值
+    percentage: float  # 占比
+    asset_codes: list[str]  # 包含的资产代码列表
 
     def get_display_name(self) -> str:
         """获取显示名称"""
@@ -302,31 +318,35 @@ class RegimeMatchAnalysis:
 
     分析当前持仓与Regime环境的匹配程度。
     """
-    regime: str                # 当前Regime
-    total_match_score: float   # 总体匹配度 (0-100)
-    preferred_assets: list[str]      # 优选资产列表
-    neutral_assets: list[str]        # 中性资产列表
-    hostile_assets: list[str]        # 不匹配资产列表
-    recommendations: list[str]        # 调仓建议
+
+    regime: str  # 当前Regime
+    total_match_score: float  # 总体匹配度 (0-100)
+    preferred_assets: list[str]  # 优选资产列表
+    neutral_assets: list[str]  # 中性资产列表
+    hostile_assets: list[str]  # 不匹配资产列表
+    recommendations: list[str]  # 调仓建议
 
 
 # ============================================================
 # 止损止盈相关实体
 # ============================================================
 
+
 class StopLossType(Enum):
     """止损类型"""
-    FIXED = "fixed"           # 固定止损（如 -10%）
-    TRAILING = "trailing"     # 移动止损（随价格上涨上移）
-    TIME_BASED = "time_based" # 时间止损（持仓超过N天）
+
+    FIXED = "fixed"  # 固定止损（如 -10%）
+    TRAILING = "trailing"  # 移动止损（随价格上涨上移）
+    TIME_BASED = "time_based"  # 时间止损（持仓超过N天）
 
 
 class StopLossStatus(Enum):
     """止损状态"""
-    ACTIVE = "active"         # 激活中
-    TRIGGERED = "triggered"   # 已触发
-    CANCELLED = "cancelled"   # 已取消
-    EXPIRED = "expired"       # 已过期
+
+    ACTIVE = "active"  # 激活中
+    TRIGGERED = "triggered"  # 已触发
+    CANCELLED = "cancelled"  # 已取消
+    EXPIRED = "expired"  # 已过期
 
 
 @dataclass(frozen=True)
@@ -336,15 +356,18 @@ class StopLossConfig:
 
     定义单个持仓的止损规则。
     """
-    position_id: int          # 关联的持仓ID
+
+    position_id: int  # 关联的持仓ID
     stop_loss_type: StopLossType  # 止损类型
-    stop_loss_pct: float      # 止损百分比（如 -0.10 表示 -10%）
+    stop_loss_pct: float  # 止损百分比（如 -0.10 表示 -10%）
     trailing_stop_pct: float | None = None  # 移动止损百分比
-    max_holding_days: int | None = None     # 最大持仓天数
-    activated_at: datetime | None = None    # 激活时间
+    max_holding_days: int | None = None  # 最大持仓天数
+    activated_at: datetime | None = None  # 激活时间
     status: StopLossStatus = StopLossStatus.ACTIVE
 
-    def calculate_stop_price(self, entry_price: float, current_price: float, highest_price: float) -> float:
+    def calculate_stop_price(
+        self, entry_price: float, current_price: float, highest_price: float
+    ) -> float:
         """
         计算止损价格
 
@@ -379,15 +402,16 @@ class StopLossTrigger:
 
     记录一次止损触发的详细信息。
     """
+
     id: int | None
-    position_id: int          # 关联的持仓ID
+    position_id: int  # 关联的持仓ID
     trigger_type: StopLossType  # 触发类型
-    trigger_price: float      # 触发时的价格
-    trigger_time: datetime    # 触发时间
-    trigger_reason: str       # 触发原因描述
-    pnl: Decimal              # 触发时的盈亏金额
-    pnl_pct: float            # 触发时的盈亏百分比
-    notes: str                # 备注
+    trigger_price: float  # 触发时的价格
+    trigger_time: datetime  # 触发时间
+    trigger_reason: str  # 触发原因描述
+    pnl: Decimal  # 触发时的盈亏金额
+    pnl_pct: float  # 触发时的盈亏百分比
+    notes: str  # 备注
 
 
 @dataclass(frozen=True)
@@ -397,18 +421,19 @@ class TradingCostConfig:
 
     每个投资组合可独立配置交易费率，遵循中国A股市场规则。
     """
+
     id: int | None
     portfolio_id: int
 
     # 佣金（双向）
-    commission_rate: float = 0.00025       # 佣金率（默认万2.5）
-    min_commission: float = 5.0            # 最低佣金（元）
+    commission_rate: float = 0.00025  # 佣金率（默认万2.5）
+    min_commission: float = 5.0  # 最低佣金（元）
 
     # 印花税（仅卖出，A股特有）
-    stamp_duty_rate: float = 0.001         # 印花税率（默认千1）
+    stamp_duty_rate: float = 0.001  # 印花税率（默认千1）
 
     # 过户费（双向，沪市股票）
-    transfer_fee_rate: float = 0.00002     # 过户费率（默认万0.2）
+    transfer_fee_rate: float = 0.00002  # 过户费率（默认万0.2）
 
     # 是否启用
     is_active: bool = True
@@ -466,10 +491,11 @@ class TakeProfitConfig:
 
     定义单个持仓的止盈规则。
     """
-    position_id: int          # 关联的持仓ID
-    take_profit_pct: float    # 止盈百分比（如 0.20 表示 +20%）
+
+    position_id: int  # 关联的持仓ID
+    take_profit_pct: float  # 止盈百分比（如 0.20 表示 +20%）
     partial_profit_levels: list[float] | None = None  # 分批止盈点位
-    is_active: bool = True    # 是否激活
+    is_active: bool = True  # 是否激活
 
     def calculate_take_profit_price(self, entry_price: float) -> float:
         """
@@ -482,3 +508,83 @@ class TakeProfitConfig:
             止盈价格
         """
         return entry_price * (1 + self.take_profit_pct)
+
+
+# ============================================================
+# 宏观感知仓位系数
+# ============================================================
+
+
+@dataclass(frozen=True)
+class RegimeTier:
+    """Regime 置信度档位配置（单档）"""
+
+    min_confidence: float
+    factor: float
+
+
+@dataclass(frozen=True)
+class PulseTier:
+    """Pulse 脉搏档位配置（单档）"""
+
+    min_composite: float
+    max_composite: float
+    factor: float
+
+
+@dataclass(frozen=True)
+class DrawdownTier:
+    """回撤档位配置（单档）"""
+
+    min_drawdown: float
+    factor: float
+
+
+@dataclass(frozen=True)
+class MacroSizingConfig:
+    """
+    宏观感知仓位系数配置（值对象）。
+    所有阈值参数由数据库持久化，通过 MacroSizingConfigRepository 注入。
+    Domain 层不得直接访问 ORM，仅接受此值对象。
+
+    字段说明：
+    - regime_tiers: Regime 置信度档位列表，按 min_confidence 降序排列，
+                    匹配第一个 confidence >= min_confidence 的档位
+    - pulse_tiers: Pulse 复合分档位列表，按 min_composite 降序排列，
+                   transition_warning=True 时优先使用 warning_factor，忽略 pulse_tiers
+    - warning_factor: Pulse 转折预警时的系数覆盖值（优先于 pulse_tiers）
+    - drawdown_tiers: 回撤档位列表，按 min_drawdown 降序排列
+    - version: 配置版本号，用于日志追踪
+    """
+
+    regime_tiers: list[RegimeTier]
+    pulse_tiers: list[PulseTier]
+    warning_factor: float
+    drawdown_tiers: list[DrawdownTier]
+    version: int = 1
+
+    def get_regime_factor(self, confidence: float) -> float:
+        """查找 confidence 对应的系数，无匹配档位时返回最小档的 factor。"""
+        for tier in sorted(self.regime_tiers, key=lambda t: t.min_confidence, reverse=True):
+            if confidence >= tier.min_confidence:
+                return tier.factor
+        return self.regime_tiers[-1].factor if self.regime_tiers else 1.0
+
+    def get_pulse_factor(self, composite: float, warning: bool) -> float:
+        """
+        若 warning=True 返回 warning_factor（覆盖 pulse_tiers）；
+        否则按 composite_score 查找对应档位。
+        """
+        if warning:
+            return self.warning_factor
+        for tier in sorted(self.pulse_tiers, key=lambda t: t.min_composite, reverse=True):
+            if composite >= tier.min_composite:
+                return tier.factor
+        return self.pulse_tiers[-1].factor if self.pulse_tiers else 1.0
+
+    def get_drawdown_factor(self, drawdown_pct: float) -> float:
+        """按回撤比例查找对应系数。回撤越大系数越小，超过最高档返回 0.0。"""
+        for tier in sorted(self.drawdown_tiers, key=lambda t: t.min_drawdown, reverse=True):
+            if drawdown_pct >= tier.min_drawdown:
+                return tier.factor
+        return 1.0

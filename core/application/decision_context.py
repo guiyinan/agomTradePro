@@ -52,6 +52,10 @@ class DecisionStep3Response:
 
     sector_recommendations: List[Dict[str, Any]]
     rotation_signals: List[Dict[str, Any]]
+    rotation_data_source: Optional[str] = None
+    rotation_is_stale: bool = False
+    rotation_warning_message: Optional[str] = None
+    rotation_signal_date: Optional[str] = None
 
 
 @dataclass
@@ -189,6 +193,10 @@ class DecisionContextUseCase:
             return DecisionStep3Response(
                 sector_recommendations=[],
                 rotation_signals=[],
+                rotation_data_source=rotation_payload.get("data_source"),
+                rotation_is_stale=bool(rotation_payload.get("is_stale", False)),
+                rotation_warning_message=rotation_payload.get("warning_message"),
+                rotation_signal_date=rotation_payload.get("signal_date"),
             )
 
         asset_lookup = {
@@ -244,6 +252,10 @@ class DecisionContextUseCase:
         return DecisionStep3Response(
             sector_recommendations=sector_recommendations,
             rotation_signals=rotation_signals,
+            rotation_data_source=rotation_payload.get("data_source"),
+            rotation_is_stale=bool(rotation_payload.get("is_stale", False)),
+            rotation_warning_message=rotation_payload.get("warning_message"),
+            rotation_signal_date=rotation_payload.get("signal_date"),
         )
 
     def get_step6_audit(

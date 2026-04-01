@@ -78,6 +78,8 @@
 - regime SDK: distribution 不再通过 `history(limit=10000)` 侧算，改为 `/api/regime/distribution/`
 - pulse SDK/MCP: 统一走 `/api/pulse/current/`、`/api/pulse/history/`、`/api/pulse/calculate/`，不再从 dashboard JSON 或页面模板提取数据
 - decision funnel SDK/MCP: `get_funnel_context()` 对齐 `/api/decision/funnel/context/`，同时支持 `trade_id` 和 `backtest_id`
+- decision funnel Step 3 freshness: `/api/decision/funnel/context/` 的 `step3_sectors` 统一返回 `rotation_data_source`、`rotation_is_stale`、`rotation_warning_message`、`rotation_signal_date`，MCP/SDK 文档必须同步说明
+- decision funnel MCP convenience summary: `decision_workflow_get_funnel_context` 在保留原始 API payload 的同时，额外返回顶层 `step3_status / step3_data_source / step3_signal_date / step3_warning_message`
 - backtest SDK: `results/*` -> 当前 `/api/backtest/backtests/*`
 - equity SDK: 历史 `stocks/*` -> 当前 `pool/`、`screen/`、`valuation/{stock_code}/`
 - sector SDK: 历史 `sectors/*` / `hot-sectors/` / `compare/` -> 当前 `rotation/` + 本地兼容聚合

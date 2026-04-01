@@ -21,6 +21,33 @@
         <p style="margin-top: 10px;">基于当前所处的宏观主线，结合板块动量引擎输出。</p>
     </div>
 
+    {% if rotation_is_stale or rotation_data_source == 'stored_signal' %}
+    <div class="attention-card" style="margin-bottom: 20px; border-left: 4px solid {% if rotation_is_stale %}#f59e0b{% else %}#2563eb{% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+            <div>
+                <h4 class="attention-card__title" style="margin-bottom: 8px;">轮动结果状态</h4>
+                {% if rotation_is_stale %}
+                <p style="margin: 0 0 6px 0; color: var(--color-text-primary);">
+                    {{ rotation_warning_message|default:"实时轮动重算失败，当前展示最近一次已落库信号，结果可能滞后。" }}
+                </p>
+                {% else %}
+                <p style="margin: 0 0 6px 0; color: var(--color-text-primary);">
+                    当前展示的是已落库的当日轮动结果，避免页面刷新时重复触发外部行情请求。
+                </p>
+                {% endif %}
+                {% if rotation_signal_date %}
+                <p style="margin: 0; color: var(--color-text-muted); font-size: 13px;">
+                    信号日期: {{ rotation_signal_date }}
+                </p>
+                {% endif %}
+            </div>
+            <span class="badge {% if rotation_is_stale %}badge-warning{% else %}badge-primary{% endif %}">
+                {% if rotation_is_stale %}已回退{% else %}已复用{% endif %}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="status-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         <!-- 板块推荐列表 -->
         <div class="attention-card">

@@ -86,6 +86,25 @@
 6. Guardrail 必跑命令：
    `pytest -q tests/guardrails/test_logic_guardrails.py tests/integration/policy/test_policy_integration.py tests/unit/policy/test_fetch_rss_use_case.py tests/unit/regime/test_config_threshold_regression.py`
 
+### 5) API 改动同步门禁
+
+1. 任何 API 改动，只要影响以下任一项，必须同步更新：
+   - HTTP 路径、方法、query/body 参数
+   - 响应字段、状态码、错误口径
+   - SDK 模块调用与示例
+   - MCP 工具返回与示例
+   - OpenAPI 产物（`schema.yml`、`docs/testing/api/openapi.yaml`、`docs/testing/api/openapi.json`）
+   - 用户可见提示文案（页面 / HTMX partial / Agent 输出说明）
+2. 如果 API 新增“降级 / 回退 / stale / fallback”语义，前端必须显式提示用户，MCP/SDK 文档必须说明解释规则。
+3. 合入前至少执行一次以下同步命令：
+   - `python manage.py spectacular --file schema.yml`
+   - `python manage.py spectacular --file docs/testing/api/openapi.yaml`
+   - `python manage.py spectacular --format openapi-json --file docs/testing/api/openapi.json`
+4. 合入前至少执行一次以下护栏测试：
+   - `pytest -q tests/unit/test_docs_route_alignment.py`
+   - `pytest sdk/tests/test_mcp/test_tool_execution.py -q`
+   - 若改动 SDK 路径或参数契约，再执行 `pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q`
+
 ## 代码评审清单（PR Checklist）
 
 1. 是否存在新增硬编码阈值/魔法数字？
@@ -94,6 +113,8 @@
 4. 失败时是否保留原始数据并可追溯？
 5. 是否新增了覆盖关键分支的测试（成功、失败、边界）？
 6. 测试是否依赖环境预置数据？
+7. 若修改 API，是否已同步 SDK / MCP / OpenAPI / 文档 / 用户提示？
+8. 若存在 fallback/stale 语义，前端与 Agent 文案是否明确暴露该状态？
 
 ## 发布门禁（Release Gate）
 

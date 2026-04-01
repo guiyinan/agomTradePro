@@ -27,10 +27,11 @@ from apps.account.domain.entities import (
 @dataclass(frozen=True)
 class PositionCalculationResult:
     """持仓计算结果"""
-    shares: float              # 建议持仓数量
-    notional: Decimal          # 建议投入金额
-    cash_required: Decimal     # 所需现金
-    max_loss: Decimal          # 最大可能损失（基于证伪阈值）
+
+    shares: float  # 建议持仓数量
+    notional: Decimal  # 建议投入金额
+    cash_required: Decimal  # 所需现金
+    max_loss: Decimal  # 最大可能损失（基于证伪阈值）
 
 
 class PositionService:
@@ -125,19 +126,19 @@ class PositionService:
         """
         # 基础最大仓位比例
         max_position_pct = {
-            RiskTolerance.CONSERVATIVE: 0.05,   # 5%
-            RiskTolerance.MODERATE: 0.10,       # 10%
-            RiskTolerance.AGGRESSIVE: 0.20,     # 20%
+            RiskTolerance.CONSERVATIVE: 0.05,  # 5%
+            RiskTolerance.MODERATE: 0.10,  # 10%
+            RiskTolerance.AGGRESSIVE: 0.20,  # 20%
         }[risk_tolerance]
 
         # 资产类别调整因子（波动大的资产降低仓位）
         asset_adjustment = {
             AssetClassType.EQUITY: 1.0,
-            AssetClassType.FIXED_INCOME: 1.2,   # 债券可以多配
-            AssetClassType.COMMODITY: 0.7,      # 商品波动大，少配
+            AssetClassType.FIXED_INCOME: 1.2,  # 债券可以多配
+            AssetClassType.COMMODITY: 0.7,  # 商品波动大，少配
             AssetClassType.CURRENCY: 0.6,
             AssetClassType.FUND: 1.0,
-            AssetClassType.DERIVATIVE: 0.3,     # 衍生品极高风险
+            AssetClassType.DERIVATIVE: 0.3,  # 衍生品极高风险
             AssetClassType.CASH: 1.0,
             AssetClassType.OTHER: 0.5,
         }
@@ -148,7 +149,7 @@ class PositionService:
             Region.US: 1.0,
             Region.EU: 1.0,
             Region.JP: 0.9,
-            Region.EM: 0.7,      # 新兴市场降低仓位
+            Region.EM: 0.7,  # 新兴市场降低仓位
             Region.GLOBAL: 1.0,
             Region.OTHER: 0.6,
         }
@@ -156,16 +157,16 @@ class PositionService:
         # 跨境调整因子
         cross_border_adjustment = {
             CrossBorderFlag.DOMESTIC: 1.0,
-            CrossBorderFlag.QDII: 0.8,         # QDII降低仓位
+            CrossBorderFlag.QDII: 0.8,  # QDII降低仓位
             CrossBorderFlag.DIRECT_FOREIGN: 0.6,  # 境外直投降低仓位
         }
 
         # 综合调整
         final_pct = (
-            max_position_pct *
-            asset_adjustment.get(asset_class, 1.0) *
-            region_adjustment.get(region, 1.0) *
-            cross_border_adjustment.get(CrossBorderFlag.DOMESTIC, 1.0)  # 默认按境内处理
+            max_position_pct
+            * asset_adjustment.get(asset_class, 1.0)
+            * region_adjustment.get(region, 1.0)
+            * cross_border_adjustment.get(CrossBorderFlag.DOMESTIC, 1.0)  # 默认按境内处理
         )
 
         # 计算投入金额和股数
@@ -229,7 +230,9 @@ class PositionService:
             matrix_key = (asset_class_key, region_key)
 
             if matrix_key in PositionService.ELIGIBILITY_MATRIX:
-                eligibility = PositionService.ELIGIBILITY_MATRIX[matrix_key].get(current_regime, "neutral")
+                eligibility = PositionService.ELIGIBILITY_MATRIX[matrix_key].get(
+                    current_regime, "neutral"
+                )
             else:
                 eligibility = "neutral"  # 默认中性
 
@@ -286,7 +289,9 @@ class PositionService:
 
         # 针对不匹配资产的建议
         if hostile:
-            recommendations.append(f"建议减少或平仓以下不匹配资产: {', '.join([a.split()[0] for a in hostile[:3]])}")
+            recommendations.append(
+                f"建议减少或平仓以下不匹配资产: {', '.join([a.split()[0] for a in hostile[:3]])}"
+            )
 
         # 针对优选资产的建议
         if regime == "Recovery":
@@ -347,14 +352,16 @@ class PositionService:
         # 转换为AssetAllocation列表
         allocations = []
         for dim_value, data in sorted(groups.items(), key=lambda x: -float(x[1]["value"])):
-            allocations.append(AssetAllocation(
-                dimension=dimension,
-                dimension_value=dim_value,
-                count=int(data["count"]),
-                market_value=Decimal(str(data["value"])),
-                percentage=(float(data["value"]) / total_value * 100) if total_value > 0 else 0,
-                asset_codes=list(data["codes"]),
-            ))
+            allocations.append(
+                AssetAllocation(
+                    dimension=dimension,
+                    dimension_value=dim_value,
+                    count=int(data["count"]),
+                    market_value=Decimal(str(data["value"])),
+                    percentage=(float(data["value"]) / total_value * 100) if total_value > 0 else 0,
+                    asset_codes=list(data["codes"]),
+                )
+            )
 
         return allocations
 
@@ -389,7 +396,9 @@ class PositionService:
 
         # 计算集中度（前三大持仓占比）
         sorted_positions = sorted(positions, key=lambda p: float(p.market_value), reverse=True)
-        top3_value = sum(float(sorted_positions[i].market_value) for i in range(min(3, len(sorted_positions))))
+        top3_value = sum(
+            float(sorted_positions[i].market_value) for i in range(min(3, len(sorted_positions)))
+        )
         concentration_ratio = top3_value / total_value if total_value > 0 else 0
 
         # 计算地区分散度（使用赫芬达尔指数）
@@ -422,15 +431,17 @@ class PositionService:
 # 止损止盈服务
 # ============================================================
 
+
 @dataclass(frozen=True)
 class StopLossCheckResult:
     """止损检查结果"""
-    should_trigger: bool      # 是否应该触发止损
-    trigger_reason: str       # 触发原因
-    stop_price: float         # 止损价格
-    current_price: float      # 当前价格
-    unrealized_pnl_pct: float # 未实现盈亏百分比
-    highest_price: float      # 最高价（用于移动止损）
+
+    should_trigger: bool  # 是否应该触发止损
+    trigger_reason: str  # 触发原因
+    stop_price: float  # 止损价格
+    current_price: float  # 当前价格
+    unrealized_pnl_pct: float  # 未实现盈亏百分比
+    highest_price: float  # 最高价（用于移动止损）
 
 
 class StopLossService:
@@ -491,7 +502,7 @@ class StopLossService:
         # 内部转换为负数用于计算
         stop_loss_pct_negative = -stop_loss_pct
 
-        unrealized_pnl_pct = (current_price / entry_price - 1)
+        unrealized_pnl_pct = current_price / entry_price - 1
 
         if stop_loss_type == "fixed":
             # 固定止损：当前价格跌破止损线
@@ -577,11 +588,12 @@ class StopLossService:
 @dataclass(frozen=True)
 class TakeProfitCheckResult:
     """止盈检查结果"""
-    should_trigger: bool      # 是否应该触发止盈
-    trigger_reason: str       # 触发原因
+
+    should_trigger: bool  # 是否应该触发止盈
+    trigger_reason: str  # 触发原因
     take_profit_price: float  # 止盈价格
-    current_price: float      # 当前价格
-    unrealized_pnl_pct: float # 未实现盈亏百分比
+    current_price: float  # 当前价格
+    unrealized_pnl_pct: float  # 未实现盈亏百分比
     partial_level: int | None = None  # 分批止盈级别
 
 
@@ -609,7 +621,7 @@ class TakeProfitService:
         Returns:
             TakeProfitCheckResult: 检查结果
         """
-        unrealized_pnl_pct = (current_price / entry_price - 1)
+        unrealized_pnl_pct = current_price / entry_price - 1
 
         if partial_levels:
             # 分批止盈：检查每个级别
@@ -617,7 +629,7 @@ class TakeProfitService:
                 if unrealized_pnl_pct >= level:
                     return TakeProfitCheckResult(
                         should_trigger=True,
-                        trigger_reason=f"分批止盈触发级别 {i+1}/{len(partial_levels)}：收益率 {unrealized_pnl_pct:.2%} 达到 {level:.2%}",
+                        trigger_reason=f"分批止盈触发级别 {i + 1}/{len(partial_levels)}：收益率 {unrealized_pnl_pct:.2%} 达到 {level:.2%}",
                         take_profit_price=entry_price * (1 + level),
                         current_price=current_price,
                         unrealized_pnl_pct=unrealized_pnl_pct,
@@ -630,7 +642,9 @@ class TakeProfitService:
 
         return TakeProfitCheckResult(
             should_trigger=should_trigger,
-            trigger_reason=f"止盈触发：当前价 {current_price:.2f} 达到止盈价 {take_profit_price:.2f}" if should_trigger else "未触发",
+            trigger_reason=f"止盈触发：当前价 {current_price:.2f} 达到止盈价 {take_profit_price:.2f}"
+            if should_trigger
+            else "未触发",
             take_profit_price=take_profit_price,
             current_price=current_price,
             unrealized_pnl_pct=unrealized_pnl_pct,
@@ -641,24 +655,27 @@ class TakeProfitService:
 # 波动率控制服务
 # ============================================================
 
+
 @dataclass(frozen=True)
 class VolatilityMetrics:
     """波动率指标"""
-    daily_volatility: float      # 日波动率
-    annualized_volatility: float # 年化波动率
-    window_days: int             # 计算窗口
-    as_of_date: date             # 截止日期
+
+    daily_volatility: float  # 日波动率
+    annualized_volatility: float  # 年化波动率
+    window_days: int  # 计算窗口
+    as_of_date: date  # 截止日期
 
 
 @dataclass(frozen=True)
 class VolatilityAdjustmentResult:
     """波动率调整结果"""
-    current_volatility: float       # 当前波动率（年化）
-    target_volatility: float        # 目标波动率
-    volatility_ratio: float         # 波动率比率（current / target）
-    should_reduce: bool             # 是否需要降仓
+
+    current_volatility: float  # 当前波动率（年化）
+    target_volatility: float  # 目标波动率
+    volatility_ratio: float  # 波动率比率（current / target）
+    should_reduce: bool  # 是否需要降仓
     suggested_position_multiplier: float  # 建议仓位乘数
-    reduction_reason: str           # 降仓原因
+    reduction_reason: str  # 降仓原因
 
 
 class VolatilityCalculator:
@@ -695,10 +712,15 @@ class VolatilityCalculator:
 
         # 计算标准差
         import statistics
-        daily_vol = statistics.stdev(returns[-window_days:]) if len(returns) >= window_days else statistics.stdev(returns)
+
+        daily_vol = (
+            statistics.stdev(returns[-window_days:])
+            if len(returns) >= window_days
+            else statistics.stdev(returns)
+        )
 
         # 年化（假设252个交易日）
-        annualized_vol = daily_vol * (252 ** 0.5) if annualize else daily_vol
+        annualized_vol = daily_vol * (252**0.5) if annualize else daily_vol
 
         return VolatilityMetrics(
             daily_volatility=daily_vol,
@@ -738,7 +760,7 @@ class VolatilityCalculator:
         # 计算滚动波动率
         metrics_list = []
         for i in range(window_days - 1, len(returns)):
-            window_returns = returns[max(0, i - window_days + 1):i + 1]
+            window_returns = returns[max(0, i - window_days + 1) : i + 1]
             metrics = VolatilityCalculator.calculate_volatility(
                 returns=window_returns,
                 window_days=window_days,
@@ -835,8 +857,8 @@ class VolatilityTargetService:
         """
         defaults = {
             "conservative": 0.10,  # 10%
-            "moderate": 0.15,      # 15%
-            "aggressive": 0.20,    # 20%
+            "moderate": 0.15,  # 15%
+            "aggressive": 0.20,  # 20%
         }
         return defaults.get(risk_tolerance.lower(), 0.15)
 
@@ -845,31 +867,34 @@ class VolatilityTargetService:
 # 多维限额控制服务
 # ============================================================
 
+
 @dataclass(frozen=True)
 class LimitCheckResult:
     """限额检查结果"""
-    dimension: str                # 维度名称（style, sector, currency）
-    dimension_value: str          # 维度值
-    current_value: Decimal        # 当前值
-    limit_value: Decimal          # 限额值
-    current_ratio: float          # 当前占比
-    limit_ratio: float            # 限额占比
-    exceeds_limit: bool           # 是否超限
-    can_add_position: bool        # 是否可以新增持仓
-    warning_message: str          # 警告消息
+
+    dimension: str  # 维度名称（style, sector, currency）
+    dimension_value: str  # 维度值
+    current_value: Decimal  # 当前值
+    limit_value: Decimal  # 限额值
+    current_ratio: float  # 当前占比
+    limit_ratio: float  # 限额占比
+    exceeds_limit: bool  # 是否超限
+    can_add_position: bool  # 是否可以新增持仓
+    warning_message: str  # 警告消息
 
 
 @dataclass(frozen=True)
 class MultiDimensionLimits:
     """多维限额配置"""
+
     # 风格限额（单一风格最大占比）
-    max_style_ratio: float = 0.40       # 40%
+    max_style_ratio: float = 0.40  # 40%
     # 行业限额（单一行业最大占比）
-    max_sector_ratio: float = 0.25      # 25%
+    max_sector_ratio: float = 0.25  # 25%
     # 币种限额（非本币资产最大占比）
     max_foreign_currency_ratio: float = 0.30  # 30%
     # 地区限额
-    max_region_ratio: float = 0.50      # 50%
+    max_region_ratio: float = 0.50  # 50%
 
 
 class LimitCheckService:
@@ -902,8 +927,9 @@ class LimitCheckService:
         # 计算当前该风格的市值
         total_value = sum(float(pos.market_value) for pos in positions)
         style_value = sum(
-            float(pos.market_value) for pos in positions
-            if hasattr(pos, 'style') and pos.style.value.lower() == new_position_style.lower()
+            float(pos.market_value)
+            for pos in positions
+            if hasattr(pos, "style") and pos.style.value.lower() == new_position_style.lower()
         )
 
         current_ratio = style_value / total_value if total_value > 0 else 0
@@ -911,7 +937,7 @@ class LimitCheckService:
         exceeds_limit = current_ratio >= limit_ratio
 
         return LimitCheckResult(
-            dimension='style',
+            dimension="style",
             dimension_value=new_position_style,
             current_value=Decimal(str(style_value)),
             limit_value=Decimal(str(total_value * limit_ratio)),
@@ -922,7 +948,8 @@ class LimitCheckService:
             warning_message=(
                 f"投资风格 '{new_position_style}' 当前占比 {current_ratio:.1%}，"
                 f"已达限额 {limit_ratio:.1%}，建议减少该风格持仓或选择其他风格"
-                if exceeds_limit else ""
+                if exceeds_limit
+                else ""
             ),
         )
 
@@ -961,7 +988,7 @@ class LimitCheckService:
         limit_ratio = limits.max_sector_ratio
 
         return LimitCheckResult(
-            dimension='sector',
+            dimension="sector",
             dimension_value=new_position_sector,
             current_value=Decimal(str(sector_value)),
             limit_value=Decimal(str(total_value * limit_ratio)),
@@ -1015,7 +1042,7 @@ class LimitCheckService:
             exceeds_limit = False  # 增加持仓本币不会增加外币占比
 
         return LimitCheckResult(
-            dimension='currency',
+            dimension="currency",
             dimension_value=new_position_currency,
             current_value=Decimal(str(foreign_value)),
             limit_value=Decimal(str(total_value * limit_ratio)),
@@ -1026,7 +1053,8 @@ class LimitCheckService:
             warning_message=(
                 f"外币资产占比 {current_ratio:.1%}，已达限额 {limit_ratio:.1%}，"
                 f"建议控制外币资产敞口"
-                if exceeds_limit else ""
+                if exceeds_limit
+                else ""
             ),
         )
 
@@ -1101,3 +1129,119 @@ class LimitCheckService:
 
         reasons = [r.warning_message for r in rejected_results if r.warning_message]
         return True, "; ".join(reasons)
+
+
+# ============================================================
+# 宏观感知仓位系数服务
+# ============================================================
+
+
+@dataclass(frozen=True)
+class MacroSizingContext:
+    """
+    宏观感知仓位系数计算所需的输入数据。
+    由 Application 层组装后传入 Domain 层，Domain 层不做 I/O。
+    """
+
+    regime_confidence: float
+    regime_name: str
+    pulse_composite: float
+    pulse_warning: bool
+    portfolio_drawdown_pct: float
+
+
+@dataclass(frozen=True)
+class SizingMultiplierResult:
+    """宏观感知仓位系数计算结果。"""
+
+    multiplier: float
+    regime_factor: float
+    pulse_factor: float
+    drawdown_factor: float
+    action_hint: str
+    reasoning: str
+    config_version: int
+
+
+def calculate_macro_multiplier(
+    ctx: MacroSizingContext,
+    config: "MacroSizingConfig",
+) -> SizingMultiplierResult:
+    """
+    根据宏观环境三因子计算仓位系数。
+    三因子相乘：最终系数 = regime_factor * pulse_factor * drawdown_factor。
+
+    Args:
+        ctx: 当前宏观状态快照
+        config: 从数据库读取的阈值配置
+
+    Returns:
+        SizingMultiplierResult
+    """
+    regime_factor = config.get_regime_factor(ctx.regime_confidence)
+    pulse_factor = config.get_pulse_factor(ctx.pulse_composite, ctx.pulse_warning)
+    drawdown_factor = config.get_drawdown_factor(ctx.portfolio_drawdown_pct)
+
+    multiplier = round(regime_factor * pulse_factor * drawdown_factor, 4)
+
+    regime_desc = _describe_regime_factor(regime_factor, ctx.regime_confidence)
+    pulse_desc = _describe_pulse_factor(pulse_factor, ctx.pulse_composite, ctx.pulse_warning)
+    drawdown_desc = _describe_drawdown_factor(drawdown_factor, ctx.portfolio_drawdown_pct)
+    reasoning = "；".join([regime_desc, pulse_desc, drawdown_desc])
+
+    return SizingMultiplierResult(
+        multiplier=multiplier,
+        regime_factor=regime_factor,
+        pulse_factor=pulse_factor,
+        drawdown_factor=drawdown_factor,
+        action_hint=_derive_action_hint(multiplier),
+        reasoning=reasoning,
+        config_version=config.version,
+    )
+
+
+def calculate_portfolio_drawdown(value_history: list[float]) -> float:
+    """
+    从组合历史价值序列计算当前从峰值的回撤比例。
+
+    Args:
+        value_history: 按时间升序排列的组合总价值列表（最新值在末尾）
+                       少于 2 个数据点时返回 0.0
+
+    Returns:
+        当前从峰值的回撤比例 0.0-1.0（0.0 = 未回撤，0.10 = 已回撤 10%）
+    """
+    if len(value_history) < 2:
+        return 0.0
+    peak = max(value_history)
+    current = value_history[-1]
+    if peak <= 0:
+        return 0.0
+    return max(0.0, (peak - current) / peak)
+
+
+def _describe_regime_factor(factor: float, confidence: float) -> str:
+    return f"Regime置信度{confidence:.0%}（系数{factor:.2f}）"
+
+
+def _describe_pulse_factor(factor: float, composite: float, warning: bool) -> str:
+    if warning:
+        return f"Pulse转折预警激活（系数{factor:.2f}）"
+    return f"Pulse综合分{composite:+.2f}（系数{factor:.2f}）"
+
+
+def _describe_drawdown_factor(factor: float, drawdown: float) -> str:
+    if factor == 0.0:
+        return f"组合回撤{drawdown:.1%}已超上限，暂停新仓"
+    return f"组合回撤{drawdown:.1%}（系数{factor:.2f}）"
+
+
+def _derive_action_hint(multiplier: float) -> str:
+    if multiplier == 0.0:
+        return "暂停新仓"
+    elif multiplier <= 0.5:
+        return "缩半开仓"
+    elif multiplier < 0.8:
+        return "减仓操作"
+    else:
+        return "正常开仓"

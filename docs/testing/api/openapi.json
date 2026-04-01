@@ -7756,6 +7756,24 @@
             "get": {
                 "operationId": "api_decision_funnel_context_get",
                 "description": "Returns the system-level decision funnel context (Steps 1, 2, 3) in JSON format.\nSteps 4 and 5 are dynamic lists and use their own endpoints.\nWhen a legacy audit query is provided, include the historical Step 6 audit\npayload as a backward-compatible extension.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "backtest_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Optional backtest id for deterministic Step 6 audit replay."
+                    },
+                    {
+                        "in": "query",
+                        "name": "trade_id",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Legacy audit replay identifier for Step 6."
+                    }
+                ],
                 "tags": [
                     "decision"
                 ],
@@ -7769,7 +7787,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DecisionFunnelContextResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27041,6 +27066,249 @@
                         "format": "date"
                     }
                 }
+            },
+            "DecisionFunnelContextData": {
+                "type": "object",
+                "properties": {
+                    "step1_environment": {
+                        "$ref": "#/components/schemas/DecisionFunnelStep1Environment"
+                    },
+                    "step2_direction": {
+                        "$ref": "#/components/schemas/DecisionFunnelStep2Direction"
+                    },
+                    "step3_sectors": {
+                        "$ref": "#/components/schemas/DecisionFunnelStep3Sectors"
+                    },
+                    "step6_audit": {
+                        "$ref": "#/components/schemas/DecisionFunnelStep6Audit"
+                    }
+                },
+                "required": [
+                    "step1_environment",
+                    "step2_direction",
+                    "step3_sectors"
+                ]
+            },
+            "DecisionFunnelContextResponse": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/DecisionFunnelContextData"
+                    }
+                },
+                "required": [
+                    "data",
+                    "success"
+                ]
+            },
+            "DecisionFunnelStep1Environment": {
+                "type": "object",
+                "properties": {
+                    "regime_name": {
+                        "type": "string"
+                    },
+                    "pulse_composite": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "regime_strength": {
+                        "type": "string"
+                    },
+                    "policy_level": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "overall_verdict": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "overall_verdict",
+                    "policy_level",
+                    "pulse_composite",
+                    "regime_name",
+                    "regime_strength"
+                ]
+            },
+            "DecisionFunnelStep2Direction": {
+                "type": "object",
+                "properties": {
+                    "action_recommendation": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "asset_weights": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    },
+                    "risk_budget_pct": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "action_recommendation",
+                    "asset_weights",
+                    "risk_budget_pct"
+                ]
+            },
+            "DecisionFunnelStep3RotationSignal": {
+                "type": "object",
+                "properties": {
+                    "sector": {
+                        "type": "string"
+                    },
+                    "signal": {
+                        "type": "string"
+                    },
+                    "strength": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "sector",
+                    "signal",
+                    "strength"
+                ]
+            },
+            "DecisionFunnelStep3SectorRecommendation": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "score": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "alignment": {
+                        "type": "string"
+                    },
+                    "momentum": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "alignment",
+                    "momentum",
+                    "name",
+                    "score"
+                ]
+            },
+            "DecisionFunnelStep3Sectors": {
+                "type": "object",
+                "properties": {
+                    "sector_recommendations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DecisionFunnelStep3SectorRecommendation"
+                        }
+                    },
+                    "rotation_signals": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DecisionFunnelStep3RotationSignal"
+                        }
+                    },
+                    "rotation_data_source": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rotation_is_stale": {
+                        "type": "boolean"
+                    },
+                    "rotation_warning_message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rotation_signal_date": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "rotation_is_stale",
+                    "rotation_signals",
+                    "sector_recommendations"
+                ]
+            },
+            "DecisionFunnelStep6Audit": {
+                "type": "object",
+                "properties": {
+                    "attribution_method": {
+                        "type": "string"
+                    },
+                    "benchmark_return": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "portfolio_return": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "excess_return": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allocation_effect": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "selection_effect": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "interaction_effect": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "loss_source": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lesson_learned": {
+                        "type": "string"
+                    },
+                    "backtest_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "report_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "regime_accuracy": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "regime_predicted": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "regime_actual": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "allocation_effect",
+                    "attribution_method",
+                    "benchmark_return",
+                    "excess_return",
+                    "interaction_effect",
+                    "lesson_learned",
+                    "loss_source",
+                    "portfolio_return",
+                    "selection_effect"
+                ]
             },
             "DecisionQuota": {
                 "type": "object",

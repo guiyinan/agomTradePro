@@ -7,6 +7,32 @@ from mcp.server.fastmcp import FastMCP
 from agomtradepro import AgomTradeProClient
 
 
+def _derive_step3_status(response: dict[str, Any]) -> dict[str, Any]:
+    """Attach MCP-friendly Step 3 summary fields without mutating API semantics."""
+    payload = dict(response)
+    step3 = ((payload.get("data") or {}).get("step3_sectors") or {})
+
+    data_source = step3.get("rotation_data_source")
+    is_stale = bool(step3.get("rotation_is_stale", False))
+    warning_message = step3.get("rotation_warning_message")
+    signal_date = step3.get("rotation_signal_date")
+
+    if not step3:
+        status = "unknown"
+    elif is_stale:
+        status = "fallback"
+    elif data_source in {"fresh_generation", "stored_signal"}:
+        status = "current"
+    else:
+        status = "unknown"
+
+    payload["step3_status"] = status
+    payload["step3_data_source"] = data_source
+    payload["step3_signal_date"] = signal_date
+    payload["step3_warning_message"] = warning_message
+    return payload
+
+
 def register_decision_workflow_tools(server: FastMCP) -> None:
     @server.tool()
     def decision_workflow_precheck(candidate_id: str) -> dict[str, Any]:
@@ -118,13 +144,23 @@ def register_decision_workflow_tools(server: FastMCP) -> None:
 
         查询新版决策引擎的漏斗前3步环境判定(环境/方向/板块)，以及第6步(归因复盘)。
         这有助于 Agent 给出一笔端到端的分析背景。
+
+        返回结构遵循 `/api/decision/funnel/context/` 的 JSON 响应；
+        在输出 Step 3 轮动结论前，应优先检查：
+        `data.step3_sectors.rotation_data_source`
+        `data.step3_sectors.rotation_is_stale`
+        `data.step3_sectors.rotation_warning_message`
+        `data.step3_sectors.rotation_signal_date`
         """
         client = AgomTradeProClient()
         try:
-            return client.decision_workflow.get_funnel_context(
+            response = client.decision_workflow.get_funnel_context(
                 trade_id=trade_id,
                 backtest_id=backtest_id,
             )
+            if isinstance(response, dict):
+                return _derive_step3_status(response)
+            return response
         except Exception as exc:
             return {
                 "success": False,

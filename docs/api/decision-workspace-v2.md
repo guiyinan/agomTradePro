@@ -40,6 +40,8 @@
 - 历史模板 `core/templates/decision/workspace_legacy.html` 已废弃并移除，工作台只允许维护 `core/templates/decision/workspace.html`
 - 左侧栏账户现状使用 `/api/simulated-trading/accounts/{id}/` 和 `/api/simulated-trading/accounts/{id}/positions/`
 - Step 4 的详情弹窗只展示推荐参数与风控预览，不得承载任何执行目标、账户落地或审批评论表单
+- Step 3 读取轮动建议时，若当日 `rotation_signal` 已落库，应优先复用已持久化结果；仅在无可用 signal 时才触发实时重算，避免页面请求阻塞在外部行情链路
+- Step 3 partial 和 JSON context 都应返回轮动结果状态元数据：`rotation_data_source`、`rotation_is_stale`、`rotation_warning_message`、`rotation_signal_date`，前端必须显式提示用户当前是否为回退结果
 
 ## 2. 统一推荐列表
 

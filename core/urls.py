@@ -111,6 +111,10 @@ def api_root_view(request):
 core_patterns = [
     path("", index_view, name="index"),
     path(
+        "setup/api/",
+        include(("apps.setup_wizard.interface.api_urls", "setup_wizard_api"), namespace="setup_wizard_api"),
+    ),
+    path(
         "setup/",
         include(("apps.setup_wizard.interface.urls", "setup_wizard"), namespace="setup_wizard"),
     ),

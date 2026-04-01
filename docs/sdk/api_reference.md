@@ -294,6 +294,15 @@ client.decision_workflow.get_funnel_context(
 
 `action` 支持：`watch` / `adopt` / `ignore` / `pending`
 
+`client.decision_workflow.get_funnel_context()` 返回的 `data["step3_sectors"]` 额外包含：
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rotation_data_source` | `str \| null` | `fresh_generation` / `stored_signal` / `stored_signal_fallback` |
+| `rotation_is_stale` | `bool` | `true` 表示实时重算失败，当前回退到已落库旧信号 |
+| `rotation_warning_message` | `str \| null` | 面向用户的降级提示 |
+| `rotation_signal_date` | `str \| null` | 当前展示轮动信号的日期 |
+
 ### Pulse Module
 
 ```python

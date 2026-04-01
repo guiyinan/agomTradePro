@@ -397,6 +397,8 @@ Notes:
 - `decision_workflow_refresh_recommendations` is the bridge from homepage/equity recommendations into the decision workspace.
 - `decision_workflow_apply_recommendation_action` records the user's explicit choice on a recommendation.
 - `decision_workflow_get_funnel_context` retrieves the complete end-to-end macro context evaluation spanning steps 1 to 3 (environment, direction, sector) and step 6 (audit/attribution). `backtest_id` should be passed when the agent needs deterministic audit replay instead of latest-backtest fallback.
+- `decision_workflow_get_funnel_context` 的 `step3_sectors` 现在包含 `rotation_data_source`、`rotation_is_stale`、`rotation_warning_message`、`rotation_signal_date`；Agent 在输出轮动结论前应先检查这些字段，识别是否为历史 signal 回退结果。
+- MCP 工具返回会额外附带顶层便捷摘要：`step3_status`（`current` / `fallback` / `unknown`）、`step3_data_source`、`step3_signal_date`、`step3_warning_message`，便于 agent 直接消费而不必重复解析嵌套字段。
 - `get_pulse_current` returns the latest tactical pulse snapshot.
 - `get_pulse_history` returns recent pulse history for trend inspection.
 - `get_regime_navigator` returns the richer regime navigator output beyond the basic current regime.
@@ -405,6 +407,77 @@ Notes:
 - `action` supports: `watch`, `adopt`, `ignore`, `pending`.
 - MCP / SDK 当前覆盖的是“推荐刷新、读取、用户动作、漏斗上下文”链路；`plans/generate`、`plans/update`、`execute/preview(plan_id)` 仍走 HTTP Decision Workspace API，而不是独立 MCP 工具。
 - UI 层已将 `beta_gate` / `alpha_trigger` / `decision_rhythm` 收束到“决策工作台 / 决策模式”；MCP 仍可保留这些模块级工具用于自动化和运维，不代表它们是前台主导航入口。
+
+Canonical response example for `decision_workflow_get_funnel_context`:
+
+```json
+{
+  "success": true,
+  "step3_status": "fallback",
+  "step3_data_source": "stored_signal_fallback",
+  "step3_signal_date": "2026-03-30",
+  "step3_warning_message": "实时轮动重算失败，当前展示最近一次已落库信号，结果可能滞后。",
+  "data": {
+    "step1_environment": {
+      "regime_name": "Recovery",
+      "pulse_composite": 0.72,
+      "regime_strength": "strong",
+      "policy_level": "正常",
+      "overall_verdict": "适合投资 (宏观环境支持)"
+    },
+    "step2_direction": {
+      "action_recommendation": {
+        "reasoning": "测试用资产配置建议"
+      },
+      "asset_weights": {
+        "equity": 0.6,
+        "bond": 0.2,
+        "commodity": 0.1,
+        "cash": 0.1
+      },
+      "risk_budget_pct": 0.7
+    },
+    "step3_sectors": {
+      "sector_recommendations": [
+        {
+          "name": "红利",
+          "score": 55.0,
+          "alignment": "high",
+          "momentum": "up"
+        }
+      ],
+      "rotation_signals": [
+        {
+          "sector": "红利ETF",
+          "signal": "BUY",
+          "strength": 55.0
+        }
+      ],
+      "rotation_data_source": "stored_signal_fallback",
+      "rotation_is_stale": true,
+      "rotation_warning_message": "实时轮动重算失败，当前展示最近一次已落库信号，结果可能滞后。",
+      "rotation_signal_date": "2026-03-30"
+    },
+    "step6_audit": {
+      "attribution_method": "brinson",
+      "benchmark_return": 4.2,
+      "portfolio_return": 8.0,
+      "excess_return": 3.8,
+      "allocation_effect": 1.5,
+      "selection_effect": 1.8,
+      "interaction_effect": 0.5,
+      "loss_source": null,
+      "lesson_learned": "顺周期资产需要配合更严格的仓位控制。"
+    }
+  }
+}
+```
+
+Interpretation rule for agents:
+
+- `rotation_is_stale=false`: Step 3 can be treated as current result, but still cite `rotation_signal_date`.
+- `rotation_is_stale=true`: explicitly tell the user the sector/rotation view is a fallback to persisted signal and may lag live market conditions.
+- `step3_status=fallback`: MCP caller may short-circuit on the top-level summary, but should still include `step3_signal_date` in user-facing output.
 
 Recommended reading order for agents:
 

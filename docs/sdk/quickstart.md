@@ -191,6 +191,8 @@ context = client.decision_workflow.get_funnel_context(
     backtest_id=123,
 )
 print(context["step1_environment"]["regime_name"])
+print(context["step3_sectors"]["rotation_data_source"])
+print(context["step3_sectors"]["rotation_signal_date"])
 print(context["step6_audit"]["attribution_method"])
 ```
 
@@ -208,6 +210,7 @@ print(action["risk_budget_pct"])
 Notes:
 
 - `client.decision_workflow.get_funnel_context()` supports both `trade_id` and `backtest_id`.
+- `context["step3_sectors"]` includes `rotation_data_source / rotation_is_stale / rotation_warning_message / rotation_signal_date`, so callers can distinguish fresh computation from stored-signal fallback.
 - `client.decision_workflow.list_recommendations()` returns the same unified recommendation payload as the Decision Workspace API, including `security_name`.
 - SDK 当前内建的是 `precheck / list_recommendations / refresh_recommendations / apply_recommendation_action / get_funnel_context`；交易计划生成与审批仍使用 HTTP Decision Workspace API。
 - `client.pulse.*` reads canonical JSON APIs directly; it does not depend on dashboard HTML rendering.

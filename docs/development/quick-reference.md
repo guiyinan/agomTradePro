@@ -1,7 +1,7 @@
 # AgomTradePro 开发快速参考
 
-> **文档版本**: V1.6
-> **更新日期**: 2026-03-23
+> **文档版本**: V1.7
+> **更新日期**: 2026-03-31
 > **目标读者**: 开发人员
 
 ---
@@ -109,6 +109,9 @@ pytest tests/ -v
 pytest tests/unit/domain/ -v
 pytest tests/integration/ -v
 
+# 运行综合 UAT 回归（Playwright，需本地服务已启动）
+pytest tests/playwright/tests/uat/test_comprehensive_regression.py -m uat -q
+
 # 生成覆盖率报告
 pytest tests/ -v --cov=apps --cov-report=html
 
@@ -134,6 +137,27 @@ ruff check .
 # 类型检查
 mypy apps/ --strict
 ```
+
+### API 改动同步检查
+
+如果本次提交修改了 API 路径、参数、响应字段、状态码或 fallback 语义，合入前额外执行：
+
+```bash
+# 重新生成 OpenAPI 产物
+python manage.py spectacular --file schema.yml
+python manage.py spectacular --file docs/testing/api/openapi.yaml
+python manage.py spectacular --format openapi-json --file docs/testing/api/openapi.json
+
+# 验证文档 / MCP / SDK 对齐
+pytest -q tests/unit/test_docs_route_alignment.py
+pytest sdk/tests/test_mcp/test_tool_execution.py -q
+
+# 如果改了 SDK 契约或 canonical 路径，再执行
+pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
+```
+
+- 必须同步：API 实现、SDK、MCP、OpenAPI、用户提示文案。
+- 详细规则见 `docs/development/engineering-guardrails.md` 的“API 改动同步门禁”。
 
 ---
 
@@ -187,6 +211,15 @@ mypy apps/ --strict
 | `/api/signal/health/` | GET | 健康检查 (需认证) |
 | `/signal/manage/` | GET | 信号管理页面 |
 
+### Account API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/account/profile/` | GET | 获取账户配置 (需认证) |
+| `/api/account/health/` | GET | 账户模块健康检查 (需认证) |
+| `/api/account/volatility/` | GET | 获取当前活跃组合波动率视图数据 (需认证) |
+| `/api/account/sizing-context/` | GET | 获取宏观仓位系数上下文与建议乘数，支持 `portfolio_id` 查询参数 (需认证) |
+
 ### Sentiment API (舆情分析)
 
 | 端点 | 方法 | 说明 |
@@ -215,6 +248,13 @@ mypy apps/ --strict
 | `/api/simulated-trading/accounts/{id}/trades/` | GET | 获取当前登录用户名下账户交易记录 |
 | `/api/simulated-trading/accounts/{id}/performance/` | GET | 获取当前登录用户名下账户绩效 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 |
+
+### Setup Wizard API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/setup/api/password-strength/` | GET | 安装向导密码强度检查（页面当前使用路径） |
+| `/api/setup/password-strength/` | GET | 安装向导密码强度检查兼容入口 |
 
 ### Realtime Price API
 
@@ -247,6 +287,7 @@ mypy apps/ --strict
 - `GET /api/filter/` 返回可发现的 API 根信息；真正执行滤波仍使用 `POST /api/filter/`
 - `/api/macro/indicator-data/` 同时接受 `code` 与 `indicator_code` 查询参数
 - `/api/pulse/current/` 在无历史快照时会尝试按需计算一次当前 Pulse
+- Setup Wizard 密码强度检查同时支持 `/setup/api/password-strength/` 与 `/api/setup/password-strength/`
 
 ### 数据源中台提示
 

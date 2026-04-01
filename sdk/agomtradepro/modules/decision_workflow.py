@@ -117,6 +117,12 @@ class DecisionWorkflowModule(BaseModule):
         获取环境评估(Step1)、方向选择(Step2)、板块偏好(Step3)以后的基础环境，
         以及针对指定交易的归因复盘(Step6)。
 
+        Step 3 返回的 `step3_sectors` 额外包含轮动可靠性元数据：
+        - `rotation_data_source`: `fresh_generation` / `stored_signal` / `stored_signal_fallback`
+        - `rotation_is_stale`: 是否已回退到历史落库信号
+        - `rotation_warning_message`: 回退时的人类可读提示
+        - `rotation_signal_date`: 当前轮动信号日期
+
         Args:
             trade_id: 获取 Step 6 需要的归因交易 ID，默认为 'unknown'
             backtest_id: 直接指定归因回测 ID，用于 Step 6 精确定位审计报告
