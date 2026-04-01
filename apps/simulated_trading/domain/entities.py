@@ -286,3 +286,187 @@ class SimulatedTrade:
 
     # 状态
     status: OrderStatus = OrderStatus.PENDING
+
+
+# ============================================================================
+# 账户业绩与估值 Domain Entities
+# ============================================================================
+
+class CashFlowType(Enum):
+    """统一账户外部现金流类型"""
+    INITIAL_CAPITAL = "initial_capital"  # 初始入金
+    DEPOSIT = "deposit"                  # 追加入金
+    WITHDRAWAL = "withdrawal"            # 取款出金
+    DIVIDEND = "dividend"               # 股息/分红
+    INTEREST = "interest"               # 利息
+    ADJUSTMENT = "adjustment"           # 手工调整
+
+
+@dataclass(frozen=True)
+class BenchmarkComponent:
+    """
+    账户基准成分（值对象）
+
+    一个账户可配置多个基准成分（加权组合基准），
+    权重之和必须大于 0 并由应用层归一化到 1。
+    """
+    account_id: int
+    benchmark_code: str      # 指数代码，如 "000300.SH"
+    weight: float            # 权重（归一化后，如 0.6）
+    display_name: str        # 显示名称，如 "沪深300"
+    sort_order: int = 0
+    is_active: bool = True
+
+
+@dataclass(frozen=True)
+class UnifiedAccountCashFlow:
+    """
+    统一账户外部现金流（值对象）
+
+    真实盘从 CapitalFlowModel 回填并持续镜像；
+    模拟盘默认写入一笔 initial_capital 初始入金。
+    """
+    flow_id: int
+    account_id: int
+    flow_type: CashFlowType
+    amount: float            # 正数=入金，负数=出金
+    flow_date: date
+    source_app: str          # 来源 app，如 "account" 或 "simulated_trading"
+    source_id: str = ""      # 来源记录 ID（如 CapitalFlowModel.id）
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class ValuationRow:
+    """
+    持仓时点估值行（值对象）
+
+    表示某日持仓中一只资产的估值快照。
+    """
+    asset_code: str
+    asset_name: str
+    asset_type: str
+    quantity: float
+    avg_cost: float
+    close_price: float
+    market_value: float
+    weight: float            # 占总仓位市值的比例
+    unrealized_pnl: float
+    unrealized_pnl_pct: float
+
+
+@dataclass(frozen=True)
+class AccountValuationSummary:
+    """账户整体估值摘要"""
+    total_value: float
+    cash: float
+    market_value: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float  # 相对于总成本
+
+
+@dataclass(frozen=True)
+class CoverageInfo:
+    """数据覆盖范围说明"""
+    data_start: Optional[date]
+    data_end: Optional[date]
+    warnings: List[str]
+
+
+@dataclass(frozen=True)
+class ValuationSnapshot:
+    """
+    账户时点持仓估值表（值对象）
+
+    对应 GET /accounts/{id}/valuation-snapshot/?as_of_date=...
+    """
+    as_of_date: date
+    account_summary: AccountValuationSummary
+    rows: List[ValuationRow]
+    coverage: CoverageInfo
+
+
+@dataclass(frozen=True)
+class ValuationTimelinePoint:
+    """
+    账户净值时间线上的一个时点（值对象）
+
+    对应 valuation-timeline 响应中的 points 数组元素。
+    """
+    date: date
+    cash: float
+    market_value: float
+    total_value: float
+    net_value: float          # 单位净值（以初始净值=1 为基准）
+    twr_cumulative: float     # 链式 TWR 累计收益（%）
+    drawdown: float           # 当前回撤（%，正数表示回撤幅度）
+
+
+@dataclass(frozen=True)
+class PerformancePeriod:
+    """业绩报告统计区间"""
+    start_date: date
+    end_date: date
+    days: int
+
+
+@dataclass(frozen=True)
+class PerformanceReturns:
+    """收益指标"""
+    twr: Optional[float]             # 时间加权收益率（%）
+    mwr: Optional[float]             # 资金加权收益率/XIRR（%）
+    annualized_twr: Optional[float]  # 年化 TWR（%）
+    annualized_mwr: Optional[float]  # 年化 MWR（%）
+
+
+@dataclass(frozen=True)
+class PerformanceRisk:
+    """风险指标"""
+    volatility: Optional[float]           # 年化波动率（%）
+    downside_volatility: Optional[float]  # 下行波动率（%）
+    max_drawdown: Optional[float]         # 最大回撤（%）
+
+
+@dataclass(frozen=True)
+class PerformanceRatios:
+    """风险调整后收益比率"""
+    sharpe: Optional[float]
+    sortino: Optional[float]
+    calmar: Optional[float]
+    treynor: Optional[float]
+
+
+@dataclass(frozen=True)
+class BenchmarkStats:
+    """相对基准指标"""
+    benchmark_return: Optional[float]   # 基准收益率（%）
+    excess_return: Optional[float]      # 超额收益（%）
+    beta: Optional[float]
+    alpha: Optional[float]
+    tracking_error: Optional[float]     # 跟踪误差（%）
+    information_ratio: Optional[float]  # 信息比率
+
+
+@dataclass(frozen=True)
+class TradeStats:
+    """交易统计（基于已闭合交易）"""
+    win_rate: Optional[float]      # 胜率（%）
+    profit_factor: Optional[float] # 盈利因子
+    total_closed_trades: int
+
+
+@dataclass(frozen=True)
+class PerformanceReport:
+    """
+    账户区间业绩报告（值对象）
+
+    对应 GET /accounts/{id}/performance-report/?start_date=...&end_date=...
+    """
+    period: PerformancePeriod
+    returns: PerformanceReturns
+    risk: PerformanceRisk
+    ratios: PerformanceRatios
+    benchmark: Optional[BenchmarkStats]
+    trade_stats: TradeStats
+    coverage: CoverageInfo
+    warnings: List[str]

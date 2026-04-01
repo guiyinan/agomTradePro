@@ -3,6 +3,13 @@
 from django.http import JsonResponse
 from django.urls import path
 
+from .performance_views import (
+    AccountBackfillAPIView,
+    AccountBenchmarksAPIView,
+    AccountPerformanceReportAPIView,
+    AccountValuationSnapshotAPIView,
+    AccountValuationTimelineAPIView,
+)
 from .views import (
     AccountBatchDeleteAPIView,
     AccountDetailAPIView,
@@ -34,6 +41,10 @@ urlpatterns = [
                     "/api/simulated-trading/accounts/{account_id}/positions/",
                     "/api/simulated-trading/accounts/{account_id}/trades/",
                     "/api/simulated-trading/accounts/{account_id}/performance/",
+                    "/api/simulated-trading/accounts/{account_id}/performance-report/",
+                    "/api/simulated-trading/accounts/{account_id}/valuation-snapshot/",
+                    "/api/simulated-trading/accounts/{account_id}/valuation-timeline/",
+                    "/api/simulated-trading/accounts/{account_id}/benchmarks/",
                 ],
             }
         ),
@@ -51,4 +62,10 @@ urlpatterns = [
     path("accounts/<int:account_id>/inspections/", DailyInspectionReportListAPIView.as_view(), name="daily-inspection-list"),
     path("fee-configs/", FeeConfigListAPIView.as_view(), name="fee-config-list"),
     path("auto-trading/run/", AutoTradingAPIView.as_view(), name="auto-trading-run"),
+    # 统一账户业绩与估值 API
+    path("accounts/<int:account_id>/performance-report/", AccountPerformanceReportAPIView.as_view(), name="performance-report"),
+    path("accounts/<int:account_id>/valuation-snapshot/", AccountValuationSnapshotAPIView.as_view(), name="valuation-snapshot"),
+    path("accounts/<int:account_id>/valuation-timeline/", AccountValuationTimelineAPIView.as_view(), name="valuation-timeline"),
+    path("accounts/<int:account_id>/benchmarks/", AccountBenchmarksAPIView.as_view(), name="benchmarks"),
+    path("accounts/<int:account_id>/backfill/", AccountBackfillAPIView.as_view(), name="backfill"),
 ]
