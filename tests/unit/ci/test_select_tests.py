@@ -38,7 +38,11 @@ class TestSelectTests(unittest.TestCase):
         """关键模块必须在映射表中"""
         key_modules = [
             "regime", "policy", "signal", "audit", "backtest",
-            "alpha", "account", "simulated_trading", "strategy"
+            "alpha", "account", "simulated_trading", "strategy",
+            "share", "market_data", "agent_runtime", "asset_analysis",
+            "ai_capability", "ai_provider", "beta_gate", "setup_wizard", "task_monitor", "terminal", "hedge",
+            "realtime", "filter", "prompt", "sentiment", "sector", "fund",
+            "events", "factor", "rotation", "macro", "equity", "alpha_trigger",
         ]
         for module in key_modules:
             self.assertIn(module, MODULE_TEST_MAP, f"Module {module} should be in test map")
@@ -86,6 +90,7 @@ class TestSelectTests(unittest.TestCase):
         # 应包含 regime 相关测试
         regime_tests = [t for t in tests if "regime" in t.lower()]
         self.assertGreater(len(regime_tests), 0)
+        self.assertIn("tests/api/test_regime_api_edges.py", tests)
 
     def test_select_tests_with_policy_changes(self):
         """policy 模块变更选择对应测试"""
@@ -96,6 +101,7 @@ class TestSelectTests(unittest.TestCase):
         # 应包含 policy 相关测试
         policy_tests = [t for t in tests if "policy" in t.lower()]
         self.assertGreater(len(policy_tests), 0)
+        self.assertIn("tests/api/test_policy_workbench_api_edges.py", tests)
 
     def test_select_tests_with_multiple_modules(self):
         """多模块变更时选择所有相关测试"""
@@ -111,6 +117,178 @@ class TestSelectTests(unittest.TestCase):
         policy_tests = [t for t in tests if "policy" in t.lower()]
         self.assertGreater(len(regime_tests), 0)
         self.assertGreater(len(policy_tests), 0)
+
+    def test_select_tests_with_backtest_changes_include_api_tests(self):
+        """backtest 变更必须带上 API 测试。"""
+        tests = select_tests_func({"backtest"}, ["apps/backtest/interface/views.py"])
+        self.assertIn("tests/api/test_backtest_api_edges.py", tests)
+
+    def test_select_tests_with_share_changes_include_app_local_tests(self):
+        """share 模块变更必须带上 app-local tests。"""
+        tests = select_tests_func({"share"}, ["apps/share/interface/views.py"])
+        self.assertIn("apps/share/tests/", tests)
+
+    def test_select_tests_with_audit_changes_include_api_tests(self):
+        """audit 变更必须带上 API 测试。"""
+        tests = select_tests_func({"audit"}, ["apps/audit/interface/views.py"])
+        self.assertIn("tests/api/test_audit_api_edges.py", tests)
+
+    def test_select_tests_with_market_data_changes_include_app_local_tests(self):
+        """market_data 模块变更必须带上 app-local tests。"""
+        tests = select_tests_func({"market_data"}, ["apps/market_data/interface/views.py"])
+        self.assertIn("apps/market_data/tests/", tests)
+        self.assertIn("tests/api/test_market_data_api_edges.py", tests)
+
+    def test_select_tests_with_dashboard_changes_include_api_tests(self):
+        """dashboard 变更必须带上 API 测试。"""
+        tests = select_tests_func({"dashboard"}, ["apps/dashboard/interface/views.py"])
+        self.assertIn("tests/api/test_dashboard_api_edges.py", tests)
+
+    def test_select_tests_with_simulated_trading_changes_include_api_tests(self):
+        """simulated_trading 变更必须带上 API 测试。"""
+        tests = select_tests_func({"simulated_trading"}, ["apps/simulated_trading/interface/views.py"])
+        self.assertIn("tests/api/test_simulated_trading_api_edges.py", tests)
+
+    def test_select_tests_with_agent_runtime_changes_include_api_and_migration_tests(self):
+        """agent_runtime 变更必须带上 API 和 migration 测试。"""
+        tests = select_tests_func(
+            {"agent_runtime"},
+            ["apps/agent_runtime/interface/views.py"],
+        )
+        self.assertIn("tests/api/test_agent_runtime_api.py", tests)
+        self.assertIn("tests/migrations/test_agent_runtime_migrations.py", tests)
+
+    def test_select_tests_with_macro_changes_include_api_tests(self):
+        """macro 变更必须带上 API 测试。"""
+        tests = select_tests_func({"macro"}, ["apps/macro/interface/views/fetch_api.py"])
+        self.assertIn("tests/api/test_macro_api_edges.py", tests)
+
+    def test_select_tests_with_account_changes_include_api_tests(self):
+        """account 变更必须带上 API 测试。"""
+        tests = select_tests_func({"account"}, ["apps/account/interface/profile_api_views.py"])
+        self.assertIn("tests/api/test_account_api_edges.py", tests)
+
+    def test_select_tests_with_ai_provider_changes_include_api_tests(self):
+        """ai_provider 变更必须带上 API 测试。"""
+        tests = select_tests_func({"ai_provider"}, ["apps/ai_provider/interface/views/api_views.py"])
+        self.assertIn("tests/api/test_ai_provider_api_edges.py", tests)
+
+    def test_select_tests_with_beta_gate_changes_include_api_tests(self):
+        """beta_gate 变更必须带上 API 测试。"""
+        tests = select_tests_func({"beta_gate"}, ["apps/beta_gate/interface/views.py"])
+        self.assertIn("tests/api/test_beta_gate_api_edges.py", tests)
+
+    def test_select_tests_with_decision_rhythm_changes_include_api_tests(self):
+        """decision_rhythm 变更必须带上 API 测试。"""
+        tests = select_tests_func({"decision_rhythm"}, ["apps/decision_rhythm/interface/command_api_views.py"])
+        self.assertIn("tests/api/test_decision_rhythm_api_edges.py", tests)
+        self.assertIn("tests/api/test_workspace_execution_api_edges.py", tests)
+        self.assertIn("tests/api/test_workspace_recommendations_api_edges.py", tests)
+
+    def test_select_tests_with_alpha_changes_include_api_tests(self):
+        """alpha 变更必须带上 API 测试。"""
+        tests = select_tests_func({"alpha"}, ["apps/alpha/interface/views.py"])
+        self.assertIn("tests/api/test_alpha_api_edges.py", tests)
+
+    def test_select_tests_with_alpha_trigger_changes_include_api_tests(self):
+        """alpha_trigger 变更必须带上 API 测试。"""
+        tests = select_tests_func({"alpha_trigger"}, ["apps/alpha_trigger/interface/views.py"])
+        self.assertIn("tests/api/test_alpha_trigger_api_edges.py", tests)
+
+    def test_select_tests_with_task_monitor_changes_include_api_tests(self):
+        """task_monitor 变更必须带上 API 测试。"""
+        tests = select_tests_func({"task_monitor"}, ["apps/task_monitor/interface/views.py"])
+        self.assertIn("tests/api/test_task_monitor_api.py", tests)
+
+    def test_select_tests_with_hedge_changes_include_api_tests(self):
+        """hedge 变更必须带上 API 测试。"""
+        tests = select_tests_func({"hedge"}, ["apps/hedge/interface/views.py"])
+        self.assertIn("tests/api/test_hedge_api.py", tests)
+
+    def test_select_tests_with_terminal_changes_include_api_tests(self):
+        """terminal 变更必须带上 API 测试。"""
+        tests = select_tests_func({"terminal"}, ["apps/terminal/interface/api_views.py"])
+        self.assertIn("tests/api/test_terminal_api_edges.py", tests)
+
+    def test_select_tests_with_realtime_changes_include_api_tests(self):
+        """realtime 变更必须带上 API 测试。"""
+        tests = select_tests_func({"realtime"}, ["apps/realtime/interface/views.py"])
+        self.assertIn("tests/api/test_realtime_api.py", tests)
+
+    def test_select_tests_with_filter_changes_include_api_tests(self):
+        """filter 变更必须带上 API 测试。"""
+        tests = select_tests_func({"filter"}, ["apps/filter/interface/api_views.py"])
+        self.assertIn("tests/api/test_filter_api_edges.py", tests)
+
+    def test_select_tests_with_prompt_changes_include_api_tests(self):
+        """prompt 变更必须带上 API 测试。"""
+        tests = select_tests_func({"prompt"}, ["apps/prompt/interface/views.py"])
+        self.assertIn("tests/api/test_prompt_api_edges.py", tests)
+
+    def test_select_tests_with_ai_capability_changes_include_api_tests(self):
+        """ai_capability 变更必须带上 API 测试。"""
+        tests = select_tests_func({"ai_capability"}, ["apps/ai_capability/interface/api_views.py"])
+        self.assertIn("tests/api/test_ai_capability_api_edges.py", tests)
+
+    def test_select_tests_with_sentiment_changes_include_api_tests(self):
+        """sentiment 变更必须带上 API 测试。"""
+        tests = select_tests_func({"sentiment"}, ["apps/sentiment/interface/views.py"])
+        self.assertIn("tests/api/test_sentiment_api_edges.py", tests)
+
+    def test_select_tests_with_policy_changes_include_api_tests(self):
+        """policy 变更必须带上 API 测试。"""
+        tests = select_tests_func({"policy"}, ["apps/policy/interface/workbench_api_views.py"])
+        self.assertIn("tests/api/test_policy_api_edges.py", tests)
+        self.assertIn("tests/api/test_policy_workbench_api_edges.py", tests)
+
+    def test_select_tests_with_events_changes_include_api_tests(self):
+        """events 变更必须带上 API 测试。"""
+        tests = select_tests_func({"events"}, ["apps/events/interface/views.py"])
+        self.assertIn("tests/api/test_events_api_edges.py", tests)
+
+    def test_select_tests_with_factor_changes_include_api_tests(self):
+        """factor 变更必须带上 API 测试。"""
+        tests = select_tests_func({"factor"}, ["apps/factor/interface/views.py"])
+        self.assertIn("tests/api/test_factor_api_edges.py", tests)
+
+    def test_select_tests_with_strategy_changes_include_api_tests(self):
+        """strategy 变更必须带上 API 测试。"""
+        tests = select_tests_func({"strategy"}, ["apps/strategy/interface/views.py"])
+        self.assertIn("tests/api/test_strategy_api_edges.py", tests)
+
+    def test_select_tests_with_sector_changes_include_api_tests(self):
+        """sector 变更必须带上 API 测试。"""
+        tests = select_tests_func({"sector"}, ["apps/sector/interface/views.py"])
+        self.assertIn("tests/api/test_sector_api_edges.py", tests)
+
+    def test_select_tests_with_fund_changes_include_api_tests(self):
+        """fund 变更必须带上 API 测试。"""
+        tests = select_tests_func({"fund"}, ["apps/fund/interface/views.py"])
+        self.assertIn("tests/api/test_fund_api_edges.py", tests)
+
+    def test_select_tests_with_equity_changes_include_api_tests(self):
+        """equity 变更必须带上 API 测试。"""
+        tests = select_tests_func({"equity"}, ["apps/equity/interface/views.py"])
+        self.assertIn("tests/api/test_equity_api_edges.py", tests)
+
+    def test_select_tests_with_signal_changes_include_api_tests(self):
+        """signal 变更必须带上 API 测试。"""
+        tests = select_tests_func({"signal"}, ["apps/signal/interface/api_views.py"])
+        self.assertIn("tests/api/test_signal_api_edges.py", tests)
+
+    def test_select_tests_with_rotation_changes_include_api_tests(self):
+        """rotation 变更必须带上 API 测试。"""
+        tests = select_tests_func({"rotation"}, ["apps/rotation/interface/views.py"])
+        self.assertIn("tests/api/test_rotation_api_edges.py", tests)
+
+    def test_full_test_suites_include_app_local_tests(self):
+        """全量回退策略必须覆盖 app-local tests。"""
+        self.assertIn("tests/api/", FULL_TEST_SUITES)
+        self.assertIn("tests/migrations/", FULL_TEST_SUITES)
+        self.assertIn("tests/unit/", FULL_TEST_SUITES)
+        self.assertIn("apps/dashboard/tests/", FULL_TEST_SUITES)
+        self.assertIn("apps/market_data/tests/", FULL_TEST_SUITES)
+        self.assertIn("apps/share/tests/", FULL_TEST_SUITES)
 
     @patch.dict(os.environ, {"GITHUB_ACTIONS": "true"})
     def test_module_map_coverage(self):

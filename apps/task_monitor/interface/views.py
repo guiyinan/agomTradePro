@@ -272,7 +272,7 @@ def dashboard(request) -> Response:
         return Response({
             "recent_failures": {
                 "count": failures.total,
-                "items": failures.items,
+                "items": TaskStatusSerializer(failures.items, many=True).data,
             },
             "celery_health": {
                 "is_healthy": health.is_healthy,

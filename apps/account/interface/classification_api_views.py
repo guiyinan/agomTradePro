@@ -249,7 +249,18 @@ class PortfolioAllocationView(APIView):
 
         支持按资产分类和币种进行配置分析
         """
-        portfolio = PortfolioModel._default_manager.get(id=portfolio_id, user=request.user)
+        portfolio = PortfolioModel._default_manager.filter(
+            id=portfolio_id,
+            user=request.user,
+        ).first()
+        if portfolio is None:
+            return Response(
+                {
+                    'success': False,
+                    'error': f'Portfolio not found: {portfolio_id}',
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         dimension = request.query_params.get('dimension', 'category')  # category 或 currency
 

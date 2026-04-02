@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -69,9 +70,12 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """创建时验证持仓归属"""
+        portfolio = serializer.validated_data.get('portfolio')
         position = serializer.validated_data.get('position')
         if position and position.portfolio.user != self.request.user:
-            raise PermissionError("无权为此持仓创建交易记录")
+            raise PermissionDenied("无权为此持仓创建交易记录")
+        if position and portfolio and position.portfolio_id != portfolio.id:
+            raise ValidationError({"position": "持仓不属于该投资组合"})
 
         # 计算成交金额
         shares = serializer.validated_data['shares']

@@ -164,6 +164,27 @@ def _score_to_percent(score: float) -> int:
     return int(round((bounded + 1.0) * 50))
 
 
+def _parse_positive_int_param(
+    raw_value,
+    *,
+    field_name: str,
+    default: int | None = None,
+) -> int | None:
+    """Parse optional positive-int query params used by HTMX/API endpoints."""
+    if raw_value in (None, ""):
+        return default
+
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} 必须是整数") from exc
+
+    if value <= 0:
+        raise ValueError(f"{field_name} 必须大于 0")
+
+    return value
+
+
 def _build_regime_status_context(navigator, pulse, action) -> dict:
     """Build template context for the regime status bar widget."""
     movement = getattr(navigator, "movement", None)
@@ -720,8 +741,14 @@ def positions_list_htmx(request):
         return redirect('dashboard:index')
 
     # 账户过滤
-    account_id_str = request.GET.get('account_id', '')
-    account_id = int(account_id_str) if account_id_str else None
+    try:
+        account_id = _parse_positive_int_param(
+            request.GET.get('account_id', ''),
+            field_name='account_id',
+            default=None,
+        )
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
     # 直接从模拟账户加载持仓（避免构建完整 Dashboard 数据）
     positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
@@ -774,8 +801,14 @@ def allocation_chart_htmx(request):
     返回 JSON 格式的资产配置数据，用于前端图表更新。
     支持 account_id 参数按账户过滤，不传则返回全部账户汇总。
     """
-    account_id_str = request.GET.get('account_id', '')
-    account_id = int(account_id_str) if account_id_str else None
+    try:
+        account_id = _parse_positive_int_param(
+            request.GET.get('account_id', ''),
+            field_name='account_id',
+            default=None,
+        )
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
     positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
     allocation_data = _generate_allocation_from_positions(positions)
@@ -794,8 +827,14 @@ def performance_chart_htmx(request):
     返回 JSON 格式的收益历史数据。
     支持 account_id 参数按账户过滤。
     """
-    account_id_str = request.GET.get('account_id', '')
-    account_id = int(account_id_str) if account_id_str else None
+    try:
+        account_id = _parse_positive_int_param(
+            request.GET.get('account_id', ''),
+            field_name='account_id',
+            default=None,
+        )
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
     use_case = GetDashboardDataUseCase(
         account_repo=AccountRepository(),
@@ -1099,7 +1138,14 @@ def alpha_stocks_htmx(request):
 
     返回 Alpha 选股评分表格，支持动态刷新。
     """
-    top_n = int(request.GET.get('top_n', 10))
+    try:
+        top_n = _parse_positive_int_param(
+            request.GET.get('top_n', 10),
+            field_name='top_n',
+            default=10,
+        )
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
     scores_payload = _get_alpha_stock_scores_payload(top_n=top_n, user=request.user)
     scores = scores_payload["items"]
     meta = scores_payload["meta"]
@@ -1173,7 +1219,14 @@ def alpha_ic_trends_htmx(request):
 
     返回 IC 趋势 JSON 数据。
     """
-    days = int(request.GET.get('days', 30))
+    try:
+        days = _parse_positive_int_param(
+            request.GET.get('days', 30),
+            field_name='days',
+            default=30,
+        )
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
     payload = _get_alpha_ic_trends_payload(days=days, user=request.user)
 
     return JsonResponse({
@@ -1193,7 +1246,14 @@ def alpha_factor_panel_htmx(request):
 
     stock_code = (request.GET.get('code') or '').strip()
     source = (request.GET.get('source') or '').strip() or None
-    top_n = int(request.GET.get('top_n', 10))
+    try:
+        top_n = _parse_positive_int_param(
+            request.GET.get('top_n', 10),
+            field_name='top_n',
+            default=10,
+        )
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
     if not stock_code:
         return render(

@@ -121,6 +121,30 @@ def _delete_account_with_summary(account: SimulatedAccountModel) -> dict:
     return summary
 
 
+def _parse_iso_date(raw_value: str, *, field_name: str) -> date:
+    """Parse ISO date params from query strings and request bodies."""
+    try:
+        return date.fromisoformat(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{field_name} 必须是 YYYY-MM-DD 格式日期') from exc
+
+
+def _parse_positive_int(raw_value, *, field_name: str, default: int) -> int:
+    """Parse positive integer params used by list endpoints."""
+    if raw_value in (None, ""):
+        return default
+
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{field_name} 必须是整数') from exc
+
+    if value <= 0:
+        raise ValueError(f'{field_name} 必须大于 0')
+
+    return value
+
+
 # ============================================================================
 # 页面视图（前端）
 # ============================================================================
@@ -879,17 +903,28 @@ class TradeListAPIView(APIView):
         asset_code = request.query_params.get('asset_code')
         action = request.query_params.get('action')
 
+        try:
+            parsed_start_date = _parse_iso_date(start_date, field_name='start_date') if start_date else None
+            parsed_end_date = _parse_iso_date(end_date, field_name='end_date') if end_date else None
+        except ValueError as exc:
+            return Response(
+                {'success': False, 'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if parsed_start_date and parsed_end_date and parsed_start_date > parsed_end_date:
+            return Response(
+                {'success': False, 'error': 'start_date 不能晚于 end_date'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         filtered_trades = []
         for trade in all_trades:
             # 日期过滤
-            if start_date:
-                start = date.fromisoformat(start_date)
-                if trade.execution_date < start:
-                    continue
-            if end_date:
-                end = date.fromisoformat(end_date)
-                if trade.execution_date > end:
-                    continue
+            if parsed_start_date and trade.execution_date < parsed_start_date:
+                continue
+            if parsed_end_date and trade.execution_date > parsed_end_date:
+                continue
 
             # 资产过滤
             if asset_code and trade.asset_code != asset_code:
@@ -1275,15 +1310,27 @@ class EquityCurveAPIView(APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        if not start_date:
-            start_date = account.start_date
-        else:
-            start_date = date.fromisoformat(start_date)
+        try:
+            if not start_date:
+                start_date = account.start_date
+            else:
+                start_date = _parse_iso_date(start_date, field_name='start_date')
 
-        if not end_date:
-            end_date = date.today()
-        else:
-            end_date = date.fromisoformat(end_date)
+            if not end_date:
+                end_date = date.today()
+            else:
+                end_date = _parse_iso_date(end_date, field_name='end_date')
+        except ValueError as exc:
+            return Response(
+                {'success': False, 'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if start_date > end_date:
+            return Response(
+                {'success': False, 'error': 'start_date 不能晚于 end_date'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 获取净值曲线
         try:
@@ -1473,15 +1520,29 @@ class DailyInspectionReportListAPIView(APIView):
         if isinstance(account_model, Response):
             return account_model
 
-        limit = int(request.query_params.get("limit", 20))
-        inspection_date_raw = request.query_params.get("inspection_date")
+        try:
+            limit = _parse_positive_int(
+                request.query_params.get("limit", 20),
+                field_name='limit',
+                default=20,
+            )
+            inspection_date = (
+                _parse_iso_date(request.query_params.get("inspection_date"), field_name='inspection_date')
+                if request.query_params.get("inspection_date")
+                else None
+            )
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
             "-inspection_date",
             "-updated_at",
         )
-        if inspection_date_raw:
-            queryset = queryset.filter(inspection_date=date.fromisoformat(inspection_date_raw))
+        if inspection_date:
+            queryset = queryset.filter(inspection_date=inspection_date)
         reports = queryset[:limit]
 
         payload = []

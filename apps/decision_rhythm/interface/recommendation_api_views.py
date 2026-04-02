@@ -2,6 +2,37 @@
 
 from .workspace_api_support import *  # noqa: F401,F403
 from .workspace_api_support import _user_action_label
+from ..domain.entities import RecommendationStatus, UserDecisionAction
+
+
+def _normalize_enum_filter(
+    raw_value: str | None,
+    enum_cls,
+    field_name: str,
+) -> str | None:
+    if raw_value in (None, ""):
+        return None
+
+    candidate = str(raw_value).strip().upper()
+    try:
+        return enum_cls(candidate).value
+    except ValueError:
+        allowed = ", ".join(item.value for item in enum_cls)
+        raise ValueError(f"{field_name} must be one of: {allowed}")
+
+
+def _validate_security_codes_payload(raw_value) -> list[str] | None:
+    if raw_value in (None, ""):
+        return None
+    if not isinstance(raw_value, list):
+        raise ValueError("security_codes must be a list of strings")
+
+    normalized: list[str] = []
+    for item in raw_value:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError("security_codes must be a list of non-empty strings")
+        normalized.append(item.strip())
+    return normalized
 
 class UnifiedRecommendationsView(APIView):
     """
@@ -36,8 +67,22 @@ class UnifiedRecommendationsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        status_filter = request.query_params.get("status")
-        user_action_filter = request.query_params.get("user_action")
+        try:
+            status_filter = _normalize_enum_filter(
+                request.query_params.get("status"),
+                RecommendationStatus,
+                "status",
+            )
+            user_action_filter = _normalize_enum_filter(
+                request.query_params.get("user_action"),
+                UserDecisionAction,
+                "user_action",
+            )
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         security_code_filter = request.query_params.get("security_code")
         include_ignored = str(request.query_params.get("include_ignored", "")).lower() in {"1", "true", "yes"}
         recommendation_id = request.query_params.get("recommendation_id")
@@ -161,8 +206,17 @@ class RefreshRecommendationsView(APIView):
             force: 是否强制刷新（默认 False）
             async_mode: 是否异步执行（默认 True）
         """
+        payload = dict(request.data or {})
+        try:
+            payload["security_codes"] = _validate_security_codes_payload(payload.get("security_codes"))
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # 解析请求
-        dto = RefreshRecommendationsRequestDTO.from_dict(request.data or {})
+        dto = RefreshRecommendationsRequestDTO.from_dict(payload)
 
         try:
             response_dto = refresh_workspace_recommendations(dto)

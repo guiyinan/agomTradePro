@@ -41,6 +41,13 @@ jobs:
             --cov-report=term-missing \
             --cov-report=html:htmlcov-unit
 
+      - name: Run API And Migration Tests
+        run: |
+          pytest tests/api/ tests/migrations/ -v \
+            --cov=apps \
+            --cov-append \
+            --cov-report=term-missing
+
       - name: Run Integration Tests (core)
         run: |
           pytest tests/integration/ -v \
@@ -49,6 +56,13 @@ jobs:
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
             -n auto
+
+      - name: Run App-Local Module Tests
+        run: |
+          pytest apps/*/tests -v \
+            --cov=apps \
+            --cov-append \
+            --cov-report=term-missing
 
       - name: Run Guardrail Tests
         run: |

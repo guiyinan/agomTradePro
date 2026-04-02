@@ -61,6 +61,12 @@ class TestSetupWizardViews:
 class TestSetupWizardStepSubmission:
     """Tests for step form submissions"""
 
+    def test_invalid_step_returns_400_json(self, client):
+        response = client.post("/setup/step/not-a-step/")
+
+        assert response.status_code == 400
+        assert response.json() == {"error": "无效的步骤"}
+
     def test_welcome_step_post(self, client):
         with patch("apps.setup_wizard.interface.views.CheckSetupStatusUseCase") as mock_check:
             mock_result = MagicMock()
@@ -133,6 +139,33 @@ class TestSetupWizardStepSubmission:
                 )
                 assert response.status_code in [200, 302]
 
+    def test_data_source_success_marks_setup_complete(self, client):
+        session = client.session
+        session["setup_wizard_authenticated"] = True
+        session["setup_wizard"] = {"current_step": "data_source"}
+        session.save()
+
+        with patch(
+            "apps.setup_wizard.application.use_cases.SetupDataSourceUseCase.execute"
+        ) as mock_setup, patch(
+            "apps.setup_wizard.interface.views.CompleteSetupUseCase.execute"
+        ) as mock_complete:
+            mock_setup.return_value = MagicMock(success=True, message="ok")
+
+            response = client.post(
+                "/setup/step/data_source/",
+                data={
+                    "tushare_token": "token-123",
+                    "tushare_http_url": "https://proxy.example.com",
+                    "fred_api_key": "fred-key",
+                    "akshare_enabled": "on",
+                },
+            )
+
+        assert response.status_code == 302
+        mock_complete.assert_called_once()
+        assert client.session["setup_wizard"]["current_step"] == "complete"
+
 
 @pytest.mark.django_db
 class TestSetupWizardSecurity:
@@ -180,6 +213,20 @@ class TestSetupWizardSecurity:
                 follow=True,
             )
             assert response.status_code in [200, 302]
+            assert client.session["setup_wizard_authenticated"] is True
+            assert client.session["setup_wizard"]["current_step"] == "welcome"
+
+    def test_logout_clears_setup_session_state(self, client):
+        session = client.session
+        session["setup_wizard_authenticated"] = True
+        session["setup_wizard"] = {"current_step": "ai_provider"}
+        session.save()
+
+        response = client.post("/setup/logout/")
+
+        assert response.status_code == 302
+        assert "setup_wizard_authenticated" not in client.session
+        assert "setup_wizard" not in client.session
 
 
 @pytest.mark.django_db

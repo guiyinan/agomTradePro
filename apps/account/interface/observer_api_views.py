@@ -82,7 +82,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
         """
         对写操作使用全量查询后做显式鉴权，确保“对象存在但无权限”返回 403。
         """
-        if self.action in ['destroy', 'update', 'partial_update']:
+        if self.action in ['destroy', 'update', 'partial_update', 'retrieve', 'positions']:
             lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
             lookup_value = self.kwargs.get(lookup_url_kwarg)
             grant = get_object_or_404(
@@ -91,6 +91,12 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
                 ),
                 **{self.lookup_field: lookup_value},
             )
+            if self.action in ['retrieve', 'positions']:
+                if grant.owner_user_id == self.request.user or grant.observer_user_id == self.request.user:
+                    return grant
+                if self.action == 'positions':
+                    self.permission_denied(self.request, message='无权访问此授权')
+                return super().get_object()
             if grant.owner_user_id != self.request.user:
                 self.permission_denied(self.request, message='无权访问此授权')
             return grant
@@ -168,7 +174,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
             positions_data.append({
                 'id': pos.id,
                 'asset_code': pos.asset_code,
-                'asset_name': pos.asset_name,
+                'asset_name': getattr(pos, 'asset_name', pos.asset_code),
                 'asset_class': pos.asset_class,
                 'shares': float(pos.shares),
                 'avg_cost': float(pos.avg_cost),
@@ -287,8 +293,15 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
             'data': response_serializer.data
         }, status=status.HTTP_201_CREATED, headers=headers)
 
-    def _log_audit_action(self, request, action: str, resource_type: str,
-                         resource_id: str, response_status: int):
+    def _log_audit_action(
+        self,
+        request,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        response_status: int,
+        extra_context: dict[str, Any] | None = None,
+    ):
         """
         记录审计日志
 
@@ -320,6 +333,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
                 operation_type=OperationType.DATA_MODIFY if action in ('CREATE', 'DELETE', 'UPDATE') else OperationType.API_ACCESS,
                 module='account',
                 action=OperationAction[action],
+                request_params=extra_context or {},
                 resource_type=resource_type,
                 resource_id=resource_id,
                 request_method=request.method,

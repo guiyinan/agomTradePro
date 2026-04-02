@@ -91,11 +91,29 @@ jobs:
           echo "Main Chain 501: PASS"
 
       # Check 4: Critical journey tests >= 90%
+      - name: Run App-Local Module Tests
+        run: |
+          echo "==================================="
+          echo "Check 4: App-Local Module Tests"
+          echo "==================================="
+          pytest apps/*/tests -v --tb=short
+          echo "App-local module tests: PASS"
+
+      # Check 5: API and migration tests
+      - name: Run API And Migration Tests
+        run: |
+          echo "==================================="
+          echo "Check 5: API And Migration Tests"
+          echo "==================================="
+          pytest tests/api/ tests/migrations/ -v --tb=short
+          echo "API and migration tests: PASS"
+
+      # Check 6: Critical journey tests >= 90%
       - name: Run Journey Tests
         if: github.event.inputs.skip_journey != 'true'
         run: |
           echo "==================================="
-          echo "Check 4: Journey Tests (>= 90%)"
+          echo "Check 6: Journey Tests (>= 90%)"
           echo "==================================="
           pytest tests/playwright/tests/uat/ -v --tb=short \
             --junitxml=reports/journey-results.xml \
@@ -110,20 +128,20 @@ jobs:
           echo "WARNING: Journey tests skipped by user input"
           echo "This should only be used in emergency situations"
 
-      # Check 5: Logic guardrails
+      # Check 7: Logic guardrails
       - name: Run Logic Guardrails
         run: |
           echo "==================================="
-          echo "Check 5: Logic Guardrails"
+          echo "Check 7: Logic Guardrails"
           echo "==================================="
           pytest tests/guardrails/test_logic_guardrails.py -v --tb=short
           echo "Logic Guardrails: PASS"
 
-      # Check 6: Architecture layer guard
+      # Check 8: Architecture layer guard
       - name: Architecture Layer Guard
         run: |
           echo "==================================="
-          echo "Check 6: Architecture Layer Guard"
+          echo "Check 8: Architecture Layer Guard"
           echo "==================================="
           python - <<'PY'
           import os
@@ -227,11 +245,11 @@ jobs:
           print("Architecture Layer Guard: PASS")
           PY
 
-      # Check 7: Domain layer coverage >= 70%
+      # Check 9: Domain layer coverage >= 70%
       - name: Domain Layer Coverage Gate
         run: |
           echo "==================================="
-          echo "Check 7: Domain Layer Coverage"
+          echo "Check 9: Domain Layer Coverage"
           echo "==================================="
           python - <<'PY'
           import os
@@ -280,11 +298,11 @@ jobs:
           PY
           echo "Domain Coverage: PASS"
 
-      # Check 8: P0/P1 defects check (renumbered)
+      # Check 10: P0/P1 defects check (renumbered)
       - name: Check P0/P1 Defects
         run: |
           echo "==================================="
-          echo "Check 7: P0/P1 Defects"
+          echo "Check 10: P0/P1 Defects"
           echo "==================================="
           echo "Checking for critical defects..."
           # This can be integrated with external defect tracking systems
@@ -342,14 +360,16 @@ jobs:
                   'api_naming': {'status': 'passed', 'description': 'API routes follow naming convention'},
                   'navigation_404': {'status': 'passed', 'description': 'Main navigation has no 404 errors'},
                   'main_chain_501': {'status': 'passed', 'description': 'Main chain has no 501 responses'},
+                  'app_local_tests': {'status': 'passed', 'description': 'App-local module test suites pass'},
+                  'api_migration_tests': {'status': 'passed', 'description': 'API and migration test suites pass'},
                   'journey_tests': {'status': 'passed' if '${{ github.event.inputs.skip_journey }}' != 'true' else 'skipped', 'description': 'Journey tests pass >= 90%'},
                   'logic_guardrails': {'status': 'passed', 'description': 'Logic guardrails pass'},
                   'architecture_guard': {'status': 'passed', 'description': 'Architecture layer constraints satisfied'},
                   'p0_p1_defects': {'status': 'passed', 'description': 'No P0 defects, P1 <= 2'},
               },
               'summary': {
-                  'total_checks': 7,
-                  'passed': 7,
+                  'total_checks': 9,
+                  'passed': 9,
                   'failed': 0,
                   'skipped': 1 if '${{ github.event.inputs.skip_journey }}' == 'true' else 0,
               }
@@ -396,6 +416,8 @@ jobs:
           echo "  [PASS] API Naming Convention"
           echo "  [PASS] Navigation 404 Check"
           echo "  [PASS] Main Chain 501 Check"
+          echo "  [PASS] App-Local Module Tests"
+          echo "  [PASS] API And Migration Tests"
           echo "  [PASS] Journey Tests (>= 90%)"
           echo "  [PASS] Logic Guardrails"
           echo "  [PASS] Architecture Layer Guard"

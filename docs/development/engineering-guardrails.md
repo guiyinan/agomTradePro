@@ -84,7 +84,11 @@
 5. 当前 CI 工作流：
    - `.github/workflows/logic-guardrails.yml`
    - `.github/workflows/architecture-layer-guard.yml`
-6. Guardrail 必跑命令：
+6. `scripts/select_tests.py` 的全量回退与模块映射，必须覆盖 `apps/*/tests/` 下的 app-local tests，不得只跑 `tests/unit|integration|guardrails`。
+7. `tests/api/` 与 `tests/migrations/` 属于正式 CI 入口，nightly / RC 不得漏跑。
+8. 高变更模块的 diff-based selector 必须显式带上对应 API 边界测试，不得只依赖集成测试兜底；当前至少包含 `account / ai_provider / alpha / alpha_trigger / audit / backtest / beta_gate / dashboard / decision_rhythm（含 workspace_execution / workspace_recommendations） / equity / events / factor / hedge / macro / market_data / policy / regime / simulated_trading / strategy / prompt / realtime / rotation / sentiment / signal / task_monitor / terminal`。
+9. 凡是使用 `@pytest.mark.qlib` 的测试，`import qlib` 必须解析到官方 `pyqlib` distribution；若解析到仓库内同名目录或非 `pyqlib` 包，测试应直接失败而不是继续运行或静默跳过。
+10. Guardrail 必跑命令：
    `pytest -q tests/guardrails/test_logic_guardrails.py tests/integration/policy/test_policy_integration.py tests/unit/policy/test_fetch_rss_use_case.py tests/unit/regime/test_config_threshold_regression.py`
 
 ### 5) API 改动同步门禁

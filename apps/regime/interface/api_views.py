@@ -259,9 +259,15 @@ class RegimeNavigatorView(APIView):
             from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
 
             as_of_date_str = request.query_params.get("as_of_date")
-            as_of_date = (
-                date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
-            )
+            try:
+                as_of_date = (
+                    date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
+                )
+            except ValueError:
+                return Response(
+                    {"success": False, "error": f"Invalid as_of_date: {as_of_date_str}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             use_case = BuildRegimeNavigatorUseCase()
             navigator = use_case.execute(as_of_date)
@@ -332,9 +338,15 @@ class RegimeActionView(APIView):
             from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 
             as_of_date_str = request.query_params.get("as_of_date")
-            as_of_date = (
-                date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
-            )
+            try:
+                as_of_date = (
+                    date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
+                )
+            except ValueError:
+                return Response(
+                    {"success": False, "error": f"Invalid as_of_date: {as_of_date_str}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             use_case = GetActionRecommendationUseCase()
             action = use_case.execute(as_of_date)
