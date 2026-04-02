@@ -46,6 +46,7 @@
    - `strategy -> simulated_trading ORM` 禁令
    - `simulated_trading -> strategy ORM` 禁令
    - `events -> downstream handlers/models` 禁令
+   - `account interface -> simulated_trading ORM / migrate_account_ledger` 禁令
 
 ### 1) 配置唯一来源（Single Source of Truth）
 

@@ -27,7 +27,7 @@ def test_guardrail_architecture_boundaries_have_no_violations():
 
     assert result.returncode == 0, result.stdout or result.stderr
     report = json.loads(result.stdout)
-    assert report["rules_version"] == "2026-03-12.v1"
+    assert report["rules_version"] == "2026-04-02.v1"
     assert report["violation_count"] == 0
     rule_ids = set()
     with open(REPO_ROOT / "governance/architecture_rules.json", encoding="utf-8") as fh:
@@ -36,6 +36,7 @@ def test_guardrail_architecture_boundaries_have_no_violations():
 
     assert "regime_runtime_no_macro_impl_imports" in rule_ids
     assert "events_no_direct_downstream_models_or_handlers" in rule_ids
+    assert "account_interface_no_simulated_trading_orm_imports" in rule_ids
 
 
 @pytest.mark.guardrail

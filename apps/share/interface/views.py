@@ -1,4 +1,5 @@
 """Share API and page views."""
+
 from decimal import Decimal
 
 from django.contrib import messages
@@ -59,6 +60,10 @@ def _normalize_portfolio_type(value: str | None) -> str:
 class ShareVisibilityMixin:
     """Shared helpers for public share access."""
 
+    _MONEY_WORDS = ("amount", "value", "cash", "capital", "profit", "loss")
+    _POSITION_MONEY_WORDS = ("amount", "value", "cost", "price", "pnl")
+    _TRANSACTION_MONEY_WORDS = ("amount", "value", "cost", "price")
+
     @staticmethod
     def _password_session_key(share_link_id: int) -> str:
         return f"share_verified_{share_link_id}"
@@ -80,7 +85,9 @@ class ShareVisibilityMixin:
             return x_forwarded_for.split(",")[0].strip()
         return request.META.get("REMOTE_ADDR", "")
 
-    def _log_access(self, share_link_id: int, request, result_status: str, is_verified: bool = False):
+    def _log_access(
+        self, share_link_id: int, request, result_status: str, is_verified: bool = False
+    ):
         ShareAccessUseCases().log_access(
             share_link_id=share_link_id,
             ip_address=self._get_client_ip(request),
@@ -103,8 +110,7 @@ class ShareVisibilityMixin:
                 k: v
                 for k, v in summary.items()
                 if not any(
-                    money_word in k.lower()
-                    for money_word in ["amount", "value", "cash", "capital", "profit", "loss"]
+                    money_word in k.lower() for money_word in self._MONEY_WORDS
                 )
             }
         result["summary"] = summary
@@ -115,8 +121,7 @@ class ShareVisibilityMixin:
                 k: v
                 for k, v in performance.items()
                 if not any(
-                    money_word in k.lower()
-                    for money_word in ["amount", "value", "cash", "capital", "profit", "loss"]
+                    money_word in k.lower() for money_word in self._MONEY_WORDS
                 )
             }
         result["performance"] = performance
@@ -129,12 +134,29 @@ class ShareVisibilityMixin:
                         k: v
                         for k, v in item.items()
                         if not any(
-                            money_word in k.lower()
-                            for money_word in ["amount", "value", "cost", "price", "pnl"]
+                            money_word in k.lower() for money_word in self._POSITION_MONEY_WORDS
                         )
                     }
                     for item in positions["items"]
                 ]
+            if not share_link.show_amounts and isinstance(positions.get("summary"), dict):
+                position_summary = dict(positions["summary"])
+                position_summary = {
+                    k: v
+                    for k, v in position_summary.items()
+                    if not any(
+                        money_word in k.lower()
+                        for money_word in (*self._POSITION_MONEY_WORDS, *self._MONEY_WORDS)
+                    )
+                }
+                for hidden_key in ("total_assets",):
+                    position_summary.pop(hidden_key, None)
+                if isinstance(position_summary.get("asset_allocation"), list):
+                    position_summary["asset_allocation"] = [
+                        {k: v for k, v in item.items() if k != "value"}
+                        for item in position_summary["asset_allocation"]
+                    ]
+                positions["summary"] = position_summary
             result["positions"] = positions
 
         if share_link.show_transactions:
@@ -145,8 +167,7 @@ class ShareVisibilityMixin:
                         k: v
                         for k, v in item.items()
                         if not any(
-                            money_word in k.lower()
-                            for money_word in ["amount", "value", "cost", "price"]
+                            money_word in k.lower() for money_word in self._TRANSACTION_MONEY_WORDS
                         )
                     }
                     for item in transactions["items"]
@@ -210,8 +231,15 @@ class ShareVisibilityMixin:
             ),
             "created_at": share_link.created_at,
             "is_simulated": _normalize_portfolio_type(summary.get("portfolio_type")) == "simulated",
-            "last_updated": first_of("generated_at", default=share_link.last_snapshot_at, source=snapshot),
-            "total_return": first_of("total_return", "total_return_pct", source=performance, default=summary.get("total_return")),
+            "last_updated": first_of(
+                "generated_at", default=share_link.last_snapshot_at, source=snapshot
+            ),
+            "total_return": first_of(
+                "total_return",
+                "total_return_pct",
+                source=performance,
+                default=summary.get("total_return"),
+            ),
             "return_7d": first_of("return_7d", "seven_day_return", source=performance),
             "return_30d": first_of("return_30d", "thirty_day_return", source=performance),
             "current_position": first_of("current_position", "position_ratio", source=summary),
@@ -220,8 +248,14 @@ class ShareVisibilityMixin:
             "max_drawdown": first_of("max_drawdown", source=performance),
             "sharpe_ratio": first_of("sharpe_ratio", source=performance),
             "win_rate": first_of("win_rate", source=performance),
-            "total_trades": first_of("total_trades", source=transactions, default=len(transactions.get("items", []) or [])),
-            "position_count": first_of("position_count", source=positions, default=len(positions.get("items", []) or [])),
+            "total_trades": first_of(
+                "total_trades",
+                source=transactions,
+                default=len(transactions.get("items", []) or []),
+            ),
+            "position_count": first_of(
+                "position_count", source=positions, default=len(positions.get("items", []) or [])
+            ),
             "positions": positions.get("items", []),
             "position_summary": positions.get("summary", {}),
             "recent_transactions": transactions.get("items", []),
@@ -229,8 +263,12 @@ class ShareVisibilityMixin:
             "regime_info": decisions.get("regime_info") if isinstance(decisions, dict) else None,
             "benchmark_name": first_of("benchmark_name", source=performance, default="沪深300"),
             "chart_dates": first_of("chart_dates", "dates", source=performance, default=[]),
-            "portfolio_values": first_of("portfolio_values", "returns", "series", source=performance, default=[]),
-            "benchmark_values": first_of("benchmark_values", "benchmark_series", source=performance, default=[]),
+            "portfolio_values": first_of(
+                "portfolio_values", "returns", "series", source=performance, default=[]
+            ),
+            "benchmark_values": first_of(
+                "benchmark_values", "benchmark_series", source=performance, default=[]
+            ),
             "disclaimer_enabled": disclaimer_config.is_enabled,
             "disclaimer_modal_enabled": disclaimer_config.modal_enabled,
             "disclaimer_modal_title": disclaimer_config.modal_title,
@@ -301,7 +339,9 @@ def _decision_status(decision_request: DecisionRequestModel, response) -> tuple[
     return "pending", DECISION_STATUS_DISPLAY["pending"]
 
 
-def _build_decision_chain(account, asset_codes: set[str], positions_by_code: dict[str, object]) -> tuple[list[dict], list[dict]]:
+def _build_decision_chain(
+    account, asset_codes: set[str], positions_by_code: dict[str, object]
+) -> tuple[list[dict], list[dict]]:
     if not asset_codes:
         return [], []
 
@@ -328,7 +368,9 @@ def _build_decision_chain(account, asset_codes: set[str], positions_by_code: dic
     for decision_request in decision_requests:
         response = _decision_response(decision_request)
         recommendation = decision_request.unified_recommendation
-        feature_snapshot = decision_request.feature_snapshot or getattr(recommendation, "feature_snapshot", None)
+        feature_snapshot = decision_request.feature_snapshot or getattr(
+            recommendation, "feature_snapshot", None
+        )
         position = positions_by_code.get(decision_request.asset_code)
         status, status_display = _decision_status(decision_request, response)
         reason_codes = list(getattr(recommendation, "reason_codes", []) or [])
@@ -336,7 +378,9 @@ def _build_decision_chain(account, asset_codes: set[str], positions_by_code: dic
             position.invalidation_description if position else None,
             (
                 f"止损价 {float(recommendation.stop_loss_price):.4f}"
-                if recommendation and recommendation.stop_loss_price and recommendation.stop_loss_price > Decimal("0")
+                if recommendation
+                and recommendation.stop_loss_price
+                and recommendation.stop_loss_price > Decimal("0")
                 else None
             ),
         )
@@ -376,7 +420,9 @@ def _build_decision_chain(account, asset_codes: set[str], positions_by_code: dic
         evidence_items.append(
             {
                 "asset_code": decision_request.asset_code,
-                "requested_at": decision_request.requested_at.isoformat() if decision_request.requested_at else None,
+                "requested_at": decision_request.requested_at.isoformat()
+                if decision_request.requested_at
+                else None,
                 "responded_at": _as_iso_datetime(response.responded_at) if response else None,
                 "executed_at": _as_iso_datetime(decision_request.executed_at),
                 "request_reason": decision_request.reason,
@@ -423,12 +469,24 @@ def _build_decision_chain(account, asset_codes: set[str], positions_by_code: dic
                     _as_float(getattr(feature_snapshot, "alpha_model_score", None)),
                     _as_float(getattr(recommendation, "alpha_model_score", None)),
                 ),
-                "entry_price_low": _as_float(getattr(recommendation, "entry_price_low", None)) if recommendation else None,
-                "entry_price_high": _as_float(getattr(recommendation, "entry_price_high", None)) if recommendation else None,
-                "target_price_low": _as_float(getattr(recommendation, "target_price_low", None)) if recommendation else None,
-                "target_price_high": _as_float(getattr(recommendation, "target_price_high", None)) if recommendation else None,
-                "stop_loss_price": _as_float(getattr(recommendation, "stop_loss_price", None)) if recommendation else None,
-                "position_pct": _as_float(getattr(recommendation, "position_pct", None)) if recommendation else None,
+                "entry_price_low": _as_float(getattr(recommendation, "entry_price_low", None))
+                if recommendation
+                else None,
+                "entry_price_high": _as_float(getattr(recommendation, "entry_price_high", None))
+                if recommendation
+                else None,
+                "target_price_low": _as_float(getattr(recommendation, "target_price_low", None))
+                if recommendation
+                else None,
+                "target_price_high": _as_float(getattr(recommendation, "target_price_high", None))
+                if recommendation
+                else None,
+                "stop_loss_price": _as_float(getattr(recommendation, "stop_loss_price", None))
+                if recommendation
+                else None,
+                "position_pct": _as_float(getattr(recommendation, "position_pct", None))
+                if recommendation
+                else None,
                 "execution_target": decision_request.execution_target,
                 "execution_status": decision_request.execution_status,
                 "execution_ref": decision_request.execution_ref or {},
@@ -558,7 +616,10 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         model = ShareLinkModel.objects.get(id=entity.id)
         if entity.requires_password() and not self._is_password_verified(request, model):
             self._log_access(model.id, request, "password_required", is_verified=False)
-            return Response({"requires_password": True, "title": entity.title}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"requires_password": True, "title": entity.title},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         snapshot = _get_live_share_snapshot(model)
         if snapshot:
@@ -643,7 +704,9 @@ class PublicSharePageView(ShareVisibilityMixin, View):
             return render(request, self.template_name, context, status=401)
 
         snapshot = _get_live_share_snapshot(share_link)
-        filtered_snapshot = self._filter_snapshot_by_visibility(snapshot, share_link) if snapshot else None
+        filtered_snapshot = (
+            self._filter_snapshot_by_visibility(snapshot, share_link) if snapshot else None
+        )
         context = self._build_public_context(share_link, filtered_snapshot, requires_password=False)
         self._log_access(
             share_link.id,
@@ -688,7 +751,10 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
     positions_by_code = {position.asset_code: position for position in positions}
     asset_codes = {
         asset_code
-        for asset_code in [*(position.asset_code for position in positions), *(trade.asset_code for trade in trades)]
+        for asset_code in [
+            *(position.asset_code for position in positions),
+            *(trade.asset_code for trade in trades),
+        ]
         if asset_code
     }
 
@@ -702,7 +768,11 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
     for position in positions:
         asset_type = (position.asset_type or "").strip().lower() or "other"
         position_market_value = float(position.market_value or 0)
-        weight = round((float(position.market_value or 0) / total_assets) * 100, 2) if total_assets else 0.0
+        weight = (
+            round((float(position.market_value or 0) / total_assets) * 100, 2)
+            if total_assets
+            else 0.0
+        )
         bucket = allocation_by_type.setdefault(
             asset_type,
             {
@@ -714,21 +784,23 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
         )
         bucket["value"] += position_market_value
         bucket["count"] += 1
-        position_items.append({
-            "asset_code": position.asset_code,
-            "asset_name": position.asset_name,
-            "asset_type": asset_type,
-            "asset_type_label": _asset_type_label(asset_type),
-            "quantity": position.quantity,
-            "avg_cost": float(position.avg_cost or 0),
-            "current_price": float(position.current_price or 0),
-            "market_value": position_market_value,
-            "pnl": float(position.unrealized_pnl or 0),
-            "return_pct": position.unrealized_pnl_pct,
-            "weight": weight,
-            "entry_reason": position.entry_reason,
-            "invalidation_logic": position.invalidation_description,
-        })
+        position_items.append(
+            {
+                "asset_code": position.asset_code,
+                "asset_name": position.asset_name,
+                "asset_type": asset_type,
+                "asset_type_label": _asset_type_label(asset_type),
+                "quantity": float(position.quantity or 0),
+                "avg_cost": float(position.avg_cost or 0),
+                "current_price": float(position.current_price or 0),
+                "market_value": position_market_value,
+                "pnl": float(position.unrealized_pnl or 0),
+                "return_pct": float(position.unrealized_pnl_pct or 0),
+                "weight": weight,
+                "entry_reason": position.entry_reason,
+                "invalidation_logic": position.invalidation_description,
+            }
+        )
 
     if cash_value > 0:
         allocation_by_type["cash"] = {
@@ -753,33 +825,39 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
 
     transaction_items = []
     for trade in trades:
-        transaction_items.append({
-            "asset_code": trade.asset_code,
-            "asset_name": trade.asset_name,
-            "action": trade.action,
-            "quantity": trade.quantity,
-            "price": float(trade.price or 0),
-            "amount": float(trade.amount or 0),
-            "reason": trade.reason,
-            "created_at": _as_iso_datetime(trade.execution_time),
-        })
+        transaction_items.append(
+            {
+                "asset_code": trade.asset_code,
+                "asset_name": trade.asset_name,
+                "action": trade.action,
+                "quantity": float(trade.quantity or 0),
+                "price": float(trade.price or 0),
+                "amount": float(trade.amount or 0),
+                "reason": trade.reason,
+                "created_at": _as_iso_datetime(trade.execution_time),
+            }
+        )
 
     decision_items, evidence_items = _build_decision_chain(account, asset_codes, positions_by_code)
     if not decision_items:
         for trade in trades[:10]:
             if trade.reason:
                 position = positions_by_code.get(trade.asset_code)
-                decision_items.append({
-                    "title": f"{'买入' if trade.action == 'buy' else '卖出'} {trade.asset_name or trade.asset_code}",
-                    "status": "executed",
-                    "get_status_display": DECISION_STATUS_DISPLAY["executed"],
-                    "description": trade.reason,
-                    "rationale": trade.reason,
-                    "asset_code": trade.asset_code,
-                    "created_at": _as_iso_datetime(trade.execution_time),
-                    "execution_status": trade.status,
-                    "invalidation_logic": position.invalidation_description if position else None,
-                })
+                decision_items.append(
+                    {
+                        "title": f"{'买入' if trade.action == 'buy' else '卖出'} {trade.asset_name or trade.asset_code}",
+                        "status": "executed",
+                        "get_status_display": DECISION_STATUS_DISPLAY["executed"],
+                        "description": trade.reason,
+                        "rationale": trade.reason,
+                        "asset_code": trade.asset_code,
+                        "created_at": _as_iso_datetime(trade.execution_time),
+                        "execution_status": trade.status,
+                        "invalidation_logic": position.invalidation_description
+                        if position
+                        else None,
+                    }
+                )
 
     summary_payload = {
         "account_name": account.account_name,
@@ -790,11 +868,11 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
         "cash_balance": cash_value,
     }
     performance_payload = {
-        "total_return": account.total_return,
-        "annualized_return": account.annual_return,
-        "max_drawdown": account.max_drawdown,
-        "sharpe_ratio": account.sharpe_ratio,
-        "win_rate": account.win_rate,
+        "total_return": float(account.total_return or 0),
+        "annualized_return": float(account.annual_return or 0),
+        "max_drawdown": float(account.max_drawdown or 0),
+        "sharpe_ratio": float(account.sharpe_ratio or 0),
+        "win_rate": float(account.win_rate or 0),
         "return_7d": None,
         "return_30d": None,
         "benchmark_name": "沪深300",
@@ -851,7 +929,9 @@ def share_manage_page(request, share_link_id: int | None = None):
     edit_share_link = None
     edit_share_link_id = share_link_id or request.GET.get("edit")
     if edit_share_link_id:
-        edit_share_link = get_object_or_404(ShareLinkModel, id=edit_share_link_id, owner=request.user)
+        edit_share_link = get_object_or_404(
+            ShareLinkModel, id=edit_share_link_id, owner=request.user
+        )
         selected_account_id = edit_share_link.account_id
 
     if request.method == "POST":
@@ -987,19 +1067,19 @@ def share_disclaimer_manage_page(request):
 
     if request.method == "POST":
         lines = [
-            line.strip()
-            for line in (request.POST.get("lines") or "").splitlines()
-            if line.strip()
+            line.strip() for line in (request.POST.get("lines") or "").splitlines() if line.strip()
         ]
         if not lines:
             messages.error(request, "风险提示内容不能为空")
         else:
             config.is_enabled = bool(request.POST.get("is_enabled"))
             config.modal_enabled = bool(request.POST.get("modal_enabled"))
-            config.modal_title = (request.POST.get("modal_title") or "重要声明").strip() or "重要声明"
+            config.modal_title = (
+                request.POST.get("modal_title") or "重要声明"
+            ).strip() or "重要声明"
             config.modal_confirm_text = (
-                (request.POST.get("modal_confirm_text") or "我已知悉").strip() or "我已知悉"
-            )
+                request.POST.get("modal_confirm_text") or "我已知悉"
+            ).strip() or "我已知悉"
             config.lines = lines
             config.save(
                 update_fields=[

@@ -349,9 +349,29 @@ def test_public_snapshot_includes_asset_allocation(active_share_link, test_accou
 
 
 @pytest.mark.django_db
-def test_public_share_page_preserves_ratio_metrics_when_amounts_hidden(active_share_link, client):
+def test_public_share_page_preserves_ratio_metrics_when_amounts_hidden(
+    active_share_link, test_account, client
+):
+    PositionModel.objects.create(
+        account=test_account,
+        asset_code="000001.SH",
+        asset_name="平安银行",
+        asset_type="equity",
+        quantity=100,
+        available_quantity=100,
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("10.5000"),
+        market_value=Decimal("1050.00"),
+        unrealized_pnl=Decimal("50.00"),
+        unrealized_pnl_pct=5.0,
+        first_buy_date=timezone.now().date(),
+    )
     active_share_link.show_amounts = False
     active_share_link.save(update_fields=["show_amounts", "updated_at"])
+
+    test_account.total_return = 10.5
+    test_account.save(update_fields=["total_return"])
 
     response = client.get(f"/share/{active_share_link.short_code}/")
 
@@ -360,7 +380,44 @@ def test_public_share_page_preserves_ratio_metrics_when_amounts_hidden(active_sh
     assert "10.50%" in content
     assert "胜率" in content
     assert "总资产" in content
-    assert "--" in content
+    assert "50000.00" not in content
+    assert "1050.00" not in content
+
+
+@pytest.mark.django_db
+def test_public_snapshot_hides_amounts_but_keeps_allocation_percentages(
+    active_share_link, test_account
+):
+    PositionModel.objects.create(
+        account=test_account,
+        asset_code="000001.SH",
+        asset_name="平安银行",
+        asset_type="equity",
+        quantity=100,
+        available_quantity=100,
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("10.5000"),
+        market_value=Decimal("1050.00"),
+        unrealized_pnl=Decimal("50.00"),
+        unrealized_pnl_pct=5.0,
+        first_buy_date=timezone.now().date(),
+    )
+    active_share_link.show_amounts = False
+    active_share_link.save(update_fields=["show_amounts", "updated_at"])
+
+    client = APIClient()
+    response = client.get(f"/api/share/public/{active_share_link.short_code}/snapshot/")
+
+    assert response.status_code == 200
+    summary = response.data["positions"]["summary"]
+    assert "total_value" not in summary
+    assert "cash_balance" not in summary
+    assert "total_assets" not in summary
+    assert summary["position_count"] == 1
+    assert summary["asset_allocation"]
+    assert all("value" not in item for item in summary["asset_allocation"])
+    assert all("pct" in item for item in summary["asset_allocation"])
 
 
 @pytest.mark.django_db

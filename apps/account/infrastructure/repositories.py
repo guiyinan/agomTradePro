@@ -55,6 +55,26 @@ from apps.signal.infrastructure.models import InvestmentSignalModel
 class AccountRepository:
     """用户账户仓储"""
 
+    def list_investment_accounts(self, user_id: int) -> list[dict[str, Any]]:
+        """返回用户投资组合账户摘要，供 Interface 层只读展示。"""
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        accounts = (
+            SimulatedAccountModel._default_manager.filter(user_id=user_id)
+            .only("id", "account_name", "account_type", "total_value", "total_return")
+            .order_by("account_type", "-created_at")
+        )
+        return [
+            {
+                "id": account.id,
+                "account_name": account.account_name,
+                "account_type": account.account_type,
+                "total_value": float(account.total_value or 0),
+                "total_return": float(account.total_return or 0),
+            }
+            for account in accounts
+        ]
+
     def get_by_user_id(self, user_id: int) -> AccountProfile | None:
         """根据用户ID获取账户配置"""
         try:

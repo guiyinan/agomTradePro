@@ -3,6 +3,7 @@ Share Domain Entities Tests
 
 Tests for Domain layer entities (pure Python, no Django dependencies).
 """
+
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -16,6 +17,7 @@ from apps.share.domain.entities import (
     ShareLinkEntity,
     ShareSnapshotEntity,
     ShareStatus,
+    ShareTheme,
 )
 
 
@@ -68,6 +70,7 @@ class TestShareLinkEntity:
             short_code="TEST123456",
             title="Test Share",
             subtitle="Test Subtitle",
+            theme=ShareTheme.BLOOMBERG,
             share_level=ShareLevel.SNAPSHOT,
             status=ShareStatus.ACTIVE,
             password_hash=None,
@@ -103,9 +106,7 @@ class TestShareLinkEntity:
     def test_is_accessible_revoked(self, base_entity):
         """Test is_accessible returns False for revoked link."""
         now = datetime.now(UTC)
-        entity = ShareLinkEntity(
-            **{**base_entity.__dict__, "status": ShareStatus.REVOKED}
-        )
+        entity = ShareLinkEntity(**{**base_entity.__dict__, "status": ShareStatus.REVOKED})
         is_accessible, status = entity.is_accessible(now)
 
         assert is_accessible is False
@@ -115,9 +116,7 @@ class TestShareLinkEntity:
         """Test is_accessible returns False for expired link."""
         now = datetime.now(UTC)
         past = now - timedelta(hours=1)
-        entity = ShareLinkEntity(
-            **{**base_entity.__dict__, "expires_at": past}
-        )
+        entity = ShareLinkEntity(**{**base_entity.__dict__, "expires_at": past})
         is_accessible, status = entity.is_accessible(now)
 
         assert is_accessible is False
@@ -138,9 +137,7 @@ class TestShareLinkEntity:
         """Test is_accessible returns True when expires_at is in future."""
         now = datetime.now(UTC)
         future = now + timedelta(hours=1)
-        entity = ShareLinkEntity(
-            **{**base_entity.__dict__, "expires_at": future}
-        )
+        entity = ShareLinkEntity(**{**base_entity.__dict__, "expires_at": future})
         is_accessible, status = entity.is_accessible(now)
 
         assert is_accessible is True
@@ -148,9 +145,7 @@ class TestShareLinkEntity:
 
     def test_requires_password_true(self, base_entity):
         """Test requires_password returns True when password_hash is set."""
-        entity = ShareLinkEntity(
-            **{**base_entity.__dict__, "password_hash": "hashed_password"}
-        )
+        entity = ShareLinkEntity(**{**base_entity.__dict__, "password_hash": "hashed_password"})
         assert entity.requires_password() is True
 
     def test_requires_password_false(self, base_entity):
@@ -159,9 +154,7 @@ class TestShareLinkEntity:
 
     def test_requires_password_empty_string(self, base_entity):
         """Test requires_password returns False for empty password_hash."""
-        entity = ShareLinkEntity(
-            **{**base_entity.__dict__, "password_hash": ""}
-        )
+        entity = ShareLinkEntity(**{**base_entity.__dict__, "password_hash": ""})
         assert entity.requires_password() is False
 
     def test_get_visibility_config(self, base_entity):
@@ -276,7 +269,7 @@ class TestShareConfig:
         assert config.expires_at is None
         assert config.max_access_count is None
         assert config.allow_indexing is False
-        assert config.show_amounts is True
+        assert config.show_amounts is False
         assert config.show_positions is True
         assert config.show_transactions is True
         assert config.show_decision_summary is True

@@ -324,25 +324,21 @@ def profile_view(request):
 
     显示和编辑用户账户配置。
     """
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
     profile = request.user.account_profile
     portfolios = request.user.portfolios.all()
+    account_repo = AccountRepository()
 
-    # ⭐ 重构：直接从 SimulatedAccountModel 获取用户的投资组合
-    investment_accounts = SimulatedAccountModel._default_manager.filter(user=request.user)
+    investment_accounts = account_repo.list_investment_accounts(request.user.id)
 
     # 计算当前总资产（优先从投资组合获取）
     total_assets = 0.0
 
     # 优先使用投资组合的资产
-    if investment_accounts.exists():
+    if investment_accounts:
         for account in investment_accounts:
-            total_assets += float(account.total_value)
+            total_assets += float(account["total_value"])
     else:
         # 如果没有投资组合，使用Portfolio系统（向后兼容）
-        from apps.account.infrastructure.repositories import PortfolioRepository
-
         portfolio_repo = PortfolioRepository()
         for portfolio in portfolios.filter(is_active=True):
             snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)

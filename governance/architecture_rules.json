@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-12.v1",
+  "version": "2026-04-02.v1",
   "boundary_rules": [
     {
       "id": "regime_runtime_no_macro_impl_imports",
@@ -45,6 +45,17 @@
         "apps.decision_rhythm.infrastructure.models"
       ],
       "rationale": "Delegate via EventSubscriberRegistry and downstream repositories/gateways."
+    },
+    {
+      "id": "account_interface_no_simulated_trading_orm_imports",
+      "description": "Account interface must not import simulated_trading ORM models or migration commands directly.",
+      "source_module": "account",
+      "source_layers": ["interface"],
+      "forbidden_import_prefixes": [
+        "apps.simulated_trading.infrastructure.models",
+        "apps.simulated_trading.management.commands.migrate_account_ledger"
+      ],
+      "rationale": "Route cross-module reads through account-owned repositories or gateways."
     }
   ],
   "module_metadata": {
@@ -77,6 +88,11 @@
       "role": "aggregation",
       "patterns": ["Query Service"],
       "note": "Dashboard keeps cross-module reads in query/DTO boundaries."
+    },
+    "account": {
+      "role": "business",
+      "patterns": ["Repository", "Query Service"],
+      "note": "Interface reads from account-owned repositories instead of simulated_trading ORM imports."
     }
   }
 }
