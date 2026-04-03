@@ -66,6 +66,8 @@ agomtradepro/Scripts/python manage.py list_models
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，菜单窗口会立即返回。
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，原菜单窗口会自动退出，避免重复启动。
 - Windows 下如通过环境变量覆盖 `DJANGO_LOG_LEVEL`，启动链路会自动清理首尾空格，避免日志配置导致启动失败。
+- 从 2026-04-03 起，开发环境 `runserver` 会额外落盘到项目本地 `logs/` 目录，文件名格式为 `django-dev-YYYYMMDD-HHMMSS.log`，每次启动生成一个新文件。
+- 开发日志默认按单文件 `20MB` 轮转，保留 `5` 个备份；可用环境变量 `DJANGO_DEV_LOG_MAX_MB` 和 `DJANGO_DEV_LOG_BACKUP_COUNT` 覆盖。
 
 ### Streamlit 命令
 
