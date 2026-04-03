@@ -37,6 +37,15 @@ htmlcov/
 .tox/
 .hypothesis/
 test_db_*.sqlite3
+coverage-*.xml
+reports/coverage-*.xml
+reports/journey-results.xml
+reports/quality/*.json
+reports/security/bandit-report.json
+reports/security/pip-audit-report.json
+reports/security/pip-audit-requirements.json
+reports/security/safety-report.json
+reports/security/safety-requirements.json
 
 # Type checking
 .mypy_cache/
