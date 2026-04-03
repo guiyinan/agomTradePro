@@ -18,7 +18,7 @@
                 "items": [
                     {
                         "title": "相关页面",
-                        "content": "<ul><li><a href=\"/equity/screen/\">个股筛选</a></li><li><a href=\"/sector/\">板块分析</a></li><li><a href=\"/signal/manage/\">投资信号</a></li></ul>"
+                        "content": "<ul><li><a href=\"/equity/screen/\">个股筛选</a></li><li><a href=\"/rotation/assets/\">板块分析</a></li><li><a href=\"/signal/manage/\">投资信号</a></li></ul>"
                     }
                 ]
             }

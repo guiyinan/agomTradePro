@@ -224,7 +224,16 @@ class AIUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         """支持过滤的日志列表"""
         provider_id = request.query_params.get('provider')
-        provider_id = int(provider_id) if provider_id else None
+        if provider_id:
+            try:
+                provider_id = int(provider_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': 'provider 必须是整数'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            provider_id = None
         status_filter = request.query_params.get('status')
 
         use_case = ListUsageLogsUseCase()
@@ -254,4 +263,3 @@ class AIUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
             })
 
         return Response(result)
-

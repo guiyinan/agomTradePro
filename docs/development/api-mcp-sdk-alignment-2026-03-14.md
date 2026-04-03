@@ -57,6 +57,14 @@
 - `/api/pulse/calculate/`
 - `/api/decision/funnel/context/`
 
+## 统一账户口径（2026-04-01）
+
+- canonical 用户账户接口为 `/api/account/accounts/`
+- `/api/simulated-trading/accounts/` 保留为模块原生入口，与 `/api/account/accounts/` 对齐到同一套统一账户实现
+- `account_type` 是统一账户属性，当前支持 `real` / `simulated`
+- `/api/account/portfolios/*` 保留为旧账本兼容层，不再作为新能力的首选接入面
+- SDK/MCP 对外应优先暴露 `account_id`，仅在旧账本导入、观察员授权、历史流水导入场景下继续出现 `portfolio_id`
+
 ## 已修复的典型错配
 
 - macro SDK: 历史 module-first 前缀已清理，只保留 `/api/macro/*`

@@ -42,7 +42,7 @@ AUTHENTICATED_SURFACES = [
     pytest.param(config.simulated_trading_dashboard_url, "/simulated-trading/", id="simulated-trading"),
     pytest.param(config.audit_reports_url, "/audit/", id="audit"),
     pytest.param(config.filter_manage_url, "/filter/", id="filter"),
-    pytest.param(config.sector_analysis_url, "/sector/", id="sector"),
+    pytest.param(config.sector_analysis_url, "/rotation/assets/", id="sector"),
     pytest.param("/decision/workspace/", "/decision/workspace/", id="decision-workspace"),
     pytest.param("/ops/", "/ops/", id="ops-center"),
     pytest.param(config.admin_index, "/admin/", id="admin-index"),
@@ -152,99 +152,104 @@ def _assert_paths_are_navigable(page: Page, paths: list[str], allow_login_redire
         _assert_non_error_shell(page)
 
 
+def _run_db_operation(django_db_blocker, operation):
+    """Run ORM setup/cleanup in a worker thread and close SQLite connections deterministically."""
+    def _wrapped():
+        with django_db_blocker.unblock():
+            from django.db import close_old_connections, connections
+
+            close_old_connections()
+            try:
+                return operation()
+            finally:
+                connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_wrapped)
+        return future.result()
+
+
 def _cleanup_signal(asset_code: str, django_db_blocker) -> None:
     """Delete a created signal by unique asset code."""
     def _delete() -> None:
-        with django_db_blocker.unblock():
-            from apps.signal.infrastructure.models import InvestmentSignalModel
+        from apps.signal.infrastructure.models import InvestmentSignalModel
 
-            InvestmentSignalModel.objects.filter(asset_code=asset_code).delete()
+        InvestmentSignalModel.objects.filter(asset_code=asset_code).delete()
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_delete)
-        future.result()
+    _run_db_operation(django_db_blocker, _delete)
 
 
 def _seed_signal(asset_code: str, django_db_blocker, *, status: str = "pending") -> None:
     """Create a deterministic signal owned by the Playwright admin user."""
     def _create() -> None:
-        with django_db_blocker.unblock():
-            from django.contrib.auth import get_user_model
+        from django.contrib.auth import get_user_model
 
-            from apps.signal.infrastructure.models import InvestmentSignalModel
+        from apps.signal.infrastructure.models import InvestmentSignalModel
 
-            user = get_user_model().objects.get(username=config.admin_username)
-            InvestmentSignalModel.objects.create(
-                user=user,
-                asset_code=asset_code,
-                asset_class="EQUITY",
-                direction="LONG",
-                logic_desc=f"Seeded Playwright signal {asset_code}",
-                invalidation_logic="CN_PMI < 49",
-                invalidation_description="CN_PMI < 49",
-                invalidation_rules={
-                    "conditions": [{"indicator": "CN_PMI", "condition": "lt", "threshold": 49}],
-                    "logic": "AND",
-                },
-                target_regime="Recovery",
-                status=status,
-                rejection_reason="",
-            )
+        user = get_user_model().objects.get(username=config.admin_username)
+        InvestmentSignalModel.objects.create(
+            user=user,
+            asset_code=asset_code,
+            asset_class="EQUITY",
+            direction="LONG",
+            logic_desc=f"Seeded Playwright signal {asset_code}",
+            invalidation_logic="CN_PMI < 49",
+            invalidation_description="CN_PMI < 49",
+            invalidation_rules={
+                "conditions": [{"indicator": "CN_PMI", "condition": "lt", "threshold": 49}],
+                "logic": "AND",
+            },
+            target_regime="Recovery",
+            status=status,
+            rejection_reason="",
+        )
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_create)
-        future.result()
+    _run_db_operation(django_db_blocker, _create)
 
 
 def _cleanup_account(account_name: str, django_db_blocker) -> None:
     """Delete a created investment account by its unique test name."""
     def _delete() -> None:
-        with django_db_blocker.unblock():
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
-            SimulatedAccountModel.objects.filter(account_name=account_name).delete()
+        SimulatedAccountModel.objects.filter(account_name=account_name).delete()
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_delete)
-        future.result()
+    _run_db_operation(django_db_blocker, _delete)
 
 
 def _seed_account(account_name: str, django_db_blocker, *, account_type: str = "simulated") -> int:
     """Create a deterministic investment account for the Playwright admin user."""
     def _create() -> int:
-        with django_db_blocker.unblock():
-            from django.contrib.auth import get_user_model
+        from django.contrib.auth import get_user_model
 
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
-            user = get_user_model().objects.get(username=config.admin_username)
-            account = SimulatedAccountModel.objects.create(
-                user=user,
-                account_name=account_name,
-                account_type=account_type,
-                initial_capital=Decimal("100000.00"),
-                current_cash=Decimal("82000.00"),
-                current_market_value=Decimal("18000.00"),
-                total_value=Decimal("100000.00"),
-                total_return=0.0,
-                annual_return=0.0,
-                max_drawdown=0.0,
-                sharpe_ratio=0.0,
-                win_rate=0.0,
-                total_trades=0,
-                winning_trades=0,
-                is_active=True,
-                auto_trading_enabled=True,
-                max_position_pct=20.0,
-                max_total_position_pct=95.0,
-                commission_rate=0.0003,
-                slippage_rate=0.001,
-            )
-            return int(account.id)
+        user = get_user_model().objects.get(username=config.admin_username)
+        account = SimulatedAccountModel.objects.create(
+            user=user,
+            account_name=account_name,
+            account_type=account_type,
+            initial_capital=Decimal("100000.00"),
+            current_cash=Decimal("82000.00"),
+            current_market_value=Decimal("18000.00"),
+            total_value=Decimal("100000.00"),
+            total_return=0.0,
+            annual_return=0.0,
+            max_drawdown=0.0,
+            sharpe_ratio=0.0,
+            win_rate=0.0,
+            total_trades=0,
+            winning_trades=0,
+            is_active=True,
+            auto_trading_enabled=True,
+            max_position_pct=20.0,
+            max_total_position_pct=95.0,
+            commission_rate=0.0003,
+            slippage_rate=0.001,
+        )
+        return int(account.id)
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(_create)
-        return future.result()
+    return _run_db_operation(django_db_blocker, _create)
 
 
 @pytest.mark.e2e
@@ -397,8 +402,8 @@ class TestComprehensiveBusinessWorkflowShells:
         _assert_http_success(response, config.simulated_trading_positions_url)
         _assert_non_error_shell(authenticated_page, "/simulated-trading/")
 
-        assert authenticated_page.locator('button:has-text("创建新投资组合")').count() == 1
-        authenticated_page.click('button:has-text("创建新投资组合")')
+        assert authenticated_page.locator('button:has-text("创建新账户")').count() == 1
+        authenticated_page.click('button:has-text("创建新账户")')
         assert authenticated_page.locator("#createModal").count() == 1
         assert authenticated_page.locator("#createModal").is_visible()
 
@@ -411,7 +416,7 @@ class TestComprehensiveBusinessWorkflowShells:
 
         assert (
             authenticated_page.locator(".account-card").count() > 0
-            or authenticated_page.locator('text=您还没有创建任何投资组合').count() == 1
+            or authenticated_page.locator('text=您还没有创建任何账户').count() == 1
         ), "Account page should show cards or a clear empty state"
 
     def test_decision_workspace_exposes_stepper_and_account_context(self, authenticated_page: Page) -> None:
@@ -541,7 +546,7 @@ class TestComprehensiveInteractiveFlows:
             _assert_http_success(response, config.simulated_trading_positions_url)
             _assert_non_error_shell(authenticated_page, "/simulated-trading/")
 
-            authenticated_page.click('button:has-text("创建新投资组合")')
+            authenticated_page.click('button:has-text("创建新账户")')
             assert authenticated_page.locator("#createModal").is_visible()
 
             authenticated_page.fill("#account_name", account_name)

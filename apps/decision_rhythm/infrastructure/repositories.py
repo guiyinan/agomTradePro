@@ -1544,12 +1544,18 @@ class UnifiedRecommendationRepository:
         Returns:
             保存后的实体
         """
-        from .models import UnifiedRecommendationModel
+        from .models import DecisionFeatureSnapshotModel, UnifiedRecommendationModel
 
         # 转换 reason_codes 和其他列表字段
         reason_codes = recommendation.reason_codes if hasattr(recommendation, "reason_codes") else []
         source_signal_ids = recommendation.source_signal_ids if hasattr(recommendation, "source_signal_ids") else []
         source_candidate_ids = recommendation.source_candidate_ids if hasattr(recommendation, "source_candidate_ids") else []
+
+        snapshot_model = None
+        if getattr(recommendation, "feature_snapshot_id", ""):
+            snapshot_model = DecisionFeatureSnapshotModel.objects.filter(
+                snapshot_id=recommendation.feature_snapshot_id
+            ).first()
 
         model, created = UnifiedRecommendationModel.objects.update_or_create(
             recommendation_id=recommendation.recommendation_id,
@@ -1581,11 +1587,15 @@ class UnifiedRecommendationRepository:
                 "max_capital": recommendation.max_capital,
                 "source_signal_ids": source_signal_ids,
                 "source_candidate_ids": source_candidate_ids,
+                "feature_snapshot": snapshot_model,
                 "status": recommendation.status.value if hasattr(recommendation.status, "value") else str(recommendation.status),
+                "user_action": recommendation.user_action.value if hasattr(recommendation.user_action, "value") else str(recommendation.user_action),
+                "user_action_note": getattr(recommendation, "user_action_note", ""),
+                "user_action_at": getattr(recommendation, "user_action_at", None),
             },
         )
 
-        return recommendation
+        return self._model_to_entity(model)
 
     def save_feature_snapshot(self, snapshot) -> Any:
         """
@@ -1660,6 +1670,54 @@ class UnifiedRecommendationRepository:
             query = query.filter(account_id=account_id)
         model = query.select_related("feature_snapshot").first()
         return self._model_to_entity(model) if model else None
+
+    def get_active_by_key(
+        self,
+        *,
+        account_id: str,
+        security_code: str,
+        side: str,
+        exclude_conflicts: bool = True,
+    ) -> Any | None:
+        """Return the latest non-conflict recommendation for an aggregation key."""
+        from .models import UnifiedRecommendationModel
+
+        queryset = UnifiedRecommendationModel.objects.filter(
+            account_id=account_id,
+            security_code=security_code,
+            side=side,
+        )
+        if exclude_conflicts:
+            queryset = queryset.exclude(status="CONFLICT")
+        model = queryset.select_related("feature_snapshot").order_by("-created_at").first()
+        return self._model_to_entity(model) if model else None
+
+    def append_source_candidate_ids(
+        self,
+        recommendation_id: str,
+        candidate_ids: list[str],
+    ) -> Any | None:
+        """Append candidate ids to an existing recommendation without duplicates."""
+        from .models import UnifiedRecommendationModel
+
+        model = UnifiedRecommendationModel.objects.filter(
+            recommendation_id=recommendation_id
+        ).first()
+        if model is None:
+            return None
+
+        existing_ids = list(model.source_candidate_ids or [])
+        merged_ids = existing_ids[:]
+        for candidate_id in candidate_ids:
+            if candidate_id and candidate_id not in merged_ids:
+                merged_ids.append(candidate_id)
+
+        if merged_ids != existing_ids:
+            model.source_candidate_ids = merged_ids
+            model.save(update_fields=["source_candidate_ids", "updated_at"])
+
+        model.refresh_from_db()
+        return self._model_to_entity(model)
 
     def get_by_recommendation_ids(
         self,

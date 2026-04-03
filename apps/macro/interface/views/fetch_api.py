@@ -241,6 +241,11 @@ def api_fetch_data(request):
             'errors': response.errors
         })
 
+    except (json.JSONDecodeError, ValueError) as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'无效的请求数据: {str(e)}'
+        }, status=400)
     except Exception as e:
         logger.exception("数据抓取 API 错误")
         return JsonResponse({

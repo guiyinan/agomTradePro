@@ -16,6 +16,86 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
     """注册 SimulatedTrading 相关的 MCP 工具"""
 
     @server.tool()
+    def list_accounts(
+        account_type: str | None = None,
+        status: str | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """
+        获取统一账户列表。
+
+        Args:
+            account_type: 可选，real 或 simulated
+            status: 账户状态过滤（active/inactive/closed）
+            limit: 返回数量限制
+        """
+        client = AgomTradeProClient()
+        return client.account.list_accounts(
+            account_type=account_type,
+            active_only=status not in {"inactive", "closed"},
+            limit=limit,
+        )
+
+    @server.tool()
+    def get_account(account_id: int) -> dict[str, Any]:
+        """
+        获取统一账户详情。
+        """
+        client = AgomTradeProClient()
+        return client.account.get_account(account_id)
+
+    @server.tool()
+    def create_account(
+        name: str,
+        initial_capital: float,
+        account_type: str = "simulated",
+    ) -> dict[str, Any]:
+        """
+        创建统一账户。
+        """
+        client = AgomTradeProClient()
+        try:
+            return client.account.create_account(
+                name=name,
+                initial_capital=initial_capital,
+                account_type=account_type,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": {
+                    "name": name,
+                    "initial_capital": initial_capital,
+                    "account_type": account_type,
+                },
+            }
+
+    @server.tool()
+    def get_account_positions(account_id: int) -> list[dict[str, Any]]:
+        """
+        获取统一账户持仓。
+        """
+        client = AgomTradeProClient()
+        return client.account.get_account_positions(account_id)
+
+    @server.tool()
+    def get_account_performance(
+        account_id: int,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        获取统一账户绩效。
+        """
+        client = AgomTradeProClient()
+        return client.account.get_account_performance(
+            account_id=account_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    @server.tool()
     def list_simulated_accounts(
         status: str | None = None,
         limit: int = 20,
@@ -34,7 +114,11 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             >>> accounts = list_simulated_accounts(status="active")
         """
         client = AgomTradeProClient()
-        return client.simulated_trading.list_accounts(status=status, limit=limit)
+        return client.simulated_trading.list_accounts(
+            status=status,
+            account_type="simulated",
+            limit=limit,
+        )
 
     @server.tool()
     def get_simulated_account(account_id: int) -> dict[str, Any]:
@@ -51,7 +135,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             >>> account = get_simulated_account(1)
         """
         client = AgomTradeProClient()
-        return client.simulated_trading.get_account(account_id)
+        return client.account.get_account(account_id)
 
     @server.tool()
     def delete_simulated_account(account_id: int) -> dict[str, Any]:
@@ -108,7 +192,12 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         client = AgomTradeProClient()
         parsed_date = date.fromisoformat(start_date)
         try:
-            return client.simulated_trading.create_account(name, initial_capital, parsed_date)
+            return client.simulated_trading.create_account(
+                name,
+                initial_capital,
+                parsed_date,
+                account_type="simulated",
+            )
         except Exception as exc:
             return {
                 "success": False,
@@ -168,7 +257,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             >>> positions = get_simulated_positions(account_id=1)
         """
         client = AgomTradeProClient()
-        return client.simulated_trading.get_positions(account_id)
+        return client.account.get_account_positions(account_id)
 
     @server.tool()
     def get_simulated_performance(account_id: int) -> dict[str, Any]:
@@ -186,7 +275,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             >>> print(f"总收益: {perf['total_return']:.2%}")
         """
         client = AgomTradeProClient()
-        return client.simulated_trading.get_performance(account_id)
+        return client.account.get_account_performance(account_id)
 
     @server.tool()
     def reset_simulated_account(

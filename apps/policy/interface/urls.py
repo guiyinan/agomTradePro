@@ -4,47 +4,29 @@ Interface Layer - URL Configuration for Policy Management
 定义政策管理相关的 URL 路由。
 """
 
-from django.urls import include, path
+from django.urls import path
 from django.views.generic import RedirectView
-from rest_framework.routers import DefaultRouter
 
-from .views import (
-    AutoAssignAuditsView,
-    BulkReviewView,
+from .page_views import (
     PolicyEventCreateView,
     PolicyEventsPageView,
     PolicyKeywordCreateView,
     PolicyKeywordUpdateView,
-    PolicyLevelKeywordViewSet,
-    PolicyStatusView,
-    ReviewPolicyItemView,
     RSSFetchLogListView,
-    RSSFetchLogViewSet,
     RSSKeywordListView,
     RSSReaderView,
-    RSSSourceConfigViewSet,
     RSSSourceCreateView,
     RSSSourceListView,
     RSSSourceUpdateView,
-    # 工作台页面视图
     WorkbenchView,
 )
 
 app_name = "policy"
 
-# REST API Router
-router = DefaultRouter()
-router.register(r'rss/sources', RSSSourceConfigViewSet, basename='rss-source')
-router.register(r'rss/logs', RSSFetchLogViewSet, basename='rss-log')
-router.register(r'rss/keywords', PolicyLevelKeywordViewSet, basename='rss-keyword')
-
 urlpatterns = [
     path("", RedirectView.as_view(url='/policy/workbench/', permanent=False), name="root-redirect"),
     # 工作台页面 (HTML)
     path("workbench/", WorkbenchView.as_view(), name="workbench"),
-
-    # 政策状态
-    path("status/", PolicyStatusView.as_view(), name="status"),
 
     # ========== 页面路由 ==========
     path("events/", PolicyEventsPageView.as_view(), name="events-page"),
@@ -59,11 +41,5 @@ urlpatterns = [
     path("rss/keywords/<int:keyword_id>/edit/", PolicyKeywordUpdateView.as_view(), name="rss-keyword-edit"),
     path("rss/logs/", RSSFetchLogListView.as_view(), name="rss-logs"),
 
-    # ========== 审核相关API ==========
-    path("audit/review/<int:policy_log_id>/", ReviewPolicyItemView.as_view(), name="review-policy"),
-    path("audit/bulk_review/", BulkReviewView.as_view(), name="bulk-review"),
-    path("audit/auto_assign/", AutoAssignAuditsView.as_view(), name="auto-assign"),
-
     # Note: API routes are now handled by api_urls.py mounted at /api/policy/
-    # The router is defined here for reference but not included to avoid duplication
 ]

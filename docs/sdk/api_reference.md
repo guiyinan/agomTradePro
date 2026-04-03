@@ -122,6 +122,11 @@ client.backtest.get_equity_curve(backtest_id) -> list[dict]
 ## Account Module
 
 ```python
+client.account.list_accounts(account_type=None, active_only=True, limit=100) -> list[dict]
+client.account.get_account(account_id) -> dict
+client.account.create_account(name, initial_capital, account_type="simulated", ...) -> dict
+client.account.get_account_positions(account_id, asset_code=None) -> list[dict]
+client.account.get_account_performance(account_id, start_date=None, end_date=None) -> dict
 client.account.get_portfolios(limit) -> list[Portfolio]
 client.account.get_portfolio(portfolio_id) -> Portfolio
 client.account.get_positions(portfolio_id, asset_code, limit) -> list[Position]
@@ -129,6 +134,10 @@ client.account.create_position(portfolio_id, asset_code, quantity, price) -> Pos
 client.account.update_position(position_id, quantity, price) -> Position
 client.account.delete_position(position_id) -> None
 ```
+
+Unified account methods are the canonical public surface. `portfolio` methods are compatibility helpers for the legacy account ledger.
+
+Canonical REST paths for these methods are under `/api/account/accounts/*`. The module-native `/api/simulated-trading/accounts/*` endpoints remain available as implementation-aligned aliases.
 
 ### Portfolio
 
@@ -161,9 +170,9 @@ client.account.calculate_trading_cost(config_id, action, amount, is_shanghai) ->
 ## Simulated Trading Module
 
 ```python
-client.simulated_trading.list_accounts(status, limit) -> list
+client.simulated_trading.list_accounts(status=None, account_type=None, limit=100) -> list
 client.simulated_trading.get_account(account_id) -> dict
-client.simulated_trading.create_account(name, initial_capital, start_date) -> dict
+client.simulated_trading.create_account(name, initial_capital, start_date, account_type="simulated") -> dict
 client.simulated_trading.execute_trade(account_id, asset_code, side, quantity, price) -> dict
 client.simulated_trading.get_positions(account_id, asset_code) -> list
 client.simulated_trading.get_performance(account_id, start_date, end_date) -> dict

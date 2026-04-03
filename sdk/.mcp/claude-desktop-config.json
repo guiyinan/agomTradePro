@@ -8,7 +8,7 @@
         "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
         "AGOMTRADEPRO_API_TOKEN": "your-api-token-here",
         "AGOMTRADEPRO_MCP_ROLE": "viewer",
-        "AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID": "1",
+        "AGOMTRADEPRO_DEFAULT_ACCOUNT_ID": "1",
         "PYTHONPATH": "/path/to/agomTradePro/sdk"
       }
     }

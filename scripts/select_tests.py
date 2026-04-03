@@ -11,12 +11,21 @@
 """
 
 import argparse
+import glob
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Set
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+APP_LOCAL_TEST_DIRS = sorted(
+    f"{path.relative_to(PROJECT_ROOT).as_posix()}/"
+    for path in (PROJECT_ROOT / "apps").glob("*/tests")
+    if path.is_dir()
+)
 
 
 # 模块到测试的映射表
@@ -28,11 +37,16 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
 
     # 宏观相关
     "macro": [
+        "tests/api/test_macro_api_edges.py",
         "tests/integration/macro/",
+        "tests/unit/domain/test_macro_entities.py",
     ],
 
     # Regime 模块
     "regime": [
+        "tests/api/test_regime_action_api.py",
+        "tests/api/test_regime_navigator_api.py",
+        "tests/api/test_regime_api_edges.py",
         "tests/unit/regime/",
         "tests/integration/regime/",
         "tests/unit/regime/test_config_threshold_regression.py",
@@ -40,6 +54,8 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
 
     # Policy 模块
     "policy": [
+        "tests/api/test_policy_api_edges.py",
+        "tests/api/test_policy_workbench_api_edges.py",
         "tests/unit/policy/",
         "tests/integration/policy/",
     ],
@@ -51,6 +67,7 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
 
     # Audit 模块
     "audit": [
+        "tests/api/test_audit_api_edges.py",
         "tests/integration/audit/",
         "tests/unit/domain/audit/",
         "tests/unit/application/audit/",
@@ -58,69 +75,217 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
 
     # Backtest 模块
     "backtest": [
+        "tests/api/test_backtest_api_edges.py",
         "tests/integration/backtest/",
         "tests/integration/test_backtesting_flow.py",
+        "tests/unit/domain/test_backtest_services.py",
     ],
 
     # Alpha 模块
     "alpha": [
+        "tests/api/test_alpha_api_edges.py",
         "tests/integration/test_alpha_*.py",
+        "tests/unit/test_alpha*.py",
         "tests/e2e/test_alpha_dashboard_e2e.py",
     ],
 
     "alpha_trigger": [
-        "tests/integration/test_alpha_*.py",
+        "tests/api/test_alpha_trigger_api_edges.py",
+        "tests/unit/test_alpha_trigger*.py",
     ],
 
     # Account 模块
     "account": [
+        "tests/api/test_account_api_edges.py",
         "tests/integration/account/",
-        "tests/unit/account/",
+        "tests/integration/test_account_*.py",
+        "tests/integration/test_unified_account_api.py",
+        "tests/unit/test_account*.py",
+    ],
+
+    # Agent Runtime
+    "agent_runtime": [
+        "tests/api/test_agent_runtime_api.py",
+        "tests/migrations/test_agent_runtime_migrations.py",
+        "tests/unit/agent_runtime/",
+        "tests/unit/test_agent_runtime*.py",
+    ],
+
+    # AI Capability
+    "ai_capability": [
+        "tests/api/test_ai_capability_api_edges.py",
+        "tests/unit/test_ai_capability/",
+    ],
+
+    # AI Provider
+    "ai_provider": [
+        "tests/api/test_ai_provider_api_edges.py",
+        "tests/unit/test_ai_provider*.py",
+        "tests/unit/domain/test_ai_provider*.py",
     ],
 
     # Simulated Trading
     "simulated_trading": [
+        "tests/api/test_simulated_trading_api_edges.py",
         "tests/integration/simulated_trading/",
         "tests/unit/domain/simulated_trading/",
     ],
 
     # Strategy
     "strategy": [
+        "tests/api/test_strategy_api_edges.py",
         "tests/integration/strategy/",
         "tests/unit/domain/strategy/",
-        "tests/unit/application/strategy/",
+        "tests/unit/strategy/",
     ],
 
     # Equity
     "equity": [
+        "tests/api/test_equity_api_edges.py",
         "tests/integration/test_equity_*.py",
         "tests/unit/equity/",
+        "tests/unit/test_equity*.py",
+        "tests/unit/domain/test_equity*.py",
     ],
 
     # Fund
     "fund": [
+        "tests/api/test_fund_api_edges.py",
         "tests/integration/test_fund_*.py",
+        "tests/unit/domain/test_fund*.py",
+    ],
+
+    # Beta Gate
+    "beta_gate": [
+        "tests/api/test_beta_gate_api_edges.py",
+        "tests/unit/test_beta_gate*.py",
     ],
 
     # Decision Rhythm
     "decision_rhythm": [
+        "tests/api/test_decision_rhythm_api_edges.py",
+        "tests/api/test_workspace_execution_api_edges.py",
+        "tests/api/test_workspace_recommendations_api_edges.py",
         "tests/unit/decision_rhythm/",
+        "tests/unit/test_decision_rhythm*.py",
+        "tests/unit/test_decision_workspace*.py",
         "tests/guardrails/test_decision_rhythm_api_error_mapping.py",
     ],
 
     # Events
     "events": [
+        "tests/api/test_events_api_edges.py",
         "tests/integration/events/",
+        "tests/unit/domain/test_events_services.py",
+    ],
+
+    # Factor
+    "factor": [
+        "tests/api/test_factor_api_edges.py",
+        "tests/integration/test_factor_*.py",
+        "tests/unit/domain/test_factor*.py",
+    ],
+
+    # Asset Analysis
+    "asset_analysis": [
+        "tests/integration/asset_analysis/",
+        "tests/integration/test_*asset_analysis*.py",
+        "tests/unit/test_asset_analysis.py",
+    ],
+
+    # Filter
+    "filter": [
+        "tests/api/test_filter_api_edges.py",
+        "tests/api/test_macro_filter_compat_api.py",
+        "tests/unit/domain/test_filter*.py",
+    ],
+
+    # Hedge
+    "hedge": [
+        "tests/api/test_hedge_api.py",
+        "tests/unit/domain/test_hedge*.py",
+    ],
+
+    # Prompt
+    "prompt": [
+        "tests/api/test_prompt_api_edges.py",
+        "tests/unit/domain/test_prompt*.py",
+    ],
+
+    # Pulse
+    "pulse": [
+        "tests/api/test_pulse_api.py",
+    ],
+
+    # Realtime
+    "realtime": [
+        "tests/api/test_realtime_api.py",
+        "tests/integration/test_realtime_*.py",
+        "tests/unit/test_realtime*.py",
     ],
 
     # Sector
     "sector": [
+        "tests/api/test_sector_api_edges.py",
         "tests/unit/sector/",
+        "tests/unit/domain/test_sector*.py",
+    ],
+
+    # Setup Wizard
+    "setup_wizard": [
+        "tests/integration/test_setup_wizard*.py",
+        "tests/unit/test_setup_wizard*.py",
+    ],
+
+    # Task Monitor
+    "task_monitor": [
+        "tests/api/test_task_monitor_api.py",
+        "tests/unit/test_task_monitor.py",
+    ],
+
+    # Terminal
+    "terminal": [
+        "tests/api/test_terminal_api_edges.py",
+        "tests/unit/test_terminal*.py",
     ],
 
     # Dashboard
     "dashboard": [
+        "tests/api/test_dashboard_api_edges.py",
+        "apps/dashboard/tests/",
         "tests/e2e/",
+    ],
+
+    # Market Data
+    "market_data": [
+        "tests/api/test_market_data_api_edges.py",
+        "apps/market_data/tests/",
+    ],
+
+    # Share
+    "share": [
+        "apps/share/tests/",
+    ],
+
+    # Sentiment
+    "sentiment": [
+        "tests/api/test_sentiment_api_edges.py",
+        "tests/unit/test_sentiment*.py",
+        "tests/unit/domain/test_sentiment*.py",
+    ],
+
+    # Rotation
+    "rotation": [
+        "tests/api/test_rotation_api_edges.py",
+        "tests/unit/test_rotation_integration_service.py",
+        "tests/unit/domain/test_rotation*.py",
+    ],
+
+    # Signal
+    "signal": [
+        "tests/api/test_signal_api_edges.py",
+        "tests/integration/signal/",
+        "tests/unit/domain/test_signal*.py",
     ],
 }
 
@@ -135,9 +300,20 @@ CORE_GUARDRAIL_TESTS = [
 
 # 全量测试路径（当无法确定范围或检测到广泛变更时使用）
 FULL_TEST_SUITES = [
+    "tests/api/",
+    "tests/migrations/",
+    "tests/unit/",
     "tests/guardrails/",
     "tests/integration/",
-]
+] + APP_LOCAL_TEST_DIRS
+
+
+def get_app_local_tests(module: str) -> List[str]:
+    """Return app-local pytest directories for a changed module."""
+    app_tests_dir = PROJECT_ROOT / "apps" / module / "tests"
+    if not app_tests_dir.exists():
+        return []
+    return [f"{app_tests_dir.relative_to(PROJECT_ROOT).as_posix()}/"]
 
 
 def get_changed_files(base: str, head: str) -> List[str]:
@@ -212,17 +388,14 @@ def select_tests(modules: Set[str], changed_files: List[str]) -> List[str]:
 
     # 根据模块映射选择测试
     for module in modules:
+        tests.update(get_app_local_tests(module))
         if module in MODULE_TEST_MAP:
             module_tests = MODULE_TEST_MAP[module]
             for test_pattern in module_tests:
                 # 展开通配符
-                if "*" in test_pattern:
-                    base_path = test_pattern.split("*")[0].rsplit("/", 1)[0]
-                    if os.path.exists(base_path):
-                        for root, dirs, files in os.walk(base_path):
-                            for f in files:
-                                if f.startswith("test_") and f.endswith(".py"):
-                                    tests.add(os.path.join(root, f))
+                if glob.has_magic(test_pattern):
+                    for match in glob.glob(test_pattern, recursive=True):
+                        tests.add(match.replace("\\", "/"))
                 else:
                     tests.add(test_pattern)
 

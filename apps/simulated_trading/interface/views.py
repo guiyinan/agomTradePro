@@ -35,6 +35,7 @@ from apps.simulated_trading.application.use_cases import (
     ListAccountsUseCase,
 )
 from apps.market_data.application.price_service import UnifiedPriceService
+from apps.simulated_trading.domain.entities import AccountType
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionNotificationConfigModel,
     DailyInspectionReportModel,
@@ -120,6 +121,30 @@ def _delete_account_with_summary(account: SimulatedAccountModel) -> dict:
     return summary
 
 
+def _parse_iso_date(raw_value: str, *, field_name: str) -> date:
+    """Parse ISO date params from query strings and request bodies."""
+    try:
+        return date.fromisoformat(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{field_name} 必须是 YYYY-MM-DD 格式日期') from exc
+
+
+def _parse_positive_int(raw_value, *, field_name: str, default: int) -> int:
+    """Parse positive integer params used by list endpoints."""
+    if raw_value in (None, ""):
+        return default
+
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{field_name} 必须是整数') from exc
+
+    if value <= 0:
+        raise ValueError(f'{field_name} 必须大于 0')
+
+    return value
+
+
 # ============================================================================
 # 页面视图（前端）
 # ============================================================================
@@ -155,10 +180,10 @@ def account_detail_page(request, account_id):
 @require_http_methods(["GET", "POST"])
 def my_accounts_page(request):
     """
-    我的投资组合页面
+    我的账户页面
 
-    显示当前用户的所有投资组合（实仓+模拟仓）
-    支持创建新的投资组合
+    显示当前用户的所有账户，account_type 仅作为账户属性展示。
+    支持创建新账户。
 
     GET /simulated-trading/my-accounts/
     POST /simulated-trading/my-accounts/
@@ -168,7 +193,7 @@ def my_accounts_page(request):
     from django.contrib import messages
 
     if request.method == "POST":
-        # 创建新的投资组合
+        # 创建新账户
         account_type = request.POST.get("account_type")
         account_name = request.POST.get("account_name")
         initial_capital = Decimal(request.POST.get("initial_capital", "100000"))
@@ -186,7 +211,7 @@ def my_accounts_page(request):
             messages.error(request, "初始资金必须大于0")
             return redirect("/simulated-trading/my-accounts/")
 
-        # 创建投资组合
+        # 创建账户
         account = SimulatedAccountModel._default_manager.create(
             user=request.user,
             account_name=account_name,
@@ -196,11 +221,11 @@ def my_accounts_page(request):
             total_value=initial_capital,
         )
 
-        type_label = "实仓" if account_type == "real" else "模拟仓"
+        type_label = "真实账户" if account_type == "real" else "模拟账户"
         messages.success(request, f"{type_label}创建成功！")
         return redirect("/simulated-trading/my-accounts/")
 
-    # GET 请求：显示用户的投资组合列表
+    # GET 请求：显示用户账户列表
     from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
     facade = get_simulated_trading_facade()
@@ -208,9 +233,6 @@ def my_accounts_page(request):
         user=request.user
     ).order_by('-created_at')
 
-    # 分类显示
-    real_accounts = []
-    simulated_accounts = []
     total_assets = 0
 
     for account in accounts:
@@ -220,7 +242,7 @@ def my_accounts_page(request):
         account_data = {
             'id': account.id,
             'name': account.account_name,
-            'type': '实仓' if account.account_type == 'real' else '模拟仓',
+            'type': '真实账户' if account.account_type == 'real' else '模拟账户',
             'type_code': account.account_type,
             'initial_capital': float(account.initial_capital),
             'current_cash': float(account.current_cash),
@@ -229,19 +251,12 @@ def my_accounts_page(request):
             'is_active': account.is_active,
         }
 
-        if account.account_type == 'real':
-            real_accounts.append(account_data)
-        else:
-            simulated_accounts.append(account_data)
-
         total_assets += float(account.total_value)
 
     context = {
-        'real_accounts': real_accounts,
-        'simulated_accounts': simulated_accounts,
         'total_assets': total_assets,
         'user': request.user,
-        'accounts': accounts,  # 所有账户的合并列表
+        'accounts': accounts,
     }
     return render(request, 'simulated_trading/my_accounts.html', context)
 
@@ -252,10 +267,10 @@ def my_account_detail_page(request, account_id):
     """
     我的账户详情页面
 
-    显示指定投资组合的详细信息、持仓和交易记录
+    显示指定账户的详细信息、持仓和交易记录
     GET /simulated-trading/my-accounts/{id}/
     """
-    # 获取用户的投资组合
+    # 获取用户的账户
     account = get_object_or_404(
         SimulatedAccountModel,
         id=account_id,
@@ -273,7 +288,7 @@ def my_account_detail_page(request, account_id):
 
     context = {
         'account': account,
-        'account_type': '实仓' if account.account_type == 'real' else '模拟仓',
+        'account_type': '真实账户' if account.account_type == 'real' else '模拟账户',
         'account_type_code': account.account_type,
         'positions': positions,
         'trades': trades,
@@ -289,7 +304,7 @@ def my_positions_page(request, account_id):
     """
     我的持仓页面
 
-    显示指定投资组合的所有持仓
+    显示指定账户的所有持仓
     GET /simulated-trading/my-accounts/{id}/positions/
     """
     account = get_object_or_404(
@@ -302,7 +317,7 @@ def my_positions_page(request, account_id):
 
     context = {
         'account': account,
-        'account_type': '实仓' if account.account_type == 'real' else '模拟仓',
+        'account_type': '真实账户' if account.account_type == 'real' else '模拟账户',
         'account_type_code': account.account_type,
         'positions': positions,
         'user': request.user,
@@ -316,7 +331,7 @@ def my_trades_page(request, account_id):
     """
     我的交易记录页面
 
-    显示指定投资组合的所有交易记录
+    显示指定账户的所有交易记录
     GET /simulated-trading/my-accounts/{id}/trades/
     """
     account = get_object_or_404(
@@ -333,7 +348,7 @@ def my_trades_page(request, account_id):
 
     context = {
         'account': account,
-        'account_type': '实仓' if account.account_type == 'real' else '模拟仓',
+        'account_type': '真实账户' if account.account_type == 'real' else '模拟账户',
         'account_type_code': account.account_type,
         'trades': trades,
         'buy_count': buy_count,
@@ -413,14 +428,20 @@ class AccountListAPIView(APIView):
         self.account_repo = DjangoSimulatedAccountRepository()
 
     @extend_schema(
-        summary="获取模拟账户列表",
-        description="获取所有模拟账户（支持 active_only 过滤）",
+        summary="获取统一账户列表",
+        description="获取当前用户的账户列表，支持按 active_only 和 account_type 过滤。",
         parameters=[
             OpenApiParameter(
                 name='active_only',
                 type=OpenApiTypes.BOOL,
                 location=OpenApiParameter.QUERY,
                 description='是否只返回活跃账户（默认 true）'
+            ),
+            OpenApiParameter(
+                name='account_type',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='账户类型过滤：real 或 simulated'
             ),
         ],
         responses={200: AccountListResponseSerializer},
@@ -429,10 +450,11 @@ class AccountListAPIView(APIView):
         """
         GET /api/simulated-trading/accounts/
 
-        获取模拟账户列表
+        获取账户列表
 
         Query Parameters:
         - active_only: true/false（默认 true）
+        - account_type: real/simulated（可选）
 
         Response:
         {
@@ -448,12 +470,24 @@ class AccountListAPIView(APIView):
             )
 
         active_only = request.query_params.get('active_only', 'true').lower() == 'true'
+        raw_account_type = request.query_params.get('account_type')
+        account_type = None
+        if raw_account_type:
+            if raw_account_type not in {"real", "simulated"}:
+                return Response(
+                    {'success': False, 'error': 'account_type 必须是 real 或 simulated'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            account_type = AccountType(raw_account_type)
 
         use_case = ListAccountsUseCase(self.account_repo)
         accounts = use_case.execute(
             active_only=active_only,
             user_id=request.user.id,
+            account_type=account_type,
         )
+        if account_type is not None:
+            accounts = [account for account in accounts if account.account_type == account_type]
 
         # 序列化账户
         account_list = []
@@ -495,8 +529,8 @@ class AccountListAPIView(APIView):
         })
 
     @extend_schema(
-        summary="创建模拟账户",
-        description="创建新的模拟交易账户",
+        summary="创建账户",
+        description="创建新的统一账户，账户类型通过 account_type 指定。",
         request=CreateAccountRequestSerializer,
         responses={200: AccountResponseSerializer},
     )
@@ -504,11 +538,12 @@ class AccountListAPIView(APIView):
         """
         POST /api/simulated-trading/accounts/
 
-        创建模拟账户
+        创建账户
 
         Request Body:
         {
             "account_name": "测试账户1",
+            "account_type": "simulated",
             "initial_capital": 100000.00,
             "max_position_pct": 20.0,
             "stop_loss_pct": 10.0,
@@ -533,6 +568,7 @@ class AccountListAPIView(APIView):
             account = use_case.execute(
                 account_name=data['account_name'],
                 initial_capital=float(data['initial_capital']),
+                account_type=AccountType(data.get('account_type', 'simulated')),
                 max_position_pct=data.get('max_position_pct', 20.0),
                 stop_loss_pct=data.get('stop_loss_pct'),
                 commission_rate=data.get('commission_rate', 0.0003),
@@ -867,17 +903,28 @@ class TradeListAPIView(APIView):
         asset_code = request.query_params.get('asset_code')
         action = request.query_params.get('action')
 
+        try:
+            parsed_start_date = _parse_iso_date(start_date, field_name='start_date') if start_date else None
+            parsed_end_date = _parse_iso_date(end_date, field_name='end_date') if end_date else None
+        except ValueError as exc:
+            return Response(
+                {'success': False, 'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if parsed_start_date and parsed_end_date and parsed_start_date > parsed_end_date:
+            return Response(
+                {'success': False, 'error': 'start_date 不能晚于 end_date'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         filtered_trades = []
         for trade in all_trades:
             # 日期过滤
-            if start_date:
-                start = date.fromisoformat(start_date)
-                if trade.execution_date < start:
-                    continue
-            if end_date:
-                end = date.fromisoformat(end_date)
-                if trade.execution_date > end:
-                    continue
+            if parsed_start_date and trade.execution_date < parsed_start_date:
+                continue
+            if parsed_end_date and trade.execution_date > parsed_end_date:
+                continue
 
             # 资产过滤
             if asset_code and trade.asset_code != asset_code:
@@ -1263,15 +1310,27 @@ class EquityCurveAPIView(APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        if not start_date:
-            start_date = account.start_date
-        else:
-            start_date = date.fromisoformat(start_date)
+        try:
+            if not start_date:
+                start_date = account.start_date
+            else:
+                start_date = _parse_iso_date(start_date, field_name='start_date')
 
-        if not end_date:
-            end_date = date.today()
-        else:
-            end_date = date.fromisoformat(end_date)
+            if not end_date:
+                end_date = date.today()
+            else:
+                end_date = _parse_iso_date(end_date, field_name='end_date')
+        except ValueError as exc:
+            return Response(
+                {'success': False, 'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if start_date > end_date:
+            return Response(
+                {'success': False, 'error': 'start_date 不能晚于 end_date'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 获取净值曲线
         try:
@@ -1461,15 +1520,29 @@ class DailyInspectionReportListAPIView(APIView):
         if isinstance(account_model, Response):
             return account_model
 
-        limit = int(request.query_params.get("limit", 20))
-        inspection_date_raw = request.query_params.get("inspection_date")
+        try:
+            limit = _parse_positive_int(
+                request.query_params.get("limit", 20),
+                field_name='limit',
+                default=20,
+            )
+            inspection_date = (
+                _parse_iso_date(request.query_params.get("inspection_date"), field_name='inspection_date')
+                if request.query_params.get("inspection_date")
+                else None
+            )
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
             "-inspection_date",
             "-updated_at",
         )
-        if inspection_date_raw:
-            queryset = queryset.filter(inspection_date=date.fromisoformat(inspection_date_raw))
+        if inspection_date:
+            queryset = queryset.filter(inspection_date=inspection_date)
         reports = queryset[:limit]
 
         payload = []

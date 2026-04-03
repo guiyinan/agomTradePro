@@ -1,25 +1,24 @@
 """
-板块分析模块 - URL 路由配置
+Sector page routes.
+
+板块分析的用户入口已收口到 rotation 页面，旧 sector 页面路径仅保留跳转。
 """
 
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.shortcuts import redirect
+from django.urls import path
 
-from .views import SectorDataUpdateView, SectorRotationViewSet
+app_name = "sector"
 
-# Router for ViewSet
-router = DefaultRouter()
-router.register(r'', SectorRotationViewSet, basename='sector')
+
+def sector_page_redirect(request):
+    """Redirect legacy sector pages to the rotation assets page."""
+    return redirect("rotation:assets")
+
 
 urlpatterns = [
-    # ViewSet 路由
-    path('', include(router.urls)),
-
-    # 单独的 API 路由
-    path('update-data/', SectorDataUpdateView.as_view(), name='sector-update-data'),
+    path("", sector_page_redirect, name="sector-home"),
+    path("analysis/", sector_page_redirect, name="sector-analysis"),
+    path("rotation/", sector_page_redirect, name="sector-rotation"),
+    path("strength/", sector_page_redirect, name="sector-strength"),
+    path("flow/", sector_page_redirect, name="sector-flow"),
 ]
-
-# URL 列表：
-# POST /api/sector/analyze/       - 分析板块轮动
-# GET  /api/sector/rotation/      - 获取板块轮动推荐
-# POST /api/sector/update-data/   - 更新板块数据

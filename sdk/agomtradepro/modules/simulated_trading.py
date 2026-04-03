@@ -13,9 +13,9 @@ from .base import BaseModule
 
 class SimulatedTradingModule(BaseModule):
     """
-    模拟盘交易模块
+    统一账户交易模块（保留 simulated_trading 名称兼容）。
 
-    提供模拟账户管理、交易执行、绩效查询等功能。
+    提供账户管理、交易执行、绩效查询等功能。
     """
 
     def __init__(self, client: Any) -> None:
@@ -31,13 +31,15 @@ class SimulatedTradingModule(BaseModule):
     def list_accounts(
         self,
         status: Optional[str] = None,
+        account_type: Optional[str] = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
-        获取模拟账户列表
+        获取账户列表
 
         Args:
             status: 账户状态过滤（active/inactive/closed）
+            account_type: 可选，real 或 simulated
             limit: 返回数量限制
 
         Returns:
@@ -49,9 +51,11 @@ class SimulatedTradingModule(BaseModule):
             >>> for account in accounts:
             ...     print(f"{account['name']}: {account['total_value']}")
         """
-        params: dict[str, Any] = {"active_only": True}
+        params: dict[str, Any] = {"active_only": True, "limit": limit}
         if status is not None and status.lower() in {"inactive", "closed"}:
             params["active_only"] = False
+        if account_type is not None:
+            params["account_type"] = account_type
 
         response = self._get("accounts/", params=params)
         if isinstance(response, dict):
@@ -111,14 +115,16 @@ class SimulatedTradingModule(BaseModule):
         name: str,
         initial_capital: float,
         start_date: date,
+        account_type: str = "simulated",
     ) -> dict[str, Any]:
         """
-        创建模拟账户
+        创建账户
 
         Args:
             name: 账户名称
             initial_capital: 初始资金
             start_date: 起始日期
+            account_type: 账户类型，real 或 simulated
 
         Returns:
             创建的账户信息
@@ -138,6 +144,7 @@ class SimulatedTradingModule(BaseModule):
         """
         data: dict[str, Any] = {
             "account_name": name,
+            "account_type": account_type,
             "initial_capital": initial_capital,
             "max_position_pct": 20.0,
             "stop_loss_pct": 10.0,

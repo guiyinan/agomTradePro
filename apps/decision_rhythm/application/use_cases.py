@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+from uuid import uuid4
 
 from django.utils import timezone
 
@@ -755,6 +756,76 @@ class ExecuteDecisionResponse:
     error: str | None = None
 
 
+@dataclass
+class CancelDecisionRequest:
+    """
+    取消决策请求
+
+    Attributes:
+        request_id: 决策请求 ID
+        reason: 取消原因
+    """
+
+    request_id: str
+    reason: str = ""
+
+
+@dataclass
+class CancelDecisionResponse:
+    """
+    取消决策响应
+
+    Attributes:
+        success: 是否成功
+        request_id: 决策请求 ID
+        status: 执行状态
+        reason: 取消原因
+        error: 错误信息
+    """
+
+    success: bool
+    request_id: str | None = None
+    status: str | None = None
+    reason: str = ""
+    error: str | None = None
+
+
+@dataclass
+class UpdateQuotaConfigRequest:
+    """
+    更新配额配置请求
+
+    Attributes:
+        account_id: 账户 ID
+        period: 配额周期
+        max_decisions: 最大决策次数
+        max_executions: 最大执行次数
+    """
+
+    account_id: str = "default"
+    period: QuotaPeriod = QuotaPeriod.WEEKLY
+    max_decisions: int = 10
+    max_executions: int = 5
+
+
+@dataclass
+class UpdateQuotaConfigResponse:
+    """
+    更新配额配置响应
+
+    Attributes:
+        success: 是否成功
+        quota: 更新后的配额
+        created: 是否新建
+        error: 错误信息
+    """
+
+    success: bool
+    quota: DecisionQuota | None = None
+    created: bool = False
+    error: str | None = None
+
+
 class PrecheckDecisionUseCase:
     """
     预检查决策用例
@@ -842,6 +913,8 @@ class PrecheckDecisionUseCase:
                 errors.append("候选已过期")
             elif str(candidate.status) in ["CANCELLED", "INVALIDATED"]:
                 errors.append(f"候选状态无效: {candidate.status}")
+            elif candidate.status != CandidateStatus.ACTIONABLE:
+                errors.append(f"候选状态不是 ACTIONABLE，当前状态: {candidate.status}")
 
             # 3. 检查 Beta Gate
             beta_gate_passed = True
@@ -1074,6 +1147,120 @@ class ExecuteDecisionUseCase:
             except Exception:
                 pass
             return ExecuteDecisionResponse(success=False, error=str(e))
+
+
+class CancelDecisionRequestUseCase:
+    """
+    取消决策请求用例
+
+    将执行状态从 PENDING/FAILED 迁移到 CANCELLED，并同步候选执行跟踪。
+    """
+
+    def __init__(self, request_repo, candidate_repo):
+        self.request_repo = request_repo
+        self.candidate_repo = candidate_repo
+
+    def execute(self, request: CancelDecisionRequest) -> CancelDecisionResponse:
+        try:
+            decision_request = self.request_repo.get_by_id(request.request_id)
+            if decision_request is None:
+                return CancelDecisionResponse(
+                    success=False,
+                    error=f"Request not found: {request.request_id}",
+                )
+
+            current_status = (
+                decision_request.execution_status.value
+                if hasattr(decision_request.execution_status, "value")
+                else str(decision_request.execution_status)
+            )
+            if not ExecutionStatusStateMachine.can_transition(
+                current_status,
+                ExecutionStatus.CANCELLED.value,
+            ):
+                return CancelDecisionResponse(
+                    success=False,
+                    error=f"Cannot cancel request with status: {current_status}",
+                )
+
+            self.request_repo.update_execution_status(
+                request.request_id,
+                ExecutionStatus.CANCELLED,
+            )
+
+            if decision_request.candidate_id:
+                try:
+                    self.candidate_repo.update_execution_tracking(
+                        decision_request.candidate_id,
+                        decision_request_id=request.request_id,
+                        execution_status=ExecutionStatus.CANCELLED.value,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to update candidate execution tracking during cancel: %s",
+                        exc,
+                    )
+
+            return CancelDecisionResponse(
+                success=True,
+                request_id=request.request_id,
+                status=ExecutionStatus.CANCELLED.value,
+                reason=request.reason,
+            )
+
+        except Exception as exc:
+            logger.error(f"Cancel decision failed: {exc}", exc_info=True)
+            return CancelDecisionResponse(success=False, error=str(exc))
+
+
+class UpdateQuotaConfigUseCase:
+    """
+    更新配额配置用例
+
+    通过注入的配额仓储更新或创建账户级配额配置。
+    """
+
+    def __init__(self, quota_repo):
+        self.quota_repo = quota_repo
+
+    def execute(self, request: UpdateQuotaConfigRequest) -> UpdateQuotaConfigResponse:
+        try:
+            if request.max_decisions <= 0 or request.max_executions < 0:
+                return UpdateQuotaConfigResponse(
+                    success=False,
+                    error="max_decisions must be > 0 and max_executions must be >= 0",
+                )
+
+            existing = self.quota_repo.get_quota(
+                request.period,
+                account_id=request.account_id,
+            )
+            now = timezone.now()
+
+            quota = DecisionQuota(
+                period=request.period,
+                max_decisions=request.max_decisions,
+                max_execution_count=request.max_executions,
+                used_decisions=existing.used_decisions if existing else 0,
+                used_executions=existing.used_executions if existing else 0,
+                period_start=existing.period_start if existing else now,
+                period_end=existing.period_end if existing else None,
+                quota_id=existing.quota_id if existing else f"quota_{uuid4().hex[:12]}",
+                account_id=request.account_id,
+                created_at=existing.created_at if existing else now,
+                updated_at=now,
+            )
+
+            saved = self.quota_repo.save(quota)
+            return UpdateQuotaConfigResponse(
+                success=True,
+                quota=saved,
+                created=existing is None,
+            )
+
+        except Exception as exc:
+            logger.error(f"Update quota config failed: {exc}", exc_info=True)
+            return UpdateQuotaConfigResponse(success=False, error=str(exc))
 
     def _execute_simulated(
         self,

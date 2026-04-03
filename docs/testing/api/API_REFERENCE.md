@@ -141,7 +141,7 @@ GET /api/regime/health/
 | `/policy/events/` | GET | 政策事件列表页 |
 | `/policy/events/new/` | GET | 新增政策事件页面 |
 | `/policy/events/{event_date}/` | GET | 兼容详情入口，当前重定向到 `/policy/workbench/` |
-| `/policy/status/` | GET | 获取当前政策档位 |
+| `/api/policy/status/` | GET | 获取当前政策档位 |
 | `/api/hedge/pairs/` | GET | 获取对冲配对 |
 | `/api/hedge/actions/` | POST | 执行对冲相关计算/动作 |
 
@@ -293,7 +293,6 @@ POST /api/equity/screen/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/sector/rotation/` | GET | 获取板块轮动分析 |
 | `/api/sector/analyze/` | POST | 分析板块轮动 |
 | `/api/sector/rotation/` | GET | 获取板块轮动推荐 |
 | `/api/sector/update-data/` | POST | 更新板块数据 |
@@ -391,6 +390,17 @@ POST /api/backtest/run/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
+| `/api/account/accounts/` | GET | 获取统一账户列表（canonical，支持 `account_type` 过滤） |
+| `/api/account/accounts/` | POST | 创建统一账户（支持 `account_type`） |
+| `/api/account/accounts/{id}/` | GET | 获取统一账户详情 |
+| `/api/account/accounts/{id}/positions/` | GET | 获取统一账户持仓 |
+| `/api/account/accounts/{id}/trades/` | GET | 获取统一账户交易记录 |
+| `/api/account/accounts/{id}/performance/` | GET | 获取统一账户绩效摘要 |
+| `/api/account/accounts/{id}/performance-report/` | GET | 获取统一账户区间业绩报告 |
+| `/api/account/accounts/{id}/valuation-snapshot/` | GET | 获取统一账户时点估值表 |
+| `/api/account/accounts/{id}/valuation-timeline/` | GET | 获取统一账户估值时间线 |
+| `/api/account/accounts/{id}/benchmarks/` | GET/PUT | 获取或更新统一账户基准配置 |
+| `/api/simulated-trading/accounts/` | GET | 统一账户模块原生入口（与 canonical 等价） |
 | `/api/account/portfolios/` | GET | 获取投资组合列表 |
 | `/api/account/portfolios/{id}/` | GET | 获取组合详情 |
 | `/api/account/positions/` | GET | 获取持仓列表 |
@@ -399,6 +409,11 @@ POST /api/backtest/run/
 | `/api/account/profile/` | GET | 获取账户配置 |
 | `/api/account/portfolios/{id}/allocation/` | GET | 获取资产配置 |
 | `/api/account/health/` | GET | 账户健康检查 |
+
+说明：
+- `account_id + account_type` 是当前统一账户主口径，canonical 路径为 `/api/account/accounts/*`。
+- `/api/simulated-trading/accounts/*` 是统一账户模块原生路径，功能与 canonical 对齐。
+- `/api/account/portfolios/*` 保留为旧账本兼容入口。
 
 ---
 

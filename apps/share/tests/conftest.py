@@ -3,6 +3,7 @@ Share Application Test Fixtures
 
 Pytest conftest for share app tests.
 """
+
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -17,6 +18,7 @@ from apps.share.domain.entities import (
     ShareLinkEntity,
     ShareSnapshotEntity,
     ShareStatus,
+    ShareTheme,
 )
 from apps.share.infrastructure.models import (
     ShareAccessLogModel,
@@ -126,6 +128,7 @@ def active_share_link(test_user, test_account):
 def password_protected_share_link(test_user, test_account):
     """Create a password-protected share link."""
     from django.contrib.auth.hashers import make_password
+
     return ShareLinkModel.objects.create(
         owner=test_user,
         account_id=test_account.id,
@@ -262,6 +265,7 @@ def share_link_entity():
         short_code="TEST123456",
         title="Test Entity",
         subtitle=None,
+        theme=ShareTheme.BLOOMBERG,
         share_level=ShareLevel.SNAPSHOT,
         status=ShareStatus.ACTIVE,
         password_hash=None,
@@ -291,6 +295,7 @@ def share_disclaimer_config(db):
 def api_client():
     """Create an API client for testing."""
     from rest_framework.test import APIClient
+
     return APIClient()
 
 

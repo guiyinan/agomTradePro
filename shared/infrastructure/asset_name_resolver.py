@@ -131,7 +131,7 @@ class AssetNameResolver:
 def _build_cache_key(codes: list[str]) -> str:
     """构建缓存键"""
     sorted_codes = sorted(set(c for c in codes if c))
-    codes_hash = hashlib.md5(json.dumps(sorted_codes).encode()).hexdigest()
+    codes_hash = hashlib.sha256(json.dumps(sorted_codes).encode()).hexdigest()[:32]
     return f"{CACHE_PREFIX}:{codes_hash}"
 
 

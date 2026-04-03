@@ -29,7 +29,7 @@ MCP server uses SDK credentials to call AgomTradePro backend:
 - `AGOMTRADEPRO_BASE_URL` (required)
 - `AGOMTRADEPRO_API_TOKEN` (recommended)
 - Or `AGOMTRADEPRO_USERNAME` + `AGOMTRADEPRO_PASSWORD`
-- `AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID` (optional, used by account resources)
+- `AGOMTRADEPRO_DEFAULT_ACCOUNT_ID` (optional, used by account resources)
 
 Auth format on backend is DRF Token (`Authorization: Token <token>`).
 
@@ -486,6 +486,20 @@ Recommended reading order for agents:
 3. `get_pulse_current()` or `get_pulse_history(limit)` to inspect tactical strength and transition warnings.
 4. `get_action_recommendation()` to obtain top-down allocation output.
 
+### Unified Account Tools
+
+```
+list_accounts(account_type, status, limit)
+get_account(account_id)
+create_account(name, initial_capital, account_type)
+get_account_positions(account_id)
+get_account_performance(account_id, start_date, end_date)
+```
+
+`account_type` 是统一账户属性，支持：
+- `real`
+- `simulated`
+
 ### Simulated Trading Inspection Tools
 
 ```
@@ -498,6 +512,8 @@ get_simulated_performance(account_id)
 run_simulated_daily_inspection(account_id, strategy_id, inspection_date)
 list_simulated_daily_inspections(account_id, limit, inspection_date)
 ```
+
+以上 `simulated_*` 工具保留兼容；新接入应优先使用统一账户工具。
 
 ### Account Position Tools
 

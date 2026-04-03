@@ -15,7 +15,7 @@ class AccountModule(BaseModule):
     """
     账户管理模块
 
-    提供投资组合查询、持仓管理等功能。
+    提供统一账户查询与旧 portfolio 兼容接口。
     """
 
     def __init__(self, client: Any) -> None:
@@ -28,12 +28,118 @@ class AccountModule(BaseModule):
         # Canonical account endpoints are served under /api/account/*.
         super().__init__(client, "/api/account")
 
+    def list_accounts(
+        self,
+        account_type: str | None = None,
+        active_only: bool = True,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        获取统一账户列表。
+
+        Args:
+            account_type: 可选，`real` 或 `simulated`
+            active_only: 是否仅返回活跃账户
+            limit: 返回数量限制
+        """
+        params: dict[str, Any] = {"active_only": active_only, "limit": limit}
+        if account_type is not None:
+            params["account_type"] = account_type
+        response = self._client.get("/api/account/accounts/", params=params)
+        if isinstance(response, dict):
+            return response.get("accounts", [])
+        return response
+
+    def get_account(self, account_id: int) -> dict[str, Any]:
+        """
+        获取统一账户详情。
+
+        Args:
+            account_id: 统一账户 ID
+        """
+        response = self._client.get(f"/api/account/accounts/{account_id}/")
+        if isinstance(response, dict):
+            return response.get("account", response)
+        return response
+
+    def create_account(
+        self,
+        name: str,
+        initial_capital: float,
+        account_type: str = "simulated",
+        max_position_pct: float = 20.0,
+        stop_loss_pct: float | None = None,
+        commission_rate: float = 0.0003,
+        slippage_rate: float = 0.001,
+    ) -> dict[str, Any]:
+        """
+        创建统一账户。
+
+        Args:
+            name: 账户名称
+            initial_capital: 初始资金
+            account_type: 账户类型，`real` 或 `simulated`
+        """
+        payload: dict[str, Any] = {
+            "account_name": name,
+            "account_type": account_type,
+            "initial_capital": initial_capital,
+            "max_position_pct": max_position_pct,
+            "commission_rate": commission_rate,
+            "slippage_rate": slippage_rate,
+        }
+        if stop_loss_pct is not None:
+            payload["stop_loss_pct"] = stop_loss_pct
+        response = self._client.post("/api/account/accounts/", json=payload)
+        if isinstance(response, dict):
+            return response.get("account", response)
+        return response
+
+    def get_account_positions(
+        self,
+        account_id: int,
+        asset_code: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        获取统一账户持仓列表。
+        """
+        response = self._client.get(f"/api/account/accounts/{account_id}/positions/")
+        if isinstance(response, dict):
+            rows = response.get("positions", [])
+        else:
+            rows = response
+        if asset_code is not None:
+            rows = [row for row in rows if row.get("asset_code") == asset_code]
+        return rows
+
+    def get_account_performance(
+        self,
+        account_id: int,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        获取统一账户绩效。
+
+        如传入 start_date/end_date，则调用区间业绩报告；
+        否则调用基础绩效摘要接口。
+        """
+        if start_date and end_date:
+            return self._client.get(
+                f"/api/account/accounts/{account_id}/performance-report/",
+                params={"start_date": start_date, "end_date": end_date},
+            )
+        response = self._client.get(f"/api/account/accounts/{account_id}/performance/")
+        if isinstance(response, dict):
+            return response.get("performance", response)
+        return response
+
     def get_portfolios(
         self,
         limit: int = 100,
     ) -> list[Portfolio]:
         """
-        获取投资组合列表
+        获取投资组合列表（兼容接口）。
 
         Args:
             limit: 返回数量限制
@@ -54,7 +160,7 @@ class AccountModule(BaseModule):
 
     def get_portfolio(self, portfolio_id: int) -> Portfolio:
         """
-        获取单个投资组合详情
+        获取单个投资组合详情（兼容接口）。
 
         Args:
             portfolio_id: 组合 ID

@@ -46,6 +46,7 @@ from apps.hedge.infrastructure.repositories import (
 from apps.hedge.infrastructure.services import HedgeIntegrationService
 from apps.hedge.interface.serializers import (
     CorrelationHistorySerializer,
+    CorrelationMatrixRequestSerializer,
     HedgeAlertSerializer,
     HedgeEffectivenessRequestSerializer,
     HedgePairSerializer,
@@ -96,7 +97,7 @@ class HedgePairViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def correlation_matrix(self, request):
         """Get correlation matrix for specified assets"""
-        serializer = HedgeEffectivenessRequestSerializer(data=request.data)
+        serializer = CorrelationMatrixRequestSerializer(data=request.data)
         if serializer.is_valid():
             asset_codes = serializer.validated_data.get('asset_codes', [])
             window_days = serializer.validated_data.get('window_days', 60)

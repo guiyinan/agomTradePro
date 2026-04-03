@@ -1005,3 +1005,152 @@ class LedgerMigrationMapModel(models.Model):
     def __str__(self):
         return f"{self.source_table}:{self.source_id} → {self.target_table}:{self.target_id}"
 
+
+# ============================================================================
+# 统一账户业绩域 ORM 模型
+# ============================================================================
+
+
+class AccountBenchmarkComponentModel(models.Model):
+    """
+    账户基准成分配置
+
+    一个账户可配置多个基准成分，构成加权组合基准。
+    应用层写入时强制归一化权重，总和必须大于 0。
+    """
+
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="benchmark_components",
+        verbose_name="所属账户",
+        db_index=True,
+    )
+    benchmark_code = models.CharField("基准代码", max_length=30, help_text="如 000300.SH")
+    weight = models.FloatField("权重（归一化后）", help_text="归一化后总和为 1.0")
+    display_name = models.CharField("显示名称", max_length=100, blank=True, help_text="如 沪深300")
+    sort_order = models.IntegerField("排序", default=0)
+    is_active = models.BooleanField("是否启用", default=True, db_index=True)
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "account_benchmark_component"
+        verbose_name = "账户基准成分"
+        verbose_name_plural = "账户基准成分"
+        ordering = ["account", "sort_order"]
+        indexes = [
+            models.Index(fields=["account", "is_active"]),
+            models.Index(fields=["account", "sort_order"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.account.account_name} / {self.benchmark_code} ({self.weight:.0%})"
+
+
+class UnifiedAccountCashFlowModel(models.Model):
+    """
+    统一账户外部现金流
+
+    统一存储所有账户的外部现金流：
+    - 真实盘：从 CapitalFlowModel 回填并持续镜像
+    - 模拟盘：默认写入一笔 initial_capital 初始入金
+    """
+
+    FLOW_TYPE_CHOICES = [
+        ("initial_capital", "初始入金"),
+        ("deposit", "追加入金"),
+        ("withdrawal", "取款出金"),
+        ("dividend", "股息/分红"),
+        ("interest", "利息"),
+        ("adjustment", "手工调整"),
+    ]
+
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="cash_flows",
+        verbose_name="所属账户",
+        db_index=True,
+    )
+    flow_type = models.CharField("现金流类型", max_length=20, choices=FLOW_TYPE_CHOICES, db_index=True)
+    amount = models.DecimalField("金额（元）", max_digits=15, decimal_places=2, help_text="正数=入金，负数=出金")
+    flow_date = models.DateField("发生日期", db_index=True)
+    source_app = models.CharField("来源应用", max_length=50, help_text="account 或 simulated_trading")
+    source_id = models.CharField("来源记录ID", max_length=50, blank=True, default="")
+    notes = models.CharField("备注", max_length=500, blank=True, default="")
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "unified_account_cash_flow"
+        verbose_name = "统一账户现金流"
+        verbose_name_plural = "统一账户现金流"
+        ordering = ["account", "flow_date"]
+        indexes = [
+            models.Index(fields=["account", "flow_date"]),
+            models.Index(fields=["account", "flow_type"]),
+            models.Index(fields=["source_app", "source_id"]),
+        ]
+
+    def __str__(self) -> str:
+        sign = "+" if float(self.amount) >= 0 else ""
+        return f"{self.account.account_name} / {self.flow_date} / {sign}{self.amount}"
+
+
+class AccountPositionValuationSnapshotModel(models.Model):
+    """
+    账户持仓时点估值快照
+
+    每日快照记录，用于历史持仓估值表查询和未来稳定查询。
+    通过 TransactionModel / SimulatedTradeModel 回放 + 历史收盘价填充。
+    """
+
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="position_valuation_snapshots",
+        verbose_name="所属账户",
+        db_index=True,
+    )
+    record_date = models.DateField("记录日期", db_index=True)
+    asset_code = models.CharField("资产代码", max_length=20)
+    asset_name = models.CharField("资产名称", max_length=100, blank=True, default="")
+    asset_type = models.CharField(
+        "资产类型",
+        max_length=20,
+        choices=[
+            ("equity", "股票"),
+            ("fund", "基金"),
+            ("bond", "债券"),
+            ("cash", "现金"),
+            ("other", "其他"),
+        ],
+    )
+    quantity = models.DecimalField("持仓数量", max_digits=20, decimal_places=6)
+    avg_cost = models.DecimalField("平均成本（元）", max_digits=10, decimal_places=4, default=0)
+    close_price = models.DecimalField("收盘价（元）", max_digits=10, decimal_places=4, default=0)
+    market_value = models.DecimalField("市值（元）", max_digits=15, decimal_places=2)
+    weight = models.FloatField("仓位占比（市值/总市值）", default=0.0)
+    unrealized_pnl = models.DecimalField("浮动盈亏（元）", max_digits=15, decimal_places=2, default=0)
+    unrealized_pnl_pct = models.FloatField("浮动盈亏率（%）", default=0.0)
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "account_position_valuation_snapshot"
+        verbose_name = "持仓时点估值快照"
+        verbose_name_plural = "持仓时点估值快照"
+        ordering = ["account", "-record_date", "asset_code"]
+        unique_together = [["account", "record_date", "asset_code"]]
+        indexes = [
+            models.Index(fields=["account", "-record_date"]),
+            models.Index(fields=["account", "record_date", "asset_code"]),
+            models.Index(fields=["asset_code", "-record_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.account.account_name} / {self.record_date} / {self.asset_code}"

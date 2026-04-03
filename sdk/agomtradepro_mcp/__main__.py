@@ -16,7 +16,7 @@ Environment Variables:
         (default: http://127.0.0.1:8000)
     AGOMTRADEPRO_API_TOKEN: API token for authentication
     AGOMTRADEPRO_MCP_ROLE: RBAC role (default: viewer)
-    AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID: Default portfolio ID for account resources
+    AGOMTRADEPRO_DEFAULT_ACCOUNT_ID: Default account ID for account resources
     AGOMTRADEPRO_RHIZOME_PATH: Path to rhizome knowledge base (optional)
 """
 

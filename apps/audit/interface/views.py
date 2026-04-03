@@ -529,6 +529,11 @@ class RunValidationView(APIView):
                 'report': report_data,
             })
 
+        except ValueError as e:
+            return Response(
+                {'error': f'日期格式错误: {e}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             logger.error(f"运行验证失败: {e}")
             return Response(

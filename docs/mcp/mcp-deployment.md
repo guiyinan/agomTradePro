@@ -44,7 +44,7 @@ pip install mcp
 export AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
 export AGOMTRADEPRO_API_TOKEN="your-api-token"
 export AGOMTRADEPRO_MCP_ROLE="admin"  # 可选: viewer, analyst, admin
-export AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID="1"  # 可选
+export AGOMTRADEPRO_DEFAULT_ACCOUNT_ID="1"  # 可选
 ```
 
 #### Windows PowerShell
@@ -357,7 +357,7 @@ python -m agomtradepro_mcp
 | `AGOMTRADEPRO_API_BASE_URL` | 否 | `http://127.0.0.1:8000` | 兼容旧配置的别名 |
 | `AGOMTRADEPRO_API_TOKEN` | 是 | - | 认证 Token |
 | `AGOMTRADEPRO_MCP_ROLE` | 否 | `viewer` | RBAC 角色 |
-| `AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID` | 否 | - | 默认组合 ID |
+| `AGOMTRADEPRO_DEFAULT_ACCOUNT_ID` | 否 | - | 默认账户 ID |
 | `AGOMTRADEPRO_RHIZOME_PATH` | 否 | - | 知识库路径 |
 | `AGOMTRADEPRO_MCP_LOG_LEVEL` | 否 | `INFO` | 日志级别 |
 | `AGOMTRADEPRO_MCP_LOG_FILE` | 否 | - | 日志文件路径 |

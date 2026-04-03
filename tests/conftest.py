@@ -3,9 +3,12 @@ Pytest configuration and shared fixtures.
 """
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
+
+from tests.support.pyqlib_guardrail import resolve_pyqlib_status
 
 
 @pytest.fixture
@@ -138,15 +141,17 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection to skip Qlib tests if not installed"""
-    try:
-        import qlib
-        qlib_available = True
-    except ImportError:
-        qlib_available = False
+    """Only enforce the pyqlib gate when qlib-marked tests are actually collected."""
+    qlib_items = [item for item in items if "qlib" in item.keywords]
+    if not qlib_items:
+        return
 
-    if not qlib_available:
-        skip_qlib = pytest.mark.skip(reason="Qlib not installed")
-        for item in items:
-            if "qlib" in item.keywords:
-                item.add_marker(skip_qlib)
+    status = resolve_pyqlib_status(Path(__file__).resolve().parents[1])
+
+    if status.misconfigured:
+        raise pytest.UsageError(status.reason)
+
+    if not status.available:
+        skip_qlib = pytest.mark.skip(reason=status.reason)
+        for item in qlib_items:
+            item.add_marker(skip_qlib)

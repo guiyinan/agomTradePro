@@ -109,7 +109,7 @@ class TestNavigationRouteDefinition:
             '/backtest/',
             '/simulated-trading/',
             '/audit/',
-            '/sector/',
+            '/rotation/assets/',
             '/filter/',
         ]
 

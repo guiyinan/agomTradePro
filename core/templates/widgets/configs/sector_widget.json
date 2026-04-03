@@ -73,12 +73,12 @@
         {
             "label": "板块强度",
             "icon": "📊",
-            "url": "/sector/strength/"
+            "url": "/rotation/assets/"
         },
         {
             "label": "资金流向",
             "icon": "💰",
-            "url": "/sector/flow/"
+            "url": "/rotation/assets/"
         }
     ]
 }

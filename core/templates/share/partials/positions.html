@@ -82,7 +82,8 @@
                     <div
                         id="assetAllocationChart"
                         class="asset-allocation-chart"
-                        data-allocation='[{% for item in position_summary.asset_allocation %}{"name":"{{ item.label|escapejs }}","value":{{ item.value|default:0 }},"pct":{{ item.pct|default:0 }},"key":"{{ item.key|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                        data-show-amounts="{% if show_amounts %}true{% else %}false{% endif %}"
+                        data-allocation='[{% for item in position_summary.asset_allocation %}{"name":"{{ item.label|escapejs }}","value":{% if show_amounts %}{{ item.value|default:0 }}{% else %}{{ item.pct|default:0 }}{% endif %},"pct":{{ item.pct|default:0 }},"key":"{{ item.key|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
                     ></div>
                 </div>
                 <div class="asset-allocation-list">
@@ -94,7 +95,9 @@
                         </div>
                         <div class="asset-allocation-item-side">
                             <span class="asset-allocation-pct">{{ item.pct|floatformat:1 }}%</span>
-                            <span class="asset-allocation-value">{{ item.value|floatformat:2 }}</span>
+                            <span class="asset-allocation-value">
+                                {% if show_amounts %}{{ item.value|default:0|floatformat:2 }}{% else %}--{% endif %}
+                            </span>
                         </div>
                     </div>
                     {% endfor %}
@@ -138,6 +141,7 @@
     }
 
     const allocationData = JSON.parse(chartEl.dataset.allocation || "[]");
+    const showAmounts = chartEl.dataset.showAmounts === "true";
     if (!allocationData.length) {
         return;
     }
@@ -156,7 +160,11 @@
             textStyle: {
                 color: styles.getPropertyValue("--chart-tooltip-text").trim(),
             },
-            formatter: (params) => `${params.name}<br/>${params.value.toFixed(2)}<br/>${params.percent}%`,
+            formatter: (params) => (
+                showAmounts
+                    ? `${params.name}<br/>${params.value.toFixed(2)}<br/>${params.percent}%`
+                    : `${params.name}<br/>${params.percent}%`
+            ),
         },
         series: [
             {

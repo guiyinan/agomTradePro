@@ -194,7 +194,7 @@ class EventDeduplicationRule(Rule):
             key_parts.append(f"signal={event.payload['signal_id']}")
 
         key_string = "|".join(key_parts)
-        return hashlib.md5(key_string.encode()).hexdigest()
+        return hashlib.sha256(key_string.encode()).hexdigest()
 
     def cleanup_old_events(self, older_than: int = 3600) -> int:
         """

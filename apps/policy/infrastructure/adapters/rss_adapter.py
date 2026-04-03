@@ -121,5 +121,5 @@ class BaseRSSAdapter(ABC):
             return f"link:{item.link}"
         else:
             import hashlib
-            title_hash = hashlib.md5(item.title.encode()).hexdigest()
+            title_hash = hashlib.sha256(item.title.encode()).hexdigest()[:32]
             return f"title:{title_hash}:{item.pub_date.isoformat()}"

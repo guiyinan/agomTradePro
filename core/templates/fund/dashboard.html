@@ -576,7 +576,7 @@ function showWeightConfig() {
     const configDiv = document.getElementById('weightConfig');
     if (configDiv.style.display === 'none') {
         // 加载权重配置
-        fetch('/asset-analysis/current-weight/?asset_type=fund')
+        fetch('/api/asset-analysis/current-weight/?asset_type=fund')
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.weights) {

@@ -3,6 +3,7 @@ Share Application Use Cases Tests
 
 Tests for Application layer use cases.
 """
+
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -79,9 +80,7 @@ class TestShareLinkUseCases:
 
         assert entity.expires_at is not None
 
-    def test_create_share_link_with_max_access_count(
-        self, use_case, test_user, test_account
-    ):
+    def test_create_share_link_with_max_access_count(self, use_case, test_user, test_account):
         """Test creating a share link with max access count."""
         entity = use_case.create_share_link(
             owner_id=test_user.id,
@@ -114,9 +113,7 @@ class TestShareLinkUseCases:
 
         assert "owner_id" in str(exc_info.value)
 
-    def test_create_share_link_custom_short_code(
-        self, use_case, test_user, test_account
-    ):
+    def test_create_share_link_custom_short_code(self, use_case, test_user, test_account):
         """Test creating share link with custom short code."""
         entity = use_case.create_share_link(
             owner_id=test_user.id,
@@ -149,7 +146,7 @@ class TestShareLinkUseCases:
         assert entity.id == active_share_link.id
         assert entity.title == active_share_link.title
 
-    def test_get_share_link_not_found(self, use_case):
+    def test_get_share_link_not_found(self, use_case, db):
         """Test getting non-existent share link returns None."""
         entity = use_case.get_share_link(99999)
         assert entity is None
@@ -161,7 +158,7 @@ class TestShareLinkUseCases:
         assert entity is not None
         assert entity.short_code == active_share_link.short_code
 
-    def test_get_share_link_by_code_not_found(self, use_case):
+    def test_get_share_link_by_code_not_found(self, use_case, db):
         """Test getting non-existent short code returns None."""
         entity = use_case.get_share_link_by_code("NONEXIST")
         assert entity is None
@@ -337,9 +334,7 @@ class TestShareSnapshotUseCases:
         assert snapshot.snapshot_version == 1
         assert snapshot.summary_payload == {"total_value": 100000}
 
-    def test_create_snapshot_increments_version(
-        self, use_case, active_share_link
-    ):
+    def test_create_snapshot_increments_version(self, use_case, active_share_link):
         """Test snapshot versions increment automatically."""
         use_case.create_snapshot(
             share_link_id=active_share_link.id,
@@ -359,15 +354,11 @@ class TestShareSnapshotUseCases:
             decision_payload={},
         )
 
-        snapshots = ShareSnapshotModel.objects.filter(
-            share_link_id=active_share_link.id
-        )
+        snapshots = ShareSnapshotModel.objects.filter(share_link_id=active_share_link.id)
         assert snapshots.count() == 2
         assert snapshots[0].snapshot_version == 2  # Latest first
 
-    def test_create_snapshot_updates_last_snapshot_at(
-        self, use_case, active_share_link
-    ):
+    def test_create_snapshot_updates_last_snapshot_at(self, use_case, active_share_link):
         """Test creating snapshot updates share_link's last_snapshot_at."""
         assert active_share_link.last_snapshot_at is None
 
@@ -383,7 +374,7 @@ class TestShareSnapshotUseCases:
         active_share_link.refresh_from_db()
         assert active_share_link.last_snapshot_at is not None
 
-    def test_create_snapshot_non_existent_link(self, use_case):
+    def test_create_snapshot_non_existent_link(self, use_case, db):
         """Test creating snapshot for non-existent link returns None."""
         snapshot_id = use_case.create_snapshot(
             share_link_id=99999,

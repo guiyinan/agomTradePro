@@ -12,12 +12,15 @@ from django.db.models import Q, Sum
 from django.utils.html import format_html
 
 from apps.simulated_trading.infrastructure.models import (
+    AccountBenchmarkComponentModel,
+    AccountPositionValuationSnapshotModel,
     DailyInspectionNotificationConfigModel,
     DailyInspectionReportModel,
     FeeConfigModel,
     PositionModel,
     SimulatedAccountModel,
     SimulatedTradeModel,
+    UnifiedAccountCashFlowModel,
 )
 
 
@@ -612,6 +615,74 @@ def dashboard_view(request):
     }
 
     return render(request, 'admin/simulated_trading/dashboard.html', context)
+
+
+@admin.register(AccountBenchmarkComponentModel)
+class AccountBenchmarkComponentAdmin(admin.ModelAdmin):
+    """账户基准成分管理"""
+
+    list_display = ["id", "account", "benchmark_code", "weight_display", "display_name", "sort_order", "is_active", "updated_at"]
+    list_filter = ["is_active"]
+    search_fields = ["account__account_name", "benchmark_code", "display_name"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+
+    fieldsets = (
+        ("基础信息", {"fields": ("account", "benchmark_code", "display_name")}),
+        ("配置", {"fields": ("weight", "sort_order", "is_active")}),
+        ("元信息", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
+
+    def weight_display(self, obj):
+        return f"{obj.weight:.1%}"
+    weight_display.short_description = "权重"
+
+
+@admin.register(UnifiedAccountCashFlowModel)
+class UnifiedAccountCashFlowAdmin(admin.ModelAdmin):
+    """统一账户现金流管理（只读）"""
+
+    list_display = ["id", "account", "flow_type", "amount_display", "flow_date", "source_app", "source_id", "created_at"]
+    list_filter = ["flow_type", "source_app", "flow_date"]
+    search_fields = ["account__account_name", "source_id", "notes"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    date_hierarchy = "flow_date"
+
+    def amount_display(self, obj):
+        val = float(obj.amount)
+        color = "green" if val >= 0 else "red"
+        return format_html('<span style="color: {}; font-weight: bold;">¥{:,.2f}</span>', color, val)
+    amount_display.short_description = "金额"
+
+    def has_add_permission(self, request):
+        return False  # 只读，通过业务逻辑写入
+
+
+@admin.register(AccountPositionValuationSnapshotModel)
+class AccountPositionValuationSnapshotAdmin(admin.ModelAdmin):
+    """持仓时点估值快照管理（只读）"""
+
+    list_display = ["id", "account", "record_date", "asset_code", "asset_name", "quantity", "close_price_display", "market_value_display", "unrealized_pnl_display"]
+    list_filter = ["record_date", "asset_type"]
+    search_fields = ["account__account_name", "asset_code", "asset_name"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    date_hierarchy = "record_date"
+
+    def close_price_display(self, obj):
+        return f"¥{float(obj.close_price):.4f}"
+    close_price_display.short_description = "收盘价"
+
+    def market_value_display(self, obj):
+        return f"¥{float(obj.market_value):,.2f}"
+    market_value_display.short_description = "市值"
+
+    def unrealized_pnl_display(self, obj):
+        val = float(obj.unrealized_pnl)
+        color = "green" if val >= 0 else "red"
+        return format_html('<span style="color: {};">¥{:+,.2f}</span>', color, val)
+    unrealized_pnl_display.short_description = "浮盈"
+
+    def has_add_permission(self, request):
+        return False  # 只读，通过业务逻辑写入
 
 
 # 创建专用 Admin 站点实例

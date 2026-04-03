@@ -15,6 +15,7 @@ from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -415,6 +416,11 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
                 }
             )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to update candidate status: {e}", exc_info=True)
             return Response(
@@ -536,6 +542,11 @@ class CreateTriggerView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to create trigger: {e}", exc_info=True)
             return Response(
@@ -605,6 +616,11 @@ class CheckInvalidationView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to check invalidation: {e}", exc_info=True)
             return Response(
@@ -672,6 +688,11 @@ class EvaluateTriggerView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to evaluate trigger: {e}", exc_info=True)
             return Response(
@@ -743,6 +764,11 @@ class GenerateCandidateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except ValidationError as e:
+            return Response(
+                {"success": False, "error": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to generate candidate: {e}", exc_info=True)
             return Response(

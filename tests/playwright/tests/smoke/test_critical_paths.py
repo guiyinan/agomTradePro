@@ -110,7 +110,7 @@ class TestCriticalPaths:
     def test_sector_analysis_loads(self, authenticated_page: Page) -> None:
         """Test that sector analysis page loads."""
         authenticated_page.goto(f"{config.base_url}{config.sector_analysis_url}")
-        _assert_page_ready(authenticated_page, "/sector/")
+        _assert_page_ready(authenticated_page, "/rotation/")
 
 
 class TestAdminExposureSmoke:

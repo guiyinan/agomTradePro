@@ -453,113 +453,116 @@ register_all_tools()
 apply_tool_rbac_guards()
 
 
-def _get_default_portfolio_id(client: Any) -> int | None:
-    """Get default portfolio id from env or first available portfolio."""
-    configured = os.getenv("AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID")
+def _get_default_account_id(client: Any) -> int | None:
+    """Get default account id from env or first available unified account."""
+    configured = os.getenv("AGOMTRADEPRO_DEFAULT_ACCOUNT_ID")
     if configured:
         try:
             return int(configured)
         except ValueError:
             pass
 
-    portfolios = client.account.get_portfolios(limit=1)
-    if portfolios:
-        return portfolios[0].id
+    accounts = client.account.list_accounts(limit=1)
+    if accounts:
+        account = accounts[0]
+        account_id = account.get("account_id") or account.get("id")
+        if account_id is not None:
+            return int(account_id)
     return None
 
 
 @server.resource(
     "agomtradepro://account/summary",
     name="Account Summary",
-    description="默认投资组合摘要",
+    description="默认账户摘要",
     mime_type="text/plain",
 )
 def resource_account_summary() -> str:
-    """默认组合摘要（用于 Agent 自动读取上下文）。"""
+    """默认账户摘要（用于 Agent 自动读取上下文）。"""
     enforce_resource_access("agomtradepro://account/summary")
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    portfolio_id = _get_default_portfolio_id(client)
-    if portfolio_id is None:
-        return "未找到可用投资组合。"
+    account_id = _get_default_account_id(client)
+    if account_id is None:
+        return "未找到可用账户。"
 
-    portfolio = client.get(f"api/account/portfolios/{portfolio_id}/")
-    stats = client.get(f"api/account/portfolios/{portfolio_id}/statistics/")
+    account = client.account.get_account(account_id)
+    positions = client.account.get_account_positions(account_id)
+    performance = client.account.get_account_performance(account_id)
+    performance_summary = performance.get("performance", {}) if isinstance(performance, dict) else {}
 
-    return f"""默认组合ID: {portfolio_id}
-组合名称: {portfolio.get('name')}
-总市值: {portfolio.get('total_value')}
-持仓数: {stats.get('position_count')}
-未实现盈亏: {stats.get('total_pnl')}
-未实现盈亏(%): {stats.get('total_pnl_pct')}
-净资金流: {stats.get('net_capital_flow')}"""
+    return f"""默认账户ID: {account_id}
+账户名称: {account.get('account_name')}
+账户类型: {account.get('account_type')}
+总资产: {account.get('total_value')}
+可用现金: {account.get('current_cash')}
+持仓数: {len(positions)}
+总交易数: {performance.get('total_trades') if isinstance(performance, dict) else None}
+总收益率: {performance_summary.get('total_return')}
+最大回撤: {performance_summary.get('max_drawdown')}"""
 
 
 @server.resource(
     "agomtradepro://account/positions",
     name="Account Positions",
-    description="默认投资组合持仓快照",
+    description="默认账户持仓快照",
     mime_type="text/plain",
 )
 def resource_account_positions() -> str:
-    """默认组合持仓快照。"""
+    """默认账户持仓快照。"""
     enforce_resource_access("agomtradepro://account/positions")
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    portfolio_id = _get_default_portfolio_id(client)
-    if portfolio_id is None:
-        return "未找到可用投资组合。"
+    account_id = _get_default_account_id(client)
+    if account_id is None:
+        return "未找到可用账户。"
 
-    payload = client.get("api/account/positions/", params={"portfolio_id": portfolio_id, "limit": 20})
-    rows = payload.get("results", payload) if isinstance(payload, dict) else payload
+    rows = client.account.get_account_positions(account_id)
     if not rows:
-        return f"组合 {portfolio_id} 当前无持仓。"
+        return f"账户 {account_id} 当前无持仓。"
 
     lines = []
     for row in rows[:20]:
-        if row.get("is_closed"):
-            continue
         lines.append(
-            f"{row.get('asset_code')} | 持仓: {row.get('shares')} | 成本: {row.get('avg_cost')} | "
+            f"{row.get('asset_code')} | 持仓: {row.get('quantity')} | 成本: {row.get('avg_cost')} | "
             f"现价: {row.get('current_price')} | 盈亏: {row.get('unrealized_pnl')}"
         )
 
     if not lines:
-        return f"组合 {portfolio_id} 当前无未平仓持仓。"
+        return f"账户 {account_id} 当前无持仓。"
 
-    return f"默认组合ID: {portfolio_id}\n" + "\n".join(lines)
+    return f"默认账户ID: {account_id}\n" + "\n".join(lines)
 
 
 @server.resource(
     "agomtradepro://account/recent-transactions",
     name="Recent Transactions",
-    description="默认投资组合最近交易",
+    description="默认账户最近交易",
     mime_type="text/plain",
 )
 def resource_account_recent_transactions() -> str:
-    """默认组合最近交易。"""
+    """默认账户最近交易。"""
     enforce_resource_access("agomtradepro://account/recent-transactions")
     from agomtradepro import AgomTradeProClient
 
     client = AgomTradeProClient()
-    portfolio_id = _get_default_portfolio_id(client)
-    if portfolio_id is None:
-        return "未找到可用投资组合。"
+    account_id = _get_default_account_id(client)
+    if account_id is None:
+        return "未找到可用账户。"
 
-    payload = client.get("api/account/transactions/", params={"limit": 20})
-    rows = payload.get("results", payload) if isinstance(payload, dict) else payload
-    rows = [r for r in rows if r.get("portfolio") == portfolio_id]
+    payload = client.get(f"api/account/accounts/{account_id}/trades/")
+    rows = payload.get("trades", payload) if isinstance(payload, dict) else payload
 
     if not rows:
-        return f"组合 {portfolio_id} 暂无交易记录。"
+        return f"账户 {account_id} 暂无交易记录。"
 
     lines = [
-        f"{r.get('traded_at')} | {r.get('action')} {r.get('asset_code')} {r.get('shares')} @ {r.get('price')}"
+        f"{r.get('execution_time')} | {r.get('action')} {r.get('asset_code')} {r.get('quantity')} @ {r.get('price')}"
         for r in rows[:20]
     ]
-    return f"默认组合ID: {portfolio_id}\n" + "\n".join(lines)
+    return f"默认账户ID: {account_id}\n" + "\n".join(lines)
 
 
 async def list_resources() -> list[dict[str, Any]]:

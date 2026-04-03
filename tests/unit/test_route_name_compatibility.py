@@ -2,8 +2,9 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import Client
-from django.urls import NoReverseMatch, resolve, reverse
+from django.urls import NoReverseMatch, URLPattern, URLResolver, get_resolver, resolve, reverse
 import pytest
+from rest_framework.views import APIView
 
 
 def test_dashboard_legacy_api_route_names_resolvable():
@@ -51,6 +52,19 @@ def test_policy_workbench_and_rss_page_routes_resolvable():
 
     assert resolve("/policy/workbench/").view_name.endswith("workbench")
     assert resolve("/policy/rss/sources/").view_name.endswith("rss-manage")
+
+
+def test_non_api_policy_status_and_audit_routes_are_removed():
+    client = Client()
+
+    for path in [
+        "/policy/status/",
+        "/policy/audit/review/1/",
+        "/policy/audit/bulk_review/",
+        "/policy/audit/auto_assign/",
+    ]:
+        response = client.get(path, follow=False)
+        assert response.status_code == 404, path
 
 
 def test_policy_and_account_root_redirects(db):
@@ -164,6 +178,50 @@ def test_removed_legacy_page_routes_return_404():
 
 def test_canonical_api_routes_still_resolve():
     assert resolve("/api/simulated-trading/accounts/").view_name.endswith("account-list")
+
+
+def test_asset_pool_summary_page_redirects_to_asset_screen():
+    client = Client()
+
+    response = client.get("/asset-analysis/pool-summary/", follow=False)
+
+    assert response.status_code == 302
+    assert response["Location"] == "/asset-analysis/screen/"
+
+
+def test_legacy_sector_page_aliases_redirect_to_rotation_assets():
+    client = Client()
+
+    for path in [
+        "/sector/",
+        "/sector/analysis/",
+        "/sector/rotation/",
+        "/sector/strength/",
+        "/sector/flow/",
+    ]:
+        response = client.get(path, follow=False)
+        assert response.status_code == 302, path
+        assert response["Location"] == "/rotation/assets/"
+
+
+def test_non_api_routes_do_not_resolve_to_drf_api_views():
+    violations: list[str] = []
+
+    def walk(patterns, prefix: str = "") -> None:
+        for pattern in patterns:
+            if isinstance(pattern, URLPattern):
+                route = "/" + (prefix + str(pattern.pattern)).replace("//", "/")
+                if route.startswith("/api/"):
+                    continue
+                callback = pattern.callback
+                view_class = getattr(callback, "view_class", None)
+                if view_class and issubclass(view_class, APIView):
+                    violations.append(f"{route} -> {view_class.__module__}.{view_class.__name__}")
+            elif isinstance(pattern, URLResolver):
+                walk(pattern.url_patterns, prefix + str(pattern.pattern))
+
+    walk(get_resolver().url_patterns)
+    assert violations == []
 
 
 def test_reported_route_aliases_are_removed():

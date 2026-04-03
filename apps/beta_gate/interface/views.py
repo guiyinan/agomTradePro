@@ -265,7 +265,13 @@ class RollbackConfigView(APIView):
             if target_version is None and config_id:
                 cfg = GateConfigModel._default_manager.filter(config_id=config_id).first()
                 target_version = cfg.version if cfg else None
-            target_version = int(target_version)
+            try:
+                target_version = int(target_version)
+            except (TypeError, ValueError):
+                return Response(
+                    {"success": False, "error": "Invalid version number"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             # 获取目标版本配置
             try:
@@ -877,6 +883,11 @@ class GateConfigViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_201_CREATED,
             )
+        except (TypeError, ValueError) as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to create config: {e}", exc_info=True)
             return Response(
@@ -897,7 +908,13 @@ class GateDecisionViewSet(viewsets.ViewSet):
     def list(self, request) -> Response:
         """获取决策历史"""
         try:
-            days = int(request.query_params.get("days", 30))
+            try:
+                days = int(request.query_params.get("days", 30))
+            except (TypeError, ValueError):
+                return Response(
+                    {"success": False, "error": "days must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             decisions = self.decision_repository.get_recent(days)
             results = []
             for decision in decisions:
@@ -973,7 +990,13 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
         try:
             regime = request.query_params.get("regime", None)
             policy_level = request.query_params.get("policy_level", None)
-            limit = int(request.query_params.get("limit", 100))
+            try:
+                limit = int(request.query_params.get("limit", 100))
+            except (TypeError, ValueError):
+                return Response(
+                    {"success": False, "error": "limit must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             snapshots = self.universe_repository.get_history(regime, policy_level, limit)
             return Response(

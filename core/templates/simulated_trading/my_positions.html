@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ account_type }}持仓 - {{ account.account_name }} - AgomTradePro{% endblock %}
+{% block title %}账户持仓 - {{ account.account_name }} - AgomTradePro{% endblock %}
 
 {% block content %}
 <div class="account-container">
@@ -9,7 +9,7 @@
         <div class="header-title-row">
             <div>
                 <h1>{{ account.account_name }} - 持仓</h1>
-                <p class="subtitle">{{ account_type }} - 所有持仓</p>
+                <p class="subtitle">账户持仓 · 类型：{{ account_type }}</p>
             </div>
             <div class="header-actions">
                 <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-secondary">返回账户详情</a>

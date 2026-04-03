@@ -27,7 +27,7 @@ python -m pip show agomtradepro-sdk mcp
 - `AGOMTRADEPRO_BASE_URL`
 - `AGOMTRADEPRO_API_TOKEN` preferred
 - Or `AGOMTRADEPRO_USERNAME` + `AGOMTRADEPRO_PASSWORD`
-- `AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID` optional
+- `AGOMTRADEPRO_DEFAULT_ACCOUNT_ID` optional
 
 If localhost traffic is affected by proxy settings:
 

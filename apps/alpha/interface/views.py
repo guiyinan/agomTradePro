@@ -11,6 +11,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -104,6 +105,17 @@ def get_stock_scores(request: Request) -> Response:
         serializer = AlphaResultSerializer(result)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    except ValidationError as e:
+        return Response(
+            {
+                "success": False,
+                "error": e.detail,
+                "source": "none",
+                "status": "invalid_request",
+                "stocks": [],
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     except Exception as e:
         logger.error(f"获取股票评分失败: {e}", exc_info=True)
         return Response(
@@ -263,23 +275,23 @@ def upload_scores(request: Request) -> Response:
     Returns:
         {"success": true, "count": N, "scope": "user"|"system", "id": pk}
     """
-    serializer = UploadScoresSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
-
-    scope = data.get("scope", "user")
-
-    # 权限检查：只有 admin 能写系统级评分
-    if scope == "system" and not request.user.is_staff:
-        return Response(
-            {"success": False, "error": "只有管理员可以上传系统级评分（scope=system）"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    # 确定写入的 user：system 级别 user=None，否则 user=当前用户
-    write_user = None if scope == "system" else request.user
-
     try:
+        serializer = UploadScoresSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        scope = data.get("scope", "user")
+
+        # 权限检查：只有 admin 能写系统级评分
+        if scope == "system" and not request.user.is_staff:
+            return Response(
+                {"success": False, "error": "只有管理员可以上传系统级评分（scope=system）"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # 确定写入的 user：system 级别 user=None，否则 user=当前用户
+        write_user = None if scope == "system" else request.user
+
         cache_obj, created = AlphaScoreCacheModel.objects.update_or_create(
             user=write_user,
             universe_id=data["universe_id"],
@@ -311,6 +323,11 @@ def upload_scores(request: Request) -> Response:
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
+    except ValidationError as e:
+        return Response(
+            {"success": False, "error": e.detail},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     except Exception as e:
         logger.error(f"上传评分失败: {e}", exc_info=True)
         return Response(
