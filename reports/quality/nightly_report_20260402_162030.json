@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-04-02T16:20:28.906879+00:00",
+  "run_type": "nightly",
+  "workflow": {
+    "run_id": "local",
+    "run_url": "//actions/runs/"
+  },
+  "test_suites": {
+    "unit": {
+      "status": "passed",
+      "coverage": 51.83
+    },
+    "integration": {
+      "status": "passed",
+      "coverage": 60.9
+    },
+    "guardrails": {
+      "status": "passed",
+      "coverage": 63.08
+    },
+    "playwright_smoke": {
+      "status": "pending"
+    }
+  },
+  "overall_coverage": 58.6
+}
