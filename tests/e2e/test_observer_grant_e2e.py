@@ -428,6 +428,11 @@ class TestObserverGrantWebE2E:
         assert response.status_code == 200
         content = response.content.decode('utf-8')
         assert '观察员' in content or '协作' in content
+        assert '/static/css/account.css' in content
+        assert 'name="username"' in content
+        assert "username: formData.get('username')" in content
+        assert 'name="observer_username"' not in content
+        assert "observer_username: formData.get('observer_username')" not in content
 
     def test_observer_portal_renders(self, setup_e2e_data):
         """测试观察员门户页面渲染"""

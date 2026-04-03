@@ -4,7 +4,7 @@
 {% block title %}账户协作管理 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/account.css' }">
+<link rel="stylesheet" href="{% static 'css/account.css' %}">
 <style>
 .collaboration-container {
     max-width: 1000px;
@@ -309,7 +309,7 @@
             {% csrf_token %}
             <div class="form-group input-wrapper">
                 <label for="observerInput">用户名或用户ID</label>
-                <input type="text" id="observerInput" name="observer_username"
+                <input type="text" id="observerInput" name="username"
                        class="form-control" placeholder="输入用户名搜索..."
                        autocomplete="off" required>
                 <div id="userSuggestions" class="user-suggestions" style="display: none;"></div>
@@ -544,7 +544,7 @@
 
         const formData = new FormData(this);
         const data = {
-            observer_username: formData.get('observer_username'),
+            username: formData.get('username'),
             scope: 'read_only',
             expires_at: formData.get('expires_at') || null
         };

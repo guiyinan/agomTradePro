@@ -4,6 +4,11 @@ Django development settings for AgomTradePro project.
 
 import os
 
+from core.log_file_paths import (
+    get_development_log_backup_count,
+    get_development_log_max_bytes,
+    get_runserver_log_path,
+)
 from core.logging_utils import normalize_log_level
 
 from .base import *
@@ -33,6 +38,10 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Logging
 # 结构化日志配置 - 支持 trace_id/request_id 追踪
+DEVELOPMENT_LOG_FILE = get_runserver_log_path(BASE_DIR)
+DEVELOPMENT_LOG_MAX_BYTES = get_development_log_max_bytes()
+DEVELOPMENT_LOG_BACKUP_COUNT = get_development_log_backup_count()
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -76,34 +85,43 @@ LOGGING = {
             'class': 'core.logging_handlers.InMemoryLogHandler',
             'formatter': 'simple',
         },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(DEVELOPMENT_LOG_FILE),
+            'encoding': 'utf-8',
+            'maxBytes': DEVELOPMENT_LOG_MAX_BYTES,
+            'backupCount': DEVELOPMENT_LOG_BACKUP_COUNT,
+            'formatter': 'simple_with_trace',
+            'filters': ['trace_context'],
+        },
     },
     'root': {
-        'handlers': ['console', 'in_memory'],
+        'handlers': ['console', 'in_memory', 'file'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'in_memory'],
+            'handlers': ['console', 'in_memory', 'file'],
             'level': normalize_log_level(os.getenv('DJANGO_LOG_LEVEL')),
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['console', 'in_memory'],
+            'handlers': ['console', 'in_memory', 'file'],
             'level': 'WARNING',
             'propagate': False,
         },
         'django.server': {
-            'handlers': ['console', 'in_memory'],
+            'handlers': ['console', 'in_memory', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'apps': {
-            'handlers': ['console', 'in_memory'],
+            'handlers': ['console', 'in_memory', 'file'],
             'level': 'INFO',
             'propagate': False,
         },
         'core': {
-            'handlers': ['console', 'in_memory'],
+            'handlers': ['console', 'in_memory', 'file'],
             'level': 'DEBUG',
             'propagate': False,
         },

@@ -314,6 +314,50 @@ const stockCode = '{{ stock_code }}';
 let peChartInstance = null;
 let pbChartInstance = null;
 
+async function fetchJsonOrThrowCompat(resource, init = {}) {
+    if (typeof window.fetchJsonOrThrow === 'function') {
+        return window.fetchJsonOrThrow(resource, init);
+    }
+
+    const method = (init.method || 'GET').toUpperCase();
+    const headers = new Headers(init.headers || {});
+    if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) && window.csrfToken && !headers.has('X-CSRFToken')) {
+        headers.set('X-CSRFToken', window.csrfToken);
+    }
+
+    const response = await fetch(resource, {
+        credentials: init.credentials || 'same-origin',
+        ...init,
+        method,
+        headers,
+    });
+
+    if (!response.ok) {
+        let message = `HTTP ${response.status}`;
+        try {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const payload = await response.clone().json();
+                message = payload.detail || payload.error || payload.message || message;
+            } else {
+                const text = (await response.clone().text()).trim();
+                if (text) {
+                    message = text;
+                }
+            }
+        } catch (_) {
+        }
+        throw new Error(message);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        throw new Error(`Expected JSON but received ${contentType || 'unknown content type'}`);
+    }
+
+    return response.json();
+}
+
 // 生成东方财富链接
 function getEastmoneyUrl(code) {
     if (!code) return '#';
@@ -440,7 +484,7 @@ function createPercentileChart(canvasId, percentileValue, label, color) {
 // 加载股票详情
 async function loadStockDetail() {
     try {
-        const result = await window.fetchJsonOrThrow(`/api/equity/valuation/${stockCode}/`);
+        const result = await fetchJsonOrThrowCompat(`/api/equity/valuation/${stockCode}/`);
 
         if (result.success) {
             updateBasicInfo(result);
@@ -460,7 +504,7 @@ async function loadStockDetail() {
 // 获取实时价格
 async function loadRealtimePrice() {
     try {
-        const result = await window.fetchJsonOrThrow('/api/realtime/prices/', {
+        const result = await fetchJsonOrThrowCompat('/api/realtime/prices/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ asset_codes: [stockCode] })
@@ -585,7 +629,7 @@ async function loadCapitalFlow() {
     const empty = document.getElementById('capitalFlowEmpty');
     const table = document.getElementById('capitalFlowTable');
     try {
-        const result = await window.fetchJsonOrThrow(`/api/market-data/capital-flows/?code=${stockCode}&period=10d`);
+        const result = await fetchJsonOrThrowCompat(`/api/market-data/capital-flows/?code=${stockCode}&period=10d`);
         loading.style.display = 'none';
         if (!result.data || result.data.length === 0) {
             empty.style.display = 'block';
@@ -624,7 +668,7 @@ async function loadStockNews() {
     const empty = document.getElementById('stockNewsEmpty');
     const list = document.getElementById('stockNewsList');
     try {
-        const result = await window.fetchJsonOrThrow(`/api/market-data/news/?code=${stockCode}&limit=10`);
+        const result = await fetchJsonOrThrowCompat(`/api/market-data/news/?code=${stockCode}&limit=10`);
         loading.style.display = 'none';
         if (!result.data || result.data.length === 0) {
             empty.style.display = 'block';
@@ -673,7 +717,7 @@ async function refreshStockData() {
     
     try {
         // 1. 同步估值数据
-        const syncResult = await window.fetchJsonOrThrow('/api/equity/valuation-data/sync/', {
+        const syncResult = await fetchJsonOrThrowCompat('/api/equity/valuation-data/sync/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
