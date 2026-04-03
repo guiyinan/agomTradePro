@@ -198,7 +198,7 @@ class IncrementalScreeningEngine:
         }
 
         rule_str = json.dumps(rule_dict, sort_keys=True)
-        return hashlib.md5(rule_str.encode()).hexdigest()
+        return hashlib.sha256(rule_str.encode()).hexdigest()
 
     def _update_rule_hash(self, rule: StockScreeningRule) -> None:
         """更新规则的哈希值"""
@@ -344,7 +344,7 @@ class ScreeningCacheManager:
         }
 
         rule_str = json.dumps(rule_dict, sort_keys=True)
-        return hashlib.md5(rule_str.encode()).hexdigest()
+        return hashlib.sha256(rule_str.encode()).hexdigest()
 
 
 @lru_cache(maxsize=128)

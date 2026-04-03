@@ -113,8 +113,8 @@ jobs:
       - name: Run Safety scan
         id: safety
         run: |
-          # Run safety check and save report
-          safety check --json > reports/security/safety-report.json 2>&1 || true
+          # Scan declared project dependencies instead of the runner's ambient environment.
+          safety check -r requirements-dev.txt --json > reports/security/safety-report.json 2>&1 || true
 
           # Parse results
           VULN_COUNT=$(python3 -c "
@@ -123,13 +123,13 @@ jobs:
           try:
               with open('reports/security/safety-report.json') as f:
                   data = json.load(f)
-              # Safety JSON format varies by version
               if isinstance(data, dict):
-                  vulns = data.get('vulnerabilities', [])
-                  if isinstance(vulns, list):
-                      print(len(vulns))
+                  meta = data.get('report_meta', {})
+                  if isinstance(meta, dict) and 'vulnerabilities_found' in meta:
+                      print(meta.get('vulnerabilities_found', 0))
                   else:
-                      print(0)
+                      vulns = data.get('vulnerabilities', [])
+                      print(len(vulns) if isinstance(vulns, list) else 0)
               elif isinstance(data, list):
                   print(len(data))
               else:
@@ -147,7 +147,7 @@ jobs:
       - name: Run pip-audit
         id: pip-audit
         run: |
-          pip-audit --format json --output reports/security/pip-audit-report.json 2>/dev/null || true
+          pip-audit -r requirements-dev.txt --format json --output reports/security/pip-audit-report.json 2>/dev/null || true
 
           # Parse results
           AUDIT_COUNT=$(python3 -c "
@@ -155,7 +155,8 @@ jobs:
           try:
               with open('reports/security/pip-audit-report.json') as f:
                   data = json.load(f)
-              print(len(data.get('vulnerabilities', [])))
+              dependencies = data.get('dependencies', []) if isinstance(data, dict) else []
+              print(sum(len(dep.get('vulns', [])) for dep in dependencies))
           except:
               print(0)
           " || echo "0")
@@ -176,21 +177,12 @@ jobs:
 
       - name: Check for critical vulnerabilities
         run: |
-          # Fail if there are critical vulnerabilities in production dependencies
-          # This is a soft gate - warnings don't fail, only critical issues
-          CRITICAL_COUNT=$(python3 -c "
-          import json
-          try:
-              with open('reports/security/pip-audit-report.json') as f:
-                  data = json.load(f)
-              critical = [v for v in data.get('vulnerabilities', []) if v.get('severity', '').upper() == 'CRITICAL']
-              print(len(critical))
-          except:
-              print(0)
-          " || echo "0")
+          # requirements-dev.txt represents the repo-owned dependency surface for CI.
+          SAFETY_COUNT="${{ steps.safety.outputs.vulnerability_count }}"
+          AUDIT_COUNT="${{ steps.pip-audit.outputs.audit_vulnerability_count }}"
 
-          if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            echo "::error::Found $CRITICAL_COUNT CRITICAL vulnerabilities in dependencies. These must be fixed before merging."
+          if [ "${SAFETY_COUNT:-0}" -gt 0 ] || [ "${AUDIT_COUNT:-0}" -gt 0 ]; then
+            echo "::error::Declared dependencies still contain known vulnerabilities (safety=${SAFETY_COUNT:-0}, pip-audit=${AUDIT_COUNT:-0})."
             exit 1
           fi
 

@@ -105,7 +105,7 @@ class CacheKeyBuilder:
                 query_string = '&'.join(query_values)
                 # Hash long query strings to avoid key length issues
                 if len(query_string) > 50:
-                    query_hash = hashlib.md5(query_string.encode()).hexdigest()[:8]
+                    query_hash = hashlib.sha256(query_string.encode()).hexdigest()[:8]
                     parts.append(f"q:{query_hash}")
                 else:
                     parts.append(f"q:{query_string}")
@@ -116,7 +116,7 @@ class CacheKeyBuilder:
         # Ensure key doesn't exceed limits
         # Redis max key length is 512MB, but we keep it reasonable
         if len(key) > 200:
-            key_hash = hashlib.md5(key.encode()).hexdigest()[:12]
+            key_hash = hashlib.sha256(key.encode()).hexdigest()[:12]
             key = f"{prefix}:hash:{key_hash}"
 
         return key
@@ -159,7 +159,7 @@ class CacheKeyBuilder:
 
         # Hash if too long
         if len(key) > 200:
-            key_hash = hashlib.md5(key.encode()).hexdigest()[:12]
+            key_hash = hashlib.sha256(key.encode()).hexdigest()[:12]
             key = f"{prefix}:hash:{key_hash}"
 
         return key

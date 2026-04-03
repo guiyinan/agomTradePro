@@ -110,6 +110,7 @@ pytest tests/unit/domain/ -v
 pytest tests/integration/ -v
 
 # 运行综合 UAT 回归（Playwright，需本地服务已启动）
+# 建议配合 `python manage.py runserver --noreload`，避免自动重载残留孤儿进程
 pytest tests/playwright/tests/uat/test_comprehensive_regression.py -m uat -q
 
 # 生成覆盖率报告

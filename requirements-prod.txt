@@ -1,7 +1,7 @@
 # Runtime dependencies for production image/container
 
 # Django
-Django>=5.0,<6.0
+Django>=5.2.11,<6.0
 djangorestframework
 django-filter
 django-environ
@@ -33,11 +33,11 @@ akshare==1.18.22
 feedparser
 
 # HTTP
-requests
-urllib3
+requests>=2.33.0
+urllib3>=2.6.3
 
 # Dashboard / docs / metrics
-streamlit>=1.42
+streamlit>=1.54.0
 plotly>=5.24
 drf-spectacular
 prometheus-client>=0.19.0
@@ -54,4 +54,4 @@ typing-extensions>=4.9
 sentry-sdk[django,celery]>=2.0
 
 # Security / Encryption
-cryptography>=41.0
+cryptography>=46.0.6

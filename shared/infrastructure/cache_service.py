@@ -55,7 +55,7 @@ class CacheService:
         # 将参数排序后生成哈希
         parts = sorted(f"{k}={v}" for k, v in kwargs.items())
         key_string = ":".join(parts)
-        key_hash = hashlib.md5(key_string.encode()).hexdigest()[:8]
+        key_hash = hashlib.sha256(key_string.encode()).hexdigest()[:8]
 
         return f"{prefix}:{key_hash}"
 

@@ -32,7 +32,7 @@ class TestIncrementalScreeningEngineRuleDetection:
         hash1 = engine._compute_rule_hash(rule1)
         assert hash1 is not None
         assert isinstance(hash1, str)
-        assert len(hash1) == 32  # MD5 哈希长度
+        assert len(hash1) == 64  # SHA-256 哈希长度
 
     def test_has_rule_changed_first_run(self):
         """测试首次运行时规则未变化"""

@@ -26,7 +26,7 @@ _JUNK_PATTERNS = [
 def _generate_news_id(stock_code: str, title: str, published_at: str) -> str:
     """基于内容生成去重用的 news_id"""
     raw = f"{stock_code}:{title}:{published_at}"
-    return hashlib.md5(raw.encode("utf-8")).hexdigest()
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
 def _clean_content(content: str) -> str:
