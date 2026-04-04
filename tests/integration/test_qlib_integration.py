@@ -8,15 +8,12 @@ import importlib.util
 import os
 import pickle
 from datetime import date, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from django.test import override_settings
 
 from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.application.tasks import qlib_predict_scores
-from apps.alpha.domain.entities import AlphaResult
 from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
@@ -331,6 +328,67 @@ class TestQlibCeleryTasks:
         assert cache.status == AlphaScoreCacheModel.STATUS_DEGRADED
         assert cache.metrics_snapshot["qlib_data_latest_date"] == "2020-09-25"
         assert "2020-09-25" in cache.metrics_snapshot["fallback_reason"]
+
+    @patch("apps.alpha.application.tasks._execute_qlib_prediction")
+    @patch(
+        "apps.alpha.application.tasks._get_qlib_data_latest_date",
+        side_effect=ModuleNotFoundError("No module named 'qlib'"),
+    )
+    def test_qlib_predict_scores_reuses_latest_cache_when_qlib_runtime_is_unavailable(
+        self,
+        _mock_latest_date,
+        mock_predict,
+    ):
+        """测试 qlib 运行时不可用时优先复用最近缓存，而不是直接重试失败。"""
+        active_model = QlibModelRegistryModel.objects.create(
+            model_name="test_qlib_model",
+            artifact_hash="test_hash_runtime_missing",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-02-06",
+            model_path="/tmp/test_model.pkl",
+            is_active=True,
+        )
+
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 2, 4),
+            provider_source="qlib",
+            asof_date=date(2026, 2, 3),
+            model_id="legacy_qlib_model",
+            model_artifact_hash="",
+            feature_set_id="legacy",
+            label_id="return_5d",
+            data_version="2026-02-03",
+            scores=self._sample_scores(4),
+            status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+        )
+
+        result = qlib_predict_scores.apply(args=("csi300", "2026-02-06", 2))
+        outcome = result.get(timeout=60)
+
+        assert outcome["status"] == "success"
+        assert outcome["fallback_used"] is True
+        assert outcome["cache_status"] == AlphaScoreCacheModel.STATUS_DEGRADED
+        assert outcome["model_artifact_hash"] == active_model.artifact_hash
+        assert outcome["qlib_data_latest_date"] is None
+        assert "No module named 'qlib'" in outcome["qlib_runtime_error"]
+        mock_predict.assert_not_called()
+
+        cache = AlphaScoreCacheModel.objects.get(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 2, 6),
+            provider_source="qlib",
+            model_artifact_hash=active_model.artifact_hash,
+        )
+        assert cache.status == AlphaScoreCacheModel.STATUS_DEGRADED
+        assert len(cache.scores) == 2
+        assert cache.metrics_snapshot["fallback_mode"] == "forward_fill_latest_qlib_cache"
+        assert cache.metrics_snapshot["qlib_data_latest_date"] is None
+        assert "No module named 'qlib'" in cache.metrics_snapshot["qlib_runtime_error"]
 
 
 @pytest.mark.django_db
