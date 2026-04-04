@@ -17,10 +17,57 @@
     height: 100% !important;
     display: block;
 }
+
+.metric-subvalue {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+}
+
+.technical-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.technical-timeframe-group {
+    display: inline-flex;
+    gap: 8px;
+}
+
+.technical-timeframe-btn.active {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
+.technical-summary {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.technical-chart-shell {
+    width: 100%;
+    height: 520px;
+}
+
+.technical-empty {
+    display: none;
+    padding: 40px 16px;
+    text-align: center;
+    color: var(--color-text-muted);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md, 8px);
+}
 </style>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/echarts.min.js' %}"></script>
 <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 {% endblock %}
 
@@ -103,8 +150,9 @@
         </div>
         <div class="metric-grid">
             <div class="metric-card">
-                <div class="metric-label">最新价</div>
+                <div class="metric-label">最新市价</div>
                 <div class="metric-value" id="detailPrice">-</div>
+                <div class="metric-subvalue" id="detailPriceTimestamp">实时价格时间: --</div>
             </div>
             <div class="metric-card">
                 <div class="metric-label">市盈率 (PE)</div>
@@ -135,6 +183,21 @@
                 <div class="metric-value" id="detailTurnover">-</div>
             </div>
         </div>
+    </div>
+
+    <div class="card">
+        <h2 class="card-title">技术图谱</h2>
+        <div class="technical-toolbar">
+            <div class="technical-timeframe-group">
+                <button type="button" class="btn btn-secondary technical-timeframe-btn active" data-technical-timeframe="intraday">分时</button>
+                <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="day">日线</button>
+                <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="week">周线</button>
+                <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="month">月线</button>
+            </div>
+            <div class="technical-summary" id="technicalSummary">加载技术图表中...</div>
+        </div>
+        <div id="technicalChartEmpty" class="technical-empty">暂无技术图表数据</div>
+        <div id="technicalChart" class="technical-chart-shell" aria-label="技术图表"></div>
     </div>
 
     <!-- 财务指标 -->
@@ -313,6 +376,9 @@
 const stockCode = '{{ stock_code }}';
 let peChartInstance = null;
 let pbChartInstance = null;
+let technicalChartInstance = null;
+let activeTechnicalTimeframe = 'intraday';
+let technicalRequestToken = 0;
 
 async function fetchJsonOrThrowCompat(resource, init = {}) {
     if (typeof window.fetchJsonOrThrow === 'function') {
@@ -375,17 +441,13 @@ function setExternalLinks() {
 function updateDataTime(timestamp) {
     const el = document.getElementById('dataUpdateTime');
     if (timestamp) {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const isToday = date.toDateString() === now.toDateString();
-        const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-        const dateStr = date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+        const preciseTimestamp = formatPreciseTimestamp(timestamp);
         el.innerHTML = `
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12 6 12 12 16 14"/>
             </svg>
-            数据更新于: ${isToday ? timeStr : dateStr + ' ' + timeStr}
+            数据更新于: ${preciseTimestamp}
             <span style="color: #f59e0b; margin-left: 4px;" title="非实时数据，仅供参考">⚠️</span>
         `;
     } else {
@@ -398,6 +460,51 @@ function updateDataTime(timestamp) {
             <span style="color: #f59e0b; margin-left: 4px;" title="非实时数据，仅供参考">⚠️</span>
         `;
     }
+}
+
+function formatPreciseTimestamp(timestamp) {
+    if (!timestamp) {
+        return '--';
+    }
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) {
+        return '--';
+    }
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const timeStr = date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+    if (isToday) {
+        return timeStr;
+    }
+    const dateStr = date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    return `${dateStr} ${timeStr}`;
+}
+
+function updatePriceTimestamp(timestamp, sourceLabel = '价格时间') {
+    const el = document.getElementById('detailPriceTimestamp');
+    el.textContent = `${sourceLabel}: ${formatPreciseTimestamp(timestamp)}`;
+}
+
+function setFallbackClosePrice(price, tradeDate) {
+    const priceEl = document.getElementById('detailPrice');
+    if (price !== undefined && price !== null && Number(price) > 0) {
+        priceEl.textContent = Number(price).toFixed(2);
+        priceEl.className = 'metric-value';
+        updatePriceTimestamp(tradeDate, '上一交易日收盘');
+        return;
+    }
+
+    priceEl.textContent = '-';
+    priceEl.className = 'metric-value';
+    document.getElementById('detailPriceTimestamp').textContent = '上一交易日收盘不可用';
 }
 
 function clampPercentile(value) {
@@ -432,6 +539,440 @@ function getPercentileHint(percentile) {
         return '历史高位，偏高估';
     }
     return '历史中位附近';
+}
+
+function getCssVariable(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
+function getTimeframeLabel(timeframe) {
+    if (timeframe === 'intraday') return '分时';
+    if (timeframe === 'week') return '周线';
+    if (timeframe === 'month') return '月线';
+    return '日线';
+}
+
+function setTechnicalButtonState(timeframe) {
+    document.querySelectorAll('[data-technical-timeframe]').forEach(button => {
+        button.classList.toggle('active', button.dataset.technicalTimeframe === timeframe);
+    });
+}
+
+function renderTechnicalSummary(payload) {
+    const summaryEl = document.getElementById('technicalSummary');
+    if (payload.timeframe === 'intraday') {
+        const pointCount = payload.points?.length || 0;
+        if (!pointCount) {
+            summaryEl.textContent = '分时暂无数据';
+            return;
+        }
+        const latestPoint = payload.latest_point;
+        const sessionDate = payload.session_date || '--';
+        const latestPrice = latestPoint?.price != null ? Number(latestPoint.price).toFixed(2) : '--';
+        summaryEl.textContent = `分时 · ${pointCount} 个分钟点 · ${sessionDate} · 最新 ${latestPrice}`;
+        return;
+    }
+
+    const candleCount = payload.candles?.length || 0;
+    const latestSignal = payload.latest_signal;
+
+    if (!candleCount) {
+        summaryEl.textContent = `${getTimeframeLabel(payload.timeframe)}暂无数据`;
+        return;
+    }
+
+    if (latestSignal) {
+        const signalLabel = latestSignal.signal_type === 'golden_cross' ? '金叉' : '死叉';
+        summaryEl.textContent = `${getTimeframeLabel(payload.timeframe)} · ${candleCount} 根K线 · 最近信号 ${signalLabel} · ${latestSignal.trade_date} · ${latestSignal.label}`;
+        return;
+    }
+
+    summaryEl.textContent = `${getTimeframeLabel(payload.timeframe)} · ${candleCount} 根K线 · 最近未检测到 MA5/MA20 金叉死叉`;
+}
+
+function renderIntradayChart(payload) {
+    const chartContainer = document.getElementById('technicalChart');
+    const emptyState = document.getElementById('technicalChartEmpty');
+    const points = Array.isArray(payload.points) ? payload.points : [];
+
+    if (!points.length) {
+        emptyState.style.display = 'block';
+        chartContainer.style.display = 'none';
+        if (technicalChartInstance) {
+            technicalChartInstance.dispose();
+            technicalChartInstance = null;
+        }
+        renderTechnicalSummary(payload);
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    chartContainer.style.display = 'block';
+
+    if (!technicalChartInstance) {
+        technicalChartInstance = echarts.init(chartContainer);
+    }
+
+    const mutedColor = getCssVariable('--color-text-muted', '#6b7280');
+    const borderColor = getCssVariable('--color-border', '#d1d5db');
+    const priceColor = '#2563eb';
+    const avgColor = '#f59e0b';
+    const volumeColor = '#94a3b8';
+
+    const times = points.map(item => formatPreciseTimestamp(item.timestamp));
+    const priceData = points.map(item => item.price);
+    const avgData = points.map(item => item.avg_price);
+    const volumeData = points.map(item => item.volume);
+
+    technicalChartInstance.setOption({
+        animation: false,
+        legend: {
+            top: 0,
+            data: ['分时价格', '均价', '成交量'],
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross',
+            },
+        },
+        axisPointer: {
+            link: [{ xAxisIndex: [0, 1] }],
+        },
+        grid: [
+            { left: '7%', right: '4%', top: 42, height: '56%' },
+            { left: '7%', right: '4%', top: '74%', height: '14%' },
+        ],
+        xAxis: [
+            {
+                type: 'category',
+                data: times,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: borderColor } },
+                splitLine: { show: false },
+                axisLabel: { color: mutedColor, hideOverlap: true },
+            },
+            {
+                type: 'category',
+                gridIndex: 1,
+                data: times,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: borderColor } },
+                splitLine: { show: false },
+                axisLabel: { color: mutedColor, hideOverlap: true },
+            },
+        ],
+        yAxis: [
+            {
+                scale: true,
+                axisLabel: { color: mutedColor },
+            },
+            {
+                scale: true,
+                gridIndex: 1,
+                splitNumber: 2,
+                axisLabel: { color: mutedColor },
+            },
+        ],
+        dataZoom: [
+            {
+                type: 'inside',
+                xAxisIndex: [0, 1],
+                start: 0,
+                end: 100,
+            },
+            {
+                show: true,
+                type: 'slider',
+                xAxisIndex: [0, 1],
+                bottom: 12,
+                height: 18,
+                start: 0,
+                end: 100,
+            },
+        ],
+        series: [
+            {
+                name: '分时价格',
+                type: 'line',
+                data: priceData,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.6, color: priceColor },
+                areaStyle: { color: 'rgba(37, 99, 235, 0.08)' },
+            },
+            {
+                name: '均价',
+                type: 'line',
+                data: avgData,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.2, color: avgColor },
+            },
+            {
+                name: '成交量',
+                type: 'bar',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: volumeData,
+                itemStyle: { color: volumeColor },
+            },
+        ],
+    }, true);
+
+    renderTechnicalSummary(payload);
+}
+
+function renderTechnicalChart(payload) {
+    const chartContainer = document.getElementById('technicalChart');
+    const emptyState = document.getElementById('technicalChartEmpty');
+    const candles = Array.isArray(payload.candles) ? payload.candles : [];
+
+    if (!candles.length) {
+        emptyState.style.display = 'block';
+        chartContainer.style.display = 'none';
+        if (technicalChartInstance) {
+            technicalChartInstance.dispose();
+            technicalChartInstance = null;
+        }
+        renderTechnicalSummary(payload);
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    chartContainer.style.display = 'block';
+
+    if (!technicalChartInstance) {
+        technicalChartInstance = echarts.init(chartContainer);
+    }
+
+    const riseColor = getCssVariable('--color-rise', '#d84b45');
+    const fallColor = getCssVariable('--color-fall', '#1f9d55');
+    const mutedColor = getCssVariable('--color-text-muted', '#6b7280');
+    const borderColor = getCssVariable('--color-border', '#d1d5db');
+
+    const dates = candles.map(item => item.trade_date);
+    const candleData = candles.map(item => [item.open, item.close, item.low, item.high]);
+    const ma5Data = candles.map(item => item.ma5);
+    const ma20Data = candles.map(item => item.ma20);
+    const ma60Data = candles.map(item => item.ma60);
+    const macdData = candles.map(item => item.macd);
+    const signalData = candles.map(item => item.macd_signal);
+    const histData = candles.map(item => item.macd_hist);
+    const markPointData = (payload.signals || []).map(signal => ({
+        name: signal.signal_type === 'golden_cross' ? '金叉' : '死叉',
+        coord: [signal.trade_date, signal.price],
+        value: signal.signal_type === 'golden_cross' ? '金叉' : '死叉',
+        itemStyle: {
+            color: signal.signal_type === 'golden_cross' ? riseColor : fallColor,
+        },
+        label: {
+            color: '#fff',
+            fontSize: 10,
+        },
+    }));
+
+    technicalChartInstance.setOption({
+        animation: false,
+        legend: {
+            top: 0,
+            data: ['K线', 'MA5', 'MA20', 'MA60', 'MACD', 'DIF', 'DEA'],
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross',
+            },
+        },
+        axisPointer: {
+            link: [{ xAxisIndex: [0, 1] }],
+        },
+        grid: [
+            { left: '7%', right: '4%', top: 42, height: '56%' },
+            { left: '7%', right: '4%', top: '74%', height: '16%' },
+        ],
+        xAxis: [
+            {
+                type: 'category',
+                data: dates,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { onZero: false, lineStyle: { color: borderColor } },
+                splitLine: { show: false },
+                axisLabel: { color: mutedColor, hideOverlap: true },
+                min: 'dataMin',
+                max: 'dataMax',
+            },
+            {
+                type: 'category',
+                gridIndex: 1,
+                data: dates,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { onZero: false, lineStyle: { color: borderColor } },
+                splitLine: { show: false },
+                axisLabel: { color: mutedColor, hideOverlap: true },
+                min: 'dataMin',
+                max: 'dataMax',
+            },
+        ],
+        yAxis: [
+            {
+                scale: true,
+                axisLabel: { color: mutedColor },
+            },
+            {
+                scale: true,
+                gridIndex: 1,
+                splitNumber: 2,
+                axisLabel: { color: mutedColor },
+            },
+        ],
+        dataZoom: [
+            {
+                type: 'inside',
+                xAxisIndex: [0, 1],
+                start: 55,
+                end: 100,
+            },
+            {
+                show: true,
+                type: 'slider',
+                xAxisIndex: [0, 1],
+                bottom: 12,
+                height: 18,
+                start: 55,
+                end: 100,
+            },
+        ],
+        series: [
+            {
+                name: 'K线',
+                type: 'candlestick',
+                data: candleData,
+                itemStyle: {
+                    color: riseColor,
+                    color0: fallColor,
+                    borderColor: riseColor,
+                    borderColor0: fallColor,
+                },
+                markPoint: markPointData.length ? { data: markPointData } : undefined,
+            },
+            {
+                name: 'MA5',
+                type: 'line',
+                data: ma5Data,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.4, color: '#2563eb' },
+            },
+            {
+                name: 'MA20',
+                type: 'line',
+                data: ma20Data,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.4, color: '#0f766e' },
+            },
+            {
+                name: 'MA60',
+                type: 'line',
+                data: ma60Data,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.2, color: '#7c3aed' },
+            },
+            {
+                name: 'MACD',
+                type: 'bar',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: histData,
+                itemStyle: {
+                    color: params => (params.value >= 0 ? riseColor : fallColor),
+                },
+            },
+            {
+                name: 'DIF',
+                type: 'line',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: macdData,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.2, color: '#f59e0b' },
+            },
+            {
+                name: 'DEA',
+                type: 'line',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: signalData,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { width: 1.2, color: '#475569' },
+            },
+        ],
+    }, true);
+
+    renderTechnicalSummary(payload);
+}
+
+async function loadTechnicalChart(timeframe = activeTechnicalTimeframe) {
+    activeTechnicalTimeframe = timeframe;
+    const requestToken = ++technicalRequestToken;
+    setTechnicalButtonState(timeframe);
+
+    const summaryEl = document.getElementById('technicalSummary');
+    summaryEl.textContent = `${getTimeframeLabel(timeframe)}加载中...`;
+
+    try {
+        if (timeframe === 'intraday') {
+            const payload = await fetchJsonOrThrowCompat(`/api/equity/intraday/${stockCode}/`);
+            if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
+                return;
+            }
+            renderIntradayChart({ ...payload, timeframe });
+            return;
+        }
+
+        const payload = await fetchJsonOrThrowCompat(
+            `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=540`
+        );
+        if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
+            return;
+        }
+        renderTechnicalChart(payload);
+    } catch (error) {
+        if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
+            return;
+        }
+        console.error('加载技术图表失败:', error);
+        const emptyPayload = timeframe === 'intraday'
+            ? { timeframe, points: [], latest_point: null, session_date: null }
+            : { timeframe, candles: [], signals: [], latest_signal: null };
+        if (timeframe === 'intraday') {
+            renderIntradayChart(emptyPayload);
+        } else {
+            renderTechnicalChart(emptyPayload);
+        }
+        summaryEl.textContent = `${getTimeframeLabel(timeframe)}加载失败`;
+    }
+}
+
+function initTechnicalControls() {
+    document.querySelectorAll('[data-technical-timeframe]').forEach(button => {
+        button.addEventListener('click', () => {
+            loadTechnicalChart(button.dataset.technicalTimeframe);
+        });
+    });
+
+    window.addEventListener('resize', () => {
+        if (technicalChartInstance) {
+            technicalChartInstance.resize();
+        }
+    });
 }
 
 function createPercentileChart(canvasId, percentileValue, label, color) {
@@ -491,6 +1032,7 @@ async function loadStockDetail() {
             updateValuation(result);
             updateFinancials(result);
             createCharts(result);
+            loadTechnicalChart(activeTechnicalTimeframe);
             // 获取实时价格覆盖
             loadRealtimePrice();
         } else {
@@ -503,27 +1045,25 @@ async function loadStockDetail() {
 
 // 获取实时价格
 async function loadRealtimePrice() {
+    const priceEl = document.getElementById('detailPrice');
     try {
-        const result = await fetchJsonOrThrowCompat('/api/realtime/prices/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ asset_codes: [stockCode] })
-        });
-        if (result.prices && result.prices.length > 0) {
-            const price = result.prices[0];
-            const priceEl = document.getElementById('detailPrice');
-            if (price.price && price.price > 0) {
-                priceEl.textContent = price.price.toFixed(2);
-                // 添加实时标识
-                const changePct = price.change_pct;
-                if (changePct !== undefined && changePct !== null) {
-                    const changeClass = changePct >= 0 ? 'text-rise' : 'text-fall';
-                    priceEl.className = 'metric-value ' + changeClass;
-                }
+        const price = await fetchJsonOrThrowCompat(`/api/realtime/prices/${stockCode}/`);
+        if (price.success && price.price && price.price > 0) {
+            priceEl.textContent = price.price.toFixed(2);
+            updatePriceTimestamp(price.timestamp, '实时价格时间');
+            // 添加实时标识
+            const changePct = price.change_pct;
+            if (changePct !== undefined && changePct !== null) {
+                const changeClass = changePct >= 0 ? 'text-rise' : 'text-fall';
+                priceEl.className = 'metric-value ' + changeClass;
             }
+            return;
         }
     } catch (e) {
         console.warn('获取实时价格失败:', e);
+    }
+    if (priceEl.textContent === '-' || !priceEl.textContent.trim()) {
+        document.getElementById('detailPriceTimestamp').textContent = '实时价格不可用';
     }
 }
 
@@ -537,7 +1077,7 @@ function updateBasicInfo(data) {
 function updateValuation(data) {
     const latest = getValuationSnapshot(data);
     if (latest) {
-        document.getElementById('detailPrice').textContent = latest.price || '-';
+        setFallbackClosePrice(latest.price, latest.trade_date);
         document.getElementById('detailPe').textContent = latest.pe ? latest.pe.toFixed(2) : '-';
         document.getElementById('detailPb').textContent = latest.pb ? latest.pb.toFixed(2) : '-';
         document.getElementById('detailPs').textContent = latest.ps ? latest.ps.toFixed(2) : '-';
@@ -770,6 +1310,7 @@ async function refreshStockData() {
 }
 
 // 页面加载时执行
+initTechnicalControls();
 setExternalLinks();
 loadStockDetail();
 loadCapitalFlow();

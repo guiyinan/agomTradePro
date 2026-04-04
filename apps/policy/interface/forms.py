@@ -24,16 +24,36 @@ class RSSSourceForm(forms.ModelForm):
         model = RSSSourceConfigModel
         fields = [
             "name",
-            "url",
             "category",
             "is_active",
             "fetch_interval_hours",
             "extract_content",
+            "timeout_seconds",
+            "retry_times",
+            "url",
+            "parser_type",
             "rsshub_enabled",
             "rsshub_route_path",
+            "rsshub_use_global_config",
+            "rsshub_custom_base_url",
+            "rsshub_custom_access_key",
+            "rsshub_format",
+            "proxy_enabled",
+            "proxy_host",
+            "proxy_port",
+            "proxy_type",
+            "proxy_username",
+            "proxy_password",
         ]
         widgets = {
             "fetch_interval_hours": forms.NumberInput(attrs={"min": 1, "max": 168}),
+            "timeout_seconds": forms.NumberInput(attrs={"min": 5, "max": 120}),
+            "retry_times": forms.NumberInput(attrs={"min": 0, "max": 10}),
+            "proxy_port": forms.NumberInput(attrs={"min": 1, "max": 65535}),
+            "rsshub_route_path": forms.TextInput(attrs={"placeholder": "/csrc/news/bwj"}),
+            "rsshub_custom_base_url": forms.URLInput(
+                attrs={"placeholder": "http://127.0.0.1:1200"}
+            ),
         }
 
 

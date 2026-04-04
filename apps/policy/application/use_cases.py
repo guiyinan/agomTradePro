@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GetCurrentPolicyResponse:
     """Backward-compatible response for current policy query."""
+
     success: bool
     policy_level: PolicyLevel | None = None
     error: str | None = None
@@ -92,11 +93,7 @@ class AlertServiceProtocol(Protocol):
     """告警服务协议"""
 
     def send_alert(
-        self,
-        level: str,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: str, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """发送告警"""
         ...
@@ -117,6 +114,7 @@ class EventStoreProtocol(Protocol):
 @dataclass
 class CreatePolicyEventInput:
     """创建政策事件的输入 DTO"""
+
     event_date: date
     level: PolicyLevel
     title: str
@@ -127,6 +125,7 @@ class CreatePolicyEventInput:
 @dataclass
 class CreatePolicyEventOutput:
     """创建政策事件的输出 DTO"""
+
     success: bool
     event: PolicyEvent | None = None
     errors: list[str] = None
@@ -143,6 +142,7 @@ class CreatePolicyEventOutput:
 @dataclass
 class PolicyStatusOutput:
     """政策状态输出 DTO"""
+
     current_level: PolicyLevel
     level_name: str
     response_config: PolicyResponse
@@ -156,6 +156,7 @@ class PolicyStatusOutput:
 @dataclass
 class PolicyHistoryOutput:
     """政策历史输出 DTO"""
+
     events: list[PolicyEvent]
     total_count: int
     level_stats: dict[str, Any]
@@ -175,9 +176,7 @@ class CreatePolicyEventUseCase:
     """
 
     def __init__(
-        self,
-        event_store: EventStoreProtocol,
-        alert_service: AlertServiceProtocol | None = None
+        self, event_store: EventStoreProtocol, alert_service: AlertServiceProtocol | None = None
     ):
         """
         初始化用例
@@ -208,7 +207,7 @@ class CreatePolicyEventUseCase:
                 level=input.level,
                 title=input.title,
                 description=input.description,
-                evidence_url=input.evidence_url
+                evidence_url=input.evidence_url,
             )
 
             if not is_valid:
@@ -222,13 +221,11 @@ class CreatePolicyEventUseCase:
                 level=input.level,
                 title=input.title,
                 description=input.description,
-                evidence_url=input.evidence_url
+                evidence_url=input.evidence_url,
             )
 
             # 3. 获取之前的档位
-            previous_event = self.event_store.get_latest_event(
-                before_date=input.event_date
-            )
+            previous_event = self.event_store.get_latest_event(before_date=input.event_date)
             previous_level = previous_event.level if previous_event else None
 
             # 4. 保存事件
@@ -247,10 +244,7 @@ class CreatePolicyEventUseCase:
 
             # 6. 触发告警（如需要）
             if should_trigger_alert(input.level):
-                alert_triggered = self._send_alert(
-                    event=saved_event,
-                    previous_level=previous_level
-                )
+                alert_triggered = self._send_alert(event=saved_event, previous_level=previous_level)
 
             # 7. 添加建议
             recommendations = get_recommendations_for_level(input.level)
@@ -259,9 +253,7 @@ class CreatePolicyEventUseCase:
             output.success = True
             output.alert_triggered = alert_triggered
 
-            logger.info(
-                f"Policy event created successfully: {input.level.value} - {input.title}"
-            )
+            logger.info(f"Policy event created successfully: {input.level.value} - {input.title}")
 
         except (DataFetchError, DataValidationError) as e:
             # Known data/validation errors - record and continue
@@ -286,11 +278,7 @@ class CreatePolicyEventUseCase:
 
         return output
 
-    def _send_alert(
-        self,
-        event: PolicyEvent,
-        previous_level: PolicyLevel | None
-    ) -> bool:
+    def _send_alert(self, event: PolicyEvent, previous_level: PolicyLevel | None) -> bool:
         """
         发送告警
 
@@ -341,7 +329,7 @@ class CreatePolicyEventUseCase:
                     "level": event.level.value,
                     "title": event.title,
                     "evidence_url": event.evidence_url,
-                }
+                },
             )
             if success:
                 logger.info(f"Alert sent for policy level {event.level.value}")
@@ -419,7 +407,7 @@ class GetPolicyStatusUseCase:
             is_intervention_active=is_intervention,
             is_crisis_mode=is_crisis,
             recommendations=recommendations,
-            as_of_date=as_of_date
+            as_of_date=as_of_date,
         )
 
 
@@ -442,10 +430,7 @@ class GetPolicyHistoryUseCase:
         self.event_store = event_store
 
     def execute(
-        self,
-        start_date: date,
-        end_date: date,
-        level: PolicyLevel | None = None
+        self, start_date: date, end_date: date, level: PolicyLevel | None = None
     ) -> PolicyHistoryOutput:
         """
         执行用例
@@ -482,7 +467,7 @@ class GetPolicyHistoryUseCase:
             total_count=len(events),
             level_stats=stats,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
         )
 
 
@@ -494,9 +479,7 @@ class UpdatePolicyEventUseCase:
     """
 
     def __init__(
-        self,
-        event_store: EventStoreProtocol,
-        alert_service: AlertServiceProtocol | None = None
+        self, event_store: EventStoreProtocol, alert_service: AlertServiceProtocol | None = None
     ):
         self.event_store = event_store
         self.alert_service = alert_service
@@ -508,7 +491,7 @@ class UpdatePolicyEventUseCase:
         title: str,
         description: str,
         evidence_url: str,
-        event_id: int | None = None
+        event_id: int | None = None,
     ) -> CreatePolicyEventOutput:
         """
         执行用例
@@ -530,15 +513,12 @@ class UpdatePolicyEventUseCase:
             try:
                 # 使用 Repository 方法而非直接 ORM 访问
                 existing = self.event_store.get_existing_for_update(
-                    event_id=event_id,
-                    event_date=event_date
+                    event_id=event_id, event_date=event_date
                 )
 
                 if existing:
-                    if event_id is not None and existing['event_date'] != event_date:
-                        output.errors.append(
-                            f"event_id={event_id} 与路径日期 {event_date} 不匹配"
-                        )
+                    if event_id is not None and existing["event_date"] != event_date:
+                        output.errors.append(f"event_id={event_id} 与路径日期 {event_date} 不匹配")
                         return output
                 else:
                     if event_id is not None:
@@ -552,12 +532,9 @@ class UpdatePolicyEventUseCase:
                     level=level,
                     title=title,
                     description=description,
-                    evidence_url=evidence_url
+                    evidence_url=evidence_url,
                 )
-                saved = self.event_store.save_event(
-                    updated_event,
-                    _update_id=existing['id']
-                )
+                saved = self.event_store.save_event(updated_event, _update_id=existing["id"])
                 output.success = True
                 output.event = saved
                 output.warnings.append("⚠️ 政策事件已更新")
@@ -573,11 +550,10 @@ class UpdatePolicyEventUseCase:
             level=level,
             title=title,
             description=description,
-            evidence_url=evidence_url
+            evidence_url=evidence_url,
         )
         create_use_case = CreatePolicyEventUseCase(
-            event_store=self.event_store,
-            alert_service=self.alert_service
+            event_store=self.event_store, alert_service=self.alert_service
         )
         output = create_use_case.execute(create_input)
         if output.success:
@@ -596,7 +572,9 @@ class DeletePolicyEventUseCase:
     def __init__(self, event_store: EventStoreProtocol):
         self.event_store = event_store
 
-    def execute(self, event_date: date | None = None, event_id: int | None = None) -> tuple[bool, str]:
+    def execute(
+        self, event_date: date | None = None, event_id: int | None = None
+    ) -> tuple[bool, str]:
         """
         执行用例
 
@@ -632,9 +610,11 @@ class DeletePolicyEventUseCase:
 
 # ========== RSS 相关用例 ==========
 
+
 @dataclass
 class FetchRSSInput:
     """RSS抓取输入 DTO"""
+
     source_id: int | None = None  # None表示抓取所有启用的源
     force_refetch: bool = False  # 是否强制重新抓取（忽略去重）
 
@@ -642,6 +622,7 @@ class FetchRSSInput:
 @dataclass
 class FetchRSSOutput:
     """RSS抓取输出 DTO"""
+
     success: bool
     sources_processed: int
     total_items: int
@@ -659,6 +640,7 @@ class FetchRSSOutput:
 @dataclass
 class RSSSourceDetail:
     """单个RSS源的抓取详情"""
+
     source_name: str
     items_count: int
     new_events_count: int
@@ -687,7 +669,7 @@ class FetchRSSUseCase:
         rss_repository: RSSRepository,
         policy_repository: DjangoPolicyRepository,
         alert_service: AlertServiceProtocol | None = None,
-        ai_classifier: Any | None = None  # PolicyClassifierProtocol
+        ai_classifier: Any | None = None,  # PolicyClassifierProtocol
     ):
         """
         初始化用例
@@ -705,18 +687,19 @@ class FetchRSSUseCase:
 
         # 适配器工厂
         self._adapter_factory = {
-            'feedparser': FeedparserAdapter(),
+            "feedparser": FeedparserAdapter(),
         }
 
         # 内容提取器工厂
         self._extractor_factory = {
-            'readability': create_content_extractor('readability'),
-            'beautifulsoup': create_content_extractor('beautifulsoup'),
-            'hybrid': create_content_extractor('hybrid'),
+            "readability": create_content_extractor("readability"),
+            "beautifulsoup": create_content_extractor("beautifulsoup"),
+            "hybrid": create_content_extractor("hybrid"),
         }
 
         # 导入档位匹配服务
         from .services import PolicyLevelMatcher
+
         self._matcher_class = PolicyLevelMatcher
 
     def execute(self, input: FetchRSSInput) -> FetchRSSOutput:
@@ -735,7 +718,7 @@ class FetchRSSUseCase:
             total_items=0,
             new_policy_events=0,
             errors=[],
-            details=[]
+            details=[],
         )
 
         # 获取要抓取的源
@@ -757,8 +740,8 @@ class FetchRSSUseCase:
                 detail = self._fetch_single_source(source, input.force_refetch)
                 output.details.append(detail)
                 output.sources_processed += 1
-                output.total_items += detail.get('items_count', 0)
-                output.new_policy_events += detail.get('new_events_count', 0)
+                output.total_items += detail.get("items_count", 0)
+                output.new_policy_events += detail.get("new_events_count", 0)
 
             except (ExternalServiceError, DataFetchError) as e:
                 error_msg = f"RSS源 {source.name} 抓取失败（外部服务）: {str(e)}"
@@ -780,9 +763,7 @@ class FetchRSSUseCase:
         return output
 
     def _fetch_single_source(
-        self,
-        source: RSSSourceConfigModel,
-        force_refetch: bool
+        self, source: RSSSourceConfigModel, force_refetch: bool
     ) -> dict[str, Any]:
         """
         抓取单个RSS源（增强版 - 集成AI分类）
@@ -808,9 +789,7 @@ class FetchRSSUseCase:
         items = adapter.fetch(source_config)
 
         # 4. 获取关键词规则（作为fallback）
-        keyword_rules = self.rss_repository.get_active_keyword_rules(
-            category=source.category
-        )
+        keyword_rules = self.rss_repository.get_active_keyword_rules(category=source.category)
         if not keyword_rules:
             keyword_rules = DEFAULT_KEYWORD_RULES
 
@@ -829,18 +808,18 @@ class FetchRSSUseCase:
                 # 阶段1：先落库原始记录，保证后续处理失败也不会丢数据
                 policy_log_orm = PolicyLog._default_manager.create(
                     event_date=item.pub_date.date(),
-                    level='PX',  # 待分类
+                    level="PX",  # 待分类
                     title=item.title,
                     description=item.description or item.title,
                     evidence_url=item.link,
-                    info_category='other',
-                    audit_status='pending_review',
+                    info_category="other",
+                    audit_status="pending_review",
                     ai_confidence=None,
                     structured_data={},
-                    risk_impact='unknown',
+                    risk_impact="unknown",
                     rss_source_id=source.id,
                     rss_item_guid=item.guid or item.link,
-                    processing_metadata={'processing_stage': 'raw_ingested'}
+                    processing_metadata={"processing_stage": "raw_ingested"},
                 )
                 new_events_count += 1
 
@@ -877,7 +856,9 @@ class FetchRSSUseCase:
                             )
                     except AIServiceError as e:
                         logger.warning(f"AI service error for {item.title}: {e}")
-                        record_exception(e, module="policy", is_handled=True, service_name="ai_classification")
+                        record_exception(
+                            e, module="policy", is_handled=True, service_name="ai_classification"
+                        )
                     except Exception as e:
                         logger.error(f"AI classification error for {item.title}: {e}")
                         record_exception(e, module="policy", is_handled=True)
@@ -886,7 +867,11 @@ class FetchRSSUseCase:
                 level = None
 
                 # 优先使用 AI 推荐的档位
-                if classification_result and classification_result.success and classification_result.policy_level:
+                if (
+                    classification_result
+                    and classification_result.success
+                    and classification_result.policy_level
+                ):
                     level = classification_result.policy_level
                     logger.info(f"Using AI recommended level: {level.value} for: {item.title}")
 
@@ -904,7 +889,9 @@ class FetchRSSUseCase:
                     info_category = InfoCategory.OTHER
                     audit_status = AuditStatus.PENDING_REVIEW
                     ai_confidence = None
-                    logger.info(f"No policy level matched, using PENDING (unclassified) for: {item.title}")
+                    logger.info(
+                        f"No policy level matched, using PENDING (unclassified) for: {item.title}"
+                    )
 
                 # 内容提取（如果启用）
                 description = item.description or item.title
@@ -912,12 +899,12 @@ class FetchRSSUseCase:
 
                 if source_config.extract_content:
                     try:
-                        extractor = self._extractor_factory.get('hybrid')
+                        extractor = self._extractor_factory.get("hybrid")
                         if extractor:
                             extracted_content = extractor.extract(
                                 url=item.link,
                                 proxy_config=source_config.proxy_config,
-                                timeout=source.timeout_seconds
+                                timeout=source.timeout_seconds,
                             )
                             if extracted_content:
                                 description = extracted_content[:5000]
@@ -925,8 +912,10 @@ class FetchRSSUseCase:
                                 # 如果AI提取失败但提取了内容，可以重试AI分类
                                 if classification_result and not classification_result.success:
                                     try:
-                                        classification_result = self.ai_classifier.classify_rss_item(
-                                            item, content=extracted_content
+                                        classification_result = (
+                                            self.ai_classifier.classify_rss_item(
+                                                item, content=extracted_content
+                                            )
                                         )
                                         if classification_result.success:
                                             info_category = classification_result.info_category
@@ -935,10 +924,19 @@ class FetchRSSUseCase:
                                             structured_data = classification_result.structured_data
                                             risk_impact = classification_result.risk_impact
                                     except AIServiceError as e:
-                                        logger.warning(f"AI classification failed (service error): {e}")
-                                        record_exception(e, module="policy", is_handled=True, service_name="ai_classification")
+                                        logger.warning(
+                                            f"AI classification failed (service error): {e}"
+                                        )
+                                        record_exception(
+                                            e,
+                                            module="policy",
+                                            is_handled=True,
+                                            service_name="ai_classification",
+                                        )
                                     except Exception as e:
-                                        logger.warning(f"AI classification failed (unexpected): {e}")
+                                        logger.warning(
+                                            f"AI classification failed (unexpected): {e}"
+                                        )
                                         record_exception(e, module="policy", is_handled=True)
                     except ContentExtractorError as e:
                         logger.warning(f"Failed to extract content from {item.link}: {e}")
@@ -951,56 +949,61 @@ class FetchRSSUseCase:
                 # 保存到PolicyLog（扩展版）
                 # 准备额外字段
                 extra_fields = {
-                    'info_category': info_category.value,
-                    'audit_status': audit_status.value,
-                    'ai_confidence': ai_confidence,
-                    'structured_data': structured_data_dict,
-                    'rss_source_id': source.id,
-                    'rss_item_guid': item.guid or item.link,
-                    'risk_impact': risk_impact.value,
-                    'processing_metadata': classification_result.processing_metadata if classification_result else {}
+                    "info_category": info_category.value,
+                    "audit_status": audit_status.value,
+                    "ai_confidence": ai_confidence,
+                    "structured_data": structured_data_dict,
+                    "rss_source_id": source.id,
+                    "rss_item_guid": item.guid or item.link,
+                    "risk_impact": risk_impact.value,
+                    "processing_metadata": classification_result.processing_metadata
+                    if classification_result
+                    else {},
                 }
 
                 # 阶段2：处理完成后更新已落库记录
                 policy_log_orm.level = level.value
                 policy_log_orm.description = description
-                policy_log_orm.info_category = extra_fields['info_category']
-                policy_log_orm.audit_status = extra_fields['audit_status']
-                policy_log_orm.ai_confidence = extra_fields['ai_confidence']
-                policy_log_orm.structured_data = extra_fields['structured_data']
-                policy_log_orm.risk_impact = extra_fields['risk_impact']
+                policy_log_orm.info_category = extra_fields["info_category"]
+                policy_log_orm.audit_status = extra_fields["audit_status"]
+                policy_log_orm.ai_confidence = extra_fields["ai_confidence"]
+                policy_log_orm.structured_data = extra_fields["structured_data"]
+                policy_log_orm.risk_impact = extra_fields["risk_impact"]
                 policy_log_orm.processing_metadata = {
-                    **extra_fields['processing_metadata'],
-                    'processing_stage': 'processed'
+                    **extra_fields["processing_metadata"],
+                    "processing_stage": "processed",
                 }
-                policy_log_orm.save(update_fields=[
-                    'level',
-                    'description',
-                    'info_category',
-                    'audit_status',
-                    'ai_confidence',
-                    'structured_data',
-                    'risk_impact',
-                    'processing_metadata'
-                ])
+                policy_log_orm.save(
+                    update_fields=[
+                        "level",
+                        "description",
+                        "info_category",
+                        "audit_status",
+                        "ai_confidence",
+                        "structured_data",
+                        "risk_impact",
+                        "processing_metadata",
+                    ]
+                )
 
                 # ========== 审核队列管理 ==========
                 # 如果需要人工审核，加入审核队列（使用 get_or_create 避免重复）
                 if audit_status == AuditStatus.PENDING_REVIEW and policy_log_orm:
                     # 根据风险级别设置优先级
                     if level in [PolicyLevel.P2, PolicyLevel.P3]:
-                        priority = 'urgent'
+                        priority = "urgent"
                     elif risk_impact == RiskImpact.HIGH_RISK:
-                        priority = 'high'
+                        priority = "high"
                     else:
-                        priority = 'normal'
+                        priority = "normal"
 
                     _, created = PolicyAuditQueue._default_manager.get_or_create(
-                        policy_log=policy_log_orm,
-                        defaults={'priority': priority}
+                        policy_log=policy_log_orm, defaults={"priority": priority}
                     )
                     if created:
-                        logger.info(f"Added policy {policy_log_orm.id} to audit queue (priority: {priority})")
+                        logger.info(
+                            f"Added policy {policy_log_orm.id} to audit queue (priority: {priority})"
+                        )
 
                 logger.info(
                     f"Created policy event from RSS: {level.value} - {item.title} "
@@ -1017,43 +1020,45 @@ class FetchRSSUseCase:
                         evidence_url=item.link,
                         info_category=info_category,
                         risk_impact=risk_impact,
-                        structured_data=structured_data_dict
+                        structured_data=structured_data_dict,
                     )
 
             except Exception as e:
                 # Processing error - keep pending raw record and continue
-                logger.warning(f"Failed to process RSS item {item.link} (error): {e}, keeping pending raw record")
+                logger.warning(
+                    f"Failed to process RSS item {item.link} (error): {e}, keeping pending raw record"
+                )
                 record_exception(e, module="policy", is_handled=True)
                 try:
                     if policy_log_orm:
                         policy_log_orm.processing_metadata = {
                             **(policy_log_orm.processing_metadata or {}),
-                            'error': str(e),
-                            'error_type': type(e).__name__,
-                            'saved_as_pending': True,
-                            'processing_stage': 'failed'
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "saved_as_pending": True,
+                            "processing_stage": "failed",
                         }
-                        policy_log_orm.save(update_fields=['processing_metadata'])
+                        policy_log_orm.save(update_fields=["processing_metadata"])
                         logger.info(f"Kept pending RSS item (processing failed): {item.title}")
                     else:
                         PolicyLog._default_manager.create(
                             event_date=item.pub_date.date(),
-                            level='PX',
+                            level="PX",
                             title=item.title,
                             description=item.description or item.title,
                             evidence_url=item.link,
-                            info_category='other',
-                            audit_status='pending_review',
+                            info_category="other",
+                            audit_status="pending_review",
                             ai_confidence=None,
                             structured_data={},
-                            risk_impact='unknown',
+                            risk_impact="unknown",
                             rss_source_id=source.id,
                             rss_item_guid=item.guid or item.link,
                             processing_metadata={
-                                'error': str(e),
-                                'saved_as_pending': True,
-                                'processing_stage': 'failed'
-                            }
+                                "error": str(e),
+                                "saved_as_pending": True,
+                                "processing_stage": "failed",
+                            },
                         )
                         new_events_count += 1
                         logger.info(f"Saved pending RSS item after early failure: {item.title}")
@@ -1067,16 +1072,16 @@ class FetchRSSUseCase:
         # 确定抓取状态
         if len(items) == 0:
             # 没有抓取到任何条目 - 可能是RSS源问题
-            fetch_status = 'error'
-            error_msg = 'No entries found in RSS feed - feed may be invalid or inaccessible'
+            fetch_status = "error"
+            error_msg = "No entries found in RSS feed - feed may be invalid or inaccessible"
             logger.error(f"RSS源 {source.name} 抓取失败: {error_msg}")
         elif new_events_count == 0:
             # 抓取到了条目但都是重复的
-            fetch_status = 'partial'
-            error_msg = f'Fetched {len(items)} items but all were duplicates'
+            fetch_status = "partial"
+            error_msg = f"Fetched {len(items)} items but all were duplicates"
             logger.info(f"RSS源 {source.name}: {error_msg}")
         else:
-            fetch_status = 'success'
+            fetch_status = "success"
             error_msg = None
 
         self.rss_repository.save_fetch_log(
@@ -1084,25 +1089,21 @@ class FetchRSSUseCase:
             status=fetch_status,
             items_count=len(items),
             new_items_count=new_events_count,
-            error_message=error_msg or '',
-            duration=duration
+            error_message=error_msg or "",
+            duration=duration,
         )
 
         # 7. 更新源状态
-        self.rss_repository.update_source_last_fetch(
-            source.id,
-            fetch_status,
-            error_msg=error_msg
-        )
+        self.rss_repository.update_source_last_fetch(source.id, fetch_status, error_msg=error_msg)
 
         return {
-            'source_name': source.name,
-            'source_id': source.id,
-            'items_count': len(items),
-            'new_events_count': new_events_count,
-            'duration': duration,
-            'status': fetch_status,
-            'error': error_msg
+            "source_name": source.name,
+            "source_id": source.id,
+            "items_count": len(items),
+            "new_events_count": new_events_count,
+            "duration": duration,
+            "status": fetch_status,
+            "error": error_msg,
         }
 
     def _orm_to_domain_config(self, orm_obj: RSSSourceConfigModel) -> RSSSourceConfig:
@@ -1114,24 +1115,25 @@ class FetchRSSUseCase:
                 port=orm_obj.proxy_port,
                 username=orm_obj.proxy_username or None,
                 password=orm_obj.proxy_password or None,
-                proxy_type=orm_obj.proxy_type
+                proxy_type=orm_obj.proxy_type,
             )
 
         return RSSSourceConfig(
             name=orm_obj.name,
-            url=orm_obj.get_effective_url(),  # 使用有效 URL（RSSHub 模式下自动构建）
+            url=orm_obj.get_effective_url(),
             category=orm_obj.category,
             is_active=orm_obj.is_active,
             fetch_interval_hours=orm_obj.fetch_interval_hours,
             extract_content=orm_obj.extract_content,
             proxy_config=proxy_config,
-            # RSSHub 配置
+            timeout_seconds=orm_obj.timeout_seconds,
+            retry_times=orm_obj.retry_times,
             rsshub_enabled=orm_obj.rsshub_enabled,
-            rsshub_route_path=orm_obj.rsshub_route_path or '',
+            rsshub_route_path=orm_obj.rsshub_route_path or "",
             rsshub_use_global_config=orm_obj.rsshub_use_global_config,
-            rsshub_custom_base_url=orm_obj.rsshub_custom_base_url or '',
-            rsshub_custom_access_key=orm_obj.rsshub_custom_access_key or '',
-            rsshub_format=orm_obj.rsshub_format or ''
+            rsshub_custom_base_url=orm_obj.rsshub_custom_base_url or "",
+            rsshub_custom_access_key=orm_obj.rsshub_custom_access_key or "",
+            rsshub_format=orm_obj.rsshub_format or "",
         )
 
     def _send_alert_for_rss_event(self, event: PolicyEvent) -> bool:
@@ -1155,7 +1157,7 @@ class FetchRSSUseCase:
             return self.alert_service.send_alert(
                 level="warning" if event.level == PolicyLevel.P2 else "critical",
                 title=f"RSS新政策事件: {event.level.value}",
-                message=message
+                message=message,
             )
         except Exception as e:
             logger.error(f"Failed to send alert for RSS event: {e}")
@@ -1170,7 +1172,7 @@ class FetchRSSUseCase:
         evidence_url: str,
         info_category: InfoCategory,
         risk_impact: RiskImpact,
-        structured_data: dict[str, Any] | None = None
+        structured_data: dict[str, Any] | None = None,
     ) -> bool:
         """为RSS触发的政策事件发送增强告警"""
         if not self.alert_service:
@@ -1194,18 +1196,18 @@ AI置信度: N/A
         # 如果有结构化数据，添加摘要信息
         if structured_data:
             message += "\n**结构化信息**:\n"
-            if structured_data.get('summary'):
+            if structured_data.get("summary"):
                 message += f"摘要: {structured_data['summary']}\n"
-            if structured_data.get('affected_sectors'):
+            if structured_data.get("affected_sectors"):
                 message += f"影响板块: {', '.join(structured_data['affected_sectors'])}\n"
-            if structured_data.get('sentiment'):
+            if structured_data.get("sentiment"):
                 message += f"情绪倾向: {structured_data['sentiment']}\n"
 
         try:
             return self.alert_service.send_alert(
                 level="warning" if level == PolicyLevel.P2 else "critical",
                 title=f"RSS新政策事件: {level.value}",
-                message=message
+                message=message,
             )
         except Exception as e:
             logger.error(f"Failed to send alert for RSS event: {e}")
@@ -1214,9 +1216,11 @@ AI置信度: N/A
 
 # ========== 审核工作流用例 ==========
 
+
 @dataclass
 class ReviewPolicyItemInput:
     """审核政策条目的输入"""
+
     policy_log_id: int
     approved: bool
     reviewer: Any  # Django User model
@@ -1227,6 +1231,7 @@ class ReviewPolicyItemInput:
 @dataclass
 class ReviewPolicyItemOutput:
     """审核政策条目的输出"""
+
     success: bool
     audit_status: AuditStatus
     message: str
@@ -1252,9 +1257,9 @@ class GetAuditQueueUseCase:
     def execute(
         self,
         user: Any,
-        status: str = 'pending_review',
+        status: str = "pending_review",
         priority: str | None = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> list[dict[str, Any]]:
         """
         获取待审核的政策列表
@@ -1272,7 +1277,7 @@ class GetAuditQueueUseCase:
 
         queryset = PolicyAuditQueue._default_manager.filter(
             policy_log__audit_status=status
-        ).select_related('policy_log', 'assigned_to')
+        ).select_related("policy_log", "assigned_to")
 
         if priority:
             queryset = queryset.filter(priority=priority)
@@ -1281,23 +1286,27 @@ class GetAuditQueueUseCase:
         queryset = queryset.filter(assigned_to=user)
 
         # 优先级排序
-        priority_order = {'urgent': 0, 'high': 1, 'normal': 2, 'low': 3}
+        priority_order = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
         results = list(queryset[:limit])
         results.sort(key=lambda x: priority_order.get(x.priority, 99))
 
         return [
             {
-                'id': item.policy_log.id,
-                'title': item.policy_log.title,
-                'description': item.policy_log.description[:200] + '...' if len(item.policy_log.description) > 200 else item.policy_log.description,
-                'level': item.policy_log.level,
-                'info_category': item.policy_log.info_category,
-                'ai_confidence': item.policy_log.ai_confidence,
-                'structured_data': item.policy_log.structured_data,
-                'priority': item.priority,
-                'created_at': item.policy_log.created_at.isoformat(),
-                'assigned_at': item.assigned_at.isoformat() if item.assigned_at else None,
-                'rss_source': item.policy_log.rss_source.name if item.policy_log.rss_source else None
+                "id": item.policy_log.id,
+                "title": item.policy_log.title,
+                "description": item.policy_log.description[:200] + "..."
+                if len(item.policy_log.description) > 200
+                else item.policy_log.description,
+                "level": item.policy_log.level,
+                "info_category": item.policy_log.info_category,
+                "ai_confidence": item.policy_log.ai_confidence,
+                "structured_data": item.policy_log.structured_data,
+                "priority": item.priority,
+                "created_at": item.policy_log.created_at.isoformat(),
+                "assigned_at": item.assigned_at.isoformat() if item.assigned_at else None,
+                "rss_source": item.policy_log.rss_source.name
+                if item.policy_log.rss_source
+                else None,
             }
             for item in results
         ]
@@ -1309,7 +1318,7 @@ class ReviewPolicyItemUseCase:
     def __init__(
         self,
         policy_repository: DjangoPolicyRepository,
-        alert_service: AlertServiceProtocol | None = None
+        alert_service: AlertServiceProtocol | None = None,
     ):
         self.policy_repository = policy_repository
         self.alert_service = alert_service
@@ -1329,9 +1338,7 @@ class ReviewPolicyItemUseCase:
         from ..infrastructure.models import PolicyAuditQueue, PolicyLog
 
         output = ReviewPolicyItemOutput(
-            success=False,
-            audit_status=AuditStatus.PENDING_REVIEW,
-            message=""
+            success=False, audit_status=AuditStatus.PENDING_REVIEW, message=""
         )
 
         try:
@@ -1397,11 +1404,7 @@ class BulkReviewUseCase:
         self.review_use_case = review_use_case
 
     def execute(
-        self,
-        policy_log_ids: list[int],
-        approved: bool,
-        reviewer: Any,
-        notes: str = ""
+        self, policy_log_ids: list[int], approved: bool, reviewer: Any, notes: str = ""
     ) -> dict[str, Any]:
         """
         批量审核政策条目
@@ -1415,28 +1418,20 @@ class BulkReviewUseCase:
         Returns:
             Dict: 批量审核结果统计
         """
-        results = {
-            'total': len(policy_log_ids),
-            'success': 0,
-            'failed': 0,
-            'errors': []
-        }
+        results = {"total": len(policy_log_ids), "success": 0, "failed": 0, "errors": []}
 
         for policy_log_id in policy_log_ids:
             input_dto = ReviewPolicyItemInput(
-                policy_log_id=policy_log_id,
-                approved=approved,
-                reviewer=reviewer,
-                notes=notes
+                policy_log_id=policy_log_id, approved=approved, reviewer=reviewer, notes=notes
             )
 
             output = self.review_use_case.execute(input_dto)
 
             if output.success:
-                results['success'] += 1
+                results["success"] += 1
             else:
-                results['failed'] += 1
-                results['errors'].extend(output.errors)
+                results["failed"] += 1
+                results["errors"].extend(output.errors)
 
         return results
 
@@ -1461,16 +1456,15 @@ class AutoAssignAuditsUseCase:
 
         # 获取所有待审核且未分配的政策
         unassigned = PolicyAuditQueue._default_manager.filter(
-            assigned_to__isnull=True,
-            policy_log__audit_status='pending_review'
-        ).order_by('-created_at')
+            assigned_to__isnull=True, policy_log__audit_status="pending_review"
+        ).order_by("-created_at")
 
         # 获取可用的审核人员（有权限的用户）
         auditors = User._default_manager.filter(is_staff=True).distinct()
 
         if not auditors:
             logger.warning("No auditors found with staff privileges")
-            return {'assigned': 0, 'remaining': unassigned.count()}
+            return {"assigned": 0, "remaining": unassigned.count()}
 
         # 轮询分配
         assigned_count = 0
@@ -1479,8 +1473,7 @@ class AutoAssignAuditsUseCase:
 
             # 检查该用户已分配数量
             current_assigned = PolicyAuditQueue._default_manager.filter(
-                assigned_to=auditor,
-                policy_log__audit_status='pending_review'
+                assigned_to=auditor, policy_log__audit_status="pending_review"
             ).count()
 
             if current_assigned >= max_per_user:
@@ -1495,9 +1488,9 @@ class AutoAssignAuditsUseCase:
         logger.info(f"Auto-assigned {assigned_count} policy reviews to {auditors.count()} auditors")
 
         return {
-            'assigned': assigned_count,
-            'remaining': unassigned.count() - assigned_count,
-            'auditors': auditors.count()
+            "assigned": assigned_count,
+            "remaining": unassigned.count() - assigned_count,
+            "auditors": auditors.count(),
         }
 
 
@@ -1527,12 +1520,14 @@ from ..infrastructure.repositories import WorkbenchRepository
 @dataclass
 class WorkbenchSummaryInput:
     """工作台概览输入 DTO"""
+
     pass
 
 
 @dataclass
 class WorkbenchSummaryOutput:
     """工作台概览输出 DTO"""
+
     success: bool
     summary: WorkbenchSummary | None = None
     error: str | None = None
@@ -1559,10 +1554,12 @@ class GetWorkbenchSummaryUseCase:
             # 获取触发政策档位的事件
             latest_policy_event = None
             from ..infrastructure.models import PolicyLog
-            policy_event = PolicyLog._default_manager.filter(
-                event_type='policy',
-                gate_effective=True
-            ).order_by('-event_date', '-effective_at').first()
+
+            policy_event = (
+                PolicyLog._default_manager.filter(event_type="policy", gate_effective=True)
+                .order_by("-event_date", "-effective_at")
+                .first()
+            )
             if policy_event:
                 latest_policy_event = policy_event.title
 
@@ -1570,7 +1567,7 @@ class GetWorkbenchSummaryUseCase:
             global_heat, global_sentiment = self.workbench_repo.get_global_heat_sentiment()
 
             # 计算闸门等级
-            gate_config = self.workbench_repo.get_gate_config('all')
+            gate_config = self.workbench_repo.get_gate_config("all")
             global_gate_level = None
             if gate_config and global_heat is not None:
                 thresholds = SentimentGateThresholds(
@@ -1590,13 +1587,14 @@ class GetWorkbenchSummaryUseCase:
             pending_review_count = self.workbench_repo.get_pending_review_count()
             sla_exceeded_count = self.workbench_repo.get_sla_exceeded_count(
                 p23_sla_hours=ingestion_config.p23_sla_hours,
-                normal_sla_hours=ingestion_config.normal_sla_hours
+                normal_sla_hours=ingestion_config.normal_sla_hours,
             )
             effective_today_count = self.workbench_repo.get_effective_today_count()
 
             # 获取最后抓取时间
             from ..infrastructure.models import RSSFetchLog
-            last_fetch = RSSFetchLog._default_manager.order_by('-fetched_at').first()
+
+            last_fetch = RSSFetchLog._default_manager.order_by("-fetched_at").first()
             last_fetch_at = last_fetch.fetched_at if last_fetch else None
 
             summary = WorkbenchSummary(
@@ -1621,7 +1619,8 @@ class GetWorkbenchSummaryUseCase:
 @dataclass
 class WorkbenchItemsInput:
     """工作台事件列表输入 DTO"""
-    tab: str = 'pending'  # pending, effective, all
+
+    tab: str = "pending"  # pending, effective, all
     event_type: str | None = None
     level: str | None = None
     gate_level: str | None = None
@@ -1636,6 +1635,7 @@ class WorkbenchItemsInput:
 @dataclass
 class WorkbenchItemsOutput:
     """工作台事件列表输出 DTO"""
+
     success: bool
     items: list[dict[str, Any]] = None
     total: int = 0
@@ -1666,9 +1666,9 @@ class GetWorkbenchItemsUseCase:
             query = PolicyLog._default_manager.all()
 
             # Tab 筛选
-            if input_dto.tab == 'pending':
-                query = query.filter(audit_status='pending_review')
-            elif input_dto.tab == 'effective':
+            if input_dto.tab == "pending":
+                query = query.filter(audit_status="pending_review")
+            elif input_dto.tab == "effective":
                 query = query.filter(gate_effective=True)
 
             # 其他筛选
@@ -1686,47 +1686,53 @@ class GetWorkbenchItemsUseCase:
                 query = query.filter(event_date__lte=input_dto.end_date)
             if input_dto.search:
                 query = query.filter(
-                    Q(title__icontains=input_dto.search) |
-                    Q(description__icontains=input_dto.search)
+                    Q(title__icontains=input_dto.search)
+                    | Q(description__icontains=input_dto.search)
                 )
 
             # 排序
-            if input_dto.tab == 'pending':
-                query = query.order_by('-created_at')
-            elif input_dto.tab == 'effective':
-                query = query.order_by('-effective_at')
+            if input_dto.tab == "pending":
+                query = query.order_by("-created_at")
+            elif input_dto.tab == "effective":
+                query = query.order_by("-effective_at")
             else:
-                query = query.order_by('-event_date', '-created_at')
+                query = query.order_by("-event_date", "-created_at")
 
             # 分页
             total = query.count()
-            items = query[input_dto.offset:input_dto.offset + input_dto.limit]
+            items = query[input_dto.offset : input_dto.offset + input_dto.limit]
 
             # 转换为字典
             items_data = []
             for item in items:
-                items_data.append({
-                    'id': item.id,
-                    'event_date': item.event_date.isoformat() if item.event_date else None,
-                    'event_type': item.event_type,
-                    'level': item.level,
-                    'gate_level': item.gate_level,
-                    'title': item.title,
-                    'description': item.description[:200] + '...' if len(item.description) > 200 else item.description,
-                    'evidence_url': item.evidence_url,
-                    'ai_confidence': item.ai_confidence,
-                    'heat_score': item.heat_score,
-                    'sentiment_score': item.sentiment_score,
-                    'gate_effective': item.gate_effective,
-                    'asset_class': item.asset_class,
-                    'asset_scope': item.asset_scope,
-                    'audit_status': item.audit_status,
-                    'created_at': item.created_at.isoformat() if item.created_at else None,
-                    'effective_at': item.effective_at.isoformat() if item.effective_at else None,
-                    'effective_by_id': item.effective_by_id,
-                    'review_notes': item.review_notes,
-                    'rollback_reason': item.rollback_reason,
-                })
+                items_data.append(
+                    {
+                        "id": item.id,
+                        "event_date": item.event_date.isoformat() if item.event_date else None,
+                        "event_type": item.event_type,
+                        "level": item.level,
+                        "gate_level": item.gate_level,
+                        "title": item.title,
+                        "description": item.description[:200] + "..."
+                        if len(item.description) > 200
+                        else item.description,
+                        "evidence_url": item.evidence_url,
+                        "ai_confidence": item.ai_confidence,
+                        "heat_score": item.heat_score,
+                        "sentiment_score": item.sentiment_score,
+                        "gate_effective": item.gate_effective,
+                        "asset_class": item.asset_class,
+                        "asset_scope": item.asset_scope,
+                        "audit_status": item.audit_status,
+                        "created_at": item.created_at.isoformat() if item.created_at else None,
+                        "effective_at": item.effective_at.isoformat()
+                        if item.effective_at
+                        else None,
+                        "effective_by_id": item.effective_by_id,
+                        "review_notes": item.review_notes,
+                        "rollback_reason": item.rollback_reason,
+                    }
+                )
 
             return WorkbenchItemsOutput(success=True, items=items_data, total=total)
 
@@ -1738,6 +1744,7 @@ class GetWorkbenchItemsUseCase:
 @dataclass
 class ApproveEventInput:
     """审核通过输入 DTO"""
+
     event_id: int
     user_id: int
     reason: str = ""
@@ -1746,6 +1753,7 @@ class ApproveEventInput:
 @dataclass
 class ApproveEventOutput:
     """审核通过输出 DTO"""
+
     success: bool
     event_id: int | None = None
     error: str | None = None
@@ -1769,9 +1777,7 @@ class ApproveEventUseCase:
         """
         try:
             event = self.workbench_repo.approve_event(
-                event_id=input_dto.event_id,
-                user_id=input_dto.user_id,
-                reason=input_dto.reason
+                event_id=input_dto.event_id, user_id=input_dto.user_id, reason=input_dto.reason
             )
 
             if event:
@@ -1788,6 +1794,7 @@ class ApproveEventUseCase:
 @dataclass
 class RejectEventInput:
     """审核拒绝输入 DTO"""
+
     event_id: int
     user_id: int
     reason: str
@@ -1796,6 +1803,7 @@ class RejectEventInput:
 @dataclass
 class RejectEventOutput:
     """审核拒绝输出 DTO"""
+
     success: bool
     event_id: int | None = None
     error: str | None = None
@@ -1822,9 +1830,7 @@ class RejectEventUseCase:
 
         try:
             event = self.workbench_repo.reject_event(
-                event_id=input_dto.event_id,
-                user_id=input_dto.user_id,
-                reason=input_dto.reason
+                event_id=input_dto.event_id, user_id=input_dto.user_id, reason=input_dto.reason
             )
 
             if event:
@@ -1841,6 +1847,7 @@ class RejectEventUseCase:
 @dataclass
 class RollbackEventInput:
     """回滚生效输入 DTO"""
+
     event_id: int
     user_id: int
     reason: str
@@ -1849,6 +1856,7 @@ class RollbackEventInput:
 @dataclass
 class RollbackEventOutput:
     """回滚生效输出 DTO"""
+
     success: bool
     event_id: int | None = None
     error: str | None = None
@@ -1875,9 +1883,7 @@ class RollbackEventUseCase:
 
         try:
             event = self.workbench_repo.rollback_event(
-                event_id=input_dto.event_id,
-                user_id=input_dto.user_id,
-                reason=input_dto.reason
+                event_id=input_dto.event_id, user_id=input_dto.user_id, reason=input_dto.reason
             )
 
             if event:
@@ -1894,6 +1900,7 @@ class RollbackEventUseCase:
 @dataclass
 class OverrideEventInput:
     """临时豁免输入 DTO"""
+
     event_id: int
     user_id: int
     reason: str
@@ -1903,6 +1910,7 @@ class OverrideEventInput:
 @dataclass
 class OverrideEventOutput:
     """临时豁免输出 DTO"""
+
     success: bool
     event_id: int | None = None
     error: str | None = None
@@ -1932,7 +1940,7 @@ class OverrideEventUseCase:
                 event_id=input_dto.event_id,
                 user_id=input_dto.user_id,
                 reason=input_dto.reason,
-                new_level=input_dto.new_level
+                new_level=input_dto.new_level,
             )
 
             if event:
@@ -1949,12 +1957,14 @@ class OverrideEventUseCase:
 @dataclass
 class SentimentGateStateInput:
     """热点情绪闸门状态输入 DTO"""
-    asset_class: str = 'all'
+
+    asset_class: str = "all"
 
 
 @dataclass
 class SentimentGateStateOutput:
     """热点情绪闸门状态输出 DTO"""
+
     success: bool
     asset_class: str | None = None
     gate_level: str | None = None
@@ -1987,7 +1997,7 @@ class GetSentimentGateStateUseCase:
             if not gate_config:
                 return SentimentGateStateOutput(
                     success=False,
-                    error=f"No gate config found for asset class: {input_dto.asset_class}"
+                    error=f"No gate config found for asset class: {input_dto.asset_class}",
                 )
 
             # 获取该资产类的热度与情绪（简化：使用全局数据）
@@ -2006,8 +2016,8 @@ class GetSentimentGateStateUseCase:
 
             # 获取仓位上限
             cap_config = {
-                'max_position_cap_l2': gate_config.max_position_cap_l2,
-                'max_position_cap_l3': gate_config.max_position_cap_l3,
+                "max_position_cap_l2": gate_config.max_position_cap_l2,
+                "max_position_cap_l3": gate_config.max_position_cap_l3,
             }
             max_cap = get_max_position_cap(gate_level, cap_config)
 
@@ -2019,16 +2029,15 @@ class GetSentimentGateStateUseCase:
                 sentiment_score=global_sentiment,
                 max_position_cap=max_cap,
                 thresholds={
-                    'heat_l1': gate_config.heat_l1_threshold,
-                    'heat_l2': gate_config.heat_l2_threshold,
-                    'heat_l3': gate_config.heat_l3_threshold,
-                    'sentiment_l1': gate_config.sentiment_l1_threshold,
-                    'sentiment_l2': gate_config.sentiment_l2_threshold,
-                    'sentiment_l3': gate_config.sentiment_l3_threshold,
-                }
+                    "heat_l1": gate_config.heat_l1_threshold,
+                    "heat_l2": gate_config.heat_l2_threshold,
+                    "heat_l3": gate_config.heat_l3_threshold,
+                    "sentiment_l1": gate_config.sentiment_l1_threshold,
+                    "sentiment_l2": gate_config.sentiment_l2_threshold,
+                    "sentiment_l3": gate_config.sentiment_l3_threshold,
+                },
             )
 
         except Exception as e:
             logger.exception(f"Failed to get sentiment gate state: {e}")
             return SentimentGateStateOutput(success=False, error=str(e))
-

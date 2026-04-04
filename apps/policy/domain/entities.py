@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 class PolicyLevel(Enum):
     """政策档位"""
+
     PENDING = "PX"  # 待分类
     P0 = "P0"  # 常态
     P1 = "P1"  # 预警
@@ -19,15 +20,17 @@ class PolicyLevel(Enum):
 
 class EventType(Enum):
     """事件类型（区分政策与热点情绪）"""
-    POLICY = "policy"      # 政策事件
-    HOTSPOT = "hotspot"    # 热点事件
+
+    POLICY = "policy"  # 政策事件
+    HOTSPOT = "hotspot"  # 热点事件
     SENTIMENT = "sentiment"  # 情绪事件
-    MIXED = "mixed"        # 混合事件
-    UNKNOWN = "unknown"    # 未知类型
+    MIXED = "mixed"  # 混合事件
+    UNKNOWN = "unknown"  # 未知类型
 
 
 class GateLevel(Enum):
     """热点情绪闸门等级"""
+
     L0 = "L0"  # 正常
     L1 = "L1"  # 关注
     L2 = "L2"  # 警戒
@@ -36,25 +39,28 @@ class GateLevel(Enum):
 
 class AssetClass(Enum):
     """资产分类"""
-    EQUITY = "equity"      # 股票
-    BOND = "bond"          # 债券
+
+    EQUITY = "equity"  # 股票
+    BOND = "bond"  # 债券
     COMMODITY = "commodity"  # 商品
-    FX = "fx"              # 外汇
-    CRYPTO = "crypto"      # 加密货币
-    ALL = "all"            # 全资产
+    FX = "fx"  # 外汇
+    CRYPTO = "crypto"  # 加密货币
+    ALL = "all"  # 全资产
 
 
 class InfoCategory(Enum):
     """信息分类"""
-    MACRO = "macro"           # 宏观政策
-    SECTOR = "sector"         # 板块政策
-    INDIVIDUAL = "individual" # 个股舆情
-    SENTIMENT = "sentiment"   # 市场情绪
+
+    MACRO = "macro"  # 宏观政策
+    SECTOR = "sector"  # 板块政策
+    INDIVIDUAL = "individual"  # 个股舆情
+    SENTIMENT = "sentiment"  # 市场情绪
     OTHER = "other"
 
 
 class AuditStatus(Enum):
     """审核状态"""
+
     PENDING_REVIEW = "pending_review"
     AUTO_APPROVED = "auto_approved"
     MANUAL_APPROVED = "manual_approved"
@@ -63,6 +69,7 @@ class AuditStatus(Enum):
 
 class RiskImpact(Enum):
     """风险影响"""
+
     HIGH_RISK = "high_risk"
     MEDIUM_RISK = "medium_risk"
     LOW_RISK = "low_risk"
@@ -72,6 +79,7 @@ class RiskImpact(Enum):
 @dataclass(frozen=True)
 class PolicyEvent:
     """政策事件实体"""
+
     event_date: date
     level: PolicyLevel
     title: str
@@ -82,6 +90,7 @@ class PolicyEvent:
 @dataclass(frozen=True)
 class RSSHubGlobalConfig:
     """RSSHub 全局配置实体"""
+
     base_url: str
     access_key: str
     enabled: bool
@@ -91,6 +100,7 @@ class RSSHubGlobalConfig:
 @dataclass(frozen=True)
 class ProxyConfig:
     """代理配置值对象"""
+
     host: str
     port: int
     username: str | None = None
@@ -101,6 +111,7 @@ class ProxyConfig:
 @dataclass(frozen=True)
 class RSSSourceConfig:
     """RSS源配置实体（Domain层，纯数据结构）"""
+
     name: str
     url: str
     category: str  # 政府文件/央行公告/财政部/证监会等
@@ -109,18 +120,22 @@ class RSSSourceConfig:
     extract_content: bool  # 是否提取完整内容
     proxy_config: ProxyConfig | None = None
 
+    timeout_seconds: int = 30
+    retry_times: int = 3
+
     # ========== RSSHub 配置 ==========
-    rsshub_enabled: bool = False  # 是否使用 RSSHub 模式
-    rsshub_route_path: str = ""  # RSSHub 路由路径
-    rsshub_use_global_config: bool = True  # 是否使用全局配置
-    rsshub_custom_base_url: str = ""  # 自定义基址
-    rsshub_custom_access_key: str = ""  # 自定义密钥
-    rsshub_format: str = ""  # 输出格式
+    rsshub_enabled: bool = False
+    rsshub_route_path: str = ""
+    rsshub_use_global_config: bool = True
+    rsshub_custom_base_url: str = ""
+    rsshub_custom_access_key: str = ""
+    rsshub_format: str = ""
 
 
 @dataclass(frozen=True)
 class RSSItem:
     """RSS条目实体"""
+
     title: str
     link: str  # 用作去重标识
     pub_date: datetime
@@ -133,6 +148,7 @@ class RSSItem:
 @dataclass(frozen=True)
 class PolicyLevelKeywordRule:
     """政策档位关键词规则实体"""
+
     level: PolicyLevel
     keywords: list[str]
     weight: int
@@ -142,6 +158,7 @@ class PolicyLevelKeywordRule:
 @dataclass(frozen=True)
 class StructuredPolicyData:
     """AI提取的结构化政策数据"""
+
     policy_subject: str | None = None
     policy_object: str | None = None
     effective_date: str | None = None
@@ -159,11 +176,12 @@ class StructuredPolicyData:
 @dataclass(frozen=True)
 class AIClassificationResult:
     """AI分类结果"""
+
     success: bool
     info_category: InfoCategory | None = None
     audit_status: AuditStatus | None = None
     ai_confidence: float | None = None
-    policy_level: Optional['PolicyLevel'] = None  # AI 推荐的政策档位
+    policy_level: Optional["PolicyLevel"] = None  # AI 推荐的政策档位
     structured_data: StructuredPolicyData | None = None
     risk_impact: RiskImpact | None = None
     error_message: str | None = None
@@ -174,9 +192,11 @@ class AIClassificationResult:
 # 工作台相关实体
 # ============================================================
 
+
 @dataclass(frozen=True)
 class HeatSentimentScore:
     """热点情绪评分值对象"""
+
     heat_score: float  # 0-100，热度评分
     sentiment_score: float  # -1.0 ~ +1.0，情绪评分
 
@@ -191,6 +211,7 @@ class HeatSentimentScore:
 @dataclass(frozen=True)
 class SentimentGateThresholds:
     """热点情绪闸门阈值配置"""
+
     heat_l1_threshold: float = 30.0
     heat_l2_threshold: float = 60.0
     heat_l3_threshold: float = 85.0
@@ -202,6 +223,7 @@ class SentimentGateThresholds:
 @dataclass(frozen=True)
 class IngestionConfig:
     """政策摄入配置值对象"""
+
     auto_approve_enabled: bool = False
     auto_approve_min_level: PolicyLevel = PolicyLevel.P2
     auto_approve_threshold: float = 0.85
@@ -212,6 +234,7 @@ class IngestionConfig:
 @dataclass(frozen=True)
 class WorkbenchEvent:
     """工作台事件实体"""
+
     id: int
     event_date: date
     event_type: EventType
@@ -237,6 +260,7 @@ class WorkbenchEvent:
 @dataclass(frozen=True)
 class WorkbenchSummary:
     """工作台概览"""
+
     policy_level: PolicyLevel
     policy_level_event: str | None  # 触发政策档位的事件标题
     global_heat_score: float | None
@@ -251,6 +275,7 @@ class WorkbenchSummary:
 @dataclass(frozen=True)
 class GateActionRecord:
     """闸门操作记录"""
+
     event_id: int
     action: str  # approve, reject, rollback, override
     operator_id: int | None

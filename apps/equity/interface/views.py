@@ -25,6 +25,10 @@ from rest_framework.views import APIView
 from apps.equity.application.use_cases import (
     AnalyzeRegimeCorrelationRequest,
     AnalyzeRegimeCorrelationUseCase,
+    GetIntradayChartRequest,
+    GetIntradayChartUseCase,
+    GetTechnicalChartRequest,
+    GetTechnicalChartUseCase,
     AnalyzeValuationRequest,
     AnalyzeValuationUseCase,
     CalculateDCFRequest,
@@ -69,6 +73,8 @@ from .serializers import (
     CalculateDCFResponseSerializer,
     ComprehensiveValuationRequestSerializer,
     ComprehensiveValuationResponseSerializer,
+    IntradayChartRequestSerializer,
+    IntradayChartResponseSerializer,
     ListValuationRepairsRequestSerializer,
     ListValuationRepairsResponseSerializer,
     ScanValuationRepairsRequestSerializer,
@@ -79,6 +85,8 @@ from .serializers import (
     SyncFinancialDataResponseSerializer,
     SyncValuationDataRequestSerializer,
     SyncValuationDataResponseSerializer,
+    TechnicalChartRequestSerializer,
+    TechnicalChartResponseSerializer,
     ValidateValuationDataRequestSerializer,
     ValuationRepairConfigSerializer,
     ValuationFreshnessResponseSerializer,
@@ -308,6 +316,54 @@ class EquityViewSet(viewsets.ViewSet):
 
         # 4. 返回响应
         response_serializer = AnalyzeValuationResponseSerializer(use_case_response)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary="技术图表数据",
+        description="返回个股 K 线、均线、MACD 与最近金叉死叉信号",
+        request=TechnicalChartRequestSerializer,
+        responses={200: TechnicalChartResponseSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="technical/(?P<stock_code>[^/]+)")
+    def technical_chart(self, request, stock_code):
+        """GET /api/equity/technical/{stock_code}/"""
+        serializer = TechnicalChartRequestSerializer(
+            data={
+                "stock_code": stock_code,
+                "timeframe": request.query_params.get("timeframe", "day"),
+                "lookback_days": request.query_params.get("lookback_days", 365),
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        use_case = GetTechnicalChartUseCase(stock_repository=self.stock_repo)
+        response = use_case.execute(
+            GetTechnicalChartRequest(
+                stock_code=data["stock_code"],
+                timeframe=data["timeframe"],
+                lookback_days=data["lookback_days"],
+            )
+        )
+        response_serializer = TechnicalChartResponseSerializer(response)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary="分时图数据",
+        description="返回个股最新交易日的 1 分钟分时价格、均价与成交量",
+        request=IntradayChartRequestSerializer,
+        responses={200: IntradayChartResponseSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="intraday/(?P<stock_code>[^/]+)")
+    def intraday_chart(self, request, stock_code):
+        """GET /api/equity/intraday/{stock_code}/"""
+        serializer = IntradayChartRequestSerializer(data={"stock_code": stock_code})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        use_case = GetIntradayChartUseCase(stock_repository=self.stock_repo)
+        response = use_case.execute(GetIntradayChartRequest(stock_code=data["stock_code"]))
+        response_serializer = IntradayChartResponseSerializer(response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(

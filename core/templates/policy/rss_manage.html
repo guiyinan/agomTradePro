@@ -194,9 +194,9 @@
                 <tr>
                     <th>源名称</th>
                     <th>分类</th>
-                    <th>RSS URL</th>
+                    <th>URL / RSSHub</th>
                     <th>状态</th>
-                    <th>抓取间隔</th>
+                    <th>超时</th>
                     <th>最后抓取</th>
                     <th>最后状态</th>
                     <th>操作</th>
@@ -207,7 +207,14 @@
                 <tr>
                     <td><strong>{{ source.name }}</strong></td>
                     <td><span class="category-tag">{{ source.get_category_display }}</span></td>
-                    <td><code style="font-size:12px;">{{ source.url|truncatechars:50 }}</code></td>
+                    <td>
+                        {% if source.rsshub_enabled %}
+                        <span style="color:#8b5cf6;font-size:12px;font-weight:600;">RSSHub</span>
+                        <code style="font-size:11px;">{{ source.rsshub_route_path|truncatechars:40 }}</code>
+                        {% else %}
+                        <code style="font-size:12px;">{{ source.url|truncatechars:50 }}</code>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if source.is_active %}
                         <span class="status-badge status-active">启用</span>
@@ -215,7 +222,7 @@
                         <span class="status-badge status-inactive">禁用</span>
                         {% endif %}
                     </td>
-                    <td>{{ source.fetch_interval_hours }}h</td>
+                    <td>{{ source.timeout_seconds }}s</td>
                     <td style="font-size:12px;">
                         {% if source.last_fetch_at %}
                         {{ source.last_fetch_at|date:"m-d H:i" }}

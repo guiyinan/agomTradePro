@@ -166,6 +166,50 @@ class TechnicalIndicators:
     rsi: float | None
 
 
+@dataclass(frozen=True)
+class TechnicalBar:
+    """技术图表原始/聚合后的K线点。"""
+
+    stock_code: str
+    trade_date: date
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int
+    amount: Decimal
+    ma5: Decimal | None
+    ma20: Decimal | None
+    ma60: Decimal | None
+    macd: float | None
+    macd_signal: float | None
+    macd_hist: float | None
+    rsi: float | None
+
+
+@dataclass(frozen=True)
+class TechnicalCrossoverSignal:
+    """均线金叉/死叉信号。"""
+
+    signal_type: str
+    trade_date: date
+    price: Decimal
+    short_value: Decimal
+    long_value: Decimal
+    label: str
+
+
+@dataclass(frozen=True)
+class IntradayPricePoint:
+    """分时图单点数据。"""
+
+    stock_code: str
+    timestamp: datetime
+    price: Decimal
+    avg_price: Decimal | None
+    volume: int | None
+
+
 # ==================== 通用资产分析框架集成 ====================
 
 

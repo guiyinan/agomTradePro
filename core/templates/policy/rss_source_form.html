@@ -1,18 +1,243 @@
 {% extends "base.html" %}
 
-{% block title %}RSS 源编辑 - AgomTradePro{% endblock %}
+{% block title %}{% if form.instance.pk %}编辑{% else %}添加{% endif %} RSS 源 - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<style>
+.rf-page { max-width: 960px; margin: 0 auto; padding: 24px; }
+.rf-page h1 { font-size: 22px; margin-bottom: 6px; }
+.rf-page .sub { color: #64748b; margin-bottom: 24px; font-size: 14px; }
+.rf-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+}
+.rf-card h2 {
+    font-size: 16px; margin: 0 0 16px 0; padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0; color: #334155;
+}
+.rf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rf-grid .full { grid-column: 1 / -1; }
+.rf-field { margin-bottom: 0; }
+.rf-field label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: #475569; margin-bottom: 3px;
+}
+.rf-field input, .rf-field select {
+    width: 100%; padding: 7px 10px; border: 1px solid #d1d5db;
+    border-radius: 6px; font-size: 14px; box-sizing: border-box;
+}
+.rf-field input:focus, .rf-field select:focus {
+    outline: none; border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.rf-field .help { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.rf-field .errorlist { list-style: none; padding: 0; margin: 4px 0 0; color: #ef4444; font-size: 12px; }
+.rf-check { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.rf-check input { width: 18px; height: 18px; accent-color: #3b82f6; }
+.rf-check label { font-weight: 500; }
+.rf-actions { display: flex; gap: 12px; margin-top: 8px; }
+#rsshubSection { transition: opacity .2s; }
+#rsshubSection.dim { opacity: .4; pointer-events: none; }
+#urlSection { transition: opacity .2s; }
+#urlSection.dim { opacity: .4; pointer-events: none; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div style="max-width: 980px; margin: 0 auto; padding: 24px;">
-    <h1>RSS 源配置</h1>
-    <p style="color: #64748b;">通过业务页面维护 RSS 源。</p>
-    <form method="post" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px;">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <div style="margin-top: 16px; display: flex; gap: 12px;">
-            <button type="submit" class="btn btn-primary">保存</button>
-            <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">返回</a>
+<div class="rf-page">
+    <h1>{% if form.instance.pk %}编辑{% else %}添加{% endif %} RSS 源</h1>
+    <p class="sub">配置 RSS 数据源的连接参数与抓取行为。</p>
+
+    <form method="post">
+    {% csrf_token %}
+
+    <!-- ===== 基本配置 ===== -->
+    <div class="rf-card">
+        <h2>基本配置</h2>
+        <div class="rf-grid">
+            <div class="rf-field full">
+                <label for="id_name">源名称</label>
+                <input type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}" required>
+                {{ form.name.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_category">分类</label>
+                {{ form.category }}
+                {{ form.category.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_parser_type">解析器</label>
+                {{ form.parser_type }}
+                {{ form.parser_type.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_fetch_interval_hours">抓取间隔 (小时)</label>
+                <input type="number" name="fetch_interval_hours" id="id_fetch_interval_hours"
+                       value="{{ form.fetch_interval_hours.value|default:'6' }}" min="1" max="168">
+                {{ form.fetch_interval_hours.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_timeout_seconds">超时 (秒)</label>
+                <input type="number" name="timeout_seconds" id="id_timeout_seconds"
+                       value="{{ form.timeout_seconds.value|default:'30' }}" min="5" max="120">
+                {{ form.timeout_seconds.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_retry_times">重试次数</label>
+                <input type="number" name="retry_times" id="id_retry_times"
+                       value="{{ form.retry_times.value|default:'3' }}" min="0" max="10">
+                {{ form.retry_times.errors }}
+            </div>
+            <div class="rf-field">
+                <div class="rf-check">
+                    <input type="checkbox" name="is_active" id="id_is_active"
+                           {% if form.is_active.value %}checked{% endif %}>
+                    <label for="id_is_active">启用</label>
+                </div>
+            </div>
+            <div class="rf-field">
+                <div class="rf-check">
+                    <input type="checkbox" name="extract_content" id="id_extract_content"
+                           {% if form.extract_content.value %}checked{% endif %}>
+                    <label for="id_extract_content">提取完整内容</label>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <!-- ===== RSSHub 配置 ===== -->
+    <div class="rf-card">
+        <h2>RSSHub 配置</h2>
+        <div class="rf-grid">
+            <div class="rf-field full">
+                <div class="rf-check">
+                    <input type="checkbox" name="rsshub_enabled" id="id_rsshub_enabled"
+                           {% if form.rsshub_enabled.value %}checked{% endif %}>
+                    <label for="id_rsshub_enabled">使用 RSSHub 模式</label>
+                </div>
+                <div class="help">启用后自动构建 RSSHub URL，忽略下方手动 URL。</div>
+            </div>
+
+            <div id="rsshubSection" class="full">
+                <div class="rf-grid">
+                    <div class="rf-field full">
+                        <label for="id_rsshub_route_path">路由路径</label>
+                        <input type="text" name="rsshub_route_path" id="id_rsshub_route_path"
+                               value="{{ form.rsshub_route_path.value|default:'' }}"
+                               placeholder="/csrc/news/bwj">
+                        <div class="help">RSSHub 路由，如 /gov/zhengce/zhengceku/bmwj</div>
+                        {{ form.rsshub_route_path.errors }}
+                    </div>
+                    <div class="rf-field">
+                        <label for="id_rsshub_format">输出格式</label>
+                        {{ form.rsshub_format }}
+                        {{ form.rsshub_format.errors }}
+                    </div>
+                    <div class="rf-field">
+                        <div class="rf-check">
+                            <input type="checkbox" name="rsshub_use_global_config" id="id_rsshub_use_global_config"
+                                   {% if form.rsshub_use_global_config.value %}checked{% endif %}>
+                            <label for="id_rsshub_use_global_config">使用全局配置</label>
+                        </div>
+                        <div class="help">取消勾选后可自定义基址和密钥</div>
+                    </div>
+                    <div class="rf-field">
+                        <label for="id_rsshub_custom_base_url">自定义基址</label>
+                        <input type="url" name="rsshub_custom_base_url" id="id_rsshub_custom_base_url"
+                               value="{{ form.rsshub_custom_base_url.value|default:'' }}"
+                               placeholder="http://127.0.0.1:1200">
+                        {{ form.rsshub_custom_base_url.errors }}
+                    </div>
+                    <div class="rf-field">
+                        <label for="id_rsshub_custom_access_key">自定义访问密钥</label>
+                        <input type="text" name="rsshub_custom_access_key" id="id_rsshub_custom_access_key"
+                               value="{{ form.rsshub_custom_access_key.value|default:'' }}">
+                        {{ form.rsshub_custom_access_key.errors }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 手动 URL（非 RSSHub 模式） ===== -->
+    <div class="rf-card" id="urlSection">
+        <h2>RSS URL（手动模式）</h2>
+        <div class="rf-field full">
+            <label for="id_url">RSS 订阅地址</label>
+            <input type="url" name="url" id="id_url"
+                   value="{{ form.url.value|default:'' }}" style="width:100%"
+                   placeholder="https://example.com/feed.xml">
+            <div class="help">RSSHub 模式下此字段会被忽略</div>
+            {{ form.url.errors }}
+        </div>
+    </div>
+
+    <!-- ===== 代理配置 ===== -->
+    <div class="rf-card">
+        <h2>代理配置</h2>
+        <div class="rf-grid">
+            <div class="rf-field full">
+                <div class="rf-check">
+                    <input type="checkbox" name="proxy_enabled" id="id_proxy_enabled"
+                           {% if form.proxy_enabled.value %}checked{% endif %}>
+                    <label for="id_proxy_enabled">启用代理</label>
+                </div>
+            </div>
+            <div class="rf-field">
+                <label for="id_proxy_type">代理类型</label>
+                {{ form.proxy_type }}
+                {{ form.proxy_type.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_proxy_host">代理主机</label>
+                <input type="text" name="proxy_host" id="id_proxy_host"
+                       value="{{ form.proxy_host.value|default:'' }}">
+                {{ form.proxy_host.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_proxy_port">代理端口</label>
+                <input type="number" name="proxy_port" id="id_proxy_port"
+                       value="{{ form.proxy_port.value|default:'' }}" min="1" max="65535">
+                {{ form.proxy_port.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_proxy_username">用户名</label>
+                <input type="text" name="proxy_username" id="id_proxy_username"
+                       value="{{ form.proxy_username.value|default:'' }}">
+                {{ form.proxy_username.errors }}
+            </div>
+            <div class="rf-field">
+                <label for="id_proxy_password">密码</label>
+                <input type="password" name="proxy_password" id="id_proxy_password"
+                       value="{{ form.proxy_password.value|default:'' }}">
+                {{ form.proxy_password.errors }}
+            </div>
+        </div>
+    </div>
+
+    <div class="rf-actions">
+        <button type="submit" class="btn btn-primary">保存</button>
+        <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">返回</a>
+    </div>
     </form>
 </div>
+
+<script>
+(function() {
+    var rsshubCb = document.getElementById('id_rsshub_enabled');
+    var rsshubSec = document.getElementById('rsshubSection');
+    var urlSec = document.getElementById('urlSection');
+
+    function toggle() {
+        var on = rsshubCb && rsshubCb.checked;
+        if (rsshubSec) rsshubSec.classList.toggle('dim', !on);
+        if (urlSec) urlSec.classList.toggle('dim', on);
+    }
+
+    if (rsshubCb) {
+        rsshubCb.addEventListener('change', toggle);
+        toggle();
+    }
+})();
+</script>
 {% endblock %}

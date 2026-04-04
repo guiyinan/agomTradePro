@@ -110,6 +110,56 @@ class AnalyzeValuationResponseSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
+class TechnicalChartRequestSerializer(serializers.Serializer):
+    """技术图表请求序列化器。"""
+
+    stock_code = serializers.CharField(required=True, help_text="股票代码")
+    timeframe = serializers.ChoiceField(
+        choices=["day", "week", "month"],
+        default="day",
+        help_text="图表周期",
+    )
+    lookback_days = serializers.IntegerField(
+        required=False,
+        default=365,
+        min_value=30,
+        max_value=2000,
+        help_text="回看天数",
+    )
+
+
+class TechnicalChartResponseSerializer(serializers.Serializer):
+    """技术图表响应序列化器。"""
+
+    success = serializers.BooleanField()
+    stock_code = serializers.CharField()
+    stock_name = serializers.CharField(allow_blank=True)
+    timeframe = serializers.CharField()
+    candles = serializers.ListField(child=serializers.DictField(), required=False)
+    signals = serializers.ListField(child=serializers.DictField(), required=False)
+    latest_signal = serializers.DictField(required=False, allow_null=True)
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class IntradayChartRequestSerializer(serializers.Serializer):
+    """分时图请求序列化器。"""
+
+    stock_code = serializers.CharField(required=True, help_text="股票代码")
+
+
+class IntradayChartResponseSerializer(serializers.Serializer):
+    """分时图响应序列化器。"""
+
+    success = serializers.BooleanField()
+    stock_code = serializers.CharField()
+    stock_name = serializers.CharField(allow_blank=True)
+    points = serializers.ListField(child=serializers.DictField(), required=False)
+    latest_point = serializers.DictField(required=False, allow_null=True)
+    session_date = serializers.CharField(allow_null=True, required=False)
+    source = serializers.CharField(allow_null=True, required=False)
+    error = serializers.CharField(allow_null=True, required=False)
+
+
 # ============================================================================
 # DCF 估值序列化器
 # ============================================================================
