@@ -407,6 +407,8 @@ Notes:
 - `action` supports: `watch`, `adopt`, `ignore`, `pending`.
 - MCP / SDK 当前覆盖的是“推荐刷新、读取、用户动作、漏斗上下文”链路；`plans/generate`、`plans/update`、`execute/preview(plan_id)` 仍走 HTTP Decision Workspace API，而不是独立 MCP 工具。
 - UI 层已将 `beta_gate` / `alpha_trigger` / `decision_rhythm` 收束到“决策工作台 / 决策模式”；MCP 仍可保留这些模块级工具用于自动化和运维，不代表它们是前台主导航入口。
+- MCP 工具管理页的前端入口现为 `/settings/mcp-tools/`，归属“设置中心”。
+- `start_ops_task` / `run_ops_workflow` / `agomtradepro://context/ops/current` 属于 Agent Runtime 的 frozen MCP 任务域契约；这里的 `ops` 表示任务域，不是前台页面路由。
 
 Canonical response example for `decision_workflow_get_funnel_context`:
 

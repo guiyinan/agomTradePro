@@ -211,20 +211,17 @@ class MarketDataRepositoryAdapter(MarketDataPort):
         """
         try:
             # 从 macro_indicator 表获取指数数据
-            # 查询指定指数代码在日期范围内的数据
-            from django.db.models import Q
-
             queryset = self._model.objects.filter(
                 code=index_code,
-                observed_at__gte=start_date,
-                observed_at__lte=end_date
-            ).order_by('observed_at')
+                reporting_period__gte=start_date,
+                reporting_period__lte=end_date,
+            ).order_by('reporting_period')
 
             # 提取数据点
             data_points = []
             for item in queryset:
                 if item.value and item.value > 0:
-                    data_points.append((item.observed_at, float(item.value)))
+                    data_points.append((item.reporting_period, float(item.value)))
 
             # 计算收益率
             returns = {}

@@ -80,7 +80,7 @@ def sync_mcp_tools_view(request: HttpRequest) -> HttpResponse:
         request,
         f"MCP 工具同步完成: discovered={result.total_discovered}, created={result.created_count}, updated={result.updated_count}, disabled={result.disabled_count}",
     )
-    return redirect("/ops/mcp-tools/")
+    return redirect("/settings/mcp-tools/")
 
 
 @login_required
@@ -89,11 +89,11 @@ def sync_mcp_tools_view(request: HttpRequest) -> HttpResponse:
 def toggle_mcp_tool_flag_view(request: HttpRequest, capability_key: str, flag: str) -> HttpResponse:
     if flag not in {"enabled_for_terminal", "enabled_for_routing"}:
         messages.error(request, "不支持的切换字段")
-        return redirect("/ops/mcp-tools/")
+        return redirect("/settings/mcp-tools/")
 
     tool = get_object_or_404(CapabilityCatalogModel, capability_key=capability_key, source_type="mcp_tool")
     current = bool(getattr(tool, flag))
     setattr(tool, flag, not current)
     tool.save(update_fields=[flag, "updated_at"])
     messages.success(request, f"{tool.name} 的 {flag} 已切换为 {getattr(tool, flag)}")
-    return redirect("/ops/mcp-tools/")
+    return redirect("/settings/mcp-tools/")

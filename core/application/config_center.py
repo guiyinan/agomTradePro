@@ -29,13 +29,27 @@ class ConfigCapability:
 
 _CAPABILITIES: tuple[ConfigCapability, ...] = (
     ConfigCapability(
+        key="account_settings",
+        name="账户设置",
+        module="account",
+        section="账户级配置",
+        description="个人资料、风险偏好、密码与 MCP/SDK Token 管理。",
+        permission="login",
+        frontend_url="/account/settings/",
+        api_url=None,
+        sdk_module="account",
+        mcp_tools=(),
+        supports_edit=True,
+        docs_ref="docs/business/config-center-matrix.md#account_settings",
+    ),
+    ConfigCapability(
         key="agent_runtime_operator",
         name="Agent Runtime Operator",
         module="agent_runtime",
         section="系统级配置",
         description="查看 AI-native task/proposal 队列，并进入 operator 页面执行审批与处置。",
         permission="staff",
-        frontend_url="/ops/agent-runtime/",
+        frontend_url="/settings/agent-runtime/",
         api_url="/api/agent-runtime/dashboard/summary/",
         sdk_module="agent_runtime",
         mcp_tools=(
@@ -67,7 +81,7 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         name="财经数据源配置",
         module="macro",
         section="数据源",
-        description="Tushare、AKShare、QMT 等统一财经数据源配置与优先级。",
+        description="配置 Tushare Token / HTTP URL、AKShare、QMT 等统一财经数据源。",
         permission="staff",
         frontend_url="/macro/datasources/",
         api_url="/api/macro/datasources/",
@@ -85,7 +99,7 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         name="市场数据源状态",
         module="market_data",
         section="数据源",
-        description="统一市场数据 provider 的健康状态与可用性。",
+        description="只读查看 provider 运行状态、健康检查与快速测试；不在此编辑 Token。",
         permission="staff",
         frontend_url="/market-data/providers/",
         api_url=None,
@@ -173,9 +187,9 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
 )
 
 
-def _safe_summary(builder, fallback_name: str) -> dict[str, Any]:
+def _safe_summary(builder, fallback_name: str, user: Any) -> dict[str, Any]:
     try:
-        return builder()
+        return builder(user)
     except Exception as exc:
         logger.warning("Failed to build %s summary: %s", fallback_name, exc)
         return {
@@ -186,7 +200,41 @@ def _safe_summary(builder, fallback_name: str) -> dict[str, Any]:
         }
 
 
-def get_system_settings_summary() -> dict[str, Any]:
+def get_account_settings_summary(user: Any) -> dict[str, Any]:
+    from apps.account.infrastructure.models import AccountProfileModel, UserAccessTokenModel
+
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "status": "missing",
+            "summary": {"message": "请先登录"},
+        }
+
+    profile = AccountProfileModel._default_manager.filter(user=user).first()
+    if profile is None:
+        return {
+            "status": "missing",
+            "summary": {
+                "message": "未发现账户档案",
+                "email_configured": bool(getattr(user, "email", "")),
+            },
+        }
+
+    active_token_count = UserAccessTokenModel._default_manager.filter(
+        user=user,
+        is_active=True,
+    ).count()
+    return {
+        "status": "configured",
+        "summary": {
+            "display_name": profile.display_name or getattr(user, "username", ""),
+            "risk_tolerance": profile.risk_tolerance,
+            "mcp_enabled": profile.mcp_enabled,
+            "active_token_count": active_token_count,
+        },
+    }
+
+
+def get_system_settings_summary(user: Any) -> dict[str, Any]:
     from apps.account.infrastructure.models import SystemSettingsModel
 
     settings_obj = SystemSettingsModel.get_settings()
@@ -204,7 +252,7 @@ def get_system_settings_summary() -> dict[str, Any]:
     }
 
 
-def get_agent_runtime_operator_summary() -> dict[str, Any]:
+def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
     from django.db.models import Q
 
     from apps.agent_runtime.infrastructure.models import AgentProposalModel, AgentTaskModel
@@ -226,12 +274,12 @@ def get_agent_runtime_operator_summary() -> dict[str, Any]:
             "total_tasks": AgentTaskModel._default_manager.count(),
             "needs_attention_count": needs_attention_count,
             "pending_approval_count": pending_approval_count,
-            "operator_url": "/ops/agent-runtime/",
+            "operator_url": "/settings/agent-runtime/",
         },
     }
 
 
-def get_macro_datasource_summary() -> dict[str, Any]:
+def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
     from apps.macro.infrastructure.models import DataSourceConfig
 
     rows = list(
@@ -279,7 +327,7 @@ def get_macro_datasource_summary() -> dict[str, Any]:
     }
 
 
-def get_market_data_provider_summary() -> dict[str, Any]:
+def get_market_data_provider_summary(user: Any) -> dict[str, Any]:
     try:
         from apps.market_data.interface.page_views import build_provider_dashboard
 
@@ -292,7 +340,8 @@ def get_market_data_provider_summary() -> dict[str, Any]:
         return {
             "status": status,
             "summary": {
-                "provider_count": len(providers),
+                "provider_count": dashboard.get("provider_count", len(providers)),
+                "healthy_provider_count": dashboard.get("healthy_provider_count", 0),
                 "unhealthy_count": unhealthy_count,
                 "providers": [provider.get("name") for provider in providers[:5]],
             },
@@ -306,7 +355,7 @@ def get_market_data_provider_summary() -> dict[str, Any]:
         }
 
 
-def get_beta_gate_summary() -> dict[str, Any]:
+def get_beta_gate_summary(user: Any) -> dict[str, Any]:
     from apps.beta_gate.infrastructure.models import GateConfigModel
 
     active_config = GateConfigModel._default_manager.active().first()
@@ -332,7 +381,7 @@ def get_beta_gate_summary() -> dict[str, Any]:
     }
 
 
-def get_valuation_repair_summary() -> dict[str, Any]:
+def get_valuation_repair_summary(user: Any) -> dict[str, Any]:
     from apps.equity.application.config import get_valuation_repair_config_summary
 
     config = get_valuation_repair_config_summary(use_cache=False)
@@ -342,7 +391,7 @@ def get_valuation_repair_summary() -> dict[str, Any]:
     }
 
 
-def get_ai_provider_summary() -> dict[str, Any]:
+def get_ai_provider_summary(user: Any) -> dict[str, Any]:
     from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog
 
     providers = list(
@@ -374,12 +423,30 @@ def get_ai_provider_summary() -> dict[str, Any]:
     }
 
 
-def get_trading_cost_summary() -> dict[str, Any]:
+def get_trading_cost_summary(user: Any) -> dict[str, Any]:
     from apps.account.infrastructure.models import PortfolioModel, TradingCostConfigModel
 
-    total_portfolios = PortfolioModel._default_manager.count()
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "status": "missing",
+            "summary": {"message": "请先登录"},
+        }
+
+    portfolios = list(
+        PortfolioModel._default_manager.filter(user=user).values("id", "name", "is_active")
+    )
+    if not portfolios:
+        return {
+            "status": "missing",
+            "summary": {
+                "message": "当前用户暂无投资组合",
+                "portfolio_count": 0,
+            },
+        }
+
+    portfolio_ids = [portfolio["id"] for portfolio in portfolios]
     configs = list(
-        TradingCostConfigModel._default_manager.all().values(
+        TradingCostConfigModel._default_manager.filter(portfolio_id__in=portfolio_ids).values(
             "portfolio_id",
             "commission_rate",
             "stamp_duty_rate",
@@ -388,28 +455,35 @@ def get_trading_cost_summary() -> dict[str, Any]:
         )
     )
     active_configs = [cfg for cfg in configs if cfg["is_active"]]
-    status = "configured" if configs else "api_only"
+    active_portfolio_count = sum(1 for portfolio in portfolios if portfolio["is_active"])
+    status = "configured" if active_configs else "attention"
     return {
         "status": status,
         "summary": {
-            "portfolio_count": total_portfolios,
+            "portfolio_count": len(portfolios),
+            "active_portfolio_count": active_portfolio_count,
             "config_count": len(configs),
             "active_count": len(active_configs),
-            "default_commission_rate": active_configs[0]["commission_rate"] if active_configs else None,
-            "default_stamp_duty_rate": active_configs[0]["stamp_duty_rate"] if active_configs else None,
+            "commission_rate": active_configs[0]["commission_rate"] if active_configs else None,
+            "stamp_duty_rate": active_configs[0]["stamp_duty_rate"] if active_configs else None,
         },
     }
 
 
 _SUMMARY_BUILDERS = {
-    "agent_runtime_operator": lambda: _safe_summary(get_agent_runtime_operator_summary, "Agent Runtime Operator"),
-    "system_settings": lambda: _safe_summary(get_system_settings_summary, "系统设置"),
-    "macro_datasources": lambda: _safe_summary(get_macro_datasource_summary, "宏观数据源配置"),
-    "market_data_providers": lambda: _safe_summary(get_market_data_provider_summary, "市场数据源状态"),
-    "beta_gate": lambda: _safe_summary(get_beta_gate_summary, "Beta Gate 配置"),
-    "valuation_repair": lambda: _safe_summary(get_valuation_repair_summary, "估值修复配置"),
-    "ai_provider": lambda: _safe_summary(get_ai_provider_summary, "AI Provider 配置"),
-    "trading_cost": lambda: _safe_summary(get_trading_cost_summary, "交易费率配置"),
+    "account_settings": lambda user: _safe_summary(get_account_settings_summary, "账户设置", user),
+    "agent_runtime_operator": lambda user: _safe_summary(
+        get_agent_runtime_operator_summary, "Agent Runtime Operator", user
+    ),
+    "system_settings": lambda user: _safe_summary(get_system_settings_summary, "系统设置", user),
+    "macro_datasources": lambda user: _safe_summary(get_macro_datasource_summary, "宏观数据源配置", user),
+    "market_data_providers": lambda user: _safe_summary(
+        get_market_data_provider_summary, "市场数据源状态", user
+    ),
+    "beta_gate": lambda user: _safe_summary(get_beta_gate_summary, "Beta Gate 配置", user),
+    "valuation_repair": lambda user: _safe_summary(get_valuation_repair_summary, "估值修复配置", user),
+    "ai_provider": lambda user: _safe_summary(get_ai_provider_summary, "AI Provider 配置", user),
+    "trading_cost": lambda user: _safe_summary(get_trading_cost_summary, "交易费率配置", user),
 }
 
 
@@ -439,7 +513,7 @@ def build_config_center_snapshot(user: Any) -> dict[str, Any]:
     for capability in _CAPABILITIES:
         if capability.permission == "staff" and not getattr(user, "is_staff", False):
             continue
-        summary_payload = _SUMMARY_BUILDERS[capability.key]()
+        summary_payload = _SUMMARY_BUILDERS[capability.key](user)
         section = sections.setdefault(
             capability.section,
             {"key": capability.section, "title": capability.section, "items": []},

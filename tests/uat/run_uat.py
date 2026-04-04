@@ -1,4 +1,4 @@
-"""
+﻿"""
 UAT Runner - Execute UAT tests and generate acceptance report.
 
 Usage:
@@ -130,7 +130,7 @@ class UATRunner:
                 "/backtest/create/": {200},
                 "/simulated-trading/dashboard/": {200},
                 "/audit/reports/": {200},
-                "/ops/": {200},
+                "/settings/": {200},
             }
 
             broken_links: list[dict[str, Any]] = []
@@ -483,4 +483,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

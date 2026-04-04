@@ -12,6 +12,13 @@
     <div class="settings-header">
         <h1>账户设置</h1>
         <p class="subtitle">管理您的账户偏好和资金流水</p>
+        <div class="settings-entry-banner">
+            <div>
+                <strong>设置中心是统一入口</strong>
+                <div class="settings-entry-text">当前页面负责编辑账户资料、交易费率和 Token；其他系统级配置请回到设置中心统一进入。</div>
+            </div>
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary">返回设置中心</a>
+        </div>
     </div>
 
     <!-- 资金流水 -->
@@ -345,6 +352,26 @@
 
 .settings-header {
     margin-bottom: 24px;
+}
+
+.settings-entry-banner {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(15,23,42,0.03));
+    border: 1px solid rgba(37,99,235,0.14);
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.settings-entry-text {
+    margin-top: 4px;
+    color: #54595D;
+    font-size: 13px;
+    line-height: 1.6;
 }
 
 .settings-header h1 {

@@ -35,7 +35,7 @@ core/templates/
 ├── docs/                  # 文档功能
 │   ├── list.html
 │   └── detail.html
-└── ops/                   # 运营中心
+└── ops/                   # 设置中心模板（目录名保留 ops）
     └── center.html
 ```
 

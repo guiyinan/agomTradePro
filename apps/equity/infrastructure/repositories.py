@@ -26,6 +26,7 @@ from apps.equity.domain.entities import (
 )
 from core.exceptions import DataFetchError, DataValidationError
 
+from .adapters import TushareStockAdapter
 from .models import (
     FinancialDataModel,
     StockDailyModel,
@@ -605,7 +606,11 @@ class DjangoStockRepository:
             trade_date__lte=end_date
         ).order_by('trade_date')
 
-        return [(m.trade_date, m.close) for m in models]
+        local_prices = [(m.trade_date, m.close) for m in models]
+        if local_prices:
+            return local_prices
+
+        return self._get_remote_daily_prices(stock_code, start_date, end_date)
 
     def get_technical_bars(
         self,
@@ -950,6 +955,96 @@ class DjangoStockRepository:
             logger.warning("Failed to get intraday validation price for %s: %s", stock_code, exc)
 
         return None
+
+    def _get_remote_daily_prices(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[date, Decimal]]:
+        """在本地日线缓存缺失时，从远端数据源拉取只读日线价格。"""
+        tushare_prices = self._get_tushare_daily_prices(stock_code, start_date, end_date)
+        if tushare_prices:
+            return tushare_prices
+
+        return self._get_akshare_daily_prices(stock_code, start_date, end_date)
+
+    def _get_tushare_daily_prices(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[date, Decimal]]:
+        """从 Tushare 获取远端日线价格。"""
+        try:
+            frame = TushareStockAdapter().fetch_daily_data(stock_code, start_date, end_date)
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch Tushare daily prices for %s: %s",
+                stock_code,
+                exc,
+            )
+            return []
+
+        if frame is None or frame.empty:
+            return []
+
+        remote_prices: list[tuple[date, Decimal]] = []
+        for _, row in frame.iterrows():
+            trade_date = row.get("trade_date")
+            close_price = self._safe_decimal(row.get("close"))
+            if hasattr(trade_date, "date"):
+                trade_date = trade_date.date()
+            if not isinstance(trade_date, date) or close_price is None or close_price <= 0:
+                continue
+            remote_prices.append((trade_date, close_price))
+
+        return remote_prices
+
+    def _get_akshare_daily_prices(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[date, Decimal]]:
+        """从 AKShare 获取远端日线价格。"""
+        try:
+            import akshare as ak
+
+            frame = ak.stock_zh_a_hist(
+                symbol=self._to_akshare_symbol(stock_code),
+                period="daily",
+                start_date=start_date.strftime("%Y%m%d"),
+                end_date=end_date.strftime("%Y%m%d"),
+                adjust="qfq",
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch AKShare daily prices for %s: %s",
+                stock_code,
+                exc,
+            )
+            return []
+
+        if frame is None or frame.empty:
+            return []
+
+        remote_prices: list[tuple[date, Decimal]] = []
+        for _, row in frame.iterrows():
+            trade_date = row.get("日期")
+            close_price = self._safe_decimal(row.get("收盘"))
+            if hasattr(trade_date, "date"):
+                trade_date = trade_date.date()
+            elif isinstance(trade_date, str):
+                try:
+                    trade_date = datetime.fromisoformat(trade_date).date()
+                except ValueError:
+                    continue
+            if not isinstance(trade_date, date) or close_price is None or close_price <= 0:
+                continue
+            remote_prices.append((trade_date, close_price))
+
+        return remote_prices
 
     def _safe_decimal(self, value: object) -> Decimal | None:
         if value in (None, ""):

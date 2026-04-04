@@ -1,4 +1,4 @@
-# AgomTradePro 全站 UI/UX 与功能清单（2026-02-18）
+﻿# AgomTradePro 全站 UI/UX 与功能清单（2026-02-18）
 
 ## 1. 盘点范围与方法
 
@@ -21,7 +21,7 @@
 | `/` | 首页入口 | 重定向到 `/dashboard/` |
 | `/dashboard/` | 投资指挥中心入口 | 根据配置进入 Streamlit 或 Django Dashboard |
 | `/dashboard/legacy/` | Django Dashboard | 综合看板：Regime/Policy/资产/信号/Alpha/配额 |
-| `/ops/` | Operations Center | 运营与配置快捷入口聚合 |
+| `/settings/` | Settings Center | 运营与配置快捷入口聚合 |
 | `/decision/workspace/` | 决策工作台 | Beta Gate + Alpha Trigger + Decision Rhythm 联动入口 |
 | `/docs/` | 文档中心 | 文档分类导航 |
 | `/docs/<doc_slug>/` | 文档详情 | Markdown 文档阅读 |
@@ -175,4 +175,3 @@
 2. 统一设计 Token（颜色、按钮、表格、间距、状态标签）并抽离内联样式。
 3. 统一页面命名策略（页面路由、API 路由、入口文案），减少学习成本。
 4. 补一份“关键用户流程”专项（注册->建仓->信号->回测->决策->复盘）交互走查报告。
-

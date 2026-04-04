@@ -194,11 +194,18 @@
                         <a href="/api/docs/" class="dropdown-item">API 文档</a>
                         {% if user.is_staff %}
                         <div class="dropdown-divider"></div>
-                        <a href="{% url 'ops-center' %}" class="dropdown-item">配置中心</a>
-                        <a href="{% url 'macro:datasources' %}" class="dropdown-item">数据源配置</a>
-                        <a href="{% url 'market_data:providers' %}" class="dropdown-item"><i class="bi bi-database-check"></i> 市场数据源</a>
+                        <div class="dropdown-section-title">设置总览</div>
+                        <a href="{% url 'settings-center' %}" class="dropdown-item">设置中心</a>
+                        {% if user.is_superuser %}
+                        <a href="{% url 'account:system_settings' %}" class="dropdown-item">系统设置</a>
+                        {% endif %}
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">数据源</div>
+                        <a href="{% url 'macro:datasources' %}" class="dropdown-item">财经数据源配置</a>
+                        <a href="{% url 'market_data:providers' %}" class="dropdown-item"><i class="bi bi-database-check"></i> 市场数据源状态</a>
                         <a href="{% url 'macro:data_controller' %}" class="dropdown-item">数据管理器</a>
                         <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">校验与审计</div>
                         <a href="{% url 'asset-screen' %}" class="dropdown-item">资产池评分/告警</a>
                         <a href="{% url 'audit:reports' %}" class="dropdown-item">审计归因报告</a>
                         <a href="{% url 'audit:indicator_performance' %}" class="dropdown-item">指标表现校验</a>
@@ -228,7 +235,6 @@
                     <div class="dropdown-menu">
                         <a href="{% url 'account:user_management' %}" class="dropdown-item">用户管理</a>
                         <a href="{% url 'account:token_management' %}" class="dropdown-item">Token管理</a>
-                        <a href="{% url 'account:system_settings' %}" class="dropdown-item">系统设置</a>
                     </div>
                 </div>
                 {% endif %}
@@ -247,7 +253,7 @@
                     </button>
                     <div class="dropdown-menu">
                         <a href="{% url 'account:profile' %}" class="dropdown-item">我的账户</a>
-                        <a href="{% url 'account:settings' %}" class="dropdown-item">设置</a>
+                        <a href="{% url 'settings-center' %}" class="dropdown-item">设置中心</a>
                         <div class="dropdown-divider"></div>
                         <a href="{% url 'account:logout' %}" class="dropdown-item">登出</a>
                     </div>

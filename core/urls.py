@@ -53,7 +53,7 @@ from core.views import (
     docs_view,
     health_view,
     index_view,
-    ops_center_view,
+    settings_center_view,
     readiness_view,
 )
 from core.views_decision_funnel import (
@@ -166,13 +166,13 @@ core_patterns = [
         name="api-decision-funnel-context",
     ),
     path("api/decision/audit/", decision_audit_api_view, name="api-decision-audit"),
-    path("ops/", ops_center_view, name="ops-center"),
-    path("ops/mcp-tools/", mcp_tools_page, name="ops-mcp-tools"),
-    path("ops/mcp-tools/sync/", sync_mcp_tools_view, name="ops-mcp-tools-sync"),
+    path("settings/", settings_center_view, name="settings-center"),
+    path("settings/mcp-tools/", mcp_tools_page, name="settings-mcp-tools"),
+    path("settings/mcp-tools/sync/", sync_mcp_tools_view, name="settings-mcp-tools-sync"),
     path(
-        "ops/mcp-tools/<str:capability_key>/toggle/<str:flag>/",
+        "settings/mcp-tools/<str:capability_key>/toggle/<str:flag>/",
         toggle_mcp_tool_flag_view,
-        name="ops-mcp-tools-toggle",
+        name="settings-mcp-tools-toggle",
     ),
     # More specific pattern must come first.
     path("docs/<str:doc_slug>/", docs_view, name="docs-detail"),
@@ -414,7 +414,7 @@ module_patterns = [
         ),
     ),
     path(
-        "ops/agent-runtime/",
+        "settings/agent-runtime/",
         include(
             ("apps.agent_runtime.interface.page_urls", "agent_runtime_pages"),
             namespace="agent_runtime_pages",

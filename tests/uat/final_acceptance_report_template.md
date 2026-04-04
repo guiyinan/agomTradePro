@@ -1,4 +1,4 @@
-# UAT 最终验收报告
+﻿# UAT 最终验收报告
 
 **项目名称**: AgomTradePro UI/UX 改进
 **报告日期**: {DATE}
@@ -90,7 +90,7 @@
 | E1.1 回测列表到详情路径清晰 | {STATUS} | {NOTES} |
 | E1.2 审计页术语一致 | {STATUS} | {NOTES} |
 | E1.3 应用回测结果确认明确 | {STATUS} | {NOTES} |
-| E2.1 Ops Center聚合入口完整 | {STATUS} | {NOTES} |
+| E2.1 Settings Center聚合入口完整 | {STATUS} | {NOTES} |
 | E2.2 管理类页面操作闭环完整 | {STATUS} | {NOTES} |
 
 ---
@@ -138,7 +138,7 @@
 | Policy Dashboard | `/policy/workbench/` | {STATUS} | {ISSUE} |
 | Asset Screen | `/asset-analysis/screen/` | {STATUS} | {ISSUE} |
 | Decision Workspace | `/decision/workspace/` | {STATUS} | {ISSUE} |
-| Ops Center | `/ops/` | {STATUS} | {ISSUE} |
+| Settings Center | `/settings/` | {STATUS} | {ISSUE} |
 | Macro Data | `/macro/data/` | {STATUS} | {ISSUE} |
 | Regime Dashboard | `/regime/dashboard/` | {STATUS} | {ISSUE} |
 | Signal Manage | `/signal/manage/` | {STATUS} | {ISSUE} |

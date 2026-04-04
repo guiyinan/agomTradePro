@@ -1,19 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}系统配置 - AgomTradePro{% endblock %}
+{% block title %}系统设置 - AgomTradePro{% endblock %}
 
 {% block content %}
 <div class="page-container">
     <div class="page-header">
         <div>
-            <h1>系统配置</h1>
+            <h1>系统设置</h1>
             <p class="text-muted">管理系统全局设置</p>
         </div>
         <div>
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary">
+                返回设置中心
+            </a>
             <a href="{% url 'account:user_management' %}" class="btn btn-secondary">
                 <i class="icon-users"></i> 返回用户管理
             </a>
         </div>
+    </div>
+
+    <div class="entry-banner">
+        <strong>入口说明：</strong> 设置中心是统一入口；当前页面只负责编辑系统级参数。账户设置、数据源配置和状态检查请从设置中心跳转。
     </div>
 
     {% if messages %}
@@ -174,6 +181,16 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
+}
+
+.entry-banner {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(15,23,42,0.03));
+    border: 1px solid rgba(37,99,235,0.14);
+    color: var(--color-text-primary);
+    line-height: 1.6;
 }
 
 .page-header h1 {

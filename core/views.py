@@ -439,12 +439,27 @@ def decision_workspace_view(request):
 
 
 @login_required
-def ops_center_view(request):
-    """Unified non-admin operations center for common configuration tasks."""
+def settings_center_view(request):
+    """Unified settings center for account, system, and strategy configuration."""
     from core.application.config_center import build_config_center_snapshot
 
     context = build_config_center_snapshot(request.user)
-    context["page_title"] = "配置中心"
-    context["page_subtitle"] = "统一查看系统、账户与策略参数配置状态。"
+    featured_order = [
+        "account_settings",
+        "trading_cost",
+        "system_settings",
+        "macro_datasources",
+        "market_data_providers",
+    ]
+    items_by_key = {
+        item["key"]: item
+        for section in context["sections"]
+        for item in section["items"]
+    }
+    context["featured_items"] = [
+        items_by_key[key] for key in featured_order if key in items_by_key
+    ]
+    context["page_title"] = "设置中心"
+    context["page_subtitle"] = "统一入口：账户设置、系统设置、数据源与策略参数。"
     context["matrix_doc_path"] = "docs/business/config-center-matrix.md"
     return render(request, "ops/center.html", context)

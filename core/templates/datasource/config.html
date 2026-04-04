@@ -1,12 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}数据源配置 - AgomTradePro{% endblock %}
+{% block title %}财经数据源配置 - AgomTradePro{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>数据源配置</h1>
+    <h1>财经数据源配置</h1>
     <p class="subtitle">Data Source Configuration</p>
-    <p class="description">管理 Tushare、AKShare、QMT 等统一财经数据源的连接与优先级配置</p>
+    <p class="description">Tushare Token / HTTP URL、AKShare、QMT 等统一财经数据源都在这里配置；市场数据状态页只负责看运行状态。</p>
+</div>
+
+<div class="config-entry-banner">
+    <div>
+        <h2>Tushare Token / HTTP URL 就在这里配置</h2>
+        <p>如果你是从“市场数据源状态”页面跳过来的，说明入口命名之前不够清楚。现在这页负责配置，状态页负责健康检查和快速测试。</p>
+    </div>
+    <div class="config-entry-actions">
+        <a href="{% url 'macro:datasource-create' %}" class="btn-step">添加数据源</a>
+        <a href="{% url 'market_data:providers' %}" class="btn-step btn-step-secondary">查看市场数据状态</a>
+        <a href="{% url 'settings-center' %}" class="btn-step btn-step-secondary">打开设置中心</a>
+    </div>
 </div>
 
 <!-- 快速开始指南 -->
@@ -156,7 +168,7 @@
     <h2 class="section-title">数据源配置说明</h2>
 
     <!-- Tushare Pro -->
-    <div class="guide-item-full">
+    <div class="guide-item-full" id="tushare-guide">
         <div class="guide-header">
             <h3 class="guide-title-large">Tushare Pro</h3>
             <span class="guide-badge guide-recommended">推荐</span>
@@ -422,6 +434,38 @@
     margin-bottom: var(--spacing-xl);
 }
 
+.config-entry-banner {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.09), rgba(15, 23, 42, 0.04));
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-lg);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.config-entry-banner h2 {
+    margin: 0 0 var(--spacing-xs) 0;
+    font-size: 20px;
+    color: var(--color-text-primary);
+}
+
+.config-entry-banner p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    max-width: 760px;
+}
+
+.config-entry-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
 .steps-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -492,6 +536,16 @@
 
 .btn-step:hover {
     background: var(--color-primary-hover);
+}
+
+.btn-step-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.btn-step-secondary:hover {
+    background: var(--color-border);
 }
 
 /* Stats Grid */

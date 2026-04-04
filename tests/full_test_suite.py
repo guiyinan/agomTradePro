@@ -1,4 +1,4 @@
-"""
+﻿"""
 AgomTradePro Full Test Suite - Localhost:8000
 Comprehensive test covering: API smoke, core business, UAT (Playwright), MCP, SDK
 """
@@ -434,8 +434,8 @@ def test_page_routes():
         ("/ai/", "AI Provider page"),
         ("/prompt/", "Prompt page"),
         ("/terminal/", "Terminal page"),
-        ("/ops/", "Ops center"),
-        ("/ops/mcp-tools/", "MCP tools page"),
+        ("/settings/", "Settings center"),
+        ("/settings/mcp-tools/", "MCP tools page"),
         ("/docs/", "Docs page"),
         ("/simulated-trading/", "Simulated trading page"),
         ("/realtime/", "Realtime page"),
@@ -638,4 +638,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -1,4 +1,4 @@
-# API 路由治理计划
+﻿# API 路由治理计划
 
 > **创建日期**: 2026-02-18
 > **负责**: backend-dev
@@ -26,7 +26,7 @@
 | `/policy/dashboard/` | 页面 | 需调整 | 保持（向后兼容） |
 | `/asset-analysis/screen/` | 页面 | 需调整 | 保持（向后兼容） |
 | `/decision/workspace/` | 页面 | 需调整 | 保持（向后兼容） |
-| `/ops/` | 页面 | 规范 | 无需调整 |
+| `/settings/` | 页面 | 规范 | 无需调整 |
 | `/docs/` | 页面 | 规范 | 无需调整 |
 
 ### 2.2 Dashboard 路由

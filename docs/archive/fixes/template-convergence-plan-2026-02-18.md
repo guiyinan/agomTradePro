@@ -105,7 +105,7 @@ rm -rf /d/githv/agomTradePro/templates/
 | `docs/*` | 保留在 core | 全局文档功能 |
 | `admin/*` | 保留在 core | 管理后台全局功能 |
 | `components/*` | 保留在 core | 全局组件 |
-| `ops/*` | 保留在 core | 运营中心 |
+| `ops/*` | 保留在 core | 设置中心模板 |
 
 ### 3.3 Phase 3: 更新视图引用
 

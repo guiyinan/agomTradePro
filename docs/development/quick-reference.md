@@ -1,4 +1,4 @@
-# AgomTradePro 开发快速参考
+﻿# AgomTradePro 开发快速参考
 
 > **文档版本**: V1.7
 > **更新日期**: 2026-03-31
@@ -349,7 +349,7 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 
 | 页面 | 说明 |
 |------|------|
-| `/ops/` | Operations Center（替代高频 Admin 入口） |
+| `/settings/` | Settings Center（替代高频 Admin 入口） |
 | `/policy/events/new/` | 新增政策事件 |
 | `/policy/rss/sources/new/` | 新增 RSS 源 |
 | `/policy/rss/keywords/new/` | 新增关键词规则 |
@@ -578,4 +578,3 @@ pip install -r requirements.txt
 | `module-dependency-graph.md` | 模块依赖关系图 |
 | `AgomTradePro_V3.4.md` | 业务需求文档 |
 | `CLAUDE.md` | 项目开发规则 |
-

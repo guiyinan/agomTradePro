@@ -1,4 +1,4 @@
-# UAT 验收报告模板
+﻿# UAT 验收报告模板
 
 **项目**: AgomTradePro UI/UX 改进
 **版本**: v3.4
@@ -83,7 +83,7 @@
 | E1.1 回测列表到详情路径清晰 | {STATUS} | {NOTES} |
 | E1.2 审计页术语一致 | {STATUS} | {NOTES} |
 | E1.3 应用回测结果确认明确 | {STATUS} | {NOTES} |
-| E2.1 Ops Center 聚合入口完整 | {STATUS} | {NOTES} |
+| E2.1 Settings Center 聚合入口完整 | {STATUS} | {NOTES} |
 | E2.2 管理类页面操作闭环完整 | {STATUS} | {NOTES} |
 
 **小计**: {E_PASS}/{E_TOTAL} 通过
@@ -129,7 +129,7 @@
 | 回测 | /backtest/create/ | {STATUS} | {ISSUE} |
 | 模拟交易 | /simulated-trading/dashboard/ | {STATUS} | {ISSUE} |
 | 审计报告 | /audit/reports/ | {STATUS} | {ISSUE} |
-| 运营中心 | /ops/ | {STATUS} | {ISSUE} |
+| 设置中心 | /settings/ | {STATUS} | {ISSUE} |
 
 **404 链接**: {404_LIST}
 

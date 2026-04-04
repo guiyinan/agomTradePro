@@ -55,6 +55,37 @@ def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_tim
     assert "if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe)" in content
 
 
+def test_equity_detail_bootstraps_after_dom_ready_and_guards_chartjs_loading():
+    content = Path("core/templates/equity/detail.html").read_text(encoding="utf-8")
+
+    assert "function initializeDetailPage()" in content
+    assert "document.addEventListener('DOMContentLoaded', initializeDetailPage, { once: true });" in content
+    assert "const ChartConstructor = window.Chart;" in content
+    assert "Chart.js 未就绪，跳过估值分位图渲染:" in content
+
+
+def test_equity_detail_loads_regime_correlation_from_dedicated_api():
+    content = Path("core/templates/equity/detail.html").read_text(encoding="utf-8")
+
+    assert 'fetchJsonOrThrowCompat(`/api/equity/regime-correlation/${stockCode}/`)' in content
+    assert "function loadRegimeCorrelation()" in content
+    assert "function renderRegimeCorrelationMessage(message)" in content
+    assert "loadRegimeCorrelation();" in content
+    assert "<th>Beta</th>" in content
+    assert "<th>样本天数</th>" in content
+
+
+def test_equity_detail_loads_pulse_context_from_dedicated_api():
+    content = Path("core/templates/equity/detail.html").read_text(encoding="utf-8")
+
+    assert "Pulse 战术环境" in content
+    assert "function loadPulseContext()" in content
+    assert "function updatePulseCard(data)" in content
+    assert "function renderPulseMessage(message)" in content
+    assert "fetchJsonOrThrowCompat('/api/pulse/current/')" in content
+    assert "loadPulseContext();" in content
+
+
 def test_wait_rsshub_exits_non_zero_on_timeout():
     content = Path("scripts/debug/wait_rsshub.ps1").read_text(encoding="utf-8")
 

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Independent UAT Tests - Not dependent on visual consistency changes.
 
 These tests can run while Task #13 is in progress.
@@ -64,7 +64,7 @@ class TestNavigationRouteDefinition:
             '/policy/workbench/': 'policy-dashboard',
             '/asset-analysis/screen/': 'asset-screen',
             '/decision/workspace/': 'decision-workspace',
-            '/ops/': 'ops-center',
+            '/settings/': 'settings-center',
         }
 
         results = {}
@@ -223,7 +223,7 @@ class TestUserJourneyRouteAccess:
         journey_e_routes = [
             '/backtest/create/',
             '/audit/reports/',
-            '/ops/',
+            '/settings/',
         ]
 
         defined = []
@@ -310,5 +310,3 @@ class TestConfiguration:
         if missing:
             print(f"\nMissing required apps: {missing}")
             pytest.fail(f"Required apps are not registered: {missing}")
-
-

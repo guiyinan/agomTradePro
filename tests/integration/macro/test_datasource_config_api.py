@@ -110,3 +110,14 @@ def test_macro_datasource_api_accepts_qmt_source_with_extra_config(admin_client)
     payload = response.json()
     assert payload["source_type"] == "qmt"
     assert payload["extra_config"]["client_path"] == "C:/qmt"
+
+
+@pytest.mark.django_db
+def test_macro_datasource_page_highlights_tushare_configuration_entry(admin_client):
+    response = admin_client.get("/macro/datasources/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "财经数据源配置" in content
+    assert "Tushare Token / HTTP URL 就在这里配置" in content
+    assert "/market-data/providers/" in content

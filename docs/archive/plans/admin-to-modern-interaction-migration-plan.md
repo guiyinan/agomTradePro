@@ -1,4 +1,4 @@
-# Admin to Modern Interaction Migration Plan
+﻿# Admin to Modern Interaction Migration Plan
 
 ## Objective
 
@@ -8,9 +8,9 @@ Reduce operational dependency on Django Admin by moving high-frequency workflows
 
 ### 1. Unified operations entry
 
-- Added `Operations Center` page:
-  - Route: `/ops/`
-  - View: `core.views.ops_center_view`
+- Added `Settings Center` page:
+  - Route: `/settings/`
+  - View: `core.views.settings_center_view`
   - Template: `core/templates/ops/center.html`
 
 ### 2. Policy workflows migrated from Admin links
@@ -33,7 +33,7 @@ Reduce operational dependency on Django Admin by moving high-frequency workflows
 ### 4. Beta Gate and dashboard navigation de-adminized
 
 - Replaced direct `/admin/beta_gate/...` links with product routes (`/beta-gate/version/`, `/beta-gate/test/`).
-- Replaced global/nav admin links with `Operations Center`.
+- Replaced global/nav admin links with `Settings Center`.
 
 ### 5. Beta Gate config edit loop completed
 
@@ -76,4 +76,3 @@ Reduce operational dependency on Django Admin by moving high-frequency workflows
 
 - High-frequency ops for Policy + Macro can be completed without entering Django Admin.
 - Global user-facing templates no longer contain direct `/admin/` links except admin-doc management pages.
-

@@ -102,6 +102,12 @@
 - Fixed the dashboard main workflow account selector to read the current account-list response shape (`accounts`, `account_name`, `account_id`) while remaining tolerant of legacy payload keys.
 - Synced the decision workspace guardrail tests with the canonical account route contract.
 
+### equity.detail tactical context enrichment
+
+- Integrated global `Pulse` tactical context into the equity detail page via `/api/pulse/current/`.
+- Added dedicated frontend rendering for pulse composite score, regime context, strength, transition warning, and dimension breakdown.
+- Kept the card explicitly scoped as market context instead of stock-specific analysis to avoid mixing tactical market state with security fundamentals.
+
 ## Verification
 
 - `python -m py_compile` on newly created interface modules

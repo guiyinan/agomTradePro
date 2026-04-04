@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}配置中心 - AgomTradePro{% endblock %}
+{% block title %}设置中心 - AgomTradePro{% endblock %}
 
 {% block content %}
 <div style="max-width: 1320px; margin: 0 auto; padding: 24px;">
@@ -13,6 +13,50 @@
             <a href="/api/docs/" class="btn btn-secondary" style="text-decoration:none;">API 文档</a>
             <a href="{% url 'docs' %}" class="btn btn-secondary" style="text-decoration:none;">文档中心</a>
         </div>
+    </div>
+
+    {% if featured_items %}
+    <section style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; gap:12px; flex-wrap:wrap;">
+            <h2 style="margin:0; font-size: 20px;">常用入口</h2>
+            <span style="font-size:13px; color:#64748b;">统一入口，不再分散找页面</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">
+            {% for item in featured_items %}
+            <a href="{{ item.frontend_url }}" style="text-decoration:none; color:inherit;">
+                <article style="height:100%; background:linear-gradient(135deg, #ffffff, #f8fafc); border:1px solid #dbe7f5; border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                        <strong style="font-size:17px;">{{ item.name }}</strong>
+                        <span style="
+                            padding:4px 10px;
+                            border-radius:999px;
+                            font-size:12px;
+                            font-weight:600;
+                            {% if item.status == 'configured' %}background:#dcfce7;color:#166534;{% elif item.status == 'attention' %}background:#fef3c7;color:#92400e;{% elif item.status == 'missing' %}background:#fee2e2;color:#991b1b;{% else %}background:#e2e8f0;color:#334155;{% endif %}
+                        ">
+                            {{ item.status }}
+                        </span>
+                    </div>
+                    <div style="font-size:13px; color:#64748b; line-height:1.6;">{{ item.description }}</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:auto;">
+                        {% for key, value in item.summary.items %}
+                        <span style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:999px; padding:4px 8px; font-size:12px;">
+                            {{ key }}: {{ value }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </article>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <div style="margin-bottom: 18px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(15,23,42,0.03)); border: 1px solid rgba(37,99,235,0.14); color:#334155;">
+        <strong>入口规则已收口：</strong> 这里是统一设置入口；
+        `账户设置` 和 `系统设置` 现在是具体编辑页，
+        `财经数据源配置` 负责录入 Token / URL，
+        `市场数据源状态` 只看运行状态和联调测试。
     </div>
 
     <div style="display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:12px; margin-bottom: 24px;">

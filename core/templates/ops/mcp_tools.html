@@ -9,7 +9,7 @@
             <h1 style="margin:0 0 10px 0;">{{ page_title }}</h1>
             <p style="color:#64748b; margin:0; max-width:960px;">{{ page_subtitle }}</p>
         </div>
-        <form method="post" action="/ops/mcp-tools/sync/">
+        <form method="post" action="/settings/mcp-tools/sync/">
             {% csrf_token %}
             <button type="submit" style="background:#0f766e; color:#fff; border:none; border-radius:10px; padding:12px 18px; font-weight:600; cursor:pointer;">
                 重新同步 MCP 工具
@@ -90,7 +90,7 @@
                             <div style="margin-bottom:8px; font-weight:600; color:{% if tool.enabled_for_routing %}#15803d{% else %}#b91c1c{% endif %};">
                                 {% if tool.enabled_for_routing %}已启用{% else %}已关闭{% endif %}
                             </div>
-                            <form method="post" action="/ops/mcp-tools/{{ tool.capability_key }}/toggle/enabled_for_routing/">
+                            <form method="post" action="/settings/mcp-tools/{{ tool.capability_key }}/toggle/enabled_for_routing/">
                                 {% csrf_token %}
                                 <button type="submit" style="border:1px solid #cbd5e1; border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer;">切换 Routing</button>
                             </form>
@@ -99,7 +99,7 @@
                             <div style="margin-bottom:8px; font-weight:600; color:{% if tool.enabled_for_terminal %}#15803d{% else %}#b91c1c{% endif %};">
                                 {% if tool.enabled_for_terminal %}已启用{% else %}已关闭{% endif %}
                             </div>
-                            <form method="post" action="/ops/mcp-tools/{{ tool.capability_key }}/toggle/enabled_for_terminal/">
+                            <form method="post" action="/settings/mcp-tools/{{ tool.capability_key }}/toggle/enabled_for_terminal/">
                                 {% csrf_token %}
                                 <button type="submit" style="border:1px solid #cbd5e1; border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer;">切换 Terminal</button>
                             </form>

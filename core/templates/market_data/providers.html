@@ -1,13 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}市场数据源 - AgomTradePro{% endblock %}
+{% block title %}市场数据源状态 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <style>
 .md-dashboard { padding: var(--spacing-xl, 24px); }
 .md-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xl, 24px); }
 .md-header h1 { margin: 0; font-size: 1.75rem; color: var(--color-text-primary); }
+.md-context-card { background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(15,23,42,0.04)); border: 1px solid rgba(37,99,235,0.16); border-radius: var(--radius-lg, 12px); padding: 18px; margin-bottom: var(--spacing-lg, 16px); }
+.md-context-card h2 { margin: 0 0 10px 0; font-size: 1.05rem; color: var(--color-text-primary); }
+.md-context-card p { margin: 0 0 12px 0; color: var(--color-text-secondary); line-height: 1.6; }
+.md-context-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.md-context-actions a { text-decoration: none; }
+.md-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: var(--spacing-lg, 16px); }
+.md-summary-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md, 8px); padding: 14px 16px; }
+.md-summary-label { font-size: 12px; color: var(--color-text-muted); margin-bottom: 8px; }
+.md-summary-value { font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); }
 .md-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--spacing-lg, 16px); margin-bottom: var(--spacing-xl, 24px); }
 .md-card { background: var(--color-surface); border-radius: var(--radius-lg, 12px); padding: var(--spacing-lg, 16px); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border); }
 .md-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -40,12 +49,37 @@
 <div class="md-dashboard">
     <div class="md-header">
         <div>
-            <h1><i class="bi bi-database-check"></i> 市场数据源</h1>
-            <p style="margin: 4px 0 0; color: var(--color-text-muted);">统一数据源接入层：Provider 状态、健康检查、数据预览</p>
+            <h1><i class="bi bi-database-check"></i> 市场数据源状态</h1>
+            <p style="margin: 4px 0 0; color: var(--color-text-muted);">统一数据源接入层：Provider 运行状态、健康检查与数据预览</p>
         </div>
         <button class="btn btn-secondary" onclick="loadProviders()" title="刷新">
             <i class="bi bi-arrow-clockwise"></i> 刷新
         </button>
+    </div>
+
+    <section class="md-context-card">
+        <h2>这不是 Tushare 配置页</h2>
+        <p>Tushare Token / HTTP URL、AKShare、QMT 等连接参数统一在“财经数据源配置”里维护；当前页面只负责查看 provider 是否注册成功、是否健康，以及做快速联调测试。</p>
+        <div class="md-context-actions">
+            <a href="{% url 'macro:datasources' %}#tushare-guide" class="btn btn-primary">去配 Tushare / 数据源</a>
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary">打开设置中心</a>
+            <a href="{% url 'macro:data_controller' %}" class="btn btn-secondary">查看数据管理器</a>
+        </div>
+    </section>
+
+    <div class="md-summary-grid">
+        <div class="md-summary-card">
+            <div class="md-summary-label">已注册 Provider</div>
+            <div class="md-summary-value">{{ provider_dashboard.provider_count|default:0 }}</div>
+        </div>
+        <div class="md-summary-card">
+            <div class="md-summary-label">健康 Provider</div>
+            <div class="md-summary-value">{{ provider_dashboard.healthy_provider_count|default:0 }}</div>
+        </div>
+        <div class="md-summary-card">
+            <div class="md-summary-label">需关注 Provider</div>
+            <div class="md-summary-value">{{ provider_dashboard.unhealthy_provider_count|default:0 }}</div>
+        </div>
     </div>
 
     <!-- Provider 状态卡片 -->

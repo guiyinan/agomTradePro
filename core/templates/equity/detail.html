@@ -63,6 +63,62 @@
     border: 1px dashed var(--color-border);
     border-radius: var(--radius-md, 8px);
 }
+
+.pulse-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.pulse-card-subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.pulse-dimension-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.pulse-dimension-card {
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface, #fff);
+}
+
+.pulse-dimension-title {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+}
+
+.pulse-dimension-score {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.pulse-dimension-signal {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.pulse-reasons {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-bg-soft, #f8fafc);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
 </style>
 {% endblock %}
 
@@ -183,6 +239,36 @@
                 <div class="metric-value" id="detailTurnover">-</div>
             </div>
         </div>
+    </div>
+
+    <div class="card">
+        <div class="pulse-card-header">
+            <div>
+                <h2 class="card-title" style="margin: 0;">Pulse 战术环境</h2>
+                <div class="pulse-card-subtitle">展示当前市场脉搏与转折预警，作为该股票的战术背景。</div>
+            </div>
+            <div id="pulseObservedAt" class="pulse-card-subtitle">更新时间: --</div>
+        </div>
+        <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="metric-card">
+                <div class="metric-label">Pulse 综合分数</div>
+                <div class="metric-value" id="pulseCompositeScore">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Regime 背景</div>
+                <div class="metric-value" id="pulseRegimeContext">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">强度</div>
+                <div class="metric-value" id="pulseStrength">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">转折预警</div>
+                <div class="metric-value" id="pulseTransitionWarning">-</div>
+            </div>
+        </div>
+        <div id="pulseDimensionGrid" class="pulse-dimension-grid"></div>
+        <div id="pulseReasons" class="pulse-reasons" style="display: none;"></div>
     </div>
 
     <div class="card">
@@ -337,8 +423,8 @@
                     <tr>
                         <th>Regime</th>
                         <th>平均收益率</th>
-                        <th>胜率</th>
-                        <th>最大回撤</th>
+                        <th>Beta</th>
+                        <th>样本天数</th>
                     </tr>
                 </thead>
                 <tbody id="regimeTableBody">
@@ -346,25 +432,25 @@
                         <td>复苏 (Recovery)</td>
                         <td class="text-rise">-</td>
                         <td>-</td>
-                        <td class="text-fall">-</td>
+                        <td>-</td>
                     </tr>
                     <tr>
                         <td>过热 (Overheat)</td>
                         <td class="text-rise">-</td>
                         <td>-</td>
-                        <td class="text-fall">-</td>
+                        <td>-</td>
                     </tr>
                     <tr>
                         <td>滞胀 (Stagflation)</td>
-                        <td class="text-rise">-</td>
-                        <td>-</td>
                         <td class="text-fall">-</td>
+                        <td>-</td>
+                        <td>-</td>
                     </tr>
                     <tr>
                         <td>通缩 (Deflation)</td>
-                        <td class="text-rise">-</td>
-                        <td>-</td>
                         <td class="text-fall">-</td>
+                        <td>-</td>
+                        <td>-</td>
                     </tr>
                 </tbody>
             </table>
@@ -976,8 +1062,15 @@ function initTechnicalControls() {
 }
 
 function createPercentileChart(canvasId, percentileValue, label, color) {
+    const ChartConstructor = window.Chart;
+    const canvas = document.getElementById(canvasId);
+    if (!ChartConstructor || !canvas) {
+        console.warn('Chart.js 未就绪，跳过估值分位图渲染:', canvasId);
+        return;
+    }
+
     const chartPercentile = clampPercentile(percentileValue);
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    const ctx = canvas.getContext('2d');
 
     if (canvasId === 'peChart' && peChartInstance) {
         peChartInstance.destroy();
@@ -986,7 +1079,7 @@ function createPercentileChart(canvasId, percentileValue, label, color) {
         pbChartInstance.destroy();
     }
 
-    const instance = new Chart(ctx, {
+    const instance = new ChartConstructor(ctx, {
         type: 'doughnut',
         data: {
             labels: [`${label} 当前分位`, '其余区间'],
@@ -1163,6 +1256,154 @@ function safeExternalUrl(url) {
     return '';
 }
 
+function formatPercentFromRatio(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return '-';
+    }
+    return (Number(value) * 100).toFixed(2) + '%';
+}
+
+function formatNumber(value, digits = 2) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return '-';
+    }
+    return Number(value).toFixed(digits);
+}
+
+function getRegimeLabel(regime) {
+    const labels = {
+        Recovery: '复苏 (Recovery)',
+        Overheat: '过热 (Overheat)',
+        Stagflation: '滞胀 (Stagflation)',
+        Deflation: '通缩 (Deflation)',
+    };
+    return labels[regime] || escapeHtml(regime || '-');
+}
+
+function getPulseStrengthLabel(value) {
+    const labels = {
+        weak: '弱',
+        moderate: '中等',
+        strong: '强',
+    };
+    return labels[value] || escapeHtml(value || '-');
+}
+
+function getPulseSignalLabel(value) {
+    const labels = {
+        bullish: '偏多',
+        bearish: '偏空',
+        neutral: '中性',
+        improving: '改善',
+        weakening: '走弱',
+    };
+    return labels[value] || escapeHtml(value || '-');
+}
+
+function renderRegimeCorrelationMessage(message) {
+    const tbody = document.getElementById('regimeTableBody');
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted); padding: 16px;">${escapeHtml(message)}</td></tr>`;
+}
+
+async function loadRegimeCorrelation() {
+    const tbody = document.getElementById('regimeTableBody');
+    try {
+        const result = await fetchJsonOrThrowCompat(`/api/equity/regime-correlation/${stockCode}/`);
+        const rows = Array.isArray(result.regime_performance) ? result.regime_performance : [];
+
+        if (!result.success || rows.length === 0) {
+            renderRegimeCorrelationMessage(result.error || '暂无 Regime 相关性数据');
+            return;
+        }
+
+        const order = ['Recovery', 'Overheat', 'Stagflation', 'Deflation'];
+        const rowMap = new Map(rows.map(item => [item.regime, item]));
+        tbody.innerHTML = order.map(regime => {
+            const item = rowMap.get(regime);
+            if (!item) {
+                return `<tr>
+                    <td>${getRegimeLabel(regime)}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>`;
+            }
+
+            const avgReturn = Number(item.avg_return);
+            const returnClass = Number.isNaN(avgReturn) ? '' : (avgReturn >= 0 ? 'text-rise' : 'text-fall');
+            return `<tr>
+                <td>${getRegimeLabel(regime)}</td>
+                <td class="${returnClass}">${formatPercentFromRatio(item.avg_return)}</td>
+                <td>${formatNumber(item.beta, 2)}</td>
+                <td>${item.sample_days ?? '-'}</td>
+            </tr>`;
+        }).join('');
+    } catch (error) {
+        console.warn('加载 Regime 相关性失败:', error);
+        renderRegimeCorrelationMessage(error.message || '加载 Regime 相关性失败');
+    }
+}
+
+function renderPulseMessage(message) {
+    document.getElementById('pulseCompositeScore').textContent = '-';
+    document.getElementById('pulseRegimeContext').textContent = '-';
+    document.getElementById('pulseStrength').textContent = '-';
+    document.getElementById('pulseTransitionWarning').textContent = escapeHtml(message);
+    document.getElementById('pulseDimensionGrid').innerHTML = '';
+    const reasonsEl = document.getElementById('pulseReasons');
+    reasonsEl.style.display = 'block';
+    reasonsEl.textContent = message;
+}
+
+function updatePulseCard(data) {
+    document.getElementById('pulseCompositeScore').textContent = formatNumber(data.composite_score, 2);
+    document.getElementById('pulseRegimeContext').textContent = getRegimeLabel(data.regime_context);
+    document.getElementById('pulseStrength').textContent = getPulseStrengthLabel(data.regime_strength);
+    document.getElementById('pulseTransitionWarning').textContent = data.transition_warning
+        ? `预警${data.transition_direction ? ' · ' + getPulseSignalLabel(data.transition_direction) : ''}`
+        : '无';
+    document.getElementById('pulseTransitionWarning').className = 'metric-value ' + (data.transition_warning ? 'text-fall' : '');
+    document.getElementById('pulseObservedAt').textContent = `更新时间: ${data.observed_at ? new Date(data.observed_at).toLocaleString('zh-CN') : '--'}`;
+
+    const dimensions = data.dimensions || {};
+    const dimensionOrder = ['growth', 'inflation', 'liquidity', 'sentiment'];
+    document.getElementById('pulseDimensionGrid').innerHTML = dimensionOrder
+        .filter(key => dimensions[key])
+        .map(key => {
+            const item = dimensions[key];
+            return `<div class="pulse-dimension-card">
+                <div class="pulse-dimension-title">${escapeHtml(key)}</div>
+                <div class="pulse-dimension-score">${formatNumber(item.score, 2)}</div>
+                <div class="pulse-dimension-signal">${getPulseSignalLabel(item.signal)} · 指标 ${item.indicator_count ?? 0} 个</div>
+            </div>`;
+        })
+        .join('');
+
+    const reasonsEl = document.getElementById('pulseReasons');
+    const reasons = Array.isArray(data.transition_reasons) ? data.transition_reasons.filter(Boolean) : [];
+    if (reasons.length > 0) {
+        reasonsEl.style.display = 'block';
+        reasonsEl.innerHTML = `<strong style="display: block; margin-bottom: 6px; color: var(--color-text-primary);">转折说明</strong>${reasons.map(reason => escapeHtml(reason)).join('<br>')}`;
+    } else {
+        reasonsEl.style.display = 'none';
+        reasonsEl.innerHTML = '';
+    }
+}
+
+async function loadPulseContext() {
+    try {
+        const result = await fetchJsonOrThrowCompat('/api/pulse/current/');
+        if (!result.success || !result.data) {
+            renderPulseMessage(result.error || '暂无 Pulse 数据');
+            return;
+        }
+        updatePulseCard(result.data);
+    } catch (error) {
+        console.warn('加载 Pulse 数据失败:', error);
+        renderPulseMessage(error.message || '加载 Pulse 数据失败');
+    }
+}
+
 // ========== 资金流向 ==========
 async function loadCapitalFlow() {
     const loading = document.getElementById('capitalFlowLoading');
@@ -1309,12 +1550,21 @@ async function refreshStockData() {
     }
 }
 
-// 页面加载时执行
-initTechnicalControls();
-setExternalLinks();
-loadStockDetail();
-loadCapitalFlow();
-loadStockNews();
+function initializeDetailPage() {
+    initTechnicalControls();
+    setExternalLinks();
+    loadStockDetail();
+    loadPulseContext();
+    loadRegimeCorrelation();
+    loadCapitalFlow();
+    loadStockNews();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeDetailPage, { once: true });
+} else {
+    initializeDetailPage();
+}
 </script>
 
 <style>

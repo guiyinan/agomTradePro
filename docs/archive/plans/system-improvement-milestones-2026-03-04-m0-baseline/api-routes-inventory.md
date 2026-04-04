@@ -1,4 +1,4 @@
-# API 路由清单 - AgomTradePro
+﻿# API 路由清单 - AgomTradePro
 
 > 生成日期：2026-03-04
 > 目的：M0 基线证据包
@@ -53,7 +53,7 @@
 | `/docs/<doc_slug>/` | GET | `docs_view` | 文档详情 |
 | `/asset-analysis/screen/` | GET | `asset_screen_view` | 资产筛选 |
 | `/decision/workspace/` | GET | `decision_workspace_view` | 决策工作台 |
-| `/ops/` | GET | `ops_center_view` | 运维中心 |
+| `/settings/` | GET | `settings_center_view` | 设置中心 |
 
 ---
 

@@ -1,4 +1,4 @@
-# UAT 验收检查清单
+﻿# UAT 验收检查清单
 
 **任务编号**: #14
 **验收负责人**: QA Engineer
@@ -55,7 +55,7 @@
 |--------|----------|----------|----------|------|
 | 回测列表到详情 | 手工测试 | 路径清晰 | | ☐ |
 | 审计页术语 | 手工测试 | 术语一致 | | ☐ |
-| Ops Center链接 | 手工测试 | 无失效链接 | | ☐ |
+| Settings Center链接 | 手工测试 | 无失效链接 | | ☐ |
 
 **旅程 E 状态**: ⏳ 0/3 完成
 
@@ -105,7 +105,7 @@
 | Policy Dashboard | `/policy/workbench/` | 200 | ✅ 定义 | ☑ |
 | Asset Screen | `/asset-analysis/screen/` | 200 | ✅ 定义 | ☑ |
 | Decision | `/decision/workspace/` | 200 | ✅ 定义 | ☑ |
-| Ops Center | `/ops/` | 200 | ✅ 定义 | ☑ |
+| Settings Center | `/settings/` | 200 | ✅ 定义 | ☑ |
 | Macro Data | `/macro/data/` | 200 | ✅ 定义 | ☑ |
 | Regime | `/regime/dashboard/` | 200 | ✅ 定义 | ☑ |
 | Signal | `/signal/manage/` | 200 | ✅ 定义 | ☑ |
@@ -196,4 +196,3 @@
 
 **检查清单版本**: 1.0
 **最后更新**: 2026-02-18
-

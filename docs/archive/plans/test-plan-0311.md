@@ -41,7 +41,7 @@
   建议纳入本轮系统测试的业务域：
 
   - 账户与权限
-  - Dashboard / Decision Workspace / Ops Center
+  - Dashboard / Decision Workspace / Settings Center
   - Macro / Regime / Policy
   - Signal / Filter / Asset Analysis
   - Equity / Fund / Sector

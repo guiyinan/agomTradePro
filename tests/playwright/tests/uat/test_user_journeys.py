@@ -1,4 +1,4 @@
-"""
+﻿"""
 UAT Tests for User Journeys based on UX Checklist.
 Tests the critical paths: Research -> Selection -> Decision -> Execution -> Review.
 
@@ -339,13 +339,13 @@ class TestJourneyE:
     @pytest.mark.uat
     @pytest.mark.journey_e
     def test_E2_ops_center_links_valid(self, authenticated_page: Page) -> None:
-        """E2: Ops Center has complete entry points with no broken links."""
-        authenticated_page.goto(f"{config.base_url}/ops/")
-        _assert_page_loaded(authenticated_page, "/ops/")
+        """E2: Settings Center has complete entry points with no broken links."""
+        authenticated_page.goto(f"{config.base_url}/settings/")
+        _assert_page_loaded(authenticated_page, "/settings/")
 
         # Check for links to management pages
         has_links = authenticated_page.locator('a[href]').count() > 0
-        assert has_links, "Ops center should have navigation links"
+        assert has_links, "Settings center should have navigation links"
 
     @pytest.mark.uat
     @pytest.mark.journey_e

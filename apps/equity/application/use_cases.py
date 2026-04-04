@@ -750,7 +750,9 @@ class AnalyzeRegimeCorrelationUseCase:
             )
 
             if not stock_returns:
-                raise ValueError(f"未找到股票 {request.stock_code} 的价格数据")
+                raise ValueError(
+                    f"未找到股票 {request.stock_code} 的价格数据，请先同步日线数据或检查 Tushare/AKShare 数据源"
+                )
 
             # 3. 获取 Regime 历史（从 Regime 模块）
             regime_history = self._get_regime_history(start_date, end_date)

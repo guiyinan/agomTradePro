@@ -1,4 +1,4 @@
-"""
+﻿"""
 Comprehensive Playwright UAT regression coverage for key user-facing surfaces.
 
 This suite replaces the old root-level smoke script with collected pytest tests
@@ -26,7 +26,7 @@ PROTECTED_ENTRYPOINTS = [
     pytest.param(config.dashboard_url, id="dashboard"),
     pytest.param(config.policy_manage_url, id="policy-workbench"),
     pytest.param("/decision/workspace/", id="decision-workspace"),
-    pytest.param("/ops/", id="ops-center"),
+    pytest.param("/settings/", id="settings-center"),
 ]
 
 AUTHENTICATED_SURFACES = [
@@ -44,7 +44,7 @@ AUTHENTICATED_SURFACES = [
     pytest.param(config.filter_manage_url, "/filter/", id="filter"),
     pytest.param(config.sector_analysis_url, "/rotation/assets/", id="sector"),
     pytest.param("/decision/workspace/", "/decision/workspace/", id="decision-workspace"),
-    pytest.param("/ops/", "/ops/", id="ops-center"),
+    pytest.param("/settings/", "/settings/", id="settings-center"),
     pytest.param(config.admin_index, "/admin/", id="admin-index"),
 ]
 
@@ -434,10 +434,10 @@ class TestComprehensiveBusinessWorkflowShells:
         assert authenticated_page.locator("#funnel-loading-indicator").count() == 1
 
     def test_ops_center_search_filters_configuration_cards(self, authenticated_page: Page) -> None:
-        """Ops center should allow narrowing and resetting configuration cards in the browser."""
-        response = _goto(authenticated_page, "/ops/")
-        _assert_http_success(response, "/ops/")
-        _assert_non_error_shell(authenticated_page, "/ops/")
+        """Settings center should allow narrowing and resetting configuration cards in the browser."""
+        response = _goto(authenticated_page, "/settings/")
+        _assert_http_success(response, "/settings/")
+        _assert_non_error_shell(authenticated_page, "/settings/")
 
         search = authenticated_page.locator("#config-search")
         section_filter = authenticated_page.locator("#config-section-filter")
@@ -447,7 +447,7 @@ class TestComprehensiveBusinessWorkflowShells:
         assert search.count() == 1
         assert section_filter.count() == 1
         assert status_filter.count() == 1
-        assert cards.count() > 0, "Ops center should render configuration cards"
+        assert cards.count() > 0, "Settings center should render configuration cards"
 
         search.fill("zzzz-no-match")
         authenticated_page.wait_for_timeout(150)
@@ -691,9 +691,9 @@ class TestComprehensiveActionRegression:
 
     def test_ops_center_frontend_card_link_opens_a_usable_page(self, authenticated_page: Page) -> None:
         """The ops center should expose at least one frontend entry link that opens cleanly."""
-        response = _goto(authenticated_page, "/ops/")
-        _assert_http_success(response, "/ops/")
-        _assert_non_error_shell(authenticated_page, "/ops/")
+        response = _goto(authenticated_page, "/settings/")
+        _assert_http_success(response, "/settings/")
+        _assert_non_error_shell(authenticated_page, "/settings/")
 
         frontend_href = authenticated_page.evaluate(
             """() => {
@@ -702,7 +702,7 @@ class TestComprehensiveActionRegression:
             }"""
         )
         if not frontend_href:
-            pytest.skip("Ops center has no visible frontend entry card in current fixture data")
+            pytest.skip("Settings center has no visible frontend entry card in current fixture data")
 
         target_path = urlparse(urljoin(config.base_url, frontend_href)).path
         response = _goto(authenticated_page, target_path)

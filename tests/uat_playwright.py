@@ -1,4 +1,4 @@
-"""AgomTradePro UAT + E2E Browser Tests via Playwright"""
+﻿"""AgomTradePro UAT + E2E Browser Tests via Playwright"""
 
 import os
 import time
@@ -74,8 +74,8 @@ def test_pages(page):
         ("/ai/", "AI Provider"),
         ("/prompt/", "Prompt"),
         ("/terminal/", "Terminal"),
-        ("/ops/", "Ops Center"),
-        ("/ops/mcp-tools/", "MCP Tools"),
+        ("/settings/", "Settings Center"),
+        ("/settings/mcp-tools/", "MCP Tools"),
         ("/docs/", "Docs"),
         ("/simulated-trading/", "Simulated Trading"),
         ("/realtime/", "Realtime"),

@@ -156,6 +156,13 @@ def test_equity_detail_page_uses_single_percentile_chart(authenticated_client):
     assert "valuation-chart-shell" in content
     assert "sortedRows = [...result.data].sort" in content
     assert "sortedNews = [...result.data].sort" in content
+    assert 'fetchJsonOrThrowCompat(`/api/equity/regime-correlation/${stockCode}/`)' in content
+    assert "loadRegimeCorrelation();" in content
+    assert "fetchJsonOrThrowCompat('/api/pulse/current/')" in content
+    assert "loadPulseContext();" in content
+    assert "Pulse 战术环境" in content
+    assert "Beta" in content
+    assert "样本天数" in content
     assert "data.dcf_value.upside > 0 ? 'text-rise' : 'text-fall'" in content
     assert "const cls = v => v >= 0 ? 'text-inflow' : 'text-outflow';" in content
     assert "data-market-color-convention=" in content

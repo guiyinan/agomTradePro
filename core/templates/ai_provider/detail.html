@@ -55,7 +55,7 @@
         </table>
         <div style="margin-top: 16px;">
             <a href="{% url 'ai_provider:edit' provider.id %}" class="tag">编辑配置</a>
-            <a href="{% url 'ops-center' %}" class="tag">进入配置中心</a>
+            <a href="{% url 'settings-center' %}" class="tag">进入设置中心</a>
             <a href="{% url 'ai_provider:manage' %}" class="tag">返回列表</a>
             <button id="btn-test-connection" class="tag" onclick="testConnection()" style="cursor: pointer; border: none; background: var(--color-warning, #f0ad4e); color: #fff;">测试连接</button>
         </div>
