@@ -148,6 +148,17 @@ def _build_outdated_qlib_reason(trade_date: date) -> str | None:
     return None
 
 
+def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
+    """Return a user-facing reason when local qlib runtime inspection fails."""
+    if isinstance(exc, ModuleNotFoundError) and getattr(exc, "name", None) == "qlib":
+        return "Qlib 未安装，无法检查本地数据目录，请安装 pyqlib 或复用历史缓存"
+
+    if "No module named 'qlib'" in str(exc):
+        return "Qlib 未安装，无法检查本地数据目录，请安装 pyqlib 或复用历史缓存"
+
+    return f"读取本地 Qlib 数据状态失败: {exc}"
+
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -201,7 +212,32 @@ def qlib_predict_scores(
         trade_date = date.fromisoformat(intended_trade_date)
         asof_date = trade_date  # 信号日期等于交易日期（实际中可能需要调整）
 
-        latest_qlib_data_date = _get_qlib_data_latest_date()
+        latest_qlib_data_date = None
+        try:
+            latest_qlib_data_date = _get_qlib_data_latest_date()
+        except Exception as exc:
+            runtime_failure_reason = _build_qlib_runtime_failure_reason(exc)
+            fallback_result = _reuse_latest_qlib_cache(
+                active_model=active_model,
+                universe_id=universe_id,
+                trade_date=trade_date,
+                top_n=top_n,
+                failure_reason=runtime_failure_reason,
+                extra_metadata={
+                    "qlib_data_latest_date": None,
+                    "qlib_runtime_error": str(exc),
+                },
+            )
+            if fallback_result is not None:
+                logger.warning(
+                    "读取 Qlib 本地数据状态失败，已前推历史缓存: universe=%s, date=%s, error=%s",
+                    universe_id,
+                    intended_trade_date,
+                    exc,
+                )
+                return fallback_result
+            raise RuntimeError(runtime_failure_reason) from exc
+
         outdated_reason = None
         if latest_qlib_data_date is None:
             outdated_reason = "本地 Qlib 数据目录为空，无法执行实时推理"
@@ -313,7 +349,7 @@ def qlib_predict_scores(
 
     except Exception as exc:
         logger.error(f"Qlib 推理失败: {exc}", exc_info=True)
-        raise self.retry(exc=exc, countdown=60)
+        raise self.retry(exc=exc, countdown=60) from exc
 
 
 @shared_task(
@@ -355,18 +391,13 @@ def qlib_train_model(
         ... )
     """
     try:
-        from datetime import datetime, timedelta
-
         from ..infrastructure.models import QlibModelRegistryModel
 
         logger.info(f"开始 Qlib 训练: {model_name} ({model_type})")
 
         # 解析训练配置
         universe = train_config.get("universe", "csi300")
-        start_date = train_config.get("start_date")
         end_date = train_config.get("end_date")
-        learning_rate = train_config.get("learning_rate", 0.01)
-        epochs = train_config.get("epochs", 100)
         model_path = train_config.get("model_path", "/models/qlib")
         activate_after_train = bool(train_config.get("activate", False))
         feature_set_id = train_config.get("feature_set_id", "v1")
@@ -752,8 +783,6 @@ def _execute_qlib_prediction(
         import pandas as pd
         import qlib
         from qlib.contrib.data.handler import Alpha360
-        from qlib.contrib.evaluate import risk_analysis
-        from qlib.contrib.model.gbdt import LGBModel
         from qlib.data import D
         from qlib.data.dataset import DatasetH
 
@@ -1125,9 +1154,7 @@ def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> 
     try:
         import numpy as np
         import pandas as pd
-        import qlib
         from qlib.contrib.data.handler import Alpha360
-        from qlib.contrib.evaluate import risk_analysis
         from qlib.data import D
         from qlib.data.dataset import DatasetH
         from scipy.stats import spearmanr
