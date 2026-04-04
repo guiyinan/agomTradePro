@@ -269,6 +269,15 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/realtime/prices/{code}/` | GET | 查询单个资产价格 |
 | `/api/realtime/health/` | GET | 健康检查 |
 
+### Equity Technical API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/equity/technical/{code}/` | GET | 返回个股日/周/月 K 线、MA5/20/60、MACD 以及最近金叉死叉信号 |
+| `/api/equity/intraday/{code}/` | GET | 返回个股最新交易日的 1 分钟分时价格、均价与成交量 |
+
+- Equity 技术图表接口中的分时 `timestamp` 统一返回带时区的 ISO 8601 时间；备用分时源仅在通过价格一致性校验后才会启用。
+
 ### Alpha API (AI 选股)
 
 | 端点 | 方法 | 说明 |

@@ -4,6 +4,502 @@ info:
   version: 1.0.0
   description: Agom Strategic Asset Allocation Framework API
 paths:
+  /api/account/accounts/:
+    get:
+      operationId: api_account_accounts_get
+      description: 获取当前用户的账户列表，支持按 active_only 和 account_type 过滤。
+      summary: 获取统一账户列表
+      parameters:
+      - in: query
+        name: account_type
+        schema:
+          type: string
+        description: 账户类型过滤：real 或 simulated
+      - in: query
+        name: active_only
+        schema:
+          type: boolean
+        description: 是否只返回活跃账户（默认 true）
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountListResponse'
+          description: ''
+    post:
+      operationId: api_account_accounts_post
+      description: 创建新的统一账户，账户类型通过 account_type 指定。
+      summary: 创建账户
+      tags:
+      - account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+          description: ''
+  /api/account/accounts/{account_id}/:
+    get:
+      operationId: api_account_accounts_by_account_id_get
+      description: 获取单个账户的完整信息
+      summary: 获取账户详情
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+          description: ''
+    delete:
+      operationId: api_account_accounts_by_account_id_delete
+      description: 删除当前用户拥有的单个模拟/实仓账户，并级联删除关联持仓、交易与巡检记录。
+      summary: 删除账户
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDeleteResponse'
+          description: ''
+  /api/account/accounts/{account_id}/backfill/:
+    post:
+      operationId: api_account_accounts_by_account_id_backfill_post
+      description: |-
+        POST /api/simulated-trading/accounts/{account_id}/backfill/
+
+        触发账户历史数据回填：
+        - 写入初始入金现金流
+        - 真实盘：镜像 CapitalFlowModel 到统一现金流表
+        - 验证日净值序列是否存在
+
+        仅管理员可操作。
+      summary: 触发账户历史回填（admin only）
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/account/accounts/{account_id}/benchmarks/:
+    get:
+      operationId: api_account_accounts_by_account_id_benchmarks_get
+      description: GET|PUT /api/simulated-trading/accounts/{account_id}/benchmarks/
+      summary: 获取账户基准成分配置
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BenchmarkComponentResponse'
+          description: ''
+    put:
+      operationId: api_account_accounts_by_account_id_benchmarks_put
+      description: GET|PUT /api/simulated-trading/accounts/{account_id}/benchmarks/
+      summary: 更新账户基准成分配置（全量覆盖，权重自动归一化）
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Account Performance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenchmarkPutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BenchmarkPutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BenchmarkPutRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BenchmarkComponentResponse'
+          description: ''
+  /api/account/accounts/{account_id}/equity-curve/:
+    get:
+      operationId: api_account_accounts_by_account_id_equity_curve_get
+      description: 获取账户的净值曲线数据（用于图表）
+      summary: 获取净值曲线
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: end_date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: start_date
+        schema:
+          type: string
+          format: date
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquityCurveResponse'
+          description: ''
+  /api/account/accounts/{account_id}/inspections/:
+    get:
+      operationId: api_account_accounts_by_account_id_inspections_get
+      description: 按账户查询日更巡检报告列表
+      summary: 获取账户日更巡检历史
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: inspection_date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: limit
+        schema:
+          type: integer
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyInspectionReportListResponse'
+          description: ''
+  /api/account/accounts/{account_id}/inspections/run/:
+    post:
+      operationId: api_account_accounts_by_account_id_inspections_run_post
+      description: 对指定账户执行一轮日更巡检并写入数据库
+      summary: 执行账户日更巡检
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyInspectionRunRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DailyInspectionRunRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DailyInspectionRunRequestRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyInspectionReportListResponse'
+          description: ''
+  /api/account/accounts/{account_id}/performance/:
+    get:
+      operationId: api_account_accounts_by_account_id_performance_get
+      description: 获取账户的完整绩效分析
+      summary: 获取账户绩效
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceResponse'
+          description: ''
+  /api/account/accounts/{account_id}/performance-report/:
+    get:
+      operationId: api_account_accounts_by_account_id_performance_report_get
+      description: GET /api/simulated-trading/accounts/{account_id}/performance-report/
+      summary: 账户区间业绩报告
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: end_date
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: start_date
+        schema:
+          type: string
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceReportResponse'
+          description: ''
+  /api/account/accounts/{account_id}/positions/:
+    get:
+      operationId: api_account_accounts_by_account_id_positions_get
+      description: 获取指定账户的所有持仓
+      summary: 获取账户持仓列表
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionListResponse'
+          description: ''
+  /api/account/accounts/{account_id}/trades/:
+    get:
+      operationId: api_account_accounts_by_account_id_trades_get
+      description: 获取指定账户的交易记录（支持过滤）
+      summary: 获取账户交易记录
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: action
+        schema:
+          type: string
+      - in: query
+        name: asset_code
+        schema:
+          type: string
+      - in: query
+        name: end_date
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: start_date
+        schema:
+          type: string
+          format: date
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeListResponse'
+          description: ''
+  /api/account/accounts/{account_id}/valuation-snapshot/:
+    get:
+      operationId: api_account_accounts_by_account_id_valuation_snapshot_get
+      description: GET /api/simulated-trading/accounts/{account_id}/valuation-snapshot/
+      summary: 账户时点持仓估值表
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: as_of_date
+        schema:
+          type: string
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValuationSnapshotResponse'
+          description: ''
+  /api/account/accounts/{account_id}/valuation-timeline/:
+    get:
+      operationId: api_account_accounts_by_account_id_valuation_timeline_get
+      description: GET /api/simulated-trading/accounts/{account_id}/valuation-timeline/
+      summary: 账户净值时间线
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: end_date
+        schema:
+          type: string
+      - in: query
+        name: start_date
+        schema:
+          type: string
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValuationTimelineResponse'
+          description: ''
+  /api/account/accounts/batch-delete/:
+    post:
+      operationId: api_account_accounts_batch_delete_post
+      description: 批量删除当前用户拥有的账户，并返回逐项失败原因。
+      summary: 批量删除账户
+      tags:
+      - account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountBatchDeleteRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountBatchDeleteRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountBatchDeleteRequestRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountBatchDeleteResponse'
+          description: ''
   /api/account/assets/:
     get:
       operationId: api_account_assets_get
@@ -1405,6 +1901,98 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/account/portfolios/{portfolio_id}/benchmarks/:
+    get:
+      operationId: api_account_portfolios_by_portfolio_id_benchmarks_get
+      description: GET|PUT /api/account/portfolios/{portfolio_id}/benchmarks/
+      parameters:
+      - in: path
+        name: portfolio_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: api_account_portfolios_by_portfolio_id_benchmarks_put
+      description: GET|PUT /api/account/portfolios/{portfolio_id}/benchmarks/
+      parameters:
+      - in: path
+        name: portfolio_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/account/portfolios/{portfolio_id}/performance-report/:
+    get:
+      operationId: api_account_portfolios_by_portfolio_id_performance_report_get
+      description: |-
+        GET /api/account/portfolios/{portfolio_id}/performance-report/
+
+        兼容入口，委托给统一账户业绩报告接口。
+      parameters:
+      - in: path
+        name: portfolio_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/account/portfolios/{portfolio_id}/valuation-snapshot/:
+    get:
+      operationId: api_account_portfolios_by_portfolio_id_valuation_snapshot_get
+      description: GET /api/account/portfolios/{portfolio_id}/valuation-snapshot/
+      parameters:
+      - in: path
+        name: portfolio_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/account/portfolios/{portfolio_id}/valuation-timeline/:
+    get:
+      operationId: api_account_portfolios_by_portfolio_id_valuation_timeline_get
+      description: GET /api/account/portfolios/{portfolio_id}/valuation-timeline/
+      parameters:
+      - in: path
+        name: portfolio_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/account/positions/:
     get:
       operationId: api_account_positions_get
@@ -1701,6 +2289,18 @@ paths:
     put:
       operationId: api_account_profile_put
       description: 更新当前用户的账户配置
+      tags:
+      - account
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/account/sizing-context/:
+    get:
+      operationId: api_account_sizing_context_get
+      description: 返回当前用户投资组合的宏观仓位系数上下文。
       tags:
       - account
       security:
@@ -5055,10 +5655,7 @@ paths:
   /api/decision-rhythm/cooldowns/:
     get:
       operationId: api_decision_rhythm_cooldowns_get
-      description: |-
-        获取活跃冷却期列表
-
-        GET /api/decision-rhythm/cooldowns/
+      description: GET /api/decision-rhythm/cooldowns/
       tags:
       - decision-rhythm
       security:
@@ -5070,10 +5667,7 @@ paths:
   /api/decision-rhythm/cooldowns/by-asset/{asset_code}/:
     get:
       operationId: api_decision_rhythm_cooldowns_by_asset_by_asset_code_get
-      description: |-
-        按资产获取冷却期
-
-        GET /api/decision-rhythm/cooldowns/by-asset/{asset_code}/
+      description: GET /api/decision-rhythm/cooldowns/by-asset/{asset_code}/
       parameters:
       - in: path
         name: asset_code
@@ -5092,10 +5686,7 @@ paths:
   /api/decision-rhythm/cooldowns/remaining-hours/:
     get:
       operationId: api_decision_rhythm_cooldowns_remaining_hours_get
-      description: |-
-        获取剩余冷却小时数
-
-        GET /api/decision-rhythm/cooldowns/remaining-hours/?asset_code=000001.SH
+      description: GET /api/decision-rhythm/cooldowns/remaining-hours/
       tags:
       - decision-rhythm
       security:
@@ -5119,19 +5710,33 @@ paths:
         }
       tags:
       - decision-rhythm
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQuotaConfigRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UpdateQuotaConfigRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateQuotaConfigRequestRequest'
+        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/decision-rhythm/quotas/:
     get:
       operationId: api_decision_rhythm_quotas_get
-      description: |-
-        获取配额列表
-
-        GET /api/decision-rhythm/quotas/?period=WEEKLY
+      description: GET /api/decision-rhythm/quotas/
       tags:
       - decision-rhythm
       security:
@@ -5143,10 +5748,7 @@ paths:
   /api/decision-rhythm/quotas/by-period/:
     get:
       operationId: api_decision_rhythm_quotas_by_period_get
-      description: |-
-        按周期获取配额
-
-        GET /api/decision-rhythm/quotas/by-period/?period=WEEKLY
+      description: GET /api/decision-rhythm/quotas/by-period/
       parameters:
       - in: query
         name: period
@@ -5172,10 +5774,7 @@ paths:
   /api/decision-rhythm/requests/:
     get:
       operationId: api_decision_rhythm_requests_get
-      description: |-
-        获取决策请求列表
-
-        GET /api/decision-rhythm/requests/
+      description: GET /api/decision-rhythm/requests/
       tags:
       - decision-rhythm
       security:
@@ -5187,10 +5786,7 @@ paths:
   /api/decision-rhythm/requests/{id}/:
     get:
       operationId: api_decision_rhythm_requests_by_id_get
-      description: |-
-        获取指定决策请求
-
-        GET /api/decision-rhythm/requests/{request_id}/
+      description: GET /api/decision-rhythm/requests/{request_id}/
       parameters:
       - in: path
         name: id
@@ -5227,16 +5823,13 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/CancelDecisionRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/CancelDecisionRequestRequest'
           multipart/form-data:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/CancelDecisionRequestRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -5276,16 +5869,13 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/ExecuteDecisionRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/ExecuteDecisionRequestRequest'
           multipart/form-data:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/ExecuteDecisionRequestRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -5300,10 +5890,7 @@ paths:
   /api/decision-rhythm/requests/statistics/:
     get:
       operationId: api_decision_rhythm_requests_statistics_get
-      description: |-
-        获取统计信息
-
-        GET /api/decision-rhythm/requests/statistics/?days=30
+      description: GET /api/decision-rhythm/requests/statistics/
       tags:
       - decision-rhythm
       security:
@@ -5315,14 +5902,7 @@ paths:
   /api/decision-rhythm/reset-quota/:
     post:
       operationId: api_decision_rhythm_reset_quota_post
-      description: |-
-        重置配额
-
-        POST /api/decision-rhythm/reset-quota/
-        {
-            "period": "WEEKLY",  // 可选，空表示重置所有
-            "account_id": "1"    // 可选，默认 "default"
-        }
+      description: Reset one or all quotas for the selected account.
       tags:
       - decision-rhythm
       requestBody:
@@ -5350,18 +5930,7 @@ paths:
   /api/decision-rhythm/submit/:
     post:
       operationId: api_decision_rhythm_submit_post
-      description: |-
-        提交决策请求
-
-        POST /api/decision-rhythm/submit/
-        {
-            "asset_code": "000001.SH",
-            "asset_class": "a_share金融",
-            "direction": "BUY",
-            "priority": "HIGH",
-            "reason": "强 Alpha 信号",
-            "quota_period": "WEEKLY"
-        }
+      description: Submit a single decision request.
       tags:
       - decision-rhythm
       requestBody:
@@ -5389,14 +5958,7 @@ paths:
   /api/decision-rhythm/submit-batch/:
     post:
       operationId: api_decision_rhythm_submit_batch_post
-      description: |-
-        批量提交决策请求
-
-        POST /api/decision-rhythm/submit-batch/
-        {
-            "requests": [...],
-            "quota_period": "WEEKLY"
-        }
+      description: Submit a batch of decision requests.
       tags:
       - decision-rhythm
       requestBody:
@@ -5425,10 +5987,7 @@ paths:
   /api/decision-rhythm/summary/:
     get:
       operationId: api_decision_rhythm_summary_get
-      description: |-
-        获取决策节奏摘要
-
-        GET /api/decision-rhythm/summary/
+      description: Return rhythm summary.
       tags:
       - decision-rhythm
       security:
@@ -5445,10 +6004,7 @@ paths:
   /api/decision-rhythm/trend-data/:
     get:
       operationId: api_decision_rhythm_trend_data_get
-      description: |-
-        获取趋势数据
-
-        GET /api/decision-rhythm/trend-data/?days=7
+      description: Return quota usage trend data.
       parameters:
       - in: query
         name: days
@@ -5487,16 +6043,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/PrecheckDecisionRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/PrecheckDecisionRequestRequest'
           multipart/form-data:
             schema:
-              type: object
-              additionalProperties: {}
+              $ref: '#/components/schemas/PrecheckDecisionRequestRequest'
+        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -6206,6 +6760,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/SyncFinancialDataResponse'
           description: ''
+  /api/equity/intraday/{stock_code}/:
+    get:
+      operationId: api_equity_intraday_by_stock_code_get
+      description: 返回个股最新交易日的 1 分钟分时价格、均价与成交量
+      summary: 分时图数据
+      parameters:
+      - in: path
+        name: stock_code
+        schema:
+          type: string
+          pattern: ^[^/]+$
+        required: true
+      tags:
+      - equity
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntradayChartResponse'
+          description: ''
   /api/equity/multidim-screen/:
     post:
       operationId: api_equity_multidim_screen_post
@@ -6318,6 +6896,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ScreenStocksResponse'
+          description: ''
+  /api/equity/technical/{stock_code}/:
+    get:
+      operationId: api_equity_technical_by_stock_code_get
+      description: 返回个股 K 线、均线、MACD 与最近金叉死叉信号
+      summary: 技术图表数据
+      parameters:
+      - in: path
+        name: stock_code
+        schema:
+          type: string
+          pattern: ^[^/]+$
+        required: true
+      tags:
+      - equity
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalChartResponse'
           description: ''
   /api/equity/valuation-data/freshness/:
     get:
@@ -12562,9 +13164,14 @@ paths:
   /api/simulated-trading/accounts/:
     get:
       operationId: api_simulated_trading_accounts_get
-      description: 获取所有模拟账户（支持 active_only 过滤）
-      summary: 获取模拟账户列表
+      description: 获取当前用户的账户列表，支持按 active_only 和 account_type 过滤。
+      summary: 获取统一账户列表
       parameters:
+      - in: query
+        name: account_type
+        schema:
+          type: string
+        description: 账户类型过滤：real 或 simulated
       - in: query
         name: active_only
         schema:
@@ -12584,8 +13191,8 @@ paths:
           description: ''
     post:
       operationId: api_simulated_trading_accounts_post
-      description: 创建新的模拟交易账户
-      summary: 创建模拟账户
+      description: 创建新的统一账户，账户类型通过 account_type 指定。
+      summary: 创建账户
       tags:
       - simulated-trading
       requestBody:
@@ -12654,6 +13261,94 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountDeleteResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/backfill/:
+    post:
+      operationId: api_simulated_trading_accounts_by_account_id_backfill_post
+      description: |-
+        POST /api/simulated-trading/accounts/{account_id}/backfill/
+
+        触发账户历史数据回填：
+        - 写入初始入金现金流
+        - 真实盘：镜像 CapitalFlowModel 到统一现金流表
+        - 验证日净值序列是否存在
+
+        仅管理员可操作。
+      summary: 触发账户历史回填（admin only）
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/simulated-trading/accounts/{account_id}/benchmarks/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_benchmarks_get
+      description: GET|PUT /api/simulated-trading/accounts/{account_id}/benchmarks/
+      summary: 获取账户基准成分配置
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BenchmarkComponentResponse'
+          description: ''
+    put:
+      operationId: api_simulated_trading_accounts_by_account_id_benchmarks_put
+      description: GET|PUT /api/simulated-trading/accounts/{account_id}/benchmarks/
+      summary: 更新账户基准成分配置（全量覆盖，权重自动归一化）
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Account Performance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BenchmarkPutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BenchmarkPutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BenchmarkPutRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BenchmarkComponentResponse'
           description: ''
   /api/simulated-trading/accounts/{account_id}/equity-curve/:
     get:
@@ -12777,6 +13472,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/PerformanceResponse'
           description: ''
+  /api/simulated-trading/accounts/{account_id}/performance-report/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_performance_report_get
+      description: GET /api/simulated-trading/accounts/{account_id}/performance-report/
+      summary: 账户区间业绩报告
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: end_date
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: start_date
+        schema:
+          type: string
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceReportResponse'
+          description: ''
   /api/simulated-trading/accounts/{account_id}/positions/:
     get:
       operationId: api_simulated_trading_accounts_by_account_id_positions_get
@@ -12875,6 +13603,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TradeListResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/valuation-snapshot/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_valuation_snapshot_get
+      description: GET /api/simulated-trading/accounts/{account_id}/valuation-snapshot/
+      summary: 账户时点持仓估值表
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: as_of_date
+        schema:
+          type: string
+        required: true
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValuationSnapshotResponse'
+          description: ''
+  /api/simulated-trading/accounts/{account_id}/valuation-timeline/:
+    get:
+      operationId: api_simulated_trading_accounts_by_account_id_valuation_timeline_get
+      description: GET /api/simulated-trading/accounts/{account_id}/valuation-timeline/
+      summary: 账户净值时间线
+      parameters:
+      - in: path
+        name: account_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: end_date
+        schema:
+          type: string
+      - in: query
+        name: start_date
+        schema:
+          type: string
+      tags:
+      - Account Performance
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValuationTimelineResponse'
           description: ''
   /api/simulated-trading/accounts/batch-delete/:
     post:
@@ -16062,6 +16849,38 @@ components:
       - total_value
       - win_rate
       - winning_trades
+    AccountTypeEnum:
+      enum:
+      - real
+      - simulated
+      type: string
+      description: |-
+        * `real` - real
+        * `simulated` - simulated
+    AccountValuationSummary:
+      type: object
+      properties:
+        total_value:
+          type: number
+          format: double
+        cash:
+          type: number
+          format: double
+        market_value:
+          type: number
+          format: double
+        unrealized_pnl:
+          type: number
+          format: double
+        unrealized_pnl_pct:
+          type: number
+          format: double
+      required:
+      - cash
+      - market_value
+      - total_value
+      - unrealized_pnl
+      - unrealized_pnl_pct
     ActionResponse:
       type: object
       description: 操作响应序列化器
@@ -17194,6 +18013,95 @@ components:
       required:
       - results
       - total
+    BenchmarkComponentInputRequest:
+      type: object
+      description: PUT /benchmarks/ 单个基准成分输入。
+      properties:
+        benchmark_code:
+          type: string
+          minLength: 1
+          maxLength: 30
+        weight:
+          type: number
+          format: double
+          minimum: 0
+        display_name:
+          type: string
+          default: ''
+          maxLength: 100
+        sort_order:
+          type: integer
+          default: 0
+      required:
+      - benchmark_code
+      - weight
+    BenchmarkComponentResponse:
+      type: object
+      properties:
+        account_id:
+          type: integer
+        benchmark_code:
+          type: string
+        weight:
+          type: number
+          format: double
+        display_name:
+          type: string
+        sort_order:
+          type: integer
+        is_active:
+          type: boolean
+      required:
+      - account_id
+      - benchmark_code
+      - display_name
+      - is_active
+      - sort_order
+      - weight
+    BenchmarkPutRequest:
+      type: object
+      description: PUT /benchmarks/ 请求体。
+      properties:
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/BenchmarkComponentInputRequest'
+      required:
+      - components
+    BenchmarkStats:
+      type: object
+      properties:
+        benchmark_return:
+          type: number
+          format: double
+          nullable: true
+        excess_return:
+          type: number
+          format: double
+          nullable: true
+        beta:
+          type: number
+          format: double
+          nullable: true
+        alpha:
+          type: number
+          format: double
+          nullable: true
+        tracking_error:
+          type: number
+          format: double
+          nullable: true
+        information_ratio:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - alpha
+      - benchmark_return
+      - beta
+      - excess_return
+      - information_ratio
+      - tracking_error
     BlankEnum:
       enum:
       - ''
@@ -17275,6 +18183,14 @@ components:
       - stock_code
       - stock_name
       - success
+    CancelDecisionRequestRequest:
+      type: object
+      description: 取消决策请求序列化器
+      properties:
+        reason:
+          type: string
+          default: ''
+          description: 取消原因
     CapabilitySummary:
       type: object
       description: Serializer for capability summary.
@@ -17909,15 +18825,43 @@ components:
       - calc_date
       - correlation
       - window_days
+    CoverageInfo:
+      type: object
+      properties:
+        data_start:
+          type: string
+          format: date
+          nullable: true
+        data_end:
+          type: string
+          format: date
+          nullable: true
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+      - data_end
+      - data_start
+      - warnings
     CreateAccountRequestRequest:
       type: object
-      description: 创建模拟账户请求序列化器
+      description: 创建统一账户请求序列化器
       properties:
         account_name:
           type: string
           minLength: 1
           description: 账户名称
           maxLength: 100
+        account_type:
+          allOf:
+          - $ref: '#/components/schemas/AccountTypeEnum'
+          default: simulated
+          description: |-
+            账户类型：real=真实账户，simulated=模拟账户
+
+            * `real` - real
+            * `simulated` - simulated
         initial_capital:
           type: string
           format: decimal
@@ -18781,6 +19725,58 @@ components:
       - from_currency
       - rate
       - to_currency
+    ExecuteDecisionRequestRequest:
+      type: object
+      description: 执行决策请求序列化器
+      properties:
+        target:
+          type: string
+          minLength: 1
+          default: SIMULATED
+          description: 执行目标
+        sim_account_id:
+          type: integer
+          nullable: true
+          description: 模拟账户 ID
+        portfolio_id:
+          type: integer
+          nullable: true
+          description: 组合 ID
+        asset_code:
+          type: string
+          description: 资产代码
+        action:
+          type: string
+          minLength: 1
+          default: buy
+          description: 交易动作
+        quantity:
+          type: integer
+          nullable: true
+          description: 数量
+        price:
+          type: number
+          format: double
+          nullable: true
+          description: 价格
+        shares:
+          type: integer
+          nullable: true
+          description: 持仓股数
+        avg_cost:
+          type: number
+          format: double
+          nullable: true
+          description: 平均成本
+        current_price:
+          type: number
+          format: double
+          nullable: true
+          description: 当前价格
+        reason:
+          type: string
+          default: 按决策请求执行
+          description: 执行原因
     ExecutionLog:
       type: object
       description: 执行日志序列化器
@@ -19915,6 +20911,38 @@ components:
       - auto_approve_threshold
       - normal_sla_hours
       - p23_sla_hours
+    IntradayChartResponse:
+      type: object
+      description: 分时图响应序列化器。
+      properties:
+        success:
+          type: boolean
+        stock_code:
+          type: string
+        stock_name:
+          type: string
+        points:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        latest_point:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        session_date:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      required:
+      - stock_code
+      - stock_name
+      - success
     InvalidationCondition:
       type: object
       description: 证伪条件序列化器
@@ -23130,6 +24158,77 @@ components:
         change_reason:
           type: string
           title: 变更原因
+    PerformancePeriod:
+      type: object
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        days:
+          type: integer
+      required:
+      - days
+      - end_date
+      - start_date
+    PerformanceRatios:
+      type: object
+      properties:
+        sharpe:
+          type: number
+          format: double
+          nullable: true
+        sortino:
+          type: number
+          format: double
+          nullable: true
+        calmar:
+          type: number
+          format: double
+          nullable: true
+        treynor:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - calmar
+      - sharpe
+      - sortino
+      - treynor
+    PerformanceReportResponse:
+      type: object
+      properties:
+        period:
+          $ref: '#/components/schemas/PerformancePeriod'
+        returns:
+          $ref: '#/components/schemas/PerformanceReturns'
+        risk:
+          $ref: '#/components/schemas/PerformanceRisk'
+        ratios:
+          $ref: '#/components/schemas/PerformanceRatios'
+        benchmark:
+          allOf:
+          - $ref: '#/components/schemas/BenchmarkStats'
+          nullable: true
+        trade_stats:
+          $ref: '#/components/schemas/TradeStats'
+        coverage:
+          $ref: '#/components/schemas/CoverageInfo'
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+      - benchmark
+      - coverage
+      - period
+      - ratios
+      - returns
+      - risk
+      - trade_stats
+      - warnings
     PerformanceResponse:
       type: object
       description: 绩效响应序列化器
@@ -23160,6 +24259,49 @@ components:
       - total_trades
       - win_rate
       - winning_trades
+    PerformanceReturns:
+      type: object
+      properties:
+        twr:
+          type: number
+          format: double
+          nullable: true
+        mwr:
+          type: number
+          format: double
+          nullable: true
+        annualized_twr:
+          type: number
+          format: double
+          nullable: true
+        annualized_mwr:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - annualized_mwr
+      - annualized_twr
+      - mwr
+      - twr
+    PerformanceRisk:
+      type: object
+      properties:
+        volatility:
+          type: number
+          format: double
+          nullable: true
+        downside_volatility:
+          type: number
+          format: double
+          nullable: true
+        max_drawdown:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - downside_volatility
+      - max_drawdown
+      - volatility
     PeriodEnum:
       enum:
       - daily
@@ -24330,6 +25472,16 @@ components:
       required:
       - avg_cost
       - shares
+    PrecheckDecisionRequestRequest:
+      type: object
+      description: 预检查请求序列化器
+      properties:
+        candidate_id:
+          type: string
+          minLength: 1
+          description: 候选 ID
+      required:
+      - candidate_id
     PromptCategoryEnum:
       enum:
       - report
@@ -25144,6 +26296,11 @@ components:
       type: object
       description: 重置配额请求序列化器
       properties:
+        account_id:
+          type: string
+          minLength: 1
+          default: default
+          description: 账户 ID
         period:
           nullable: true
           description: |-
@@ -26570,6 +27727,11 @@ components:
       type: object
       description: 提交决策请求序列化器
       properties:
+        account_id:
+          type: string
+          minLength: 1
+          default: default
+          description: 账户 ID
         asset_code:
           type: string
           minLength: 1
@@ -26808,6 +27970,40 @@ components:
         is_failure:
           type: boolean
           readOnly: true
+    TechnicalChartResponse:
+      type: object
+      description: 技术图表响应序列化器。
+      properties:
+        success:
+          type: boolean
+        stock_code:
+          type: string
+        stock_name:
+          type: string
+        timeframe:
+          type: string
+        candles:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        signals:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        latest_signal:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      required:
+      - stock_code
+      - stock_name
+      - success
+      - timeframe
     TerminalCommand:
       type: object
       description: 终端命令序列化器
@@ -27500,6 +28696,23 @@ components:
       - status
       - total_cost
       - trade_id
+    TradeStats:
+      type: object
+      properties:
+        win_rate:
+          type: number
+          format: double
+          nullable: true
+        profit_factor:
+          type: number
+          format: double
+          nullable: true
+        total_closed_trades:
+          type: integer
+      required:
+      - profit_factor
+      - total_closed_trades
+      - win_rate
     TradingCostConfig:
       type: object
       description: 交易费率配置序列化器
@@ -27929,6 +29142,29 @@ components:
         * `ACTIONABLE` - ACTIONABLE
         * `EXECUTED` - EXECUTED
         * `CANCELLED` - CANCELLED
+    UpdateQuotaConfigRequestRequest:
+      type: object
+      description: 更新配额配置请求序列化器
+      properties:
+        account_id:
+          type: string
+          minLength: 1
+          default: default
+          description: 账户 ID
+        period:
+          type: string
+          minLength: 1
+          description: 配额周期
+        max_decisions:
+          type: integer
+          default: 10
+          description: 最大决策次数
+        max_executions:
+          type: integer
+          default: 5
+          description: 最大执行次数
+      required:
+      - period
     ValidateValuationDataRequestRequest:
       type: object
       description: 估值数据质量校验请求序列化器
@@ -28614,6 +29850,47 @@ components:
       - stock_code
       - stock_name
       - target_percentile
+    ValuationRow:
+      type: object
+      properties:
+        asset_code:
+          type: string
+        asset_name:
+          type: string
+        asset_type:
+          type: string
+        quantity:
+          type: number
+          format: double
+        avg_cost:
+          type: number
+          format: double
+        close_price:
+          type: number
+          format: double
+        market_value:
+          type: number
+          format: double
+        weight:
+          type: number
+          format: double
+        unrealized_pnl:
+          type: number
+          format: double
+        unrealized_pnl_pct:
+          type: number
+          format: double
+      required:
+      - asset_code
+      - asset_name
+      - asset_type
+      - avg_cost
+      - close_price
+      - market_value
+      - quantity
+      - unrealized_pnl
+      - unrealized_pnl_pct
+      - weight
     ValuationScore:
       type: object
       description: 估值评分序列化器
@@ -28640,6 +29917,66 @@ components:
       - method
       - score
       - signal
+    ValuationSnapshotResponse:
+      type: object
+      properties:
+        as_of_date:
+          type: string
+          format: date
+        account_summary:
+          $ref: '#/components/schemas/AccountValuationSummary'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValuationRow'
+        coverage:
+          $ref: '#/components/schemas/CoverageInfo'
+      required:
+      - account_summary
+      - as_of_date
+      - coverage
+      - rows
+    ValuationTimelinePoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        cash:
+          type: number
+          format: double
+        market_value:
+          type: number
+          format: double
+        total_value:
+          type: number
+          format: double
+        net_value:
+          type: number
+          format: double
+        twr_cumulative:
+          type: number
+          format: double
+        drawdown:
+          type: number
+          format: double
+      required:
+      - cash
+      - date
+      - drawdown
+      - market_value
+      - net_value
+      - total_value
+      - twr_cumulative
+    ValuationTimelineResponse:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValuationTimelinePoint'
+      required:
+      - points
     WorkbenchBootstrap:
       type: object
       description: 工作台启动数据序列化器

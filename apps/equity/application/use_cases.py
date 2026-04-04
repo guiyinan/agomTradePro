@@ -10,10 +10,10 @@
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
+from apps.equity.domain.services_technical import TechnicalChartService
 
 
 @dataclass
@@ -196,7 +196,184 @@ class ScreenStocksUseCase:
             min_market_cap=Decimal(str(custom_rule.get('min_market_cap', 0))),
             sector_preference=custom_rule.get('sector_preference'),
             max_count=custom_rule.get('max_count', 50)
-        )
+            )
+
+
+@dataclass
+class GetTechnicalChartRequest:
+    """技术图表请求。"""
+
+    stock_code: str
+    timeframe: str = "day"
+    lookback_days: int = 365
+
+
+@dataclass
+class GetTechnicalChartResponse:
+    """技术图表响应。"""
+
+    success: bool
+    stock_code: str
+    stock_name: str
+    timeframe: str
+    candles: list[dict]
+    signals: list[dict]
+    latest_signal: dict | None
+    error: str | None = None
+
+
+@dataclass
+class GetIntradayChartRequest:
+    """分时图请求。"""
+
+    stock_code: str
+
+
+@dataclass
+class GetIntradayChartResponse:
+    """分时图响应。"""
+
+    success: bool
+    stock_code: str
+    stock_name: str
+    points: list[dict]
+    latest_point: dict | None
+    session_date: str | None
+    source: str | None
+    error: str | None = None
+
+
+class GetTechnicalChartUseCase:
+    """个股技术图表用例。"""
+
+    def __init__(self, stock_repository):
+        self.stock_repo = stock_repository
+        self.chart_service = TechnicalChartService()
+
+    def execute(self, request: GetTechnicalChartRequest) -> GetTechnicalChartResponse:
+        """获取技术图表数据。"""
+        try:
+            stock_info = self.stock_repo.get_stock_info(request.stock_code)
+            if not stock_info:
+                raise ValueError(f"未找到股票 {request.stock_code}")
+
+            end_date = date.today()
+            start_date = end_date - timedelta(days=request.lookback_days)
+            bars = self.stock_repo.get_technical_bars(
+                request.stock_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if not bars:
+                raise ValueError(f"未找到股票 {request.stock_code} 的日线技术数据")
+
+            aggregated_bars = self.chart_service.aggregate_bars(bars, request.timeframe)
+            signals = self.chart_service.detect_crossovers(aggregated_bars)
+
+            candle_payload = [
+                {
+                    "trade_date": bar.trade_date.isoformat(),
+                    "open": float(bar.open),
+                    "high": float(bar.high),
+                    "low": float(bar.low),
+                    "close": float(bar.close),
+                    "volume": bar.volume,
+                    "amount": float(bar.amount),
+                    "ma5": float(bar.ma5) if bar.ma5 is not None else None,
+                    "ma20": float(bar.ma20) if bar.ma20 is not None else None,
+                    "ma60": float(bar.ma60) if bar.ma60 is not None else None,
+                    "macd": bar.macd,
+                    "macd_signal": bar.macd_signal,
+                    "macd_hist": bar.macd_hist,
+                    "rsi": bar.rsi,
+                }
+                for bar in aggregated_bars
+            ]
+            signal_payload = [
+                {
+                    "signal_type": signal.signal_type,
+                    "trade_date": signal.trade_date.isoformat(),
+                    "price": float(signal.price),
+                    "short_value": float(signal.short_value),
+                    "long_value": float(signal.long_value),
+                    "label": signal.label,
+                }
+                for signal in signals[-8:]
+            ]
+
+            return GetTechnicalChartResponse(
+                success=True,
+                stock_code=request.stock_code,
+                stock_name=stock_info.name,
+                timeframe=request.timeframe,
+                candles=candle_payload,
+                signals=signal_payload,
+                latest_signal=signal_payload[-1] if signal_payload else None,
+            )
+        except Exception as exc:
+            return GetTechnicalChartResponse(
+                success=False,
+                stock_code=request.stock_code,
+                stock_name="",
+                timeframe=request.timeframe,
+                candles=[],
+                signals=[],
+                latest_signal=None,
+                error=str(exc),
+            )
+
+
+class GetIntradayChartUseCase:
+    """个股分时图用例。"""
+
+    def __init__(self, stock_repository):
+        self.stock_repo = stock_repository
+
+    def execute(self, request: GetIntradayChartRequest) -> GetIntradayChartResponse:
+        """获取分时图数据。"""
+        try:
+            stock_info = self.stock_repo.get_stock_info(request.stock_code)
+            if not stock_info:
+                raise ValueError(f"未找到股票 {request.stock_code}")
+
+            points = self.stock_repo.get_intraday_points(request.stock_code)
+            if not points:
+                raise ValueError(f"未找到股票 {request.stock_code} 的分时数据")
+
+            payload = [
+                {
+                    "timestamp": point.timestamp.isoformat(),
+                    "price": float(point.price),
+                    "avg_price": float(point.avg_price) if point.avg_price is not None else None,
+                    "volume": point.volume,
+                }
+                for point in points
+            ]
+
+            return GetIntradayChartResponse(
+                success=True,
+                stock_code=request.stock_code,
+                stock_name=stock_info.name,
+                points=payload,
+                latest_point=payload[-1] if payload else None,
+                session_date=points[-1].timestamp.date().isoformat() if points else None,
+                source=(
+                    self.stock_repo.get_last_intraday_source()
+                    if hasattr(self.stock_repo, "get_last_intraday_source")
+                    else "akshare"
+                ),
+            )
+        except Exception as exc:
+            return GetIntradayChartResponse(
+                success=False,
+                stock_code=request.stock_code,
+                stock_name="",
+                points=[],
+                latest_point=None,
+                session_date=None,
+                source=None,
+                error=str(exc),
+            )
 
 
 @dataclass
@@ -670,7 +847,7 @@ class AnalyzeRegimeCorrelationUseCase:
             # 对于缺失的日期，使用前一个有效日期的 Regime
             return self._fill_missing_dates(regime_history, start_date, end_date)
 
-        except Exception as e:
+        except Exception:
             # 如果获取失败，返回空字典
             # Domain 层的 RegimeCorrelationAnalyzer 会处理空数据情况
             return {}
@@ -704,7 +881,7 @@ class AnalyzeRegimeCorrelationUseCase:
                 end_date=end_date
             )
 
-        except Exception as e:
+        except Exception:
             # 如果获取失败，返回空字典
             return {}
 
