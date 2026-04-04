@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}管理控制台 - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-shell">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">{{ page_title }}</h1>
+            <p class="admin-shell__subtitle">{{ page_subtitle }}</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary admin-shell__action-link">设置中心</a>
+            <a href="/admin/" class="btn btn-secondary admin-shell__action-link">Django Admin</a>
+        </div>
+    </div>
+
+    <div class="admin-shell__banner">
+        <strong>职责边界：</strong>
+        管理控制台负责管理员日常操作与运维入口；
+        设置类页面请去“设置中心”；
+        Django Admin 只保留给底层模型和未产品化功能。
+    </div>
+
+    {% for section in sections %}
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">{{ section.title }}</h2>
+            <span class="admin-shell__meta">{{ section.items|length }} 项</span>
+        </div>
+        <div class="admin-shell__grid">
+            {% for item in section.items %}
+            <a href="{{ item.url }}" class="admin-shell__card-link">
+                <article class="admin-shell__card">
+                    <h3 class="admin-shell__card-title">{{ item.name }}</h3>
+                    <p class="admin-shell__card-body">{{ item.description }}</p>
+                    <div class="admin-shell__summary">
+                        <span class="admin-shell__summary-label">当前摘要</span>
+                        <p class="admin-shell__summary-value">{{ item.summary }}</p>
+                    </div>
+                </article>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}

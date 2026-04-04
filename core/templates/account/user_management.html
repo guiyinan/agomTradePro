@@ -1,22 +1,28 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}用户管理 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="page-container">
-    <div class="page-header">
-        <div>
-            <h1>用户管理</h1>
-            <p class="text-muted">管理系统用户和审批状态</p>
+<div class="page-container admin-shell admin-shell--wide">
+    <div class="page-header admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">用户管理</h1>
+            <p class="text-muted admin-shell__subtitle">管理员工作流：审批新用户、核查状态、决定是否开放系统访问。</p>
         </div>
-        <div>
-            <a href="{% url 'account:token_management' %}" class="btn btn-primary">
-                <i class="icon-key"></i> Token管理
-            </a>
-            <a href="{% url 'account:system_settings' %}" class="btn btn-secondary">
-                <i class="icon-settings"></i> 系统配置
-            </a>
+        <div class="admin-shell__actions">
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+            <a href="{% url 'account:token_management' %}" class="btn btn-primary admin-shell__action-link">Token 管理</a>
+            <a href="{% url 'account:system_settings' %}" class="btn btn-secondary admin-shell__action-link">系统设置</a>
         </div>
+    </div>
+
+    <div class="entry-banner admin-shell__banner">
+        <strong>入口说明：</strong> 管理控制台是管理员统一入口；当前页面只处理用户审批与状态。Token、日志、文档和底层后台操作请回管理控制台切换。
     </div>
 
     {% if messages %}
@@ -46,7 +52,7 @@
     </div>
 
     <!-- 过滤器 -->
-    <div class="filter-bar">
+    <div class="filter-bar admin-shell__surface admin-shell__surface--compact">
         <form method="get" class="filter-form">
             <div class="filter-group">
                 <label>状态:</label>
@@ -68,7 +74,7 @@
     </div>
 
     <!-- 用户列表 -->
-    <div class="table-container">
+    <div class="table-container admin-shell__surface">
         <table class="data-table">
             <thead>
                 <tr>
@@ -179,22 +185,8 @@
 </div>
 
 <style>
-.page-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 24px;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.page-header h1 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
+.entry-banner {
+    margin-bottom: 20px;
 }
 
 .text-muted {

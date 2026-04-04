@@ -4,6 +4,7 @@
 {% block title %}分享页风险提示配置 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
 <link rel="stylesheet" href="{% static 'css/share.css' %}">
 <style>
 .share-disclaimer-manage-container { max-width: 920px; margin: 0 auto; padding: 24px; }
@@ -22,18 +23,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="share-disclaimer-manage-container">
-    <div class="share-disclaimer-manage-header">
-        <div>
-            <h1>分享页风险提示配置</h1>
-            <p class="share-disclaimer-help">这里配置所有公开分享页共用的风险提示内容，以及首屏弹窗开关。</p>
+<div class="admin-shell admin-shell--narrow">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">分享页风险提示配置</h1>
+            <p class="admin-shell__subtitle">公开分享页的统一风险提示配置页，用于维护底部提示区块和首屏弹窗文案。</p>
         </div>
-        <div class="share-link-actions">
-            <a href="{% url 'share:manage' %}" class="btn btn-secondary">返回账户分享管理</a>
+        <div class="admin-shell__actions">
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary admin-shell__action-link">返回设置中心</a>
+            <a href="{% url 'share:manage' %}" class="btn btn-secondary admin-shell__action-link">返回账户分享管理</a>
         </div>
     </div>
 
-    <section class="share-disclaimer-manage-panel">
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于公开分享链路的系统文案配置入口；
+        链接创建与运营仍在账户分享管理页；
+        全局系统配置请回设置中心。
+    </div>
+
+<div class="share-disclaimer-manage-container">
+    <section class="share-disclaimer-manage-panel admin-shell__surface">
         <form method="post" class="share-disclaimer-form">
             {% csrf_token %}
             <div class="share-disclaimer-checks">
@@ -75,5 +85,6 @@
             </div>
         </form>
     </section>
+</div>
 </div>
 {% endblock %}

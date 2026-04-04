@@ -47,6 +47,7 @@ from core.api_views_decision_funnel import (
 
 # 核心视图
 from core.views import (
+    admin_console_view,
     asset_screen_view,
     chat_example_view,
     decision_workspace_view,
@@ -167,6 +168,7 @@ core_patterns = [
     ),
     path("api/decision/audit/", decision_audit_api_view, name="api-decision-audit"),
     path("settings/", settings_center_view, name="settings-center"),
+    path("admin-console/", admin_console_view, name="admin-console"),
     path("settings/mcp-tools/", mcp_tools_page, name="settings-mcp-tools"),
     path("settings/mcp-tools/sync/", sync_mcp_tools_view, name="settings-mcp-tools-sync"),
     path(

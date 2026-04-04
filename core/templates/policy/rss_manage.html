@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}RSS源管理 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
 <style>
     .rss-manage-page {
         max-width: 1400px;
@@ -148,14 +150,32 @@
 {% endblock %}
 
 {% block content %}
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">RSS 源管理</h1>
+            <p class="admin-shell__subtitle">政策与情绪摄入链路的源配置页，用于维护 RSS 源、查看状态并进入阅读器和日志链路。</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'policy:workbench' %}" class="btn btn-secondary admin-shell__action-link">政策工作台</a>
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">管理控制台</a>
+            <a href="{% url 'policy:rss-source-create' %}" class="btn btn-primary admin-shell__action-link">+ 添加源</a>
+        </div>
+    </div>
+
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于政策摄入链路的运维配置页；
+        阅读与审核回到政策工作台和 RSS 阅读器；
+        全局管理员值守动作请回管理控制台。
+    </div>
+
 <div class="rss-manage-page">
     <div class="page-header">
-        <h1>RSS 源管理</h1>
         <div>
             <a href="{% url 'policy:rss-reader' %}" class="btn btn-primary">RSS阅读器</a>
             <a href="{% url 'policy:rss-keywords' %}" class="btn btn-secondary">关键词规则</a>
             <a href="{% url 'policy:rss-logs' %}" class="btn btn-secondary">抓取日志</a>
-            <a href="{% url 'policy:rss-source-create' %}" class="btn btn-secondary">+ 添加源</a>
         </div>
     </div>
 
@@ -274,6 +294,7 @@
         </div>
         {% endif %}
     </div>
+</div>
 </div>
 
 <!-- 抓取进度 Modal -->

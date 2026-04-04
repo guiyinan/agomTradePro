@@ -15,141 +15,234 @@
         <p>如果你是从“市场数据源状态”页面跳过来的，说明入口命名之前不够清楚。现在这页负责配置，状态页负责健康检查和快速测试。</p>
     </div>
     <div class="config-entry-actions">
-        <a href="{% url 'macro:datasource-create' %}" class="btn-step">添加数据源</a>
+        <a href="{% url 'macro:datasources' %}?mode=create" class="btn-step">新建数据源配置</a>
         <a href="{% url 'market_data:providers' %}" class="btn-step btn-step-secondary">查看市场数据状态</a>
         <a href="{% url 'settings-center' %}" class="btn-step btn-step-secondary">打开设置中心</a>
     </div>
 </div>
 
-<!-- 快速开始指南 -->
-<div class="quick-start-section">
-    <h2 class="section-title">快速开始 (3 步配置)</h2>
-    <div class="steps-container">
-        <div class="step-item">
-            <div class="step-number">1</div>
-            <div class="step-content">
-                <h3>注册数据源账号</h3>
-                <p>前往数据源官网注册账号并获取 API Token</p>
-                <div class="step-links">
-                    <a href="https://tushare.pro/register" target="_blank">Tushare Pro 注册</a>
-                </div>
-            </div>
-        </div>
-        <div class="step-item">
-            <div class="step-number">2</div>
-            <div class="step-content">
-                <h3>添加数据源配置</h3>
-                <p>点击下方"添加数据源"按钮，填写配置信息</p>
-                <a href="{% url 'macro:datasource-create' %}" class="btn-step">添加数据源</a>
-            </div>
-        </div>
-        <div class="step-item">
-            <div class="step-number">3</div>
-            <div class="step-content">
-                <h3>同步数据</h3>
-                <p>配置完成后，在 Admin 后台手动同步或设置定时任务</p>
-                <a href="{% url 'macro:data_controller' %}" class="btn-step">前往数据管理器</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 统计卡片 -->
-<div class="ds-stats-grid">
-    <div class="ds-stat-card">
-        <div class="stat-label">数据源总数</div>
-        <div class="stat-value">{{ stats.total }}</div>
-    </div>
-    <div class="ds-stat-card">
-        <div class="stat-label">已启用</div>
-        <div class="stat-value stat-active">{{ stats.active }}</div>
-    </div>
-    <div class="ds-stat-card">
-        <div class="stat-label">已停用</div>
-        <div class="stat-value stat-inactive">{{ stats.total|add:stats.active|add:"-" }}</div>
-    </div>
-</div>
-
-<!-- 数据源类型分布 -->
-{% if stats.by_type %}
-<div class="type-distribution">
-    <h2 class="section-title">数据源类型分布</h2>
-    <div class="type-tags">
-        {% for type, count in stats.by_type.items %}
-        <span class="type-badge type-{{ type }}">
-            {% for type_choice, label in source_type_choices %}
-                {% if type_choice == type %}{{ label }}{% endif %}
-            {% endfor %}: {{ count }}
-        </span>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
 <!-- 数据源列表 -->
 <div class="datasources-section">
     <div class="section-header">
-        <h2>已配置的数据源</h2>
-        <a href="{% url 'macro:datasource-create' %}" class="btn-add">添加数据源</a>
+        <div>
+            <h2>数据源管理台</h2>
+            <p class="section-subtitle">打开页面就能新建、切换和编辑当前数据源；说明文档放在下面，不打断操作。</p>
+        </div>
+        <div class="section-actions">
+            <a href="{% url 'macro:datasources' %}?mode=create" class="btn-add">新建配置</a>
+            <a href="{% url 'macro:data_controller' %}" class="btn-add btn-add-secondary">数据管理器</a>
+        </div>
+    </div>
+
+    <div class="management-summary-row">
+        <div class="management-summary-card">
+            <span class="management-summary-label">数据源总数</span>
+            <strong class="management-summary-value">{{ stats.total }}</strong>
+        </div>
+        <div class="management-summary-card">
+            <span class="management-summary-label">已启用</span>
+            <strong class="management-summary-value is-active">{{ stats.active }}</strong>
+        </div>
+        <div class="management-summary-card">
+            <span class="management-summary-label">已停用</span>
+            <strong class="management-summary-value is-inactive">{{ stats.inactive }}</strong>
+        </div>
+        {% for type, count in stats.by_type.items %}
+        <div class="management-summary-card type-summary-card">
+            <span class="management-summary-label">
+                {% for type_choice, label in source_type_choices %}
+                    {% if type_choice == type %}{{ label }}{% endif %}
+                {% endfor %}
+            </span>
+            <strong class="management-summary-value">{{ count }}</strong>
+        </div>
+        {% endfor %}
     </div>
 
     {% if data_sources %}
-    <div class="datasource-list">
-        {% for ds in data_sources %}
-        <div class="ds-item ds-status-{% if ds.is_active %}active{% else %}inactive{% endif %}">
-            <div class="ds-main">
-                <div class="ds-header-info">
-                    <div class="ds-name-row">
-                        <h3 class="ds-name">{{ ds.name }}</h3>
-                        <span class="ds-priority-badge">优先级: {{ ds.priority }}</span>
-                        <span class="ds-status-badge {% if ds.is_active %}status-on{% else %}status-off{% endif %}">
-                            {% if ds.is_active %}启用{% else %}停用{% endif %}
-                        </span>
-                    </div>
-                    <div class="ds-meta">
-                        <span class="ds-type-badge type-{{ ds.source_type }}">{{ ds.get_source_type_display }}</span>
-                        {% if ds.http_url %}
-                        <span class="ds-endpoint">{{ ds.http_url }}</span>
-                        {% elif ds.api_endpoint %}
-                        <span class="ds-endpoint">{{ ds.api_endpoint }}</span>
-                        {% endif %}
-                    </div>
-                </div>
+    <div class="datasource-management-grid">
+        <div class="datasource-list-panel">
+            <div class="datasource-list">
+                {% for item in datasource_cards %}
+                {% with ds=item.source %}
+                <article class="ds-item ds-status-{% if ds.is_active %}active{% else %}inactive{% endif %} {% if selected_source_id == ds.id %}ds-selected{% endif %}">
+                    <div class="ds-main">
+                        <div class="ds-header-info">
+                            <div class="ds-name-row">
+                                <h3 class="ds-name">{{ ds.name }}</h3>
+                                <span class="ds-priority-badge">优先级 {{ ds.priority }}</span>
+                                <span class="ds-status-badge {% if ds.is_active %}status-on{% else %}status-off{% endif %}">
+                                    {% if ds.is_active %}启用{% else %}停用{% endif %}
+                                </span>
+                            </div>
+                            <div class="ds-meta">
+                                <span class="ds-type-badge type-{{ ds.source_type }}">{{ ds.get_source_type_display }}</span>
+                                <span class="ds-endpoint">{{ item.endpoint }}</span>
+                            </div>
+                        </div>
 
-                <div class="ds-config">
-                    <div class="config-row">
-                        <span class="config-label">API Key:</span>
-                        <span class="config-value">{% if ds.api_key %}{{ ds.api_key|slice:":8" }}...{% else %}<span class="empty-value">未配置</span>{% endif %}</span>
+                        <div class="ds-config">
+                            <div class="config-row">
+                                <span class="config-label">API Key</span>
+                                <span class="config-value">{{ item.masked_api_key }}</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">API Secret</span>
+                                <span class="config-value">{{ item.masked_api_secret }}</span>
+                            </div>
+                            <div class="config-row">
+                                <span class="config-label">更新时间</span>
+                                <span class="config-value">{{ ds.updated_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            {% if ds.description %}
+                            <div class="config-desc">{{ ds.description }}</div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% if ds.http_url %}
-                    <div class="config-row">
-                        <span class="config-label">HTTP URL:</span>
-                        <span class="config-value">{{ ds.http_url }}</span>
-                    </div>
-                    {% endif %}
-                    {% if ds.extra_config %}
-                    <div class="config-row">
-                        <span class="config-label">Extra Config:</span>
-                        <span class="config-value">{{ ds.extra_config }}</span>
-                    </div>
-                    {% endif %}
-                    {% if ds.api_secret %}
-                    <div class="config-row">
-                        <span class="config-label">API Secret:</span>
-                        <span class="config-value">{{ ds.api_secret|slice:":8" }}...</span>
-                    </div>
-                    {% endif %}
-                    {% if ds.description %}
-                    <div class="config-desc">{{ ds.description }}</div>
-                    {% endif %}
-                </div>
-            </div>
 
-            <div class="ds-actions">
-                <a href="{% url 'macro:datasource-edit' ds.id %}" class="btn-edit">编辑</a>
+                    <div class="ds-actions">
+                        <a href="{% url 'macro:datasources' %}?edit={{ ds.id }}" class="btn-edit btn-edit-primary">
+                            {% if selected_source_id == ds.id %}当前编辑{% else %}在页内编辑{% endif %}
+                        </a>
+                        <a href="{% url 'macro:datasource-edit' ds.id %}" class="btn-edit">完整表单</a>
+                    </div>
+                </article>
+                {% endwith %}
+                {% endfor %}
             </div>
         </div>
-        {% endfor %}
+
+        <aside id="datasource-workbench" class="datasource-workbench">
+            <div class="workbench-header">
+                <div>
+                    <div class="workbench-kicker">配置工作台</div>
+                    <h3>
+                        {% if management_mode == 'edit' and selected_source %}
+                        编辑 {{ selected_source.name }}
+                        {% else %}
+                        新建数据源配置
+                        {% endif %}
+                    </h3>
+                    <p>
+                        {% if management_mode == 'edit' and selected_source %}
+                        当前在页内维护 {{ selected_source.get_source_type_display }} 的连接参数、优先级和额外配置。
+                        {% else %}
+                        直接在这里创建新的财经数据源配置；保存后会自动刷新 secrets cache。
+                        {% endif %}
+                    </p>
+                </div>
+                {% if selected_source %}
+                <a href="{% url 'macro:datasources' %}?mode=create" class="btn-add btn-add-secondary">切换到新建</a>
+                {% endif %}
+            </div>
+
+            {% if management_mode == 'create' %}
+            <div class="workbench-mode-banner">
+                <strong>当前处于新建模式</strong>
+                <span>右侧工作台不会覆盖左侧已有数据源；只有点击“在页内编辑”才会切换到现有配置。</span>
+            </div>
+            {% endif %}
+
+            {% if selected_card %}
+            <div class="workbench-summary">
+                <div class="workbench-summary-item">
+                    <span class="workbench-label">类型</span>
+                    <span class="workbench-value">{{ selected_source.get_source_type_display }}</span>
+                </div>
+                <div class="workbench-summary-item">
+                    <span class="workbench-label">当前入口</span>
+                    <span class="workbench-value">{{ selected_card.endpoint }}</span>
+                </div>
+                <div class="workbench-summary-item">
+                    <span class="workbench-label">敏感字段</span>
+                    <span class="workbench-value">{% if selected_card.has_sensitive_fields %}已配置{% else %}未配置{% endif %}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="post" class="workbench-form">
+                {% csrf_token %}
+                {% for hidden in management_form.hidden_fields %}{{ hidden }}{% endfor %}
+                {% if management_form.non_field_errors %}
+                <div class="form-error-banner">{{ management_form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="workbench-grid">
+                    <div class="form-field">
+                        <label for="{{ management_form.name.id_for_label }}">数据源名称</label>
+                        {{ management_form.name }}
+                        {{ management_form.name.errors }}
+                    </div>
+                    <div class="form-field">
+                        <label for="{{ management_form.source_type.id_for_label }}">数据源类型</label>
+                        {{ management_form.source_type }}
+                        {{ management_form.source_type.errors }}
+                    </div>
+                    <div class="form-field">
+                        <label for="{{ management_form.priority.id_for_label }}">优先级</label>
+                        {{ management_form.priority }}
+                        <div class="field-help">数字越小越优先，建议主数据源使用 1。</div>
+                        {{ management_form.priority.errors }}
+                    </div>
+                    <div class="form-field form-field-inline">
+                        {{ management_form.is_active }}
+                        <label for="{{ management_form.is_active.id_for_label }}">启用该数据源</label>
+                        {{ management_form.is_active.errors }}
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="{{ management_form.http_url.id_for_label }}">自定义 HTTP URL</label>
+                        {{ management_form.http_url }}
+                        <div class="field-help">Tushare 代理地址优先填这里；留空则走官方默认地址。</div>
+                        {{ management_form.http_url.errors }}
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="{{ management_form.api_endpoint.id_for_label }}">API Endpoint</label>
+                        {{ management_form.api_endpoint }}
+                        <div class="field-help">通用接口地址；若同时配置 `http_url`，页面会优先显示 `http_url` 作为连接入口。</div>
+                        {{ management_form.api_endpoint.errors }}
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="{{ management_form.api_key.id_for_label }}">API Key / Token</label>
+                        {{ management_form.api_key }}
+                        {{ management_form.api_key.errors }}
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="{{ management_form.api_secret.id_for_label }}">API Secret</label>
+                        {{ management_form.api_secret }}
+                        {{ management_form.api_secret.errors }}
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="{{ management_form.extra_config.id_for_label }}">额外配置 JSON</label>
+                        {{ management_form.extra_config }}
+                        <div class="field-help">QMT 可填写 `client_path`、`data_dir` 等本地参数；AKShare/FRED 也可在这里补充自定义开关。</div>
+                        {{ management_form.extra_config.errors }}
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="{{ management_form.description.id_for_label }}">描述</label>
+                        {{ management_form.description }}
+                        {{ management_form.description.errors }}
+                    </div>
+                </div>
+
+                <div class="workbench-actions">
+                    <button type="submit" class="btn-add">
+                        {% if management_mode == 'edit' %}保存当前配置{% else %}创建并启用配置{% endif %}
+                    </button>
+                    {% if selected_source %}
+                    <a href="{% url 'macro:datasource-edit' selected_source.id %}" class="btn-add btn-add-secondary">打开完整表单</a>
+                    {% else %}
+                    <a href="{% url 'macro:datasource-create' %}" class="btn-add btn-add-secondary">打开完整表单</a>
+                    {% endif %}
+                </div>
+
+                {% if selected_card %}
+                <div class="workbench-footnote">
+                    <strong>当前配置预览</strong>
+                    <pre>{{ selected_card.extra_config_preview }}</pre>
+                </div>
+                {% endif %}
+            </form>
+        </aside>
     </div>
     {% else %}
     <div class="empty-state">
@@ -158,9 +251,39 @@
         <div class="empty-desc">
             请先添加数据源配置以同步宏观数据
         </div>
-        <a href="{% url 'macro:datasource-create' %}" class="btn-add-large">添加第一个数据源</a>
+        <a href="{% url 'macro:datasources' %}?mode=create" class="btn-add-large">添加第一个数据源</a>
     </div>
     {% endif %}
+</div>
+
+<!-- 快速开始指南 -->
+<div class="quick-start-section">
+    <h2 class="section-title">使用说明</h2>
+    <div class="steps-container">
+        <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>先在管理台维护配置</h3>
+                <p>主流程都在上方管理台完成：新建数据源、填写 Token、设置优先级、切换到现有配置编辑。</p>
+            </div>
+        </div>
+        <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>再去状态页核对运行情况</h3>
+                <p>配置完成后，再去市场数据状态页查看 provider 是否注册成功、健康检查是否通过。</p>
+                <a href="{% url 'market_data:providers' %}" class="btn-step btn-step-secondary">打开市场数据状态</a>
+            </div>
+        </div>
+        <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h3>需要批量同步时去数据管理器</h3>
+                <p>数据抓取、刷新和任务控制不放在这里，统一由数据管理器承担。</p>
+                <a href="{% url 'macro:data_controller' %}" class="btn-step">前往数据管理器</a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- 详细配置说明 -->
@@ -627,12 +750,62 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
 }
 
 .section-header h2 {
     font-size: 18px;
     font-weight: 600;
     color: var(--color-text-primary);
+}
+
+.section-subtitle {
+    margin: 6px 0 0;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.section-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.management-summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: var(--spacing-lg);
+}
+
+.management-summary-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+    border: 1px solid #dbe7f5;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+.management-summary-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+}
+
+.management-summary-value {
+    display: block;
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--color-text-primary);
+}
+
+.management-summary-value.is-active {
+    color: var(--color-success);
+}
+
+.management-summary-value.is-inactive {
+    color: var(--color-text-muted);
 }
 
 .btn-add,
@@ -657,6 +830,27 @@
     background: var(--color-primary-hover);
 }
 
+.btn-add-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.btn-add-secondary:hover {
+    background: var(--color-border);
+}
+
+.datasource-management-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.95fr);
+    gap: var(--spacing-lg);
+    align-items: start;
+}
+
+.datasource-list-panel {
+    min-width: 0;
+}
+
 .datasource-list {
     display: flex;
     flex-direction: column;
@@ -671,6 +865,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     border-left: 4px solid;
+    gap: var(--spacing-lg);
 }
 
 .ds-status-active {
@@ -682,8 +877,14 @@
     opacity: 0.7;
 }
 
+.ds-selected {
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
 .ds-main {
     flex: 1;
+    min-width: 0;
 }
 
 .ds-header-info {
@@ -732,6 +933,7 @@
     display: flex;
     gap: var(--spacing-sm);
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .ds-type-badge {
@@ -753,6 +955,7 @@
     font-size: 12px;
     color: var(--color-text-muted);
     font-family: 'Consolas', monospace;
+    word-break: break-all;
 }
 
 .ds-config {
@@ -778,6 +981,7 @@
     font-size: 13px;
     color: var(--color-text-primary);
     font-family: 'Consolas', monospace;
+    word-break: break-word;
 }
 
 .empty-value {
@@ -795,8 +999,11 @@
 
 .ds-actions {
     display: flex;
-    align-items: center;
-    margin-left: var(--spacing-lg);
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 10px;
+    min-width: 124px;
 }
 
 .btn-edit {
@@ -811,6 +1018,174 @@
 
 .btn-edit:hover {
     background: var(--color-border);
+}
+
+.btn-edit-primary {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+.datasource-workbench {
+    position: sticky;
+    top: 88px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #dbe7f5;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.workbench-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.workbench-kicker {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.workbench-header h3 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: var(--color-text-primary);
+}
+
+.workbench-header p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.workbench-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.workbench-summary-item {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.workbench-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 6px;
+}
+
+.workbench-value {
+    display: block;
+    color: var(--color-text-primary);
+    font-weight: 600;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.workbench-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.workbench-mode-banner {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(37, 99, 235, 0.18);
+    background: rgba(219, 234, 254, 0.58);
+    color: #1e3a8a;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.workbench-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.form-field-inline {
+    flex-direction: row;
+    align-items: center;
+    align-self: end;
+    gap: 10px;
+}
+
+.form-field-inline label {
+    margin: 0;
+}
+
+.form-field-full {
+    grid-column: 1 / -1;
+}
+
+.field-help {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+.workbench-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.form-error-banner {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(220, 38, 38, 0.18);
+    background: rgba(254, 226, 226, 0.8);
+    color: #991b1b;
+}
+
+.workbench-footnote {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.workbench-footnote strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--color-text-primary);
+}
+
+.workbench-footnote pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    font-family: 'Consolas', monospace;
 }
 
 /* Empty State */
@@ -1055,6 +1430,30 @@
 
 .support-links a:hover {
     opacity: 0.9;
+}
+
+@media (max-width: 1080px) {
+    .datasource-management-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .datasource-workbench {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .workbench-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ds-item {
+        flex-direction: column;
+    }
+
+    .ds-actions {
+        min-width: 0;
+    }
 }
 </style>
 {% endblock %}

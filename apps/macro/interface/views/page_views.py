@@ -3,12 +3,14 @@ Page Views for Macro Data Management.
 Updated for collapsible category layout.
 """
 
+import json
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Max, Min, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
 from apps.macro.interface.forms import DataSourceConfigForm
@@ -29,6 +31,38 @@ def safe_float(value):
         return f
     except (InvalidOperation, ValueError, TypeError):
         return None
+
+
+def _mask_credential(value: str) -> str:
+    """Mask sensitive credential values for management page display."""
+    if not value:
+        return "未配置"
+    if len(value) <= 8:
+        return f"{value[:2]}***{value[-2:]}"
+    return f"{value[:4]}...{value[-4:]}"
+
+
+def _format_extra_config(value: object) -> str:
+    """Render JSON config in a readable single string for preview."""
+    if not value:
+        return "未配置"
+    try:
+        return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
+    except TypeError:
+        return str(value)
+
+
+def _build_datasource_card(source: DataSourceConfig) -> dict[str, object]:
+    """Build display-oriented metadata for datasource management cards."""
+    endpoint = source.http_url or source.api_endpoint or "未配置"
+    return {
+        "source": source,
+        "masked_api_key": _mask_credential(source.api_key),
+        "masked_api_secret": _mask_credential(source.api_secret),
+        "endpoint": endpoint,
+        "extra_config_preview": _format_extra_config(source.extra_config),
+        "has_sensitive_fields": bool(source.api_key or source.api_secret),
+    }
 
 
 # 分类定义：包含ID、图标、名称和关键词匹配规则
@@ -252,22 +286,57 @@ def macro_data_view(request):
     return render(request, 'macro/data.html', context)
 
 
+@login_required(login_url="/account/login/")
 def datasource_config_view(request):
     """数据源配置页面"""
     data_sources = DataSourceConfig._default_manager.all().order_by('priority', 'name')
+    selected_source = None
+    create_mode = request.GET.get("mode") == "create" or not data_sources.exists()
+    selected_id = request.GET.get("edit")
+    if selected_id:
+        selected_source = get_object_or_404(DataSourceConfig, id=selected_id)
+        create_mode = False
+    elif not create_mode:
+        selected_source = data_sources.first()
+
+    if request.method == "POST":
+        form = DataSourceConfigForm(request.POST, instance=selected_source)
+        if form.is_valid():
+            saved = form.save()
+            clear_secrets_cache()
+            messages.success(
+                request,
+                "数据源配置已更新" if selected_source else "数据源配置已创建",
+            )
+            return redirect(f"{reverse('macro:datasources')}?edit={saved.id}")
+    else:
+        initial = {}
+        if create_mode:
+            initial["priority"] = data_sources.count() + 1
+        form = DataSourceConfigForm(instance=selected_source, initial=initial)
+
     stats = {
         'total': data_sources.count(),
         'active': data_sources.filter(is_active=True).count(),
+        'inactive': data_sources.filter(is_active=False).count(),
         'by_type': {}
     }
     for source_type, _ in DataSourceConfig.SOURCE_TYPE_CHOICES:
         count = data_sources.filter(source_type=source_type).count()
         if count > 0:
             stats['by_type'][source_type] = count
+
+    datasource_cards = [_build_datasource_card(source) for source in data_sources]
     context = {
         'data_sources': data_sources,
+        'datasource_cards': datasource_cards,
         'stats': stats,
         'source_type_choices': DataSourceConfig.SOURCE_TYPE_CHOICES,
+        'management_form': form,
+        'management_mode': 'create' if create_mode else 'edit',
+        'selected_source': selected_source,
+        'selected_source_id': selected_source.id if selected_source else None,
+        'selected_card': _build_datasource_card(selected_source) if selected_source else None,
     }
     return render(request, 'datasource/config.html', context)
 

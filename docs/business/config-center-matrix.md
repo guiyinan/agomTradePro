@@ -35,6 +35,7 @@
 - 配置中心本期只负责“发现、摘要、跳转”，不替代原模块编辑页。
 - `account_settings`、`system_settings`、`macro_datasources`、`market_data_providers` 均通过“设置中心”统一进入，再落到各自编辑页/状态页。
 - `macro_datasources` 是“配置页”，`market_data_providers` 是“状态页”；顶部导航与页面文案需要保持这个区分。
+- 2026-04-04 起，`macro_datasources` 提供页内“配置工作台”，支持直接在 `/macro/datasources/` 中编辑当前选中数据源；独立新建/编辑页保留为补充入口。
 - 权限、审计、版本控制仍由原模块负责。
 - 2026-03-23 起，`system_settings` 增加 `market_color_convention`，用于统一控制全站 `rise/fall/inflow/outflow` 的语义颜色映射；基础模板通过全局 CSS token 下发。
 - 自定义系统配置页 `/account/admin/settings/` 与 Django Admin 已同步提供该开关，管理员无需手改 JSON 或模板。

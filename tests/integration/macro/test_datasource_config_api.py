@@ -119,5 +119,86 @@ def test_macro_datasource_page_highlights_tushare_configuration_entry(admin_clie
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "财经数据源配置" in content
+    assert "数据源管理台" in content
     assert "Tushare Token / HTTP URL 就在这里配置" in content
     assert "/market-data/providers/" in content
+
+
+@pytest.mark.django_db
+def test_macro_datasource_page_supports_inline_edit_workbench(admin_client):
+    source = DataSourceConfig.objects.create(
+        name="Tushare Pro",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+        api_key="test-token-123456",
+        http_url="https://proxy.example.com",
+        description="primary proxy",
+    )
+
+    response = admin_client.get(f"/macro/datasources/?edit={source.id}")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "数据源管理台" in content
+    assert "配置工作台" in content
+    assert "保存当前配置" in content
+    assert f"?edit={source.id}" in content
+    assert "完整表单" in content
+
+
+@pytest.mark.django_db
+def test_macro_datasource_page_create_mode_is_a_first_class_state(admin_client):
+    DataSourceConfig.objects.create(
+        name="Existing Source",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+    )
+
+    response = admin_client.get("/macro/datasources/?mode=create")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "当前处于新建模式" in content
+    assert "创建并启用配置" in content
+
+
+@pytest.mark.django_db
+def test_macro_datasource_page_inline_edit_updates_config(admin_client):
+    source = DataSourceConfig.objects.create(
+        name="AKShare",
+        source_type="akshare",
+        is_active=True,
+        priority=2,
+        api_key="",
+        http_url="",
+        api_endpoint="https://old.example.com",
+        api_secret="",
+        extra_config={},
+        description="before update",
+    )
+
+    response = admin_client.post(
+        f"/macro/datasources/?edit={source.id}",
+        data={
+            "name": "AKShare",
+            "source_type": "akshare",
+            "is_active": "on",
+            "priority": 3,
+            "api_endpoint": "https://new.example.com",
+            "http_url": "",
+            "api_key": "",
+            "api_secret": "",
+            "extra_config": "{}",
+            "description": "updated inline",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith(f"/macro/datasources/?edit={source.id}")
+
+    source.refresh_from_db()
+    assert source.priority == 3
+    assert source.api_endpoint == "https://new.example.com"
+    assert source.description == "updated inline"

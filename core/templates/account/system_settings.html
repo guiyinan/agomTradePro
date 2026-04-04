@@ -1,26 +1,27 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}系统设置 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="page-container">
-    <div class="page-header">
-        <div>
-            <h1>系统设置</h1>
-            <p class="text-muted">管理系统全局设置</p>
+<div class="page-container admin-shell admin-shell--narrow">
+    <div class="page-header admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">系统设置</h1>
+            <p class="text-muted admin-shell__subtitle">设置中心工作流：维护系统级参数、页面语义和默认运行约定。</p>
         </div>
-        <div>
-            <a href="{% url 'settings-center' %}" class="btn btn-secondary">
-                返回设置中心
-            </a>
-            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">
-                <i class="icon-users"></i> 返回用户管理
-            </a>
+        <div class="admin-shell__actions">
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary admin-shell__action-link">返回设置中心</a>
         </div>
     </div>
 
-    <div class="entry-banner">
-        <strong>入口说明：</strong> 设置中心是统一入口；当前页面只负责编辑系统级参数。账户设置、数据源配置和状态检查请从设置中心跳转。
+    <div class="entry-banner admin-shell__banner">
+        <strong>入口说明：</strong> 当前页属于“设置中心”的系统配置页；审批、Token、日志、文档等管理员操作请回“管理控制台”处理。不要把配置编辑和管理员值守混在一起。
     </div>
 
     {% if messages %}
@@ -29,7 +30,7 @@
         {% endfor %}
     {% endif %}
 
-    <form method="post" class="settings-form">
+    <form method="post" class="settings-form admin-shell__surface">
         {% csrf_token %}
 
         <!-- 审批配置 -->
@@ -149,12 +150,12 @@
         <!-- 提交按钮 -->
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">保存配置</button>
-            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">取消</a>
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary">取消</a>
         </div>
     </form>
 
     <!-- 预览区域 -->
-    <div class="preview-section">
+    <div class="preview-section admin-shell__surface">
         <h2>协议预览</h2>
         <div class="preview-tabs">
             <button class="tab-button active" onclick="showTab('agreement')">用户协议</button>
@@ -170,32 +171,8 @@
 </div>
 
 <style>
-.page-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 24px;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
 .entry-banner {
     margin-bottom: 20px;
-    padding: 14px 16px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(15,23,42,0.03));
-    border: 1px solid rgba(37,99,235,0.14);
-    color: var(--color-text-primary);
-    line-height: 1.6;
-}
-
-.page-header h1 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
 }
 
 .text-muted {

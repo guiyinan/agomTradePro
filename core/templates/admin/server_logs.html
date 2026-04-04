@@ -1,41 +1,89 @@
-{% extends "admin/base_site.html" %}
+{% extends "base.html" %}
+{% load static %}
 
-{% block title %}服务端日志 | AgomTradePro{% endblock %}
+{% block title %}服务端日志 - AgomTradePro{% endblock %}
 
-{% block extrastyle %}
-{{ block.super }}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
 <style>
-    .log-tools { margin: 12px 0; display: flex; gap: 8px; align-items: center; }
-    .log-box {
+    .server-log-toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .server-log-checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--color-text-secondary);
+        font-size: 14px;
+    }
+
+    .server-log-surface {
+        padding: 18px;
+    }
+
+    .server-log-box {
         background: #10151c;
         color: #d5dee7;
-        padding: 12px;
-        border-radius: 8px;
+        padding: 14px;
+        border-radius: 14px;
         height: 70vh;
         overflow: auto;
         font-family: Consolas, Menlo, Monaco, monospace;
         font-size: 12px;
-        line-height: 1.45;
+        line-height: 1.5;
         white-space: pre-wrap;
         border: 1px solid #2a3645;
     }
-    .muted { color: #6b7280; font-size: 12px; }
-    button { cursor: pointer; }
+
+    .server-log-status {
+        margin-top: 12px;
+        color: var(--color-text-secondary);
+        font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+        .server-log-toolbar .btn {
+            width: 100%;
+            text-align: center;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1>服务端实时日志</h1>
-<p class="muted">仅展示当前进程内缓存日志。默认每 2 秒刷新一次。</p>
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">服务端实时日志</h1>
+            <p class="admin-shell__subtitle">面向管理员的值守页。当前只展示本进程缓存日志，默认每 2 秒轮询一次，适合查看最近运行状态与异常。</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+            <a href="{% url 'admin-server-logs-export' %}" class="btn btn-primary admin-shell__action-link">导出 TXT</a>
+        </div>
+    </div>
 
-<div class="log-tools">
-    <button id="toggle-btn" type="button">暂停刷新</button>
-    <button id="clear-btn" type="button">清空当前视图</button>
-    <label><input id="autoscroll" type="checkbox" checked> 自动滚动到底部</label>
-    <a class="button" href="{% url 'admin-server-logs-export' %}">导出 TXT</a>
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于管理控制台中的运维值守入口；
+        配置修改请回设置中心；
+        底层模型检查仍使用 Django Admin。
+    </div>
+
+    <div class="admin-shell__surface server-log-surface">
+        <div class="server-log-toolbar">
+            <button id="toggle-btn" type="button" class="btn btn-secondary">暂停刷新</button>
+            <button id="clear-btn" type="button" class="btn btn-secondary">清空当前视图</button>
+            <label class="server-log-checkbox"><input id="autoscroll" type="checkbox" checked> 自动滚动到底部</label>
+        </div>
+        <div id="log-box" class="server-log-box" style="margin-top: 14px;"></div>
+        <p id="status" class="server-log-status">连接中...</p>
+    </div>
 </div>
-<div id="log-box" class="log-box"></div>
-<p id="status" class="muted">连接中...</p>
 
 <script>
 (() => {

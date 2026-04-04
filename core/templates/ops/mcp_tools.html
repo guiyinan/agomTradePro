@@ -1,113 +1,271 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}MCP 工具管理 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+<style>
+    .mcp-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    .mcp-stat-card {
+        padding: 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+    }
+
+    .mcp-stat-label {
+        font-size: 12px;
+        color: var(--color-text-secondary);
+    }
+
+    .mcp-stat-value {
+        margin-top: 6px;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--color-text-primary);
+    }
+
+    .mcp-stat-value--time {
+        font-size: 16px;
+    }
+
+    .mcp-filter-form {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .mcp-filter-form input,
+    .mcp-filter-form select {
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 10px 12px;
+        min-height: 42px;
+    }
+
+    .mcp-filter-form input {
+        flex: 1 1 320px;
+        min-width: 280px;
+    }
+
+    .mcp-table-wrap {
+        overflow: auto;
+    }
+
+    .mcp-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .mcp-table thead {
+        background: #f8fafc;
+    }
+
+    .mcp-table th,
+    .mcp-table td {
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .mcp-table thead th {
+        border-top: none;
+    }
+
+    .mcp-tool-name {
+        font-weight: 700;
+    }
+
+    .mcp-tool-key,
+    .mcp-pill {
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .mcp-pill-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+
+    .mcp-pill {
+        background: #f1f5f9;
+        border-radius: 999px;
+        padding: 2px 8px;
+    }
+
+    .mcp-pill--risk {
+        background: #ecfeff;
+    }
+
+    .mcp-schema {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        margin-top: 10px;
+    }
+
+    .mcp-status {
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .mcp-status--on {
+        color: #15803d;
+    }
+
+    .mcp-status--off {
+        color: #b91c1c;
+    }
+
+    .mcp-empty {
+        padding: 24px;
+        color: #64748b;
+    }
+
+    @media (max-width: 900px) {
+        .mcp-filter-form {
+            align-items: stretch;
+        }
+
+        .mcp-filter-form input,
+        .mcp-filter-form select,
+        .mcp-filter-form .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="max-width: 1480px; margin: 0 auto; padding: 24px;">
-    <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom: 20px;">
-        <div>
-            <h1 style="margin:0 0 10px 0;">{{ page_title }}</h1>
-            <p style="color:#64748b; margin:0; max-width:960px;">{{ page_subtitle }}</p>
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">{{ page_title }}</h1>
+            <p class="admin-shell__subtitle">{{ page_subtitle }}</p>
         </div>
-        <form method="post" action="/settings/mcp-tools/sync/">
-            {% csrf_token %}
-            <button type="submit" style="background:#0f766e; color:#fff; border:none; border-radius:10px; padding:12px 18px; font-weight:600; cursor:pointer;">
-                重新同步 MCP 工具
-            </button>
-        </form>
-    </div>
-
-    <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px;">
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">当前列表</div>
-            <div style="font-size:28px; font-weight:700; margin-top:4px;">{{ total_count }}</div>
-        </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">模块前缀</div>
-            <div style="font-size:28px; font-weight:700; margin-top:4px;">{{ module_choices|length }}</div>
-        </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">最近同步</div>
-            <div style="font-size:16px; font-weight:700; margin-top:4px;">{% if latest_sync %}{{ latest_sync.started_at|date:"Y-m-d H:i" }}{% else %}暂无{% endif %}</div>
-        </div>
-        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">最近发现数</div>
-            <div style="font-size:28px; font-weight:700; margin-top:4px;">{% if latest_sync %}{{ latest_sync.total_discovered }}{% else %}0{% endif %}</div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary admin-shell__action-link">返回设置中心</a>
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">管理控制台</a>
+            <form method="post" action="/settings/mcp-tools/sync/">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">重新同步 MCP 工具</button>
+            </form>
         </div>
     </div>
 
-    <form method="get" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px; background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px;">
-        <input type="text" name="q" value="{{ search_query }}" placeholder="搜索 capability_key / name / summary" style="flex:1 1 320px; min-width:280px; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px;">
-        <select name="module" style="border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px;">
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于系统级能力治理与开关配置，归入设置域；
+        用户审批、日志巡检、文档维护请回管理控制台；
+        Django Admin 只保留给底层模型和未产品化能力。
+    </div>
+
+    <div class="mcp-stats-grid">
+        <div class="mcp-stat-card">
+            <div class="mcp-stat-label">当前列表</div>
+            <div class="mcp-stat-value">{{ total_count }}</div>
+        </div>
+        <div class="mcp-stat-card">
+            <div class="mcp-stat-label">模块前缀</div>
+            <div class="mcp-stat-value">{{ module_choices|length }}</div>
+        </div>
+        <div class="mcp-stat-card">
+            <div class="mcp-stat-label">最近同步</div>
+            <div class="mcp-stat-value mcp-stat-value--time">{% if latest_sync %}{{ latest_sync.started_at|date:"Y-m-d H:i" }}{% else %}暂无{% endif %}</div>
+        </div>
+        <div class="mcp-stat-card">
+            <div class="mcp-stat-label">最近发现数</div>
+            <div class="mcp-stat-value">{% if latest_sync %}{{ latest_sync.total_discovered }}{% else %}0{% endif %}</div>
+        </div>
+    </div>
+
+    <form method="get" class="admin-shell__surface admin-shell__surface--compact mcp-filter-form">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="搜索 capability_key / name / summary">
+        <select name="module">
             <option value="">全部模块前缀</option>
             {% for module_name in module_choices %}
             <option value="{{ module_name }}" {% if module_filter == module_name %}selected{% endif %}>{{ module_name }}</option>
             {% endfor %}
         </select>
-        <select name="status" style="border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px;">
+        <select name="status">
             <option value="">全部状态</option>
             <option value="routing_on" {% if status_filter == "routing_on" %}selected{% endif %}>Routing 已启用</option>
             <option value="routing_off" {% if status_filter == "routing_off" %}selected{% endif %}>Routing 已关闭</option>
             <option value="terminal_on" {% if status_filter == "terminal_on" %}selected{% endif %}>Terminal 已启用</option>
             <option value="terminal_off" {% if status_filter == "terminal_off" %}selected{% endif %}>Terminal 已关闭</option>
         </select>
-        <button type="submit" style="background:#0f172a; color:#fff; border:none; border-radius:10px; padding:10px 16px; cursor:pointer;">筛选</button>
+        <button type="submit" class="btn btn-primary">筛选</button>
     </form>
 
-    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden;">
-        <div style="overflow:auto;">
-            <table style="width:100%; border-collapse:collapse;">
-                <thead style="background:#f8fafc;">
+    <div class="admin-shell__surface" style="margin-top: 18px;">
+        <div class="mcp-table-wrap">
+            <table class="mcp-table">
+                <thead>
                     <tr>
-                        <th style="text-align:left; padding:12px;">Tool</th>
-                        <th style="text-align:left; padding:12px;">Summary</th>
-                        <th style="text-align:left; padding:12px;">Schema</th>
-                        <th style="text-align:left; padding:12px;">Routing</th>
-                        <th style="text-align:left; padding:12px;">Terminal</th>
+                        <th>Tool</th>
+                        <th>Summary</th>
+                        <th>Schema</th>
+                        <th>Routing</th>
+                        <th>Terminal</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tool in tools %}
-                    <tr style="border-top:1px solid #e2e8f0; vertical-align:top;">
-                        <td style="padding:12px; min-width:280px;">
-                            <div style="font-weight:700;">{{ tool.name }}</div>
-                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{{ tool.capability_key }}</div>
-                            <div style="font-size:12px; color:#64748b; margin-top:6px;">
-                                <span style="background:#f1f5f9; border-radius:999px; padding:2px 8px;">{{ tool.route_group }}</span>
-                                <span style="background:#ecfeff; border-radius:999px; padding:2px 8px; margin-left:6px;">{{ tool.risk_level }}</span>
+                    <tr>
+                        <td style="min-width:280px;">
+                            <div class="mcp-tool-name">{{ tool.name }}</div>
+                            <div class="mcp-tool-key">{{ tool.capability_key }}</div>
+                            <div class="mcp-pill-row">
+                                <span class="mcp-pill">{{ tool.route_group }}</span>
+                                <span class="mcp-pill mcp-pill--risk">{{ tool.risk_level }}</span>
                             </div>
                         </td>
-                        <td style="padding:12px; min-width:380px;">
+                        <td style="min-width:380px;">
                             <div style="white-space:pre-wrap;">{{ tool.summary|default:"-" }}</div>
                         </td>
-                        <td style="padding:12px; min-width:280px;">
+                        <td style="min-width:280px;">
                             <details>
                                 <summary style="cursor:pointer; color:#0f766e;">查看 input schema</summary>
-                                <pre style="white-space:pre-wrap; word-break:break-word; background:#0f172a; color:#e2e8f0; padding:10px; border-radius:10px; font-size:12px; margin-top:10px;">{{ tool.input_schema|pprint }}</pre>
+                                <pre class="mcp-schema">{{ tool.input_schema|pprint }}</pre>
                             </details>
                         </td>
-                        <td style="padding:12px; min-width:160px;">
-                            <div style="margin-bottom:8px; font-weight:600; color:{% if tool.enabled_for_routing %}#15803d{% else %}#b91c1c{% endif %};">
+                        <td style="min-width:160px;">
+                            <div class="mcp-status {% if tool.enabled_for_routing %}mcp-status--on{% else %}mcp-status--off{% endif %}">
                                 {% if tool.enabled_for_routing %}已启用{% else %}已关闭{% endif %}
                             </div>
                             <form method="post" action="/settings/mcp-tools/{{ tool.capability_key }}/toggle/enabled_for_routing/">
                                 {% csrf_token %}
-                                <button type="submit" style="border:1px solid #cbd5e1; border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer;">切换 Routing</button>
+                                <button type="submit" class="btn btn-secondary">切换 Routing</button>
                             </form>
                         </td>
-                        <td style="padding:12px; min-width:160px;">
-                            <div style="margin-bottom:8px; font-weight:600; color:{% if tool.enabled_for_terminal %}#15803d{% else %}#b91c1c{% endif %};">
+                        <td style="min-width:160px;">
+                            <div class="mcp-status {% if tool.enabled_for_terminal %}mcp-status--on{% else %}mcp-status--off{% endif %}">
                                 {% if tool.enabled_for_terminal %}已启用{% else %}已关闭{% endif %}
                             </div>
                             <form method="post" action="/settings/mcp-tools/{{ tool.capability_key }}/toggle/enabled_for_terminal/">
                                 {% csrf_token %}
-                                <button type="submit" style="border:1px solid #cbd5e1; border-radius:10px; padding:8px 12px; background:#fff; cursor:pointer;">切换 Terminal</button>
+                                <button type="submit" class="btn btn-secondary">切换 Terminal</button>
                             </form>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" style="padding:24px; color:#64748b;">没有匹配的 MCP 工具。</td>
+                        <td colspan="5" class="mcp-empty">没有匹配的 MCP 工具。</td>
                     </tr>
                     {% endfor %}
                 </tbody>

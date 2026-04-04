@@ -70,6 +70,8 @@ def test_mcp_tools_page_renders_for_admin(client, admin_user, mcp_tool):
     content = response.content.decode("utf-8")
     assert "MCP 工具管理" in content
     assert "list_signals" in content
+    assert "返回设置中心" in content
+    assert "当前页属于系统级能力治理与开关配置" in content
 
 
 @pytest.mark.django_db

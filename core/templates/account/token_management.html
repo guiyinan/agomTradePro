@@ -1,17 +1,27 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Token管理 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="page-container">
-    <div class="page-header">
-        <div>
-            <h1>MCP/SDK Token 管理</h1>
-            <p class="text-muted">支持每用户多 Token，自助配置 Token，并由管理员控制 MCP 开关</p>
+<div class="page-container admin-shell admin-shell--wide">
+    <div class="page-header admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">MCP/SDK Token 管理</h1>
+            <p class="text-muted admin-shell__subtitle">管理员工作流：控制访问令牌生命周期，决定谁可以使用 MCP / SDK。</p>
         </div>
-        <div>
-            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">返回用户管理</a>
+        <div class="admin-shell__actions">
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+            <a href="{% url 'account:user_management' %}" class="btn btn-primary admin-shell__action-link">用户管理</a>
         </div>
+    </div>
+
+    <div class="entry-banner admin-shell__banner">
+        <strong>入口说明：</strong> 管理控制台是管理员统一入口；当前页面只负责 Token 与 MCP 开关。审批、系统参数、日志与文档管理请回管理控制台切换。
     </div>
 
     {% if new_token_payload %}
@@ -55,7 +65,7 @@
         </div>
     </div>
 
-    <div class="filter-bar">
+    <div class="filter-bar admin-shell__surface admin-shell__surface--compact">
         <form method="get" class="filter-form">
             <div class="filter-group">
                 <label>搜索:</label>
@@ -70,7 +80,7 @@
         </form>
     </div>
 
-    <div class="table-container">
+    <div class="table-container admin-shell__surface">
         <table class="data-table">
             <thead>
                 <tr>
@@ -161,11 +171,11 @@
 </div>
 
 <style>
-.page-container { max-width: 1500px; margin: 0 auto; padding: 24px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.page-header h1 { margin: 0 0 8px 0; font-size: 24px; }
 .text-muted { color: var(--color-text-secondary); }
 .text-center { text-align: center; }
+.entry-banner {
+    margin-bottom: 20px;
+}
 .alert { padding: 12px 16px; margin-bottom: 16px; border-radius: var(--radius-sm); font-size: 14px; }
 .alert-success { background: #D5FBDD; color: #14866D; border: 1px solid #9FE5B8; }
 .alert-error { background: #FEE7E7; color: #D33; border: 1px solid #F8B4B4; }
@@ -205,7 +215,7 @@
 .create-token-form { display: flex; gap: 8px; align-items: center; }
 .inline-form { margin-top: 10px; }
 @media (max-width: 960px) {
-    .create-token-form, .token-item, .page-header { flex-direction: column; align-items: stretch; }
+    .create-token-form, .token-item { flex-direction: column; align-items: stretch; }
 }
 </style>
 

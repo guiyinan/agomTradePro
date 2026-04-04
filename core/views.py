@@ -6,7 +6,7 @@ Core Views for AgomTradePro
 
 from datetime import UTC, date, datetime, timezone
 
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.shortcuts import render
 
@@ -463,3 +463,74 @@ def settings_center_view(request):
     context["page_subtitle"] = "统一入口：账户设置、系统设置、数据源与策略参数。"
     context["matrix_doc_path"] = "docs/business/config-center-matrix.md"
     return render(request, "ops/center.html", context)
+
+
+@user_passes_test(lambda user: user.is_superuser, login_url="/account/login/")
+def admin_console_view(request):
+    """Unified admin operations console for superusers."""
+    from django.contrib.auth.models import User
+
+    from apps.account.infrastructure.models import (
+        AccountProfileModel,
+        DocumentationModel,
+        UserAccessTokenModel,
+    )
+
+    sections = [
+        {
+            "title": "管理员与访问控制",
+            "items": [
+                {
+                    "name": "用户管理",
+                    "description": "审批新用户、调整角色、重置状态。",
+                    "summary": f"待审批 {AccountProfileModel._default_manager.filter(approval_status='pending').count()} 人",
+                    "url": "/account/admin/users/",
+                },
+                {
+                    "name": "Token 管理",
+                    "description": "轮换、吊销和核查 MCP/SDK 访问令牌。",
+                    "summary": f"活跃 Token {UserAccessTokenModel._default_manager.filter(is_active=True).count()} 个",
+                    "url": "/account/admin/tokens/",
+                },
+                {
+                    "name": "系统设置",
+                    "description": "维护审批策略、默认 MCP 和全站视觉约定。",
+                    "summary": "系统级参数编辑页",
+                    "url": "/account/admin/settings/",
+                },
+            ],
+        },
+        {
+            "title": "运维与内容",
+            "items": [
+                {
+                    "name": "服务器日志",
+                    "description": "查看实时日志流并导出当前缓冲日志。",
+                    "summary": "排障与值守入口",
+                    "url": "/admin/server-logs/",
+                },
+                {
+                    "name": "文档管理",
+                    "description": "管理系统内建文档、草稿和导入导出。",
+                    "summary": f"草稿 {DocumentationModel._default_manager.filter(is_published=False).count()} 篇 / 总计 {DocumentationModel._default_manager.count()} 篇",
+                    "url": "/admin/docs/manage/",
+                },
+                {
+                    "name": "Django Admin",
+                    "description": "进入底层模型后台，处理仍未产品化的管理项。",
+                    "summary": f"用户总数 {User.objects.count()}",
+                    "url": "/admin/",
+                },
+            ],
+        },
+    ]
+
+    return render(
+        request,
+        "ops/admin_console.html",
+        {
+            "page_title": "管理控制台",
+            "page_subtitle": "管理员日常操作入口：用户、Token、日志、文档与底层后台。",
+            "sections": sections,
+        },
+    )

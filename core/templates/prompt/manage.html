@@ -1,17 +1,37 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Prompt 模板管理 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
 {% block content %}
 {% include "components/json_assistant_assets.html" %}
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">Prompt 模板管理</h1>
+            <p class="admin-shell__subtitle">系统级 Prompt 与链式执行配置页，用于维护模板、编排链路、查看执行日志并完成测试执行。</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary admin-shell__action-link">返回设置中心</a>
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">管理控制台</a>
+        </div>
+    </div>
+
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于系统级 AI 模板与执行配置入口，归入设置域；
+        这里只管模板、链和执行测试；
+        账号、日志值守、文档等管理员动作请回管理控制台。
+    </div>
+
 <div class="prompt-manage-page">
     <!-- 页面头部 -->
     <div class="page-header">
         <div class="header-content">
-            <div>
-                <h1>Prompt 模板管理</h1>
-                <p class="subtitle">AI 提示词模板与链式执行配置</p>
-            </div>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="showCreateModal()">
                     <span class="btn-icon">+</span> 新建模板
@@ -193,6 +213,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <!-- 模板编辑弹窗 -->

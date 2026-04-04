@@ -4,6 +4,7 @@
 {% block title %}账户分享管理 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
 <link rel="stylesheet" href="{% static 'css/share.css' %}">
 <style>
 .share-manage-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
@@ -57,22 +58,30 @@
 {% endblock %}
 
 {% block content %}
-<div class="share-manage-container">
-    <div class="share-manage-header">
-        <div>
-            <h1>账户分享管理</h1>
-            <p class="muted">创建公开围观链接，管理已有分享链接。</p>
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">账户分享管理</h1>
+            <p class="admin-shell__subtitle">账户与执行工作流中的分享运营页，用于创建公开围观链接、配置页面风格并管理已有分享链接。</p>
         </div>
-        <div class="share-link-actions">
+        <div class="admin-shell__actions">
             {% if request.user.is_staff %}
-            <a href="{% url 'share:manage_disclaimer' %}" class="btn btn-secondary">风险提示配置</a>
+            <a href="{% url 'share:manage_disclaimer' %}" class="btn btn-secondary admin-shell__action-link">风险提示配置</a>
             {% endif %}
-            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">返回我的账户</a>
+            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary admin-shell__action-link">返回我的账户</a>
         </div>
     </div>
 
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于账户分享与传播运营页；
+        风险提示文案由管理员在专门配置页统一维护；
+        系统级设置请回设置中心。
+    </div>
+
+<div class="share-manage-container">
     <div class="share-manage-grid">
-        <section class="share-panel" id="share-editor">
+        <section class="share-panel admin-shell__surface" id="share-editor">
             <h2 style="margin-bottom:16px;">{% if edit_share_link %}编辑分享链接{% else %}创建分享链接{% endif %}</h2>
             {% if edit_share_link %}
             <div class="edit-state-banner">
@@ -210,7 +219,7 @@
             </form>
         </section>
 
-        <section class="share-panel">
+        <section class="share-panel admin-shell__surface">
             <h2 style="margin-bottom:16px;">我的分享链接</h2>
             <div class="share-links-list">
                 {% for link in share_links %}
@@ -261,6 +270,7 @@
             </div>
         </section>
     </div>
+</div>
 </div>
 {% endblock %}
 

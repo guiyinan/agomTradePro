@@ -3,435 +3,406 @@
 
 {% block title %}{% if doc %}编辑文档{% else %}新建文档{% endif %} - AgomTradePro{% endblock %}
 
-{% block content %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
 <style>
-.admin-edit-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 24px;
-}
+    .admin-edit-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
 
-.edit-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #E0E0E0;
-}
+    .docs-edit-breadcrumb {
+        font-size: 13px;
+        color: var(--color-text-secondary);
+    }
 
-.edit-header h1 {
-    font-size: 24px;
-    font-weight: 600;
-}
+    .docs-edit-breadcrumb a {
+        color: var(--color-primary);
+        text-decoration: none;
+    }
 
-.breadcrumb a {
-    color: #36C;
-    text-decoration: none;
-}
+    .docs-edit-layout {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 24px;
+    }
 
-.breadcrumb a:hover {
-    text-decoration: underline;
-}
+    .docs-edit-main,
+    .docs-edit-sidebar {
+        padding: 24px;
+    }
 
-.edit-layout {
-    display: grid;
-    grid-template-columns: 1fr 300px;
-    gap: 24px;
-}
+    .docs-edit-main {
+        min-width: 0;
+    }
 
-.edit-main {
-    background: white;
-    border: 1px solid #E0E0E0;
-    border-radius: 8px;
-    padding: 24px;
-}
+    .docs-edit-sidebar {
+        height: fit-content;
+    }
 
-.edit-sidebar {
-    background: white;
-    border: 1px solid #E0E0E0;
-    border-radius: 8px;
-    padding: 24px;
-    height: fit-content;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-}
-
-.form-label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #202122;
-}
-
-.form-label .required {
-    color: #dc3545;
-}
-
-.form-input,
-.form-select,
-.form-textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #E0E0E0;
-    border-radius: 6px;
-    font-size: 14px;
-    box-sizing: border-box;
-    font-family: inherit;
-}
-
-.form-input:focus,
-.form-select:focus,
-.form-textarea:focus {
-    outline: none;
-    border-color: #36C;
-    box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
-}
-
-.form-textarea {
-    min-height: 400px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    line-height: 1.6;
-    resize: vertical;
-}
-
-.form-help {
-    font-size: 12px;
-    color: #72777D;
-    margin-top: 4px;
-}
-
-.checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.checkbox-group input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-}
-
-.preview-box {
-    margin-top: 16px;
-    padding: 16px;
-    background: #F8F9FA;
-    border-radius: 6px;
-    border: 1px solid #E0E0E0;
-}
-
-.preview-label {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    color: #54595D;
-}
-
-.btn {
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.btn-primary {
-    background: #36C;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #2a5aa8;
-}
-
-.btn-secondary {
-    background: #F8F9FA;
-    border: 1px solid #E0E0E0;
-    color: #202122;
-}
-
-.btn-secondary:hover {
-    background: #E0E0E0;
-}
-
-.btn-danger {
-    background: #dc3545;
-    color: white;
-}
-
-.btn-danger:hover {
-    background: #c82333;
-}
-
-.btn-group {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-}
-
-.markdown-toolbar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-
-.markdown-btn {
-    padding: 6px 10px;
-    background: #F8F9FA;
-    border: 1px solid #E0E0E0;
-    border-radius: 4px;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: monospace;
-}
-
-.markdown-btn:hover {
-    background: #E0E0E0;
-}
-
-@media (max-width: 900px) {
-    .edit-layout {
-        grid-template-columns: 1fr;
+    .form-group {
+        margin-bottom: 20px;
     }
 
     .form-row {
-        grid-template-columns: 1fr;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
     }
-}
+
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #202122;
+    }
+
+    .form-label .required {
+        color: #dc3545;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #E0E0E0;
+        border-radius: 8px;
+        font-size: 14px;
+        box-sizing: border-box;
+        font-family: inherit;
+        background: white;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        outline: none;
+        border-color: #36C;
+        box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 400px;
+        font-family: Consolas, Monaco, monospace;
+        line-height: 1.6;
+        resize: vertical;
+    }
+
+    .form-help {
+        font-size: 12px;
+        color: #72777D;
+        margin-top: 4px;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+
+    .preview-box {
+        margin-top: 16px;
+        padding: 16px;
+        background: #F8F9FA;
+        border-radius: 10px;
+        border: 1px solid #E0E0E0;
+    }
+
+    .preview-label {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #54595D;
+    }
+
+    .docs-edit-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        flex-wrap: wrap;
+    }
+
+    .markdown-toolbar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
+
+    .markdown-btn {
+        padding: 6px 10px;
+        background: #F8F9FA;
+        border: 1px solid #E0E0E0;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        font-family: monospace;
+    }
+
+    .markdown-btn:hover {
+        background: #E0E0E0;
+    }
+
+    .docs-edit-tip {
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid #E0E0E0;
+    }
+
+    #previewModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #previewModal.active {
+        display: flex;
+    }
+
+    #previewModal .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    #previewModal .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    #previewModal .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    #previewModal .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #72777D;
+    }
+
+    #previewModal .modal-body {
+        line-height: 1.7;
+    }
+
+    #previewContent h1 { font-size: 28px; margin-bottom: 16px; border-bottom: 1px solid #E0E0E0; padding-bottom: 8px; }
+    #previewContent h2 { font-size: 24px; margin: 20px 0 12px; border-bottom: 1px solid #E8E8E8; padding-bottom: 6px; }
+    #previewContent h3 { font-size: 20px; margin: 16px 0 10px; }
+    #previewContent p { margin-bottom: 16px; }
+    #previewContent code { background: #F8F9FA; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+    #previewContent pre { background: #F8F9FA; padding: 12px; border-radius: 4px; overflow-x: auto; margin-bottom: 16px; }
+    #previewContent pre code { background: none; padding: 0; }
+    #previewContent blockquote { border-left: 4px solid #36C; padding-left: 16px; margin: 16px 0; color: #54595D; }
+    #previewContent ul, #previewContent ol { padding-left: 24px; margin-bottom: 16px; }
+    #previewContent a { color: #36C; }
+    #previewContent table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    #previewContent th, #previewContent td { border: 1px solid #E0E0E0; padding: 8px 12px; }
+    #previewContent th { background: #F8F9FA; }
+
+    @media (max-width: 960px) {
+        .docs-edit-layout,
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
+{% endblock %}
 
-<div class="admin-edit-container">
-    <div class="edit-header">
-        <div>
-            <h1>{% if doc %}编辑文档{% else %}新建文档{% endif %}</h1>
-            <div class="breadcrumb">
-                <a href="/admin/docs/manage/">文档管理</a>
-                <span> / </span>
-                <span>{% if doc %}{{ doc.title }}{% else %}新建{% endif %}</span>
+{% block content %}
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-edit-container">
+        <div class="admin-shell__hero">
+            <div class="admin-shell__lead">
+                <h1 class="admin-shell__title">{% if doc %}编辑文档{% else %}新建文档{% endif %}</h1>
+                <p class="admin-shell__subtitle">管理控制台下的内容编辑页，用于维护站内文档内容、分类、发布状态和展示顺序。</p>
+                <div class="docs-edit-breadcrumb">
+                    <a href="{% url 'admin-docs-manage' %}">文档管理</a>
+                    <span> / </span>
+                    <span>{% if doc %}{{ doc.title }}{% else %}新建{% endif %}</span>
+                </div>
+            </div>
+            <div class="admin-shell__actions">
+                <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+                <a href="{% url 'admin-docs-manage' %}" class="btn btn-secondary admin-shell__action-link">返回文档管理</a>
             </div>
         </div>
-    </div>
 
-    <form method="POST">
-        {% csrf_token %}
+        <div class="admin-shell__banner">
+            <strong>入口说明：</strong>
+            当前页属于管理控制台中的内容编辑入口；
+            内容运营与发布检查在文档管理页完成；
+            系统配置请回设置中心。
+        </div>
 
-        <div class="edit-layout">
-            <div class="edit-main">
-                <div class="form-group">
-                    <label class="form-label">
-                        标题 <span class="required">*</span>
-                    </label>
-                    <input type="text" class="form-input" name="title" value="{% if doc %}{{ doc.title }}{% endif %}" required placeholder="输入文档标题">
-                </div>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}" style="margin-bottom: 16px;">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
 
-                <div class="form-row">
+        <form method="POST" id="docEditForm">
+            {% csrf_token %}
+
+            <div class="docs-edit-layout">
+                <div class="docs-edit-main admin-shell__surface">
                     <div class="form-group">
                         <label class="form-label">
-                            Slug <span class="required">*</span>
+                            标题 <span class="required">*</span>
                         </label>
-                        <input type="text" class="form-input" name="slug" value="{% if doc %}{{ doc.slug }}{% endif %}" required pattern="[a-z0-9-]+" placeholder="url-friendly-name">
-                        <div class="form-help">只能包含小写字母、数字和连字符</div>
+                        <input type="text" class="form-input" name="title" value="{% if doc %}{{ doc.title }}{% endif %}" required placeholder="输入文档标题">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Slug <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="slug" value="{% if doc %}{{ doc.slug }}{% endif %}" required pattern="[a-z0-9-]+" placeholder="url-friendly-name">
+                            <div class="form-help">只能包含小写字母、数字和连字符</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                排序
+                            </label>
+                            <input type="number" class="form-input" name="order" value="{% if doc %}{{ doc.order }}{% else %}0{% endif %}" placeholder="0">
+                            <div class="form-help">数字越小越靠前</div>
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">
-                            排序
+                            摘要
                         </label>
-                        <input type="number" class="form-input" name="order" value="{% if doc %}{{ doc.order }}{% else %}0{% endif %}" placeholder="0">
-                        <div class="form-help">数字越小越靠前</div>
+                        <textarea class="form-textarea" name="summary" rows="2" placeholder="简短描述文档内容（可选）">{% if doc %}{{ doc.summary }}{% endif %}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            内容（Markdown）<span class="required">*</span>
+                        </label>
+
+                        <div class="markdown-toolbar">
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('**', '**')">粗体</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('*', '*')">斜体</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('# ', '')">标题</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('[', '](url)')">链接</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('`', '`')">代码</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('\n```\n', '\n```\n')">代码块</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('- ', '')">列表</button>
+                            <button type="button" class="markdown-btn" onclick="insertMarkdown('> ', '')">引用</button>
+                        </div>
+
+                        <textarea class="form-textarea" name="content" id="contentEditor" required placeholder="在此输入 Markdown 内容...">{% if doc %}{{ doc.content }}{% endif %}</textarea>
+                    </div>
+
+                    <div class="docs-edit-actions">
+                        <button type="submit" class="btn btn-primary">保存文档</button>
+                        <button type="button" class="btn btn-secondary" onclick="previewMarkdown()">预览效果</button>
+                        <a href="{% url 'admin-docs-manage' %}" class="btn btn-secondary">取消</a>
+                        {% if doc %}
+                        <button type="submit" form="deleteDocForm" class="btn btn-danger" onclick="return confirm('确认删除此文档？');">删除</button>
+                        {% endif %}
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">
-                        摘要
-                    </label>
-                    <textarea class="form-textarea" name="summary" rows="2" placeholder="简短描述文档内容（可选）">{% if doc %}{{ doc.summary }}{% endif %}</textarea>
-                </div>
+                <aside class="docs-edit-sidebar admin-shell__surface">
+                    <h3 style="font-size: 16px; margin-bottom: 16px;">文档设置</h3>
 
-                <div class="form-group">
-                    <label class="form-label">
-                        内容（Markdown）<span class="required">*</span>
-                    </label>
-
-                    <div class="markdown-toolbar">
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('**', '**')">粗体</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('*', '*')">斜体</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('# ', '')">标题</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('[', '](url)')">链接</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('`', '`')">代码</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('\n```\n', '\n```\n')">代码块</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('- ', '')">列表</button>
-                        <button type="button" class="markdown-btn" onclick="insertMarkdown('> ', '')">引用</button>
+                    <div class="form-group">
+                        <label class="form-label">
+                            分类
+                        </label>
+                        <select class="form-select" name="category" form="docEditForm">
+                            {% for cat_code, cat_name in category_choices %}
+                            <option value="{{ cat_code }}" {% if doc and doc.category == cat_code %}selected{% endif %}>{{ cat_name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <textarea class="form-textarea" name="content" id="contentEditor" required placeholder="在此输入 Markdown 内容...">{% if doc %}{{ doc.content }}{% endif %}</textarea>
-                </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" name="is_published" id="is_published" form="docEditForm" {% if doc and doc.is_published or not doc %}checked{% endif %}>
+                            <label for="is_published" class="form-label" style="margin: 0;">
+                                立即发布
+                            </label>
+                        </div>
+                        <div class="form-help">取消勾选将保存为草稿</div>
+                    </div>
 
-                <div class="btn-group">
-                    <button type="submit" class="btn btn-primary">保存文档</button>
-                    <button type="button" class="btn btn-secondary" onclick="previewMarkdown()">预览效果</button>
-                    <a href="/admin/docs/manage/" class="btn btn-secondary">取消</a>
                     {% if doc %}
-                    <form method="POST" action="/admin/docs/delete/{{ doc.id }}/" onsubmit="return confirm('确认删除此文档？');" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger">删除</button>
-                    </form>
+                    <div class="preview-box">
+                        <div class="preview-label">文档信息</div>
+                        <div style="font-size: 13px; color: #54595D; line-height: 1.6;">
+                            <div>创建时间: {{ doc.created_at|date:"Y-m-d H:i" }}</div>
+                            <div>更新时间: {{ doc.updated_at|date:"Y-m-d H:i" }}</div>
+                            <div>当前状态: {% if doc.is_published %}已发布{% else %}草稿{% endif %}</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px;">
+                        <a href="/docs/{{ doc.slug }}/" target="_blank" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                            查看文档 →
+                        </a>
+                    </div>
                     {% endif %}
-                </div>
+
+                    <div class="docs-edit-tip">
+                        <h4 style="font-size: 14px; margin-bottom: 12px;">Markdown 语法提示</h4>
+                        <div style="font-size: 12px; color: #72777D; line-height: 1.8;">
+                            # 一级标题<br>
+                            ## 二级标题<br>
+                            **粗体** 或 __粗体__<br>
+                            *斜体* 或 _斜体_<br>
+                            [链接文本](url)<br>
+                            `行内代码`<br>
+                            ```代码块```<br>
+                            > 引用文本
+                        </div>
+                    </div>
+                </aside>
             </div>
+        </form>
 
-            <div class="edit-sidebar">
-                <h3 style="font-size: 16px; margin-bottom: 16px;">文档设置</h3>
-
-                <div class="form-group">
-                    <label class="form-label">
-                        分类
-                    </label>
-                    <select class="form-select" name="category">
-                        {% for cat_code, cat_name in category_choices %}
-                        <option value="{{ cat_code }}" {% if doc and doc.category == cat_code %}selected{% endif %}>{{ cat_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" name="is_published" id="is_published" {% if doc and doc.is_published or not doc %}checked{% endif %}>
-                        <label for="is_published" class="form-label" style="margin: 0;">
-                            立即发布
-                        </label>
-                    </div>
-                    <div class="form-help">取消勾选将保存为草稿</div>
-                </div>
-
-                {% if doc %}
-                <div class="preview-box">
-                    <div class="preview-label">文档信息</div>
-                    <div style="font-size: 13px; color: #54595D; line-height: 1.6;">
-                        <div>创建时间: {{ doc.created_at|date:"Y-m-d H:i" }}</div>
-                        <div>更新时间: {{ doc.updated_at|date:"Y-m-d H:i" }}</div>
-                        <div>当前状态: {% if doc.is_published %}已发布{% else %}草稿{% endif %}</div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 16px;">
-                    <a href="/docs/{{ doc.slug }}/" target="_blank" class="btn btn-secondary" style="width: 100%; justify-content: center;">
-                        查看文档 →
-                    </a>
-                </div>
-                {% endif %}
-
-                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #E0E0E0;">
-                    <h4 style="font-size: 14px; margin-bottom: 12px;">Markdown 语法提示</h4>
-                    <div style="font-size: 12px; color: #72777D; line-height: 1.8;">
-                        # 一级标题<br>
-                        ## 二级标题<br>
-                        **粗体** 或 __粗体__<br>
-                        *斜体* 或 _斜体_<br>
-                        [链接文本](url)<br>
-                        `行内代码`<br>
-                        ```代码块```<br>
-                        > 引用文本
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
+        {% if doc %}
+        <form method="POST" id="deleteDocForm" action="{% url 'admin-docs-delete' doc.id %}">
+            {% csrf_token %}
+        </form>
+        {% endif %}
+    </div>
 </div>
 
-<!-- 预览模态框 -->
 <div id="previewModal" class="modal">
-    <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+    <div class="modal-content">
         <div class="modal-header">
             <h3 class="modal-title">预览</h3>
             <button class="modal-close" onclick="closePreviewModal()">&times;</button>
         </div>
-        <div class="modal-body" id="previewContent">
-            <!-- 预览内容将在这里显示 -->
-        </div>
+        <div class="modal-body" id="previewContent"></div>
     </div>
 </div>
-
-<style>
-#previewModal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-}
-
-#previewModal.active {
-    display: flex;
-}
-
-#previewModal .modal-content {
-    background: white;
-    border-radius: 8px;
-    padding: 24px;
-    width: 90%;
-}
-
-#previewModal .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-#previewModal .modal-title {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-#previewModal .modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #72777D;
-}
-
-#previewModal .modal-body {
-    line-height: 1.7;
-}
-
-/* Markdown 预览样式 */
-#previewContent h1 { font-size: 28px; margin-bottom: 16px; border-bottom: 1px solid #E0E0E0; padding-bottom: 8px; }
-#previewContent h2 { font-size: 24px; margin: 20px 0 12px; border-bottom: 1px solid #E8E8E8; padding-bottom: 6px; }
-#previewContent h3 { font-size: 20px; margin: 16px 0 10px; }
-#previewContent p { margin-bottom: 16px; }
-#previewContent code { background: #F8F9FA; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
-#previewContent pre { background: #F8F9FA; padding: 12px; border-radius: 4px; overflow-x: auto; margin-bottom: 16px; }
-#previewContent pre code { background: none; padding: 0; }
-#previewContent blockquote { border-left: 4px solid #36C; padding-left: 16px; margin: 16px 0; color: #54595D; }
-#previewContent ul, #previewContent ol { padding-left: 24px; margin-bottom: 16px; }
-#previewContent a { color: #36C; }
-#previewContent table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-#previewContent th, #previewContent td { border: 1px solid #E0E0E0; padding: 8px 12px; }
-#previewContent th { background: #F8F9FA; }
-</style>
 
 <script src="{% static 'vendor/marked/marked.min.js' %}"></script>
 <script>
@@ -444,8 +415,6 @@ function insertMarkdown(before, after) {
 
     const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
     textarea.value = newText;
-
-    // 恢复焦点
     textarea.focus();
     textarea.setSelectionRange(start + before.length, end + before.length);
 }
@@ -454,7 +423,6 @@ function previewMarkdown() {
     const content = document.getElementById('contentEditor').value;
     const previewContent = document.getElementById('previewContent');
 
-    // 配置 marked
     marked.setOptions({
         breaks: true,
         gfm: true,
@@ -470,7 +438,6 @@ function closePreviewModal() {
     document.getElementById('previewModal').classList.remove('active');
 }
 
-// ESC 键关闭预览
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closePreviewModal();

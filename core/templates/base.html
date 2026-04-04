@@ -190,11 +190,8 @@
                 <div class="dropdown">
                     <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">系统</button>
                     <div class="dropdown-menu">
-                        <a href="{% url 'docs' %}" class="dropdown-item">文档中心</a>
-                        <a href="/api/docs/" class="dropdown-item">API 文档</a>
                         {% if user.is_staff %}
-                        <div class="dropdown-divider"></div>
-                        <div class="dropdown-section-title">设置总览</div>
+                        <div class="dropdown-section-title">设置与配置</div>
                         <a href="{% url 'settings-center' %}" class="dropdown-item">设置中心</a>
                         {% if user.is_superuser %}
                         <a href="{% url 'account:system_settings' %}" class="dropdown-item">系统设置</a>
@@ -210,7 +207,11 @@
                         <a href="{% url 'audit:reports' %}" class="dropdown-item">审计归因报告</a>
                         <a href="{% url 'audit:indicator_performance' %}" class="dropdown-item">指标表现校验</a>
                         <a href="{% url 'audit:threshold_validation' %}" class="dropdown-item">阈值验证</a>
+                        <div class="dropdown-divider"></div>
                         {% endif %}
+                        <div class="dropdown-section-title">文档与接口</div>
+                        <a href="{% url 'docs' %}" class="dropdown-item">文档中心</a>
+                        <a href="/api/docs/" class="dropdown-item">API 文档</a>
                     </div>
                 </div>
 
@@ -233,8 +234,15 @@
                 <div class="dropdown">
                     <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">管理后台</button>
                     <div class="dropdown-menu">
+                        <a href="{% url 'admin-console' %}" class="dropdown-item">管理控制台</a>
+                        <div class="dropdown-divider"></div>
                         <a href="{% url 'account:user_management' %}" class="dropdown-item">用户管理</a>
                         <a href="{% url 'account:token_management' %}" class="dropdown-item">Token管理</a>
+                        <a href="{% url 'account:system_settings' %}" class="dropdown-item">系统设置</a>
+                        <a href="{% url 'admin-server-logs' %}" class="dropdown-item">服务器日志</a>
+                        <a href="{% url 'admin-docs-manage' %}" class="dropdown-item">文档管理</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/admin/" class="dropdown-item">Django Admin</a>
                     </div>
                 </div>
                 {% endif %}
@@ -261,9 +269,6 @@
                 {% else %}
                 <a href="{% url 'account:login' %}" class="btn btn-primary">登录</a>
                 <a href="{% url 'account:register' %}" class="btn btn-secondary">注册</a>
-                {% endif %}
-                {% if user.is_staff %}
-                <a href="{% url 'admin-docs-manage' %}" class="top-nav-item">文档管理</a>
                 {% endif %}
             </div>
         </div>

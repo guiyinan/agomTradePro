@@ -87,6 +87,12 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 - `/dashboard/`：新入口（启用开关后跳转 Streamlit）
 - `/dashboard/__internal/legacy/`：Django 旧版内部调试入口（仅开发环境）
 
+### 后台入口模型
+
+- `/settings/`：设置中心，统一承接配置类入口
+- `/admin-console/`：管理控制台，统一承接管理员日常操作与运维入口
+- `/admin/`：Django Admin，仅保留给底层模型和未产品化功能
+
 ### Celery 命令
 
 ```bash
@@ -350,6 +356,16 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | 页面 | 说明 |
 |------|------|
 | `/settings/` | Settings Center（替代高频 Admin 入口） |
+| `/admin-console/` | 管理控制台（用户 / Token / 日志 / 文档 / Django Admin 统一入口） |
+| `/settings/mcp-tools/` | MCP 工具治理页（设置域下的系统级能力开关与同步入口） |
+| `/ai/` | AI Provider 配置页（设置域下的 AI 提供商与预算治理入口） |
+| `/prompt/manage/` | Prompt 模板管理页（设置域下的模板 / 链 / 执行测试入口） |
+| `/admin/server-logs/` | 服务端日志值守页（管理控制台运维入口） |
+| `/admin/docs/manage/` | 文档管理页（管理控制台内容运维入口） |
+| `/admin/docs/edit/` | 文档编辑页（管理控制台内容编辑入口） |
+| `/policy/rss/sources/` | RSS 源运维页（政策摄入链路配置入口） |
+| `/share/manage/` | 账户分享运营页（账户与执行链路中的分享管理入口） |
+| `/share/manage/disclaimer/` | 分享页风险提示配置（公开分享链路的系统文案入口） |
 | `/policy/events/new/` | 新增政策事件 |
 | `/policy/rss/sources/new/` | 新增 RSS 源 |
 | `/policy/rss/keywords/new/` | 新增关键词规则 |

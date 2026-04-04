@@ -121,7 +121,9 @@ def test_share_manage_page_requires_login_and_renders(client, test_user):
     response = client.get("/share/manage/")
 
     assert response.status_code == 200
-    assert "账户分享管理" in response.content.decode("utf-8")
+    content = response.content.decode("utf-8")
+    assert "账户分享管理" in content
+    assert "账户与执行工作流中的分享运营页" in content
 
 
 @pytest.mark.django_db
@@ -157,6 +159,21 @@ def test_share_disclaimer_manage_page_updates_config(client, test_user, share_di
     assert share_disclaimer_config.modal_title == "新的风险提示标题"
     assert share_disclaimer_config.modal_confirm_text == "继续查看"
     assert share_disclaimer_config.lines == ["第一条", "第二条", "第三条"]
+
+
+@pytest.mark.django_db
+def test_share_disclaimer_manage_page_uses_settings_language(client, test_user, share_disclaimer_config):
+    test_user.is_staff = True
+    test_user.save(update_fields=["is_staff"])
+    client.force_login(test_user)
+
+    response = client.get("/share/manage/disclaimer/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "分享页风险提示配置" in content
+    assert "返回设置中心" in content
+    assert "当前页属于公开分享链路的系统文案配置入口" in content
 
 
 @pytest.mark.django_db

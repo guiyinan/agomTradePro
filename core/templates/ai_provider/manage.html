@@ -1,12 +1,31 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}AI接口管理 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <h1>AI接口管理</h1>
-    <p class="subtitle">管理AI API提供商配置，追踪使用统计和成本</p>
-</div>
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">AI接口管理</h1>
+            <p class="admin-shell__subtitle">系统级 AI 提供商配置页，用于维护 Provider、预算、默认模型与调用治理视图。</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary admin-shell__action-link">返回设置中心</a>
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">管理控制台</a>
+        </div>
+    </div>
+
+    <div class="admin-shell__banner">
+        <strong>入口说明：</strong>
+        当前页属于系统级 AI 能力配置入口，归入设置域；
+        日志巡检、文档维护等管理员值守动作请回管理控制台；
+        调用明细可继续进入“查看调用日志”。
+    </div>
 
 <!-- 总体统计 -->
 <div class="status-grid" style="margin-bottom: 24px;">
@@ -200,6 +219,7 @@
             <button type="button" class="ai-btn ai-btn-danger" id="btn-delete-confirm">删除</button>
         </div>
     </div>
+</div>
 </div>
 
 <style>
