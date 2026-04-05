@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard Alpha 卡片、`/api/alpha/scores/`、`/api/dashboard/alpha/stocks/` 和 MCP `get_alpha_stock_scores` 增加统一的 `reliability_notice` / 缓存使用提示元数据
 - 新增正式库快照回归方案，可用 `db.sqlite3` 快照启动隔离实例并执行 Playwright 验收，不污染 live 数据
 - 新增 Dashboard Alpha 用户隔离回归测试与 Qlib 退化路径回归测试
+- Equity Detail 新增技术图表能力，补齐日线 / 分时数据读取、技术指标服务与前端图表呈现
+- 宏观数据源中心新增运行时连接测试能力，可直接在页面对 Tushare / AKShare / QMT 等配置执行探针并查看日志
+- 开发环境新增 `runserver` 文件日志持久化路径与对应测试覆盖，便于本地排查启动问题
+- RSS 源配置页面新增 RSSHub、proxy、timeout、retry 等可视配置项
+- 统一数据源中心补入跨系统 provider inventory 展示，集中展示 public / licensed / local-terminal / pending-config provider
 
 ### Changed
 - Dashboard 与顶部导航完成 redesign 收口，`beta_gate` / `alpha_trigger` / `decision_rhythm` 不再作为首页独立主入口暴露
@@ -32,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/uat/run_uat.py` 改为基于真实 JUnit XML 统计 Journey / API / Navigation 结果
 - Playwright 运行时 `--base-url` 现在会同步覆盖全局测试配置，避免误打默认 `localhost:8000`
 - 正式库中的 Qlib 路径配置已显式写回数据库，不再只依赖运行时代码 fallback
+- 系统设置中心、管理员控制台、MCP Tools、服务日志、文档管理等后台页面已统一到共享管理界面风格
+- `market_data` 的 provider 页面能力已回收至统一数据源中心，配置中心与 Provider 状态页口径保持一致
+- Equity Detail 页面上下文继续补强，技术面、数据源与市场状态信息的组合展示更完整
+- RSS 管理流不再依赖硬编码的旧 RSSHub 公网地址，初始化源与前端表单口径已统一到当前可用配置
+- 统一账户 API / SDK / MCP 路径已在 2026-04-01 这轮收口中对齐到 canonical 契约
+- 管理侧和配置侧文档已同步到当前事实：统一设置中心、统一数据源中心和最新页面入口结构
 
 ### Deprecated
 - (TBD)
@@ -55,6 +66,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 命中前推 Qlib 缓存时，`staleness_days` 不再被错误写成 `0`
 - AI provider 解密失败时现在会回退到规则建议，不再把无效 token 继续传给下游
 - UAT 路由基线、导航断言和前端 API 契约检查已对齐当前真实系统路径与页面结构
+- Feedparser RSS 抓取不再直接走无超时控制的 `feedparser.parse(url)`，RSS 源超时悬挂问题已修复
+- 开发环境账号协作表单、个股页 fetch fallback 与若干安全扫描/Playwright 数据库清理回归已修复
+- Qlib 运行时不可用时，Alpha 现在会自动复用最近有效缓存而不是直接失去结果
+- `macro` 数据源配置相关 interface 越层导入已移回 application 边界，修复 2026-04-05 CI 中的架构门禁失败
+- 统一数据源中心发布后的 `Architecture Layer Guard` / `Logic Guardrails` 已在后续修复提交中恢复为绿色
 
 ### Security
 - (TBD)
@@ -186,4 +202,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Maintained by**: AgomTradePro Team
-**Last Updated**: 2026-03-30
+**Last Updated**: 2026-04-05

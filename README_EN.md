@@ -26,6 +26,26 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-04-05
+
+- The financial datasource page has been consolidated into a unified datasource center, so public providers, licensed providers, local-terminal providers, and pending configs now live in one workbench
+- Macro datasource management now includes built-in connection testing, with page-level probes and log output for sources such as Tushare, AKShare, and QMT
+- The old `market_data` provider surface has been folded back into the unified datasource center, keeping config-center and provider-inventory views aligned
+- The `macro` layer-boundary regressions have been repaired, and GitHub Actions is back to green on both `Architecture Layer Guard` and `Logic Guardrails`
+
+### 2026-04-04
+
+- The equity detail page now includes a technical-chart surface with daily/intraday data support and matching API contracts
+- Equity detail context is richer than before, with clearer market-state, source, and technical context alongside valuation and fundamentals
+- When the local Qlib runtime is unavailable, the Alpha path now reuses the latest valid cache instead of collapsing to an empty result
+- The settings center, admin-facing surfaces, MCP tools page, docs management, and server-log views have been visually unified into a more consistent management shell
+
+### 2026-04-03
+
+- RSS fetching no longer hangs on uncontrolled timeouts, and RSS source configuration now exposes timeout / retry / RSSHub / proxy fields in the UI
+- Default RSS seed sources have been refreshed to working feed URLs, so demo environments no longer depend on broken `rsshub.app` defaults
+- Development `runserver` logs are now persisted to files, making local startup/debug review much easier
+
 ### 2026-03-30
 
 - Alpha reliability is now explicit end to end: Dashboard, API, and MCP all surface whether the current recommendation uses cached data, whether it was forward-filled, and which signal date is actually being shown
@@ -264,6 +284,7 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades â
 |--------|----------|
 | **Tushare Pro** | A-share market data, SHIBOR, index data |
 | **AKShare** | Macro indicators (PMI, CPI, M2, GDP, etc.) |
+| **QMT Local** | Local terminal market access and runtime probing |
 | **Failover** | Auto-switch with 1% tolerance validation |
 
 ---
@@ -565,7 +586,7 @@ pytest tests/ -v --cov=apps
 ## Project Stats
 
 ```
-32   business modules (complete DDD four-layer each)
+35   business modules (complete DDD four-layer each)
 65+  MCP tools for AI agents
 100+ REST API endpoints
 1,600+ automated tests
