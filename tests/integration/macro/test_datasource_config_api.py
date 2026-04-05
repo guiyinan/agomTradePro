@@ -301,7 +301,7 @@ def test_macro_datasource_test_connection_endpoint_returns_probe_logs(admin_clie
         api_key="test-token-123456",
     )
     mocker.patch(
-        "apps.macro.interface.views.config_api.run_datasource_connection_test",
+        "apps.macro.interface.views.config_api.RunDataSourceConnectionTestUseCase.execute",
         return_value={
             "success": True,
             "status": "success",

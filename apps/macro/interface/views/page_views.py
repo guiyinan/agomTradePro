@@ -6,13 +6,13 @@ Updated for collapsible category layout.
 import json
 from decimal import Decimal, InvalidOperation
 
+from django.apps import apps as django_apps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Max, Min, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from apps.macro.infrastructure.models import DataProviderSettings, DataSourceConfig, MacroIndicator
 from apps.macro.interface.forms import DataSourceConfigForm
 from core.application.provider_inventory import (
     build_provider_dashboard,
@@ -20,6 +20,10 @@ from core.application.provider_inventory import (
     group_provider_inventory_by_access,
 )
 from shared.config.secrets import clear_secrets_cache
+
+DataProviderSettings = django_apps.get_model("macro", "DataProviderSettings")
+DataSourceConfig = django_apps.get_model("macro", "DataSourceConfig")
+MacroIndicator = django_apps.get_model("macro", "MacroIndicator")
 
 
 def safe_float(value):

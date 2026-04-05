@@ -108,6 +108,12 @@
 - Added dedicated frontend rendering for pulse composite score, regime context, strength, transition warning, and dimension breakdown.
 - Kept the card explicitly scoped as market context instead of stock-specific analysis to avoid mixing tactical market state with security fundamentals.
 
+### macro.interface architecture guard cleanup
+
+- Moved datasource connection probing behind `RunDataSourceConnectionTestUseCase` so the macro config API view depends on Application instead of importing Infrastructure directly.
+- Replaced direct `apps.macro.infrastructure.models` imports in `macro/interface/views/page_views.py` with Django app-registry model lookup to satisfy the four-layer architecture guard.
+- Updated datasource-config integration coverage to patch the application use case boundary instead of the old infrastructure function import.
+
 ## Verification
 
 - `python -m py_compile` on newly created interface modules

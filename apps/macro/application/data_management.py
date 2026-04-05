@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable
 
 from ..domain.entities import MacroIndicator
 
@@ -69,6 +69,28 @@ class DeleteDataResponse:
     success: bool
     message: str
     deleted_count: int = 0
+
+
+class RunDataSourceConnectionTestUseCase:
+    """Application wrapper for datasource connectivity probes."""
+
+    def __init__(
+        self,
+        probe_runner: Callable[[Any], dict[str, Any]] | None = None,
+    ) -> None:
+        self._probe_runner = probe_runner or self._default_probe_runner
+
+    def execute(self, config: Any) -> dict[str, Any]:
+        """Run the configured probe and return a display-friendly payload."""
+        return self._probe_runner(config)
+
+    @staticmethod
+    def _default_probe_runner(config: Any) -> dict[str, Any]:
+        from apps.macro.infrastructure.datasource_connection_tester import (
+            run_datasource_connection_test,
+        )
+
+        return run_datasource_connection_test(config)
 
 
 @dataclass
