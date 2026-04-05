@@ -7,6 +7,7 @@ This package contains all view functions organized by functionality.
 from .config_api import (
     api_datasource_detail,
     api_datasource_list_create,
+    api_datasource_test_connection,
     api_delete_data,
 )
 from .fetch_api import (
@@ -58,4 +59,5 @@ __all__ = [
     'api_delete_data',
     'api_datasource_list_create',
     'api_datasource_detail',
+    'api_datasource_test_connection',
 ]

@@ -6,20 +6,149 @@
 <div class="page-header">
     <h1>财经数据源配置</h1>
     <p class="subtitle">Data Source Configuration</p>
-    <p class="description">Tushare Token / HTTP URL、AKShare、QMT 等统一财经数据源都在这里配置；市场数据状态页只负责看运行状态。</p>
+    <p class="description">Tushare Token / HTTP URL、AKShare、QMT、EastMoney 等统一数据源都在这里查看和配置；运行状态与快速测试也已并入本页。</p>
 </div>
 
 <div class="config-entry-banner">
     <div>
         <h2>Tushare Token / HTTP URL 就在这里配置</h2>
-        <p>如果你是从“市场数据源状态”页面跳过来的，说明入口命名之前不够清楚。现在这页负责配置，状态页负责健康检查和快速测试。</p>
+        <p>入口已经统一。这一页同时负责配置、运行状态查看和快速测试，不再要求你在两个页面之间来回切换。</p>
     </div>
     <div class="config-entry-actions">
-        <a href="{% url 'macro:datasources' %}?mode=create" class="btn-step">新建数据源配置</a>
-        <a href="{% url 'market_data:providers' %}" class="btn-step btn-step-secondary">查看市场数据状态</a>
+        {% if management_mode == 'create' %}
+        <a href="#datasource-workbench" class="btn-step">正在新建配置</a>
+        {% else %}
+        <a href="{% url 'macro:datasources' %}?mode=create#datasource-workbench" class="btn-step">新建数据源配置</a>
+        {% endif %}
+        <a href="#provider-status" class="btn-step btn-step-secondary">查看运行状态</a>
         <a href="{% url 'settings-center' %}" class="btn-step btn-step-secondary">打开设置中心</a>
     </div>
 </div>
+
+<div class="provider-catalog-section">
+    <div class="section-header">
+        <div>
+            <h2>统一 Provider 目录</h2>
+            <p class="section-subtitle">按“公开数据 / 授权数据 / 本地终端”三类查看。顶部目录负责说明源的性质和入口，左侧列表会把系统内置、待补配置、只读 Provider 和可编辑配置一起列出来。</p>
+        </div>
+    </div>
+    {% for section in provider_inventory_sections %}
+    <section class="provider-catalog-group">
+        <div class="provider-catalog-group-header">
+            <div>
+                <h3>{{ section.label }}</h3>
+                <p>{{ section.description }}</p>
+            </div>
+        </div>
+        <div class="provider-catalog-grid">
+            {% for provider in section.items %}
+            <article class="provider-catalog-card">
+                <div class="provider-catalog-head">
+                    <h3>{{ provider.label }}</h3>
+                    <span class="provider-catalog-badge provider-catalog-badge-{{ provider.catalog_badge_tone }}">{{ provider.catalog_badge_label }}</span>
+                </div>
+                <div class="provider-catalog-tags">
+                    <span class="provider-domain-tag provider-domain-tag-strong">{{ provider.access_category_label }}</span>
+                    {% for domain in provider.domains %}
+                    <span class="provider-domain-tag">{{ domain }}</span>
+                    {% endfor %}
+                </div>
+                <div class="provider-catalog-stats">
+                    <div class="provider-catalog-stat">
+                        <span class="config-label">财经侧状态</span>
+                        <span class="config-value">{{ provider.macro_config_summary }}</span>
+                    </div>
+                    <div class="provider-catalog-stat">
+                        <span class="config-label">市场数据侧</span>
+                        <span class="config-value">
+                            {% if provider.market_registered %}
+                            {% if provider.market_healthy %}已注册 / 正常{% else %}已注册 / 需关注{% endif %}
+                            {% else %}
+                            未注册
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="provider-catalog-stat">
+                        <span class="config-label">左侧列表</span>
+                        <span class="config-value">{{ provider.macro_list_presence_label }}</span>
+                    </div>
+                    <div class="provider-catalog-stat">
+                        <span class="config-label">配置入口</span>
+                        <span class="config-value">{{ provider.config_surface_label }}</span>
+                    </div>
+                </div>
+                {% if provider.market_capabilities %}
+                <div class="provider-catalog-tags">
+                    {% for capability in provider.market_capabilities %}
+                    <span class="provider-capability-tag">{{ capability }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if provider.macro_mode == 'needs_config' %}
+                <div class="provider-catalog-note">
+                    默认抓取策略已经会用到这个 Provider。它会出现在左侧“待补配置 / 只读 Provider”分区，点击“新建配置”后即可在右侧工作台直接补齐参数。
+                </div>
+                {% endif %}
+                {% if provider.macro_mode == 'none' and provider.market_registered %}
+                <div class="provider-catalog-note">
+                    这个 Provider 会显示在左侧只读列表；它的健康状态和联调测试也统一放在本页下方的“运行时状态与快速测试”区域。
+                </div>
+                {% endif %}
+            </article>
+            {% empty %}
+            <article class="provider-catalog-card provider-catalog-card-empty">
+                <div class="config-value">{{ section.empty_message }}</div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</div>
+
+<section id="provider-status" class="md-unified-status-section">
+    <div class="section-header">
+        <div>
+            <h2>运行时状态与快速测试</h2>
+            <p class="section-subtitle">这里直接看 provider 是否已注册、是否健康，以及做联调测试；不再单独维护第二个页面。</p>
+        </div>
+        <div class="section-actions">
+            <button type="button" class="btn-add btn-add-secondary" onclick="loadProviders()">刷新运行状态</button>
+        </div>
+    </div>
+
+    <div class="md-summary-grid">
+        <div class="md-summary-card">
+            <div class="md-summary-label">已注册 Provider</div>
+            <div class="md-summary-value">{{ provider_dashboard.provider_count|default:0 }}</div>
+        </div>
+        <div class="md-summary-card">
+            <div class="md-summary-label">健康 Provider</div>
+            <div class="md-summary-value">{{ provider_dashboard.healthy_provider_count|default:0 }}</div>
+        </div>
+        <div class="md-summary-card">
+            <div class="md-summary-label">需关注 Provider</div>
+            <div class="md-summary-value">{{ provider_dashboard.unhealthy_provider_count|default:0 }}</div>
+        </div>
+    </div>
+
+    <div id="providerCards" class="md-cards">
+        <div class="md-empty">加载中...</div>
+    </div>
+
+    <div class="md-test-section">
+        <h3>快速测试</h3>
+        <p class="md-test-guidance">A 股收盘后，行情测试应优先回退到最近一个交易日收盘价；如果已配置 QMT，本地 XtQuant 行情也会出现在 provider 列表中。</p>
+        <div class="md-test-input">
+            <input type="text" id="testStockCode" placeholder="输入股票代码（如 000001.SZ）" value="000001.SZ">
+            <button type="button" onclick="testQuote()">行情</button>
+            <button type="button" onclick="testCapitalFlow()">资金流向</button>
+            <button type="button" onclick="testNews()">新闻</button>
+            <button type="button" onclick="testCrossValidate()" class="md-test-button-accent">交叉校验</button>
+        </div>
+        <div class="md-test-note" id="testNote"></div>
+        <div class="md-test-result" id="testResult">输入股票代码并点击按钮测试数据源...</div>
+    </div>
+</section>
 
 <!-- 数据源列表 -->
 <div class="datasources-section">
@@ -29,7 +158,11 @@
             <p class="section-subtitle">打开页面就能新建、切换和编辑当前数据源；说明文档放在下面，不打断操作。</p>
         </div>
         <div class="section-actions">
-            <a href="{% url 'macro:datasources' %}?mode=create" class="btn-add">新建配置</a>
+            {% if management_mode == 'create' %}
+            <a href="#datasource-workbench" class="btn-add">正在新建</a>
+            {% else %}
+            <a href="{% url 'macro:datasources' %}?mode=create#datasource-workbench" class="btn-add">新建配置</a>
+            {% endif %}
             <a href="{% url 'macro:data_controller' %}" class="btn-add btn-add-secondary">数据管理器</a>
         </div>
     </div>
@@ -59,9 +192,106 @@
         {% endfor %}
     </div>
 
-    {% if data_sources %}
     <div class="datasource-management-grid">
         <div class="datasource-list-panel">
+            {% if system_source_cards %}
+            <section class="datasource-panel-section">
+                <div class="panel-group-header">
+                    <div>
+                        <h3>公开数据与系统内置源</h3>
+                        <p>免 Token 的公共源和默认抓取策略会显示在这里，不要求手工创建配置记录。</p>
+                    </div>
+                </div>
+                <div class="datasource-list datasource-list-compact">
+                    {% for item in system_source_cards %}
+                    <article class="ds-item ds-item-system">
+                        <div class="ds-main">
+                            <div class="ds-header-info">
+                                <div class="ds-name-row">
+                                    <h3 class="ds-name">{{ item.name }}</h3>
+                                    <span class="ds-status-badge {{ item.status_class }}">{{ item.status_label }}</span>
+                                </div>
+                                <div class="ds-meta">
+                                    <span class="ds-type-badge type-{{ item.badge_type }}">{{ item.badge_label }}</span>
+                                    <span class="ds-endpoint">{{ item.endpoint }}</span>
+                                </div>
+                            </div>
+                            <div class="ds-config">
+                                {% for row in item.config_rows %}
+                                <div class="config-row">
+                                    <span class="config-label">{{ row.label }}</span>
+                                    <span class="config-value">{{ row.value }}</span>
+                                </div>
+                                {% endfor %}
+                                <div class="config-desc">{{ item.description }}</div>
+                            </div>
+                        </div>
+                        <div class="ds-actions">
+                            <a href="{{ item.action_url }}" class="btn-edit">{{ item.action_label }}</a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                <div class="panel-inline-note">
+                    AKShare 属于当前宏观页的系统内置公共源；EastMoney 公共行情会在下方“待补配置 / 只读 Provider”和
+                    <a href="#provider-status">本页运行状态区域</a> 同时显示。
+                </div>
+            </section>
+            {% endif %}
+
+            {% if pending_provider_cards %}
+            <section class="datasource-panel-section">
+                <div class="panel-group-header">
+                    <div>
+                        <h3>待补配置 / 只读 Provider</h3>
+                        <p>这里把还没落成配置记录、或当前只读的 Provider 也放到左侧，避免你只能在上方说明卡里看到它们。</p>
+                    </div>
+                </div>
+                <div class="datasource-list datasource-list-compact">
+                    {% for item in pending_provider_cards %}
+                    <article class="ds-item ds-item-system">
+                        <div class="ds-main">
+                            <div class="ds-header-info">
+                                <div class="ds-name-row">
+                                    <h3 class="ds-name">{{ item.name }}</h3>
+                                    <span class="ds-status-badge {{ item.status_class }}">{{ item.status_label }}</span>
+                                </div>
+                                <div class="ds-meta">
+                                    <span class="ds-type-badge type-{{ item.badge_type }}">{{ item.badge_label }}</span>
+                                    <span class="ds-endpoint">{{ item.endpoint }}</span>
+                                </div>
+                            </div>
+                            <div class="ds-config">
+                                <div class="config-row">
+                                    <span class="config-label">当前状态</span>
+                                    <span class="config-value">{{ item.detail }}</span>
+                                </div>
+                                <div class="config-desc">{{ item.description }}</div>
+                            </div>
+                        </div>
+                        <div class="ds-actions">
+                            <a href="{{ item.action_url }}" class="btn-edit">{{ item.action_label }}</a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                <div class="panel-inline-note">
+                    `Tushare`、`QMT`、`FRED` 等会在这里直接给出“新建配置”入口；像 `EastMoney` 这类只读 Provider，也会继续显示在左侧并联动到状态区域。
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="datasource-panel-section">
+                <div class="panel-group-header">
+                    <div>
+                        <h3>授权数据 / 本地终端配置</h3>
+                        <p>这里维护需要人工指定优先级、密钥、代理地址或本地参数的数据源。</p>
+                    </div>
+                </div>
+                <div class="panel-inline-note">
+                    如果你准备立刻启用 `Tushare`，先从上面的“待补配置 / 只读 Provider”点“新建配置”，右侧工作台会直接预填成可编辑表单。
+                </div>
+                {% if data_sources %}
             <div class="datasource-list">
                 {% for item in datasource_cards %}
                 {% with ds=item.source %}
@@ -101,6 +331,13 @@
                     </div>
 
                     <div class="ds-actions">
+                        <button
+                            type="button"
+                            class="btn-edit btn-edit-secondary"
+                            onclick="openDatasourceTestModal({{ ds.id }}, '{{ ds.name|escapejs }}')"
+                        >
+                            测试连接
+                        </button>
                         <a href="{% url 'macro:datasources' %}?edit={{ ds.id }}" class="btn-edit btn-edit-primary">
                             {% if selected_source_id == ds.id %}当前编辑{% else %}在页内编辑{% endif %}
                         </a>
@@ -110,8 +347,46 @@
                 {% endwith %}
                 {% endfor %}
             </div>
+                {% else %}
+            <div class="empty-state empty-state-panel">
+                <div class="empty-icon">🔌</div>
+                <div class="empty-title">当前还没有可管理的数据源配置</div>
+                {% if macro_data_summary.has_historical_data %}
+                <div class="empty-desc">
+                    数据库里已经有 {{ macro_data_summary.total_records }} 条财经数据、{{ macro_data_summary.indicator_count }} 个指标，
+                    最新报告期为 {{ macro_data_summary.latest_period|date:"Y-m-d" }}。这些数据更像历史导入或冷启动结果，不代表当前配置链路已经建好。
+                </div>
+                <div class="workbench-summary workbench-summary-diagnostic">
+                    <div class="workbench-summary-item">
+                        <span class="workbench-label">历史数据记录</span>
+                        <span class="workbench-value">{{ macro_data_summary.total_records }}</span>
+                    </div>
+                    <div class="workbench-summary-item">
+                        <span class="workbench-label">历史指标数</span>
+                        <span class="workbench-value">{{ macro_data_summary.indicator_count }}</span>
+                    </div>
+                    <div class="workbench-summary-item">
+                        <span class="workbench-label">最新报告期</span>
+                        <span class="workbench-value">{{ macro_data_summary.latest_period|date:"Y-m-d" }}</span>
+                    </div>
+                </div>
+                {% if macro_data_summary.sources %}
+                <div class="empty-state-tags">
+                    {% for item in macro_data_summary.sources %}
+                    <span class="ds-type-badge">来源 {{ item.source }} · {{ item.count }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="empty-desc">
+                    数据库里也还没有财经数据。请先在右侧创建第一个数据源配置，再去数据管理器做首次同步。
+                </div>
+                {% endif %}
+                <a href="#datasource-workbench" class="btn-add-large">去右侧创建第一个数据源</a>
+            </div>
+                {% endif %}
+            </section>
         </div>
-
         <aside id="datasource-workbench" class="datasource-workbench">
             <div class="workbench-header">
                 <div>
@@ -140,6 +415,13 @@
             <div class="workbench-mode-banner">
                 <strong>当前处于新建模式</strong>
                 <span>右侧工作台不会覆盖左侧已有数据源；只有点击“在页内编辑”才会切换到现有配置。</span>
+            </div>
+            {% endif %}
+
+            {% if management_mode == 'create' and not data_sources and macro_data_summary.has_historical_data %}
+            <div class="workbench-mode-banner workbench-mode-banner-warning">
+                <strong>库里已有历史财经数据，但当前没有配置记录</strong>
+                <span>建议先补齐可管理的数据源配置，再去数据管理器核对抓取链路，避免前后端看起来像“有数据但没配置”。</span>
             </div>
             {% endif %}
 
@@ -244,16 +526,6 @@
             </form>
         </aside>
     </div>
-    {% else %}
-    <div class="empty-state">
-        <div class="empty-icon">🔌</div>
-        <div class="empty-title">暂无数据源配置</div>
-        <div class="empty-desc">
-            请先添加数据源配置以同步宏观数据
-        </div>
-        <a href="{% url 'macro:datasources' %}?mode=create" class="btn-add-large">添加第一个数据源</a>
-    </div>
-    {% endif %}
 </div>
 
 <!-- 快速开始指南 -->
@@ -270,9 +542,9 @@
         <div class="step-item">
             <div class="step-number">2</div>
             <div class="step-content">
-                <h3>再去状态页核对运行情况</h3>
-                <p>配置完成后，再去市场数据状态页查看 provider 是否注册成功、健康检查是否通过。</p>
-                <a href="{% url 'market_data:providers' %}" class="btn-step btn-step-secondary">打开市场数据状态</a>
+                <h3>在本页核对运行情况</h3>
+                <p>配置完成后，直接下拉到本页运行状态区域查看 provider 是否注册成功、健康检查是否通过。</p>
+                <a href="#provider-status" class="btn-step btn-step-secondary">打开运行状态</a>
             </div>
         </div>
         <div class="step-item">
@@ -547,6 +819,198 @@
     </div>
 </div>
 
+<script>
+const csrfToken = '{{ csrf_token }}';
+
+async function apiFetch(url) {
+    const resp = await fetch(url, {
+        headers: { 'Authorization': 'Token ' + (window.apiToken || '') }
+    });
+    return resp.json();
+}
+
+async function apiPost(url) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Token ' + (window.apiToken || ''),
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            },
+            body: '{}',
+            signal: controller.signal
+        });
+        const contentType = resp.headers.get('content-type') || '';
+        const payload = contentType.includes('application/json')
+            ? await resp.json()
+            : { detail: await resp.text() };
+
+        if (!resp.ok) {
+            throw new Error(
+                payload.summary
+                || payload.message
+                || payload.detail
+                || `HTTP ${resp.status}`
+            );
+        }
+        return payload;
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('测试请求超时（20 秒），请检查后端日志或数据源网络连接');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+async function loadProviders() {
+    const container = document.getElementById('providerCards');
+    try {
+        const result = await apiFetch('/api/market-data/providers/health/');
+        const data = result.data || [];
+        if (data.length === 0) {
+            container.innerHTML = '<div class="md-empty">暂无已注册的 Provider</div>';
+            return;
+        }
+        const grouped = {};
+        data.forEach((item) => {
+            if (!grouped[item.provider_name]) grouped[item.provider_name] = [];
+            grouped[item.provider_name].push(item);
+        });
+        container.innerHTML = Object.entries(grouped).map(([name, statuses]) => {
+            const allHealthy = statuses.every((s) => s.is_healthy);
+            const badge = allHealthy ? 'healthy' : 'degraded';
+            const badgeText = allHealthy ? '正常' : '降级';
+            return `<div class="md-card">
+                <div class="md-card-header">
+                    <span class="md-card-title">${name}</span>
+                    <span class="md-badge ${badge}">${badgeText}</span>
+                </div>
+                ${statuses.map((s) => `
+                    <div class="md-stat">
+                        <span class="md-stat-label">${s.capability}</span>
+                        <span class="md-stat-value">${s.is_healthy ? '✓' : '✗'} 失败=${s.consecutive_failures} ${s.avg_latency_ms ? Math.round(s.avg_latency_ms)+'ms' : ''}</span>
+                    </div>
+                `).join('')}
+                <div class="md-stat">
+                    <span class="md-stat-label">最近成功</span>
+                    <span class="md-stat-value">${statuses[0].last_success_at ? new Date(statuses[0].last_success_at).toLocaleString('zh-CN') : '无'}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        container.innerHTML = `<div class="md-empty">加载失败: ${e.message}</div>`;
+    }
+}
+
+function setTestNote(level, message) {
+    const note = document.getElementById('testNote');
+    note.className = `md-test-note ${level}`;
+    note.textContent = message || '';
+}
+
+async function runTest(url) {
+    const resultNode = document.getElementById('testResult');
+    resultNode.textContent = '测试中...';
+    setTestNote('', '');
+    try {
+        const result = await apiFetch(url);
+        resultNode.textContent = JSON.stringify(result, null, 2);
+        if (result.hint) {
+            setTestNote('warn', result.hint);
+        } else if (result.message) {
+            setTestNote('info', result.message);
+        }
+    } catch (e) {
+        resultNode.textContent = `请求失败: ${e.message}`;
+        setTestNote('error', '测试请求失败，请检查登录状态或 API 路由。');
+    }
+}
+
+function currentCode() {
+    return document.getElementById('testStockCode').value.trim() || '000001.SZ';
+}
+
+function testQuote() {
+    runTest(`/api/market-data/quotes/?codes=${encodeURIComponent(currentCode())}`);
+}
+
+function testCapitalFlow() {
+    runTest(`/api/market-data/capital-flows/?code=${encodeURIComponent(currentCode())}`);
+}
+
+function testNews() {
+    runTest(`/api/market-data/stock-news/?code=${encodeURIComponent(currentCode())}`);
+}
+
+function testCrossValidate() {
+    runTest(`/api/market-data/cross-validate/?code=${encodeURIComponent(currentCode())}`);
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderDatasourceTestHtml({ summary, logs, status }) {
+    const renderedLogs = Array.isArray(logs) && logs.length
+        ? logs.join('\n')
+        : '无日志输出';
+    return `
+        <div class="datasource-test-modal">
+            <div class="datasource-test-summary status-${escapeHtml(status || 'error')}">${escapeHtml(summary || '无摘要')}</div>
+            <pre class="datasource-test-log">${escapeHtml(renderedLogs)}</pre>
+        </div>
+    `;
+}
+
+async function openDatasourceTestModal(sourceId, sourceName) {
+    await Swal.fire({
+        title: `测试连接: ${sourceName}`,
+        html: '<div class="datasource-test-modal"><div class="datasource-test-summary">正在测试连接，请稍候...</div><pre class="datasource-test-log">初始化中...</pre></div>',
+        width: 760,
+        showConfirmButton: false,
+        showCloseButton: true,
+        didOpen: async () => {
+            try {
+                const result = await apiPost(`/api/macro/datasources/${sourceId}/test/`);
+                const statusLabel = result.success ? '成功' : (result.status === 'warning' ? '警告' : '失败');
+                Swal.update({
+                    html: renderDatasourceTestHtml({
+                        summary: `${statusLabel}: ${result.summary || '无摘要'}`,
+                        logs: result.logs || [],
+                        status: result.status || (result.success ? 'success' : 'error')
+                    }),
+                    showConfirmButton: true,
+                    confirmButtonText: '关闭'
+                });
+            } catch (error) {
+                Swal.update({
+                    html: renderDatasourceTestHtml({
+                        summary: `失败: ${error.message}`,
+                        logs: ['请求失败，请检查登录状态、网络连接或后端日志。'],
+                        status: 'error'
+                    }),
+                    showConfirmButton: true,
+                    confirmButtonText: '关闭'
+                });
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', loadProviders);
+</script>
+
 <style>
 /* Quick Start Section */
 .quick-start-section {
@@ -736,6 +1200,189 @@
 .type-wind { background: #FEF7E2; color: var(--color-warning); }
 .type-choice { background: #F0F8FF; color: #4682B4; }
 
+/* Unified runtime status section */
+.md-unified-status-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.md-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: var(--spacing-lg);
+}
+
+.md-summary-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+}
+
+.md-summary-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+}
+
+.md-summary-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.md-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.md-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.md-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.md-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.md-badge {
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.md-badge.healthy { background: rgba(16,185,129,0.1); color: #10b981; }
+.md-badge.degraded { background: rgba(245,158,11,0.1); color: #f59e0b; }
+
+.md-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.875rem;
+}
+
+.md-stat:last-child {
+    border-bottom: none;
+}
+
+.md-stat-label {
+    color: var(--color-text-secondary);
+}
+
+.md-stat-value {
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+.md-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-muted);
+}
+
+.md-test-section {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.md-test-section h3 {
+    font-size: 1.125rem;
+    margin: 0 0 16px 0;
+}
+
+.md-test-guidance {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: rgba(15, 23, 42, 0.04);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+    border: 1px solid var(--color-border);
+}
+
+.md-test-input {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.md-test-input input {
+    flex: 1;
+    min-width: 220px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+}
+
+.md-test-input button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.md-test-input button:hover {
+    opacity: 0.9;
+}
+
+.md-test-button-accent {
+    background: #7c3aed !important;
+}
+
+.md-test-result {
+    background: var(--color-surface-alt, #f9fafb);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    font-family: monospace;
+    font-size: 13px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.md-test-note {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    display: none;
+}
+
+.md-test-note.info { display: block; background: rgba(37, 99, 235, 0.08); color: #1d4ed8; border: 1px solid rgba(37, 99, 235, 0.16); }
+.md-test-note.warn { display: block; background: rgba(245, 158, 11, 0.1); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.22); }
+.md-test-note.error { display: block; background: rgba(239, 68, 68, 0.08); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.18); }
+
 /* Datasources Section */
 .datasources-section {
     background: var(--color-bg);
@@ -840,6 +1487,160 @@
     background: var(--color-border);
 }
 
+.provider-catalog-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.provider-catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+}
+
+.provider-catalog-group + .provider-catalog-group {
+    margin-top: 22px;
+}
+
+.provider-catalog-group-header {
+    margin-bottom: 12px;
+}
+
+.provider-catalog-group-header h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: var(--color-text-primary);
+}
+
+.provider-catalog-group-header p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.provider-catalog-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.provider-catalog-card-empty {
+    display: flex;
+    align-items: center;
+    min-height: 96px;
+    color: var(--color-text-secondary);
+}
+
+.provider-catalog-head {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.provider-catalog-head h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--color-text-primary);
+}
+
+.provider-catalog-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.provider-catalog-badge-neutral {
+    background: rgba(148, 163, 184, 0.14);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: #475569;
+}
+
+.provider-catalog-badge-muted {
+    background: rgba(100, 116, 139, 0.1);
+    border-color: rgba(100, 116, 139, 0.18);
+    color: #334155;
+}
+
+.provider-catalog-badge-info {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.18);
+    color: #1d4ed8;
+}
+
+.provider-catalog-badge-warning {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: #b45309;
+}
+
+.provider-catalog-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.provider-domain-tag,
+.provider-capability-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.provider-domain-tag {
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+}
+
+.provider-domain-tag-strong {
+    background: rgba(15, 23, 42, 0.08);
+    color: var(--color-text-primary);
+}
+
+.provider-capability-tag {
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--color-text-secondary);
+}
+
+.provider-catalog-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.provider-catalog-stat {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+}
+
+.provider-catalog-note {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    color: #b45309;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
 .datasource-management-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.95fr);
@@ -855,6 +1656,51 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
+}
+
+.datasource-list-compact {
+    gap: 12px;
+}
+
+.datasource-panel-section + .datasource-panel-section {
+    margin-top: var(--spacing-lg);
+}
+
+.panel-group-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.panel-group-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--color-text-primary);
+}
+
+.panel-group-header p {
+    margin: 6px 0 0;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    font-size: 13px;
+}
+
+.panel-inline-note {
+    margin-top: 12px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+}
+
+.panel-inline-note a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.panel-inline-note a:hover {
+    text-decoration: underline;
 }
 
 .ds-item {
@@ -880,6 +1726,11 @@
 .ds-selected {
     border-color: rgba(37, 99, 235, 0.35);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.ds-item-system {
+    border-left-color: #0f766e;
+    background: linear-gradient(180deg, rgba(240, 253, 250, 0.9), rgba(255, 255, 255, 0.95));
 }
 
 .ds-main {
@@ -950,6 +1801,7 @@
 .type-fred { background: #C8D8B8; color: var(--color-success); }
 .type-wind { background: #FEF7E2; color: var(--color-warning); }
 .type-choice { background: #F0F8FF; color: #4682B4; }
+.type-system { background: #DCFCE7; color: #166534; }
 
 .ds-endpoint {
     font-size: 12px;
@@ -1023,6 +1875,58 @@
 .btn-edit-primary {
     background: rgba(37, 99, 235, 0.08);
     border-color: rgba(37, 99, 235, 0.2);
+}
+
+.btn-edit-secondary {
+    background: rgba(15, 118, 110, 0.08);
+    border-color: rgba(15, 118, 110, 0.2);
+    color: #0f766e;
+}
+
+.datasource-test-modal {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: left;
+}
+
+.datasource-test-summary {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.14);
+    color: var(--color-text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.datasource-test-summary.status-success {
+    background: rgba(22, 163, 74, 0.12);
+    color: #166534;
+}
+
+.datasource-test-summary.status-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+}
+
+.datasource-test-summary.status-error {
+    background: rgba(220, 38, 38, 0.12);
+    color: #b91c1c;
+}
+
+.datasource-test-log {
+    margin: 0;
+    min-height: 220px;
+    max-height: 420px;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 14px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .datasource-workbench {
@@ -1112,6 +2016,16 @@
     gap: 4px;
 }
 
+.workbench-mode-banner-warning {
+    border-color: rgba(245, 158, 11, 0.25);
+    background: rgba(254, 243, 199, 0.72);
+    color: #92400e;
+}
+
+.workbench-summary-diagnostic {
+    margin-top: var(--spacing-lg);
+}
+
 .workbench-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1194,6 +2108,13 @@
     padding: var(--spacing-xxl);
 }
 
+.empty-state-panel {
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    height: 100%;
+}
+
 .empty-icon {
     font-size: 48px;
     margin-bottom: var(--spacing-md);
@@ -1208,6 +2129,14 @@
 
 .empty-desc {
     color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.empty-state-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-sm);
     margin-bottom: var(--spacing-lg);
 }
 

@@ -25,7 +25,11 @@ def test_current_docs_do_not_reference_removed_policy_page_routes() -> None:
 
 def test_current_docs_use_canonical_market_data_and_decision_routes() -> None:
     content = _read("docs/testing/api/API_REFERENCE.md")
-    assert "/market-data/providers/" in content
+    development_content = _read("docs/development/unified-financial-datasource-registry.md")
+    assert "`/market-data/providers/`" not in content
+    assert "`/market-data/providers/`" not in development_content
+    assert "/macro/datasources/#provider-status" in content
+    assert "/macro/datasources/#provider-status" in development_content
     assert "/api/decision/workspace/recommendations/" in content
     assert "/api/decision/funnel/context/" in content
     assert "rotation_data_source" in content

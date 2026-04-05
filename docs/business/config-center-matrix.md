@@ -11,7 +11,7 @@
 | `account_settings` | 账户设置 | `/account/settings/` | 无统一只读 API | 前端查看；与账户 API 协作 | 登录用户 | 保存后立即生效 | 个人资料、风险偏好、密码、MCP/SDK Token |
 | `system_settings` | 系统设置 | `/account/admin/settings/` | 无统一只读 API | 无统一 SDK/MCP，前端查看 | `staff` | 保存后立即生效 | 审批策略、默认 MCP、协议文案、市场颜色约定 |
 | `macro_datasources` | 财经数据源配置 | `/macro/datasources/` | `/api/macro/datasources/` | `client.macro` + MCP config-center 工具 | `staff` | 保存后立即刷新 secrets cache；Tushare `http_url` 统一下发，QMT 行情源由 market_data registry 按优先级注册 | Tushare Token / HTTP URL、AKShare、QMT、FRED 等都在这里维护 |
-| `market_data_providers` | 市场数据源状态 | `/market-data/providers/` | 页面/模块现有接口 | `client.market_data` + MCP market-data 工具 | `staff` | 状态实时读取 | 只读运行状态与快速测试，不承担 Token 编辑 |
+| `market_data_providers` | 统一数据源运行状态 | `/macro/datasources/#provider-status` | 页面/模块现有接口 | `client.market_data` + MCP market-data 工具 | `staff` | 状态实时读取 | 在统一数据源中心查看运行状态与快速测试，不承担 Token 编辑 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
 | `valuation_repair` | 估值修复配置 | `/equity/valuation-repair/config/` | `/api/equity/config/valuation-repair/active/` | `client.equity` + `equity_tools` | `staff` | DB/Settings 配置，运行时读取 | 已支持版本与回滚 |
 | `ai_provider` | AI Provider 配置 | `/ai/` | `/api/ai/providers/` | `client.ai_provider` + `ai_provider_tools` | `staff` | 保存后新请求生效 | 支持启停和优先级 |
@@ -36,6 +36,8 @@
 - `account_settings`、`system_settings`、`macro_datasources`、`market_data_providers` 均通过“设置中心”统一进入，再落到各自编辑页/状态页。
 - `macro_datasources` 是“配置页”，`market_data_providers` 是“状态页”；顶部导航与页面文案需要保持这个区分。
 - 2026-04-04 起，`macro_datasources` 提供页内“配置工作台”，支持直接在 `/macro/datasources/` 中编辑当前选中数据源；独立新建/编辑页保留为补充入口。
+- 2026-04-04 起，`macro_datasources` 会同时展示“系统内置数据源”和“用户自定义配置”；AKShare 这类免 Token 公共源不再因为没有 `DataSourceConfig` 记录而在页面上消失。
+- 2026-04-04 起，`macro_datasources` 与 `market_data_providers` 共享“统一 Provider 目录”口径；同一个 Tushare / AKShare / QMT 会先按 Provider 身份统一展示，再分别进入配置页或状态页。
 - 权限、审计、版本控制仍由原模块负责。
 - 2026-03-23 起，`system_settings` 增加 `market_color_convention`，用于统一控制全站 `rise/fall/inflow/outflow` 的语义颜色映射；基础模板通过全局 CSS token 下发。
 - 自定义系统配置页 `/account/admin/settings/` 与 Django Admin 已同步提供该开关，管理员无需手改 JSON 或模板。

@@ -96,12 +96,12 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
     ),
     ConfigCapability(
         key="market_data_providers",
-        name="市场数据源状态",
+        name="统一数据源运行状态",
         module="market_data",
         section="数据源",
-        description="只读查看 provider 运行状态、健康检查与快速测试；不在此编辑 Token。",
+        description="在统一数据源中心查看 provider 运行状态、健康检查与快速测试。",
         permission="staff",
-        frontend_url="/market-data/providers/",
+        frontend_url="/macro/datasources/#provider-status",
         api_url=None,
         sdk_module="market_data",
         mcp_tools=("get_market_data_provider_health",),
@@ -280,8 +280,9 @@ def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
 
 
 def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
-    from apps.macro.infrastructure.models import DataSourceConfig
+    from apps.macro.infrastructure.models import DataProviderSettings, DataSourceConfig
 
+    provider_settings = DataProviderSettings.load()
     rows = list(
         DataSourceConfig._default_manager.all().values(
             "source_type",
@@ -291,12 +292,6 @@ def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
             "http_url",
         )
     )
-    if not rows:
-        return {
-            "status": "missing",
-            "summary": {"message": "未配置宏观数据源", "total_sources": 0, "active_sources": 0},
-        }
-
     active_rows = [row for row in rows if row["is_active"]]
     requires_key_types = {"tushare", "fred", "wind", "choice"}
     missing_key_count = sum(
@@ -304,10 +299,12 @@ def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
         for row in active_rows
         if row["source_type"] in requires_key_types and not (row.get("api_key") or "").strip()
     )
+    built_in_sources = ["akshare"]
+    if provider_settings.enable_failover:
+        built_in_sources.append("failover")
+
     status = "configured"
-    if not active_rows:
-        status = "missing"
-    elif missing_key_count > 0:
+    if active_rows and missing_key_count > 0:
         status = "attention"
     custom_http_url_count = sum(
         1
@@ -315,12 +312,32 @@ def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
         if row["source_type"] == "tushare"
         and (row.get("http_url") or "").strip()
     )
+    if not rows:
+        return {
+            "status": status,
+            "summary": {
+                "message": "当前没有手工录入的数据源配置，系统仍会显示并使用内置公共源。",
+                "total_sources": 0,
+                "active_sources": 0,
+                "built_in_source_count": len(built_in_sources),
+                "built_in_sources": built_in_sources,
+                "default_data_source": provider_settings.default_data_source,
+                "enable_failover": provider_settings.enable_failover,
+                "custom_http_url_count": 0,
+                "missing_api_key_count": 0,
+            },
+        }
+
     return {
         "status": status,
         "summary": {
             "total_sources": len(rows),
             "active_sources": len(active_rows),
             "source_types": sorted({row["source_type"] for row in active_rows}),
+            "built_in_source_count": len(built_in_sources),
+            "built_in_sources": built_in_sources,
+            "default_data_source": provider_settings.default_data_source,
+            "enable_failover": provider_settings.enable_failover,
             "missing_api_key_count": missing_key_count,
             "custom_http_url_count": custom_http_url_count,
         },
@@ -478,7 +495,7 @@ _SUMMARY_BUILDERS = {
     "system_settings": lambda user: _safe_summary(get_system_settings_summary, "系统设置", user),
     "macro_datasources": lambda user: _safe_summary(get_macro_datasource_summary, "宏观数据源配置", user),
     "market_data_providers": lambda user: _safe_summary(
-        get_market_data_provider_summary, "市场数据源状态", user
+        get_market_data_provider_summary, "统一数据源运行状态", user
     ),
     "beta_gate": lambda user: _safe_summary(get_beta_gate_summary, "Beta Gate 配置", user),
     "valuation_repair": lambda user: _safe_summary(get_valuation_repair_summary, "估值修复配置", user),

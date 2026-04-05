@@ -12,8 +12,13 @@ from django.db.models import Count, Max, Min, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
+from apps.macro.infrastructure.models import DataProviderSettings, DataSourceConfig, MacroIndicator
 from apps.macro.interface.forms import DataSourceConfigForm
+from core.application.provider_inventory import (
+    build_provider_dashboard,
+    build_unified_provider_inventory,
+    group_provider_inventory_by_access,
+)
 from shared.config.secrets import clear_secrets_cache
 
 
@@ -63,6 +68,152 @@ def _build_datasource_card(source: DataSourceConfig) -> dict[str, object]:
         "extra_config_preview": _format_extra_config(source.extra_config),
         "has_sensitive_fields": bool(source.api_key or source.api_secret),
     }
+
+
+def _build_pending_provider_cards(
+    providers: list[dict[str, object]],
+    data_sources,
+) -> list[dict[str, object]]:
+    """Build left-panel cards for providers that are not yet editable configs."""
+    existing_types = set(
+        data_sources.values_list("source_type", flat=True)
+    )
+    configurable_types = {
+        source_type for source_type, _ in DataSourceConfig.SOURCE_TYPE_CHOICES
+    }
+    suggestions = {
+        "tushare": {"name": "Tushare Pro", "description": "补齐 Token / HTTP URL 后即可启用。"},
+        "qmt": {"name": "QMT Local", "description": "补齐本地终端参数后即可接入。"},
+        "fred": {"name": "FRED", "description": "补齐 API Key 后即可启用。"},
+        "wind": {"name": "Wind", "description": "补齐授权参数后即可启用。"},
+        "choice": {"name": "Choice", "description": "补齐授权参数后即可启用。"},
+    }
+
+    cards: list[dict[str, object]] = []
+    for provider in providers:
+        key = str(provider["key"])
+        if key in existing_types:
+            continue
+        if key == "akshare":
+            continue
+
+        if key in configurable_types:
+            suggestion = suggestions.get(
+                key,
+                {"name": str(provider["label"]), "description": "创建配置后即可启用。"},
+            )
+            cards.append(
+                {
+                    "name": suggestion["name"],
+                    "badge_label": provider["access_category_label"],
+                    "badge_type": key,
+                    "status_label": provider["catalog_badge_label"],
+                    "status_class": "status-off" if provider["macro_mode"] == "needs_config" else "status-on",
+                    "endpoint": provider["config_surface_label"],
+                    "description": suggestion["description"],
+                    "detail": provider["macro_config_summary"],
+                    "action_url": (
+                        f"{reverse('macro:datasources')}"
+                        f"?mode=create&source_type={key}&name={suggestion['name']}#datasource-workbench"
+                    ),
+                    "action_label": "新建配置",
+                    "is_configurable": True,
+                }
+            )
+            continue
+
+        cards.append(
+            {
+                "name": str(provider["label"]),
+                "badge_label": provider["access_category_label"],
+                "badge_type": key,
+                "status_label": provider["catalog_badge_label"],
+                "status_class": "status-on" if provider["market_registered"] else "status-off",
+                "endpoint": provider["config_surface_label"],
+                "description": "当前不通过 DataSourceConfig 维护，直接在统一页查看运行状态。",
+                "detail": provider["macro_list_presence_label"],
+                "action_url": f"{reverse('macro:datasources')}#provider-status",
+                "action_label": "查看运行状态",
+                "is_configurable": False,
+            }
+        )
+    return cards
+
+
+def _build_macro_data_summary() -> dict[str, object]:
+    """Build a lightweight summary of stored macro data for page diagnostics."""
+    macro_queryset = MacroIndicator._default_manager.all()
+    total_records = macro_queryset.count()
+    latest_period = macro_queryset.aggregate(latest=Max("reporting_period"))["latest"]
+    source_breakdown = list(
+        macro_queryset.values("source")
+        .annotate(count=Count("id"))
+        .order_by("-count", "source")
+    )
+    return {
+        "total_records": total_records,
+        "indicator_count": macro_queryset.values("code").distinct().count(),
+        "latest_period": latest_period,
+        "sources": source_breakdown,
+        "has_historical_data": total_records > 0,
+    }
+
+
+def _build_system_source_cards(provider_settings: DataProviderSettings) -> list[dict[str, object]]:
+    """Build visible cards for built-in/public datasource capabilities."""
+    default_source = provider_settings.default_data_source
+    default_source_label = provider_settings.get_default_data_source_display()
+
+    akshare_role = "默认抓取源"
+    if default_source == "failover":
+        akshare_role = "自动容错链路中的主源"
+    elif default_source == "tushare":
+        akshare_role = "系统内置备用公共源"
+
+    cards = [
+        {
+            "name": "AKShare 公共接口",
+            "badge_type": "akshare",
+            "badge_label": "系统内置",
+            "status_label": "启用",
+            "status_class": "status-on",
+            "endpoint": "系统内置 Python Adapter",
+            "description": "无需 Token。宏观同步页面和默认抓取链路可直接调用该公共接口。",
+            "config_rows": [
+                {"label": "认证方式", "value": "无需 Token"},
+                {"label": "当前角色", "value": akshare_role},
+                {"label": "默认策略", "value": default_source_label},
+            ],
+            "action_url": reverse("macro:data_controller"),
+            "action_label": "打开数据管理器",
+        }
+    ]
+
+    cards.append(
+        {
+            "name": "默认抓取策略",
+            "badge_type": "system",
+            "badge_label": "全局设置",
+            "status_label": "生效中",
+            "status_class": "status-on",
+            "endpoint": default_source_label,
+            "description": "这不是单独的数据源，而是系统当前默认抓取模式。即使没有手工录入配置，这条策略也应对管理员可见。",
+            "config_rows": [
+                {"label": "default_data_source", "value": provider_settings.default_data_source},
+                {
+                    "label": "failover",
+                    "value": "启用" if provider_settings.enable_failover else "关闭",
+                },
+                {
+                    "label": "容差",
+                    "value": f"{provider_settings.failover_tolerance * 100:.2f}%",
+                },
+            ],
+            "action_url": f"{reverse('macro:datasources')}#provider-status",
+            "action_label": "查看运行状态",
+        }
+    )
+    return cards
 
 
 # 分类定义：包含ID、图标、名称和关键词匹配规则
@@ -289,10 +440,24 @@ def macro_data_view(request):
 @login_required(login_url="/account/login/")
 def datasource_config_view(request):
     """数据源配置页面"""
+    provider_settings = DataProviderSettings.load()
     data_sources = DataSourceConfig._default_manager.all().order_by('priority', 'name')
+    macro_data_summary = _build_macro_data_summary()
+    system_source_cards = _build_system_source_cards(provider_settings)
+    unified_provider_inventory = build_unified_provider_inventory()
+    provider_dashboard = build_provider_dashboard()
+    provider_inventory_sections = group_provider_inventory_by_access(
+        unified_provider_inventory
+    )
+    pending_provider_cards = _build_pending_provider_cards(
+        unified_provider_inventory,
+        data_sources,
+    )
     selected_source = None
     create_mode = request.GET.get("mode") == "create" or not data_sources.exists()
     selected_id = request.GET.get("edit")
+    requested_source_type = request.GET.get("source_type")
+    requested_name = request.GET.get("name")
     if selected_id:
         selected_source = get_object_or_404(DataSourceConfig, id=selected_id)
         create_mode = False
@@ -313,6 +478,13 @@ def datasource_config_view(request):
         initial = {}
         if create_mode:
             initial["priority"] = data_sources.count() + 1
+            valid_source_types = {
+                source_type for source_type, _ in DataSourceConfig.SOURCE_TYPE_CHOICES
+            }
+            if requested_source_type in valid_source_types:
+                initial["source_type"] = requested_source_type
+            if requested_name:
+                initial["name"] = requested_name
         form = DataSourceConfigForm(instance=selected_source, initial=initial)
 
     stats = {
@@ -332,11 +504,18 @@ def datasource_config_view(request):
         'datasource_cards': datasource_cards,
         'stats': stats,
         'source_type_choices': DataSourceConfig.SOURCE_TYPE_CHOICES,
+        'provider_settings': provider_settings,
+        'system_source_cards': system_source_cards,
+        'unified_provider_inventory': unified_provider_inventory,
+        'provider_dashboard': provider_dashboard,
+        'provider_inventory_sections': provider_inventory_sections,
+        'pending_provider_cards': pending_provider_cards,
         'management_form': form,
         'management_mode': 'create' if create_mode else 'edit',
         'selected_source': selected_source,
         'selected_source_id': selected_source.id if selected_source else None,
         'selected_card': _build_datasource_card(selected_source) if selected_source else None,
+        'macro_data_summary': macro_data_summary,
     }
     return render(request, 'datasource/config.html', context)
 

@@ -219,6 +219,46 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 - 成交回报
 - 账户查询
 
+---
+
+## 9. 页面语义边界
+
+统一数据源的用户入口已经收口到：
+
+- `/macro/datasources/`
+- `/macro/datasources/#provider-status`
+
+两页顶部统一目录都按 3 类固定展示：
+
+- `公开数据`
+- `授权数据`
+- `本地终端`
+
+### 9.1 财经数据源配置页
+
+这个页面只负责：
+
+- 管理 `DataSourceConfig`
+- 展示系统内置宏观源
+- 提示哪些 Provider 已被策略引用但仍待配置
+- 展示运行时 provider 健康状态与快速测试
+
+顶部统一目录仍然可以展示纯运行时 Provider，但必须明确标注：
+
+- 它会显示在左侧只读列表
+- 它的状态联调入口在本页下方“运行时状态与快速测试”区域
+
+例如：
+
+- `EastMoney` 属于运行时已注册的公共 Provider，应显示为“运行时已注册”，并明确“会显示在左侧只读列表”
+- `Tushare` 在 `failover` / `tushare` 默认策略下，如果还没有 `DataSourceConfig`，应显示为“待配置”，并直接出现在左侧“待补配置 / 只读 Provider”分区
+
+其中：
+
+- `/macro/datasources/` 负责配置与目录说明
+- `/macro/datasources/#provider-status` 负责运行状态与快速测试
+- 左侧每条真实 `DataSourceConfig` 记录都带“测试连接”按钮，点击后会弹出模态窗口并输出探针日志
+
 如果未来要做 QMT 交易，应该新增 broker/trading adapter，而不是继续堆进 `market_data` provider。
 
 ---

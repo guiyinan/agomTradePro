@@ -186,9 +186,9 @@
 
                 {% endif %}
 
-                <!-- 系统：下拉菜单 -->
+                <!-- 平台：下拉菜单 -->
                 <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">系统</button>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">平台</button>
                     <div class="dropdown-menu">
                         {% if user.is_staff %}
                         <div class="dropdown-section-title">设置与配置</div>
@@ -199,46 +199,47 @@
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-section-title">数据源</div>
                         <a href="{% url 'macro:datasources' %}" class="dropdown-item">财经数据源配置</a>
-                        <a href="{% url 'market_data:providers' %}" class="dropdown-item"><i class="bi bi-database-check"></i> 市场数据源状态</a>
+                        <a href="{% url 'macro:datasources' %}#provider-status" class="dropdown-item"><i class="bi bi-database-check"></i> 统一数据源运行状态</a>
                         <a href="{% url 'macro:data_controller' %}" class="dropdown-item">数据管理器</a>
                         <div class="dropdown-divider"></div>
-                        <div class="dropdown-section-title">校验与审计</div>
-                        <a href="{% url 'asset-screen' %}" class="dropdown-item">资产池评分/告警</a>
-                        <a href="{% url 'audit:reports' %}" class="dropdown-item">审计归因报告</a>
+                        <div class="dropdown-section-title">AI 与自动化</div>
+                        <a href="{% url 'terminal' %}" class="dropdown-item" target="_blank">
+                            <i class="bi bi-terminal"></i> AI Terminal
+                        </a>
+                        <a href="{% url 'settings-mcp-tools' %}" class="dropdown-item">MCP 工具</a>
+                        <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
+                        <a href="{% url 'prompt:prompt-manage' %}" class="dropdown-item">Prompt模板管理</a>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">运行校验</div>
                         <a href="{% url 'audit:indicator_performance' %}" class="dropdown-item">指标表现校验</a>
                         <a href="{% url 'audit:threshold_validation' %}" class="dropdown-item">阈值验证</a>
-                        <div class="dropdown-divider"></div>
                         {% endif %}
+                    </div>
+                </div>
+
+                <!-- 帮助：下拉菜单 -->
+                <div class="dropdown">
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">帮助</button>
+                    <div class="dropdown-menu">
                         <div class="dropdown-section-title">文档与接口</div>
                         <a href="{% url 'docs' %}" class="dropdown-item">文档中心</a>
                         <a href="/api/docs/" class="dropdown-item">API 文档</a>
                     </div>
                 </div>
 
-                {% if user.is_staff %}
-                <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">AI服务</button>
-                    <div class="dropdown-menu">
-                        <a href="{% url 'terminal' %}" class="dropdown-item" target="_blank">
-                            <i class="bi bi-terminal"></i> AI Terminal
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
-                        <a href="{% url 'ai_provider:logs' %}" class="dropdown-item">AI调用日志</a>
-                        <a href="{% url 'prompt:prompt-manage' %}" class="dropdown-item">Prompt模板管理</a>
-                    </div>
-                </div>
-                {% endif %}
-
                 {% if user.is_superuser %}
                 <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">管理后台</button>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">运维</button>
                     <div class="dropdown-menu">
+                        <div class="dropdown-section-title">管理入口</div>
                         <a href="{% url 'admin-console' %}" class="dropdown-item">管理控制台</a>
                         <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">管理员与访问控制</div>
                         <a href="{% url 'account:user_management' %}" class="dropdown-item">用户管理</a>
                         <a href="{% url 'account:token_management' %}" class="dropdown-item">Token管理</a>
-                        <a href="{% url 'account:system_settings' %}" class="dropdown-item">系统设置</a>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">日志与后台</div>
+                        <a href="{% url 'ai_provider:logs' %}" class="dropdown-item">AI调用日志</a>
                         <a href="{% url 'admin-server-logs' %}" class="dropdown-item">服务器日志</a>
                         <a href="{% url 'admin-docs-manage' %}" class="dropdown-item">文档管理</a>
                         <div class="dropdown-divider"></div>
@@ -595,6 +596,7 @@
     // 顶部导航交互：支持点击、键盘与当前页高亮
     (function() {
         const dropdowns = Array.from(document.querySelectorAll('.header .dropdown'));
+        const supportsHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
         function closeAll(except) {
             dropdowns.forEach((dropdown) => {
@@ -630,6 +632,13 @@
                     if (firstItem) firstItem.focus();
                 }
             });
+
+            if (supportsHover) {
+                dropdown.addEventListener('mouseleave', function() {
+                    dropdown.classList.remove('open');
+                    trigger.setAttribute('aria-expanded', 'false');
+                });
+            }
         });
 
         document.addEventListener('click', function(e) {

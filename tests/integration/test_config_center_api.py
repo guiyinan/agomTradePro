@@ -120,6 +120,23 @@ def test_config_center_snapshot_includes_market_data_provider_summary(staff_clie
 
 
 @pytest.mark.django_db
+def test_config_center_snapshot_treats_builtin_macro_source_as_configured(staff_client):
+    response = staff_client.get("/api/system/config-center/")
+
+    assert response.status_code == 200
+    items = {
+        item["key"]: item
+        for section in response.json()["data"]["sections"]
+        for item in section["items"]
+    }
+    macro_item = items["macro_datasources"]
+    assert macro_item["status"] == "configured"
+    assert macro_item["summary"]["built_in_source_count"] >= 1
+    assert "akshare" in macro_item["summary"]["built_in_sources"]
+    assert macro_item["summary"]["default_data_source"] == "akshare"
+
+
+@pytest.mark.django_db
 def test_ops_center_page_is_single_entry_for_normal_user(normal_client):
     response = normal_client.get("/settings/")
 
@@ -167,6 +184,19 @@ def test_base_navigation_exposes_admin_console_for_superuser(superuser_client):
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "管理控制台" in content
+
+
+@pytest.mark.django_db
+def test_base_navigation_uses_platform_help_and_ops_grouping_for_superuser(superuser_client):
+    response = superuser_client.get("/settings/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "平台" in content
+    assert "帮助" in content
+    assert "运维" in content
+    assert "MCP 工具" in content
+    assert "AI服务" not in content
 
 
 @pytest.mark.django_db

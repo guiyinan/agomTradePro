@@ -9,6 +9,9 @@ from .views import (
     api_batch_delete,
     api_create_record,
     # Config API
+    api_datasource_detail,
+    api_datasource_list_create,
+    api_datasource_test_connection,
     api_delete_data,
     api_delete_record,
     api_fetch_data,
@@ -53,4 +56,7 @@ __all__ = [
     'api_update_record',
     # Config API
     'api_delete_data',
+    'api_datasource_list_create',
+    'api_datasource_detail',
+    'api_datasource_test_connection',
 ]

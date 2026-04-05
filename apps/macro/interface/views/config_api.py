@@ -16,6 +16,9 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from apps.macro.application.data_management import DeleteDataRequest, DeleteDataUseCase
+from apps.macro.infrastructure.datasource_connection_tester import (
+    run_datasource_connection_test,
+)
 from apps.macro.interface.serializers import DataSourceConfigSerializer
 
 from .helpers import get_repository
@@ -60,6 +63,14 @@ def api_datasource_detail(request, source_id: int):
 
     clear_secrets_cache()
     return Response(DataSourceConfigSerializer(updated).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def api_datasource_test_connection(request, source_id: int):
+    """Run a datasource-specific connectivity probe for the config page."""
+    instance = get_object_or_404(DataSourceConfig, id=source_id)
+    return Response(run_datasource_connection_test(instance))
 
 
 def api_delete_data(request):
