@@ -12,7 +12,7 @@
 - `Phase 2` 已完成：主数据表、事实表、`IndicatorCatalog` seed、统一代码归一和基础查询链路已落地。
 - `Phase 3-5` 已完成：统一 provider adapter、sync/query use cases、HTTP API 和主要业务消费侧均已切换到 `apps/data_center`。
 - `Phase 6` 已完成：
-  - 旧 `/macro/datasources/*` 与旧 `/api/market-data/*` 路由已移除。
+  - 旧 macro datasource 路由与旧 market-data 路由已移除。
   - SDK / MCP / 配置中心 / 文档入口已统一对齐到 `data_center`。
   - 仓库内 `apps/data_center/infrastructure/` 之外已无直接 `tushare / akshare / xtquant` import。
   - 旧 `market_data` registry 运行链、cross-validator、bridge provider、legacy use cases 已从主代码和测试路径清理。
@@ -120,7 +120,7 @@
 - 每切完一个模块，同步删除该模块中的旧 adapter/use case/import，不保留平行链路。
 
 ### Phase 6: 旧链路删除与仓库收口
-- 删除旧的 `/macro/datasources/` 和旧 `market_data` 配置/状态入口。
+- 删除旧 macro datasource 入口和旧 `market_data` 配置/状态入口。
 - 删除旧 registry、旧 adapter、旧 datasource connection tester、旧 provider inventory 重复实现。
 - 更新 `core/urls.py`、前端导航、模板、JS、SDK/MCP 名称映射和所有文档。
 - 加入静态合规测试：除 `apps/data_center/infrastructure/` 外，任何模块 import 外部源 SDK 直接失败。

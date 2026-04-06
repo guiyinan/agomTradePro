@@ -37,7 +37,7 @@
 - 配置中心继续负责“发现、摘要、跳转”，但数据源相关入口已经彻底收口到 `data_center`。
 - `account_settings`、`system_settings`、`data_center_providers`、`data_center_runtime` 均通过“设置中心”统一进入。
 - `data_center_providers` 是“配置页”，`data_center_runtime` 是“状态页”；顶部导航与页面文案保持这个区分。
-- 2026-04-05 起，旧 `/macro/datasources/` 与旧 `market_data` 对外入口全部下线，不再保留兼容层。
+- 2026-04-05 起，旧 macro datasource 页面与旧 `market_data` 对外入口全部下线，不再保留兼容层。
 - 权限、审计、版本控制仍由原模块负责。
 - 2026-03-23 起，`system_settings` 增加 `market_color_convention`，用于统一控制全站 `rise/fall/inflow/outflow` 的语义颜色映射；基础模板通过全局 CSS token 下发。
 - 自定义系统配置页 `/account/admin/settings/` 与 Django Admin 已同步提供该开关，管理员无需手改 JSON 或模板。
