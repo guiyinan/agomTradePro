@@ -93,7 +93,7 @@ class _FakeClient:
             allocation=lambda: {"allocation": []},
         )
         self.simulated_trading = SimpleNamespace(
-            list_accounts=lambda status=None, limit=20: [{"id": 1, "status": status, "limit": limit}],
+            list_accounts=lambda status=None, account_type=None, limit=20: [{"id": 1, "status": status, "account_type": account_type, "limit": limit}],
             get_account=lambda account_id: {"id": account_id},
             delete_account=lambda account_id: {"success": True, "account_id": account_id},
             batch_delete_accounts=lambda account_ids: {"success": True, "deleted_account_ids": account_ids},
@@ -108,6 +108,11 @@ class _FakeClient:
         )
         self.account = SimpleNamespace(
             get_trading_cost_configs=lambda limit=100: [{"id": 1, "portfolio": 1, "limit": limit}],
+            list_accounts=lambda status=None, account_type=None, limit=20: [{"id": 1, "status": status}],
+            get_account=lambda account_id: {"id": account_id},
+            create_account=lambda name, initial_capital, start_date, account_type=None: {"id": 2, "name": name},
+            get_account_positions=lambda account_id: [{"account_id": account_id}],
+            get_account_performance=lambda account_id: {"account_id": account_id},
         )
         self.asset_analysis = SimpleNamespace(
             multidim_screen=lambda payload: {"screen": True, "payload": payload},

@@ -235,7 +235,7 @@ def get_account_settings_summary(user: Any) -> dict[str, Any]:
     }
 
 
-def get_system_settings_summary(user: Any) -> dict[str, Any]:
+def get_system_settings_summary(user: Any = None) -> dict[str, Any]:
     from apps.account.infrastructure.models import SystemSettingsModel
 
     settings_obj = SystemSettingsModel.get_settings()

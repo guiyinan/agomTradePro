@@ -81,7 +81,7 @@ def test_rotation_price_service_returns_none_when_market_data_unavailable(monkey
     """RotationPriceDataService 在 market_data 数据中台全部失败时返回 None"""
     monkeypatch.setattr(
         RotationPriceDataService,
-        "_fetch_from_market_data",
+        "_fetch_from_data_center",
         staticmethod(lambda asset_code, end_date, days_back: None),
     )
     service = RotationPriceDataService()
