@@ -313,6 +313,26 @@ class MacroFactRepository:
         return count
 
 
+class LegacyMacroSeriesRepository:
+    """Fallback reader for the pre-data-center macro storage."""
+
+    def get_series(
+        self,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        source: str | None = None,
+    ) -> list:
+        from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+        return DjangoMacroRepository().get_series(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            source=source,
+        )
+
+
 class PriceBarRepository:
     """ORM-backed repository for OHLCV price bars."""
 

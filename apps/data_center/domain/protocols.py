@@ -202,6 +202,19 @@ class MacroFactRepositoryProtocol(Protocol):
 
 
 @runtime_checkable
+class LegacyMacroSeriesRepositoryProtocol(Protocol):
+    """Read-only contract for fallback access to legacy macro storage."""
+
+    def get_series(
+        self,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        source: str | None = None,
+    ) -> list[Any]: ...
+
+
+@runtime_checkable
 class PriceBarRepositoryProtocol(Protocol):
     """Persistence contract for OHLCV price bars."""
 

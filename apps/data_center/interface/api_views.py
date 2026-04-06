@@ -78,6 +78,7 @@ from apps.data_center.infrastructure.repositories import (
     DataProviderSettingsRepository,
     FinancialFactRepository,
     FundNavRepository,
+    LegacyMacroSeriesRepository,
     MacroFactRepository,
     NewsRepository,
     PriceBarRepository,
@@ -402,38 +403,13 @@ def macro_series(request: Request) -> Response:
         source=request.query_params.get("source") or None,
     )
 
-    from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesResponse
-    from apps.regime.infrastructure.macro_data_provider import DataCenterMacroRepositoryAdapter
-
-    uc = QueryMacroSeriesUseCase(MacroFactRepository(), IndicatorCatalogRepository())
+    uc = QueryMacroSeriesUseCase(
+        MacroFactRepository(),
+        IndicatorCatalogRepository(),
+        LegacyMacroSeriesRepository(),
+    )
     result = uc.execute(req)
-    if result.total > 0:
-        return Response(result.to_dict())
-
-    fallback_series = DataCenterMacroRepositoryAdapter().get_series(
-        code=indicator_code,
-        start_date=req.start,
-        end_date=req.end,
-        source=req.source,
-    )
-    fallback_response = MacroSeriesResponse(
-        indicator_code=indicator_code,
-        name_cn=result.name_cn,
-        data=[
-            MacroDataPoint(
-                indicator_code=indicator.code,
-                reporting_period=indicator.reporting_period,
-                value=float(indicator.value),
-                unit=indicator.unit,
-                source=indicator.source,
-                quality="legacy",
-                published_at=indicator.published_at,
-            )
-            for indicator in fallback_series[: req.limit]
-        ],
-        total=min(len(fallback_series), req.limit),
-    )
-    return Response(fallback_response.to_dict())
+    return Response(result.to_dict())
 
 
 @api_view(["GET"])

@@ -47,6 +47,7 @@ from apps.data_center.domain.protocols import (
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
+    LegacyMacroSeriesRepositoryProtocol,
     MacroFactRepositoryProtocol,
     NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
@@ -264,9 +265,11 @@ class QueryMacroSeriesUseCase:
         self,
         fact_repo: MacroFactRepositoryProtocol,
         catalog_repo: IndicatorCatalogRepositoryProtocol,
+        legacy_repo: LegacyMacroSeriesRepositoryProtocol | None = None,
     ) -> None:
         self._facts = fact_repo
         self._catalog = catalog_repo
+        self._legacy = legacy_repo
 
     def execute(self, request: MacroSeriesRequest) -> MacroSeriesResponse:
         facts = self._facts.get_series(
@@ -281,18 +284,42 @@ class QueryMacroSeriesUseCase:
         catalog = self._catalog.get_by_code(request.indicator_code)
         name_cn = catalog.name_cn if catalog else request.indicator_code
 
-        data_points = [
-            MacroDataPoint(
-                indicator_code=f.indicator_code,
-                reporting_period=f.reporting_period,
-                value=f.value,
-                unit=f.unit,
-                source=f.source,
-                quality=f.quality.value,
-                published_at=f.published_at,
+        data_points: list[MacroDataPoint]
+        if facts:
+            data_points = [
+                MacroDataPoint(
+                    indicator_code=f.indicator_code,
+                    reporting_period=f.reporting_period,
+                    value=f.value,
+                    unit=f.unit,
+                    source=f.source,
+                    quality=f.quality.value,
+                    published_at=f.published_at,
+                )
+                for f in facts
+            ]
+        elif self._legacy is not None:
+            legacy_facts = self._legacy.get_series(
+                code=request.indicator_code,
+                start_date=request.start,
+                end_date=request.end,
+                source=request.source,
             )
-            for f in facts
-        ]
+            data_points = [
+                MacroDataPoint(
+                    indicator_code=getattr(f, "code"),
+                    reporting_period=getattr(f, "reporting_period"),
+                    value=float(getattr(f, "value")),
+                    unit=getattr(f, "unit"),
+                    source=getattr(f, "source"),
+                    quality="legacy",
+                    published_at=getattr(f, "published_at"),
+                )
+                for f in legacy_facts[: request.limit]
+            ]
+        else:
+            data_points = []
+
         return MacroSeriesResponse(
             indicator_code=request.indicator_code,
             name_cn=name_cn,

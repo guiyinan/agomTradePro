@@ -6,17 +6,27 @@ Uses in-memory stub implementations — no DB or Django required.
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
-from apps.data_center.application.dtos import CreateProviderRequest, UpdateProviderRequest
+from apps.data_center.application.dtos import (
+    CreateProviderRequest,
+    MacroSeriesRequest,
+    UpdateProviderRequest,
+)
 from apps.data_center.application.use_cases import (
     ManageProviderConfigUseCase,
+    QueryMacroSeriesUseCase,
     RunProviderConnectionTestUseCase,
 )
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
+    IndicatorCatalog,
+    MacroFact,
     ProviderConfig,
 )
+from apps.data_center.domain.enums import DataQualityStatus
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +90,74 @@ class _FailTester:
             summary="probe failed",
             logs=["[ERROR] timeout"],
         )
+
+
+class _MacroFactRepo:
+    def __init__(self, facts: list[MacroFact] | None = None) -> None:
+        self._facts = facts or []
+
+    def get_series(
+        self,
+        indicator_code: str,
+        start: date | None = None,
+        end: date | None = None,
+        limit: int = 500,
+    ) -> list[MacroFact]:
+        facts = [f for f in self._facts if f.indicator_code == indicator_code]
+        if start is not None:
+            facts = [f for f in facts if f.reporting_period >= start]
+        if end is not None:
+            facts = [f for f in facts if f.reporting_period <= end]
+        return facts[:limit]
+
+
+class _IndicatorCatalogRepo:
+    def __init__(self, catalog: IndicatorCatalog | None = None) -> None:
+        self._catalog = catalog
+
+    def get_by_code(self, code: str) -> IndicatorCatalog | None:
+        if self._catalog and self._catalog.code == code:
+            return self._catalog
+        return None
+
+
+class _LegacyMacroFact:
+    def __init__(
+        self,
+        code: str,
+        reporting_period: date,
+        value: float,
+        unit: str,
+        source: str,
+        published_at: date | None,
+    ) -> None:
+        self.code = code
+        self.reporting_period = reporting_period
+        self.value = value
+        self.unit = unit
+        self.source = source
+        self.published_at = published_at
+
+
+class _LegacyMacroSeriesRepo:
+    def __init__(self, facts: list[_LegacyMacroFact] | None = None) -> None:
+        self._facts = facts or []
+
+    def get_series(
+        self,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        source: str | None = None,
+    ) -> list[_LegacyMacroFact]:
+        facts = [f for f in self._facts if f.code == code]
+        if start_date is not None:
+            facts = [f for f in facts if f.reporting_period >= start_date]
+        if end_date is not None:
+            facts = [f for f in facts if f.reporting_period <= end_date]
+        if source is not None:
+            facts = [f for f in facts if f.source == source]
+        return facts
 
 
 # ---------------------------------------------------------------------------
@@ -184,3 +262,72 @@ class TestRunProviderConnectionTestUseCase:
         repo = _InMemoryRepo()
         uc = RunProviderConnectionTestUseCase(repo, _OkTester())
         assert uc.execute(999) is None
+
+
+class TestQueryMacroSeriesUseCase:
+    def test_prefers_data_center_facts_when_available(self):
+        fact = MacroFact(
+            indicator_code="CN_PMI",
+            reporting_period=date(2025, 3, 1),
+            value=50.9,
+            unit="指数",
+            source="akshare",
+            revision_number=1,
+            published_at=date(2025, 3, 2),
+            quality=DataQualityStatus.VALID,
+        )
+        catalog = IndicatorCatalog(
+            code="CN_PMI",
+            name_cn="制造业PMI",
+            default_unit="指数",
+            default_period_type="M",
+        )
+
+        uc = QueryMacroSeriesUseCase(
+            _MacroFactRepo([fact]),
+            _IndicatorCatalogRepo(catalog),
+            _LegacyMacroSeriesRepo(
+                [
+                    _LegacyMacroFact(
+                        code="CN_PMI",
+                        reporting_period=date(2025, 2, 1),
+                        value=50.1,
+                        unit="指数",
+                        source="legacy",
+                        published_at=date(2025, 2, 2),
+                    )
+                ]
+            ),
+        )
+
+        result = uc.execute(MacroSeriesRequest(indicator_code="CN_PMI"))
+
+        assert result.total == 1
+        assert result.name_cn == "制造业PMI"
+        assert result.data[0].value == 50.9
+        assert result.data[0].quality == "valid"
+
+    def test_falls_back_to_legacy_repo_when_data_center_is_empty(self):
+        uc = QueryMacroSeriesUseCase(
+            _MacroFactRepo(),
+            _IndicatorCatalogRepo(),
+            _LegacyMacroSeriesRepo(
+                [
+                    _LegacyMacroFact(
+                        code="CN_PMI",
+                        reporting_period=date(2025, 3, 1),
+                        value=50.9,
+                        unit="指数",
+                        source="akshare",
+                        published_at=date(2025, 3, 2),
+                    )
+                ]
+            ),
+        )
+
+        result = uc.execute(MacroSeriesRequest(indicator_code="CN_PMI"))
+
+        assert result.total == 1
+        assert result.name_cn == "CN_PMI"
+        assert result.data[0].value == 50.9
+        assert result.data[0].quality == "legacy"
