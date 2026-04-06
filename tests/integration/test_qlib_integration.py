@@ -595,6 +595,7 @@ class TestQlibEndToEnd:
         not importlib.util.find_spec("qlib"),
         reason="qlib not installed"
     )
+    @patch("apps.alpha.application.tasks._build_outdated_qlib_reason", return_value=None)
     @patch("qlib.data.D")
     @patch("qlib.data.dataset.DatasetH", autospec=True)
     @patch("qlib.contrib.data.handler.Alpha360", autospec=True)
@@ -605,6 +606,7 @@ class TestQlibEndToEnd:
         mock_alpha360,
         mock_dataset,
         mock_d,
+        _mock_outdated_reason,
         tmp_path,
     ):
         """测试完整的预测流程（使用模拟依赖与测试库软开关）"""
@@ -636,7 +638,15 @@ class TestQlibEndToEnd:
 
         mock_alpha360.return_value = Mock(name="alpha360-handler")
         mock_dataset.return_value = Mock(name="dataset")
-        mock_d.instruments.return_value = ["SYNTH0001", "SYNTH0002", "SYNTH0003"]
+        mock_d.instruments.return_value = {
+            "market": "csi300",
+            "filter_pipe": [],
+        }
+        mock_d.list_instruments.return_value = [
+            "SYNTH0001",
+            "SYNTH0002",
+            "SYNTH0003",
+        ]
 
         if hasattr(_execute_qlib_prediction, "_qlib_initialized"):
             delattr(_execute_qlib_prediction, "_qlib_initialized")
@@ -672,6 +682,7 @@ class TestQlibEndToEnd:
         mock_alpha360.assert_called_once()
         mock_dataset.assert_called_once()
         mock_d.instruments.assert_called_once_with(market="csi300")
+        mock_d.list_instruments.assert_called_once()
 
 
 @pytest.mark.django_db

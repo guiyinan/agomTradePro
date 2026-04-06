@@ -37,30 +37,40 @@ class MarketSummaryView(View):
 
     def get(self, request, *args, **kwargs):
         """GET /api/realtime/market-summary/"""
-        provider = self.use_case.service.price_provider
+        prices = self.use_case.get_latest_prices(list(self.INDEX_CODES.values()))
+        prices_by_code = {item["asset_code"]: item for item in prices}
         index_payload = {}
         latest_timestamp = None
         total_volume = 0
         available_count = 0
 
         for field_name, asset_code in self.INDEX_CODES.items():
-            price = provider.get_realtime_price(asset_code)
+            price = prices_by_code.get(asset_code)
             if price is None:
                 index_payload[field_name] = None
                 continue
 
-            index_payload[field_name] = float(price.price)
-            index_payload[f"{field_name}_change"] = float(price.change) if price.change is not None else None
-            index_payload[f"{field_name}_change_pct"] = float(price.change_pct) if price.change_pct is not None else None
-            latest_timestamp = price.timestamp if latest_timestamp is None else max(latest_timestamp, price.timestamp)
-            total_volume += price.volume or 0
+            index_payload[field_name] = float(price["price"])
+            index_payload[f"{field_name}_change"] = price.get("change")
+            index_payload[f"{field_name}_change_pct"] = price.get("change_pct")
+            timestamp = price.get("timestamp")
+            if timestamp:
+                latest_timestamp = timestamp if latest_timestamp is None else max(
+                    latest_timestamp,
+                    timestamp,
+                )
+            total_volume += price.get("volume") or 0
             available_count += 1
 
         payload = {
             "success": available_count > 0,
             "stats_available": False,
-            "message": "Major index snapshot is available; breadth statistics are not implemented in the realtime module yet.",
-            "timestamp": latest_timestamp.isoformat() if latest_timestamp else None,
+            "message": (
+                "Major index snapshot is available; breadth statistics are unavailable in the current realtime data providers."
+                if available_count
+                else "No realtime index snapshot is available from cache or configured providers."
+            ),
+            "timestamp": latest_timestamp,
             "up_count": 0,
             "down_count": 0,
             "flat_count": 0,
@@ -115,7 +125,7 @@ class RealtimePriceView(View):
 
             return JsonResponse({
                 "success_flag": True,
-                "timestamp": self.use_case.service.price_repository.get_latest_price(asset_codes[0]).timestamp.isoformat() if prices else None,
+                "timestamp": prices[0].get("timestamp") if prices else None,
                 "prices": prices,
                 "total": len(asset_codes),
                 "success": len(prices),

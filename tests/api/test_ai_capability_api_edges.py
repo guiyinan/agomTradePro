@@ -3,7 +3,12 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.urls import re_path
 from rest_framework.test import APIClient
+
+from apps.ai_capability.infrastructure.collectors.api_collector import ApiCapabilityCollector
+from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
 
 
 @pytest.fixture
@@ -136,3 +141,57 @@ def test_ai_capability_web_chat_masks_answer_chain_for_non_admin(api_client, reg
     payload = response.json()
     assert payload["metadata"]["answer_chain"]["visibility"] == "masked"
     assert "technical_details" not in payload["metadata"]["answer_chain"]["steps"][0]
+
+
+@pytest.mark.django_db
+def test_ai_capability_list_filters_by_category(api_client, regular_user):
+    CapabilityCatalogModel.objects.create(
+        capability_key="api.get.api.macro.test",
+        source_type="api",
+        source_ref="GET api/macro/test/",
+        name="Macro Test",
+        summary="Macro capability",
+        route_group="read_api",
+        category="macro",
+        execution_target={"type": "api", "method": "GET", "path": "api/macro/test/"},
+        risk_level="safe",
+        enabled_for_routing=True,
+    )
+    CapabilityCatalogModel.objects.create(
+        capability_key="api.get.api.regime.test",
+        source_type="api",
+        source_ref="GET api/regime/test/",
+        name="Regime Test",
+        summary="Regime capability",
+        route_group="read_api",
+        category="regime",
+        execution_target={"type": "api", "method": "GET", "path": "api/regime/test/"},
+        risk_level="safe",
+        enabled_for_routing=True,
+    )
+
+    api_client.force_authenticate(user=regular_user)
+    response = api_client.get("/api/ai-capability/capabilities/?category=macro")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "api.get.api.macro.test" in {item["capability_key"] for item in payload}
+    assert all(item["category"] == "macro" for item in payload)
+
+
+def test_api_capability_collector_normalizes_regex_path_names():
+    collector = ApiCapabilityCollector()
+
+    def _dummy_view(request, account_id):
+        return JsonResponse({"account_id": account_id})
+
+    pattern = re_path(r"^api/account/detail/(?P<account_id>[^/.]+)/$", _dummy_view)
+    capabilities = []
+
+    collector._collect_from_pattern(pattern, capabilities)
+
+    assert len(capabilities) == 1
+    capability = capabilities[0]
+    assert capability.execution_target["path"] == "api/account/detail/<account_id>/"
+    assert "(?P<" not in capability.name
+    assert "Account Id" in capability.name

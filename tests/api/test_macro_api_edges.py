@@ -61,6 +61,15 @@ def test_macro_indicator_data_requires_code(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_macro_indicator_data_accepts_indicator_alias(authenticated_client):
+    response = authenticated_client.get("/api/macro/indicator-data/?indicator=CN_PMI")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+
+
+@pytest.mark.django_db
 def test_macro_legacy_datasource_routes_are_removed(authenticated_client):
     response = authenticated_client.get("/api/macro/datasources/")
 

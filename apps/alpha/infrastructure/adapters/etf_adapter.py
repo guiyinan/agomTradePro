@@ -14,9 +14,12 @@ ETF Fallback Alpha Provider
 import logging
 import re
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional
 
 from django.conf import settings
+
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
@@ -126,10 +129,11 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 status="unavailable",
             )
 
-        # 2. 获取 ETF 成分股（数据库）
-        constituents, constituents_error = self._get_etf_constituents(
+        # 2. 获取 ETF 成分股（优先数据库，缺失时回退到远端）
+        constituents, constituents_error, constituents_metadata = self._get_etf_constituents(
             etf_info["etf_code"],
-            top_n
+            intended_trade_date,
+            top_n,
         )
 
         if not constituents:
@@ -162,9 +166,10 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 "etf_code": etf_info["etf_code"],
                 "etf_name": etf_info["etf_name"],
                 "report_date": etf_info.get("report_date"),
+                **constituents_metadata,
                 "fallback_reason": (
                     "所有其他 Provider 不可用"
-                    if etf_info.get("report_date")
+                    if etf_info.get("report_date") or constituents_metadata.get("report_date")
                     else "所有其他 Provider 不可用，但当前 ETF 无可用持仓报告"
                 ),
             }
@@ -173,20 +178,22 @@ class ETFFallbackProvider(BaseAlphaProvider):
     def _get_etf_constituents(
         self,
         etf_code: str,
+        intended_trade_date: date,
         top_n: int
-    ) -> tuple[list[tuple], str | None]:
+    ) -> tuple[list[tuple], str | None, dict[str, str]]:
         """
-        获取 ETF 成分股（仅从真实数据源）
+        获取 ETF 成分股（优先本地真实数据，不足时回退远端真实数据）
 
-        不再使用静态成分股列表作为兜底。
-        如果没有真实持仓数据，返回空列表和错误信息。
+        不使用静态成分股列表。
+        如果本地和远端都没有真实持仓数据，返回空列表和错误信息。
 
         Args:
             etf_code: ETF 代码
+            intended_trade_date: 计划交易日期
             top_n: 返回前 N 只
 
         Returns:
-            (成分股列表, 错误信息)
+            (成分股列表, 错误信息, 元数据)
             成分股列表格式: [(股票代码, 权重), ...]
         """
         try:
@@ -203,7 +210,11 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
             if not latest_report:
-                return [], f"ETF {etf_code} 没有持仓报告数据，请先同步基金持仓数据"
+                return self._get_remote_etf_constituents(
+                    etf_code,
+                    intended_trade_date,
+                    top_n,
+                )
 
             # 获取持仓数据
             holdings = list(
@@ -216,7 +227,11 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
             if not holdings:
-                return [], f"ETF {etf_code} 报告日期 {latest_report} 没有持仓记录"
+                return self._get_remote_etf_constituents(
+                    etf_code,
+                    intended_trade_date,
+                    top_n,
+                )
 
             result: list[tuple] = []
             for row in holdings:
@@ -225,12 +240,180 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 ratio_value = float(ratio) if ratio is not None else 0.0
                 result.append((stock_code, ratio_value))
 
-            return result, None
+            return result, None, {
+                "holdings_source": "database",
+                "report_date": latest_report.isoformat(),
+            }
 
         except ImportError as e:
-            return [], f"无法导入基金模型: {e}"
+            return [], f"无法导入基金模型: {e}", {}
         except Exception as e:
-            return [], f"获取 ETF {etf_code} 持仓时发生错误: {e}"
+            logger.warning("读取本地 ETF 持仓失败，尝试远端回退: %s", e)
+            return self._get_remote_etf_constituents(
+                etf_code,
+                intended_trade_date,
+                top_n,
+            )
+
+    def _get_remote_etf_constituents(
+        self,
+        etf_code: str,
+        intended_trade_date: date,
+        top_n: int,
+    ) -> tuple[list[tuple], str | None, dict[str, str]]:
+        fund_code = etf_code.split(".")[0]
+        ak = get_akshare_module()
+
+        for year in range(intended_trade_date.year, intended_trade_date.year - 3, -1):
+            try:
+                frame = ak.fund_portfolio_hold_em(symbol=fund_code, date=str(year))
+            except Exception as exc:
+                logger.warning(
+                    "远端 ETF 持仓拉取失败: %s year=%s error=%s",
+                    etf_code,
+                    year,
+                    exc,
+                )
+                continue
+
+            if frame is None or frame.empty:
+                continue
+
+            period_col = "季度"
+            code_col = "股票代码"
+            ratio_col = "占净值比例"
+            if (
+                period_col not in frame.columns
+                or code_col not in frame.columns
+                or ratio_col not in frame.columns
+            ):
+                continue
+
+            frame = frame.copy()
+            frame["_period_rank"] = frame[period_col].map(self._quarter_sort_key)
+            frame = frame.dropna(subset=["_period_rank"])
+            if frame.empty:
+                continue
+
+            latest_period = frame.sort_values("_period_rank", ascending=False).iloc[0][period_col]
+            latest_rows = frame.loc[frame[period_col] == latest_period].copy()
+            self._persist_remote_holdings(fund_code, latest_period, latest_rows)
+            latest_rows = latest_rows.head(top_n)
+
+            result: list[tuple] = []
+            for _, row in latest_rows.iterrows():
+                stock_code = self._normalize_stock_code(row.get(code_col))
+                if not stock_code:
+                    continue
+                try:
+                    ratio_value = float(row.get(ratio_col) or 0.0)
+                except (TypeError, ValueError):
+                    ratio_value = 0.0
+                result.append((stock_code, ratio_value))
+
+            if result:
+                return result, None, {
+                    "holdings_source": "eastmoney",
+                    "report_date": str(latest_period),
+                }
+
+        return [], f"ETF {etf_code} 没有持仓报告数据，请先同步基金持仓数据", {}
+
+    def _persist_remote_holdings(
+        self,
+        fund_code: str,
+        report_label: object,
+        rows,
+    ) -> None:
+        report_date = self._parse_report_date(report_label)
+        if report_date is None:
+            return
+
+        try:
+            from apps.fund.infrastructure.models import FundHoldingModel
+
+            for _, row in rows.iterrows():
+                stock_code = self._normalize_stock_code(row.get("股票代码"))
+                if not stock_code:
+                    continue
+
+                FundHoldingModel._default_manager.update_or_create(
+                    fund_code=fund_code,
+                    report_date=report_date,
+                    stock_code=stock_code,
+                    defaults={
+                        "stock_name": str(row.get("股票名称") or stock_code),
+                        "holding_amount": self._parse_int(row.get("持股数")),
+                        "holding_value": self._parse_decimal(row.get("持仓市值")),
+                        "holding_ratio": self._parse_float(row.get("占净值比例")),
+                    },
+                )
+        except Exception as exc:
+            logger.warning("写入远端 ETF 持仓到本地库失败: %s", exc)
+
+    @staticmethod
+    def _quarter_sort_key(raw_value: object) -> tuple[int, int] | None:
+        if raw_value in (None, ""):
+            return None
+        match = re.search(r"(\d{4})年([1-4])季度", str(raw_value))
+        if not match:
+            return None
+        return int(match.group(1)), int(match.group(2))
+
+    @staticmethod
+    def _normalize_stock_code(raw_value: object) -> str:
+        if raw_value in (None, ""):
+            return ""
+        code = str(raw_value).strip()
+        if "." in code:
+            return code
+        if code.startswith("6"):
+            return f"{code}.SH"
+        if code.startswith(("8", "4")):
+            return f"{code}.BJ"
+        return f"{code}.SZ"
+
+    @staticmethod
+    def _parse_report_date(raw_value: object) -> date | None:
+        sort_key = ETFFallbackProvider._quarter_sort_key(raw_value)
+        if sort_key is None:
+            return None
+        year, quarter = sort_key
+        quarter_end = {
+            1: (3, 31),
+            2: (6, 30),
+            3: (9, 30),
+            4: (12, 31),
+        }
+        month, day = quarter_end[quarter]
+        return date(year, month, day)
+
+    @staticmethod
+    def _parse_int(raw_value: object) -> int | None:
+        if raw_value in (None, ""):
+            return None
+        try:
+            return int(float(raw_value))
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_float(raw_value: object) -> float | None:
+        if raw_value in (None, ""):
+            return None
+        try:
+            return float(raw_value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_decimal(raw_value: object) -> Decimal | None:
+        if raw_value in (None, ""):
+            return None
+        try:
+            return Decimal(str(raw_value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
 
     def get_etf_for_universe(self, universe_id: str) -> dict[str, str]:
         """

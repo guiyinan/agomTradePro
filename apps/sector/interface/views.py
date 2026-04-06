@@ -42,6 +42,29 @@ class SectorRotationViewSet(viewsets.ViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.sector_repo = DjangoSectorRepository()
+        self.adapter = AKShareSectorAdapter()
+
+    def _run_analysis(self, use_case_request):
+        use_case = AnalyzeSectorRotationUseCase(sector_repo=self.sector_repo)
+        result = use_case.execute(use_case_request)
+        warning_code = getattr(result, "warning_message", "")
+        if warning_code != "sector_data_unavailable":
+            return result
+
+        sync_result = UpdateSectorDataUseCase(
+            sector_repo=self.sector_repo,
+            adapter=self.adapter,
+        ).execute(
+            UpdateSectorDataRequest(
+                level=use_case_request.level,
+                start_date=None,
+                end_date=None,
+                force_update=False,
+            )
+        )
+        if not sync_result.success:
+            return result
+        return use_case.execute(use_case_request)
 
     @action(detail=False, methods=['post'], url_path='analyze')
     def analyze(self, request):
@@ -87,10 +110,7 @@ class SectorRotationViewSet(viewsets.ViewSet):
         use_case_request = serializer.to_use_case_request()
 
         # 3. 执行用例
-        use_case = AnalyzeSectorRotationUseCase(
-            sector_repo=self.sector_repo
-        )
-        result = use_case.execute(use_case_request)
+        result = self._run_analysis(use_case_request)
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
@@ -127,10 +147,7 @@ class SectorRotationViewSet(viewsets.ViewSet):
         )
 
         # 3. 执行用例
-        use_case = AnalyzeSectorRotationUseCase(
-            sector_repo=self.sector_repo
-        )
-        result = use_case.execute(use_case_request)
+        result = self._run_analysis(use_case_request)
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)

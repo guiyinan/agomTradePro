@@ -332,6 +332,7 @@ def list_capabilities(request):
     """
     source_type = request.query_params.get("source_type")
     route_group = request.query_params.get("route_group")
+    category = request.query_params.get("category")
     q = (request.query_params.get("q") or "").strip().lower()
     enabled_only = request.query_params.get("enabled_only", "true").lower() == "true"
 
@@ -341,6 +342,7 @@ def list_capabilities(request):
         capabilities = use_case.execute(
             source_type=source_type,
             route_group=route_group,
+            category=category,
             enabled_only=enabled_only,
         )
         if q:
@@ -458,13 +460,15 @@ class CapabilityViewSet(viewsets.ReadOnlyModelViewSet):
         repo = DjangoCapabilityRepository()
         source_type = self.request.query_params.get("source_type")
         route_group = self.request.query_params.get("route_group")
+        category = self.request.query_params.get("category")
+        enabled_only = self.request.query_params.get("enabled_only", "true").lower() == "true"
 
-        if source_type:
-            return repo.get_by_source_type(source_type)
-        elif route_group:
-            return repo.get_by_route_group(route_group)
-        else:
-            return repo.get_all_enabled()
+        return repo.list_capabilities(
+            source_type=source_type,
+            route_group=route_group,
+            category=category,
+            enabled_only=enabled_only,
+        )
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()

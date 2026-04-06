@@ -63,6 +63,7 @@ class SectorRotationResult:
     status: str = "available"
     data_source: str = "live"
     warning_message: str | None = None
+    warning_detail: str | None = None
 
 
 class AnalyzeSectorRotationUseCase:
@@ -106,21 +107,12 @@ class AnalyzeSectorRotationUseCase:
             分析结果
         """
         try:
+            market_returns_fallback = False
+            market_returns_cache: dict[int, list[float]] = {}
             # 1. 获取 Regime
             if request.regime:
                 regime = request.regime
             else:
-                if self.regime_repo is None:
-                    return SectorRotationResult(
-                        success=False,
-                        regime='',
-                        analysis_date=date.today(),
-                        top_sectors=[],
-                        error="未指定 Regime 且未提供 regime_repo",
-                        status="unavailable",
-                        data_source="fallback",
-                        warning_message="regime_unavailable",
-                    )
                 # 自动获取最新 Regime（统一 V2 链路）
                 from apps.regime.application.current_regime import resolve_current_regime
                 regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
@@ -137,6 +129,7 @@ class AnalyzeSectorRotationUseCase:
                     status="unavailable",
                     data_source="fallback",
                     warning_message="sector_weights_unavailable",
+                    warning_detail="当前 Regime 的板块权重配置缺失，需先在系统配置中补齐。",
                 )
 
             # 3. 获取所有板块信息
@@ -151,6 +144,7 @@ class AnalyzeSectorRotationUseCase:
                     status="unavailable",
                     data_source="fallback",
                     warning_message="sector_data_unavailable",
+                    warning_detail=f"{request.level} 板块基础信息尚未初始化，系统将尝试自动同步。",
                 )
 
             # 4. 计算每个板块的动量和相对强弱
@@ -182,18 +176,18 @@ class AnalyzeSectorRotationUseCase:
                 )
 
                 # 获取大盘指数收益率（沪深300）
-                market_returns = self._get_market_returns(start_date, end_date, len(returns))
+                expected_length = len(returns)
+                market_returns = market_returns_cache.get(expected_length)
                 if market_returns is None:
-                    return SectorRotationResult(
-                        success=False,
-                        regime=regime,
-                        analysis_date=date.today(),
-                        top_sectors=[],
-                        error="缺少沪深300真实收益率数据，无法计算板块相对强弱",
-                        status="unavailable",
-                        data_source="fallback",
-                        warning_message="market_returns_unavailable",
+                    market_returns = self._get_market_returns(
+                        start_date,
+                        end_date,
+                        expected_length,
                     )
+                    if market_returns is None:
+                        market_returns = [0.0] * expected_length
+                        market_returns_fallback = True
+                    market_returns_cache[expected_length] = market_returns
 
                 # 计算相对强弱（简化版）
                 relative_strength = momentum - sum(market_returns) / len(market_returns) * 100
@@ -219,6 +213,7 @@ class AnalyzeSectorRotationUseCase:
                     status="unavailable",
                     data_source="fallback",
                     warning_message="sector_indices_insufficient",
+                    warning_detail="板块指数历史数据不足，无法计算动量与相对强弱。",
                 )
 
             # 5. 使用 Domain 层服务进行评分排名
@@ -238,9 +233,18 @@ class AnalyzeSectorRotationUseCase:
                 regime=regime,
                 analysis_date=date.today(),
                 top_sectors=top_sectors,
-                status="available",
-                data_source="live",
-                warning_message=None,
+                status="degraded" if market_returns_fallback else "available",
+                data_source="fallback" if market_returns_fallback else "live",
+                warning_message=(
+                    "market_returns_fallback"
+                    if market_returns_fallback
+                    else None
+                ),
+                warning_detail=(
+                    "沪深300 基准收益率暂不可用，本次相对强弱采用无基准近似值；建议补齐指数行情缓存。"
+                    if market_returns_fallback
+                    else None
+                ),
             )
 
         except Exception as e:
@@ -253,6 +257,7 @@ class AnalyzeSectorRotationUseCase:
                 status="degraded",
                 data_source="fallback",
                 warning_message="sector_rotation_failed",
+                warning_detail="板块轮动分析执行异常，请检查板块指数与基准行情数据。",
             )
 
     def _get_market_returns(
@@ -292,13 +297,15 @@ class AnalyzeSectorRotationUseCase:
             # 对齐到 expected_length
             if len(sorted_returns) >= expected_length:
                 return sorted_returns[-expected_length:]
-            else:
-                logger.warning(
-                    "沪深300 收益率数据不足: expected=%s actual=%s",
-                    expected_length,
-                    len(sorted_returns),
-                )
-                return None
+            if len(sorted_returns) + 1 == expected_length:
+                return [0.0] + sorted_returns
+
+            logger.warning(
+                "沪深300 收益率数据不足: expected=%s actual=%s",
+                expected_length,
+                len(sorted_returns),
+            )
+            return None
 
         except Exception as e:
             logger.warning(f"获取大盘收益率失败: {e}，大盘收益率 unavailable")

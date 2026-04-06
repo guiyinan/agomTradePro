@@ -12,6 +12,7 @@ from typing import List
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
+from .common import pick_column, safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +55,14 @@ class OtherIndicatorFetcher:
                 logger.warning("失业率数据为空")
                 return []
 
-            date_col = '月份' if '月份' in df.columns else df.columns[0]
-            value_col = '城镇调查失业率' if '城镇调查失业率' in df.columns else df.columns[1]
+            date_col = pick_column(df, ['月份', '日期'], 0)
+            value_col = pick_column(df, ['城镇调查失业率', '今值'], 1)
 
-            df['date'] = pd.to_datetime(df[date_col].apply(parse_chinese_date), format='mixed')
+            df['date'] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_date),
+                format='mixed',
+                errors='coerce',
+            )
             df = df[['date', value_col]].dropna()
             df.columns = ['observed_at', 'value']
             df = df[
@@ -69,7 +74,8 @@ class OtherIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_UNEMPLOYMENT", ("%", "%"))
             for _, row in df.iterrows():
                 try:
-                    value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
+                    raw_value = safe_float(row['value'])
+                    value_decimal = raw_value / 100 if raw_value > 1 else raw_value
                     point = MacroDataPoint(
                         code="CN_UNEMPLOYMENT",
                         value=value_decimal,
@@ -86,8 +92,8 @@ class OtherIndicatorFetcher:
             return self._sort_and_deduplicate(data_points)
 
         except Exception as e:
-            logger.error(f"获取失业率数据失败: {e}")
-            raise
+            logger.warning(f"获取失业率数据失败，跳过该指标: {e}")
+            return []
 
     def fetch_new_house_price(
         self,

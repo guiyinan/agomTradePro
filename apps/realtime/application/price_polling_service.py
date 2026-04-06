@@ -289,6 +289,20 @@ class PricePollingUseCase:
         Returns:
             价格字典列表
         """
-        prices = self.price_repository.get_latest_prices(asset_codes)
-        return [p.to_dict() for p in prices]
+        cached_prices = self.price_repository.get_latest_prices(asset_codes)
+        prices_by_code = {price.asset_code: price for price in cached_prices}
+        missing_codes = [code for code in asset_codes if code not in prices_by_code]
+
+        if missing_codes:
+            fetched_prices = self.price_provider.get_realtime_prices_batch(missing_codes)
+            if fetched_prices:
+                self.price_repository.save_prices_batch(fetched_prices)
+                for price in fetched_prices:
+                    prices_by_code[price.asset_code] = price
+
+        return [
+            prices_by_code[asset_code].to_dict()
+            for asset_code in asset_codes
+            if asset_code in prices_by_code
+        ]
 

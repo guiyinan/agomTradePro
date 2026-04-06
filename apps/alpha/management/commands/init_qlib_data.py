@@ -5,9 +5,7 @@ Initialize Qlib Data Management Command
 """
 
 import logging
-import os
-import sys
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -63,16 +61,16 @@ class Command(BaseCommand):
         parser.add_argument(
             '--region',
             type=str,
-            default='CN',
+            default=None,
             dest='region',
-            help='Region configuration (default: CN)',
+            help='Region configuration (default: runtime setting)',
         )
         parser.add_argument(
             '--provider-uri',
             type=str,
-            default='~/.qlib/qlib_data/cn_data',
+            default=None,
             dest='provider_uri',
-            help='Qlib data path (default: ~/.qlib/qlib_data/cn_data)',
+            help='Qlib data path (default: runtime setting)',
         )
 
     def handle(self, *args, **options):
@@ -81,8 +79,17 @@ class Command(BaseCommand):
         check_only = options.get('check', False)
         universe = options.get('universe', 'csi300')
         days = options.get('days', 365)
-        region = options.get('region', 'CN')
-        provider_uri = options.get('provider_uri', '~/.qlib/qlib_data/cn_data')
+        region = options.get('region')
+        provider_uri = options.get('provider_uri')
+
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+        region = region or runtime_config.get('region', 'CN')
+        provider_uri = provider_uri or runtime_config.get(
+            'provider_uri',
+            '~/.qlib/qlib_data/cn_data',
+        )
 
         self.stdout.write(self.style.SUCCESS('Qlib 数据初始化'))
         self.stdout.write(f'  股票池: {universe}')
@@ -141,39 +148,44 @@ class Command(BaseCommand):
             import qlib
             from qlib.data import D
 
+            from apps.alpha.application.tasks import (
+                _get_qlib_data_latest_date,
+                _resolve_qlib_stock_list,
+            )
+
             qlib.init(provider_uri=str(data_path), region="cn")
 
-            # 检查股票列表
-            instruments = D.instruments(market=universe)
-            if instruments:
+            stock_list = _resolve_qlib_stock_list(D, universe_id=universe)
+            self.stdout.write(
+                self.style.SUCCESS(f'  ✓ {universe} 股票池: {len(stock_list)} 只股票')
+            )
+
+            latest_trade_date = _get_qlib_data_latest_date()
+            if latest_trade_date is not None:
                 self.stdout.write(
-                    self.style.SUCCESS(f'  ✓ {universe} 股票池: {len(instruments)} 只股票')
+                    self.style.SUCCESS(f'  ✓ 本地最新交易日: {latest_trade_date.isoformat()}')
                 )
             else:
-                self.stdout.write(
-                    self.style.WARNING(f'  ⚠ {universe} 股票池为空')
-                )
+                self.stdout.write(self.style.WARNING('  ⚠ 本地交易日历为空'))
 
-            # 检查最近数据
-            from datetime import datetime, timedelta
-            end_date = timezone.now()
+            # 基于本地最新交易日检查最近窗口，避免误用系统当前日期导致全空。
+            end_date = latest_trade_date or timezone.now().date()
             start_date = end_date - timedelta(days=7)
 
-            # 尝试获取一些数据
             try:
                 df = D.features(
-                    instruments[:10],  # 只检查前 10 只
+                    stock_list[:10],
                     fields=["$close"],
-                    start_time=start_date,
-                    end_time=end_date
+                    start_time=start_date.isoformat(),
+                    end_time=end_date.isoformat(),
                 )
                 if not df.empty:
                     self.stdout.write(
-                        self.style.SUCCESS('  ✓ 最近 7 天数据存在')
+                        self.style.SUCCESS('  ✓ 最近 7 个自然日窗口存在行情数据')
                     )
                 else:
                     self.stdout.write(
-                        self.style.WARNING('  ⚠ 最近 7 天数据为空')
+                        self.style.WARNING('  ⚠ 最近 7 个自然日窗口行情数据为空')
                     )
             except Exception as e:
                 self.stdout.write(
@@ -193,10 +205,16 @@ class Command(BaseCommand):
         self.stdout.write(f'\n下载 Qlib 数据到 {data_path}...')
 
         try:
-            import qlib
+            from qlib.tests.data import GetData
 
-            # 初始化并下载
-            qlib.init(provider_uri=str(data_path), region=region.lower())
+            data_path.mkdir(parents=True, exist_ok=True)
+            downloader = GetData(delete_zip_file=True)
+            downloader.qlib_data(
+                target_dir=str(data_path),
+                region=region.lower(),
+                delete_old=False,
+                exists_skip=False,
+            )
 
             self.stdout.write(
                 self.style.SUCCESS('  ✓ 数据下载完成')
@@ -213,29 +231,32 @@ class Command(BaseCommand):
         self.stdout.write(f'\n准备 {universe} 数据...')
 
         try:
-            from datetime import datetime, timedelta
-
             import qlib
             from qlib.data import D
+
+            from apps.alpha.application.tasks import (
+                _get_qlib_data_latest_date,
+                _resolve_qlib_stock_list,
+            )
 
             # 初始化 Qlib
             qlib.init(provider_uri=str(data_path), region="cn")
 
-            # 获取股票列表
-            instruments = D.instruments(market=universe)
-            self.stdout.write(f'  股票池大小: {len(instruments)}')
+            stock_list = _resolve_qlib_stock_list(D, universe_id=universe)
+            self.stdout.write(f'  股票池大小: {len(stock_list)}')
 
             # 检查数据范围
-            end_date = timezone.now()
+            latest_trade_date = _get_qlib_data_latest_date()
+            end_date = latest_trade_date or timezone.now().date()
             start_date = end_date - timedelta(days=days)
 
             # 尝试获取数据
             try:
                 df = D.features(
-                    instruments,
+                    stock_list,
                     fields=["$close", "$volume", "$turnover"],
-                    start_time=start_date,
-                    end_time=end_date
+                    start_time=start_date.isoformat(),
+                    end_time=end_date.isoformat(),
                 )
 
                 if not df.empty:

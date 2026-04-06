@@ -1,7 +1,12 @@
+from datetime import datetime, timezone
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
 from django.test import Client
+
+from apps.realtime.application.price_polling_service import PricePollingUseCase
+from apps.realtime.domain.entities import AssetType, RealtimePrice
 
 
 @pytest.fixture
@@ -90,3 +95,39 @@ def test_realtime_health_view_returns_healthy_status(client):
     assert data["status"] == "healthy"
     assert data["data_provider_available"] is True
     assert "timestamp" in data
+
+
+def test_price_polling_use_case_fetches_missing_prices_from_provider():
+    use_case = PricePollingUseCase.__new__(PricePollingUseCase)
+    use_case.price_repository = Mock()
+    use_case.price_provider = Mock()
+    use_case.service = Mock(price_repository=use_case.price_repository, price_provider=use_case.price_provider)
+
+    cached_price = RealtimePrice(
+        asset_code="000001.SZ",
+        asset_type=AssetType.EQUITY,
+        price=Decimal("10.50"),
+        change=None,
+        change_pct=None,
+        volume=100,
+        timestamp=datetime(2026, 4, 6, 10, 0, tzinfo=timezone.utc),
+        source="cache",
+    )
+    fetched_price = RealtimePrice(
+        asset_code="600000.SH",
+        asset_type=AssetType.EQUITY,
+        price=Decimal("12.30"),
+        change=None,
+        change_pct=None,
+        volume=200,
+        timestamp=datetime(2026, 4, 6, 10, 1, tzinfo=timezone.utc),
+        source="provider",
+    )
+    use_case.price_repository.get_latest_prices.return_value = [cached_price]
+    use_case.price_provider.get_realtime_prices_batch.return_value = [fetched_price]
+
+    prices = use_case.get_latest_prices(["000001.SZ", "600000.SH"])
+
+    assert [item["asset_code"] for item in prices] == ["000001.SZ", "600000.SH"]
+    use_case.price_provider.get_realtime_prices_batch.assert_called_once_with(["600000.SH"])
+    use_case.price_repository.save_prices_batch.assert_called_once_with([fetched_price])

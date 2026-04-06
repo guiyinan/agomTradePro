@@ -106,6 +106,7 @@ class SectorRotationResultSerializer(serializers.Serializer):
     status = serializers.CharField(max_length=20, required=False)
     data_source = serializers.CharField(max_length=20, required=False)
     warning_message = serializers.CharField(allow_null=True, required=False)
+    warning_detail = serializers.CharField(allow_null=True, required=False)
 
 
 class UpdateSectorDataRequestSerializer(serializers.Serializer):

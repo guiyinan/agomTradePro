@@ -24,6 +24,15 @@ pip install pyqlib lightgbm scikit-learn
 # 检查 Qlib 数据状态
 python manage.py init_qlib_data --check
 
+# 检查自建更新是否具备前置条件
+python manage.py build_qlib_data --check-only
+
+# 使用 Tushare 自建最近窗口 Qlib 数据
+python manage.py build_qlib_data
+
+# 只更新指定股票池
+python manage.py build_qlib_data --universes csi300,csi500
+
 # 下载并初始化数据
 python manage.py init_qlib_data --download --universe=csi300
 ```
@@ -58,17 +67,23 @@ curl "http://localhost:8000/api/alpha/scores/?universe=csi300&top_n=10"
 ```json
 {
   "success": true,
-  "source": "cache",
+  "source": "qlib",
   "status": "available",
+  "metadata": {
+    "requested_trade_date": "2026-04-06",
+    "effective_trade_date": "2026-04-03",
+    "trade_date_adjusted": true,
+    "trade_date_adjust_reason": "请求交易日 2026-04-06 尚无本地 Qlib 日线，已回退到最新可用交易日 2026-04-03。"
+  },
   "stocks": [
     {
       "code": "600519.SH",
       "score": 0.8234,
       "rank": 1,
-      "factors": {"momentum": 0.75, "value": 0.60},
-      "source": "cache",
+      "factors": {},
+      "source": "qlib",
       "confidence": 0.8,
-      "asof_date": "2026-02-05"
+      "asof_date": "2026-04-03"
     }
   ]
 }
@@ -100,7 +115,7 @@ curl "http://localhost:8000/api/alpha/providers/status/"
   },
   "qlib": {
     "priority": 1,
-    "status": "degraded",
+    "status": "available",
     "max_staleness_days": 2
   }
 }
@@ -209,6 +224,10 @@ tail -f logs/alpha.log
 ```bash
 # 检查 Qlib 数据
 python manage.py init_qlib_data --check
+python manage.py build_qlib_data --check-only
+
+# 自建最近窗口数据
+python manage.py build_qlib_data
 
 # 检查 Celery 任务
 celery -A core inspect active

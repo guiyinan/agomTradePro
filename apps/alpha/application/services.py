@@ -66,6 +66,19 @@ def _build_reliability_notice(
             "message": message,
         }
 
+    if metadata.get("trade_date_adjusted"):
+        effective_trade_date = metadata.get("effective_trade_date") or asof_date or "历史日期"
+        requested_trade_date = metadata.get("requested_trade_date") or intended_trade_date.isoformat()
+        return {
+            "level": "warning",
+            "code": "qlib_trade_date_adjusted",
+            "title": "Alpha 当前使用最新可用交易日",
+            "message": (
+                f"请求交易日 {requested_trade_date} 的 Qlib 日线尚未落地，"
+                f"当前展示的是截至 {effective_trade_date} 的最新可用推理结果。"
+            ),
+        }
+
     if fallback_mode == "forward_fill_latest_qlib_cache":
         return {
             "level": "warning",

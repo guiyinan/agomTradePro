@@ -32,6 +32,24 @@ def _clean_pattern_str(raw: str) -> str:
     return cleaned
 
 
+def _normalize_api_path(raw: str) -> str | None:
+    """Convert Django regex/path patterns into a readable API path."""
+    if "(?P<format>" in raw:
+        return None
+
+    cleaned = _clean_pattern_str(raw)
+    cleaned = cleaned.replace("\\Z", "")
+    cleaned = cleaned.replace("\\", "")
+    cleaned = re.sub(
+        r"\(\?P<(?P<name>[^>]+)>[^)]+\)",
+        lambda match: f"<{match.group('name').lower()}>",
+        cleaned,
+    )
+    cleaned = cleaned.replace("?", "")
+    cleaned = re.sub(r"/+", "/", cleaned)
+    return cleaned
+
+
 class ApiCapabilityCollector:
     """Collects internal API endpoints as capabilities."""
 
@@ -75,12 +93,20 @@ class ApiCapabilityCollector:
         from django.urls.resolvers import URLPattern, URLResolver
 
         if isinstance(pattern, URLResolver):
-            new_prefix = prefix + _clean_pattern_str(str(pattern.pattern))
+            normalized = _normalize_api_path(str(pattern.pattern))
+            if normalized is None:
+                return
+
+            new_prefix = prefix + normalized
             for sub_pattern in pattern.url_patterns:
                 self._collect_from_pattern(sub_pattern, capabilities, new_prefix)
 
         elif isinstance(pattern, URLPattern):
-            path = prefix + _clean_pattern_str(str(pattern.pattern))
+            normalized = _normalize_api_path(str(pattern.pattern))
+            if normalized is None:
+                return
+
+            path = prefix + normalized
             callback = pattern.callback
 
             if not path.startswith("api/"):
@@ -253,9 +279,16 @@ class ApiCapabilityCollector:
 
     def _create_name(self, path: str, method: str) -> str:
         """Create a human-readable name."""
-        parts = path.strip("/").split("/")
-        name_parts = [p for p in parts if not p.startswith("<")]
-        name = " ".join(name_parts[-3:])
+        parts = []
+        for part in path.strip("/").split("/"):
+            if part == "api":
+                continue
+            if part.startswith("<") and part.endswith(">"):
+                parts.append(part[1:-1].replace("_", " "))
+                continue
+            parts.append(part.replace("-", " "))
+
+        name = " ".join(parts[-3:])
         return f"{method} {name}".title()
 
     def _determine_route_group(

@@ -12,6 +12,7 @@ from typing import List
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
+from .common import pick_column, safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,18 @@ def parse_chinese_date(date_str: str) -> str:
 def parse_chinese_quarter(date_str: str) -> str:
     """处理中文季度格式 (如: '2024年第1季度')"""
     date_str = str(date_str)
-    match = re.match(r'(\d{4})年[第](\d+)[季度季度]', date_str)
+    match = re.match(r'(\d{4})年(?:第)?(\d)(?:-(\d))?季度', date_str)
     if match:
-        year, quarter = match.groups()
+        year, start_quarter, end_quarter = match.groups()
+        quarter = end_quarter or start_quarter
         quarter_to_month = {'1': '03', '2': '06', '3': '09', '4': '12'}
         return f"{year}-{quarter_to_month.get(quarter, '12')}-01"
+
+    match = re.match(r'(\d{4})年(?:第)?(\d)-(\d)季度', date_str)
+    if match:
+        year, _, end_quarter = match.groups()
+        quarter_to_month = {'1': '03', '2': '06', '3': '09', '4': '12'}
+        return f"{year}-{quarter_to_month.get(end_quarter, '12')}-01"
 
     match = re.match(r'(\d{4})年(\d+)-(\d+)月', date_str)
     if match:
@@ -169,12 +177,15 @@ class EconomicIndicatorFetcher:
                 logger.warning("GDP 数据为空")
                 return []
 
-            date_col_idx = 0
-            value_col_idx = 1
-
             df = df.copy()
-            df['observed_at'] = pd.to_datetime(df.iloc[:, date_col_idx].apply(parse_chinese_quarter), format='mixed', errors='coerce')
-            df['value'] = pd.to_numeric(df.iloc[:, value_col_idx], errors='coerce')
+            date_col = pick_column(df, ["季度"], 0)
+            value_col = pick_column(df, ["国内生产总值-绝对值"], 1)
+            df['observed_at'] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_quarter),
+                format='mixed',
+                errors='coerce',
+            )
+            df['value'] = pd.to_numeric(df[value_col], errors='coerce')
             df = df[['observed_at', 'value']].dropna()
             df = df[
                 (df['observed_at'].dt.date >= start_date) &
@@ -185,11 +196,9 @@ class EconomicIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_GDP", ("亿元", "亿元"))
             for _, row in df.iterrows():
                 try:
-                    # akshare的GDP数据单位是"亿元"
-                    original_value = float(row['value'])
                     point = MacroDataPoint(
                         code="CN_GDP",
-                        value=original_value,  # 保持原始值（亿元）
+                        value=safe_float(row['value']),  # 保持原始值（亿元）
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,

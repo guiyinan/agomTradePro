@@ -29,3 +29,13 @@ def test_regime_action_invalid_date_returns_400(authenticated_client):
     payload = response.json()
     assert payload["success"] is False
     assert "Invalid as_of_date" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_regime_api_root_contract(authenticated_client):
+    response = authenticated_client.get("/api/regime/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["endpoints"]["current"] == "/api/regime/current/"
+    assert payload["endpoints"]["navigator"] == "/api/regime/navigator/"

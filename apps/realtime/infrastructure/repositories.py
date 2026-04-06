@@ -13,10 +13,16 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 
+import pandas as pd
 from django.core.cache import cache
 from django.db import models
 from django.utils import timezone
 
+from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+    AKShareEastMoneyGateway,
+)
+from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
 from apps.realtime.domain.entities import (
     AssetType,
@@ -214,6 +220,210 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         self._quote_repo = QuoteSnapshotRepository()
         self._price_repo = PriceBarRepository()
         self._is_available = True
+        self._ak = None
+        self._eastmoney_gateway: AKShareEastMoneyGateway | None = None
+
+    def _get_ak(self):
+        if self._ak is None:
+            self._ak = get_akshare_module()
+        return self._ak
+
+    def _get_eastmoney_gateway(self) -> AKShareEastMoneyGateway:
+        if self._eastmoney_gateway is None:
+            self._eastmoney_gateway = AKShareEastMoneyGateway()
+        return self._eastmoney_gateway
+
+    @staticmethod
+    def _pick_value(row, candidates: list[str]):
+        for candidate in candidates:
+            if candidate in row and pd.notna(row[candidate]):
+                return row[candidate]
+        return None
+
+    def _build_price_from_spot_row(
+        self,
+        asset_code: str,
+        row,
+    ) -> RealtimePrice | None:
+        latest_price = self._pick_value(row, ["最新价", "最新", "现价"])
+        if latest_price is None:
+            return None
+
+        change = self._pick_value(row, ["涨跌额", "涨跌"])
+        change_pct = self._pick_value(row, ["涨跌幅"])
+        volume = self._pick_value(row, ["成交量", "总手"])
+
+        return RealtimePrice(
+            asset_code=asset_code,
+            asset_type=self._get_asset_type(asset_code),
+            price=Decimal(str(latest_price)),
+            change=Decimal(str(change)) if change is not None else None,
+            change_pct=Decimal(str(change_pct)) if change_pct is not None else None,
+            volume=int(float(volume)) if volume is not None else None,
+            timestamp=timezone.now(),
+            source="akshare",
+        )
+
+    def _build_quote_snapshot_from_spot_row(
+        self,
+        asset_code: str,
+        row,
+    ) -> DataCenterQuoteSnapshot | None:
+        latest_price = self._pick_value(row, ["最新价", "最新", "现价"])
+        if latest_price is None:
+            return None
+
+        volume = self._pick_value(row, ["成交量", "总手"])
+        amount = self._pick_value(row, ["成交额"])
+        snapshot_at = timezone.now()
+        return DataCenterQuoteSnapshot(
+            asset_code=asset_code,
+            snapshot_at=snapshot_at,
+            current_price=float(latest_price),
+            source="akshare",
+            open=self._pick_float(row, ["今开", "开盘"]),
+            high=self._pick_float(row, ["最高"]),
+            low=self._pick_float(row, ["最低"]),
+            prev_close=self._pick_float(row, ["昨收", "昨结"]),
+            volume=float(volume) if volume is not None else None,
+            amount=float(amount) if amount is not None else None,
+        )
+
+    def _build_price_from_quote_snapshot(
+        self,
+        asset_code: str,
+        snapshot,
+    ) -> RealtimePrice | None:
+        price = getattr(snapshot, "price", None)
+        if price is None:
+            return None
+
+        volume = getattr(snapshot, "volume", None)
+        return RealtimePrice(
+            asset_code=asset_code,
+            asset_type=self._get_asset_type(asset_code),
+            price=Decimal(str(price)),
+            change=(
+                Decimal(str(snapshot.change))
+                if getattr(snapshot, "change", None) is not None
+                else None
+            ),
+            change_pct=(
+                Decimal(str(snapshot.change_pct))
+                if getattr(snapshot, "change_pct", None) is not None
+                else None
+            ),
+            volume=int(volume) if volume is not None else None,
+            timestamp=timezone.now(),
+            source=getattr(snapshot, "source", None) or "eastmoney",
+        )
+
+    @staticmethod
+    def _pick_float(row, candidates: list[str]) -> float | None:
+        value = AKSharePriceDataProvider._pick_value(row, candidates)
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _build_market_quote_snapshot(
+        self,
+        asset_code: str,
+        snapshot,
+    ) -> DataCenterQuoteSnapshot | None:
+        price = getattr(snapshot, "price", None)
+        if price is None:
+            return None
+
+        snapshot_at = timezone.now()
+        return DataCenterQuoteSnapshot(
+            asset_code=asset_code,
+            snapshot_at=snapshot_at,
+            current_price=float(price),
+            source=getattr(snapshot, "source", None) or "eastmoney",
+            open=float(snapshot.open) if getattr(snapshot, "open", None) is not None else None,
+            high=float(snapshot.high) if getattr(snapshot, "high", None) is not None else None,
+            low=float(snapshot.low) if getattr(snapshot, "low", None) is not None else None,
+            prev_close=(
+                float(snapshot.pre_close)
+                if getattr(snapshot, "pre_close", None) is not None
+                else None
+            ),
+            volume=float(snapshot.volume) if getattr(snapshot, "volume", None) is not None else None,
+            amount=float(snapshot.amount) if getattr(snapshot, "amount", None) is not None else None,
+            bid=float(snapshot.bid) if getattr(snapshot, "bid", None) is not None else None,
+            ask=float(snapshot.ask) if getattr(snapshot, "ask", None) is not None else None,
+        )
+
+    def _persist_quote_snapshots(
+        self,
+        quotes: list[DataCenterQuoteSnapshot],
+    ) -> None:
+        if not quotes:
+            return
+        try:
+            self._quote_repo.bulk_upsert(quotes)
+        except Exception as exc:
+            logger.warning("Persisting remote quote snapshots failed: %s", exc)
+
+    def _load_direct_quotes(
+        self,
+        asset_codes: list[str],
+    ) -> dict[str, RealtimePrice]:
+        if not asset_codes:
+            return {}
+
+        try:
+            snapshots = self._get_eastmoney_gateway().get_quote_snapshots(asset_codes)
+        except Exception as exc:
+            logger.warning("EastMoney direct quote fallback failed: %s", exc)
+            return {}
+
+        results: dict[str, RealtimePrice] = {}
+        quotes_to_persist: list[DataCenterQuoteSnapshot] = []
+        for snapshot in snapshots:
+            stock_code = getattr(snapshot, "stock_code", None)
+            if not stock_code:
+                continue
+            price = self._build_price_from_quote_snapshot(stock_code, snapshot)
+            quote = self._build_market_quote_snapshot(stock_code, snapshot)
+            if price is not None:
+                results[stock_code] = price
+            if quote is not None:
+                quotes_to_persist.append(quote)
+        self._persist_quote_snapshots(quotes_to_persist)
+        return results
+
+    def _find_spot_row(self, frame: pd.DataFrame, asset_code: str):
+        if frame is None or frame.empty:
+            return None
+
+        code_col = None
+        for candidate in ["代码", "基金代码", "证券代码"]:
+            if candidate in frame.columns:
+                code_col = candidate
+                break
+        if code_col is None:
+            return None
+
+        raw_code = self._convert_to_akshare_code(asset_code)
+        matches = frame.loc[frame[code_col].astype(str) == raw_code]
+        if matches.empty:
+            return None
+        return matches.iloc[0]
+
+    def _load_spot_frame(self, loader_name: str) -> pd.DataFrame:
+        loader = getattr(self._get_ak(), loader_name, None)
+        if loader is None:
+            return pd.DataFrame()
+        try:
+            frame = loader()
+            return frame if frame is not None else pd.DataFrame()
+        except Exception as exc:
+            logger.warning("AKShare spot loader %s failed: %s", loader_name, exc)
+            return pd.DataFrame()
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格
@@ -236,6 +446,28 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
 
             latest_bar = self._price_repo.get_latest(asset_code)
             if latest_bar is None:
+                fund_row = self._find_spot_row(
+                    self._load_spot_frame("fund_etf_spot_em"),
+                    asset_code,
+                )
+                if fund_row is not None:
+                    quote = self._build_quote_snapshot_from_spot_row(asset_code, fund_row)
+                    self._persist_quote_snapshots([quote] if quote is not None else [])
+                    return self._build_price_from_spot_row(asset_code, fund_row)
+
+                stock_row = self._find_spot_row(
+                    self._load_spot_frame("stock_zh_a_spot_em"),
+                    asset_code,
+                )
+                if stock_row is not None:
+                    quote = self._build_quote_snapshot_from_spot_row(asset_code, stock_row)
+                    self._persist_quote_snapshots([quote] if quote is not None else [])
+                    return self._build_price_from_spot_row(asset_code, stock_row)
+
+                direct_price = self._load_direct_quotes([asset_code]).get(asset_code)
+                if direct_price is not None:
+                    return direct_price
+
                 logger.warning(f"No price data found for {asset_code}")
                 return None
 
@@ -259,28 +491,50 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
 
         AKShare 可以一次性获取所有股票的实时行情
         """
+        fund_frame = self._load_spot_frame("fund_etf_spot_em")
+        stock_frame = self._load_spot_frame("stock_zh_a_spot_em")
+        direct_quotes: dict[str, RealtimePrice] = {}
         prices = []
+        missing_codes: list[str] = []
+        quotes_to_persist: list[DataCenterQuoteSnapshot] = []
         for code in asset_codes:
-            price = self.get_realtime_price(code)
+            price = None
+            fund_row = self._find_spot_row(fund_frame, code)
+            if fund_row is not None:
+                price = self._build_price_from_spot_row(code, fund_row)
+                quote = self._build_quote_snapshot_from_spot_row(code, fund_row)
+                if quote is not None:
+                    quotes_to_persist.append(quote)
+            else:
+                stock_row = self._find_spot_row(stock_frame, code)
+                if stock_row is not None:
+                    price = self._build_price_from_spot_row(code, stock_row)
+                    quote = self._build_quote_snapshot_from_spot_row(code, stock_row)
+                    if quote is not None:
+                        quotes_to_persist.append(quote)
+            if price is None:
+                missing_codes.append(code)
+                continue
             if price is not None:
                 prices.append(price)
-        logger.info(f"Retrieved {len(prices)}/{len(asset_codes)} prices from data_center")
+
+        self._persist_quote_snapshots(quotes_to_persist)
+
+        if missing_codes:
+            direct_quotes = self._load_direct_quotes(missing_codes)
+
+        for code in missing_codes:
+            price = direct_quotes.get(code)
+            if price is None:
+                price = self.get_realtime_price(code)
+            if price is not None:
+                prices.append(price)
+        logger.info(f"Retrieved {len(prices)}/{len(asset_codes)} prices from AKShare")
         return prices
 
     def is_available(self) -> bool:
         """检查 AKShare 数据源是否可用"""
-        if not self._is_available:
-            return False
-
-        try:
-            return (
-                self._quote_repo.get_latest("000001.SZ") is not None
-                or self._price_repo.get_latest("000001.SZ") is not None
-            )
-        except Exception as e:
-            logger.error(f"AKShare data source unavailable: {e}")
-            self._is_available = False
-            return False
+        return self._is_available
 
     def _convert_to_akshare_code(self, asset_code: str) -> str:
         """转换资产代码为 AKShare 格式
@@ -295,6 +549,9 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
 
     def _get_asset_type(self, asset_code: str) -> AssetType:
         """根据资产代码判断资产类型"""
+        raw_code = self._convert_to_akshare_code(asset_code)
+        if raw_code.startswith(("5", "15", "16", "18")):
+            return AssetType.FUND
         if "." in asset_code:
             suffix = asset_code.split(".")[1]
             if suffix in ["SH", "SZ", "BJ"]:

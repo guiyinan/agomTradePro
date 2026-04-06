@@ -9,11 +9,13 @@ import hashlib
 import json
 import logging
 import pickle
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from celery import shared_task
 from django.utils import timezone
+
+from apps.alpha.infrastructure.qlib_builder import resolve_effective_trade_date
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +142,7 @@ def _build_outdated_qlib_reason(trade_date: date) -> str | None:
     latest_data_date = _get_qlib_data_latest_date()
     if latest_data_date is None:
         return "本地 Qlib 数据目录为空，无法执行实时推理"
-    if trade_date > latest_data_date + timedelta(days=7):
+    if trade_date > latest_data_date + timedelta(days=10):
         return (
             f"本地 Qlib 数据最新交易日为 {latest_data_date.isoformat()}，"
             f"早于请求交易日 {trade_date.isoformat()}，请先同步 Qlib 数据"
@@ -157,6 +159,75 @@ def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
         return "Qlib 未安装，无法检查本地数据目录，请安装 pyqlib 或复用历史缓存"
 
     return f"读取本地 Qlib 数据状态失败: {exc}"
+
+
+def _resolve_qlib_stock_list(
+    data_api,
+    universe_id: str,
+    start_time=None,
+    end_time=None,
+) -> list[str]:
+    """Resolve a qlib universe config into a concrete instrument list."""
+    instruments = data_api.instruments(market=universe_id)
+    if not instruments:
+        raise RuntimeError(f"未找到股票池: {universe_id}")
+
+    if isinstance(instruments, dict):
+        if not hasattr(data_api, "list_instruments"):
+            raise RuntimeError(f"Qlib 数据接口不支持展开股票池: {universe_id}")
+        stock_list = data_api.list_instruments(
+            instruments,
+            start_time=start_time,
+            end_time=end_time,
+            as_list=True,
+        )
+    else:
+        stock_list = list(instruments)
+
+    normalized = [str(stock).strip() for stock in stock_list if str(stock).strip()]
+    if not normalized:
+        if start_time or end_time:
+            raise RuntimeError(
+                f"股票池 {universe_id} 在 {start_time or '起始'} ~ {end_time or '结束'} 无可用成分股"
+            )
+        raise RuntimeError(f"股票池 {universe_id} 无可用成分股")
+
+    return normalized
+
+
+def _resolve_qlib_handler_class(feature_set_id: str | None):
+    """Select the qlib data handler class that matches the model feature set."""
+    from qlib.contrib.data.handler import Alpha158, Alpha360
+
+    normalized = str(feature_set_id or "").strip().lower()
+    if normalized in {"alpha158", "158", "v158"}:
+        return Alpha158
+    return Alpha360
+
+
+def _make_json_safe(value):
+    """Convert pandas/numpy/date/path values into JSON-safe payloads."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_make_json_safe(item) for item in value]
+    if hasattr(value, "isoformat") and not isinstance(value, str):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except Exception:
+            pass
+    return str(value)
 
 
 @shared_task(
@@ -241,7 +312,7 @@ def qlib_predict_scores(
         outdated_reason = None
         if latest_qlib_data_date is None:
             outdated_reason = "本地 Qlib 数据目录为空，无法执行实时推理"
-        elif trade_date > latest_qlib_data_date + timedelta(days=7):
+        elif trade_date > latest_qlib_data_date + timedelta(days=10):
             outdated_reason = (
                 f"本地 Qlib 数据最新交易日为 {latest_qlib_data_date.isoformat()}，"
                 f"早于请求交易日 {trade_date.isoformat()}，请先同步 Qlib 数据"
@@ -267,14 +338,27 @@ def qlib_predict_scores(
                     outdated_reason,
                 )
                 return fallback_result
-            raise RuntimeError(outdated_reason)
+                raise RuntimeError(outdated_reason)
+
+        execution_trade_date = trade_date
+        execution_metadata: dict[str, object] = {
+            "requested_trade_date": trade_date.isoformat(),
+        }
+        if latest_qlib_data_date is not None:
+            execution_trade_date, resolved_metadata = resolve_effective_trade_date(
+                trade_date,
+                latest_qlib_data_date,
+                max_forward_gap_days=10,
+            )
+            execution_metadata.update(resolved_metadata)
+        asof_date = execution_trade_date
 
         # 3. 执行预测（使用 Qlib）
         try:
             scores_data = _execute_qlib_prediction(
                 active_model=active_model,
                 universe_id=universe_id,
-                trade_date=trade_date,
+                trade_date=execution_trade_date,
                 top_n=top_n
             )
         except Exception as exc:
@@ -288,6 +372,7 @@ def qlib_predict_scores(
                     "qlib_data_latest_date": latest_qlib_data_date.isoformat()
                     if latest_qlib_data_date
                     else None,
+                    **execution_metadata,
                 },
             )
             if fallback_result is not None:
@@ -311,6 +396,7 @@ def qlib_predict_scores(
                     "qlib_data_latest_date": latest_qlib_data_date.isoformat()
                     if latest_qlib_data_date
                     else None,
+                    **execution_metadata,
                 },
             )
             if fallback_result is not None:
@@ -330,6 +416,7 @@ def qlib_predict_scores(
             asof_date=asof_date,
             scores_data=scores_data,
             status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+            metrics_snapshot=execution_metadata,
         )
 
         action = "创建" if created else "更新"
@@ -345,6 +432,7 @@ def qlib_predict_scores(
             "cache_created": created,
             "stock_count": len(scores_data),
             "model_artifact_hash": active_model.artifact_hash,
+            **execution_metadata,
         }
 
     except Exception as exc:
@@ -680,9 +768,9 @@ def _upsert_qlib_cache(
             "feature_set_id": active_model.feature_set_id,
             "label_id": active_model.label_id,
             "data_version": active_model.data_version,
-            "scores": scores_data,
+            "scores": _make_json_safe(scores_data),
             "status": status,
-            "metrics_snapshot": metrics_snapshot,
+            "metrics_snapshot": _make_json_safe(metrics_snapshot),
             "user": None,
         }
     )
@@ -778,11 +866,14 @@ def _execute_qlib_prediction(
     Returns:
         评分数据列表
     """
+    outdated_reason = _build_outdated_qlib_reason(trade_date)
+    if outdated_reason:
+        raise RuntimeError(outdated_reason)
+
     try:
         # 尝试导入 Qlib
         import pandas as pd
         import qlib
-        from qlib.contrib.data.handler import Alpha360
         from qlib.data import D
         from qlib.data.dataset import DatasetH
 
@@ -814,17 +905,16 @@ def _execute_qlib_prediction(
         with open(model_path, "rb") as f:
             model = pickle.load(f)
 
-        # 获取股票池
-        instruments = D.instruments(market=universe_id)
-        if not instruments:
-            logger.warning(f"未找到股票池: {universe_id}")
-            raise RuntimeError(f"未找到股票池: {universe_id}")
+        stock_list = _resolve_qlib_stock_list(
+            D,
+            universe_id=universe_id,
+            start_time=f"{trade_date.year - 1}-01-01",
+            end_time=trade_date.isoformat(),
+        )
 
-        # 转换为列表（Qlib 返回可能是 Index）
-        stock_list = list(instruments) if hasattr(instruments, '__iter__') else list(instruments)
+        handler_cls = _resolve_qlib_handler_class(getattr(active_model, "feature_set_id", None))
 
         # 准备预测数据
-        # 使用 Alpha360 handler 准备数据
         handler_config = {
             "start_time": f"{trade_date.year - 1}-01-01",  # 使用过去一年的数据
             "end_time": trade_date.isoformat(),
@@ -835,7 +925,7 @@ def _execute_qlib_prediction(
 
         try:
             # 当前 qlib 版本要求通过 DatasetH 进行预测，而不是直接将 handler 传给模型。
-            handler = Alpha360(**handler_config)
+            handler = handler_cls(**handler_config)
             dataset = DatasetH(
                 handler=handler,
                 segments={"test": (pd.Timestamp(trade_date), pd.Timestamp(trade_date))},
@@ -869,7 +959,7 @@ def _execute_qlib_prediction(
             for stock, pred_score in scores_series.items():
                 if pd.notna(pred_score):
                     scores_data.append({
-                        "code": stock,
+                        "code": str(stock),
                         "score": float(pred_score),
                         "rank": 0,  # 稍后计算
                         "factors": {},
@@ -1013,7 +1103,7 @@ def _train_qlib_model(
     try:
         import pandas as pd
         import qlib
-        from qlib.contrib.data.handler import Alpha360
+        from qlib.contrib.data.handler import Alpha158, Alpha360
         from qlib.contrib.model.gbdt import LGBModel
         from qlib.contrib.model.mlptron import MLPTPModel
         from qlib.contrib.model.pytorch_gru import GRUModel
@@ -1057,19 +1147,20 @@ def _train_qlib_model(
         train_period = (end_dt - start_dt).days
         valid_start = start_dt + pd.Timedelta(days=int(train_period * 0.8))
 
-        # 获取股票池
-        instruments = D.instruments(market=universe)
-        if not instruments:
-            raise ValueError(f"股票池不存在或为空: {universe}")
-
-        # 转换为列表
-        stock_list = list(instruments) if hasattr(instruments, '__iter__') else list(instruments)
+        stock_list = _resolve_qlib_stock_list(
+            D,
+            universe_id=universe,
+            start_time=start_dt,
+            end_time=end_dt,
+        )
 
         logger.info(f"准备训练数据: universe={universe}, stocks={len(stock_list)}")
         logger.info(f"训练期: {start_dt.date()} ~ {valid_start.date()}")
         logger.info(f"验证期: {valid_start.date()} ~ {end_dt.date()}")
 
         # 配置数据处理器
+        feature_set_id = train_config.get("feature_set_id", "alpha360")
+        handler_cls = Alpha158 if str(feature_set_id).strip().lower() in {"alpha158", "158", "v158"} else Alpha360
         handler_config = {
             "start_time": (start_dt.year, start_dt.month, start_dt.day),
             "end_time": (end_dt.year, end_dt.month, end_dt.day),
@@ -1079,7 +1170,7 @@ def _train_qlib_model(
         }
 
         # 创建数据处理器
-        train_handler = Alpha360(**handler_config)
+        train_handler = handler_cls(**handler_config)
 
         # 创建数据集
         segments = {
@@ -1154,7 +1245,7 @@ def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> 
     try:
         import numpy as np
         import pandas as pd
-        from qlib.contrib.data.handler import Alpha360
+        from qlib.contrib.data.handler import Alpha158, Alpha360
         from qlib.data import D
         from qlib.data.dataset import DatasetH
         from scipy.stats import spearmanr
@@ -1179,15 +1270,16 @@ def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> 
         train_period = (end_dt - start_dt).days
         valid_start = start_dt + pd.Timedelta(days=int(train_period * 0.8))
 
-        # 获取股票池
-        instruments = D.instruments(market=universe)
-        if not instruments:
-            raise ValueError(f"股票池不存在: {universe}")
-
-        # 转换为列表
-        stock_list = list(instruments) if hasattr(instruments, '__iter__') else list(instruments)
+        stock_list = _resolve_qlib_stock_list(
+            D,
+            universe_id=universe,
+            start_time=start_dt,
+            end_time=end_dt,
+        )
 
         # 配置数据处理器
+        feature_set_id = train_config.get("feature_set_id", "alpha360")
+        handler_cls = Alpha158 if str(feature_set_id).strip().lower() in {"alpha158", "158", "v158"} else Alpha360
         handler_config = {
             "start_time": (start_dt.year, start_dt.month, start_dt.day),
             "end_time": (end_dt.year, end_dt.month, end_dt.day),
@@ -1201,7 +1293,7 @@ def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> 
             "test": (pd.Timestamp(valid_start), pd.Timestamp(end_dt)),
         }
 
-        handler = Alpha360(**handler_config)
+        handler = handler_cls(**handler_config)
         dataset = DatasetH(handler=handler, segments=segments)
 
         # 获取预测结果

@@ -1105,19 +1105,16 @@ class GetCapabilityListUseCase:
         self,
         source_type: str | None = None,
         route_group: str | None = None,
+        category: str | None = None,
         enabled_only: bool = True,
     ) -> list[CapabilitySummaryDTO]:
         """Get list of capabilities."""
-        if source_type:
-            capabilities = self.capability_repo.get_by_source_type(source_type)
-        elif route_group:
-            capabilities = self.capability_repo.get_by_route_group(route_group)
-        else:
-            capabilities = (
-                self.capability_repo.get_all_enabled()
-                if enabled_only
-                else self.capability_repo.get_all_for_routing()
-            )
+        capabilities = self.capability_repo.list_capabilities(
+            source_type=source_type,
+            route_group=route_group,
+            category=category,
+            enabled_only=enabled_only,
+        )
 
         return [
             CapabilitySummaryDTO(

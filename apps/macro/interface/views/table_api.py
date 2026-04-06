@@ -56,13 +56,17 @@ def _format_indicator_for_display(item: MacroIndicator) -> dict:
 def api_get_indicator_data(request):
     """
     API: 获取指标数据详情
-    支持参数: code / indicator_code, limit, start_date, end_date
+    支持参数: code / indicator_code / indicator, limit, start_date, end_date
     """
     if request.method != 'GET':
         return JsonResponse({'success': False, 'message': '仅支持 GET 请求'}, status=405)
 
     try:
-        code = request.GET.get('code') or request.GET.get('indicator_code')
+        code = (
+            request.GET.get('code')
+            or request.GET.get('indicator_code')
+            or request.GET.get('indicator')
+        )
         limit = int(request.GET.get('limit', 500))  # 增加默认值
         start_date = request.GET.get('start_date', '')
         end_date = request.GET.get('end_date', '')

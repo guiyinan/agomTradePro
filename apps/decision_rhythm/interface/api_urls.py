@@ -2,6 +2,8 @@
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .command_api_views import (
     GetRhythmSummaryView,
@@ -47,7 +49,29 @@ router.register(r"quotas", DecisionQuotaViewSet, basename="decision-quota")
 router.register(r"cooldowns", CooldownPeriodViewSet, basename="cooldown-period")
 router.register(r"requests", DecisionRequestViewSet, basename="decision-request")
 
+
+class DecisionApiRootView(APIView):
+    """Return discoverable decision workflow API endpoints."""
+
+    def get(self, request):
+        return Response(
+            {
+                "endpoints": {
+                    "workspace_recommendations": "/api/decision/workspace/recommendations/",
+                    "workspace_conflicts": "/api/decision/workspace/conflicts/",
+                    "workspace_params": "/api/decision/workspace/params/",
+                    "workspace_plans_generate": "/api/decision/workspace/plans/generate/",
+                    "execute_preview": "/api/decision/execute/preview/",
+                    "execute_approve": "/api/decision/execute/approve/",
+                    "execute_reject": "/api/decision/execute/reject/",
+                    "funnel_context": "/api/decision/funnel/context/",
+                    "audit": "/api/decision/audit/",
+                }
+            }
+        )
+
 urlpatterns = [
+    path("api/decision/", DecisionApiRootView.as_view(), name="decision-api-root"),
     path("api/decision-rhythm/", include(router.urls)),
     path("api/decision-rhythm/submit/", SubmitDecisionRequestView.as_view(), name="submit-request"),
     path(

@@ -136,10 +136,12 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return AlphaProviderStatus.UNAVAILABLE
 
         latest_data_date = self._get_latest_data_date()
-        if latest_data_date and latest_data_date < date.today() - timedelta(days=7):
+        if latest_data_date and latest_data_date < date.today() - timedelta(days=10):
             self._last_health_message = (
                 f"Qlib 本地数据最新交易日为 {latest_data_date.isoformat()}，"
-                "无法生成当天新鲜推理，将回退到缓存/降级结果"
+                "无法生成当天新鲜推理，将回退到缓存/降级结果。"
+                "可先运行 `python manage.py build_qlib_data --check-only` 查看诊断，"
+                "再执行 `python manage.py build_qlib_data` 进行最近窗口自建更新。"
             )
             return AlphaProviderStatus.DEGRADED
 
@@ -355,12 +357,12 @@ class QlibAlphaProvider(BaseAlphaProvider):
         检查是否有最近的缓存
 
         Returns:
-            是否有最近 7 天的缓存
+            是否有最近 10 天的缓存
         """
         try:
             from ...infrastructure.models import AlphaScoreCacheModel
 
-            cutoff_date = date.today() - timedelta(days=7)
+            cutoff_date = date.today() - timedelta(days=10)
 
             has_cache = AlphaScoreCacheModel._default_manager.filter(
                 provider_source="qlib",
@@ -659,9 +661,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
         try:
             import pandas as pd
-            from qlib.contrib.data.handler import Alpha360
             from qlib.data import D
             from qlib.data.dataset import DatasetH
+
+            from apps.alpha.application.tasks import _resolve_qlib_handler_class
 
             trade_date_str = trade_date.strftime("%Y-%m-%d")
             # 需要几天的历史数据给 Alpha360 做特征
@@ -670,7 +673,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
             # 获取股票池
             instruments = D.instruments(market=universe_id)
 
-            handler = Alpha360(
+            handler_cls = _resolve_qlib_handler_class(
+                self._active_model_info.get("feature_set_id") if self._active_model_info else None
+            )
+            handler = handler_cls(
                 start_time=lookback_start,
                 end_time=trade_date_str,
                 fit_start_time=lookback_start,

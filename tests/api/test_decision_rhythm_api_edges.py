@@ -78,3 +78,13 @@ def test_decision_workspace_recommendations_reject_invalid_page(authenticated_cl
     payload = response.json()
     assert payload["success"] is False
     assert "page" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_decision_api_root_contract(authenticated_client):
+    response = authenticated_client.get("/api/decision/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["endpoints"]["workspace_recommendations"] == "/api/decision/workspace/recommendations/"
+    assert payload["endpoints"]["execute_preview"] == "/api/decision/execute/preview/"

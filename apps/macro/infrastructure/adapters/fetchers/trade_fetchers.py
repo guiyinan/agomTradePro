@@ -11,6 +11,7 @@ from typing import List
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
+from .common import pick_column, safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ class TradeIndicatorFetcher:
                 logger.warning("出口数据为空")
                 return []
 
-            date_col = '日期' if '日期' in df.columns else df.columns[1]
-            value_col = '值' if '值' in df.columns else df.columns[2]
+            date_col = pick_column(df, ['日期'], 1)
+            value_col = pick_column(df, ['今值', '值'], 2)
 
             df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
@@ -60,7 +61,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_EXPORTS",
-                        value=float(row['value']),
+                        value=safe_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -89,8 +90,8 @@ class TradeIndicatorFetcher:
                 logger.warning("进口数据为空")
                 return []
 
-            date_col = '日期' if '日期' in df.columns else df.columns[1]
-            value_col = '值' if '值' in df.columns else df.columns[2]
+            date_col = pick_column(df, ['日期'], 1)
+            value_col = pick_column(df, ['今值', '值'], 2)
 
             df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
@@ -106,7 +107,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_IMPORTS",
-                        value=float(row['value']),
+                        value=safe_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -135,8 +136,8 @@ class TradeIndicatorFetcher:
                 logger.warning("贸易差额数据为空")
                 return []
 
-            date_col = '日期' if '日期' in df.columns else df.columns[1]
-            value_col = '值' if '值' in df.columns else df.columns[2]
+            date_col = pick_column(df, ['日期'], 1)
+            value_col = pick_column(df, ['今值', '值'], 2)
 
             df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
@@ -150,11 +151,9 @@ class TradeIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_TRADE_BALANCE", ("亿美元", "亿美元"))
             for _, row in df.iterrows():
                 try:
-                    # 原始数据单位是万美元，转换为亿美元
-                    value_in_100m_usd = float(row['value']) / 10000
                     point = MacroDataPoint(
                         code="CN_TRADE_BALANCE",
-                        value=value_in_100m_usd,
+                        value=safe_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,

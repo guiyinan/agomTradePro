@@ -18,6 +18,10 @@ from django.test import override_settings
 
 from apps.alpha.application.tasks import (
     _calculate_artifact_hash,
+    _execute_qlib_prediction,
+    _make_json_safe,
+    _resolve_qlib_handler_class,
+    _resolve_qlib_stock_list,
     _save_model_artifact,
     qlib_train_model,
 )
@@ -87,6 +91,71 @@ class TestQlibTrainingTasks:
 
 class TestQlibTrainingHelpers:
     """Qlib 训练辅助函数测试"""
+
+    def test_resolve_qlib_handler_class_matches_feature_set(self):
+        """feature_set_id 应映射到对应的 Qlib handler。"""
+        assert _resolve_qlib_handler_class("alpha158").__name__ == "Alpha158"
+        assert _resolve_qlib_handler_class("v158").__name__ == "Alpha158"
+        assert _resolve_qlib_handler_class("v1").__name__ == "Alpha360"
+
+    def test_make_json_safe_serializes_timestamp_like_values(self):
+        """缓存元数据中的 pandas 时间类型应可安全落到 JSONField。"""
+        payload = {
+            "requested_trade_date": "2026-04-06",
+            "effective_trade_date": datetime(2026, 4, 3, 0, 0),
+        }
+
+        result = _make_json_safe(payload)
+
+        assert result["requested_trade_date"] == "2026-04-06"
+        assert result["effective_trade_date"] == "2026-04-03T00:00:00"
+
+    def test_resolve_qlib_stock_list_expands_universe_config(self):
+        """Qlib 股票池配置应先展开为真实成分股列表。"""
+        mock_data_api = Mock()
+        mock_data_api.instruments.return_value = {
+            "market": "csi300",
+            "filter_pipe": [],
+        }
+        mock_data_api.list_instruments.return_value = [
+            "000001.SH",
+            "000002.SH",
+        ]
+
+        result = _resolve_qlib_stock_list(
+            mock_data_api,
+            universe_id="csi300",
+            start_time="2025-01-01",
+            end_time="2025-12-31",
+        )
+
+        assert result == ["000001.SH", "000002.SH"]
+        mock_data_api.list_instruments.assert_called_once_with(
+            {"market": "csi300", "filter_pipe": []},
+            start_time="2025-01-01",
+            end_time="2025-12-31",
+            as_list=True,
+        )
+
+    @patch("apps.alpha.application.tasks._build_outdated_qlib_reason")
+    def test_execute_prediction_short_circuits_when_local_data_is_outdated(
+        self,
+        mock_outdated_reason,
+    ):
+        """直调预测函数时也应先检查本地 Qlib 数据覆盖范围。"""
+        mock_outdated_reason.return_value = (
+            "本地 Qlib 数据最新交易日为 2020-09-25，早于请求交易日 2026-04-06，请先同步 Qlib 数据"
+        )
+
+        active_model = Mock(model_path="unused.pkl")
+
+        with pytest.raises(RuntimeError, match="2020-09-25"):
+            _execute_qlib_prediction(
+                active_model=active_model,
+                universe_id="csi300",
+                trade_date=date(2026, 4, 6),
+                top_n=30,
+            )
 
     def test_calculate_artifact_hash(self):
         """测试计算 artifact hash"""

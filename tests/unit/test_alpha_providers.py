@@ -258,6 +258,22 @@ class TestSimpleAlphaProvider:
 class TestETFFallbackProvider:
     """测试 ETF 降级 Provider"""
 
+    class _RemoteETFStub:
+        @staticmethod
+        def fund_portfolio_hold_em(symbol: str, date: str):
+            import pandas as pd
+
+            return pd.DataFrame(
+                {
+                    "股票代码": ["600519", "601318"],
+                    "股票名称": ["贵州茅台", "中国平安"],
+                    "占净值比例": [5.89, 2.43],
+                    "持股数": [675.78, 11623.72],
+                    "持仓市值": [1150782.02, 474363.90],
+                    "季度": ["2025年4季度股票投资明细", "2025年4季度股票投资明细"],
+                }
+            )
+
     def _seed_etf_data(self):
         FundInfoModel._default_manager.create(
             fund_code="510300",
@@ -316,7 +332,7 @@ class TestETFFallbackProvider:
 
     @override_settings(ALPHA_UNIVERSE_ETF_MAP={"csi300": {"etf_code": "510300.SH"}})
     def test_get_stock_scores_requires_real_holdings(self):
-        """测试没有真实持仓时不会回退到静态股票列表"""
+        """测试本地和远端都缺失时返回失败而不是静态假数据"""
         FundInfoModel._default_manager.create(
             fund_code="510300",
             fund_name="沪深300ETF",
@@ -324,13 +340,55 @@ class TestETFFallbackProvider:
             is_active=True,
         )
         provider = ETFFallbackProvider()
+        with patch.object(
+            provider,
+            "_get_remote_etf_constituents",
+            return_value=([], "ETF 510300.SH 没有持仓报告数据，请先同步基金持仓数据", {}),
+        ):
+            result = provider.get_stock_scores("csi300", date.today())
 
-        result = provider.get_stock_scores("csi300", date.today())
-
-        # 应该返回失败，因为没有真实持仓数据
         assert result.success is False
-        # 错误信息应该提示用户同步持仓数据
         assert "持仓" in result.error_message or "同步" in result.error_message
+
+    @override_settings(ALPHA_UNIVERSE_ETF_MAP={"sse50": {"etf_code": "510050.SH"}})
+    def test_get_stock_scores_can_fallback_to_remote_holdings(self):
+        provider = ETFFallbackProvider()
+        with patch.object(
+            provider,
+            "_get_remote_etf_constituents",
+            return_value=(
+                [("600519.SH", 5.89), ("601318.SH", 2.43)],
+                None,
+                {"holdings_source": "eastmoney", "report_date": "2025年4季度股票投资明细"},
+            ),
+        ):
+            result = provider.get_stock_scores("sse50", date.today(), top_n=2)
+
+        assert result.success is True
+        assert len(result.scores) == 2
+        assert result.metadata["holdings_source"] == "eastmoney"
+        assert result.metadata["report_date"] == "2025年4季度股票投资明细"
+        assert result.scores[0].code == "600519.SH"
+
+    @override_settings(ALPHA_UNIVERSE_ETF_MAP={"sse50": {"etf_code": "510050.SH"}})
+    @patch("apps.alpha.infrastructure.adapters.etf_adapter.get_akshare_module")
+    def test_remote_holdings_are_persisted_to_fund_table(self, mock_get_akshare):
+        mock_get_akshare.return_value = self._RemoteETFStub()
+        provider = ETFFallbackProvider()
+
+        result = provider.get_stock_scores("sse50", date.today(), top_n=2)
+
+        assert result.success is True
+        persisted = list(
+            FundHoldingModel._default_manager.filter(
+                fund_code="510050",
+                report_date=date(2025, 12, 31),
+            ).order_by("stock_code")
+        )
+        assert len(persisted) == 2
+        assert persisted[0].stock_code == "600519.SH"
+        assert persisted[0].stock_name == "贵州茅台"
+        assert persisted[0].holding_ratio == 5.89
 
 
 class TestAlphaService:

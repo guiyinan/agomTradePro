@@ -12,6 +12,7 @@ from typing import List
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
+from .common import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -374,7 +375,7 @@ class BaseIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_NON_MAN_PMI",
-                        value=float(row['value']),
+                        value=safe_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,

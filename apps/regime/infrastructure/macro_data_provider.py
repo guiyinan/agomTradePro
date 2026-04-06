@@ -95,6 +95,7 @@ class DataCenterMacroRepositoryAdapter:
 
     def __init__(self) -> None:
         self._period_type_cache: dict[str, str] = {}
+        self._legacy_repository = None
 
     def _get_models(self):
         from apps.data_center.infrastructure.models import (
@@ -112,6 +113,13 @@ class DataCenterMacroRepositoryAdapter:
                 catalog.default_period_type if catalog else "D"
             )
         return self._period_type_cache[indicator_code]
+
+    def _get_legacy_repository(self):
+        if self._legacy_repository is None:
+            from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+            self._legacy_repository = DjangoMacroRepository()
+        return self._legacy_repository
 
     def _to_macro_indicator(self, fact) -> "MacroIndicator":
         from apps.macro.domain.entities import MacroIndicator, PeriodType
@@ -195,7 +203,16 @@ class DataCenterMacroRepositoryAdapter:
             source=source,
             use_pit=use_pit,
         )
-        return self._dedupe_latest_by_period(queryset, descending=False)
+        observations = self._dedupe_latest_by_period(queryset, descending=False)
+        if observations:
+            return observations
+        return self._get_legacy_repository().get_series(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            use_pit=use_pit,
+            source=source,
+        )
 
     def get_observations_for_period(
         self,
@@ -215,7 +232,13 @@ class DataCenterMacroRepositoryAdapter:
         limit: int = 24,
     ) -> list:
         queryset = self._build_queryset(code=indicator_code)
-        return self._dedupe_latest_by_period(queryset, descending=True)[:limit]
+        observations = self._dedupe_latest_by_period(queryset, descending=True)[:limit]
+        if observations:
+            return observations
+        return self._get_legacy_repository().get_recent_observations(
+            indicator_code=indicator_code,
+            limit=limit,
+        )
 
     def get_latest_observation_date(
         self,
@@ -226,7 +249,12 @@ class DataCenterMacroRepositoryAdapter:
         if as_of_date:
             queryset = queryset.filter(reporting_period__lte=as_of_date)
         observations = self._dedupe_latest_by_period(queryset, descending=True)
-        return observations[0].reporting_period if observations else None
+        if observations:
+            return observations[0].reporting_period
+        return self._get_legacy_repository().get_latest_observation_date(
+            code=code,
+            as_of_date=as_of_date,
+        )
 
     def get_latest_observation(
         self,
@@ -237,7 +265,12 @@ class DataCenterMacroRepositoryAdapter:
         if before_date:
             queryset = queryset.filter(reporting_period__lt=before_date)
         observations = self._dedupe_latest_by_period(queryset, descending=True)
-        return observations[0] if observations else None
+        if observations:
+            return observations[0]
+        return self._get_legacy_repository().get_latest_observation(
+            code=code,
+            before_date=before_date,
+        )
 
     def get_by_code_and_date(self, code: str, observed_at: date):
         queryset = self._build_queryset(
@@ -246,7 +279,12 @@ class DataCenterMacroRepositoryAdapter:
             end_date=observed_at,
         )
         observations = self._dedupe_latest_by_period(queryset, descending=True)
-        return observations[0] if observations else None
+        if observations:
+            return observations[0]
+        return self._get_legacy_repository().get_by_code_and_date(
+            code=code,
+            observed_at=observed_at,
+        )
 
     def get_growth_series(
         self,
@@ -366,10 +404,17 @@ class DataCenterMacroRepositoryAdapter:
             queryset = queryset.filter(reporting_period__gte=start_date)
         if end_date:
             queryset = queryset.filter(reporting_period__lte=end_date)
-        return list(
+        dates = list(
             queryset.values_list("reporting_period", flat=True)
             .distinct()
             .order_by("reporting_period")
+        )
+        if dates:
+            return dates
+        return self._get_legacy_repository().get_available_dates(
+            codes=codes,
+            start_date=start_date,
+            end_date=end_date,
         )
 
 

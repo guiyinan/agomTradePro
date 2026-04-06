@@ -20,6 +20,7 @@ No business logic here — only HTTP plumbing + delegation to use cases.
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 
 from rest_framework import status
@@ -401,8 +402,38 @@ def macro_series(request: Request) -> Response:
         source=request.query_params.get("source") or None,
     )
 
+    from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesResponse
+    from apps.regime.infrastructure.macro_data_provider import DataCenterMacroRepositoryAdapter
+
     uc = QueryMacroSeriesUseCase(MacroFactRepository(), IndicatorCatalogRepository())
-    return Response(uc.execute(req).to_dict())
+    result = uc.execute(req)
+    if result.total > 0:
+        return Response(result.to_dict())
+
+    fallback_series = DataCenterMacroRepositoryAdapter().get_series(
+        code=indicator_code,
+        start_date=req.start,
+        end_date=req.end,
+        source=req.source,
+    )
+    fallback_response = MacroSeriesResponse(
+        indicator_code=indicator_code,
+        name_cn=result.name_cn,
+        data=[
+            MacroDataPoint(
+                indicator_code=indicator.code,
+                reporting_period=indicator.reporting_period,
+                value=float(indicator.value),
+                unit=indicator.unit,
+                source=indicator.source,
+                quality="legacy",
+                published_at=indicator.published_at,
+            )
+            for indicator in fallback_series[: req.limit]
+        ],
+        total=min(len(fallback_series), req.limit),
+    )
+    return Response(fallback_response.to_dict())
 
 
 @api_view(["GET"])
@@ -459,7 +490,9 @@ def price_latest_quote(request: Request) -> Response:
     Query params:
       asset_code — required canonical ticker
     """
+    from apps.data_center.application.dtos import QuoteResponse
     from apps.data_center.infrastructure.repositories import QuoteSnapshotRepository
+    from apps.realtime.application.price_polling_service import PricePollingUseCase
 
     asset_code = request.query_params.get("asset_code", "").strip()
     if not asset_code:
@@ -471,7 +504,22 @@ def price_latest_quote(request: Request) -> Response:
     uc = QueryLatestQuoteUseCase(QuoteSnapshotRepository())
     result = uc.execute(LatestQuoteRequest(asset_code=asset_code))
     if result is None:
-        return Response({"detail": "No quote found."}, status=status.HTTP_404_NOT_FOUND)
+        fallback_prices = PricePollingUseCase().get_latest_prices([asset_code])
+        if fallback_prices:
+            fallback = fallback_prices[0]
+            result = QuoteResponse(
+                asset_code=asset_code,
+                snapshot_at=datetime.fromisoformat(fallback["timestamp"]),
+                current_price=float(fallback["price"]),
+                open=None,
+                high=None,
+                low=None,
+                prev_close=None,
+                volume=fallback.get("volume"),
+                source=fallback["source"],
+            )
+        else:
+            return Response({"detail": "No quote found."}, status=status.HTTP_404_NOT_FOUND)
     return Response(result.to_dict())
 
 

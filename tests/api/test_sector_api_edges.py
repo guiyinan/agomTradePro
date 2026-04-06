@@ -63,3 +63,54 @@ def test_sector_update_data_returns_400_on_failed_use_case(authenticated_client)
 
     assert response.status_code == 400
     assert response.json() == {"success": False, "error": "adapter failed"}
+
+
+@pytest.mark.django_db
+def test_sector_api_root_contract(authenticated_client):
+    response = authenticated_client.get("/api/sector/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["endpoints"]["rotation"] == "/api/sector/rotation/"
+    assert payload["endpoints"]["analyze"] == "/api/sector/analyze/"
+
+
+@pytest.mark.django_db
+def test_sector_rotation_lazy_bootstraps_when_local_sector_data_is_empty(authenticated_client):
+    first_result = SimpleNamespace(
+        success=False,
+        status="unavailable",
+        regime="Recovery",
+        analysis_date="2026-04-06",
+        top_sectors=[],
+        market_breadth=None,
+        concentration_score=None,
+        error="未找到级别为 SW1 的板块数据",
+        warning_message="sector_data_unavailable",
+    )
+    second_result = SimpleNamespace(
+        success=True,
+        status="ok",
+        regime="Recovery",
+        analysis_date="2026-04-06",
+        top_sectors=[],
+        market_breadth=None,
+        concentration_score=None,
+        error="",
+    )
+    sync_result = SimpleNamespace(success=True, updated_count=42, error="")
+
+    with patch(
+        "apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute",
+        side_effect=[first_result, second_result],
+    ) as analyze_execute, patch(
+        "apps.sector.interface.views.UpdateSectorDataUseCase.execute",
+        return_value=sync_result,
+    ) as sync_execute:
+        response = authenticated_client.get("/api/sector/rotation/?level=SW1")
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert analyze_execute.call_count == 2
+    sync_execute.assert_called_once()
+

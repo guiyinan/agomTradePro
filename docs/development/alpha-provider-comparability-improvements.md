@@ -39,6 +39,79 @@
 }
 ```
 
+### 1.1 ETF 降级真实数据回填 ✅
+
+`ETFFallbackProvider` 现在在本地 `FundHoldingModel` 缺失时，会回退到 `akshare.fund_portfolio_hold_em` 拉取最近可用季度的真实 ETF 持仓，并将结果写回本地库。
+
+这样处理后：
+
+- `csi500` / `sse50` / `csi1000` 在 Qlib 与 cache 均不可用时，不再直接返回 `unavailable`
+- 降级结果仍然基于真实持仓，而不是静态硬编码
+- 远端 fallback 成功后会形成可复用的本地持仓缓存，后续请求优先命中数据库
+
+### 1.2 Qlib 股票池展开与过期预检 ✅
+
+Qlib 预测、训练、评估链路现在统一先将 `D.instruments()` 返回的股票池配置通过 `D.list_instruments(..., as_list=True)` 展开为真实成分股列表，再交给 `Alpha360`。
+
+同时，`_execute_qlib_prediction()` 在入口处增加了本地数据覆盖预检。像 `bootstrap_alpha_cold_start` 这类直接调用预测函数的脚本，如果请求日期晚于本地 Qlib 数据最新交易日，不再抛出 `division by zero` 这类底层异常，而是返回可读原因，例如：
+
+- `本地 Qlib 数据最新交易日为 2020-09-25，早于请求交易日 2026-04-06，请先同步 Qlib 数据`
+
+这样处理后：
+
+- 预测 / 训练 / 评估三条链使用同一套股票池解析逻辑
+- 冷启动脚本与 Celery 任务的失败语义一致
+- 运维侧可以直接区分“代码错误”和“本地 Qlib 数据未同步”两类问题
+
+### 1.3 Qlib 自建诊断与 Recent 自建更新 ✅
+
+新增 `python manage.py build_qlib_data --check-only`，用于统一诊断本地 Qlib 数据是否足够新鲜，以及当前是否具备自建更新前置条件。
+
+同时，`python manage.py build_qlib_data` 已经不再只是诊断命令，而是会直接基于 Tushare 做“最近窗口”自建更新：
+
+- 自动读取运行时 `provider_uri`
+- 自动拉取 `csi300 / csi500 / sse50 / csi1000` 的最新成分股
+- 增量写入 `calendars/day.txt`
+- 增量写入 `instruments/*.txt`
+- 增量写入 `features/<symbol>/*.day.bin`
+- 保留显式 warning：如果当天日线尚未落地，会明确提示实际只更新到最近可用交易日
+
+在本地公开数据仍旧停留在 `2020-09-25` 时，`--check-only` 会直接输出明确阻塞原因，例如：
+
+- 本地或公开 Qlib 数据最新交易日过旧
+- 当前是否已配置 `Tushare Token`
+- 若已配置 token，可直接执行 `python manage.py build_qlib_data`
+
+实测最近一次自建后，本地 `cn_data` 已从 `2020-09-25` 推进到 `2026-04-03`，并补齐了：
+
+- `csi300 = 300`
+- `csi500 = 500`
+- `sse50 = 50`
+- `csi1000 = 1000`
+
+这样可以避免运维误以为是 `pyqlib` 本身异常，实际问题会被收敛成可执行的诊断与更新动作。
+
+### 1.4 当天无日线时的显式交易日回退 ✅
+
+Qlib 推理任务现在不再把“请求日期晚于本地最新日线，但仍在合理窗口内”的情况直接打成失败。
+
+行为变更如下：
+
+- 若请求日仍在最近可用交易日之后 10 天内，会自动回退到最新可用交易日执行推理
+- 缓存仍写在原始 `intended_trade_date`
+- `asof_date` 会记录真实推理日期
+- `metrics_snapshot` / API metadata 会显式包含：
+  - `requested_trade_date`
+  - `effective_trade_date`
+  - `trade_date_adjusted`
+  - `trade_date_adjust_reason`
+
+例如，请求 `2026-04-06` 而本地最新日线为 `2026-04-03` 时，返回会明确说明：
+
+- `请求交易日 2026-04-06 尚无本地 Qlib 日线，已回退到最新可用交易日 2026-04-03。`
+
+这样前端、API 和 MCP 都不会把这种情况误解为“静默过期”或“缓存脏数据”。
+
 ---
 
 ### 2. Provider 切换告警 ✅

@@ -22,6 +22,28 @@ from .models import (
 class DjangoCapabilityRepository:
     """Django ORM implementation of capability repository."""
 
+    def list_capabilities(
+        self,
+        *,
+        source_type: str | None = None,
+        route_group: str | None = None,
+        category: str | None = None,
+        enabled_only: bool = True,
+    ) -> list[CapabilityDefinition]:
+        """List capabilities with optional filters."""
+        models = CapabilityCatalogModel.objects.all()
+
+        if enabled_only:
+            models = models.filter(enabled_for_routing=True)
+        if source_type:
+            models = models.filter(source_type=source_type)
+        if route_group:
+            models = models.filter(route_group=route_group)
+        if category:
+            models = models.filter(category=category)
+
+        return [m.to_entity() for m in models]
+
     def get_by_key(self, capability_key: str) -> CapabilityDefinition | None:
         """Get a capability by its key."""
         try:
@@ -32,23 +54,19 @@ class DjangoCapabilityRepository:
 
     def get_all_enabled(self) -> list[CapabilityDefinition]:
         """Get all enabled capabilities."""
-        models = CapabilityCatalogModel.objects.filter(enabled_for_routing=True)
-        return [m.to_entity() for m in models]
+        return self.list_capabilities(enabled_only=True)
 
     def get_by_source_type(self, source_type: str) -> list[CapabilityDefinition]:
         """Get capabilities by source type."""
-        models = CapabilityCatalogModel.objects.filter(source_type=source_type)
-        return [m.to_entity() for m in models]
+        return self.list_capabilities(source_type=source_type, enabled_only=False)
 
     def get_by_route_group(self, route_group: str) -> list[CapabilityDefinition]:
         """Get capabilities by route group."""
-        models = CapabilityCatalogModel.objects.filter(route_group=route_group)
-        return [m.to_entity() for m in models]
+        return self.list_capabilities(route_group=route_group, enabled_only=False)
 
     def get_all_for_routing(self) -> list[CapabilityDefinition]:
         """Get all capabilities eligible for routing."""
-        models = CapabilityCatalogModel.objects.filter(enabled_for_routing=True)
-        return [m.to_entity() for m in models]
+        return self.list_capabilities(enabled_only=True)
 
     def save(self, capability: CapabilityDefinition) -> CapabilityDefinition:
         """Save a capability (upsert by key)."""
