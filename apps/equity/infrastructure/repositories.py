@@ -57,6 +57,9 @@ class DjangoEquityAssetRepository:
     为通用资产分析框架提供个股数据访问接口。
     """
 
+    def __init__(self) -> None:
+        self._stock_repo = DjangoStockRepository()
+
     def get_assets_by_filter(
         self,
         asset_type: str,
@@ -275,6 +278,13 @@ class DjangoEquityAssetRepository:
 
         except StockInfoModel.DoesNotExist:
             return None
+
+    def _get_latest_financial(self, stock_code: str) -> FinancialData | None:
+        items = self._stock_repo.get_financial_data(stock_code, limit=1)
+        return items[0] if items else None
+
+    def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
+        return self._stock_repo._get_latest_valuation(stock_code)
 
 
 class DjangoStockRepository:
