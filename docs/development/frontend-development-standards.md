@@ -650,7 +650,7 @@ document.querySelectorAll('.delete-btn').forEach(btn => {
 | 类型 | 文件 | URL 前缀 | 示例 |
 |------|------|---------|------|
 | 页面路由 | `urls.py` | `/<module>/` | `/macro/controller/` |
-| API 路由 | `api_urls.py` | `/api/<module>/` | `/api/market-data/quotes/` |
+| API 路由 | `api_urls.py` | `/api/<module>/` | `/api/data-center/prices/quotes/` |
 
 **禁止在同一个文件中混用页面路由和 API 路由**。
 

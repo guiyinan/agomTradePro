@@ -29,17 +29,17 @@
 | `beta_gate` |  | 4 | 2 |  | out: ai_provider, events, policy, regime; in: dashboard, decision_rhythm |
 | `dashboard` | aggregation | 13 | 0 | Query Service | out: account, ai_provider, alpha, alpha_trigger, beta_gate, decision_rhythm, equity, fund, ...; Dashboard keeps cross-module reads in query/DTO boundaries. |
 | `decision_rhythm` |  | 12 | 3 |  | out: account, alpha, alpha_trigger, asset_analysis, beta_gate, equity, events, policy, ...; in: alpha_trigger, dashboard, events |
-| `equity` |  | 5 | 9 |  | out: account, asset_analysis, macro, regime, signal; in: asset_analysis, backtest, dashboard, decision_rhythm, factor, market_data, realtime, simulated_trading, ... |
+| `equity` |  | 5 | 9 |  | out: account, asset_analysis, macro, regime, signal; in: asset_analysis, backtest, dashboard, decision_rhythm, factor, data_center, realtime, simulated_trading, ... |
 | `events` | integration | 2 | 4 | Registry, Repository wrapper | out: alpha_trigger, decision_rhythm; in: account, alpha_trigger, beta_gate, decision_rhythm; Event fan-out should stop at registry/repository boundaries. |
 | `factor` |  | 3 | 1 |  | out: account, equity, rotation; in: signal |
 | `filter` |  | 1 | 0 |  | out: macro |
 | `fund` |  | 5 | 5 |  | out: asset_analysis, policy, regime, sentiment, signal; in: alpha, asset_analysis, dashboard, simulated_trading, strategy |
 | `hedge` |  | 0 | 1 |  | in: signal |
 | `macro` | core | 1 | 10 | Orchestration | out: account; in: alpha_trigger, audit, dashboard, equity, filter, prompt, regime, signal, ...; Macro sync is invoked through regime orchestration boundaries. |
-| `market_data` |  | 2 | 1 |  | out: equity, realtime; in: realtime |
+| `data_center` | core | 4 | 12 | Query Service, Gateway | out: equity, fund, macro, sector; in: backtest, equity, factor, fund, hedge, macro, realtime, regime, rotation, setup_wizard, signal, simulated_trading; Unified data-center boundaries replace the legacy market_data facade. |
 | `policy` |  | 3 | 8 |  | out: ai_provider, regime, signal; in: alpha_trigger, asset_analysis, beta_gate, dashboard, decision_rhythm, fund, sentiment, simulated_trading |
 | `prompt` |  | 3 | 2 |  | out: ai_provider, macro, regime; in: simulated_trading, strategy |
-| `realtime` |  | 4 | 3 |  | out: equity, market_data, regime, simulated_trading; in: decision_rhythm, market_data, simulated_trading |
+| `realtime` |  | 4 | 3 |  | out: data_center, equity, regime, simulated_trading; in: data_center, decision_rhythm, simulated_trading |
 | `regime` | core | 1 | 18 | Protocol, Adapter, Gateway | out: macro; in: account, alpha_trigger, asset_analysis, audit, backtest, beta_gate, dashboard, decision_rhythm, ...; Runtime access to macro is mediated by regime-owned abstractions. |
 | `rotation` |  | 2 | 2 |  | out: regime, simulated_trading; in: factor, signal |
 | `sector` |  | 1 | 0 |  | out: regime |
@@ -49,7 +49,6 @@
 | `strategy` | business | 10 | 2 | Facade, Gateway | out: account, ai_provider, asset_analysis, equity, fund, macro, prompt, regime, ...; in: dashboard, simulated_trading; Strategy should not reach simulated_trading ORM directly. |
 | `task_monitor` |  | 0 | 0 |  |  |
 | `agent_runtime` |  | 0 | 0 |  | Terminal AI backend, supports task orchestration and Facade pattern |
-| `market_data` |  | 1 | 1 |  | out: realtime; in: realtime; Unified market data interface |
 | `share` |  | 2 | 0 |  | out: decision_rhythm, simulated_trading; Decision sharing module |
 | `terminal` |  | 1 | 0 |  | out: prompt; Terminal CLI, AI interaction interface |
 | `ai_capability` |  | 1 | 0 |  | out: terminal; AI Capability Catalog, unified routing |

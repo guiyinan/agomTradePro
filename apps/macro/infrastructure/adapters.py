@@ -10,6 +10,8 @@ from typing import List, Optional
 
 import pandas as pd
 
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,7 +72,7 @@ class AKShareAdapter:
             return []
 
         try:
-            import akshare as ak
+            ak = get_akshare_module()
 
             # 根据指标代码调用对应的 AKShare 接口
             if indicator_code == 'CN_PMI':

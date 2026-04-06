@@ -48,6 +48,11 @@ def test_extended_mcp_tools_registered():
         "get_regime_navigator",
         "get_action_recommendation",
         "explain_pulse_dimensions",
+        "list_data_center_providers",
+        "test_data_center_provider_connection",
+        "get_data_center_provider_status",
+        "data_center_get_quotes",
+        "data_center_get_capital_flows",
     }
 
     missing = expected - names

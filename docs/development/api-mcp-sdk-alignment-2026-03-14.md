@@ -43,7 +43,7 @@
 | factor | `/api/factor/` | `all-factors/all-configs/top-stocks/create-portfolio/explain-stock` |
 | backtest | `/api/backtest/` | `api/backtests/` 与 `api/run/` 为当前挂载结果 |
 | equity | `/api/equity/` | valuation repair config 已对齐 |
-| market_data | `/api/market-data/` | MCP 外部市场数据链已打通 |
+| data_center | `/api/data-center/` | 外部数据接入统一收口到数据中台 |
 | audit | `/api/audit/` | 历史页面式前缀已移除 |
 | decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
 

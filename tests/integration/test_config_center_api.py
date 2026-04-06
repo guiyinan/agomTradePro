@@ -2,8 +2,8 @@
 from django.contrib.auth.models import User
 from django.test import Client
 
-from apps.account.infrastructure.models import AccountProfileModel
-from apps.account.infrastructure.models import DocumentationModel
+from apps.account.infrastructure.models import AccountProfileModel, DocumentationModel
+from apps.data_center.infrastructure.models import ProviderConfigModel
 
 
 def _ensure_account_profile(user: User) -> None:
@@ -66,15 +66,15 @@ def test_config_center_snapshot_returns_sections(staff_client):
     assert payload["success"] is True
     assert "sections" in payload["data"]
     item_keys = {
-        item["key"]
-        for section in payload["data"]["sections"]
-        for item in section["items"]
+        item["key"] for section in payload["data"]["sections"] for item in section["items"]
     }
     assert "agent_runtime_operator" in item_keys
     assert "valuation_repair" in item_keys
     assert "beta_gate" in item_keys
     assert "account_settings" in item_keys
     assert "system_settings" in item_keys
+    assert "data_center_providers" in item_keys
+    assert "data_center_runtime" in item_keys
 
 
 @pytest.mark.django_db
@@ -88,21 +88,46 @@ def test_config_capabilities_returns_known_entries(staff_client):
     assert "agent_runtime_operator" in keys
     assert "valuation_repair" in keys
     assert "trading_cost" in keys
+    assert "data_center_providers" in keys
+    assert "data_center_runtime" in keys
 
 
 @pytest.mark.django_db
-def test_config_center_snapshot_includes_market_data_provider_summary(staff_client, monkeypatch):
+def test_config_center_snapshot_includes_data_center_runtime_summary(staff_client, monkeypatch):
+    ProviderConfigModel.objects.create(
+        name="eastmoney-main",
+        source_type="eastmoney",
+        is_active=True,
+        priority=1,
+    )
+    ProviderConfigModel.objects.create(
+        name="tushare-main",
+        source_type="tushare",
+        is_active=True,
+        priority=2,
+    )
+
+    class _Snapshot:
+        def __init__(self, provider_name, status):
+            self.provider_name = provider_name
+            self.status = status
+
+        def to_dict(self):
+            return {
+                "provider_name": self.provider_name,
+                "capability": "realtime_quote",
+                "status": self.status,
+                "consecutive_failures": 0,
+                "last_success_at": None,
+                "avg_latency_ms": None,
+            }
+
+    class _Registry:
+        def get_all_statuses(self):
+            return [_Snapshot("eastmoney-main", "degraded"), _Snapshot("tushare-main", "healthy")]
+
     monkeypatch.setattr(
-        "apps.market_data.interface.page_views.build_provider_dashboard",
-        lambda: {
-            "provider_count": 2,
-            "healthy_provider_count": 1,
-            "unhealthy_provider_count": 1,
-            "providers": [
-                {"name": "eastmoney", "healthy": False},
-                {"name": "tushare", "healthy": True},
-            ],
-        },
+        "apps.data_center.application.registry_factory.get_registry", lambda: _Registry()
     )
 
     response = staff_client.get("/api/system/config-center/")
@@ -113,14 +138,22 @@ def test_config_center_snapshot_includes_market_data_provider_summary(staff_clie
         for section in response.json()["data"]["sections"]
         for item in section["items"]
     }
-    market_data_item = items["market_data_providers"]
-    assert market_data_item["status"] == "attention"
-    assert market_data_item["summary"]["provider_count"] == 2
-    assert market_data_item["summary"]["healthy_provider_count"] == 1
+    runtime_item = items["data_center_runtime"]
+    assert runtime_item["status"] == "attention"
+    assert runtime_item["summary"]["configured_provider_count"] == 2
+    assert runtime_item["summary"]["runtime_provider_count"] == 2
+    assert runtime_item["summary"]["healthy_snapshot_count"] == 1
 
 
 @pytest.mark.django_db
-def test_config_center_snapshot_treats_builtin_macro_source_as_configured(staff_client):
+def test_config_center_snapshot_treats_data_center_provider_config_as_configured(staff_client):
+    ProviderConfigModel.objects.create(
+        name="akshare-main",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+    )
+
     response = staff_client.get("/api/system/config-center/")
 
     assert response.status_code == 200
@@ -129,11 +162,11 @@ def test_config_center_snapshot_treats_builtin_macro_source_as_configured(staff_
         for section in response.json()["data"]["sections"]
         for item in section["items"]
     }
-    macro_item = items["macro_datasources"]
-    assert macro_item["status"] == "configured"
-    assert macro_item["summary"]["built_in_source_count"] >= 1
-    assert "akshare" in macro_item["summary"]["built_in_sources"]
-    assert macro_item["summary"]["default_data_source"] == "akshare"
+    provider_item = items["data_center_providers"]
+    assert provider_item["status"] == "configured"
+    assert provider_item["summary"]["total_providers"] >= 1
+    assert "akshare" in provider_item["summary"]["source_types"]
+    assert provider_item["summary"]["default_source"] == "akshare"
 
 
 @pytest.mark.django_db

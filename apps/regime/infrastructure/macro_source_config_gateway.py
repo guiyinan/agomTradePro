@@ -18,10 +18,10 @@ class DjangoMacroSourceConfigGateway(MacroSourceConfigGatewayProtocol):
 
     def list_active_sources(self) -> list[MacroSourceSummary]:
         try:
-            from apps.macro.infrastructure.models import DataSourceConfig
+            from apps.data_center.infrastructure.models import ProviderConfigModel
 
             sources = list(
-                DataSourceConfig._default_manager.filter(is_active=True).order_by("priority")
+                ProviderConfigModel._default_manager.filter(is_active=True).order_by("priority")
             )
             if sources:
                 return [

@@ -127,7 +127,7 @@ grep -r "THRESHOLD\|THRESHOLDS\|RULES" apps/*/domain/
 
 | 能力 | 收口方式 | 位置 |
 |------|----------|------|
-| **市场数据** | `market_data` 统一接口 | `apps/market_data/` |
+| **市场数据** | `data_center` 数据中台 | `apps/data_center/` |
 | **AI 服务** | `ai_provider` 统一管理 | `apps/ai_provider/` |
 | **Python SDK** | `sdk/agomtradepro` | `sdk/agomtradepro/` |
 | **MCP Server** | `sdk/agomtradepro_mcp` | `sdk/agomtradepro_mcp/` |
@@ -140,9 +140,9 @@ grep -r "THRESHOLD\|THRESHOLDS\|RULES" apps/*/domain/
 **正确做法**：
 ```python
 # ✅ 正确：通过统一接口
-from apps.market_data import MarketDataProvider
+from apps.data_center.application.price_service import UnifiedPriceService
 
-data = MarketDataProvider().get_price("000001.SZ")
+data = UnifiedPriceService().get_price("000001.SZ")
 ```
 
 **理由**：

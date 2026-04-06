@@ -1,8 +1,8 @@
 """
-个股分析模块 Infrastructure 层适配器
+个股分析模块 Infrastructure 层适配器。
 
-实现 Domain 层定义的协议接口，连接外部模块（regime、macro）。
-遵循四层架构：Infrastructure 层可以导入其他模块的 ORM 和仓储。
+历史上这里直接连 Tushare；现在保留适配器类名，但读取统一改走
+data_center 或本地持久化事实表，避免模块继续直连外部 SDK。
 """
 
 import logging
@@ -12,10 +12,10 @@ from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
-from shared.config.secrets import get_secrets
-from shared.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.infrastructure.repositories import PriceBarRepository
 
 from ..domain.ports import MarketDataPort, RegimeDataPort, StockPoolPort
+from .models import StockDailyModel, StockInfoModel
 
 logger = logging.getLogger(__name__)
 
@@ -24,41 +24,23 @@ class TushareStockAdapter:
     """兼容旧调用方的股票日线适配器。"""
 
     def __init__(self):
-        self._pro = None
-
-    @property
-    def pro(self):
-        self._ensure_initialized()
-        return self._pro
-
-    def _ensure_initialized(self) -> None:
-        if self._pro is not None:
-            return
-
-        try:
-            import tushare as ts
-        except ImportError as exc:
-            raise ImportError("请安装 tushare: pip install tushare") from exc
-
-        token = get_secrets().data_sources.tushare_token
-        if not token:
-            raise ValueError("Tushare token 未配置")
-        self._pro = create_tushare_pro_client(token=token)
+        self._dc_price_repo = PriceBarRepository()
 
     def fetch_stock_list(self) -> pd.DataFrame:
         """获取 A 股基础信息。"""
-        df = self.pro.stock_basic(
-            exchange="",
-            list_status="L",
-            fields="ts_code,symbol,name,area,industry,market,list_date",
-        )
-        if df is None or df.empty:
-            return pd.DataFrame()
-        if "list_date" in df.columns:
-            df["list_date"] = pd.to_datetime(
-                df["list_date"], format="%Y%m%d", errors="coerce"
+        rows = list(
+            StockInfoModel._default_manager.filter(is_active=True).values(
+                "stock_code", "name", "sector", "market", "list_date"
             )
-        df = df.rename(columns={"ts_code": "stock_code"})
+        )
+        if not rows:
+            return pd.DataFrame()
+        df = pd.DataFrame(rows)
+        if "list_date" in df.columns:
+            df["list_date"] = pd.to_datetime(df["list_date"], errors="coerce")
+        df["symbol"] = df["stock_code"].astype(str).str.split(".").str[0]
+        df["area"] = ""
+        df["industry"] = df["sector"].fillna("")
         return df
 
     def fetch_daily_data(
@@ -68,43 +50,86 @@ class TushareStockAdapter:
         end_date: str | date | datetime,
     ) -> pd.DataFrame:
         """获取股票日线行情。"""
-        df = self.pro.daily(
-            ts_code=self._normalize_stock_code(stock_code),
-            start_date=self._normalize_date(start_date),
-            end_date=self._normalize_date(end_date),
-            fields="ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount",
-        )
-        if df is None or df.empty:
-            return pd.DataFrame()
+        normalized_code = self._normalize_stock_code(stock_code)
+        start_dt = pd.to_datetime(self._normalize_date(start_date), format="%Y%m%d").date()
+        end_dt = pd.to_datetime(self._normalize_date(end_date), format="%Y%m%d").date()
 
-        df["trade_date"] = pd.to_datetime(
-            df["trade_date"], format="%Y%m%d", errors="coerce"
+        bars = list(
+            reversed(self._dc_price_repo.get_bars(normalized_code, start=start_dt, end=end_dt, limit=5000))
         )
-        return df.sort_values("trade_date").reset_index(drop=True)
+        if bars:
+            df = pd.DataFrame(
+                [
+                    {
+                        "ts_code": bar.asset_code,
+                        "trade_date": pd.Timestamp(bar.bar_date),
+                        "open": bar.open,
+                        "high": bar.high,
+                        "low": bar.low,
+                        "close": bar.close,
+                        "vol": bar.volume,
+                        "amount": bar.amount,
+                    }
+                    for bar in bars
+                ]
+            )
+        else:
+            models = list(
+                StockDailyModel._default_manager.filter(
+                    stock_code=normalized_code,
+                    trade_date__gte=start_dt,
+                    trade_date__lte=end_dt,
+                ).order_by("trade_date")
+            )
+            if not models:
+                return pd.DataFrame()
+            df = pd.DataFrame(
+                [
+                    {
+                        "ts_code": model.stock_code,
+                        "trade_date": pd.Timestamp(model.trade_date),
+                        "open": model.open,
+                        "high": model.high,
+                        "low": model.low,
+                        "close": model.close,
+                        "vol": model.volume,
+                        "amount": model.amount,
+                    }
+                    for model in models
+                ]
+            )
+
+        df["pre_close"] = df["close"].shift(1)
+        df["change"] = df["close"] - df["pre_close"]
+        df["pct_chg"] = (df["change"] / df["pre_close"] * 100).fillna(0.0)
+        return df.reset_index(drop=True)
 
     def fetch_stock_info(self, stock_code: str) -> dict:
         """获取单只股票基础信息。"""
         normalized_code = self._normalize_stock_code(stock_code)
         symbol = normalized_code.split(".")[0]
-
-        df = self.pro.stock_basic(
-            exchange="",
-            list_status="L",
-            fields="ts_code,symbol,name,area,industry,market,list_date",
+        row = (
+            StockInfoModel._default_manager.filter(stock_code=normalized_code)
+            .values("stock_code", "name", "sector", "market", "list_date")
+            .first()
         )
-        if df is None or df.empty:
-            return {}
-
-        matched = df[(df["ts_code"] == normalized_code) | (df["symbol"] == symbol)]
-        if matched.empty:
-            return {}
-
-        info = matched.iloc[0].to_dict()
-        if info.get("list_date"):
-            info["list_date"] = pd.to_datetime(
-                info["list_date"], format="%Y%m%d", errors="coerce"
+        if row is None and symbol != normalized_code:
+            row = (
+                StockInfoModel._default_manager.filter(stock_code__startswith=symbol)
+                .values("stock_code", "name", "sector", "market", "list_date")
+                .first()
             )
-        return info
+        if row is None:
+            return {}
+        return {
+            "ts_code": row["stock_code"],
+            "symbol": symbol,
+            "name": row["name"],
+            "area": "",
+            "industry": row.get("sector", ""),
+            "market": row.get("market", ""),
+            "list_date": pd.to_datetime(row.get("list_date"), errors="coerce"),
+        }
 
     def _normalize_stock_code(self, stock_code: str) -> str:
         code = stock_code.strip().upper()

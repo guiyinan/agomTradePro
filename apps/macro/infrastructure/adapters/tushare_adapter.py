@@ -23,6 +23,17 @@ from .base import (
 logger = logging.getLogger(__name__)
 
 
+def _resolve_shibor_tenor_column(df: pd.DataFrame) -> str:
+    """Resolve the SHIBOR 1-week tenor column from current or legacy casing."""
+    normalized = {str(column).strip().lower(): column for column in df.columns}
+    for candidate in ("1w", "1wk", "1_week"):
+        if candidate in normalized:
+            return str(normalized[candidate])
+    raise DataValidationError(
+        f"SHIBOR 数据缺少 1 周期限字段，当前列: {list(df.columns)}"
+    )
+
+
 class TushareAdapter(BaseMacroAdapter):
     """
     Tushare Pro 数据适配器
@@ -138,9 +149,10 @@ class TushareAdapter(BaseMacroAdapter):
             logger.warning(f"SHIBOR 数据为空: {start_date} - {end_date}")
             return []
 
-        # 使用 1W（1周）利率作为代表值
-        # 也可以根据需要选择其他期限
-        df = df[['date', '1W']].dropna()
+        # 使用 1W（1周）利率作为代表值。
+        # Tushare 当前返回小写列名（1w），这里兼容历史大小写差异。
+        tenor_column = _resolve_shibor_tenor_column(df)
+        df = df[["date", tenor_column]].dropna()
         df.columns = ['observed_at', 'value']
 
         data_points = []

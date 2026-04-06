@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.signal.application.invalidation_checker import (
     InvalidationCheckService,
     check_and_invalidate_signals,
@@ -297,3 +298,21 @@ class TestInvalidationCheckServiceIntegration:
         assert signal_model.status == 'invalidated'
         assert signal_model.invalidated_at is not None
         assert signal_model.rejection_reason is not None
+
+    @pytest.mark.django_db
+    def test_default_macro_repository_reads_data_center(self, invalidation_rule):
+        MacroFactModel.objects.create(
+            indicator_code="CN_PMI_MANUFACTURING",
+            reporting_period=datetime(2025, 2, 1).date(),
+            value=49.2,
+            unit="指数",
+            source="tushare",
+            published_at=datetime(2025, 2, 3).date(),
+        )
+
+        service = InvalidationCheckService()
+
+        indicator_values = service._fetch_indicator_values(invalidation_rule)
+
+        assert indicator_values["CN_PMI_MANUFACTURING"].current_value == pytest.approx(49.2)
+        assert indicator_values["CN_PMI_MANUFACTURING"].history_values == [49.2]

@@ -65,8 +65,8 @@
 
 核心实现：
 
-- `apps.market_data.infrastructure.registries.source_registry.SourceRegistry`
-- `apps.market_data.application.registry_factory`
+- `apps.data_center.infrastructure.registries.source_registry.SourceRegistry`
+- `apps.data_center.application.registry_factory`
 
 ---
 
@@ -117,7 +117,7 @@ flowchart TD
 
 当前能力枚举定义在：
 
-- `apps.market_data.domain.enums.DataCapability`
+- `apps.data_center.domain.enums.DataCapability`
 
 主要包括：
 
@@ -129,7 +129,7 @@ flowchart TD
 
 每个 provider 只需要实现统一协议：
 
-- `apps.market_data.domain.protocols.MarketDataProviderProtocol`
+- `apps.data_center.domain.protocols.ProviderProtocol`
 
 这样业务模块调用时，只需要表达“我要实时行情”，不用直接写死“必须调某个站点”。
 
@@ -175,7 +175,7 @@ flowchart TD
 
 ## 7. 当前 provider 排布
 
-当前 `market_data` 注册工厂的主线路是：
+当前 `data_center` 注册工厂的主线路是：
 
 1. 东方财富
 2. QMT
@@ -225,8 +225,8 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 
 统一数据源的用户入口已经收口到：
 
-- `/macro/datasources/`
-- `/macro/datasources/#provider-status`
+- `/data-center/providers/`
+- `/data-center/monitor/`
 
 两页顶部统一目录都按 3 类固定展示：
 
@@ -255,11 +255,11 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 
 其中：
 
-- `/macro/datasources/` 负责配置与目录说明
-- `/macro/datasources/#provider-status` 负责运行状态与快速测试
-- 左侧每条真实 `DataSourceConfig` 记录都带“测试连接”按钮，点击后会弹出模态窗口并输出探针日志
+- `/data-center/providers/` 负责配置与目录说明
+- `/data-center/monitor/` 负责运行状态与快速测试
+- 每条真实 Provider 记录都带“测试连接”动作，探针日志从 `/api/data-center/providers/{id}/test/` 返回
 
-如果未来要做 QMT 交易，应该新增 broker/trading adapter，而不是继续堆进 `market_data` provider。
+如果未来要做 QMT 交易，应该新增 broker/trading adapter，而不是继续堆进 `data_center` provider。
 
 ---
 
@@ -327,7 +327,7 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 - 配置 API
 - SDK / MCP 配置入口
 
-### 11.2 `market_data` 模块
+### 11.2 `data_center` 模块
 
 承担运行时行情调度职责：
 
@@ -431,20 +431,20 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 
 - `apps.macro.infrastructure.models.DataSourceConfig`
 - `apps.macro.interface.views.config_api`
-- `core/templates/datasource/config.html`
+- `core/templates/data_center/providers.html`
 
 运行时层：
 
-- `apps.market_data.application.registry_factory`
-- `apps.market_data.infrastructure.registries.source_registry`
-- `apps.market_data.domain.protocols.MarketDataProviderProtocol`
+- `apps.data_center.application.registry_factory`
+- `apps.data_center.infrastructure.registries.source_registry`
+- `apps.data_center.domain.protocols.ProviderProtocol`
 
 当前 provider：
 
-- `apps.market_data.infrastructure.gateways.akshare_eastmoney_gateway`
-- `apps.market_data.infrastructure.gateways.akshare_general_gateway`
-- `apps.market_data.infrastructure.gateways.tushare_gateway`
-- `apps.market_data.infrastructure.gateways.qmt_gateway`
+- `apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway`
+- `apps.data_center.infrastructure.gateways.akshare_general_gateway`
+- `apps.data_center.infrastructure.gateways.tushare_gateway`
+- `apps.data_center.infrastructure.gateways.qmt_gateway`
 
 ---
 

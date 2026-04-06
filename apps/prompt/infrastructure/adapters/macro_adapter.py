@@ -6,11 +6,9 @@ in prompt templates.
 """
 
 from datetime import date, timedelta
-from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
-from apps.macro.domain.entities import MacroIndicator
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 
 
 class MacroDataAdapter:
@@ -46,7 +44,7 @@ class MacroDataAdapter:
     }
 
     def __init__(self):
-        self.macro_repository = DjangoMacroRepository()
+        self.macro_repository = MacroRepositoryAdapter()
 
     def get_indicator_value(
         self,
@@ -64,8 +62,7 @@ class MacroDataAdapter:
         """
         # 获取最新观测日期
         latest_date = self.macro_repository.get_latest_observation_date(
-            code=indicator_code,
-            as_of_date=as_of_date
+            indicator_code=indicator_code
         )
 
         if not latest_date:

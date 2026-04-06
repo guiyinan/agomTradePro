@@ -2,7 +2,7 @@
 
 from django import forms
 
-from apps.macro.infrastructure.models import DataSourceConfig
+from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
 
 
 class DataSourceConfigForm(forms.ModelForm):

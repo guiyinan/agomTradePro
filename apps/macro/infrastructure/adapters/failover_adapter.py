@@ -274,10 +274,10 @@ def create_default_adapter(
         from django.conf import settings
         if settings.configured:
             django.setup()
-            from apps.macro.infrastructure.models import DataProviderSettings
-            settings_obj = DataProviderSettings.load()
+            from apps.data_center.infrastructure.models import DataProviderSettingsModel
+            settings_obj = DataProviderSettingsModel.load()
 
-            default_source = settings_obj.default_data_source
+            default_source = settings_obj.default_source
             enable_failover = settings_obj.enable_failover
             tolerance = settings_obj.failover_tolerance
 

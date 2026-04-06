@@ -5,7 +5,8 @@ DRF Serializers for Macro Data API.
 from django.apps import apps as django_apps
 from rest_framework import serializers
 
-DataSourceConfig = django_apps.get_model("macro", "DataSourceConfig")
+# Provider config is now owned by data_center; macro acts as a UI entry point only.
+DataSourceConfig = django_apps.get_model("data_center", "ProviderConfigModel")
 MacroIndicator = django_apps.get_model("macro", "MacroIndicator")
 
 

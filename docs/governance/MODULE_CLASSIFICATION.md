@@ -87,7 +87,7 @@ account, audit, filter, prompt
 | **dashboard** | 仪表盘 | 13 | 0 | ✅ 完整 |
 | **prompt** | AI Prompt 模板 | 3 | 2 | ✅ 完整 |
 | **realtime** | 实时价格监控 | 2 | 1 | ✅ 完整 |
-| **market_data** | 统一数据源接入 | 1 | 1 | ✅ 完整 |
+| **data_center** | 数据中台 | 4 | 12 | ✅ 完整 |
 | **terminal** | 终端 CLI | 1 | 0 | ✅ 完整 |
 | **strategy** | 策略系统 | 3 | 1 | ✅ 完整 |
 | **decision_rhythm** | 决策频率约束 | 3 | 2 | ✅ 完整 |

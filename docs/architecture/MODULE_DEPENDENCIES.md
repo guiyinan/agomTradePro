@@ -53,7 +53,7 @@
 │  dashboard ─────────→ account, regime, signal                          │
 │  prompt ─────────────→ ai_provider, macro, regime                      │
 │  realtime ──────────→ regime, simulated_trading                        │
-│  market_data ───────→ realtime                                         │
+│  data_center ───────→ macro, equity, fund, sector                      │
 │  terminal ──────────→ prompt                                           │
 │  strategy ──────────→ account, ai_provider, prompt                     │
 │  decision_rhythm ───→ alpha_trigger, events, regime                    │
@@ -165,7 +165,7 @@
 | **filter** | 1 | macro |
 | **alpha_trigger** | 1 | events |
 | **beta_gate** | 1 | events |
-| **market_data** | 1 | realtime |
+| **data_center** | 4 | macro, equity, fund, sector |
 | **terminal** | 1 | prompt |
 | **ai_provider** | 0 | - |
 | **events** | 0 | - |
@@ -201,7 +201,7 @@
 | **sentiment** | 1 | asset_analysis |
 | **alpha_trigger** | 1 | decision_rhythm |
 | **account** | 1 | dashboard, strategy |
-| **realtime** | 1 | market_data |
+| **realtime** | 1 | data_center |
 | **strategy** | 1 | account, simulated_trading |
 | **alpha** | 0 | - |
 | **factor** | 0 | - |
@@ -215,7 +215,7 @@
 | **task_monitor** | 0 | - |
 | **audit** | 0 | - |
 | **dashboard** | 0 | - |
-| **market_data** | 0 | - |
+| **data_center** | 12 | backtest, equity, factor, fund, hedge, macro, realtime, regime, rotation, setup_wizard, signal, simulated_trading |
 | **share** | 0 | - |
 | **fund** | 0 | - |
 
@@ -284,7 +284,7 @@
 | `dashboard` | 3 | account, regime, signal |
 | `prompt` | 3 | ai_provider, macro, regime |
 | `realtime` | 2 | regime, simulated_trading |
-| `market_data` | 1 | realtime |
+| `data_center` | 12 | backtest, equity, factor, fund, hedge, macro, realtime, regime, rotation, setup_wizard, signal, simulated_trading |
 | `terminal` | 1 | prompt |
 | `strategy` | 3 | account, ai_provider, prompt |
 | `decision_rhythm` | 3 | alpha_trigger, events, regime |

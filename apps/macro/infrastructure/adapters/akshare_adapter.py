@@ -14,6 +14,8 @@ from typing import List
 
 import pandas as pd
 
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+
 from .base import (
     BaseMacroAdapter,
     DataSourceUnavailableError,
@@ -142,8 +144,7 @@ class AKShareAdapter(BaseMacroAdapter):
         """延迟初始化 akshare"""
         if self._ak is None:
             try:
-                import akshare as ak
-                self._ak = ak
+                self._ak = get_akshare_module()
                 logger.info("AKShare 初始化成功")
             except ImportError:
                 raise DataSourceUnavailableError("akshare 库未安装，请运行: pip install akshare")

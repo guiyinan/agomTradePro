@@ -1,8 +1,7 @@
 """
 Rotation Module Infrastructure Layer - Price Data Adapter
 
-通过 market_data 数据中台获取历史价格数据。
-不再直连 Tushare/AkShare，统一走 SourceRegistry failover + 熔断机制。
+通过 data_center 事实表读取历史价格数据。
 """
 
 import logging
@@ -57,8 +56,7 @@ class RotationPriceDataService:
     """
     Rotation 模块价格数据服务。
 
-    通过 market_data 数据中台的 SourceRegistry 获取历史价格，
-    自动享受 failover、熔断、多源切换能力。
+    从 data_center 事实表读取历史价格。
     """
 
     def __init__(
@@ -89,8 +87,8 @@ class RotationPriceDataService:
         if cached_prices and len(cached_prices) >= days_back:
             return cached_prices[-days_back:]
 
-        # 通过 market_data 数据中台获取
-        prices = self._fetch_from_market_data(asset_code, end_date, days_back)
+        # 从 data_center 事实表获取
+        prices = self._fetch_from_data_center(asset_code, end_date, days_back)
 
         if prices:
             self.cache.set(asset_code, end_date, prices)
@@ -118,42 +116,27 @@ class RotationPriceDataService:
         self.cache.clear()
 
     @staticmethod
-    def _fetch_from_market_data(
+    def _fetch_from_data_center(
         asset_code: str,
         end_date: date,
         days_back: int,
     ) -> list[float] | None:
-        """通过 market_data SourceRegistry 获取历史价格"""
+        """从 data_center 事实表读取历史价格"""
         try:
-            from apps.market_data.application.registry_factory import get_registry
-            from apps.market_data.domain.enums import DataCapability
+            from apps.data_center.infrastructure.repositories import PriceBarRepository
 
-            registry = get_registry()
-
+            repo = PriceBarRepository()
             # 加缓冲天数，应对非交易日
             start_date = end_date - timedelta(days=days_back + 30)
-            start_str = start_date.strftime("%Y%m%d")
-            end_str = end_date.strftime("%Y%m%d")
-
-            bars = registry.call_with_failover(
-                DataCapability.HISTORICAL_PRICE,
-                lambda provider: provider.get_historical_prices(
-                    asset_code, start_str, end_str
-                ),
-            )
+            bars = repo.get_bars(asset_code, start=start_date, end=end_date)
 
             if not bars:
-                logger.warning(
-                    "market_data 数据中台无法获取 %s 的历史价格", asset_code
-                )
+                logger.warning("data_center 无法获取 %s 的历史价格", asset_code)
                 return None
 
-            # 提取收盘价，按日期升序
-            prices = [bar.close for bar in bars]
+            prices = [float(bar.close) for bar in bars]
             return prices[-days_back:] if len(prices) > days_back else prices
 
         except Exception:
-            logger.exception(
-                "通过 market_data 获取 %s 历史价格失败", asset_code
-            )
+            logger.exception("从 data_center 获取 %s 历史价格失败", asset_code)
             return None

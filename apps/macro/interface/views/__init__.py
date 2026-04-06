@@ -20,9 +20,6 @@ from .fetch_api import (
 )
 from .page_views import (
     data_controller_view,
-    datasource_config_view,
-    datasource_create_view,
-    datasource_edit_view,
     macro_data_view,
 )
 from .table_api import (
@@ -37,10 +34,7 @@ from .table_api import (
 __all__ = [
     # Page views
     'macro_data_view',
-    'datasource_config_view',
     'data_controller_view',
-    'datasource_create_view',
-    'datasource_edit_view',
     # Fetch API
     'api_fetch_data_stream',
     'api_get_supported_indicators',

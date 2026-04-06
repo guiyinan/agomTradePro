@@ -15,6 +15,15 @@ from zoneinfo import ZoneInfo
 from django.db import models
 from django.utils import timezone
 
+from apps.data_center.domain.entities import FinancialFact, ValuationFact
+from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+from apps.data_center.infrastructure.repositories import (
+    FinancialFactRepository as DataCenterFinancialFactRepository,
+)
+from apps.data_center.infrastructure.repositories import (
+    ValuationFactRepository as DataCenterValuationFactRepository,
+)
 from apps.equity.domain.entities import (
     EquityAssetScore,
     FinancialData,
@@ -234,48 +243,10 @@ class DjangoEquityAssetRepository:
             )
 
             # 获取最新估值数据
-            valuation_model = ValuationModel._default_manager.filter(
-                stock_code=asset_code
-            ).order_by('-trade_date').first()
-
-            valuation = ValuationMetrics(
-                stock_code=valuation_model.stock_code,
-                trade_date=valuation_model.trade_date,
-                pe=valuation_model.pe or 0.0,
-                pb=valuation_model.pb or 0.0,
-                ps=valuation_model.ps or 0.0,
-                total_mv=valuation_model.total_mv,
-                circ_mv=valuation_model.circ_mv,
-                dividend_yield=valuation_model.dividend_yield or 0.0,
-                source_provider=valuation_model.source_provider,
-                source_updated_at=valuation_model.source_updated_at,
-                fetched_at=valuation_model.fetched_at,
-                pe_type=valuation_model.pe_type,
-                is_valid=valuation_model.is_valid,
-                quality_flag=valuation_model.quality_flag,
-                quality_notes=valuation_model.quality_notes,
-                raw_payload_hash=valuation_model.raw_payload_hash,
-            ) if valuation_model else None
+            valuation = self._get_latest_valuation(asset_code)
 
             # 获取最新财务数据
-            financial_model = FinancialDataModel._default_manager.filter(
-                stock_code=asset_code
-            ).order_by('-report_date').first()
-
-            financial = FinancialData(
-                stock_code=financial_model.stock_code,
-                report_date=financial_model.report_date,
-                revenue=financial_model.revenue,
-                net_profit=financial_model.net_profit,
-                revenue_growth=financial_model.revenue_growth or 0.0,
-                net_profit_growth=financial_model.net_profit_growth or 0.0,
-                total_assets=financial_model.total_assets,
-                total_liabilities=financial_model.total_liabilities,
-                equity=financial_model.equity,
-                roe=financial_model.roe,
-                roa=financial_model.roa or 0.0,
-                debt_ratio=financial_model.debt_ratio
-            ) if financial_model else None
+            financial = self._get_latest_financial(asset_code)
 
             # 获取最新技术指标
             daily_model = StockDailyModel._default_manager.filter(
@@ -311,6 +282,8 @@ class DjangoStockRepository:
 
     def __init__(self) -> None:
         self._last_intraday_source: str | None = None
+        self._dc_financial_repo = DataCenterFinancialFactRepository()
+        self._dc_valuation_repo = DataCenterValuationFactRepository()
 
     def get_all_stocks_with_fundamentals(
         self,
@@ -343,56 +316,16 @@ class DjangoStockRepository:
             )
 
             # 获取最新财务数据
-            financial_query = FinancialDataModel._default_manager.filter(
-                stock_code=stock_code
-            ).order_by('-report_date').first()
-
-            if not financial_query:
+            financial = self._get_latest_financial(stock_code)
+            if not financial:
                 # 没有财务数据，跳过
                 continue
 
-            financial = FinancialData(
-                stock_code=financial_query.stock_code,
-                report_date=financial_query.report_date,
-                revenue=financial_query.revenue,
-                net_profit=financial_query.net_profit,
-                revenue_growth=financial_query.revenue_growth or 0.0,
-                net_profit_growth=financial_query.net_profit_growth or 0.0,
-                total_assets=financial_query.total_assets,
-                total_liabilities=financial_query.total_liabilities,
-                equity=financial_query.equity,
-                roe=financial_query.roe,
-                roa=financial_query.roa or 0.0,
-                debt_ratio=financial_query.debt_ratio
-            )
-
             # 获取最新估值数据
-            valuation_query = ValuationModel._default_manager.filter(
-                stock_code=stock_code
-            ).order_by('-trade_date').first()
-
-            if not valuation_query:
+            valuation = self._get_latest_valuation(stock_code)
+            if not valuation:
                 # 没有估值数据，跳过
                 continue
-
-            valuation = ValuationMetrics(
-                stock_code=valuation_query.stock_code,
-                trade_date=valuation_query.trade_date,
-                pe=valuation_query.pe or 0.0,
-                pb=valuation_query.pb or 0.0,
-                ps=valuation_query.ps or 0.0,
-                total_mv=valuation_query.total_mv,
-                circ_mv=valuation_query.circ_mv,
-                dividend_yield=valuation_query.dividend_yield or 0.0,
-                source_provider=valuation_query.source_provider,
-                source_updated_at=valuation_query.source_updated_at,
-                fetched_at=valuation_query.fetched_at,
-                pe_type=valuation_query.pe_type,
-                is_valid=valuation_query.is_valid,
-                quality_flag=valuation_query.quality_flag,
-                quality_notes=valuation_query.quality_notes,
-                raw_payload_hash=valuation_query.raw_payload_hash,
-            )
 
             result.append((stock_info, financial, valuation))
 
@@ -435,6 +368,10 @@ class DjangoStockRepository:
         Returns:
             FinancialData 列表，按日期降序排列
         """
+        dc_financials = self._get_financials_from_data_center(stock_code, limit=limit)
+        if dc_financials:
+            return dc_financials
+
         models = FinancialDataModel._default_manager.filter(
             stock_code=stock_code
         ).order_by('-report_date')[:limit]
@@ -474,6 +411,10 @@ class DjangoStockRepository:
         Returns:
             ValuationMetrics 列表，按日期升序排列
         """
+        dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
+        if dc_valuations:
+            return dc_valuations
+
         models = ValuationModel._default_manager.filter(
             stock_code=stock_code,
             trade_date__gte=start_date,
@@ -554,6 +495,9 @@ class DjangoStockRepository:
                 'debt_ratio': financial.debt_ratio
             }
         )
+        self._dc_financial_repo.bulk_upsert(
+            self._financial_entity_to_dc_facts(financial, report_type)
+        )
 
     def save_valuation(self, valuation: ValuationMetrics) -> None:
         """
@@ -581,6 +525,189 @@ class DjangoStockRepository:
                 'quality_notes': valuation.quality_notes,
                 'raw_payload_hash': valuation.raw_payload_hash,
             }
+        )
+        self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
+
+    def _get_latest_financial(self, stock_code: str) -> FinancialData | None:
+        dc_items = self._get_financials_from_data_center(stock_code, limit=1)
+        if dc_items:
+            return dc_items[0]
+
+        financial_model = FinancialDataModel._default_manager.filter(
+            stock_code=stock_code
+        ).order_by('-report_date').first()
+        if financial_model is None:
+            return None
+        return FinancialData(
+            stock_code=financial_model.stock_code,
+            report_date=financial_model.report_date,
+            revenue=financial_model.revenue,
+            net_profit=financial_model.net_profit,
+            revenue_growth=financial_model.revenue_growth or 0.0,
+            net_profit_growth=financial_model.net_profit_growth or 0.0,
+            total_assets=financial_model.total_assets,
+            total_liabilities=financial_model.total_liabilities,
+            equity=financial_model.equity,
+            roe=financial_model.roe,
+            roa=financial_model.roa or 0.0,
+            debt_ratio=financial_model.debt_ratio,
+        )
+
+    def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
+        dc_item = self._dc_valuation_repo.get_latest(stock_code)
+        if dc_item is not None:
+            return self._dc_fact_to_valuation(dc_item)
+
+        valuation_model = ValuationModel._default_manager.filter(
+            stock_code=stock_code
+        ).order_by('-trade_date').first()
+        if valuation_model is None:
+            return None
+        return ValuationMetrics(
+            stock_code=valuation_model.stock_code,
+            trade_date=valuation_model.trade_date,
+            pe=valuation_model.pe or 0.0,
+            pb=valuation_model.pb or 0.0,
+            ps=valuation_model.ps or 0.0,
+            total_mv=valuation_model.total_mv,
+            circ_mv=valuation_model.circ_mv,
+            dividend_yield=valuation_model.dividend_yield or 0.0,
+            source_provider=valuation_model.source_provider,
+            source_updated_at=valuation_model.source_updated_at,
+            fetched_at=valuation_model.fetched_at,
+            pe_type=valuation_model.pe_type,
+            is_valid=valuation_model.is_valid,
+            quality_flag=valuation_model.quality_flag,
+            quality_notes=valuation_model.quality_notes,
+            raw_payload_hash=valuation_model.raw_payload_hash,
+        )
+
+    def _get_financials_from_data_center(
+        self,
+        stock_code: str,
+        limit: int,
+    ) -> list[FinancialData]:
+        facts = self._dc_financial_repo.get_facts(stock_code, limit=max(limit * 12, 40))
+        if not facts:
+            return []
+
+        grouped: dict[date, dict[str, FinancialFact]] = {}
+        report_dates: dict[date, date | None] = {}
+        for fact in facts:
+            grouped.setdefault(fact.period_end, {})[fact.metric_code] = fact
+            if fact.period_end not in report_dates or report_dates[fact.period_end] is None:
+                report_dates[fact.period_end] = fact.report_date
+
+        results: list[FinancialData] = []
+        required_metrics = {
+            "revenue",
+            "net_profit",
+            "total_assets",
+            "total_liabilities",
+            "equity",
+            "roe",
+            "debt_ratio",
+        }
+        for period_end in sorted(grouped.keys(), reverse=True):
+            metric_map = grouped[period_end]
+            if not required_metrics.issubset(metric_map.keys()):
+                continue
+            results.append(
+                FinancialData(
+                    stock_code=stock_code,
+                    report_date=report_dates.get(period_end) or period_end,
+                    revenue=Decimal(str(metric_map["revenue"].value)),
+                    net_profit=Decimal(str(metric_map["net_profit"].value)),
+                    revenue_growth=float(metric_map.get("revenue_growth").value) if metric_map.get("revenue_growth") else 0.0,
+                    net_profit_growth=(
+                        float(metric_map.get("net_profit_growth").value)
+                        if metric_map.get("net_profit_growth")
+                        else 0.0
+                    ),
+                    total_assets=Decimal(str(metric_map["total_assets"].value)),
+                    total_liabilities=Decimal(str(metric_map["total_liabilities"].value)),
+                    equity=Decimal(str(metric_map["equity"].value)),
+                    roe=float(metric_map["roe"].value),
+                    roa=float(metric_map.get("roa").value) if metric_map.get("roa") else 0.0,
+                    debt_ratio=float(metric_map["debt_ratio"].value),
+                )
+            )
+            if len(results) >= limit:
+                break
+        return results
+
+    def _get_valuations_from_data_center(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[ValuationMetrics]:
+        facts = self._dc_valuation_repo.get_series(stock_code, start=start_date, end=end_date)
+        if not facts:
+            return []
+        return [self._dc_fact_to_valuation(fact) for fact in reversed(facts)]
+
+    def _dc_fact_to_valuation(self, fact: ValuationFact) -> ValuationMetrics:
+        total_mv = fact.market_cap if fact.market_cap is not None else 0.0
+        circ_mv = fact.float_market_cap if fact.float_market_cap is not None else total_mv
+        return ValuationMetrics(
+            stock_code=fact.asset_code,
+            trade_date=fact.val_date,
+            pe=fact.pe_ttm or fact.pe_static or 0.0,
+            pb=fact.pb or 0.0,
+            ps=fact.ps_ttm or 0.0,
+            total_mv=Decimal(str(total_mv)),
+            circ_mv=Decimal(str(circ_mv)),
+            dividend_yield=fact.dv_ratio or 0.0,
+            source_provider=fact.source,
+            source_updated_at=fact.fetched_at,
+            fetched_at=fact.fetched_at,
+            pe_type="ttm" if fact.pe_ttm is not None else "static",
+        )
+
+    def _financial_entity_to_dc_facts(
+        self,
+        financial: FinancialData,
+        report_type: str,
+    ) -> list[FinancialFact]:
+        period_type_map = {
+            '1Q': FinancialPeriodType.QUARTERLY,
+            '2Q': FinancialPeriodType.SEMI_ANNUAL,
+            '3Q': FinancialPeriodType.QUARTERLY,
+            '4Q': FinancialPeriodType.ANNUAL,
+        }
+        common = {
+            "asset_code": financial.stock_code,
+            "period_end": financial.report_date,
+            "period_type": period_type_map[report_type],
+            "source": "equity_legacy_repo",
+            "report_date": financial.report_date,
+        }
+        return [
+            FinancialFact(metric_code="revenue", value=float(financial.revenue), unit="元", **common),
+            FinancialFact(metric_code="net_profit", value=float(financial.net_profit), unit="元", **common),
+            FinancialFact(metric_code="revenue_growth", value=float(financial.revenue_growth), unit="%", **common),
+            FinancialFact(metric_code="net_profit_growth", value=float(financial.net_profit_growth), unit="%", **common),
+            FinancialFact(metric_code="total_assets", value=float(financial.total_assets), unit="元", **common),
+            FinancialFact(metric_code="total_liabilities", value=float(financial.total_liabilities), unit="元", **common),
+            FinancialFact(metric_code="equity", value=float(financial.equity), unit="元", **common),
+            FinancialFact(metric_code="roe", value=float(financial.roe), unit="%", **common),
+            FinancialFact(metric_code="roa", value=float(financial.roa), unit="%", **common),
+            FinancialFact(metric_code="debt_ratio", value=float(financial.debt_ratio), unit="%", **common),
+        ]
+
+    def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
+        return ValuationFact(
+            asset_code=valuation.stock_code,
+            val_date=valuation.trade_date,
+            pe_ttm=valuation.pe,
+            pb=valuation.pb,
+            ps_ttm=valuation.ps,
+            market_cap=float(valuation.total_mv),
+            float_market_cap=float(valuation.circ_mv),
+            dv_ratio=valuation.dividend_yield,
+            source=valuation.source_provider or "equity_legacy_repo",
+            fetched_at=valuation.fetched_at or timezone.now(),
         )
 
     def get_daily_prices(
@@ -747,7 +874,7 @@ class DjangoStockRepository:
         symbol: str,
     ) -> list[IntradayPricePoint]:
         try:
-            import akshare as ak
+            ak = get_akshare_module()
             import pandas as pd
 
             frame = ak.stock_zh_a_hist_min_em(symbol=symbol, period="1", adjust="")
@@ -797,7 +924,7 @@ class DjangoStockRepository:
         symbol: str,
     ) -> list[IntradayPricePoint]:
         try:
-            import akshare as ak
+            ak = get_akshare_module()
             import pandas as pd
 
             frame = ak.stock_intraday_em(symbol=symbol)
@@ -1009,7 +1136,7 @@ class DjangoStockRepository:
     ) -> list[tuple[date, Decimal]]:
         """从 AKShare 获取远端日线价格。"""
         try:
-            import akshare as ak
+            ak = get_akshare_module()
 
             frame = ak.stock_zh_a_hist(
                 symbol=self._to_akshare_symbol(stock_code),

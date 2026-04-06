@@ -175,14 +175,16 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 ```
 list_config_capabilities()
 get_config_center_snapshot()
-list_macro_datasources()
-create_macro_datasource(name, source_type, priority, is_active, api_key, http_url, api_endpoint, api_secret, description)
-update_macro_datasource(source_id, ...)
+list_data_center_providers()
+create_data_center_provider(name, source_type, priority, is_active, api_key, http_url, api_endpoint, api_secret, extra_config, description)
+update_data_center_provider(provider_id, ...)
+test_data_center_provider_connection(provider_id)
+get_data_center_provider_status()
 ```
 
 Notes:
 
-- `macro_datasources` 是统一财经数据源中台入口，Tushare、AKShare、QMT、FRED 等配置都从这里进入。
+- `data_center_providers` 是统一财经数据源中台入口，Tushare、AKShare、EastMoney、QMT、FRED 等配置都从这里进入。
 - 对于第三方 Tushare 数据源，使用 `http_url` 字段；后端会把它下发到 `pro._DataApi__http_url`。
 - 对于 QMT 行情源，使用 `source_type="qmt"`，本地 XtQuant 参数放在 `extra_config`。
 

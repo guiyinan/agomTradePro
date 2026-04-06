@@ -15,7 +15,7 @@ from apps.equity.infrastructure.financial_source_gateway import (
     AKShareFinancialGateway,
     TushareFinancialGateway,
 )
-from apps.equity.infrastructure.models import FinancialDataModel, StockInfoModel
+from apps.equity.infrastructure.models import StockInfoModel
 from apps.equity.infrastructure.repositories import (
     DjangoStockRepository,
     DjangoValuationDataQualityRepository,
@@ -165,6 +165,8 @@ def sync_financial_data_task(
     if not stocks.exists():
         return {"success": False, "error": "没有找到活跃股票"}
 
+    stock_repo = DjangoStockRepository()
+
     # 初始化网关
     if source == "tushare":
         try:
@@ -188,23 +190,7 @@ def sync_financial_data_task(
         try:
             batch = gateway.fetch(stock.stock_code, periods=periods)
             for record in batch.records:
-                FinancialDataModel.objects.update_or_create(
-                    stock_code=record.stock_code,
-                    report_date=record.report_date,
-                    report_type=record.report_type,
-                    defaults={
-                        "revenue": record.revenue,
-                        "net_profit": record.net_profit,
-                        "revenue_growth": record.revenue_growth,
-                        "net_profit_growth": record.net_profit_growth,
-                        "total_assets": record.total_assets,
-                        "total_liabilities": record.total_liabilities,
-                        "equity": record.equity,
-                        "roe": record.roe,
-                        "roa": record.roa,
-                        "debt_ratio": record.debt_ratio,
-                    }
-                )
+                stock_repo.save_financial_data(record)
             synced_count += len(batch.records)
         except Exception as e:
             error_count += 1

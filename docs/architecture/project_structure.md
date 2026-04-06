@@ -164,7 +164,7 @@ AgomTradePro/
 │   │   ├── infrastructure/      #   基础设施层
 │   │   │   ├── models.py        #     SimulatedAccountModel, PositionModel, TradeModel, FeeConfigModel
 │   │   │   ├── repositories.py  #     数据仓储（含 get_by_user 方法）
-│   │   │   └── market_data_provider.py  # 市场数据提供者
+│   │   │   └── price_provider.py        # Data Center 价格提供者
 │   │   └── interface/           #   接口层
 │   │       ├── views.py         #     页面视图（my_accounts_page 等）
 │   │       ├── urls.py          #     URL 配置

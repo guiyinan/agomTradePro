@@ -39,7 +39,7 @@ class TestSelectTests(unittest.TestCase):
         key_modules = [
             "regime", "policy", "signal", "audit", "backtest",
             "alpha", "account", "simulated_trading", "strategy",
-            "share", "market_data", "agent_runtime", "asset_analysis",
+            "share", "data_center", "agent_runtime", "asset_analysis",
             "ai_capability", "ai_provider", "beta_gate", "setup_wizard", "task_monitor", "terminal", "hedge",
             "realtime", "filter", "prompt", "sentiment", "sector", "fund",
             "events", "factor", "rotation", "macro", "equity", "alpha_trigger",
@@ -133,11 +133,12 @@ class TestSelectTests(unittest.TestCase):
         tests = select_tests_func({"audit"}, ["apps/audit/interface/views.py"])
         self.assertIn("tests/api/test_audit_api_edges.py", tests)
 
-    def test_select_tests_with_market_data_changes_include_app_local_tests(self):
-        """market_data 模块变更必须带上 app-local tests。"""
-        tests = select_tests_func({"market_data"}, ["apps/market_data/interface/views.py"])
-        self.assertIn("apps/market_data/tests/", tests)
-        self.assertIn("tests/api/test_market_data_api_edges.py", tests)
+    def test_select_tests_with_data_center_changes_include_api_and_unit_tests(self):
+        """data_center 变更必须带上 API、集成和单元测试。"""
+        tests = select_tests_func({"data_center"}, ["apps/data_center/interface/api_views.py"])
+        self.assertIn("tests/api/test_data_center_route_cleanup.py", tests)
+        self.assertIn("tests/integration/data_center/", tests)
+        self.assertIn("tests/unit/data_center/", tests)
 
     def test_select_tests_with_dashboard_changes_include_api_tests(self):
         """dashboard 变更必须带上 API 测试。"""
@@ -287,7 +288,6 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/migrations/", FULL_TEST_SUITES)
         self.assertIn("tests/unit/", FULL_TEST_SUITES)
         self.assertIn("apps/dashboard/tests/", FULL_TEST_SUITES)
-        self.assertIn("apps/market_data/tests/", FULL_TEST_SUITES)
         self.assertIn("apps/share/tests/", FULL_TEST_SUITES)
 
     @patch.dict(os.environ, {"GITHUB_ACTIONS": "true"})

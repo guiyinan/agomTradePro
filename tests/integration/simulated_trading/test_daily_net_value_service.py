@@ -16,7 +16,7 @@ from django.test import TestCase
 
 from apps.simulated_trading.application.auto_trading_engine import (
     AutoTradingEngine,
-    MockMarketDataProvider,
+    MockPriceProvider,
 )
 from apps.simulated_trading.application.daily_net_value_service import DailyNetValueService
 from apps.simulated_trading.application.use_cases import (
@@ -259,7 +259,7 @@ class TestDailyNetValueService(TestCase):
             self.trade_repo
         )
 
-        # 创建引擎（使用 Mock MarketDataProvider）
+        # 创建引擎（使用 MockPriceProvider）
         engine = AutoTradingEngine(
             account_repo=self.account_repo,
             position_repo=self.position_repo,
@@ -267,7 +267,7 @@ class TestDailyNetValueService(TestCase):
             buy_use_case=buy_use_case,
             sell_use_case=sell_use_case,
             performance_use_case=performance_use_case,
-            market_data_provider=MockMarketDataProvider(
+            price_provider=MockPriceProvider(
                 prices={"000001.SZ": 10.50}
             )
         )

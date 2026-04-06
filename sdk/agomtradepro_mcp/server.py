@@ -3,9 +3,16 @@
 import os
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
-
+from agomtradepro_mcp.rbac import (
+    enforce_prompt_access,
+    enforce_resource_access,
+    wrap_tool_with_rbac,
+    wrap_tool_with_rbac_and_audit,
+)
 from agomtradepro_mcp.tools.account_tools import register_account_tools
+from agomtradepro_mcp.tools.agent_proposal_tools import register_agent_proposal_tools
+from agomtradepro_mcp.tools.agent_runtime_tools import register_agent_runtime_tools
+from agomtradepro_mcp.tools.agent_task_tools import register_agent_task_tools
 from agomtradepro_mcp.tools.ai_provider_tools import register_ai_provider_tools
 from agomtradepro_mcp.tools.alpha_tools import register_alpha_tools
 from agomtradepro_mcp.tools.alpha_trigger_tools import register_alpha_trigger_tools
@@ -13,39 +20,31 @@ from agomtradepro_mcp.tools.asset_analysis_tools import register_asset_analysis_
 from agomtradepro_mcp.tools.audit_tools import register_audit_tools
 from agomtradepro_mcp.tools.backtest_tools import register_backtest_tools
 from agomtradepro_mcp.tools.beta_gate_tools import register_beta_gate_tools
-from agomtradepro_mcp.tools.dashboard_tools import register_dashboard_tools
 from agomtradepro_mcp.tools.config_center_tools import register_config_center_tools
+from agomtradepro_mcp.tools.dashboard_tools import register_dashboard_tools
+from agomtradepro_mcp.tools.data_center_tools import register_data_center_tools
 from agomtradepro_mcp.tools.decision_rhythm_tools import register_decision_rhythm_tools
+from agomtradepro_mcp.tools.decision_workflow_tools import register_decision_workflow_tools
 from agomtradepro_mcp.tools.equity_tools import register_equity_tools
 from agomtradepro_mcp.tools.events_tools import register_events_tools
+from agomtradepro_mcp.tools.factor_tools import register_factor_tools
 from agomtradepro_mcp.tools.filter_tools import register_filter_tools
 from agomtradepro_mcp.tools.fund_tools import register_fund_tools
+from agomtradepro_mcp.tools.hedge_tools import register_hedge_tools
 from agomtradepro_mcp.tools.macro_tools import register_macro_tools
-from agomtradepro_mcp.tools.market_data_tools import register_market_data_tools
 from agomtradepro_mcp.tools.policy_tools import register_policy_tools
 from agomtradepro_mcp.tools.prompt_tools import register_prompt_tools
 from agomtradepro_mcp.tools.pulse_tools import register_pulse_tools
 from agomtradepro_mcp.tools.realtime_tools import register_realtime_tools
 from agomtradepro_mcp.tools.regime_tools import register_regime_tools
 from agomtradepro_mcp.tools.rotation_tools import register_rotation_tools
-from agomtradepro_mcp.tools.factor_tools import register_factor_tools
-from agomtradepro_mcp.tools.hedge_tools import register_hedge_tools
 from agomtradepro_mcp.tools.sector_tools import register_sector_tools
 from agomtradepro_mcp.tools.sentiment_tools import register_sentiment_tools
 from agomtradepro_mcp.tools.signal_tools import register_signal_tools
 from agomtradepro_mcp.tools.simulated_trading_tools import register_simulated_trading_tools
 from agomtradepro_mcp.tools.strategy_tools import register_strategy_tools
 from agomtradepro_mcp.tools.task_monitor_tools import register_task_monitor_tools
-from agomtradepro_mcp.tools.agent_task_tools import register_agent_task_tools
-from agomtradepro_mcp.tools.agent_runtime_tools import register_agent_runtime_tools
-from agomtradepro_mcp.tools.agent_proposal_tools import register_agent_proposal_tools
-from agomtradepro_mcp.tools.decision_workflow_tools import register_decision_workflow_tools
-from agomtradepro_mcp.rbac import (
-    enforce_prompt_access,
-    enforce_resource_access,
-    wrap_tool_with_rbac,
-    wrap_tool_with_rbac_and_audit,
-)
+from mcp.server.fastmcp import FastMCP
 
 # 创建 MCP 服务器实例
 server = FastMCP("agomtradepro")
@@ -95,8 +94,8 @@ def register_all_tools() -> None:
     # Decision Workflow module
     register_decision_workflow_tools(server)
 
-    # Market Data 统一数据源模块
-    register_market_data_tools(server)
+    # Data Center 统一数据中台模块
+    register_data_center_tools(server)
 
     # Agent Runtime task tools (M2)
     register_agent_task_tools(server)
@@ -153,6 +152,7 @@ def resource_regime_current() -> str:
 增长指标: {growth_line}
 通胀指标: {inflation_line}"""
 
+
 @server.resource(
     "agomtradepro://policy/status",
     name="Policy Status",
@@ -175,6 +175,7 @@ def resource_policy_status() -> str:
 最近事件:
 {recent_events_desc or "  无"}"""
 
+
 @server.prompt("analyze_macro_environment")
 def prompt_analyze_macro_environment() -> str:
     """分析当前宏观环境并给出投资建议。"""
@@ -191,6 +192,7 @@ def prompt_analyze_macro_environment() -> str:
 4. 结合宏观象限和政策档位，给出综合投资建议
 
 请以结构化的方式呈现分析结果。"""
+
 
 @server.prompt("check_signal_eligibility")
 def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
@@ -209,9 +211,11 @@ def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
 
 请详细说明准入或不准入的原因。"""
 
+
 # ==========================================================================
 # WP-M2-05: Context Resources
 # ==========================================================================
+
 
 def _format_context_snapshot(domain: str) -> str:
     """Fetch context snapshot via SDK and format as readable text."""
@@ -336,6 +340,7 @@ def resource_context_ops() -> str:
 # WP-M2-06: Workflow Guide Prompts
 # ==========================================================================
 
+
 @server.prompt("run_research_workflow")
 def prompt_run_research_workflow(focus: str = "macro_regime") -> str:
     """Run a research workflow: gather context, analyze, and produce findings."""
@@ -368,7 +373,7 @@ Steps:
 4. Review any triggered price alerts (list_price_alerts)
 5. Check sentiment gate state (get_sentiment_gate_state)
 6. If check_type is 'full', also verify:
-   - Market data provider health (market_data_provider_health)
+   - Data center provider health (get_data_center_provider_status)
    - Alpha provider status (get_alpha_provider_status)
 7. Report any anomalies or stale data sources
 
@@ -490,7 +495,9 @@ def resource_account_summary() -> str:
     account = client.account.get_account(account_id)
     positions = client.account.get_account_positions(account_id)
     performance = client.account.get_account_performance(account_id)
-    performance_summary = performance.get("performance", {}) if isinstance(performance, dict) else {}
+    performance_summary = (
+        performance.get("performance", {}) if isinstance(performance, dict) else {}
+    )
 
     return f"""默认账户ID: {account_id}
 账户名称: {account.get('account_name')}

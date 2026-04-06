@@ -4,7 +4,8 @@
 定期检查所有持仓的证伪条件是否满足，满足时标记并提示平仓。
 """
 
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Dict, List, Optional
 
 from django.utils import timezone
@@ -19,6 +20,43 @@ from apps.simulated_trading.domain.entities import Position
 from apps.simulated_trading.infrastructure.repositories import DjangoPositionRepository
 
 
+@dataclass(frozen=True)
+class _MacroObservation:
+    value: float
+    unit: str
+    observed_at: date
+
+
+class _DataCenterMacroGateway:
+    """Compatibility gateway that reads macro facts from data_center."""
+
+    def __init__(self) -> None:
+        from apps.data_center.infrastructure.repositories import MacroFactRepository
+
+        self._repo = MacroFactRepository()
+
+    def get_latest_by_code(self, code: str) -> _MacroObservation | None:
+        fact = self._repo.get_latest(code)
+        if fact is None:
+            return None
+        return _MacroObservation(
+            value=fact.value,
+            unit=fact.unit,
+            observed_at=fact.reporting_period,
+        )
+
+    def get_history_by_code(self, code: str, periods: int = 12) -> list[_MacroObservation]:
+        facts = self._repo.get_series(code, limit=periods)
+        return [
+            _MacroObservation(
+                value=fact.value,
+                unit=fact.unit,
+                observed_at=fact.reporting_period,
+            )
+            for fact in reversed(facts)
+        ]
+
+
 class PositionInvalidationChecker:
     """持仓证伪检查器
 
@@ -27,9 +65,7 @@ class PositionInvalidationChecker:
 
     def __init__(self):
         """初始化检查器"""
-        # 延迟导入避免循环依赖
-        from apps.macro.infrastructure.repositories import DjangoMacroRepository
-        self.macro_repo = DjangoMacroRepository()
+        self.macro_repo = _DataCenterMacroGateway()
         self.position_repo = DjangoPositionRepository()
 
     def check_all_positions(self) -> list[dict]:

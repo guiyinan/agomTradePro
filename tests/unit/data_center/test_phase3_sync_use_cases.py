@@ -1,0 +1,154 @@
+"""Phase 3 sync use case tests."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
+
+from apps.data_center.application.dtos import (
+    SyncMacroRequest,
+    SyncNewsRequest,
+)
+from apps.data_center.application.use_cases import (
+    SyncMacroUseCase,
+    SyncNewsUseCase,
+)
+from apps.data_center.domain.entities import MacroFact, NewsFact, ProviderConfig, RawAudit
+
+
+def _provider_config() -> ProviderConfig:
+    return ProviderConfig(
+        id=1,
+        name="provider-main",
+        source_type="tushare",
+        is_active=True,
+        priority=1,
+        api_key="token",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+
+
+class _ProviderRepo:
+    def get_by_id(self, provider_id: int):
+        return _provider_config() if provider_id == 1 else None
+
+
+class _ProviderFactory:
+    def __init__(self, provider):
+        self._provider = provider
+
+    def get_by_id(self, provider_id: int):
+        return self._provider if provider_id == 1 else None
+
+
+class _RawAuditRepo:
+    def __init__(self):
+        self.items: list[RawAudit] = []
+
+    def log(self, audit: RawAudit):
+        self.items.append(audit)
+        return audit
+
+
+class _MacroFactRepo:
+    def __init__(self):
+        self.saved: list[MacroFact] = []
+
+    def bulk_upsert(self, facts: list[MacroFact]) -> int:
+        self.saved.extend(facts)
+        return len(facts)
+
+
+class _NewsRepo:
+    def __init__(self):
+        self.saved: list[NewsFact] = []
+
+    def bulk_insert(self, articles: list[NewsFact]) -> int:
+        self.saved.extend(articles)
+        return len(articles)
+
+
+class _Provider:
+    def provider_name(self) -> str:
+        return "provider-main"
+
+    def fetch_macro_series(self, indicator_code: str, start_date: date, end_date: date):
+        return [
+            MacroFact(
+                indicator_code=indicator_code,
+                reporting_period=date(2025, 3, 1),
+                value=5.2,
+                unit="%",
+                source="provider-main",
+            )
+        ]
+
+    def fetch_news(self, asset_code: str, limit: int = 20):
+        return [
+            NewsFact(
+                asset_code=asset_code,
+                title="headline",
+                summary="summary",
+                published_at=datetime(2025, 3, 2, tzinfo=timezone.utc),
+                source="provider-main",
+                external_id="news-1",
+            )
+        ]
+
+
+def test_sync_macro_use_case_stores_facts_and_audit():
+    provider = _Provider()
+    raw_repo = _RawAuditRepo()
+    fact_repo = _MacroFactRepo()
+    use_case = SyncMacroUseCase(
+        provider_repo=_ProviderRepo(),
+        provider_factory=_ProviderFactory(provider),
+        fact_repo=fact_repo,
+        raw_audit_repo=raw_repo,
+    )
+
+    result = use_case.execute(
+        SyncMacroRequest(
+            provider_id=1,
+            indicator_code="CN_PMI",
+            start=date(2025, 3, 1),
+            end=date(2025, 3, 31),
+        )
+    )
+
+    assert result.domain == "macro"
+    assert result.stored_count == 1
+    assert len(fact_repo.saved) == 1
+    assert len(raw_repo.items) == 1
+    assert raw_repo.items[0].capability == "macro"
+    assert raw_repo.items[0].status == "ok"
+
+
+def test_sync_news_use_case_stores_articles_and_audit():
+    provider = _Provider()
+    raw_repo = _RawAuditRepo()
+    news_repo = _NewsRepo()
+    use_case = SyncNewsUseCase(
+        provider_repo=_ProviderRepo(),
+        provider_factory=_ProviderFactory(provider),
+        fact_repo=news_repo,
+        raw_audit_repo=raw_repo,
+    )
+
+    result = use_case.execute(
+        SyncNewsRequest(
+            provider_id=1,
+            asset_code="000001.SZ",
+            limit=10,
+        )
+    )
+
+    assert result.domain == "news"
+    assert result.stored_count == 1
+    assert len(news_repo.saved) == 1
+    assert news_repo.saved[0].external_id == "news-1"
+    assert raw_repo.items[0].capability == "news"

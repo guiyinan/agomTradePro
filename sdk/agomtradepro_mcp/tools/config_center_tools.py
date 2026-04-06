@@ -21,13 +21,13 @@ def register_config_center_tools(server: FastMCP) -> None:
         return client.config_center.get_snapshot()
 
     @server.tool()
-    def list_macro_datasources() -> list[dict[str, Any]]:
-        """列出统一财经数据源中台中的宏观数据源配置。"""
+    def list_data_center_providers() -> list[dict[str, Any]]:
+        """列出数据中台中的 Provider 配置。"""
         client = AgomTradeProClient()
-        return client.macro.list_datasources()
+        return client.data_center.list_providers()
 
     @server.tool()
-    def create_macro_datasource(
+    def create_data_center_provider(
         name: str,
         source_type: str,
         priority: int = 0,
@@ -36,11 +36,12 @@ def register_config_center_tools(server: FastMCP) -> None:
         http_url: str = "",
         api_endpoint: str = "",
         api_secret: str = "",
+        extra_config: dict[str, Any] | None = None,
         description: str = "",
     ) -> dict[str, Any]:
-        """创建宏观数据源配置，支持为 Tushare 设置自定义 HTTP URL。"""
+        """创建数据中台 Provider 配置。"""
         client = AgomTradeProClient()
-        return client.macro.create_datasource(
+        return client.data_center.create_provider(
             {
                 "name": name,
                 "source_type": source_type,
@@ -50,13 +51,14 @@ def register_config_center_tools(server: FastMCP) -> None:
                 "http_url": http_url,
                 "api_endpoint": api_endpoint,
                 "api_secret": api_secret,
+                "extra_config": extra_config or {},
                 "description": description,
             }
         )
 
     @server.tool()
-    def update_macro_datasource(
-        source_id: int,
+    def update_data_center_provider(
+        provider_id: int,
         name: str | None = None,
         source_type: str | None = None,
         priority: int | None = None,
@@ -65,9 +67,10 @@ def register_config_center_tools(server: FastMCP) -> None:
         http_url: str | None = None,
         api_endpoint: str | None = None,
         api_secret: str | None = None,
+        extra_config: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> dict[str, Any]:
-        """更新宏观数据源配置，Tushare 第三方代理地址请传 http_url。"""
+        """更新数据中台 Provider 配置。"""
         client = AgomTradeProClient()
         payload = {
             key: value
@@ -80,8 +83,15 @@ def register_config_center_tools(server: FastMCP) -> None:
                 "http_url": http_url,
                 "api_endpoint": api_endpoint,
                 "api_secret": api_secret,
+                "extra_config": extra_config,
                 "description": description,
             }.items()
             if value is not None
         }
-        return client.macro.update_datasource(source_id, payload, partial=True)
+        return client.data_center.update_provider(provider_id, payload, partial=True)
+
+    @server.tool()
+    def test_data_center_provider_connection(provider_id: int) -> dict[str, Any]:
+        """执行数据中台 Provider 连通性测试。"""
+        client = AgomTradeProClient()
+        return client.data_center.test_provider_connection(provider_id)

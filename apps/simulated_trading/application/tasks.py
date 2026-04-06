@@ -27,7 +27,7 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from apps.market_data.application.price_service import UnifiedPriceService
+from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
@@ -87,7 +87,7 @@ def daily_auto_trading_task(
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
-        market_data = UnifiedPriceService()
+        price_provider = UnifiedPriceService()
         asset_pool_service = AssetPoolQueryService(
             asset_pool_repo=DjangoAssetPoolQueryRepository(),
             signal_repo=signal_repo,
@@ -102,7 +102,7 @@ def daily_auto_trading_task(
             sell_use_case=sell_use_case,
             performance_use_case=performance_use_case,
             asset_pool_service=asset_pool_service,
-            market_data_provider=market_data,
+            price_provider=price_provider,
             signal_service=signal_repo,
         )
 
@@ -179,7 +179,7 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
     try:
         account_repo = DjangoSimulatedAccountRepository()
         position_repo = DjangoPositionRepository()
-        market_data = UnifiedPriceService()
+        price_provider = UnifiedPriceService()
 
         # 获取账户列表
         if account_id:
@@ -200,7 +200,7 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
             for position in positions:
                 try:
                     # 获取最新价格
-                    current_price = market_data.require_latest_price(
+                    current_price = price_provider.require_latest_price(
                         position.asset_code,
                         asset_type=position.asset_type,
                     )

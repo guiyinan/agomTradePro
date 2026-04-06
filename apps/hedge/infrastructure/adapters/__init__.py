@@ -7,10 +7,8 @@ Follows the failover pattern: Primary (Tushare) → Secondary (Mock/Cache)
 
 import logging
 from datetime import date, timedelta
-from typing import List, Optional
 
-from shared.config.secrets import get_secrets
-from shared.infrastructure.tushare_client import create_tushare_pro_client
+from apps.data_center.infrastructure.repositories import PriceBarRepository
 
 logger = logging.getLogger(__name__)
 
@@ -46,22 +44,7 @@ class TushareHedgeAdapter(HedgeDataSource):
     """
 
     def __init__(self):
-        self._ts_pro = None
-        self._initialized = False
-
-    def _init_tushare(self):
-        """Initialize Tushare connection"""
-        if self._initialized:
-            return
-
-        try:
-            secrets = get_secrets()
-            token = secrets.data_sources.tushare_token
-            self._ts_pro = create_tushare_pro_client(token=token)
-            self._initialized = True
-        except Exception as e:
-            logger.warning(f"Failed to initialize Tushare: {e}")
-            self._initialized = False
+        self._repo = PriceBarRepository()
 
     def get_asset_prices(
         self,
@@ -69,34 +52,14 @@ class TushareHedgeAdapter(HedgeDataSource):
         end_date: date,
         days: int = 60
     ) -> list[float] | None:
-        """Get ETF prices from Tushare"""
-        self._init_tushare()
-
-        if not self._initialized or self._ts_pro is None:
-            return None
-
+        """Get ETF prices from persisted price bars."""
         try:
-            # Convert asset_code to Tushare format
-            # e.g., '510300' -> '510300.SH'
             ts_code = self._convert_to_ts_code(asset_code)
-
-            # Calculate start date
-            start_date = end_date - timedelta(days=days * 2)  # Buffer for weekends
-
-            # Fetch data
-            df = self._ts_pro.fund_daily(
-                ts_code=ts_code,
-                start_date=start_date.strftime('%Y%m%d'),
-                end_date=end_date.strftime('%Y%m%d')
-            )
-
-            if df is None or df.empty:
+            start_date = end_date - timedelta(days=days * 2)
+            bars = list(reversed(self._repo.get_bars(ts_code, start=start_date, end=end_date, limit=days * 4)))
+            if not bars:
                 return None
-
-            # Get closing prices (most recent last)
-            prices = df['close'].tolist()
-
-            # Return last N prices
+            prices = [float(bar.close) for bar in bars]
             return prices[-days:] if len(prices) >= days else prices
 
         except Exception as e:
@@ -126,7 +89,7 @@ class AkshareHedgeAdapter(HedgeDataSource):
     """
 
     def __init__(self):
-        self._initialized = False
+        self._repo = PriceBarRepository()
 
     def get_asset_prices(
         self,
@@ -134,31 +97,14 @@ class AkshareHedgeAdapter(HedgeDataSource):
         end_date: date,
         days: int = 60
     ) -> list[float] | None:
-        """Get ETF prices from Akshare"""
+        """Get ETF prices from persisted price bars."""
         try:
-            import akshare as ak
-
-            # Convert asset_code to symbol format
             symbol = self._convert_to_symbol(asset_code)
-
-            # Calculate start date
             start_date = end_date - timedelta(days=days * 2)
-
-            # Fetch fund ETF data
-            df = ak.fund_etf_hist_em(
-                symbol=symbol,
-                period="daily",
-                start_date=start_date.strftime('%Y%m%d'),
-                end_date=end_date.strftime('%Y%m%d'),
-                adjust=""
-            )
-
-            if df is None or df.empty:
+            bars = list(reversed(self._repo.get_bars(symbol, start=start_date, end=end_date, limit=days * 4)))
+            if not bars:
                 return None
-
-            # Get closing prices
-            prices = df['收盘'].tolist()
-
+            prices = [float(bar.close) for bar in bars]
             return prices[-days:] if len(prices) >= days else prices
 
         except Exception as e:

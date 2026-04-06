@@ -61,10 +61,10 @@ def test_macro_indicator_data_requires_code(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_macro_datasource_list_requires_admin(authenticated_client):
+def test_macro_legacy_datasource_routes_are_removed(authenticated_client):
     response = authenticated_client.get("/api/macro/datasources/")
 
-    assert response.status_code in {401, 403}
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db

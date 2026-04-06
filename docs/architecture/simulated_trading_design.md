@@ -77,9 +77,9 @@
  │  │  5. 更新模拟账户持仓和资金                    │  │
 │  │  6. 记录交易日志                             │  │
 │  └──────────────────────────────────────────────┘  │
-│  价格入口统一通过 apps.market_data 中台获取，      │
+│  价格入口统一通过 apps.data_center 中台获取，      │
 │  不再由 simulated_trading 私有 provider 直接拉源   │
-│  若 market_data 无法返回价格，则任务/API 显式报错   │
+│  若 data_center 无法返回价格，则任务/API 显式报错   │
 │  禁止将缺失价格静默记为 0 或伪造最新价             │
 │                                                     │
 │  ┌──────────────────────────────────────────────┐  │
@@ -678,14 +678,14 @@ class AutoTradingEngine:
         trade_repo,
         asset_pool_manager,
         signal_repo,
-        market_data_provider
+        price_provider
     ):
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
         self.asset_pool_manager = asset_pool_manager
         self.signal_repo = signal_repo
-        self.market_data = market_data_provider
+        self.price_provider = price_provider
 
     def run_daily_trading(self, trade_date: date) -> Dict[int, int]:
         """
@@ -772,7 +772,7 @@ class AutoTradingEngine:
     ) -> bool:
         """执行买入"""
         asset_code = candidate['asset_code']
-        asset_price = self.market_data.get_price(asset_code, trade_date)
+        asset_price = self.price_provider.get_price(asset_code, trade_date)
         asset_score = candidate.get('score', 70.0)
 
         # 1. 计算买入数量
@@ -862,7 +862,7 @@ def daily_auto_trading():
     trade_repo = DjangoTradeRepository()
     pool_manager = AssetPoolManager()
     signal_repo = DjangoSignalRepository()
-    market_data = TushareMarketDataProvider()
+    price_provider = TushareMarketDataProvider()
 
     # 创建引擎
     engine = AutoTradingEngine(
@@ -871,7 +871,7 @@ def daily_auto_trading():
         trade_repo,
         pool_manager,
         signal_repo,
-        market_data
+        price_provider
     )
 
     # 执行交易

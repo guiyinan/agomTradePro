@@ -10,12 +10,14 @@ Following AgomSaaS architecture rules:
 import json
 import logging
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import List, Optional
 
 from django.core.cache import cache
 from django.db import models
 from django.utils import timezone
 
+from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
 from apps.realtime.domain.entities import (
     AssetType,
     PriceSnapshot,
@@ -113,9 +115,8 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
     """
 
     def __init__(self):
-        # 延迟导入，避免循环依赖
-        from apps.equity.infrastructure.adapters import TushareStockAdapter
-        self.adapter = TushareStockAdapter()
+        self._quote_repo = QuoteSnapshotRepository()
+        self._price_repo = PriceBarRepository()
         self._is_available = True
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
@@ -124,32 +125,33 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
         注意：Tushare免费版只能获取历史数据，"实时"实际上是最新交易日数据
         """
         try:
-            # 解析资产代码
-            ts_code = self._convert_to_tushare_code(asset_code)
+            quote = self._quote_repo.get_latest(asset_code)
+            if quote is not None:
+                return RealtimePrice(
+                    asset_code=asset_code,
+                    asset_type=self._get_asset_type(asset_code),
+                    price=str(quote.current_price),
+                    change=None,
+                    change_pct=None,
+                    volume=int(quote.volume) if quote.volume is not None else None,
+                    timestamp=quote.snapshot_at,
+                    source=quote.source or "data_center",
+                )
 
-            # 获取最新日线数据（使用 fetch_daily_data 方法）
-            df = self.adapter.fetch_daily_data(
-                stock_code=ts_code,
-                start_date=(timezone.now() - timedelta(days=5)).strftime("%Y%m%d"),
-                end_date=timezone.now().strftime("%Y%m%d")
-            )
-
-            if df is None or df.empty:
+            latest_bar = self._price_repo.get_latest(asset_code)
+            if latest_bar is None:
                 logger.warning(f"No price data found for {asset_code}")
                 return None
-
-            # 取最后一行（最新数据）
-            latest = df.iloc[-1]
 
             return RealtimePrice(
                 asset_code=asset_code,
                 asset_type=self._get_asset_type(asset_code),
-                price=str(latest.get("close", 0)),
-                change=None,  # Tushare日线数据不包含change字段，需要计算
-                change_pct=None,  # 同上
-                volume=int(latest.get("vol", 0)) if latest.get("vol") else None,
+                price=str(latest_bar.close),
+                change=None,
+                change_pct=None,
+                volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
                 timestamp=timezone.now(),
-                source="tushare"
+                source=latest_bar.source or "data_center"
             )
 
         except Exception as e:
@@ -209,6 +211,8 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     """
 
     def __init__(self):
+        self._quote_repo = QuoteSnapshotRepository()
+        self._price_repo = PriceBarRepository()
         self._is_available = True
 
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
@@ -217,37 +221,33 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         AKShare 提供实时行情数据，无需 Token
         """
         try:
-            import akshare as ak
+            quote = self._quote_repo.get_latest(asset_code)
+            if quote is not None:
+                return RealtimePrice(
+                    asset_code=asset_code,
+                    asset_type=self._get_asset_type(asset_code),
+                    price=str(quote.current_price),
+                    change=None,
+                    change_pct=None,
+                    volume=int(quote.volume) if quote.volume is not None else None,
+                    timestamp=quote.snapshot_at,
+                    source=quote.source or "data_center",
+                )
 
-            # 转换资产代码格式
-            symbol = self._convert_to_akshare_code(asset_code)
-
-            # 获取实时行情
-            if self._get_asset_type(asset_code) == AssetType.EQUITY:
-                # 个股实时行情
-                df = ak.stock_zh_a_spot_em()
-                # 筛选目标股票
-                df_filtered = df[df['代码'] == symbol]
-            else:
-                # 指数实时行情
-                df = ak.index_zh_a_spot_em()
-                df_filtered = df[df['代码'] == symbol]
-
-            if df_filtered is None or df_filtered.empty:
+            latest_bar = self._price_repo.get_latest(asset_code)
+            if latest_bar is None:
                 logger.warning(f"No price data found for {asset_code}")
                 return None
-
-            latest = df_filtered.iloc[0]
 
             return RealtimePrice(
                 asset_code=asset_code,
                 asset_type=self._get_asset_type(asset_code),
-                price=str(latest.get("最新价", latest.get("收盘", 0))),
-                change=str(latest.get("涨跌额", 0)) if latest.get("涨跌额") else None,
-                change_pct=str(latest.get("涨跌幅", 0)) if latest.get("涨跌幅") else None,
-                volume=int(latest.get("成交量", 0)) if latest.get("成交量") else None,
+                price=str(latest_bar.close),
+                change=None,
+                change_pct=None,
+                volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
                 timestamp=timezone.now(),
-                source="akshare"
+                source=latest_bar.source or "data_center"
             )
 
         except Exception as e:
@@ -259,40 +259,13 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
 
         AKShare 可以一次性获取所有股票的实时行情
         """
-        try:
-            import akshare as ak
-
-            prices = []
-            asset_codes_set = set(asset_codes)  # 去重
-
-            # 获取所有A股实时行情
-            all_stocks = ak.stock_zh_a_spot_em()
-            all_stocks['代码'] = all_stocks['代码'].str.strip()
-
-            # 筛选需要查询的股票
-            for code in asset_codes_set:
-                symbol = self._convert_to_akshare_code(code)
-                df_filtered = all_stocks[all_stocks['代码'] == symbol]
-
-                if not df_filtered.empty:
-                    latest = df_filtered.iloc[0]
-                    prices.append(RealtimePrice(
-                        asset_code=code,
-                        asset_type=self._get_asset_type(code),
-                        price=str(latest.get("最新价", latest.get("收盘", 0))),
-                        change=str(latest.get("涨跌额", 0)) if latest.get("涨跌额") else None,
-                        change_pct=str(latest.get("涨跌幅", 0)) if latest.get("涨跌幅") else None,
-                        volume=int(latest.get("成交量", 0)) if latest.get("成交量") else None,
-                        timestamp=timezone.now(),
-                        source="akshare"
-                    ))
-
-            logger.info(f"Retrieved {len(prices)}/{len(asset_codes_set)} prices from AKShare")
-            return prices
-
-        except Exception as e:
-            logger.error(f"Failed to get batch prices from AKShare: {e}")
-            return []
+        prices = []
+        for code in asset_codes:
+            price = self.get_realtime_price(code)
+            if price is not None:
+                prices.append(price)
+        logger.info(f"Retrieved {len(prices)}/{len(asset_codes)} prices from data_center")
+        return prices
 
     def is_available(self) -> bool:
         """检查 AKShare 数据源是否可用"""
@@ -300,10 +273,10 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             return False
 
         try:
-            import akshare as ak
-            # 尝试获取实时行情
-            df = ak.stock_zh_a_spot_em()
-            return df is not None and not df.empty
+            return (
+                self._quote_repo.get_latest("000001.SZ") is not None
+                or self._price_repo.get_latest("000001.SZ") is not None
+            )
         except Exception as e:
             logger.error(f"AKShare data source unavailable: {e}")
             self._is_available = False
@@ -376,6 +349,77 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
 
         # 去重并返回
         return list(held | watchlist)
+
+
+class DataCenterPriceDataProvider(PriceDataProviderProtocol):
+    """Price provider backed by data_center quote/price facts."""
+
+    def __init__(self):
+        from apps.data_center.infrastructure.repositories import (
+            PriceBarRepository,
+            QuoteSnapshotRepository,
+        )
+
+        self._quote_repo = QuoteSnapshotRepository()
+        self._bar_repo = PriceBarRepository()
+
+    def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
+        try:
+            quote = self._quote_repo.get_latest(asset_code)
+            if quote is not None:
+                return RealtimePrice(
+                    asset_code=asset_code,
+                    asset_type=self._get_asset_type(asset_code),
+                    price=Decimal(str(quote.current_price)),
+                    change=None,
+                    change_pct=None,
+                    volume=int(quote.volume) if quote.volume is not None else None,
+                    timestamp=quote.snapshot_at,
+                    source=quote.source,
+                )
+
+            bar = self._bar_repo.get_latest(asset_code)
+            if bar is None:
+                return None
+            return RealtimePrice(
+                asset_code=asset_code,
+                asset_type=self._get_asset_type(asset_code),
+                price=Decimal(str(bar.close)),
+                change=None,
+                change_pct=None,
+                volume=int(bar.volume) if bar.volume is not None else None,
+                timestamp=timezone.now(),
+                source=bar.source,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to read realtime price from data_center: %s",
+                asset_code,
+                exc_info=True,
+            )
+            return None
+
+    def get_realtime_prices_batch(self, asset_codes: list[str]) -> list[RealtimePrice]:
+        prices: list[RealtimePrice] = []
+        for code in asset_codes:
+            price = self.get_realtime_price(code)
+            if price is not None:
+                prices.append(price)
+        return prices
+
+    def is_available(self) -> bool:
+        return True
+
+    def _get_asset_type(self, asset_code: str) -> AssetType:
+        if asset_code.endswith(".OF") or asset_code.endswith(".OFC"):
+            return AssetType.FUND
+        if asset_code.startswith(("000", "399")) and "." not in asset_code:
+            return AssetType.INDEX
+        if "." in asset_code:
+            suffix = asset_code.split(".")[1]
+            if suffix in ["SH", "SZ", "BJ"]:
+                return AssetType.EQUITY
+        return AssetType.UNKNOWN
 
 
 class CompositePriceDataProvider(PriceDataProviderProtocol):

@@ -1,10 +1,8 @@
-from datetime import date
-from decimal import Decimal
-from unittest.mock import Mock, patch
+from datetime import date, datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import Mock
 
-from apps.market_data.application.price_service import UnifiedPriceService
-from apps.market_data.domain.entities import HistoricalPriceBar, QuoteSnapshot
-from apps.market_data.domain.enums import DataCapability
+from apps.data_center.application.price_service import UnifiedPriceService
 from core.exceptions import DataFetchError
 
 
@@ -17,13 +15,13 @@ def test_normalize_asset_code_handles_bare_exchange_codes():
     assert service.normalize_asset_code("430001") == "430001.BJ"
 
 
-@patch("apps.market_data.application.price_service.get_registry")
-def test_get_price_uses_historical_capability(mock_get_registry):
-    registry = Mock()
-    registry.call_with_failover.return_value = [
-        HistoricalPriceBar(
+def test_get_price_uses_historical_capability():
+    service = UnifiedPriceService()
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_bars.return_value = [
+        SimpleNamespace(
             asset_code="510300.SH",
-            trade_date=date(2026, 3, 20),
+            bar_date=date(2026, 3, 20),
             open=4.9,
             high=5.0,
             low=4.8,
@@ -31,61 +29,44 @@ def test_get_price_uses_historical_capability(mock_get_registry):
             source="eastmoney",
         )
     ]
-    mock_get_registry.return_value = registry
-
-    service = UnifiedPriceService()
     result = service.get_price_result("510300", trade_date=date(2026, 3, 20))
 
     assert result is not None
     assert result.normalized_code == "510300.SH"
     assert result.price == 4.95
     assert result.freshness == "historical"
-    registry.call_with_failover.assert_called_once()
-    assert registry.call_with_failover.call_args.args[0] == DataCapability.HISTORICAL_PRICE
 
 
-@patch("apps.market_data.application.price_service.get_registry")
-def test_get_latest_price_prefers_realtime_quote(mock_get_registry):
-    registry = Mock()
-    registry.call_with_failover.return_value = [
-        QuoteSnapshot(
-            stock_code="159915.SZ",
-            price=Decimal("2.18"),
-            source="eastmoney",
-        )
-    ]
-    mock_get_registry.return_value = registry
-
+def test_get_latest_price_prefers_realtime_quote():
     service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
+        asset_code="159915.SZ",
+        current_price=2.18,
+        source="eastmoney",
+    )
     result = service.get_price_result("159915")
 
     assert result is not None
     assert result.normalized_code == "159915.SZ"
     assert result.price == 2.18
     assert result.freshness == "realtime"
-    assert registry.call_with_failover.call_args.args[0] == DataCapability.REALTIME_QUOTE
 
 
-@patch("apps.market_data.application.price_service.get_registry")
-def test_get_latest_price_falls_back_to_recent_close(mock_get_registry):
-    registry = Mock()
-    registry.call_with_failover.side_effect = [
-        None,
-        [
-            HistoricalPriceBar(
-                asset_code="510300.SH",
-                trade_date=date(2026, 3, 20),
-                open=4.9,
-                high=5.0,
-                low=4.8,
-                close=4.95,
-                source="eastmoney",
-            )
-        ],
-    ]
-    mock_get_registry.return_value = registry
-
+def test_get_latest_price_falls_back_to_recent_close():
     service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.return_value = None
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_latest.return_value = SimpleNamespace(
+        asset_code="510300.SH",
+        bar_date=date(2026, 3, 20),
+        open=4.9,
+        high=5.0,
+        low=4.8,
+        close=4.95,
+        source="eastmoney",
+    )
     result = service.get_price_result("510300")
 
     assert result is not None
@@ -94,13 +75,12 @@ def test_get_latest_price_falls_back_to_recent_close(mock_get_registry):
     assert result.is_fallback is True
 
 
-@patch("apps.market_data.application.price_service.get_registry")
-def test_exchange_traded_etf_does_not_fallback_to_fund_nav(mock_get_registry):
-    registry = Mock()
-    registry.call_with_failover.return_value = None
-    mock_get_registry.return_value = registry
-
+def test_exchange_traded_etf_does_not_fallback_to_fund_nav():
     service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.return_value = None
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_latest.return_value = None
     service._get_fund_nav_price = Mock(return_value=None)
 
     result = service.get_price_result("510300")
@@ -109,13 +89,10 @@ def test_exchange_traded_etf_does_not_fallback_to_fund_nav(mock_get_registry):
     service._get_fund_nav_price.assert_not_called()
 
 
-@patch("apps.market_data.application.price_service.get_registry")
-def test_require_price_raises_when_all_sources_missing(mock_get_registry):
-    registry = Mock()
-    registry.call_with_failover.return_value = None
-    mock_get_registry.return_value = registry
-
+def test_require_price_raises_when_all_sources_missing():
     service = UnifiedPriceService()
+    service._dc_price_repo = Mock()
+    service._dc_price_repo.get_bars.return_value = []
 
     try:
         service.require_price("510300", trade_date=date(2026, 3, 20))
@@ -125,3 +102,44 @@ def test_require_price_raises_when_all_sources_missing(mock_get_registry):
         assert exc.details["requested_code"] == "510300"
         assert exc.details["normalized_code"] == "510300.SH"
         assert exc.details["trade_date"] == "2026-03-20"
+
+
+def test_get_latest_price_prefers_data_center_quote():
+    service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.return_value = SimpleNamespace(
+        asset_code="159915.SZ",
+        current_price=2.18,
+        volume=1000,
+        amount=2180.0,
+        high=2.2,
+        low=2.15,
+        open=2.16,
+        prev_close=2.1,
+        source="dc_eastmoney",
+        snapshot_at=datetime(2026, 3, 20, 9, 31, tzinfo=timezone.utc),
+    )
+
+    result = service.get_price_result("159915")
+
+    assert result is not None
+    assert result.price == 2.18
+    assert result.source == "dc_eastmoney"
+
+
+def test_fund_price_can_read_from_data_center_nav():
+    service = UnifiedPriceService()
+    service._dc_fund_nav_repo = Mock()
+    service._dc_fund_nav_repo.get_latest.return_value = SimpleNamespace(
+        fund_code="110011",
+        nav=1.2345,
+        nav_date=date(2026, 3, 20),
+        source="dc_tushare",
+    )
+
+    result = service.get_price_result("110011", asset_type="fund")
+
+    assert result is not None
+    assert result.price == 1.2345
+    assert result.source == "dc_tushare"
+    assert result.freshness == "close_fallback"

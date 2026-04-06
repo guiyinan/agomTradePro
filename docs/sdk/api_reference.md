@@ -336,16 +336,24 @@ client.realtime.create_alert(asset_code, condition, threshold, message) -> dict
 client.realtime.delete_alert(alert_id) -> None
 ```
 
-## Market Data Module
+## Data Center Module
 
 ```python
-client.market_data.get_realtime_quotes(codes) -> list[dict]
-client.market_data.get_capital_flows(code, period) -> list[dict]
-client.market_data.sync_capital_flow(stock_code, period) -> dict
-client.market_data.get_stock_news(code, limit) -> list[dict]
-client.market_data.ingest_stock_news(stock_code, limit) -> dict
-client.market_data.get_provider_health() -> list[dict]
-client.market_data.cross_validate(codes) -> dict
+client.data_center.list_providers() -> list[dict]
+client.data_center.get_provider(provider_id) -> dict
+client.data_center.create_provider(payload) -> dict
+client.data_center.update_provider(provider_id, payload, partial=True) -> dict
+client.data_center.delete_provider(provider_id) -> dict
+client.data_center.test_provider_connection(provider_id) -> dict
+client.data_center.get_provider_status() -> list[dict]
+client.data_center.get_macro_series(indicator_code, start, end, limit, source) -> dict
+client.data_center.get_price_history(asset_code, start, end, freq, adjustment, limit) -> dict
+client.data_center.get_latest_quotes(asset_code) -> dict
+client.data_center.get_fund_nav(fund_code, start, end, limit) -> dict
+client.data_center.get_financials(asset_code, limit) -> dict
+client.data_center.get_valuations(asset_code, start, end, limit) -> dict
+client.data_center.get_news(asset_code, limit) -> dict
+client.data_center.get_capital_flows(asset_code, period, limit) -> dict
 ```
 
 ### Quote Snapshot (dict)
@@ -359,7 +367,7 @@ client.market_data.cross_validate(codes) -> dict
 | `volume` | `int \| None` | Volume |
 | `amount` | `str \| None` | Turnover amount |
 | `turnover_rate` | `float \| None` | Turnover rate |
-| `source` | `str` | Provider name (eastmoney/akshare_general/tushare) |
+| `source` | `str` | Provider name |
 
 ### Provider Status (dict)
 
@@ -367,21 +375,9 @@ client.market_data.cross_validate(codes) -> dict
 |-----|------|-------------|
 | `provider_name` | `str` | Provider name |
 | `capability` | `str` | realtime_quote/capital_flow/stock_news/technical_factors |
-| `is_healthy` | `bool` | Health status |
+| `status` | `str` | healthy/degraded/circuit_open/unknown |
 | `consecutive_failures` | `int` | Consecutive failure count |
 | `avg_latency_ms` | `float \| None` | Average latency |
-
-### Cross Validation Result (dict)
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `quotes_count` | `int` | Quotes fetched from primary |
-| `validation` | `dict \| None` | Validation detail (null if only 1 provider) |
-| `validation.total_checked` | `int` | Stocks compared |
-| `validation.matches` | `int` | Matching count |
-| `validation.deviations` | `list` | 1-5% deviation list |
-| `validation.alerts` | `list` | >5% deviation alerts |
-| `validation.is_clean` | `bool` | True if no deviations |
 
 ## Exceptions
 

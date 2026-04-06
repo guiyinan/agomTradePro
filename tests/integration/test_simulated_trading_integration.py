@@ -398,7 +398,7 @@ class TestPerformanceCalculation(TestCase):
     def test_total_return_calculation(self):
         """测试总收益率计算"""
         calculator = PerformanceCalculator()
-        calculator.market_data_provider.require_price = Mock(return_value=10.50)
+        calculator.price_provider.require_price = Mock(return_value=10.50)
         metrics = calculator.calculate_and_update_performance(
             account_id=self.account.account_id,
             trade_date=date.today()
@@ -414,7 +414,7 @@ class TestPerformanceCalculation(TestCase):
     def test_win_rate_calculation(self):
         """测试胜率计算"""
         calculator = PerformanceCalculator()
-        calculator.market_data_provider.require_price = Mock(return_value=10.50)
+        calculator.price_provider.require_price = Mock(return_value=10.50)
         metrics = calculator.calculate_and_update_performance(
             account_id=self.account.account_id,
             trade_date=date.today()
@@ -577,7 +577,7 @@ class testEquityCurve(TestCase):
     def test_get_equity_curve(self):
         """测试获取净值曲线"""
         calculator = PerformanceCalculator()
-        calculator.market_data_provider.require_price = Mock(return_value=10.20)
+        calculator.price_provider.require_price = Mock(return_value=10.20)
         curve = calculator.get_equity_curve(
             account_id=self.account.account_id,
             start_date=date.today(),
@@ -608,7 +608,7 @@ class testEquityCurve(TestCase):
     def test_get_equity_curve_raises_when_price_missing(self):
         """测试净值曲线在缺失价格时显式报错。"""
         calculator = PerformanceCalculator()
-        calculator.market_data_provider.require_price = Mock(
+        calculator.price_provider.require_price = Mock(
             side_effect=DataFetchError(
                 message="无法获取 000001.SZ 在 2026-03-27 的历史价格",
                 code="PRICE_UNAVAILABLE",

@@ -256,10 +256,11 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
         "tests/e2e/",
     ],
 
-    # Market Data
-    "market_data": [
-        "tests/api/test_market_data_api_edges.py",
-        "apps/market_data/tests/",
+    # Data Center
+    "data_center": [
+        "tests/api/test_data_center_route_cleanup.py",
+        "tests/integration/data_center/",
+        "tests/unit/data_center/",
     ],
 
     # Share

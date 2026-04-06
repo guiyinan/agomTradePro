@@ -86,11 +86,9 @@ class RunDataSourceConnectionTestUseCase:
 
     @staticmethod
     def _default_probe_runner(config: Any) -> dict[str, Any]:
-        from apps.macro.infrastructure.datasource_connection_tester import (
-            run_datasource_connection_test,
-        )
+        from apps.data_center.infrastructure.connection_tester import run_connection_test
 
-        return run_datasource_connection_test(config)
+        return run_connection_test(config.to_domain()).to_dict()
 
 
 @dataclass

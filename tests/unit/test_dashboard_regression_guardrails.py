@@ -13,6 +13,7 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
@@ -273,3 +274,54 @@ def test_dashboard_performance_chart_uses_portfolio_snapshot_history():
     assert performance_data[-1]["cash_balance"] == 200.0
     assert performance_data[-1]["invested_value"] == 1000.0
     assert performance_data[-1]["position_count"] == 4
+
+
+@pytest.mark.django_db
+def test_dashboard_macro_values_read_from_data_center():
+    IndicatorCatalogModel.objects.update_or_create(
+        code="CN_PMI",
+        defaults={
+            "name_cn": "采购经理指数",
+            "default_unit": "指数",
+            "default_period_type": "M",
+            "category": "growth",
+        },
+    )
+    IndicatorCatalogModel.objects.update_or_create(
+        code="CN_CPI_NATIONAL_YOY",
+        defaults={
+            "name_cn": "全国CPI同比",
+            "default_unit": "%",
+            "default_period_type": "M",
+            "category": "inflation",
+        },
+    )
+    MacroFactModel.objects.create(
+        indicator_code="CN_PMI",
+        reporting_period=date(2025, 2, 1),
+        value=50.6,
+        unit="指数",
+        source="tushare",
+        published_at=date(2025, 2, 3),
+    )
+    MacroFactModel.objects.create(
+        indicator_code="CN_CPI_NATIONAL_YOY",
+        reporting_period=date(2025, 2, 1),
+        value=0.014,
+        unit="%",
+        source="tushare",
+        published_at=date(2025, 2, 10),
+    )
+
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
+
+    pmi_value, cpi_value = use_case._get_latest_macro_values()
+
+    assert pmi_value == pytest.approx(50.6)
+    assert cpi_value == pytest.approx(1.4)

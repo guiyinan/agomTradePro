@@ -19,9 +19,9 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 
-class MarketDataProvider:
+class LegacyPriceProvider:
     """
-    市场数据提供者
+    历史价格提供者
 
     复用现有系统的Tushare适配器，提供：
     - 股票实时价格

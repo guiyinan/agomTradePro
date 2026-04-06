@@ -14,6 +14,14 @@ from typing import Dict, List, Optional, Tuple
 from django.db.models import Avg, Max, Min, Q, Sum
 from django.utils import timezone
 
+from apps.data_center.application.dtos import SyncFundNavRequest
+from apps.data_center.application.use_cases import SyncFundNavUseCase
+from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
+from apps.data_center.infrastructure.repositories import (
+    FundNavRepository as DataCenterFundNavRepository,
+)
+from apps.data_center.infrastructure.repositories import ProviderConfigRepository
+from apps.data_center.infrastructure.repositories import RawAuditRepository
 from ..domain.entities import (
     FundAssetScore,
     FundHolding,
@@ -146,6 +154,10 @@ class DjangoFundRepository:
 
         self.tushare_adapter = TushareFundAdapter()
         self.akshare_adapter = AkShareFundAdapter()
+        self._dc_fund_nav_repo = DataCenterFundNavRepository()
+        self._provider_repo = ProviderConfigRepository()
+        self._provider_factory = UnifiedProviderFactory(self._provider_repo)
+        self._raw_audit_repo = RawAuditRepository()
 
     # ==================== 基金信息 ====================
 
@@ -219,6 +231,14 @@ class DjangoFundRepository:
         Returns:
             净值数据列表
         """
+        dc_facts = self._dc_fund_nav_repo.get_series(
+            fund_code=fund_code,
+            start=start_date,
+            end=end_date,
+        )
+        if dc_facts:
+            return [self._dc_fact_to_entity_nav(fact) for fact in reversed(dc_facts)]
+
         queryset = FundNetValueModel._default_manager.filter(fund_code=fund_code)
 
         if start_date:
@@ -240,6 +260,10 @@ class DjangoFundRepository:
         Returns:
             最新净值或 None
         """
+        latest_fact = self._dc_fund_nav_repo.get_latest(fund_code)
+        if latest_fact is not None:
+            return self._dc_fact_to_entity_nav(latest_fact)
+
         try:
             model = FundNetValueModel._default_manager.filter(
                 fund_code=fund_code
@@ -266,6 +290,7 @@ class DjangoFundRepository:
                 'daily_return': nav.daily_return
             }
         )
+        self._dc_fund_nav_repo.bulk_upsert([self._entity_nav_to_dc_fact(nav)])
 
     def save_fund_nav_batch(self, nav_list: list[FundNetValue]) -> None:
         """批量保存基金净值
@@ -513,6 +538,32 @@ class DjangoFundRepository:
         Returns:
             同步的记录数
         """
+        start = datetime.strptime(start_date, "%Y%m%d").date()
+        end = datetime.strptime(end_date, "%Y%m%d").date()
+        active_configs = self._provider_repo.get_active_by_type("tushare")
+        if active_configs:
+            try:
+                use_case = SyncFundNavUseCase(
+                    provider_repo=self._provider_repo,
+                    provider_factory=self._provider_factory,
+                    fact_repo=self._dc_fund_nav_repo,
+                    raw_audit_repo=self._raw_audit_repo,
+                )
+                result = use_case.execute(
+                    SyncFundNavRequest(
+                        provider_id=active_configs[0].id,
+                        fund_code=fund_code,
+                        start=start,
+                        end=end,
+                    )
+                )
+                facts = self._dc_fund_nav_repo.get_series(fund_code, start=start, end=end)
+                for fact in facts:
+                    self._mirror_dc_nav_fact(fact)
+                return result.stored_count
+            except Exception:
+                pass
+
         # Tushare 需要带 .OF 后缀
         ts_code = f"{fund_code}.OF"
 
@@ -536,6 +587,40 @@ class DjangoFundRepository:
         return count
 
     # ==================== 私有方法 ====================
+
+    def _entity_nav_to_dc_fact(self, nav: FundNetValue):
+        from apps.data_center.domain.entities import FundNavFact
+
+        return FundNavFact(
+            fund_code=nav.fund_code,
+            nav_date=nav.nav_date,
+            nav=float(nav.unit_nav),
+            acc_nav=float(nav.accum_nav),
+            daily_return=nav.daily_return,
+            source="fund_legacy_repo",
+        )
+
+    def _dc_fact_to_entity_nav(self, fact) -> FundNetValue:
+        accum_nav = fact.acc_nav if fact.acc_nav is not None else fact.nav
+        return FundNetValue(
+            fund_code=fact.fund_code,
+            nav_date=fact.nav_date,
+            unit_nav=Decimal(str(fact.nav)),
+            accum_nav=Decimal(str(accum_nav)),
+            daily_return=fact.daily_return,
+        )
+
+    def _mirror_dc_nav_fact(self, fact) -> None:
+        accum_nav = fact.acc_nav if fact.acc_nav is not None else fact.nav
+        FundNetValueModel._default_manager.update_or_create(
+            fund_code=fact.fund_code,
+            nav_date=fact.nav_date,
+            defaults={
+                'unit_nav': Decimal(str(fact.nav)),
+                'accum_nav': Decimal(str(accum_nav)),
+                'daily_return': fact.daily_return,
+            },
+        )
 
     def _model_to_entity_info(self, model: FundInfoModel) -> FundInfo:
         """ORM 模型转换为实体（基金信息）"""

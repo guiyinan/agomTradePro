@@ -319,14 +319,17 @@ class TestPerformanceReport:
     ):
         bars = [
             SimpleNamespace(
-                trade_date=date(2024, 1, 1) + timedelta(days=i),
+                bar_date=date(2024, 1, 1) + timedelta(days=i),
                 close=100 + i * 2,
             )
             for i in range(7)
         ]
 
-        with patch("apps.market_data.application.registry_factory.get_registry") as mock_get_registry:
-            mock_get_registry.return_value.call_with_failover.return_value = bars
+        with patch(
+            "apps.simulated_trading.infrastructure.performance_repositories."
+            "DjangoMarketDataRepository._fetch_index_bars",
+            return_value=bars,
+        ):
             resp = client.get(
                 url_performance_report(account_with_net_values.pk),
                 {"start_date": "2024-01-01", "end_date": "2024-01-07"},

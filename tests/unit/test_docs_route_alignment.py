@@ -28,8 +28,11 @@ def test_current_docs_use_canonical_market_data_and_decision_routes() -> None:
     development_content = _read("docs/development/unified-financial-datasource-registry.md")
     assert "`/market-data/providers/`" not in content
     assert "`/market-data/providers/`" not in development_content
-    assert "/macro/datasources/#provider-status" in content
-    assert "/macro/datasources/#provider-status" in development_content
+    assert "/api/market-data/" not in content
+    assert "/macro/datasources/" not in content
+    assert "/macro/datasources/" not in development_content
+    assert "/data-center/monitor/" in content
+    assert "/data-center/monitor/" in development_content
     assert "/api/decision/workspace/recommendations/" in content
     assert "/api/decision/funnel/context/" in content
     assert "rotation_data_source" in content

@@ -234,10 +234,10 @@ class DataSourceRepository:
         Args:
             config: 数据源配置
         """
-        from apps.macro.infrastructure.models import DataSourceConfig
+        from apps.data_center.infrastructure.models import ProviderConfigModel
 
         if config.tushare_token:
-            DataSourceConfig.objects.update_or_create(
+            ProviderConfigModel.objects.update_or_create(
                 source_type="tushare",
                 defaults={
                     "name": "Tushare Pro",
@@ -248,7 +248,7 @@ class DataSourceRepository:
             )
 
         if config.fred_api_key:
-            DataSourceConfig.objects.update_or_create(
+            ProviderConfigModel.objects.update_or_create(
                 source_type="fred",
                 defaults={
                     "name": "FRED",
@@ -259,6 +259,6 @@ class DataSourceRepository:
 
     def has_active_config(self) -> bool:
         """检查是否存在活跃的数据源配置"""
-        from apps.macro.infrastructure.models import DataSourceConfig
+        from apps.data_center.infrastructure.models import ProviderConfigModel
 
-        return DataSourceConfig.objects.filter(is_active=True).exists()
+        return ProviderConfigModel.objects.filter(is_active=True).exists()

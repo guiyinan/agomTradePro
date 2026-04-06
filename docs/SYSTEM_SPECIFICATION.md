@@ -212,7 +212,7 @@ AgomTradePro/
 │   ├── account/                  # 账户管理
 │   ├── simulated_trading/        # 模拟交易
 │   ├── realtime/                 # 实时监控
-│   ├── market_data/              # 市场数据统一接口
+│   ├── data_center/              # 数据中台
 │   ├── strategy/                 # 策略系统
 │   ├── backtest/                 # 回测引擎
 │   ├── audit/                    # 事后审计
@@ -303,7 +303,7 @@ AgomTradePro/
 │  ─────────────    │  ─────────────  │  ────────────             │
 │  account          │  ai_provider    │  terminal                 │
 │  audit            │  prompt         │  agent_runtime            │
-│  simulated_trading│  dashboard      │  market_data              │
+│  simulated_trading│  dashboard      │  data_center              │
 │  realtime         │  backtest       │  share                    │
 │  strategy         │  events         │                           │
 │                   │  task_monitor   │                           │
@@ -751,7 +751,7 @@ class Position:
 | 任务 | 时间 | 说明 |
 |------|------|------|
 | 自动交易 | 工作日 15:30 | 执行待处理信号 |
-| 更新价格 | 工作日 16:00 | 通过 `apps/market_data` 统一价格接口更新持仓价格；若无价格则任务失败并返回错误，不允许静默补 0 或编造价格 |
+| 更新价格 | 工作日 16:00 | 通过 `apps/data_center` 统一价格接口更新持仓价格；若无价格则任务失败并返回错误，不允许静默补 0 或编造价格 |
 | 计算绩效 | 周日 2:00 | 计算周度绩效 |
 | 清理账户 | 周日 3:00 | 清理不活跃账户 |
 | 发送摘要 | 工作日 17:00 | 发送每日摘要 |
@@ -920,19 +920,21 @@ class StrategyConfig:
 - `MONITORING` - 监控
 - `OPS` - 运维
 
-#### 3.6.9 Market Data 模块 - 市场数据统一接口
+#### 3.6.9 Data Center 模块 - 数据中台
 
-**功能**：整合多数据源，提供统一的市场数据访问接口
+**功能**：统一外部数据源接入、标准化、持久化、同步与查询
 
 **数据源**：
 - Tushare Pro
 - AKShare
-- Redis 缓存
+- 东方财富
+- QMT
+- FRED
 
 **主要功能**：
-- 实时价格获取
-- 历史数据查询
-- 数据缓存管理
+- Provider 配置与健康检查
+- 宏观 / 价格 / 基金 / 财务 / 估值统一同步
+- 统一查询 API 与 SDK / MCP 对齐
 
 #### 3.6.10 Share 模块 - 分享功能
 

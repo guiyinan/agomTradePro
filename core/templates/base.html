@@ -198,8 +198,8 @@
                         {% endif %}
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-section-title">数据源</div>
-                        <a href="{% url 'macro:datasources' %}" class="dropdown-item">财经数据源配置</a>
-                        <a href="{% url 'macro:datasources' %}#provider-status" class="dropdown-item"><i class="bi bi-database-check"></i> 统一数据源运行状态</a>
+                        <a href="{% url 'data_center:dc-providers-page' %}" class="dropdown-item">财经数据源配置</a>
+                        <a href="{% url 'data_center:dc-monitor-page' %}" class="dropdown-item"><i class="bi bi-database-check"></i> 统一数据源运行状态</a>
                         <a href="{% url 'macro:data_controller' %}" class="dropdown-item">数据管理器</a>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-section-title">AI 与自动化</div>

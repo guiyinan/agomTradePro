@@ -2,7 +2,7 @@
 Market Price Service - Account Module
 
 统一行情价格服务，为持仓创建提供可追溯的价格来源。
-复用 simulated_trading 模块的 MarketDataProvider，遵循 DRY 原则。
+复用 simulated_trading 模块的 DataCenterPriceProvider，遵循 DRY 原则。
 
 Architecture:
 - Infrastructure 层：外部数据源适配
@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional
 
 from django.utils import timezone
 
-from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
+from apps.simulated_trading.infrastructure.price_provider import DataCenterPriceProvider
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class MarketPriceService:
     市场价格服务
 
     为 Account 模块提供统一的行情价格获取接口。
-    复用 simulated_trading 模块的 MarketDataProvider，避免重复实现。
+    复用 simulated_trading 模块的 DataCenterPriceProvider，避免重复实现。
 
     功能：
     - 获取资产最新价格
@@ -47,10 +47,10 @@ class MarketPriceService:
         self.cache_ttl_minutes = cache_ttl_minutes
 
     @property
-    def provider(self) -> MarketDataProvider:
-        """延迟初始化 MarketDataProvider（避免启动时必须配置 token）"""
+    def provider(self) -> DataCenterPriceProvider:
+        """延迟初始化 DataCenterPriceProvider。"""
         if self._provider is None:
-            self._provider = MarketDataProvider(cache_ttl_minutes=self.cache_ttl_minutes)
+            self._provider = DataCenterPriceProvider(cache_ttl_minutes=self.cache_ttl_minutes)
         return self._provider
 
     def get_current_price(self, asset_code: str, trade_date: date = None) -> Decimal | None:
@@ -135,7 +135,7 @@ class MarketPriceService:
         return {
             "price": price,
             "asset_code": asset_code,
-            "source": "MarketDataProvider",  # 数据源
+            "source": "DataCenterPriceProvider",
             "timestamp": timezone.now(),
             "trade_date": trade_date or date.today(),
         }

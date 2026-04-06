@@ -34,7 +34,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
-from apps.market_data.application.price_service import UnifiedPriceService
+from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.domain.entities import AccountType
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionNotificationConfigModel,
@@ -1418,7 +1418,7 @@ class AutoTradingAPIView(APIView):
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
-        market_data = UnifiedPriceService()
+        price_provider = UnifiedPriceService()
         asset_pool_service = AssetPoolQueryService(
             asset_pool_repo=DjangoAssetPoolQueryRepository(),
             signal_repo=signal_repo,
@@ -1432,7 +1432,7 @@ class AutoTradingAPIView(APIView):
             sell_use_case=sell_use_case,
             performance_use_case=performance_use_case,
             asset_pool_service=asset_pool_service,
-            market_data_provider=market_data,
+            price_provider=price_provider,
             signal_service=signal_repo,
         )
 

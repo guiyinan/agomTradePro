@@ -17,9 +17,9 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
         Optional[DataSourceSecretsDTO]: 如果数据库中有配置则返回，否则返回 None
     """
     try:
-        from apps.macro.infrastructure.models import DataSourceConfig
+        from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
 
-        # 只获取启用的配置
+        # 只获取启用的配置（从 data_center 统一配置表读取）
         configs = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
 
         tushare_token = None

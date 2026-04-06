@@ -385,9 +385,9 @@ class GetDashboardDataUseCase:
         as_of_date: date,
     ) -> dict[str, object]:
         """评估 Regime 输入数据健康度（时效+完整性）。"""
-        from apps.macro.infrastructure.repositories import DjangoMacroRepository
+        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 
-        repo = DjangoMacroRepository()
+        repo = MacroRepositoryAdapter()
         warnings: list[str] = []
 
         growth_full = repo.get_growth_series_full(
@@ -985,9 +985,9 @@ class GetDashboardDataUseCase:
 
     def _get_latest_macro_values(self) -> tuple:
         """获取最新的 PMI 和 CPI 值"""
-        from apps.macro.infrastructure.repositories import DjangoMacroRepository
+        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 
-        macro_repo = DjangoMacroRepository()
+        macro_repo = MacroRepositoryAdapter()
 
         # 获取最新 PMI
         try:

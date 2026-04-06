@@ -156,9 +156,9 @@ class TestEquityCurveAccuracy(TestCase):
             execution_date=day_1
         )
 
-        # Mock market_data_provider.get_price
+        # Mock price_provider.get_price
         with patch.object(
-            self.calculator.market_data_provider,
+            self.calculator.price_provider,
             'get_price',
             return_value=12.0
         ):
@@ -252,7 +252,7 @@ class TestEquityCurveAccuracy(TestCase):
             return result
 
         with patch.object(
-            self.calculator.market_data_provider,
+            self.calculator.price_provider,
             'get_price',
             side_effect=mock_get_price
         ):
@@ -321,7 +321,7 @@ class TestEquityCurveAccuracy(TestCase):
             return result
 
         with patch.object(
-            self.calculator.market_data_provider,
+            self.calculator.price_provider,
             'get_price',
             side_effect=mock_get_price
         ):
@@ -411,7 +411,7 @@ class TestPerformanceCalculatorIntegration(TestCase):
 
         # Mock 价格
         with patch.object(
-            self.calculator.market_data_provider,
+            self.calculator.price_provider,
             'get_price',
             return_value=10.0
         ):

@@ -39,7 +39,6 @@ from core.admin_log_views import (
     server_logs_stream,
 )
 from core.api_views import ConfigCapabilitiesView, ConfigCenterSnapshotView
-
 from core.api_views_decision_funnel import (
     decision_audit_api_view,
     decision_funnel_context_api_view,
@@ -54,8 +53,8 @@ from core.views import (
     docs_view,
     health_view,
     index_view,
-    settings_center_view,
     readiness_view,
+    settings_center_view,
 )
 from core.views_decision_funnel import (
     funnel_step1_view,
@@ -93,13 +92,13 @@ def api_root_view(request):
                 "regime": "/api/regime/",
                 "rotation": "/api/rotation/",
                 "sector": "/api/sector/",
-                "market-data": "/api/market-data/",
                 "sentiment": "/api/sentiment/",
                 "signal": "/api/signal/",
                 "simulated-trading": "/api/simulated-trading/",
                 "strategy": "/api/strategy/",
                 "share": "/api/share/",
                 "system": "/api/system/",
+                "data-center": "/api/data-center/",
                 "system-config-center": "/api/system/config-center/",
                 "terminal": "/api/terminal/",
                 "docs": "/api/docs/",
@@ -375,17 +374,6 @@ module_patterns = [
         "api/events/",
         include(("apps.events.interface.api_urls", "events_api"), namespace="api_events"),
     ),
-    # Market Data 统一数据源接入层
-    path(
-        "market-data/",
-        include(("apps.market_data.interface.urls", "market_data"), namespace="market_data"),
-    ),
-    path(
-        "api/market-data/",
-        include(
-            ("apps.market_data.interface.api_urls", "market_data"), namespace="api_market_data"
-        ),
-    ),
     # Sentiment API routes (separate from page routes to avoid conflicts)
     path(
         "api/sentiment/",
@@ -428,6 +416,21 @@ module_patterns = [
         include(
             ("apps.ai_capability.interface.api_urls", "ai_capability"),
             namespace="api_ai_capability",
+        ),
+    ),
+    # ========== 数据中台 ==========
+    path(
+        "data-center/",
+        include(
+            ("apps.data_center.interface.urls", "data_center"),
+            namespace="data_center",
+        ),
+    ),
+    path(
+        "api/data-center/",
+        include(
+            ("apps.data_center.interface.api_urls", "api_data_center"),
+            namespace="api_data_center",
         ),
     ),
 ]

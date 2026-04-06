@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Data Center — Providers{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>数据中台 — Provider 配置</h1>
+    <p class="subtitle">Data Center — Provider Configuration</p>
+    <p class="description">
+        统一管理所有外部数据源 (Tushare、AKShare、EastMoney、QMT、FRED 等)。<br>
+        在此配置 API Key、优先级、HTTP 代理以及 QMT 本地路径，并一键测试连通性。
+    </p>
+</div>
+
+<div class="config-entry-banner">
+    <div>
+        <h2>统一数据源配置入口</h2>
+        <p>所有数据源配置、连通性测试和运行状态均在此页面管理，无需在多个模块间切换。</p>
+    </div>
+    <div class="config-entry-actions">
+        <button
+            class="btn-step"
+            hx-get="/api/data-center/providers/"
+            hx-target="#provider-list"
+            hx-swap="innerHTML"
+        >刷新列表</button>
+        <a href="/data-center/monitor/" class="btn-step btn-step-secondary">运行状态</a>
+        <a href="{% url 'settings-center' %}" class="btn-step btn-step-secondary">设置中心</a>
+    </div>
+</div>
+
+<section id="provider-list" class="provider-list-section">
+    <p class="loading-hint">正在加载 Provider 列表…</p>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    fetch("/api/data-center/providers/")
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById("provider-list");
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = "<p>暂无配置的数据源。</p>";
+                return;
+            }
+            const rows = data.results.map(p => `
+                <div class="provider-card">
+                    <div class="provider-card-head">
+                        <strong>${p.name}</strong>
+                        <span class="badge ${p.is_active ? 'badge-active' : 'badge-inactive'}">
+                            ${p.is_active ? '启用' : '停用'}
+                        </span>
+                        <span class="badge badge-type">${p.source_type}</span>
+                        <span class="badge badge-priority">优先级 ${p.priority}</span>
+                    </div>
+                    <div class="provider-card-meta">
+                        <span>API Key: ${p.has_api_key ? '✓ 已配置' : '未配置'}</span>
+                        ${p.http_url ? `<span>HTTP URL: ${p.http_url}</span>` : ''}
+                    </div>
+                    <div class="provider-card-actions">
+                        <button onclick="testProvider(${p.id})" class="btn-sm">测试连接</button>
+                        <a href="/admin/data_center/providerconfigmodel/${p.id}/change/" class="btn-sm">编辑</a>
+                    </div>
+                    <div id="test-result-${p.id}" class="test-result"></div>
+                </div>
+            `).join("");
+            container.innerHTML = rows;
+        })
+        .catch(err => {
+            document.getElementById("provider-list").innerHTML =
+                `<p class="error">加载失败: ${err}</p>`;
+        });
+});
+
+function testProvider(id) {
+    const el = document.getElementById("test-result-" + id);
+    el.textContent = "测试中…";
+    fetch(`/api/data-center/providers/${id}/test/`, {method: "POST",
+        headers: {"X-CSRFToken": getCookie("csrftoken")}})
+        .then(r => r.json())
+        .then(d => {
+            el.innerHTML = `<span class="${d.success ? 'ok' : 'fail'}">${d.summary}</span>` +
+                `<pre class="test-logs">${d.logs.join('\n')}</pre>`;
+        })
+        .catch(err => { el.textContent = "请求失败: " + err; });
+}
+
+function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+}
+</script>
+{% endblock %}

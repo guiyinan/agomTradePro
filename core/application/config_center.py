@@ -77,36 +77,37 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         docs_ref="docs/business/config-center-matrix.md#system_settings",
     ),
     ConfigCapability(
-        key="macro_datasources",
-        name="财经数据源配置",
-        module="macro",
+        key="data_center_providers",
+        name="数据中台 Provider 配置",
+        module="data_center",
         section="数据源",
-        description="配置 Tushare Token / HTTP URL、AKShare、QMT 等统一财经数据源。",
+        description="配置 Tushare、AKShare、EastMoney、QMT、FRED 等统一数据源 Provider。",
         permission="staff",
-        frontend_url="/macro/datasources/",
-        api_url="/api/macro/datasources/",
-        sdk_module="macro",
+        frontend_url="/data-center/providers/",
+        api_url="/api/data-center/providers/",
+        sdk_module="data_center",
         mcp_tools=(
-            "list_macro_datasources",
-            "create_macro_datasource",
-            "update_macro_datasource",
+            "list_data_center_providers",
+            "create_data_center_provider",
+            "update_data_center_provider",
+            "test_data_center_provider_connection",
         ),
         supports_edit=True,
-        docs_ref="docs/business/config-center-matrix.md#macro_datasources",
+        docs_ref="docs/business/config-center-matrix.md#data_center_providers",
     ),
     ConfigCapability(
-        key="market_data_providers",
-        name="统一数据源运行状态",
-        module="market_data",
+        key="data_center_runtime",
+        name="数据中台运行状态",
+        module="data_center",
         section="数据源",
-        description="在统一数据源中心查看 provider 运行状态、健康检查与快速测试。",
+        description="查看 Provider 运行状态、健康检查和实时能力覆盖。",
         permission="staff",
-        frontend_url="/macro/datasources/#provider-status",
-        api_url=None,
-        sdk_module="market_data",
-        mcp_tools=("get_market_data_provider_health",),
+        frontend_url="/data-center/monitor/",
+        api_url="/api/data-center/providers/status/",
+        sdk_module="data_center",
+        mcp_tools=("get_data_center_provider_status",),
         supports_edit=False,
-        docs_ref="docs/business/config-center-matrix.md#market_data_providers",
+        docs_ref="docs/business/config-center-matrix.md#data_center_runtime",
     ),
     ConfigCapability(
         key="beta_gate",
@@ -247,7 +248,11 @@ def get_system_settings_summary(user: Any) -> dict[str, Any]:
             "market_color_label": settings_obj.get_market_visual_tokens()["label"],
             "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
             "macro_index_catalog_size": len(settings_obj.macro_index_catalog or []),
-            "updated_at": settings_obj.updated_at.isoformat() if getattr(settings_obj, "updated_at", None) else None,
+            "updated_at": (
+                settings_obj.updated_at.isoformat()
+                if getattr(settings_obj, "updated_at", None)
+                else None
+            ),
         },
     }
 
@@ -257,9 +262,13 @@ def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
 
     from apps.agent_runtime.infrastructure.models import AgentProposalModel, AgentTaskModel
 
-    needs_attention_count = AgentTaskModel._default_manager.filter(
-        Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
-    ).distinct().count()
+    needs_attention_count = (
+        AgentTaskModel._default_manager.filter(
+            Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
+        )
+        .distinct()
+        .count()
+    )
     pending_approval_count = AgentProposalModel._default_manager.filter(
         status__in=["generated", "submitted", "approved"]
     ).count()
@@ -279,12 +288,15 @@ def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
     }
 
 
-def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
-    from apps.macro.infrastructure.models import DataProviderSettings, DataSourceConfig
+def get_data_center_provider_summary(user: Any) -> dict[str, Any]:
+    from apps.data_center.infrastructure.models import (
+        DataProviderSettingsModel,
+        ProviderConfigModel,
+    )
 
-    provider_settings = DataProviderSettings.load()
+    provider_settings = DataProviderSettingsModel.load()
     rows = list(
-        DataSourceConfig._default_manager.all().values(
+        ProviderConfigModel._default_manager.all().values(
             "source_type",
             "name",
             "is_active",
@@ -299,29 +311,22 @@ def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
         for row in active_rows
         if row["source_type"] in requires_key_types and not (row.get("api_key") or "").strip()
     )
-    built_in_sources = ["akshare"]
-    if provider_settings.enable_failover:
-        built_in_sources.append("failover")
-
     status = "configured"
     if active_rows and missing_key_count > 0:
         status = "attention"
     custom_http_url_count = sum(
         1
         for row in active_rows
-        if row["source_type"] == "tushare"
-        and (row.get("http_url") or "").strip()
+        if row["source_type"] == "tushare" and (row.get("http_url") or "").strip()
     )
     if not rows:
         return {
             "status": status,
             "summary": {
-                "message": "当前没有手工录入的数据源配置，系统仍会显示并使用内置公共源。",
-                "total_sources": 0,
-                "active_sources": 0,
-                "built_in_source_count": len(built_in_sources),
-                "built_in_sources": built_in_sources,
-                "default_data_source": provider_settings.default_data_source,
+                "message": "当前没有配置 Provider 记录。",
+                "total_providers": 0,
+                "active_providers": 0,
+                "default_source": provider_settings.default_source,
                 "enable_failover": provider_settings.enable_failover,
                 "custom_http_url_count": 0,
                 "missing_api_key_count": 0,
@@ -331,12 +336,10 @@ def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
     return {
         "status": status,
         "summary": {
-            "total_sources": len(rows),
-            "active_sources": len(active_rows),
+            "total_providers": len(rows),
+            "active_providers": len(active_rows),
             "source_types": sorted({row["source_type"] for row in active_rows}),
-            "built_in_source_count": len(built_in_sources),
-            "built_in_sources": built_in_sources,
-            "default_data_source": provider_settings.default_data_source,
+            "default_source": provider_settings.default_source,
             "enable_failover": provider_settings.enable_failover,
             "missing_api_key_count": missing_key_count,
             "custom_http_url_count": custom_http_url_count,
@@ -344,32 +347,34 @@ def get_macro_datasource_summary(user: Any) -> dict[str, Any]:
     }
 
 
-def get_market_data_provider_summary(user: Any) -> dict[str, Any]:
-    try:
-        from apps.market_data.interface.page_views import build_provider_dashboard
+def get_data_center_runtime_summary(user: Any) -> dict[str, Any]:
+    from apps.data_center.application.registry_factory import get_registry
+    from apps.data_center.infrastructure.models import ProviderConfigModel
 
-        dashboard = build_provider_dashboard()
-        providers = dashboard.get("providers", []) if isinstance(dashboard, dict) else []
-        unhealthy_count = sum(1 for provider in providers if not provider.get("healthy", True))
-        status = "configured" if providers else "missing"
-        if unhealthy_count > 0:
-            status = "attention"
-        return {
-            "status": status,
-            "summary": {
-                "provider_count": dashboard.get("provider_count", len(providers)),
-                "healthy_provider_count": dashboard.get("healthy_provider_count", 0),
-                "unhealthy_count": unhealthy_count,
-                "providers": [provider.get("name") for provider in providers[:5]],
-            },
-        }
-    except Exception:
-        return {
-            "status": "api_only",
-            "summary": {
-                "message": "仅提供页面入口，未发现统一 provider 摘要接口",
-            },
-        }
+    configured = list(
+        ProviderConfigModel._default_manager.filter(is_active=True).values_list("name", flat=True)
+    )
+    snapshots = [snapshot.to_dict() for snapshot in get_registry().get_all_statuses()]
+    unique_providers = sorted({snap["provider_name"] for snap in snapshots})
+    circuit_open_count = sum(1 for snap in snapshots if snap["status"] == "circuit_open")
+    degraded_count = sum(1 for snap in snapshots if snap["status"] == "degraded")
+    healthy_count = sum(1 for snap in snapshots if snap["status"] == "healthy")
+
+    status = "configured" if configured else "missing"
+    if circuit_open_count > 0 or degraded_count > 0:
+        status = "attention"
+
+    return {
+        "status": status,
+        "summary": {
+            "configured_provider_count": len(configured),
+            "runtime_provider_count": len(unique_providers),
+            "healthy_snapshot_count": healthy_count,
+            "degraded_snapshot_count": degraded_count,
+            "circuit_open_snapshot_count": circuit_open_count,
+            "providers": unique_providers[:5],
+        },
+    }
 
 
 def get_beta_gate_summary(user: Any) -> dict[str, Any]:
@@ -393,7 +398,9 @@ def get_beta_gate_summary(user: Any) -> dict[str, Any]:
             "risk_profile": active_config.risk_profile,
             "version": active_config.version,
             "total_versions": total_versions,
-            "effective_date": active_config.effective_date.isoformat() if active_config.effective_date else None,
+            "effective_date": (
+                active_config.effective_date.isoformat() if active_config.effective_date else None
+            ),
         },
     }
 
@@ -493,12 +500,16 @@ _SUMMARY_BUILDERS = {
         get_agent_runtime_operator_summary, "Agent Runtime Operator", user
     ),
     "system_settings": lambda user: _safe_summary(get_system_settings_summary, "系统设置", user),
-    "macro_datasources": lambda user: _safe_summary(get_macro_datasource_summary, "宏观数据源配置", user),
-    "market_data_providers": lambda user: _safe_summary(
-        get_market_data_provider_summary, "统一数据源运行状态", user
+    "data_center_providers": lambda user: _safe_summary(
+        get_data_center_provider_summary, "数据中台 Provider 配置", user
+    ),
+    "data_center_runtime": lambda user: _safe_summary(
+        get_data_center_runtime_summary, "数据中台运行状态", user
     ),
     "beta_gate": lambda user: _safe_summary(get_beta_gate_summary, "Beta Gate 配置", user),
-    "valuation_repair": lambda user: _safe_summary(get_valuation_repair_summary, "估值修复配置", user),
+    "valuation_repair": lambda user: _safe_summary(
+        get_valuation_repair_summary, "估值修复配置", user
+    ),
     "ai_provider": lambda user: _safe_summary(get_ai_provider_summary, "AI Provider 配置", user),
     "trading_cost": lambda user: _safe_summary(get_trading_cost_summary, "交易费率配置", user),
 }

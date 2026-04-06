@@ -268,9 +268,9 @@ def test_business_modules():
         "Realtime API root", "PASS" if ok else "FAIL", str(data)[:150] if ok else str(data)[:100]
     )
 
-    ok, data = api_get("/api/market-data/")
+    ok, data = api_get("/api/data-center/")
     record(
-        "Market Data API root", "PASS" if ok else "FAIL", str(data)[:150] if ok else str(data)[:100]
+        "Data Center API root", "PASS" if ok else "FAIL", str(data)[:150] if ok else str(data)[:100]
     )
 
     ok, data = api_get("/api/events/")

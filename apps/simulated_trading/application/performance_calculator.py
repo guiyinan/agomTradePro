@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from pandas import DataFrame
 
-from apps.market_data.application.price_service import UnifiedPriceService
+from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoPositionRepository,
@@ -43,11 +43,11 @@ class PerformanceCalculator:
         self.account_repo = DjangoSimulatedAccountRepository()
         self.trade_repo = DjangoTradeRepository()
         self.position_repo = DjangoPositionRepository()
-        self.market_data_provider = UnifiedPriceService()
+        self.price_provider = UnifiedPriceService()
 
     def _require_market_price(self, asset_code: str, trade_date: date) -> float:
         """
-        Resolve price from the configured market data provider.
+        Resolve price from the configured price provider.
 
         Respect explicit instance-level overrides first so tests can choose
         either the strict ``require_price`` path or the nullable
@@ -55,9 +55,9 @@ class PerformanceCalculator:
         ``require_price`` method to preserve the production rule of failing
         loudly when no market price exists.
         """
-        provider_overrides = vars(self.market_data_provider)
-        get_price = getattr(self.market_data_provider, "get_price", None)
-        require_price = getattr(self.market_data_provider, "require_price", None)
+        provider_overrides = vars(self.price_provider)
+        get_price = getattr(self.price_provider, "get_price", None)
+        require_price = getattr(self.price_provider, "require_price", None)
 
         if "require_price" in provider_overrides and callable(require_price):
             return require_price(asset_code, trade_date)

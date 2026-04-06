@@ -292,14 +292,33 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/alpha/scores/` | GET | 获取股票评分 |
 | `/api/alpha/providers/status/` | GET | Provider 状态 |
 
-### Macro Datasource API
+### Data Center API
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/macro/datasources/` | GET | 列出统一财经数据源中台中的宏观数据源配置 |
-| `/api/macro/datasources/` | POST | 创建数据源配置（支持 Tushare `http_url` 和 QMT `extra_config`） |
-| `/api/macro/datasources/{id}/` | GET | 获取单个数据源配置 |
-| `/api/macro/datasources/{id}/` | PATCH/PUT | 更新数据源配置 |
+| `/api/data-center/providers/` | GET/POST | 列出或创建统一 Provider 配置 |
+| `/api/data-center/providers/{id}/` | GET/PATCH/DELETE | 获取、更新或删除 Provider |
+| `/api/data-center/providers/{id}/test/` | POST | 执行 Provider 连通性探针 |
+| `/api/data-center/providers/status/` | GET | 获取 Provider 运行状态 |
+| `/api/data-center/assets/resolve/` | GET | 解析资产代码到 canonical code |
+| `/api/data-center/macro/series/` | GET | 查询宏观时序 |
+| `/api/data-center/prices/history/` | GET | 查询历史价格 |
+| `/api/data-center/prices/quotes/` | GET | 查询最新行情快照 |
+| `/api/data-center/funds/nav/` | GET | 查询基金净值时序 |
+| `/api/data-center/financials/` | GET | 查询财务事实表 |
+| `/api/data-center/valuations/` | GET | 查询估值事实表 |
+| `/api/data-center/sectors/constituents/` | GET | 查询板块成分 |
+| `/api/data-center/news/` | GET | 查询新闻事实表 |
+| `/api/data-center/capital-flows/` | GET | 查询资金流事实表 |
+| `/api/data-center/sync/macro/` | POST | 同步宏观事实到中台 |
+| `/api/data-center/sync/prices/` | POST | 同步历史价格到中台 |
+| `/api/data-center/sync/quotes/` | POST | 同步最新行情快照到中台 |
+| `/api/data-center/sync/funds/nav/` | POST | 同步基金净值到中台 |
+| `/api/data-center/sync/financials/` | POST | 同步财务事实到中台 |
+| `/api/data-center/sync/valuations/` | POST | 同步估值事实到中台 |
+| `/api/data-center/sync/sectors/constituents/` | POST | 同步板块成分到中台 |
+| `/api/data-center/sync/news/` | POST | 同步新闻到中台 |
+| `/api/data-center/sync/capital-flows/` | POST | 同步资金流到中台 |
 
 ### 路由兼容与快捷入口
 
@@ -311,12 +330,12 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 
 ### 数据源中台提示
 
-- Tushare 第三方代理地址统一配置在 `DataSourceConfig.http_url`
+- Tushare 第三方代理地址统一配置在 `ProviderConfigModel.http_url`
 - 运行时会自动下发到 `pro._DataApi__http_url`
-- 不需要在 `equity / backtest / market_data / fund / sector / factor / hedge` 分别配置
-- QMT 行情源统一配置在 `DataSourceConfig.source_type=qmt`
+- 不需要在 `equity / backtest / data_center / fund / sector / factor / hedge` 分别配置
+- QMT 行情源统一配置在 `ProviderConfigModel.source_type=qmt`
 - `extra_config` 可承载 `client_path`、`data_dir`、`dividend_type` 等本地 XtQuant 参数
-- `market_data` registry 会优先从统一数据源配置表注册 QMT provider，未配置时才回退到 `MARKET_DATA_QMT_*` settings
+- `data_center` registry 会按优先级注册可用 Provider；旧 market-data API 前缀已下线
 
 ### Factor API (因子管理)
 
@@ -370,7 +389,8 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/policy/events/new/` | 新增政策事件 |
 | `/policy/rss/sources/new/` | 新增 RSS 源 |
 | `/policy/rss/keywords/new/` | 新增关键词规则 |
-| `/macro/datasources/new/` | 新增数据源配置 |
+| `/data-center/providers/` | 数据中台 Provider 配置页 |
+| `/data-center/monitor/` | 数据中台运行状态页 |
 
 ---
 

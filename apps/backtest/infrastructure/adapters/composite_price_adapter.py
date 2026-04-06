@@ -186,6 +186,82 @@ class CompositeAssetPriceAdapter:
         return list(assets)
 
 
+class DataCenterAssetPriceAdapter:
+    """Asset-class price adapter backed by data_center facts."""
+
+    source_name = "data_center"
+
+    def __init__(self) -> None:
+        from apps.data_center.application.price_service import UnifiedPriceService
+        from apps.data_center.infrastructure.repositories import PriceBarRepository
+
+        self._bars = PriceBarRepository()
+        self._price_service = UnifiedPriceService()
+
+    def supports(self, asset_class: str) -> bool:
+        return asset_class == "cash" or asset_class in get_asset_class_tickers()
+
+    def get_price(
+        self,
+        asset_class: str,
+        as_of_date: date,
+    ) -> float | None:
+        if asset_class == "cash":
+            return 1.0
+
+        ticker = get_asset_class_tickers().get(asset_class)
+        if not ticker:
+            return None
+        return self._price_service.get_price(ticker, trade_date=as_of_date)
+
+    def get_prices(
+        self,
+        asset_class: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[AssetPricePoint]:
+        if asset_class == "cash":
+            points = []
+            current = start_date
+            while current <= end_date:
+                points.append(
+                    AssetPricePoint(
+                        asset_class=asset_class,
+                        price=1.0,
+                        as_of_date=current,
+                        source=self.source_name,
+                    )
+                )
+                current += timedelta(days=1)
+            return points
+
+        ticker = get_asset_class_tickers().get(asset_class)
+        if not ticker:
+            return []
+
+        try:
+            bars = self._bars.get_bars(ticker, start=start_date, end=end_date, limit=5000)
+        except Exception:
+            logger.warning(
+                "data_center price series read failed: %s %s~%s",
+                asset_class,
+                start_date,
+                end_date,
+                exc_info=True,
+            )
+            return []
+
+        return [
+            AssetPricePoint(
+                asset_class=asset_class,
+                price=float(bar.close),
+                as_of_date=bar.bar_date,
+                source=bar.source or self.source_name,
+            )
+            for bar in reversed(bars)
+        ]
+
+
 def create_default_price_adapter(
     tushare_token: str | None = None,
     tushare_http_url: str | None = None,
@@ -203,6 +279,11 @@ def create_default_price_adapter(
     from .tushare_price_adapter import TushareAssetPriceAdapter
 
     adapters = []
+
+    try:
+        adapters.append(DataCenterAssetPriceAdapter())
+    except Exception as e:
+        logger.warning(f"无法初始化 Data Center 价格适配器: {e}")
 
     # 添加 Tushare 适配器（如果提供了 token）
     if tushare_token:

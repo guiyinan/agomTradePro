@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Data Center — Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>数据中台 — 运行状态</h1>
+    <p class="subtitle">Data Center — Runtime Monitor</p>
+    <p class="description">查看所有已注册 Provider 的实时健康状态、熔断情况和平均延迟。</p>
+</div>
+
+<div class="config-entry-actions" style="margin-bottom: 1rem;">
+    <button onclick="loadStatus()" class="btn-step">刷新状态</button>
+    <a href="/data-center/providers/" class="btn-step btn-step-secondary">Provider 配置</a>
+</div>
+
+<section id="status-list">
+    <p class="loading-hint">正在加载运行状态…</p>
+</section>
+
+<script>
+function loadStatus() {
+    fetch("/api/data-center/providers/status/")
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById("status-list");
+            if (!data.results || data.results.length === 0) {
+                el.innerHTML = "<p>当前注册表为空（尚未注册任何 Provider）。</p>";
+                return;
+            }
+            const rows = data.results.map(s => `
+                <div class="provider-card">
+                    <div class="provider-card-head">
+                        <strong>${s.provider_name}</strong>
+                        <span class="badge badge-${s.status === 'healthy' ? 'active' : 'inactive'}">${s.status}</span>
+                        <span class="badge badge-type">${s.capability}</span>
+                    </div>
+                    <div class="provider-card-meta">
+                        <span>连续失败: ${s.consecutive_failures}</span>
+                        ${s.avg_latency_ms ? `<span>平均延迟: ${s.avg_latency_ms.toFixed(1)} ms</span>` : ''}
+                        ${s.last_success_at ? `<span>上次成功: ${s.last_success_at}</span>` : ''}
+                    </div>
+                </div>
+            `).join("");
+            el.innerHTML = rows;
+        })
+        .catch(err => {
+            document.getElementById("status-list").innerHTML =
+                `<p class="error">加载失败: ${err}</p>`;
+        });
+}
+
+document.addEventListener("DOMContentLoaded", loadStatus);
+</script>
+{% endblock %}

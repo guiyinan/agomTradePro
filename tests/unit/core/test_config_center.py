@@ -13,31 +13,41 @@ def test_list_config_capabilities_contains_core_items():
     assert "beta_gate" in keys
     assert "ai_provider" in keys
     assert "trading_cost" in keys
+    assert "data_center_providers" in keys
+    assert "data_center_runtime" in keys
 
 
 def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkeypatch):
     monkeypatch.setattr(
         "core.application.config_center._SUMMARY_BUILDERS",
         {
-            "agent_runtime_operator": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "system_settings": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "macro_datasources": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "market_data_providers": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "beta_gate": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "valuation_repair": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "ai_provider": lambda: {"status": "configured", "summary": {"message": "ok"}},
-            "trading_cost": lambda: {"status": "configured", "summary": {"message": "ok"}},
+            "account_settings": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "agent_runtime_operator": lambda user: {
+                "status": "configured",
+                "summary": {"message": "ok"},
+            },
+            "system_settings": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "data_center_providers": lambda user: {
+                "status": "configured",
+                "summary": {"message": "ok"},
+            },
+            "data_center_runtime": lambda user: {
+                "status": "configured",
+                "summary": {"message": "ok"},
+            },
+            "beta_gate": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "valuation_repair": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "ai_provider": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "trading_cost": lambda user: {"status": "configured", "summary": {"message": "ok"}},
         },
     )
 
     snapshot = build_config_center_snapshot(SimpleNamespace(is_staff=False))
-    item_keys = {
-        item["key"]
-        for section in snapshot["sections"]
-        for item in section["items"]
-    }
+    item_keys = {item["key"] for section in snapshot["sections"] for item in section["items"]}
 
     assert "trading_cost" in item_keys
     assert "agent_runtime_operator" not in item_keys
     assert "valuation_repair" not in item_keys
     assert "system_settings" not in item_keys
+    assert "data_center_providers" not in item_keys
+    assert "data_center_runtime" not in item_keys

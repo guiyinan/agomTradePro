@@ -296,7 +296,7 @@
 - `strategy` - 策略系统
 
 #### 数据接入模块 (1个)
-- `market_data` - 统一数据源接入层（东方财富/AKShare/Tushare 自动 failover + 交叉校验）
+- `data_center` - 统一数据中台（Provider 配置、标准化、同步、查询、MCP/SDK 对齐）
 
 #### 战术指标模块 (1个)
 - `pulse` - **Pulse 脉搏层（战术指标聚合与转折预警）** ✅ 2026-03-28 新增

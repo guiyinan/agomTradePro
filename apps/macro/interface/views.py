@@ -26,9 +26,6 @@ from .views import (
     api_table_data,
     api_update_record,
     data_controller_view,
-    datasource_config_view,
-    datasource_create_view,
-    datasource_edit_view,
     # Page views
     macro_data_view,
 )
@@ -36,9 +33,6 @@ from .views import (
 __all__ = [
     # Page views
     'macro_data_view',
-    'datasource_config_view',
-    'datasource_create_view',
-    'datasource_edit_view',
     'data_controller_view',
     # Fetch API
     'api_fetch_data_stream',

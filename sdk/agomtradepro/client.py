@@ -17,10 +17,14 @@ from .exceptions import (
     AgomTradeProAPIError,
     AuthenticationError,
     ConfigurationError,
-    ConnectionError as SDKConnectionError,
-    raise_for_status,
+)
+from .exceptions import ConnectionError as SDKConnectionError
+from .exceptions import (
     ServerError,
-    TimeoutError as SDKTimeoutError,
+)
+from .exceptions import TimeoutError as SDKTimeoutError
+from .exceptions import (
+    raise_for_status,
 )
 from .modules.account import AccountModule
 from .modules.agent_context import AgentContextModule
@@ -33,9 +37,11 @@ from .modules.asset_analysis import AssetAnalysisModule
 from .modules.audit import AuditModule
 from .modules.backtest import BacktestModule
 from .modules.beta_gate import BetaGateModule
-from .modules.dashboard import DashboardModule
 from .modules.config_center import ConfigCenterModule
+from .modules.dashboard import DashboardModule
+from .modules.data_center import DataCenterModule
 from .modules.decision_rhythm import DecisionRhythmModule
+from .modules.decision_workflow import DecisionWorkflowModule
 from .modules.equity import EquityModule
 from .modules.events import EventsModule
 from .modules.factor import FactorModule
@@ -43,7 +49,6 @@ from .modules.filter import FilterModule
 from .modules.fund import FundModule
 from .modules.hedge import HedgeModule
 from .modules.macro import MacroModule
-from .modules.market_data import MarketDataModule
 from .modules.policy import PolicyModule
 from .modules.prompt import PromptModule
 from .modules.pulse import PulseModule
@@ -56,7 +61,6 @@ from .modules.signal import SignalModule
 from .modules.simulated_trading import SimulatedTradingModule
 from .modules.strategy import StrategyModule
 from .modules.task_monitor import TaskMonitorModule
-from .modules.decision_workflow import DecisionWorkflowModule
 
 
 class AgomTradeProClient:
@@ -104,7 +108,7 @@ class AgomTradeProClient:
     _sentiment: Optional[SentimentModule] = None
     _task_monitor: Optional[TaskMonitorModule] = None
     _filter: Optional[FilterModule] = None
-    _market_data: Optional[MarketDataModule] = None
+    _data_center: Optional[DataCenterModule] = None
     _decision_workflow: Optional[DecisionWorkflowModule] = None
     _agent_runtime: Optional[AgentRuntimeModule] = None
     _agent_context: Optional[AgentContextModule] = None
@@ -581,11 +585,11 @@ class AgomTradeProClient:
         return self._filter
 
     @property
-    def market_data(self) -> MarketDataModule:
-        """市场数据统一接入层模块"""
-        if self._market_data is None:
-            self._market_data = MarketDataModule(self)
-        return self._market_data
+    def data_center(self) -> DataCenterModule:
+        """数据中台模块"""
+        if self._data_center is None:
+            self._data_center = DataCenterModule(self)
+        return self._data_center
 
     @property
     def decision_workflow(self) -> DecisionWorkflowModule:

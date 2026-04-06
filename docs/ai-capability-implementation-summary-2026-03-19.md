@@ -211,7 +211,7 @@ AgomTradePro/
 │   ├── account/                  # 账户管理
 │   ├── simulated_trading/        # 模拟交易
 │   ├── realtime/                 # 实时监控
-│   ├── market_data/              # 市场数据统一接口
+│   ├── data_center/              # 数据中台
 │   ├── strategy/                 # 策略系统
 │   ├── backtest/                 # 回测引擎
 │   ├── audit/                    # 事后审计
@@ -298,7 +298,7 @@ AgomTradePro/
 │  ─────────────    │  ─────────────  │  ────────────             │
 │  account          │  ai_provider    │  terminal                 │
 │  audit            │  prompt         │  agent_runtime            │
-│  simulated_trading│  dashboard      │  market_data              │
+│  simulated_trading│  dashboard      │  data_center              │
 │  realtime         │  backtest       │  share                    │
 │  strategy         │  events         │                           │
 │                   │  task_monitor   │                           │
@@ -898,7 +898,7 @@ class StrategyConfig:
 - `MONITORING` - 监控
 - `OPS` - 运维
 
-#### 3.6.9 Market Data 模块 - 市场数据统一接口
+#### 3.6.9 Data Center 模块 - 数据中台
 
 **功能**：整合多数据源，提供统一的市场数据访问接口
 

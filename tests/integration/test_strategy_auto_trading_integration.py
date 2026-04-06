@@ -122,8 +122,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
         )
 
         # 2. 创建自动交易引擎（不传入 strategy_executor）
-        market_data = Mock()
-        market_data.get_price = Mock(return_value=10.50)
+        price_provider = Mock()
+        price_provider.get_price = Mock(return_value=10.50)
 
         engine = AutoTradingEngine(
             account_repo=self.account_repo,
@@ -132,7 +132,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
             buy_use_case=self.buy_use_case,
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
-            market_data_provider=market_data,
+            price_provider=price_provider,
             strategy_executor=None  # 未配置策略执行器
         )
 
@@ -230,8 +230,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
         }
 
         # 5. 创建自动交易引擎
-        market_data = Mock()
-        market_data.get_price = Mock(return_value=10.50)
+        price_provider = Mock()
+        price_provider.get_price = Mock(return_value=10.50)
 
         engine = AutoTradingEngine(
             account_repo=self.account_repo,
@@ -240,7 +240,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
             buy_use_case=self.buy_use_case,
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
-            market_data_provider=market_data,
+            price_provider=price_provider,
             strategy_executor=Mock(),  # 需要非 None 以触发策略路径
         )
 
@@ -348,8 +348,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
         }
 
         # 5. 创建自动交易引擎
-        market_data = Mock()
-        market_data.get_price = Mock(return_value=11.00)
+        price_provider = Mock()
+        price_provider.get_price = Mock(return_value=11.00)
 
         engine = AutoTradingEngine(
             account_repo=self.account_repo,
@@ -358,7 +358,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
             buy_use_case=self.buy_use_case,
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
-            market_data_provider=market_data,
+            price_provider=price_provider,
             strategy_executor=Mock(),  # 需要非 None 以触发策略路径
         )
 

@@ -88,7 +88,7 @@ AgomTradePro/
 │   ├── account/              # 账户与持仓管理
 │   ├── simulated_trading/    # 模拟盘自动交易
 │   ├── realtime/             # 实时价格监控
-│   ├── market_data/          # 市场数据统一接口
+│   ├── data_center/          # 数据中台
 │   ├── strategy/             # 策略系统
 │   ├── ai_provider/          # AI 服务商管理
 │   ├── prompt/               # AI Prompt 模板
@@ -603,7 +603,7 @@ ak.macro_china_money_supply()
 - `terminal/` - 终端 CLI 模块，提供终端风格的 AI 交互界面，支持可配置命令系统
 - `agent_runtime/` - Agent 运行时模块，Terminal AI 后端，支持任务编排和 Facade 模式
 - `ai_capability/` - AI 能力目录模块，系统级 AI 能力目录与统一路由
-- `market_data/` - 市场数据统一接口，整合多数据源
+- `data_center/` - 数据中台，统一外部数据源接入、标准化、同步与查询
 - `share/` - 分享功能模块，支持决策分享
 - `task_monitor/` - 任务监控模块，Celery 任务状态追踪
 - `setup_wizard/` - 系统初始化向导模块，首次安装引导配置管理员密码、AI API、数据源

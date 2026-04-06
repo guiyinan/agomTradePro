@@ -373,7 +373,7 @@
         </div>
     </div>
 
-    <!-- 资金流向（来自 market_data 统一数据源） -->
+    <!-- 资金流向（来自 data_center 统一数据源） -->
     <div class="card" id="capitalFlowCard">
         <h2 class="card-title">资金流向 <span style="font-size: 12px; color: var(--color-text-muted); font-weight: normal;">（东方财富）</span></h2>
         <div id="capitalFlowLoading" class="app-loading-state app-loading-state--compact">
@@ -401,7 +401,7 @@
         </div>
     </div>
 
-    <!-- 个股新闻（来自 market_data 统一数据源） -->
+    <!-- 个股新闻（来自 data_center 统一数据源） -->
     <div class="card" id="stockNewsCard">
         <h2 class="card-title">最新新闻 <span style="font-size: 12px; color: var(--color-text-muted); font-weight: normal;">（东方财富）</span></h2>
         <div id="stockNewsLoading" class="app-loading-state app-loading-state--compact">
@@ -1410,7 +1410,11 @@ async function loadCapitalFlow() {
     const empty = document.getElementById('capitalFlowEmpty');
     const table = document.getElementById('capitalFlowTable');
     try {
-        const result = await fetchJsonOrThrowCompat(`/api/market-data/capital-flows/?code=${stockCode}&period=10d`);
+        const start = new Date();
+        start.setDate(start.getDate() - 10);
+        const result = await fetchJsonOrThrowCompat(
+            `/api/data-center/capital-flows/?asset_code=${stockCode}&start=${start.toISOString().slice(0, 10)}`
+        );
         loading.style.display = 'none';
         if (!result.data || result.data.length === 0) {
             empty.style.display = 'block';
@@ -1449,7 +1453,7 @@ async function loadStockNews() {
     const empty = document.getElementById('stockNewsEmpty');
     const list = document.getElementById('stockNewsList');
     try {
-        const result = await fetchJsonOrThrowCompat(`/api/market-data/news/?code=${stockCode}&limit=10`);
+        const result = await fetchJsonOrThrowCompat(`/api/data-center/news/?asset_code=${stockCode}&limit=10`);
         loading.style.display = 'none';
         if (!result.data || result.data.length === 0) {
             empty.style.display = 'block';

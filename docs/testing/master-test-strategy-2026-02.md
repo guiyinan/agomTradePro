@@ -187,14 +187,14 @@ P2（持续优化）：
 
 ```bash
 pytest tests/uat/test_route_baseline_consistency.py tests/e2e/test_navigation_404.py tests/uat/test_api_naming_compliance.py -q
-pytest --collect-only apps/share/tests apps/market_data/tests apps/dashboard/tests -q
+pytest --collect-only apps/share/tests tests/unit/data_center apps/dashboard/tests -q
 python tests/uat/run_uat.py --generate-report
 ```
 
 结果：
 
 1. 定向契约/导航测试通过。
-2. `apps/share/tests`、`apps/market_data/tests`、`apps/dashboard/tests` 已可被默认收集。
+2. `apps/share/tests`、`tests/unit/data_center`、`apps/dashboard/tests` 已可被默认收集。
 3. UAT runner 可生成报告文件，统计来源改为真实 JUnit XML。
 
 #### 正式库快照回归

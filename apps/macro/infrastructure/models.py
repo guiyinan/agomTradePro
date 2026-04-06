@@ -1,116 +1,11 @@
 """
 ORM Models for Macro Data.
 
-Django models for persisting macro indicator data and data source configurations.
+Django models for persisting macro indicator data.
+Provider configuration is now managed exclusively by apps.data_center.
 """
 
 from django.db import models
-
-
-class DataProviderSettings(models.Model):
-    """数据源全局设置（单例模式）"""
-
-    DEFAULT_SOURCE_CHOICES = [
-        ('akshare', 'AKShare（推荐）'),
-        ('tushare', 'Tushare Pro'),
-        ('failover', '自动容错（AKShare→Tushare）'),
-    ]
-
-    singleton_instance_id = 1  # 单例标识
-
-    default_data_source = models.CharField(
-        max_length=20,
-        choices=DEFAULT_SOURCE_CHOICES,
-        default='akshare',
-        help_text="默认数据源选择"
-    )
-    enable_failover = models.BooleanField(
-        default=True,
-        help_text="启用自动容错切换（主数据源失败时自动切换备用源）"
-    )
-    failover_tolerance = models.FloatField(
-        default=0.01,
-        help_text="容差比例（0.01=1%），用于校验主备数据源一致性"
-    )
-    description = models.TextField(
-        blank=True,
-        help_text="配置说明"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'data_provider_settings'
-        verbose_name = "数据源设置"
-        verbose_name_plural = "数据源设置"
-
-    def __str__(self):
-        return f"默认数据源: {self.get_default_data_source_display()}"
-
-    def save(self, *args, **kwargs):
-        """确保只有一个实例（单例模式）"""
-        self.pk = self.singleton_instance_id
-        super().save(*args, **kwargs)
-
-    @classmethod
-    def load(cls) -> 'DataProviderSettings':
-        """加载设置（不存在则创建默认）"""
-        obj, created = cls.objects.get_or_create(
-            pk=cls.singleton_instance_id,
-            defaults={
-                'default_data_source': 'akshare',
-                'enable_failover': True,
-                'failover_tolerance': 0.01,
-            }
-        )
-        return obj
-
-    def clear_secrets_cache(self):
-        """清除密钥缓存（配置更新后调用）"""
-        from shared.config.secrets import clear_secrets_cache
-        clear_secrets_cache()
-
-
-class DataSourceConfig(models.Model):
-    """数据源配置 ORM 模型"""
-
-    SOURCE_TYPE_CHOICES = [
-        ('tushare', 'Tushare Pro'),
-        ('akshare', 'AKShare'),
-        ('qmt', 'QMT (XtQuant)'),
-        ('fred', 'FRED'),
-        ('wind', 'Wind'),
-        ('choice', 'Choice'),
-    ]
-
-    name = models.CharField(max_length=50, unique=True, help_text="数据源名称")
-    source_type = models.CharField(
-        max_length=20,
-        choices=SOURCE_TYPE_CHOICES,
-        help_text="数据源类型"
-    )
-    is_active = models.BooleanField(default=True, help_text="是否启用")
-    priority = models.IntegerField(default=0, help_text="优先级（数字越小越优先）")
-    api_endpoint = models.URLField(blank=True, help_text="API 端点 URL")
-    http_url = models.URLField(
-        blank=True,
-        help_text="自定义 HTTP URL（Tushare 可用于第三方代理源）"
-    )
-    api_key = models.CharField(max_length=200, blank=True, help_text="API 密钥")
-    api_secret = models.CharField(max_length=200, blank=True, help_text="API 密钥（如需要）")
-    extra_config = models.JSONField(default=dict, blank=True, help_text="额外配置参数")
-    description = models.TextField(blank=True, help_text="描述")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'data_source_config'
-        ordering = ['priority', 'name']
-        verbose_name = "数据源配置"
-        verbose_name_plural = "数据源配置"
-
-    def __str__(self):
-        return f"{self.name} ({self.get_source_type_display()})"
 
 
 class IndicatorUnitConfig(models.Model):

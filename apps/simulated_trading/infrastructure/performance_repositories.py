@@ -312,14 +312,14 @@ class DjangoMarketDataRepository:
     """
     MarketDataRepositoryProtocol 实现。
 
-    通过 market_data 模块的 SourceRegistry（HISTORICAL_PRICE capability）拉取
-    指数历史价格柱，计算日收益率和区间累计收益。
+    通过 data_center 统一价格入口拉取指数历史价格柱，
+    计算日收益率和区间累计收益。
     单个收盘价委托给 UnifiedPriceService。
     """
 
     def get_close_price(self, asset_code: str, trade_date: date) -> Optional[float]:
         try:
-            from apps.market_data.application.price_service import UnifiedPriceService
+            from apps.data_center.application.price_service import UnifiedPriceService
 
             svc = UnifiedPriceService()
             return svc.get_price(asset_code=asset_code, trade_date=trade_date)
@@ -332,23 +332,13 @@ class DjangoMarketDataRepository:
     def _fetch_index_bars(
         self, index_code: str, start_date: date, end_date: date
     ) -> list:
-        """通过 SourceRegistry 拉取指数历史价格柱（按日期升序）。"""
+        """优先通过 data_center 拉取指数历史价格柱（按日期升序）。"""
         try:
-            from apps.market_data.application.registry_factory import get_registry
-            from apps.market_data.domain.enums import DataCapability
+            from apps.data_center.infrastructure.repositories import PriceBarRepository
 
-            registry = get_registry()
-            bars = registry.call_with_failover(
-                DataCapability.HISTORICAL_PRICE,
-                lambda provider: provider.get_historical_prices(
-                    index_code,
-                    start_date=start_date.strftime("%Y%m%d"),
-                    end_date=end_date.strftime("%Y%m%d"),
-                ),
-            )
-            if not bars:
-                return []
-            return sorted(bars, key=lambda b: b.trade_date)
+            repo = PriceBarRepository()
+            bars = repo.get_bars(index_code, start=start_date, end=end_date, limit=5000)
+            return sorted(bars, key=lambda b: b.bar_date)
         except Exception:
             logger.warning(
                 "获取指数行情失败: %s %s~%s", index_code, start_date, end_date, exc_info=True
@@ -370,7 +360,7 @@ class DjangoMarketDataRepository:
             curr_close = float(bars[i].close)
             if prev_close > 0:
                 r = (curr_close - prev_close) / prev_close
-                result.append((bars[i].trade_date, r))
+                result.append((getattr(bars[i], "trade_date", bars[i].bar_date), r))
         return result
 
     def get_index_cumulative_return(

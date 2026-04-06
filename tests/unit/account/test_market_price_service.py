@@ -163,7 +163,7 @@ class TestMarketPriceServiceUnit:
         assert result is not None
         assert result["price"] == Decimal("15.75")
         assert result["asset_code"] == "000001.SZ"
-        assert result["source"] == "MarketDataProvider"
+        assert result["source"] == "DataCenterPriceProvider"
         assert isinstance(result["timestamp"], datetime)
         assert isinstance(result["trade_date"], date)
 

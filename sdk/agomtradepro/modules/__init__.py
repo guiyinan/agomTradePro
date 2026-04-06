@@ -17,6 +17,7 @@ from .backtest import BacktestModule
 from .base import BaseModule
 from .beta_gate import BetaGateModule
 from .dashboard import DashboardModule
+from .data_center import DataCenterModule
 from .decision_rhythm import DecisionRhythmModule
 from .decision_workflow import DecisionWorkflowModule
 from .equity import EquityModule
@@ -26,7 +27,6 @@ from .filter import FilterModule
 from .fund import FundModule
 from .hedge import HedgeModule
 from .macro import MacroModule
-from .market_data import MarketDataModule
 from .policy import PolicyModule
 from .prompt import PromptModule
 from .pulse import PulseModule
@@ -65,6 +65,7 @@ __all__ = [
     "PromptModule",
     "AuditModule",
     "EventsModule",
+    "DataCenterModule",
     "DecisionRhythmModule",
     "DecisionWorkflowModule",
     "BetaGateModule",
@@ -74,6 +75,5 @@ __all__ = [
     "SentimentModule",
     "TaskMonitorModule",
     "FilterModule",
-    "MarketDataModule",
     "PulseModule",
 ]

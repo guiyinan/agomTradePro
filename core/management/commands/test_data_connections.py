@@ -25,7 +25,8 @@ from apps.account.infrastructure.models import (
 from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 
 # Import models and repositories
-from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
+from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
+from apps.macro.infrastructure.models import MacroIndicator
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository

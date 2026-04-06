@@ -13,16 +13,10 @@ from django.db.models import Count, Max, Min, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from apps.macro.interface.forms import DataSourceConfigForm
-from core.application.provider_inventory import (
-    build_provider_dashboard,
-    build_unified_provider_inventory,
-    group_provider_inventory_by_access,
-)
 from shared.config.secrets import clear_secrets_cache
 
-DataProviderSettings = django_apps.get_model("macro", "DataProviderSettings")
-DataSourceConfig = django_apps.get_model("macro", "DataSourceConfig")
+DataProviderSettings = django_apps.get_model("data_center", "DataProviderSettingsModel")
+DataSourceConfig = django_apps.get_model("data_center", "ProviderConfigModel")
 MacroIndicator = django_apps.get_model("macro", "MacroIndicator")
 
 
@@ -117,7 +111,7 @@ def _build_pending_provider_cards(
                     "description": suggestion["description"],
                     "detail": provider["macro_config_summary"],
                     "action_url": (
-                        f"{reverse('macro:datasources')}"
+                        f"{reverse('data_center:dc-providers-page')}"
                         f"?mode=create&source_type={key}&name={suggestion['name']}#datasource-workbench"
                     ),
                     "action_label": "新建配置",
@@ -136,7 +130,7 @@ def _build_pending_provider_cards(
                 "endpoint": provider["config_surface_label"],
                 "description": "当前不通过 DataSourceConfig 维护，直接在统一页查看运行状态。",
                 "detail": provider["macro_list_presence_label"],
-                "action_url": f"{reverse('macro:datasources')}#provider-status",
+                "action_url": f"{reverse('data_center:dc-monitor-page')}#provider-status",
                 "action_label": "查看运行状态",
                 "is_configurable": False,
             }
@@ -165,8 +159,8 @@ def _build_macro_data_summary() -> dict[str, object]:
 
 def _build_system_source_cards(provider_settings: DataProviderSettings) -> list[dict[str, object]]:
     """Build visible cards for built-in/public datasource capabilities."""
-    default_source = provider_settings.default_data_source
-    default_source_label = provider_settings.get_default_data_source_display()
+    default_source = provider_settings.default_source
+    default_source_label = provider_settings.get_default_source_display()
 
     akshare_role = "默认抓取源"
     if default_source == "failover":
@@ -203,7 +197,7 @@ def _build_system_source_cards(provider_settings: DataProviderSettings) -> list[
             "endpoint": default_source_label,
             "description": "这不是单独的数据源，而是系统当前默认抓取模式。即使没有手工录入配置，这条策略也应对管理员可见。",
             "config_rows": [
-                {"label": "default_data_source", "value": provider_settings.default_data_source},
+                {"label": "default_source", "value": provider_settings.default_source},
                 {
                     "label": "failover",
                     "value": "启用" if provider_settings.enable_failover else "关闭",
@@ -213,7 +207,7 @@ def _build_system_source_cards(provider_settings: DataProviderSettings) -> list[
                     "value": f"{provider_settings.failover_tolerance * 100:.2f}%",
                 },
             ],
-            "action_url": f"{reverse('macro:datasources')}#provider-status",
+            "action_url": f"{reverse('data_center:dc-monitor-page')}#provider-status",
             "action_label": "查看运行状态",
         }
     )
@@ -441,130 +435,6 @@ def macro_data_view(request):
     return render(request, 'macro/data.html', context)
 
 
-@login_required(login_url="/account/login/")
-def datasource_config_view(request):
-    """数据源配置页面"""
-    provider_settings = DataProviderSettings.load()
-    data_sources = DataSourceConfig._default_manager.all().order_by('priority', 'name')
-    macro_data_summary = _build_macro_data_summary()
-    system_source_cards = _build_system_source_cards(provider_settings)
-    unified_provider_inventory = build_unified_provider_inventory()
-    provider_dashboard = build_provider_dashboard()
-    provider_inventory_sections = group_provider_inventory_by_access(
-        unified_provider_inventory
-    )
-    pending_provider_cards = _build_pending_provider_cards(
-        unified_provider_inventory,
-        data_sources,
-    )
-    selected_source = None
-    create_mode = request.GET.get("mode") == "create" or not data_sources.exists()
-    selected_id = request.GET.get("edit")
-    requested_source_type = request.GET.get("source_type")
-    requested_name = request.GET.get("name")
-    if selected_id:
-        selected_source = get_object_or_404(DataSourceConfig, id=selected_id)
-        create_mode = False
-    elif not create_mode:
-        selected_source = data_sources.first()
-
-    if request.method == "POST":
-        form = DataSourceConfigForm(request.POST, instance=selected_source)
-        if form.is_valid():
-            saved = form.save()
-            clear_secrets_cache()
-            messages.success(
-                request,
-                "数据源配置已更新" if selected_source else "数据源配置已创建",
-            )
-            return redirect(f"{reverse('macro:datasources')}?edit={saved.id}")
-    else:
-        initial = {}
-        if create_mode:
-            initial["priority"] = data_sources.count() + 1
-            valid_source_types = {
-                source_type for source_type, _ in DataSourceConfig.SOURCE_TYPE_CHOICES
-            }
-            if requested_source_type in valid_source_types:
-                initial["source_type"] = requested_source_type
-            if requested_name:
-                initial["name"] = requested_name
-        form = DataSourceConfigForm(instance=selected_source, initial=initial)
-
-    stats = {
-        'total': data_sources.count(),
-        'active': data_sources.filter(is_active=True).count(),
-        'inactive': data_sources.filter(is_active=False).count(),
-        'by_type': {}
-    }
-    for source_type, _ in DataSourceConfig.SOURCE_TYPE_CHOICES:
-        count = data_sources.filter(source_type=source_type).count()
-        if count > 0:
-            stats['by_type'][source_type] = count
-
-    datasource_cards = [_build_datasource_card(source) for source in data_sources]
-    context = {
-        'data_sources': data_sources,
-        'datasource_cards': datasource_cards,
-        'stats': stats,
-        'source_type_choices': DataSourceConfig.SOURCE_TYPE_CHOICES,
-        'provider_settings': provider_settings,
-        'system_source_cards': system_source_cards,
-        'unified_provider_inventory': unified_provider_inventory,
-        'provider_dashboard': provider_dashboard,
-        'provider_inventory_sections': provider_inventory_sections,
-        'pending_provider_cards': pending_provider_cards,
-        'management_form': form,
-        'management_mode': 'create' if create_mode else 'edit',
-        'selected_source': selected_source,
-        'selected_source_id': selected_source.id if selected_source else None,
-        'selected_card': _build_datasource_card(selected_source) if selected_source else None,
-        'macro_data_summary': macro_data_summary,
-    }
-    return render(request, 'datasource/config.html', context)
-
-
-@login_required(login_url="/account/login/")
-def datasource_create_view(request):
-    """Create data source config without Django admin."""
-    if request.method == "POST":
-        form = DataSourceConfigForm(request.POST)
-        if form.is_valid():
-            form.save()
-            clear_secrets_cache()
-            messages.success(request, "数据源配置已创建")
-            return redirect("macro:datasources")
-    else:
-        form = DataSourceConfigForm()
-
-    return render(
-        request,
-        "datasource/form.html",
-        {"form": form, "page_title": "新增数据源配置", "submit_label": "创建"},
-    )
-
-
-@login_required(login_url="/account/login/")
-def datasource_edit_view(request, source_id: int):
-    """Edit data source config without Django admin."""
-    source = get_object_or_404(DataSourceConfig, id=source_id)
-    if request.method == "POST":
-        form = DataSourceConfigForm(request.POST, instance=source)
-        if form.is_valid():
-            form.save()
-            clear_secrets_cache()
-            messages.success(request, "数据源配置已更新")
-            return redirect("macro:datasources")
-    else:
-        form = DataSourceConfigForm(instance=source)
-
-    return render(
-        request,
-        "datasource/form.html",
-        {"form": form, "page_title": "编辑数据源配置", "submit_label": "保存"},
-    )
-
-
 def data_controller_view(request):
     """统一数据管理器页面"""
     from apps.macro.application.data_management import (
@@ -599,4 +469,3 @@ def data_controller_view(request):
     }
 
     return render(request, 'macro/data_controller.html', context)
-

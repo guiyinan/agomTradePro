@@ -20,12 +20,14 @@ from apps.macro.application.data_management import (
     DeleteDataUseCase,
     RunDataSourceConnectionTestUseCase,
 )
+from apps.data_center.application.registry_factory import refresh_registry
 from apps.macro.interface.serializers import DataSourceConfigSerializer
 
 from .helpers import get_repository
 
 logger = logging.getLogger(__name__)
-DataSourceConfig = django_apps.get_model("macro", "DataSourceConfig")
+# Provider config is now owned by data_center; macro is a UI entry point only.
+DataSourceConfig = django_apps.get_model("data_center", "ProviderConfigModel")
 
 
 @api_view(["GET", "POST"])
@@ -40,6 +42,7 @@ def api_datasource_list_create(request):
     serializer = DataSourceConfigSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     instance = serializer.save()
+    refresh_registry()
     from shared.config.secrets import clear_secrets_cache
 
     clear_secrets_cache()
@@ -59,6 +62,7 @@ def api_datasource_detail(request, source_id: int):
     serializer = DataSourceConfigSerializer(instance, data=request.data, partial=partial)
     serializer.is_valid(raise_exception=True)
     updated = serializer.save()
+    refresh_registry()
 
     from shared.config.secrets import clear_secrets_cache
 

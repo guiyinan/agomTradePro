@@ -26,7 +26,8 @@ from apps.account.infrastructure.models import (
 )
 
 # Import models
-from apps.macro.infrastructure.models import DataSourceConfig, MacroIndicator
+from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
+from apps.macro.infrastructure.models import MacroIndicator
 from apps.policy.infrastructure.models import PolicyLog
 from apps.regime.infrastructure.models import RegimeLog
 from apps.signal.infrastructure.models import InvestmentSignalModel

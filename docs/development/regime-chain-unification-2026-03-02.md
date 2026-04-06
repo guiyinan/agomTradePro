@@ -17,6 +17,7 @@
 - `inflation_indicator=CPI`
 - `use_pit=True`（除显式传参外）
 - 数据源来自 `DataSourceConfig` 的激活优先级首项
+- `apps/regime/infrastructure/macro_data_provider.py` 从 2026-04-05 起统一读取 `apps/data_center` 的 `MacroFact` / `IndicatorCatalog`，不再直连 legacy `apps.macro` ORM 仓储
 - 失败时回退到 `get_latest_snapshot()`，再失败返回 `Unknown`
 
 ## 已切换模块（主流程）

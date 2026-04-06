@@ -55,6 +55,324 @@ class DjangoDataSourceConfig:
         return self._kalman_params
 
 
+class DataCenterMacroRepositoryAdapter:
+    """
+    Bridge the legacy regime macro repository contract onto data_center facts.
+
+    The regime module still expects the old macro repository interface
+    (`get_growth_series`, `get_latest_observation`, etc.). This adapter keeps
+    that interface stable while sourcing all reads from `apps.data_center`.
+    """
+
+    GROWTH_INDICATORS = {
+        "PMI": "CN_PMI",
+        "工业增加值": "CN_VALUE_ADDED",
+        "社会消费品零售": "CN_RETAIL_SALES",
+    }
+
+    INFLATION_INDICATORS = {
+        "CPI": "CN_CPI_NATIONAL_YOY",
+        "PPI": "CN_PPI",
+        "GDP平减指数": "CN_GDP_DEFLATOR",
+    }
+
+    @staticmethod
+    def _normalize_cpi_value(code: str, value: float) -> float:
+        """
+        Normalize CPI readings to percentage points.
+
+        - `CN_CPI` is index-style (e.g. 100.8) and should become `0.8`
+        - `CN_CPI_NATIONAL_YOY` may be ratio-style (`0.008`) or pct-style (`0.8`)
+        """
+        if code == "CN_CPI":
+            return float(value) - 100.0
+        if code == "CN_CPI_NATIONAL_YOY":
+            normalized = float(value)
+            if -0.2 < normalized < 0.2:
+                return normalized * 100.0
+            return normalized
+        return float(value)
+
+    def __init__(self) -> None:
+        self._period_type_cache: dict[str, str] = {}
+
+    def _get_models(self):
+        from apps.data_center.infrastructure.models import (
+            IndicatorCatalogModel,
+            MacroFactModel,
+        )
+
+        return IndicatorCatalogModel, MacroFactModel
+
+    def _get_default_period_type(self, indicator_code: str) -> str:
+        if indicator_code not in self._period_type_cache:
+            IndicatorCatalogModel, _ = self._get_models()
+            catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).first()
+            self._period_type_cache[indicator_code] = (
+                catalog.default_period_type if catalog else "D"
+            )
+        return self._period_type_cache[indicator_code]
+
+    def _to_macro_indicator(self, fact) -> "MacroIndicator":
+        from apps.macro.domain.entities import MacroIndicator, PeriodType
+
+        extra = fact.extra or {}
+        period_type_value = extra.get("period_type") or self._get_default_period_type(
+            fact.indicator_code
+        )
+        try:
+            period_type = PeriodType(period_type_value)
+        except (ValueError, KeyError):
+            period_type = PeriodType.DAY
+
+        return MacroIndicator(
+            code=fact.indicator_code,
+            value=float(fact.value),
+            reporting_period=fact.reporting_period,
+            period_type=period_type,
+            unit=fact.unit,
+            original_unit=extra.get("original_unit", fact.unit),
+            published_at=fact.published_at,
+            source=fact.source,
+        )
+
+    def _build_queryset(
+        self,
+        code: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        source: str | None = None,
+        use_pit: bool = False,
+    ):
+        from django.db.models import Q
+
+        _, MacroFactModel = self._get_models()
+
+        queryset = MacroFactModel.objects.all()
+        if code:
+            queryset = queryset.filter(indicator_code=code)
+        if start_date:
+            queryset = queryset.filter(reporting_period__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(reporting_period__lte=end_date)
+        if source:
+            queryset = queryset.filter(source=source)
+        if use_pit and end_date:
+            queryset = queryset.filter(
+                Q(published_at__lte=end_date)
+                | Q(published_at__isnull=True, reporting_period__lte=end_date)
+            )
+        return queryset
+
+    def _dedupe_latest_by_period(self, queryset, descending: bool = False) -> list:
+        rows = list(
+            queryset.order_by(
+                "reporting_period",
+                "revision_number",
+                "published_at",
+                "fetched_at",
+                "source",
+            )
+        )
+        by_period = {}
+        for row in rows:
+            by_period[row.reporting_period] = row
+        ordered_dates = sorted(by_period.keys(), reverse=descending)
+        return [self._to_macro_indicator(by_period[dt]) for dt in ordered_dates]
+
+    def get_series(
+        self,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list:
+        queryset = self._build_queryset(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            source=source,
+            use_pit=use_pit,
+        )
+        return self._dedupe_latest_by_period(queryset, descending=False)
+
+    def get_observations_for_period(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list:
+        return self.get_series(
+            code=indicator_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def get_recent_observations(
+        self,
+        indicator_code: str,
+        limit: int = 24,
+    ) -> list:
+        queryset = self._build_queryset(code=indicator_code)
+        return self._dedupe_latest_by_period(queryset, descending=True)[:limit]
+
+    def get_latest_observation_date(
+        self,
+        code: str,
+        as_of_date: date | None = None,
+    ) -> date | None:
+        queryset = self._build_queryset(code=code)
+        if as_of_date:
+            queryset = queryset.filter(reporting_period__lte=as_of_date)
+        observations = self._dedupe_latest_by_period(queryset, descending=True)
+        return observations[0].reporting_period if observations else None
+
+    def get_latest_observation(
+        self,
+        code: str,
+        before_date: date | None = None,
+    ):
+        queryset = self._build_queryset(code=code)
+        if before_date:
+            queryset = queryset.filter(reporting_period__lt=before_date)
+        observations = self._dedupe_latest_by_period(queryset, descending=True)
+        return observations[0] if observations else None
+
+    def get_by_code_and_date(self, code: str, observed_at: date):
+        queryset = self._build_queryset(
+            code=code,
+            start_date=observed_at,
+            end_date=observed_at,
+        )
+        observations = self._dedupe_latest_by_period(queryset, descending=True)
+        return observations[0] if observations else None
+
+    def get_growth_series(
+        self,
+        indicator_code: str = "PMI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list[float]:
+        return [
+            indicator.value
+            for indicator in self.get_growth_series_full(
+                indicator_code=indicator_code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
+            )
+        ]
+
+    def get_growth_series_full(
+        self,
+        indicator_code: str = "PMI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list:
+        code = self.GROWTH_INDICATORS.get(indicator_code, indicator_code)
+        return self.get_series(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            use_pit=use_pit,
+            source=source,
+        )
+
+    def get_inflation_series(
+        self,
+        indicator_code: str = "CPI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list[float]:
+        return [
+            indicator.value
+            for indicator in self.get_inflation_series_full(
+                indicator_code=indicator_code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
+            )
+        ]
+
+    def get_inflation_series_full(
+        self,
+        indicator_code: str = "CPI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list:
+        from apps.macro.domain.entities import MacroIndicator
+
+        code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
+        indicators = self.get_series(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            use_pit=use_pit,
+            source=source,
+        )
+
+        if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
+            code = "CN_CPI"
+            indicators = self.get_series(
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
+            )
+
+        if indicator_code != "CPI":
+            return indicators
+
+        normalized: list[MacroIndicator] = []
+        for indicator in indicators:
+            normalized.append(
+                MacroIndicator(
+                    code=indicator.code,
+                    value=self._normalize_cpi_value(code, indicator.value),
+                    reporting_period=indicator.reporting_period,
+                    period_type=indicator.period_type,
+                    unit="%",
+                    original_unit=indicator.original_unit,
+                    published_at=indicator.published_at,
+                    source=indicator.source,
+                )
+            )
+        return normalized
+
+    def get_available_dates(
+        self,
+        codes: list[str] | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[date]:
+        _, MacroFactModel = self._get_models()
+
+        queryset = MacroFactModel.objects.all()
+        if codes:
+            queryset = queryset.filter(indicator_code__in=codes)
+        if start_date:
+            queryset = queryset.filter(reporting_period__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(reporting_period__lte=end_date)
+        return list(
+            queryset.values_list("reporting_period", flat=True)
+            .distinct()
+            .order_by("reporting_period")
+        )
+
+
 class DjangoMacroDataProvider(MacroDataProviderProtocol):
     """
     Django ORM 实现的宏观数据提供者
@@ -79,15 +397,13 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
 
     def _get_repository(self):
         """
-        延迟获取 macro repository
+        延迟获取 regime macro repository
 
-        使用延迟导入避免循环依赖。
-        只有在实际访问数据时才导入 macro 模块。
+        所有读取统一走 data_center 宏观事实表，避免 regime 再直接依赖
+        legacy macro ORM 表。
         """
         if self._repository is None:
-            # 延迟导入: 只有在运行时才导入，避免模块加载时的循环依赖
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-            self._repository = DjangoMacroRepository()
+            self._repository = DataCenterMacroRepositoryAdapter()
         return self._repository
 
     def get_indicator_value(
@@ -162,11 +478,11 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         try:
             repo = self._get_repository()
 
-            # 获取历史数据
-            observations = repo.get_recent_observations(
-                indicator_code=indicator_code,
-                limit=lookback_periods
+            observations = repo.get_series(
+                code=indicator_code,
+                end_date=end_date,
             )
+            observations = observations[-lookback_periods:]
 
             if not observations:
                 return None
@@ -227,7 +543,11 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         series = self.get_indicator_series(indicator_code, end_date, lookback_periods)
         return series.values if series else []
 
-    def get_latest_observation_date(self, indicator_code: str) -> date | None:
+    def get_latest_observation_date(
+        self,
+        indicator_code: str,
+        as_of_date: date | None = None,
+    ) -> date | None:
         """
         获取指定指标的最新观测日期
 
@@ -239,7 +559,10 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         """
         try:
             repo = self._get_repository()
-            return repo.get_latest_observation_date(indicator_code)
+            return repo.get_latest_observation_date(
+                indicator_code,
+                as_of_date=as_of_date,
+            )
         except Exception as e:
             logger.error(f"Error getting latest observation date for {indicator_code}: {e}")
             return None
@@ -317,9 +640,10 @@ class MacroRepositoryAdapter:
 
     def _get_repository(self):
         if self._repository is None:
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-
-            self._repository = DjangoMacroRepository()
+            if hasattr(self._provider, "_get_repository"):
+                self._repository = self._provider._get_repository()
+            else:
+                self._repository = DataCenterMacroRepositoryAdapter()
         return self._repository
 
     def get_observations_for_period(
@@ -376,7 +700,11 @@ class MacroRepositoryAdapter:
             limit=limit,
         )
 
-    def get_latest_observation_date(self, indicator_code: str) -> date | None:
+    def get_latest_observation_date(
+        self,
+        indicator_code: str,
+        as_of_date: date | None = None,
+    ) -> date | None:
         """
         获取最新观测日期
 
@@ -386,7 +714,10 @@ class MacroRepositoryAdapter:
         Returns:
             最新观测日期或 None
         """
-        return self._get_repository().get_latest_observation_date(indicator_code)
+        return self._get_repository().get_latest_observation_date(
+            indicator_code,
+            as_of_date=as_of_date,
+        )
 
     def get_by_code_and_date(self, code: str, observed_at: date):
         return self._get_repository().get_by_code_and_date(

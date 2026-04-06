@@ -237,6 +237,7 @@ class PricePollingUseCase:
         from apps.realtime.infrastructure.repositories import (
             AKSharePriceDataProvider,
             CompositePriceDataProvider,
+            DataCenterPriceDataProvider,
             DatabaseWatchlistProvider,
             RedisRealtimePriceRepository,
             TusharePriceDataProvider,
@@ -249,16 +250,9 @@ class PricePollingUseCase:
         providers = []
 
         try:
-            from apps.market_data.application.bridge_providers import (
-                MarketDataBridgePriceProvider,
-            )
-            from apps.market_data.application.registry_factory import get_registry
-
-            bridge = MarketDataBridgePriceProvider(get_registry())
-            if bridge.is_available():
-                providers.append(bridge)
+            providers.append(DataCenterPriceDataProvider())
         except Exception:
-            pass  # market_data 模块不可用时跳过
+            pass
 
         akshare_provider = AKSharePriceDataProvider()
         tushare_provider = TusharePriceDataProvider()

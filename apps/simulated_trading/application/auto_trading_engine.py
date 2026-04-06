@@ -41,8 +41,8 @@ class SignalServiceProtocol(Protocol):
         ...
 
 
-class MarketDataProviderProtocol(Protocol):
-    """市场数据提供者接口"""
+class PriceProviderProtocol(Protocol):
+    """价格提供者接口"""
     def get_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取指定日期的价格"""
         ...
@@ -86,7 +86,7 @@ class AutoTradingEngine:
         performance_use_case: GetAccountPerformanceUseCase,
         asset_pool_service: AssetPoolServiceProtocol | None = None,
         signal_service: SignalServiceProtocol | None = None,
-        market_data_provider: MarketDataProviderProtocol | None = None,
+        price_provider: PriceProviderProtocol | None = None,
         regime_service: RegimeServiceProtocol | None = None,
         strategy_executor: Optional['StrategyExecutor'] = None
     ):
@@ -98,7 +98,7 @@ class AutoTradingEngine:
         self.performance_use_case = performance_use_case
         self.asset_pool_service = asset_pool_service
         self.signal_service = signal_service
-        self.market_data = market_data_provider
+        self.price_provider = price_provider
         self.regime_service = regime_service
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
 
@@ -528,14 +528,14 @@ class AutoTradingEngine:
 
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:
         """获取当前价格"""
-        if self.market_data:
-            get_price = getattr(self.market_data, "get_price", None)
+        if self.price_provider:
+            get_price = getattr(self.price_provider, "get_price", None)
             if callable(get_price):
                 price = get_price(asset_code, trade_date)
                 if price is not None:
                     return price
 
-            require_price = getattr(self.market_data, "require_price", None)
+            require_price = getattr(self.price_provider, "require_price", None)
             if callable(require_price):
                 return require_price(asset_code, trade_date)
         return None
@@ -582,8 +582,8 @@ class AutoTradingEngine:
             logger.error(f"更新账户绩效失败: {e}", exc_info=True)
 
 
-class MockMarketDataProvider:
-    """模拟市场数据提供者(用于测试)"""
+class MockPriceProvider:
+    """模拟价格提供者(用于测试)"""
 
     def __init__(self, prices: dict[str, float] | None = None):
         self._prices = prices or {}
