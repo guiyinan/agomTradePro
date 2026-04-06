@@ -34,8 +34,11 @@ class TestAgomTradeProClient:
         assert client._config.base_url == "http://env.example.com"
         assert client._config.auth.api_token == "env_token"
 
-    def test_init_without_auth_raises_error(self):
+    def test_init_without_auth_raises_error(self, monkeypatch):
         """测试没有认证信息时抛出异常"""
+        monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+        monkeypatch.delenv("AGOMTRADEPRO_USERNAME", raising=False)
+        monkeypatch.delenv("AGOMTRADEPRO_PASSWORD", raising=False)
         with pytest.raises(ConfigurationError):
             AgomTradeProClient(base_url="http://test.com")
 

@@ -11,12 +11,22 @@ import pytest
 @pytest.fixture
 def mock_config():
     """Mock configuration for testing"""
+    prev_base_url = os.environ.get("AGOMTRADEPRO_BASE_URL")
+    prev_token = os.environ.get("AGOMTRADEPRO_API_TOKEN")
     os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
     os.environ["AGOMTRADEPRO_API_TOKEN"] = "test_token"
-    return {
+    yield {
         "base_url": "http://localhost:8000",
         "api_token": "test_token",
     }
+    if prev_base_url is None:
+        os.environ.pop("AGOMTRADEPRO_BASE_URL", None)
+    else:
+        os.environ["AGOMTRADEPRO_BASE_URL"] = prev_base_url
+    if prev_token is None:
+        os.environ.pop("AGOMTRADEPRO_API_TOKEN", None)
+    else:
+        os.environ["AGOMTRADEPRO_API_TOKEN"] = prev_token
 
 
 @pytest.fixture
