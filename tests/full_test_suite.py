@@ -16,14 +16,75 @@ import requests
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-BASE_URL = "http://localhost:8000"
-TOKEN = os.environ.get("API_TOKEN", "56d30eb16b230581312397997d27b3b613941811")
-HEADERS = {"Authorization": f"Token {TOKEN}"}
+BASE_URL = os.environ.get("AGOMTRADEPRO_BASE_URL", "http://localhost:8000")
+API_TOKEN = os.environ.get("API_TOKEN") or os.environ.get("AGOMTRADEPRO_API_TOKEN")
+USERNAME = os.environ.get("API_USERNAME") or os.environ.get("AGOMTRADEPRO_USERNAME")
+PASSWORD = os.environ.get("API_PASSWORD") or os.environ.get("AGOMTRADEPRO_PASSWORD")
+AUTH_HEADERS = {"Authorization": f"Token {API_TOKEN}"} if API_TOKEN else {}
+SESSION = requests.Session()
+SESSION.trust_env = False
+AUTH_BOOTSTRAPPED = False
+AUTH_MODE = "none"
 
 PASS_COUNT = 0
 FAIL_COUNT = 0
 SKIP_COUNT = 0
 RESULTS: list[dict] = []
+
+
+def _bootstrap_auth() -> None:
+    global AUTH_BOOTSTRAPPED, AUTH_MODE
+    if AUTH_BOOTSTRAPPED:
+        return
+
+    if API_TOKEN:
+        try:
+            response = SESSION.get(
+                f"{BASE_URL}/api/account/profile/",
+                headers=AUTH_HEADERS,
+                timeout=15,
+            )
+            if response.status_code == 200:
+                AUTH_MODE = "token"
+                AUTH_BOOTSTRAPPED = True
+                return
+        except Exception:
+            pass
+
+    if USERNAME and PASSWORD:
+        login_url = f"{BASE_URL}/account/login/"
+        response = SESSION.get(login_url, timeout=15)
+        csrf_token = SESSION.cookies.get("csrftoken", "")
+        login_response = SESSION.post(
+            f"{login_url}?next=/dashboard/",
+            data={
+                "username": USERNAME,
+                "password": PASSWORD,
+                "csrfmiddlewaretoken": csrf_token,
+            },
+            headers={"Referer": login_url},
+            timeout=15,
+            allow_redirects=False,
+        )
+        if login_response.status_code in (302, 303):
+            AUTH_MODE = "session"
+            AUTH_BOOTSTRAPPED = True
+            return
+
+    AUTH_BOOTSTRAPPED = True
+
+
+def _auth_headers(method: str = "GET") -> dict[str, str]:
+    if AUTH_MODE == "token":
+        return dict(AUTH_HEADERS)
+
+    headers: dict[str, str] = {}
+    if AUTH_MODE == "session" and method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+        csrf_token = SESSION.cookies.get("csrftoken")
+        if csrf_token:
+            headers["X-CSRFToken"] = csrf_token
+        headers["Referer"] = f"{BASE_URL}/account/login/"
+    return headers
 
 
 def record(name: str, status: str, detail: str = ""):
@@ -43,8 +104,10 @@ def record(name: str, status: str, detail: str = ""):
 
 def api_get(path: str, expect_status: int = 200, use_auth: bool = True) -> tuple[bool, Any]:
     try:
-        h = HEADERS if use_auth else {}
-        r = requests.get(f"{BASE_URL}{path}", headers=h, timeout=15)
+        if use_auth:
+            _bootstrap_auth()
+        h = _auth_headers("GET") if use_auth else {}
+        r = SESSION.get(f"{BASE_URL}{path}", headers=h, timeout=15)
         if r.status_code != expect_status:
             return False, f"status={r.status_code}, body={r.text[:200]}"
         try:
@@ -57,7 +120,13 @@ def api_get(path: str, expect_status: int = 200, use_auth: bool = True) -> tuple
 
 def api_post(path: str, data: dict = None, expect_status: int = 200) -> tuple[bool, Any]:
     try:
-        r = requests.post(f"{BASE_URL}{path}", json=data or {}, headers=HEADERS, timeout=15)
+        _bootstrap_auth()
+        r = SESSION.post(
+            f"{BASE_URL}{path}",
+            json=data or {},
+            headers=_auth_headers("POST"),
+            timeout=15,
+        )
         if r.status_code != expect_status:
             return False, f"status={r.status_code}, body={r.text[:200]}"
         try:
@@ -358,7 +427,18 @@ def test_decision_workflow():
         str(data)[:150] if ok else str(data)[:100],
     )
 
-    ok, data = api_get("/api/decision/workspace/recommendations/")
+    ok_accounts, accounts_data = api_get("/api/simulated-trading/accounts/")
+    account_id = None
+    if ok_accounts and isinstance(accounts_data, dict):
+        accounts = accounts_data.get("accounts", [])
+        if accounts:
+            account_id = accounts[0].get("account_id")
+
+    recommendations_path = "/api/decision/workspace/recommendations/"
+    if account_id is not None:
+        recommendations_path = f"{recommendations_path}?account_id={account_id}"
+
+    ok, data = api_get(recommendations_path)
     record(
         "Decision workspace recommendations",
         "PASS" if ok else "FAIL",
@@ -445,7 +525,13 @@ def test_page_routes():
     ]
     for path, name in page_routes:
         try:
-            r = requests.get(f"{BASE_URL}{path}", headers=HEADERS, timeout=15, allow_redirects=True)
+            _bootstrap_auth()
+            r = SESSION.get(
+                f"{BASE_URL}{path}",
+                headers=_auth_headers("GET"),
+                timeout=15,
+                allow_redirects=True,
+            )
             if r.status_code == 200:
                 is_html = "text/html" in r.headers.get("Content-Type", "")
                 record(name, "PASS", f"HTML={is_html}, {len(r.content)} bytes")
@@ -547,7 +633,13 @@ def test_sdk_client():
         return
 
     try:
-        client = AgomTradeProClient()
+        kwargs = {"base_url": BASE_URL}
+        if API_TOKEN:
+            kwargs["api_token"] = API_TOKEN
+        elif USERNAME and PASSWORD:
+            kwargs["username"] = USERNAME
+            kwargs["password"] = PASSWORD
+        client = AgomTradeProClient(**kwargs)
         record("SDK client creation", "PASS")
     except Exception as e:
         record("SDK client creation", "FAIL", str(e))

@@ -141,7 +141,4 @@ class PulseModule(BaseModule):
 
     def _get_from(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """从非模块基础路径获取数据"""
-        url = f"{self._client.base_url.rstrip('/')}{path}"
-        response = self._client._session.get(url, params=params)
-        response.raise_for_status()
-        return response.json()
+        return self._client.get(path, params=params)

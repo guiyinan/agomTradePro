@@ -7,6 +7,7 @@ AgomTradePro SDK 核心客户端
 import time
 from datetime import date
 from typing import Any, Optional
+from urllib.parse import urljoin
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -161,6 +162,8 @@ class AgomTradeProClient:
         # 初始化 HTTP session
         self._session = self._create_session()
         self._headers = self._build_headers()
+        if self._uses_session_auth():
+            self._authenticate_with_session()
 
     def _create_session(self) -> requests.Session:
         """
@@ -212,6 +215,57 @@ class AgomTradeProClient:
 
         return headers
 
+    def _uses_session_auth(self) -> bool:
+        return bool(
+            not self._config.auth.api_token
+            and self._config.auth.username
+            and self._config.auth.password
+        )
+
+    def _authenticate_with_session(self) -> None:
+        """Authenticate against the Django login form when username/password is configured."""
+        login_url = urljoin(f"{self._config.base_url.rstrip('/')}/", "account/login/")
+        next_target = "/dashboard/"
+
+        try:
+            response = self._session.get(login_url, timeout=self._config.timeout)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            raise AuthenticationError(f"Failed to load login page: {exc}") from exc
+
+        csrf_token = self._session.cookies.get("csrftoken", "")
+        try:
+            login_response = self._session.post(
+                f"{login_url}?next={next_target}",
+                data={
+                    "username": self._config.auth.username,
+                    "password": self._config.auth.password,
+                    "csrfmiddlewaretoken": csrf_token,
+                },
+                headers={"Referer": login_url},
+                timeout=self._config.timeout,
+                allow_redirects=False,
+            )
+        except requests.exceptions.RequestException as exc:
+            raise AuthenticationError(f"Session login failed: {exc}") from exc
+
+        if login_response.status_code not in (302, 303):
+            raise AuthenticationError(
+                f"Session login failed: status={login_response.status_code}"
+            )
+
+    def _build_request_headers(self, method: str) -> dict[str, str]:
+        headers = dict(self._headers)
+        if self._uses_session_auth() and method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+            csrf_token = self._session.cookies.get("csrftoken")
+            if csrf_token:
+                headers["X-CSRFToken"] = csrf_token
+            headers.setdefault(
+                "Referer",
+                urljoin(f"{self._config.base_url.rstrip('/')}/", "account/login/"),
+            )
+        return headers
+
     def _request(
         self,
         method: str,
@@ -249,7 +303,7 @@ class AgomTradeProClient:
             response = self._session.request(
                 method=method,
                 url=url,
-                headers=self._headers,
+                headers=self._build_request_headers(method),
                 params=params,
                 data=data,
                 json=json,

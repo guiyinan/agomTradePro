@@ -34,6 +34,20 @@ class TestAgomTradeProClient:
         assert client._config.base_url == "http://env.example.com"
         assert client._config.auth.api_token == "env_token"
 
+    def test_init_with_username_password_bootstraps_session_auth(self, monkeypatch):
+        """测试用户名密码模式会触发会话认证"""
+        monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+        with patch.object(AgomTradeProClient, "_authenticate_with_session") as mock_auth:
+            client = AgomTradeProClient(
+                base_url="http://test.example.com",
+                username="tester",
+                password="secret",
+            )
+
+        assert client._config.auth.username == "tester"
+        assert client._config.auth.password == "secret"
+        mock_auth.assert_called_once()
+
     def test_init_without_auth_raises_error(self, monkeypatch):
         """测试没有认证信息时抛出异常"""
         monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
@@ -50,6 +64,22 @@ class TestAgomTradeProClient:
         )
         assert client._headers["Authorization"] == "Token secret_token"
         assert client._headers["Content-Type"] == "application/json"
+
+    def test_session_auth_headers_include_csrf_for_unsafe_requests(self, monkeypatch):
+        """测试 session 认证在非安全方法中附带 CSRF 头"""
+        monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+        with patch.object(AgomTradeProClient, "_authenticate_with_session"):
+            client = AgomTradeProClient(
+                base_url="http://test.com",
+                username="tester",
+                password="secret",
+            )
+
+        client._session.cookies.set("csrftoken", "csrf-token")
+        headers = client._build_request_headers("POST")
+
+        assert headers["X-CSRFToken"] == "csrf-token"
+        assert headers["Referer"] == "http://test.com/account/login/"
 
     def test_regime_module_property(self):
         """测试 regime 模块属性"""
@@ -158,6 +188,30 @@ class TestAgomTradeProClientRequests:
 
             with pytest.raises(ValidationError):
                 client.post("/test/create", json={})
+
+    def test_session_auth_login_posts_credentials(self, monkeypatch):
+        """测试 SDK 会使用 Django 登录表单建立会话"""
+        monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+        with patch.object(AgomTradeProClient, "_create_session") as mock_create_session:
+            session = Mock()
+            session.cookies.get.side_effect = lambda key, default=None: (
+                "csrf-token" if key == "csrftoken" else default
+            )
+            session.get.return_value = Mock(status_code=200, raise_for_status=Mock())
+            session.post.return_value = Mock(status_code=302)
+            mock_create_session.return_value = session
+
+            AgomTradeProClient(
+                base_url="http://test.com",
+                username="tester",
+                password="secret",
+            )
+
+        session.get.assert_called_once_with("http://test.com/account/login/", timeout=30)
+        session.post.assert_called_once()
+        _, kwargs = session.post.call_args
+        assert kwargs["data"]["username"] == "tester"
+        assert kwargs["data"]["password"] == "secret"
 
     def test_close_context_manager(self):
         """测试 with 语句关闭会话"""
