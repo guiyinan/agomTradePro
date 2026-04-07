@@ -357,6 +357,8 @@ def test_api_dispatcher_rejects_non_integer_path_param():
 
 @pytest.mark.django_db
 def test_sync_mcp_tools_discovers_builtin_registry_tools():
+    pytest.importorskip("mcp")
+
     use_case = SyncCapabilitiesUseCase()
 
     result = use_case.execute(sync_type="incremental", source="mcp_tool")
