@@ -89,6 +89,18 @@ def builtin_status_capability(db):
 
 
 @pytest.mark.django_db
+def test_ai_capability_root_exposes_endpoint_directory(api_client, regular_user):
+    api_client.force_authenticate(user=regular_user)
+
+    response = api_client.get("/api/ai-capability/")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module"] == "ai-capability"
+    assert data["endpoints"]["capabilities"] == "/api/ai-capability/capabilities/"
+
+
+@pytest.mark.django_db
 def test_non_admin_capability_detail_hides_technical_fields(api_client, regular_user, write_capability):
     api_client.force_authenticate(user=regular_user)
 

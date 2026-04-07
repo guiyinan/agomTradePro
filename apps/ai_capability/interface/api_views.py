@@ -42,6 +42,24 @@ def _get_mcp_enabled(user) -> bool:
     return bool(getattr(user, "mcp_enabled", False))
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def api_root(request):
+    """Return AI capability API endpoint directory."""
+    return Response(
+        {
+            "module": "ai-capability",
+            "endpoints": {
+                "capabilities": "/api/ai-capability/capabilities/",
+                "route": "/api/ai-capability/route/",
+                "web": "/api/ai-capability/web/",
+                "sync": "/api/ai-capability/sync/",
+                "stats": "/api/ai-capability/stats/",
+            },
+        }
+    )
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def route_message(request):
