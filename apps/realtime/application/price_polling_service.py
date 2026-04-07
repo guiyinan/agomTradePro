@@ -178,11 +178,27 @@ class PricePollingService:
 
             old_price = position.current_price
             new_price = Decimal(price_obj.price)
+            market_value = new_price * position.quantity
+            unrealized_pnl = market_value - position.total_cost
+            unrealized_pnl_pct = (
+                float((unrealized_pnl / position.total_cost) * Decimal("100"))
+                if position.total_cost > 0
+                else 0.0
+            )
 
             # 更新持仓价格
             position.current_price = new_price
-            position.current_value = new_price * position.quantity
-            position.save(update_fields=["current_price", "current_value"])
+            position.market_value = market_value
+            position.unrealized_pnl = unrealized_pnl
+            position.unrealized_pnl_pct = unrealized_pnl_pct
+            position.save(
+                update_fields=[
+                    "current_price",
+                    "market_value",
+                    "unrealized_pnl",
+                    "unrealized_pnl_pct",
+                ]
+            )
 
             # 更新账户总价值
             self._update_account_value(position.account)
@@ -206,15 +222,22 @@ class PricePollingService:
         """
         # 重新计算账户总价值
         positions = PositionModel._default_manager.filter(account=account)
-        total_value = sum(p.current_value for p in positions)
-
-        account.total_value = total_value + account.cash
-        account.daily_pnl = total_value - account.initial_cash
-        account.daily_pnl_pct = (
-            (account.daily_pnl / account.initial_cash * 100)
-            if account.initial_cash > 0 else 0
+        market_value = sum(
+            (position.market_value for position in positions),
+            start=Decimal("0"),
         )
-        account.save(update_fields=["total_value", "daily_pnl", "daily_pnl_pct"])
+
+        total_value = market_value + account.current_cash
+        total_return = (
+            float(((total_value - account.initial_capital) / account.initial_capital) * Decimal("100"))
+            if account.initial_capital > 0
+            else 0.0
+        )
+
+        account.current_market_value = market_value
+        account.total_value = total_value
+        account.total_return = total_return
+        account.save(update_fields=["current_market_value", "total_value", "total_return"])
 
     def force_refresh_all(self) -> PriceSnapshot:
         """强制刷新所有资产价格

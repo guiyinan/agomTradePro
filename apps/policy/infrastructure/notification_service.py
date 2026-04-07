@@ -107,8 +107,8 @@ class EmailNotificationService(LoggingNotificationService):
         # 确定收件人
         recipients = message.recipients or self.default_recipients
         if not recipients:
-            logger.warning(f"No recipients for email: {message.title}")
-            return False
+            logger.info("Skipping email notification without recipients: %s", message.title)
+            return True
 
         # 检查邮件配置
         if not getattr(settings, "EMAIL_BACKEND", None):

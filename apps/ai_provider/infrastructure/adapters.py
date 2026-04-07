@@ -370,8 +370,10 @@ class AIFailoverHelper:
     def __init__(self, providers: list[dict[str, Any]]):
         self.providers = providers
         self.adapters = []
+        self.unavailable_providers: list[dict[str, str]] = []
 
         for provider in providers:
+            provider_name = provider.get("name", "unknown")
             try:
                 adapter = OpenAICompatibleAdapter(
                     base_url=provider["base_url"],
@@ -380,16 +382,45 @@ class AIFailoverHelper:
                     api_mode=provider.get("api_mode"),
                     fallback_enabled=provider.get("fallback_enabled"),
                 )
+                is_available = adapter.is_available()
                 self.adapters.append(
                     {
                         "adapter": adapter,
-                        "name": provider.get("name", "unknown"),
-                        "is_available": adapter.is_available(),
+                        "name": provider_name,
+                        "is_available": is_available,
                     }
                 )
-            except Exception:
+                if not is_available:
+                    self.unavailable_providers.append(
+                        {
+                            "name": provider_name,
+                            "reason": "provider health check failed",
+                        }
+                    )
+            except Exception as exc:
                 # 单个 provider 初始化失败不阻断其余 provider
+                self.unavailable_providers.append(
+                    {
+                        "name": provider_name,
+                        "reason": str(exc),
+                    }
+                )
                 continue
+
+    @property
+    def has_available_adapters(self) -> bool:
+        """Whether at least one provider passed initialization and health check."""
+        return any(item["is_available"] for item in self.adapters)
+
+    def describe_unavailable_providers(self) -> str:
+        """Return a compact description of providers skipped by failover."""
+        if not self.unavailable_providers:
+            return "no providers configured"
+
+        return "; ".join(
+            f"{item['name']}: {item['reason']}"
+            for item in self.unavailable_providers
+        )
 
     def chat_completion_with_failover(
         self,
@@ -402,11 +433,35 @@ class AIFailoverHelper:
         response_format: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         last_error = None
+        attempted_providers: list[str] = []
+
+        if not self.has_available_adapters:
+            return {
+                "content": None,
+                "model": model or "unknown",
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+                "finish_reason": None,
+                "response_time_ms": 0,
+                "status": "error",
+                "error_message": (
+                    "No healthy AI providers available. "
+                    f"Details: {self.describe_unavailable_providers()}"
+                ),
+                "provider_used": None,
+                "estimated_cost": 0.0,
+                "request_type": "chat",
+                "api_mode_used": None,
+                "fallback_used": False,
+                "tool_calls": None,
+            }
 
         for item in self.adapters:
             if not item["is_available"]:
                 continue
 
+            attempted_providers.append(item["name"])
             try:
                 result = item["adapter"].chat_completion(
                     messages=messages,
@@ -421,7 +476,7 @@ class AIFailoverHelper:
                 if result["status"] == "success":
                     return result
 
-                last_error = result.get("error_message")
+                last_error = result.get("error_message") or "unknown provider error"
             except Exception as exc:
                 last_error = str(exc)
 
@@ -434,7 +489,11 @@ class AIFailoverHelper:
             "finish_reason": None,
             "response_time_ms": 0,
             "status": "error",
-            "error_message": f"All providers failed. Last error: {last_error}",
+            "error_message": (
+                "All providers failed. "
+                f"Attempted: {', '.join(attempted_providers) or 'none'}. "
+                f"Last error: {last_error or self.describe_unavailable_providers()}"
+            ),
             "provider_used": None,
             "estimated_cost": 0.0,
             "request_type": "chat",

@@ -383,10 +383,14 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
 
         # 构建提供商列表（按优先级排序）
         providers_list = []
+        skipped_providers: list[str] = []
         for provider in active_providers:
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
             # 使用 repository 的 get_api_key 方法解密
             api_key = provider_repo.get_api_key(provider)
+            if not api_key:
+                skipped_providers.append(f"{provider.name}: api key unavailable")
+                continue
             providers_list.append({
                 'name': provider.name,
                 'base_url': provider.base_url,
@@ -397,8 +401,21 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
                 'fallback_enabled': extra_config.get('fallback_enabled'),
             })
 
+        if not providers_list:
+            logger.warning(
+                "AI policy classifier disabled because no provider credentials are usable: %s",
+                "; ".join(skipped_providers) or "no active providers",
+            )
+            return None
+
         # 创建故障转移辅助类
         ai_helper = AIFailoverHelper(providers_list)
+        if not ai_helper.has_available_adapters:
+            logger.warning(
+                "AI policy classifier disabled because no healthy providers are available: %s",
+                ai_helper.describe_unavailable_providers(),
+            )
+            return None
 
         # 创建使用日志仓储
         from apps.ai_provider.infrastructure.repositories import AIUsageRepository

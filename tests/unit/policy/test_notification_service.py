@@ -173,7 +173,7 @@ class TestEmailNotificationService:
 
         result = service.send(msg)
 
-        assert result is False
+        assert result is True
 
     def test_send_fallback_to_logging(self, service, caplog):
         """测试邮件发送失败时降级到日志"""

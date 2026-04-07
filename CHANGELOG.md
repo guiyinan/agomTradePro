@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复实时价格轮询写回模拟仓时错误使用 `current_value` / `cash` / `initial_cash` 等不存在字段，收盘后批量价格更新任务恢复成功
+- AKShare 批量价格获取不再对缺失标的重复触发远端 spot loader，连接中断时的日志噪音和重复回退已收敛
+- AI RSS 分类在数据库存在 provider 但健康检查失败时会自动禁用分类器，并输出明确根因，不再逐条刷出 `All providers failed. Last error: None`
+- 未配置邮件收件人时，SLA 告警现在会跳过邮件通道并保留站内通知，不再重复写入 `No recipients for email`
+- `/favicon.ico` 现在返回 204，消除开发环境浏览器自动请求造成的 404 告警
 - Regime Navigator redesign 相关文档仍标记“待实施”的事实漂移
 - SDK/MCP 集成测试计划中的认证描述，改回真实的 `Authorization: Token <token>` 口径
 - GitHub `Consistency Check` 新增的 4 处文档路由漂移，已改为当前可解析的 canonical 路径表述

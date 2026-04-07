@@ -108,7 +108,13 @@ def api_root_view(request):
     )
 
 
+def favicon_view(request):
+    """Return an empty favicon response to avoid repeated 404 noise in logs."""
+    return HttpResponse(status=204)
+
+
 core_patterns = [
+    path("favicon.ico", favicon_view, name="favicon"),
     path("", index_view, name="index"),
     path(
         "setup/api/",

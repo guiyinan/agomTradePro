@@ -425,62 +425,73 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             logger.warning("AKShare spot loader %s failed: %s", loader_name, exc)
             return pd.DataFrame()
 
+    def _get_cached_or_historical_price(
+        self,
+        asset_code: str,
+    ) -> RealtimePrice | None:
+        """读取已持久化的最新报价或价格条，避免重复触发远端抓取。"""
+        quote = self._quote_repo.get_latest(asset_code)
+        if quote is not None:
+            return RealtimePrice(
+                asset_code=asset_code,
+                asset_type=self._get_asset_type(asset_code),
+                price=str(quote.current_price),
+                change=None,
+                change_pct=None,
+                volume=int(quote.volume) if quote.volume is not None else None,
+                timestamp=quote.snapshot_at,
+                source=quote.source or "data_center",
+            )
+
+        latest_bar = self._price_repo.get_latest(asset_code)
+        if latest_bar is None:
+            return None
+
+        return RealtimePrice(
+            asset_code=asset_code,
+            asset_type=self._get_asset_type(asset_code),
+            price=str(latest_bar.close),
+            change=None,
+            change_pct=None,
+            volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
+            timestamp=timezone.now(),
+            source=latest_bar.source or "data_center",
+        )
+
     def get_realtime_price(self, asset_code: str) -> RealtimePrice | None:
         """获取单个资产的实时价格
 
         AKShare 提供实时行情数据，无需 Token
         """
         try:
-            quote = self._quote_repo.get_latest(asset_code)
-            if quote is not None:
-                return RealtimePrice(
-                    asset_code=asset_code,
-                    asset_type=self._get_asset_type(asset_code),
-                    price=str(quote.current_price),
-                    change=None,
-                    change_pct=None,
-                    volume=int(quote.volume) if quote.volume is not None else None,
-                    timestamp=quote.snapshot_at,
-                    source=quote.source or "data_center",
-                )
+            cached_price = self._get_cached_or_historical_price(asset_code)
+            if cached_price is not None:
+                return cached_price
 
-            latest_bar = self._price_repo.get_latest(asset_code)
-            if latest_bar is None:
-                fund_row = self._find_spot_row(
-                    self._load_spot_frame("fund_etf_spot_em"),
-                    asset_code,
-                )
-                if fund_row is not None:
-                    quote = self._build_quote_snapshot_from_spot_row(asset_code, fund_row)
-                    self._persist_quote_snapshots([quote] if quote is not None else [])
-                    return self._build_price_from_spot_row(asset_code, fund_row)
-
-                stock_row = self._find_spot_row(
-                    self._load_spot_frame("stock_zh_a_spot_em"),
-                    asset_code,
-                )
-                if stock_row is not None:
-                    quote = self._build_quote_snapshot_from_spot_row(asset_code, stock_row)
-                    self._persist_quote_snapshots([quote] if quote is not None else [])
-                    return self._build_price_from_spot_row(asset_code, stock_row)
-
-                direct_price = self._load_direct_quotes([asset_code]).get(asset_code)
-                if direct_price is not None:
-                    return direct_price
-
-                logger.warning(f"No price data found for {asset_code}")
-                return None
-
-            return RealtimePrice(
-                asset_code=asset_code,
-                asset_type=self._get_asset_type(asset_code),
-                price=str(latest_bar.close),
-                change=None,
-                change_pct=None,
-                volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
-                timestamp=timezone.now(),
-                source=latest_bar.source or "data_center"
+            fund_row = self._find_spot_row(
+                self._load_spot_frame("fund_etf_spot_em"),
+                asset_code,
             )
+            if fund_row is not None:
+                quote = self._build_quote_snapshot_from_spot_row(asset_code, fund_row)
+                self._persist_quote_snapshots([quote] if quote is not None else [])
+                return self._build_price_from_spot_row(asset_code, fund_row)
+
+            stock_row = self._find_spot_row(
+                self._load_spot_frame("stock_zh_a_spot_em"),
+                asset_code,
+            )
+            if stock_row is not None:
+                quote = self._build_quote_snapshot_from_spot_row(asset_code, stock_row)
+                self._persist_quote_snapshots([quote] if quote is not None else [])
+                return self._build_price_from_spot_row(asset_code, stock_row)
+
+            direct_price = self._load_direct_quotes([asset_code]).get(asset_code)
+            if direct_price is not None:
+                return direct_price
+
+            logger.warning(f"No price data found for {asset_code}")
+            return None
 
         except Exception as e:
             logger.error(f"Failed to get realtime price for {asset_code} from AKShare: {e}")
@@ -523,12 +534,22 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         if missing_codes:
             direct_quotes = self._load_direct_quotes(missing_codes)
 
+        still_missing: list[str] = []
         for code in missing_codes:
             price = direct_quotes.get(code)
             if price is None:
-                price = self.get_realtime_price(code)
+                price = self._get_cached_or_historical_price(code)
             if price is not None:
                 prices.append(price)
+            else:
+                still_missing.append(code)
+
+        if still_missing:
+            logger.warning(
+                "AKShare batch fallback exhausted with %d missing codes: %s",
+                len(still_missing),
+                ", ".join(still_missing[:10]),
+            )
         logger.info(f"Retrieved {len(prices)}/{len(asset_codes)} prices from AKShare")
         return prices
 

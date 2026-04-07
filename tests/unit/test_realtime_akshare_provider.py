@@ -147,6 +147,23 @@ def test_akshare_price_provider_batch_falls_back_to_direct_quotes(mocker) -> Non
     bulk_upsert.assert_called_once()
 
 
+def test_akshare_batch_avoids_repeating_remote_loads_after_fallback_exhausted(
+    mocker, caplog
+) -> None:
+    provider = AKSharePriceDataProvider()
+    mocker.patch.object(provider._quote_repo, "get_latest", return_value=None)
+    mocker.patch.object(provider._price_repo, "get_latest", return_value=None)
+    load_spot_frame = mocker.patch.object(provider, "_load_spot_frame", return_value=pd.DataFrame())
+    mocker.patch.object(provider, "_load_direct_quotes", return_value={})
+
+    caplog.set_level("WARNING")
+    prices = provider.get_realtime_prices_batch(["510300.SH", "000001.SZ"])
+
+    assert prices == []
+    assert load_spot_frame.call_count == 2
+    assert "AKShare batch fallback exhausted" in caplog.text
+
+
 def test_composite_price_provider_merges_partial_batch_results() -> None:
     class _StubProvider:
         def __init__(self, prices):
