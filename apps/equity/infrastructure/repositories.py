@@ -12,6 +12,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
+import requests
 from django.db import models
 from django.utils import timezone
 
@@ -290,6 +291,9 @@ class DjangoEquityAssetRepository:
 class DjangoStockRepository:
     """Django ORM 个股数据仓储"""
 
+    _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
+    _EASTMONEY_METADATA_FIELDS = "f43,f57,f58"
+
     def __init__(self) -> None:
         self._last_intraday_source: str | None = None
         self._dc_financial_repo = DataCenterFinancialFactRepository()
@@ -361,6 +365,11 @@ class DjangoStockRepository:
                 list_date=model.list_date
             )
         except StockInfoModel.DoesNotExist:
+            remote_info = self._get_stock_info_from_eastmoney(stock_code)
+            if remote_info is not None:
+                self.save_stock_info(remote_info)
+                return remote_info
+
             return None
 
     def get_financial_data(
@@ -460,6 +469,14 @@ class DjangoStockRepository:
         Args:
             stock_info: StockInfo 实体
         """
+        # Remote fallback metadata can be partial; skip caching if required fields are missing.
+        if stock_info.list_date is None:
+            logger.info(
+                "Skip caching stock info for %s because list_date is unavailable",
+                stock_info.stock_code,
+            )
+            return
+
         StockInfoModel._default_manager.update_or_create(
             stock_code=stock_info.stock_code,
             defaults={
@@ -762,7 +779,7 @@ class DjangoStockRepository:
             trade_date__lte=end_date,
         ).order_by("trade_date")
 
-        return [
+        local_bars = [
             TechnicalBar(
                 stock_code=model.stock_code,
                 trade_date=model.trade_date,
@@ -781,6 +798,31 @@ class DjangoStockRepository:
                 rsi=model.rsi,
             )
             for model in models
+        ]
+        if local_bars:
+            return local_bars
+
+        remote_bars = self._get_remote_historical_bars(stock_code, start_date, end_date)
+        self._cache_remote_historical_bars(stock_code, remote_bars)
+        return [
+            TechnicalBar(
+                stock_code=stock_code,
+                trade_date=bar.trade_date,
+                open=Decimal(str(bar.open)),
+                high=Decimal(str(bar.high)),
+                low=Decimal(str(bar.low)),
+                close=Decimal(str(bar.close)),
+                volume=bar.volume or 0,
+                amount=self._safe_decimal(getattr(bar, "amount", None)) or Decimal("0"),
+                ma5=None,
+                ma20=None,
+                ma60=None,
+                macd=None,
+                macd_signal=None,
+                macd_hist=None,
+                rsi=None,
+            )
+            for bar in remote_bars
         ]
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
@@ -1104,7 +1146,142 @@ class DjangoStockRepository:
         if tushare_prices:
             return tushare_prices
 
+        tushare_gateway_prices = self._get_tushare_gateway_daily_prices(
+            stock_code,
+            start_date,
+            end_date,
+        )
+        if tushare_gateway_prices:
+            return tushare_gateway_prices
+
         return self._get_akshare_daily_prices(stock_code, start_date, end_date)
+
+    def _get_remote_historical_bars(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list:
+        """在本地 K 线缓存缺失时，从远端数据源拉取历史 K 线。"""
+        tushare_bars = self._get_tushare_gateway_historical_bars(
+            stock_code,
+            start_date,
+            end_date,
+        )
+        if tushare_bars:
+            return tushare_bars
+
+        return self._get_akshare_gateway_historical_bars(stock_code, start_date, end_date)
+
+    def _get_tushare_gateway_daily_prices(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[date, Decimal]]:
+        """通过 Tushare Gateway 获取真实远端日线价格。"""
+        bars = self._get_tushare_gateway_historical_bars(stock_code, start_date, end_date)
+        self._cache_remote_historical_bars(stock_code, bars)
+
+        remote_prices: list[tuple[date, Decimal]] = []
+        for bar in bars:
+            close_price = self._safe_decimal(getattr(bar, "close", None))
+            if close_price is None or close_price <= 0:
+                continue
+            remote_prices.append((bar.trade_date, close_price))
+        return remote_prices
+
+    def _get_tushare_gateway_historical_bars(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list:
+        """通过 Data Center 的 Tushare Gateway 获取历史 K 线。"""
+        try:
+            from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+
+            return TushareGateway().get_historical_prices(
+                asset_code=stock_code,
+                start_date=start_date.strftime("%Y%m%d"),
+                end_date=end_date.strftime("%Y%m%d"),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch Tushare gateway historical bars for %s: %s",
+                stock_code,
+                exc,
+            )
+            return []
+
+    def _cache_remote_historical_bars(self, stock_code: str, bars: list) -> None:
+        """将远端历史 K 线幂等写入本地日线表，作为 read-through cache。"""
+        if not bars:
+            return
+
+        try:
+            for bar in bars:
+                trade_date = getattr(bar, "trade_date", None)
+                open_price = self._safe_decimal(getattr(bar, "open", None))
+                high_price = self._safe_decimal(getattr(bar, "high", None))
+                low_price = self._safe_decimal(getattr(bar, "low", None))
+                close_price = self._safe_decimal(getattr(bar, "close", None))
+                amount = self._safe_decimal(getattr(bar, "amount", None)) or Decimal("0")
+
+                if (
+                    not isinstance(trade_date, date)
+                    or open_price is None or open_price <= 0
+                    or high_price is None or high_price <= 0
+                    or low_price is None or low_price <= 0
+                    or close_price is None or close_price <= 0
+                ):
+                    continue
+
+                StockDailyModel._default_manager.update_or_create(
+                    stock_code=stock_code,
+                    trade_date=trade_date,
+                    defaults={
+                        "open": open_price,
+                        "high": high_price,
+                        "low": low_price,
+                        "close": close_price,
+                        "volume": getattr(bar, "volume", None) or 0,
+                        "amount": amount,
+                        "turnover_rate": getattr(bar, "turnover_rate", None),
+                        "adj_factor": getattr(bar, "adj_factor", 1.0) or 1.0,
+                    },
+                )
+        except Exception as exc:
+            logger.warning(
+                "Failed to cache remote historical bars for %s: %s",
+                stock_code,
+                exc,
+            )
+
+    def _get_akshare_gateway_historical_bars(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list:
+        """通过 AKShare EastMoney Gateway 获取历史 K 线。"""
+        try:
+            from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+                AKShareEastMoneyGateway,
+            )
+
+            return AKShareEastMoneyGateway().get_historical_prices(
+                asset_code=stock_code,
+                start_date=start_date.strftime("%Y%m%d"),
+                end_date=end_date.strftime("%Y%m%d"),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch AKShare gateway historical bars for %s: %s",
+                stock_code,
+                exc,
+            )
+            return []
 
     def _get_tushare_daily_prices(
         self,
@@ -1191,6 +1368,76 @@ class DjangoStockRepository:
             return None if decimal_value != decimal_value else decimal_value
         except (InvalidOperation, ValueError, TypeError):
             return None
+
+    def _get_stock_info_from_eastmoney(self, stock_code: str) -> StockInfo | None:
+        params = {
+            "secid": self._to_eastmoney_secid(stock_code),
+            "fields": self._EASTMONEY_METADATA_FIELDS,
+            "invt": "2",
+            "fltt": "1",
+        }
+        try:
+            with requests.Session() as session:
+                session.trust_env = False
+                session.headers.update(
+                    {
+                        "User-Agent": (
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/133.0.0.0 Safari/537.36"
+                        ),
+                        "Accept": "application/json,text/plain,*/*",
+                        "Referer": "https://quote.eastmoney.com/",
+                    }
+                )
+                response = session.get(
+                    self._EASTMONEY_QUOTE_URL,
+                    params=params,
+                    timeout=15,
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except Exception as exc:
+            logger.warning("Failed to fetch remote stock info for %s: %s", stock_code, exc)
+            return None
+
+        data = payload.get("data") or {}
+        raw_price = data.get("f43")
+        if raw_price in (None, "", "-"):
+            return None
+
+        remote_name = str(data.get("f58") or "").strip() or stock_code
+        return StockInfo(
+            stock_code=stock_code,
+            name=remote_name,
+            sector="",
+            market=self._infer_market_from_stock_code(stock_code),
+            list_date=None,
+        )
+
+    def _infer_market_from_stock_code(self, stock_code: str) -> str:
+        code = stock_code.strip().upper()
+        if code.endswith(".SH"):
+            return "SH"
+        if code.endswith(".SZ"):
+            return "SZ"
+        if code.endswith(".BJ"):
+            return "BJ"
+        if code.startswith("6"):
+            return "SH"
+        if code.startswith(("0", "3")):
+            return "SZ"
+        if code.startswith(("4", "8")):
+            return "BJ"
+        return ""
+
+    def _to_eastmoney_secid(self, stock_code: str) -> str:
+        code = stock_code.strip().upper()
+        symbol = code.split(".")[0]
+        market = self._infer_market_from_stock_code(code)
+        if market == "SH":
+            return f"1.{symbol}"
+        return f"0.{symbol}"
 
     def _safe_int(self, value: object) -> int | None:
         if value in (None, ""):

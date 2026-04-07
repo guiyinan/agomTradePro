@@ -44,6 +44,9 @@ Build: 2026-03-23
 
 - 统一账户 API、SDK 与 MCP 契约进一步收口，统一到账户绩效、估值与 canonical 路径
 - Equity Detail 补齐技术图表、分时数据 fallback 与更完整的市场上下文展示
+- Equity Detail 在本地股票主数据或估值缓存缺失时，支持基础信息回退与部分加载，避免详情页整体阻塞
+- Equity Detail 日线/Regime 相关性在本地缓存缺失时接入 Tushare Gateway 历史行情回退，降低单一 AKShare/EastMoney 失败影响
+- Equity Detail 历史行情回退新增 read-through cache，远端成功返回后会幂等写回本地 `equity_stock_daily`
 - 系统设置中心、管理员界面、MCP Tools、服务日志与文档管理页统一到共享管理界面
 - 财经数据源配置页收口为统一数据源中心，支持 Provider Inventory 与运行时连接测试
 - RSS 管理页支持 RSSHub / timeout / retry / proxy 等更完整的源配置

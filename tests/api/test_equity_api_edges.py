@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.equity.domain.entities import StockInfo
 from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
 
 
@@ -217,3 +219,211 @@ def test_equity_intraday_chart_returns_points(authenticated_client):
     assert len(payload["points"]) == 2
     assert payload["latest_point"]["price"] == 11.0
     assert payload["session_date"] == "2026-04-03"
+
+
+@pytest.mark.django_db
+def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticated_client):
+    today = timezone.localdate()
+
+    with patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
+        return_value=StockInfo(
+            stock_code="300308.SZ",
+            name="中际旭创",
+            sector="",
+            market="SZ",
+            list_date=None,
+        ),
+    ), patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository.get_daily_prices",
+        return_value=[(today, Decimal("606.52"))],
+    ):
+        response = authenticated_client.get("/api/equity/valuation/300308.SZ/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["stock_code"] == "300308.SZ"
+    assert payload["stock_name"] == "中际旭创"
+    assert payload["market"] == "SZ"
+    assert payload["latest_valuation"]["price"] == 606.52
+    assert payload["latest_valuation"]["pe"] is None
+    assert "估值数据" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_equity_intraday_chart_uses_remote_stock_info_fallback(authenticated_client):
+    intraday_points = [
+        SimpleNamespace(
+            timestamp=datetime(2026, 4, 3, 9, 30, 0, tzinfo=dt_timezone.utc),
+            price=606.00,
+            avg_price=606.00,
+            volume=1234,
+        ),
+        SimpleNamespace(
+            timestamp=datetime(2026, 4, 3, 9, 31, 0, tzinfo=dt_timezone.utc),
+            price=606.52,
+            avg_price=606.26,
+            volume=5678,
+        ),
+    ]
+
+    with patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
+        return_value=StockInfo(
+            stock_code="300308.SZ",
+            name="中际旭创",
+            sector="",
+            market="SZ",
+            list_date=None,
+        ),
+    ), patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository.get_intraday_points",
+        return_value=intraday_points,
+    ):
+        response = authenticated_client.get("/api/equity/intraday/300308.SZ/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["stock_code"] == "300308.SZ"
+    assert payload["stock_name"] == "中际旭创"
+    assert len(payload["points"]) == 2
+    assert payload["latest_point"]["price"] == 606.52
+
+
+@pytest.mark.django_db
+def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_client):
+    today = timezone.localdate()
+    remote_bars = [
+        SimpleNamespace(
+            asset_code="300308",
+            trade_date=today - timedelta(days=2),
+            open=600.0,
+            high=612.0,
+            low=598.0,
+            close=606.0,
+            volume=100000,
+            amount=60000000.0,
+        ),
+        SimpleNamespace(
+            asset_code="300308",
+            trade_date=today - timedelta(days=1),
+            open=606.0,
+            high=625.0,
+            low=594.35,
+            close=606.52,
+            volume=290271,
+            amount=17694513.705,
+        ),
+    ]
+
+    with patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
+        return_value=StockInfo(
+            stock_code="300308.SZ",
+            name="中际旭创",
+            sector="",
+            market="SZ",
+            list_date=None,
+        ),
+    ), patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
+        return_value=remote_bars,
+    ):
+        response = authenticated_client.get("/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["stock_code"] == "300308.SZ"
+    assert payload["stock_name"] == "中际旭创"
+    assert len(payload["candles"]) == 2
+    assert payload["candles"][-1]["close"] == 606.52
+    cached_rows = StockDailyModel.objects.filter(stock_code="300308.SZ").order_by("trade_date")
+    assert cached_rows.count() == 2
+    assert cached_rows.last().close == Decimal("606.52")
+
+
+@pytest.mark.django_db
+def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(authenticated_client):
+    today = timezone.localdate()
+    remote_bars = [
+        SimpleNamespace(
+            asset_code="300308",
+            trade_date=today - timedelta(days=2),
+            open=598.0,
+            high=602.0,
+            low=596.0,
+            close=600.0,
+            volume=100000,
+            amount=59800000.0,
+        ),
+        SimpleNamespace(
+            asset_code="300308",
+            trade_date=today - timedelta(days=1),
+            open=600.0,
+            high=608.0,
+            low=599.0,
+            close=606.0,
+            volume=120000,
+            amount=72600000.0,
+        ),
+        SimpleNamespace(
+            asset_code="300308",
+            trade_date=today,
+            open=606.0,
+            high=607.0,
+            low=603.0,
+            close=606.52,
+            volume=90000,
+            amount=54586800.0,
+        ),
+    ]
+    remote_prices = [
+        (today - timedelta(days=2), Decimal("600.00")),
+        (today - timedelta(days=1), Decimal("606.00")),
+        (today, Decimal("606.52")),
+    ]
+    regime_history = {
+        today - timedelta(days=1): "Recovery",
+        today: "Overheat",
+    }
+    market_returns = {
+        today - timedelta(days=1): 0.005,
+        today: 0.001,
+    }
+
+    with patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
+        return_value=StockInfo(
+            stock_code="300308.SZ",
+            name="中际旭创",
+            sector="",
+            market="SZ",
+            list_date=None,
+        ),
+    ), patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_daily_prices",
+        return_value=[],
+    ), patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
+        return_value=remote_bars,
+    ), patch(
+        "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_regime_history",
+        return_value=regime_history,
+    ), patch(
+        "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_market_returns",
+        return_value=market_returns,
+    ):
+        response = authenticated_client.get("/api/equity/regime-correlation/300308.SZ/?lookback_days=252")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["stock_code"] == "300308.SZ"
+    assert payload["stock_name"] == "中际旭创"
+    assert len(payload["regime_performance"]) == 4
+    cached_rows = StockDailyModel.objects.filter(stock_code="300308.SZ").order_by("trade_date")
+    assert cached_rows.count() == len(remote_prices)
+    assert cached_rows.last().close == Decimal("606.52")

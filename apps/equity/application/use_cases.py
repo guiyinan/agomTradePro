@@ -450,23 +450,6 @@ class AnalyzeValuationUseCase:
                 end_date
             )
 
-            if not valuation_history:
-                raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
-
-            # 最新估值
-            latest = valuation_history[-1]
-
-            # 3. 计算百分位
-            analyzer = ValuationAnalyzer()
-            pe_history = [v.pe for v in valuation_history if v.pe > 0]
-            pb_history = [v.pb for v in valuation_history if v.pb > 0]
-
-            pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)
-            pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)
-
-            # 4. 判断是否低估
-            is_undervalued = analyzer.is_undervalued(pe_percentile, pb_percentile)
-
             # 5. 获取财务数据
             financial = self.stock_repo.get_latest_financial_data(request.stock_code)
 
@@ -478,20 +461,56 @@ class AnalyzeValuationUseCase:
             )
             latest_daily = daily_prices[-1] if daily_prices else None
 
-            # 7. 构建最新估值详情字典
-            latest_valuation = {
-                'pe': latest.pe if latest.pe > 0 else None,
-                'pb': latest.pb if latest.pb > 0 else None,
-                'ps': latest.ps if latest.ps > 0 else None,
-                'pe_percentile': pe_percentile,
-                'pb_percentile': pb_percentile,
-                'total_mv': float(latest.total_mv) if latest.total_mv else None,
-                'circ_mv': float(latest.circ_mv) if latest.circ_mv else None,
-                'dividend_yield': latest.dividend_yield if latest.dividend_yield > 0 else None,
-                'price': float(latest_daily[1]) if latest_daily else None,
-                'trade_date': latest.trade_date.isoformat() if latest.trade_date else None,
-                'updated_at': latest.fetched_at.isoformat() if hasattr(latest, 'fetched_at') and latest.fetched_at else None,
-            }
+            latest = None
+            pe_percentile = 0.0
+            pb_percentile = 0.0
+            is_undervalued = False
+            latest_valuation = None
+            response_error = None
+
+            if valuation_history:
+                latest = valuation_history[-1]
+
+                # 3. 计算百分位
+                analyzer = ValuationAnalyzer()
+                pe_history = [v.pe for v in valuation_history if v.pe > 0]
+                pb_history = [v.pb for v in valuation_history if v.pb > 0]
+
+                pe_percentile = analyzer.calculate_pe_percentile(latest.pe, pe_history)
+                pb_percentile = analyzer.calculate_pb_percentile(latest.pb, pb_history)
+
+                # 4. 判断是否低估
+                is_undervalued = analyzer.is_undervalued(pe_percentile, pb_percentile)
+
+                # 7. 构建最新估值详情字典
+                latest_valuation = {
+                    'pe': latest.pe if latest.pe > 0 else None,
+                    'pb': latest.pb if latest.pb > 0 else None,
+                    'ps': latest.ps if latest.ps > 0 else None,
+                    'pe_percentile': pe_percentile,
+                    'pb_percentile': pb_percentile,
+                    'total_mv': float(latest.total_mv) if latest.total_mv else None,
+                    'circ_mv': float(latest.circ_mv) if latest.circ_mv else None,
+                    'dividend_yield': latest.dividend_yield if latest.dividend_yield > 0 else None,
+                    'price': float(latest_daily[1]) if latest_daily else None,
+                    'trade_date': latest.trade_date.isoformat() if latest.trade_date else None,
+                    'updated_at': latest.fetched_at.isoformat() if hasattr(latest, 'fetched_at') and latest.fetched_at else None,
+                }
+            else:
+                response_error = f"未找到股票 {request.stock_code} 的估值数据"
+                latest_valuation = {
+                    'pe': None,
+                    'pb': None,
+                    'ps': None,
+                    'pe_percentile': 0.0,
+                    'pb_percentile': 0.0,
+                    'total_mv': None,
+                    'circ_mv': None,
+                    'dividend_yield': None,
+                    'price': float(latest_daily[1]) if latest_daily else None,
+                    'trade_date': latest_daily[0].isoformat() if latest_daily else None,
+                    'updated_at': None,
+                }
 
             # 8. 构建财务数据字典
             financial_data = None
@@ -516,13 +535,14 @@ class AnalyzeValuationUseCase:
                 sector=stock_info.sector or '',
                 market=stock_info.market or '',
                 list_date=stock_info.list_date.isoformat() if stock_info.list_date else None,
-                current_pe=latest.pe,
+                current_pe=latest.pe if latest is not None else 0.0,
                 pe_percentile=pe_percentile,
-                current_pb=latest.pb,
+                current_pb=latest.pb if latest is not None else 0.0,
                 pb_percentile=pb_percentile,
                 is_undervalued=is_undervalued,
                 latest_valuation=latest_valuation,
                 financial_data=financial_data,
+                error=response_error,
             )
 
         except Exception as e:
