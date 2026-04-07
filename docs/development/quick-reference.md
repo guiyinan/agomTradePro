@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
-> **文档版本**: V1.7
-> **更新日期**: 2026-03-31
+> **文档版本**: V1.8
+> **更新日期**: 2026-04-07
 > **目标读者**: 开发人员
 
 ---
@@ -107,6 +107,11 @@ celery -A core beat -l info
 celery -A core worker -l info -Q qlib_train --max-tasks-per-child=1
 celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
 ```
+
+- 从 2026-04-07 起，Celery 独立日志会落盘到项目本地 `logs/` 目录：
+  - Worker: `logs/celery-worker.log`
+  - Beat: `logs/celery-beat.log`
+- Celery 日志默认按单文件 `20MB` 轮转，保留 `5` 个备份；可用环境变量 `CELERY_LOG_MAX_MB` 和 `CELERY_LOG_BACKUP_COUNT` 覆盖。
 
 ### 测试命令
 

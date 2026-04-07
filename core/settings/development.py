@@ -5,6 +5,10 @@ Django development settings for AgomTradePro project.
 import os
 
 from core.log_file_paths import (
+    get_celery_beat_log_path,
+    get_celery_log_backup_count,
+    get_celery_log_max_bytes,
+    get_celery_worker_log_path,
     get_development_log_backup_count,
     get_development_log_max_bytes,
     get_runserver_log_path,
@@ -39,8 +43,16 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 # Logging
 # 结构化日志配置 - 支持 trace_id/request_id 追踪
 DEVELOPMENT_LOG_FILE = get_runserver_log_path(BASE_DIR)
+CELERY_WORKER_LOG_FILE = get_celery_worker_log_path(BASE_DIR)
+CELERY_BEAT_LOG_FILE = get_celery_beat_log_path(BASE_DIR)
 DEVELOPMENT_LOG_MAX_BYTES = get_development_log_max_bytes()
 DEVELOPMENT_LOG_BACKUP_COUNT = get_development_log_backup_count()
+CELERY_LOG_MAX_BYTES = get_celery_log_max_bytes()
+CELERY_LOG_BACKUP_COUNT = get_celery_log_backup_count()
+DEFAULT_HANDLERS = ['console', 'in_memory', 'file']
+CELERY_WORKER_HANDLERS = DEFAULT_HANDLERS + ['celery_worker_file']
+CELERY_BEAT_HANDLERS = DEFAULT_HANDLERS + ['celery_beat_file']
+CELERY_LOG_LEVEL = normalize_log_level(os.getenv('CELERY_LOG_LEVEL') or os.getenv('DJANGO_LOG_LEVEL'))
 
 LOGGING = {
     'version': 1,
@@ -94,35 +106,78 @@ LOGGING = {
             'formatter': 'simple_with_trace',
             'filters': ['trace_context'],
         },
+        'celery_worker_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(CELERY_WORKER_LOG_FILE),
+            'encoding': 'utf-8',
+            'maxBytes': CELERY_LOG_MAX_BYTES,
+            'backupCount': CELERY_LOG_BACKUP_COUNT,
+            'formatter': 'simple_with_trace',
+            'filters': ['trace_context'],
+        },
+        'celery_beat_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(CELERY_BEAT_LOG_FILE),
+            'encoding': 'utf-8',
+            'maxBytes': CELERY_LOG_MAX_BYTES,
+            'backupCount': CELERY_LOG_BACKUP_COUNT,
+            'formatter': 'simple_with_trace',
+            'filters': ['trace_context'],
+        },
     },
     'root': {
-        'handlers': ['console', 'in_memory', 'file'],
+        'handlers': DEFAULT_HANDLERS,
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'in_memory', 'file'],
+            'handlers': DEFAULT_HANDLERS,
             'level': normalize_log_level(os.getenv('DJANGO_LOG_LEVEL')),
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['console', 'in_memory', 'file'],
+            'handlers': DEFAULT_HANDLERS,
             'level': 'WARNING',
             'propagate': False,
         },
         'django.server': {
-            'handlers': ['console', 'in_memory', 'file'],
+            'handlers': DEFAULT_HANDLERS,
             'level': 'INFO',
             'propagate': False,
         },
         'apps': {
-            'handlers': ['console', 'in_memory', 'file'],
+            'handlers': DEFAULT_HANDLERS,
             'level': 'INFO',
             'propagate': False,
         },
         'core': {
-            'handlers': ['console', 'in_memory', 'file'],
+            'handlers': DEFAULT_HANDLERS,
             'level': 'DEBUG',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': CELERY_WORKER_HANDLERS,
+            'level': CELERY_LOG_LEVEL,
+            'propagate': False,
+        },
+        'celery.task': {
+            'handlers': CELERY_WORKER_HANDLERS,
+            'level': CELERY_LOG_LEVEL,
+            'propagate': False,
+        },
+        'celery.worker': {
+            'handlers': CELERY_WORKER_HANDLERS,
+            'level': CELERY_LOG_LEVEL,
+            'propagate': False,
+        },
+        'celery.app.trace': {
+            'handlers': CELERY_WORKER_HANDLERS,
+            'level': CELERY_LOG_LEVEL,
+            'propagate': False,
+        },
+        'celery.beat': {
+            'handlers': CELERY_BEAT_HANDLERS,
+            'level': CELERY_LOG_LEVEL,
             'propagate': False,
         },
     },

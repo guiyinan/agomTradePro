@@ -7,6 +7,13 @@ import os
 
 from django.core.exceptions import ImproperlyConfigured
 
+from core.log_file_paths import (
+    get_celery_beat_log_path,
+    get_celery_log_backup_count,
+    get_celery_log_max_bytes,
+    get_celery_worker_log_path,
+)
+
 
 def _validate_secret_key() -> str:
     """
@@ -120,6 +127,10 @@ if SECURE_SSL_REDIRECT:
 # 结构化日志配置 - 生产环境默认使用 JSON 格式
 LOG_TO_FILE = env.bool('LOG_TO_FILE', default=False)
 USE_JSON_LOGGING = env.bool('USE_JSON_LOGGING', default=True)
+CELERY_WORKER_LOG_FILE = get_celery_worker_log_path(BASE_DIR)
+CELERY_BEAT_LOG_FILE = get_celery_beat_log_path(BASE_DIR)
+CELERY_LOG_MAX_BYTES = get_celery_log_max_bytes()
+CELERY_LOG_BACKUP_COUNT = get_celery_log_backup_count()
 
 handlers = {
     'console': {
@@ -137,9 +148,27 @@ handlers = {
         'formatter': 'simple',
         'filters': ['trace_context'],
     },
+    'celery_worker_file': {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': str(CELERY_WORKER_LOG_FILE),
+        'maxBytes': CELERY_LOG_MAX_BYTES,
+        'backupCount': CELERY_LOG_BACKUP_COUNT,
+        'formatter': 'structured' if USE_JSON_LOGGING else 'simple_with_trace',
+        'filters': ['trace_context'],
+    },
+    'celery_beat_file': {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': str(CELERY_BEAT_LOG_FILE),
+        'maxBytes': CELERY_LOG_MAX_BYTES,
+        'backupCount': CELERY_LOG_BACKUP_COUNT,
+        'formatter': 'structured' if USE_JSON_LOGGING else 'simple_with_trace',
+        'filters': ['trace_context'],
+    },
 }
 
 django_handlers = ['console', 'in_memory']
+celery_worker_handlers = ['console', 'in_memory', 'celery_worker_file']
+celery_beat_handlers = ['console', 'in_memory', 'celery_beat_file']
 
 if LOG_TO_FILE:
     os.makedirs('/var/log/agomtradepro', exist_ok=True)
@@ -160,6 +189,8 @@ if LOG_TO_FILE:
         'filters': ['trace_context'],
     }
     django_handlers.extend(['file', 'file_json'])
+    celery_worker_handlers.extend(['file', 'file_json'])
+    celery_beat_handlers.extend(['file', 'file_json'])
 
 LOGGING = {
     'version': 1,
@@ -226,12 +257,27 @@ LOGGING = {
         },
         # Celery 日志
         'celery': {
-            'handlers': django_handlers,
+            'handlers': celery_worker_handlers,
             'level': 'INFO',
             'propagate': False,
         },
         'celery.task': {
-            'handlers': django_handlers,
+            'handlers': celery_worker_handlers,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery.worker': {
+            'handlers': celery_worker_handlers,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery.app.trace': {
+            'handlers': celery_worker_handlers,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery.beat': {
+            'handlers': celery_beat_handlers,
             'level': 'INFO',
             'propagate': False,
         },

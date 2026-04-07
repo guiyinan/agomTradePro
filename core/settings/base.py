@@ -463,6 +463,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 
 # Celery safety: re-deliver tasks if worker crashes mid-execution
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
