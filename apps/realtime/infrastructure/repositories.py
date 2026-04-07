@@ -705,16 +705,34 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
         return None
 
     def get_realtime_prices_batch(self, asset_codes: list[str]) -> list[RealtimePrice]:
-        """批量获取价格（使用第一个可用的提供者）"""
+        """批量获取价格，按 provider 顺序逐层补齐缺失资产。"""
+        prices_by_code: dict[str, RealtimePrice] = {}
+        missing_codes = list(dict.fromkeys(asset_codes))
+
         for provider in self.providers:
+            if not missing_codes:
+                break
             try:
-                prices = provider.get_realtime_prices_batch(asset_codes)
-                if prices:
-                    return prices
+                prices = provider.get_realtime_prices_batch(missing_codes)
             except Exception as e:
                 logger.warning(f"Provider {provider.__class__.__name__} batch failed: {e}")
+                continue
 
-        return []
+            if not prices:
+                continue
+
+            for price in prices:
+                prices_by_code[price.asset_code] = price
+
+            missing_codes = [
+                asset_code for asset_code in missing_codes if asset_code not in prices_by_code
+            ]
+
+        return [
+            prices_by_code[asset_code]
+            for asset_code in asset_codes
+            if asset_code in prices_by_code
+        ]
 
     def is_available(self) -> bool:
         """检查是否有可用的数据源"""

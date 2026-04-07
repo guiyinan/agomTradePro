@@ -1,9 +1,13 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pandas as pd
 
-from apps.realtime.domain.entities import AssetType
-from apps.realtime.infrastructure.repositories import AKSharePriceDataProvider
+from apps.realtime.domain.entities import AssetType, RealtimePrice
+from apps.realtime.infrastructure.repositories import (
+    AKSharePriceDataProvider,
+    CompositePriceDataProvider,
+)
 
 
 class _StubAK:
@@ -141,3 +145,55 @@ def test_akshare_price_provider_batch_falls_back_to_direct_quotes(mocker) -> Non
     assert prices[0].asset_code == "399006.SZ"
     assert prices[0].price == Decimal("2100.10")
     bulk_upsert.assert_called_once()
+
+
+def test_composite_price_provider_merges_partial_batch_results() -> None:
+    class _StubProvider:
+        def __init__(self, prices):
+            self._prices = prices
+
+        def get_realtime_price(self, asset_code):
+            return None
+
+        def get_realtime_prices_batch(self, asset_codes):
+            return [price for price in self._prices if price.asset_code in asset_codes]
+
+        def is_available(self):
+            return True
+
+    provider = CompositePriceDataProvider(
+        [
+            _StubProvider(
+                [
+                    RealtimePrice(
+                        asset_code="510300.SH",
+                        asset_type=AssetType.FUND,
+                        price=Decimal("4.01"),
+                        change=None,
+                        change_pct=None,
+                        volume=100,
+                        timestamp=datetime.now(timezone.utc),
+                        source="eastmoney",
+                    )
+                ]
+            ),
+            _StubProvider(
+                [
+                    RealtimePrice(
+                        asset_code="000001.SZ",
+                        asset_type=AssetType.EQUITY,
+                        price=Decimal("12.34"),
+                        change=None,
+                        change_pct=None,
+                        volume=200,
+                        timestamp=datetime.now(timezone.utc),
+                        source="eastmoney",
+                    )
+                ]
+            ),
+        ]
+    )
+
+    prices = provider.get_realtime_prices_batch(["510300.SH", "000001.SZ"])
+
+    assert [price.asset_code for price in prices] == ["510300.SH", "000001.SZ"]
