@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 `sync_macro_then_refresh_regime` 链路只计算不落库的问题，Regime 定时同步后现在会持久化最新快照，避免健康检查继续读取旧的 `regime_log`
 - 修复实时价格轮询写回模拟仓时错误使用 `current_value` / `cash` / `initial_cash` 等不存在字段，收盘后批量价格更新任务恢复成功
 - AKShare 批量价格获取不再对缺失标的重复触发远端 spot loader，连接中断时的日志噪音和重复回退已收敛
 - AI RSS 分类在数据库存在 provider 但健康检查失败时会自动禁用分类器，并输出明确根因，不再逐条刷出 `All providers failed. Last error: None`

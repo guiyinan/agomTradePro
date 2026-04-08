@@ -17,13 +17,39 @@ Regime Orchestration Module.
     # sync_macro_data 通过 DjangoMacroSyncTaskGateway 延迟解析
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from celery import chain, shared_task
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
+
+
+def _build_regime_snapshot_from_v2_result(
+    *,
+    calculation_result: Any,
+    observed_at: date,
+) -> Any:
+    """Convert a V2 regime calculation result into a persistable snapshot."""
+    from apps.regime.domain.entities import RegimeSnapshot
+
+    trend_by_indicator = {
+        indicator.indicator_code: indicator for indicator in calculation_result.trend_indicators
+    }
+    growth_trend = trend_by_indicator.get("PMI")
+    inflation_trend = trend_by_indicator.get("CPI")
+
+    return RegimeSnapshot(
+        growth_momentum_z=float(getattr(growth_trend, "momentum_z", 0.0)),
+        inflation_momentum_z=float(getattr(inflation_trend, "momentum_z", 0.0)),
+        distribution=dict(calculation_result.distribution or {}),
+        dominant_regime=calculation_result.regime.value,
+        confidence=float(calculation_result.confidence),
+        observed_at=observed_at,
+        data_source="calculated",
+        fallback_count=0,
+    )
 
 
 # ============================================================================
@@ -225,6 +251,12 @@ def calculate_regime_after_sync(
     """
     try:
         from apps.regime.application.current_regime import resolve_current_regime
+        from apps.regime.application.use_cases import (
+            CalculateRegimeV2Request,
+            CalculateRegimeV2UseCase,
+        )
+        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
+        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 
         # 检查前一步是否成功
         if sync_result and not sync_result.get('success', True):
@@ -241,12 +273,48 @@ def calculate_regime_after_sync(
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
         logger.info(f"Starting regime calculation for date={as_of_date}, use_pit={use_pit}")
 
+        macro_repo = MacroRepositoryAdapter()
+        use_case = CalculateRegimeV2UseCase(macro_repo)
+        response = use_case.execute(
+            CalculateRegimeV2Request(
+                as_of_date=target_date,
+                use_pit=use_pit,
+                growth_indicator="PMI",
+                inflation_indicator="CPI",
+                data_source="akshare",
+                skip_cache=True,
+            )
+        )
+
+        if response.success and response.result:
+            snapshot = _build_regime_snapshot_from_v2_result(
+                calculation_result=response.result,
+                observed_at=target_date,
+            )
+            DjangoRegimeRepository().save_snapshot(snapshot)
+            logger.info(f"Regime calculation completed and persisted: {snapshot.dominant_regime}")
+
+            return {
+                'status': 'success',
+                'as_of_date': str(target_date),
+                'observed_at': snapshot.observed_at.isoformat(),
+                'dominant_regime': snapshot.dominant_regime,
+                'confidence': snapshot.confidence,
+                'warnings': list(response.warnings or []),
+                'data_source': snapshot.data_source,
+                'is_fallback': False,
+            }
+
+        logger.warning(
+            "V2 regime calculation did not produce a persistable snapshot, "
+            "falling back to current resolver"
+        )
         result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
-        logger.info(f"Regime calculation completed: {result.dominant_regime}")
 
         return {
             'status': 'success',
             'as_of_date': str(target_date),
+            'observed_at': result.observed_at.isoformat(),
             'dominant_regime': result.dominant_regime,
             'confidence': result.confidence,
             'warnings': result.warnings,
@@ -293,8 +361,12 @@ def notify_regime_change_after_calculation(
         )
 
         regime_repo = DjangoRegimeRepository()
-        current_date = date.fromisoformat(regime_result['as_of_date'])
-        last_snapshot = regime_repo.get_latest_snapshot(before_date=current_date)
+        current_date = date.fromisoformat(
+            regime_result.get('observed_at', regime_result['as_of_date'])
+        )
+        last_snapshot = regime_repo.get_latest_snapshot(
+            before_date=current_date - timedelta(days=1)
+        )
 
         # 检查是否有显著变化
         if last_snapshot:
