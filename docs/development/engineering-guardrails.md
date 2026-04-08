@@ -90,6 +90,7 @@
 9. 凡是使用 `@pytest.mark.qlib` 的测试，`import qlib` 必须解析到官方 `pyqlib` distribution；若解析到仓库内同名目录或非 `pyqlib` 包，测试应直接失败而不是继续运行或静默跳过。
 10. Guardrail 必跑命令：
    `pytest -q tests/guardrails/test_logic_guardrails.py tests/integration/policy/test_policy_integration.py tests/unit/policy/test_fetch_rss_use_case.py tests/unit/regime/test_config_threshold_regression.py`
+11. 所有 diff-based CI 门禁必须兼容 force-push / rewritten history；若 `github.event.before` 对应提交在 runner 中不可达，必须自动退回到 `HEAD^..HEAD`，不能把 Git `128` 误判成架构失败。
 
 ### 5) API 改动同步门禁
 

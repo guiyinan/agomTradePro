@@ -45,8 +45,12 @@ jobs:
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             BASE_REF="${{ github.event.before }}"
             HEAD_REF="${{ github.sha }}"
-            if [[ "${BASE_REF}" == "0000000000000000000000000000000000000000" ]]; then
-              BASE_REF="$(git rev-parse "${HEAD_REF}^")"
+            if [[ "${BASE_REF}" == "0000000000000000000000000000000000000000" ]] || ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
+              if git rev-parse "${HEAD_REF}^" >/dev/null 2>&1; then
+                BASE_REF="$(git rev-parse "${HEAD_REF}^")"
+              else
+                BASE_REF="${HEAD_REF}"
+              fi
             fi
             echo "BASE_REF=${BASE_REF}" >> "$GITHUB_ENV"
             echo "HEAD_REF=${HEAD_REF}" >> "$GITHUB_ENV"
@@ -84,33 +88,60 @@ jobs:
           base_ref = os.environ.get("BASE_REF", "").strip()
           head_ref = os.environ.get("HEAD_REF", "").strip()
 
-          # Collect added lines only (strict for new changes, tolerant for legacy stock issues).
-          if base_ref and head_ref:
-              try:
-                  diff_text = subprocess.check_output(
-                      ["git", "diff", "-U0", f"{base_ref}...{head_ref}", "--", ":(glob)apps/**/*.py"],
-                      text=True,
-                      stderr=subprocess.STDOUT,
-                  )
-              except subprocess.CalledProcessError:
-                  diff_text = subprocess.check_output(
-                      ["git", "diff", "-U0", base_ref, head_ref, "--", ":(glob)apps/**/*.py"],
-                      text=True,
-                      stderr=subprocess.STDOUT,
-                  )
-          else:
-              # workflow_dispatch: scan all tracked python files under apps.
+          def render_full_scan_diff() -> str:
               paths = subprocess.check_output(
                   ["git", "ls-files", ":(glob)apps/**/*.py"],
                   text=True,
               ).splitlines()
-              chunks = []
-              for p in paths:
-                  chunks.append(f"diff --git a/{p} b/{p}\n+++ b/{p}\n@@ -0,0 +1,999999 @@\n")
-                  with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+              chunks: list[str] = []
+              for path in paths:
+                  chunks.append(f"diff --git a/{path} b/{path}\n+++ b/{path}\n@@ -0,0 +1,999999 @@\n")
+                  with open(path, "r", encoding="utf-8", errors="ignore") as fh:
                       for ln in fh.read().splitlines():
                           chunks.append(f"+{ln}\n")
-              diff_text = "".join(chunks)
+              return "".join(chunks)
+
+          def collect_incremental_diff(base_ref: str, head_ref: str) -> str:
+              if not base_ref or not head_ref or base_ref == head_ref:
+                  return render_full_scan_diff()
+
+              diff_commands = [
+                  ["git", "diff", "-U0", f"{base_ref}...{head_ref}", "--", ":(glob)apps/**/*.py"],
+                  ["git", "diff", "-U0", base_ref, head_ref, "--", ":(glob)apps/**/*.py"],
+              ]
+              for command in diff_commands:
+                  try:
+                      return subprocess.check_output(
+                          command,
+                          text=True,
+                          stderr=subprocess.STDOUT,
+                      )
+                  except subprocess.CalledProcessError as exc:
+                      # Force-push / rewritten history can make github.event.before unreachable.
+                      # In that case, fall back to the current commit's first parent diff.
+                      if exc.returncode != 128:
+                          raise
+
+              try:
+                  fallback_base = subprocess.check_output(
+                      ["git", "rev-parse", f"{head_ref}^"],
+                      text=True,
+                      stderr=subprocess.STDOUT,
+                  ).strip()
+              except subprocess.CalledProcessError:
+                  return render_full_scan_diff()
+
+              if not fallback_base or fallback_base == head_ref:
+                  return render_full_scan_diff()
+
+              return subprocess.check_output(
+                  ["git", "diff", "-U0", fallback_base, head_ref, "--", ":(glob)apps/**/*.py"],
+                  text=True,
+                  stderr=subprocess.STDOUT,
+              )
+
+          # Collect added lines only (strict for new changes, tolerant for legacy stock issues).
+          diff_text = collect_incremental_diff(base_ref, head_ref)
 
           current_file = None
           current_line = 0

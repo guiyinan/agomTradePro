@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 修复 `realtime-price-polling` 周期任务指向不存在 Celery task 的问题；新增 `apps.realtime.application.tasks` 包装任务，避免 Beat 派发后被 Worker 丢弃
 - 修复 Celery 自动发现未覆盖 `apps/*/application/tasks.py` 的问题；`realtime-price-polling` 等 application-layer 任务现在会被 Worker 正常注册
 - 修复 `apps.task_monitor.application.tasks` 中错误使用内建 `any` 类型注解导致的模块导入失败，避免新的 Celery 自动发现链被中途打断
+- 修复 `Architecture Layer Guard` 在 `push` 事件遇到 force-push / rewritten history 时直接对不可达 `before SHA` 做 `git diff` 的误报问题；现在会自动回退到 `HEAD^..HEAD`
 - 修复 Pulse 快照按 `observed_at` 重算时的重复落库问题；同一观测日现在只保留一条快照，并新增数据库唯一约束避免再次出现非确定性读取
 - 修复 `sync_macro_then_refresh_regime` 链路只计算不落库的问题，Regime 定时同步后现在会持久化最新快照，避免健康检查继续读取旧的 `regime_log`
 - 修复实时价格轮询写回模拟仓时错误使用 `current_value` / `cash` / `initial_cash` 等不存在字段，收盘后批量价格更新任务恢复成功
