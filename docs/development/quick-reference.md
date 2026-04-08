@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
 > **文档版本**: V1.8
-> **更新日期**: 2026-04-07
+> **更新日期**: 2026-04-08
 > **目标读者**: 开发人员
 
 ---
@@ -112,6 +112,7 @@ celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
   - Worker: `logs/celery-worker.log`
   - Beat: `logs/celery-beat.log`
 - Celery 日志默认按单文件 `20MB` 轮转，保留 `5` 个备份；可用环境变量 `CELERY_LOG_MAX_MB` 和 `CELERY_LOG_BACKUP_COUNT` 覆盖。
+- 开发环境的 Celery Beat 现在固定使用 `django_celery_beat.schedulers.DatabaseScheduler`，本地启动链会在 Beat 启动前执行 `manage.py setup_macro_daily_sync --hour 8 --minute 5`，统一对齐 `daily-sync-and-calculate`、`check-data-freshness`、`high-frequency-generate-signal`、`high-frequency-recalculate-regime` 这 4 条关键数据链任务。
 
 ### 测试命令
 
@@ -330,7 +331,7 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 - 页面根路径快捷入口：`/account/ -> /account/login/`、`/equity/ -> /equity/screen/`、`/fund/ -> /fund/dashboard/`、`/prompt/ -> /prompt/manage/`
 - `GET /api/filter/` 返回可发现的 API 根信息；真正执行滤波仍使用 `POST /api/filter/`
 - `/api/macro/indicator-data/` 同时接受 `code` 与 `indicator_code` 查询参数
-- `/api/pulse/current/` 在无历史快照时会尝试按需计算一次当前 Pulse
+- `/api/pulse/current/` 在无历史快照或最新快照已过期/不可靠时，会尝试按需重算当前 Pulse
 - Setup Wizard 密码强度检查同时支持 `/setup/api/password-strength/` 与 `/api/setup/password-strength/`
 
 ### 数据源中台提示

@@ -228,7 +228,11 @@ class GetActionRecommendationUseCase:
             try:
                 from apps.pulse.application.use_cases import GetLatestPulseUseCase
                 pulse_use_case = GetLatestPulseUseCase()
-                pulse = pulse_use_case.execute()
+                pulse = pulse_use_case.execute(
+                    as_of_date=target_date,
+                    require_reliable=True,
+                    refresh_if_stale=True,
+                )
                 if pulse:
                     pulse_score = pulse.composite_score
                     pulse_strength = pulse.regime_strength

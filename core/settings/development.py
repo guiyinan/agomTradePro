@@ -30,6 +30,10 @@ DATABASES = {
 # CORS settings (for development)
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Use django-celery-beat in development so startup task reconciliation remains the
+# single source of truth for local periodic tasks.
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers.DatabaseScheduler"
+
 # CSRF trusted origins (for development)
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',

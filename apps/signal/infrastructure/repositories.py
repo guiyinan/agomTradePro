@@ -314,7 +314,7 @@ class DjangoSignalRepository:
         return list(
             self._model.objects.filter(
                 created_at__range=[start_datetime, end_datetime]
-            ).values('asset_code', 'logic_desc', 'created_by')[:10]
+            ).values('asset_code', 'logic_desc', 'user_id')[:10]
         )
 
     def get_signals_invalidated_between(

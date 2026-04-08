@@ -3,10 +3,28 @@
 import logging
 from datetime import date
 
-from apps.pulse.domain.entities import PulseConfig, PulseSnapshot
+from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
 
 logger = logging.getLogger(__name__)
+DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8
+
+
+def _is_snapshot_usable(
+    snapshot: PulseSnapshot,
+    *,
+    target_date: date,
+    require_reliable: bool,
+    max_age_days: int,
+) -> bool:
+    """判断给定快照是否可供当前调用方使用。"""
+    if snapshot.observed_at > target_date:
+        return False
+    if (target_date - snapshot.observed_at).days > max_age_days:
+        return False
+    if require_reliable and not snapshot.is_reliable:
+        return False
+    return True
 
 
 class CalculatePulseUseCase:
@@ -66,12 +84,47 @@ class CalculatePulseUseCase:
 class GetLatestPulseUseCase:
     """获取最新的 Pulse 脉搏快照（从数据库读取）"""
 
-    def execute(self) -> PulseSnapshot | None:
-        """获取最新快照"""
+    def execute(
+        self,
+        as_of_date: date | None = None,
+        *,
+        require_reliable: bool = False,
+        refresh_if_stale: bool = False,
+        max_age_days: int = DEFAULT_MAX_SNAPSHOT_AGE_DAYS,
+    ) -> PulseSnapshot | None:
+        """获取最新快照，并在需要时触发按需重算。"""
+        target_date = as_of_date or date.today()
         try:
             from apps.pulse.infrastructure.repositories import PulseRepository
+
             repo = PulseRepository()
-            return repo.get_latest_snapshot()
+            snapshot = repo.get_latest_snapshot()
+
+            if snapshot and _is_snapshot_usable(
+                snapshot,
+                target_date=target_date,
+                require_reliable=require_reliable,
+                max_age_days=max_age_days,
+            ):
+                return snapshot
+
+            if not refresh_if_stale:
+                if require_reliable:
+                    return None
+                return snapshot
+
+            refreshed = CalculatePulseUseCase().execute(as_of_date=target_date)
+            if refreshed and _is_snapshot_usable(
+                refreshed,
+                target_date=target_date,
+                require_reliable=require_reliable,
+                max_age_days=max_age_days,
+            ):
+                return refreshed
+
+            if require_reliable:
+                return None
+            return refreshed or snapshot
         except Exception as e:
             logger.exception(f"Error getting latest pulse: {e}")
             return None

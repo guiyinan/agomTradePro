@@ -144,7 +144,10 @@ def _load_phase1_macro_components(as_of_date: date | None = None):
     try:
         from apps.pulse.application.use_cases import GetLatestPulseUseCase
 
-        pulse = GetLatestPulseUseCase().execute()
+        pulse = GetLatestPulseUseCase().execute(
+            as_of_date=target_date,
+            refresh_if_stale=True,
+        )
     except Exception as exc:
         logger.warning("Failed to load pulse widget data: %s", exc)
 

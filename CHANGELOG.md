@@ -51,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 Pulse 数据链条会把过期/不可靠快照继续喂给仓位系数、决策失效模板和 Regime Action 的问题；相关读取链路现在会先校验可靠性，并在需要时按需重算
+- 修复开发环境 Celery Beat 未固定使用 `DatabaseScheduler` 导致的调度源漂移；本地宏观/Regime 周期任务现在会在启动时统一回写到 `django-celery-beat`
+- 修复宏观高频数据链仍指向已迁移 `apps.macro.application.tasks.*` 任务路径的问题；`high-frequency-generate-signal` 与 `high-frequency-recalculate-regime` 现已对齐到 `apps.regime.application.orchestration.*`
+- 修复 `signal.daily_summary` 摘要查询读取不存在的 `created_by` 字段导致的 Celery 任务失败；摘要链现改为读取真实 ORM 字段 `user_id` 并补充回归测试
+- 修复 `realtime-price-polling` 周期任务指向不存在 Celery task 的问题；新增 `apps.realtime.application.tasks` 包装任务，避免 Beat 派发后被 Worker 丢弃
+- 修复 Pulse 快照按 `observed_at` 重算时的重复落库问题；同一观测日现在只保留一条快照，并新增数据库唯一约束避免再次出现非确定性读取
 - 修复 `sync_macro_then_refresh_regime` 链路只计算不落库的问题，Regime 定时同步后现在会持久化最新快照，避免健康检查继续读取旧的 `regime_log`
 - 修复实时价格轮询写回模拟仓时错误使用 `current_value` / `cash` / `initial_cash` 等不存在字段，收盘后批量价格更新任务恢复成功
 - AKShare 批量价格获取不再对缺失标的重复触发远端 spot loader，连接中断时的日志噪音和重复回退已收敛

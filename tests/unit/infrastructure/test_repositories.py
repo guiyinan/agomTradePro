@@ -11,6 +11,8 @@ Unit Tests for Repository Layer
 from datetime import date, timedelta
 
 import pytest
+from django.contrib.auth.models import User
+from django.utils import timezone
 
 from apps.backtest.domain.entities import BacktestConfig, BacktestStatus
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
@@ -20,6 +22,7 @@ from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
+from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
@@ -562,6 +565,38 @@ class TestDjangoSignalRepository:
         assert stats['by_status']['pending']['count'] == 3
         assert stats['by_status']['approved']['count'] == 5
         assert stats['by_status']['rejected']['count'] == 2
+
+    def test_get_signals_created_between_uses_user_id_field(self):
+        """摘要查询应返回真实存在的 user_id 字段，避免 daily summary 失败。"""
+        repository = DjangoSignalRepository()
+        user = User.objects.create_user(username="signal-owner", password="test-pass-123")
+        created_at = timezone.now() - timedelta(hours=1)
+
+        signal = InvestmentSignalModel.objects.create(
+            user=user,
+            asset_code="000001.SH",
+            asset_class="a_share_growth",
+            direction="LONG",
+            logic_desc="测试信号摘要",
+            invalidation_logic="测试证伪逻辑描述，长度至少需要十个字符",
+            invalidation_threshold=50.0,
+            target_regime="Recovery",
+            status="pending",
+        )
+        InvestmentSignalModel.objects.filter(id=signal.id).update(created_at=created_at)
+
+        details = repository.get_signals_created_between(
+            created_at - timedelta(minutes=1),
+            created_at + timedelta(minutes=1),
+        )
+
+        assert details == [
+            {
+                "asset_code": "000001.SH",
+                "logic_desc": "测试信号摘要",
+                "user_id": user.id,
+            }
+        ]
 
 
 @pytest.mark.django_db

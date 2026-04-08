@@ -23,12 +23,10 @@ class PulseCurrentView(APIView):
             from apps.pulse.application.use_cases import GetLatestPulseUseCase
 
             use_case = GetLatestPulseUseCase()
-            snapshot = use_case.execute()
-
-            if not snapshot:
-                from apps.pulse.application.use_cases import CalculatePulseUseCase
-
-                snapshot = CalculatePulseUseCase().execute()
+            snapshot = use_case.execute(
+                as_of_date=date.today(),
+                refresh_if_stale=True,
+            )
 
             if not snapshot:
                 return Response(

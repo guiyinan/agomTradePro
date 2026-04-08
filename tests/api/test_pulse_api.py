@@ -97,14 +97,15 @@ def test_pulse_history_api_contract(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_pulse_current_bootstraps_snapshot_when_missing(authenticated_client, monkeypatch):
+def test_pulse_current_requests_refresh_when_snapshot_missing(authenticated_client, monkeypatch):
     snapshot = _pulse_snapshot()
+    captured: dict[str, object] = {}
 
-    monkeypatch.setattr("apps.pulse.application.use_cases.GetLatestPulseUseCase.execute", lambda self: None)
-    monkeypatch.setattr(
-        "apps.pulse.application.use_cases.CalculatePulseUseCase.execute",
-        lambda self: snapshot,
-    )
+    def _fake_execute(self, *args, **kwargs):
+        captured.update(kwargs)
+        return snapshot
+
+    monkeypatch.setattr("apps.pulse.application.use_cases.GetLatestPulseUseCase.execute", _fake_execute)
 
     response = authenticated_client.get("/api/pulse/current/")
 
@@ -112,3 +113,5 @@ def test_pulse_current_bootstraps_snapshot_when_missing(authenticated_client, mo
     payload = response.json()
     assert payload["success"] is True
     assert payload["data"]["regime_context"] == snapshot.regime_context
+    assert captured["refresh_if_stale"] is True
+    assert captured["as_of_date"] == date.today()

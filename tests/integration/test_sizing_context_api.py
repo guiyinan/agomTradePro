@@ -142,3 +142,25 @@ class TestSizingContextAPI:
         assert resp.status_code == status.HTTP_200_OK
         assert "snapshot_unavailable" in data["warnings"]
         assert "组合回撤数据不可用" in data["reasoning"]
+
+    def test_pulse_unreliable_degrades_to_neutral_context(self, auth_client, default_config):
+        captured: dict[str, object] = {}
+
+        def _fake_execute(self, *args, **kwargs):
+            captured.update(kwargs)
+            return None
+
+        with patch(
+            "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute",
+            new=_fake_execute,
+        ):
+            resp = auth_client.get("/api/account/sizing-context/")
+
+        data = resp.json()
+        assert resp.status_code == status.HTTP_200_OK
+        assert captured["require_reliable"] is True
+        assert captured["refresh_if_stale"] is True
+        assert "pulse_unavailable" in data["warnings"]
+        assert data["context"]["pulse_composite"] == 0.0
+        assert data["context"]["pulse_warning"] is False
+        assert "Pulse数据不可用" in data["reasoning"]

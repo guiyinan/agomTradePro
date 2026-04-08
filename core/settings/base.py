@@ -472,18 +472,18 @@ CELERY_TASK_ACKS_LATE = True
 # Celery Beat 定时任务配置
 CELERY_BEAT_SCHEDULE = {
     "daily-sync-and-calculate": {
-        "task": "apps.macro.application.tasks.sync_and_calculate_regime",
-        "schedule": crontab(hour=8, minute=0),  # 每天 8:00 执行
+        "task": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
+        "schedule": crontab(hour=8, minute=5),  # 每天 8:05 执行
         "options": {
             "source": "akshare",
             "indicator": None,
-            "days_back": 30,
+            "days_back": 60,
             "use_pit": True,
         },
     },
     "check-data-freshness": {
         "task": "apps.macro.application.tasks.check_data_freshness",
-        "schedule": crontab(minute="*/30"),  # 每 30 分钟执行一次
+        "schedule": crontab(hour="*/6", minute=0),  # 每 6 小时执行一次
     },
     "send-database-backup-email": {
         "task": "apps.account.application.tasks.send_database_backup_email_task",
@@ -529,14 +529,14 @@ CELERY_BEAT_SCHEDULE = {
         },
     },
     "high-frequency-generate-signal": {
-        "task": "apps.macro.application.tasks.generate_daily_regime_signal",
+        "task": "apps.regime.application.orchestration.generate_daily_regime_signal",
         "schedule": crontab(hour=17, minute=0, day_of_week="mon-fri"),  # 每个交易日 17:00
         "options": {
             "expires": 1800,  # 30 分钟超时
         },
     },
     "high-frequency-recalculate-regime": {
-        "task": "apps.macro.application.tasks.recalculate_regime_with_daily_signal",
+        "task": "apps.regime.application.orchestration.recalculate_regime_with_daily_signal",
         "schedule": crontab(hour=17, minute=5, day_of_week="mon-fri"),  # 每个交易日 17:05
         "options": {
             "use_pit": True,

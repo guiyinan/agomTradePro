@@ -5,6 +5,7 @@ Celery configuration for AgomTradePro project.
 import os
 
 from celery import Celery
+from django.conf import settings
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
@@ -17,6 +18,10 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
+app.autodiscover_tasks(
+    lambda: [app_name for app_name in settings.INSTALLED_APPS if app_name.startswith("apps.")],
+    related_name='application.tasks',
+)
 
 # ========== Prometheus 指标信号处理 ==========
 # 导入 Celery 信号处理器，自动记录任务指标

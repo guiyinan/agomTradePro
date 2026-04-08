@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
 from apps.pulse.infrastructure.repositories import PulseRepository
+from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
 from apps.regime.domain.entities import (
     AssetWeightRange,
@@ -166,3 +167,31 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
     assert status_html.status_code == 200
     assert status_html["Content-Type"].startswith("text/html")
     assert "风险预算" in status_html.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_action_recommendation_ignores_unreliable_pulse(monkeypatch):
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.BuildRegimeNavigatorUseCase.execute",
+        lambda self, as_of_date=None: _sample_navigator(),
+    )
+
+    def _fake_execute(self, *args, **kwargs):
+        captured.update(kwargs)
+        if kwargs.get("require_reliable"):
+            return None
+        return _sample_pulse_snapshot()
+
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute",
+        _fake_execute,
+    )
+
+    action = GetActionRecommendationUseCase().execute(date(2026, 4, 8))
+
+    assert action is not None
+    assert captured["require_reliable"] is True
+    assert captured["refresh_if_stale"] is True
+    assert "score=0.00" in action.pulse_contribution

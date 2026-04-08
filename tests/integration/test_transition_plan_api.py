@@ -357,3 +357,39 @@ def test_invalidation_template_and_ai_draft_endpoints(monkeypatch):
     ai_payload = ai_response.json()["data"]
     assert ai_payload["draft"]["conditions"][0]["indicator_code"] == "PULSE_COMPOSITE"
     assert ai_payload["provider_used"] == "test-provider"
+
+
+@pytest.mark.django_db
+def test_invalidation_template_ignores_unreliable_pulse(monkeypatch):
+    user = User.objects.create_user(username="plan_invalidation_stale_user", password="x")
+    client = Client()
+    client.force_login(user)
+    captured: dict[str, object] = {}
+
+    def _fake_execute(self, *args, **kwargs):
+        captured.update(kwargs)
+        if kwargs.get("require_reliable"):
+            return None
+        return object()
+
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute",
+        _fake_execute,
+    )
+
+    template_response = client.post(
+        "/api/decision/workspace/invalidation/template/",
+        data={
+            "security_code": "000001.SH",
+            "side": "BUY",
+            "rationale": "测试不可靠 pulse 不应进入模板",
+        },
+        content_type="application/json",
+    )
+
+    assert template_response.status_code == 200
+    template_payload = template_response.json()["data"]
+    assert captured["require_reliable"] is True
+    assert captured["refresh_if_stale"] is True
+    assert template_payload["pulse_context"]["composite_score"] == 0.0
+    assert template_payload["pulse_context"]["transition_warning"] is False

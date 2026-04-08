@@ -8,7 +8,7 @@ import functools
 import logging
 import traceback as tb_module
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from celery import Task
 from celery.signals import (
@@ -107,7 +107,7 @@ def task_postrun_handler(
     task: Task | None = None,
     args: tuple | None = None,
     kwargs: dict | None = None,
-    retval: any | None = None,
+    retval: Any | None = None,
     state: str | None = None,
     **kwds
 ) -> None:
@@ -176,7 +176,7 @@ def task_failure_handler(
     task_id: str | None = None,
     exception: Exception | None = None,
     traceback: str | None = None,
-    einfo: any | None = None,
+    einfo: Any | None = None,
     **kwds
 ) -> None:
     """任务失败记录"""
@@ -203,7 +203,7 @@ def task_failure_handler(
             traceback_str = einfo.traceback
         elif exception:
             exception_str = str(exception)
-            traceback_str = traceback.format_exc()
+            traceback_str = tb_module.format_exc()
 
         record = TaskExecutionRecord(
             task_id=task_id,
@@ -234,9 +234,9 @@ def task_failure_handler(
 def task_retry_handler(
     sender=None,
     task_id: str | None = None,
-    request: any | None = None,
+    request: Any | None = None,
     reason: str | None = None,
-    einfo: any | None = None,
+    einfo: Any | None = None,
     **kwds
 ) -> None:
     """任务重试记录"""
@@ -496,4 +496,3 @@ def verify_backup_task(backup_file: str) -> dict:
         "backup_file": backup_file,
         "file_size": file_size,
     }
-

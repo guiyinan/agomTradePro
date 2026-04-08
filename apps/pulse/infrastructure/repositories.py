@@ -1,20 +1,16 @@
 """Pulse 数据仓储"""
 
-import logging
-from dataclasses import asdict
 from datetime import date
 
 from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
 from apps.pulse.infrastructure.models import PulseLog
-
-logger = logging.getLogger(__name__)
 
 
 class PulseRepository:
     """Pulse 日志仓储"""
 
     def save_snapshot(self, snapshot: PulseSnapshot) -> PulseLog:
-        """持久化 PulseSnapshot 到数据库"""
+        """持久化 PulseSnapshot 到数据库。"""
         dim_dict = snapshot.dimension_dict
 
         # 序列化指标明细
@@ -34,26 +30,29 @@ class PulseRepository:
                 "is_stale": r.is_stale,
             })
 
-        log = PulseLog.objects.create(
+        defaults = {
+            "regime_context": snapshot.regime_context,
+            "growth_score": dim_dict.get("growth", 0.0),
+            "inflation_score": dim_dict.get("inflation", 0.0),
+            "liquidity_score": dim_dict.get("liquidity", 0.0),
+            "sentiment_score": dim_dict.get("sentiment", 0.0),
+            "composite_score": snapshot.composite_score,
+            "regime_strength": snapshot.regime_strength,
+            "transition_warning": snapshot.transition_warning,
+            "transition_direction": snapshot.transition_direction,
+            "indicator_readings": readings_data,
+            "transition_reasons": snapshot.transition_reasons,
+            "data_source": snapshot.data_source,
+        }
+        log, _ = PulseLog.objects.update_or_create(
             observed_at=snapshot.observed_at,
-            regime_context=snapshot.regime_context,
-            growth_score=dim_dict.get("growth", 0.0),
-            inflation_score=dim_dict.get("inflation", 0.0),
-            liquidity_score=dim_dict.get("liquidity", 0.0),
-            sentiment_score=dim_dict.get("sentiment", 0.0),
-            composite_score=snapshot.composite_score,
-            regime_strength=snapshot.regime_strength,
-            transition_warning=snapshot.transition_warning,
-            transition_direction=snapshot.transition_direction,
-            indicator_readings=readings_data,
-            transition_reasons=snapshot.transition_reasons,
-            data_source=snapshot.data_source,
+            defaults=defaults,
         )
         return log
 
     def get_latest(self) -> PulseLog | None:
-        """获取最新的 PulseLog 记录"""
-        return PulseLog.objects.first()  # ordering = ["-observed_at"]
+        """获取最新的 PulseLog 记录。"""
+        return PulseLog.objects.order_by("-observed_at", "-created_at").first()
 
     def get_latest_snapshot(self) -> PulseSnapshot | None:
         """获取最新的 PulseSnapshot（从数据库重建）"""

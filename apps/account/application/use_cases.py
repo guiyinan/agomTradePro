@@ -660,7 +660,11 @@ class GetSizingContextUseCase:
 
         pulse_unavailable = False
         try:
-            pulse_snapshot = GetLatestPulseUseCase().execute()
+            pulse_snapshot = GetLatestPulseUseCase().execute(
+                as_of_date=target_date,
+                require_reliable=True,
+                refresh_if_stale=True,
+            )
         except Exception:
             logger.exception("Failed to load latest pulse for macro sizing context")
             pulse_snapshot = None

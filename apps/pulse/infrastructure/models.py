@@ -4,7 +4,7 @@ from django.db import models
 class PulseLog(models.Model):
     """Pulse 脉搏快照日志"""
 
-    observed_at = models.DateField("观测日期", db_index=True)
+    observed_at = models.DateField("观测日期", db_index=True, unique=True)
     regime_context = models.CharField("当时的 Regime", max_length=20)
 
     # 4 维度分数
@@ -33,7 +33,7 @@ class PulseLog(models.Model):
 
     class Meta:
         db_table = "pulse_log"
-        ordering = ["-observed_at"]
+        ordering = ["-observed_at", "-created_at"]
         get_latest_by = "observed_at"
 
     def __str__(self) -> str:
@@ -194,4 +194,3 @@ class PulseIndicatorWeight(models.Model):
 
     class Meta:
         db_table = "pulse_indicator_weight"
-

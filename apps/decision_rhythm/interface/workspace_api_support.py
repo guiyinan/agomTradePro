@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from dataclasses import replace
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -122,7 +123,11 @@ def _serialize_transition_plan(plan: PortfolioTransitionPlan) -> dict[str, Any]:
 
 def _pulse_context() -> dict[str, Any]:
     try:
-        snapshot = GetLatestPulseUseCase().execute()
+        snapshot = GetLatestPulseUseCase().execute(
+            as_of_date=date.today(),
+            require_reliable=True,
+            refresh_if_stale=True,
+        )
     except Exception as exc:
         logger.warning(f"Failed to load pulse context for invalidation template: {exc}")
         snapshot = None
