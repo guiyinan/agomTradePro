@@ -26,6 +26,13 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-04-08
+
+- Pulse 脉搏链路已完成可靠性收口：过期或 `stale` 快照不再继续参与仓位、失效模板和 Regime Action 判断
+- 本地 Celery Beat 现已统一切到 `django-celery-beat` 作为真实调度源，宏观同步、Regime 重算和高频信号链路不会再因旧 task path 漂移
+- `signal.daily_summary`、`realtime-price-polling` 等运行态坏链路已修复，开发环境 Worker/Beat 日志恢复到可持续盯盘的状态
+- Realtime 价格轮询任务已补齐 Celery 注册链，定时轮询现在可以实际被 Worker 接收并成功执行
+
 ### 2026-04-05
 
 - 财经数据源配置页已收口成统一数据源中心：公开源、授权源、本地终端源和待补配置 Provider 现在在同一工作台里展示
