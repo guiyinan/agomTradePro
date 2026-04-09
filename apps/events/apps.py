@@ -23,7 +23,7 @@ class EventsConfig(AppConfig):
             from .application import initialize_event_bus
             # 执行初始化
             initialize_event_bus()
-            logger.info("Event bus initialized successfully")
+            logger.debug("Event bus initialized successfully")
         except ImportError as e:
             logger.warning(f"Could not import initialize_event_bus: {e}")
         except Exception as e:

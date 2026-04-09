@@ -114,7 +114,7 @@ class EventSubscriberRegistry:
                         description=description
                     )
                     self._sorted = False
-                    logger.info(
+                    logger.debug(
                         f"Updated subscriber: {module_name} -> {event_type.value} (priority={priority})"
                     )
                     return
@@ -134,7 +134,7 @@ class EventSubscriberRegistry:
             self._subscribers[event_type] = [subscriber]
         self._sorted = False  # 添加后需要重新排序
 
-        logger.info(
+        logger.debug(
             f"Registered subscriber: {module_name} -> {event_type.value} (priority={priority})"
         )
 
@@ -203,7 +203,7 @@ class EventSubscriberRegistry:
         ]
 
         if len(self._subscribers[event_type]) < original_count:
-            logger.info(f"Unregistered subscriber: {module_name} -> {event_type.value}")
+            logger.debug(f"Unregistered subscriber: {module_name} -> {event_type.value}")
             return True
         return False
 

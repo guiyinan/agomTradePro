@@ -19,4 +19,4 @@ class AlphaConfig(AppConfig):
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.info("Alpha 应用已加载")
+        logger.debug("Alpha 应用已加载")

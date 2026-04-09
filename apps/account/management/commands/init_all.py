@@ -8,6 +8,7 @@ Usage:
     python manage.py init_all
     python manage.py init_all --skip-macro    # Skip macro data sync
     python manage.py init_all --force         # Force overwrite existing data
+    python manage.py init_all --yes           # Skip interactive confirmation
 """
 
 from django.core import management
@@ -74,6 +75,12 @@ class Command(BaseCommand):
             help='Skip macro data synchronization (requires network)'
         )
         parser.add_argument(
+            '-y',
+            '--yes',
+            action='store_true',
+            help='Skip interactive confirmation (assume yes)'
+        )
+        parser.add_argument(
             '--force',
             action='store_true',
             help='Force overwrite existing data'
@@ -98,7 +105,7 @@ class Command(BaseCommand):
         self._show_plan(options)
 
         # Confirm
-        if not options.get('force'):
+        if not options.get('force') and not options.get('yes'):
             if not self._confirm('Proceed with initialization?'):
                 self.stdout.write(self.style.ERROR('Initialization cancelled'))
                 return
@@ -142,7 +149,7 @@ class Command(BaseCommand):
         try:
             response = input(f'{message} (y/N): ')
             return response.lower() == 'y'
-        except:
+        except (EOFError, KeyboardInterrupt):
             return False
 
     def _execute_steps(self, options):
