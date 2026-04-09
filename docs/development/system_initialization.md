@@ -66,8 +66,14 @@ python manage.py runserver
 # 默认：初始化所有数据
 python manage.py init_all
 
+# 跳过交互确认（脚本化/CI 推荐）
+python manage.py init_all -y
+
 # 跳过宏观数据同步（无需网络）
 python manage.py init_all --skip-macro
+
+# 跳过宏观数据同步 + 跳过确认
+python manage.py init_all --skip-macro -y
 
 # 强制覆盖现有数据
 python manage.py init_all --force
@@ -277,11 +283,9 @@ SECRET_KEY=your-secret-key-here
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-# Database (默认使用 SQLite)
-# DATABASE_URL=postgresql://user:password@localhost:5432/agomtradepro
-
-# Redis (Celery)
-# REDIS_URL=redis://localhost:6379/0
+# Local quick start
+# SQLite is used automatically, no DATABASE_URL required
+# Redis is optional; leave REDIS_URL unset for synchronous local tasks
 
 # Data Sources
 TUSHARE_TOKEN=your-tushare-token

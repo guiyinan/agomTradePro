@@ -68,10 +68,10 @@ class EventBusInitializer:
             from ..infrastructure.celery_event_bus import CeleryEventBus, is_celery_available
             if is_celery_available():
                 self.event_bus = CeleryEventBus(config)
-                logger.info("Using CeleryEventBus for async event publishing")
+                logger.debug("Using CeleryEventBus for async event publishing")
             else:
                 self.event_bus = InMemoryEventBus(config)
-                logger.info("Celery not available, using InMemoryEventBus")
+                logger.debug("Celery not available, using InMemoryEventBus")
         except ImportError:
             self.event_bus = InMemoryEventBus(config)
 
@@ -81,7 +81,7 @@ class EventBusInitializer:
         # 启动事件总线
         self.event_bus.start()
 
-        logger.info(f"Event bus initialized with {len(self.handlers)} handlers")
+        logger.debug(f"Event bus initialized with {len(self.handlers)} handlers")
 
         return self.event_bus
 
@@ -136,7 +136,7 @@ class EventBusInitializer:
                     self.event_bus.subscribe(subscription)
                     self.handlers.append(handler)
 
-                    logger.info(
+                    logger.debug(
                         f"Registered handler from registry: "
                         f"{subscriber_info.module_name} -> {subscriber_info.event_type.value}"
                     )
@@ -146,7 +146,7 @@ class EventBusInitializer:
                         f"Failed to create handler for {subscriber_info.module_name}: {e}"
                     )
 
-            logger.info(f"Loaded {len(all_subscribers)} subscribers from registry")
+            logger.debug(f"Loaded {len(all_subscribers)} subscribers from registry")
 
         except Exception as e:
             logger.error(f"Failed to load subscribers from registry: {e}")
@@ -232,7 +232,7 @@ class EventBusInitializer:
                 decision_rejected_handler,
             ])
 
-            logger.info("Decision execution handlers registered")
+            logger.debug("Decision execution handlers registered")
 
         except ImportError as e:
             logger.warning(f"Failed to import decision execution handlers: {e}")
@@ -259,7 +259,7 @@ class EventBusInitializer:
         """关闭事件总线"""
         if self.event_bus:
             self.event_bus.stop()
-            logger.info("Event bus shut down")
+            logger.debug("Event bus shut down")
 
 
 class LoggingEventHandler(EventHandler):

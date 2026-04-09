@@ -157,7 +157,7 @@ class InMemoryEventBus(EventBus):
             self._subscription_ids.add(subscription.subscription_id)
             self._metrics.total_subscribers += 1
 
-            logger.info(
+            logger.debug(
                 f"Subscribed to {subscription.event_type.value}: "
                 f"{subscription.subscription_id} (priority={subscription.priority})"
             )
@@ -182,7 +182,7 @@ class InMemoryEventBus(EventBus):
                         subscriptions.pop(i)
                         self._subscription_ids.remove(subscription_id)
                         self._metrics.total_subscribers -= 1
-                        logger.info(f"Unsubscribed: {subscription_id}")
+                        logger.debug(f"Unsubscribed: {subscription_id}")
                         return True
 
             return False
@@ -221,7 +221,7 @@ class InMemoryEventBus(EventBus):
                 self._metrics.total_subscribers -= removed
 
             if count > 0:
-                logger.info(f"Unsubscribed {count} subscriptions for handler: {handler_id}")
+                logger.debug(f"Unsubscribed {count} subscriptions for handler: {handler_id}")
 
             return count
 
@@ -423,7 +423,7 @@ class InMemoryEventBus(EventBus):
         """启动事件总线"""
         with self._lock:
             self._stopped = False
-            logger.info("Event bus started")
+            logger.debug("Event bus started")
 
     def replay_events(self, event_type: EventType | None = None) -> int:
         """

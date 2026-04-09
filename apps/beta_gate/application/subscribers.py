@@ -44,7 +44,7 @@ def register_subscribers() -> None:
             priority=90
         )
 
-        logger.info("Beta Gate subscribers registered successfully")
+        logger.debug("Beta Gate subscribers registered successfully")
 
     except Exception as e:
         logger.error(f"Failed to register Beta Gate subscribers: {e}")

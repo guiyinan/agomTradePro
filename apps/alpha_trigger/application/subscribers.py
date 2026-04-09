@@ -70,7 +70,7 @@ def register_subscribers() -> None:
             description="Promote candidates based on trigger strength"
         )
 
-        logger.info("Alpha Trigger subscribers registered successfully")
+        logger.debug("Alpha Trigger subscribers registered successfully")
 
     except Exception as e:
         logger.error(f"Failed to register Alpha Trigger subscribers: {e}")

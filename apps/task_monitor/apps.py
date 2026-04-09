@@ -19,4 +19,4 @@ class TaskMonitorConfig(AppConfig):
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.info("Task Monitor 应用已加载")
+        logger.debug("Task Monitor 应用已加载")

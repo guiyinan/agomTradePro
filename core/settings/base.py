@@ -38,7 +38,16 @@ AUTOMATION_DEBUG_API_MAX_LIMIT = env.int("AUTOMATION_DEBUG_API_MAX_LIMIT", defau
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 # Set via environment variable: AGOMTRADEPRO_ENCRYPTION_KEY
 AGOMTRADEPRO_ENCRYPTION_KEY = env("AGOMTRADEPRO_ENCRYPTION_KEY", default="")
-if not AGOMTRADEPRO_ENCRYPTION_KEY:
+DATABASE_URL = env("DATABASE_URL", default="")
+_SHOW_ENCRYPTION_KEY_WARNING = env.bool(
+    "AGOMTRADEPRO_SHOW_ENCRYPTION_KEY_WARNING",
+    default=True,
+)
+_IS_FIRST_INSTALL = (
+    not DATABASE_URL
+    and not (BASE_DIR / "db.sqlite3").exists()
+)
+if not AGOMTRADEPRO_ENCRYPTION_KEY and _SHOW_ENCRYPTION_KEY_WARNING and not _IS_FIRST_INSTALL:
     import warnings
 
     warnings.warn(

@@ -79,7 +79,7 @@ def register_subscribers() -> None:
             description="Check cooldown on signal trigger"
         )
 
-        logger.info("Decision Rhythm subscribers registered successfully")
+        logger.debug("Decision Rhythm subscribers registered successfully")
 
     except Exception as e:
         logger.error(f"Failed to register Decision Rhythm subscribers: {e}")
