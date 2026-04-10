@@ -2,6 +2,11 @@
 DRF serializers for AI provider management.
 """
 
+import base64
+import hashlib
+
+from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
 from rest_framework import serializers
 
 
@@ -18,7 +23,7 @@ class AIProviderConfigSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(read_only=True)
     priority = serializers.IntegerField(read_only=True)
     base_url = serializers.URLField(read_only=True)
-    api_key = serializers.CharField(read_only=True, required=False)
+    api_key = serializers.SerializerMethodField()
     default_model = serializers.CharField(read_only=True)
     api_mode = serializers.CharField(read_only=True)
     fallback_enabled = serializers.BooleanField(read_only=True)
@@ -33,6 +38,24 @@ class AIProviderConfigSerializer(serializers.Serializer):
     today_cost = serializers.FloatField(read_only=True, required=False)
     month_requests = serializers.IntegerField(read_only=True, required=False)
     month_cost = serializers.FloatField(read_only=True, required=False)
+
+    def get_api_key(self, obj) -> str:
+        raw = getattr(obj, "api_key", "") or ""
+        if not raw:
+            encrypted = getattr(obj, "api_key_encrypted", "") or ""
+            key = getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", "") or ""
+            if encrypted and key:
+                try:
+                    raw_key = key.encode() if isinstance(key, str) else key
+                    fernet = Fernet(raw_key if len(raw_key) == 44 else base64.urlsafe_b64encode(hashlib.sha256(raw_key).digest()))
+                    prefix = "encrypted:v1:"
+                    encrypted_b64 = encrypted[len(prefix):] if encrypted.startswith(prefix) else encrypted
+                    raw = fernet.decrypt(base64.urlsafe_b64decode(encrypted_b64.encode("ascii"))).decode("utf-8")
+                except (InvalidToken, ValueError, TypeError):
+                    raw = ""
+        if not raw:
+            return ""
+        return f"****{raw[-4:]}" if len(raw) >= 4 else "****"
 
 
 class AdminProviderCreateSerializer(serializers.Serializer):
