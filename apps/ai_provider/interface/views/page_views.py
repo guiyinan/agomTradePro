@@ -18,12 +18,31 @@ from ...application.use_cases import (
     UpdateProviderUseCase,
     UpdateUserFallbackQuotaUseCase,
 )
-from ...infrastructure.models import AIProviderConfig, AIUsageLog
 from ..forms import AIProviderConfigForm, PersonalAIProviderConfigForm, UserFallbackQuotaForm
+
+USAGE_STATUS_CHOICES = [
+    ("success", "成功"),
+    ("error", "错误"),
+    ("timeout", "超时"),
+    ("rate_limited", "限流"),
+]
 
 
 def _is_admin(user) -> bool:
     return bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+
+
+def _get_provider_item(provider_id: int, *, owner_user=None):
+    scope = "user" if owner_user is not None else "system"
+    providers = ListProvidersUseCase().execute(
+        include_inactive=True,
+        scope=scope,
+        owner_user=owner_user,
+    )
+    for provider in providers:
+        if provider.id == int(provider_id):
+            return provider
+    raise Http404(f"Provider with id {provider_id} not found")
 
 
 @login_required(login_url="/account/login/")
@@ -32,28 +51,13 @@ def ai_manage_view(request):
     if not _is_admin(request.user):
         return redirect("ai_provider:my-providers")
 
-    providers_dto = ListProvidersUseCase().execute(include_inactive=False, scope="system")
-    providers = {
-        provider.id: provider
-        for provider in AIProviderConfig._default_manager.filter(scope="system")
-    }
-    providers_with_stats = [
-        {
-            "provider": providers[dto.id],
-            "today_requests": dto.today_requests,
-            "today_cost": dto.today_cost,
-            "month_requests": dto.month_requests,
-            "month_cost": dto.month_cost,
-        }
-        for dto in providers_dto
-        if dto.id in providers
-    ]
+    providers = ListProvidersUseCase().execute(include_inactive=False, scope="system")
     overall_dto = GetOverallStatsUseCase().execute()
     return render(
         request,
         "ai_provider/manage.html",
         {
-            "providers_with_stats": providers_with_stats,
+            "providers": providers,
             "overall_stats": overall_dto.__dict__,
             "provider_types": [],
         },
@@ -117,10 +121,7 @@ def ai_usage_logs_view(request):
     provider_id = request.GET.get("provider")
     status_filter = request.GET.get("status")
     limit = int(request.GET.get("limit", 100))
-    if provider_id:
-        provider_id_int = int(provider_id)
-    else:
-        provider_id_int = None
+    provider_id_int = int(provider_id) if provider_id else None
 
     logs_dto = ListUsageLogsUseCase().execute(
         provider_id=provider_id_int,
@@ -128,10 +129,10 @@ def ai_usage_logs_view(request):
         limit=limit,
         user=None if _is_admin(request.user) else request.user,
     )
-    providers = (
-        AIProviderConfig._default_manager.filter(scope="system").order_by("priority", "name")
-        if _is_admin(request.user)
-        else AIProviderConfig._default_manager.filter(scope="user", owner_user=request.user).order_by("priority", "name")
+    providers = ListProvidersUseCase().execute(
+        include_inactive=True,
+        scope="system" if _is_admin(request.user) else "user",
+        owner_user=None if _is_admin(request.user) else request.user,
     )
     return render(
         request,
@@ -142,7 +143,7 @@ def ai_usage_logs_view(request):
             "filter_provider": provider_id,
             "filter_status": status_filter,
             "filter_limit": limit,
-            "status_choices": AIUsageLog.STATUS_CHOICES,
+            "status_choices": USAGE_STATUS_CHOICES,
             "is_admin_view": _is_admin(request.user),
         },
     )
@@ -151,11 +152,10 @@ def ai_usage_logs_view(request):
 @login_required(login_url="/account/login/")
 def ai_provider_detail_view(request, provider_id):
     """Detail page for one provider within visible scope."""
-    provider = get_object_or_404(AIProviderConfig, id=provider_id)
-    if provider.scope == "system" and not _is_admin(request.user):
-        return HttpResponseForbidden("Admin privileges required.")
-    if provider.scope == "user" and provider.owner_user_id != request.user.id:
-        return HttpResponseForbidden("You do not own this provider.")
+    provider = _get_provider_item(
+        provider_id,
+        owner_user=None if _is_admin(request.user) else request.user,
+    )
 
     try:
         stats_dto = GetProviderStatsUseCase().execute(
@@ -197,16 +197,15 @@ def ai_provider_detail_view(request, provider_id):
 @login_required(login_url="/account/login/")
 def ai_provider_edit_view(request, provider_id):
     """Provider edit page honoring scope ownership."""
-    provider = get_object_or_404(AIProviderConfig, id=provider_id)
-    if provider.scope == "system" and not _is_admin(request.user):
-        return HttpResponseForbidden("Admin privileges required.")
-    if provider.scope == "user" and provider.owner_user_id != request.user.id:
-        return HttpResponseForbidden("You do not own this provider.")
+    provider = _get_provider_item(
+        provider_id,
+        owner_user=None if _is_admin(request.user) else request.user,
+    )
 
     form_class = AIProviderConfigForm if provider.scope == "system" else PersonalAIProviderConfigForm
 
     if request.method == "POST":
-        form = form_class(request.POST, instance=provider)
+        form = form_class(request.POST, provider=provider)
         if form.is_valid():
             update_data = {
                 "name": form.cleaned_data.get("name"),
@@ -237,7 +236,7 @@ def ai_provider_edit_view(request, provider_id):
             except ValueError as exc:
                 messages.error(request, str(exc))
     else:
-        form = form_class(instance=provider)
+        form = form_class(provider=provider)
 
     return render(
         request,

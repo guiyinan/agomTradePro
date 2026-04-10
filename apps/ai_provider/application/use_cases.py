@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
-from ..infrastructure.models import AIProviderConfig
+from ..infrastructure.adapters import OpenAICompatibleAdapter
 from ..infrastructure.repositories import (
     AIProviderRepository,
     AIUsageRepository,
@@ -67,6 +67,7 @@ class ListProvidersUseCase:
                     id=provider.id,
                     name=provider.name,
                     provider_type=provider.provider_type,
+                    provider_type_label=provider.get_provider_type_display(),
                     scope=provider.scope,
                     owner_user_id=provider.owner_user_id,
                     owner_username=getattr(owner, "username", None),
@@ -76,7 +77,10 @@ class ListProvidersUseCase:
                     default_model=provider.default_model,
                     api_mode=provider.api_mode,
                     fallback_enabled=provider.fallback_enabled,
+                    daily_budget_limit=float(provider.daily_budget_limit) if provider.daily_budget_limit is not None else None,
+                    monthly_budget_limit=float(provider.monthly_budget_limit) if provider.monthly_budget_limit is not None else None,
                     description=provider.description,
+                    extra_config=provider.extra_config or {},
                     created_at=provider.created_at,
                     updated_at=provider.updated_at,
                     last_used_at=provider.last_used_at,
@@ -115,7 +119,7 @@ class CreateProviderUseCase:
         extra_config: dict[str, Any] | None = None,
         scope: str = "system",
         owner_user=None,
-    ) -> AIProviderConfig:
+    ) -> Any:
         self._validate_common(
             provider_type=provider_type,
             api_mode=api_mode,
@@ -175,7 +179,7 @@ class UpdateProviderUseCase:
     def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
         self._provider_repo = provider_repo or AIProviderRepository()
 
-    def execute(self, pk: int, *, actor_user=None, **kwargs) -> AIProviderConfig:
+    def execute(self, pk: int, *, actor_user=None, **kwargs) -> Any:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
         if provider is None:
             raise ValueError(f"Provider with id {pk} not found")
@@ -234,7 +238,7 @@ class ToggleProviderUseCase:
     def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
         self._provider_repo = provider_repo or AIProviderRepository()
 
-    def execute(self, pk: int, *, actor_user=None) -> AIProviderConfig:
+    def execute(self, pk: int, *, actor_user=None) -> Any:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
         if provider is None:
             raise ValueError(f"Provider with id {pk} not found")
@@ -504,6 +508,43 @@ class ListUserFallbackQuotasUseCase:
             users = users.filter(is_active=True)
         get_use_case = GetUserFallbackQuotaUseCase(quota_repo=self._quota_repo)
         return [get_use_case.execute(user=user) for user in users]
+
+
+class TestProviderConnectionUseCase:
+    """测试单个 provider 的连通性。"""
+
+    def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
+        self._provider_repo = provider_repo or AIProviderRepository()
+
+    def execute(self, pk: int, *, actor_user=None) -> dict[str, Any]:
+        provider = self._provider_repo.get_by_id(pk, user=actor_user)
+        if provider is None:
+            raise ValueError(f"Provider with id {pk} not found")
+
+        api_key = self._provider_repo.get_api_key(provider)
+        if not api_key:
+            return {
+                "status": "error",
+                "error": "API key not available in current environment",
+            }
+
+        adapter = OpenAICompatibleAdapter(
+            base_url=provider.base_url,
+            api_key=api_key,
+            default_model=provider.default_model,
+            api_mode=provider.api_mode,
+            fallback_enabled=provider.fallback_enabled,
+        )
+        available = adapter.is_available()
+        if not available:
+            return {
+                "status": "error",
+                "error": "Provider health check failed",
+            }
+        return {
+            "status": "success",
+            "provider": provider.name,
+        }
 
 
 def _remaining(limit: float | None, spent: float) -> float | None:

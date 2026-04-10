@@ -49,6 +49,7 @@ class ProviderListItemDTO:
     id: int
     name: str
     provider_type: str
+    provider_type_label: str
     scope: str
     owner_user_id: int | None
     owner_username: str | None
@@ -58,7 +59,10 @@ class ProviderListItemDTO:
     default_model: str
     api_mode: str
     fallback_enabled: bool
+    daily_budget_limit: float | None
+    monthly_budget_limit: float | None
     description: str
+    extra_config: dict[str, Any]
     created_at: datetime
     updated_at: datetime
     last_used_at: datetime | None

@@ -2,9 +2,8 @@
 API views for AI provider management.
 """
 
-import logging
-
 from django.contrib.auth import get_user_model
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -22,13 +21,11 @@ from ...application.use_cases import (
     ListProvidersUseCase,
     ListUsageLogsUseCase,
     ListUserFallbackQuotasUseCase,
+    TestProviderConnectionUseCase,
     ToggleProviderUseCase,
     UpdateProviderUseCase,
     UpdateUserFallbackQuotaUseCase,
 )
-from ...infrastructure.adapters import OpenAICompatibleAdapter
-from ...infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
-from ...infrastructure.repositories import AIProviderRepository
 from ..serializers import (
     AIProviderConfigSerializer,
     AIUsageLogSerializer,
@@ -39,19 +36,12 @@ from ..serializers import (
     UserFallbackQuotaUpdateSerializer,
 )
 
-logger = logging.getLogger(__name__)
 
-
-class AIProviderConfigViewSet(viewsets.ModelViewSet):
+class AIProviderConfigViewSet(viewsets.GenericViewSet):
     """Admin-only CRUD for system providers."""
 
-    queryset = AIProviderConfig._default_manager.filter(scope="system").order_by("priority", "name")
     permission_classes = [IsAdminUser]
     serializer_class = AIProviderConfigSerializer
-    _provider_repo = AIProviderRepository()
-
-    def get_queryset(self):
-        return AIProviderConfig._default_manager.filter(scope="system").order_by("priority", "name")
 
     def get_serializer_class(self):
         if self.action in {"create", "update", "partial_update"}:
@@ -62,6 +52,10 @@ class AIProviderConfigViewSet(viewsets.ModelViewSet):
         items = ListProvidersUseCase().execute(scope="system")
         return Response([_provider_list_item_to_dict(item) for item in items])
 
+    def retrieve(self, request, pk=None):
+        item = _get_provider_or_404(pk=pk)
+        return Response(_provider_list_item_to_dict(item))
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -70,38 +64,32 @@ class AIProviderConfigViewSet(viewsets.ModelViewSet):
             scope="system",
             owner_user=None,
         )
-        return Response(
-            AIProviderConfigSerializer(provider).data,
-            status=status.HTTP_201_CREATED,
-        )
+        item = _get_provider_or_404(pk=provider.id)
+        return Response(_provider_list_item_to_dict(item), status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request, pk=None):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            provider = UpdateProviderUseCase().execute(
-                int(kwargs["pk"]),
-                **serializer.validated_data,
-            )
+            provider = UpdateProviderUseCase().execute(int(pk), **serializer.validated_data)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(AIProviderConfigSerializer(provider).data)
+        item = _get_provider_or_404(pk=provider.id)
+        return Response(_provider_list_item_to_dict(item))
 
-    def partial_update(self, request, *args, **kwargs):
+    def partial_update(self, request, pk=None):
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
-            provider = UpdateProviderUseCase().execute(
-                int(kwargs["pk"]),
-                **serializer.validated_data,
-            )
+            provider = UpdateProviderUseCase().execute(int(pk), **serializer.validated_data)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(AIProviderConfigSerializer(provider).data)
+        item = _get_provider_or_404(pk=provider.id)
+        return Response(_provider_list_item_to_dict(item))
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request, pk=None):
         try:
-            DeleteProviderUseCase().execute(int(kwargs["pk"]))
+            DeleteProviderUseCase().execute(int(pk))
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -112,43 +100,18 @@ class AIProviderConfigViewSet(viewsets.ModelViewSet):
             provider = ToggleProviderUseCase().execute(int(pk))
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(AIProviderConfigSerializer(provider).data)
+        item = _get_provider_or_404(pk=provider.id)
+        return Response(_provider_list_item_to_dict(item))
 
     @action(detail=True, methods=["post"], url_path="test-connection")
     def test_connection(self, request, pk=None):
-        provider = self._provider_repo.get_by_id(int(pk))
-        if provider is None or provider.scope != "system":
-            return Response({"error": f"Provider with id {pk} not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        api_key = self._provider_repo.get_api_key(provider)
-        if not api_key:
-            return Response(
-                {"status": "error", "error": "API key not available in current environment"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         try:
-            adapter = OpenAICompatibleAdapter(
-                base_url=provider.base_url,
-                api_key=api_key,
-                default_model=provider.default_model,
-                api_mode=provider.api_mode,
-                fallback_enabled=provider.fallback_enabled,
-            )
-            available = adapter.is_available()
-        except Exception as exc:
-            logger.exception("Provider test connection failed")
-            return Response(
-                {"status": "error", "error": str(exc)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        if not available:
-            return Response(
-                {"status": "error", "error": "Provider health check failed"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-        return Response({"status": "success", "provider": provider.name})
+            result = TestProviderConnectionUseCase().execute(int(pk))
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        if result["status"] == "error":
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result)
 
     @action(detail=True, methods=["get"], url_path="usage_stats")
     def usage_stats(self, request, pk=None):
@@ -177,17 +140,11 @@ class AIProviderConfigViewSet(viewsets.ModelViewSet):
         return Response(stats.__dict__)
 
 
-class PersonalProviderViewSet(viewsets.ModelViewSet):
+class PersonalProviderViewSet(viewsets.GenericViewSet):
     """User-scoped CRUD for personal providers."""
 
     permission_classes = [IsAuthenticated]
     serializer_class = AIProviderConfigSerializer
-
-    def get_queryset(self):
-        return AIProviderConfig._default_manager.filter(
-            scope="user",
-            owner_user=self.request.user,
-        ).order_by("priority", "name")
 
     def get_serializer_class(self):
         if self.action in {"create", "update", "partial_update"}:
@@ -201,6 +158,10 @@ class PersonalProviderViewSet(viewsets.ModelViewSet):
         )
         return Response([_provider_list_item_to_dict(item) for item in items])
 
+    def retrieve(self, request, pk=None):
+        item = _get_provider_or_404(pk=pk, owner_user=request.user)
+        return Response(_provider_list_item_to_dict(item))
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -209,40 +170,40 @@ class PersonalProviderViewSet(viewsets.ModelViewSet):
             scope="user",
             owner_user=request.user,
         )
-        return Response(
-            AIProviderConfigSerializer(provider).data,
-            status=status.HTTP_201_CREATED,
-        )
+        item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
+        return Response(_provider_list_item_to_dict(item), status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request, pk=None):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
             provider = UpdateProviderUseCase().execute(
-                int(kwargs["pk"]),
+                int(pk),
                 actor_user=request.user,
                 **serializer.validated_data,
             )
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(AIProviderConfigSerializer(provider).data)
+        item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
+        return Response(_provider_list_item_to_dict(item))
 
-    def partial_update(self, request, *args, **kwargs):
+    def partial_update(self, request, pk=None):
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
             provider = UpdateProviderUseCase().execute(
-                int(kwargs["pk"]),
+                int(pk),
                 actor_user=request.user,
                 **serializer.validated_data,
             )
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(AIProviderConfigSerializer(provider).data)
+        item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
+        return Response(_provider_list_item_to_dict(item))
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request, pk=None):
         try:
-            DeleteProviderUseCase().execute(int(kwargs["pk"]), actor_user=request.user)
+            DeleteProviderUseCase().execute(int(pk), actor_user=request.user)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -253,13 +214,13 @@ class PersonalProviderViewSet(viewsets.ModelViewSet):
             provider = ToggleProviderUseCase().execute(int(pk), actor_user=request.user)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-        return Response(AIProviderConfigSerializer(provider).data)
+        item = _get_provider_or_404(pk=provider.id, owner_user=request.user)
+        return Response(_provider_list_item_to_dict(item))
 
 
-class AIUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
+class AIUsageLogViewSet(viewsets.GenericViewSet):
     """Admin-only usage log listing."""
 
-    queryset = AIUsageLog._default_manager.select_related("provider", "user").order_by("-created_at")
     permission_classes = [IsAdminUser]
     serializer_class = AIUsageLogSerializer
 
@@ -283,10 +244,9 @@ class AIUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
         return Response([item.__dict__ for item in logs])
 
 
-class MyUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
+class MyUsageLogViewSet(viewsets.GenericViewSet):
     """Authenticated user's own usage logs."""
 
-    queryset = AIUsageLog._default_manager.select_related("provider", "user").order_by("-created_at")
     permission_classes = [IsAuthenticated]
     serializer_class = AIUsageLogSerializer
 
@@ -362,11 +322,25 @@ def _decimal_to_float(value):
     return float(value)
 
 
+def _get_provider_or_404(*, pk, owner_user=None):
+    scope = "user" if owner_user is not None else "system"
+    items = ListProvidersUseCase().execute(
+        scope=scope,
+        owner_user=owner_user,
+        include_inactive=True,
+    )
+    for item in items:
+        if item.id == int(pk):
+            return item
+    raise Http404(f"Provider with id {pk} not found")
+
+
 def _provider_list_item_to_dict(item):
     return {
         "id": item.id,
         "name": item.name,
         "provider_type": item.provider_type,
+        "provider_type_label": item.provider_type_label,
         "scope": item.scope,
         "owner_user_id": item.owner_user_id,
         "owner_username": item.owner_username,
@@ -376,6 +350,9 @@ def _provider_list_item_to_dict(item):
         "default_model": item.default_model,
         "api_mode": item.api_mode,
         "fallback_enabled": item.fallback_enabled,
+        "daily_budget_limit": item.daily_budget_limit,
+        "monthly_budget_limit": item.monthly_budget_limit,
+        "extra_config": item.extra_config,
         "description": item.description,
         "created_at": item.created_at,
         "updated_at": item.updated_at,

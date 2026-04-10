@@ -3536,6 +3536,18 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/ai-capability/:
+    get:
+      operationId: api_ai_capability_get
+      description: Return AI capability API endpoint directory.
+      tags:
+      - ai-capability
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/ai-capability/capabilities/:
     get:
       operationId: api_ai_capability_capabilities_get
@@ -3739,10 +3751,92 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/ai/admin/quotas/:
+    get:
+      operationId: api_ai_admin_quotas_get
+      description: Admin management for user fallback quotas.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: 分页结果集中的页码。
+        schema:
+          type: integer
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserFallbackQuotaList'
+          description: ''
+  /api/ai/admin/quotas/{id}/:
+    get:
+      operationId: api_ai_admin_quotas_by_id_get
+      description: Admin management for user fallback quotas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFallbackQuota'
+          description: ''
+    patch:
+      operationId: api_ai_admin_quotas_by_id_patch
+      description: Admin management for user fallback quotas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFallbackQuota'
+          description: ''
+  /api/ai/admin/quotas/batch_apply/:
+    post:
+      operationId: api_ai_admin_quotas_batch_apply_post
+      description: Admin management for user fallback quotas.
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFallbackQuota'
+          description: ''
   /api/ai/logs/:
     get:
       operationId: api_ai_logs_get
-      description: 支持过滤的日志列表
+      description: Admin-only usage log listing.
       parameters:
       - name: page
         required: false
@@ -3762,14 +3856,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAIUsageLogList'
           description: ''
-  /api/ai/logs/{id}/:
+  /api/ai/me/logs/:
     get:
-      operationId: api_ai_logs_by_id_get
-      description: |-
-        AI调用日志 API ViewSet
-
-        只读接口，用于查看日志。
-        通过 Application 层获取数据。
+      operationId: api_ai_me_logs_get
+      description: Authenticated user's own usage logs.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: 分页结果集中的页码。
+        schema:
+          type: integer
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAIUsageLogList'
+          description: ''
+  /api/ai/me/providers/:
+    get:
+      operationId: api_ai_me_providers_get
+      description: User-scoped CRUD for personal providers.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: 分页结果集中的页码。
+        schema:
+          type: integer
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAIProviderConfigList'
+          description: ''
+    post:
+      operationId: api_ai_me_providers_post
+      description: User-scoped CRUD for personal providers.
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalProviderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonalProviderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonalProviderCreateRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalProviderCreate'
+          description: ''
+  /api/ai/me/providers/{id}/:
+    get:
+      operationId: api_ai_me_providers_by_id_get
+      description: User-scoped CRUD for personal providers.
       parameters:
       - in: path
         name: id
@@ -3786,12 +3949,132 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AIUsageLog'
+                $ref: '#/components/schemas/AIProviderConfig'
+          description: ''
+    put:
+      operationId: api_ai_me_providers_by_id_put
+      description: User-scoped CRUD for personal providers.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalProviderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PersonalProviderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PersonalProviderCreateRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalProviderCreate'
+          description: ''
+    patch:
+      operationId: api_ai_me_providers_by_id_patch
+      description: User-scoped CRUD for personal providers.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPersonalProviderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPersonalProviderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPersonalProviderCreateRequest'
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalProviderCreate'
+          description: ''
+    delete:
+      operationId: api_ai_me_providers_by_id_delete
+      description: User-scoped CRUD for personal providers.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/ai/me/providers/{id}/toggle_active/:
+    post:
+      operationId: api_ai_me_providers_by_id_toggle_active_post
+      description: User-scoped CRUD for personal providers.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIProviderConfig'
+          description: ''
+  /api/ai/me/quota/current/:
+    get:
+      operationId: api_ai_me_quota_current_get
+      description: Authenticated user's quota visibility.
+      tags:
+      - ai
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFallbackQuota'
           description: ''
   /api/ai/providers/:
     get:
       operationId: api_ai_providers_get
-      description: 获取提供商列表，带今日统计数据
+      description: Admin-only CRUD for system providers.
       parameters:
       - name: page
         required: false
@@ -3813,20 +4096,20 @@ paths:
           description: ''
     post:
       operationId: api_ai_providers_post
-      description: 创建新提供商
+      description: Admin-only CRUD for system providers.
       tags:
       - ai
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/AdminProviderCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/AdminProviderCreateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/AdminProviderCreateRequest'
         required: true
       security:
       - cookieAuth: []
@@ -3836,16 +4119,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AIProviderConfigCreate'
+                $ref: '#/components/schemas/AdminProviderCreate'
           description: ''
   /api/ai/providers/{id}/:
     get:
       operationId: api_ai_providers_by_id_get
-      description: |-
-        AI提供商配置 API ViewSet
-
-        提供增删改查接口，用于前端模态窗口操作。
-        通过 Application 层编排业务逻辑。
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -3866,7 +4145,7 @@ paths:
           description: ''
     put:
       operationId: api_ai_providers_by_id_put
-      description: 更新提供商
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -3879,13 +4158,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/AdminProviderCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/AIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/AdminProviderCreateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/AIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/AdminProviderCreateRequest'
         required: true
       security:
       - cookieAuth: []
@@ -3895,15 +4174,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AIProviderConfigCreate'
+                $ref: '#/components/schemas/AdminProviderCreate'
           description: ''
     patch:
       operationId: api_ai_providers_by_id_patch
-      description: |-
-        AI提供商配置 API ViewSet
-
-        提供增删改查接口，用于前端模态窗口操作。
-        通过 Application 层编排业务逻辑。
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -3916,13 +4191,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedAIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/PatchedAdminProviderCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedAIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/PatchedAdminProviderCreateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedAIProviderConfigCreateRequest'
+              $ref: '#/components/schemas/PatchedAdminProviderCreateRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -3931,11 +4206,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AIProviderConfigCreate'
+                $ref: '#/components/schemas/AdminProviderCreate'
           description: ''
     delete:
       operationId: api_ai_providers_by_id_delete
-      description: 删除提供商
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -3953,7 +4228,7 @@ paths:
   /api/ai/providers/{id}/test-connection/:
     post:
       operationId: api_ai_providers_by_id_test_connection_post
-      description: 测试 AI 提供商连接是否可用
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -3962,18 +4237,6 @@ paths:
         required: true
       tags:
       - ai
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AIProviderConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AIProviderConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AIProviderConfigRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -3987,7 +4250,7 @@ paths:
   /api/ai/providers/{id}/toggle_active/:
     post:
       operationId: api_ai_providers_by_id_toggle_active_post
-      description: 切换启用/禁用状态
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -3996,18 +4259,6 @@ paths:
         required: true
       tags:
       - ai
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AIProviderConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AIProviderConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AIProviderConfigRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -4021,7 +4272,7 @@ paths:
   /api/ai/providers/{id}/usage_stats/:
     get:
       operationId: api_ai_providers_by_id_usage_stats_get
-      description: 获取使用统计
+      description: Admin-only CRUD for system providers.
       parameters:
       - in: path
         name: id
@@ -4043,7 +4294,7 @@ paths:
   /api/ai/providers/overall_stats/:
     get:
       operationId: api_ai_providers_overall_stats_get
-      description: 获取总体统计
+      description: Admin-only CRUD for system providers.
       tags:
       - ai
       security:
@@ -5646,6 +5897,464 @@ paths:
       description: Summary endpoint for Streamlit dashboard.
       tags:
       - dashboard
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/:
+    get:
+      operationId: api_data_center_get
+      description: Return discoverable data-center API endpoints.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/assets/resolve/:
+    get:
+      operationId: api_data_center_assets_resolve_get
+      description: |-
+        GET /api/data-center/assets/resolve/?code=&source_type=
+
+        Resolve a (possibly provider-specific) ticker to a canonical AssetMaster record.
+
+        Query params:
+          code        — required; ticker code (e.g. 000001.XSHE, sh600519, 600519.SH)
+          source_type — optional hint for normalisation (e.g. akshare)
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/capital-flows/:
+    get:
+      operationId: api_data_center_capital_flows_get
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/financials/:
+    get:
+      operationId: api_data_center_financials_get
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/funds/nav/:
+    get:
+      operationId: api_data_center_funds_nav_get
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/macro/series/:
+    get:
+      operationId: api_data_center_macro_series_get
+      description: |-
+        GET /api/data-center/macro/series/?indicator_code=&start=&end=&limit=&source=
+
+        Fetch a macro economic time-series.
+
+        Query params:
+          indicator_code — required (e.g. CN_GDP, CN_PMI)
+          start          — optional ISO date (YYYY-MM-DD)
+          end            — optional ISO date
+          limit          — optional int, default 500
+          source         — optional provider filter (e.g. tushare, akshare)
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/news/:
+    get:
+      operationId: api_data_center_news_get
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/prices/history/:
+    get:
+      operationId: api_data_center_prices_history_get
+      description: |-
+        GET /api/data-center/prices/history/?asset_code=&start=&end=&freq=&adjustment=&limit=
+
+        Fetch OHLCV price bars for a security.
+
+        Query params:
+          asset_code — required canonical ticker (e.g. 600519.SH)
+          start      — optional ISO date
+          end        — optional ISO date
+          freq       — optional bar frequency, default "1d"
+          adjustment — optional adjustment method (none/forward/backward), default "none"
+          limit      — optional int, default 500
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/prices/quotes/:
+    get:
+      operationId: api_data_center_prices_quotes_get
+      description: |-
+        GET /api/data-center/prices/quotes/?asset_code=
+
+        Fetch the most recent intraday quote snapshot for a security.
+
+        Query params:
+          asset_code — required canonical ticker
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/providers/:
+    get:
+      operationId: api_data_center_providers_get
+      description: |-
+        GET  — list all provider configs (credentials masked).
+        POST — create a new provider config.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_data_center_providers_post
+      description: |-
+        GET  — list all provider configs (credentials masked).
+        POST — create a new provider config.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/providers/{provider_id}/:
+    get:
+      operationId: api_data_center_providers_by_provider_id_get
+      description: |-
+        GET    — retrieve one provider config.
+        PATCH  — partial update.
+        PUT    — full update.
+        DELETE — remove provider config.
+      parameters:
+      - in: path
+        name: provider_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: api_data_center_providers_by_provider_id_put
+      description: |-
+        GET    — retrieve one provider config.
+        PATCH  — partial update.
+        PUT    — full update.
+        DELETE — remove provider config.
+      parameters:
+      - in: path
+        name: provider_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_data_center_providers_by_provider_id_patch
+      description: |-
+        GET    — retrieve one provider config.
+        PATCH  — partial update.
+        PUT    — full update.
+        DELETE — remove provider config.
+      parameters:
+      - in: path
+        name: provider_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_data_center_providers_by_provider_id_delete
+      description: |-
+        GET    — retrieve one provider config.
+        PATCH  — partial update.
+        PUT    — full update.
+        DELETE — remove provider config.
+      parameters:
+      - in: path
+        name: provider_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/data-center/providers/{provider_id}/test/:
+    post:
+      operationId: api_data_center_providers_by_provider_id_test_post
+      description: POST /api/data-center/providers/{id}/test/ — run connectivity probe.
+      parameters:
+      - in: path
+        name: provider_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/providers/status/:
+    get:
+      operationId: api_data_center_providers_status_get
+      description: |-
+        GET /api/data-center/providers/status/ — per-provider health snapshot.
+
+        Returns one entry per active provider configured in the DB.
+        The ``status`` field reflects live circuit-breaker state when the provider
+        has been exercised through the registry; otherwise it reads ``unknown``.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sectors/constituents/:
+    get:
+      operationId: api_data_center_sectors_constituents_get
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/settings/:
+    get:
+      operationId: api_data_center_settings_get
+      description: |-
+        GET         — retrieve global provider settings.
+        PUT / PATCH — update global settings.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: api_data_center_settings_put
+      description: |-
+        GET         — retrieve global provider settings.
+        PUT / PATCH — update global settings.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_data_center_settings_patch
+      description: |-
+        GET         — retrieve global provider settings.
+        PUT / PATCH — update global settings.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/capital-flows/:
+    post:
+      operationId: api_data_center_sync_capital_flows_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/financials/:
+    post:
+      operationId: api_data_center_sync_financials_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/funds/nav/:
+    post:
+      operationId: api_data_center_sync_funds_nav_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/macro/:
+    post:
+      operationId: api_data_center_sync_macro_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/news/:
+    post:
+      operationId: api_data_center_sync_news_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/prices/:
+    post:
+      operationId: api_data_center_sync_prices_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/quotes/:
+    post:
+      operationId: api_data_center_sync_quotes_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/sectors/constituents/:
+    post:
+      operationId: api_data_center_sync_sectors_constituents_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/sync/valuations/:
+    post:
+      operationId: api_data_center_sync_valuations_post
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/valuations/:
+    get:
+      operationId: api_data_center_valuations_get
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/decision/:
+    get:
+      operationId: api_decision_get
+      description: Return discoverable decision workflow API endpoints.
+      tags:
+      - decision
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -8742,206 +9451,6 @@ paths:
       responses:
         '200':
           description: No response body
-  /api/macro/datasources/:
-    get:
-      operationId: api_macro_datasources_get
-      description: List or create datasource configs.
-      tags:
-      - macro
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-    post:
-      operationId: api_macro_datasources_post
-      description: List or create datasource configs.
-      tags:
-      - macro
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/macro/datasources/{source_id}/:
-    get:
-      operationId: api_macro_datasources_by_source_id_get
-      description: Retrieve or update a datasource config.
-      parameters:
-      - in: path
-        name: source_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - macro
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-    put:
-      operationId: api_macro_datasources_by_source_id_put
-      description: Retrieve or update a datasource config.
-      parameters:
-      - in: path
-        name: source_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - macro
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-    patch:
-      operationId: api_macro_datasources_by_source_id_patch
-      description: Retrieve or update a datasource config.
-      parameters:
-      - in: path
-        name: source_id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - macro
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/:
-    get:
-      operationId: api_market_data_get
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/capital-flows/:
-    get:
-      operationId: api_market_data_capital_flows_get
-      description: |-
-        获取个股资金流向
-
-        Query params:
-            code: 股票代码
-            period: 时间范围（默认 5d）
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/capital-flows/sync/:
-    post:
-      operationId: api_market_data_capital_flows_sync_post
-      description: |-
-        同步个股资金流向到数据库
-
-        Body:
-            stock_code: 股票代码
-            period: 时间范围（默认 5d）
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/cross-validate/:
-    get:
-      operationId: api_market_data_cross_validate_get
-      description: |-
-        交叉校验多数据源行情
-
-        对指定股票代码，从所有可用 provider 获取行情并比对偏差。
-
-        Query params:
-            codes: 逗号分隔的股票代码
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/news/:
-    get:
-      operationId: api_market_data_news_get
-      description: |-
-        获取个股新闻
-
-        Query params:
-            code: 股票代码
-            limit: 最多返回条数（默认 20）
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/news/ingest/:
-    post:
-      operationId: api_market_data_news_ingest_post
-      description: |-
-        采集个股新闻到数据库
-
-        Body:
-            stock_code: 股票代码
-            limit: 最多采集条数（默认 20）
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/providers/health/:
-    get:
-      operationId: api_market_data_providers_health_get
-      description: 获取所有 provider 健康状态
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
-  /api/market-data/quotes/:
-    get:
-      operationId: api_market_data_quotes_get
-      description: |-
-        获取实时行情快照
-
-        Query params:
-            codes: 逗号分隔的股票代码（Tushare 格式）
-      tags:
-      - market-data
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
   /api/policy/audit/auto_assign/:
     post:
       operationId: api_policy_audit_auto_assign_post
@@ -10697,6 +11206,18 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/regime/:
+    get:
+      operationId: api_regime_get
+      description: Return discoverable regime API endpoints.
+      tags:
+      - regime
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/regime/action/:
     get:
       operationId: api_regime_action_get
@@ -12045,6 +12566,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/RotationTemplate'
           description: ''
+  /api/sector/:
+    get:
+      operationId: api_sector_get
+      description: Return discoverable sector API endpoints.
+      tags:
+      - sector
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/sector/analyze/:
     post:
       operationId: api_sector_analyze_post
@@ -16157,77 +16690,68 @@ components:
   schemas:
     AIProviderConfig:
       type: object
-      description: AI提供商配置序列化器
+      description: Read serializer for provider payloads.
       properties:
         id:
           type: integer
           readOnly: true
         name:
           type: string
-          description: 配置名称（唯一标识）
-          maxLength: 50
+          readOnly: true
+        scope:
+          type: string
+          readOnly: true
+        owner_user_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        owner_username:
+          type: string
+          readOnly: true
+          nullable: true
         provider_type:
-          allOf:
-          - $ref: '#/components/schemas/ProviderTypeEnum'
-          description: |-
-            提供商类型
-
-            * `openai` - OpenAI
-            * `deepseek` - DeepSeek
-            * `qwen` - 通义千问
-            * `moonshot` - Moonshot
-            * `custom` - 自定义
+          type: string
+          readOnly: true
+        provider_type_label:
+          type: string
+          readOnly: true
         is_active:
           type: boolean
-          description: 是否启用
+          readOnly: true
         priority:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 优先级（数字越小越优先，用于failover）
+          readOnly: true
         base_url:
           type: string
           format: uri
-          description: API Base URL（如 https://api.openai.com/v1）
-          maxLength: 500
+          readOnly: true
         api_key:
           type: string
-          description: API Key (plaintext, deprecated - use api_key_encrypted)
-          maxLength: 500
+          readOnly: true
         default_model:
           type: string
-          description: 默认模型名称
-          maxLength: 50
+          readOnly: true
         api_mode:
-          allOf:
-          - $ref: '#/components/schemas/ApiModeEnum'
-          description: |-
-            OpenAI API 模式：dual/responses_only/chat_only
-
-            * `dual` - Dual (Responses + Chat Fallback)
-            * `responses_only` - Responses Only
-            * `chat_only` - Chat Completions Only
+          type: string
+          readOnly: true
         fallback_enabled:
           type: boolean
-          description: dual 模式下是否允许从 Responses 回退到 Chat Completions
+          readOnly: true
         daily_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          type: number
+          format: double
+          readOnly: true
           nullable: true
-          description: 每日预算限制（美元）
         monthly_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          type: number
+          format: double
+          readOnly: true
           nullable: true
-          description: 每月预算限制（美元）
         extra_config:
-          description: 额外配置参数
+          readOnly: true
         description:
           type: string
-          description: 描述
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -16241,239 +16765,20 @@ components:
           format: date-time
           readOnly: true
           nullable: true
-          description: 最后使用时间
-      required:
-      - base_url
-      - name
-      - provider_type
-    AIProviderConfigCreate:
-      type: object
-      description: AI提供商配置创建序列化器
-      properties:
-        name:
-          type: string
-          description: 配置名称（唯一标识）
-          maxLength: 50
-        provider_type:
-          allOf:
-          - $ref: '#/components/schemas/ProviderTypeEnum'
-          description: |-
-            提供商类型
-
-            * `openai` - OpenAI
-            * `deepseek` - DeepSeek
-            * `qwen` - 通义千问
-            * `moonshot` - Moonshot
-            * `custom` - 自定义
-        is_active:
-          type: boolean
-          description: 是否启用
-        priority:
+        today_requests:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 优先级（数字越小越优先，用于failover）
-        base_url:
-          type: string
-          format: uri
-          description: API Base URL（如 https://api.openai.com/v1）
-          maxLength: 500
-        api_key:
-          type: string
-          description: API Key (plaintext, deprecated - use api_key_encrypted)
-          maxLength: 500
-        default_model:
-          type: string
-          description: 默认模型名称
-          maxLength: 50
-        api_mode:
-          allOf:
-          - $ref: '#/components/schemas/ApiModeEnum'
-          description: |-
-            OpenAI API 模式：dual/responses_only/chat_only
-
-            * `dual` - Dual (Responses + Chat Fallback)
-            * `responses_only` - Responses Only
-            * `chat_only` - Chat Completions Only
-        fallback_enabled:
-          type: boolean
-          description: dual 模式下是否允许从 Responses 回退到 Chat Completions
-        daily_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每日预算限制（美元）
-        monthly_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每月预算限制（美元）
-        extra_config:
-          description: 额外配置参数
-        description:
-          type: string
-          description: 描述
-      required:
-      - base_url
-      - name
-      - provider_type
-    AIProviderConfigCreateRequest:
-      type: object
-      description: AI提供商配置创建序列化器
-      properties:
-        name:
-          type: string
-          minLength: 1
-          description: 配置名称（唯一标识）
-          maxLength: 50
-        provider_type:
-          allOf:
-          - $ref: '#/components/schemas/ProviderTypeEnum'
-          description: |-
-            提供商类型
-
-            * `openai` - OpenAI
-            * `deepseek` - DeepSeek
-            * `qwen` - 通义千问
-            * `moonshot` - Moonshot
-            * `custom` - 自定义
-        is_active:
-          type: boolean
-          description: 是否启用
-        priority:
+          readOnly: true
+        today_cost:
+          type: number
+          format: double
+          readOnly: true
+        month_requests:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 优先级（数字越小越优先，用于failover）
-        base_url:
-          type: string
-          format: uri
-          minLength: 1
-          description: API Base URL（如 https://api.openai.com/v1）
-          maxLength: 500
-        api_key:
-          type: string
-          description: API Key (plaintext, deprecated - use api_key_encrypted)
-          maxLength: 500
-        default_model:
-          type: string
-          minLength: 1
-          description: 默认模型名称
-          maxLength: 50
-        api_mode:
-          allOf:
-          - $ref: '#/components/schemas/ApiModeEnum'
-          description: |-
-            OpenAI API 模式：dual/responses_only/chat_only
-
-            * `dual` - Dual (Responses + Chat Fallback)
-            * `responses_only` - Responses Only
-            * `chat_only` - Chat Completions Only
-        fallback_enabled:
-          type: boolean
-          description: dual 模式下是否允许从 Responses 回退到 Chat Completions
-        daily_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每日预算限制（美元）
-        monthly_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每月预算限制（美元）
-        extra_config:
-          description: 额外配置参数
-        description:
-          type: string
-          description: 描述
-      required:
-      - base_url
-      - name
-      - provider_type
-    AIProviderConfigRequest:
-      type: object
-      description: AI提供商配置序列化器
-      properties:
-        name:
-          type: string
-          minLength: 1
-          description: 配置名称（唯一标识）
-          maxLength: 50
-        provider_type:
-          allOf:
-          - $ref: '#/components/schemas/ProviderTypeEnum'
-          description: |-
-            提供商类型
-
-            * `openai` - OpenAI
-            * `deepseek` - DeepSeek
-            * `qwen` - 通义千问
-            * `moonshot` - Moonshot
-            * `custom` - 自定义
-        is_active:
-          type: boolean
-          description: 是否启用
-        priority:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 优先级（数字越小越优先，用于failover）
-        base_url:
-          type: string
-          format: uri
-          minLength: 1
-          description: API Base URL（如 https://api.openai.com/v1）
-          maxLength: 500
-        api_key:
-          type: string
-          description: API Key (plaintext, deprecated - use api_key_encrypted)
-          maxLength: 500
-        default_model:
-          type: string
-          minLength: 1
-          description: 默认模型名称
-          maxLength: 50
-        api_mode:
-          allOf:
-          - $ref: '#/components/schemas/ApiModeEnum'
-          description: |-
-            OpenAI API 模式：dual/responses_only/chat_only
-
-            * `dual` - Dual (Responses + Chat Fallback)
-            * `responses_only` - Responses Only
-            * `chat_only` - Chat Completions Only
-        fallback_enabled:
-          type: boolean
-          description: dual 模式下是否允许从 Responses 回退到 Chat Completions
-        daily_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每日预算限制（美元）
-        monthly_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每月预算限制（美元）
-        extra_config:
-          description: 额外配置参数
-        description:
-          type: string
-          description: 描述
-      required:
-      - base_url
-      - name
-      - provider_type
+          readOnly: true
+        month_cost:
+          type: number
+          format: double
+          readOnly: true
     AIStrategyConfig:
       type: object
       description: AI策略配置序列化器
@@ -16577,91 +16882,63 @@ components:
       - strategy
     AIUsageLog:
       type: object
-      description: AI调用日志序列化器
+      description: Usage log serializer with attribution fields.
       properties:
         id:
           type: integer
           readOnly: true
-        provider:
+        provider_id:
           type: integer
+          readOnly: true
         provider_name:
           type: string
           readOnly: true
+        user_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        username:
+          type: string
+          readOnly: true
+          nullable: true
+        provider_scope:
+          type: string
+          readOnly: true
+        quota_charged:
+          type: boolean
+          readOnly: true
         model:
           type: string
-          description: 使用的模型
-          maxLength: 50
+          readOnly: true
         request_type:
           type: string
-          description: 请求类型（chat/completion/embedding等）
-          maxLength: 20
+          readOnly: true
         prompt_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 输入token数量
+          readOnly: true
         completion_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 输出token数量
+          readOnly: true
         total_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 总token数量
+          readOnly: true
         estimated_cost:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,4}(?:\.\d{0,6})?$
-          description: 预估成本（美元）
+          type: number
+          format: double
+          readOnly: true
         response_time_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 响应时间（毫秒）
+          readOnly: true
         status:
-          allOf:
-          - $ref: '#/components/schemas/AIUsageLogStatusEnum'
-          description: |-
-            调用状态
-
-            * `success` - 成功
-            * `error` - 错误
-            * `timeout` - 超时
-            * `rate_limited` - 限流
+          type: string
+          readOnly: true
         error_message:
           type: string
-          description: 错误信息
-        request_metadata:
-          description: 请求元数据
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          description: 创建时间
-      required:
-      - estimated_cost
-      - model
-      - provider
-      - response_time_ms
-      - status
-    AIUsageLogStatusEnum:
-      enum:
-      - success
-      - error
-      - timeout
-      - rate_limited
-      type: string
-      description: |-
-        * `success` - 成功
-        * `error` - 错误
-        * `timeout` - 超时
-        * `rate_limited` - 限流
     AccountBatchDeleteRequestRequest:
       type: object
       description: 批量删除账户请求序列化器
@@ -16896,6 +17173,103 @@ components:
       required:
       - event_id
       - success
+    AdminProviderCreate:
+      type: object
+      description: Admin serializer for system provider create/update.
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 1
+          default: 10
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+        default_model:
+          type: string
+          default: gpt-3.5-turbo
+        api_mode:
+          allOf:
+          - $ref: '#/components/schemas/ApiModeEnum'
+          default: dual
+        fallback_enabled:
+          type: boolean
+          default: true
+        daily_budget_limit:
+          type: number
+          format: double
+          nullable: true
+        monthly_budget_limit:
+          type: number
+          format: double
+          nullable: true
+        extra_config: {}
+        description:
+          type: string
+          default: ''
+      required:
+      - base_url
+      - name
+      - provider_type
+    AdminProviderCreateRequest:
+      type: object
+      description: Admin serializer for system provider create/update.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 1
+          default: 10
+        base_url:
+          type: string
+          format: uri
+          minLength: 1
+        api_key:
+          type: string
+        default_model:
+          type: string
+          minLength: 1
+          default: gpt-3.5-turbo
+        api_mode:
+          allOf:
+          - $ref: '#/components/schemas/ApiModeEnum'
+          default: dual
+        fallback_enabled:
+          type: boolean
+          default: true
+        daily_budget_limit:
+          type: number
+          format: double
+          nullable: true
+        monthly_budget_limit:
+          type: number
+          format: double
+          nullable: true
+        extra_config: {}
+        description:
+          type: string
+          default: ''
+      required:
+      - base_url
+      - name
+      - provider_type
     AgentTask:
       type: object
       description: |-
@@ -17592,9 +17966,9 @@ components:
       - chat_only
       type: string
       description: |-
-        * `dual` - Dual (Responses + Chat Fallback)
-        * `responses_only` - Responses Only
-        * `chat_only` - Chat Completions Only
+        * `dual` - dual
+        * `responses_only` - responses_only
+        * `chat_only` - chat_only
     ApprovalModeEnum:
       enum:
       - always
@@ -22742,6 +23116,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Transaction'
+    PaginatedUserFallbackQuotaList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserFallbackQuota'
     PaginatedValuationRepairConfigList:
       type: object
       required:
@@ -22773,79 +23170,6 @@ components:
       description: |-
         * `feedparser` - feedparser
         * `httpx` - httpx+manual
-    PatchedAIProviderConfigCreateRequest:
-      type: object
-      description: AI提供商配置创建序列化器
-      properties:
-        name:
-          type: string
-          minLength: 1
-          description: 配置名称（唯一标识）
-          maxLength: 50
-        provider_type:
-          allOf:
-          - $ref: '#/components/schemas/ProviderTypeEnum'
-          description: |-
-            提供商类型
-
-            * `openai` - OpenAI
-            * `deepseek` - DeepSeek
-            * `qwen` - 通义千问
-            * `moonshot` - Moonshot
-            * `custom` - 自定义
-        is_active:
-          type: boolean
-          description: 是否启用
-        priority:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 优先级（数字越小越优先，用于failover）
-        base_url:
-          type: string
-          format: uri
-          minLength: 1
-          description: API Base URL（如 https://api.openai.com/v1）
-          maxLength: 500
-        api_key:
-          type: string
-          description: API Key (plaintext, deprecated - use api_key_encrypted)
-          maxLength: 500
-        default_model:
-          type: string
-          minLength: 1
-          description: 默认模型名称
-          maxLength: 50
-        api_mode:
-          allOf:
-          - $ref: '#/components/schemas/ApiModeEnum'
-          description: |-
-            OpenAI API 模式：dual/responses_only/chat_only
-
-            * `dual` - Dual (Responses + Chat Fallback)
-            * `responses_only` - Responses Only
-            * `chat_only` - Chat Completions Only
-        fallback_enabled:
-          type: boolean
-          description: dual 模式下是否允许从 Responses 回退到 Chat Completions
-        daily_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每日预算限制（美元）
-        monthly_budget_limit:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
-          description: 每月预算限制（美元）
-        extra_config:
-          description: 额外配置参数
-        description:
-          type: string
-          description: 描述
     PatchedAIStrategyConfigRequest:
       type: object
       description: AI策略配置序列化器
@@ -22888,6 +23212,52 @@ components:
           minimum: 0.0
           title: 自动执行置信度阈值
           description: 置信度高于此值时自动执行
+    PatchedAdminProviderCreateRequest:
+      type: object
+      description: Admin serializer for system provider create/update.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 1
+          default: 10
+        base_url:
+          type: string
+          format: uri
+          minLength: 1
+        api_key:
+          type: string
+        default_model:
+          type: string
+          minLength: 1
+          default: gpt-3.5-turbo
+        api_mode:
+          allOf:
+          - $ref: '#/components/schemas/ApiModeEnum'
+          default: dual
+        fallback_enabled:
+          type: boolean
+          default: true
+        daily_budget_limit:
+          type: number
+          format: double
+          nullable: true
+        monthly_budget_limit:
+          type: number
+          format: double
+          nullable: true
+        extra_config: {}
+        description:
+          type: string
+          default: ''
     PatchedAgentTaskRequest:
       type: object
       description: |-
@@ -23319,6 +23689,44 @@ components:
           format: date-time
           nullable: true
           title: 过期时间
+    PatchedPersonalProviderCreateRequest:
+      type: object
+      description: User serializer for personal provider create/update.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 1
+          default: 10
+        base_url:
+          type: string
+          format: uri
+          minLength: 1
+        api_key:
+          type: string
+        default_model:
+          type: string
+          minLength: 1
+          default: gpt-3.5-turbo
+        api_mode:
+          allOf:
+          - $ref: '#/components/schemas/ApiModeEnum'
+          default: dual
+        fallback_enabled:
+          type: boolean
+          default: true
+        extra_config: {}
+        description:
+          type: string
+          default: ''
     PatchedPolicyLevelKeywordRequest:
       type: object
       description: 政策档位关键词规则序列化器
@@ -24312,6 +24720,87 @@ components:
         * `daily` - daily
         * `weekly` - weekly
         * `monthly` - monthly
+    PersonalProviderCreate:
+      type: object
+      description: User serializer for personal provider create/update.
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 1
+          default: 10
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+        default_model:
+          type: string
+          default: gpt-3.5-turbo
+        api_mode:
+          allOf:
+          - $ref: '#/components/schemas/ApiModeEnum'
+          default: dual
+        fallback_enabled:
+          type: boolean
+          default: true
+        extra_config: {}
+        description:
+          type: string
+          default: ''
+      required:
+      - base_url
+      - name
+      - provider_type
+    PersonalProviderCreateRequest:
+      type: object
+      description: User serializer for personal provider create/update.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        provider_type:
+          $ref: '#/components/schemas/ProviderTypeEnum'
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          minimum: 1
+          default: 10
+        base_url:
+          type: string
+          format: uri
+          minLength: 1
+        api_key:
+          type: string
+        default_model:
+          type: string
+          minLength: 1
+          default: gpt-3.5-turbo
+        api_mode:
+          allOf:
+          - $ref: '#/components/schemas/ApiModeEnum'
+          default: dual
+        fallback_enabled:
+          type: boolean
+          default: true
+        extra_config: {}
+        description:
+          type: string
+          default: ''
+      required:
+      - base_url
+      - name
+      - provider_type
     PolicyCreateResponse:
       type: object
       description: 创建政策事件响应序列化器
@@ -25751,11 +26240,11 @@ components:
       - custom
       type: string
       description: |-
-        * `openai` - OpenAI
-        * `deepseek` - DeepSeek
-        * `qwen` - 通义千问
-        * `moonshot` - Moonshot
-        * `custom` - 自定义
+        * `openai` - openai
+        * `deepseek` - deepseek
+        * `qwen` - qwen
+        * `moonshot` - moonshot
+        * `custom` - custom
     ProxyTypeEnum:
       enum:
       - http
@@ -29165,6 +29654,55 @@ components:
           description: 最大执行次数
       required:
       - period
+    UserFallbackQuota:
+      type: object
+      description: Serializer for one user's fallback quota.
+      properties:
+        user_id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+        daily_limit:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        monthly_limit:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+          readOnly: true
+        admin_note:
+          type: string
+          readOnly: true
+        daily_spent:
+          type: number
+          format: double
+          readOnly: true
+        monthly_spent:
+          type: number
+          format: double
+          readOnly: true
+        daily_remaining:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        monthly_remaining:
+          type: number
+          format: double
+          readOnly: true
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
     ValidateValuationDataRequestRequest:
       type: object
       description: 估值数据质量校验请求序列化器

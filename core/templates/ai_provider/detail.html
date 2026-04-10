@@ -6,7 +6,7 @@
 <a href="{% if provider.scope == 'user' %}{% url 'ai_provider:my-providers' %}{% else %}{% url 'ai_provider:manage' %}{% endif %}" style="display: inline-block; margin-bottom: 12px; color: var(--text-secondary, #6c757d); text-decoration: none; font-size: 14px;">&larr; 返回{% if provider.scope == 'user' %}我的 Provider{% else %} AI 管理{% endif %}</a>
 <div class="page-header">
     <h1>{{ provider.name }}</h1>
-    <p class="subtitle">{{ provider.get_provider_type_display }} - {{ provider.description }}</p>
+    <p class="subtitle">{{ provider.provider_type_label }} - {{ provider.description }}</p>
 </div>
 
 <!-- 基本信息 -->
@@ -20,7 +20,7 @@
             </tr>
             <tr>
                 <td style="padding: 8px;"><strong>类型:</strong></td>
-                <td style="padding: 8px;">{{ provider.get_provider_type_display }}</td>
+                <td style="padding: 8px;">{{ provider.provider_type_label }}</td>
             </tr>
             <tr>
                 <td style="padding: 8px;"><strong>状态:</strong></td>
