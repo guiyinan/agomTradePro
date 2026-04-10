@@ -306,8 +306,8 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",  # 默认需要登录
     ],
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "core.throttling.ResilientAnonRateThrottle",
+        "core.throttling.ResilientUserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("DRF_THROTTLE_ANON", default="100/hour"),

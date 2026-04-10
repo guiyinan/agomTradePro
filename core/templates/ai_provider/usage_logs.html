@@ -4,11 +4,16 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>AI调用日志</h1>
-    <p class="subtitle">查看AI API调用记录和统计</p>
+    <h1>{% if is_admin_view %}AI调用日志{% else %}我的 AI 调用日志{% endif %}</h1>
+    <p class="subtitle">
+        {% if is_admin_view %}
+        同时查看系统全局、系统兜底和个人 Provider 的命中情况。
+        {% else %}
+        查看你自己的 Provider 调用记录，以及是否发生了系统兜底计费。
+        {% endif %}
+    </p>
 </div>
 
-<!-- 过滤器 -->
 <div style="margin-bottom: 24px; padding: 16px; background: var(--color-bg-light); border-radius: 4px;">
     <form method="get" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
         <div>
@@ -16,9 +21,7 @@
             <select name="provider" onchange="this.form.submit()">
                 <option value="">全部</option>
                 {% for p in providers %}
-                    <option value="{{ p.id }}" {% if filter_provider == p.id|stringformat:"s" %}selected{% endif %}>
-                        {{ p.name }}
-                    </option>
+                <option value="{{ p.id }}" {% if filter_provider == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -28,9 +31,7 @@
             <select name="status" onchange="this.form.submit()">
                 <option value="">全部</option>
                 {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>
-                        {{ label }}
-                    </option>
+                <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -45,64 +46,84 @@
         </div>
 
         <div>
-            <a href="{% url 'ai_provider:manage' %}" class="tag">返回管理</a>
+            <a href="{% if is_admin_view %}{% url 'ai_provider:manage' %}{% else %}{% url 'ai_provider:my-providers' %}{% endif %}" class="tag">
+                返回{% if is_admin_view %}管理{% else %}我的 Provider{% endif %}
+            </a>
         </div>
     </form>
 </div>
 
-<!-- 日志表格 -->
 <div class="section">
     <h2 class="section-title">调用记录</h2>
 
     {% if logs %}
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="border-bottom: 2px solid var(--color-border);">
-                    <th style="padding: 12px 8px; text-align: left;">时间</th>
-                    <th style="padding: 12px 8px; text-align: left;">提供商</th>
-                    <th style="padding: 12px 8px; text-align: left;">模型</th>
-                    <th style="padding: 12px 8px; text-align: right;">Tokens</th>
-                    <th style="padding: 12px 8px; text-align: right;">成本</th>
-                    <th style="padding: 12px 8px; text-align: right;">耗时</th>
-                    <th style="padding: 12px 8px; text-align: center;">状态</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr style="border-bottom: 1px solid var(--color-border-light);">
-                    <td style="padding: 8px;">{{ log.created_at|date:"m-d H:i" }}</td>
-                    <td style="padding: 8px;">{{ log.provider.name }}</td>
-                    <td style="padding: 8px;"><code>{{ log.model }}</code></td>
-                    <td style="padding: 8px; text-align: right;">{{ log.total_tokens|default:0 }}</td>
-                    <td style="padding: 8px; text-align: right;">${{ log.estimated_cost|floatformat:6 }}</td>
-                    <td style="padding: 8px; text-align: right;">{{ log.response_time_ms }}ms</td>
-                    <td style="padding: 8px; text-align: center;">
-                        {% if log.status == 'success' %}
-                            <span class="tag tag-success">成功</span>
-                        {% elif log.status == 'error' %}
-                            <span class="tag tag-error">错误</span>
-                        {% elif log.status == 'timeout' %}
-                            <span class="tag" style="background: #f0ad4e;">超时</span>
-                        {% else %}
-                            <span class="tag" style="background: #f0ad4e;">限流</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% if log.error_message %}
-                <tr style="background: var(--color-error-bg);">
-                    <td colspan="7" style="padding: 8px; color: var(--color-error); font-size: 12px;">
-                        错误: {{ log.error_message }}
-                    </td>
-                </tr>
-                {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--color-border);">
+                <th style="padding: 12px 8px; text-align: left;">时间</th>
+                {% if is_admin_view %}<th style="padding: 12px 8px; text-align: left;">用户</th>{% endif %}
+                <th style="padding: 12px 8px; text-align: left;">提供商</th>
+                <th style="padding: 12px 8px; text-align: left;">归因</th>
+                <th style="padding: 12px 8px; text-align: left;">模型</th>
+                <th style="padding: 12px 8px; text-align: right;">Tokens</th>
+                <th style="padding: 12px 8px; text-align: right;">成本</th>
+                <th style="padding: 12px 8px; text-align: center;">兜底计费</th>
+                <th style="padding: 12px 8px; text-align: right;">耗时</th>
+                <th style="padding: 12px 8px; text-align: center;">状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr style="border-bottom: 1px solid var(--color-border-light);">
+                <td style="padding: 8px;">{{ log.created_at|date:"m-d H:i" }}</td>
+                {% if is_admin_view %}<td style="padding: 8px;">{{ log.username|default:"系统" }}</td>{% endif %}
+                <td style="padding: 8px;">{{ log.provider_name }}</td>
+                <td style="padding: 8px;">
+                    {% if log.provider_scope == 'personal' %}
+                    <span class="tag">个人 Provider</span>
+                    {% elif log.provider_scope == 'system_fallback' %}
+                    <span class="tag" style="background: #fef3c7; color: #92400e;">系统兜底</span>
+                    {% else %}
+                    <span class="tag" style="background: #dbeafe; color: #1d4ed8;">系统全局</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 8px;"><code>{{ log.model }}</code></td>
+                <td style="padding: 8px; text-align: right;">{{ log.total_tokens|default:0 }}</td>
+                <td style="padding: 8px; text-align: right;">${{ log.estimated_cost|floatformat:6 }}</td>
+                <td style="padding: 8px; text-align: center;">
+                    {% if log.quota_charged %}
+                    <span class="tag" style="background: #fee2e2; color: #b91c1c;">是</span>
+                    {% else %}
+                    <span class="tag">否</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 8px; text-align: right;">{{ log.response_time_ms }}ms</td>
+                <td style="padding: 8px; text-align: center;">
+                    {% if log.status == 'success' %}
+                    <span class="tag tag-success">成功</span>
+                    {% elif log.status == 'error' %}
+                    <span class="tag tag-error">错误</span>
+                    {% elif log.status == 'timeout' %}
+                    <span class="tag" style="background: #fef3c7; color: #92400e;">超时</span>
+                    {% else %}
+                    <span class="tag" style="background: #fde68a; color: #92400e;">限流</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% if log.error_message %}
+            <tr style="background: var(--color-error-bg);">
+                <td colspan="{% if is_admin_view %}10{% else %}9{% endif %}" style="padding: 8px; color: var(--color-error); font-size: 12px;">
+                    错误: {{ log.error_message }}
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
     {% else %}
-        <div class="card" style="text-align: center; padding: 40px;">
-            <p style="color: var(--color-text-secondary);">暂无调用记录</p>
-        </div>
+    <div class="card" style="text-align: center; padding: 40px;">
+        <p style="color: var(--color-text-secondary);">暂无调用记录</p>
+    </div>
     {% endif %}
 </div>
-
 {% endblock %}

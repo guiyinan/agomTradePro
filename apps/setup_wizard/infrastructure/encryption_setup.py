@@ -11,6 +11,7 @@ Auto-generate security keys during setup wizard.
 import logging
 import os
 import re
+import shutil
 from pathlib import Path
 
 from cryptography.fernet import Fernet
@@ -20,6 +21,30 @@ from django.core.management.utils import get_random_secret_key
 logger = logging.getLogger(__name__)
 
 _INSECURE_PATTERNS = ("django-insecure", "change-this", "change_this")
+
+
+def ensure_env_file() -> bool:
+    """
+    Ensure the local .env file exists.
+
+    Seeds from .env.example when available so first-time installs inherit the
+    documented local defaults before secure keys are injected.
+
+    Returns:
+        True if a new .env file was created
+    """
+    env_path = Path(settings.BASE_DIR) / ".env"
+    if env_path.exists():
+        return False
+
+    example_path = Path(settings.BASE_DIR) / ".env.example"
+    if example_path.exists():
+        shutil.copyfile(example_path, env_path)
+        logger.info("Setup wizard: created .env from .env.example")
+    else:
+        env_path.write_text("", encoding="utf-8")
+        logger.info("Setup wizard: created empty .env")
+    return True
 
 
 def ensure_all_keys(
@@ -40,6 +65,24 @@ def ensure_all_keys(
         "secret_key_configured": has_secure_secret_key(),
         "encryption_key_configured": has_encryption_key(),
     }
+
+
+def bootstrap_local_environment(
+    *, generate_secret_key: bool = True, generate_encryption_key: bool = True
+) -> dict[str, bool]:
+    """
+    Prepare a first-run local environment file and secure keys.
+
+    Returns:
+        Dict with env creation and key generation flags
+    """
+    env_created = ensure_env_file()
+    result = ensure_all_keys(
+        generate_secret_key=generate_secret_key,
+        generate_encryption_key=generate_encryption_key,
+    )
+    result["env_created"] = env_created
+    return result
 
 
 def ensure_secret_key() -> bool:

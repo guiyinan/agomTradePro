@@ -14,6 +14,12 @@ from rest_framework.views import APIView
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 
+from ..application.dtos import (
+    ExecuteChainRequest,
+    ExecutePromptRequest,
+    GenerateReportRequest,
+    GenerateSignalRequest,
+)
 from ..application.use_cases import (
     ExecuteChainUseCase,
     ExecutePromptUseCase,
@@ -117,8 +123,11 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
             regime_adapter=regime_adapter
         )
 
-        # 执行
-        result = use_case.execute(serializer.validated_data)
+        request_dto = ExecutePromptRequest(
+            **serializer.validated_data,
+            user_id=request.user.id if request.user.is_authenticated else None,
+        )
+        result = use_case.execute(request_dto)
 
         # 返回结果
         response_serializer = ExecutePromptResponseSerializer(result)
@@ -172,8 +181,11 @@ class ChainConfigViewSet(viewsets.ModelViewSet):
             prompt_use_case=prompt_use_case
         )
 
-        # 执行
-        result = chain_use_case.execute(serializer.validated_data)
+        request_dto = ExecuteChainRequest(
+            **serializer.validated_data,
+            user_id=request.user.id if request.user.is_authenticated else None,
+        )
+        result = chain_use_case.execute(request_dto)
 
         # 返回结果
         response_serializer = ExecuteChainResponseSerializer(result)
@@ -217,8 +229,11 @@ class ReportGenerationView(APIView):
         )
         report_use_case = GenerateReportUseCase(chain_use_case=chain_use_case)
 
-        # 执行
-        result = report_use_case.execute(serializer.validated_data)
+        request_dto = GenerateReportRequest(
+            **serializer.validated_data,
+            user_id=request.user.id if request.user.is_authenticated else None,
+        )
+        result = report_use_case.execute(request_dto)
 
         # 返回结果
         response_serializer = GenerateReportResponseSerializer(result)
@@ -251,8 +266,11 @@ class SignalGenerationView(APIView):
         )
         signal_use_case = GenerateSignalUseCase(chain_use_case=chain_use_case)
 
-        # 执行
-        result = signal_use_case.execute(serializer.validated_data)
+        request_dto = GenerateSignalRequest(
+            **serializer.validated_data,
+            user_id=request.user.id if request.user.is_authenticated else None,
+        )
+        result = signal_use_case.execute(request_dto)
 
         # 返回结果
         response_serializer = GenerateSignalResponseSerializer(result)
@@ -284,7 +302,10 @@ class ChatView(APIView):
 
         try:
             ai_factory = AIClientFactory()
-            ai_client = ai_factory.get_client(provider_ref)
+            ai_client = ai_factory.get_client(
+                provider_ref,
+                user=request.user if request.user.is_authenticated else None,
+            )
             ai_response = ai_client.chat_completion(
                 messages=messages,
                 model=model,
@@ -308,6 +329,8 @@ class ChatView(APIView):
             'session_id': session_id,
             'metadata': {
                 'provider': ai_response.get('provider_used', ''),
+                'provider_scope': ai_response.get('provider_scope', 'system_global'),
+                'quota_charged': ai_response.get('quota_charged', False),
                 'model': ai_response.get('model', ''),
                 'tokens': ai_response.get('total_tokens', 0),
                 'response_time_ms': int((time.time() - start_time) * 1000),

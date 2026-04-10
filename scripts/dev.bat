@@ -39,7 +39,17 @@ echo [OK] Python runtime ready: %PYTHON_EXEC%
 echo.
 
 REM ========== 2. Run Migrations ==========
-echo [2/3] Running database migrations...
+echo [2/4] Preparing local environment...
+"%PYTHON_EXEC%" manage.py bootstrap_local_env
+if errorlevel 1 (
+    echo [ERROR] Failed to prepare local environment.
+    pause
+    exit /b 1
+)
+echo [OK] Local .env and keys ready
+echo.
+
+echo [3/4] Running database migrations...
 "%PYTHON_EXEC%" manage.py migrate --skip-checks
 if errorlevel 1 (
     echo [WARN] Migration issues, retrying...
@@ -58,7 +68,7 @@ if errorlevel 1 (
 echo.
 
 REM ========== 3. Start Django ==========
-echo [3/3] Starting Django development server...
+echo [4/4] Starting Django development server...
 echo ====================================
 echo Access URLs:
 echo   - Home:  http://127.0.0.1:%DJANGO_PORT%/

@@ -1,4 +1,4 @@
-# Development aggregate requirements.
-# - Production image should install `requirements-prod.txt`.
-# - Local development can keep using this file.
--r requirements-dev.txt
+# Default install requirements for local runtime / first-time setup.
+# - Use `requirements-prod.txt` for explicit runtime-only installs.
+# - Use `requirements-dev.txt` when contributor tooling is needed.
+-r requirements-prod.txt

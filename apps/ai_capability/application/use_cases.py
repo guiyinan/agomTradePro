@@ -916,7 +916,10 @@ class RouteMessageUseCase:
         """Execute general chat using AI provider."""
         try:
             ai_factory = AIClientFactory()
-            ai_client = ai_factory.get_client(request.provider_name)
+            ai_client = ai_factory.get_client(
+                request.provider_name,
+                user=context.user_id,
+            )
 
             history = request.context.get("history", []) or []
             messages = [{

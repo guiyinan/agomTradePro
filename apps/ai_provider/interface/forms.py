@@ -2,10 +2,10 @@ import json
 
 from django import forms
 
-from ..infrastructure.models import AIProviderConfig
+from ..infrastructure.models import AIProviderConfig, AIUserFallbackQuota
 
 
-class AIProviderConfigForm(forms.ModelForm):
+class _BaseProviderForm(forms.ModelForm):
     EXTRA_CONFIG_EXAMPLE = {
         "timeout": 30,
         "max_retries": 2,
@@ -18,31 +18,13 @@ class AIProviderConfigForm(forms.ModelForm):
         label="额外配置(JSON)",
         required=False,
         widget=forms.Textarea(attrs={"rows": 6}),
-        help_text='可选。建议字段：timeout(秒)、max_retries(重试次数)、temperature(0~2)、max_tokens(最大输出)',
+        help_text="可选。建议字段：timeout、max_retries、temperature、max_tokens",
     )
     api_key = forms.CharField(
         required=False,
         widget=forms.PasswordInput(render_value=True),
         help_text="编辑时留空表示不修改",
     )
-
-    class Meta:
-        model = AIProviderConfig
-        fields = [
-            "name",
-            "provider_type",
-            "is_active",
-            "priority",
-            "base_url",
-            "api_key",
-            "default_model",
-            "api_mode",
-            "fallback_enabled",
-            "daily_budget_limit",
-            "monthly_budget_limit",
-            "description",
-            "extra_config_text",
-        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,7 +37,9 @@ class AIProviderConfigForm(forms.ModelForm):
         )
         if self.instance and self.instance.pk:
             self.fields["extra_config_text"].initial = json.dumps(
-                self.instance.extra_config or {}, ensure_ascii=False, indent=2
+                self.instance.extra_config or {},
+                ensure_ascii=False,
+                indent=2,
             )
             self.fields["api_key"].required = False
         else:
@@ -90,3 +74,47 @@ class AIProviderConfigForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class AIProviderConfigForm(_BaseProviderForm):
+    class Meta:
+        model = AIProviderConfig
+        fields = [
+            "name",
+            "provider_type",
+            "is_active",
+            "priority",
+            "base_url",
+            "api_key",
+            "default_model",
+            "api_mode",
+            "fallback_enabled",
+            "daily_budget_limit",
+            "monthly_budget_limit",
+            "description",
+            "extra_config_text",
+        ]
+
+
+class PersonalAIProviderConfigForm(_BaseProviderForm):
+    class Meta:
+        model = AIProviderConfig
+        fields = [
+            "name",
+            "provider_type",
+            "is_active",
+            "priority",
+            "base_url",
+            "api_key",
+            "default_model",
+            "api_mode",
+            "fallback_enabled",
+            "description",
+            "extra_config_text",
+        ]
+
+
+class UserFallbackQuotaForm(forms.ModelForm):
+    class Meta:
+        model = AIUserFallbackQuota
+        fields = ["daily_limit", "monthly_limit", "is_active", "admin_note"]

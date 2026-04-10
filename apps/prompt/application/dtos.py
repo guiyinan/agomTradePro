@@ -90,6 +90,7 @@ class ExecutePromptRequest:
     model: str | None = None
     temperature: float | None = None
     max_tokens: int | None = None
+    user_id: int | None = None
 
 
 @dataclass
@@ -117,6 +118,7 @@ class ExecuteChainRequest:
     provider_ref: Any | None = None
     provider_name: str | None = None
     model: str | None = None
+    user_id: int | None = None
 
 
 @dataclass
@@ -144,6 +146,7 @@ class GenerateReportRequest:
     provider_ref: Any | None = None
     provider_name: str | None = None
     model: str | None = None
+    user_id: int | None = None
 
 
 @dataclass
@@ -160,6 +163,7 @@ class GenerateSignalRequest:
     analysis_context: dict[str, Any]
     provider_ref: Any | None = None
     provider_name: str | None = None
+    user_id: int | None = None
 
 
 @dataclass

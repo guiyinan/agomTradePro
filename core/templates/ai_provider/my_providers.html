@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}我的 AI Provider - AgomTradePro{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>我的 AI Provider</h1>
+    <p class="subtitle">个人 Provider 始终优先；只有个人 Provider 不可用时，系统才会按你的兜底额度继续尝试。</p>
+</div>
+
+<div class="status-grid" style="margin-bottom: 24px;">
+    <div class="status-item">
+        <div class="status-label">兜底状态</div>
+        <div class="status-value">{% if quota.is_active %}启用{% else %}未启用{% endif %}</div>
+    </div>
+    <div class="status-item">
+        <div class="status-label">今日额度 / 已用</div>
+        <div class="status-value">
+            {% if quota.daily_limit is not None %}${{ quota.daily_limit|floatformat:2 }}{% else %}不限{% endif %}
+            / ${{ quota.daily_spent|floatformat:4 }}
+        </div>
+    </div>
+    <div class="status-item">
+        <div class="status-label">本月额度 / 已用</div>
+        <div class="status-value">
+            {% if quota.monthly_limit is not None %}${{ quota.monthly_limit|floatformat:2 }}{% else %}不限{% endif %}
+            / ${{ quota.monthly_spent|floatformat:4 }}
+        </div>
+    </div>
+    <div class="status-item">
+        <div class="status-label">说明</div>
+        <div class="status-value" style="font-size: 14px;">个人 Provider 不计入系统兜底额度</div>
+    </div>
+</div>
+
+<div style="margin-bottom: 24px; display: flex; gap: 16px; align-items: center;">
+    <button id="btn-add-provider" class="tag" style="background: var(--success-color); color: white; border: none; cursor: pointer;">+ 添加个人 Provider</button>
+    <a href="{% url 'ai_provider:logs' %}" class="tag">查看我的调用日志</a>
+</div>
+
+<div class="section">
+    <h2 class="section-title">个人 Provider 列表</h2>
+    <div id="providers-container">
+        <div class="card" style="text-align: center; padding: 40px;">
+            <p style="color: var(--text-secondary);">加载中...</p>
+        </div>
+    </div>
+</div>
+
+<div id="provider-modal" class="ai-modal">
+    <div class="ai-modal-content">
+        <div class="ai-modal-header">
+            <h3 id="modal-title">添加个人 Provider</h3>
+            <span class="ai-modal-close">&times;</span>
+        </div>
+        <form id="provider-form" class="ai-modal-body">
+            <div class="ai-form-group">
+                <label for="name" class="ai-form-label">配置名称 *</label>
+                <input type="text" id="name" name="name" class="ai-form-input" required>
+            </div>
+            <div class="ai-form-group">
+                <label for="provider_type" class="ai-form-label">提供商类型 *</label>
+                <select id="provider_type" name="provider_type" class="ai-form-select" required>
+                    <option value="">选择类型</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="qwen">通义千问</option>
+                    <option value="moonshot">Moonshot</option>
+                    <option value="custom">自定义</option>
+                </select>
+            </div>
+            <div class="ai-form-row">
+                <div class="ai-form-group">
+                    <label for="base_url" class="ai-form-label">API Base URL *</label>
+                    <input type="url" id="base_url" name="base_url" class="ai-form-input" required>
+                </div>
+                <div class="ai-form-group">
+                    <label for="default_model" class="ai-form-label">默认模型 *</label>
+                    <input type="text" id="default_model" name="default_model" class="ai-form-input" required>
+                </div>
+            </div>
+            <div class="ai-form-group">
+                <label for="api_key" class="ai-form-label">API Key *</label>
+                <input type="password" id="api_key" name="api_key" class="ai-form-input" required>
+                <small class="ai-form-hint">编辑时留空表示不修改</small>
+            </div>
+            <div class="ai-form-row">
+                <div class="ai-form-group">
+                    <label for="priority" class="ai-form-label">优先级</label>
+                    <input type="number" id="priority" name="priority" class="ai-form-input" value="10" min="1" max="100">
+                </div>
+                <div class="ai-form-group">
+                    <label class="ai-form-label">
+                        <input type="checkbox" id="is_active" name="is_active" checked>
+                        启用此配置
+                    </label>
+                </div>
+            </div>
+            <div class="ai-form-row">
+                <div class="ai-form-group">
+                    <label for="api_mode" class="ai-form-label">API 模式</label>
+                    <select id="api_mode" name="api_mode" class="ai-form-select">
+                        <option value="dual">Dual</option>
+                        <option value="responses_only">Responses Only</option>
+                        <option value="chat_only">Chat Only</option>
+                    </select>
+                </div>
+                <div class="ai-form-group">
+                    <label class="ai-form-label">
+                        <input type="checkbox" id="fallback_enabled" name="fallback_enabled" checked>
+                        Responses 失败时允许回退 Chat
+                    </label>
+                </div>
+            </div>
+            <div class="ai-form-group">
+                <label for="description" class="ai-form-label">描述</label>
+                <textarea id="description" name="description" class="ai-form-textarea" rows="2"></textarea>
+            </div>
+            <div class="ai-modal-footer">
+                <button type="button" class="ai-btn ai-btn-secondary" id="btn-cancel">取消</button>
+                <button type="submit" class="ai-btn ai-btn-primary" id="btn-save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="delete-modal" class="ai-modal">
+    <div class="ai-modal-content" style="max-width: 400px;">
+        <div class="ai-modal-header">
+            <h3>确认删除</h3>
+            <span class="ai-modal-close delete-modal-close">&times;</span>
+        </div>
+        <div class="ai-modal-body">
+            <p>确定要删除个人 Provider "<strong id="delete-provider-name"></strong>" 吗？</p>
+        </div>
+        <div class="ai-modal-footer">
+            <button type="button" class="ai-btn ai-btn-secondary" id="btn-delete-cancel">取消</button>
+            <button type="button" class="ai-btn ai-btn-danger" id="btn-delete-confirm">删除</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.ai-modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1000; padding: 24px; overflow-y: auto; }
+.ai-modal.show { display: block; }
+.ai-modal-content { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); }
+.ai-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
+.ai-modal-body { padding: 22px; }
+.ai-modal-close { cursor: pointer; font-size: 22px; color: #64748b; }
+.ai-modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.ai-form-group { margin-bottom: 16px; }
+.ai-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ai-form-label { display: block; font-weight: 600; margin-bottom: 6px; }
+.ai-form-input, .ai-form-select, .ai-form-textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+.ai-form-hint { color: #64748b; font-size: 12px; }
+.provider-meta-tag { display: inline-block; margin-right: 8px; padding: 4px 8px; border-radius: 999px; background: #e2e8f0; font-size: 12px; }
+@media (max-width: 700px) { .ai-form-row { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+const API_BASE = '/api/ai/me/providers/';
+let currentEditId = null;
+let deleteTargetId = null;
+
+const modal = document.getElementById('provider-modal');
+const deleteModal = document.getElementById('delete-modal');
+const form = document.getElementById('provider-form');
+const providersContainer = document.getElementById('providers-container');
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadProviders();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    document.getElementById('btn-add-provider').addEventListener('click', () => openProviderModal());
+    document.querySelector('.ai-modal-close').addEventListener('click', closeProviderModal);
+    document.getElementById('btn-cancel').addEventListener('click', closeProviderModal);
+    document.querySelector('.delete-modal-close').addEventListener('click', closeDeleteModal);
+    document.getElementById('btn-delete-cancel').addEventListener('click', closeDeleteModal);
+    form.addEventListener('submit', handleSubmit);
+    document.getElementById('btn-delete-confirm').addEventListener('click', handleDelete);
+    document.getElementById('provider_type').addEventListener('change', autoFillPreset);
+
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeProviderModal();
+    });
+    deleteModal.addEventListener('click', (event) => {
+        if (event.target === deleteModal) closeDeleteModal();
+    });
+}
+
+async function loadProviders() {
+    try {
+        const providers = await window.fetchJsonOrThrow(API_BASE);
+        renderProviders(providers);
+    } catch (error) {
+        console.error('加载个人 Provider 失败:', error);
+        providersContainer.innerHTML = '<div class="card" style="padding: 32px; text-align: center;">加载失败，请刷新重试</div>';
+    }
+}
+
+function renderProviders(providers) {
+    if (!providers.length) {
+        providersContainer.innerHTML = `
+            <div class="card" style="padding: 32px; text-align: center;">
+                <p style="margin-bottom: 12px;">你还没有配置个人 Provider。</p>
+                <p style="color: #64748b;">配置后将优先走你的密钥，只有失败时才会尝试系统兜底。</p>
+            </div>
+        `;
+        return;
+    }
+
+    providersContainer.innerHTML = providers.map((provider) => `
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                <div style="flex: 1;">
+                    <h3 style="margin-bottom: 8px;">
+                        ${provider.name}
+                        <span class="provider-meta-tag">${labelForType(provider.provider_type)}</span>
+                        <span class="provider-meta-tag">${provider.is_active ? '启用' : '禁用'}</span>
+                        <span class="provider-meta-tag">优先级 ${provider.priority}</span>
+                    </h3>
+                    <p style="margin-bottom: 6px;"><strong>模型:</strong> <code>${provider.default_model}</code></p>
+                    <p style="margin-bottom: 6px;"><strong>Base URL:</strong> <code>${provider.base_url}</code></p>
+                    <p style="margin-bottom: 6px;"><strong>API 模式:</strong> ${provider.api_mode}</p>
+                    ${provider.description ? `<p style="color: #64748b;">${provider.description}</p>` : ''}
+                </div>
+                <div style="display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;">
+                    <button class="tag" type="button" onclick="editProvider(${provider.id})">编辑</button>
+                    <button class="tag" type="button" onclick="toggleActive(${provider.id})">${provider.is_active ? '禁用' : '启用'}</button>
+                    <a href="/ai/detail/${provider.id}/" class="tag">详情</a>
+                    <button class="tag" type="button" onclick="confirmDelete(${provider.id}, '${provider.name.replace(/'/g, "\\'")}')">删除</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function labelForType(type) {
+    return {
+        openai: 'OpenAI',
+        deepseek: 'DeepSeek',
+        qwen: '通义千问',
+        moonshot: 'Moonshot',
+        custom: '自定义',
+    }[type] || type;
+}
+
+function autoFillPreset() {
+    const type = document.getElementById('provider_type').value;
+    const presets = {
+        openai: { base_url: 'https://api.openai.com/v1', default_model: 'gpt-4o-mini' },
+        deepseek: { base_url: 'https://api.deepseek.com/v1', default_model: 'deepseek-chat' },
+        qwen: { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', default_model: 'qwen-turbo' },
+        moonshot: { base_url: 'https://api.moonshot.cn/v1', default_model: 'moonshot-v1-8k' },
+    };
+    if (presets[type]) {
+        document.getElementById('base_url').value = presets[type].base_url;
+        document.getElementById('default_model').value = presets[type].default_model;
+    }
+}
+
+function openProviderModal(provider = null) {
+    currentEditId = provider ? provider.id : null;
+    form.reset();
+    document.getElementById('priority').value = 10;
+    document.getElementById('is_active').checked = true;
+    document.getElementById('fallback_enabled').checked = true;
+    document.getElementById('api_mode').value = 'dual';
+    document.getElementById('api_key').required = !provider;
+    document.getElementById('api_key').placeholder = provider ? '留空表示不修改' : '';
+    document.getElementById('modal-title').textContent = provider ? '编辑个人 Provider' : '添加个人 Provider';
+
+    if (provider) {
+        document.getElementById('name').value = provider.name;
+        document.getElementById('provider_type').value = provider.provider_type;
+        document.getElementById('base_url').value = provider.base_url;
+        document.getElementById('default_model').value = provider.default_model;
+        document.getElementById('priority').value = provider.priority;
+        document.getElementById('is_active').checked = provider.is_active;
+        document.getElementById('api_mode').value = provider.api_mode;
+        document.getElementById('fallback_enabled').checked = provider.fallback_enabled;
+        document.getElementById('description').value = provider.description || '';
+    }
+
+    modal.classList.add('show');
+}
+
+function closeProviderModal() {
+    modal.classList.remove('show');
+    currentEditId = null;
+}
+
+async function editProvider(id) {
+    const provider = await window.fetchJsonOrThrow(`${API_BASE}${id}/`);
+    openProviderModal(provider);
+}
+
+async function handleSubmit(event) {
+    event.preventDefault();
+    const saveBtn = document.getElementById('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+
+    const formData = new FormData(form);
+    const payload = {
+        name: formData.get('name'),
+        provider_type: formData.get('provider_type'),
+        base_url: formData.get('base_url'),
+        default_model: formData.get('default_model'),
+        priority: Number(formData.get('priority') || 10),
+        is_active: formData.get('is_active') === 'on',
+        api_mode: formData.get('api_mode'),
+        fallback_enabled: formData.get('fallback_enabled') === 'on',
+        description: formData.get('description') || '',
+    };
+    const apiKey = formData.get('api_key');
+    if (apiKey && apiKey.trim()) payload.api_key = apiKey.trim();
+
+    try {
+        const response = await fetch(currentEditId ? `${API_BASE}${currentEditId}/` : API_BASE, {
+            method: currentEditId ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(JSON.stringify(error));
+        }
+        closeProviderModal();
+        await loadProviders();
+    } catch (error) {
+        console.error('保存个人 Provider 失败:', error);
+        alert(`保存失败: ${error.message}`);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存';
+    }
+}
+
+async function toggleActive(id) {
+    await fetch(`${API_BASE}${id}/toggle_active/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+    });
+    await loadProviders();
+}
+
+function confirmDelete(id, name) {
+    deleteTargetId = id;
+    document.getElementById('delete-provider-name').textContent = name;
+    deleteModal.classList.add('show');
+}
+
+function closeDeleteModal() {
+    deleteTargetId = null;
+    deleteModal.classList.remove('show');
+}
+
+async function handleDelete() {
+    if (!deleteTargetId) return;
+    await fetch(`${API_BASE}${deleteTargetId}/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+    });
+    closeDeleteModal();
+    await loadProviders();
+}
+
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') return decodeURIComponent(value);
+    }
+    return '';
+}
+</script>
+{% endblock %}

@@ -22,7 +22,7 @@ echo   [5] Activate venv only
 echo   [6] Stop all services
 echo   [7] Quick Start + URL/API Scan
 echo   [8] Quick Start (Verbose Django Logs)
-echo   [9] Install local environment
+echo   [9] Install local environment (runtime)
 echo   [0] Exit
 echo.
 echo ========================================

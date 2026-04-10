@@ -3,7 +3,7 @@
 {% block title %}{{ provider.name }} - 详情 - AgomTradePro{% endblock %}
 
 {% block content %}
-<a href="{% url 'ai_provider:manage' %}" style="display: inline-block; margin-bottom: 12px; color: var(--text-secondary, #6c757d); text-decoration: none; font-size: 14px;">&larr; 返回 AI 管理</a>
+<a href="{% if provider.scope == 'user' %}{% url 'ai_provider:my-providers' %}{% else %}{% url 'ai_provider:manage' %}{% endif %}" style="display: inline-block; margin-bottom: 12px; color: var(--text-secondary, #6c757d); text-decoration: none; font-size: 14px;">&larr; 返回{% if provider.scope == 'user' %}我的 Provider{% else %} AI 管理{% endif %}</a>
 <div class="page-header">
     <h1>{{ provider.name }}</h1>
     <p class="subtitle">{{ provider.get_provider_type_display }} - {{ provider.description }}</p>
@@ -33,6 +33,16 @@
                 </td>
             </tr>
             <tr>
+                <td style="padding: 8px;"><strong>归属范围:</strong></td>
+                <td style="padding: 8px;">
+                    {% if provider.scope == 'user' %}
+                        个人 Provider
+                    {% else %}
+                        系统 Provider
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
                 <td style="padding: 8px;"><strong>优先级:</strong></td>
                 <td style="padding: 8px;">{{ provider.priority }}</td>
             </tr>
@@ -56,12 +66,16 @@
         <div style="margin-top: 16px;">
             <a href="{% url 'ai_provider:edit' provider.id %}" class="tag">编辑配置</a>
             <a href="{% url 'settings-center' %}" class="tag">进入设置中心</a>
-            <a href="{% url 'ai_provider:manage' %}" class="tag">返回列表</a>
+            <a href="{% if provider.scope == 'user' %}{% url 'ai_provider:my-providers' %}{% else %}{% url 'ai_provider:manage' %}{% endif %}" class="tag">返回列表</a>
+            {% if provider.scope == 'system' %}
             <button id="btn-test-connection" class="tag" onclick="testConnection()" style="cursor: pointer; border: none; background: var(--color-warning, #f0ad4e); color: #fff;">测试连接</button>
+            {% endif %}
         </div>
 
         <!-- 测试结果 -->
+        {% if provider.scope == 'system' %}
         <div id="test-result" style="display: none; margin-top: 16px; padding: 12px; border-radius: 4px;"></div>
+        {% endif %}
     </div>
 </div>
 
@@ -158,9 +172,11 @@
         <thead>
             <tr style="border-bottom: 2px solid var(--color-border);">
                 <th style="padding: 8px; text-align: left;">时间</th>
+                <th style="padding: 8px; text-align: left;">归因</th>
                 <th style="padding: 8px; text-align: left;">模型</th>
                 <th style="padding: 8px; text-align: right;">Tokens</th>
                 <th style="padding: 8px; text-align: right;">成本</th>
+                <th style="padding: 8px; text-align: center;">兜底计费</th>
                 <th style="padding: 8px; text-align: right;">耗时</th>
                 <th style="padding: 8px; text-align: center;">状态</th>
             </tr>
@@ -169,9 +185,25 @@
             {% for log in recent_logs %}
             <tr style="border-bottom: 1px solid var(--color-border-light);">
                 <td style="padding: 8px;">{{ log.created_at|date:"m-d H:i:s" }}</td>
+                <td style="padding: 8px;">
+                    {% if log.provider_scope == 'personal' %}
+                        <span class="tag">个人 Provider</span>
+                    {% elif log.provider_scope == 'system_fallback' %}
+                        <span class="tag" style="background: #fef3c7; color: #92400e;">系统兜底</span>
+                    {% else %}
+                        <span class="tag" style="background: #dbeafe; color: #1d4ed8;">系统全局</span>
+                    {% endif %}
+                </td>
                 <td style="padding: 8px;"><code>{{ log.model }}</code></td>
                 <td style="padding: 8px; text-align: right;">{{ log.total_tokens }}</td>
                 <td style="padding: 8px; text-align: right;">${{ log.estimated_cost|floatformat:6 }}</td>
+                <td style="padding: 8px; text-align: center;">
+                    {% if log.quota_charged %}
+                        <span class="tag" style="background: #fee2e2; color: #b91c1c;">是</span>
+                    {% else %}
+                        <span class="tag">否</span>
+                    {% endif %}
+                </td>
                 <td style="padding: 8px; text-align: right;">{{ log.response_time_ms }}ms</td>
                 <td style="padding: 8px; text-align: center;">
                     {% if log.status == 'success' %}
@@ -190,6 +222,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if provider.scope == 'system' %}
 <script>
 function testConnection() {
     const btn = document.getElementById('btn-test-connection');
@@ -254,4 +287,5 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 </script>
+{% endif %}
 {% endblock %}

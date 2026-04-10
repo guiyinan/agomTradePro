@@ -14,12 +14,44 @@ IMPORTANT: These throttles only apply to specific methods, not all requests.
 
 import logging
 
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+
+try:
+    from redis.exceptions import RedisError
+except ImportError:  # pragma: no cover - redis is optional in local envs
+    RedisError = Exception  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
 
-class BacktestRateThrottle(UserRateThrottle):
+class _ResilientThrottleMixin:
+    """Fail open when the cache-backed throttle store is unavailable."""
+
+    def allow_request(self, request, view):
+        try:
+            return super().allow_request(request, view)
+        except (RedisError, ConnectionError, TimeoutError, OSError) as exc:
+            logger.warning(
+                "Throttle cache unavailable; allowing request without rate-limit enforcement: %s",
+                exc,
+                extra={
+                    "scope": getattr(self, "scope", "default"),
+                    "method": getattr(request, "method", ""),
+                    "view": view.__class__.__name__,
+                },
+            )
+            return True
+
+
+class ResilientAnonRateThrottle(_ResilientThrottleMixin, AnonRateThrottle):
+    """Anonymous throttle that degrades gracefully when cache is unavailable."""
+
+
+class ResilientUserRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
+    """User throttle that degrades gracefully when cache is unavailable."""
+
+
+class BacktestRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
     """
     Throttle class for expensive backtest CREATE operations.
 
@@ -63,7 +95,7 @@ class BacktestRateThrottle(UserRateThrottle):
         return allowed
 
 
-class WriteRateThrottle(UserRateThrottle):
+class WriteRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
     """
     Throttle class for write operations (POST, PUT, PATCH, DELETE).
 
@@ -104,7 +136,7 @@ class WriteRateThrottle(UserRateThrottle):
         return allowed
 
 
-class BurstRateThrottle(UserRateThrottle):
+class BurstRateThrottle(_ResilientThrottleMixin, UserRateThrottle):
     """
     Throttle class for burst protection.
 

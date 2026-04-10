@@ -9,9 +9,15 @@ from . import views
 
 app_name = "ai_provider_api"
 
-router = DefaultRouter()
-router.register(r"providers", views.AIProviderConfigViewSet, basename="provider")
-router.register(r"logs", views.AIUsageLogViewSet, basename="log")
+admin_router = DefaultRouter()
+admin_router.register(r"providers", views.AIProviderConfigViewSet, basename="provider")
+admin_router.register(r"logs", views.AIUsageLogViewSet, basename="log")
+admin_router.register(r"admin/quotas", views.AdminUserFallbackQuotaViewSet, basename="admin-quota")
+
+me_router = DefaultRouter()
+me_router.register(r"me/providers", views.PersonalProviderViewSet, basename="my-provider")
+me_router.register(r"me/logs", views.MyUsageLogViewSet, basename="my-log")
+me_router.register(r"me/quota", views.UserFallbackQuotaViewSet, basename="my-quota")
 
 
 class AIProviderApiRootView(APIView):
@@ -21,12 +27,17 @@ class AIProviderApiRootView(APIView):
                 "endpoints": {
                     "providers": "/api/ai/providers/",
                     "logs": "/api/ai/logs/",
+                    "me_providers": "/api/ai/me/providers/",
+                    "me_logs": "/api/ai/me/logs/",
+                    "me_quota": "/api/ai/me/quota/current/",
+                    "admin_quotas": "/api/ai/admin/quotas/",
                 }
             }
         )
 
 
 urlpatterns = [
-    path("", AIProviderApiRootView.as_view(), name="api-root"),
-    path("", include(router.urls)),
+    path("", AIProviderApiRootView.as_view(), name="root"),
+    path("", include(admin_router.urls)),
+    path("", include(me_router.urls)),
 ]
