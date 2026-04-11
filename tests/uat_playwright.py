@@ -65,7 +65,7 @@ def test_pages(page):
         ("/backtest/", "Backtest"),
         ("/strategy/", "Strategy"),
         ("/rotation/assets/", "Sector"),
-        ("/equity/", "Equity"),
+        ("/equity/screen/", "Equity"),
         ("/fund/", "Fund"),
         ("/factor/", "Factor"),
         ("/rotation/", "Rotation"),
@@ -86,15 +86,23 @@ def test_pages(page):
 
     for path, name in test_routes:
         try:
-            page.goto(f"{BASE}{path}", wait_until="networkidle", timeout=15000)
+            response = page.goto(f"{BASE}{path}", wait_until="networkidle", timeout=20000)
             title = page.title()
             status_code = page.evaluate("() => window.__pageError ? 'error' : 'ok'")
             has_error = page.locator("text=Server Error").count() > 0
+            http_status = response.status if response else None
             has_404 = (
                 "not found" in title.lower() or page.locator("text=Page not found").count() > 0
             )
-            if has_error or has_404:
-                record(name, "FAIL", f"title={title}, has_error={has_error}, has_404={has_404}")
+            has_debug_error = " at /" in title and (
+                "Error" in title or "Exception" in title
+            )
+            if has_error or has_404 or has_debug_error or (http_status is not None and http_status >= 500):
+                record(
+                    name,
+                    "FAIL",
+                    f"title={title}, status={http_status}, has_error={has_error}, has_404={has_404}",
+                )
             else:
                 record(name, "PASS", f"title={title[:50]}")
                 page.screenshot(

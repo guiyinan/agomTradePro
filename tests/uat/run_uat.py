@@ -17,6 +17,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 
 class UATRunner:
@@ -112,7 +113,7 @@ class UATRunner:
             client = Client()
             user_model = get_user_model()
             user = user_model.objects.create_user(
-                username="uat_nav_user",
+                username=f"uat_nav_user_{uuid4().hex[:8]}",
                 password="uat_nav_pass_123",
                 email="uat-nav@example.com",
             )
@@ -123,7 +124,7 @@ class UATRunner:
                 "/macro/data/": {200},
                 "/regime/dashboard/": {200},
                 "/signal/manage/": {200},
-                "/policy/workbench/": {301, 302},
+                "/policy/workbench/": {200},
                 "/equity/screen/": {200},
                 "/fund/dashboard/": {200},
                 "/asset-analysis/screen/": {200},

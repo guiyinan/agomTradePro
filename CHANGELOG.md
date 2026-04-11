@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 `/dashboard/` 在月度快照 `total_value=0` 时触发 `ZeroDivisionError` 的问题，并补充回归测试
+- 修复 `/admin/account/systemsettingsmodel/` 单例入口错误调用 `ModelAdmin.change_view()` 导致 `TypeError` 的问题，并补充回归测试
+- 调整本地 Playwright UAT 巡检脚本：`Equity` 改为命中 canonical 页面，且 Django debug 500 页不再被误判为通过
+- 修复 `tests/uat/run_uat.py` 导航检查的假失败：临时登录用户改为唯一用户名，`/policy/workbench/` 基线状态改为当前真实返回 `200`
 - 修复 Pulse 数据链条会把过期/不可靠快照继续喂给仓位系数、决策失效模板和 Regime Action 的问题；相关读取链路现在会先校验可靠性，并在需要时按需重算
 - 修复开发环境 Celery Beat 未固定使用 `DatabaseScheduler` 导致的调度源漂移；本地宏观/Regime 周期任务现在会在启动时统一回写到 `django-celery-beat`
 - 修复宏观高频数据链仍指向已迁移 `apps.macro.application.tasks.*` 任务路径的问题；`high-frequency-generate-signal` 与 `high-frequency-recalculate-regime` 现已对齐到 `apps.regime.application.orchestration.*`

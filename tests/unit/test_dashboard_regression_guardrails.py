@@ -277,6 +277,30 @@ def test_dashboard_performance_chart_uses_portfolio_snapshot_history():
 
 
 @pytest.mark.django_db
+def test_portfolio_snapshot_handles_zero_monthly_baseline_without_500():
+    user = get_user_model().objects.create_user(
+        username="dashboard_zero_month_baseline_user",
+        password="x",
+    )
+    account_repo = AccountRepository()
+    portfolio_id = account_repo.get_or_create_default_portfolio(user.id)
+
+    PortfolioDailySnapshotModel.objects.create(
+        portfolio_id=portfolio_id,
+        snapshot_date=date.today() - timedelta(days=30),
+        total_value=Decimal("0.00"),
+        cash_balance=Decimal("0.00"),
+        invested_value=Decimal("0.00"),
+        position_count=0,
+    )
+
+    snapshot = PortfolioRepository().get_portfolio_snapshot(portfolio_id)
+
+    assert snapshot is not None
+    assert snapshot.total_return_pct == 0.0
+
+
+@pytest.mark.django_db
 def test_dashboard_macro_values_read_from_data_center():
     IndicatorCatalogModel.objects.update_or_create(
         code="CN_PMI",

@@ -383,6 +383,7 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
         if SystemSettingsModel._default_manager.exists():
             config = SystemSettingsModel._default_manager.first()
             return super().change_view(
+                request,
                 str(config.pk),
                 extra_context=extra_context
             )

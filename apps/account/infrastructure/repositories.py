@@ -292,8 +292,12 @@ class PortfolioRepository:
                 yearly_return_pct = yearly_return / net_capital * 100
 
         if monthly_snapshot:
-            monthly_return = total_value - float(monthly_snapshot.total_value)
-            monthly_return_pct = monthly_return / float(monthly_snapshot.total_value) * 100
+            monthly_baseline = float(monthly_snapshot.total_value)
+            monthly_return = total_value - monthly_baseline
+            if monthly_baseline == 0:
+                monthly_return_pct = 0.0
+            else:
+                monthly_return_pct = monthly_return / monthly_baseline * 100
         else:
             monthly_return_pct = 0.0
 
