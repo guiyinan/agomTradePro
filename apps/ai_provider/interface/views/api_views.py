@@ -68,7 +68,7 @@ class AIProviderConfigViewSet(viewsets.GenericViewSet):
         return Response(_provider_list_item_to_dict(item), status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
             provider = UpdateProviderUseCase().execute(int(pk), **serializer.validated_data)
@@ -174,7 +174,7 @@ class PersonalProviderViewSet(viewsets.GenericViewSet):
         return Response(_provider_list_item_to_dict(item), status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
             provider = UpdateProviderUseCase().execute(
@@ -232,7 +232,9 @@ class AIUsageLogViewSet(viewsets.GenericViewSet):
             try:
                 provider_id_int = int(provider_id)
             except ValueError:
-                return Response({"error": "provider 必须是整数"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "provider 必须是整数"}, status=status.HTTP_400_BAD_REQUEST
+                )
         else:
             provider_id_int = None
         logs = ListUsageLogsUseCase().execute(
@@ -293,12 +295,29 @@ class AdminUserFallbackQuotaViewSet(viewsets.GenericViewSet):
         serializer = UserFallbackQuotaUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         user = get_object_or_404(get_user_model(), pk=pk)
+        current_quota = GetUserFallbackQuotaUseCase().execute(user=user)
         dto = UpdateUserFallbackQuotaUseCase().execute(
             user=user,
-            daily_limit=_decimal_to_float(serializer.validated_data.get("daily_limit")),
-            monthly_limit=_decimal_to_float(serializer.validated_data.get("monthly_limit")),
-            is_active=serializer.validated_data.get("is_active", True),
-            admin_note=serializer.validated_data.get("admin_note", ""),
+            daily_limit=(
+                _decimal_to_float(serializer.validated_data["daily_limit"])
+                if "daily_limit" in serializer.validated_data
+                else current_quota.daily_limit
+            ),
+            monthly_limit=(
+                _decimal_to_float(serializer.validated_data["monthly_limit"])
+                if "monthly_limit" in serializer.validated_data
+                else current_quota.monthly_limit
+            ),
+            is_active=(
+                serializer.validated_data["is_active"]
+                if "is_active" in serializer.validated_data
+                else current_quota.is_active
+            ),
+            admin_note=(
+                serializer.validated_data["admin_note"]
+                if "admin_note" in serializer.validated_data
+                else current_quota.admin_note
+            ),
         )
         return Response(dto.__dict__)
 

@@ -251,19 +251,14 @@ function testConnection() {
             resultDiv.style.border = '1px solid var(--color-success, #28a745)';
             resultDiv.innerHTML =
                 '<strong style="color: var(--color-success, #28a745);">连接成功</strong>' +
-                '<table style="margin-top: 8px; border-collapse: collapse; width: 100%;">' +
-                '<tr><td style="padding: 4px 8px; width: 100px;">模型:</td><td style="padding: 4px 8px;"><code>' + escapeHtml(data.model) + '</code></td></tr>' +
-                '<tr><td style="padding: 4px 8px;">回复:</td><td style="padding: 4px 8px;">' + escapeHtml(data.content || '') + '</td></tr>' +
-                '<tr><td style="padding: 4px 8px;">耗时:</td><td style="padding: 4px 8px;">' + data.response_time_ms + 'ms</td></tr>' +
-                '<tr><td style="padding: 4px 8px;">Tokens:</td><td style="padding: 4px 8px;">' + data.total_tokens + '</td></tr>' +
-                '<tr><td style="padding: 4px 8px;">调用方式:</td><td style="padding: 4px 8px;">' + escapeHtml(data.request_type || '') + (data.fallback_used ? ' (fallback)' : '') + '</td></tr>' +
-                '</table>';
+                '<p style="margin: 8px 0 0;">Provider: <code>' + escapeHtml(data.provider || '{{ provider.name }}') + '</code></p>' +
+                '<p style="margin: 4px 0 0;">' + escapeHtml(data.message || 'Provider health check passed') + '</p>';
         } else {
             resultDiv.style.background = 'rgba(220, 53, 69, 0.1)';
             resultDiv.style.border = '1px solid var(--color-error, #dc3545)';
             resultDiv.innerHTML =
                 '<strong style="color: var(--color-error, #dc3545);">连接失败</strong>' +
-                '<p style="margin: 8px 0 0; word-break: break-all;">' + escapeHtml(data.error_message || '未知错误') + '</p>' +
+                '<p style="margin: 8px 0 0; word-break: break-all;">' + escapeHtml(data.error_message || data.error || '未知错误') + '</p>' +
                 (data.response_time_ms ? '<p style="margin: 4px 0 0;">耗时: ' + data.response_time_ms + 'ms</p>' : '');
         }
     })

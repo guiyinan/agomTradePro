@@ -320,7 +320,7 @@ async function handleSubmit(event) {
 
     try {
         const response = await fetch(currentEditId ? `${API_BASE}${currentEditId}/` : API_BASE, {
-            method: currentEditId ? 'PUT' : 'POST',
+            method: currentEditId ? 'PATCH' : 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCsrfToken(),

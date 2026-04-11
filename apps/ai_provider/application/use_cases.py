@@ -77,8 +77,16 @@ class ListProvidersUseCase:
                     default_model=provider.default_model,
                     api_mode=provider.api_mode,
                     fallback_enabled=provider.fallback_enabled,
-                    daily_budget_limit=float(provider.daily_budget_limit) if provider.daily_budget_limit is not None else None,
-                    monthly_budget_limit=float(provider.monthly_budget_limit) if provider.monthly_budget_limit is not None else None,
+                    daily_budget_limit=(
+                        float(provider.daily_budget_limit)
+                        if provider.daily_budget_limit is not None
+                        else None
+                    ),
+                    monthly_budget_limit=(
+                        float(provider.monthly_budget_limit)
+                        if provider.monthly_budget_limit is not None
+                        else None
+                    ),
                     description=provider.description,
                     extra_config=provider.extra_config or {},
                     created_at=provider.created_at,
@@ -158,9 +166,13 @@ class CreateProviderUseCase:
     ) -> None:
         valid_types = [item.value for item in AIProviderType]
         if provider_type not in valid_types:
-            raise ValueError(f"Invalid provider_type: {provider_type}. Must be one of {valid_types}")
+            raise ValueError(
+                f"Invalid provider_type: {provider_type}. Must be one of {valid_types}"
+            )
         if api_mode not in self.VALID_API_MODES:
-            raise ValueError("Invalid api_mode. Must be one of ['dual', 'responses_only', 'chat_only']")
+            raise ValueError(
+                "Invalid api_mode. Must be one of ['dual', 'responses_only', 'chat_only']"
+            )
         if scope not in {"system", "user"}:
             raise ValueError("Invalid scope. Must be one of ['system', 'user']")
         if scope == "user" and owner_user is None:
@@ -189,7 +201,9 @@ class UpdateProviderUseCase:
             if kwargs["provider_type"] not in valid_types:
                 raise ValueError(f"Invalid provider_type. Must be one of {valid_types}")
         if "api_mode" in kwargs and kwargs["api_mode"] not in self.VALID_API_MODES:
-            raise ValueError("Invalid api_mode. Must be one of ['dual', 'responses_only', 'chat_only']")
+            raise ValueError(
+                "Invalid api_mode. Must be one of ['dual', 'responses_only', 'chat_only']"
+            )
 
         scope = kwargs.get("scope", provider.scope)
         owner_user = kwargs.get("owner_user", provider.owner_user)
@@ -381,7 +395,9 @@ class CheckBudgetUseCase:
             raise ValueError(f"Provider with id {pk} not found")
 
         daily_limit = float(provider.daily_budget_limit) if provider.daily_budget_limit else None
-        monthly_limit = float(provider.monthly_budget_limit) if provider.monthly_budget_limit else None
+        monthly_limit = (
+            float(provider.monthly_budget_limit) if provider.monthly_budget_limit else None
+        )
         budget_status = self._usage_repo.check_budget_limits(pk, daily_limit, monthly_limit)
         daily_allowed, daily_message = BudgetChecker.check_budget_limit(
             budget_status["daily"]["spent"],
@@ -418,8 +434,12 @@ class GetUserFallbackQuotaUseCase:
             user_id=user.id,
             username=user.username,
             is_active=quota.is_active if quota else False,
-            daily_limit=float(quota.daily_limit) if quota and quota.daily_limit is not None else None,
-            monthly_limit=float(quota.monthly_limit) if quota and quota.monthly_limit is not None else None,
+            daily_limit=(
+                float(quota.daily_limit) if quota and quota.daily_limit is not None else None
+            ),
+            monthly_limit=(
+                float(quota.monthly_limit) if quota and quota.monthly_limit is not None else None
+            ),
             daily_spent=daily_spent,
             monthly_spent=monthly_spent,
             daily_remaining=_remaining(
@@ -526,6 +546,7 @@ class TestProviderConnectionUseCase:
             return {
                 "status": "error",
                 "error": "API key not available in current environment",
+                "error_message": "API key not available in current environment",
             }
 
         adapter = OpenAICompatibleAdapter(
@@ -540,10 +561,12 @@ class TestProviderConnectionUseCase:
             return {
                 "status": "error",
                 "error": "Provider health check failed",
+                "error_message": "Provider health check failed",
             }
         return {
             "status": "success",
             "provider": provider.name,
+            "message": "Provider health check passed",
         }
 
 

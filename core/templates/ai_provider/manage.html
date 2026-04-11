@@ -718,7 +718,7 @@ async function handleSubmit(e) {
 
     try {
         const url = currentEditId ? `${API_BASE}${currentEditId}/` : API_BASE;
-        const method = currentEditId ? 'PUT' : 'POST';
+        const method = currentEditId ? 'PATCH' : 'POST';
 
         const response = await fetch(url, {
             method: method,

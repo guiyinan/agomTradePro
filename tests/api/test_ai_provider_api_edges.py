@@ -189,6 +189,137 @@ def test_admin_can_update_one_user_quota(admin_client, auth_user):
 
 
 @pytest.mark.django_db
+def test_admin_partial_quota_update_preserves_unspecified_fields(admin_client, auth_user):
+    AIUserFallbackQuota.objects.create(
+        user=auth_user,
+        daily_limit=4,
+        monthly_limit=40,
+        is_active=False,
+        admin_note="keep me",
+    )
+
+    response = admin_client.patch(
+        f"/api/ai/admin/quotas/{auth_user.id}/",
+        {
+            "daily_limit": "6.00",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["daily_limit"] == 6.0
+    assert payload["monthly_limit"] == 40.0
+    assert payload["is_active"] is False
+    assert payload["admin_note"] == "keep me"
+
+
+@pytest.mark.django_db
+def test_system_provider_put_update_preserves_unspecified_fields(admin_client):
+    provider = AIProviderConfig.objects.create(
+        name="system-main",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://example.invalid/system",
+        api_key="sk-system",
+        default_model="gpt-4o-mini",
+        api_mode="chat_only",
+        fallback_enabled=False,
+        extra_config={"timeout": 99},
+    )
+
+    response = admin_client.put(
+        f"/api/ai/providers/{provider.id}/",
+        {
+            "name": "system-main",
+            "provider_type": "openai",
+            "base_url": "https://example.invalid/system-updated",
+            "default_model": "gpt-4.1-mini",
+            "priority": 2,
+            "is_active": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["api_mode"] == "chat_only"
+    assert payload["fallback_enabled"] is False
+    assert payload["extra_config"] == {"timeout": 99}
+
+
+@pytest.mark.django_db
+def test_personal_provider_put_update_preserves_unspecified_fields(authenticated_client, auth_user):
+    provider = AIProviderConfig.objects.create(
+        name="personal-main",
+        scope="user",
+        owner_user=auth_user,
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://example.invalid/personal",
+        api_key="sk-user",
+        default_model="gpt-4o-mini",
+        api_mode="responses_only",
+        fallback_enabled=False,
+        extra_config={"temperature": 0.3},
+    )
+
+    response = authenticated_client.put(
+        f"/api/ai/me/providers/{provider.id}/",
+        {
+            "name": "personal-main",
+            "provider_type": "openai",
+            "base_url": "https://example.invalid/personal-updated",
+            "default_model": "gpt-4.1-mini",
+            "priority": 3,
+            "is_active": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["api_mode"] == "responses_only"
+    assert payload["fallback_enabled"] is False
+    assert payload["extra_config"] == {"temperature": 0.3}
+
+
+@pytest.mark.django_db
+def test_ai_provider_test_connection_success_contract(admin_client, monkeypatch):
+    class _HealthyAdapter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def is_available(self):
+            return True
+
+    monkeypatch.setattr(
+        "apps.ai_provider.application.use_cases.OpenAICompatibleAdapter", _HealthyAdapter
+    )
+    provider = AIProviderConfig.objects.create(
+        name="system-main",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://example.invalid/system",
+        api_key="sk-system",
+        default_model="gpt-4o-mini",
+    )
+
+    response = admin_client.post(f"/api/ai/providers/{provider.id}/test-connection/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    assert payload["provider"] == "system-main"
+    assert "message" in payload
+
+
+@pytest.mark.django_db
 def test_admin_can_batch_apply_quota(admin_client, auth_user):
     response = admin_client.post(
         "/api/ai/admin/quotas/batch_apply/",
