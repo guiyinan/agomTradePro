@@ -387,7 +387,10 @@ class CapabilityRoutingFacade:
         """Execute general chat using AI provider."""
         try:
             ai_factory = AIClientFactory()
-            ai_client = ai_factory.get_client(context.provider_name)
+            ai_client = ai_factory.get_client(
+                context.provider_name,
+                user=context.user_id,
+            )
 
             messages = context.context.get("history", [])
             messages.append({"role": "user", "content": message})

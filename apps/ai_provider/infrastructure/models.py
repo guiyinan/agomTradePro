@@ -5,7 +5,9 @@ Django models for persisting AI provider configurations and usage logs.
 参考 DataSourceConfig 的设计模式。
 """
 
+from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class AIProviderConfig(models.Model):
@@ -26,13 +28,31 @@ class AIProviderConfig(models.Model):
         ("responses_only", "Responses Only"),
         ("chat_only", "Chat Completions Only"),
     ]
+    SCOPE_CHOICES = [
+        ("system", "System"),
+        ("user", "User"),
+    ]
 
     # 基本信息
     name = models.CharField(
         max_length=50,
-        unique=True,
         db_index=True,
         help_text="配置名称（唯一标识）"
+    )
+    scope = models.CharField(
+        max_length=20,
+        choices=SCOPE_CHOICES,
+        default="system",
+        db_index=True,
+        help_text="配置归属范围（system/user）",
+    )
+    owner_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="ai_provider_configs",
+        help_text="当 scope=user 时对应的拥有者",
     )
     provider_type = models.CharField(
         max_length=20,
@@ -121,12 +141,25 @@ class AIProviderConfig(models.Model):
         verbose_name = "AI提供商配置"
         verbose_name_plural = "AI提供商配置"
         indexes = [
+            models.Index(fields=['scope', 'owner_user', 'is_active']),
             models.Index(fields=['provider_type', 'is_active']),
             models.Index(fields=['is_active', 'priority']),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['owner_user', 'name'],
+                condition=Q(scope='user'),
+                name='ai_provider_user_name_unique',
+            ),
+            models.UniqueConstraint(
+                fields=['name'],
+                condition=Q(scope='system'),
+                name='ai_provider_system_name_unique',
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.name} ({self.get_provider_type_display()})"
+        return f"{self.name} ({self.scope}:{self.get_provider_type_display()})"
 
 
 class AIUsageLog(models.Model):
@@ -135,6 +168,11 @@ class AIUsageLog(models.Model):
 
     记录每次API调用的详细信息，用于统计和成本追踪。
     """
+    PROVIDER_SCOPE_CHOICES = [
+        ('system_global', 'System Global'),
+        ('system_fallback', 'System Fallback'),
+        ('personal', 'Personal'),
+    ]
     STATUS_CHOICES = [
         ('success', '成功'),
         ('error', '错误'),
@@ -148,6 +186,25 @@ class AIUsageLog(models.Model):
         on_delete=models.CASCADE,
         related_name='usage_logs',
         db_index=True
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='ai_usage_logs',
+        db_index=True,
+    )
+    provider_scope = models.CharField(
+        max_length=20,
+        choices=PROVIDER_SCOPE_CHOICES,
+        default='system_global',
+        db_index=True,
+        help_text='命中的 provider 归属范围',
+    )
+    quota_charged = models.BooleanField(
+        default=False,
+        help_text='是否计入用户系统兜底额度',
     )
 
     # 请求信息
@@ -222,6 +279,8 @@ class AIUsageLog(models.Model):
         verbose_name = "AI调用日志"
         verbose_name_plural = "AI调用日志"
         indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['provider_scope', '-created_at']),
             models.Index(fields=['provider', '-created_at']),
             models.Index(fields=['model', '-created_at']),
             models.Index(fields=['status', '-created_at']),
@@ -230,3 +289,42 @@ class AIUsageLog(models.Model):
 
     def __str__(self):
         return f"{self.provider.name} - {self.model} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class AIUserFallbackQuota(models.Model):
+    """User-scoped quota for consuming system fallback providers."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_fallback_quota',
+    )
+    daily_limit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='每日系统兜底额度（美元）',
+    )
+    monthly_limit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='每月系统兜底额度（美元）',
+    )
+    is_active = models.BooleanField(default=True, help_text='是否启用用户系统兜底额度')
+    admin_note = models.TextField(blank=True, help_text='管理员备注')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ai_user_fallback_quota'
+        verbose_name = 'AI 用户兜底额度'
+        verbose_name_plural = 'AI 用户兜底额度'
+        indexes = [
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} fallback quota"

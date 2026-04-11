@@ -16,7 +16,9 @@ from django.test import override_settings
 from apps.setup_wizard.infrastructure.encryption_setup import (
     _is_insecure_secret_key,
     _write_key_to_env,
+    bootstrap_local_environment,
     ensure_all_keys,
+    ensure_env_file,
     ensure_encryption_key,
     ensure_secret_key,
 )
@@ -101,6 +103,34 @@ class TestWriteKeyToEnv:
         content = env_path.read_text(encoding="utf-8")
         assert "SECRET_KEY=abc" in content
         assert "AGOMTRADEPRO_ENCRYPTION_KEY=new_key" in content
+
+
+class TestEnsureEnvFile:
+    """Tests for ensure_env_file helper."""
+
+    def test_copies_example_when_env_missing(self, work_dir):
+        env_path = work_dir / ".env"
+        example_path = work_dir / ".env.example"
+        example_path.write_text("DEBUG=True\nALLOWED_HOSTS=localhost,127.0.0.1\n", encoding="utf-8")
+
+        with patch("apps.setup_wizard.infrastructure.encryption_setup.settings") as mock_settings:
+            mock_settings.BASE_DIR = work_dir
+            result = ensure_env_file()
+
+        assert result is True
+        assert env_path.read_text(encoding="utf-8") == example_path.read_text(encoding="utf-8")
+
+    def test_is_noop_when_env_exists(self, work_dir):
+        env_path = work_dir / ".env"
+        env_path.write_text("DEBUG=False\n", encoding="utf-8")
+        (work_dir / ".env.example").write_text("DEBUG=True\n", encoding="utf-8")
+
+        with patch("apps.setup_wizard.infrastructure.encryption_setup.settings") as mock_settings:
+            mock_settings.BASE_DIR = work_dir
+            result = ensure_env_file()
+
+        assert result is False
+        assert env_path.read_text(encoding="utf-8") == "DEBUG=False\n"
 
 
 class TestEnsureEncryptionKey:
@@ -200,3 +230,35 @@ class TestEnsureAllKeys:
         assert env_path.read_text(encoding="utf-8") == (
             "SECRET_KEY=django-insecure-test\nAGOMTRADEPRO_ENCRYPTION_KEY=\n"
         )
+
+
+class TestBootstrapLocalEnvironment:
+    """Tests for bootstrap_local_environment helper."""
+
+    def test_creates_env_and_secure_keys_together(self, work_dir):
+        example_path = work_dir / ".env.example"
+        example_path.write_text(
+            "SECRET_KEY=change-this-to-a-secure-random-string-in-production\n"
+            "AGOMTRADEPRO_ENCRYPTION_KEY=\n"
+            "DEBUG=True\n",
+            encoding="utf-8",
+        )
+
+        with patch("apps.setup_wizard.infrastructure.encryption_setup.settings") as mock_settings:
+            mock_settings.BASE_DIR = work_dir
+            mock_settings.SECRET_KEY = "change-this-to-a-secure-random-string-in-production"
+            mock_settings.AGOMTRADEPRO_ENCRYPTION_KEY = ""
+            with patch.dict(
+                os.environ,
+                {"SECRET_KEY": "", "AGOMTRADEPRO_ENCRYPTION_KEY": ""},
+                clear=False,
+            ):
+                result = bootstrap_local_environment()
+
+        env_path = work_dir / ".env"
+        content = env_path.read_text(encoding="utf-8")
+        assert result["env_created"] is True
+        assert result["secret_key_generated"] is True
+        assert result["encryption_key_generated"] is True
+        assert "DEBUG=True" in content
+        assert "SECRET_KEY=change-this-to-a-secure-random-string-in-production" not in content

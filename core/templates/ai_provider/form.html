@@ -83,7 +83,7 @@
             <div style="margin-top: 16px; display: flex; gap: 10px;">
                 <button type="submit" class="tag" style="border: none; cursor: pointer;">保存</button>
                 <a href="{% url 'ai_provider:detail' provider.id %}" class="tag">取消</a>
-                <a href="{% url 'ai_provider:manage' %}" class="tag">返回列表</a>
+                <a href="{% if provider.scope == 'user' %}{% url 'ai_provider:my-providers' %}{% else %}{% url 'ai_provider:manage' %}{% endif %}" class="tag">返回列表</a>
             </div>
         </form>
     </div>

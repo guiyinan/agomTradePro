@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}用户 AI 兜底额度 - AgomTradePro{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>用户 AI 兜底额度</h1>
+    <p class="subtitle">系统 Provider 的成本保护分成两层：Provider 自身预算，以及用户级系统兜底额度。</p>
+</div>
+
+<div class="section">
+    <h2 class="section-title">批量下发默认额度</h2>
+    <div class="card">
+        <form id="batch-form" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: end;">
+            <div>
+                <label for="batch-daily"><strong>每日额度 (USD)</strong></label>
+                <input id="batch-daily" type="number" min="0" step="0.01" class="form-control">
+            </div>
+            <div>
+                <label for="batch-monthly"><strong>每月额度 (USD)</strong></label>
+                <input id="batch-monthly" type="number" min="0" step="0.01" class="form-control">
+            </div>
+            <div>
+                <label for="batch-note"><strong>备注</strong></label>
+                <input id="batch-note" type="text" class="form-control">
+            </div>
+            <div>
+                <label style="display: block;"><input id="batch-overwrite" type="checkbox"> 覆盖已有额度</label>
+                <label style="display: block; margin-top: 8px;"><input id="batch-active" type="checkbox" checked> 启用额度</label>
+            </div>
+            <div style="grid-column: 1 / -1;">
+                <button type="submit" class="btn btn-primary">批量应用到全部用户</button>
+                <span id="batch-result" style="margin-left: 12px; color: #64748b;"></span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">逐用户额度状态</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--color-border, #e5e7eb);">
+                <th style="padding: 8px; text-align: left;">用户</th>
+                <th style="padding: 8px; text-align: left;">状态</th>
+                <th style="padding: 8px; text-align: left;">每日额度 / 已用</th>
+                <th style="padding: 8px; text-align: left;">每月额度 / 已用</th>
+                <th style="padding: 8px; text-align: left;">备注</th>
+                <th style="padding: 8px; text-align: left;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quota in quotas %}
+            <tr style="border-bottom: 1px solid var(--color-border-light, #f1f5f9);">
+                <td style="padding: 8px;">{{ quota.username }}</td>
+                <td style="padding: 8px;">{% if quota.is_active %}启用{% else %}未启用{% endif %}</td>
+                <td style="padding: 8px;">
+                    {% if quota.daily_limit is not None %}${{ quota.daily_limit|floatformat:2 }}{% else %}未配置{% endif %}
+                    / ${{ quota.daily_spent|floatformat:4 }}
+                </td>
+                <td style="padding: 8px;">
+                    {% if quota.monthly_limit is not None %}${{ quota.monthly_limit|floatformat:2 }}{% else %}未配置{% endif %}
+                    / ${{ quota.monthly_spent|floatformat:4 }}
+                </td>
+                <td style="padding: 8px; color: #64748b;">{{ quota.admin_note|default:"-" }}</td>
+                <td style="padding: 8px;">
+                    <button
+                        type="button"
+                        class="tag"
+                        onclick="openQuotaModal({{ quota.user_id }}, '{{ quota.username|escapejs }}', {{ quota.daily_limit|default:'null' }}, {{ quota.monthly_limit|default:'null' }}, {{ quota.is_active|yesno:'true,false' }}, '{{ quota.admin_note|default:''|escapejs }}')"
+                    >
+                        编辑
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="quota-modal" class="ai-modal">
+    <div class="ai-modal-content" style="max-width: 540px;">
+        <div class="ai-modal-header">
+            <h3 id="quota-modal-title">编辑用户额度</h3>
+            <span class="ai-modal-close">&times;</span>
+        </div>
+        <form id="quota-form" class="ai-modal-body">
+            <input type="hidden" id="quota-user-id">
+            <div class="ai-form-group">
+                <label class="ai-form-label" for="quota-daily">每日额度 (USD)</label>
+                <input id="quota-daily" type="number" min="0" step="0.01" class="ai-form-input">
+            </div>
+            <div class="ai-form-group">
+                <label class="ai-form-label" for="quota-monthly">每月额度 (USD)</label>
+                <input id="quota-monthly" type="number" min="0" step="0.01" class="ai-form-input">
+            </div>
+            <div class="ai-form-group">
+                <label class="ai-form-label" for="quota-note">备注</label>
+                <textarea id="quota-note" class="ai-form-textarea" rows="3"></textarea>
+            </div>
+            <div class="ai-form-group">
+                <label><input id="quota-active" type="checkbox" checked> 启用该用户的系统兜底额度</label>
+            </div>
+            <div class="ai-modal-footer">
+                <button type="button" class="ai-btn ai-btn-secondary" id="quota-cancel">取消</button>
+                <button type="submit" class="ai-btn ai-btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.ai-modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1000; padding: 24px; overflow-y: auto; }
+.ai-modal.show { display: block; }
+.ai-modal-content { background: #fff; margin: 0 auto; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); }
+.ai-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; }
+.ai-modal-body { padding: 22px; }
+.ai-modal-close { cursor: pointer; font-size: 22px; color: #64748b; }
+.ai-modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.ai-form-group { margin-bottom: 16px; }
+.ai-form-label { display: block; font-weight: 600; margin-bottom: 6px; }
+.ai-form-input, .ai-form-textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+@media (max-width: 900px) {
+    #batch-form { grid-template-columns: 1fr !important; }
+}
+</style>
+
+<script>
+const batchForm = document.getElementById('batch-form');
+const batchResult = document.getElementById('batch-result');
+const quotaModal = document.getElementById('quota-modal');
+const quotaForm = document.getElementById('quota-form');
+
+batchForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    batchResult.textContent = '提交中...';
+    const payload = {
+        daily_limit: numberOrNull(document.getElementById('batch-daily').value),
+        monthly_limit: numberOrNull(document.getElementById('batch-monthly').value),
+        overwrite_existing: document.getElementById('batch-overwrite').checked,
+        is_active: document.getElementById('batch-active').checked,
+        admin_note: document.getElementById('batch-note').value || '',
+    };
+    const response = await fetch('/api/ai/admin/quotas/batch_apply/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (response.ok) {
+        batchResult.textContent = `已处理 ${data.processed_users} 个用户，创建 ${data.created_count}，更新 ${data.updated_count}，跳过 ${data.skipped_count}`;
+        window.location.reload();
+        return;
+    }
+    batchResult.textContent = `提交失败: ${JSON.stringify(data)}`;
+});
+
+function openQuotaModal(userId, username, dailyLimit, monthlyLimit, isActive, adminNote) {
+    document.getElementById('quota-user-id').value = userId;
+    document.getElementById('quota-modal-title').textContent = `编辑 ${username} 的系统兜底额度`;
+    document.getElementById('quota-daily').value = dailyLimit === null ? '' : dailyLimit;
+    document.getElementById('quota-monthly').value = monthlyLimit === null ? '' : monthlyLimit;
+    document.getElementById('quota-note').value = adminNote || '';
+    document.getElementById('quota-active').checked = Boolean(isActive);
+    quotaModal.classList.add('show');
+}
+
+document.querySelector('.ai-modal-close').addEventListener('click', closeQuotaModal);
+document.getElementById('quota-cancel').addEventListener('click', closeQuotaModal);
+quotaModal.addEventListener('click', (event) => {
+    if (event.target === quotaModal) closeQuotaModal();
+});
+
+function closeQuotaModal() {
+    quotaModal.classList.remove('show');
+}
+
+quotaForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const userId = document.getElementById('quota-user-id').value;
+    const payload = {
+        daily_limit: numberOrNull(document.getElementById('quota-daily').value),
+        monthly_limit: numberOrNull(document.getElementById('quota-monthly').value),
+        is_active: document.getElementById('quota-active').checked,
+        admin_note: document.getElementById('quota-note').value || '',
+    };
+    const response = await fetch(`/api/ai/admin/quotas/${userId}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify(payload),
+    });
+    if (response.ok) {
+        window.location.reload();
+        return;
+    }
+    const data = await response.json();
+    alert(`保存失败: ${JSON.stringify(data)}`);
+});
+
+function numberOrNull(value) {
+    if (value === '' || value === null || typeof value === 'undefined') return null;
+    return Number(value);
+}
+
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') return decodeURIComponent(value);
+    }
+    return '';
+}
+</script>
+{% endblock %}

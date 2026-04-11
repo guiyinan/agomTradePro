@@ -63,6 +63,7 @@
 <div style="margin-bottom: 24px; display: flex; gap: 16px; align-items: center;">
     <button id="btn-add-provider" class="tag" style="background: var(--success-color); color: white; border: none; cursor: pointer;">+ 添加AI配置</button>
     <a href="{% url 'ai_provider:logs' %}" class="tag">查看调用日志</a>
+    <a href="{% url 'ai_provider:quota-manage' %}" class="tag">管理用户兜底额度</a>
 </div>
 
 <!-- 提供商列表 -->
@@ -717,7 +718,7 @@ async function handleSubmit(e) {
 
     try {
         const url = currentEditId ? `${API_BASE}${currentEditId}/` : API_BASE;
-        const method = currentEditId ? 'PUT' : 'POST';
+        const method = currentEditId ? 'PATCH' : 'POST';
 
         const response = await fetch(url, {
             method: method,

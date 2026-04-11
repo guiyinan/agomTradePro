@@ -27,6 +27,36 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
 }
 
+# Cache - default to local memory for development unless Redis cache is
+# explicitly requested. This keeps first-run/local UI flows responsive even
+# when REDIS_URL is present but no Redis server is running.
+USE_REDIS_CACHE = env.bool("USE_REDIS_CACHE", default=False)
+if USE_REDIS_CACHE and env("REDIS_URL", default=None):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": env("REDIS_URL"),
+            "TIMEOUT": 900,
+            "KEY_PREFIX": "agomtradepro-dev",
+            "OPTIONS": {
+                "socket_connect_timeout": env.float("DEV_REDIS_SOCKET_CONNECT_TIMEOUT", default=0.2),
+                "socket_timeout": env.float("DEV_REDIS_SOCKET_TIMEOUT", default=0.2),
+                "retry_on_timeout": False,
+            },
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "agomtradepro-dev-cache",
+            "TIMEOUT": 900,
+            "OPTIONS": {
+                "MAX_ENTRIES": 1000,
+            },
+        }
+    }
+
 # CORS settings (for development)
 CORS_ALLOW_ALL_ORIGINS = True
 

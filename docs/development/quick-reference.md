@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
-> **文档版本**: V1.8
-> **更新日期**: 2026-04-08
+> **文档版本**: V1.9
+> **更新日期**: 2026-04-10
 > **目标读者**: 开发人员
 
 ---
@@ -25,6 +25,12 @@
 ### Django 命令
 
 ```bash
+# 一键安装本地最小运行环境（推荐给首次 clone 用户）
+install.bat
+
+# 安装完整开发环境（pytest / Playwright / mypy 等）
+install.bat --dev
+
 # 启动开发服务器
 agomtradepro/Scripts/python manage.py runserver
 
@@ -40,6 +46,9 @@ powershell -ExecutionPolicy Bypass -File scripts/kill-django.ps1 -Port 8000
 # 数据库迁移
 agomtradepro/Scripts/python manage.py makemigrations
 agomtradepro/Scripts/python manage.py migrate
+
+# 生成本地 .env 并自动补齐安全密钥
+agomtradepro/Scripts/python manage.py bootstrap_local_env
 
 # 创建超级用户
 agomtradepro/Scripts/python manage.py createsuperuser
@@ -66,6 +75,10 @@ agomtradepro/Scripts/python manage.py list_models
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，菜单窗口会立即返回。
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，原菜单窗口会自动退出，避免重复启动。
 - Windows 下如通过环境变量覆盖 `DJANGO_LOG_LEVEL`，启动链路会自动清理首尾空格，避免日志配置导致启动失败。
+- `install.bat` 默认只安装本地最小运行依赖（`requirements-prod.txt`），不会再强制拉起 Playwright / pytest 等开发工具；如需完整开发栈，显式使用 `install.bat --dev`。
+- `scripts/dev.bat` 现在会先执行 `manage.py bootstrap_local_env`，自动创建 `.env` 并补齐 `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`，避免首次启动出现密钥缺失 warning。
+- 开发环境默认强制使用本地内存缓存；即使 `.env` 里保留了 `REDIS_URL`，也不会把登录和页面 API 绑死到 Redis。只有显式设置 `USE_REDIS_CACHE=true` 才会启用开发态 Redis 缓存。
+- 本地未启动 Redis 时，登录锁定缓存和 DRF 节流会自动降级为“记录 warning 但不阻断页面/API”，因此 `/ai/`、`/ai/me/`、`/ai/quotas/` 等入口不再因 Redis 缺失直接报 500。
 - 从 2026-04-03 起，开发环境 `runserver` 会额外落盘到项目本地 `logs/` 目录，文件名格式为 `django-dev-YYYYMMDD-HHMMSS.log`，每次启动生成一个新文件。
 - 开发日志默认按单文件 `20MB` 轮转，保留 `5` 个备份；可用环境变量 `DJANGO_DEV_LOG_MAX_MB` 和 `DJANGO_DEV_LOG_BACKUP_COUNT` 覆盖。
 
@@ -384,7 +397,9 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/settings/` | Settings Center（替代高频 Admin 入口） |
 | `/admin-console/` | 管理控制台（用户 / Token / 日志 / 文档 / Django Admin 统一入口） |
 | `/settings/mcp-tools/` | MCP 工具治理页（设置域下的系统级能力开关与同步入口） |
-| `/ai/` | AI Provider 配置页（设置域下的 AI 提供商与预算治理入口） |
+| `/ai/` | AI Provider 配置页（管理员系统级 Provider、预算与日志治理入口） |
+| `/ai/me/` | 我的 AI Provider 页（用户个人 Provider 优先级与兜底额度查看入口） |
+| `/ai/quotas/` | 用户系统兜底额度页（管理员批量/单用户额度管理入口） |
 | `/prompt/manage/` | Prompt 模板管理页（设置域下的模板 / 链 / 执行测试入口） |
 | `/admin/server-logs/` | 服务端日志值守页（管理控制台运维入口） |
 | `/admin/docs/manage/` | 文档管理页（管理控制台内容运维入口） |

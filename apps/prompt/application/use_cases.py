@@ -105,7 +105,10 @@ class ExecutePromptUseCase:
             )
 
             # 4. 调用AI
-            ai_client = self.ai_client_factory.get_client(self._resolve_provider_ref(request))
+            ai_client = self.ai_client_factory.get_client(
+                self._resolve_provider_ref(request),
+                user=self._resolve_user_ref(request),
+            )
             ai_response = ai_client.chat_completion(
                 messages=[
                     {"role": "system", "content": template.system_prompt or ""},
@@ -179,6 +182,13 @@ class ExecutePromptUseCase:
         if isinstance(request, dict):
             return request.get("provider_ref", request.get("provider_name"))
         return getattr(request, "provider_ref", getattr(request, "provider_name", None))
+
+    @staticmethod
+    def _resolve_user_ref(request) -> Any:
+        """Extract requesting user/user_id for user-aware provider routing."""
+        if isinstance(request, dict):
+            return request.get("user_id")
+        return getattr(request, "user_id", None)
 
     def _resolve_placeholders(
         self,
@@ -370,7 +380,8 @@ class ExecuteChainUseCase:
             step_request = ExecutePromptRequest(
                 template_id=int(step.template_id),
                 placeholder_values=step_context,
-                provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                provider_ref=self.prompt_use_case._resolve_provider_ref(request),
+                user_id=self.prompt_use_case._resolve_user_ref(request),
             )
             step_response = self.prompt_use_case.execute(step_request)
 
@@ -423,7 +434,8 @@ class ExecuteChainUseCase:
                     step_request = ExecutePromptRequest(
                         template_id=int(step.template_id),
                         placeholder_values=step_context,
-                        provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                        provider_ref=self.prompt_use_case._resolve_provider_ref(request),
+                        user_id=self.prompt_use_case._resolve_user_ref(request),
                     )
                     step_response = self.prompt_use_case.execute(step_request)
                     step_results[step.step_id] = step_response
@@ -440,7 +452,8 @@ class ExecuteChainUseCase:
                     req = ExecutePromptRequest(
                         template_id=int(s.template_id),
                         placeholder_values=ctx,
-                        provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                        provider_ref=self.prompt_use_case._resolve_provider_ref(request),
+                        user_id=self.prompt_use_case._resolve_user_ref(request),
                     )
                     return s.step_id, self.prompt_use_case.execute(req)
 
@@ -566,7 +579,8 @@ class ExecuteChainUseCase:
                 step_request = ExecutePromptRequest(
                     template_id=int(step.template_id),
                     placeholder_values=step_context,
-                    provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                    provider_ref=self.prompt_use_case._resolve_provider_ref(request),
+                    user_id=self.prompt_use_case._resolve_user_ref(request),
                 )
                 step_response = self.prompt_use_case.execute(step_request)
 
@@ -695,7 +709,8 @@ class GenerateReportUseCase:
         chain_request = ExecuteChainRequest(
             chain_id=1,  # 预定义的报告生成链ID
             placeholder_values=placeholder_values,
-            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None))
+            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None)),
+            user_id=getattr(request, "user_id", None),
         )
 
         chain_result = self.chain_use_case.execute(chain_request)
@@ -739,7 +754,8 @@ class GenerateSignalUseCase:
         chain_request = ExecuteChainRequest(
             chain_id=2,  # 预定义的信号生成链ID
             placeholder_values=placeholder_values,
-            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None))
+            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None)),
+            user_id=getattr(request, "user_id", None),
         )
 
         chain_result = self.chain_use_case.execute(chain_request)

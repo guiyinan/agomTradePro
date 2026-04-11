@@ -1,175 +1,212 @@
 """
-Page Views for AI Provider Management.
-
-页面视图，用于渲染HTML页面。
-遵循项目架构约束：Interface 层调用 Application 层，不直接访问 Infrastructure 层。
+Page views for AI provider management.
 """
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
 from ...application.use_cases import (
     GetOverallStatsUseCase,
     GetProviderStatsUseCase,
+    GetUserFallbackQuotaUseCase,
     ListProvidersUseCase,
     ListUsageLogsUseCase,
+    ListUserFallbackQuotasUseCase,
     UpdateProviderUseCase,
+    UpdateUserFallbackQuotaUseCase,
 )
-from ...infrastructure.models import AIProviderConfig
-from ..forms import AIProviderConfigForm
+from ..forms import AIProviderConfigForm, PersonalAIProviderConfigForm, UserFallbackQuotaForm
+
+USAGE_STATUS_CHOICES = [
+    ("success", "成功"),
+    ("error", "错误"),
+    ("timeout", "超时"),
+    ("rate_limited", "限流"),
+]
+
+
+def _is_admin(user) -> bool:
+    return bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+
+
+def _get_provider_item(provider_id: int, *, owner_user=None):
+    scope = "user" if owner_user is not None else "system"
+    providers = ListProvidersUseCase().execute(
+        include_inactive=True,
+        scope=scope,
+        owner_user=owner_user,
+    )
+    for provider in providers:
+        if provider.id == int(provider_id):
+            return provider
+    raise Http404(f"Provider with id {provider_id} not found")
 
 
 @login_required(login_url="/account/login/")
 def ai_manage_view(request):
-    """
-    AI接口管理页面
+    """System provider management page for admins."""
+    if not _is_admin(request.user):
+        return redirect("ai_provider:my-providers")
 
-    显示所有AI提供商配置及其使用统计。
-    通过 Application 层获取数据。
-    """
-    # 使用 Application 层获取提供商列表（含统计数据）
-    list_use_case = ListProvidersUseCase()
-    providers_dto = list_use_case.execute(include_inactive=False)
+    providers = ListProvidersUseCase().execute(include_inactive=False, scope="system")
+    overall_dto = GetOverallStatsUseCase().execute()
+    return render(
+        request,
+        "ai_provider/manage.html",
+        {
+            "providers": providers,
+            "overall_stats": overall_dto.__dict__,
+            "provider_types": [],
+        },
+    )
 
-    # 转换为模板所需格式
-    providers_with_stats = []
-    for dto in providers_dto:
-        # 获取原始 ORM 对象（用于模板中访问所有字段）
-        provider = AIProviderConfig._default_manager.get(id=dto.id)
-        providers_with_stats.append({
-            'provider': provider,
-            'today_requests': dto.today_requests,
-            'today_cost': dto.today_cost,
-            'month_requests': dto.month_requests,
-            'month_cost': dto.month_cost,
-        })
 
-    # 使用 Application 层获取总体统计
-    stats_use_case = GetOverallStatsUseCase()
-    overall_dto = stats_use_case.execute()
+@login_required(login_url="/account/login/")
+def ai_my_providers_view(request):
+    """Personal provider management page for ordinary users."""
+    quota_dto = GetUserFallbackQuotaUseCase().execute(user=request.user)
+    providers = ListProvidersUseCase().execute(
+        include_inactive=True,
+        scope="user",
+        owner_user=request.user,
+    )
+    return render(
+        request,
+        "ai_provider/my_providers.html",
+        {
+            "providers": providers,
+            "quota": quota_dto,
+        },
+    )
 
-    overall_stats = {
-        'total_providers': overall_dto.total_providers,
-        'active_providers': overall_dto.active_providers,
-        'total_requests_today': overall_dto.total_requests_today,
-        'total_cost_today': overall_dto.total_cost_today,
-    }
 
-    # 提供商类型统计（仅用于展示，保留 ORM 查询）
-    provider_types = AIProviderConfig._default_manager.values('provider_type').annotate(
-        count=Count('id')
-    ).order_by('provider_type')
+@login_required(login_url="/account/login/")
+def ai_user_quota_manage_view(request):
+    """Admin page for per-user fallback quota management."""
+    if not _is_admin(request.user):
+        return HttpResponseForbidden("Admin privileges required.")
 
-    context = {
-        'providers_with_stats': providers_with_stats,
-        'overall_stats': overall_stats,
-        'provider_types': list(provider_types),
-    }
+    if request.method == "POST":
+        user_id = request.POST.get("user_id")
+        target_user = get_object_or_404(get_user_model(), pk=user_id)
+        form = UserFallbackQuotaForm(request.POST)
+        if form.is_valid():
+            UpdateUserFallbackQuotaUseCase().execute(
+                user=target_user,
+                daily_limit=float(form.cleaned_data["daily_limit"]) if form.cleaned_data["daily_limit"] is not None else None,
+                monthly_limit=float(form.cleaned_data["monthly_limit"]) if form.cleaned_data["monthly_limit"] is not None else None,
+                is_active=form.cleaned_data["is_active"],
+                admin_note=form.cleaned_data["admin_note"],
+            )
+            messages.success(request, f"已更新 {target_user.username} 的系统兜底额度")
+            return redirect("ai_provider:quota-manage")
 
-    return render(request, 'ai_provider/manage.html', context)
+    quotas = ListUserFallbackQuotasUseCase().execute()
+    return render(
+        request,
+        "ai_provider/quota_manage.html",
+        {
+            "quotas": quotas,
+            "quota_form": UserFallbackQuotaForm(),
+        },
+    )
 
 
 @login_required(login_url="/account/login/")
 def ai_usage_logs_view(request):
-    """
-    AI调用日志页面
+    """Usage logs page; admins see all, users see only their own."""
+    provider_id = request.GET.get("provider")
+    status_filter = request.GET.get("status")
+    limit = int(request.GET.get("limit", 100))
+    provider_id_int = int(provider_id) if provider_id else None
 
-    显示API调用日志记录。
-    通过 Application 层获取数据。
-    """
-    # 获取过滤参数
-    provider_id = request.GET.get('provider')
-    status_filter = request.GET.get('status')
-    limit = int(request.GET.get('limit', 100))
-
-    # 使用 Application 层获取日志
-    list_logs_use_case = ListUsageLogsUseCase()
-    logs_dto = list_logs_use_case.execute(
-        provider_id=int(provider_id) if provider_id else None,
+    logs_dto = ListUsageLogsUseCase().execute(
+        provider_id=provider_id_int,
         status=status_filter if status_filter else None,
         limit=limit,
+        user=None if _is_admin(request.user) else request.user,
     )
-
-    # 获取所有提供商用于过滤下拉框
-    providers = AIProviderConfig._default_manager.all().order_by('priority', 'name')
-
-    # 状态选择（保留从模型获取）
-    from ...infrastructure.models import AIUsageLog
-    status_choices = AIUsageLog.STATUS_CHOICES
-
-    context = {
-        'logs': logs_dto,
-        'providers': providers,
-        'filter_provider': provider_id,
-        'filter_status': status_filter,
-        'filter_limit': limit,
-        'status_choices': status_choices,
-    }
-
-    return render(request, 'ai_provider/usage_logs.html', context)
+    providers = ListProvidersUseCase().execute(
+        include_inactive=True,
+        scope="system" if _is_admin(request.user) else "user",
+        owner_user=None if _is_admin(request.user) else request.user,
+    )
+    return render(
+        request,
+        "ai_provider/usage_logs.html",
+        {
+            "logs": logs_dto,
+            "providers": providers,
+            "filter_provider": provider_id,
+            "filter_status": status_filter,
+            "filter_limit": limit,
+            "status_choices": USAGE_STATUS_CHOICES,
+            "is_admin_view": _is_admin(request.user),
+        },
+    )
 
 
 @login_required(login_url="/account/login/")
 def ai_provider_detail_view(request, provider_id):
-    """
-    AI提供商详情页面
-
-    显示单个提供商的详细统计信息。
-    通过 Application 层获取数据。
-    """
-    # 使用 Application 层获取提供商统计
-    stats_use_case = GetProviderStatsUseCase()
-
-    try:
-        stats_dto = stats_use_case.execute(pk=provider_id, days=30)
-    except ValueError:
-        from django.http import Http404
-        raise Http404(f"Provider {provider_id} not found")
-
-    # 获取原始提供商对象（用于模板访问所有字段）
-    provider = get_object_or_404(AIProviderConfig, id=provider_id)
-
-    # 使用 Application 层获取最近日志
-    list_logs_use_case = ListUsageLogsUseCase()
-    recent_logs_dto = list_logs_use_case.execute(
-        provider_id=provider_id,
-        limit=50,
+    """Detail page for one provider within visible scope."""
+    provider = _get_provider_item(
+        provider_id,
+        owner_user=None if _is_admin(request.user) else request.user,
     )
 
-    context = {
-        'provider': provider,
-        'today_usage': {
-            'total_requests': stats_dto.today_requests,
-            'total_cost': stats_dto.today_cost,
-        },
-        'month_usage': {
-            'total_requests': stats_dto.month_requests,
-            'total_cost': stats_dto.month_cost,
-        },
-        'recent_logs': recent_logs_dto[:20],  # 只显示最近20条
-        'usage_by_date': stats_dto.usage_by_date,
-        'model_stats': stats_dto.model_stats,
-    }
+    try:
+        stats_dto = GetProviderStatsUseCase().execute(
+            pk=provider_id,
+            actor_user=None if _is_admin(request.user) else request.user,
+        )
+    except ValueError as exc:
+        raise Http404(str(exc)) from exc
 
-    return render(request, 'ai_provider/detail.html', context)
+    recent_logs_dto = ListUsageLogsUseCase().execute(
+        provider_id=provider_id,
+        limit=50,
+        user=None if _is_admin(request.user) else request.user,
+    )
+    return render(
+        request,
+        "ai_provider/detail.html",
+        {
+            "provider": provider,
+            "today_usage": {
+                "total_requests": stats_dto.today_requests,
+                "success_requests": stats_dto.today_requests,
+                "total_tokens": 0,
+                "total_cost": stats_dto.today_cost,
+            },
+            "month_usage": {
+                "total_requests": stats_dto.month_requests,
+                "success_requests": stats_dto.month_requests,
+                "total_tokens": 0,
+                "total_cost": stats_dto.month_cost,
+            },
+            "recent_logs": recent_logs_dto[:20],
+            "usage_by_date": stats_dto.usage_by_date,
+            "model_stats": stats_dto.model_stats,
+        },
+    )
 
 
 @login_required(login_url="/account/login/")
 def ai_provider_edit_view(request, provider_id):
-    """
-    AI 提供商编辑页面（非 Admin）。
+    """Provider edit page honoring scope ownership."""
+    provider = _get_provider_item(
+        provider_id,
+        owner_user=None if _is_admin(request.user) else request.user,
+    )
 
-    通过 Application 层更新数据。
-    """
-    provider = get_object_or_404(AIProviderConfig, id=provider_id)
+    form_class = AIProviderConfigForm if provider.scope == "system" else PersonalAIProviderConfigForm
 
     if request.method == "POST":
-        form = AIProviderConfigForm(request.POST, instance=provider)
+        form = form_class(request.POST, provider=provider)
         if form.is_valid():
-            # 使用 Application 层更新提供商
-            # 注意：form.cleaned_data 中有 extra_config_text，需要转换为 extra_config
             update_data = {
                 "name": form.cleaned_data.get("name"),
                 "provider_type": form.cleaned_data.get("provider_type"),
@@ -179,28 +216,34 @@ def ai_provider_edit_view(request, provider_id):
                 "default_model": form.cleaned_data.get("default_model"),
                 "api_mode": form.cleaned_data.get("api_mode"),
                 "fallback_enabled": form.cleaned_data.get("fallback_enabled", True),
-                "daily_budget_limit": form.cleaned_data.get("daily_budget_limit"),
-                "monthly_budget_limit": form.cleaned_data.get("monthly_budget_limit"),
                 "description": form.cleaned_data.get("description", ""),
                 "extra_config": form.cleaned_data.get("extra_config_text", {}),
             }
-            # 只有当 api_key 有值时才更新（留空表示不修改）
+            if provider.scope == "system":
+                update_data["daily_budget_limit"] = form.cleaned_data.get("daily_budget_limit")
+                update_data["monthly_budget_limit"] = form.cleaned_data.get("monthly_budget_limit")
             if form.cleaned_data.get("api_key"):
                 update_data["api_key"] = form.cleaned_data["api_key"]
 
-            update_use_case = UpdateProviderUseCase()
             try:
-                update_use_case.execute(pk=provider_id, **update_data)
+                UpdateProviderUseCase().execute(
+                    pk=provider_id,
+                    actor_user=None if _is_admin(request.user) else request.user,
+                    **update_data,
+                )
                 messages.success(request, "AI 提供商配置已更新")
                 return redirect("ai_provider:detail", provider_id=provider_id)
-            except ValueError as e:
-                messages.error(request, str(e))
+            except ValueError as exc:
+                messages.error(request, str(exc))
     else:
-        form = AIProviderConfigForm(instance=provider)
+        form = form_class(provider=provider)
 
-    context = {
-        "form": form,
-        "provider": provider,
-        "page_title": f"编辑 AI 提供商：{provider.name}",
-    }
-    return render(request, "ai_provider/form.html", context)
+    return render(
+        request,
+        "ai_provider/form.html",
+        {
+            "form": form,
+            "provider": provider,
+            "page_title": f"编辑 AI 提供商：{provider.name}",
+        },
+    )

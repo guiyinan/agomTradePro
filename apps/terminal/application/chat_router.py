@@ -46,12 +46,14 @@ class TerminalChatRouterService:
         context: dict[str, Any] | None = None,
         answer_chain_enabled: bool = False,
         user_is_admin: bool = False,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         resolved_session_id = session_id or str(uuid.uuid4())
         decision = self._classify_intent(
             message=message,
             provider_ref=provider_ref,
             model=model,
+            user=user,
         )
 
         if decision.intent == "system_status" and decision.confidence >= self.HIGH_CONFIDENCE:
@@ -113,6 +115,7 @@ class TerminalChatRouterService:
             decision=decision,
             answer_chain_enabled=answer_chain_enabled,
             user_is_admin=user_is_admin,
+            user=user,
         )
 
     def _classify_intent(
@@ -121,9 +124,10 @@ class TerminalChatRouterService:
         message: str,
         provider_ref: str | None,
         model: str | None,
+        user: Any | None = None,
     ) -> TerminalIntentDecision:
         ai_factory = AIClientFactory()
-        ai_client = ai_factory.get_client(provider_ref)
+        ai_client = ai_factory.get_client(provider_ref, user=user)
         classifier_messages = [
             {
                 "role": "system",
@@ -290,12 +294,13 @@ class TerminalChatRouterService:
         decision: TerminalIntentDecision,
         answer_chain_enabled: bool,
         user_is_admin: bool,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         messages = context.get("history", [])
         messages.append({"role": "user", "content": message})
 
         ai_factory = AIClientFactory()
-        ai_client = ai_factory.get_client(provider_ref)
+        ai_client = ai_factory.get_client(provider_ref, user=user)
         ai_response = ai_client.chat_completion(
             messages=messages,
             model=model,
