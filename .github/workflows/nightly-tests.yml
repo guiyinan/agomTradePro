@@ -25,17 +25,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            pip install -r requirements.txt
+            pip install pytest pytest-cov pytest-xdist pytest-base-url pytest-playwright pytest-django
+          fi
           pip install -e sdk/
-          pip install playwright
-          playwright install chromium
+          python -m playwright install chromium
 
       - name: Prepare database
         run: python manage.py migrate --noinput
 
       - name: Run Unit Tests (full)
         run: |
-          pytest tests/unit/ -v \
+          python -m pytest tests/unit/ -v \
             --cov=apps \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
@@ -43,14 +47,14 @@ jobs:
 
       - name: Run API And Migration Tests
         run: |
-          pytest tests/api/ tests/migrations/ -v \
+          python -m pytest tests/api/ tests/migrations/ -v \
             --cov=apps \
             --cov-append \
             --cov-report=term-missing
 
       - name: Run Integration Tests (core)
         run: |
-          pytest tests/integration/ -v \
+          python -m pytest tests/integration/ -v \
             --cov=apps \
             --cov-append \
             --cov-report=xml:coverage-integration.xml \
@@ -59,14 +63,14 @@ jobs:
 
       - name: Run App-Local Module Tests
         run: |
-          pytest apps/*/tests -v \
+          python -m pytest apps/*/tests -v \
             --cov=apps \
             --cov-append \
             --cov-report=term-missing
 
       - name: Run Guardrail Tests
         run: |
-          pytest tests/guardrails/ -v \
+          python -m pytest tests/guardrails/ -v \
             --cov=apps \
             --cov-append \
             --cov-report=xml:coverage-guardrail.xml
@@ -75,7 +79,7 @@ jobs:
         run: |
           python manage.py runserver 8000 &
           sleep 3
-          pytest tests/playwright/tests/smoke/ -v \
+          python -m pytest tests/playwright/tests/smoke/ -v \
             --screenshot=only-on-failure \
             --video=retain-on-failure \
             --base-url=http://127.0.0.1:8000 \
