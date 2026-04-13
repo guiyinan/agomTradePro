@@ -11,6 +11,7 @@ Dashboard Interface Views
 
 import logging
 from datetime import date
+from types import SimpleNamespace
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -28,6 +29,7 @@ from apps.account.infrastructure.repositories import (
 )
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.queries import (
+    get_alpha_decision_chain_query,
     get_alpha_visualization_query,
     get_dashboard_detail_query,
     get_decision_plane_query,
@@ -390,6 +392,16 @@ def _get_alpha_stock_scores_payload(top_n: int = 10, user=None) -> dict:
         }
 
 
+def _get_alpha_visualization_data(top_n: int = 10, ic_days: int = 30, user=None):
+    """Return the aggregated Alpha visualization payload with a single query execution."""
+    try:
+        query = get_alpha_visualization_query()
+        return query.execute(top_n=top_n, ic_days=ic_days, user=user)
+    except Exception as e:
+        logger.warning(f"Failed to get alpha visualization data: {e}")
+        return None
+
+
 def _get_alpha_stock_scores(top_n: int = 10, user=None) -> list:
     """
     获取 Alpha 选股评分结果
@@ -483,16 +495,53 @@ def _get_alpha_ic_trends(days: int = 30, user=None) -> list:
     return _get_alpha_ic_trends_payload(days, user=user)["items"]
 
 
+def _get_alpha_decision_chain_data(
+    top_n: int = 10,
+    ic_days: int = 30,
+    max_candidates: int = 5,
+    max_pending: int = 10,
+    user=None,
+    alpha_visualization_data=None,
+    decision_plane_data=None,
+):
+    """Return the unified Alpha decision-chain payload."""
+    try:
+        query = get_alpha_decision_chain_query()
+        if (
+            alpha_visualization_data is not None
+            and decision_plane_data is not None
+            and hasattr(query, "build")
+        ):
+            return query.build(
+                alpha_visualization_data=alpha_visualization_data,
+                decision_plane_data=decision_plane_data,
+            )
+        return query.execute(
+            top_n=top_n,
+            ic_days=ic_days,
+            max_candidates=max_candidates,
+            max_pending=max_pending,
+            user=user,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to get alpha decision chain data: {e}")
+        return None
+
+
 def _build_alpha_factor_panel(
     stock_code: str,
     source: str | None = None,
     top_n: int = 10,
+    scores: list[dict] | None = None,
     user=None,
 ) -> dict:
     """Build factor panel data for a single alpha stock."""
     selected = None
-    scores = _get_alpha_stock_scores(top_n=max(top_n, 10), user=user)
-    for item in scores:
+    score_items = list(scores) if scores is not None else _get_alpha_stock_scores(
+        top_n=max(top_n, 10),
+        user=user,
+    )
+    for item in score_items:
         if item.get("code") == stock_code:
             selected = item
             break
@@ -584,11 +633,95 @@ def dashboard_view(request):
     # 补充用户名
     data.username = request.user.username
 
-    actionable_candidates = _get_actionable_candidates()
-    pending_requests = _get_pending_requests()
-    alpha_stock_scores_payload = _get_alpha_stock_scores_payload(top_n=10, user=request.user)
-    alpha_stock_scores = alpha_stock_scores_payload["items"]
-    alpha_stock_scores_meta = alpha_stock_scores_payload["meta"]
+    decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
+    if decision_plane_data is None:
+        decision_plane_data = SimpleNamespace(
+            beta_gate_visible_classes="-",
+            alpha_watch_count=0,
+            alpha_candidate_count=0,
+            alpha_actionable_count=0,
+            quota_total=10,
+            quota_used=0,
+            quota_remaining=10,
+            quota_usage_percent=0.0,
+            actionable_candidates=[],
+            pending_requests=[],
+        )
+
+    alpha_visualization_data = _get_alpha_visualization_data(
+        top_n=10,
+        ic_days=30,
+        user=request.user,
+    )
+    if alpha_visualization_data is None:
+        alpha_visualization_data = SimpleNamespace(
+            stock_scores=[],
+            stock_scores_meta={
+                "status": "error",
+                "source": "none",
+                "warning_message": "alpha_stock_scores_unavailable",
+                "is_degraded": True,
+                "uses_cached_data": False,
+            },
+            provider_status={
+                "providers": {},
+                "metrics": {},
+                "timestamp": None,
+                "status": "degraded",
+                "data_source": "fallback",
+                "warning_message": "provider_status_unavailable",
+            },
+            coverage_metrics={
+                "coverage_ratio": 0.0,
+                "total_requests": 0,
+                "cache_hit_rate": 0.0,
+                "timestamp": None,
+                "status": "degraded",
+                "data_source": "fallback",
+                "warning_message": "coverage_metrics_unavailable",
+            },
+            ic_trends=[],
+        )
+
+    alpha_decision_chain = _get_alpha_decision_chain_data(
+        top_n=10,
+        ic_days=30,
+        max_candidates=5,
+        max_pending=10,
+        user=request.user,
+        alpha_visualization_data=alpha_visualization_data,
+        decision_plane_data=decision_plane_data,
+    )
+    if alpha_decision_chain is None:
+        alpha_decision_chain = SimpleNamespace(
+            overview={
+                "top_ranked_count": len(alpha_visualization_data.stock_scores),
+                "actionable_count": len(decision_plane_data.actionable_candidates),
+                "actionable_total_count": decision_plane_data.alpha_actionable_count,
+                "pending_count": len(decision_plane_data.pending_requests),
+                "top10_actionable_count": 0,
+                "top10_pending_count": 0,
+                "top10_rank_only_count": len(alpha_visualization_data.stock_scores),
+                "actionable_outside_top10_count": len(decision_plane_data.actionable_candidates),
+                "pending_outside_top10_count": len(decision_plane_data.pending_requests),
+                "actionable_conversion_pct": 0.0,
+                "pending_conversion_pct": 0.0,
+                "requested_trade_date": alpha_visualization_data.stock_scores_meta.get(
+                    "requested_trade_date"
+                ),
+                "effective_asof_date": alpha_visualization_data.stock_scores_meta.get(
+                    "effective_asof_date"
+                ),
+            },
+            top_stocks=alpha_visualization_data.stock_scores,
+            actionable_candidates=decision_plane_data.actionable_candidates,
+            pending_requests=decision_plane_data.pending_requests,
+        )
+
+    actionable_candidates = alpha_decision_chain.actionable_candidates
+    pending_requests = alpha_decision_chain.pending_requests
+    alpha_stock_scores = alpha_decision_chain.top_stocks
+    alpha_stock_scores_meta = alpha_visualization_data.stock_scores_meta
     initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
     investment_accounts = _get_dashboard_accounts(request.user)
     try:
@@ -642,26 +775,28 @@ def dashboard_view(request):
         "allocation_data": data.allocation_data if hasattr(data, 'allocation_data') else {},
         "performance_data": data.performance_data if hasattr(data, 'performance_data') else [],
         # 决策平面数据（新增）
-        "beta_gate_visible_classes": _get_beta_gate_visible_classes(),
-        "alpha_watch_count": _get_alpha_status_count("WATCH"),
-        "alpha_candidate_count": _get_alpha_status_count("CANDIDATE"),
-        "alpha_actionable_count": _get_alpha_status_count("ACTIONABLE"),
-        "quota_total": _get_quota_total(),
-        "quota_used": _get_quota_used(),
-        "quota_remaining": _get_quota_remaining(),
-        "quota_usage_percent": _get_quota_usage_percent(),
+        "beta_gate_visible_classes": decision_plane_data.beta_gate_visible_classes,
+        "alpha_watch_count": decision_plane_data.alpha_watch_count,
+        "alpha_candidate_count": decision_plane_data.alpha_candidate_count,
+        "alpha_actionable_count": decision_plane_data.alpha_actionable_count,
+        "quota_total": decision_plane_data.quota_total,
+        "quota_used": decision_plane_data.quota_used,
+        "quota_remaining": decision_plane_data.quota_remaining,
+        "quota_usage_percent": decision_plane_data.quota_usage_percent,
         "actionable_candidates": actionable_candidates,
         "pending_requests": pending_requests,
         "pending_count": len(pending_requests),
         # Alpha 可视化数据（新增）
         "alpha_stock_scores": alpha_stock_scores,
         "alpha_stock_scores_meta": alpha_stock_scores_meta,
-        "alpha_provider_status": _get_alpha_provider_status(user=request.user),
-        "alpha_coverage_metrics": _get_alpha_coverage_metrics(user=request.user),
-        "alpha_ic_trends": _get_alpha_ic_trends(days=30, user=request.user),
+        "alpha_decision_chain_overview": alpha_decision_chain.overview,
+        "alpha_provider_status": alpha_visualization_data.provider_status,
+        "alpha_coverage_metrics": alpha_visualization_data.coverage_metrics,
+        "alpha_ic_trends": alpha_visualization_data.ic_trends,
         "alpha_factor_panel": _build_alpha_factor_panel(
             initial_alpha_stock,
             top_n=10,
+            scores=alpha_stock_scores,
             user=request.user,
         ),
         "valuation_repair_config_summary": valuation_repair_config_summary,
@@ -964,6 +1099,60 @@ def signal_status_v1(request):
     )
 
 
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def alpha_decision_chain_v1(request):
+    """Unified Alpha ranking -> actionable -> pending chain for dashboard/MCP/SDK."""
+    try:
+        top_n = _parse_positive_int_param(
+            request.GET.get("top_n", 10),
+            field_name="top_n",
+            default=10,
+        )
+        max_candidates = _parse_positive_int_param(
+            request.GET.get("max_candidates", 5),
+            field_name="max_candidates",
+            default=5,
+        )
+        max_pending = _parse_positive_int_param(
+            request.GET.get("max_pending", 10),
+            field_name="max_pending",
+            default=10,
+        )
+    except ValueError as exc:
+        return Response({"success": False, "error": str(exc)}, status=400)
+
+    chain_data = _get_alpha_decision_chain_data(
+        top_n=top_n,
+        ic_days=30,
+        max_candidates=max_candidates,
+        max_pending=max_pending,
+        user=request.user,
+    )
+
+    if chain_data is None:
+        return Response(
+            {"success": False, "error": "alpha_decision_chain_unavailable"},
+            status=503,
+        )
+
+    return Response(
+        {
+            "success": True,
+            "data": {
+                "overview": chain_data.overview,
+                "top_stocks": chain_data.top_stocks,
+                "actionable_candidates": chain_data.actionable_candidates,
+                "pending_requests": chain_data.pending_requests,
+                "top_n": top_n,
+                "max_candidates": max_candidates,
+                "max_pending": max_pending,
+            },
+        }
+    )
+
+
 # ========================================
 # 决策平面数据获取辅助函数（委托至 Query Services）
 # ========================================
@@ -1109,6 +1298,16 @@ def _get_pending_count() -> int:
         return 0
 
 
+def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
+    """Return the aggregated decision-plane payload with a single query execution."""
+    try:
+        query = get_decision_plane_query()
+        return query.execute(max_candidates=max_candidates, max_pending=max_pending)
+    except Exception as e:
+        logger.warning(f"Failed to get decision plane data: {e}")
+        return None
+
+
 @login_required(login_url="/account/login/")
 def workflow_refresh_candidates(request):
     """
@@ -1149,9 +1348,41 @@ def alpha_stocks_htmx(request):
         )
     except ValueError as exc:
         return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-    scores_payload = _get_alpha_stock_scores_payload(top_n=top_n, user=request.user)
-    scores = scores_payload["items"]
-    meta = scores_payload["meta"]
+    alpha_visualization_data = _get_alpha_visualization_data(
+        top_n=top_n,
+        ic_days=30,
+        user=request.user,
+    )
+    decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
+    chain_data = _get_alpha_decision_chain_data(
+        top_n=top_n,
+        ic_days=30,
+        max_candidates=5,
+        max_pending=10,
+        user=request.user,
+        alpha_visualization_data=alpha_visualization_data,
+        decision_plane_data=decision_plane_data,
+    )
+    if chain_data is None:
+        scores_payload = _get_alpha_stock_scores_payload(top_n=top_n, user=request.user)
+        scores = scores_payload["items"]
+        meta = scores_payload["meta"]
+        overview = {
+            "top_ranked_count": len(scores),
+            "top10_actionable_count": 0,
+            "top10_pending_count": 0,
+            "top10_rank_only_count": len(scores),
+            "actionable_conversion_pct": 0.0,
+            "pending_conversion_pct": 0.0,
+        }
+    else:
+        scores = chain_data.top_stocks
+        overview = chain_data.overview
+        meta = (
+            alpha_visualization_data.stock_scores_meta
+            if alpha_visualization_data is not None
+            else _get_alpha_stock_scores_meta(top_n=top_n, user=request.user)
+        )
 
     if request.GET.get("format") == "json":
         return JsonResponse(
@@ -1160,6 +1391,7 @@ def alpha_stocks_htmx(request):
                 "data": {
                     "items": scores,
                     "meta": meta,
+                    "overview": overview,
                     "count": len(scores),
                     "top_n": top_n,
                 },
@@ -1173,6 +1405,7 @@ def alpha_stocks_htmx(request):
     context = {
         'alpha_stocks': scores,
         'alpha_meta': meta,
+        'alpha_chain_overview': overview,
         'top_n': top_n,
     }
 

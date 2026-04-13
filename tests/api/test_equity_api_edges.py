@@ -8,7 +8,11 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.equity.domain.entities import StockInfo
+from apps.data_center.infrastructure.models import (
+    AssetAliasModel,
+    AssetMasterModel,
+    PriceBarModel,
+)
 from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
 
 
@@ -224,21 +228,34 @@ def test_equity_intraday_chart_returns_points(authenticated_client):
 @pytest.mark.django_db
 def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticated_client):
     today = timezone.localdate()
+    asset = AssetMasterModel.objects.create(
+        code="300308.SZ",
+        name="中际旭创",
+        short_name="中际旭创",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetAliasModel.objects.create(
+        asset=asset,
+        provider_name="legacy",
+        alias_code="300308",
+    )
+    PriceBarModel.objects.create(
+        asset_code="300308.SZ",
+        bar_date=today,
+        freq="1d",
+        adjustment="none",
+        open="600.00",
+        high="610.00",
+        low="598.00",
+        close="606.52",
+        volume="100000.00",
+        amount="60652000.00",
+        source="test",
+    )
 
-    with patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
-        return_value=StockInfo(
-            stock_code="300308.SZ",
-            name="中际旭创",
-            sector="",
-            market="SZ",
-            list_date=None,
-        ),
-    ), patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository.get_daily_prices",
-        return_value=[(today, Decimal("606.52"))],
-    ):
-        response = authenticated_client.get("/api/equity/valuation/300308.SZ/")
+    response = authenticated_client.get("/api/equity/valuation/300308.SZ/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -252,7 +269,20 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
 
 
 @pytest.mark.django_db
-def test_equity_intraday_chart_uses_remote_stock_info_fallback(authenticated_client):
+def test_equity_intraday_chart_uses_data_center_stock_info(authenticated_client):
+    asset = AssetMasterModel.objects.create(
+        code="300308.SZ",
+        name="中际旭创",
+        short_name="中际旭创",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetAliasModel.objects.create(
+        asset=asset,
+        provider_name="legacy",
+        alias_code="300308",
+    )
     intraday_points = [
         SimpleNamespace(
             timestamp=datetime(2026, 4, 3, 9, 30, 0, tzinfo=dt_timezone.utc),
@@ -269,15 +299,6 @@ def test_equity_intraday_chart_uses_remote_stock_info_fallback(authenticated_cli
     ]
 
     with patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
-        return_value=StockInfo(
-            stock_code="300308.SZ",
-            name="中际旭创",
-            sector="",
-            market="SZ",
-            list_date=None,
-        ),
-    ), patch(
         "apps.equity.infrastructure.repositories.DjangoStockRepository.get_intraday_points",
         return_value=intraday_points,
     ):
@@ -295,6 +316,19 @@ def test_equity_intraday_chart_uses_remote_stock_info_fallback(authenticated_cli
 @pytest.mark.django_db
 def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_client):
     today = timezone.localdate()
+    asset = AssetMasterModel.objects.create(
+        code="300308.SZ",
+        name="中际旭创",
+        short_name="中际旭创",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetAliasModel.objects.create(
+        asset=asset,
+        provider_name="legacy",
+        alias_code="300308",
+    )
     remote_bars = [
         SimpleNamespace(
             asset_code="300308",
@@ -319,15 +353,6 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
     ]
 
     with patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
-        return_value=StockInfo(
-            stock_code="300308.SZ",
-            name="中际旭创",
-            sector="",
-            market="SZ",
-            list_date=None,
-        ),
-    ), patch(
         "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
         return_value=remote_bars,
     ):
@@ -348,6 +373,19 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
 @pytest.mark.django_db
 def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(authenticated_client):
     today = timezone.localdate()
+    asset = AssetMasterModel.objects.create(
+        code="300308.SZ",
+        name="中际旭创",
+        short_name="中际旭创",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetAliasModel.objects.create(
+        asset=asset,
+        provider_name="legacy",
+        alias_code="300308",
+    )
     remote_bars = [
         SimpleNamespace(
             asset_code="300308",
@@ -395,18 +433,6 @@ def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(aut
     }
 
     with patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_stock_info_from_eastmoney",
-        return_value=StockInfo(
-            stock_code="300308.SZ",
-            name="中际旭创",
-            sector="",
-            market="SZ",
-            list_date=None,
-        ),
-    ), patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_daily_prices",
-        return_value=[],
-    ), patch(
         "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
         return_value=remote_bars,
     ), patch(

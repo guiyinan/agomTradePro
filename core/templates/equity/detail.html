@@ -1140,12 +1140,22 @@ async function loadStockDetail() {
 async function loadRealtimePrice() {
     const priceEl = document.getElementById('detailPrice');
     try {
-        const price = await fetchJsonOrThrowCompat(`/api/realtime/prices/${stockCode}/`);
-        if (price.success && price.price && price.price > 0) {
-            priceEl.textContent = price.price.toFixed(2);
-            updatePriceTimestamp(price.timestamp, '实时价格时间');
-            // 添加实时标识
-            const changePct = price.change_pct;
+        const quote = await fetchJsonOrThrowCompat(
+            `/api/data-center/prices/quotes/?asset_code=${encodeURIComponent(stockCode)}`
+        );
+        const latestPrice = typeof quote.current_price === 'number'
+            ? quote.current_price
+            : quote.price;
+        if (latestPrice && latestPrice > 0) {
+            priceEl.textContent = latestPrice.toFixed(2);
+            updatePriceTimestamp(quote.snapshot_at || quote.timestamp, '行情快照时间');
+            const changePct = quote.change_pct !== undefined && quote.change_pct !== null
+                ? quote.change_pct
+                : (
+                    quote.prev_close && quote.prev_close > 0
+                        ? ((latestPrice - quote.prev_close) / quote.prev_close) * 100
+                        : null
+                );
             if (changePct !== undefined && changePct !== null) {
                 const changeClass = changePct >= 0 ? 'text-rise' : 'text-fall';
                 priceEl.className = 'metric-value ' + changeClass;

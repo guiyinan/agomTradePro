@@ -29,6 +29,19 @@ def register_dashboard_tools(server: FastMCP) -> None:
         return client.dashboard.signal_status_v1()
 
     @server.tool()
+    def get_dashboard_alpha_decision_chain_v1(
+        top_n: int = 10,
+        max_candidates: int = 5,
+        max_pending: int = 10,
+    ) -> dict[str, Any]:
+        client = AgomTradeProClient()
+        return client.dashboard.alpha_decision_chain_v1(
+            top_n=top_n,
+            max_candidates=max_candidates,
+            max_pending=max_pending,
+        )
+
+    @server.tool()
     def get_dashboard_positions() -> dict[str, Any]:
         client = AgomTradeProClient()
         return client.dashboard.positions()

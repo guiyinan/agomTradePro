@@ -1,9 +1,16 @@
-from datetime import date
+from datetime import date, datetime, timezone as dt_timezone
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.data_center.infrastructure.models import (
+    AssetAliasModel,
+    AssetMasterModel,
+    CapitalFlowFactModel,
+    QuoteSnapshotModel,
+)
 from apps.macro.infrastructure.models import MacroIndicator as LegacyMacroIndicatorModel
 
 
@@ -111,3 +118,73 @@ def test_data_center_quotes_fall_back_to_realtime_use_case(authenticated_client,
     assert payload["asset_code"] == "510300.SH"
     assert payload["current_price"] == 3.91
     assert payload["source"] == "akshare"
+
+
+@pytest.mark.django_db
+def test_data_center_quotes_resolve_alias_to_canonical_asset(authenticated_client):
+    asset = AssetMasterModel.objects.create(
+        code="300502.SZ",
+        name="新易盛",
+        short_name="新易盛",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetAliasModel.objects.create(
+        asset=asset,
+        provider_name="legacy",
+        alias_code="300502",
+    )
+    QuoteSnapshotModel.objects.create(
+        asset_code="300502.SZ",
+        snapshot_at=datetime(2026, 4, 12, 9, 35, tzinfo=dt_timezone.utc),
+        current_price="92.35",
+        prev_close="91.10",
+        volume="12345.00",
+        amount="1139815.75",
+        source="test",
+    )
+
+    response = authenticated_client.get("/api/data-center/prices/quotes/?asset_code=300502")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["asset_code"] == "300502.SZ"
+    assert payload["current_price"] == 92.35
+
+
+@pytest.mark.django_db
+def test_data_center_capital_flows_resolve_alias_to_canonical_asset(authenticated_client):
+    today = timezone.localdate()
+    asset = AssetMasterModel.objects.create(
+        code="300502.SZ",
+        name="新易盛",
+        short_name="新易盛",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetAliasModel.objects.create(
+        asset=asset,
+        provider_name="legacy",
+        alias_code="300502",
+    )
+    CapitalFlowFactModel.objects.create(
+        asset_code="300502.SZ",
+        flow_date=today,
+        main_net="5600000.00",
+        retail_net="-5600000.00",
+        super_large_net="2200000.00",
+        large_net="1800000.00",
+        medium_net="900000.00",
+        small_net="-4900000.00",
+        source="test",
+    )
+
+    response = authenticated_client.get(
+        f"/api/data-center/capital-flows/?asset_code=300502&start={today.isoformat()}"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1

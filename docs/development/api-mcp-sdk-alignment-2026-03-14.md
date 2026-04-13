@@ -56,6 +56,16 @@
 - `/api/pulse/history/`
 - `/api/pulse/calculate/`
 - `/api/decision/funnel/context/`
+- `/api/dashboard/v1/alpha-decision-chain/`
+
+### Dashboard Alpha 决策链（2026-04-12）
+
+- Dashboard 上 `Top 10 选股结果`、`可行动候选`、`待执行队列` 的统一读取口径为：
+  - `/api/dashboard/v1/alpha-decision-chain/`
+- 页面、SDK、MCP 不应再各自拼接三份并行数据来解释这三个区块之间的关系。
+- `alpha/stocks/` 仍保留给 HTMX 表格刷新使用，但它展示的链路状态必须来自同一份 `AlphaDecisionChainQuery` 聚合结果。
+- SDK 对应方法：`dashboard.alpha_decision_chain_v1(...)`
+- MCP 对应工具：`get_dashboard_alpha_decision_chain_v1`
 
 ## 统一账户口径（2026-04-01）
 

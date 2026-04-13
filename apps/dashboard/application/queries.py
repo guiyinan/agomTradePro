@@ -97,17 +97,17 @@ class AlphaVisualizationQuery:
                 )
                 return {
                     "items": [
-                    {
-                        "code": score.code,
-                        "name": code_to_name.get(score.code, ""),
-                        "score": round(score.score, 4),
-                        "rank": score.rank,
-                        "source": score.source,
-                        "confidence": round(score.confidence, 3),
-                        "factors": score.factors,
-                        "asof_date": score.asof_date.isoformat() if score.asof_date else None,
-                    }
-                    for score in result.scores[:top_n]
+                        {
+                            "code": score.code,
+                            "name": code_to_name.get(score.code, ""),
+                            "score": round(score.score, 4),
+                            "rank": score.rank,
+                            "source": score.source,
+                            "confidence": round(score.confidence, 3),
+                            "factors": score.factors,
+                            "asof_date": score.asof_date.isoformat() if score.asof_date else None,
+                        }
+                        for score in result.scores[:top_n]
                     ],
                     "meta": self._build_stock_scores_meta(result),
                 }
@@ -149,42 +149,90 @@ class AlphaVisualizationQuery:
 
     def _resolve_security_names(self, codes: list[str]) -> dict[str, str]:
         """根据代码解析证券名称"""
-        unique_codes = list({code for code in codes if code})
-        if not unique_codes:
+        code_aliases = self._build_code_aliases(codes)
+        if not code_aliases:
             return {}
 
         name_map: dict[str, str] = {}
+        lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
 
         # 尝试从股票信息获取
         try:
             from apps.equity.infrastructure.models import StockInfoModel
 
             stock_rows = StockInfoModel._default_manager.filter(
-                stock_code__in=unique_codes
+                stock_code__in=lookup_codes
             ).values("stock_code", "name")
-            for row in stock_rows:
-                name_map[row["stock_code"]] = row["name"]
+            self._assign_names_from_rows(
+                name_map=name_map,
+                code_aliases=code_aliases,
+                rows=stock_rows,
+                code_field="stock_code",
+                name_field="name",
+            )
         except Exception as e:
             logger.debug(f"Failed to resolve stock names: {e}")
 
         # 尝试从基金信息获取未解析的代码
-        unresolved = [code for code in unique_codes if code not in name_map]
+        unresolved = [code for code in code_aliases if code not in name_map]
         if unresolved:
             try:
                 from apps.fund.infrastructure.models import FundInfoModel
 
-                code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
+                unresolved_aliases = self._build_code_aliases(unresolved)
                 fund_rows = FundInfoModel._default_manager.filter(
-                    fund_code__in=list(set(code_to_fund_code.values()))
+                    fund_code__in=sorted(
+                        {alias for aliases in unresolved_aliases.values() for alias in aliases}
+                    )
                 ).values("fund_code", "fund_name")
-                fund_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
-                for code, fund_code in code_to_fund_code.items():
-                    if fund_code in fund_map:
-                        name_map[code] = fund_map[fund_code]
+                self._assign_names_from_rows(
+                    name_map=name_map,
+                    code_aliases=unresolved_aliases,
+                    rows=fund_rows,
+                    code_field="fund_code",
+                    name_field="fund_name",
+                )
             except Exception as e:
                 logger.debug(f"Failed to resolve fund names: {e}")
 
         return name_map
+
+    def _build_code_aliases(self, codes: list[str]) -> dict[str, set[str]]:
+        """Build request-code aliases so full symbols and base codes can share one lookup."""
+        aliases: dict[str, set[str]] = {}
+        for code in codes:
+            original = (code or "").strip()
+            normalized = original.upper()
+            if not normalized:
+                continue
+
+            code_aliases = {normalized}
+            base_code = normalized.split(".")[0]
+            if base_code:
+                code_aliases.add(base_code)
+
+            aliases[original] = code_aliases
+        return aliases
+
+    def _assign_names_from_rows(
+        self,
+        *,
+        name_map: dict[str, str],
+        code_aliases: dict[str, set[str]],
+        rows,
+        code_field: str,
+        name_field: str,
+    ) -> None:
+        """Assign names back to the original request codes by matching lookup aliases."""
+        for row in rows:
+            resolved_code = str(row.get(code_field) or "").strip().upper()
+            resolved_name = row.get(name_field) or ""
+            if not resolved_code or not resolved_name:
+                continue
+
+            for requested_code, aliases in code_aliases.items():
+                if requested_code not in name_map and resolved_code in aliases:
+                    name_map[requested_code] = resolved_name
 
     def _get_provider_status(self) -> dict[str, Any]:
         """获取 Alpha Provider 状态"""
@@ -357,6 +405,15 @@ class DecisionPlaneData:
     pending_requests: list[Any]
 
 
+@dataclass(frozen=True)
+class AlphaDecisionChainData:
+    """Alpha 决策链聚合数据。"""
+    overview: dict[str, Any]
+    top_stocks: list[dict[str, Any]]
+    actionable_candidates: list[dict[str, Any]]
+    pending_requests: list[dict[str, Any]]
+
+
 class DecisionPlaneQuery:
     """
     决策平面查询服务
@@ -380,16 +437,21 @@ class DecisionPlaneQuery:
         Returns:
             DecisionPlaneData
         """
+        all_actionable_candidates = self._get_actionable_candidates(max_count=None)
+        listed_actionable_candidates = (
+            all_actionable_candidates[:max_candidates] if max_candidates > 0 else all_actionable_candidates
+        )
+
         return DecisionPlaneData(
             beta_gate_visible_classes=self._get_beta_gate_visible_classes(),
             alpha_watch_count=self._get_alpha_status_count("WATCH"),
             alpha_candidate_count=self._get_alpha_status_count("CANDIDATE"),
-            alpha_actionable_count=self._get_alpha_status_count("ACTIONABLE"),
+            alpha_actionable_count=len(all_actionable_candidates),
             quota_total=self._get_quota_total(),
             quota_used=self._get_quota_used(),
             quota_remaining=self._get_quota_remaining(),
             quota_usage_percent=self._get_quota_usage_percent(),
-            actionable_candidates=self._get_actionable_candidates(max_candidates),
+            actionable_candidates=listed_actionable_candidates,
             pending_requests=self._get_pending_requests(max_pending)
         )
 
@@ -486,7 +548,47 @@ class DecisionPlaneQuery:
             logger.warning(f"Failed to get quota usage percent: {e}")
             return 0.0
 
-    def _get_actionable_candidates(self, max_count: int) -> list[Any]:
+    def _attach_asset_names(self, items: list[Any]) -> list[Any]:
+        """为候选或请求对象批量补充资产名称。"""
+        lookup_codes: set[str] = set()
+        for item in items:
+            code = str(getattr(item, "asset_code", "") or "").strip().upper()
+            if not code:
+                continue
+            lookup_codes.add(code)
+            base_code = code.split(".")[0]
+            if base_code:
+                lookup_codes.add(base_code)
+
+        if not lookup_codes:
+            return items
+
+        try:
+            from shared.infrastructure.asset_name_resolver import resolve_asset_names
+
+            name_map = resolve_asset_names(list(lookup_codes))
+        except Exception as e:
+            logger.warning(f"Failed to resolve asset names for workflow panel: {e}")
+            return items
+
+        for item in items:
+            existing_name = str(getattr(item, "asset_name", "") or "").strip()
+            if existing_name:
+                continue
+
+            code = str(getattr(item, "asset_code", "") or "").strip()
+            normalized_code = code.upper()
+            if not normalized_code:
+                continue
+
+            base_code = normalized_code.split(".")[0]
+            resolved_name = name_map.get(normalized_code) or name_map.get(base_code)
+            if resolved_name:
+                item.asset_name = resolved_name
+
+        return items
+
+    def _get_actionable_candidates(self, max_count: int | None) -> list[Any]:
         """获取可操作候选列表"""
         try:
             from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
@@ -554,15 +656,15 @@ class DecisionPlaneQuery:
                     item._valuation_repair = None
 
                 deduped.append(item)
-                if len(deduped) >= max_count:
+                if max_count is not None and len(deduped) >= max_count:
                     break
 
-            return deduped
+            return self._attach_asset_names(deduped)
         except Exception as e:
             logger.warning(f"Failed to get actionable candidates: {e}")
             return []
 
-    def _get_pending_requests(self, max_count: int) -> list[Any]:
+    def _get_pending_requests(self, max_count: int | None) -> list[Any]:
         """获取待处理请求列表"""
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
@@ -584,13 +686,307 @@ class DecisionPlaneQuery:
                     continue
                 seen_codes.add(code)
                 deduped.append(item)
-                if len(deduped) >= max_count:
+                if max_count is not None and len(deduped) >= max_count:
                     break
 
-            return deduped
+            return self._attach_asset_names(deduped)
         except Exception as e:
             logger.warning(f"Failed to get pending requests: {e}")
             return []
+
+
+class AlphaDecisionChainQuery:
+    """
+    Alpha 决策链查询服务。
+
+    将 Alpha Top N 排名、Workflow 可行动候选、待执行队列收束成统一视图，
+    供 Dashboard 页面、API、SDK、MCP 共用。
+    """
+
+    def execute(
+        self,
+        top_n: int = 10,
+        ic_days: int = 30,
+        max_candidates: int = 5,
+        max_pending: int = 10,
+        user: Any | None = None,
+    ) -> AlphaDecisionChainData:
+        """执行 Alpha 决策链聚合查询。"""
+        alpha_visualization_data = get_alpha_visualization_query().execute(
+            top_n=top_n,
+            ic_days=ic_days,
+            user=user,
+        )
+        decision_plane_data = get_decision_plane_query().execute(
+            max_candidates=max_candidates,
+            max_pending=max_pending,
+        )
+        return self.build(
+            alpha_visualization_data=alpha_visualization_data,
+            decision_plane_data=decision_plane_data,
+        )
+
+    def build(
+        self,
+        *,
+        alpha_visualization_data: AlphaVisualizationData,
+        decision_plane_data: DecisionPlaneData,
+    ) -> AlphaDecisionChainData:
+        """用已获取的 Alpha 与 Workflow 数据构造统一决策链。"""
+        top_stocks = [dict(item) for item in alpha_visualization_data.stock_scores]
+        top_match_index = self._build_top_match_index(top_stocks)
+
+        actionable_matches = self._lookup_actionable_matches(top_stocks)
+        pending_matches = self._lookup_pending_matches(top_stocks)
+
+        top_rank_only_count = 0
+        top10_actionable_count = 0
+        top10_pending_count = 0
+
+        enriched_top_stocks: list[dict[str, Any]] = []
+        for stock in top_stocks:
+            canonical_code = str(stock.get("code") or "").strip().upper()
+            actionable_match = actionable_matches.get(canonical_code)
+            pending_match = pending_matches.get(canonical_code)
+
+            if pending_match:
+                workflow_stage = "pending"
+                workflow_stage_label = "待执行队列"
+                top10_pending_count += 1
+            elif actionable_match:
+                workflow_stage = "actionable"
+                workflow_stage_label = "可行动候选"
+                top10_actionable_count += 1
+            else:
+                workflow_stage = "top_ranked"
+                workflow_stage_label = "仅在 Alpha Top 排名"
+                top_rank_only_count += 1
+
+            enriched_stock = dict(stock)
+            enriched_stock.update(
+                {
+                    "workflow_stage": workflow_stage,
+                    "workflow_stage_label": workflow_stage_label,
+                    "is_actionable": bool(actionable_match),
+                    "is_pending": bool(pending_match),
+                    "candidate_id": actionable_match.get("candidate_id") if actionable_match else None,
+                    "pending_request_id": pending_match.get("request_id") if pending_match else None,
+                    "pending_execution_status": (
+                        pending_match.get("execution_status") if pending_match else None
+                    ),
+                }
+            )
+            enriched_top_stocks.append(enriched_stock)
+
+        actionable_candidates = [
+            self._serialize_actionable_candidate(item, top_match_index)
+            for item in decision_plane_data.actionable_candidates
+        ]
+        pending_requests = [
+            self._serialize_pending_request(item, top_match_index)
+            for item in decision_plane_data.pending_requests
+        ]
+
+        actionable_outside_top10_count = sum(
+            1 for item in actionable_candidates if not item["is_in_top10"]
+        )
+        pending_outside_top10_count = sum(
+            1 for item in pending_requests if not item["is_in_top10"]
+        )
+
+        overview = {
+            "top_ranked_count": len(enriched_top_stocks),
+            "actionable_count": len(actionable_candidates),
+            "actionable_total_count": decision_plane_data.alpha_actionable_count,
+            "pending_count": len(pending_requests),
+            "top10_actionable_count": top10_actionable_count,
+            "top10_pending_count": top10_pending_count,
+            "top10_rank_only_count": top_rank_only_count,
+            "actionable_outside_top10_count": actionable_outside_top10_count,
+            "pending_outside_top10_count": pending_outside_top10_count,
+            "actionable_conversion_pct": round(
+                (top10_actionable_count / len(enriched_top_stocks) * 100), 1
+            ) if enriched_top_stocks else 0.0,
+            "pending_conversion_pct": round(
+                (top10_pending_count / len(enriched_top_stocks) * 100), 1
+            ) if enriched_top_stocks else 0.0,
+            "requested_trade_date": alpha_visualization_data.stock_scores_meta.get("requested_trade_date"),
+            "effective_asof_date": alpha_visualization_data.stock_scores_meta.get("effective_asof_date"),
+        }
+
+        return AlphaDecisionChainData(
+            overview=overview,
+            top_stocks=enriched_top_stocks,
+            actionable_candidates=actionable_candidates,
+            pending_requests=pending_requests,
+        )
+
+    def _build_code_aliases(self, code: str) -> set[str]:
+        """为关系匹配构建代码别名。"""
+        normalized = str(code or "").strip().upper()
+        if not normalized:
+            return set()
+
+        aliases = {normalized}
+        base_code = normalized.split(".")[0]
+        if base_code:
+            aliases.add(base_code)
+        return aliases
+
+    def _normalize_code(self, code: str) -> str:
+        """统一比较时的 canonical code。"""
+        normalized = str(code or "").strip().upper()
+        return normalized
+
+    def _build_top_match_index(self, top_stocks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """构建 Top N 股票的代码别名索引。"""
+        index: dict[str, dict[str, Any]] = {}
+        for stock in top_stocks:
+            for alias in self._build_code_aliases(stock.get("code", "")):
+                index[alias] = stock
+        return index
+
+    def _match_top_stock(
+        self,
+        top_match_index: dict[str, dict[str, Any]],
+        code: str,
+    ) -> dict[str, Any] | None:
+        """根据候选/请求代码匹配当前 Top N 股票。"""
+        for alias in self._build_code_aliases(code):
+            matched = top_match_index.get(alias)
+            if matched:
+                return matched
+        return None
+
+    def _build_top_lookup_codes(self, top_stocks: list[dict[str, Any]]) -> list[str]:
+        """构建 Top N 对应的数据库查询代码集合。"""
+        lookup_codes: set[str] = set()
+        for stock in top_stocks:
+            lookup_codes.update(self._build_code_aliases(stock.get("code", "")))
+        return sorted(lookup_codes)
+
+    def _lookup_pending_matches(self, top_stocks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """查询 Top N 股票里哪些已经进入待执行队列。"""
+        if not top_stocks:
+            return {}
+
+        try:
+            from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+
+            top_match_index = self._build_top_match_index(top_stocks)
+            matched: dict[str, dict[str, Any]] = {}
+            rows = (
+                DecisionRequestModel._default_manager
+                .filter(
+                    response__approved=True,
+                    execution_status__in=["PENDING", "FAILED"],
+                    asset_code__in=self._build_top_lookup_codes(top_stocks),
+                )
+                .order_by("-requested_at")
+            )
+            for item in rows:
+                top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
+                if not top_stock:
+                    continue
+                canonical_code = self._normalize_code(top_stock.get("code", ""))
+                if canonical_code in matched:
+                    continue
+                matched[canonical_code] = {
+                    "request_id": getattr(item, "request_id", ""),
+                    "execution_status": getattr(item, "execution_status", ""),
+                }
+            return matched
+        except Exception as e:
+            logger.warning(f"Failed to lookup pending matches for alpha chain: {e}")
+            return {}
+
+    def _lookup_actionable_matches(self, top_stocks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """查询 Top N 股票里哪些当前仍属于可行动候选。"""
+        if not top_stocks:
+            return {}
+
+        pending_matches = self._lookup_pending_matches(top_stocks)
+        pending_codes = set(pending_matches.keys())
+
+        try:
+            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+
+            top_match_index = self._build_top_match_index(top_stocks)
+            matched: dict[str, dict[str, Any]] = {}
+            rows = (
+                AlphaCandidateModel._default_manager
+                .filter(
+                    status="ACTIONABLE",
+                    asset_code__in=self._build_top_lookup_codes(top_stocks),
+                )
+                .order_by("-confidence", "-created_at")
+            )
+            for item in rows:
+                top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
+                if not top_stock:
+                    continue
+                canonical_code = self._normalize_code(top_stock.get("code", ""))
+                if canonical_code in matched or canonical_code in pending_codes:
+                    continue
+                matched[canonical_code] = {
+                    "candidate_id": getattr(item, "candidate_id", ""),
+                    "direction": getattr(item, "direction", ""),
+                    "confidence": getattr(item, "confidence", None),
+                }
+            return matched
+        except Exception as e:
+            logger.warning(f"Failed to lookup actionable matches for alpha chain: {e}")
+            return {}
+
+    def _serialize_actionable_candidate(
+        self,
+        item: Any,
+        top_match_index: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        """序列化可行动候选并补充当前 Top N 关系。"""
+        top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
+        return {
+            "candidate_id": getattr(item, "candidate_id", ""),
+            "asset_code": getattr(item, "asset_code", ""),
+            "asset_name": getattr(item, "asset_name", ""),
+            "direction": getattr(item, "direction", ""),
+            "confidence": getattr(item, "confidence", None),
+            "asset_class": getattr(item, "asset_class", ""),
+            "valuation_repair": getattr(item, "valuation_repair", None),
+            "is_in_top10": bool(top_stock),
+            "current_top_rank": top_stock.get("rank") if top_stock else None,
+            "current_top_score": top_stock.get("score") if top_stock else None,
+            "current_top_source": top_stock.get("source") if top_stock else None,
+            "origin_stage_label": (
+                f"当前 Top 10 第 #{top_stock.get('rank')}" if top_stock else "当前不在 Top 10"
+            ),
+            "chain_stage": "actionable",
+            "chain_stage_label": "可行动候选",
+        }
+
+    def _serialize_pending_request(
+        self,
+        item: Any,
+        top_match_index: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        """序列化待执行请求并补充当前 Top N 关系。"""
+        top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
+        return {
+            "request_id": getattr(item, "request_id", ""),
+            "asset_code": getattr(item, "asset_code", ""),
+            "asset_name": getattr(item, "asset_name", ""),
+            "direction": getattr(item, "direction", ""),
+            "execution_status": getattr(item, "execution_status", ""),
+            "is_in_top10": bool(top_stock),
+            "current_top_rank": top_stock.get("rank") if top_stock else None,
+            "current_top_score": top_stock.get("score") if top_stock else None,
+            "current_top_source": top_stock.get("source") if top_stock else None,
+            "origin_stage_label": (
+                f"当前 Top 10 第 #{top_stock.get('rank')}" if top_stock else "当前不在 Top 10"
+            ),
+            "chain_stage": "pending",
+            "chain_stage_label": "待执行队列",
+        }
 
 
 # ============================================================================
@@ -817,6 +1213,7 @@ class DashboardDetailQuery:
 
 _alpha_visualization_query: AlphaVisualizationQuery | None = None
 _decision_plane_query: DecisionPlaneQuery | None = None
+_alpha_decision_chain_query: AlphaDecisionChainQuery | None = None
 _regime_summary_query: RegimeSummaryQuery | None = None
 _dashboard_detail_query: DashboardDetailQuery | None = None
 
@@ -835,6 +1232,14 @@ def get_decision_plane_query() -> DecisionPlaneQuery:
     if _decision_plane_query is None:
         _decision_plane_query = DecisionPlaneQuery()
     return _decision_plane_query
+
+
+def get_alpha_decision_chain_query() -> AlphaDecisionChainQuery:
+    """获取 Alpha 决策链查询服务单例"""
+    global _alpha_decision_chain_query
+    if _alpha_decision_chain_query is None:
+        _alpha_decision_chain_query = AlphaDecisionChainQuery()
+    return _alpha_decision_chain_query
 
 
 def get_regime_summary_query() -> RegimeSummaryQuery:

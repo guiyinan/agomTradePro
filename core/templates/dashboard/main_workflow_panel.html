@@ -45,10 +45,48 @@
         </div>
     </div>
 
+    {% if alpha_decision_chain_overview %}
+    <div class="workflow-chain-summary">
+        <div class="workflow-chain-summary-header">
+            <h3 class="subsection-title">Alpha 决策链收束</h3>
+            <span class="workflow-chain-summary-text">
+                Top 10 → 可行动 → 待执行，页面按同一条链路展示
+            </span>
+        </div>
+        <div class="workflow-chain-track">
+            <div class="workflow-chain-node">
+                <span class="workflow-chain-node-value">{{ alpha_decision_chain_overview.top_ranked_count|default:0 }}</span>
+                <span class="workflow-chain-node-label">Top 10 排名</span>
+            </div>
+            <div class="workflow-chain-arrow">→</div>
+            <div class="workflow-chain-node workflow-chain-node-actionable">
+                <span class="workflow-chain-node-value">{{ alpha_decision_chain_overview.top10_actionable_count|default:0 }}</span>
+                <span class="workflow-chain-node-label">Top10 中可行动</span>
+            </div>
+            <div class="workflow-chain-arrow">→</div>
+            <div class="workflow-chain-node workflow-chain-node-pending">
+                <span class="workflow-chain-node-value">{{ alpha_decision_chain_overview.top10_pending_count|default:0 }}</span>
+                <span class="workflow-chain-node-label">Top10 中待执行</span>
+            </div>
+            <div class="workflow-chain-arrow">·</div>
+            <div class="workflow-chain-node workflow-chain-node-muted">
+                <span class="workflow-chain-node-value">{{ alpha_decision_chain_overview.top10_rank_only_count|default:0 }}</span>
+                <span class="workflow-chain-node-label">仍仅在 Top10</span>
+            </div>
+        </div>
+        {% if alpha_decision_chain_overview.actionable_outside_top10_count or alpha_decision_chain_overview.pending_outside_top10_count %}
+        <div class="workflow-chain-summary-foot">
+            <span>链外可行动 {{ alpha_decision_chain_overview.actionable_outside_top10_count|default:0 }}</span>
+            <span>链外待执行 {{ alpha_decision_chain_overview.pending_outside_top10_count|default:0 }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- 可操作候选列表 -->
     {% if actionable_candidates %}
     <div class="candidate-actions-section">
-        <h3 class="subsection-title">可行动候选 ({{ actionable_candidates|length }})</h3>
+        <h3 class="subsection-title">可行动候选 (展示 {{ actionable_candidates|length }} / 共 {{ alpha_actionable_count|default:0 }})</h3>
         {% if valuation_repair_config_summary %}
         <div class="repair-config-inline-summary">
             <span class="repair-config-title">估值修复参数</span>
@@ -66,6 +104,9 @@
             <div class="candidate-info-cell">
                 <div class="candidate-main-info">
                     <span class="candidate-asset-code">{{ candidate.asset_code }}</span>
+                    {% if candidate.asset_name %}
+                    <span class="candidate-asset-name">{{ candidate.asset_name }}</span>
+                    {% endif %}
                     <span class="candidate-direction-badge {{ candidate.direction|lower }}">
                         {% if candidate.direction == 'LONG' %}做多{% elif candidate.direction == 'SHORT' %}做空{% else %}中性{% endif %}
                     </span>
@@ -73,6 +114,13 @@
                 <div class="candidate-meta">
                     <span class="candidate-confidence">置信度: {{ candidate.confidence|floatformat:2 }}</span>
                     <span class="candidate-asset-class">{{ candidate.asset_class }}</span>
+                </div>
+                <div class="candidate-chain-meta">
+                    <span class="candidate-chain-badge candidate-chain-badge-stage">{{ candidate.chain_stage_label|default:"可行动候选" }}</span>
+                    <span class="candidate-chain-badge candidate-chain-badge-origin">{{ candidate.origin_stage_label|default:"当前不在 Top 10" }}</span>
+                    {% if candidate.current_top_score != None %}
+                    <span class="candidate-chain-badge candidate-chain-badge-score">Alpha {{ candidate.current_top_score|floatformat:3 }}</span>
+                    {% endif %}
                 </div>
                 {% if candidate.valuation_repair %}
                 <div class="candidate-valuation-repair">
@@ -151,6 +199,9 @@
                 <div class="candidate-info-cell">
                     <div class="candidate-main-info">
                         <span class="candidate-asset-code">{{ req.asset_code }}</span>
+                        {% if req.asset_name %}
+                        <span class="candidate-asset-name">{{ req.asset_name }}</span>
+                        {% endif %}
                         <span class="candidate-direction-badge {% if req.direction == 'BUY' %}long{% else %}short{% endif %}">
                             {{ req.direction }}
                         </span>
@@ -158,6 +209,13 @@
                     <div class="candidate-meta">
                         <span>请求ID: {{ req.request_id|truncatechars:16 }}</span>
                         <span>状态: {{ req.execution_status }}</span>
+                    </div>
+                    <div class="candidate-chain-meta">
+                        <span class="candidate-chain-badge candidate-chain-badge-pending">{{ req.chain_stage_label|default:"待执行队列" }}</span>
+                        <span class="candidate-chain-badge candidate-chain-badge-origin">{{ req.origin_stage_label|default:"当前不在 Top 10" }}</span>
+                        {% if req.current_top_score != None %}
+                        <span class="candidate-chain-badge candidate-chain-badge-score">Alpha {{ req.current_top_score|floatformat:3 }}</span>
+                        {% endif %}
                     </div>
                 </div>
                 <a class="btn-submit-decision" href="{% url 'decision-workspace' %}?source=dashboard-pending&security_code={{ req.asset_code|urlencode }}" style="text-decoration:none;">

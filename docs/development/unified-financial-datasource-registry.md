@@ -197,6 +197,12 @@ flowchart TD
 
 QMT 现在只接入了“行情 provider”这一层，不接交易。
 
+## 2026-04-12 补充：个股详情页的数据中台收口
+
+- `equity/detail` 相关读取链路统一优先走 `apps.data_center` 仓储，不再直接依赖 EastMoney 个股主数据回退。
+- 数据中台仓储新增股票代码 alias / canonical 解析，`300502.SZ`、`300502`、`300502.XSHE` 这类代码会先归一到同一 canonical code 再查价格、估值、财务、新闻、资金流与行情快照。
+- 个股详情页实时价格前端入口统一切到 `/api/data-center/prices/quotes/`，避免页面直接绕过数据中台访问 `realtime` 路由。
+
 也就是说，QMT 目前属于：
 
 - `统一注册表` 管理的一个 provider

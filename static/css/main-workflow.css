@@ -148,6 +148,12 @@
     font-size: 16px;
 }
 
+.candidate-asset-name {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
 .candidate-direction-badge {
     padding: 2px var(--spacing-sm);
     border-radius: var(--radius-sm);
@@ -170,6 +176,43 @@
     gap: var(--spacing-md);
     font-size: var(--font-size-small);
     color: var(--color-text-muted);
+}
+
+.candidate-chain-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.candidate-chain-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.candidate-chain-badge-stage {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.candidate-chain-badge-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.candidate-chain-badge-origin {
+    background: #eef2ff;
+    color: #4338ca;
+}
+
+.candidate-chain-badge-score {
+    background: #f1f5f9;
+    color: #475569;
 }
 
 .candidate-confidence {
@@ -242,6 +285,88 @@
 .repair-empty-text {
     font-size: 12px;
     color: var(--color-text-muted);
+}
+
+.workflow-chain-summary {
+    margin-bottom: var(--spacing-lg);
+    padding: 14px 16px;
+    border: 1px solid #dbe7ff;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(248, 250, 252, 0.96));
+}
+
+.workflow-chain-summary-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.workflow-chain-summary-header .subsection-title {
+    margin: 0;
+}
+
+.workflow-chain-summary-text,
+.workflow-chain-summary-foot {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.workflow-chain-track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.workflow-chain-node {
+    min-width: 118px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.workflow-chain-node-actionable {
+    background: rgba(236, 253, 245, 0.92);
+    border-color: rgba(16, 185, 129, 0.28);
+}
+
+.workflow-chain-node-pending {
+    background: rgba(255, 251, 235, 0.92);
+    border-color: rgba(245, 158, 11, 0.28);
+}
+
+.workflow-chain-node-muted {
+    background: rgba(248, 250, 252, 0.96);
+}
+
+.workflow-chain-node-value {
+    font-size: 22px;
+    line-height: 1;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+}
+
+.workflow-chain-node-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.workflow-chain-arrow {
+    color: #64748b;
+    font-weight: var(--font-weight-bold);
+}
+
+.workflow-chain-summary-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
 }
 
 /* 操作按钮组 */
@@ -570,6 +695,18 @@
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+    .workflow-chain-summary-header,
+    .workflow-chain-track,
+    .candidate-main-info,
+    .candidate-meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .workflow-chain-arrow {
+        display: none;
+    }
+
     .candidate-action-row {
         grid-template-columns: 1fr;
         gap: var(--spacing-sm);

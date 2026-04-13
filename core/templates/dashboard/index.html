@@ -153,7 +153,7 @@
 
         {% include "components/regime_status_bar.html" %}
 
-        <div class="status-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--gap); margin-bottom: var(--gap);">
+        <div class="priority-panels-grid">
             {% include "components/attention_items.html" %}
             {% include "components/action_recommendation.html" %}
         </div>
@@ -432,11 +432,12 @@
                         <h3>Top 10 选股结果</h3>
                         <div class="alpha-card-actions">
                             <a href="{% url 'equity:screen' %}?source=dashboard-alpha" class="alpha-section-link">进入个股筛选</a>
+                            <span class="card-badge">{{ alpha_decision_chain_overview.top10_actionable_count|default:0 }} 已进 Workflow</span>
                             <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
                         </div>
                     </div>
                     <div class="card-body" id="alphaStocksTable">
-                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta %}
+                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_chain_overview=alpha_decision_chain_overview %}
                     </div>
                 </div>
 
@@ -2239,14 +2240,16 @@ chatSendBtn.onclick = async function() {
 
 .alpha-content-row {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
     gap: 16px;
+    align-items: start;
 }
 
 .alpha-content-card {
     background: var(--bg-tertiary);
     border-radius: var(--radius-sm);
     overflow: hidden;
+    min-width: 0;
 }
 
 .alpha-content-card .card-header {
@@ -2297,6 +2300,10 @@ chatSendBtn.onclick = async function() {
 
 .alpha-stocks-card {
     min-height: 400px;
+}
+
+.alpha-stocks-card .card-body {
+    padding: 12px 16px;
 }
 
 .alpha-content-right {

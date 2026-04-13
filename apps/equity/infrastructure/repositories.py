@@ -20,7 +20,16 @@ from apps.data_center.domain.entities import FinancialFact, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.repositories import (
+    AssetRepository as DataCenterAssetRepository,
+)
+from apps.data_center.infrastructure.repositories import (
     FinancialFactRepository as DataCenterFinancialFactRepository,
+)
+from apps.data_center.infrastructure.repositories import (
+    PriceBarRepository as DataCenterPriceBarRepository,
+)
+from apps.data_center.infrastructure.repositories import (
+    QuoteSnapshotRepository as DataCenterQuoteSnapshotRepository,
 )
 from apps.data_center.infrastructure.repositories import (
     ValuationFactRepository as DataCenterValuationFactRepository,
@@ -296,7 +305,10 @@ class DjangoStockRepository:
 
     def __init__(self) -> None:
         self._last_intraday_source: str | None = None
+        self._dc_asset_repo = DataCenterAssetRepository()
         self._dc_financial_repo = DataCenterFinancialFactRepository()
+        self._dc_price_bar_repo = DataCenterPriceBarRepository()
+        self._dc_quote_repo = DataCenterQuoteSnapshotRepository()
         self._dc_valuation_repo = DataCenterValuationFactRepository()
 
     def get_all_stocks_with_fundamentals(
@@ -355,22 +367,24 @@ class DjangoStockRepository:
         Returns:
             StockInfo 或 None
         """
-        try:
-            model = StockInfoModel._default_manager.get(stock_code=stock_code)
-            return StockInfo(
-                stock_code=model.stock_code,
-                name=model.name,
-                sector=model.sector,
-                market=model.market,
-                list_date=model.list_date
-            )
-        except StockInfoModel.DoesNotExist:
-            remote_info = self._get_stock_info_from_eastmoney(stock_code)
-            if remote_info is not None:
-                self.save_stock_info(remote_info)
-                return remote_info
+        dc_info = self._get_stock_info_from_data_center(stock_code)
+        if dc_info is not None:
+            return dc_info
 
-            return None
+        for candidate in self._build_stock_code_candidates(stock_code):
+            model = StockInfoModel._default_manager.filter(stock_code=candidate).first()
+            if model is not None:
+                return StockInfo(
+                    stock_code=model.stock_code,
+                    name=model.name,
+                    sector=model.sector,
+                    market=model.market,
+                    list_date=model.list_date,
+                )
+        fallback_info = self._get_minimal_stock_info_from_data_center(stock_code)
+        if fallback_info is not None:
+            return fallback_info
+        return None
 
     def get_financial_data(
         self,
@@ -387,31 +401,7 @@ class DjangoStockRepository:
         Returns:
             FinancialData 列表，按日期降序排列
         """
-        dc_financials = self._get_financials_from_data_center(stock_code, limit=limit)
-        if dc_financials:
-            return dc_financials
-
-        models = FinancialDataModel._default_manager.filter(
-            stock_code=stock_code
-        ).order_by('-report_date')[:limit]
-
-        return [
-            FinancialData(
-                stock_code=m.stock_code,
-                report_date=m.report_date,
-                revenue=m.revenue,
-                net_profit=m.net_profit,
-                revenue_growth=m.revenue_growth or 0.0,
-                net_profit_growth=m.net_profit_growth or 0.0,
-                total_assets=m.total_assets,
-                total_liabilities=m.total_liabilities,
-                equity=m.equity,
-                roe=m.roe,
-                roa=m.roa or 0.0,
-                debt_ratio=m.debt_ratio
-            )
-            for m in models
-        ]
+        return self._get_financials_from_data_center(stock_code, limit=limit)
 
     def get_valuation_history(
         self,
@@ -430,37 +420,7 @@ class DjangoStockRepository:
         Returns:
             ValuationMetrics 列表，按日期升序排列
         """
-        dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
-        if dc_valuations:
-            return dc_valuations
-
-        models = ValuationModel._default_manager.filter(
-            stock_code=stock_code,
-            trade_date__gte=start_date,
-            trade_date__lte=end_date
-        ).order_by('trade_date')
-
-        return [
-            ValuationMetrics(
-                stock_code=m.stock_code,
-                trade_date=m.trade_date,
-                pe=m.pe or 0.0,
-                pb=m.pb or 0.0,
-                ps=m.ps or 0.0,
-                total_mv=m.total_mv,
-                circ_mv=m.circ_mv,
-                dividend_yield=m.dividend_yield or 0.0,
-                source_provider=m.source_provider,
-                source_updated_at=m.source_updated_at,
-                fetched_at=m.fetched_at,
-                pe_type=m.pe_type,
-                is_valid=m.is_valid,
-                quality_flag=m.quality_flag,
-                quality_notes=m.quality_notes,
-                raw_payload_hash=m.raw_payload_hash,
-            )
-            for m in models
-        ]
+        return self._get_valuations_from_data_center(stock_code, start_date, end_date)
 
     def save_stock_info(self, stock_info: StockInfo) -> None:
         """
@@ -559,55 +519,11 @@ class DjangoStockRepository:
         dc_items = self._get_financials_from_data_center(stock_code, limit=1)
         if dc_items:
             return dc_items[0]
-
-        financial_model = FinancialDataModel._default_manager.filter(
-            stock_code=stock_code
-        ).order_by('-report_date').first()
-        if financial_model is None:
-            return None
-        return FinancialData(
-            stock_code=financial_model.stock_code,
-            report_date=financial_model.report_date,
-            revenue=financial_model.revenue,
-            net_profit=financial_model.net_profit,
-            revenue_growth=financial_model.revenue_growth or 0.0,
-            net_profit_growth=financial_model.net_profit_growth or 0.0,
-            total_assets=financial_model.total_assets,
-            total_liabilities=financial_model.total_liabilities,
-            equity=financial_model.equity,
-            roe=financial_model.roe,
-            roa=financial_model.roa or 0.0,
-            debt_ratio=financial_model.debt_ratio,
-        )
+        return None
 
     def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
         dc_item = self._dc_valuation_repo.get_latest(stock_code)
-        if dc_item is not None:
-            return self._dc_fact_to_valuation(dc_item)
-
-        valuation_model = ValuationModel._default_manager.filter(
-            stock_code=stock_code
-        ).order_by('-trade_date').first()
-        if valuation_model is None:
-            return None
-        return ValuationMetrics(
-            stock_code=valuation_model.stock_code,
-            trade_date=valuation_model.trade_date,
-            pe=valuation_model.pe or 0.0,
-            pb=valuation_model.pb or 0.0,
-            ps=valuation_model.ps or 0.0,
-            total_mv=valuation_model.total_mv,
-            circ_mv=valuation_model.circ_mv,
-            dividend_yield=valuation_model.dividend_yield or 0.0,
-            source_provider=valuation_model.source_provider,
-            source_updated_at=valuation_model.source_updated_at,
-            fetched_at=valuation_model.fetched_at,
-            pe_type=valuation_model.pe_type,
-            is_valid=valuation_model.is_valid,
-            quality_flag=valuation_model.quality_flag,
-            quality_notes=valuation_model.quality_notes,
-            raw_payload_hash=valuation_model.raw_payload_hash,
-        )
+        return self._dc_fact_to_valuation(dc_item) if dc_item is not None else None
 
     def _get_financials_from_data_center(
         self,
@@ -754,12 +670,23 @@ class DjangoStockRepository:
         Returns:
             [(日期, 收盘价), ...]，按日期升序排列
         """
+        dc_bars = self._dc_price_bar_repo.get_bars(
+            stock_code,
+            start=start_date,
+            end=end_date,
+            limit=max((end_date - start_date).days + 10, 120),
+        )
+        if dc_bars:
+            return [
+                (bar.bar_date, Decimal(str(bar.close)))
+                for bar in sorted(dc_bars, key=lambda item: item.bar_date)
+            ]
+
         models = StockDailyModel._default_manager.filter(
             stock_code=stock_code,
             trade_date__gte=start_date,
-            trade_date__lte=end_date
-        ).order_by('trade_date')
-
+            trade_date__lte=end_date,
+        ).order_by("trade_date")
         local_prices = [(m.trade_date, m.close) for m in models]
         if local_prices:
             return local_prices
@@ -773,6 +700,15 @@ class DjangoStockRepository:
         end_date: date,
     ) -> list[TechnicalBar]:
         """获取K线与技术指标序列。"""
+        dc_bars = self._dc_price_bar_repo.get_bars(
+            stock_code,
+            start=start_date,
+            end=end_date,
+            limit=max((end_date - start_date).days + 10, 120),
+        )
+        if dc_bars:
+            return self._price_bars_to_technical_bars(stock_code, dc_bars)
+
         models = StockDailyModel._default_manager.filter(
             stock_code=stock_code,
             trade_date__gte=start_date,
@@ -804,7 +740,7 @@ class DjangoStockRepository:
 
         remote_bars = self._get_remote_historical_bars(stock_code, start_date, end_date)
         self._cache_remote_historical_bars(stock_code, remote_bars)
-        return [
+        return self._recalculate_technical_bars([
             TechnicalBar(
                 stock_code=stock_code,
                 trade_date=bar.trade_date,
@@ -823,68 +759,45 @@ class DjangoStockRepository:
                 rsi=None,
             )
             for bar in remote_bars
-        ]
+        ])
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
-        symbol = self._to_akshare_symbol(stock_code)
-        self._last_intraday_source = None
-
-        primary_error: DataFetchError | None = None
-        try:
-            primary_points = self._get_intraday_hist_min_points(stock_code, symbol)
-        except DataFetchError as exc:
-            primary_points = []
-            primary_error = exc
-            logger.warning("Primary intraday source failed for %s: %s", stock_code, exc)
-
-        if primary_points:
-            self._last_intraday_source = "akshare_hist_min_em"
-            return self._validate_intraday_points(primary_points, "akshare_hist_min_em")
-
-        try:
-            fallback_points = self._get_intraday_tick_points(stock_code, symbol)
-        except DataFetchError as exc:
-            if primary_error is not None:
-                raise DataFetchError(
-                    message=f"{stock_code} 分时主备数据源均不可用",
-                    details={
-                        "stock_code": stock_code,
-                        "primary_source": "akshare_hist_min_em",
-                        "primary_error": primary_error.message,
-                        "fallback_source": "akshare_intraday_em",
-                        "fallback_error": exc.message,
-                    },
-                ) from exc
-            raise
-
-        if not fallback_points:
-            if primary_error is not None:
-                raise primary_error
+        quotes = self._dc_quote_repo.get_series(stock_code, limit=600)
+        if not quotes:
+            self._last_intraday_source = None
             return []
 
-        if primary_error is None:
-            logger.warning(
-                "Primary intraday source returned no data for %s; rejecting unvalidated fallback",
-                stock_code,
-            )
-            raise DataFetchError(
-                message=f"{stock_code} 主分时数据源暂无数据，拒绝切换到未校验备用源",
-                details={
-                    "stock_code": stock_code,
-                    "primary_source": "akshare_hist_min_em",
-                    "fallback_source": "akshare_intraday_em",
-                },
+        market_tz = ZoneInfo("Asia/Shanghai")
+        latest_session = max(quote.snapshot_at.astimezone(market_tz).date() for quote in quotes)
+        session_quotes = sorted(
+            [
+                quote
+                for quote in quotes
+                if quote.snapshot_at.astimezone(market_tz).date() == latest_session
+            ],
+            key=lambda item: item.snapshot_at,
+        )
+
+        points: list[IntradayPricePoint] = []
+        for quote in session_quotes:
+            price = self._safe_decimal(quote.current_price)
+            if price is None or price <= 0:
+                continue
+
+            volume = self._safe_int(quote.volume)
+            points.append(
+                IntradayPricePoint(
+                    stock_code=stock_code,
+                    timestamp=quote.snapshot_at.astimezone(market_tz),
+                    price=price,
+                    avg_price=price,
+                    volume=volume,
+                )
             )
 
-        validated_fallback = self._validate_intraday_fallback(stock_code, fallback_points)
-        self._last_intraday_source = "akshare_intraday_em_fallback"
-        logger.warning(
-            "Using validated intraday fallback for %s due to primary failure: %s",
-            stock_code,
-            primary_error.message,
-        )
-        return validated_fallback
+        self._last_intraday_source = "data_center_quote_snapshot" if points else None
+        return points
 
     def get_last_intraday_source(self) -> str | None:
         """返回最近一次分时数据读取所使用的数据源。"""
@@ -1141,11 +1054,7 @@ class DjangoStockRepository:
         start_date: date,
         end_date: date,
     ) -> list[tuple[date, Decimal]]:
-        """在本地日线缓存缺失时，从远端数据源拉取只读日线价格。"""
-        tushare_prices = self._get_tushare_daily_prices(stock_code, start_date, end_date)
-        if tushare_prices:
-            return tushare_prices
-
+        """在数据中台价格事实缺失时，通过数据中台 Gateway 拉取只读日线价格。"""
         tushare_gateway_prices = self._get_tushare_gateway_daily_prices(
             stock_code,
             start_date,
@@ -1154,7 +1063,13 @@ class DjangoStockRepository:
         if tushare_gateway_prices:
             return tushare_gateway_prices
 
-        return self._get_akshare_daily_prices(stock_code, start_date, end_date)
+        akshare_gateway_bars = self._get_akshare_gateway_historical_bars(
+            stock_code,
+            start_date,
+            end_date,
+        )
+        self._cache_remote_historical_bars(stock_code, akshare_gateway_bars)
+        return self._bars_to_daily_prices(akshare_gateway_bars)
 
     def _get_remote_historical_bars(
         self,
@@ -1162,7 +1077,7 @@ class DjangoStockRepository:
         start_date: date,
         end_date: date,
     ) -> list:
-        """在本地 K 线缓存缺失时，从远端数据源拉取历史 K 线。"""
+        """在数据中台价格事实缺失时，通过数据中台 Gateway 拉取历史 K 线。"""
         tushare_bars = self._get_tushare_gateway_historical_bars(
             stock_code,
             start_date,
@@ -1172,6 +1087,91 @@ class DjangoStockRepository:
             return tushare_bars
 
         return self._get_akshare_gateway_historical_bars(stock_code, start_date, end_date)
+
+    def _bars_to_daily_prices(self, bars: list) -> list[tuple[date, Decimal]]:
+        prices: list[tuple[date, Decimal]] = []
+        for bar in bars:
+            trade_date = getattr(bar, "trade_date", None)
+            close_price = self._safe_decimal(getattr(bar, "close", None))
+            if not isinstance(trade_date, date) or close_price is None or close_price <= 0:
+                continue
+            prices.append((trade_date, close_price))
+        return prices
+
+    def _price_bars_to_technical_bars(
+        self,
+        stock_code: str,
+        bars: list,
+    ) -> list[TechnicalBar]:
+        return self._recalculate_technical_bars(
+            [
+                TechnicalBar(
+                    stock_code=stock_code,
+                    trade_date=bar.bar_date,
+                    open=Decimal(str(bar.open)),
+                    high=Decimal(str(bar.high)),
+                    low=Decimal(str(bar.low)),
+                    close=Decimal(str(bar.close)),
+                    volume=bar.volume or 0,
+                    amount=self._safe_decimal(bar.amount) or Decimal("0"),
+                    ma5=None,
+                    ma20=None,
+                    ma60=None,
+                    macd=None,
+                    macd_signal=None,
+                    macd_hist=None,
+                    rsi=None,
+                )
+                for bar in sorted(bars, key=lambda item: item.bar_date)
+            ]
+        )
+
+    def _recalculate_technical_bars(
+        self,
+        bars: list[TechnicalBar],
+    ) -> list[TechnicalBar]:
+        recalculated: list[TechnicalBar] = []
+        closes: list[Decimal] = []
+        ema12: float | None = None
+        ema26: float | None = None
+        signal_ema: float | None = None
+        alpha12 = 2 / 13
+        alpha26 = 2 / 27
+        alpha9 = 2 / 10
+
+        for bar in sorted(bars, key=lambda item: item.trade_date):
+            closes.append(bar.close)
+            close_float = float(bar.close)
+            ema12 = close_float if ema12 is None else ema12 + (close_float - ema12) * alpha12
+            ema26 = close_float if ema26 is None else ema26 + (close_float - ema26) * alpha26
+            macd = ema12 - ema26
+            signal_ema = macd if signal_ema is None else signal_ema + (macd - signal_ema) * alpha9
+
+            recalculated.append(
+                TechnicalBar(
+                    stock_code=bar.stock_code,
+                    trade_date=bar.trade_date,
+                    open=bar.open,
+                    high=bar.high,
+                    low=bar.low,
+                    close=bar.close,
+                    volume=bar.volume,
+                    amount=bar.amount,
+                    ma5=self._calculate_sma(closes, 5),
+                    ma20=self._calculate_sma(closes, 20),
+                    ma60=self._calculate_sma(closes, 60),
+                    macd=macd,
+                    macd_signal=signal_ema,
+                    macd_hist=macd - signal_ema,
+                    rsi=None,
+                )
+            )
+        return recalculated
+
+    def _calculate_sma(self, closes: list[Decimal], window: int) -> Decimal | None:
+        if len(closes) < window:
+            return None
+        return sum(closes[-window:]) / Decimal(window)
 
     def _get_tushare_gateway_daily_prices(
         self,
@@ -1369,6 +1369,75 @@ class DjangoStockRepository:
         except (InvalidOperation, ValueError, TypeError):
             return None
 
+    def _build_stock_code_candidates(self, stock_code: str) -> list[str]:
+        normalized = stock_code.strip().upper()
+        if not normalized:
+            return []
+
+        candidates = [normalized]
+        base_code = normalized.split(".", 1)[0]
+        if base_code != normalized:
+            candidates.append(base_code)
+        else:
+            market = self._infer_market_from_stock_code(normalized)
+            if market:
+                candidates.append(f"{base_code}.{market}")
+
+        result: list[str] = []
+        for candidate in candidates:
+            if candidate and candidate not in result:
+                result.append(candidate)
+        return result
+
+    def _get_stock_info_from_data_center(self, stock_code: str) -> StockInfo | None:
+        asset = self._dc_asset_repo.get_by_code(stock_code)
+        if asset is None:
+            return None
+
+        market_map = {
+            "SSE": "SH",
+            "SZSE": "SZ",
+            "BSE": "BJ",
+        }
+        market = market_map.get(asset.exchange.value, self._infer_market_from_stock_code(asset.code))
+        return StockInfo(
+            stock_code=asset.code,
+            name=asset.short_name or asset.name,
+            sector=asset.sector or asset.industry or "",
+            market=market,
+            list_date=asset.list_date,
+        )
+
+    def _get_minimal_stock_info_from_data_center(self, stock_code: str) -> StockInfo | None:
+        candidate_code = None
+
+        latest_quote = self._dc_quote_repo.get_latest(stock_code)
+        if latest_quote is not None:
+            candidate_code = latest_quote.asset_code
+        else:
+            latest_bar = self._dc_price_bar_repo.get_latest(stock_code)
+            if latest_bar is not None:
+                candidate_code = latest_bar.asset_code
+            else:
+                latest_valuation = self._dc_valuation_repo.get_latest(stock_code)
+                if latest_valuation is not None:
+                    candidate_code = latest_valuation.asset_code
+                else:
+                    latest_financial = self._dc_financial_repo.get_latest(stock_code)
+                    if latest_financial is not None:
+                        candidate_code = latest_financial.asset_code
+
+        if candidate_code is None:
+            return None
+
+        return StockInfo(
+            stock_code=candidate_code,
+            name=candidate_code,
+            sector="",
+            market=self._infer_market_from_stock_code(candidate_code),
+            list_date=None,
+        )
+
     def _get_stock_info_from_eastmoney(self, stock_code: str) -> StockInfo | None:
         params = {
             "secid": self._to_eastmoney_secid(stock_code),
@@ -1460,27 +1529,7 @@ class DjangoStockRepository:
         Returns:
             FinancialData 或 None
         """
-        model = FinancialDataModel._default_manager.filter(
-            stock_code=stock_code
-        ).order_by('-report_date').first()
-
-        if not model:
-            return None
-
-        return FinancialData(
-            stock_code=model.stock_code,
-            report_date=model.report_date,
-            revenue=model.revenue,
-            net_profit=model.net_profit,
-            revenue_growth=model.revenue_growth or 0.0,
-            net_profit_growth=model.net_profit_growth or 0.0,
-            total_assets=model.total_assets,
-            total_liabilities=model.total_liabilities,
-            equity=model.equity,
-            roe=model.roe,
-            roa=model.roa or 0.0,
-            debt_ratio=model.debt_ratio
-        )
+        return self._get_latest_financial(stock_code)
 
     def get_stock_count_by_sector(self, sector: str) -> int:
         """

@@ -116,3 +116,5 @@ docs/DEV_DIARY.md
 /.tmp
 /tests/uat/reports
 /test_screenshots
+/reports
+*.gz

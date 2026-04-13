@@ -89,6 +89,16 @@ class _FakeClient:
             regime_quadrant_v1=lambda: {"quadrant": "Recovery"},
             equity_curve_v1=lambda: {"curve": []},
             signal_status_v1=lambda: {"status": []},
+            alpha_decision_chain_v1=lambda top_n=10, max_candidates=5, max_pending=10: {
+                "overview": {
+                    "top_ranked_count": top_n,
+                    "actionable_count": min(top_n, max_candidates),
+                    "pending_count": min(top_n, max_pending),
+                },
+                "top_stocks": [],
+                "actionable_candidates": [],
+                "pending_requests": [],
+            },
             positions=lambda: {"positions": []},
             allocation=lambda: {"allocation": []},
         )
@@ -272,6 +282,10 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("generate_alpha_candidate", {"payload": {"symbol": "AAPL"}}),
         ("alpha_trigger_performance", {"payload": {"window_days": 30}}),
         ("get_dashboard_summary_v1", {}),
+        (
+            "get_dashboard_alpha_decision_chain_v1",
+            {"top_n": 10, "max_candidates": 5, "max_pending": 10},
+        ),
         ("get_dashboard_regime_quadrant_v1", {}),
         ("get_dashboard_equity_curve_v1", {}),
         ("get_dashboard_signal_status_v1", {}),

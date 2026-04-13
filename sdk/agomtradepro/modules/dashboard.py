@@ -33,6 +33,21 @@ class DashboardModule(BaseModule):
     def signal_status_v1(self) -> dict[str, Any]:
         return self._get("v1/signal-status/")
 
+    def alpha_decision_chain_v1(
+        self,
+        top_n: int = 10,
+        max_candidates: int = 5,
+        max_pending: int = 10,
+    ) -> dict[str, Any]:
+        return self._get(
+            "v1/alpha-decision-chain/",
+            params={
+                "top_n": top_n,
+                "max_candidates": max_candidates,
+                "max_pending": max_pending,
+            },
+        )
+
     def alpha_stocks(self) -> dict[str, Any]:
         return self._get("alpha/stocks/")
 

@@ -18,8 +18,8 @@
     --color-text-muted: #94a3b8;
 
     /* 尺寸 */
-    --sidebar-width: 280px;
-    --chat-width: 320px;
+    --sidebar-width: 260px;
+    --chat-width: 288px;
     --gap: 20px;
 
     /* 圆角 */
@@ -173,6 +173,18 @@
     display: flex;
     flex-direction: column;
     gap: var(--gap);
+}
+
+.priority-panels-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 1fr) minmax(480px, 1.4fr);
+    gap: var(--gap);
+    margin-bottom: var(--gap);
+    align-items: stretch;
+}
+
+.priority-panels-grid > * {
+    min-width: 0;
 }
 
 /* 顶部欢迎区 */
@@ -799,6 +811,10 @@
         grid-template-columns: 1fr;
     }
 
+    .priority-panels-grid {
+        grid-template-columns: 1fr;
+    }
+
     .status-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1039,7 +1055,7 @@
 }
 
 .action-alloc__label {
-    width: 60px;
+    width: 72px;
     font-size: 12px;
     font-weight: 500;
     color: var(--color-text-secondary);
@@ -1075,6 +1091,8 @@
 .action-rec__risk-row {
     display: flex;
     justify-content: space-between;
+    gap: 10px 16px;
+    flex-wrap: wrap;
     padding: 8px 12px;
     background: var(--color-surface);
     border-radius: var(--radius-sm);
@@ -1170,6 +1188,7 @@
 .attention-card__body {
     display: grid;
     gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .attention-item {

@@ -34,6 +34,7 @@ def test_extended_mcp_tools_registered():
         "list_beta_gate_configs",
         "list_alpha_triggers",
         "get_dashboard_summary_v1",
+        "get_dashboard_alpha_decision_chain_v1",
         "asset_multidim_screen",
         "analyze_sentiment",
         "get_task_monitor_statistics",

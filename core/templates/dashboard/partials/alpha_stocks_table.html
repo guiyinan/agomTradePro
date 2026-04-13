@@ -20,103 +20,165 @@
     </div>
 </div>
 {% endif %}
-<table class="data-table alpha-stocks-table">
-    <thead>
-        <tr>
-            <th>排名</th>
-            <th>股票代码</th>
-            <th>证券名称</th>
-            <th>Alpha 评分</th>
-            <th>置信度</th>
-            <th>数据源</th>
-            <th>信号日期</th>
-            <th>决策</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for stock in alpha_stocks %}
-        <tr class="alpha-stock-row"
-            data-code="{{ stock.code }}"
-            onclick="document.querySelectorAll('.alpha-stock-row').forEach((row) => row.classList.remove('is-selected')); this.classList.add('is-selected');"
-        hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}"
-            hx-trigger="click"
-            hx-target="#alphaFactorPanel"
-            hx-swap="innerHTML">
-            <td class="rank-cell">
-                <span class="rank-badge rank-{{ stock.rank }}">
-                    {{ stock.rank }}
-                </span>
-            </td>
-            <td>
-                <a
-                    href="{% url 'equity:detail' stock.code %}"
-                    class="alpha-stock-link"
-                    onclick="event.stopPropagation();"
-                >
-                    <strong>{{ stock.code }}</strong>
-                </a>
-            </td>
-            <td>
-                <a
-                    href="{% url 'equity:detail' stock.code %}"
-                    class="alpha-stock-link alpha-stock-link-name"
-                    onclick="event.stopPropagation();"
-                >
-                    {{ stock.name|default:"-" }}
-                </a>
-            </td>
-            <td>
-                <div class="score-bar-container">
-                    <div class="score-bar" style="width: {{ stock.score|floatformat:0 }}%"></div>
-                    <span class="score-value">{{ stock.score|floatformat:3 }}</span>
-                </div>
-            </td>
-            <td>
-                <span class="confidence-badge confidence-{{ stock.confidence|floatformat:1 }}">
-                    {{ stock.confidence|floatformat:2 }}
-                </span>
-            </td>
-            <td>
-                <span class="source-badge source-{{ stock.source }}">
-                    {% if stock.source == 'qlib' %}Qlib
-                    {% elif stock.source == 'cache' %}缓存
-                    {% elif stock.source == 'simple' %}简单因子
-                    {% elif stock.source == 'etf' %}ETF
-                    {% else %}{{ stock.source }}{% endif %}
-                </span>
-            </td>
-            <td>
-                <span class="date-badge">{{ stock.asof_date|default:"-" }}</span>
-            </td>
-            <td>
-                <div class="alpha-actions">
+{% if alpha_chain_overview %}
+<div class="alpha-chain-overview">
+    <div class="alpha-chain-header">
+        <div class="alpha-chain-title-group">
+            <strong>Alpha 决策链</strong>
+            <span class="alpha-chain-subtitle">
+                Top {{ top_n|default:10 }} 排名
+                {% if alpha_chain_overview.requested_trade_date %}· 请求交易日 {{ alpha_chain_overview.requested_trade_date }}{% endif %}
+                {% if alpha_chain_overview.effective_asof_date %}· 实际评分日 {{ alpha_chain_overview.effective_asof_date }}{% endif %}
+            </span>
+        </div>
+        <div class="alpha-chain-conversions">
+            <span>Top{{ top_n|default:10 }}→可行动 {{ alpha_chain_overview.actionable_conversion_pct|default:0|floatformat:1 }}%</span>
+            <span>Top{{ top_n|default:10 }}→待执行 {{ alpha_chain_overview.pending_conversion_pct|default:0|floatformat:1 }}%</span>
+        </div>
+    </div>
+    <div class="alpha-chain-flow">
+        <div class="alpha-chain-node">
+            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top_ranked_count|default:0 }}</span>
+            <span class="alpha-chain-node-label">Top {{ top_n|default:10 }} 排名</span>
+        </div>
+        <div class="alpha-chain-arrow">→</div>
+        <div class="alpha-chain-node alpha-chain-node-highlight">
+            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top10_actionable_count|default:0 }}</span>
+            <span class="alpha-chain-node-label">已进可行动</span>
+        </div>
+        <div class="alpha-chain-arrow">→</div>
+        <div class="alpha-chain-node alpha-chain-node-pending">
+            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top10_pending_count|default:0 }}</span>
+            <span class="alpha-chain-node-label">已进待执行</span>
+        </div>
+        <div class="alpha-chain-arrow">·</div>
+        <div class="alpha-chain-node alpha-chain-node-muted">
+            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top10_rank_only_count|default:0 }}</span>
+            <span class="alpha-chain-node-label">仍停留在 Top 排名</span>
+        </div>
+    </div>
+    {% if alpha_chain_overview.actionable_outside_top10_count or alpha_chain_overview.pending_outside_top10_count %}
+    <div class="alpha-chain-outside">
+        <span>链外可行动 {{ alpha_chain_overview.actionable_outside_top10_count|default:0 }}</span>
+        <span>链外待执行 {{ alpha_chain_overview.pending_outside_top10_count|default:0 }}</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+<div class="alpha-stocks-table-wrap">
+    <table class="data-table alpha-stocks-table">
+        <thead>
+            <tr>
+                <th>排名</th>
+                <th>股票代码</th>
+                <th>证券名称</th>
+                <th>Alpha 评分</th>
+                <th>置信度</th>
+                <th>数据源</th>
+                <th>信号日期</th>
+                <th>链路状态</th>
+                <th>决策</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in alpha_stocks %}
+            <tr class="alpha-stock-row alpha-stock-row-{{ stock.workflow_stage|default:'top_ranked' }}"
+                data-code="{{ stock.code }}"
+                onclick="document.querySelectorAll('.alpha-stock-row').forEach((row) => row.classList.remove('is-selected')); this.classList.add('is-selected');"
+            hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}"
+                hx-trigger="click"
+                hx-target="#alphaFactorPanel"
+                hx-swap="innerHTML">
+                <td class="rank-cell">
+                    <span class="rank-badge rank-{{ stock.rank }}">
+                        {{ stock.rank }}
+                    </span>
+                </td>
+                <td>
                     <a
-                        href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=watch"
-                        class="alpha-action-link alpha-action-link-watch"
+                        href="{% url 'equity:detail' stock.code %}"
+                        class="alpha-stock-link"
                         onclick="event.stopPropagation();"
                     >
-                        加入观察
+                        <strong>{{ stock.code }}</strong>
                     </a>
+                </td>
+                <td>
                     <a
-                        href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=adopt"
-                        class="alpha-action-link alpha-action-link-adopt"
+                        href="{% url 'equity:detail' stock.code %}"
+                        class="alpha-stock-link alpha-stock-link-name"
                         onclick="event.stopPropagation();"
                     >
-                        采纳
+                        {{ stock.name|default:"-" }}
                     </a>
-                    <a
-                        href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
-                        class="alpha-action-link"
-                        onclick="event.stopPropagation();"
-                    >
-                        工作台
-                    </a>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                </td>
+                <td>
+                    <div class="score-bar-container">
+                        <div class="score-bar" style="width: {{ stock.score|floatformat:0 }}%"></div>
+                        <span class="score-value">{{ stock.score|floatformat:3 }}</span>
+                    </div>
+                </td>
+                <td>
+                    <span class="confidence-badge confidence-{{ stock.confidence|floatformat:1 }}">
+                        {{ stock.confidence|floatformat:2 }}
+                    </span>
+                </td>
+                <td>
+                    <span class="source-badge source-{{ stock.source }}">
+                        {% if stock.source == 'qlib' %}Qlib
+                        {% elif stock.source == 'cache' %}缓存
+                        {% elif stock.source == 'simple' %}简单因子
+                        {% elif stock.source == 'etf' %}ETF
+                        {% else %}{{ stock.source }}{% endif %}
+                    </span>
+                </td>
+                <td>
+                    <span class="date-badge">{{ stock.asof_date|default:"-" }}</span>
+                </td>
+                <td>
+                    <div class="workflow-stage-stack">
+                        <span class="workflow-stage-badge workflow-stage-{{ stock.workflow_stage|default:'top_ranked' }}">
+                            {{ stock.workflow_stage_label|default:"仅在 Alpha Top 排名" }}
+                        </span>
+                        {% if stock.is_pending %}
+                        <span class="workflow-stage-meta">{{ stock.pending_execution_status|default:"已进入待执行队列" }}</span>
+                        {% elif stock.is_actionable %}
+                        <span class="workflow-stage-meta">已进入 Workflow Step 4</span>
+                        {% else %}
+                        <span class="workflow-stage-meta">待 Workflow 收束</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="alpha-actions">
+                        <a
+                            href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=watch"
+                            class="alpha-action-link alpha-action-link-watch"
+                            onclick="event.stopPropagation();"
+                        >
+                            加入观察
+                        </a>
+                        <a
+                            href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=adopt"
+                            class="alpha-action-link alpha-action-link-adopt"
+                            onclick="event.stopPropagation();"
+                        >
+                            采纳
+                        </a>
+                        <a
+                            href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
+                            class="alpha-action-link"
+                            onclick="event.stopPropagation();"
+                        >
+                            工作台
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% else %}
 <div class="empty-state alpha-empty">
     <div class="empty-icon">📊</div>
@@ -126,10 +188,103 @@
 {% endif %}
 
 <style>
+.alpha-stocks-table-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+}
+
 .alpha-stocks-table {
     width: 100%;
+    min-width: 1120px;
     border-collapse: collapse;
     font-size: 13px;
+}
+
+.alpha-chain-overview {
+    margin: 12px 0;
+    padding: 14px 16px;
+    border: 1px solid #dbe7ff;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(240, 249, 255, 0.92));
+}
+
+.alpha-chain-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.alpha-chain-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.alpha-chain-subtitle,
+.alpha-chain-conversions,
+.alpha-chain-outside {
+    color: #4b5563;
+    font-size: 12px;
+}
+
+.alpha-chain-conversions,
+.alpha-chain-outside {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.alpha-chain-flow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.alpha-chain-node {
+    min-width: 122px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.alpha-chain-node-highlight {
+    border-color: rgba(16, 185, 129, 0.28);
+    background: rgba(236, 253, 245, 0.9);
+}
+
+.alpha-chain-node-pending {
+    border-color: rgba(245, 158, 11, 0.28);
+    background: rgba(255, 251, 235, 0.9);
+}
+
+.alpha-chain-node-muted {
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(248, 250, 252, 0.94);
+}
+
+.alpha-chain-node-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1;
+}
+
+.alpha-chain-node-label {
+    font-size: 12px;
+    color: #4b5563;
+}
+
+.alpha-chain-arrow {
+    color: #64748b;
+    font-weight: 700;
 }
 
 .alpha-reliability-banner {
@@ -164,16 +319,20 @@
 
 .alpha-stocks-table th {
     background: var(--bg-tertiary);
-    padding: 10px;
+    padding: 8px 10px;
     text-align: left;
     font-weight: 600;
     color: var(--text-secondary);
     border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
 }
 
 .alpha-stocks-table td {
-    padding: 10px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border-color);
+    line-height: 1.35;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 .alpha-stock-row:hover {
@@ -183,6 +342,14 @@
 
 .alpha-stock-row.is-selected {
     background: rgba(102, 126, 234, 0.08);
+}
+
+.alpha-stock-row-actionable {
+    box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.75);
+}
+
+.alpha-stock-row-pending {
+    box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.75);
 }
 
 .rank-badge {
@@ -210,6 +377,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 132px;
 }
 
 .score-bar {
@@ -286,6 +454,43 @@
     color: var(--text-muted);
 }
 
+.workflow-stage-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.workflow-stage-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.workflow-stage-top_ranked {
+    background: #eef2ff;
+    color: #4338ca;
+}
+
+.workflow-stage-actionable {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.workflow-stage-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.workflow-stage-meta {
+    font-size: 11px;
+    color: #6b7280;
+}
+
 .alpha-empty {
     padding: 40px 20px;
     text-align: center;
@@ -294,7 +499,8 @@
 .alpha-actions {
     display: flex;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    align-items: center;
 }
 
 .alpha-stock-link {
@@ -336,5 +542,23 @@
     font-size: 12px;
     color: var(--text-muted);
     margin-top: 8px;
+}
+
+@media (max-width: 1200px) {
+    .alpha-chain-header {
+        flex-direction: column;
+    }
+
+    .alpha-chain-flow {
+        align-items: stretch;
+    }
+
+    .alpha-chain-arrow {
+        display: none;
+    }
+
+    .alpha-stocks-table {
+        min-width: 1040px;
+    }
 }
 </style>

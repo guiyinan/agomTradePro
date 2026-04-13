@@ -138,6 +138,84 @@ def _to_date(value: date | str | None) -> date | None:
     return date.fromisoformat(str(value))
 
 
+def _dedupe_codes(codes: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for code in codes:
+        normalized = code.strip().upper()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(normalized)
+    return result
+
+
+def _infer_market_suffixes(base_code: str) -> list[str]:
+    if not base_code:
+        return []
+    if base_code.startswith(("0", "3")):
+        return ["SZ"]
+    if base_code.startswith(("6", "9")):
+        return ["SH"]
+    if base_code.startswith(("4", "8")):
+        return ["BJ"]
+    return []
+
+
+def _build_asset_code_candidates(asset_code: str) -> list[str]:
+    normalized = (asset_code or "").strip().upper()
+    if not normalized:
+        return []
+
+    suffix_aliases = {
+        "XSHE": "SZ",
+        "SZSE": "SZ",
+        "XSHG": "SH",
+        "SSE": "SH",
+        "BSE": "BJ",
+    }
+
+    candidates = [normalized]
+    base_code = normalized.split(".", 1)[0]
+    if base_code != normalized:
+        candidates.append(base_code)
+
+    if "." in normalized:
+        base_code, suffix = normalized.rsplit(".", 1)
+        canonical_suffix = suffix_aliases.get(suffix)
+        if canonical_suffix:
+            candidates.append(f"{base_code}.{canonical_suffix}")
+    else:
+        for suffix in _infer_market_suffixes(base_code):
+            candidates.append(f"{base_code}.{suffix}")
+
+    return _dedupe_codes(candidates)
+
+
+def _resolve_asset_code_candidates(asset_code: str) -> list[str]:
+    candidates = _build_asset_code_candidates(asset_code)
+    if not candidates:
+        return []
+
+    resolved_codes = list(
+        AssetMasterModel.objects.filter(code__in=candidates).values_list("code", flat=True)
+    )
+    resolved_codes.extend(
+        AssetAliasModel.objects.filter(alias_code__in=candidates)
+        .select_related("asset")
+        .values_list("asset__code", flat=True)
+    )
+
+    base_code = candidates[0].split(".", 1)[0]
+    if base_code:
+        resolved_codes.extend(
+            AssetMasterModel.objects.filter(code__startswith=f"{base_code}.")
+            .values_list("code", flat=True)[:5]
+        )
+
+    return _dedupe_codes(resolved_codes + candidates)
+
+
 # ---------------------------------------------------------------------------
 # Phase 2 — Master data repositories
 # ---------------------------------------------------------------------------
@@ -165,10 +243,12 @@ class AssetRepository:
         )
 
     def get_by_code(self, code: str) -> AssetMaster | None:
-        try:
-            return self._from_model(AssetMasterModel.objects.get(code=code))
-        except AssetMasterModel.DoesNotExist:
-            return None
+        for candidate in _resolve_asset_code_candidates(code):
+            try:
+                return self._from_model(AssetMasterModel.objects.get(code=candidate))
+            except AssetMasterModel.DoesNotExist:
+                continue
+        return None
 
     def search(self, query: str, limit: int = 20) -> list[AssetMaster]:
         from django.db.models import Q
@@ -360,16 +440,23 @@ class PriceBarRepository:
         end: date | None = None,
         limit: int = 500,
     ) -> list[PriceBar]:
-        qs = PriceBarModel.objects.filter(asset_code=asset_code)
-        if start:
-            qs = qs.filter(bar_date__gte=start)
-        if end:
-            qs = qs.filter(bar_date__lte=end)
-        return [self._from_model(m) for m in qs.order_by("-bar_date")[:limit]]
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            qs = PriceBarModel.objects.filter(asset_code=candidate)
+            if start:
+                qs = qs.filter(bar_date__gte=start)
+            if end:
+                qs = qs.filter(bar_date__lte=end)
+            rows = list(qs.order_by("-bar_date")[:limit])
+            if rows:
+                return [self._from_model(m) for m in rows]
+        return []
 
     def get_latest(self, asset_code: str) -> PriceBar | None:
-        m = PriceBarModel.objects.filter(asset_code=asset_code).order_by("-bar_date").first()
-        return self._from_model(m) if m else None
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            m = PriceBarModel.objects.filter(asset_code=candidate).order_by("-bar_date").first()
+            if m is not None:
+                return self._from_model(m)
+        return None
 
     def bulk_upsert(self, bars: list[PriceBar]) -> int:
         count = 0
@@ -411,10 +498,28 @@ class QuoteSnapshotRepository:
         )
 
     def get_latest(self, asset_code: str) -> QuoteSnapshot | None:
-        m = QuoteSnapshotModel.objects.filter(asset_code=asset_code).order_by(
-            "-snapshot_at"
-        ).first()
-        return self._from_model(m) if m else None
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            m = QuoteSnapshotModel.objects.filter(asset_code=candidate).order_by(
+                "-snapshot_at"
+            ).first()
+            if m is not None:
+                return self._from_model(m)
+        return None
+
+    def get_series(
+        self,
+        asset_code: str,
+        snapshot_date: date | None = None,
+        limit: int = 500,
+    ) -> list[QuoteSnapshot]:
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            qs = QuoteSnapshotModel.objects.filter(asset_code=candidate)
+            if snapshot_date is not None:
+                qs = qs.filter(snapshot_at__date=snapshot_date)
+            rows = list(qs.order_by("-snapshot_at")[:limit])
+            if rows:
+                return [self._from_model(m) for m in rows]
+        return []
 
     def bulk_upsert(self, quotes: list[QuoteSnapshot]) -> int:
         count = 0
@@ -509,19 +614,26 @@ class FinancialFactRepository:
         period_type: FinancialPeriodType | None = None,
         limit: int = 20,
     ) -> list[FinancialFact]:
-        qs = FinancialFactModel.objects.filter(asset_code=asset_code)
-        if period_type:
-            qs = qs.filter(period_type=period_type.value)
-        return [self._from_model(m) for m in qs.order_by("-period_end")[:limit]]
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            qs = FinancialFactModel.objects.filter(asset_code=candidate)
+            if period_type:
+                qs = qs.filter(period_type=period_type.value)
+            rows = list(qs.order_by("-period_end")[:limit])
+            if rows:
+                return [self._from_model(m) for m in rows]
+        return []
 
     def get_latest(
         self, asset_code: str, period_type: FinancialPeriodType | None = None
     ) -> FinancialFact | None:
-        qs = FinancialFactModel.objects.filter(asset_code=asset_code)
-        if period_type:
-            qs = qs.filter(period_type=period_type.value)
-        m = qs.order_by("-period_end").first()
-        return self._from_model(m) if m else None
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            qs = FinancialFactModel.objects.filter(asset_code=candidate)
+            if period_type:
+                qs = qs.filter(period_type=period_type.value)
+            m = qs.order_by("-period_end").first()
+            if m is not None:
+                return self._from_model(m)
+        return None
 
     def bulk_upsert(self, facts: list[FinancialFact]) -> int:
         count = 0
@@ -567,16 +679,23 @@ class ValuationFactRepository:
         start: date | None = None,
         end: date | None = None,
     ) -> list[ValuationFact]:
-        qs = ValuationFactModel.objects.filter(asset_code=asset_code)
-        if start:
-            qs = qs.filter(val_date__gte=start)
-        if end:
-            qs = qs.filter(val_date__lte=end)
-        return [self._from_model(m) for m in qs.order_by("-val_date")]
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            qs = ValuationFactModel.objects.filter(asset_code=candidate)
+            if start:
+                qs = qs.filter(val_date__gte=start)
+            if end:
+                qs = qs.filter(val_date__lte=end)
+            rows = list(qs.order_by("-val_date"))
+            if rows:
+                return [self._from_model(m) for m in rows]
+        return []
 
     def get_latest(self, asset_code: str) -> ValuationFact | None:
-        m = ValuationFactModel.objects.filter(asset_code=asset_code).order_by("-val_date").first()
-        return self._from_model(m) if m else None
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            m = ValuationFactModel.objects.filter(asset_code=candidate).order_by("-val_date").first()
+            if m is not None:
+                return self._from_model(m)
+        return None
 
     def bulk_upsert(self, facts: list[ValuationFact]) -> int:
         count = 0
@@ -674,9 +793,14 @@ class NewsRepository:
         limit: int = 50,
     ) -> list[NewsFact]:
         qs = NewsFactModel.objects.all()
-        if asset_code:
-            qs = qs.filter(asset_code=asset_code)
-        return [self._from_model(m) for m in qs.order_by("-published_at")[:limit]]
+        if not asset_code:
+            return [self._from_model(m) for m in qs.order_by("-published_at")[:limit]]
+
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            rows = list(qs.filter(asset_code=candidate).order_by("-published_at")[:limit])
+            if rows:
+                return [self._from_model(m) for m in rows]
+        return []
 
     def bulk_insert(self, articles: list[NewsFact]) -> int:
         count = 0
@@ -739,16 +863,23 @@ class CapitalFlowRepository:
         start: date | None = None,
         end: date | None = None,
     ) -> list[CapitalFlowFact]:
-        qs = CapitalFlowFactModel.objects.filter(asset_code=asset_code)
-        if start:
-            qs = qs.filter(flow_date__gte=start)
-        if end:
-            qs = qs.filter(flow_date__lte=end)
-        return [self._from_model(m) for m in qs.order_by("-flow_date")]
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            qs = CapitalFlowFactModel.objects.filter(asset_code=candidate)
+            if start:
+                qs = qs.filter(flow_date__gte=start)
+            if end:
+                qs = qs.filter(flow_date__lte=end)
+            rows = list(qs.order_by("-flow_date"))
+            if rows:
+                return [self._from_model(m) for m in rows]
+        return []
 
     def get_latest(self, asset_code: str) -> CapitalFlowFact | None:
-        m = CapitalFlowFactModel.objects.filter(asset_code=asset_code).order_by("-flow_date").first()
-        return self._from_model(m) if m else None
+        for candidate in _resolve_asset_code_candidates(asset_code):
+            m = CapitalFlowFactModel.objects.filter(asset_code=candidate).order_by("-flow_date").first()
+            if m is not None:
+                return self._from_model(m)
+        return None
 
     def bulk_upsert(self, facts: list[CapitalFlowFact]) -> int:
         count = 0
