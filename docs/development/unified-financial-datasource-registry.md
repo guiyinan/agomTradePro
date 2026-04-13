@@ -1,6 +1,6 @@
 # 统一财经数据源中台与统一注册表说明
 
-> 更新日期：2026-03-28
+> 更新日期：2026-04-13
 > 适用版本：AgomTradePro 0.7.0
 
 ---
@@ -202,6 +202,13 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 - `equity/detail` 相关读取链路统一优先走 `apps.data_center` 仓储，不再直接依赖 EastMoney 个股主数据回退。
 - 数据中台仓储新增股票代码 alias / canonical 解析，`300502.SZ`、`300502`、`300502.XSHE` 这类代码会先归一到同一 canonical code 再查价格、估值、财务、新闻、资金流与行情快照。
 - 个股详情页实时价格前端入口统一切到 `/api/data-center/prices/quotes/`，避免页面直接绕过数据中台访问 `realtime` 路由。
+
+## 2026-04-13 补充：代码别名与 legacy fallback 边界
+
+- 显式带交易所后缀的代码（如 `000001.SZ`）不再向其他交易所做宽匹配，避免被错误扩展成 `000001.SH` 这类跨市场资产。
+- 无后缀代码（如 `300502`）仍允许通过 alias / 推断后缀解析到 canonical code，继续兼容旧接口入参。
+- `equity` 仓储在优先读取 data center 财务/估值事实失败时，仍保留对本地 legacy `FinancialDataModel / ValuationModel` 的兜底读取，保证资产分析与历史集成测试场景不中断。
+- 分时读取优先使用 data center 行情快照；若快照不可用或测试场景下不允许访问数据库，则自动回退到原有 AKShare 主备链路。
 
 也就是说，QMT 目前属于：
 

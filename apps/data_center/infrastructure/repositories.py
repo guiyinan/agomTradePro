@@ -176,24 +176,23 @@ def _build_asset_code_candidates(asset_code: str) -> list[str]:
     }
 
     candidates = [normalized]
-    base_code = normalized.split(".", 1)[0]
-    if base_code != normalized:
-        candidates.append(base_code)
-
     if "." in normalized:
         base_code, suffix = normalized.rsplit(".", 1)
         canonical_suffix = suffix_aliases.get(suffix)
         if canonical_suffix:
             candidates.append(f"{base_code}.{canonical_suffix}")
     else:
+        base_code = normalized.split(".", 1)[0]
         for suffix in _infer_market_suffixes(base_code):
             candidates.append(f"{base_code}.{suffix}")
+        candidates.append(base_code)
 
     return _dedupe_codes(candidates)
 
 
 def _resolve_asset_code_candidates(asset_code: str) -> list[str]:
-    candidates = _build_asset_code_candidates(asset_code)
+    normalized = (asset_code or "").strip().upper()
+    candidates = _build_asset_code_candidates(normalized)
     if not candidates:
         return []
 
@@ -207,7 +206,7 @@ def _resolve_asset_code_candidates(asset_code: str) -> list[str]:
     )
 
     base_code = candidates[0].split(".", 1)[0]
-    if base_code:
+    if base_code and "." not in normalized:
         resolved_codes.extend(
             AssetMasterModel.objects.filter(code__startswith=f"{base_code}.")
             .values_list("code", flat=True)[:5]

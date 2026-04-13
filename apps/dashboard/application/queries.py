@@ -736,8 +736,15 @@ class AlphaDecisionChainQuery:
         top_stocks = [dict(item) for item in alpha_visualization_data.stock_scores]
         top_match_index = self._build_top_match_index(top_stocks)
 
-        actionable_matches = self._lookup_actionable_matches(top_stocks)
-        pending_matches = self._lookup_pending_matches(top_stocks)
+        pending_matches = self._build_pending_matches(
+            top_stocks,
+            decision_plane_data.pending_requests,
+        )
+        actionable_matches = self._build_actionable_matches(
+            top_stocks,
+            decision_plane_data.actionable_candidates,
+            pending_matches=pending_matches,
+        )
 
         top_rank_only_count = 0
         top10_actionable_count = 0
@@ -865,78 +872,57 @@ class AlphaDecisionChainQuery:
             lookup_codes.update(self._build_code_aliases(stock.get("code", "")))
         return sorted(lookup_codes)
 
-    def _lookup_pending_matches(self, top_stocks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        """查询 Top N 股票里哪些已经进入待执行队列。"""
-        if not top_stocks:
+    def _build_pending_matches(
+        self,
+        top_stocks: list[dict[str, Any]],
+        pending_requests: list[Any],
+    ) -> dict[str, dict[str, Any]]:
+        """基于已加载的待执行请求构建 Top N 命中关系。"""
+        if not top_stocks or not pending_requests:
             return {}
 
-        try:
-            from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+        top_match_index = self._build_top_match_index(top_stocks)
+        matched: dict[str, dict[str, Any]] = {}
+        for item in pending_requests:
+            top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
+            if not top_stock:
+                continue
+            canonical_code = self._normalize_code(top_stock.get("code", ""))
+            if canonical_code in matched:
+                continue
+            matched[canonical_code] = {
+                "request_id": getattr(item, "request_id", ""),
+                "execution_status": getattr(item, "execution_status", ""),
+            }
+        return matched
 
-            top_match_index = self._build_top_match_index(top_stocks)
-            matched: dict[str, dict[str, Any]] = {}
-            rows = (
-                DecisionRequestModel._default_manager
-                .filter(
-                    response__approved=True,
-                    execution_status__in=["PENDING", "FAILED"],
-                    asset_code__in=self._build_top_lookup_codes(top_stocks),
-                )
-                .order_by("-requested_at")
-            )
-            for item in rows:
-                top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
-                if not top_stock:
-                    continue
-                canonical_code = self._normalize_code(top_stock.get("code", ""))
-                if canonical_code in matched:
-                    continue
-                matched[canonical_code] = {
-                    "request_id": getattr(item, "request_id", ""),
-                    "execution_status": getattr(item, "execution_status", ""),
-                }
-            return matched
-        except Exception as e:
-            logger.warning(f"Failed to lookup pending matches for alpha chain: {e}")
+    def _build_actionable_matches(
+        self,
+        top_stocks: list[dict[str, Any]],
+        actionable_candidates: list[Any],
+        *,
+        pending_matches: dict[str, dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
+        """基于已加载的可行动候选构建 Top N 命中关系。"""
+        if not top_stocks or not actionable_candidates:
             return {}
 
-    def _lookup_actionable_matches(self, top_stocks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        """查询 Top N 股票里哪些当前仍属于可行动候选。"""
-        if not top_stocks:
-            return {}
-
-        pending_matches = self._lookup_pending_matches(top_stocks)
         pending_codes = set(pending_matches.keys())
-
-        try:
-            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-
-            top_match_index = self._build_top_match_index(top_stocks)
-            matched: dict[str, dict[str, Any]] = {}
-            rows = (
-                AlphaCandidateModel._default_manager
-                .filter(
-                    status="ACTIONABLE",
-                    asset_code__in=self._build_top_lookup_codes(top_stocks),
-                )
-                .order_by("-confidence", "-created_at")
-            )
-            for item in rows:
-                top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
-                if not top_stock:
-                    continue
-                canonical_code = self._normalize_code(top_stock.get("code", ""))
-                if canonical_code in matched or canonical_code in pending_codes:
-                    continue
-                matched[canonical_code] = {
-                    "candidate_id": getattr(item, "candidate_id", ""),
-                    "direction": getattr(item, "direction", ""),
-                    "confidence": getattr(item, "confidence", None),
-                }
-            return matched
-        except Exception as e:
-            logger.warning(f"Failed to lookup actionable matches for alpha chain: {e}")
-            return {}
+        top_match_index = self._build_top_match_index(top_stocks)
+        matched: dict[str, dict[str, Any]] = {}
+        for item in actionable_candidates:
+            top_stock = self._match_top_stock(top_match_index, getattr(item, "asset_code", ""))
+            if not top_stock:
+                continue
+            canonical_code = self._normalize_code(top_stock.get("code", ""))
+            if canonical_code in matched or canonical_code in pending_codes:
+                continue
+            matched[canonical_code] = {
+                "candidate_id": getattr(item, "candidate_id", ""),
+                "direction": getattr(item, "direction", ""),
+                "confidence": getattr(item, "confidence", None),
+            }
+        return matched
 
     def _serialize_actionable_candidate(
         self,

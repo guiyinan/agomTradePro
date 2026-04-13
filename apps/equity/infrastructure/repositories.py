@@ -401,7 +401,34 @@ class DjangoStockRepository:
         Returns:
             FinancialData 列表，按日期降序排列
         """
-        return self._get_financials_from_data_center(stock_code, limit=limit)
+        dc_financials = self._get_financials_from_data_center(stock_code, limit=limit)
+        if dc_financials:
+            return dc_financials
+
+        for candidate in self._build_stock_code_candidates(stock_code):
+            models = FinancialDataModel._default_manager.filter(
+                stock_code=candidate
+            ).order_by('-report_date')[:limit]
+            if not models:
+                continue
+            return [
+                FinancialData(
+                    stock_code=m.stock_code,
+                    report_date=m.report_date,
+                    revenue=m.revenue,
+                    net_profit=m.net_profit,
+                    revenue_growth=m.revenue_growth or 0.0,
+                    net_profit_growth=m.net_profit_growth or 0.0,
+                    total_assets=m.total_assets,
+                    total_liabilities=m.total_liabilities,
+                    equity=m.equity,
+                    roe=m.roe,
+                    roa=m.roa or 0.0,
+                    debt_ratio=m.debt_ratio,
+                )
+                for m in models
+            ]
+        return []
 
     def get_valuation_history(
         self,
@@ -420,7 +447,40 @@ class DjangoStockRepository:
         Returns:
             ValuationMetrics 列表，按日期升序排列
         """
-        return self._get_valuations_from_data_center(stock_code, start_date, end_date)
+        dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
+        if dc_valuations:
+            return dc_valuations
+
+        for candidate in self._build_stock_code_candidates(stock_code):
+            models = ValuationModel._default_manager.filter(
+                stock_code=candidate,
+                trade_date__gte=start_date,
+                trade_date__lte=end_date,
+            ).order_by('trade_date')
+            if not models:
+                continue
+            return [
+                ValuationMetrics(
+                    stock_code=m.stock_code,
+                    trade_date=m.trade_date,
+                    pe=m.pe or 0.0,
+                    pb=m.pb or 0.0,
+                    ps=m.ps or 0.0,
+                    total_mv=m.total_mv,
+                    circ_mv=m.circ_mv,
+                    dividend_yield=m.dividend_yield or 0.0,
+                    source_provider=m.source_provider,
+                    source_updated_at=m.source_updated_at,
+                    fetched_at=m.fetched_at,
+                    pe_type=m.pe_type,
+                    is_valid=m.is_valid,
+                    quality_flag=m.quality_flag,
+                    quality_notes=m.quality_notes,
+                    raw_payload_hash=m.raw_payload_hash,
+                )
+                for m in models
+            ]
+        return []
 
     def save_stock_info(self, stock_info: StockInfo) -> None:
         """
@@ -519,11 +579,59 @@ class DjangoStockRepository:
         dc_items = self._get_financials_from_data_center(stock_code, limit=1)
         if dc_items:
             return dc_items[0]
+
+        for candidate in self._build_stock_code_candidates(stock_code):
+            financial_model = FinancialDataModel._default_manager.filter(
+                stock_code=candidate
+            ).order_by('-report_date').first()
+            if financial_model is None:
+                continue
+            return FinancialData(
+                stock_code=financial_model.stock_code,
+                report_date=financial_model.report_date,
+                revenue=financial_model.revenue,
+                net_profit=financial_model.net_profit,
+                revenue_growth=financial_model.revenue_growth or 0.0,
+                net_profit_growth=financial_model.net_profit_growth or 0.0,
+                total_assets=financial_model.total_assets,
+                total_liabilities=financial_model.total_liabilities,
+                equity=financial_model.equity,
+                roe=financial_model.roe,
+                roa=financial_model.roa or 0.0,
+                debt_ratio=financial_model.debt_ratio,
+            )
         return None
 
     def _get_latest_valuation(self, stock_code: str) -> ValuationMetrics | None:
         dc_item = self._dc_valuation_repo.get_latest(stock_code)
-        return self._dc_fact_to_valuation(dc_item) if dc_item is not None else None
+        if dc_item is not None:
+            return self._dc_fact_to_valuation(dc_item)
+
+        for candidate in self._build_stock_code_candidates(stock_code):
+            valuation_model = ValuationModel._default_manager.filter(
+                stock_code=candidate
+            ).order_by('-trade_date').first()
+            if valuation_model is None:
+                continue
+            return ValuationMetrics(
+                stock_code=valuation_model.stock_code,
+                trade_date=valuation_model.trade_date,
+                pe=valuation_model.pe or 0.0,
+                pb=valuation_model.pb or 0.0,
+                ps=valuation_model.ps or 0.0,
+                total_mv=valuation_model.total_mv,
+                circ_mv=valuation_model.circ_mv,
+                dividend_yield=valuation_model.dividend_yield or 0.0,
+                source_provider=valuation_model.source_provider,
+                source_updated_at=valuation_model.source_updated_at,
+                fetched_at=valuation_model.fetched_at,
+                pe_type=valuation_model.pe_type,
+                is_valid=valuation_model.is_valid,
+                quality_flag=valuation_model.quality_flag,
+                quality_notes=valuation_model.quality_notes,
+                raw_payload_hash=valuation_model.raw_payload_hash,
+            )
+        return None
 
     def _get_financials_from_data_center(
         self,
@@ -763,41 +871,110 @@ class DjangoStockRepository:
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
-        quotes = self._dc_quote_repo.get_series(stock_code, limit=600)
-        if not quotes:
-            self._last_intraday_source = None
-            return []
+        try:
+            quotes = self._dc_quote_repo.get_series(stock_code, limit=600)
+        except RuntimeError as exc:
+            logger.debug(
+                "Skip data center intraday lookup for %s because DB access is unavailable: %s",
+                stock_code,
+                exc,
+            )
+            quotes = []
+        except Exception as exc:
+            logger.warning("Failed to load quote snapshots for %s: %s", stock_code, exc)
+            quotes = []
 
-        market_tz = ZoneInfo("Asia/Shanghai")
-        latest_session = max(quote.snapshot_at.astimezone(market_tz).date() for quote in quotes)
-        session_quotes = sorted(
-            [
-                quote
-                for quote in quotes
-                if quote.snapshot_at.astimezone(market_tz).date() == latest_session
-            ],
-            key=lambda item: item.snapshot_at,
-        )
-
-        points: list[IntradayPricePoint] = []
-        for quote in session_quotes:
-            price = self._safe_decimal(quote.current_price)
-            if price is None or price <= 0:
-                continue
-
-            volume = self._safe_int(quote.volume)
-            points.append(
-                IntradayPricePoint(
-                    stock_code=stock_code,
-                    timestamp=quote.snapshot_at.astimezone(market_tz),
-                    price=price,
-                    avg_price=price,
-                    volume=volume,
-                )
+        if quotes:
+            market_tz = ZoneInfo("Asia/Shanghai")
+            latest_session = max(quote.snapshot_at.astimezone(market_tz).date() for quote in quotes)
+            session_quotes = sorted(
+                [
+                    quote
+                    for quote in quotes
+                    if quote.snapshot_at.astimezone(market_tz).date() == latest_session
+                ],
+                key=lambda item: item.snapshot_at,
             )
 
-        self._last_intraday_source = "data_center_quote_snapshot" if points else None
-        return points
+            points: list[IntradayPricePoint] = []
+            for quote in session_quotes:
+                price = self._safe_decimal(quote.current_price)
+                if price is None or price <= 0:
+                    continue
+
+                volume = self._safe_int(quote.volume)
+                points.append(
+                    IntradayPricePoint(
+                        stock_code=stock_code,
+                        timestamp=quote.snapshot_at.astimezone(market_tz),
+                        price=price,
+                        avg_price=price,
+                        volume=volume,
+                    )
+                )
+
+            if points:
+                self._last_intraday_source = "data_center_quote_snapshot"
+                return points
+
+        symbol = self._to_akshare_symbol(stock_code)
+        self._last_intraday_source = None
+
+        primary_error: DataFetchError | None = None
+        try:
+            primary_points = self._get_intraday_hist_min_points(stock_code, symbol)
+        except DataFetchError as exc:
+            primary_points = []
+            primary_error = exc
+            logger.warning("Primary intraday source failed for %s: %s", stock_code, exc)
+
+        if primary_points:
+            self._last_intraday_source = "akshare_hist_min_em"
+            return self._validate_intraday_points(primary_points, "akshare_hist_min_em")
+
+        try:
+            fallback_points = self._get_intraday_tick_points(stock_code, symbol)
+        except DataFetchError as exc:
+            if primary_error is not None:
+                raise DataFetchError(
+                    message=f"{stock_code} 分时主备数据源均不可用",
+                    details={
+                        "stock_code": stock_code,
+                        "primary_source": "akshare_hist_min_em",
+                        "primary_error": primary_error.message,
+                        "fallback_source": "akshare_intraday_em",
+                        "fallback_error": exc.message,
+                    },
+                ) from exc
+            raise
+
+        if not fallback_points:
+            if primary_error is not None:
+                raise primary_error
+            return []
+
+        if primary_error is None:
+            logger.warning(
+                "Primary intraday source returned no data for %s; rejecting unvalidated fallback",
+                stock_code,
+            )
+            raise DataFetchError(
+                message=f"{stock_code} 主分时数据源暂无数据，拒绝切换到未校验备用源",
+                details={
+                    "stock_code": stock_code,
+                    "primary_source": "akshare_hist_min_em",
+                    "fallback_source": "akshare_intraday_em",
+                },
+            )
+
+        validated_fallback = self._validate_intraday_fallback(stock_code, fallback_points)
+        self._last_intraday_source = "akshare_intraday_em_fallback"
+        logger.warning(
+            "Using validated intraday fallback for %s due to primary failure: %s",
+            stock_code,
+            primary_error.message,
+        )
+        return validated_fallback
 
     def get_last_intraday_source(self) -> str | None:
         """返回最近一次分时数据读取所使用的数据源。"""

@@ -1,5 +1,7 @@
 # Dashboard Alpha 决策链收束说明（2026-04-12）
 
+> 补充更新：2026-04-13
+
 ## 目标
 
 把 Dashboard 上原本并行展示的两个板块统一为一条可追踪的业务链：
@@ -62,6 +64,7 @@
 
 - 复用 `AlphaVisualizationQuery` 和 `DecisionPlaneQuery`
 - 对股票代码做别名归一化，支持 `000001` / `000001.SZ` 匹配
+- Top 10 与 `Actionable / Pending` 的关系匹配，基于同一次 `DecisionPlaneQuery` 已加载结果完成，不再在 `AlphaDecisionChainQuery` 内额外直连下层 ORM
 - 为 Top 10 股票补充 `workflow_stage`
 - 为候选和待执行请求补充：
   - `is_in_top10`

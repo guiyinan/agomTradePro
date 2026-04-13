@@ -123,7 +123,7 @@ def test_decision_plane_query_attach_asset_names_supports_exchange_suffix(monkey
     assert enriched[2].asset_name == "创业板ETF"
 
 
-def test_alpha_decision_chain_query_builds_unified_chain_relationship(monkeypatch):
+def test_alpha_decision_chain_query_builds_unified_chain_relationship():
     query = AlphaDecisionChainQuery()
 
     alpha_visualization_data = SimpleNamespace(
@@ -193,28 +193,6 @@ def test_alpha_decision_chain_query_builds_unified_chain_relationship(monkeypatc
             )
         ],
     )
-    monkeypatch.setattr(
-        query,
-        "_lookup_actionable_matches",
-        lambda top_stocks: {
-            "000001.SZ": {
-                "candidate_id": "cand-1",
-                "direction": "LONG",
-                "confidence": 0.91,
-            }
-        },
-    )
-    monkeypatch.setattr(
-        query,
-        "_lookup_pending_matches",
-        lambda top_stocks: {
-            "600519.SH": {
-                "request_id": "req-1",
-                "execution_status": "PENDING",
-            }
-        },
-    )
-
     data = query.build(
         alpha_visualization_data=alpha_visualization_data,
         decision_plane_data=decision_plane_data,

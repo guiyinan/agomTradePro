@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,9 +29,25 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
 
     monkeypatch.setattr(
         views,
-        "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None: {
-            "items": [
+        "_get_alpha_visualization_data",
+        lambda top_n=10, ic_days=30, user=None: SimpleNamespace(
+            stock_scores_meta={"provider_source": "cache"},
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_decision_plane_data",
+        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+            actionable_candidates=[],
+            pending_requests=[],
+            alpha_actionable_count=0,
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_decision_chain_data",
+        lambda top_n=10, ic_days=30, max_candidates=5, max_pending=10, user=None, alpha_visualization_data=None, decision_plane_data=None: SimpleNamespace(
+            top_stocks=[
                 {
                     "code": "600519.SH",
                     "name": "贵州茅台",
@@ -39,10 +56,12 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
                     "confidence": 0.91,
                     "source": "cache",
                     "asof_date": "2026-03-22",
+                    "workflow_stage": "top_ranked",
+                    "workflow_stage_label": "仅在 Alpha Top 排名",
                 }
             ],
-            "meta": {"provider_source": "cache"},
-        },
+            overview={"top_ranked_count": 1},
+        ),
     )
 
     response = authenticated_client.get("/api/dashboard/alpha/stocks/?format=json&top_n=5")
