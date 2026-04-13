@@ -97,6 +97,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          pip install -e sdk/
 
       - name: Prepare database
         run: python manage.py migrate --noinput
