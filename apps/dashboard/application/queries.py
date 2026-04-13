@@ -153,47 +153,26 @@ class AlphaVisualizationQuery:
         if not code_aliases:
             return {}
 
-        name_map: dict[str, str] = {}
-        lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
-
-        # 尝试从股票信息获取
         try:
-            from apps.equity.infrastructure.models import StockInfoModel
-
-            stock_rows = StockInfoModel._default_manager.filter(
-                stock_code__in=lookup_codes
-            ).values("stock_code", "name")
-            self._assign_names_from_rows(
-                name_map=name_map,
-                code_aliases=code_aliases,
-                rows=stock_rows,
-                code_field="stock_code",
-                name_field="name",
-            )
+            from shared.infrastructure.asset_name_resolver import resolve_asset_names
         except Exception as e:
-            logger.debug(f"Failed to resolve stock names: {e}")
+            logger.debug(f"Failed to import asset name resolver: {e}")
+            return {}
 
-        # 尝试从基金信息获取未解析的代码
-        unresolved = [code for code in code_aliases if code not in name_map]
-        if unresolved:
-            try:
-                from apps.fund.infrastructure.models import FundInfoModel
+        lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
+        try:
+            resolved_lookup_map = resolve_asset_names(lookup_codes)
+        except Exception as e:
+            logger.debug(f"Failed to resolve security names: {e}")
+            return {}
 
-                unresolved_aliases = self._build_code_aliases(unresolved)
-                fund_rows = FundInfoModel._default_manager.filter(
-                    fund_code__in=sorted(
-                        {alias for aliases in unresolved_aliases.values() for alias in aliases}
-                    )
-                ).values("fund_code", "fund_name")
-                self._assign_names_from_rows(
-                    name_map=name_map,
-                    code_aliases=unresolved_aliases,
-                    rows=fund_rows,
-                    code_field="fund_code",
-                    name_field="fund_name",
-                )
-            except Exception as e:
-                logger.debug(f"Failed to resolve fund names: {e}")
+        name_map: dict[str, str] = {}
+        for requested_code, aliases in code_aliases.items():
+            for alias in aliases:
+                resolved_name = resolved_lookup_map.get(alias)
+                if resolved_name:
+                    name_map[requested_code] = resolved_name
+                    break
 
         return name_map
 

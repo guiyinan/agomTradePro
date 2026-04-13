@@ -9,6 +9,7 @@ from apps.dashboard.application.queries import (
     DecisionPlaneQuery,
 )
 from apps.equity.infrastructure.models import StockInfoModel
+from apps.rotation.infrastructure.models import AssetClassModel
 
 
 def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
@@ -96,6 +97,24 @@ def test_resolve_security_names_matches_stock_info_without_exchange_suffix():
 
     assert query._resolve_security_names(["000001.SZ"]) == {
         "000001.SZ": "平安银行",
+    }
+
+
+@pytest.mark.django_db
+def test_resolve_security_names_matches_rotation_assets_for_etf_codes():
+    AssetClassModel.objects.create(
+        code="510300",
+        name="沪深300ETF",
+        category="equity",
+        description="跟踪沪深300指数",
+        currency="CNY",
+        is_active=True,
+    )
+
+    query = AlphaVisualizationQuery()
+
+    assert query._resolve_security_names(["510300.SH"]) == {
+        "510300.SH": "沪深300ETF",
     }
 
 

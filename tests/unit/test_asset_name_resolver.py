@@ -14,6 +14,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
 django.setup()
 
 from django.test import TestCase
+from django.core.cache import cache
 
 from shared.infrastructure.asset_name_resolver import (
     AssetNameResolver,
@@ -29,10 +30,15 @@ class AssetNameResolverTest(TestCase):
     def setUp(self):
         """准备测试数据"""
         from apps.equity.infrastructure.models import StockInfoModel
+        from apps.fund.infrastructure.models import FundHoldingModel
         from apps.fund.infrastructure.models import FundInfoModel
+        from apps.rotation.infrastructure.models import AssetClassModel
 
+        cache.clear()
         StockInfoModel.objects.all().delete()
+        FundHoldingModel.objects.all().delete()
         FundInfoModel.objects.all().delete()
+        AssetClassModel.objects.all().delete()
 
         StockInfoModel.objects.create(
             stock_code="000001.SZ",
@@ -72,13 +78,37 @@ class AssetNameResolverTest(TestCase):
             fund_type="指数型",
         )
 
+        AssetClassModel.objects.create(
+            code="510300",
+            name="沪深300ETF",
+            category="equity",
+            description="跟踪沪深300指数",
+            currency="CNY",
+            is_active=True,
+        )
+
+        FundHoldingModel.objects.create(
+            fund_code="510300",
+            report_date="2025-12-31",
+            stock_code="300308.SZ",
+            stock_name="中际旭创",
+            holding_amount=100,
+            holding_value="100000.00",
+            holding_ratio=1.2,
+        )
+
     def tearDown(self):
         """清理测试数据"""
         from apps.equity.infrastructure.models import StockInfoModel
+        from apps.fund.infrastructure.models import FundHoldingModel
         from apps.fund.infrastructure.models import FundInfoModel
+        from apps.rotation.infrastructure.models import AssetClassModel
 
+        cache.clear()
         StockInfoModel.objects.all().delete()
+        FundHoldingModel.objects.all().delete()
         FundInfoModel.objects.all().delete()
+        AssetClassModel.objects.all().delete()
 
     def test_resolve_stock_names(self):
         """测试解析股票名称"""
@@ -106,6 +136,31 @@ class AssetNameResolverTest(TestCase):
         result = resolver.resolve_asset_names(codes)
         self.assertEqual(result.get("000001.SZ"), "平安银行")
         self.assertEqual(result.get("510300.OF"), "沪深300ETF")
+
+    def test_resolve_rotation_asset_names_when_fund_info_missing(self):
+        """测试 FundInfo 缺失时仍可从 rotation 资产表解析 ETF 名称。"""
+        from apps.fund.infrastructure.models import FundInfoModel
+
+        FundInfoModel.objects.filter(fund_code="510300").delete()
+        cache.clear()
+
+        resolver = AssetNameResolver()
+        result = resolver.resolve_asset_names(["510300", "510300.SH"])
+
+        self.assertEqual(result.get("510300"), "沪深300ETF")
+        self.assertEqual(result.get("510300.SH"), "沪深300ETF")
+
+    def test_resolve_stock_names_from_fund_holdings_when_stock_info_missing(self):
+        """测试 StockInfo 缺失时仍可从基金持仓表回填成分股名称。"""
+        from apps.equity.infrastructure.models import StockInfoModel
+
+        StockInfoModel.objects.filter(stock_code="300308.SZ").delete()
+        cache.clear()
+
+        resolver = AssetNameResolver()
+        result = resolver.resolve_asset_names(["300308.SZ"])
+
+        self.assertEqual(result.get("300308.SZ"), "中际旭创")
 
     def test_resolve_single_code(self):
         """测试解析单个代码"""

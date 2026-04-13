@@ -13,7 +13,7 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-CACHE_PREFIX = "asset_names"
+CACHE_PREFIX = "asset_names:v3"
 CACHE_TTL = 3600
 
 
@@ -43,6 +43,8 @@ class AssetNameResolver:
 
         resolved.update(self._resolve_stocks(code_set - set(resolved.keys())))
         resolved.update(self._resolve_funds(code_set - set(resolved.keys())))
+        resolved.update(self._resolve_rotation_assets(code_set - set(resolved.keys())))
+        resolved.update(self._resolve_fund_holdings(code_set - set(resolved.keys())))
         resolved.update(self._resolve_indices(code_set - set(resolved.keys())))
 
         return resolved
@@ -102,6 +104,73 @@ class AssetNameResolver:
                     resolved[code] = fund_name_map[fund_code]
         except Exception as e:
             logger.warning("Failed to resolve fund names: %s", e)
+
+        return resolved
+
+    def _resolve_rotation_assets(self, codes: set[str]) -> dict[str, str]:
+        """从 rotation 资产表解析 ETF / 债券 / 商品等名称。"""
+        if not codes:
+            return {}
+
+        resolved: dict[str, str] = {}
+        try:
+            from apps.rotation.infrastructure.models import AssetClassModel
+
+            code_to_base = {code: code.split(".")[0] for code in codes}
+            rows = AssetClassModel.objects.filter(
+                code__in=list(set(code_to_base.values())),
+                is_active=True,
+            ).values("code", "name")
+            name_map = {row["code"]: row["name"] for row in rows}
+            for code, base_code in code_to_base.items():
+                if base_code in name_map and name_map[base_code]:
+                    resolved[code] = name_map[base_code]
+        except Exception as e:
+            logger.warning("Failed to resolve rotation asset names: %s", e)
+
+        return resolved
+
+    def _resolve_fund_holdings(self, codes: set[str]) -> dict[str, str]:
+        """从基金持仓表回填成分股名称，补齐 ETF 降级路径下缺失的股票名称。"""
+        if not codes:
+            return {}
+
+        resolved: dict[str, str] = {}
+        try:
+            from apps.fund.infrastructure.models import FundHoldingModel
+
+            code_to_base = {code: code.split(".")[0] for code in codes}
+            rows = (
+                FundHoldingModel.objects.filter(stock_code__in=list(codes))
+                .order_by("stock_code", "-report_date")
+                .values("stock_code", "stock_name")
+            )
+            seen_codes: set[str] = set()
+            for row in rows:
+                stock_code = row["stock_code"]
+                stock_name = row["stock_name"]
+                if not stock_code or not stock_name or stock_code in seen_codes:
+                    continue
+                seen_codes.add(stock_code)
+                resolved[stock_code] = stock_name
+
+            if len(resolved) < len(codes):
+                base_rows = (
+                    FundHoldingModel.objects.filter(stock_code__in=list(code_to_base.values()))
+                    .order_by("stock_code", "-report_date")
+                    .values("stock_code", "stock_name")
+                )
+                base_name_map: dict[str, str] = {}
+                for row in base_rows:
+                    stock_code = row["stock_code"]
+                    stock_name = row["stock_name"]
+                    if stock_code and stock_name and stock_code not in base_name_map:
+                        base_name_map[stock_code] = stock_name
+                for code, base_code in code_to_base.items():
+                    if code not in resolved and base_code in base_name_map:
+                        resolved[code] = base_name_map[base_code]
+        except Exception as e:
+            logger.warning("Failed to resolve stock names from fund holdings: %s", e)
 
         return resolved
 
