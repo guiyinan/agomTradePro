@@ -91,7 +91,7 @@ def test_rotation_price_service_returns_none_when_market_data_unavailable(monkey
 
 
 @pytest.mark.django_db
-def test_sector_rotation_returns_unavailable_when_market_returns_missing():
+def test_sector_rotation_returns_degraded_when_market_returns_missing():
     SectorPreferenceConfigModel.objects.create(
         regime="Recovery",
         sector_name="农林牧渔",
@@ -111,11 +111,12 @@ def test_sector_rotation_returns_unavailable_when_market_returns_missing():
         )
     )
 
-    assert result.success is False
-    assert result.status == "unavailable"
+    assert result.success is True
+    assert result.status == "degraded"
     assert result.data_source == "fallback"
-    assert result.warning_message == "market_returns_unavailable"
-    assert "沪深300真实收益率数据" in (result.error or "")
+    assert result.warning_message == "market_returns_fallback"
+    assert result.warning_detail is not None
+    assert "沪深300" in result.warning_detail
 
 
 @pytest.mark.django_db

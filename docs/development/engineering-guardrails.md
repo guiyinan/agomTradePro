@@ -92,6 +92,8 @@
    `pytest -q tests/guardrails/test_logic_guardrails.py tests/integration/policy/test_policy_integration.py tests/unit/policy/test_fetch_rss_use_case.py tests/unit/regime/test_config_threshold_regression.py`
 11. 所有 diff-based CI 门禁必须兼容 force-push / rewritten history；若 `github.event.before` 对应提交在 runner 中不可达，必须自动退回到 `HEAD^..HEAD`，不能把 Git `128` 误判成架构失败。
 12. 凡是 diff-based CI 可能选中 `tests/unit/`、`tests/integration/` 或 app-local tests 的工作流，依赖安装阶段必须包含 `pip install -e sdk/`；否则 `agomtradepro` / `agomtradepro_mcp` 包不会进入 import path，测试会在 collection 阶段直接失败。
+13. 单元测试若覆盖 fallback 语义，必须与当前产品契约一致地区分 `available / degraded / unavailable`；当实现允许降级可用时，不得继续把该场景断言为硬失败。
+14. 纯映射/序列化类辅助函数的单元测试不得强制依赖可选运行时包；若只验证 handler 选择、字段转换等纯逻辑，应允许在缺少 `pyqlib` 等可选依赖时仍可运行。
 
 ### 5) API 改动同步门禁
 

@@ -197,7 +197,14 @@ def _resolve_qlib_stock_list(
 
 def _resolve_qlib_handler_class(feature_set_id: str | None):
     """Select the qlib data handler class that matches the model feature set."""
-    from qlib.contrib.data.handler import Alpha158, Alpha360
+    try:
+        from qlib.contrib.data.handler import Alpha158, Alpha360
+    except ModuleNotFoundError:
+        class Alpha158:  # type: ignore[no-redef]
+            """Fallback handler marker used when pyqlib is not installed."""
+
+        class Alpha360:  # type: ignore[no-redef]
+            """Fallback handler marker used when pyqlib is not installed."""
 
     normalized = str(feature_set_id or "").strip().lower()
     if normalized in {"alpha158", "158", "v158"}:

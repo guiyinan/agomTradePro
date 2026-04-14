@@ -34,14 +34,17 @@ def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_tim
     content = Path("core/templates/equity/detail.html").read_text(encoding="utf-8")
 
     assert 'id="detailPriceTimestamp"' in content
-    assert 'fetchJsonOrThrowCompat(`/api/realtime/prices/${stockCode}/`)' in content
-    assert "updatePriceTimestamp(price.timestamp, '实时价格时间')" in content
+    assert "loadRealtimePrice()" in content
+    assert "/api/data-center/prices/quotes/?asset_code=${encodeURIComponent(stockCode)}" in content
+    assert "updatePriceTimestamp(quote.snapshot_at || quote.timestamp, '行情快照时间')" in content
+    assert "document.getElementById('detailPriceTimestamp').textContent = '实时价格不可用'" in content
     assert "setFallbackClosePrice(latest.price, latest.trade_date)" in content
     assert "updatePriceTimestamp(tradeDate, '上一交易日收盘')" in content
     assert '上一交易日收盘不可用' in content
     assert '最新市价' in content
     assert "second: '2-digit'" in content
     assert "fetchJsonOrThrowCompat('/api/realtime/prices/', {" not in content
+    assert 'fetchJsonOrThrowCompat(`/api/realtime/prices/${stockCode}/`)' not in content
     assert "updatePriceTimestamp(latest.updated_at || latest.trade_date, '估值数据时间')" not in content
     assert '{% static \'js/echarts.min.js\' %}' in content
     assert Path("static/js/echarts.min.js").exists()
