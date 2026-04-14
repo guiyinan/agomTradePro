@@ -48,6 +48,18 @@ class AIProviderRepository:
             return ""
         return self._crypto_service.encrypt(api_key)
 
+    def _try_encrypt_api_key(self, api_key: str) -> str | None:
+        """Best-effort encryption for legacy plaintext migration."""
+        if not api_key:
+            return ""
+        try:
+            return self._encrypt_api_key(api_key)
+        except ValueError:
+            logger.info(
+                "Skipping legacy API key migration because AGOMTRADEPRO_ENCRYPTION_KEY is not configured"
+            )
+            return None
+
     def _decrypt_api_key(self, encrypted_key: str) -> str:
         if not encrypted_key:
             return ""
@@ -238,11 +250,15 @@ class AIProviderRepository:
             else:
                 kwargs.pop("api_key_encrypted", None)
                 if provider.api_key and not provider.api_key_encrypted:
-                    kwargs["api_key_encrypted"] = self._encrypt_api_key(provider.api_key)
-                    kwargs["api_key"] = ""
+                    encrypted_key = self._try_encrypt_api_key(provider.api_key)
+                    if encrypted_key:
+                        kwargs["api_key_encrypted"] = encrypted_key
+                        kwargs["api_key"] = ""
         elif provider.api_key and not provider.api_key_encrypted:
-            kwargs["api_key_encrypted"] = self._encrypt_api_key(provider.api_key)
-            kwargs["api_key"] = ""
+            encrypted_key = self._try_encrypt_api_key(provider.api_key)
+            if encrypted_key:
+                kwargs["api_key_encrypted"] = encrypted_key
+                kwargs["api_key"] = ""
 
         for key, value in kwargs.items():
             setattr(provider, key, value)
