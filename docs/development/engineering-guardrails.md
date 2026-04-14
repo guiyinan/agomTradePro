@@ -94,6 +94,7 @@
 12. 凡是 diff-based CI 可能选中 `tests/unit/`、`tests/integration/` 或 app-local tests 的工作流，依赖安装阶段必须包含 `pip install -e sdk/`；否则 `agomtradepro` / `agomtradepro_mcp` 包不会进入 import path，测试会在 collection 阶段直接失败。
 13. 单元测试若覆盖 fallback 语义，必须与当前产品契约一致地区分 `available / degraded / unavailable`；当实现允许降级可用时，不得继续把该场景断言为硬失败。
 14. 纯映射/序列化类辅助函数的单元测试不得强制依赖可选运行时包；若只验证 handler 选择、字段转换等纯逻辑，应允许在缺少 `pyqlib` 等可选依赖时仍可运行。
+15. Nightly 全量回归不得依赖单一 60 分钟窗口硬顶住所有阶段；完整单测阶段至少要同时具备并行执行、`--durations` 慢测输出，以及单测级 timeout，避免某个挂死用例把整夜测直接拖到 job timeout。
 
 ### 5) API 改动同步门禁
 
