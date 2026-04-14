@@ -130,10 +130,13 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
         # 2. 获取 ETF 成分股（优先数据库，缺失时回退到远端）
-        constituents, constituents_error, constituents_metadata = self._get_etf_constituents(
+        constituents_payload = self._get_etf_constituents(
             etf_info["etf_code"],
             intended_trade_date,
             top_n,
+        )
+        constituents, constituents_error, constituents_metadata = (
+            self._normalize_constituents_payload(constituents_payload)
         )
 
         if not constituents:
@@ -174,6 +177,27 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 ),
             }
         )
+
+    @staticmethod
+    def _normalize_constituents_payload(
+        payload: object,
+    ) -> tuple[list[tuple], str | None, dict[str, str]]:
+        """Accept legacy 2-tuple mocks and normalize to the current 3-tuple contract."""
+        if not isinstance(payload, tuple):
+            return [], "ETF constituents payload is invalid", {}
+
+        if len(payload) == 3:
+            constituents, error_message, metadata = payload
+        elif len(payload) == 2:
+            constituents, error_message = payload
+            metadata = {}
+        else:
+            return [], "ETF constituents payload has unsupported shape", {}
+
+        normalized_constituents = constituents if isinstance(constituents, list) else []
+        normalized_error = str(error_message) if error_message else None
+        normalized_metadata = metadata if isinstance(metadata, dict) else {}
+        return normalized_constituents, normalized_error, normalized_metadata
 
     def _get_etf_constituents(
         self,

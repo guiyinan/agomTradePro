@@ -237,6 +237,12 @@ class AIProviderRepository:
                 kwargs["api_key"] = ""
             else:
                 kwargs.pop("api_key_encrypted", None)
+                if provider.api_key and not provider.api_key_encrypted:
+                    kwargs["api_key_encrypted"] = self._encrypt_api_key(provider.api_key)
+                    kwargs["api_key"] = ""
+        elif provider.api_key and not provider.api_key_encrypted:
+            kwargs["api_key_encrypted"] = self._encrypt_api_key(provider.api_key)
+            kwargs["api_key"] = ""
 
         for key, value in kwargs.items():
             setattr(provider, key, value)

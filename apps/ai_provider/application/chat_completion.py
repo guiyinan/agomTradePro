@@ -2,9 +2,34 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+
+
+def _resolve_ai_client(
+    *,
+    factory: AIClientFactory,
+    provider_ref: Any | None,
+    user: Any | None,
+) -> Any:
+    """Call `get_client` with only the parameters the injected factory accepts."""
+    get_client = factory.get_client
+    try:
+        parameters = inspect.signature(get_client).parameters
+    except (TypeError, ValueError):
+        parameters = {}
+
+    kwargs: dict[str, Any] = {}
+    if "provider_ref" in parameters:
+        kwargs["provider_ref"] = provider_ref
+    if "user" in parameters:
+        kwargs["user"] = user
+
+    if kwargs:
+        return get_client(**kwargs)
+    return get_client()
 
 
 def generate_chat_completion(
@@ -17,7 +42,11 @@ def generate_chat_completion(
     factory_class: type[AIClientFactory] = AIClientFactory,
 ) -> dict[str, Any]:
     """Generate a chat completion through the configured AI provider."""
-    ai_client = factory_class().get_client(provider_ref, user=user)
+    ai_client = _resolve_ai_client(
+        factory=factory_class(),
+        provider_ref=provider_ref,
+        user=user,
+    )
     return ai_client.chat_completion(
         messages=messages,
         temperature=temperature,

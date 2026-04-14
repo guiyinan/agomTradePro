@@ -16,7 +16,7 @@ class TestOpsModernizedFlows:
     def _setup_client(self, monkeypatch):
         # Patch Django setting so FieldEncryptionService can initialize
         monkeypatch.setattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", "test-encryption-key-for-ci")
-        user = User.objects.create_user(
+        self.user = User.objects.create_user(
             username="ops_user",
             email="ops@example.com",
             password="test_password",
@@ -27,6 +27,8 @@ class TestOpsModernizedFlows:
     def test_ai_provider_edit_form_updates_without_admin(self):
         provider = AIProviderConfig.objects.create(
             name="openai-main",
+            scope="user",
+            owner_user=self.user,
             provider_type="openai",
             is_active=True,
             priority=10,
