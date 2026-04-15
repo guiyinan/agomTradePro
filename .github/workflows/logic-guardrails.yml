@@ -65,7 +65,7 @@ jobs:
             TEST_PATHS="tests/guardrails/test_architecture_boundaries.py tests/guardrails/test_logic_guardrails.py tests/guardrails/test_no_501_on_primary_paths.py tests/guardrails/test_security_hardening_guardrails.py tests/guardrails/test_api_contract_minimal.py"
           else
             # 使用智能测试选择脚本
-            TEST_PATHS=$(python scripts/select_tests.py --changed-modules "$MODULES" 2>/dev/null || echo "tests/guardrails/")
+            TEST_PATHS=$(python scripts/select_tests.py --changed-modules "$MODULES" --profile logic_guardrails 2>/dev/null || echo "tests/guardrails/")
           fi
 
           echo "test-paths=${TEST_PATHS}" >> $GITHUB_OUTPUT
@@ -78,7 +78,7 @@ jobs:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     needs: detect-changes
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       matrix:
         python-version: ['3.11', '3.13']

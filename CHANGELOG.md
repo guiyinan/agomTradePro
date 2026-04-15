@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 `tests/unit/test_ai_failover_helper.py` 与 AI provider 仓储新接口脱节的问题；`create_ai_policy_classifier()` 现在会防御性跳过空 API key，Nightly 的 failover 回归重新对齐当前 provider 过滤语义
+- 修复 `Logic Guardrails` 直接复用全量 changed-module 测试清单导致超时的问题；工作流现改为使用轻量 `logic_guardrails` 测试选择 profile，排除 integration/e2e/stress 路径并增加合理超时余量
 - 修复 Dashboard 首页将待分类政策 `PX` 直接传入策略配置矩阵导致告警与建议失败的问题；当前政策环境改为读取已生效档位，待分类事件不再污染首页配置建议
 - 修复 Dashboard Alpha 榜单默认路径会优先触发 Qlib 健康检查与冷启动的问题；首页现改为优先走 cache/simple/etf 快速路径，避免登录后首屏长时间阻塞
 - 修复 Celery Worker 未自动注册 `apps.regime.application.orchestration.*`、`apps.equity.application.tasks_valuation_sync.*` 以及若干 legacy dotted task 名称的问题；旧 beat 配置不再触发 `Received unregistered task`

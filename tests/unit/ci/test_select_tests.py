@@ -145,6 +145,17 @@ class TestSelectTests(unittest.TestCase):
         tests = select_tests_func({"dashboard"}, ["apps/dashboard/interface/views.py"])
         self.assertIn("tests/api/test_dashboard_api_edges.py", tests)
 
+    def test_logic_guardrails_profile_excludes_dashboard_e2e_targets(self):
+        """Logic Guardrails profile 不应选择 dashboard 的 e2e 测试。"""
+        tests = select_tests_func(
+            {"dashboard"},
+            ["apps/dashboard/interface/views.py"],
+            profile="logic_guardrails",
+        )
+        self.assertIn("tests/api/test_dashboard_api_edges.py", tests)
+        self.assertIn("apps/dashboard/tests/", tests)
+        self.assertNotIn("tests/e2e/", tests)
+
     def test_select_tests_with_simulated_trading_changes_include_api_tests(self):
         """simulated_trading 变更必须带上 API 测试。"""
         tests = select_tests_func({"simulated_trading"}, ["apps/simulated_trading/interface/views.py"])
@@ -190,6 +201,27 @@ class TestSelectTests(unittest.TestCase):
         """alpha 变更必须带上 API 测试。"""
         tests = select_tests_func({"alpha"}, ["apps/alpha/interface/views.py"])
         self.assertIn("tests/api/test_alpha_api_edges.py", tests)
+
+    def test_logic_guardrails_profile_excludes_alpha_heavy_targets(self):
+        """Logic Guardrails profile 不应选择 alpha 集成和 e2e 压测。"""
+        tests = select_tests_func(
+            {"alpha"},
+            ["apps/alpha/interface/views.py"],
+            profile="logic_guardrails",
+        )
+        self.assertIn("tests/api/test_alpha_api_edges.py", tests)
+        self.assertIn("tests/unit/test_alpha_providers.py", tests)
+        self.assertNotIn("tests/e2e/test_alpha_dashboard_e2e.py", tests)
+        self.assertNotIn("tests/integration/test_alpha_stress.py", tests)
+
+    def test_logic_guardrails_profile_uses_core_guardrails_for_shared_changes(self):
+        """Logic Guardrails profile 在 shared 变更时退回核心 guardrails。"""
+        tests = select_tests_func(
+            {"shared"},
+            ["shared/domain/interfaces.py"],
+            profile="logic_guardrails",
+        )
+        self.assertEqual(tests, CORE_GUARDRAIL_TESTS)
 
     def test_select_tests_with_alpha_trigger_changes_include_api_tests(self):
         """alpha_trigger 变更必须带上 API 测试。"""

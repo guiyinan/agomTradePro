@@ -386,6 +386,8 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
         for provider in active_providers:
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
             api_key = provider_repo.get_api_key(provider)
+            if not api_key:
+                continue
             providers_list.append({
                 'name': provider.name,
                 'base_url': provider.base_url,

@@ -308,6 +308,26 @@ FULL_TEST_SUITES = [
     "tests/integration/",
 ] + APP_LOCAL_TEST_DIRS
 
+LOGIC_GUARDRAILS_ALLOWED_PREFIXES = (
+    "tests/api/",
+    "tests/guardrails/",
+    "tests/migrations/",
+    "tests/unit/",
+    "apps/",
+)
+
+
+def _is_logic_guardrails_target(path: str) -> bool:
+    """Return whether a target is lightweight enough for Logic Guardrails."""
+    normalized = path.replace("\\", "/")
+    if normalized.startswith("tests/e2e/") or normalized.startswith("tests/integration/"):
+        return False
+    if not normalized.startswith(LOGIC_GUARDRAILS_ALLOWED_PREFIXES):
+        return False
+    if normalized.startswith("apps/"):
+        return "/tests/" in normalized
+    return True
+
 
 def get_app_local_tests(module: str) -> List[str]:
     """Return app-local pytest directories for a changed module."""
@@ -355,7 +375,11 @@ def get_changed_modules(changed_files: List[str]) -> Set[str]:
     return modules
 
 
-def select_tests(modules: Set[str], changed_files: List[str]) -> List[str]:
+def select_tests(
+    modules: Set[str],
+    changed_files: List[str],
+    profile: str = "default",
+) -> List[str]:
     """
     根据变更的模块选择相关测试
 
@@ -371,16 +395,24 @@ def select_tests(modules: Set[str], changed_files: List[str]) -> List[str]:
     # 始终添加核心 guardrail 测试
     tests.update(CORE_GUARDRAIL_TESTS)
 
+    use_logic_guardrails_profile = profile == "logic_guardrails"
+
     # 如果没有检测到模块变更，运行全量测试
     if not modules:
+        if use_logic_guardrails_profile:
+            return CORE_GUARDRAIL_TESTS
         return FULL_TEST_SUITES
 
     # CI 配置变更 -> 运行全量测试
     if "ci" in modules or ".github" in str(changed_files):
+        if use_logic_guardrails_profile:
+            return CORE_GUARDRAIL_TESTS
         return FULL_TEST_SUITES
 
     # shared/ 变变更 -> 运行全量测试（影响所有模块）
     if "shared" in modules:
+        if use_logic_guardrails_profile:
+            return CORE_GUARDRAIL_TESTS
         return FULL_TEST_SUITES
 
     # core/ 变更 -> 运行 guardrail 测试
@@ -403,7 +435,14 @@ def select_tests(modules: Set[str], changed_files: List[str]) -> List[str]:
     # 过滤掉不存在的测试路径
     existing_tests = [t for t in tests if os.path.exists(t)]
 
-    return sorted(existing_tests) if existing_tests else CORE_GUARDRAIL_TESTS
+    if not existing_tests:
+        return CORE_GUARDRAIL_TESTS
+
+    if use_logic_guardrails_profile:
+        filtered_tests = [t for t in existing_tests if _is_logic_guardrails_target(t)]
+        return sorted(filtered_tests) if filtered_tests else CORE_GUARDRAIL_TESTS
+
+    return sorted(existing_tests)
 
 
 def main():
@@ -431,6 +470,12 @@ def main():
         help="输出格式 (默认: space，适合直接传给 pytest)",
     )
     parser.add_argument(
+        "--profile",
+        choices=["default", "logic_guardrails"],
+        default="default",
+        help="测试选择策略 (默认: default)",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -446,7 +491,7 @@ def main():
         changed_files = get_changed_files(args.base, args.head)
         modules = get_changed_modules(changed_files)
 
-    tests = select_tests(modules, changed_files)
+    tests = select_tests(modules, changed_files, profile=args.profile)
 
     if args.verbose:
         print(f"# Detected changed modules: {', '.join(sorted(modules))}", file=sys.stderr)

@@ -44,7 +44,7 @@ def test_create_ai_policy_classifier_returns_none_without_healthy_provider(
     provider.default_model = "deepseek-chat"
     provider.priority = 10
     provider.extra_config = {}
-    provider_repo.get_active_providers.return_value = [provider]
+    provider_repo.get_active_configured_system_providers.return_value = [provider]
     provider_repo.get_api_key.return_value = "secret"
     mocker.patch(
         "apps.policy.infrastructure.adapters.ai_policy_classifier.AIProviderRepository",
@@ -75,7 +75,7 @@ def test_create_ai_policy_classifier_skips_provider_without_usable_api_key(
     provider.default_model = "deepseek-chat"
     provider.priority = 10
     provider.extra_config = {}
-    provider_repo.get_active_providers.return_value = [provider]
+    provider_repo.get_active_configured_system_providers.return_value = [provider]
     provider_repo.get_api_key.return_value = ""
     mocker.patch(
         "apps.policy.infrastructure.adapters.ai_policy_classifier.AIProviderRepository",
