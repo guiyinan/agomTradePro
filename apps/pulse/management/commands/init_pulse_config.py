@@ -77,11 +77,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         force = options["force"]
+        managed_codes = {ind_def.code for ind_def in DEFAULT_PULSE_INDICATORS}
 
         # 1. Pulse Indicator Configs
         self.stdout.write(self.style.NOTICE("Initializing Pulse indicator configs..."))
         created_count = 0
         updated_count = 0
+        deactivated_count = 0
 
         for ind_def in DEFAULT_PULSE_INDICATORS:
             defaults = {
@@ -114,9 +116,18 @@ class Command(BaseCommand):
                 if created:
                     created_count += 1
 
+        if force:
+            deactivated_count = (
+                PulseIndicatorConfigModel.objects
+                .exclude(indicator_code__in=managed_codes)
+                .filter(is_active=True)
+                .update(is_active=False)
+            )
+
         self.stdout.write(
             self.style.SUCCESS(
-                f"  Pulse indicators: {created_count} created, {updated_count} updated"
+                "  Pulse indicators: "
+                f"{created_count} created, {updated_count} updated, {deactivated_count} deactivated"
             )
         )
 

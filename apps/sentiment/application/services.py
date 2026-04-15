@@ -134,10 +134,10 @@ class SentimentAnalyzer:
         """获取 AI 适配器（带缓存）"""
         if not self._adapter_cache:
             # 获取激活的提供商
-            providers = self.provider_repo.get_active_providers()
+            providers = self.provider_repo.get_active_configured_system_providers()
 
             if not providers:
-                raise RuntimeError("没有可用的 AI 提供商配置，请先在管理后台配置")
+                raise RuntimeError("没有带可用凭据的 AI 提供商配置，请先在管理后台配置")
 
             # 使用优先级最高的提供商
             provider = providers[0]

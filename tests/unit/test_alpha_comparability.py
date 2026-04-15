@@ -76,7 +76,7 @@ class TestAlphaComparabilityImprovements:
             "csi300", date.today(), 30, provider_filter="cache"
         )
         assert result2.source == "cache"
-        # qlib 可能仍被 health_check 调用，但不应被 get_stock_scores 调用
+        assert mock_qlib.health_check.call_count == 0
         assert mock_qlib.get_stock_scores.call_count == 0
 
         # 测试指定不存在的 provider

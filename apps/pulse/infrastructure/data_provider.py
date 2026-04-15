@@ -37,33 +37,31 @@ class PulseIndicatorDef:
 # Domain 层默认指标列表（用于 DB 无配置时 fallback）
 DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
     PulseIndicatorDef(
-        code="CN_TERM_SPREAD_10Y2Y",
-        name="国债利差(10Y-2Y)",
+        code="CN_PMI",
+        name="制造业PMI",
         dimension="growth",
-        frequency="daily",
+        frequency="monthly",
         signal_type="level",
-        bullish_threshold=100.0,
-        bearish_threshold=0.0,
+        bullish_threshold=50.0,
+        bearish_threshold=49.0,
     ),
     PulseIndicatorDef(
         code="CN_NEW_CREDIT",
         name="新增信贷",
         dimension="growth",
         frequency="monthly",
-        signal_type="zscore",
-        bullish_threshold=1.0,
-        bearish_threshold=-1.0,
-        signal_multiplier=0.4,
+        signal_type="level",
+        bullish_threshold=8.0e15,
+        bearish_threshold=3.0e15,
     ),
     PulseIndicatorDef(
-        code="CN_NHCI",
-        name="南华商品指数",
+        code="CN_CPI_NATIONAL_YOY",
+        name="全国CPI同比",
         dimension="inflation",
-        frequency="daily",
-        signal_type="pct_change",
-        bullish_threshold=5.0,
-        bearish_threshold=-5.0,
-        signal_multiplier=0.16,
+        frequency="monthly",
+        signal_type="level",
+        bullish_threshold=2.0,
+        bearish_threshold=0.0,
     ),
     PulseIndicatorDef(
         code="CN_SHIBOR",
@@ -76,14 +74,14 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         signal_multiplier=-0.4,     # 负号：z 高=利率高=bearish
     ),
     PulseIndicatorDef(
-        code="CN_CREDIT_SPREAD",
-        name="信用利差",
+        code="CN_LPR",
+        name="LPR",
         dimension="liquidity",
-        frequency="daily",
+        frequency="monthly",
         signal_type="zscore",
-        bullish_threshold=-0.5,
-        bearish_threshold=0.5,
-        signal_multiplier=-0.3,
+        bullish_threshold=-0.3,
+        bearish_threshold=0.3,
+        signal_multiplier=-0.25,
     ),
     PulseIndicatorDef(
         code="CN_M2",
@@ -96,42 +94,14 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         signal_multiplier=0.3,
     ),
     PulseIndicatorDef(
-        code="CN_DR007",
-        name="DR007",
-        dimension="liquidity",
-        frequency="daily",
-        signal_type="zscore",
-        bullish_threshold=-1.0,     # <逆回购利率为宽松
-        bearish_threshold=1.0,      # >逆回购利率为紧缩
-        signal_multiplier=-0.4,
-    ),
-    PulseIndicatorDef(
-        code="CN_PBOC_NET_INJECTION",
-        name="央行净投放",
-        dimension="liquidity",
-        frequency="daily",          # 这里先标记daily, 在逻辑中可能是周频
-        signal_type="level",
-        bullish_threshold=1000.0,
-        bearish_threshold=-500.0,
-    ),
-    PulseIndicatorDef(
-        code="VIX_INDEX",
-        name="VIX恐慌指数",
+        code="000300.SH",
+        name="沪深300",
         dimension="sentiment",
         frequency="daily",
-        signal_type="level",
-        bullish_threshold=20.0,     # < 20 → bullish
-        bearish_threshold=30.0,     # > 30 → bearish
-    ),
-    PulseIndicatorDef(
-        code="USD_INDEX",
-        name="美元指数",
-        dimension="sentiment",
-        frequency="daily",
-        signal_type="zscore",
-        bullish_threshold=-0.5,
-        bearish_threshold=0.5,
-        signal_multiplier=-0.25,
+        signal_type="pct_change",
+        bullish_threshold=3.0,
+        bearish_threshold=-3.0,
+        signal_multiplier=0.1,
     ),
 ]
 
@@ -249,7 +219,8 @@ class DjangoPulseDataProvider:
 
             current_value = float(obs.value)
             observed_date = obs.reporting_period
-            data_age = (as_of_date - observed_date).days
+            freshness_anchor = obs.published_at or observed_date
+            data_age = (as_of_date - freshness_anchor).days
 
             # 判断是否过期
             stale_days = (

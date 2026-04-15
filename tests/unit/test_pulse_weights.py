@@ -24,6 +24,6 @@ def test_pulse_weights_override_from_db():
     assert m2_def.weight == 2.5
     
     # 未被 override 的依然是默认权重
-    other_def = next((x for x in defs if x.code == "CN_TERM_SPREAD_10Y2Y"), None)
+    other_def = next((x for x in defs if x.code == "CN_PMI"), None)
     assert other_def is not None
     assert other_def.weight == 1.0 # default

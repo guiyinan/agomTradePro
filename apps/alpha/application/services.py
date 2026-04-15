@@ -293,8 +293,6 @@ class AlphaProviderRegistry:
             f"top_n={top_n}, provider_filter={provider_filter}"
         )
 
-        active_providers = self.get_active_providers()
-
         # 检查是否配置了固定 Provider
         try:
             from apps.account.infrastructure.models import SystemSettingsModel
@@ -306,10 +304,9 @@ class AlphaProviderRegistry:
         except Exception as e:
             logger.debug(f"获取固定 Provider 配置失败: {e}")
 
-        # 如果指定了 provider_filter，只使用该 Provider
         if provider_filter:
-            filtered_providers = [p for p in active_providers if p.name == provider_filter]
-            if not filtered_providers:
+            provider = self.get_provider(provider_filter)
+            if provider is None:
                 logger.warning(f"指定的 Provider '{provider_filter}' 不存在或不可用")
                 return AlphaResult(
                     success=False,
@@ -319,8 +316,28 @@ class AlphaProviderRegistry:
                     status="unavailable",
                     error_message=f"指定的 Provider '{provider_filter}' 不存在或不可用",
                 )
+
+            try:
+                status = provider.health_check()
+            except Exception as exc:
+                logger.error(f"检查 Provider {provider_filter} 状态失败: {exc}")
+                status = AlphaProviderStatus.UNAVAILABLE
+
+            if status == AlphaProviderStatus.UNAVAILABLE:
+                logger.warning(f"指定的 Provider '{provider_filter}' 当前不可用")
+                return AlphaResult(
+                    success=False,
+                    scores=[],
+                    source=provider_filter,
+                    timestamp=date.today().isoformat(),
+                    status="unavailable",
+                    error_message=f"指定的 Provider '{provider_filter}' 当前不可用",
+                )
+
             logger.info(f"[AlphaFilter] 仅使用 Provider: {provider_filter}")
-            active_providers = filtered_providers
+            active_providers = [provider]
+        else:
+            active_providers = self.get_active_providers()
 
         if not active_providers:
             logger.warning("[AlphaRequest] 没有可用的 Provider")

@@ -1,8 +1,6 @@
 # AgomTradePro Docker Compose 配置
 # 默认使用本地 SQLite + Redis，便于单机开发/打包复用同一份数据。
 
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine

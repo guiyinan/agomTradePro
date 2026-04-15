@@ -140,37 +140,25 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         cache = None
 
-        # 1. 优先查用户个人评分（精确匹配）
+        # 1. 优先查用户个人评分
         if user is not None and user.is_authenticated:
-            cache = cache_model.objects.filter(
-                user=user,
-                universe_id=universe_id,
-                intended_trade_date=intended_trade_date,
-            ).order_by("-created_at").first()
-
-            # 精确匹配不到，向前查找用户个人最近缓存
-            if not cache:
-                cache = cache_model.objects.filter(
+            cache = self._select_best_cache(
+                cache_model.objects.filter(
                     user=user,
                     universe_id=universe_id,
-                    intended_trade_date__lte=intended_trade_date,
-                ).order_by("-intended_trade_date", "-created_at").first()
-
-        # 2. Fallback 到系统级评分（user=None，精确匹配）
-        if not cache:
-            cache = cache_model.objects.filter(
-                user=None,
-                universe_id=universe_id,
+                ),
                 intended_trade_date=intended_trade_date,
-            ).order_by("-created_at").first()
+            )
 
-        # 3. 系统级向前查找
+        # 2. Fallback 到系统级评分
         if not cache:
-            cache = cache_model.objects.filter(
-                user=None,
-                universe_id=universe_id,
-                intended_trade_date__lte=intended_trade_date,
-            ).order_by("-intended_trade_date", "-created_at").first()
+            cache = self._select_best_cache(
+                cache_model.objects.filter(
+                    user=None,
+                    universe_id=universe_id,
+                ),
+                intended_trade_date=intended_trade_date,
+            )
 
         if not cache:
             return self._create_error_result(
@@ -207,6 +195,42 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 "created_at": cache.created_at.isoformat(),
             }
         )
+
+    def _select_best_cache(self, queryset, intended_trade_date: date):
+        """
+        Prefer an exact-date cache when it is fresh; otherwise fall back to the
+        freshest historical cache on or before the requested trade date.
+        """
+        exact_cache = (
+            queryset
+            .filter(intended_trade_date=intended_trade_date)
+            .order_by("-asof_date", "-created_at")
+            .first()
+        )
+        historical_cache = (
+            queryset
+            .filter(intended_trade_date__lte=intended_trade_date)
+            .order_by("-asof_date", "-intended_trade_date", "-created_at")
+            .first()
+        )
+
+        if exact_cache is None:
+            return historical_cache
+        if historical_cache is None:
+            return exact_cache
+
+        exact_staleness = exact_cache.get_staleness_days()
+        history_staleness = historical_cache.get_staleness_days()
+        if exact_staleness <= self.max_staleness_days:
+            return exact_cache
+        if history_staleness <= self.max_staleness_days:
+            return historical_cache
+        if history_staleness < exact_staleness:
+            return historical_cache
+        if historical_cache.asof_date and exact_cache.asof_date:
+            if historical_cache.asof_date > exact_cache.asof_date:
+                return historical_cache
+        return exact_cache
 
     def _parse_scores(self, raw_scores: list, top_n: int) -> list[StockScore]:
         """

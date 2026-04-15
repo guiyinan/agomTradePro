@@ -187,10 +187,10 @@ class _ScopedAIClient:
 
     def _chat_with_system_only(self, **kwargs) -> dict[str, Any]:
         provider = self._provider_repo.get_provider_for_reference(self._provider_ref, user=None)
-        if provider is not None:
+        if provider is not None and self._provider_repo.has_usable_api_key(provider):
             providers = [provider]
         else:
-            providers = self._provider_repo.get_active_system_providers()
+            providers = self._provider_repo.get_active_configured_system_providers()
 
         last_error = None
         for candidate in providers:
@@ -228,12 +228,20 @@ class _ScopedAIClient:
 
     def _resolve_candidates(self):
         explicit = self._provider_repo.get_provider_for_reference(self._provider_ref, user=self._user)
-        personal = self._provider_repo.get_active_user_providers(self._user)
-        system = self._provider_repo.get_active_system_providers()
+        personal = self._provider_repo.get_active_configured_user_providers(self._user)
+        system = self._provider_repo.get_active_configured_system_providers()
 
-        if explicit is not None and explicit.scope == "user":
+        if (
+            explicit is not None
+            and explicit.scope == "user"
+            and self._provider_repo.has_usable_api_key(explicit)
+        ):
             personal = _move_to_front(personal, explicit.id)
-        if explicit is not None and explicit.scope == "system":
+        if (
+            explicit is not None
+            and explicit.scope == "system"
+            and self._provider_repo.has_usable_api_key(explicit)
+        ):
             system = _move_to_front(system, explicit.id)
         return personal, system
 

@@ -747,6 +747,25 @@ def qlib_daily_inference(
     }
 
 
+@shared_task(name="apps.alpha.application.tasks.qlib_daily_inference")
+def qlib_daily_inference_alias(
+    universe_id: str = "csi300",
+    top_n: int = 30,
+) -> dict:
+    """Backwards-compatible alias for database/beat task paths."""
+    return qlib_daily_inference.run(universe_id=universe_id, top_n=top_n)
+
+
+@shared_task(name="apps.alpha.application.tasks.qlib_refresh_cache")
+def qlib_refresh_cache_alias(
+    universe_id: str = "csi300",
+    days_back: int = 7,
+    top_n: int = 30,
+) -> dict:
+    """Backwards-compatible alias for database/beat task paths."""
+    return qlib_refresh_cache.run(universe_id=universe_id, days_back=days_back, top_n=top_n)
+
+
 # ========================================================================
 # 辅助函数
 # ========================================================================

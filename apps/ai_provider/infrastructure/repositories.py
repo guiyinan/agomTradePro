@@ -2,6 +2,7 @@
 Repository implementations for AI provider management.
 """
 
+import hashlib
 import logging
 from datetime import date, timedelta
 from decimal import Decimal
@@ -18,6 +19,7 @@ from shared.infrastructure.crypto import FieldEncryptionService
 from .models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
 
 logger = logging.getLogger(__name__)
+_UNUSABLE_ENCRYPTED_KEY_FINGERPRINTS: set[str] = set()
 
 
 class AIProviderRepository:
@@ -66,7 +68,12 @@ class AIProviderRepository:
         try:
             return self._crypto_service.decrypt(encrypted_key, suppress_warning=True)
         except (InvalidToken, ValueError):
-            logger.info("Skipping encrypted API key that cannot be decrypted in current environment")
+            fingerprint = hashlib.sha1(encrypted_key.encode("utf-8")).hexdigest()[:12]
+            if fingerprint not in _UNUSABLE_ENCRYPTED_KEY_FINGERPRINTS:
+                logger.info(
+                    "Skipping encrypted API key that cannot be decrypted in current environment"
+                )
+                _UNUSABLE_ENCRYPTED_KEY_FINGERPRINTS.add(fingerprint)
             return ""
         except Exception:
             if encrypted_key.startswith(FieldEncryptionService.PREFIX):
@@ -80,6 +87,10 @@ class AIProviderRepository:
             if decrypted:
                 return decrypted
         return provider.api_key or ""
+
+    def has_usable_api_key(self, provider: AIProviderConfig) -> bool:
+        """Return whether the provider has usable credentials in this environment."""
+        return bool(self.get_api_key(provider))
 
     def _base_queryset(self):
         return AIProviderConfig._default_manager.select_related("owner_user")
@@ -125,6 +136,14 @@ class AIProviderRepository:
         """Return active system providers ordered by priority."""
         return self.get_system_providers(include_inactive=False)
 
+    def get_active_configured_system_providers(self) -> list[AIProviderConfig]:
+        """Return active system providers with usable credentials."""
+        return [
+            provider
+            for provider in self.get_active_system_providers()
+            if self.has_usable_api_key(provider)
+        ]
+
     def get_user_providers(self, user, include_inactive: bool = True) -> list[AIProviderConfig]:
         """Return user-owned providers."""
         if user is None:
@@ -140,6 +159,14 @@ class AIProviderRepository:
     def get_active_user_providers(self, user) -> list[AIProviderConfig]:
         """Return active providers owned by a user."""
         return self.get_user_providers(user, include_inactive=False)
+
+    def get_active_configured_user_providers(self, user) -> list[AIProviderConfig]:
+        """Return active user providers with usable credentials."""
+        return [
+            provider
+            for provider in self.get_active_user_providers(user)
+            if self.has_usable_api_key(provider)
+        ]
 
     def get_by_id(self, pk: int, user=None) -> AIProviderConfig | None:
         """Get provider by id, optionally enforcing user visibility."""

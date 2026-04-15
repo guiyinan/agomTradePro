@@ -375,7 +375,7 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
     try:
         # 从数据库获取AI提供商配置
         provider_repo = AIProviderRepository()
-        active_providers = provider_repo.get_active_providers()
+        active_providers = provider_repo.get_active_configured_system_providers()
 
         if not active_providers:
             logger.warning("No active AI providers configured in database")
@@ -383,14 +383,9 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
 
         # 构建提供商列表（按优先级排序）
         providers_list = []
-        skipped_providers: list[str] = []
         for provider in active_providers:
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
-            # 使用 repository 的 get_api_key 方法解密
             api_key = provider_repo.get_api_key(provider)
-            if not api_key:
-                skipped_providers.append(f"{provider.name}: api key unavailable")
-                continue
             providers_list.append({
                 'name': provider.name,
                 'base_url': provider.base_url,
@@ -404,7 +399,7 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
         if not providers_list:
             logger.warning(
                 "AI policy classifier disabled because no provider credentials are usable: %s",
-                "; ".join(skipped_providers) or "no active providers",
+                "no active providers",
             )
             return None
 

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
 from apps.ai_provider.infrastructure.repositories import AIUsageRepository
+from shared.infrastructure.crypto import FieldEncryptionService
 
 
 class _FakeAdapter:
@@ -217,3 +218,42 @@ def test_personal_success_does_not_consume_fallback_quota(monkeypatch, user):
 
     usage_repo = AIUsageRepository()
     assert usage_repo.get_user_fallback_daily_spend(user, AIUsageLog.objects.latest("id").created_at.date()) == 0.0
+
+
+@pytest.mark.django_db
+def test_system_routing_skips_provider_with_unusable_credentials(monkeypatch, settings):
+    class _StrictAdapter(_FakeAdapter):
+        def __init__(self, *, api_key, **kwargs):
+            if not api_key:
+                raise AssertionError("adapter should not be built for provider without usable credentials")
+            super().__init__(api_key=api_key, **kwargs)
+
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+    wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
+    monkeypatch.setattr("apps.ai_provider.infrastructure.client_factory.OpenAICompatibleAdapter", _StrictAdapter)
+
+    AIProviderConfig.objects.create(
+        name="system-invalid",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=1,
+        base_url="https://system-invalid.example.invalid/v1",
+        api_key="",
+        api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
+        default_model="gpt-4o-mini",
+    )
+    system = _create_provider(
+        name="system-main",
+        scope="system",
+        base_url="https://system-success.example.invalid/v1",
+        priority=10,
+    )
+
+    result = AIClientFactory().get_client().chat_completion(
+        messages=[{"role": "user", "content": "hello"}],
+    )
+
+    assert result["status"] == "success"
+    assert result["provider_used"] == system.name
+    assert result["provider_scope"] == "system_global"

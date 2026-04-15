@@ -24,8 +24,10 @@ def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
             intended_trade_date: date,
             top_n: int,
             user=None,
+            provider_filter=None,
         ):
             captured["user"] = user
+            captured["provider_filter"] = provider_filter
             return SimpleNamespace(
                 success=True,
                 source="cache",
@@ -67,6 +69,7 @@ def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
     data = query.execute(top_n=1, ic_days=5, user=user)
 
     assert captured["user"] is user
+    assert captured["provider_filter"] == "cache"
     assert data.stock_scores == [
         {
             "code": "000001.SZ",
@@ -81,6 +84,57 @@ def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
     ]
     assert data.stock_scores_meta["source"] == "cache"
     assert data.stock_scores_meta["uses_cached_data"] is True
+
+
+def test_alpha_visualization_query_uses_dashboard_fast_path_providers(monkeypatch):
+    calls: list[str] = []
+    query = AlphaVisualizationQuery()
+
+    class FakeAlphaService:
+        def get_stock_scores(
+            self,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+            user=None,
+            provider_filter=None,
+        ):
+            calls.append(provider_filter)
+            if provider_filter == "cache":
+                return SimpleNamespace(
+                    success=True,
+                    source="cache",
+                    status="available",
+                    staleness_days=0,
+                    metadata={},
+                    scores=[
+                        SimpleNamespace(
+                            code="000001.SZ",
+                            score=0.91234,
+                            rank=1,
+                            source="cache",
+                            confidence=0.88,
+                            factors={"quality": 0.4},
+                            asof_date=date(2026, 3, 10),
+                        )
+                    ],
+                )
+            raise AssertionError("dashboard fast path should stop after first successful provider")
+
+    monkeypatch.setattr("apps.alpha.application.services.AlphaService", FakeAlphaService)
+    monkeypatch.setattr(
+        query,
+        "_resolve_security_names",
+        lambda codes: {"000001.SZ": "平安银行"},
+    )
+    monkeypatch.setattr(query, "_get_provider_status", lambda: {})
+    monkeypatch.setattr(query, "_get_coverage_metrics", lambda: {})
+    monkeypatch.setattr(query, "_get_ic_trends", lambda days: [])
+
+    data = query.execute(top_n=1, ic_days=5, user=None)
+
+    assert calls == ["cache"]
+    assert data.stock_scores[0]["source"] == "cache"
 
 
 @pytest.mark.django_db

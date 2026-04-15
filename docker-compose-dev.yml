@@ -2,8 +2,6 @@
 # 仅包含 PostgreSQL 和 Redis，Django 应用在本地运行
 # 适用于 Windows 开发环境
 
-version: '3.8'
-
 services:
   # PostgreSQL 数据库
   postgres:

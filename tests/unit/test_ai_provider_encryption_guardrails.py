@@ -61,3 +61,38 @@ def test_repository_returns_empty_for_invalid_encrypted_api_key(settings):
     )
 
     assert repo.get_api_key(provider) == ""
+
+
+@pytest.mark.django_db
+def test_repository_filters_out_unusable_active_system_providers(settings):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+    repo = AIProviderRepository()
+    wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
+
+    AIProviderConfig.objects.create(
+        name="guardrail-invalid-system-provider",
+        provider_type="custom",
+        base_url="https://invalid.example.invalid/v1",
+        api_key="",
+        api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
+        default_model="gpt-4o-mini",
+        api_mode="dual",
+        fallback_enabled=True,
+        is_active=True,
+        priority=1,
+    )
+    valid = repo.create(
+        name="guardrail-valid-system-provider",
+        provider_type="custom",
+        base_url="https://valid.example.invalid/v1",
+        api_key="sk-valid",
+        default_model="gpt-4o-mini",
+        api_mode="dual",
+        fallback_enabled=True,
+        is_active=True,
+        priority=2,
+    )
+
+    providers = repo.get_active_configured_system_providers()
+
+    assert [provider.id for provider in providers] == [valid.id]

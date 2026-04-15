@@ -15,6 +15,7 @@ from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
@@ -183,28 +184,28 @@ class TestCacheAlphaProvider:
         assert provider.priority == 10
         assert provider.max_staleness_days == 5
 
-    @patch("apps.alpha.infrastructure.adapters.cache_adapter.AlphaScoreCacheModel")
-    def test_get_stock_scores_from_cache(self, mock_model):
+    @pytest.mark.django_db
+    def test_get_stock_scores_from_cache(self):
         """测试从缓存获取评分"""
-        # 设置 Mock
-        mock_cache = Mock()
-        mock_cache.intended_trade_date = date.today()
-        mock_cache.asof_date = date.today()
-        mock_cache.provider_source = "cache"
-        mock_cache.get_staleness_days.return_value = 0
-        mock_cache.scores = [
-            {
-                "code": "000001.SH",
-                "score": 0.8,
-                "rank": 1,
-                "factors": {},
-                "source": "cache",
-                "confidence": 0.8
-            }
-        ]
-        mock_cache.created_at = date.today()
-
-        mock_model.objects.filter.return_value.order_by.return_value.first.return_value = mock_cache
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=date.today(),
+            provider_source="qlib",
+            asof_date=date.today(),
+            model_id="model-current",
+            model_artifact_hash="hash-current",
+            scores=[
+                {
+                    "code": "000001.SH",
+                    "score": 0.8,
+                    "rank": 1,
+                    "factors": {},
+                    "source": "cache",
+                    "confidence": 0.8,
+                }
+            ],
+            status="available",
+        )
 
         provider = CacheAlphaProvider()
         result = provider.get_stock_scores("csi300", date.today())
@@ -213,16 +214,64 @@ class TestCacheAlphaProvider:
         assert len(result.scores) == 1
         assert result.scores[0].code == "000001.SH"
 
-    @patch("apps.alpha.infrastructure.adapters.cache_adapter.AlphaScoreCacheModel")
-    def test_no_cache_found(self, mock_model):
+    @pytest.mark.django_db
+    def test_no_cache_found(self):
         """测试没有找到缓存"""
-        mock_model.objects.filter.return_value.order_by.return_value.first.return_value = None
-
         provider = CacheAlphaProvider()
         result = provider.get_stock_scores("csi300", date.today())
 
         assert result.success is False
         assert "未找到" in result.error_message
+
+    @pytest.mark.django_db
+    def test_prefers_fresher_previous_cache_when_exact_match_is_stale(self):
+        provider = CacheAlphaProvider()
+        intended_trade_date = date(2026, 4, 15)
+
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=intended_trade_date,
+            provider_source="qlib",
+            asof_date=date(2026, 4, 3),
+            model_id="model-stale",
+            model_artifact_hash="hash-stale",
+            scores=[
+                {
+                    "code": "000001.SH",
+                    "score": 0.8,
+                    "rank": 1,
+                    "factors": {},
+                    "source": "cache",
+                    "confidence": 0.8,
+                }
+            ],
+            status="degraded",
+        )
+        AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=date(2026, 4, 14),
+            provider_source="qlib",
+            asof_date=date(2026, 4, 14),
+            model_id="model-fresh",
+            model_artifact_hash="hash-fresh",
+            scores=[
+                {
+                    "code": "000002.SH",
+                    "score": 0.9,
+                    "rank": 1,
+                    "factors": {},
+                    "source": "cache",
+                    "confidence": 0.9,
+                }
+            ],
+            status="available",
+        )
+
+        result = provider.get_stock_scores("csi300", intended_trade_date)
+
+        assert result.success is True
+        assert result.staleness_days == 1
+        assert result.scores[0].code == "000002.SH"
 
 
 class TestSimpleAlphaProvider:

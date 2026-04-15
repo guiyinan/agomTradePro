@@ -268,17 +268,18 @@ class GetDashboardDataUseCase:
             else self._format_asset_allocation(snapshot.positions)
         )
 
-        # 8. 生成AI建议
+        # 8. 获取政策环境信息
+        current_policy_level, current_policy_date, pending_review_count, recent_policies = (
+            self._get_policy_environment(user_id)
+        )
+
+        # 9. 生成AI建议
         ai_insights = self._generate_ai_insights(
             current_regime=current_regime,
             snapshot=snapshot,
             match_analysis=match_analysis,
             active_signals=active_signals,
-        )
-
-        # 9. 获取政策环境信息
-        current_policy_level, current_policy_date, pending_review_count, recent_policies = (
-            self._get_policy_environment(user_id)
+            policy_level=current_policy_level,
         )
 
         # 10. 生成资产配置建议（新增）
@@ -666,7 +667,7 @@ class GetDashboardDataUseCase:
             from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 
             provider_repo = AIProviderRepository()
-            provider = next(iter(provider_repo.get_active_providers()), None)
+            provider = next(iter(provider_repo.get_active_configured_system_providers()), None)
 
             if not provider:
                 # 如果没有配置 AI，使用数据库规则作为后备
@@ -675,11 +676,6 @@ class GetDashboardDataUseCase:
                 )
 
             api_key = provider_repo.get_api_key(provider)
-            if not api_key:
-                logger.info("AI provider %s 缺少可用 API Key，回退到规则建议", provider.name)
-                return self._enhanced_fallback_insights(
-                    current_regime, snapshot, match_analysis, active_signals, policy_level
-                )
 
             # 构建 API 请求
             api_url = _build_ai_api_url(provider.base_url)
@@ -1024,10 +1020,17 @@ class GetDashboardDataUseCase:
         current_policy_date = None
 
         try:
-            latest_event = policy_repo.get_latest_event()
-            if latest_event:
-                current_policy_level = latest_event.level.value
-                current_policy_date = latest_event.event_date
+            current_level = policy_repo.get_current_policy_level(date.today())
+            current_policy_level = current_level.value
+
+            latest_effective = (
+                PolicyLog._default_manager.filter(gate_effective=True)
+                .order_by("-event_date", "-effective_at")
+                .only("event_date")
+                .first()
+            )
+            if latest_effective:
+                current_policy_date = latest_effective.event_date
         except Exception:
             pass  # 政策信息获取失败不影响其他功能
 
@@ -1065,6 +1068,13 @@ class GetDashboardDataUseCase:
 
         return current_policy_level, current_policy_date, pending_review_count, recent_policies
 
+    @staticmethod
+    def _normalize_policy_level_for_strategy(policy_level: str | None) -> str | None:
+        """Convert dashboard policy states into strategy-supported levels."""
+        if policy_level in {"P0", "P1", "P2", "P3"}:
+            return policy_level
+        return None
+
     def _generate_allocation_advice(
         self,
         current_regime: str,
@@ -1079,12 +1089,13 @@ class GetDashboardDataUseCase:
 
             # 获取用户风险偏好
             risk_profile = _risk_tolerance_value(profile.risk_tolerance)
+            effective_policy_level = self._normalize_policy_level_for_strategy(policy_level)
 
             # 调用AllocationService计算建议
             advice = AllocationService.calculate_allocation_advice(
                 current_regime=current_regime,
                 risk_profile=risk_profile,
-                policy_level=policy_level,
+                policy_level=effective_policy_level,
                 total_assets=total_assets,
                 current_positions=positions,
             )

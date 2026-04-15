@@ -1109,3 +1109,39 @@ def update_all_prices_after_close(self, account_id: int | None = None) -> dict[s
             'success': False,
             'error': str(e),
         }
+
+
+@shared_task(name="apps.simulated_trading.application.tasks.update_position_prices_task")
+def update_position_prices_task_alias(account_id: int | None = None) -> dict[str, Any]:
+    """Backwards-compatible alias for beat entries using dotted task paths."""
+    return update_position_prices_task.run(account_id=account_id)
+
+
+@shared_task(name="apps.simulated_trading.application.tasks.calculate_all_performance_task")
+def calculate_all_performance_task_alias(trade_date: str | None = None) -> dict[str, Any]:
+    """Backwards-compatible alias for beat entries using dotted task paths."""
+    return calculate_all_performance_task.run(trade_date=trade_date)
+
+
+@shared_task(name="apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task")
+def cleanup_inactive_accounts_task_alias(inactive_days: int = 180) -> dict[str, Any]:
+    """Backwards-compatible alias for beat entries using dotted task paths."""
+    return cleanup_inactive_accounts_task.run(inactive_days=inactive_days)
+
+
+@shared_task(name="apps.simulated_trading.application.tasks.send_performance_summary_task")
+def send_performance_summary_task_alias(account_ids: list | None = None) -> dict[str, Any]:
+    """Backwards-compatible alias for beat entries using dotted task paths."""
+    return send_performance_summary_task.run(account_ids=account_ids)
+
+
+@shared_task(name="apps.simulated_trading.application.tasks.check_position_invalidation_task")
+def check_position_invalidation_task_alias() -> dict[str, Any]:
+    """Backwards-compatible alias for beat entries using dotted task paths."""
+    return check_position_invalidation_task.run()
+
+
+@shared_task(name="apps.simulated_trading.application.tasks.notify_invalidated_positions_task")
+def notify_invalidated_positions_task_alias() -> dict[str, Any]:
+    """Backwards-compatible alias for beat entries using dotted task paths."""
+    return notify_invalidated_positions_task.run()

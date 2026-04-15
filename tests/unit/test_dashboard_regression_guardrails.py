@@ -95,6 +95,40 @@ def test_dashboard_use_case_generates_allocation_advice_for_domain_profile():
 
 
 @pytest.mark.django_db
+def test_dashboard_use_case_ignores_pending_policy_for_allocation_advice():
+    user = get_user_model().objects.create_user(
+        username="allocation_pending_policy_user",
+        password="x",
+    )
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
+
+    profile = AccountProfile(
+        user_id=user.id,
+        display_name=user.username,
+        initial_capital=Decimal("1000000.00"),
+        risk_tolerance=RiskTolerance.MODERATE,
+        created_at=datetime.now(),
+    )
+
+    advice = use_case._generate_allocation_advice(
+        current_regime="Recovery",
+        policy_level="PX",
+        profile=profile,
+        total_assets=1000000.0,
+        positions=[],
+    )
+
+    assert advice is not None
+    assert advice["target_allocation"]["equity"] > 0
+
+
+@pytest.mark.django_db
 def test_dashboard_ai_insights_uses_ai_provider_config_model(monkeypatch):
     use_case = GetDashboardDataUseCase(
         account_repo=AccountRepository(),
@@ -209,6 +243,85 @@ def test_dashboard_ai_insights_falls_back_when_encrypted_key_is_invalid(settings
     )
 
     assert insights
+
+
+@pytest.mark.django_db
+def test_dashboard_ai_insights_skips_invalid_provider_when_later_provider_is_usable(
+    settings,
+    monkeypatch,
+):
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
+    wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
+
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
+
+    AIProviderConfig.objects.create(
+        name="dashboard-invalid-encrypted-provider",
+        provider_type="deepseek",
+        is_active=True,
+        priority=1,
+        base_url="https://invalid.example.test/v1",
+        api_key="",
+        api_key_encrypted=wrong_service.encrypt("sk-invalid-for-current-key"),
+        default_model="deepseek-chat",
+    )
+    AIProviderConfig.objects.create(
+        name="dashboard-valid-provider",
+        provider_type="openai",
+        is_active=True,
+        priority=2,
+        base_url="https://valid.example.test/v1",
+        api_key="test-key",
+        default_model="gpt-4o-mini",
+    )
+
+    class DummySnapshot:
+        total_value = Decimal("1000000")
+        total_return_pct = 5.0
+        positions = []
+
+        @staticmethod
+        def get_invested_ratio():
+            return 0.4
+
+    class DummyMatch:
+        total_match_score = 80.0
+        hostile_assets = []
+
+    class DummyResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "choices": [
+                    {"message": {"content": "1. 保持均衡配置\n2. 维持纪律执行"}}
+                ]
+            }
+
+    def fake_post(url, headers, json, timeout):
+        assert url == "https://valid.example.test/v1/chat/completions"
+        assert headers["Authorization"] == "Bearer test-key"
+        return DummyResponse()
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    insights = use_case._generate_ai_insights(
+        current_regime="Recovery",
+        snapshot=DummySnapshot(),
+        match_analysis=DummyMatch(),
+        active_signals=[],
+        policy_level="P0",
+    )
+
+    assert insights
+    assert "保持均衡配置" in insights[0]
 
 
 @pytest.mark.django_db

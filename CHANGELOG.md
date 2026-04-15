@@ -51,6 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 Dashboard 首页将待分类政策 `PX` 直接传入策略配置矩阵导致告警与建议失败的问题；当前政策环境改为读取已生效档位，待分类事件不再污染首页配置建议
+- 修复 Dashboard Alpha 榜单默认路径会优先触发 Qlib 健康检查与冷启动的问题；首页现改为优先走 cache/simple/etf 快速路径，避免登录后首屏长时间阻塞
+- 修复 Celery Worker 未自动注册 `apps.regime.application.orchestration.*`、`apps.equity.application.tasks_valuation_sync.*` 以及若干 legacy dotted task 名称的问题；旧 beat 配置不再触发 `Received unregistered task`
+- 修复 AI provider 在当前环境不可解密时仍会被运行时优先命中的问题；统一 AI 路由、Dashboard 和情感分析现在会自动跳过无可用凭据的 provider
+- 修复 Pulse 默认指标配置与当前开发库宏观数据不一致导致的稳定性告警；默认映射已切到现有可用指标，`init_pulse_config --force` 也会停用旧指标码
+- 清理 `docker-compose.yml` 与 `docker-compose-dev.yml` 顶层过时 `version` 字段，消除 Docker Compose v2 启动警告
+- 修复 Alpha cache provider 在“当天精确缓存更旧”时仍压住更近历史缓存的问题；Dashboard 读取缓存时现会优先选择较新的 `asof_date`
 - 修复 `/dashboard/` 在月度快照 `total_value=0` 时触发 `ZeroDivisionError` 的问题，并补充回归测试
 - 修复 `/admin/account/systemsettingsmodel/` 单例入口错误调用 `ModelAdmin.change_view()` 导致 `TypeError` 的问题，并补充回归测试
 - 调整本地 Playwright UAT 巡检脚本：`Equity` 改为命中 canonical 页面，且 Django debug 500 页不再被误判为通过

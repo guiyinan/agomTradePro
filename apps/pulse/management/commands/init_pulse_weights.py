@@ -1,4 +1,6 @@
 from django.core.management.base import BaseCommand
+
+from apps.pulse.infrastructure.data_provider import DEFAULT_PULSE_INDICATORS
 from apps.pulse.infrastructure.models import PulseWeightConfig, PulseIndicatorWeight
 
 class Command(BaseCommand):
@@ -21,24 +23,15 @@ class Command(BaseCommand):
 
         # 2. 从 Phase 3 推荐构建维度内指标权重（等权处理维度内各项，维度总分通过 PulseConfig 处理）
         # 这里只将指标配置进去。指标权重默认=1.0。
-        indicators = [
-            ("CN_TERM_SPREAD_10Y2Y", "growth"),
-            ("CN_NEW_CREDIT", "growth"),
-            ("CN_NHCI", "inflation"),
-            ("CN_SHIBOR", "liquidity"),
-            ("CN_CREDIT_SPREAD", "liquidity"),
-            ("CN_M2", "liquidity"),
-            ("CN_DR007", "liquidity"),
-            ("CN_PBOC_NET_INJECTION", "liquidity"),
-            ("VIX_INDEX", "sentiment"),
-            ("USD_INDEX", "sentiment"),
-        ]
-
-        for code, dim in indicators:
+        for indicator in DEFAULT_PULSE_INDICATORS:
             PulseIndicatorWeight.objects.get_or_create(
                 config=config,
-                indicator_code=code,
-                defaults={"dimension": dim, "weight": 1.0, "is_enabled": True}
+                indicator_code=indicator.code,
+                defaults={
+                    "dimension": indicator.dimension,
+                    "weight": 1.0,
+                    "is_enabled": True,
+                }
             )
 
         self.stdout.write(self.style.SUCCESS("初始化完成。指标权重已同步。"))

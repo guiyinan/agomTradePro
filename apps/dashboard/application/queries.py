@@ -84,17 +84,21 @@ class AlphaVisualizationQuery:
             from apps.alpha.application.services import AlphaService
 
             service = AlphaService()
-            result = service.get_stock_scores(
-                universe_id="csi300",
-                intended_trade_date=date.today(),
-                top_n=top_n,
-                user=user,
-            )
-
-            if result.success and result.scores:
-                code_to_name = self._resolve_security_names(
-                    [score.code for score in result.scores[:top_n]]
+            result = None
+            for provider_name in ("cache", "simple", "etf"):
+                candidate = service.get_stock_scores(
+                    universe_id="csi300",
+                    intended_trade_date=date.today(),
+                    top_n=top_n,
+                    user=user,
+                    provider_filter=provider_name,
                 )
+                result = candidate
+                if candidate.success and candidate.scores:
+                    break
+
+            if result and result.success and result.scores:
+                code_to_name = self._resolve_security_names([score.code for score in result.scores[:top_n]])
                 return {
                     "items": [
                         {
@@ -113,7 +117,13 @@ class AlphaVisualizationQuery:
                 }
             return {
                 "items": [],
-                "meta": self._build_stock_scores_meta(result),
+                "meta": self._build_stock_scores_meta(result) if result else {
+                    "status": "error",
+                    "source": "none",
+                    "warning_message": "alpha_stock_scores_unavailable",
+                    "is_degraded": True,
+                    "uses_cached_data": False,
+                },
             }
         except Exception as e:
             logger.warning(f"Failed to get alpha stock scores: {e}")
