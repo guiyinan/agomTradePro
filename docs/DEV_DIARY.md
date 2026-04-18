@@ -732,6 +732,17 @@ Remove fake data generation from Alpha providers
 
 ---
 
+## 2026-04-18 补充记录 | Nightly CI 可靠性修复
+
+- 现象：`Nightly Tests` 的 unit 步骤在 GitHub Actions 上卡到 98% 后出现 `node down: Not properly terminated`
+- 根因：`pytest-xdist` worker 在 hosted runner 上异常退出，主进程继续等待，最终被 step timeout 杀掉
+- 处理：nightly 的 unit 步骤改为串行执行，保留 `pytest-timeout`，并补充 `faulthandler_timeout`
+- 结果：本地用同等 coverage 参数串行复跑，`3592 passed, 4 skipped`，耗时约 4 分 32 秒，明显低于 25 分钟上限
+
+这类问题不是业务逻辑失败，而是测试运行器稳定性问题。Nightly 更重视可重复和可诊断，先保证稳定跑完，再考虑并行提速。
+
+---
+
 ## 下一步计划
 
 - 更多 AI Agent 集成
