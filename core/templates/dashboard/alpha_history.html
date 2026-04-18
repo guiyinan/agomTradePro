@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}Alpha 推荐历史{% endblock %}
+
+{% block content %}
+<section class="content-card" style="margin: 24px auto; max-width: 1080px;">
+    <div class="section-header">
+        <div>
+            <h2 class="section-title">Alpha 推荐历史</h2>
+            <p class="text-muted">支持按组合、阶段与来源回看历史候选和理由。</p>
+        </div>
+        <a href="{% url 'dashboard:index' %}" class="section-link">返回首页</a>
+    </div>
+
+    {% if history_runs %}
+    <div class="alpha-history-page-list">
+        {% for run in history_runs %}
+        <article class="alpha-history-page-item">
+            <div class="alpha-history-page-main">
+                <strong>{{ run.trade_date }}</strong>
+                <span>{{ run.scope_label }}</span>
+            </div>
+            <div class="alpha-history-page-meta">
+                <span>来源 {{ run.source }}</span>
+                <span>{{ run.provider_source }}</span>
+                {% if run.effective_asof_date %}<span>评分日 {{ run.effective_asof_date }}</span>{% endif %}
+                <span>{% if run.uses_cached_data %}缓存{% else %}实时优先{% endif %}</span>
+            </div>
+            {% if run.cache_reason %}
+            <div class="alpha-history-page-text">{{ run.cache_reason }}</div>
+            {% endif %}
+            <div class="alpha-history-page-actions">
+                <button
+                    type="button"
+                    class="alpha-history-detail-btn"
+                    data-run-id="{{ run.id }}"
+                    data-detail-url="{% url 'api_dashboard:alpha_history_detail' run.id %}"
+                    onclick="loadAlphaHistoryDetail(this)"
+                >
+                    查看详情
+                </button>
+                <a href="{% url 'api_dashboard:alpha_history_detail' run.id %}" target="_blank" rel="noopener">打开 JSON</a>
+            </div>
+            <div id="alpha-history-detail-{{ run.id }}" class="alpha-history-detail" hidden></div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🗂️</div>
+        <p>暂无 Alpha 推荐历史。</p>
+    </div>
+    {% endif %}
+</section>
+
+<style>
+.alpha-history-page-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.alpha-history-page-item {
+    border: 1px solid #dde6f0;
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: #fff;
+}
+
+.alpha-history-page-main,
+.alpha-history-page-meta {
+    display: flex;
+    gap: 10px 14px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.alpha-history-page-meta,
+.alpha-history-page-text,
+.alpha-history-page-actions a {
+    font-size: 13px;
+    color: #556274;
+}
+
+.alpha-history-page-actions a {
+    color: #164ca1;
+    text-decoration: none;
+}
+
+.alpha-history-page-actions a:hover {
+    text-decoration: underline;
+}
+
+.alpha-history-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.alpha-history-detail-btn,
+.alpha-history-copy-btn {
+    border: 1px solid #c8d6e8;
+    border-radius: 8px;
+    background: #f8fbff;
+    color: #164ca1;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 10px;
+}
+
+.alpha-history-detail-btn:hover,
+.alpha-history-copy-btn:hover {
+    background: #eef5ff;
+}
+
+.alpha-history-detail {
+    margin-top: 14px;
+    border-top: 1px solid #e6edf5;
+    padding-top: 14px;
+}
+
+.alpha-history-detail-summary,
+.alpha-history-snapshot-card,
+.alpha-history-json-block {
+    border: 1px solid #e6edf5;
+    border-radius: 12px;
+    background: #fbfcfe;
+    padding: 12px;
+}
+
+.alpha-history-detail-summary {
+    display: flex;
+    gap: 10px 14px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #425164;
+}
+
+.alpha-history-snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.alpha-history-snapshot-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.alpha-history-snapshot-head,
+.alpha-history-snapshot-meta {
+    display: flex;
+    gap: 8px 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.alpha-history-snapshot-head strong {
+    color: #122c57;
+}
+
+.alpha-history-stage {
+    border-radius: 999px;
+    background: #eef3ff;
+    color: #3756a4;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 8px;
+}
+
+.alpha-history-snapshot-meta,
+.alpha-history-reason-list {
+    font-size: 12px;
+    color: #556274;
+}
+
+.alpha-history-reason-list {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.alpha-history-json-block {
+    margin-top: 12px;
+}
+
+.alpha-history-json-block summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #164ca1;
+}
+
+.alpha-history-json-text {
+    width: 100%;
+    min-height: 180px;
+    margin-top: 10px;
+    border: 1px solid #d9e3ef;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+    resize: vertical;
+}
+</style>
+<script>
+function escapeAlphaHistoryHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderAlphaHistoryReasonList(items, emptyText) {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) {
+        return `<li>${escapeAlphaHistoryHtml(emptyText)}</li>`;
+    }
+    return list.slice(0, 4).map((item) => {
+        const text = item && typeof item === 'object'
+            ? (item.text || item.summary || JSON.stringify(item))
+            : item;
+        return `<li>${escapeAlphaHistoryHtml(text)}</li>`;
+    }).join('');
+}
+
+function renderAlphaHistorySnapshot(snapshot) {
+    const title = `${snapshot.code || '-'} ${snapshot.name || ''}`.trim();
+    return `
+        <article class="alpha-history-snapshot-card">
+            <div class="alpha-history-snapshot-head">
+                <strong>${escapeAlphaHistoryHtml(title)}</strong>
+                <span class="alpha-history-stage">${escapeAlphaHistoryHtml(snapshot.stage || '-')}</span>
+            </div>
+            <div class="alpha-history-snapshot-meta">
+                <span>排名 #${escapeAlphaHistoryHtml(snapshot.rank ?? '-')}</span>
+                <span>评分 ${escapeAlphaHistoryHtml(snapshot.alpha_score ?? '-')}</span>
+                <span>置信度 ${escapeAlphaHistoryHtml(snapshot.confidence ?? '-')}</span>
+                <span>风控 ${escapeAlphaHistoryHtml(snapshot.gate_status || '-')}</span>
+            </div>
+            <div>
+                <strong>买入理由</strong>
+                <ul class="alpha-history-reason-list">
+                    ${renderAlphaHistoryReasonList(snapshot.buy_reasons, '暂无买入理由。')}
+                </ul>
+            </div>
+            <div>
+                <strong>不买理由</strong>
+                <ul class="alpha-history-reason-list">
+                    ${renderAlphaHistoryReasonList(snapshot.no_buy_reasons, '当前无明显阻断项。')}
+                </ul>
+            </div>
+            <div class="alpha-history-snapshot-meta">
+                <span>建议仓位 ${escapeAlphaHistoryHtml(snapshot.suggested_position_pct ?? 0)}%</span>
+                <span>金额 ${escapeAlphaHistoryHtml(snapshot.suggested_notional ?? 0)}</span>
+                <span>数量 ${escapeAlphaHistoryHtml(snapshot.suggested_quantity ?? 0)}</span>
+            </div>
+            <div class="alpha-history-page-text">
+                证伪条件：${escapeAlphaHistoryHtml((snapshot.invalidation_rule || {}).summary || '暂无证伪条件。')}
+            </div>
+        </article>
+    `;
+}
+
+async function loadAlphaHistoryDetail(button) {
+    const runId = button.dataset.runId;
+    const target = document.getElementById(`alpha-history-detail-${runId}`);
+    if (!target) {
+        return;
+    }
+
+    if (target.dataset.loaded === 'true') {
+        target.hidden = !target.hidden;
+        button.textContent = target.hidden ? '查看详情' : '收起详情';
+        return;
+    }
+
+    target.hidden = false;
+    target.innerHTML = '<div class="alpha-history-page-text">正在加载详情...</div>';
+    button.disabled = true;
+
+    try {
+        const response = await fetch(button.dataset.detailUrl, {
+            headers: { 'Accept': 'application/json' },
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+
+        const detail = payload.data;
+        const snapshots = Array.isArray(detail.snapshots) ? detail.snapshots : [];
+        const rawJson = JSON.stringify(detail, null, 2);
+        target.innerHTML = `
+            <div class="alpha-history-detail-summary">
+                <span>组合 ${escapeAlphaHistoryHtml(detail.portfolio_name || '-')}</span>
+                <span>交易日 ${escapeAlphaHistoryHtml(detail.trade_date || '-')}</span>
+                <span>范围 ${escapeAlphaHistoryHtml(detail.scope_label || '-')}</span>
+                <span>来源 ${escapeAlphaHistoryHtml(detail.source || '-')}</span>
+                <span>${detail.uses_cached_data ? '缓存结果' : '实时优先'}</span>
+            </div>
+            <div class="alpha-history-snapshot-grid">
+                ${snapshots.map(renderAlphaHistorySnapshot).join('') || '<div class="alpha-history-page-text">本次记录没有候选快照。</div>'}
+            </div>
+            <details class="alpha-history-json-block">
+                <summary>JSON 原文</summary>
+                <textarea id="alpha-history-json-${escapeAlphaHistoryHtml(runId)}" class="alpha-history-json-text" readonly>${escapeAlphaHistoryHtml(rawJson)}</textarea>
+                <button type="button" class="alpha-history-copy-btn" onclick="copyAlphaHistoryJson('${escapeAlphaHistoryHtml(runId)}', this)">复制 JSON</button>
+            </details>
+        `;
+        target.dataset.loaded = 'true';
+        button.textContent = '收起详情';
+    } catch (error) {
+        target.innerHTML = `<div class="alpha-history-page-text">加载失败：${escapeAlphaHistoryHtml(error.message)}</div>`;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function copyAlphaHistoryJson(runId, button) {
+    const textarea = document.getElementById(`alpha-history-json-${runId}`);
+    if (!textarea) {
+        return;
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textarea.value);
+    } else {
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        textarea.setSelectionRange(0, 0);
+    }
+    button.textContent = '已复制';
+    setTimeout(() => {
+        button.textContent = '复制 JSON';
+    }, 1600);
+}
+</script>
+{% endblock %}

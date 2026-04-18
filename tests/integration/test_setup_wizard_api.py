@@ -8,12 +8,49 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client
-from django.urls import reverse
 
-from apps.setup_wizard.domain.entities import SetupStatus, WizardStep
+from apps.setup_wizard.domain.entities import WizardStep
 
 User = get_user_model()
+
+
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
+def _assert_wizard_page_contract(response, *step_fragments: str) -> str:
+    common_fragments = (
+        "系统初始化向导 - AgomTradePro",
+        'class="setup-progress"',
+        "step-label\">欢迎<",
+        "step-label\">管理员<",
+        "step-label\">AI 配置<",
+        "step-label\">数据源<",
+        "step-label\">完成<",
+        "/setup/api/password-strength/",
+    )
+    return _assert_html_contract(response, *common_fragments, *step_fragments)
+
+
+def _assert_auth_page_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "系统初始化 - AgomTradePro",
+        "验证管理员身份",
+        "管理员密码",
+        'action="/setup/auth/"',
+        "返回首页",
+    )
 
 
 @pytest.mark.django_db
@@ -30,7 +67,14 @@ class TestSetupWizardViews:
             mock_use_case.return_value.execute.return_value = mock_result
 
             response = client.get("/setup/")
-            assert response.status_code == 200
+            _assert_wizard_page_contract(
+                response,
+                "欢迎使用 AgomTradePro",
+                "Regime 判定引擎",
+                "政策闸门过滤",
+                'action="/setup/step/welcome/"',
+                "开始配置",
+            )
 
     def test_auth_view_get(self, client):
         response = client.get("/setup/auth/")
@@ -186,7 +230,7 @@ class TestSetupWizardSecurity:
                 mock_check.return_value.execute.return_value = mock_result
 
                 response = client.get("/setup/")
-                assert response.status_code == 200
+                _assert_auth_page_contract(response)
 
     def test_auth_with_wrong_password(self, client):
         with patch(
@@ -199,7 +243,8 @@ class TestSetupWizardSecurity:
                 data={"password": "wrongpassword"},
                 follow=True,
             )
-            assert response.status_code in [200, 302]
+            content = _assert_auth_page_contract(response)
+            assert "密码错误" in content
 
     def test_auth_with_correct_password(self, client):
         with patch(
@@ -212,7 +257,12 @@ class TestSetupWizardSecurity:
                 data={"password": "correctpassword"},
                 follow=True,
             )
-            assert response.status_code in [200, 302]
+            _assert_wizard_page_contract(
+                response,
+                "欢迎使用 AgomTradePro",
+                'action="/setup/step/welcome/"',
+                "开始配置",
+            )
             assert client.session["setup_wizard_authenticated"] is True
             assert client.session["setup_wizard"]["current_step"] == "welcome"
 
@@ -253,4 +303,12 @@ class TestSetupWizardCompleteFlow:
                 mock_check.return_value.execute.return_value = mock_result
 
                 response = client.get("/setup/")
-                assert response.status_code in [200, 302]
+                if step_info[1]:
+                    _assert_auth_page_contract(response)
+                else:
+                    _assert_wizard_page_contract(
+                        response,
+                        "欢迎使用 AgomTradePro",
+                        'action="/setup/step/welcome/"',
+                        "开始配置",
+                    )

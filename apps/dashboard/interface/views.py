@@ -30,6 +30,7 @@ from apps.account.infrastructure.repositories import (
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.queries import (
     get_alpha_decision_chain_query,
+    get_alpha_homepage_query,
     get_alpha_visualization_query,
     get_dashboard_detail_query,
     get_decision_plane_query,
@@ -40,6 +41,46 @@ from apps.signal.infrastructure.repositories import DjangoSignalRepository
 from core.cache_utils import CACHE_TTL, cached_api
 
 logger = logging.getLogger(__name__)
+
+
+def _get_request_user_id(user) -> int | None:
+    """Return a stable numeric user identifier when available."""
+    user_id = getattr(user, "id", None)
+    if user_id in (None, ""):
+        user_id = getattr(user, "pk", None)
+    try:
+        return int(user_id) if user_id not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_alpha_decision_chain_overview(
+    top_candidates: list[dict],
+    actionable_candidates: list[dict],
+    pending_requests: list[dict],
+) -> dict:
+    """Build workflow summary counts from the account-driven Alpha payload."""
+    top_ranked_count = len(top_candidates)
+    top10_actionable_count = sum(1 for item in top_candidates if item.get("stage") == "actionable")
+    top10_pending_count = sum(1 for item in top_candidates if item.get("stage") == "pending")
+    top10_rank_only_count = max(top_ranked_count - top10_actionable_count - top10_pending_count, 0)
+    actionable_outside_top10_count = max(len(actionable_candidates) - top10_actionable_count, 0)
+    pending_outside_top10_count = max(len(pending_requests) - top10_pending_count, 0)
+    actionable_total = top10_actionable_count + actionable_outside_top10_count
+    pending_total = top10_pending_count + pending_outside_top10_count
+    denominator = top_ranked_count or 1
+    return {
+        "top_ranked_count": top_ranked_count,
+        "actionable_count": actionable_total,
+        "pending_count": pending_total,
+        "top10_actionable_count": top10_actionable_count,
+        "top10_pending_count": top10_pending_count,
+        "top10_rank_only_count": top10_rank_only_count,
+        "actionable_outside_top10_count": actionable_outside_top10_count,
+        "pending_outside_top10_count": pending_outside_top10_count,
+        "actionable_conversion_pct": round((actionable_total / denominator) * 100, 2),
+        "pending_conversion_pct": round((pending_total / denominator) * 100, 2),
+    }
 
 
 def _build_dashboard_data(user_id: int):
@@ -369,14 +410,23 @@ def _build_browser_notification_context(navigator, pulse) -> dict:
 # Alpha 可视化数据获取函数（委托至 Query Services）
 # ========================================
 
-def _get_alpha_stock_scores_payload(top_n: int = 10, user=None) -> dict:
+def _get_alpha_stock_scores_payload(
+    top_n: int = 10,
+    user=None,
+    portfolio_id: int | None = None,
+) -> dict:
     """Return Alpha stock items plus reliability metadata."""
     try:
-        query = get_alpha_visualization_query()
-        data = query.execute(top_n=top_n, ic_days=30, user=user)
+        query = get_alpha_homepage_query()
+        data = query.execute(top_n=top_n, user=user, portfolio_id=portfolio_id)
         return {
-            "items": data.stock_scores,
-            "meta": data.stock_scores_meta,
+            "items": data.top_candidates,
+            "meta": data.meta,
+            "pool": data.pool,
+            "actionable_candidates": data.actionable_candidates,
+            "pending_requests": data.pending_requests,
+            "recent_runs": data.recent_runs,
+            "history_run_id": data.history_run_id,
         }
     except Exception as e:
         logger.warning(f"Failed to get alpha stock scores payload: {e}")
@@ -389,6 +439,11 @@ def _get_alpha_stock_scores_payload(top_n: int = 10, user=None) -> dict:
                 "is_degraded": True,
                 "uses_cached_data": False,
             },
+            "pool": {},
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "recent_runs": [],
+            "history_run_id": None,
         }
 
 
@@ -402,7 +457,50 @@ def _get_alpha_visualization_data(top_n: int = 10, ic_days: int = 30, user=None)
         return None
 
 
-def _get_alpha_stock_scores(top_n: int = 10, user=None) -> list:
+def _get_empty_alpha_metrics_data():
+    """Return empty Alpha metrics for degraded dashboard rendering."""
+    return SimpleNamespace(
+        stock_scores=[],
+        stock_scores_meta={},
+        provider_status={
+            "providers": {},
+            "metrics": {},
+            "timestamp": None,
+            "status": "degraded",
+            "data_source": "fallback",
+            "warning_message": "provider_status_unavailable",
+        },
+        coverage_metrics={
+            "coverage_ratio": 0.0,
+            "total_requests": 0,
+            "cache_hit_rate": 0.0,
+            "timestamp": None,
+            "status": "degraded",
+            "data_source": "fallback",
+            "warning_message": "coverage_metrics_unavailable",
+        },
+        ic_trends=[],
+        ic_trends_meta={
+            "status": "degraded",
+            "data_source": "fallback",
+            "warning_message": "ic_trends_unavailable",
+        },
+    )
+
+
+def _get_alpha_metrics_data(ic_days: int = 30):
+    """Return Alpha dashboard metrics without reloading stock recommendations."""
+    try:
+        query = get_alpha_visualization_query()
+        if hasattr(query, "execute_metrics"):
+            return query.execute_metrics(ic_days=ic_days)
+        return query.execute(top_n=0, ic_days=ic_days, user=None)
+    except Exception as e:
+        logger.warning(f"Failed to get alpha metrics data: {e}")
+        return _get_empty_alpha_metrics_data()
+
+
+def _get_alpha_stock_scores(top_n: int = 10, user=None, portfolio_id: int | None = None) -> list:
     """
     获取 Alpha 选股评分结果
 
@@ -410,12 +508,12 @@ def _get_alpha_stock_scores(top_n: int = 10, user=None) -> list:
     - 委托至 AlphaVisualizationQuery
     - 隐藏跨模块导入细节
     """
-    return _get_alpha_stock_scores_payload(top_n=top_n, user=user)["items"]
+    return _get_alpha_stock_scores_payload(top_n=top_n, user=user, portfolio_id=portfolio_id)["items"]
 
 
-def _get_alpha_stock_scores_meta(top_n: int = 10, user=None) -> dict:
+def _get_alpha_stock_scores_meta(top_n: int = 10, user=None, portfolio_id: int | None = None) -> dict:
     """Return stock-score reliability metadata for dashboard rendering."""
-    return _get_alpha_stock_scores_payload(top_n=top_n, user=user)["meta"]
+    return _get_alpha_stock_scores_payload(top_n=top_n, user=user, portfolio_id=portfolio_id)["meta"]
 
 
 def _get_alpha_provider_status(user=None) -> dict:
@@ -426,8 +524,7 @@ def _get_alpha_provider_status(user=None) -> dict:
     - 委托至 AlphaVisualizationQuery
     """
     try:
-        query = get_alpha_visualization_query()
-        data = query.execute(top_n=10, ic_days=30, user=user)
+        data = _get_alpha_metrics_data(ic_days=30)
         return data.provider_status
     except Exception as e:
         logger.warning(f"Failed to get alpha provider status: {e}")
@@ -449,8 +546,7 @@ def _get_alpha_coverage_metrics(user=None) -> dict:
     - 委托至 AlphaVisualizationQuery
     """
     try:
-        query = get_alpha_visualization_query()
-        data = query.execute(top_n=10, ic_days=30, user=user)
+        data = _get_alpha_metrics_data(ic_days=30)
         return data.coverage_metrics
     except Exception as e:
         logger.warning(f"Failed to get alpha coverage metrics: {e}")
@@ -473,8 +569,7 @@ def _get_alpha_ic_trends_payload(days: int = 30, user=None) -> dict:
     - 委托至 AlphaVisualizationQuery
     """
     try:
-        query = get_alpha_visualization_query()
-        data = query.execute(top_n=10, ic_days=days, user=user)
+        data = _get_alpha_metrics_data(ic_days=days)
         return {
             "items": data.ic_trends,
             "status": data.ic_trends_meta.get("status", "available"),
@@ -534,13 +629,20 @@ def _build_alpha_factor_panel(
     top_n: int = 10,
     scores: list[dict] | None = None,
     user=None,
+    portfolio_id: int | None = None,
 ) -> dict:
     """Build factor panel data for a single alpha stock."""
     selected = None
-    score_items = list(scores) if scores is not None else _get_alpha_stock_scores(
-        top_n=max(top_n, 10),
-        user=user,
-    )
+    if scores is not None:
+        score_items = list(scores)
+    elif portfolio_id is None:
+        score_items = _get_alpha_stock_scores(top_n=max(top_n, 10), user=user)
+    else:
+        score_items = _get_alpha_stock_scores(
+            top_n=max(top_n, 10),
+            user=user,
+            portfolio_id=portfolio_id,
+        )
     for item in score_items:
         if item.get("code") == stock_code:
             selected = item
@@ -632,6 +734,18 @@ def dashboard_view(request):
 
     # 补充用户名
     data.username = request.user.username
+    selected_portfolio_id = request.GET.get("portfolio_id")
+    if selected_portfolio_id not in (None, ""):
+        try:
+            selected_portfolio_id = _parse_positive_int_param(
+                selected_portfolio_id,
+                field_name="portfolio_id",
+                default=0,
+            )
+        except ValueError:
+            selected_portfolio_id = None
+    else:
+        selected_portfolio_id = None
 
     decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
     if decision_plane_data is None:
@@ -648,82 +762,31 @@ def dashboard_view(request):
             pending_requests=[],
         )
 
-    alpha_visualization_data = _get_alpha_visualization_data(
-        top_n=10,
-        ic_days=30,
-        user=request.user,
-    )
-    if alpha_visualization_data is None:
-        alpha_visualization_data = SimpleNamespace(
-            stock_scores=[],
-            stock_scores_meta={
-                "status": "error",
-                "source": "none",
-                "warning_message": "alpha_stock_scores_unavailable",
-                "is_degraded": True,
-                "uses_cached_data": False,
-            },
-            provider_status={
-                "providers": {},
-                "metrics": {},
-                "timestamp": None,
-                "status": "degraded",
-                "data_source": "fallback",
-                "warning_message": "provider_status_unavailable",
-            },
-            coverage_metrics={
-                "coverage_ratio": 0.0,
-                "total_requests": 0,
-                "cache_hit_rate": 0.0,
-                "timestamp": None,
-                "status": "degraded",
-                "data_source": "fallback",
-                "warning_message": "coverage_metrics_unavailable",
-            },
-            ic_trends=[],
-        )
+    alpha_metrics_data = _get_alpha_metrics_data(ic_days=30)
 
-    alpha_decision_chain = _get_alpha_decision_chain_data(
+    alpha_payload = _get_alpha_stock_scores_payload(
         top_n=10,
-        ic_days=30,
-        max_candidates=5,
-        max_pending=10,
         user=request.user,
-        alpha_visualization_data=alpha_visualization_data,
-        decision_plane_data=decision_plane_data,
+        portfolio_id=selected_portfolio_id,
     )
-    if alpha_decision_chain is None:
-        alpha_decision_chain = SimpleNamespace(
-            overview={
-                "top_ranked_count": len(alpha_visualization_data.stock_scores),
-                "actionable_count": len(decision_plane_data.actionable_candidates),
-                "actionable_total_count": decision_plane_data.alpha_actionable_count,
-                "pending_count": len(decision_plane_data.pending_requests),
-                "top10_actionable_count": 0,
-                "top10_pending_count": 0,
-                "top10_rank_only_count": len(alpha_visualization_data.stock_scores),
-                "actionable_outside_top10_count": len(decision_plane_data.actionable_candidates),
-                "pending_outside_top10_count": len(decision_plane_data.pending_requests),
-                "actionable_conversion_pct": 0.0,
-                "pending_conversion_pct": 0.0,
-                "requested_trade_date": alpha_visualization_data.stock_scores_meta.get(
-                    "requested_trade_date"
-                ),
-                "effective_asof_date": alpha_visualization_data.stock_scores_meta.get(
-                    "effective_asof_date"
-                ),
-            },
-            top_stocks=alpha_visualization_data.stock_scores,
-            actionable_candidates=decision_plane_data.actionable_candidates,
-            pending_requests=decision_plane_data.pending_requests,
-        )
-
-    actionable_candidates = alpha_decision_chain.actionable_candidates
-    pending_requests = alpha_decision_chain.pending_requests
-    alpha_stock_scores = alpha_decision_chain.top_stocks
-    alpha_stock_scores_meta = alpha_visualization_data.stock_scores_meta
+    workflow_actionable_candidates = decision_plane_data.actionable_candidates
+    workflow_pending_requests = decision_plane_data.pending_requests
+    alpha_actionable_candidates = alpha_payload["actionable_candidates"]
+    alpha_pending_requests = alpha_payload["pending_requests"]
+    alpha_stock_scores = alpha_payload["items"]
+    alpha_stock_scores_meta = alpha_payload["meta"]
+    alpha_decision_chain_overview = _build_alpha_decision_chain_overview(
+        top_candidates=alpha_stock_scores,
+        actionable_candidates=alpha_actionable_candidates,
+        pending_requests=alpha_pending_requests,
+    )
     initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
     investment_accounts = _get_dashboard_accounts(request.user)
+    try:
+        portfolio_options = PortfolioRepository().get_user_portfolios(request.user.id)
+    except Exception as e:
+        logger.warning(f"Failed to get portfolio options: {e}")
+        portfolio_options = []
     try:
         from apps.equity.application.config import get_valuation_repair_config_summary
         valuation_repair_config_summary = get_valuation_repair_config_summary(use_cache=False)
@@ -754,6 +817,7 @@ def dashboard_view(request):
         "total_return": data.total_return,
         "total_return_pct": data.total_return_pct,
         "investment_accounts": investment_accounts,
+        "portfolio_options": portfolio_options,
         "cash_balance": data.cash_balance,
         "invested_value": data.invested_value,
         "invested_ratio": data.invested_ratio,
@@ -783,21 +847,28 @@ def dashboard_view(request):
         "quota_used": decision_plane_data.quota_used,
         "quota_remaining": decision_plane_data.quota_remaining,
         "quota_usage_percent": decision_plane_data.quota_usage_percent,
-        "actionable_candidates": actionable_candidates,
-        "pending_requests": pending_requests,
-        "pending_count": len(pending_requests),
+        "actionable_candidates": workflow_actionable_candidates,
+        "pending_requests": workflow_pending_requests,
+        "pending_count": len(workflow_pending_requests),
+        "alpha_decision_chain_overview": alpha_decision_chain_overview,
         # Alpha 可视化数据（新增）
         "alpha_stock_scores": alpha_stock_scores,
         "alpha_stock_scores_meta": alpha_stock_scores_meta,
-        "alpha_decision_chain_overview": alpha_decision_chain.overview,
-        "alpha_provider_status": alpha_visualization_data.provider_status,
-        "alpha_coverage_metrics": alpha_visualization_data.coverage_metrics,
-        "alpha_ic_trends": alpha_visualization_data.ic_trends,
+        "alpha_actionable_candidates": alpha_actionable_candidates,
+        "alpha_pending_requests": alpha_pending_requests,
+        "alpha_pool": alpha_payload["pool"],
+        "alpha_recent_runs": alpha_payload["recent_runs"],
+        "alpha_history_run_id": alpha_payload["history_run_id"],
+        "selected_portfolio_id": selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
+        "alpha_provider_status": alpha_metrics_data.provider_status,
+        "alpha_coverage_metrics": alpha_metrics_data.coverage_metrics,
+        "alpha_ic_trends": alpha_metrics_data.ic_trends,
         "alpha_factor_panel": _build_alpha_factor_panel(
             initial_alpha_stock,
             top_n=10,
             scores=alpha_stock_scores,
             user=request.user,
+            portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
         ),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
@@ -1334,6 +1405,78 @@ def workflow_refresh_candidates(request):
 # ========================================
 
 @login_required(login_url="/account/login/")
+def alpha_refresh_htmx(request):
+    """Trigger a manual realtime Alpha refresh for today's dashboard universe."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    try:
+        top_n = _parse_positive_int_param(
+            request.POST.get("top_n", 10),
+            field_name="top_n",
+            default=10,
+        )
+        raw_portfolio_id = request.POST.get("portfolio_id")
+        portfolio_id = (
+            _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
+            if raw_portfolio_id not in (None, "")
+            else None
+        )
+
+        from apps.alpha.application.tasks import qlib_predict_scores
+        from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
+
+        user_id = _get_request_user_id(request.user)
+        raw_universe_id = str(request.POST.get("universe_id") or "").strip() or "csi300"
+        resolved_pool = None
+        if user_id is not None:
+            resolved_pool = PortfolioAlphaPoolResolver().resolve(
+                user_id=user_id,
+                portfolio_id=portfolio_id,
+                trade_date=date.today(),
+            )
+
+        if resolved_pool is None:
+            task = qlib_predict_scores.delay(raw_universe_id, date.today().isoformat(), top_n)
+            response_payload = {
+                "success": True,
+                "task_id": task.id,
+                "universe_id": raw_universe_id,
+                "portfolio_id": portfolio_id,
+                "scope_hash": None,
+                "requested_trade_date": date.today().isoformat(),
+                "message": "已触发 Alpha 实时刷新任务，请稍后刷新查看最新结果。",
+                "poll_after_ms": 5000,
+            }
+        else:
+            task = qlib_predict_scores.delay(
+                resolved_pool.scope.universe_id,
+                date.today().isoformat(),
+                top_n,
+                scope_payload=resolved_pool.scope.to_dict(),
+            )
+            response_payload = {
+                "success": True,
+                "task_id": task.id,
+                "universe_id": resolved_pool.scope.universe_id,
+                "portfolio_id": resolved_pool.portfolio_id,
+                "scope_hash": resolved_pool.scope.scope_hash,
+                "requested_trade_date": date.today().isoformat(),
+                "message": "已触发 Qlib 实时刷新任务，请稍后刷新查看最新结果。",
+                "poll_after_ms": 5000,
+            }
+        return JsonResponse(response_payload)
+    except ValueError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+    except Exception as exc:
+        logger.error("Failed to trigger alpha realtime refresh: %s", exc, exc_info=True)
+        return JsonResponse(
+            {"success": False, "error": f"触发 Alpha 实时刷新失败: {exc}"},
+            status=500,
+        )
+
+
+@login_required(login_url="/account/login/")
 def alpha_stocks_htmx(request):
     """
     HTMX Alpha 选股结果视图
@@ -1346,52 +1489,38 @@ def alpha_stocks_htmx(request):
             field_name='top_n',
             default=10,
         )
+        raw_portfolio_id = request.GET.get("portfolio_id")
+        portfolio_id = (
+            _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
+            if raw_portfolio_id not in (None, "")
+            else None
+        )
     except ValueError as exc:
         return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-    alpha_visualization_data = _get_alpha_visualization_data(
+    scores_payload = _get_alpha_stock_scores_payload(
         top_n=top_n,
-        ic_days=30,
         user=request.user,
+        portfolio_id=portfolio_id,
     )
-    decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
-    chain_data = _get_alpha_decision_chain_data(
-        top_n=top_n,
-        ic_days=30,
-        max_candidates=5,
-        max_pending=10,
-        user=request.user,
-        alpha_visualization_data=alpha_visualization_data,
-        decision_plane_data=decision_plane_data,
-    )
-    if chain_data is None:
-        scores_payload = _get_alpha_stock_scores_payload(top_n=top_n, user=request.user)
-        scores = scores_payload["items"]
-        meta = scores_payload["meta"]
-        overview = {
-            "top_ranked_count": len(scores),
-            "top10_actionable_count": 0,
-            "top10_pending_count": 0,
-            "top10_rank_only_count": len(scores),
-            "actionable_conversion_pct": 0.0,
-            "pending_conversion_pct": 0.0,
-        }
-    else:
-        scores = chain_data.top_stocks
-        overview = chain_data.overview
-        meta = (
-            alpha_visualization_data.stock_scores_meta
-            if alpha_visualization_data is not None
-            else _get_alpha_stock_scores_meta(top_n=top_n, user=request.user)
-        )
+    scores = scores_payload["items"]
+    meta = scores_payload["meta"]
+    pool = scores_payload["pool"]
+    actionable_candidates = scores_payload["actionable_candidates"]
+    pending_requests = scores_payload["pending_requests"]
+    recent_runs = scores_payload["recent_runs"]
 
     if request.GET.get("format") == "json":
         return JsonResponse(
             {
                 "success": True,
                 "data": {
-                    "items": scores,
+                    "top_candidates": scores,
+                    "actionable_candidates": actionable_candidates,
+                    "pending_requests": pending_requests,
                     "meta": meta,
-                    "overview": overview,
+                    "pool": pool,
+                    "recent_runs": recent_runs,
+                    "history_run_id": scores_payload["history_run_id"],
                     "count": len(scores),
                     "top_n": top_n,
                 },
@@ -1405,11 +1534,85 @@ def alpha_stocks_htmx(request):
     context = {
         'alpha_stocks': scores,
         'alpha_meta': meta,
-        'alpha_chain_overview': overview,
+        'alpha_pool': pool,
+        'alpha_actionable_candidates': actionable_candidates,
+        'alpha_pending_requests': pending_requests,
+        'alpha_recent_runs': recent_runs,
+        'alpha_history_run_id': scores_payload["history_run_id"],
+        'selected_portfolio_id': portfolio_id or pool.get("portfolio_id"),
         'top_n': top_n,
     }
 
     return render(request, 'dashboard/partials/alpha_stocks_table.html', context)
+
+
+@login_required(login_url="/account/login/")
+def alpha_history_page(request):
+    """Dashboard Alpha recommendation history page."""
+    portfolio_id = request.GET.get("portfolio_id")
+    stock_code = str(request.GET.get("stock_code") or "").strip().upper() or None
+    stage = str(request.GET.get("stage") or "").strip() or None
+    source = str(request.GET.get("source") or "").strip() or None
+    try:
+        parsed_portfolio_id = (
+            _parse_positive_int_param(portfolio_id, field_name="portfolio_id", default=0)
+            if portfolio_id not in (None, "")
+            else None
+        )
+    except ValueError:
+        parsed_portfolio_id = None
+    runs = get_alpha_homepage_query().list_history(
+        user_id=request.user.id,
+        portfolio_id=parsed_portfolio_id,
+        stock_code=stock_code,
+        stage=stage,
+        source=source,
+    )
+    context = {
+        "history_runs": runs,
+        "filters": {
+            "portfolio_id": parsed_portfolio_id,
+            "stock_code": stock_code or "",
+            "stage": stage or "",
+            "source": source or "",
+        },
+    }
+    return render(request, "dashboard/alpha_history.html", context)
+
+
+@login_required(login_url="/account/login/")
+def alpha_history_list_api(request):
+    """Return recommendation history list for the current user."""
+    portfolio_id = request.GET.get("portfolio_id")
+    trade_date_raw = request.GET.get("trade_date")
+    try:
+        parsed_portfolio_id = (
+            _parse_positive_int_param(portfolio_id, field_name="portfolio_id", default=0)
+            if portfolio_id not in (None, "")
+            else None
+        )
+        trade_date_value = date.fromisoformat(trade_date_raw) if trade_date_raw else None
+    except ValueError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+
+    runs = get_alpha_homepage_query().list_history(
+        user_id=request.user.id,
+        portfolio_id=parsed_portfolio_id,
+        stock_code=str(request.GET.get("stock_code") or "").strip().upper() or None,
+        stage=str(request.GET.get("stage") or "").strip() or None,
+        source=str(request.GET.get("source") or "").strip() or None,
+        trade_date=trade_date_value,
+    )
+    return JsonResponse({"success": True, "data": runs})
+
+
+@login_required(login_url="/account/login/")
+def alpha_history_detail_api(request, run_id: int):
+    """Return a single historical recommendation run detail."""
+    detail = get_alpha_homepage_query().get_history_detail(user_id=request.user.id, run_id=run_id)
+    if detail is None:
+        return JsonResponse({"success": False, "error": "历史记录不存在"}, status=404)
+    return JsonResponse({"success": True, "data": detail})
 
 
 @login_required(login_url="/account/login/")
@@ -1482,11 +1685,17 @@ def alpha_factor_panel_htmx(request):
 
     stock_code = (request.GET.get('code') or '').strip()
     source = (request.GET.get('source') or '').strip() or None
+    raw_portfolio_id = request.GET.get("portfolio_id")
     try:
         top_n = _parse_positive_int_param(
             request.GET.get('top_n', 10),
             field_name='top_n',
             default=10,
+        )
+        portfolio_id = (
+            _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
+            if raw_portfolio_id not in (None, "")
+            else None
         )
     except ValueError as exc:
         return JsonResponse({'success': False, 'error': str(exc)}, status=400)
@@ -1511,5 +1720,6 @@ def alpha_factor_panel_htmx(request):
         source=source,
         top_n=top_n,
         user=request.user,
+        portfolio_id=portfolio_id,
     )
     return render(request, 'dashboard/partials/alpha_factor_panel.html', context)

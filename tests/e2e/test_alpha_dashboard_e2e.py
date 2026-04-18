@@ -9,24 +9,48 @@ End-to-End Tests for Alpha Module + Dashboard Integration
 4. API 响应验证
 """
 
-from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import date, timedelta
 
 import pytest
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import Client
-from django.utils import timezone
-
-# Import Alpha models using Django's app registry (use full model name)
-AlphaScoreCacheModel = apps.get_model('alpha', 'AlphaScoreCacheModel')
-QlibModelRegistryModel = apps.get_model('alpha', 'QlibModelRegistryModel')
 
 from apps.alpha.application.services import AlphaService
 from apps.signal.application.unified_service import UnifiedSignalService
 from shared.infrastructure.metrics import get_alpha_metrics
 
+# Import Alpha models using Django's app registry (use full model name)
+AlphaScoreCacheModel = apps.get_model('alpha', 'AlphaScoreCacheModel')
+QlibModelRegistryModel = apps.get_model('alpha', 'QlibModelRegistryModel')
+
 User = get_user_model()
+
+
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_dashboard_alpha_contract(response) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in (
+        "AgomTradePro - 投资指挥中心",
+        "功能导航",
+        "决策模式状态",
+        "Alpha 候选/排名",
+        "Qlib",
+        "进入个股筛选",
+        "/api/dashboard/alpha/provider-status/",
+        "/api/dashboard/alpha/ic-trends/",
+        "/api/dashboard/alpha/stocks/",
+        "?source=dashboard-alpha",
+        "reloadAlphaStocksTable",
+    ):
+        assert fragment in content
+    return content
 
 
 @pytest.mark.django_db
@@ -108,11 +132,7 @@ class TestAlphaDashboardE2E:
         """测试 Dashboard 页面加载"""
         response = self.client.get('/dashboard/')
 
-        assert response.status_code == 200
-        content = response.content.decode('utf-8')
-        # Check for Alpha-related content
-        assert 'Alpha' in content or 'alpha' in content.lower()
-        assert 'Qlib' in content or 'qlib' in content.lower()
+        _assert_dashboard_alpha_contract(response)
 
     def test_dashboard_contains_alpha_data(self):
         """测试 Dashboard 包含 Alpha 数据"""
@@ -224,7 +244,7 @@ class TestAlphaDashboardE2E:
 
         # 3. 验证 Dashboard 能获取到数据
         response = self.client.get('/dashboard/')
-        assert response.status_code == 200
+        _assert_dashboard_alpha_contract(response)
 
     def test_provider_fallback_chain(self):
         """测试 Provider 降级链路"""
@@ -269,7 +289,7 @@ class TestAlphaDashboardE2E:
         result = signal_service.collect_all_signals(date.today())
 
         # 查询 Alpha 信号
-        alpha_signals = signal_service.get_unified_signals(
+        signal_service.get_unified_signals(
             signal_date=date.today(),
             signal_source="alpha"
         )

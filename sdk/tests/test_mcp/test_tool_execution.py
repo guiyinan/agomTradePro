@@ -15,7 +15,9 @@ class _FakeClient:
             create_provider=lambda payload: {"id": 2, **payload},
             update_provider=lambda provider_id, payload: {"id": provider_id, **payload},
             toggle_provider=lambda provider_id: {"id": provider_id, "is_active": True},
-            list_usage_logs=lambda provider_id=None, status=None: [{"provider_id": provider_id, "status": status}],
+            list_usage_logs=lambda provider_id=None, status=None: [
+                {"provider_id": provider_id, "status": status}
+            ],
         )
         self.prompt = SimpleNamespace(
             list_templates=lambda: [{"id": 1}],
@@ -67,7 +69,10 @@ class _FakeClient:
             get_current=lambda: {"composite_score": 0.2, "regime_strength": "moderate"},
             get_history=lambda limit=20: [{"limit": limit, "composite_score": 0.2}],
             get_navigator=lambda: {"regime_name": "Recovery", "movement": {"direction": "stable"}},
-            get_action_recommendation=lambda: {"risk_budget_pct": 0.7, "asset_weights": {"equity": 0.6}},
+            get_action_recommendation=lambda: {
+                "risk_budget_pct": 0.7,
+                "asset_weights": {"equity": 0.6},
+            },
         )
         self.beta_gate = SimpleNamespace(
             list_configs=lambda: [{"config_id": "c1"}],
@@ -99,28 +104,100 @@ class _FakeClient:
                 "actionable_candidates": [],
                 "pending_requests": [],
             },
+            alpha_stocks=lambda top_n=10, portfolio_id=None: {
+                "success": True,
+                "data": {
+                    "top_candidates": [],
+                    "pending_requests": [{"id": 1, "stock_code": "600519.SH"}],
+                    "meta": {
+                        "refresh_status": "queued",
+                        "async_task_id": "task-alpha-1",
+                        "poll_after_ms": 5000,
+                        "hardcoded_fallback_used": False,
+                        "no_recommendation_reason": "No account-scope Alpha cache.",
+                        "scope_hash": "scope-1",
+                    },
+                },
+                "contract": {
+                    "recommendation_ready": False,
+                    "must_not_treat_as_recommendation": True,
+                    "async_refresh_queued": True,
+                    "refresh_status": "queued",
+                    "async_task_id": "task-alpha-1",
+                    "poll_after_ms": 5000,
+                    "hardcoded_fallback_used": False,
+                },
+            },
+            alpha_refresh=lambda top_n=10, portfolio_id=None: {
+                "success": True,
+                "task_id": "task-alpha-refresh-1",
+                "contract": {
+                    "recommendation_ready": False,
+                    "must_not_treat_as_recommendation": True,
+                    "async_refresh_queued": True,
+                    "refresh_status": "queued",
+                    "async_task_id": "task-alpha-refresh-1",
+                    "poll_after_ms": 5000,
+                    "hardcoded_fallback_used": False,
+                },
+            },
             positions=lambda: {"positions": []},
             allocation=lambda: {"allocation": []},
         )
         self.simulated_trading = SimpleNamespace(
-            list_accounts=lambda status=None, account_type=None, limit=20: [{"id": 1, "status": status, "account_type": account_type, "limit": limit}],
+            list_accounts=lambda status=None, account_type=None, limit=20: [
+                {"id": 1, "status": status, "account_type": account_type, "limit": limit}
+            ],
             get_account=lambda account_id: {"id": account_id},
             delete_account=lambda account_id: {"success": True, "account_id": account_id},
-            batch_delete_accounts=lambda account_ids: {"success": True, "deleted_account_ids": account_ids},
-            create_account=lambda name, initial_capital, start_date: {"id": 2, "name": name, "initial_capital": initial_capital, "start_date": str(start_date)},
-            execute_trade=lambda account_id, asset_code, side, quantity, price=None: {"account_id": account_id, "asset_code": asset_code, "side": side, "quantity": quantity, "price": price},
+            batch_delete_accounts=lambda account_ids: {
+                "success": True,
+                "deleted_account_ids": account_ids,
+            },
+            create_account=lambda name, initial_capital, start_date: {
+                "id": 2,
+                "name": name,
+                "initial_capital": initial_capital,
+                "start_date": str(start_date),
+            },
+            execute_trade=lambda account_id, asset_code, side, quantity, price=None: {
+                "account_id": account_id,
+                "asset_code": asset_code,
+                "side": side,
+                "quantity": quantity,
+                "price": price,
+            },
             get_positions=lambda account_id: [{"account_id": account_id}],
             get_performance=lambda account_id: {"account_id": account_id},
-            reset_account=lambda account_id, new_initial_capital=None: {"account_id": account_id, "new_initial_capital": new_initial_capital},
-            close_position=lambda account_id, asset_code: {"account_id": account_id, "asset_code": asset_code},
-            run_daily_inspection=lambda account_id, strategy_id=None, inspection_date=None: {"account_id": account_id, "strategy_id": strategy_id, "inspection_date": inspection_date},
-            list_daily_inspections=lambda account_id, limit=20, inspection_date=None: {"account_id": account_id, "limit": limit, "inspection_date": inspection_date},
+            reset_account=lambda account_id, new_initial_capital=None: {
+                "account_id": account_id,
+                "new_initial_capital": new_initial_capital,
+            },
+            close_position=lambda account_id, asset_code: {
+                "account_id": account_id,
+                "asset_code": asset_code,
+            },
+            run_daily_inspection=lambda account_id, strategy_id=None, inspection_date=None: {
+                "account_id": account_id,
+                "strategy_id": strategy_id,
+                "inspection_date": inspection_date,
+            },
+            list_daily_inspections=lambda account_id, limit=20, inspection_date=None: {
+                "account_id": account_id,
+                "limit": limit,
+                "inspection_date": inspection_date,
+            },
         )
         self.account = SimpleNamespace(
             get_trading_cost_configs=lambda limit=100: [{"id": 1, "portfolio": 1, "limit": limit}],
-            list_accounts=lambda status=None, account_type=None, limit=20: [{"id": 1, "status": status}],
+            list_accounts=lambda status=None, account_type=None, limit=20: [
+                {"id": 1, "status": status}
+            ],
             get_account=lambda account_id: {"id": account_id},
-            create_account=lambda name, initial_capital, start_date, account_type=None: {"id": 2, "name": name},
+            create_account=lambda name, initial_capital, start_date, account_type=None: {
+                "id": 2,
+                "name": name,
+            },
             get_account_positions=lambda account_id: [{"account_id": account_id}],
             get_account_performance=lambda account_id: {"account_id": account_id},
         )
@@ -128,7 +205,10 @@ class _FakeClient:
             multidim_screen=lambda payload: {"screen": True, "payload": payload},
             get_weight_configs=lambda: {"weights": []},
             get_current_weight=lambda: {"weight": {}},
-            screen_asset_pool=lambda asset_type, payload=None: {"asset_type": asset_type, "payload": payload},
+            screen_asset_pool=lambda asset_type, payload=None: {
+                "asset_type": asset_type,
+                "payload": payload,
+            },
             pool_summary=lambda payload=None: {"summary": True, "payload": payload},
         )
         self.sentiment = SimpleNamespace(
@@ -160,7 +240,11 @@ class _FakeClient:
             list_assets=lambda: [{"code": "510300", "name": "沪深300ETF"}],
             get_asset=lambda asset_code: {"code": asset_code, "name": "沪深300ETF"},
             create_asset=lambda payload: {"code": payload["code"], **payload},
-            update_asset=lambda asset_code, payload, partial=False: {"code": asset_code, "partial": partial, **payload},
+            update_asset=lambda asset_code, payload, partial=False: {
+                "code": asset_code,
+                "partial": partial,
+                **payload,
+            },
             delete_asset=lambda asset_code: {"deleted": True, "code": asset_code},
             import_default_assets=lambda: {"created": 18, "reactivated": 0, "existing": 0},
             export_assets=lambda export_format="json": {"format": export_format, "items": 18},
@@ -168,9 +252,16 @@ class _FakeClient:
             get_account_config=lambda config_id: {"id": config_id, "account": 308},
             get_account_config_by_account=lambda account_id: {"id": 2, "account": account_id},
             create_account_config=lambda payload: {"id": 3, **payload},
-            update_account_config=lambda config_id, payload, partial=True: {"id": config_id, "partial": partial, **payload},
+            update_account_config=lambda config_id, payload, partial=True: {
+                "id": config_id,
+                "partial": partial,
+                **payload,
+            },
             delete_account_config=lambda config_id: {"deleted": True, "id": config_id},
-            apply_template_to_account_config=lambda config_id, template_key: {"id": config_id, "template_key": template_key},
+            apply_template_to_account_config=lambda config_id, template_key: {
+                "id": config_id,
+                "template_key": template_key,
+            },
         )
         self.alpha = SimpleNamespace(
             get_stock_scores=lambda universe="csi300", trade_date=None, top_n=20, user_id=None: {
@@ -194,7 +285,9 @@ class _FakeClient:
 
     def get(self, path, params=None):
         if path == "api/account/trading-cost-configs/":
-            return {"results": [{"id": 1, "portfolio": params.get("portfolio_id", 1) if params else 1}]}
+            return {
+                "results": [{"id": 1, "portfolio": params.get("portfolio_id", 1) if params else 1}]
+            }
         return {"ok": True, "path": path, "params": params}
 
     def post(self, path, json=None):
@@ -265,7 +358,10 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("list_decision_quotas", {}),
         ("list_decision_requests", {}),
         ("submit_decision_request", {"payload": {"request_type": "rebalance"}}),
-        ("submit_batch_decision_request", {"payload": {"requests": [{"request_type": "rebalance"}]}}),
+        (
+            "submit_batch_decision_request",
+            {"payload": {"requests": [{"request_type": "rebalance"}]}},
+        ),
         ("get_decision_rhythm_summary", {"payload": {"window_days": 7}}),
         ("reset_decision_quota", {"payload": {"user_id": "u1"}}),
         ("decision_workflow_precheck", {"candidate_id": "cand-1"}),
@@ -286,6 +382,8 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
             "get_dashboard_alpha_decision_chain_v1",
             {"top_n": 10, "max_candidates": 5, "max_pending": 10},
         ),
+        ("get_dashboard_alpha_candidates", {"top_n": 10, "portfolio_id": 135}),
+        ("trigger_dashboard_alpha_refresh", {"top_n": 10, "portfolio_id": 135}),
         ("get_dashboard_regime_quadrant_v1", {}),
         ("get_dashboard_equity_curve_v1", {}),
         ("get_dashboard_signal_status_v1", {}),
@@ -295,14 +393,32 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_simulated_account", {"account_id": 7}),
         ("delete_simulated_account", {"account_id": 7}),
         ("batch_delete_simulated_accounts", {"account_ids": [7, 8]}),
-        ("create_simulated_account", {"name": "测试账户", "initial_capital": 100000.0, "start_date": "2026-03-21"}),
-        ("execute_simulated_trade", {"account_id": 7, "asset_code": "510300", "side": "buy", "quantity": 100.0, "price": 4.2}),
+        (
+            "create_simulated_account",
+            {"name": "测试账户", "initial_capital": 100000.0, "start_date": "2026-03-21"},
+        ),
+        (
+            "execute_simulated_trade",
+            {
+                "account_id": 7,
+                "asset_code": "510300",
+                "side": "buy",
+                "quantity": 100.0,
+                "price": 4.2,
+            },
+        ),
         ("get_simulated_positions", {"account_id": 7}),
         ("get_simulated_performance", {"account_id": 7}),
         ("reset_simulated_account", {"account_id": 7, "new_initial_capital": 200000.0}),
         ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
-        ("run_simulated_daily_inspection", {"account_id": 7, "strategy_id": 2, "inspection_date": "2026-03-21"}),
-        ("list_simulated_daily_inspections", {"account_id": 7, "limit": 5, "inspection_date": "2026-03-21"}),
+        (
+            "run_simulated_daily_inspection",
+            {"account_id": 7, "strategy_id": 2, "inspection_date": "2026-03-21"},
+        ),
+        (
+            "list_simulated_daily_inspections",
+            {"account_id": 7, "limit": 5, "inspection_date": "2026-03-21"},
+        ),
         ("asset_multidim_screen", {"payload": {"asset_type": "equity"}}),
         ("get_trading_cost_configs", {"portfolio_id": 1}),
         ("get_asset_current_weight", {}),
@@ -330,19 +446,45 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("list_rotation_asset_master", {}),
         ("get_rotation_asset", {"asset_code": "510300"}),
         ("create_rotation_asset", {"code": "510300", "name": "沪深300ETF", "category": "equity"}),
-        ("update_rotation_asset", {"asset_code": "510300", "payload": {"name": "沪深300ETF增强"}, "partial": True}),
+        (
+            "update_rotation_asset",
+            {"asset_code": "510300", "payload": {"name": "沪深300ETF增强"}, "partial": True},
+        ),
         ("delete_rotation_asset", {"asset_code": "510300"}),
         ("import_default_rotation_assets", {}),
         ("export_rotation_assets", {"export_format": "csv"}),
         ("list_account_rotation_configs", {}),
         ("get_account_rotation_config", {"config_id": 2}),
         ("get_account_rotation_config", {"account_id": 308}),
-        ("create_account_rotation_config", {"account_id": 308, "risk_tolerance": "moderate", "is_enabled": True, "regime_allocations": {"Overheat": {"510300": 1.0}}}),
-        ("update_account_rotation_config", {"config_id": 2, "payload": {"is_enabled": False}, "partial": True}),
+        (
+            "create_account_rotation_config",
+            {
+                "account_id": 308,
+                "risk_tolerance": "moderate",
+                "is_enabled": True,
+                "regime_allocations": {"Overheat": {"510300": 1.0}},
+            },
+        ),
+        (
+            "update_account_rotation_config",
+            {"config_id": 2, "payload": {"is_enabled": False}, "partial": True},
+        ),
         ("delete_account_rotation_config", {"config_id": 2}),
         ("apply_rotation_template_to_account_config", {"config_id": 2, "template_key": "moderate"}),
-        ("get_alpha_stock_scores", {"universe": "csi300", "trade_date": "2026-03-10", "top_n": 10, "user_id": 12}),
-        ("upload_alpha_scores", {"universe_id": "csi300", "asof_date": "2026-03-08", "intended_trade_date": "2026-03-10", "scores": [{"code": "000001.SZ", "score": 0.9, "rank": 1}], "scope": "user"}),
+        (
+            "get_alpha_stock_scores",
+            {"universe": "csi300", "trade_date": "2026-03-10", "top_n": 10, "user_id": 12},
+        ),
+        (
+            "upload_alpha_scores",
+            {
+                "universe_id": "csi300",
+                "asof_date": "2026-03-08",
+                "intended_trade_date": "2026-03-10",
+                "scores": [{"code": "000001.SZ", "score": 0.9, "rank": 1}],
+                "scope": "user",
+            },
+        ),
         ("get_pulse_current", {}),
         ("get_pulse_history", {"limit": 5}),
         ("get_regime_navigator", {}),
@@ -350,7 +492,9 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("explain_pulse_dimensions", {}),
     ],
 )
-def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict):
+def test_extended_mcp_tools_can_execute(
+    monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict
+):
     try:
         from agomtradepro_mcp.server import server
     except ModuleNotFoundError as exc:
@@ -364,7 +508,9 @@ def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_na
     assert result is not None
 
 
-def test_decision_workflow_funnel_context_exposes_freshness_metadata(monkeypatch: pytest.MonkeyPatch):
+def test_decision_workflow_funnel_context_exposes_freshness_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+):
     try:
         from agomtradepro_mcp.server import server
     except ModuleNotFoundError as exc:
@@ -387,3 +533,26 @@ def test_decision_workflow_funnel_context_exposes_freshness_metadata(monkeypatch
     assert "step3_status" in rendered
     assert "step3_data_source" in rendered
     assert "step3_signal_date" in rendered
+
+
+def test_dashboard_alpha_candidates_contract_exposes_async_status(monkeypatch: pytest.MonkeyPatch):
+    try:
+        from agomtradepro_mcp.server import server
+    except ModuleNotFoundError as exc:
+        if "mcp" in str(exc):
+            pytest.skip("mcp package not installed in current test environment")
+        raise
+
+    _patch_extended_tool_modules(monkeypatch)
+
+    result = asyncio.run(
+        server.call_tool(
+            "get_dashboard_alpha_candidates",
+            {"top_n": 10, "portfolio_id": 135},
+        )
+    )
+    rendered = str(result)
+    assert "recommendation_ready" in rendered
+    assert "must_not_treat_as_recommendation" in rendered
+    assert "async_refresh_queued" in rendered
+    assert "hardcoded_fallback_used" in rendered

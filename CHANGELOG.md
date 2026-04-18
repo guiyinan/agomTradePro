@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 开发环境新增 `runserver` 文件日志持久化路径与对应测试覆盖，便于本地排查启动问题
 - RSS 源配置页面新增 RSSHub、proxy、timeout、retry 等可视配置项
 - 统一数据源中心补入跨系统 provider inventory 展示，集中展示 public / licensed / local-terminal / pending-config provider
+- Dashboard Alpha 首页新增账户驱动候选运行快照与历史回溯模型，可按组合、日期、股票、阶段、来源查询每次候选评估记录与逐票理由
+- Dashboard 新增 Alpha 推荐历史页与历史 JSON 接口，支持查看 run 详情、逐票买入理由、不买理由、证伪条件与建议仓位
 
 ### Changed
 - Dashboard 与顶部导航完成 redesign 收口，`beta_gate` / `alpha_trigger` / `decision_rhythm` 不再作为首页独立主入口暴露
@@ -43,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RSS 管理流不再依赖硬编码的旧 RSSHub 公网地址，初始化源与前端表单口径已统一到当前可用配置
 - 统一账户 API / SDK / MCP 路径已在 2026-04-01 这轮收口中对齐到 canonical 契约
 - 管理侧和配置侧文档已同步到当前事实：统一设置中心、统一数据源中心和最新页面入口结构
+- Dashboard 首页 Alpha 不再固定查询 `csi300`，改为按当前激活组合解析账户驱动池，并允许随组合切换刷新候选
+- Dashboard Alpha 首页文案与布局已改为三层视图：`Alpha Top 候选/排名`、`可行动候选`、`待执行队列`，不再把研究排序直接表述为“推荐股票”
+- Alpha provider / cache / simple / Qlib 链路统一接收 `AlphaPoolScope`，缓存键扩展为 `scope_hash + trade_date + model`，避免不同账户池子共用同一份指数缓存
 
 ### Deprecated
 - (TBD)
@@ -51,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 Dashboard 首页 Alpha 榜单把 Qlib 多级索引 `(Timestamp, code)` 直接序列化进缓存导致股票名解析失败、详情链接 404、因子面板拿不到正确代码的问题；Alpha 缓存现统一写入/读取 canonical 股票代码，并补齐 `asof_date`
+- 调整 Dashboard Alpha 首页为 `qlib -> cache -> simple -> etf` 的实时优先链路，并在使用缓存时显式展示缓存评分日、缓存写入时间和回退原因
+- 新增 Dashboard 手动“实时刷新”入口，可显式触发当天 Qlib 刷新任务；同时对 Qlib 异步推理投递增加短时节流，避免首页重复刷新时连续堆积相同任务
 - 修复 `tests/unit/test_ai_failover_helper.py` 与 AI provider 仓储新接口脱节的问题；`create_ai_policy_classifier()` 现在会防御性跳过空 API key，Nightly 的 failover 回归重新对齐当前 provider 过滤语义
 - 修复 `Logic Guardrails` 直接复用全量 changed-module 测试清单导致超时的问题；工作流现改为使用轻量 `logic_guardrails` 测试选择 profile，排除 integration/e2e/stress 路径并增加合理超时余量
 - 修复 Dashboard 首页将待分类政策 `PX` 直接传入策略配置矩阵导致告警与建议失败的问题；当前政策环境改为读取已生效档位，待分类事件不再污染首页配置建议
@@ -60,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 修复 Pulse 默认指标配置与当前开发库宏观数据不一致导致的稳定性告警；默认映射已切到现有可用指标，`init_pulse_config --force` 也会停用旧指标码
 - 清理 `docker-compose.yml` 与 `docker-compose-dev.yml` 顶层过时 `version` 字段，消除 Docker Compose v2 启动警告
 - 修复 Alpha cache provider 在“当天精确缓存更旧”时仍压住更近历史缓存的问题；Dashboard 读取缓存时现会优先选择较新的 `asof_date`
+- 修复 Dashboard Alpha 首页固定绑定 `csi300` 导致账户语义失真的问题；当前池子改为依据组合市场与可交易股票全集解析
+- 修复 Dashboard Alpha 候选只显示分数、无法解释“为什么买/为什么不买/何时失效”的问题；首页现补齐结构化理由、证伪条件、风控闸门与建议仓位
+- 修复 Dashboard Alpha 候选页只展示当前结果、无法回看历史判断依据的问题；每次首页评估现在都会持久化 run + snapshot 供后续检索
 - 修复 `/dashboard/` 在月度快照 `total_value=0` 时触发 `ZeroDivisionError` 的问题，并补充回归测试
 - 修复 `/admin/account/systemsettingsmodel/` 单例入口错误调用 `ModelAdmin.change_view()` 导致 `TypeError` 的问题，并补充回归测试
 - 调整本地 Playwright UAT 巡检脚本：`Equity` 改为命中 canonical 页面，且 Django debug 500 页不再被误判为通过

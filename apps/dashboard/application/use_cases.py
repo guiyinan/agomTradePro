@@ -615,10 +615,14 @@ class GetDashboardDataUseCase:
         policy_level: str = None,
     ) -> list[str]:
         """调用 AI 生成投资建议"""
-        import requests
         from django.conf import settings
 
         insights = []
+
+        if not getattr(settings, "DASHBOARD_SYNC_AI_INSIGHTS_ENABLED", False):
+            return self._enhanced_fallback_insights(
+                current_regime, snapshot, match_analysis, active_signals, policy_level
+            )
 
         # 1. 准备 AI 请求的上下文信息
         context = {
@@ -664,6 +668,8 @@ class GetDashboardDataUseCase:
 
         # 3. 调用 AI API
         try:
+            import requests
+
             from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 
             provider_repo = AIProviderRepository()

@@ -1,11 +1,56 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
 from apps.data_center.infrastructure.models import ProviderConfigModel
+
+
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
+def _assert_provider_config_page_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "Data Center — Providers",
+        "数据中台 — Provider 配置",
+        "统一数据源配置入口",
+        "刷新列表",
+        "运行状态",
+        "设置中心",
+        'id="provider-list"',
+        "/api/data-center/providers/",
+        "/data-center/monitor/",
+        "testProvider",
+    )
+
+
+def _assert_monitor_page_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "Data Center — Monitor",
+        "数据中台 — 运行状态",
+        "查看所有已注册 Provider 的实时健康状态",
+        "刷新状态",
+        "Provider 配置",
+        'id="status-list"',
+        "/api/data-center/providers/status/",
+        "/data-center/providers/",
+        "loadStatus",
+    )
 
 
 @pytest.fixture
@@ -118,23 +163,14 @@ def test_data_center_provider_api_accepts_qmt_source_with_extra_config(admin_cli
 def test_data_center_provider_page_renders_canonical_entry(admin_client):
     response = admin_client.get("/data-center/providers/")
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
-    assert "数据中台 — Provider 配置" in content
-    assert "统一数据源配置入口" in content
-    assert "/api/data-center/providers/" in content
-    assert "/data-center/monitor/" in content
+    _assert_provider_config_page_contract(response)
 
 
 @pytest.mark.django_db
 def test_data_center_monitor_page_renders_runtime_status_entry(admin_client):
     response = admin_client.get("/data-center/monitor/")
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
-    assert "数据中台 — 运行状态" in content
-    assert "/api/data-center/providers/status/" in content
-    assert "/data-center/providers/" in content
+    _assert_monitor_page_contract(response)
 
 
 @pytest.mark.django_db
@@ -154,7 +190,7 @@ def test_data_center_provider_test_connection_endpoint_returns_probe_logs(admin_
                 "status": "success",
                 "summary": "连接成功",
                 "logs": ["[INFO] start", "[SUCCESS] ok"],
-                "tested_at": datetime(2026, 4, 5, tzinfo=timezone.utc),
+                "tested_at": datetime(2026, 4, 5, tzinfo=UTC),
             }
 
     mocker.patch(

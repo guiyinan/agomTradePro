@@ -25,6 +25,8 @@ from apps.dashboard.domain.entities import (
 from apps.dashboard.domain.services import LayoutResolutionResult
 
 from .models import (
+    AlphaRecommendationRunModel,
+    AlphaRecommendationSnapshotModel,
     DashboardAlertModel,
     DashboardCardModel,
     DashboardConfigModel,
@@ -178,6 +180,132 @@ class DashboardPreferencesRepository:
             config_model = DashboardUserConfigModel._default_manager.get(user=user)
             return self._to_domain_entity(config_model)
         except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
+            return None
+
+
+class AlphaRecommendationHistoryRepository:
+    """Alpha 首页候选历史持久化。"""
+
+    def upsert_run(
+        self,
+        *,
+        user_id: int,
+        portfolio_id: int | None,
+        portfolio_name: str,
+        trade_date,
+        scope_hash: str,
+        scope_label: str,
+        scope_metadata: dict[str, Any],
+        model_hash: str,
+        source: str,
+        provider_source: str,
+        requested_trade_date,
+        effective_asof_date,
+        uses_cached_data: bool,
+        cache_reason: str,
+        fallback_reason: str,
+        meta: dict[str, Any],
+    ) -> AlphaRecommendationRunModel:
+        run, _ = AlphaRecommendationRunModel._default_manager.update_or_create(
+            user_id=user_id,
+            portfolio_id=portfolio_id,
+            trade_date=trade_date,
+            scope_hash=scope_hash,
+            model_hash=model_hash,
+            source=source,
+            defaults={
+                "portfolio_name": portfolio_name,
+                "scope_label": scope_label,
+                "scope_metadata": scope_metadata,
+                "provider_source": provider_source,
+                "requested_trade_date": requested_trade_date,
+                "effective_asof_date": effective_asof_date,
+                "uses_cached_data": uses_cached_data,
+                "cache_reason": cache_reason,
+                "fallback_reason": fallback_reason,
+                "meta": meta,
+            },
+        )
+        return run
+
+    def replace_snapshots(
+        self,
+        *,
+        run: AlphaRecommendationRunModel,
+        snapshots: list[dict[str, Any]],
+    ) -> None:
+        AlphaRecommendationSnapshotModel._default_manager.filter(run=run).delete()
+        AlphaRecommendationSnapshotModel._default_manager.bulk_create(
+            [
+                AlphaRecommendationSnapshotModel(
+                    run=run,
+                    stock_code=item["stock_code"],
+                    stock_name=item.get("stock_name", ""),
+                    stage=item.get("stage", "top_ranked"),
+                    gate_status=item.get("gate_status", "blocked"),
+                    rank=item.get("rank", 0),
+                    alpha_score=item.get("alpha_score", 0.0),
+                    confidence=item.get("confidence", 0.0),
+                    source=item.get("source", ""),
+                    buy_reasons=item.get("buy_reasons", []),
+                    no_buy_reasons=item.get("no_buy_reasons", []),
+                    invalidation_rule=item.get("invalidation_rule", {}),
+                    risk_snapshot=item.get("risk_snapshot", {}),
+                    suggested_position_pct=item.get("suggested_position_pct", 0.0),
+                    suggested_notional=item.get("suggested_notional", 0.0),
+                    suggested_quantity=item.get("suggested_quantity", 0.0),
+                    source_candidate_id=item.get("source_candidate_id"),
+                    source_recommendation_id=item.get("source_recommendation_id"),
+                    extra_payload=item.get("extra_payload", {}),
+                )
+                for item in snapshots
+            ]
+        )
+
+    def list_recent_runs(
+        self,
+        *,
+        user_id: int,
+        portfolio_id: int | None = None,
+        limit: int = 5,
+    ) -> list[AlphaRecommendationRunModel]:
+        queryset = AlphaRecommendationRunModel._default_manager.filter(user_id=user_id)
+        if portfolio_id is not None:
+            queryset = queryset.filter(portfolio_id=portfolio_id)
+        return list(queryset.order_by("-trade_date", "-created_at")[:limit])
+
+    def filter_runs(
+        self,
+        *,
+        user_id: int,
+        portfolio_id: int | None = None,
+        stock_code: str | None = None,
+        stage: str | None = None,
+        source: str | None = None,
+        trade_date=None,
+        limit: int = 50,
+    ) -> list[AlphaRecommendationRunModel]:
+        queryset = AlphaRecommendationRunModel._default_manager.filter(user_id=user_id)
+        if portfolio_id is not None:
+            queryset = queryset.filter(portfolio_id=portfolio_id)
+        if source:
+            queryset = queryset.filter(source=source)
+        if trade_date:
+            queryset = queryset.filter(trade_date=trade_date)
+        if stock_code or stage:
+            queryset = queryset.filter(snapshots__stock_code=stock_code) if stock_code else queryset
+            queryset = queryset.filter(snapshots__stage=stage) if stage else queryset
+            queryset = queryset.distinct()
+        return list(queryset.order_by("-trade_date", "-created_at")[:limit])
+
+    def get_run_detail(self, *, user_id: int, run_id: int) -> AlphaRecommendationRunModel | None:
+        try:
+            return (
+                AlphaRecommendationRunModel._default_manager
+                .prefetch_related("snapshots")
+                .get(id=run_id, user_id=user_id)
+            )
+        except AlphaRecommendationRunModel.DoesNotExist:
             return None
 
     def get_or_create_preferences(

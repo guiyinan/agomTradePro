@@ -1,215 +1,380 @@
-{% if alpha_stocks %}
-<!-- 投资免责声明 -->
-<div class="investment-disclaimer compact">
-    <div class="disclaimer-icon">⚠️</div>
-    <div class="disclaimer-text">
-        <strong>免责声明：</strong>选股结果仅供系统开发研究，<span class="highlight">不构成投资建议</span>。
+<div class="alpha-homepage-panel"
+     data-alpha-refresh-status="{{ alpha_meta.refresh_status|default:'' }}"
+     data-alpha-refresh-triggered="{% if alpha_meta.refresh_triggered %}true{% else %}false{% endif %}"
+     data-alpha-poll-after-ms="{{ alpha_meta.poll_after_ms|default:5000 }}">
+    <div class="investment-disclaimer compact">
+        <div class="disclaimer-icon">⚠️</div>
+        <div class="disclaimer-text">
+            <strong>免责声明：</strong>当前展示的是候选/排名与执行前评估，<span class="highlight">不构成投资建议</span>。
+        </div>
     </div>
-</div>
-{% if alpha_meta.warning_message %}
-<div class="alpha-reliability-banner alpha-reliability-banner-{{ alpha_meta.warning_level|default:'warning' }}">
-    <div class="alpha-reliability-icon">
-        {% if alpha_meta.warning_level == 'error' %}⛔{% else %}⚠️{% endif %}
+
+    <div class="alpha-pool-summary">
+        <div>
+            <strong>{{ alpha_pool.label|default:"账户驱动 Alpha 池" }}</strong>
+            <div class="alpha-pool-meta">
+                <span>池子规模 {{ alpha_pool.pool_size|default:0 }}</span>
+                <span>市场 {{ alpha_pool.market|default:"CN" }}</span>
+                <span>组合 {{ alpha_pool.portfolio_name|default:"默认组合" }}</span>
+            </div>
+        </div>
+        <div class="alpha-pool-reason">{{ alpha_pool.selection_reason|default:"按当前激活组合所属市场生成候选池。" }}</div>
     </div>
-    <div class="alpha-reliability-body">
+
+    {% if alpha_meta.warning_message %}
+    <div class="alpha-banner alpha-banner-{{ alpha_meta.warning_level|default:'warning' }}">
         <strong>{{ alpha_meta.warning_title|default:"Alpha 当前为降级结果" }}</strong>
         <span>{{ alpha_meta.warning_message }}</span>
-        {% if alpha_meta.qlib_data_latest_date %}
-        <span>本地 Qlib 数据最新交易日：{{ alpha_meta.qlib_data_latest_date }}</span>
+        {% if alpha_meta.auto_refresh_message %}
+        <span>{{ alpha_meta.auto_refresh_message }}</span>
+        {% endif %}
+        {% if alpha_meta.async_task_id %}
+        <span>任务 {{ alpha_meta.async_task_id }}</span>
+        {% endif %}
+        {% if alpha_meta.refresh_status == "recently_queued" %}
+        <span>后台任务已在队列中，页面会稍后自动刷新。</span>
+        {% endif %}
+        {% if alpha_meta.auto_refresh_error %}
+        <span>自动触发失败：{{ alpha_meta.auto_refresh_error }}</span>
         {% endif %}
     </div>
-</div>
-{% endif %}
-{% if alpha_chain_overview %}
-<div class="alpha-chain-overview">
-    <div class="alpha-chain-header">
-        <div class="alpha-chain-title-group">
-            <strong>Alpha 决策链</strong>
-            <span class="alpha-chain-subtitle">
-                Top {{ top_n|default:10 }} 排名
-                {% if alpha_chain_overview.requested_trade_date %}· 请求交易日 {{ alpha_chain_overview.requested_trade_date }}{% endif %}
-                {% if alpha_chain_overview.effective_asof_date %}· 实际评分日 {{ alpha_chain_overview.effective_asof_date }}{% endif %}
-            </span>
-        </div>
-        <div class="alpha-chain-conversions">
-            <span>Top{{ top_n|default:10 }}→可行动 {{ alpha_chain_overview.actionable_conversion_pct|default:0|floatformat:1 }}%</span>
-            <span>Top{{ top_n|default:10 }}→待执行 {{ alpha_chain_overview.pending_conversion_pct|default:0|floatformat:1 }}%</span>
-        </div>
+    {% endif %}
+
+    {% if alpha_meta.uses_cached_data %}
+    <div class="alpha-cache-summary">
+        <strong>当前展示缓存/回退结果</strong>
+        <span>请求日期 {{ alpha_meta.requested_trade_date|default:"-" }}</span>
+        <span>
+            评分日期
+            {% if alpha_meta.effective_asof_date %}
+                {{ alpha_meta.effective_asof_date }}
+            {% elif alpha_meta.cache_date %}
+                {{ alpha_meta.cache_date }}
+            {% else %}
+                -
+            {% endif %}
+        </span>
+        {% if alpha_meta.cache_created_at %}<span>缓存写入 {{ alpha_meta.cache_created_at }}</span>{% endif %}
+        {% if alpha_meta.cache_reason %}<span>调用缓存原因：{{ alpha_meta.cache_reason }}</span>{% endif %}
+        {% if alpha_meta.refresh_triggered %}<span>系统已自动触发实时刷新任务。</span>{% endif %}
     </div>
-    <div class="alpha-chain-flow">
-        <div class="alpha-chain-node">
-            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top_ranked_count|default:0 }}</span>
-            <span class="alpha-chain-node-label">Top {{ top_n|default:10 }} 排名</span>
-        </div>
-        <div class="alpha-chain-arrow">→</div>
-        <div class="alpha-chain-node alpha-chain-node-highlight">
-            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top10_actionable_count|default:0 }}</span>
-            <span class="alpha-chain-node-label">已进可行动</span>
-        </div>
-        <div class="alpha-chain-arrow">→</div>
-        <div class="alpha-chain-node alpha-chain-node-pending">
-            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top10_pending_count|default:0 }}</span>
-            <span class="alpha-chain-node-label">已进待执行</span>
-        </div>
-        <div class="alpha-chain-arrow">·</div>
-        <div class="alpha-chain-node alpha-chain-node-muted">
-            <span class="alpha-chain-node-value">{{ alpha_chain_overview.top10_rank_only_count|default:0 }}</span>
-            <span class="alpha-chain-node-label">仍停留在 Top 排名</span>
-        </div>
+    {% else %}
+    {% if alpha_meta.no_recommendation_reason %}
+    <div class="alpha-cache-summary alpha-cache-summary-pending">
+        <strong>正在等待账户池 Alpha 推理</strong>
+        <span>请求日期 {{ alpha_meta.requested_trade_date|default:"-" }}</span>
+        {% if alpha_meta.refresh_status == "queued" %}
+        <span>后台任务已触发</span>
+        {% elif alpha_meta.refresh_status == "recently_queued" %}
+        <span>后台任务已在队列中</span>
+        {% elif alpha_meta.refresh_status == "failed" %}
+        <span>自动触发失败，请手动重试</span>
+        {% else %}
+        <span>尚无可用 cache</span>
+        {% endif %}
     </div>
-    {% if alpha_chain_overview.actionable_outside_top10_count or alpha_chain_overview.pending_outside_top10_count %}
-    <div class="alpha-chain-outside">
-        <span>链外可行动 {{ alpha_chain_overview.actionable_outside_top10_count|default:0 }}</span>
-        <span>链外待执行 {{ alpha_chain_overview.pending_outside_top10_count|default:0 }}</span>
+    {% else %}
+    <div class="alpha-cache-summary alpha-cache-summary-live">
+        <strong>当前优先展示实时结果</strong>
+        <span>请求日期 {{ alpha_meta.requested_trade_date|default:"-" }}</span>
+        <span>实际评分日 {{ alpha_meta.effective_asof_date|default:"-" }}</span>
     </div>
     {% endif %}
-</div>
-{% endif %}
-<div class="alpha-stocks-table-wrap">
-    <table class="data-table alpha-stocks-table">
-        <thead>
-            <tr>
-                <th>排名</th>
-                <th>股票代码</th>
-                <th>证券名称</th>
-                <th>Alpha 评分</th>
-                <th>置信度</th>
-                <th>数据源</th>
-                <th>信号日期</th>
-                <th>链路状态</th>
-                <th>决策</th>
-            </tr>
-        </thead>
-        <tbody>
+    {% endif %}
+
+    <section class="alpha-section-block">
+        <div class="alpha-section-header">
+            <div>
+                <h4>Alpha Top 候选/排名</h4>
+                <p>研究层排序，不等于最终买入建议。</p>
+            </div>
+            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-history-link">
+                查看历史记录
+            </a>
+        </div>
+        {% if alpha_stocks %}
+        <div class="alpha-top-grid">
             {% for stock in alpha_stocks %}
-            <tr class="alpha-stock-row alpha-stock-row-{{ stock.workflow_stage|default:'top_ranked' }}"
-                data-code="{{ stock.code }}"
-                onclick="document.querySelectorAll('.alpha-stock-row').forEach((row) => row.classList.remove('is-selected')); this.classList.add('is-selected');"
-            hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}"
+            <article class="alpha-stock-card alpha-stage-{{ stock.stage|default:'top_ranked' }}"
+                hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}"
                 hx-trigger="click"
                 hx-target="#alphaFactorPanel"
                 hx-swap="innerHTML">
-                <td class="rank-cell">
-                    <span class="rank-badge rank-{{ stock.rank }}">
-                        {{ stock.rank }}
-                    </span>
-                </td>
-                <td>
-                    <a
-                        href="{% url 'equity:detail' stock.code %}"
-                        class="alpha-stock-link"
-                        onclick="event.stopPropagation();"
-                    >
-                        <strong>{{ stock.code }}</strong>
-                    </a>
-                </td>
-                <td>
-                    <a
-                        href="{% url 'equity:detail' stock.code %}"
-                        class="alpha-stock-link alpha-stock-link-name"
-                        onclick="event.stopPropagation();"
-                    >
-                        {{ stock.name|default:"-" }}
-                    </a>
-                </td>
-                <td>
-                    <div class="score-bar-container">
-                        <div class="score-bar" style="width: {{ stock.score|floatformat:0 }}%"></div>
-                        <span class="score-value">{{ stock.score|floatformat:3 }}</span>
+                <div class="alpha-stock-card-header">
+                    <div>
+                        <span class="alpha-rank">#{{ stock.rank }}</span>
+                        <a href="{% url 'equity:detail' stock.code %}" class="alpha-stock-link" onclick="event.stopPropagation();">
+                            {{ stock.code }}
+                        </a>
+                        <div class="alpha-stock-name">{{ stock.name|default:"-" }}</div>
                     </div>
-                </td>
-                <td>
-                    <span class="confidence-badge confidence-{{ stock.confidence|floatformat:1 }}">
-                        {{ stock.confidence|floatformat:2 }}
+                    <span class="alpha-stage-badge alpha-stage-badge-{{ stock.stage|default:'top_ranked' }}">
+                        {{ stock.stage_label|default:"Alpha Top 候选/排名" }}
                     </span>
-                </td>
-                <td>
-                    <span class="source-badge source-{{ stock.source }}">
-                        {% if stock.source == 'qlib' %}Qlib
-                        {% elif stock.source == 'cache' %}缓存
-                        {% elif stock.source == 'simple' %}简单因子
-                        {% elif stock.source == 'etf' %}ETF
-                        {% else %}{{ stock.source }}{% endif %}
-                    </span>
-                </td>
-                <td>
-                    <span class="date-badge">{{ stock.asof_date|default:"-" }}</span>
-                </td>
-                <td>
-                    <div class="workflow-stage-stack">
-                        <span class="workflow-stage-badge workflow-stage-{{ stock.workflow_stage|default:'top_ranked' }}">
-                            {{ stock.workflow_stage_label|default:"仅在 Alpha Top 排名" }}
-                        </span>
-                        {% if stock.is_pending %}
-                        <span class="workflow-stage-meta">{{ stock.pending_execution_status|default:"已进入待执行队列" }}</span>
-                        {% elif stock.is_actionable %}
-                        <span class="workflow-stage-meta">已进入 Workflow Step 4</span>
-                        {% else %}
-                        <span class="workflow-stage-meta">待 Workflow 收束</span>
+                </div>
+
+                <div class="alpha-stock-score-row">
+                    <span>评分 {{ stock.alpha_score|floatformat:3 }}</span>
+                    <span>置信度 {{ stock.confidence|floatformat:2 }}</span>
+                    <span>来源 {{ stock.source }}</span>
+                </div>
+                <div class="alpha-stock-score-row alpha-stock-score-muted">
+                    <span>评分日 {{ stock.asof_date|default:"-" }}</span>
+                    <span>风控 {{ stock.gate_status|default:"blocked" }}</span>
+                    <span>建议仓位 {{ stock.suggested_position_pct|default:0|floatformat:1 }}%</span>
+                </div>
+
+                <div class="alpha-reason-block">
+                    <strong>推荐依据</strong>
+                    <ul>
+                        {% if stock.recommendation_basis.provider_source %}
+                        <li>模型/数据源：{{ stock.recommendation_basis.provider_source }}，评分日 {{ stock.recommendation_basis.asof_date|default:stock.recommendation_basis.effective_asof_date|default:"-" }}</li>
+                        {% endif %}
+                        {% if stock.recommendation_basis.scope_hash %}
+                        <li>账户池：{{ stock.recommendation_basis.scope_label|default:"账户驱动 Alpha 池" }} / {{ stock.recommendation_basis.scope_hash }}</li>
+                        {% endif %}
+                        {% for basis in stock.recommendation_basis.factor_basis|slice:":3" %}
+                        <li>{{ basis }}</li>
+                        {% endfor %}
+                        {% for reason in stock.buy_reasons|slice:":3" %}
+                        <li>{{ reason.text }}</li>
+                        {% empty %}
+                            {% if not stock.recommendation_basis.factor_basis %}
+                            <li>暂无可展示的模型依据。</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="alpha-reason-block alpha-reason-block-muted">
+                    <strong>不买理由</strong>
+                    <ul>
+                        {% for reason in stock.no_buy_reasons|slice:":3" %}
+                        <li>{{ reason.text }}</li>
+                        {% empty %}
+                        <li>当前无明显阻断项。</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="alpha-reason-block alpha-reason-block-invalidation">
+                    <strong>证伪条件</strong>
+                    <p>{{ stock.invalidation_summary|default:"暂无证伪条件。" }}</p>
+                </div>
+
+                {% if stock.stage == "pending" and stock.request_id %}
+                <div class="alpha-card-actions-row">
+                    <button type="button"
+                            class="alpha-discard-btn"
+                            onclick="event.stopPropagation(); discardAlphaPendingRequest('{{ stock.request_id|escapejs }}');">
+                        丢弃待执行
+                    </button>
+                    <span>保留取消记录，可回溯。</span>
+                </div>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state alpha-empty">
+            <div class="empty-icon">📊</div>
+            <p>暂无可信 Alpha 候选数据</p>
+            <p>
+                {{ alpha_meta.no_recommendation_reason|default:"账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。" }}
+            </p>
+        </div>
+        {% endif %}
+    </section>
+
+    <div class="alpha-secondary-grid">
+        <section class="alpha-section-block">
+            <div class="alpha-section-header">
+                <div>
+                    <h4>可行动候选</h4>
+                    <p>通过执行前风控且给出建议仓位的标的。</p>
+                </div>
+                <span class="alpha-pill">{{ alpha_actionable_candidates|length }}</span>
+            </div>
+            {% if alpha_actionable_candidates %}
+            <div class="alpha-list">
+                {% for item in alpha_actionable_candidates %}
+                <div class="alpha-list-item">
+                    <div class="alpha-list-main">
+                        <strong>{{ item.code }}</strong>
+                        <span>{{ item.name }}</span>
+                    </div>
+                    <div class="alpha-list-meta">
+                        <span>建议仓位 {{ item.suggested_position_pct|floatformat:1 }}%</span>
+                        <span>建议数量 {{ item.suggested_quantity }}</span>
+                    </div>
+                    <div class="alpha-list-text">{{ item.buy_reason_summary }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="alpha-empty-inline">当前没有通过账户级风控的可行动候选。</p>
+            {% endif %}
+        </section>
+
+        <section class="alpha-section-block">
+            <div class="alpha-section-header">
+                <div>
+                    <h4>待执行队列</h4>
+                    <p>历史审批/执行请求，不代表当前 Alpha 推荐。</p>
+                </div>
+                <span class="alpha-pill">{{ alpha_pending_requests|length }}</span>
+            </div>
+            {% if alpha_pending_requests %}
+            <div class="alpha-list">
+                {% for item in alpha_pending_requests %}
+                <div class="alpha-list-item alpha-list-item-pending">
+                    <div class="alpha-list-main">
+                        <strong>{{ item.code }}</strong>
+                        <span>{{ item.name }}</span>
+                    </div>
+                    <div class="alpha-list-meta">
+                        <span>数量 {{ item.suggested_quantity|floatformat:0 }}</span>
+                        <span>金额 {{ item.suggested_notional|floatformat:0 }}</span>
+                        {% if item.risk_snapshot.execution_status %}
+                        <span>状态 {{ item.risk_snapshot.execution_status }}</span>
                         {% endif %}
                     </div>
-                </td>
-                <td>
-                    <div class="alpha-actions">
-                        <a
-                            href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=watch"
-                            class="alpha-action-link alpha-action-link-watch"
-                            onclick="event.stopPropagation();"
-                        >
-                            加入观察
-                        </a>
-                        <a
-                            href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=adopt"
-                            class="alpha-action-link alpha-action-link-adopt"
-                            onclick="event.stopPropagation();"
-                        >
-                            采纳
-                        </a>
-                        <a
-                            href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
-                            class="alpha-action-link"
-                            onclick="event.stopPropagation();"
-                        >
-                            工作台
-                        </a>
+                    {% if item.reason_summary %}
+                    <div class="alpha-list-text">来源原因：{{ item.reason_summary }}</div>
+                    {% endif %}
+                    <div class="alpha-list-text">{{ item.no_buy_reasons.0.text|default:"已进入待执行队列。" }}</div>
+                    {% if item.request_id %}
+                    <div class="alpha-list-actions">
+                        <button type="button"
+                                class="alpha-discard-btn"
+                                onclick="discardAlphaPendingRequest('{{ item.request_id|escapejs }}');">
+                            丢弃待执行
+                        </button>
+                        <span>状态会改为已取消，记录仍保留。</span>
                     </div>
-                </td>
-            </tr>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="alpha-empty-inline">当前待执行队列为空。</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="alpha-section-block">
+        <div class="alpha-section-header">
+            <div>
+                <h4>最近推荐记录</h4>
+                <p>系统已落库，可回溯历史候选与理由。</p>
+            </div>
+            {% if alpha_history_run_id %}
+            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-history-link">
+                打开完整时间线
+            </a>
+            {% endif %}
+        </div>
+        {% if alpha_recent_runs %}
+        <div class="alpha-history-list">
+            {% for run in alpha_recent_runs %}
+            <div class="alpha-history-item">
+                <div class="alpha-history-main">
+                    <strong>{{ run.trade_date }}</strong>
+                    <span>{{ run.scope_label }}</span>
+                </div>
+                <div class="alpha-history-meta">
+                    <span>来源 {{ run.source }}</span>
+                    <span>{% if run.uses_cached_data %}缓存{% else %}实时优先{% endif %}</span>
+                    {% if run.effective_asof_date %}<span>评分日 {{ run.effective_asof_date }}</span>{% endif %}
+                    {% if run.legacy_hardcoded_fallback %}<span>旧版回退记录</span>{% endif %}
+                </div>
+                {% if run.reliability_note %}
+                <div class="alpha-history-text alpha-history-text-warning">{{ run.reliability_note }}</div>
+                {% elif run.cache_reason %}
+                <div class="alpha-history-text">{{ run.cache_reason }}</div>
+                {% endif %}
+            </div>
             {% endfor %}
-        </tbody>
-    </table>
+        </div>
+        {% else %}
+        <p class="alpha-empty-inline">暂无历史记录。</p>
+        {% endif %}
+    </section>
 </div>
-{% else %}
-<div class="empty-state alpha-empty">
-    <div class="empty-icon">📊</div>
-    <p>暂无 Alpha 选股数据</p>
-    <p class="empty-hint">Alpha 服务可能正在初始化或已降级</p>
-</div>
-{% endif %}
 
 <style>
-.alpha-stocks-table-wrap {
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 4px;
+.alpha-homepage-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
-.alpha-stocks-table {
-    width: 100%;
-    min-width: 1120px;
-    border-collapse: collapse;
-    font-size: 13px;
-}
-
-.alpha-chain-overview {
-    margin: 12px 0;
+.alpha-pool-summary,
+.alpha-cache-summary,
+.alpha-banner,
+.alpha-section-block {
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #fff;
     padding: 14px 16px;
-    border: 1px solid #dbe7ff;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(219, 234, 254, 0.95), rgba(240, 249, 255, 0.92));
 }
 
-.alpha-chain-header {
+.alpha-pool-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    background: linear-gradient(135deg, #f7fbff, #eef5ff);
+}
+
+.alpha-pool-meta,
+.alpha-cache-summary,
+.alpha-history-meta,
+.alpha-stock-score-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    font-size: 12px;
+    color: #556274;
+}
+
+.alpha-pool-reason,
+.alpha-list-text,
+.alpha-history-text,
+.alpha-empty-inline {
+    font-size: 13px;
+    color: #556274;
+}
+
+.alpha-history-text-warning {
+    color: #9a5b10;
+}
+
+.alpha-cache-summary-live {
+    background: #f6fff8;
+    border-color: #dcefdc;
+}
+
+.alpha-cache-summary-pending {
+    background: #f7fbff;
+    border-color: #b9d5f4;
+}
+
+.alpha-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #fff8e8;
+    border-color: #f2d08a;
+    color: #7a5418;
+}
+
+.alpha-banner-error {
+    background: #fff0f0;
+    border-color: #efb5b5;
+    color: #933030;
+}
+
+.alpha-section-header {
     display: flex;
     justify-content: space-between;
     gap: 12px;
@@ -217,348 +382,205 @@
     margin-bottom: 12px;
 }
 
-.alpha-chain-title-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.alpha-section-header h4 {
+    margin: 0;
 }
 
-.alpha-chain-subtitle,
-.alpha-chain-conversions,
-.alpha-chain-outside {
-    color: #4b5563;
+.alpha-section-header p {
+    margin: 4px 0 0;
     font-size: 12px;
+    color: #556274;
 }
 
-.alpha-chain-conversions,
-.alpha-chain-outside {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.alpha-chain-flow {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.alpha-chain-node {
-    min-width: 122px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.alpha-chain-node-highlight {
-    border-color: rgba(16, 185, 129, 0.28);
-    background: rgba(236, 253, 245, 0.9);
-}
-
-.alpha-chain-node-pending {
-    border-color: rgba(245, 158, 11, 0.28);
-    background: rgba(255, 251, 235, 0.9);
-}
-
-.alpha-chain-node-muted {
-    border-color: rgba(148, 163, 184, 0.22);
-    background: rgba(248, 250, 252, 0.94);
-}
-
-.alpha-chain-node-value {
-    font-size: 22px;
-    font-weight: 700;
-    color: #111827;
-    line-height: 1;
-}
-
-.alpha-chain-node-label {
-    font-size: 12px;
-    color: #4b5563;
-}
-
-.alpha-chain-arrow {
-    color: #64748b;
-    font-weight: 700;
-}
-
-.alpha-reliability-banner {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    margin: 12px 0;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid #f0c36d;
-    background: #fff7e6;
-    color: #8a5a00;
-}
-
-.alpha-reliability-banner-error {
-    border-color: #ef9a9a;
-    background: #ffebee;
-    color: #9a1b1b;
-}
-
-.alpha-reliability-icon {
-    font-size: 18px;
-    line-height: 1;
-}
-
-.alpha-reliability-body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 12px;
-}
-
-.alpha-stocks-table th {
-    background: var(--bg-tertiary);
-    padding: 8px 10px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--text-secondary);
-    border-bottom: 2px solid var(--border-color);
-    white-space: nowrap;
-}
-
-.alpha-stocks-table td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border-color);
-    line-height: 1.35;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-.alpha-stock-row:hover {
-    background-color: var(--bg-tertiary);
-    cursor: pointer;
-}
-
-.alpha-stock-row.is-selected {
-    background: rgba(102, 126, 234, 0.08);
-}
-
-.alpha-stock-row-actionable {
-    box-shadow: inset 3px 0 0 rgba(16, 185, 129, 0.75);
-}
-
-.alpha-stock-row-pending {
-    box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.75);
-}
-
-.rank-badge {
-    display: inline-block;
-    width: 28px;
-    height: 28px;
-    line-height: 28px;
-    text-align: center;
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 12px;
-}
-
-.rank-1, .rank-2, .rank-3 {
-    background: linear-gradient(135deg, #FFD700, #FFA500);
-    color: white;
-}
-
-.rank-4, .rank-5, .rank-6, .rank-7, .rank-8, .rank-9, .rank-10 {
-    background: linear-gradient(135deg, #E0E0E0, #BDBDBD);
-    color: var(--text-primary);
-}
-
-.score-bar-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 132px;
-}
-
-.score-bar {
-    height: 6px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
-    border-radius: 3px;
-    min-width: 40px;
-    transition: width 0.3s ease;
-}
-
-.score-value {
-    font-weight: 600;
-    color: var(--primary-color);
-    min-width: 45px;
-    text-align: right;
-}
-
-.confidence-badge {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.confidence-0.9, .confidence-1.0 {
-    background: #E8F5E9;
-    color: #2E7D32;
-}
-
-.confidence-0.8 {
-    background: #E3F2FD;
-    color: #1976D2;
-}
-
-.confidence-0.7 {
-    background: #FFF3E0;
-    color: #F57C00;
-}
-
-.confidence-0.6 {
-    background: #FFEBEE;
-    color: #C62828;
-}
-
-.source-badge {
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.source-qlib {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-}
-
-.source-cache {
-    background: #E0F2F1;
-    color: #00695C;
-}
-
-.source-simple {
-    background: #FFF8E1;
-    color: #FF8F00;
-}
-
-.source-etf {
-    background: #ECEFF1;
-    color: #546E7A;
-}
-
-.date-badge {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-
-.workflow-stage-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.workflow-stage-badge {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1.3;
-}
-
-.workflow-stage-top_ranked {
-    background: #eef2ff;
-    color: #4338ca;
-}
-
-.workflow-stage-actionable {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.workflow-stage-pending {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.workflow-stage-meta {
-    font-size: 11px;
-    color: #6b7280;
-}
-
-.alpha-empty {
-    padding: 40px 20px;
-    text-align: center;
-}
-
-.alpha-actions {
-    display: flex;
-    gap: 6px;
-    flex-wrap: nowrap;
-    align-items: center;
-}
-
+.alpha-history-link,
 .alpha-stock-link {
-    color: var(--primary-color);
+    color: #164ca1;
     text-decoration: none;
 }
 
-.alpha-action-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #4338ca;
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.alpha-action-link-watch {
-    background: #ecfeff;
-    color: #0f766e;
-}
-
-.alpha-action-link-adopt {
-    background: #ecfdf3;
-    color: #15803d;
-}
-
+.alpha-history-link:hover,
 .alpha-stock-link:hover {
     text-decoration: underline;
 }
 
-.alpha-stock-link-name {
-    color: var(--text-primary);
-}
-
-.empty-hint {
+.alpha-pill,
+.alpha-stage-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
     font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 8px;
+    font-weight: 700;
 }
 
-@media (max-width: 1200px) {
-    .alpha-chain-header {
+.alpha-pill,
+.alpha-stage-badge-top_ranked {
+    background: #eef3ff;
+    color: #3756a4;
+}
+
+.alpha-stage-badge-actionable {
+    background: #e8f8ec;
+    color: #1f7a3f;
+}
+
+.alpha-stage-badge-pending {
+    background: #fff4df;
+    color: #a4651d;
+}
+
+.alpha-top-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.alpha-stock-card {
+    border: 1px solid #e3ebf4;
+    border-radius: 14px;
+    padding: 14px;
+    background: #fcfdff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.alpha-stock-card:hover {
+    border-color: #b9caea;
+    box-shadow: 0 12px 28px rgba(25, 45, 82, 0.08);
+}
+
+.alpha-stage-actionable {
+    border-color: #b9e2c2;
+}
+
+.alpha-stage-pending {
+    border-color: #eed3a6;
+}
+
+.alpha-stock-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.alpha-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #122c57;
+    color: #fff;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.alpha-stock-name {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #556274;
+}
+
+.alpha-stock-score-muted {
+    color: #7b8897;
+}
+
+.alpha-reason-block strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.alpha-reason-block ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: #425164;
+}
+
+.alpha-reason-block p {
+    margin: 0;
+    font-size: 12px;
+    color: #425164;
+}
+
+.alpha-secondary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 12px;
+}
+
+.alpha-list,
+.alpha-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alpha-list-item,
+.alpha-history-item {
+    border: 1px solid #e6edf5;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fbfcfe;
+}
+
+.alpha-list-item-pending {
+    background: #fffaf2;
+}
+
+.alpha-list-main,
+.alpha-history-main {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.alpha-list-meta {
+    display: flex;
+    gap: 10px 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #556274;
+    margin-bottom: 6px;
+}
+
+.alpha-card-actions-row,
+.alpha-list-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #556274;
+}
+
+.alpha-discard-btn {
+    border: 1px solid #d9a441;
+    border-radius: 6px;
+    background: #fff8e8;
+    color: #7a5418;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.alpha-discard-btn:hover {
+    background: #ffecc4;
+}
+
+@media (max-width: 768px) {
+    .alpha-pool-summary,
+    .alpha-section-header,
+    .alpha-stock-card-header {
         flex-direction: column;
-    }
-
-    .alpha-chain-flow {
-        align-items: stretch;
-    }
-
-    .alpha-chain-arrow {
-        display: none;
-    }
-
-    .alpha-stocks-table {
-        min-width: 1040px;
     }
 }
 </style>

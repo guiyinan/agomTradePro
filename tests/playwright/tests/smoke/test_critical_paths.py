@@ -1,8 +1,10 @@
 """
 Smoke tests for critical user paths.
-Tests that all major pages load without errors.
+Tests that all major pages render their core UI contracts.
 """
 import re
+import time
+from collections.abc import Iterable
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -12,14 +14,286 @@ from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 
 
-def _assert_page_ready(page: Page, expected_fragment: str) -> None:
+def _normalize_text(value: str) -> str:
+    """Collapse whitespace for stable text assertions."""
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _assert_page_shell(page: Page, expected_fragment: str) -> None:
     """Assert a target page is loaded and not an error shell."""
     page.wait_for_load_state("domcontentloaded")
     expect(page).to_have_url(re.compile(fr".*{re.escape(expected_fragment)}.*"))
     body_text = page.locator("body").inner_text(timeout=5000)
     assert body_text.strip(), "Page body should not be empty"
     assert "Page not found" not in body_text
+    assert "Server Error" not in body_text
     assert "/404/" not in page.url
+
+
+def _assert_min_count(page: Page, selector: str, minimum: int, timeout: int = 10000) -> None:
+    """Assert that a selector resolves to at least ``minimum`` elements."""
+    locator = page.locator(selector)
+    expect(locator.first).to_be_visible(timeout=timeout)
+    actual = locator.count()
+    assert actual >= minimum, f"Expected at least {minimum} elements for {selector}, got {actual}"
+
+
+def _wait_for_non_placeholder_text(
+    page: Page,
+    selector: str,
+    *,
+    disallowed: Iterable[str] = ("", "-"),
+    timeout: int = 10000,
+) -> str:
+    """Wait until an element renders non-placeholder text and return it."""
+    locator = page.locator(selector).first
+    expect(locator).to_be_visible(timeout=timeout)
+
+    deadline = time.time() + timeout / 1000
+    last_text = ""
+    forbidden = {_normalize_text(item) for item in disallowed}
+
+    while time.time() < deadline:
+        last_text = _normalize_text(locator.inner_text(timeout=2000))
+        if last_text and last_text not in forbidden:
+            return last_text
+        page.wait_for_timeout(250)
+
+    raise AssertionError(f"Expected non-placeholder text for {selector}, got {last_text!r}")
+
+
+def _assert_box_size(
+    page: Page,
+    selector: str,
+    *,
+    min_width: float = 80,
+    min_height: float = 40,
+) -> None:
+    """Assert an element is visible and has a meaningful rendered box."""
+    locator = page.locator(selector).first
+    expect(locator).to_be_visible()
+    box = locator.bounding_box()
+    assert box is not None, f"{selector} should have a bounding box"
+    assert box["width"] >= min_width, f"{selector} width too small: {box['width']}"
+    assert box["height"] >= min_height, f"{selector} height too small: {box['height']}"
+
+
+def _assert_card_style(page: Page, selector: str) -> None:
+    """Assert that a card-like element has real styling applied."""
+    locator = page.locator(selector).first
+    expect(locator).to_be_visible()
+
+    border_radius = str(
+        locator.evaluate(
+            "(element) => getComputedStyle(element).getPropertyValue('border-radius')"
+        )
+    ).strip()
+    background_color = str(
+        locator.evaluate(
+            "(element) => getComputedStyle(element).getPropertyValue('background-color')"
+        )
+    ).strip()
+    background_image = str(
+        locator.evaluate(
+            "(element) => getComputedStyle(element).getPropertyValue('background-image')"
+        )
+    ).strip()
+
+    assert border_radius not in {"", "0px"}, f"{selector} should not be visually flat"
+    has_background_color = background_color not in {
+        "",
+        "transparent",
+        "rgba(0, 0, 0, 0)",
+    }
+    has_background_image = background_image not in {"", "none"}
+    assert has_background_color or has_background_image, (
+        f"{selector} should have a rendered background style"
+    )
+
+
+def _assert_dashboard_contract(page: Page) -> None:
+    """Assert dashboard renders key metrics and navigation cards."""
+    _assert_page_shell(page, "/dashboard/")
+    _wait_for_non_placeholder_text(page, "h1.home-title")
+    _wait_for_non_placeholder_text(page, ".status-card .status-value")
+    _assert_min_count(page, ".metric-card", 4)
+    _assert_min_count(page, ".section-link", 4)
+    _assert_min_count(page, ".alpha-metric-card", 4)
+    _assert_card_style(page, ".metric-card")
+
+
+def _assert_macro_contract(page: Page) -> None:
+    """Assert macro page renders indicator data and chart container."""
+    _assert_page_shell(page, "/macro/data/")
+    expect(page.locator("h1")).to_have_text("宏观数据中心")
+    _assert_min_count(page, ".stat-card", 3)
+    _assert_min_count(page, ".ind-item", 5)
+
+    indicator_info_bar = page.locator("#indicatorInfoBar")
+    if not indicator_info_bar.is_visible():
+        page.locator(".ind-item").first.click()
+
+    expect(indicator_info_bar).to_be_visible(timeout=10000)
+    _wait_for_non_placeholder_text(page, "#currentIndicatorCode")
+    _wait_for_non_placeholder_text(page, "#currentIndicatorName")
+    _wait_for_non_placeholder_text(page, "#currentIndicatorValue")
+    _assert_box_size(page, "#mainChart", min_width=400, min_height=240)
+    _assert_card_style(page, ".stat-card")
+
+
+def _assert_regime_contract(page: Page) -> None:
+    """Assert regime dashboard renders the current quadrant instead of an empty shell."""
+    _assert_page_shell(page, "/regime/dashboard/")
+    expect(page.locator("h1")).to_have_text("Regime 判定")
+    _wait_for_non_placeholder_text(page, ".source-badge")
+    expect(page.get_by_text("当前象限：")).to_be_visible()
+    _assert_min_count(page, ".regime-card", 4)
+    _assert_min_count(page, ".chart-card", 2)
+    assert page.locator(".regime-card.active").count() == 1, "Expected exactly one active regime card"
+    assert not page.locator(".empty-state").is_visible(), "Regime dashboard should not fall back to empty state"
+    _assert_card_style(page, ".regime-card.active")
+
+
+def _assert_signal_contract(page: Page) -> None:
+    """Assert signal management renders real cards, not just the outer shell."""
+    _assert_page_shell(page, "/signal/manage/")
+    expect(page.locator("h1")).to_have_text("投资信号")
+    _assert_min_count(page, ".stat-card", 5)
+    _assert_min_count(page, ".signal-card", 1)
+    _assert_min_count(page, ".action-btn", 1)
+    _wait_for_non_placeholder_text(page, ".signal-card .signal-code")
+    _assert_card_style(page, ".signal-card")
+
+
+def _assert_policy_contract(page: Page) -> None:
+    """Assert policy workbench loads overview metrics and event rows."""
+    _assert_page_shell(page, "/policy/workbench/")
+    expect(page.locator("h1")).to_have_text("政策/情绪/热点工作台")
+    _assert_min_count(page, ".overview-card", 4)
+
+    page.wait_for_function(
+        """
+        () => {
+            const tbody = document.querySelector('#events-tbody');
+            return tbody && !tbody.innerText.includes('加载中...');
+        }
+        """,
+        timeout=15000,
+    )
+
+    _wait_for_non_placeholder_text(page, "#policy-level-value")
+    _wait_for_non_placeholder_text(page, "#pending-count", disallowed=("",))
+    _assert_min_count(page, ".events-table tbody tr", 1)
+    _assert_card_style(page, ".overview-card")
+
+
+def _assert_equity_contract(page: Page) -> None:
+    """Assert equity screen finishes loading its recommendation section."""
+    _assert_page_shell(page, "/equity/screen/")
+    expect(page.locator("h1")).to_have_text("个股筛选")
+    _assert_min_count(page, ".screen-workflow-step", 4)
+
+    page.wait_for_function(
+        "() => document.querySelectorAll('#autoRecommendationGrid .auto-recommendation-item').length > 0",
+        timeout=15000,
+    )
+
+    status_text = _wait_for_non_placeholder_text(
+        page,
+        "#autoRecommendationStatus",
+        disallowed=("", "系统自动推荐加载中", "系统自动推荐异常"),
+    )
+    assert "异常" not in status_text
+    _assert_min_count(page, "#autoRecommendationGrid .auto-recommendation-item", 1)
+    _assert_card_style(page, ".screen-workflow-step")
+
+
+def _assert_fund_contract(page: Page) -> None:
+    """Assert fund dashboard renders macro context and scoring table."""
+    _assert_page_shell(page, "/fund/dashboard/")
+    expect(page.locator("h1")).to_have_text("基金分析")
+    _assert_min_count(page, ".stat-card", 5)
+    _wait_for_non_placeholder_text(page, "#activeSignalsCount")
+    _assert_min_count(page, "#multiDimTable thead th", 10)
+    _assert_card_style(page, ".stat-card")
+
+
+def _assert_asset_analysis_contract(page: Page) -> None:
+    """Assert asset analysis can execute a real screening request."""
+    _assert_page_shell(page, "/asset-analysis/screen/")
+    expect(page.locator("h1")).to_have_text("资产筛选")
+    _assert_min_count(page, ".pool-card", 4)
+    _assert_card_style(page, ".pool-card")
+
+    page.get_by_role("button", name="开始筛选").click()
+    page.wait_for_function(
+        """
+        () => {
+            const body = document.querySelector('#resultsTableBody');
+            return body && !body.innerText.includes('加载中');
+        }
+        """,
+        timeout=20000,
+    )
+
+    _wait_for_non_placeholder_text(page, "#investableCount")
+    _assert_min_count(page, "#resultsTableBody tr", 1)
+
+
+def _assert_backtest_contract(page: Page) -> None:
+    """Assert backtest creation page renders a usable form with runtime constraints."""
+    _assert_page_shell(page, "/backtest/")
+    expect(page.locator("h1")).to_have_text("创建回测")
+    _assert_min_count(page, ".form-section", 4)
+    _assert_card_style(page, ".form-section")
+    assert page.locator("#start_date").get_attribute("min"), "start date min should be populated"
+    assert page.locator("#start_date").get_attribute("max"), "start date max should be populated"
+    assert page.locator("#end_date").get_attribute("min"), "end date min should be populated"
+    assert page.locator("#end_date").get_attribute("max"), "end date max should be populated"
+    assert page.locator("#rebalance_frequency option").count() > 0, "frequency options should be populated"
+    _assert_box_size(page, "#submit-btn", min_width=100, min_height=36)
+
+
+def _assert_simulated_trading_contract(page: Page) -> None:
+    """Assert simulated trading dashboard renders system entry cards and status blocks."""
+    _assert_page_shell(page, "/simulated-trading/")
+    expect(page.locator("h1")).to_have_text("模拟盘交易")
+    _assert_min_count(page, ".card-link", 1)
+    _assert_min_count(page, ".status-item-card", 3)
+    _assert_card_style(page, ".card")
+    _assert_card_style(page, ".status-item-card")
+
+
+def _assert_audit_contract(page: Page) -> None:
+    """Assert audit report list renders actionable report cards."""
+    _assert_page_shell(page, "/audit/")
+    title_text = _wait_for_non_placeholder_text(page, "h1")
+    assert "审计" in title_text
+    _assert_min_count(page, ".report-card", 1)
+    _assert_min_count(page, ".header-actions .btn-primary", 1)
+    _assert_card_style(page, ".report-card")
+
+
+def _assert_filter_contract(page: Page) -> None:
+    """Assert filter dashboard renders computed data and charts."""
+    _assert_page_shell(page, "/filter/")
+    expect(page.locator("h1")).to_have_text("趋势滤波器")
+    expect(page.locator("#filterTypeSelect")).to_be_visible()
+    assert page.locator("#filterTypeSelect").input_value() in {"hp", "kalman"}
+    _assert_min_count(page, ".summary-value", 4)
+    _assert_box_size(page, "#mainChart", min_width=400, min_height=240)
+    assert not page.locator(".empty-state").is_visible(), "Filter dashboard should render chart data"
+    _assert_card_style(page, ".sidebar-card")
+
+
+def _assert_rotation_contract(page: Page) -> None:
+    """Assert rotation asset page renders asset stats and cards."""
+    _assert_page_shell(page, "/rotation/")
+    expect(page.locator("h1")).to_have_text("资产类别")
+    _assert_min_count(page, ".stat-card", 4)
+    _assert_min_count(page, ".asset-card", 1)
+    _wait_for_non_placeholder_text(page, ".asset-card .asset-name")
+    _assert_card_style(page, ".asset-card")
 
 
 class TestCriticalPaths:
@@ -50,67 +324,67 @@ class TestCriticalPaths:
     def test_authenticated_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that dashboard loads when authenticated."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_ready(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
 
     def test_macro_data_page_loads(self, authenticated_page: Page) -> None:
         """Test that macro data page loads."""
         authenticated_page.goto(f"{config.base_url}{config.macro_data_url}")
-        _assert_page_ready(authenticated_page, "/macro/data/")
+        _assert_macro_contract(authenticated_page)
 
     def test_regime_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that regime dashboard loads."""
         authenticated_page.goto(f"{config.base_url}{config.regime_dashboard_url}")
-        _assert_page_ready(authenticated_page, "/regime/dashboard/")
+        _assert_regime_contract(authenticated_page)
 
     def test_signal_manage_loads(self, authenticated_page: Page) -> None:
         """Test that signal management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.signal_manage_url}")
-        _assert_page_ready(authenticated_page, "/signal/manage/")
+        _assert_signal_contract(authenticated_page)
 
     def test_policy_manage_loads(self, authenticated_page: Page) -> None:
         """Test that policy management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.policy_manage_url}")
-        _assert_page_ready(authenticated_page, "/policy/workbench/")
+        _assert_policy_contract(authenticated_page)
 
     def test_equity_screen_loads(self, authenticated_page: Page) -> None:
         """Test that equity screening page loads."""
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
-        _assert_page_ready(authenticated_page, "/equity/screen/")
+        _assert_equity_contract(authenticated_page)
 
     def test_fund_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that fund dashboard page loads."""
         authenticated_page.goto(f"{config.base_url}{config.fund_dashboard_url}")
-        _assert_page_ready(authenticated_page, "/fund/dashboard/")
+        _assert_fund_contract(authenticated_page)
 
     def test_asset_analysis_screen_loads(self, authenticated_page: Page) -> None:
         """Test that asset analysis page loads."""
         authenticated_page.goto(f"{config.base_url}{config.asset_analysis_screen_url}")
-        _assert_page_ready(authenticated_page, "/asset-analysis/screen/")
+        _assert_asset_analysis_contract(authenticated_page)
 
     def test_backtest_create_loads(self, authenticated_page: Page) -> None:
         """Test that backtest creation page loads."""
         authenticated_page.goto(f"{config.base_url}{config.backtest_create_url}")
-        _assert_page_ready(authenticated_page, "/backtest/")
+        _assert_backtest_contract(authenticated_page)
 
     def test_simulated_trading_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that simulated trading dashboard loads."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
-        _assert_page_ready(authenticated_page, "/simulated-trading/")
+        _assert_simulated_trading_contract(authenticated_page)
 
     def test_audit_reports_loads(self, authenticated_page: Page) -> None:
         """Test that audit reports page loads."""
         authenticated_page.goto(f"{config.base_url}{config.audit_reports_url}")
-        _assert_page_ready(authenticated_page, "/audit/")
+        _assert_audit_contract(authenticated_page)
 
     def test_filter_manage_loads(self, authenticated_page: Page) -> None:
         """Test that filter management page loads."""
         authenticated_page.goto(f"{config.base_url}{config.filter_manage_url}")
-        _assert_page_ready(authenticated_page, "/filter/")
+        _assert_filter_contract(authenticated_page)
 
     def test_sector_analysis_loads(self, authenticated_page: Page) -> None:
         """Test that sector analysis page loads."""
         authenticated_page.goto(f"{config.base_url}{config.sector_analysis_url}")
-        _assert_page_ready(authenticated_page, "/rotation/")
+        _assert_rotation_contract(authenticated_page)
 
 
 class TestAdminExposureSmoke:

@@ -10,6 +10,48 @@ from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.beta_gate.infrastructure.models import GateConfigModel
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
+def _assert_ai_provider_edit_contract(response, provider_name: str) -> str:
+    return _assert_html_contract(
+        response,
+        f"编辑 AI 提供商：{provider_name}",
+        "通过运营页面维护 AI 提供商配置（无需 Django Admin）",
+        "API 模式",
+        "fallback_enabled",
+        "extra_config_text",
+        "低波动预设",
+        "高创造预设",
+        "返回列表",
+    )
+
+
+def _assert_beta_gate_form_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "创建 Beta Gate 配置",
+        "通过产品化页面维护 Beta Gate 约束配置。",
+        "Regime 字段填写",
+        "Policy 字段填写",
+        "组合约束字段填写",
+        "/api/beta-gate/config/suggest/",
+        "保存配置",
+        "版本管理",
+    )
+
+
 @pytest.mark.django_db
 class TestOpsModernizedFlows:
     @pytest.fixture(autouse=True)
@@ -39,7 +81,7 @@ class TestOpsModernizedFlows:
         )
 
         get_response = self.client.get(f"/ai/detail/{provider.id}/edit/")
-        assert get_response.status_code == 200
+        _assert_ai_provider_edit_contract(get_response, provider.name)
 
         post_response = self.client.post(
             f"/ai/detail/{provider.id}/edit/",
@@ -83,7 +125,7 @@ class TestOpsModernizedFlows:
         old_active.save()
 
         create_get = self.client.get("/beta-gate/config/new/")
-        assert create_get.status_code == 200
+        _assert_beta_gate_form_contract(create_get)
 
         create_post = self.client.post(
             "/beta-gate/config/new/",

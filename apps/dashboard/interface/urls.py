@@ -11,4 +11,5 @@ app_name = 'dashboard'
 urlpatterns = [
     # Page routes
     path('', views.dashboard_entry, name='index'),
+    path('alpha/history/', views.alpha_history_page, name='alpha_history'),
 ]

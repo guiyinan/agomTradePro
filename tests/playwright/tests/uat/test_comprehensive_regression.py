@@ -7,13 +7,33 @@ that reuse the shared Playwright fixtures, markers, and failure screenshot flow.
 
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
-from uuid import uuid4
 from urllib.parse import urljoin, urlparse
+from uuid import uuid4
 
 import pytest
 from playwright.sync_api import Page, Response
 
 from tests.playwright.config.test_config import config
+from tests.playwright.tests.smoke.test_critical_paths import (
+    _assert_asset_analysis_contract,
+    _assert_audit_contract,
+    _assert_backtest_contract,
+    _assert_box_size,
+    _assert_card_style,
+    _assert_dashboard_contract,
+    _assert_equity_contract,
+    _assert_filter_contract,
+    _assert_fund_contract,
+    _assert_macro_contract,
+    _assert_min_count,
+    _assert_page_shell,
+    _assert_policy_contract,
+    _assert_regime_contract,
+    _assert_rotation_contract,
+    _assert_signal_contract,
+    _assert_simulated_trading_contract,
+    _wait_for_non_placeholder_text,
+)
 
 PUBLIC_SURFACES = [
     pytest.param("/", None, id="home"),
@@ -55,6 +75,22 @@ NON_PAGE_LINK_PREFIXES = (
     "/admin/logout/",
     "/account/logout/",
 )
+
+SURFACE_CONTRACTS = {
+    config.dashboard_url: _assert_dashboard_contract,
+    config.macro_data_url: _assert_macro_contract,
+    config.regime_dashboard_url: _assert_regime_contract,
+    config.signal_manage_url: _assert_signal_contract,
+    config.policy_manage_url: _assert_policy_contract,
+    config.equity_screen_url: _assert_equity_contract,
+    config.fund_dashboard_url: _assert_fund_contract,
+    config.asset_analysis_screen_url: _assert_asset_analysis_contract,
+    config.backtest_create_url: _assert_backtest_contract,
+    config.simulated_trading_dashboard_url: _assert_simulated_trading_contract,
+    config.audit_reports_url: _assert_audit_contract,
+    config.filter_manage_url: _assert_filter_contract,
+    config.sector_analysis_url: _assert_rotation_contract,
+}
 
 
 def _goto(page: Page, path: str) -> Response | None:
@@ -107,6 +143,77 @@ def _assert_login_redirect(page: Page, path: str) -> None:
         f"Expected auth redirect for {path}, got {page.url}"
     )
     _assert_non_error_shell(page, "/login/")
+
+
+def _assert_surface_contract(page: Page, path: str, expected_path_fragment: str | None = None) -> None:
+    """Assert a known page-specific contract when available, else fall back to shell checks."""
+    contract = SURFACE_CONTRACTS.get(path)
+    if contract is not None:
+        contract(page)
+        return
+
+    _assert_non_error_shell(page, expected_path_fragment)
+
+
+def _assert_decision_workspace_contract(page: Page) -> None:
+    """Assert the decision workspace renders account context and the funnel shell."""
+    _assert_page_shell(page, "/decision/workspace/")
+    assert "/decision/workspace/" in page.url
+    _wait_for_non_placeholder_text(page, ".funnel-title")
+    _assert_min_count(page, ".workspace-kpi", 6)
+    _assert_min_count(page, ".step-button", 6)
+    _assert_min_count(page, ".workspace-sidebar-card", 3)
+    _assert_card_style(page, ".workspace-sidebar-card")
+    _assert_card_style(page, ".funnel-stepper")
+    _assert_box_size(page, ".funnel-content-area", min_width=400, min_height=220)
+
+
+def _assert_ops_center_contract(page: Page) -> None:
+    """Assert settings center exposes filter controls and configuration cards."""
+    _assert_page_shell(page, "/settings/")
+    _wait_for_non_placeholder_text(page, "h1")
+    _assert_min_count(page, ".config-card", 3)
+    _assert_box_size(page, "#config-search", min_width=180, min_height=36)
+    _assert_box_size(page, "#config-section-filter", min_width=180, min_height=36)
+    _assert_box_size(page, "#config-status-filter", min_width=180, min_height=36)
+    _assert_card_style(page, ".config-card")
+
+
+def _assert_terminal_contract(page: Page) -> None:
+    """Assert terminal page exposes interactive shell controls and sidebar tools."""
+    _assert_page_shell(page, "/terminal/")
+    _wait_for_non_placeholder_text(page, ".terminal-title")
+    _assert_box_size(page, "#terminal-input", min_width=300, min_height=20)
+    _assert_min_count(page, ".quick-cmd-btn", 5)
+    _assert_box_size(page, "#provider-select", min_width=120, min_height=32)
+    _assert_box_size(page, "#model-select", min_width=120, min_height=32)
+    _assert_box_size(page, "#terminal-mode-select", min_width=120, min_height=32)
+    _assert_card_style(page, ".terminal-window")
+
+
+def _assert_simulated_accounts_contract(page: Page) -> None:
+    """Assert my-accounts page exposes account cards or a clear empty state plus modal shell."""
+    _assert_page_shell(page, "/simulated-trading/")
+    _wait_for_non_placeholder_text(page, "h1")
+    _assert_box_size(page, 'button:has-text("创建新账户")', min_width=100, min_height=32)
+    _wait_for_non_placeholder_text(page, "#selectedAccountCount", disallowed=("",))
+    assert page.locator("#createModal").count() == 1
+    assert (
+        page.locator(".account-card").count() > 0
+        or page.locator("text=您还没有创建任何账户").count() == 1
+    ), "Account page should show cards or a clear empty state"
+    if page.locator(".account-card").count() > 0:
+        _assert_card_style(page, ".account-card")
+
+
+SURFACE_CONTRACTS.update(
+    {
+        "/decision/workspace/": _assert_decision_workspace_contract,
+        "/settings/": _assert_ops_center_contract,
+        "/terminal/": _assert_terminal_contract,
+        config.simulated_trading_positions_url: _assert_simulated_accounts_contract,
+    }
+)
 
 
 def _collect_internal_paths(page: Page, limit: int = 5) -> list[str]:
@@ -280,7 +387,7 @@ class TestComprehensiveSurfaceAvailability:
         """Authenticated users should reach key work surfaces without 404/500 shells."""
         response = _goto(authenticated_page, path)
         _assert_http_success(response, path)
-        _assert_non_error_shell(authenticated_page, expected_path_fragment)
+        _assert_surface_contract(authenticated_page, path, expected_path_fragment)
 
 
 @pytest.mark.e2e
@@ -303,7 +410,7 @@ class TestComprehensiveNavigationRegression:
         """The dashboard should expose internal links that navigate to usable pages."""
         response = _goto(authenticated_page, config.dashboard_url)
         _assert_http_success(response, config.dashboard_url)
-        _assert_non_error_shell(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
 
         sampled_paths = _collect_internal_paths(authenticated_page, limit=5)
         _assert_paths_are_navigable(authenticated_page, sampled_paths)
@@ -336,7 +443,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Signal management should expose AI assistance, creation fields, and review context."""
         response = _goto(authenticated_page, config.signal_manage_url)
         _assert_http_success(response, config.signal_manage_url)
-        _assert_non_error_shell(authenticated_page, "/signal/")
+        _assert_signal_contract(authenticated_page)
 
         assert authenticated_page.locator("#aiInput").count() == 1
         assert authenticated_page.locator("button:has-text('AI 生成规则')").count() == 1
@@ -355,7 +462,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Policy workbench should expose the core operator controls for triage."""
         response = _goto(authenticated_page, config.policy_manage_url)
         _assert_http_success(response, config.policy_manage_url)
-        _assert_non_error_shell(authenticated_page, "/policy/workbench/")
+        _assert_policy_contract(authenticated_page)
 
         assert authenticated_page.locator(".overview-cards .overview-card").count() == 4
         assert authenticated_page.locator(".tab-nav .tab-btn").count() == 3
@@ -374,7 +481,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Backtest page should prefill dates and expose the core run configuration form."""
         response = _goto(authenticated_page, config.backtest_create_url)
         _assert_http_success(response, config.backtest_create_url)
-        _assert_non_error_shell(authenticated_page, "/backtest/")
+        _assert_backtest_contract(authenticated_page)
 
         authenticated_page.fill("#name", "Phase2 UAT Backtest")
         assert authenticated_page.input_value("#name") == "Phase2 UAT Backtest"
@@ -400,7 +507,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Account management should expose creation modal controls and portfolio operations."""
         response = _goto(authenticated_page, config.simulated_trading_positions_url)
         _assert_http_success(response, config.simulated_trading_positions_url)
-        _assert_non_error_shell(authenticated_page, "/simulated-trading/")
+        _assert_simulated_accounts_contract(authenticated_page)
 
         assert authenticated_page.locator('button:has-text("创建新账户")').count() == 1
         authenticated_page.click('button:has-text("创建新账户")')
@@ -423,7 +530,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Decision workspace should expose account context and the six-step funnel structure."""
         response = _goto(authenticated_page, "/decision/workspace/")
         _assert_http_success(response, "/decision/workspace/")
-        _assert_non_error_shell(authenticated_page, "/decision/workspace/")
+        _assert_decision_workspace_contract(authenticated_page)
 
         assert authenticated_page.locator("#workspace-account-selector").count() == 1
         assert authenticated_page.locator(".workspace-kpi").count() == 6
@@ -437,7 +544,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Settings center should allow narrowing and resetting configuration cards in the browser."""
         response = _goto(authenticated_page, "/settings/")
         _assert_http_success(response, "/settings/")
-        _assert_non_error_shell(authenticated_page, "/settings/")
+        _assert_ops_center_contract(authenticated_page)
 
         search = authenticated_page.locator("#config-search")
         section_filter = authenticated_page.locator("#config-section-filter")
@@ -461,7 +568,7 @@ class TestComprehensiveBusinessWorkflowShells:
         """Terminal UI should expose input, mode selection, and reactive character counting."""
         response = _goto(authenticated_page, "/terminal/")
         _assert_http_success(response, "/terminal/")
-        _assert_non_error_shell(authenticated_page, "/terminal/")
+        _assert_terminal_contract(authenticated_page)
 
         terminal_input = authenticated_page.locator("#terminal-input")
         input_count = authenticated_page.locator("#terminal-input-count")
@@ -494,7 +601,7 @@ class TestComprehensiveInteractiveFlows:
         try:
             response = _goto(authenticated_page, config.signal_manage_url)
             _assert_http_success(response, config.signal_manage_url)
-            _assert_non_error_shell(authenticated_page, "/signal/")
+            _assert_signal_contract(authenticated_page)
 
             asset_class_value = authenticated_page.locator('select[name="asset_class"] option[value]').evaluate_all(
                 """options => {
@@ -528,7 +635,7 @@ class TestComprehensiveInteractiveFlows:
             with authenticated_page.expect_navigation(wait_until="networkidle"):
                 authenticated_page.click('button[type="submit"]:has-text("创建信号")')
 
-            _assert_non_error_shell(authenticated_page, "/signal/")
+            _assert_signal_contract(authenticated_page)
             assert authenticated_page.locator(f"text={asset_code}").count() >= 1
         finally:
             _cleanup_signal(asset_code, django_db_blocker)
@@ -544,7 +651,7 @@ class TestComprehensiveInteractiveFlows:
         try:
             response = _goto(authenticated_page, config.simulated_trading_positions_url)
             _assert_http_success(response, config.simulated_trading_positions_url)
-            _assert_non_error_shell(authenticated_page, "/simulated-trading/")
+            _assert_simulated_accounts_contract(authenticated_page)
 
             authenticated_page.click('button:has-text("创建新账户")')
             assert authenticated_page.locator("#createModal").is_visible()
@@ -556,7 +663,7 @@ class TestComprehensiveInteractiveFlows:
             with authenticated_page.expect_navigation(wait_until="networkidle"):
                 authenticated_page.click('#createModal button[type="submit"]:has-text("创建")')
 
-            _assert_non_error_shell(authenticated_page, "/simulated-trading/")
+            _assert_simulated_accounts_contract(authenticated_page)
             assert authenticated_page.locator(f"text={account_name}").count() >= 1
         finally:
             _cleanup_account(account_name, django_db_blocker)
@@ -565,7 +672,7 @@ class TestComprehensiveInteractiveFlows:
         """Submitting a reversed date range should raise the client-side validation alert."""
         response = _goto(authenticated_page, config.backtest_create_url)
         _assert_http_success(response, config.backtest_create_url)
-        _assert_non_error_shell(authenticated_page, "/backtest/")
+        _assert_backtest_contract(authenticated_page)
 
         authenticated_page.evaluate(
             """() => {
@@ -589,7 +696,7 @@ class TestComprehensiveInteractiveFlows:
         """Quick status command should append readiness output into the terminal transcript."""
         response = _goto(authenticated_page, "/terminal/")
         _assert_http_success(response, "/terminal/")
-        _assert_non_error_shell(authenticated_page, "/terminal/")
+        _assert_terminal_contract(authenticated_page)
 
         output = authenticated_page.locator("#terminal-output")
         initial_text = output.inner_text(timeout=5000)
@@ -617,7 +724,7 @@ class TestComprehensiveActionRegression:
         try:
             response = _goto(authenticated_page, config.signal_manage_url)
             _assert_http_success(response, config.signal_manage_url)
-            _assert_non_error_shell(authenticated_page, "/signal/")
+            _assert_signal_contract(authenticated_page)
 
             card = authenticated_page.locator(f'.signal-card:has-text("{asset_code}")').first
             assert card.count() == 1
@@ -638,7 +745,7 @@ class TestComprehensiveActionRegression:
         try:
             response = _goto(authenticated_page, config.signal_manage_url)
             _assert_http_success(response, config.signal_manage_url)
-            _assert_non_error_shell(authenticated_page, "/signal/")
+            _assert_signal_contract(authenticated_page)
 
             authenticated_page.evaluate(
                 """() => {
@@ -666,7 +773,7 @@ class TestComprehensiveActionRegression:
         try:
             response = _goto(authenticated_page, config.simulated_trading_positions_url)
             _assert_http_success(response, config.simulated_trading_positions_url)
-            _assert_non_error_shell(authenticated_page, "/simulated-trading/")
+            _assert_simulated_accounts_contract(authenticated_page)
 
             authenticated_page.evaluate(
                 """() => {
@@ -693,7 +800,7 @@ class TestComprehensiveActionRegression:
         """The ops center should expose at least one frontend entry link that opens cleanly."""
         response = _goto(authenticated_page, "/settings/")
         _assert_http_success(response, "/settings/")
-        _assert_non_error_shell(authenticated_page, "/settings/")
+        _assert_ops_center_contract(authenticated_page)
 
         frontend_href = authenticated_page.evaluate(
             """() => {
@@ -707,7 +814,7 @@ class TestComprehensiveActionRegression:
         target_path = urlparse(urljoin(config.base_url, frontend_href)).path
         response = _goto(authenticated_page, target_path)
         _assert_http_success(response, target_path)
-        _assert_non_error_shell(authenticated_page)
+        _assert_surface_contract(authenticated_page, target_path)
 
     def test_decision_workspace_account_switch_refreshes_snapshot(self, authenticated_page: Page, django_db_blocker) -> None:
         """Switching to a seeded account should refresh account summary and status text."""
@@ -717,7 +824,7 @@ class TestComprehensiveActionRegression:
         try:
             response = _goto(authenticated_page, "/decision/workspace/")
             _assert_http_success(response, "/decision/workspace/")
-            _assert_non_error_shell(authenticated_page, "/decision/workspace/")
+            _assert_decision_workspace_contract(authenticated_page)
 
             selector = authenticated_page.locator("#workspace-account-selector")
             authenticated_page.wait_for_function(

@@ -69,12 +69,13 @@ class ETFFallbackProvider(BaseAlphaProvider):
         """最大陈旧天数"""
         return 30
 
-    def supports(self, universe_id: str) -> bool:
+    def supports(self, universe_id: str, pool_scope=None) -> bool:
         """
         检查是否支持指定的股票池
 
         Args:
             universe_id: 股票池标识
+            pool_scope: 账户驱动候选池范围，ETF 降级 Provider 不使用
 
         Returns:
             是否支持
@@ -98,7 +99,9 @@ class ETFFallbackProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int = 30
+        top_n: int = 30,
+        pool_scope=None,
+        user=None,
     ) -> AlphaResult:
         """
         获取 ETF 成分股评分
@@ -111,6 +114,8 @@ class ETFFallbackProvider(BaseAlphaProvider):
             universe_id: 股票池标识
             intended_trade_date: 计划交易日期
             top_n: 返回前 N 只
+            pool_scope: 账户驱动候选池范围，ETF 降级 Provider 不使用
+            user: 当前用户，ETF 降级 Provider 不使用
 
         Returns:
             AlphaResult

@@ -17,7 +17,7 @@ from typing import Dict, List, Optional
 from django.conf import settings
 from django.db.models import Max, Q
 
-from ...domain.entities import AlphaResult, StockScore
+from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe
 
@@ -117,7 +117,9 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int = 30
+        top_n: int = 30,
+        pool_scope: AlphaPoolScope | None = None,
+        user=None,
     ) -> AlphaResult:
         """
         计算股票评分
@@ -137,7 +139,11 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             AlphaResult
         """
         # 1. 获取股票池（从数据库获取有估值数据的股票）
-        stock_list = self._get_universe_stocks(universe_id, intended_trade_date)
+        stock_list = self._get_universe_stocks(
+            universe_id,
+            intended_trade_date,
+            pool_scope=pool_scope,
+        )
         if not stock_list:
             return self._create_error_result(
                 f"股票池 {universe_id} 中没有可用的估值数据，请先同步估值数据"
@@ -156,7 +162,8 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             )
 
         # 3. 计算评分
-        scores = self._compute_scores(fundamental_data, universe_id, intended_trade_date)
+        score_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
+        scores = self._compute_scores(fundamental_data, score_universe_id, intended_trade_date)
 
         if not scores:
             return self._create_error_result(
@@ -179,7 +186,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 confidence=score.confidence,
                 asof_date=intended_trade_date,
                 intended_trade_date=intended_trade_date,
-                universe_id=universe_id,
+                universe_id=score_universe_id,
             )
 
         return self._create_success_result(
@@ -189,13 +196,17 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 "scored_count": len(scores),
                 "factor_weights": self._factor_weights,
                 "data_quality": data_quality,
+                "scope_hash": pool_scope.scope_hash if pool_scope else None,
+                "scope_label": pool_scope.display_label if pool_scope else None,
+                "scope_metadata": pool_scope.to_dict() if pool_scope else {},
             }
         )
 
     def _get_universe_stocks(
         self,
         universe_id: str,
-        trade_date: date
+        trade_date: date,
+        pool_scope: AlphaPoolScope | None = None,
     ) -> list[str]:
         """
         获取股票池列表（从数据库获取有估值数据的股票）。
@@ -209,6 +220,9 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         """
         try:
             from apps.equity.infrastructure.models import ValuationModel
+
+            if pool_scope is not None and pool_scope.instrument_codes:
+                return list(pool_scope.instrument_codes)
 
             # 优先使用配置的股票池映射
             configured = getattr(settings, "ALPHA_SIMPLE_UNIVERSE_MAP", {}) or {}

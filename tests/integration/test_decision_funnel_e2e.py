@@ -14,6 +14,20 @@ from apps.backtest.infrastructure.models import BacktestResultModel
 pytestmark = pytest.mark.timeout(90)
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_partial_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
 def _action_recommendation_stub(*recommended_sectors):
     """Build a minimal action recommendation compatible with Step 2 and Step 3."""
     return SimpleNamespace(
@@ -120,8 +134,14 @@ def test_decision_step3_partial_uses_rotation_outputs(authenticated_client):
     ):
         response = authenticated_client.get("/api/decision/context/step3/")
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
+    content = _assert_html_partial_contract(
+        response,
+        "阶段 3: 板块选择与风格映射",
+        "当前决策账户",
+        "推荐偏好依据",
+        "Regime + 动量板块",
+        "风格轮动信号 (Rotation)",
+    )
     assert "科技" in content
     assert "消费" in content
     assert "沪深300" in content
@@ -159,8 +179,13 @@ def test_decision_step3_partial_shows_rotation_fallback_warning(authenticated_cl
     ):
         response = authenticated_client.get("/api/decision/context/step3/")
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
+    content = _assert_html_partial_contract(
+        response,
+        "阶段 3: 板块选择与风格映射",
+        "轮动结果状态",
+        "Regime + 动量板块",
+        "风格轮动信号 (Rotation)",
+    )
     assert "实时轮动重算失败" in content
     assert "已回退" in content
     assert "2026-03-30" in content
@@ -227,10 +252,16 @@ def test_decision_funnel_context_and_step6_partial(
         == "顺周期资产需要配合更严格的仓位控制。"
     )
 
-    assert partial_response.status_code == 200
-    partial_html = partial_response.content.decode("utf-8")
+    partial_html = _assert_html_partial_contract(
+        partial_response,
+        "阶段 6: 审批执行",
+        "计划审批与执行落地",
+        "当前审批请求",
+        "执行接入规划",
+        "execution-plan-panel",
+        "自动交易系统",
+    )
     assert "阶段 6: 审批执行" in partial_html
-    assert "自动交易系统" in partial_html
     assert "Brinson 模型归因报告" not in partial_html
 
 

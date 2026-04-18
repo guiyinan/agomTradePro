@@ -4,12 +4,12 @@ Integration Tests for Decision Platform
 测试 Beta Gate、Alpha Trigger、Decision Rhythm 三个模块的协同工作。
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client
 
 from apps.alpha_trigger.domain.entities import (
     AlphaCandidate,
@@ -32,6 +32,90 @@ from apps.decision_rhythm.domain.entities import (
     DecisionStatus,
     QuotaPeriod,
 )
+
+
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
+def _assert_decision_workspace_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "AgomTradePro - 决策工作台",
+        "投资决策工作台",
+        "决策账户",
+        "账户现状",
+        "当前持仓摘要",
+        "workspace-account-selector",
+        "funnel-stepper",
+        "decision-workspace.css",
+    )
+
+
+def _assert_alpha_trigger_list_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "Alpha 触发器 - AgomTradePro",
+        "离散、可证伪、可行动的 Alpha 信号触发机制",
+        "创建触发器",
+        "观察中",
+        "候选",
+        "可行动",
+        "已触发",
+        "alpha-triggers.css",
+    )
+
+
+def _assert_beta_gate_config_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "Beta 闸门配置 - AgomTradePro",
+        "基于 Regime 和 Policy 的资产可见性过滤",
+        "资产测试",
+        "配置管理",
+        "暂无激活的配置",
+        "打开配置表单",
+        "beta-gate.css",
+    )
+
+
+def _assert_decision_quota_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "决策配额管理 - AgomTradePro",
+        "决策频率约束与配额监控",
+        "配额配置",
+        "剩余配额",
+        "已使用",
+        "总配额",
+        "使用率",
+        "近期决策请求",
+        "quota-progress-bar",
+    )
+
+
+def _assert_alpha_trigger_performance_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "AgomTradePro - 触发器性能追踪",
+        "触发器性能追踪",
+        "评估触发器质量和投资转化效果",
+        "返回列表",
+        "创建触发器",
+        "活跃触发器",
+        "总候选数",
+        "按触发器类型分组",
+    )
 
 
 @pytest.mark.django_db
@@ -191,7 +275,7 @@ class TestDecisionPlatformPages:
     @pytest.fixture
     def db_client(self):
         """创建测试客户端"""
-        user = User.objects.create_user(
+        User.objects.create_user(
             username="test_user",
             email="test@example.com",
             password="test_password"
@@ -203,28 +287,27 @@ class TestDecisionPlatformPages:
     def test_workspace_page_loads(self, db_client):
         """测试工作台页面加载"""
         response = db_client.get("/decision/workspace/")
-        # 页面应该可访问
-        assert response.status_code in [200, 302, 404]
+        _assert_decision_workspace_contract(response)
 
     def test_alpha_trigger_list_page_loads(self, db_client):
         """测试 Alpha Trigger 列表页面"""
         response = db_client.get("/alpha-triggers/")
-        assert response.status_code in [200, 302]
+        _assert_alpha_trigger_list_contract(response)
 
     def test_beta_gate_config_page_loads(self, db_client):
         """测试 Beta Gate 配置页面"""
         response = db_client.get("/beta-gate/config/")
-        assert response.status_code in [200, 302]
+        _assert_beta_gate_config_contract(response)
 
     def test_decision_rhythm_quota_page_loads(self, db_client):
         """测试 Decision Rhythm 配额页面"""
         response = db_client.get("/decision-rhythm/quota/")
-        assert response.status_code in [200, 302]
+        _assert_decision_quota_contract(response)
 
     def test_alpha_trigger_performance_page_loads(self, db_client):
         """测试 Alpha Trigger 性能页面"""
         response = db_client.get("/alpha-triggers/performance/")
-        assert response.status_code in [200, 302]
+        _assert_alpha_trigger_performance_contract(response)
 
 
 @pytest.mark.django_db
@@ -234,7 +317,7 @@ class TestDecisionPlatformAPI:
     @pytest.fixture
     def api_client(self):
         """创建 API 测试客户端"""
-        user = User.objects.create_user(
+        User.objects.create_user(
             username="api_user",
             email="api@example.com",
             password="test_password"

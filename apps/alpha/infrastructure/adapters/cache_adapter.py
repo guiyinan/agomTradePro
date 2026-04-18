@@ -11,7 +11,7 @@ from typing import List, Optional
 
 from django.utils import timezone
 
-from ...domain.entities import AlphaResult, StockScore
+from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore, normalize_stock_code
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, provider_safe
 
@@ -115,6 +115,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         universe_id: str,
         intended_trade_date: date,
         top_n: int = 30,
+        pool_scope: AlphaPoolScope | None = None,
         user=None,
     ) -> AlphaResult:
         """
@@ -139,13 +140,17 @@ class CacheAlphaProvider(BaseAlphaProvider):
         cache_model = _get_cache_model()
 
         cache = None
+        universe_filter = self._build_universe_filter(
+            universe_id=universe_id,
+            pool_scope=pool_scope,
+        )
 
         # 1. 优先查用户个人评分
         if user is not None and user.is_authenticated:
             cache = self._select_best_cache(
                 cache_model.objects.filter(
                     user=user,
-                    universe_id=universe_id,
+                    **universe_filter,
                 ),
                 intended_trade_date=intended_trade_date,
             )
@@ -155,7 +160,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
             cache = self._select_best_cache(
                 cache_model.objects.filter(
                     user=None,
-                    universe_id=universe_id,
+                    **universe_filter,
                 ),
                 intended_trade_date=intended_trade_date,
             )
@@ -171,7 +176,12 @@ class CacheAlphaProvider(BaseAlphaProvider):
         is_stale = staleness_days > self.max_staleness_days
 
         # 4. 解析评分
-        scores = self._parse_scores(cache.scores, top_n)
+        scores = self._parse_scores(
+            cache.scores,
+            top_n,
+            default_asof_date=cache.asof_date,
+            default_intended_trade_date=cache.intended_trade_date,
+        )
         if not scores:
             return self._create_error_result(
                 f"{universe_id} 缓存存在但评分为空或损坏",
@@ -193,8 +203,24 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 "asof_date": cache.asof_date.isoformat(),
                 "provider_source": cache.provider_source,
                 "created_at": cache.created_at.isoformat(),
+                "scope_hash": cache.scope_hash,
+                "scope_label": cache.scope_label,
+                "scope_metadata": cache.scope_metadata or {},
             }
         )
+
+    def _build_universe_filter(
+        self,
+        *,
+        universe_id: str,
+        pool_scope: AlphaPoolScope | None,
+    ) -> dict[str, object]:
+        if pool_scope is not None:
+            return {
+                "scope_hash": pool_scope.scope_hash,
+                "universe_id": pool_scope.universe_id,
+            }
+        return {"universe_id": universe_id}
 
     def _select_best_cache(self, queryset, intended_trade_date: date):
         """
@@ -232,7 +258,13 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 return historical_cache
         return exact_cache
 
-    def _parse_scores(self, raw_scores: list, top_n: int) -> list[StockScore]:
+    def _parse_scores(
+        self,
+        raw_scores: list,
+        top_n: int,
+        default_asof_date: date | None = None,
+        default_intended_trade_date: date | None = None,
+    ) -> list[StockScore]:
         """
         解析原始评分数据
 
@@ -247,7 +279,14 @@ class CacheAlphaProvider(BaseAlphaProvider):
         for item in raw_scores[:top_n]:
             try:
                 payload = dict(item)
+                normalized_code = normalize_stock_code(payload.get("code"))
+                if normalized_code:
+                    payload["code"] = normalized_code
                 payload.setdefault("source", "cache")
+                if default_asof_date and not payload.get("asof_date"):
+                    payload["asof_date"] = default_asof_date.isoformat()
+                if default_intended_trade_date and not payload.get("intended_trade_date"):
+                    payload["intended_trade_date"] = default_intended_trade_date.isoformat()
                 scores.append(StockScore.from_dict(payload))
             except Exception as e:
                 logger.warning(f"解析评分失败: {item}, error: {e}")

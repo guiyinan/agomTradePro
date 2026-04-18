@@ -347,7 +347,7 @@
         <!-- Alpha 可视化（新增） -->
         <section class="alpha-visualization-section">
             <div class="section-header">
-                <h2 class="section-title">🤖 AI 选股 (Alpha)</h2>
+                <h2 class="section-title">🤖 Alpha 候选/排名</h2>
                 <!-- 数据源依赖标识 -->
                 <div class="data-source-badges">
                     <span class="ds-badge ds-qlib" title="Qlib AI 模型预测">🧠 Qlib</span>
@@ -356,13 +356,31 @@
                     <span class="ds-badge ds-etf" title="ETF 成份股兜底">🛡️ ETF</span>
                 </div>
                 <div class="header-actions">
+                    <select id="alphaPortfolioSelect" class="sort-select" onchange="reloadAlphaStocksTable(10)">
+                        {% for portfolio in portfolio_options %}
+                        <option value="{{ portfolio.id }}" {% if portfolio.id == selected_portfolio_id %}selected{% endif %}>
+                            {{ portfolio.name }}
+                        </option>
+                        {% empty %}
+                        <option value="">当前组合</option>
+                        {% endfor %}
+                    </select>
                     <button class="refresh-btn"
-                            hx-get="{% url 'api_dashboard:alpha_stocks' %}"
+                            hx-get="{% url 'api_dashboard:alpha_stocks' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}"
                             hx-trigger="click"
                             hx-target="#alphaStocksTable"
                             hx-swap="innerHTML">
                         <span>🔄 刷新</span>
                     </button>
+                    <button
+                        type="button"
+                        id="alphaRealtimeRefreshBtn"
+                        class="refresh-btn refresh-btn-realtime"
+                        onclick="triggerAlphaRealtimeRefresh(10)"
+                    >
+                        <span>⚡ 实时刷新</span>
+                    </button>
+                    <span id="alphaRefreshStatus" class="alpha-refresh-status" aria-live="polite"></span>
                 </div>
             </div>
 
@@ -429,15 +447,15 @@
                 <!-- 左侧：选股结果表格 -->
                 <div class="alpha-content-card alpha-stocks-card">
                     <div class="card-header">
-                        <h3>Top 10 选股结果</h3>
+                        <h3>账户驱动 Alpha 候选</h3>
                         <div class="alpha-card-actions">
                             <a href="{% url 'equity:screen' %}?source=dashboard-alpha" class="alpha-section-link">进入个股筛选</a>
-                            <span class="card-badge">{{ alpha_decision_chain_overview.top10_actionable_count|default:0 }} 已进 Workflow</span>
+                            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-section-link">推荐历史</a>
                             <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
                         </div>
                     </div>
                     <div class="card-body" id="alphaStocksTable">
-                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_chain_overview=alpha_decision_chain_overview %}
+                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_pool=alpha_pool alpha_actionable_candidates=alpha_actionable_candidates alpha_pending_requests=alpha_pending_requests alpha_recent_runs=alpha_recent_runs alpha_history_run_id=alpha_history_run_id selected_portfolio_id=selected_portfolio_id %}
                     </div>
                 </div>
 
@@ -719,33 +737,61 @@
                     <div class="status-icon">📊</div>
                     <div class="status-content">
                         <div class="status-name">宏观数据</div>
-                        <div class="status-desc">数据采集正常</div>
+                        <div class="status-desc">
+                            {% if regime_data_health %}
+                                数据采集正常
+                            {% else %}
+                                数据不足或待刷新
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="status-indicator status-ok"></div>
+                    <div class="status-indicator {% if regime_data_health %}status-ok{% else %}status-warning{% endif %}"></div>
                 </div>
                 <div class="status-item-card">
                     <div class="status-icon">🎯</div>
                     <div class="status-content">
                         <div class="status-name">Regime 引擎</div>
-                        <div class="status-desc">运行正常</div>
+                        <div class="status-desc">
+                            {% if current_regime and regime_data_health %}
+                                {{ current_regime }} 已更新
+                            {% elif current_regime %}
+                                {{ current_regime }}，数据待确认
+                            {% else %}
+                                等待有效宏观数据
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="status-indicator status-ok"></div>
+                    <div class="status-indicator {% if current_regime and regime_data_health %}status-ok{% else %}status-warning{% endif %}"></div>
                 </div>
                 <div class="status-item-card">
                     <div class="status-icon">📰</div>
                     <div class="status-content">
                         <div class="status-name">政策/情绪/热点</div>
-                        <div class="status-desc">工作台已更新</div>
+                        <div class="status-desc">
+                            {% if current_policy_level %}
+                                政策档位 {{ current_policy_level }}
+                            {% elif active_signals %}
+                                {{ active_signals|length }} 条信号待复核
+                            {% else %}
+                                暂无最新事件
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="status-indicator status-ok"></div>
+                    <div class="status-indicator {% if current_policy_level or active_signals %}status-ok{% else %}status-warning{% endif %}"></div>
                 </div>
                 <div class="status-item-card">
                     <div class="status-icon">🤖</div>
                     <div class="status-content">
                         <div class="status-name">AI 助手</div>
-                        <div class="status-desc">就绪</div>
+                        <div class="status-desc">
+                            {% if ai_insights %}
+                                本地规则已生成
+                            {% else %}
+                                未生成建议
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="status-indicator status-ok"></div>
+                    <div class="status-indicator {% if ai_insights %}status-ok{% else %}status-warning{% endif %}"></div>
                 </div>
                 <div class="status-item-card status-qlib-card">
                     <div class="status-icon">🧠</div>
@@ -811,7 +857,10 @@ const API_URLS = {
     webChat: "/api/chat/web/",
     promptChatProviders: "/api/prompt/chat/providers",
     promptChatModels: "/api/prompt/chat/models",
-    aiProviderManage: "{% url 'ai_provider:manage' %}"
+    aiProviderManage: "{% url 'ai_provider:manage' %}",
+    alphaStocks: "{% url 'api_dashboard:alpha_stocks' %}",
+    alphaRefresh: "{% url 'api_dashboard:alpha_refresh' %}",
+    decisionRequestCancelBase: "/api/decision-rhythm/requests/"
 };
 
 // 初始化共享渲染器
@@ -975,6 +1024,141 @@ function getCookie(name) {
     return cookieValue;
 }
 
+function reloadAlphaStocksTable(topN = 10) {
+    const portfolioSelect = document.getElementById('alphaPortfolioSelect');
+    const portfolioId = portfolioSelect ? portfolioSelect.value : '';
+    const query = new URLSearchParams({ top_n: String(topN) });
+    if (portfolioId) {
+        query.set('portfolio_id', portfolioId);
+    }
+    if (window.htmx) {
+        window.htmx.ajax('GET', `${API_URLS.alphaStocks}?${query.toString()}`, {
+            target: '#alphaStocksTable',
+            swap: 'innerHTML',
+        });
+    }
+}
+
+let alphaAutoRefreshTimer = null;
+
+function scheduleAlphaAutoRefreshFromPanel() {
+    const panel = document.querySelector('#alphaStocksTable .alpha-homepage-panel');
+    const statusNode = document.getElementById('alphaRefreshStatus');
+    if (!panel) {
+        return;
+    }
+
+    const refreshStatus = panel.dataset.alphaRefreshStatus || '';
+    const shouldPoll = refreshStatus === 'queued' || refreshStatus === 'recently_queued';
+    if (!shouldPoll) {
+        return;
+    }
+
+    const pollAfterMs = Number.parseInt(panel.dataset.alphaPollAfterMs || '5000', 10) || 5000;
+    if (statusNode) {
+        statusNode.textContent = '后台正在生成账户池 Alpha cache，稍后自动刷新...';
+        statusNode.classList.remove('is-error');
+    }
+    if (alphaAutoRefreshTimer) {
+        window.clearTimeout(alphaAutoRefreshTimer);
+    }
+    alphaAutoRefreshTimer = window.setTimeout(() => {
+        reloadAlphaStocksTable(10);
+    }, pollAfterMs);
+}
+
+async function triggerAlphaRealtimeRefresh(topN = 10) {
+    const refreshBtn = document.getElementById('alphaRealtimeRefreshBtn');
+    const statusNode = document.getElementById('alphaRefreshStatus');
+    const originalLabel = refreshBtn ? refreshBtn.innerHTML : '';
+
+    if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<span>⏳ 刷新中</span>';
+    }
+    if (statusNode) {
+        statusNode.textContent = '正在触发实时 Alpha 刷新...';
+        statusNode.classList.remove('is-error');
+    }
+
+    try {
+        const portfolioSelect = document.getElementById('alphaPortfolioSelect');
+        const portfolioId = portfolioSelect ? portfolioSelect.value : '';
+        const response = await fetch(API_URLS.alphaRefresh, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: new URLSearchParams({
+                top_n: String(topN),
+                portfolio_id: portfolioId,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || '触发 Alpha 实时刷新失败');
+        }
+
+        if (statusNode) {
+            statusNode.textContent = data.message || '已触发实时刷新任务，请稍后重试。';
+        }
+        reloadAlphaStocksTable(topN);
+        window.setTimeout(() => reloadAlphaStocksTable(topN), data.poll_after_ms || 5000);
+    } catch (error) {
+        if (statusNode) {
+            statusNode.textContent = error.message;
+            statusNode.classList.add('is-error');
+        }
+    } finally {
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = originalLabel;
+        }
+    }
+}
+
+async function discardAlphaPendingRequest(requestId) {
+    if (!requestId) {
+        return;
+    }
+    const confirmed = window.confirm('确认丢弃这条待执行请求吗？记录会保留，状态改为已取消。');
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_URLS.decisionRequestCancelBase}${encodeURIComponent(requestId)}/cancel/`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    reason: '用户在 Dashboard 丢弃待执行请求',
+                }),
+            }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || '丢弃待执行请求失败');
+        }
+        reloadAlphaStocksTable(10);
+        window.setTimeout(() => window.location.reload(), 300);
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', scheduleAlphaAutoRefreshFromPanel);
+document.body.addEventListener('htmx:afterSwap', (event) => {
+    if (event.target && event.target.id === 'alphaStocksTable') {
+        scheduleAlphaAutoRefreshFromPanel();
+    }
+});
+
 chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -1035,13 +1219,19 @@ function renderProviderStatus() {
         const status = info.status || 'unknown';
         const metrics = providerData.metrics?.[name] || null;
         const message = info.message || '';
+        const statusLabels = {
+            available: '✓ 可用',
+            degraded: '⚠ 降级',
+            registered: '◌ 已注册',
+            unavailable: '✗ 不可用',
+        };
 
         html += `
             <div class="provider-item provider-${status}">
                 <div class="provider-header">
                     <span class="provider-name">${providerNames[name] || name}</span>
                     <span class="provider-status-badge status-${status}">
-                        ${status === 'available' ? '✓ 可用' : status === 'degraded' ? '⚠ 降级' : '✗ 不可用'}
+                        ${statusLabels[status] || '？未知'}
                     </span>
                 </div>
                 ${message ? `<div class="provider-message">${message}</div>` : ''}
@@ -1117,6 +1307,9 @@ async function checkQlibStatus() {
                     indicator.className = 'status-indicator status-warning';
                     const msg = qlibProvider.message || '降级运行中';
                     desc.innerHTML = `⚠ ${msg}`;
+                } else if (qlibProvider.status === 'registered') {
+                    indicator.className = 'status-indicator status-warning';
+                    desc.innerHTML = '◌ 已注册，未做实时健康检查';
                 } else {
                     indicator.className = 'status-indicator status-error';
                     const msg = qlibProvider.message || '不可用';
@@ -2529,6 +2722,10 @@ chatSendBtn.onclick = async function() {
     border-left-color: #FF9800;
 }
 
+.provider-item.provider-registered {
+    border-left-color: #2196F3;
+}
+
 .provider-item.provider-unavailable {
     border-left-color: #F44336;
     opacity: 0.6;
@@ -2564,6 +2761,11 @@ chatSendBtn.onclick = async function() {
     color: #F57C00;
 }
 
+.provider-status-badge.status-registered {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
 .provider-status-badge.status-unavailable {
     background: #FFEBEE;
     color: #C62828;
@@ -2590,6 +2792,13 @@ chatSendBtn.onclick = async function() {
 }
 
 /* 刷新按钮 */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .refresh-btn {
     padding: 6px 12px;
     background: var(--bg-tertiary);
@@ -2606,6 +2815,26 @@ chatSendBtn.onclick = async function() {
 .refresh-btn:hover {
     background: var(--bg-secondary);
     border-color: var(--primary-color);
+}
+
+.refresh-btn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.refresh-btn-realtime {
+    background: #eef6ff;
+    border-color: #b7d3ff;
+    color: #174ea6;
+}
+
+.alpha-refresh-status {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.alpha-refresh-status.is-error {
+    color: #c62828;
 }
 
 .mini-refresh-btn {

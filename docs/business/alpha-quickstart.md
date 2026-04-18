@@ -89,6 +89,19 @@ curl "http://localhost:8000/api/alpha/scores/?universe=csi300&top_n=10"
 }
 ```
 
+### 获取首页账户驱动 Alpha 候选
+
+```bash
+curl "http://localhost:8000/api/dashboard/alpha/stocks/?format=json&top_n=10"
+```
+
+说明：
+
+- 这条接口不是固定查 `csi300`
+- 默认会按当前激活组合生成账户驱动池
+- 返回 `Alpha Top 候选/排名`、`可行动候选`、`待执行队列`
+- 同时包含缓存日期、回退原因、买入理由、不买理由、证伪条件、建议仓位与最近历史 run
+
 ### 查看 Provider 状态
 
 ```bash
@@ -130,7 +143,7 @@ from agomtradepro import AgomTradeProClient
 
 client = AgomTradeProClient()
 
-# 获取股票评分
+# 获取 universe / 研究视角评分
 result = client.alpha.get_stock_scores("csi300", top_n=10)
 
 print(f"数据源: {result['source']}")
@@ -139,6 +152,11 @@ print(f"股票数量: {len(result['stocks'])}")
 
 for stock in result['stocks']:
     print(f"{stock['rank']}. {stock['code']}: {stock['score']:.3f}")
+
+# 获取首页账户驱动候选
+dashboard_alpha = client.dashboard.alpha_stocks(top_n=10, portfolio_id=21)
+print(dashboard_alpha["data"]["pool"]["label"])
+print(len(dashboard_alpha["data"]["top_candidates"]))
 ```
 
 ### 便捷方法
@@ -197,8 +215,20 @@ python manage.py rollback_model --model-name mlp_csi300 --prev
 ### 在 Claude Code 中使用
 
 ```python
-# 获取股票评分
+# 获取 universe / 研究视角评分
 get_alpha_stock_scores(universe="csi300", top_n=10)
+
+# 获取首页账户驱动 Alpha 候选
+get_dashboard_alpha_candidates(top_n=10, portfolio_id=21)
+
+# 查询历史 run 列表
+get_dashboard_alpha_history(portfolio_id=21, stage="actionable")
+
+# 查看单次历史 run 详情
+get_dashboard_alpha_history_detail(run_id=128)
+
+# 手动触发当前组合实时刷新
+trigger_dashboard_alpha_refresh(top_n=10, portfolio_id=21)
 
 # 查看 Provider 状态
 get_alpha_provider_status()
@@ -206,6 +236,12 @@ get_alpha_provider_status()
 # 健康检查
 check_alpha_health()
 ```
+
+提示：
+
+- `get_alpha_stock_scores(...)` 仍按 `universe` 查询，适合研究池和离线评分上传链路
+- 首页/账户候选请改用 `get_dashboard_alpha_candidates(...)`
+- 历史回溯请用 `get_dashboard_alpha_history(...)` 和 `get_dashboard_alpha_history_detail(...)`
 
 ## 🔍 故障排查
 

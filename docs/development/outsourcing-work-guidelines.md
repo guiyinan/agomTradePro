@@ -279,6 +279,52 @@ def test_case_1():
     pass
 ```
 
+### 3.4 页面 Smoke / E2E 测试契约
+
+**规则**: 页面测试禁止只断言 `200`、URL 命中或 body 非空。所有关键页面的 Smoke / E2E 测试必须至少覆盖以下三类契约：
+
+1. **关键 DOM 锚点**: 页面标题、核心卡片、主表格、主要按钮、图表容器必须存在且可见
+2. **数据渲染完成**: 关键指标不能停留在 `-`、空字符串、`加载中...`、纯占位骨架或空壳容器
+3. **基础样式契约**: 关键卡片/按钮/图表容器必须验证基础样式已生效，例如非透明背景、非零圆角、有效尺寸
+
+该规则同样适用于 `setup wizard`、`operator/ops`、`profile`、配置表单页等运营和支撑页面，不能把它们降级成“只要能打开就算通过”。
+页面测试不得使用 `[200, 302, 404]` 这类宽松状态码白名单；如果页面是正式入口，应断言明确的 `200` 和页面合同，重定向或缺页必须单独写权限/路由测试。
+
+**最低要求示例**:
+
+```python
+def test_regime_dashboard_contract(authenticated_page):
+    authenticated_page.goto("/regime/dashboard/")
+
+    expect(authenticated_page.locator("h1")).to_have_text("Regime 判定")
+    expect(authenticated_page.locator(".regime-card.active")).to_be_visible()
+    assert authenticated_page.locator(".chart-card").count() >= 2
+
+    quadrant_text = authenticated_page.locator("text=当前象限：").inner_text()
+    assert quadrant_text.strip()
+
+    style = authenticated_page.locator(".regime-card.active").evaluate(
+        "(element) => getComputedStyle(element).getPropertyValue('border-radius')"
+    )
+    assert style != "0px"
+```
+
+**禁止写法**:
+
+```python
+def test_regime_dashboard_loads(authenticated_page):
+    authenticated_page.goto("/regime/dashboard/")
+    assert authenticated_page.url.endswith("/regime/dashboard/")
+    assert authenticated_page.locator("body").inner_text().strip()
+```
+
+**适用范围**:
+- `tests/playwright/tests/smoke/`
+- 所有关键业务页面的回归测试
+- 所有用户可见的首页、列表页、工作台、图表页
+
+如果页面依赖异步加载，测试必须等待异步数据完成，而不是在 `加载中...` 状态下提前通过。
+
 ---
 
 ## 四、文档同步规范

@@ -477,3 +477,84 @@ class DashboardSnapshotModel(models.Model):
 
     def __str__(self):
         return f"DashboardSnapshot({self.user.username}, {self.captured_at})"
+
+
+class AlphaRecommendationRunModel(models.Model):
+    """首页 Alpha 候选评估运行快照。"""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="alpha_recommendation_runs",
+    )
+    portfolio_id = models.IntegerField(db_index=True, null=True, blank=True)
+    portfolio_name = models.CharField(max_length=120, blank=True)
+    trade_date = models.DateField(db_index=True)
+    scope_hash = models.CharField(max_length=32, db_index=True)
+    scope_label = models.CharField(max_length=200, blank=True)
+    scope_metadata = models.JSONField(default=dict, blank=True)
+    model_hash = models.CharField(max_length=128, blank=True)
+    source = models.CharField(max_length=32, db_index=True)
+    provider_source = models.CharField(max_length=32, blank=True)
+    requested_trade_date = models.DateField(null=True, blank=True)
+    effective_asof_date = models.DateField(null=True, blank=True)
+    uses_cached_data = models.BooleanField(default=False)
+    cache_reason = models.TextField(blank=True)
+    fallback_reason = models.TextField(blank=True)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "dashboard"
+        db_table = "dashboard_alpha_recommendation_run"
+        ordering = ["-trade_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["user", "portfolio_id", "trade_date"]),
+            models.Index(fields=["scope_hash", "trade_date"]),
+            models.Index(fields=["source", "trade_date"]),
+        ]
+        unique_together = [
+            ["user", "portfolio_id", "trade_date", "scope_hash", "model_hash", "source"]
+        ]
+
+
+class AlphaRecommendationSnapshotModel(models.Model):
+    """单次运行中的逐票推荐快照。"""
+
+    run = models.ForeignKey(
+        AlphaRecommendationRunModel,
+        on_delete=models.CASCADE,
+        related_name="snapshots",
+    )
+    stock_code = models.CharField(max_length=16, db_index=True)
+    stock_name = models.CharField(max_length=120, blank=True)
+    stage = models.CharField(max_length=32, db_index=True)
+    gate_status = models.CharField(max_length=16, db_index=True)
+    rank = models.IntegerField(default=0)
+    alpha_score = models.FloatField(default=0.0)
+    confidence = models.FloatField(default=0.0)
+    source = models.CharField(max_length=32, blank=True)
+    buy_reasons = models.JSONField(default=list, blank=True)
+    no_buy_reasons = models.JSONField(default=list, blank=True)
+    invalidation_rule = models.JSONField(default=dict, blank=True)
+    risk_snapshot = models.JSONField(default=dict, blank=True)
+    suggested_position_pct = models.FloatField(default=0.0)
+    suggested_notional = models.FloatField(default=0.0)
+    suggested_quantity = models.FloatField(default=0.0)
+    source_candidate_id = models.IntegerField(null=True, blank=True)
+    source_recommendation_id = models.IntegerField(null=True, blank=True)
+    extra_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "dashboard"
+        db_table = "dashboard_alpha_recommendation_snapshot"
+        ordering = ["rank", "stock_code"]
+        indexes = [
+            models.Index(fields=["run", "stage"]),
+            models.Index(fields=["stock_code", "stage"]),
+            models.Index(fields=["gate_status"]),
+        ]
+        unique_together = [["run", "stock_code"]]

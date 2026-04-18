@@ -16,7 +16,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from .entities import AlphaResult
+    from .entities import AlphaPoolScope, AlphaResult
 
 
 class AlphaProviderStatus(Enum):
@@ -133,7 +133,12 @@ class AlphaProvider(ABC):
 
     @abstractmethod
     def get_stock_scores(
-        self, universe_id: str, intended_trade_date: date, top_n: int = 30
+        self,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int = 30,
+        pool_scope: AlphaPoolScope | None = None,
+        user=None,
     ) -> "AlphaResult":
         """
         获取股票评分
@@ -173,7 +178,7 @@ class AlphaProvider(ABC):
         """
         pass
 
-    def supports(self, universe_id: str) -> bool:
+    def supports(self, universe_id: str, pool_scope: AlphaPoolScope | None = None) -> bool:
         """
         检查是否支持指定的股票池
 

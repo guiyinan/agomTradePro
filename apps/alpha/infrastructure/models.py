@@ -29,6 +29,10 @@ class AlphaScoreCacheQuerySet(models.QuerySet):
         """按股票池过滤"""
         return self.filter(universe_id=universe_id)
 
+    def for_scope_hash(self, scope_hash: str):
+        """按账户驱动 scope hash 过滤。"""
+        return self.filter(scope_hash=scope_hash)
+
     def for_date(self, trade_date):
         """按交易日期过滤"""
         return self.filter(intended_trade_date=trade_date)
@@ -143,6 +147,27 @@ class AlphaScoreCacheModel(models.Model):
         help_text="股票池标识"
     )
 
+    scope_hash = models.CharField(
+        max_length=32,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="账户驱动股票池 scope hash"
+    )
+
+    scope_label = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        help_text="账户驱动股票池展示名称"
+    )
+
+    scope_metadata = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="账户驱动股票池元数据"
+    )
+
     intended_trade_date = models.DateField(
         db_index=True,
         help_text="计划交易日期"
@@ -251,6 +276,7 @@ class AlphaScoreCacheModel(models.Model):
         ]
         indexes = [
             models.Index(fields=["universe_id", "intended_trade_date"]),
+            models.Index(fields=["scope_hash", "intended_trade_date"]),
             models.Index(fields=["provider_source", "status"]),
             models.Index(fields=["asof_date"]),
         ]
@@ -605,4 +631,3 @@ class AlphaAlertModel(models.Model):
         self.is_resolved = True
         self.resolved_at = timezone.now()
         self.save()
-

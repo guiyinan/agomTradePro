@@ -3,11 +3,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
 from apps.dashboard.application.queries import (
     AlphaDecisionChainQuery,
     AlphaVisualizationQuery,
     DecisionPlaneQuery,
 )
+from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.equity.infrastructure.models import StockInfoModel
 from apps.rotation.infrastructure.models import AssetClassModel
 
@@ -69,7 +71,7 @@ def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
     data = query.execute(top_n=1, ic_days=5, user=user)
 
     assert captured["user"] is user
-    assert captured["provider_filter"] == "cache"
+    assert captured["provider_filter"] == "qlib"
     assert data.stock_scores == [
         {
             "code": "000001.SZ",
@@ -100,13 +102,26 @@ def test_alpha_visualization_query_uses_dashboard_fast_path_providers(monkeypatc
             provider_filter=None,
         ):
             calls.append(provider_filter)
+            if provider_filter == "qlib":
+                return SimpleNamespace(
+                    success=False,
+                    source="qlib",
+                    status="degraded",
+                    error_message="缓存缺失，已触发异步推理任务",
+                    metadata={"async_task_triggered": True},
+                    scores=[],
+                )
             if provider_filter == "cache":
                 return SimpleNamespace(
                     success=True,
                     source="cache",
                     status="available",
                     staleness_days=0,
-                    metadata={},
+                    metadata={
+                        "cache_date": "2026-03-10",
+                        "asof_date": "2026-03-10",
+                        "created_at": "2026-03-10T09:30:00+08:00",
+                    },
                     scores=[
                         SimpleNamespace(
                             code="000001.SZ",
@@ -133,8 +148,251 @@ def test_alpha_visualization_query_uses_dashboard_fast_path_providers(monkeypatc
 
     data = query.execute(top_n=1, ic_days=5, user=None)
 
-    assert calls == ["cache"]
+    assert calls == ["qlib", "cache"]
     assert data.stock_scores[0]["source"] == "cache"
+    assert data.stock_scores_meta["uses_cached_data"] is True
+    assert data.stock_scores_meta["fallback_from"] == "qlib"
+    assert data.stock_scores_meta["refresh_triggered"] is True
+    assert "异步推理任务" in data.stock_scores_meta["fallback_reason"]
+
+
+def test_alpha_homepage_query_uses_cache_first_for_initial_page():
+    calls: list[str] = []
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeAlphaService:
+        def get_stock_scores(
+            self,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+            user=None,
+            provider_filter=None,
+            pool_scope=None,
+        ):
+            calls.append(provider_filter)
+            return SimpleNamespace(
+                success=True,
+                scores=[SimpleNamespace(code="000001.SZ")],
+                source=provider_filter,
+                status="available",
+                metadata={},
+            )
+
+    query.alpha_service = FakeAlphaService()
+    result = query._fetch_alpha_result(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=SimpleNamespace(universe_id="portfolio-cn"),
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert result.success is True
+    assert calls == ["cache"]
+
+
+def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_cache_missing():
+    calls: list[tuple[str, str, bool]] = []
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeAlphaService:
+        def get_stock_scores(
+            self,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+            user=None,
+            provider_filter=None,
+            pool_scope=None,
+        ):
+            calls.append((provider_filter, universe_id, pool_scope is not None))
+            if provider_filter == "cache" and pool_scope is not None:
+                return SimpleNamespace(
+                    success=False,
+                    scores=[],
+                    source="cache",
+                    status="unavailable",
+                    metadata={},
+                    error_message="scope cache missing",
+                )
+            raise AssertionError("homepage must not query hardcoded market fallback providers")
+
+    query.alpha_service = FakeAlphaService()
+    query._trigger_async_inference_if_needed = lambda **kwargs: {
+        "refresh_triggered": True,
+        "refresh_status": "queued",
+        "async_task_id": "task-scope-1",
+        "poll_after_ms": 5000,
+        "message": "账户池暂无可信 Alpha cache，已自动触发后台 Qlib 推理。",
+    }
+    scope = SimpleNamespace(
+        universe_id="portfolio-7-deadbeef",
+        market="CN",
+        display_label="默认组合 · CN A-share 可交易池",
+        scope_hash="deadbeef",
+    )
+
+    result = query._fetch_alpha_result(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=scope,
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert result.success is False
+    assert calls == [("cache", "portfolio-7-deadbeef", True)]
+    assert result.status == "unavailable"
+    assert result.metadata["hardcoded_fallback_used"] is False
+    assert result.metadata["refresh_triggered"] is True
+    assert result.metadata["refresh_status"] == "queued"
+    assert result.metadata["async_task_id"] == "task-scope-1"
+    assert result.metadata["no_recommendation_reason"]
+    assert "硬编码" in result.metadata["no_recommendation_reason"]
+    meta = query._build_meta(alpha_result=result, scope=scope)
+    assert meta["hardcoded_fallback_used"] is False
+    assert meta["refresh_triggered"] is True
+    assert meta["refresh_status"] == "queued"
+    assert meta["async_task_id"] == "task-scope-1"
+    assert meta["no_recommendation_reason"] == result.metadata["no_recommendation_reason"]
+
+
+def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
+    captured: dict[str, object] = {}
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeCache:
+        @staticmethod
+        def add(key, value, timeout=None):
+            captured["cache_key"] = key
+            captured["cache_timeout"] = timeout
+            return True
+
+    class FakeTask:
+        id = "task-auto-1"
+
+    class FakeDelayWrapper:
+        @staticmethod
+        def delay(universe_id, intended_trade_date, top_n, scope_payload=None):
+            captured["universe_id"] = universe_id
+            captured["intended_trade_date"] = intended_trade_date
+            captured["top_n"] = top_n
+            captured["scope_payload"] = scope_payload
+            return FakeTask()
+
+    scope = SimpleNamespace(
+        universe_id="portfolio-7-deadbeef",
+        scope_hash="deadbeef",
+        to_dict=lambda: {
+            "universe_id": "portfolio-7-deadbeef",
+            "scope_hash": "deadbeef",
+            "instrument_codes": ["000001.SZ"],
+        },
+    )
+    monkeypatch.setattr("django.core.cache.cache", FakeCache)
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+
+    status = query._trigger_async_inference_if_needed(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=scope,
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert status["refresh_triggered"] is True
+    assert status["refresh_status"] == "queued"
+    assert status["async_task_id"] == "task-auto-1"
+    assert captured["universe_id"] == "portfolio-7-deadbeef"
+    assert captured["intended_trade_date"] == "2026-04-18"
+    assert captured["top_n"] == 10
+    assert captured["scope_payload"]["scope_hash"] == "deadbeef"
+    assert "csi300" not in str(captured)
+
+
+def test_alpha_homepage_factor_basis_is_explicit_and_data_driven():
+    query = object.__new__(AlphaHomepageQuery)
+
+    assert query._build_factor_basis({"momentum": 0.91234, "quality": "0.7", "note": "qlib"}) == [
+        "momentum=0.912",
+        "quality=0.700",
+        "note=qlib",
+    ]
+
+
+def test_alpha_homepage_pending_request_includes_cancel_identity():
+    query = object.__new__(AlphaHomepageQuery)
+
+    item = query._serialize_pending_request(
+        request_model=SimpleNamespace(
+            request_id="req-123",
+            asset_code="600519",
+            execution_status="PENDING",
+            reason="mcp smoke",
+            position_pct=0,
+            notional=10000,
+            quantity=100,
+            id=9,
+        ),
+        stock_context={"name": "贵州茅台"},
+    )
+
+    assert item["request_id"] == "req-123"
+    assert item["reason_summary"] == "mcp smoke"
+    assert item["risk_snapshot"]["execution_status"] == "PENDING"
+    assert item["name"] == "贵州茅台"
+
+
+def test_alpha_metrics_query_uses_lightweight_provider_registry(monkeypatch):
+    query = AlphaVisualizationQuery()
+
+    class FakeAlphaService:
+        def get_provider_registry_status(self):
+            return {
+                "qlib": {
+                    "priority": 1,
+                    "status": "registered",
+                    "max_staleness_days": 3,
+                }
+            }
+
+        def get_provider_status(self):
+            raise AssertionError("homepage metrics must not run provider health checks")
+
+    monkeypatch.setattr("apps.alpha.application.services.AlphaService", FakeAlphaService)
+    monkeypatch.setattr(query, "_get_ic_trends", lambda days: [])
+    monkeypatch.setattr(query, "_get_coverage_metrics", lambda: {})
+
+    data = query.execute_metrics(ic_days=5)
+
+    assert data.provider_status["data_source"] == "registry"
+    assert data.provider_status["providers"]["qlib"]["status"] == "registered"
+
+
+def test_dashboard_ai_insights_default_to_local_rules(monkeypatch):
+    use_case = object.__new__(GetDashboardDataUseCase)
+    captured: dict[str, object] = {}
+
+    def fake_fallback(current_regime, snapshot, match_analysis, active_signals, policy_level=None):
+        captured["fallback"] = True
+        captured["policy_level"] = policy_level
+        return ["本地规则建议"]
+
+    monkeypatch.setattr(use_case, "_enhanced_fallback_insights", fake_fallback)
+
+    result = use_case._generate_ai_insights(
+        current_regime="Recovery",
+        snapshot=SimpleNamespace(
+            total_value=100000,
+            total_return_pct=1.2,
+            positions=[],
+            get_invested_ratio=lambda: 0.5,
+        ),
+        match_analysis=SimpleNamespace(total_match_score=80, hostile_assets=[]),
+        active_signals=[],
+        policy_level="P0",
+    )
+
+    assert result == ["本地规则建议"]
+    assert captured == {"fallback": True, "policy_level": "P0"}
 
 
 @pytest.mark.django_db

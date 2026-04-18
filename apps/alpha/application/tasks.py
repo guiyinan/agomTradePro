@@ -15,6 +15,7 @@ from pathlib import Path
 from celery import shared_task
 from django.utils import timezone
 
+from apps.alpha.domain.entities import normalize_stock_code
 from apps.alpha.infrastructure.qlib_builder import resolve_effective_trade_date
 
 logger = logging.getLogger(__name__)
@@ -247,7 +248,8 @@ def qlib_predict_scores(
     self,
     universe_id: str,
     intended_trade_date: str,
-    top_n: int = 30
+    top_n: int = 30,
+    scope_payload: dict | None = None,
 ) -> dict:
     """
     Qlib 推理任务（运行在 qlib_infer 队列）
@@ -272,11 +274,13 @@ def qlib_predict_scores(
     """
     try:
         from ..infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
+        from ..domain.entities import AlphaPoolScope
 
         logger.info(
             f"开始 Qlib 推理: universe={universe_id}, "
             f"date={intended_trade_date}, top_n={top_n}"
         )
+        pool_scope = AlphaPoolScope.from_dict(scope_payload) if scope_payload else None
 
         # 1. 获取激活的模型
         active_model = QlibModelRegistryModel._default_manager.filter(
@@ -297,10 +301,11 @@ def qlib_predict_scores(
             runtime_failure_reason = _build_qlib_runtime_failure_reason(exc)
             fallback_result = _reuse_latest_qlib_cache(
                 active_model=active_model,
-                universe_id=universe_id,
+                universe_id=pool_scope.universe_id if pool_scope else universe_id,
                 trade_date=trade_date,
                 top_n=top_n,
                 failure_reason=runtime_failure_reason,
+                pool_scope=pool_scope,
                 extra_metadata={
                     "qlib_data_latest_date": None,
                     "qlib_runtime_error": str(exc),
@@ -327,10 +332,11 @@ def qlib_predict_scores(
         if outdated_reason:
             fallback_result = _reuse_latest_qlib_cache(
                 active_model=active_model,
-                universe_id=universe_id,
+                universe_id=pool_scope.universe_id if pool_scope else universe_id,
                 trade_date=trade_date,
                 top_n=top_n,
                 failure_reason=outdated_reason,
+                pool_scope=pool_scope,
                 extra_metadata={
                     "qlib_data_latest_date": latest_qlib_data_date.isoformat()
                     if latest_qlib_data_date
@@ -364,17 +370,19 @@ def qlib_predict_scores(
         try:
             scores_data = _execute_qlib_prediction(
                 active_model=active_model,
-                universe_id=universe_id,
+                universe_id=pool_scope.universe_id if pool_scope else universe_id,
                 trade_date=execution_trade_date,
-                top_n=top_n
+                top_n=top_n,
+                pool_scope=pool_scope,
             )
         except Exception as exc:
             fallback_result = _reuse_latest_qlib_cache(
                 active_model=active_model,
-                universe_id=universe_id,
+                universe_id=pool_scope.universe_id if pool_scope else universe_id,
                 trade_date=trade_date,
                 top_n=top_n,
                 failure_reason=str(exc),
+                pool_scope=pool_scope,
                 extra_metadata={
                     "qlib_data_latest_date": latest_qlib_data_date.isoformat()
                     if latest_qlib_data_date
@@ -395,10 +403,11 @@ def qlib_predict_scores(
         if not scores_data:
             fallback_result = _reuse_latest_qlib_cache(
                 active_model=active_model,
-                universe_id=universe_id,
+                universe_id=pool_scope.universe_id if pool_scope else universe_id,
                 trade_date=trade_date,
                 top_n=top_n,
                 failure_reason="Qlib 预测未返回任何评分",
+                pool_scope=pool_scope,
                 extra_metadata={
                     "qlib_data_latest_date": latest_qlib_data_date.isoformat()
                     if latest_qlib_data_date
@@ -418,12 +427,13 @@ def qlib_predict_scores(
         # 4. 写入缓存
         cache, created = _upsert_qlib_cache(
             active_model=active_model,
-            universe_id=universe_id,
+            universe_id=pool_scope.universe_id if pool_scope else universe_id,
             trade_date=trade_date,
             asof_date=asof_date,
             scores_data=scores_data,
             status=AlphaScoreCacheModel.STATUS_AVAILABLE,
             metrics_snapshot=execution_metadata,
+            pool_scope=pool_scope,
         )
 
         action = "创建" if created else "更新"
@@ -435,6 +445,7 @@ def qlib_predict_scores(
         return {
             "status": "success",
             "universe_id": universe_id,
+            "scope_hash": pool_scope.scope_hash if pool_scope else None,
             "trade_date": intended_trade_date,
             "cache_created": created,
             "stock_count": len(scores_data),
@@ -778,6 +789,7 @@ def _upsert_qlib_cache(
     scores_data: list[dict],
     status: str,
     metrics_snapshot: dict | None = None,
+    pool_scope=None,
 ):
     """Persist a qlib cache row for the active model."""
     from ..infrastructure.models import AlphaScoreCacheModel
@@ -798,6 +810,9 @@ def _upsert_qlib_cache(
             "status": status,
             "metrics_snapshot": _make_json_safe(metrics_snapshot),
             "user": None,
+            "scope_hash": getattr(pool_scope, "scope_hash", None),
+            "scope_label": getattr(pool_scope, "display_label", None),
+            "scope_metadata": _make_json_safe(pool_scope.to_dict()) if pool_scope else None,
         }
     )
 
@@ -819,6 +834,7 @@ def _reuse_latest_qlib_cache(
     trade_date: date,
     top_n: int,
     failure_reason: str,
+    pool_scope=None,
     extra_metadata: dict | None = None,
 ) -> dict | None:
     """Forward-fill the latest qlib cache into today's active model slot when fresh inference fails."""
@@ -828,6 +844,8 @@ def _reuse_latest_qlib_cache(
         universe_id=universe_id,
         provider_source="qlib",
     ).exclude(scores=[])
+    if pool_scope is not None:
+        base_queryset = base_queryset.filter(scope_hash=pool_scope.scope_hash)
     latest_cache = base_queryset.filter(
         model_artifact_hash=active_model.artifact_hash
     ).order_by("-intended_trade_date", "-created_at").first()
@@ -858,6 +876,7 @@ def _reuse_latest_qlib_cache(
         scores_data=scores_data,
         status=AlphaScoreCacheModel.STATUS_DEGRADED,
         metrics_snapshot=metrics_snapshot,
+        pool_scope=pool_scope,
     )
 
     return {
@@ -878,7 +897,8 @@ def _execute_qlib_prediction(
     active_model,
     universe_id: str,
     trade_date: date,
-    top_n: int
+    top_n: int,
+    pool_scope=None,
 ) -> list[dict]:
     """
     执行 Qlib 预测
@@ -931,12 +951,15 @@ def _execute_qlib_prediction(
         with open(model_path, "rb") as f:
             model = pickle.load(f)
 
-        stock_list = _resolve_qlib_stock_list(
-            D,
-            universe_id=universe_id,
-            start_time=f"{trade_date.year - 1}-01-01",
-            end_time=trade_date.isoformat(),
-        )
+        if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
+            stock_list = list(pool_scope.instrument_codes)
+        else:
+            stock_list = _resolve_qlib_stock_list(
+                D,
+                universe_id=universe_id,
+                start_time=f"{trade_date.year - 1}-01-01",
+                end_time=trade_date.isoformat(),
+            )
 
         handler_cls = _resolve_qlib_handler_class(getattr(active_model, "feature_set_id", None))
 
@@ -984,13 +1007,17 @@ def _execute_qlib_prediction(
             scores_data = []
             for stock, pred_score in scores_series.items():
                 if pd.notna(pred_score):
+                    normalized_code = normalize_stock_code(stock) or str(stock)
                     scores_data.append({
-                        "code": str(stock),
+                        "code": normalized_code,
                         "score": float(pred_score),
                         "rank": 0,  # 稍后计算
                         "factors": {},
                         "source": "qlib",
                         "confidence": 0.8,
+                        "asof_date": trade_date.isoformat(),
+                        "intended_trade_date": trade_date.isoformat(),
+                        "universe_id": universe_id,
                     })
 
             # 按评分排序

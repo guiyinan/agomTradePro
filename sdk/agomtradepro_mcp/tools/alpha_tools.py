@@ -43,6 +43,12 @@ def register_alpha_tools(server) -> None:
 
         获取指定股票池的 Alpha 评分，支持自动降级（Qlib → Cache → Simple → ETF）。
 
+        注意：
+        - 该工具是“研究池 / universe”视角，仍按 `universe` 查询。
+        - 如果需要首页那种“账户驱动候选/历史回溯”视角，请使用
+          `get_dashboard_alpha_candidates`、`get_dashboard_alpha_history`
+          和 `get_dashboard_alpha_history_detail`。
+
         Args:
             universe: 股票池标识（默认 csi300）
                      支持: csi300, csi500, sse50, csi1000, cyb

@@ -166,6 +166,7 @@ Three methods (priority order):
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 | `client.rotation` | Rotation - recommendations, templates, per-account regime allocation configs |
 | `client.alpha` | Alpha scoring - scores, provider status, universes, health, factor exposure |
+| `client.dashboard` | Dashboard account view - Alpha candidates, history, async refresh status, and recommendation contract |
 | `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, workspace recommendation bridge, funnel context |
 | `client.pulse` | **Pulse + Navigator** - pulse snapshot/history, regime navigator, action recommendation |
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
@@ -184,6 +185,12 @@ Canonical API routing for SDK/MCP is documented in:
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
 - **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
 - **Alpha Trigger**: `list_alpha_candidates`, `get_alpha_candidate`, `update_alpha_candidate_status`
+
+### Dashboard Alpha Contract
+
+`client.dashboard.alpha_stocks(...)` and MCP `get_dashboard_alpha_candidates(...)` include a `contract` object. Agents should only treat the response as a recommendation when `contract.recommendation_ready=true`; `contract.async_refresh_queued=true` means scoped Qlib inference is still running, and `contract.must_not_treat_as_recommendation=true` means pending requests or refresh status must not be shown as current Alpha picks.
+
+`client.dashboard.alpha_refresh(...)` and MCP `trigger_dashboard_alpha_refresh(...)` only queue backend inference for the account-driven pool. They never return recommendations directly.
 
 ### Workbench Tools (New)
 - **Workbench**: `get_workbench_summary`, `get_workbench_items`

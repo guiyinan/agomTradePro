@@ -344,11 +344,24 @@ Example:
 ```
 get_alpha_stock_scores(universe, trade_date, top_n, user_id)
 upload_alpha_scores(universe_id, asof_date, intended_trade_date, scores, model_id, model_artifact_hash, scope)
+get_dashboard_alpha_candidates(top_n, portfolio_id)
+get_dashboard_alpha_history(portfolio_id, trade_date, stock_code, stage, source)
+get_dashboard_alpha_history_detail(run_id)
+trigger_dashboard_alpha_refresh(top_n, portfolio_id)
+decision_cancel_request(request_id, reason)
 ```
 
 Notes:
 
 - `get_alpha_stock_scores` now supports optional `user_id`; only admin-backed tokens should use it to inspect another user's personal cache.
+- `get_alpha_stock_scores` is still the universe/research view and remains parameterized by `universe`.
+- `get_dashboard_alpha_candidates` is the homepage/account view: it returns the account-driven pool, `Alpha Top 候选/排名`, `可行动候选`, `待执行队列`, cache/realtime metadata, recent history runs, and a stable SDK/MCP `contract`.
+- `get_dashboard_alpha_history` / `get_dashboard_alpha_history_detail` expose the new persisted run/snapshot history, including buy reasons, no-buy reasons, invalidation conditions, risk gate status, and suggested sizing.
+- `trigger_dashboard_alpha_refresh` triggers a realtime refresh for the current portfolio-driven pool, not a fixed index universe. It returns the Celery task id for `qlib_predict_scores`; the task is routed to the `qlib_infer` queue and the returned `contract.must_not_treat_as_recommendation` remains `true`.
+- Pending assets in `get_dashboard_alpha_candidates` are approved decision requests with `execution_status=PENDING/FAILED`; use `decision_cancel_request` to discard a pending request without deleting its audit/history record.
+- Dashboard page load is intentionally cache/registry first. Use `trigger_dashboard_alpha_refresh` when an agent wants fresh Qlib inference instead of relying on the lightweight homepage load.
+- If the homepage account-scope cache is missing, the backend may auto-queue scoped Qlib inference and return `refresh_status`, `async_task_id`, and `poll_after_ms`; consumers must not treat this as a recommendation until real scoped scores are returned.
+- MCP/SDK consumers should read `contract.recommendation_ready`, `contract.must_not_treat_as_recommendation`, `contract.async_refresh_queued`, and `contract.hardcoded_fallback_used` instead of inferring recommendation state from raw `meta`.
 - Read priority is `personal > system`.
 - `upload_alpha_scores(..., scope="user")` writes personal scores for the token owner.
 - `upload_alpha_scores(..., scope="system")` writes system-level scores and requires an admin-capable backend user/token.

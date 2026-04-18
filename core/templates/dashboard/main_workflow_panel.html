@@ -83,6 +83,74 @@
     </div>
     {% endif %}
 
+    <!-- Alpha 推荐资产列表 -->
+    <div class="candidate-actions-section alpha-recommendations-section" style="margin-top: 12px;">
+        <h3 class="subsection-title">Alpha 推荐资产 (展示 {{ alpha_stock_scores|slice:":5"|length }} / 共 {{ alpha_stock_scores|length|default:0 }})</h3>
+        {% if alpha_stock_scores %}
+            {% for stock in alpha_stock_scores|slice:":5" %}
+            <div class="candidate-action-row" data-stock-code="{{ stock.code }}">
+                <div class="candidate-info-cell">
+                    <div class="candidate-main-info">
+                        <span class="candidate-asset-code">{{ stock.code }}</span>
+                        {% if stock.name %}
+                        <span class="candidate-asset-name">{{ stock.name }}</span>
+                        {% endif %}
+                        <span class="candidate-direction-badge long">
+                            排名 #{% if stock.rank %}{{ stock.rank }}{% else %}{{ forloop.counter }}{% endif %}
+                        </span>
+                    </div>
+                    <div class="candidate-meta">
+                        {% if stock.alpha_score != None %}
+                        <span>Alpha: {{ stock.alpha_score|floatformat:3 }}</span>
+                        {% elif stock.score != None %}
+                        <span>Alpha: {{ stock.score|floatformat:3 }}</span>
+                        {% endif %}
+                        {% if stock.confidence != None %}
+                        <span>置信度: {{ stock.confidence|floatformat:2 }}</span>
+                        {% endif %}
+                        {% if stock.source %}
+                        <span>来源: {{ stock.source }}</span>
+                        {% endif %}
+                        {% if stock.asof_date %}
+                        <span>日期: {{ stock.asof_date }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="candidate-chain-meta">
+                        <span class="candidate-chain-badge candidate-chain-badge-stage">{{ stock.stage_label|default:"Alpha 推荐排名" }}</span>
+                        {% if stock.buy_reason_summary %}
+                        <span class="candidate-chain-badge candidate-chain-badge-origin">{{ stock.buy_reason_summary }}</span>
+                        {% endif %}
+                        {% if stock.invalidation_summary %}
+                        <span class="candidate-chain-badge candidate-chain-badge-score">证伪: {{ stock.invalidation_summary }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <a class="btn-precheck"
+                   href="{% url 'decision-workspace' %}?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
+                   style="text-decoration:none;">
+                    🔍 在 Workflow 中查看
+                </a>
+                <a class="btn-submit-decision"
+                   href="{% url 'decision-workspace' %}?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
+                   style="text-decoration:none;">
+                    📝 进入 Step 4
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="padding: 16px;">
+                <div class="empty-icon">📊</div>
+                <p>暂无可信 Alpha 推荐资产</p>
+                <p class="empty-hint">
+                    账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。
+                </p>
+                <button type="button" class="btn-precheck" onclick="triggerAlphaRealtimeRefresh(10)">
+                    触发实时推理
+                </button>
+            </div>
+        {% endif %}
+    </div>
+
     <!-- 可操作候选列表 -->
     {% if actionable_candidates %}
     <div class="candidate-actions-section">
@@ -185,7 +253,7 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-icon">⏳</div>
-        <p>暂无可操作的候选</p>
+        <p>暂无通过触发器和风控约束的可行动候选</p>
         <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建触发器</a>
     </div>
     {% endif %}

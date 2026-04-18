@@ -9,22 +9,24 @@ from playwright.sync_api import Page
 
 from tests.playwright.config.test_config import config
 from tests.playwright.pages import LoginPage
+from tests.playwright.tests.smoke.test_critical_paths import (
+    _assert_audit_contract,
+    _assert_backtest_contract,
+    _assert_dashboard_contract,
+    _assert_equity_contract,
+    _assert_page_shell,
+    _assert_policy_contract,
+    _assert_regime_contract,
+    _assert_signal_contract,
+    _assert_simulated_trading_contract,
+)
 from tests.playwright.utils.ux_auditor import Severity, UXAuditor
 
 
 def _assert_page_loaded(page: Page, expected_path_fragment: str | None = None) -> None:
     """Assert the current page is a usable non-error page."""
-    page.wait_for_load_state("domcontentloaded")
-    assert "/404/" not in page.url, f"Unexpected 404 page: {page.url}"
+    _assert_page_shell(page, expected_path_fragment or "")
     assert "/error/" not in page.url, f"Unexpected error page: {page.url}"
-    if expected_path_fragment:
-        assert expected_path_fragment in page.url, (
-            f"Expected path fragment {expected_path_fragment!r}, got {page.url!r}"
-        )
-
-    body_text = page.locator("body").inner_text(timeout=5000)
-    assert body_text.strip(), "Page body should not be empty"
-    assert "Page not found" not in body_text
 
 
 def _has_any(page: Page, selectors: list[str]) -> bool:
@@ -86,6 +88,7 @@ class TestJourneyA:
     def test_A2_dashboard_answers_key_questions(self, authenticated_page: Page) -> None:
         """A2: Dashboard answers 3 questions: current regime, current position, next action."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
+        _assert_dashboard_contract(authenticated_page)
 
         # Check for regime information
         has_regime = (
@@ -109,6 +112,7 @@ class TestJourneyA:
     def test_A2_navigation_grouping_consistent(self, authenticated_page: Page) -> None:
         """A2: Left navigation groups are named consistently with business vocabulary."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
+        _assert_dashboard_contract(authenticated_page)
 
         # Check for sidebar navigation
         has_sidebar = authenticated_page.locator('.sidebar, nav, [class*="nav"]').count() > 0
@@ -126,7 +130,7 @@ class TestJourneyA:
     def test_A2_card_colors_consistent(self, authenticated_page: Page) -> None:
         """A2: Key cards (Regime/Policy/Quota) use consistent colors for status."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
 
         _assert_has_any(
             authenticated_page,
@@ -149,6 +153,7 @@ class TestJourneyB:
     def test_B1_regime_page_supports_data_switching(self, authenticated_page: Page) -> None:
         """B1: Regime page supports switching time points and data sources."""
         authenticated_page.goto(f"{config.base_url}{config.regime_dashboard_url}")
+        _assert_regime_contract(authenticated_page)
 
         # Check for date selector or filter controls
         has_filters = (
@@ -162,7 +167,7 @@ class TestJourneyB:
     def test_B1_policy_page_shows_current_gear(self, authenticated_page: Page) -> None:
         """B1: Policy page shows current gear + recent events + suggestions."""
         authenticated_page.goto(f"{config.base_url}{config.policy_manage_url}")
-        _assert_page_loaded(authenticated_page, "/policy/workbench/")
+        _assert_policy_contract(authenticated_page)
 
         _assert_has_any(
             authenticated_page,
@@ -176,6 +181,7 @@ class TestJourneyB:
         """B2: Asset filter page (Asset/Fund/Equity) has clear filter groups."""
         # Test equity screening
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
+        _assert_equity_contract(authenticated_page)
 
         # Check for filter controls
         has_filters = (
@@ -189,7 +195,7 @@ class TestJourneyB:
     def test_B2_filter_results_update_timely(self, authenticated_page: Page) -> None:
         """B2: Filter results update in timely manner with empty state hints."""
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
-        _assert_page_loaded(authenticated_page, "/equity/screen/")
+        _assert_equity_contract(authenticated_page)
 
         # Check for results area or empty state
         has_results = (
@@ -220,6 +226,7 @@ class TestJourneyC:
     def test_C1_signal_action_entries_clear(self, authenticated_page: Page) -> None:
         """C1: Signal page has clear action entries: create/approve/reject/invalidate."""
         authenticated_page.goto(f"{config.base_url}{config.signal_manage_url}")
+        _assert_signal_contract(authenticated_page)
 
         # Check for action buttons
         has_actions = (
@@ -265,7 +272,7 @@ class TestJourneyD:
     def test_D1_simulated_trading_entry_clear(self, authenticated_page: Page) -> None:
         """D1: Simulated trading entry page leads quickly to accounts/positions/trades."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/simulated-trading/")
+        _assert_simulated_trading_contract(authenticated_page)
 
         _assert_has_any(
             authenticated_page,
@@ -285,7 +292,7 @@ class TestJourneyD:
     def test_D1_account_metrics_visible(self, authenticated_page: Page) -> None:
         """D1: Account detail page shows key metrics (total assets, return, position)."""
         authenticated_page.goto(f"{config.base_url}{config.simulated_trading_dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/simulated-trading/")
+        _assert_simulated_trading_contract(authenticated_page)
 
         _assert_has_any(
             authenticated_page,
@@ -315,7 +322,7 @@ class TestJourneyE:
     def test_E1_backtest_list_to_detail_path_clear(self, authenticated_page: Page) -> None:
         """E1: Backtest list to detail path is clear, results page shows key metrics."""
         authenticated_page.goto(f"{config.base_url}{config.backtest_create_url}")
-        _assert_page_loaded(authenticated_page, "/backtest/")
+        _assert_backtest_contract(authenticated_page)
 
         # Check for form or results
         has_content = (
@@ -329,7 +336,7 @@ class TestJourneyE:
     def test_E1_audit_page_terminology_consistent(self, authenticated_page: Page) -> None:
         """E1: Audit page (attribution/threshold/metrics) uses consistent terminology."""
         authenticated_page.goto(f"{config.base_url}{config.audit_reports_url}")
-        _assert_page_loaded(authenticated_page, "/audit/")
+        _assert_audit_contract(authenticated_page)
         _assert_has_any(
             authenticated_page,
             ['text=审计', 'text=归因', 'text=阈值', 'text=metrics', 'text=attribution'],
@@ -369,6 +376,7 @@ class TestGlobalExperienceBaseline:
         """Navigation: top nav, side nav, breadcrumbs are consistent."""
         # Test on dashboard
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
+        _assert_dashboard_contract(authenticated_page)
 
         # Check for any navigation element
         has_nav = authenticated_page.locator('nav, [role="navigation"], .navbar, .sidebar').count() > 0
@@ -389,12 +397,18 @@ class TestGlobalExperienceBaseline:
         failed_urls = []
         for url in critical_urls:
             authenticated_page.goto(f"{config.base_url}{url}")
-            body_text = authenticated_page.locator("body").inner_text(timeout=5000)
-            if (
-                "404" in authenticated_page.url
-                or authenticated_page.url == f"{config.base_url}/404/"
-                or "Page not found" in body_text
-            ):
+            try:
+                if url == config.dashboard_url:
+                    _assert_dashboard_contract(authenticated_page)
+                elif url == config.regime_dashboard_url:
+                    _assert_regime_contract(authenticated_page)
+                elif url == config.signal_manage_url:
+                    _assert_signal_contract(authenticated_page)
+                elif url == config.policy_manage_url:
+                    _assert_policy_contract(authenticated_page)
+                else:
+                    _assert_page_loaded(authenticated_page, "/macro/")
+            except AssertionError:
                 failed_urls.append(url)
 
         assert len(failed_urls) == 0, f"Found 404 errors on URLs: {failed_urls}"
@@ -404,7 +418,7 @@ class TestGlobalExperienceBaseline:
     def test_visual_consistency_buttons(self, authenticated_page: Page) -> None:
         """Visual consistency: buttons have consistent styling."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
 
         # Check for button-like elements
         buttons = authenticated_page.locator('button, .btn, [class*="button"], [role="button"]').all()
@@ -415,7 +429,7 @@ class TestGlobalExperienceBaseline:
     def test_feedback_loading_states(self, authenticated_page: Page) -> None:
         """Feedback: loading, success, failure, empty states are perceivable."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
         _assert_has_any(
             authenticated_page,
             [
@@ -433,7 +447,7 @@ class TestGlobalExperienceBaseline:
     def test_terminology_consistency(self, authenticated_page: Page) -> None:
         """Terminology consistency: same concept uses same terminology."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
         body_text = authenticated_page.locator("body").inner_text(timeout=5000)
         assert (
             ("Regime" in body_text or "环境" in body_text)
@@ -453,7 +467,7 @@ class TestGlobalExperienceBaseline:
         login_page.login_as_admin()
 
         page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_loaded(page, "/dashboard/")
+        _assert_dashboard_contract(page)
         assert not page_errors, f"Unhandled page errors found: {page_errors}"
         assert not console_errors, f"Console error messages found: {console_errors}"
 
@@ -466,7 +480,7 @@ class TestPriorityFocusChecks:
     def test_dashboard_sidebar_links_valid(self, authenticated_page: Page) -> None:
         """Dashboard sidebar links (macro data, equity analysis) are valid."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
-        _assert_page_loaded(authenticated_page, "/dashboard/")
+        _assert_dashboard_contract(authenticated_page)
 
         links = authenticated_page.locator('nav a, .sidebar a, [class*="nav"] a').all()
 

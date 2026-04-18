@@ -118,3 +118,5 @@ docs/DEV_DIARY.md
 /test_screenshots
 /reports
 *.gz
+/logs
+cookies.txt

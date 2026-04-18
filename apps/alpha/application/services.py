@@ -7,10 +7,11 @@ Alpha 服务层，实现 Provider 注册中心和 AlphaService。
 import logging
 import time
 from datetime import date, timezone
-from typing import Optional
+from typing import Any, Optional
 
-from ..domain.entities import AlphaResult
+from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
+from .pool_resolver import PortfolioAlphaPoolResolver
 from ..infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from ..infrastructure.adapters.etf_adapter import ETFFallbackProvider
 from ..infrastructure.adapters.simple_adapter import SimpleAlphaProvider
@@ -140,6 +141,10 @@ def _enrich_result_metadata(result: AlphaResult, intended_trade_date: date) -> A
         "uses_cached_data": uses_cached_data,
         "reliability_notice": notice,
     })
+    scope_metadata = metadata.get("scope_metadata") or {}
+    if scope_metadata:
+        metadata.setdefault("scope_hash", scope_metadata.get("scope_hash"))
+        metadata.setdefault("scope_label", scope_metadata.get("display_label"))
     result.metadata = metadata
     return result
 
@@ -264,6 +269,7 @@ class AlphaProviderRegistry:
         top_n: int = 30,
         user=None,
         provider_filter: str = None,
+        pool_scope: AlphaPoolScope | None = None,
     ) -> AlphaResult:
         """
         带降级的评分获取
@@ -374,17 +380,18 @@ class AlphaProviderRegistry:
                 attempted_providers.append(provider.name)
 
                 # 检查是否支持该 universe
-                if not provider.supports(universe_id):
+                if not provider.supports(universe_id, pool_scope=pool_scope):
                     logger.debug(f"[AlphaProvider] Provider {provider.name} 不支持 {universe_id}")
                     continue
 
                 # 获取评分（Cache Provider 支持 user 参数）
-                if provider.name == "cache":
-                    result = provider.get_stock_scores(
-                        universe_id, intended_trade_date, top_n, user=user
-                    )
-                else:
-                    result = provider.get_stock_scores(universe_id, intended_trade_date, top_n)
+                result = provider.get_stock_scores(
+                    universe_id,
+                    intended_trade_date,
+                    top_n,
+                    pool_scope=pool_scope,
+                    user=user,
+                )
 
                 # 计算延迟
                 latency_ms = (time.time() - provider_start_time) * 1000
@@ -716,6 +723,7 @@ class AlphaService:
         top_n: int = 30,
         user=None,
         provider_filter: str | None = None,
+        pool_scope: AlphaPoolScope | None = None,
     ) -> AlphaResult:
         """
         获取股票评分（带自动降级）
@@ -745,13 +753,23 @@ class AlphaService:
             f"date={intended_trade_date}, top_n={top_n}, provider_filter={provider_filter}"
         )
 
+        effective_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
+
         result = self._registry.get_scores_with_fallback(
-            universe_id,
+            effective_universe_id,
             intended_trade_date,
             top_n,
             user=user,
             provider_filter=provider_filter,
+            pool_scope=pool_scope,
         )
+
+        if pool_scope is not None:
+            metadata = dict(result.metadata or {})
+            metadata.setdefault("scope_hash", pool_scope.scope_hash)
+            metadata.setdefault("scope_label", pool_scope.display_label)
+            metadata.setdefault("scope_metadata", pool_scope.to_dict())
+            result.metadata = metadata
 
         logger.info(
             f"评分结果: success={result.success}, source={result.source}, "
@@ -759,6 +777,21 @@ class AlphaService:
         )
 
         return _enrich_result_metadata(result, intended_trade_date)
+
+    def resolve_portfolio_pool_scope(
+        self,
+        *,
+        user_id: int,
+        trade_date: date | None = None,
+        portfolio_id: int | None = None,
+    ) -> AlphaPoolScope:
+        """Resolve a portfolio-driven Alpha pool scope."""
+        resolved = PortfolioAlphaPoolResolver().resolve(
+            user_id=user_id,
+            trade_date=trade_date or date.today(),
+            portfolio_id=portfolio_id,
+        )
+        return resolved.scope
 
     def get_provider_status(self) -> dict[str, dict[str, str]]:
         """
@@ -795,6 +828,22 @@ class AlphaService:
                     "status": "error",
                     "error": str(e),
                 }
+
+        return status
+
+    def get_provider_registry_status(self) -> dict[str, dict[str, Any]]:
+        """Return registered provider metadata without running health checks."""
+        status = {}
+
+        for provider in self._registry.get_all_providers():
+            provider_info = {
+                "priority": provider.priority,
+                "status": "registered",
+                "max_staleness_days": provider.max_staleness_days,
+            }
+            if hasattr(provider, "_last_health_message") and provider._last_health_message:
+                provider_info["message"] = provider._last_health_message
+            status[provider.name] = provider_info
 
         return status
 

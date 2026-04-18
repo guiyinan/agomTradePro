@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from celery import current_app
+from django.core.cache import cache
 
-from ...domain.entities import AlphaResult, StockScore
+from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore, normalize_stock_code
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe, qlib_safe
 
@@ -159,7 +160,9 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int = 30
+        top_n: int = 30,
+        pool_scope: AlphaPoolScope | None = None,
+        user=None,
     ) -> AlphaResult:
         """
         获取股票评分
@@ -179,7 +182,12 @@ class QlibAlphaProvider(BaseAlphaProvider):
         start_time = time.time()
 
         # 1. 快路径：读缓存
-        cached = self._get_from_cache(universe_id, intended_trade_date, top_n)
+        cached = self._get_from_cache(
+            universe_id,
+            intended_trade_date,
+            top_n,
+            pool_scope=pool_scope,
+        )
         if cached:
             latency_ms = int((time.time() - start_time) * 1000)
             cached.latency_ms = latency_ms
@@ -190,7 +198,12 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
         # 2. 慢路径：触发异步推理任务
         logger.info(f"Qlib 缓存未命中，触发异步推理: {universe_id}@{intended_trade_date}")
-        self._trigger_infer_task(universe_id, intended_trade_date, top_n)
+        self._trigger_infer_task(
+            universe_id,
+            intended_trade_date,
+            top_n,
+            pool_scope=pool_scope,
+        )
 
         # 3. 立即返回 degraded，让 registry 去走下一个 provider
         return AlphaResult(
@@ -204,6 +217,9 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 "universe_id": universe_id,
                 "intended_trade_date": intended_trade_date.isoformat(),
                 "async_task_triggered": True,
+                "scope_hash": pool_scope.scope_hash if pool_scope else None,
+                "scope_label": pool_scope.display_label if pool_scope else None,
+                "scope_metadata": pool_scope.to_dict() if pool_scope else {},
             }
         )
 
@@ -243,7 +259,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int
+        top_n: int,
+        pool_scope: AlphaPoolScope | None = None,
     ) -> AlphaResult | None:
         """
         从缓存获取评分
@@ -265,11 +282,17 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 return None
 
             # 查询缓存
+            cache_filter = {
+                "universe_id": pool_scope.universe_id if pool_scope is not None else universe_id,
+                "intended_trade_date": intended_trade_date,
+                "provider_source": "qlib",
+                "model_artifact_hash": active_model["artifact_hash"],
+            }
+            if pool_scope is not None:
+                cache_filter["scope_hash"] = pool_scope.scope_hash
+
             cache = AlphaScoreCacheModel._default_manager.filter(
-                universe_id=universe_id,
-                intended_trade_date=intended_trade_date,
-                provider_source="qlib",
-                model_artifact_hash=active_model["artifact_hash"]
+                **cache_filter
             ).order_by("-created_at").first()
 
             if not cache:
@@ -288,7 +311,12 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 status = "available"
 
             # 解析评分
-            scores = self._parse_scores(cache.scores, top_n)
+            scores = self._parse_scores(
+                cache.scores,
+                top_n,
+                default_asof_date=cache.asof_date,
+                default_intended_trade_date=cache.intended_trade_date,
+            )
 
             # 添加审计信息
             for score in scores:
@@ -322,6 +350,9 @@ class QlibAlphaProvider(BaseAlphaProvider):
                     "model_type": active_model.get("model_type"),
                     "ic": active_model.get("ic"),
                     "icir": active_model.get("icir"),
+                    "scope_hash": cache.scope_hash,
+                    "scope_label": cache.scope_label,
+                    "scope_metadata": cache.scope_metadata or {},
                     "metrics_snapshot": metrics_snapshot,
                     **metrics_snapshot,
                 }
@@ -331,7 +362,13 @@ class QlibAlphaProvider(BaseAlphaProvider):
             logger.error(f"读取 Qlib 缓存失败: {e}", exc_info=True)
             return None
 
-    def _parse_scores(self, raw_scores: list, top_n: int) -> list[StockScore]:
+    def _parse_scores(
+        self,
+        raw_scores: list,
+        top_n: int,
+        default_asof_date: date | None = None,
+        default_intended_trade_date: date | None = None,
+    ) -> list[StockScore]:
         """
         解析原始评分数据
 
@@ -345,7 +382,16 @@ class QlibAlphaProvider(BaseAlphaProvider):
         scores = []
         for item in raw_scores[:top_n]:
             try:
-                scores.append(StockScore.from_dict(item))
+                payload = dict(item)
+                normalized_code = normalize_stock_code(payload.get("code"))
+                if normalized_code:
+                    payload["code"] = normalized_code
+                payload.setdefault("source", "qlib")
+                if default_asof_date and not payload.get("asof_date"):
+                    payload["asof_date"] = default_asof_date.isoformat()
+                if default_intended_trade_date and not payload.get("intended_trade_date"):
+                    payload["intended_trade_date"] = default_intended_trade_date.isoformat()
+                scores.append(StockScore.from_dict(payload))
             except Exception as e:
                 logger.warning(f"解析评分失败: {item}, error: {e}")
                 continue
@@ -405,7 +451,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int
+        top_n: int,
+        pool_scope: AlphaPoolScope | None = None,
     ) -> None:
         """
         触发异步推理任务
@@ -415,6 +462,17 @@ class QlibAlphaProvider(BaseAlphaProvider):
             intended_trade_date: 计划交易日期
             top_n: 返回前 N 只
         """
+        throttle_key = (
+            f"alpha:qlib_infer_trigger:{universe_id}:{intended_trade_date.isoformat()}:{top_n}"
+        )
+        if cache.get(throttle_key):
+            logger.info(
+                "Qlib 推理任务近期已触发，跳过重复投递: universe=%s, date=%s, top_n=%s",
+                universe_id,
+                intended_trade_date,
+                top_n,
+            )
+            return
         try:
             from apps.alpha.application.tasks import qlib_predict_scores
 
@@ -423,6 +481,9 @@ class QlibAlphaProvider(BaseAlphaProvider):
             # 异步投递任务，不等待结果
             result = qlib_predict_scores.apply_async(
                 args=[universe_id, intended_trade_date.isoformat(), top_n],
+                kwargs={
+                    "scope_payload": pool_scope.to_dict() if pool_scope else None,
+                },
                 queue=queue_name
             )
 
@@ -431,6 +492,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 f"date={intended_trade_date}, top_n={top_n}, "
                 f"queue={queue_name}, task_id={result.id}"
             )
+            cache.set(throttle_key, result.id, timeout=180)
 
         except Exception as e:
             logger.error(f"触发推理任务失败: {e}", exc_info=True)

@@ -23,7 +23,6 @@ End-to-End Tests for Decision Workspace (M3)
 - 实体定义: apps/decision_rhythm/domain/entities.py
 """
 
-from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -31,6 +30,8 @@ from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone as django_timezone
+
+from apps.decision_rhythm.domain.entities import QuotaPeriod
 
 # Import models using Django's app registry
 UnifiedRecommendationModel = apps.get_model('decision_rhythm', 'UnifiedRecommendationModel')
@@ -40,10 +41,34 @@ DecisionModelParamConfigModel = apps.get_model('decision_rhythm', 'DecisionModel
 DecisionModelParamAuditLogModel = apps.get_model('decision_rhythm', 'DecisionModelParamAuditLogModel')
 DecisionQuotaModel = apps.get_model('decision_rhythm', 'DecisionQuotaModel')
 
-# Import enums
-from apps.decision_rhythm.domain.entities import QuotaPeriod
-
 User = get_user_model()
+
+
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_decision_workspace_page_contract(response) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in (
+        "AgomTradePro - 决策工作台",
+        "投资决策工作台",
+        "决策账户",
+        "账户现状",
+        "当前持仓摘要",
+        "workspace-account-selector",
+        "workspace-total-value",
+        "workspace-position-list",
+        "funnel-stepper",
+        "交易计划",
+        "审批执行",
+        "decision-workspace.css",
+    ):
+        assert fragment in content
+    return content
 
 
 @pytest.mark.django_db
@@ -134,15 +159,7 @@ class TestWorkspacePageFlow:
         """
         response = self.client.get('/decision/workspace/')
 
-        assert response.status_code == 200
-        content = response.content.decode('utf-8')
-        # 验证页面包含关键元素
-        assert '决策' in content or 'workspace' in content.lower()
-        assert 'workspace-account-selector' in content
-        assert '账户现状' in content
-        assert '当前持仓摘要' in content
-        assert '交易计划' in content
-        assert '审批执行' in content
+        content = _assert_decision_workspace_page_contract(response)
         assert '审计复盘' not in content
 
     def test_recommendations_api_returns_data(self):
@@ -261,7 +278,7 @@ class TestWorkspacePageFlow:
         )
 
         # 手动将推荐改为 CONFLICT 状态以模拟冲突场景
-        buy_rec = UnifiedRecommendationModel.objects.create(
+        UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_conflict_buy',
             account_id='default',
             security_code='000001.SH',
@@ -282,7 +299,7 @@ class TestWorkspacePageFlow:
             status='CONFLICT',
         )
 
-        sell_rec = UnifiedRecommendationModel.objects.create(
+        UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_conflict_sell',
             account_id='default',
             security_code='000001.SH',
@@ -695,6 +712,7 @@ class TestRecommendationDeduplication:
 
         # 筛选出 600519.SH 的 BUY 推荐
         filtered_recs = [r for r in recommendations if r['security_code'] == '600519.SH' and r['side'] == 'BUY']
+        assert filtered_recs
 
         # TODO: 实现后端去重后，应该只有一条推荐
         # assert len(filtered_recs) == 1
@@ -1033,10 +1051,9 @@ class TestModelParametersManagement:
         """
         # 访问工作台页面
         response = self.client.get('/decision/workspace/')
-        assert response.status_code == 200
-
-        # 验证页面包含参数管理相关内容
-        # TODO: 根据实际页面实现添加具体断言
+        content = _assert_decision_workspace_page_contract(response)
+        assert "loadExecutionPlanPanel" in content
+        assert "/api/decision/workspace/recommendations/" in content
 
     def test_default_params_initialization(self):
         """
@@ -1055,13 +1072,13 @@ class TestModelParametersManagement:
         params = response.json()['data']['params']
 
         # 验证存在核心参数
-        required_params = [
+        required_params = {
             'alpha_model_weight',
             'sentiment_weight',
             'flow_weight',
             'technical_weight',
             'fundamental_weight',
-        ]
+        }
 
         # 注意：由于测试隔离，可能只有部分参数
         # 实际环境应该通过初始化脚本创建所有默认参数
@@ -1070,6 +1087,7 @@ class TestModelParametersManagement:
         # 至少应该有我们在 setup 中创建的参数
         assert 'alpha_model_weight' in existing_param_keys
         assert 'sentiment_weight' in existing_param_keys
+        assert required_params & existing_param_keys
 
 
 @pytest.mark.django_db
@@ -1226,7 +1244,7 @@ class TestWorkspaceRiskChecks:
         - 提供失败原因
         """
         # 创建 Beta Gate 未通过的推荐
-        failed_rec = UnifiedRecommendationModel.objects.create(
+        UnifiedRecommendationModel.objects.create(
             recommendation_id='urec_beta_failed',
             account_id='default',
             security_code='000666.SH',

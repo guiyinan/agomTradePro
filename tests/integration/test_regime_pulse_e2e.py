@@ -19,6 +19,20 @@ from apps.regime.domain.entities import (
 )
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_partial_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
 def _sample_pulse_snapshot() -> PulseSnapshot:
     return PulseSnapshot(
         observed_at=date(2026, 3, 24),
@@ -158,15 +172,29 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
     assert abs(sum(action_payload["data"]["asset_weights"].values()) - 1.0) < 0.01
 
     attention_html = html_client.get("/api/dashboard/attention-items/", HTTP_HX_REQUEST="true")
-    assert attention_html.status_code == 200
-    assert attention_html["Content-Type"].startswith("text/html")
-    assert "今日关注" in attention_html.content.decode("utf-8")
-    assert "信号待跟进" in attention_html.content.decode("utf-8")
+    _assert_html_partial_contract(
+        attention_html,
+        'id="attentionItemsCard"',
+        "今日关注",
+        "信号待跟进",
+        "attention-card__count",
+        "attention-item__title",
+        "hx-get=\"/api/dashboard/attention-items/\"",
+    )
 
     status_html = html_client.get("/api/dashboard/regime-status/", HTTP_HX_REQUEST="true")
-    assert status_html.status_code == 200
-    assert status_html["Content-Type"].startswith("text/html")
-    assert "风险预算" in status_html.content.decode("utf-8")
+    status_content = _assert_html_partial_contract(
+        status_html,
+        'id="regimeStatusBar"',
+        "复苏期",
+        "转向 Deflation",
+        "置信度",
+        "脉搏:",
+        "风险预算",
+        "转折预警",
+        "hx-get=\"/api/dashboard/regime-status/\"",
+    )
+    assert "加载中..." not in status_content
 
 
 @pytest.mark.django_db

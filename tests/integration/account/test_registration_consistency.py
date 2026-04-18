@@ -10,6 +10,32 @@ from apps.account.infrastructure.models import AccountProfileModel, PortfolioMod
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_register_page_contract(response) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in (
+        "注册 - AgomTradePro",
+        "注册 AgomTradePro",
+        'id="registerForm"',
+        'id="username"',
+        'id="display_name"',
+        'id="password_confirm"',
+        'id="user_agreement"',
+        'id="risk_warning"',
+        "用户服务协议",
+        "投资风险提示书",
+        "立即登录",
+    ):
+        assert fragment in content
+    return content
+
+
 @pytest.mark.django_db
 class TestRegistrationConsistency(TestCase):
     """Ensure registration writes all related records atomically."""
@@ -46,7 +72,8 @@ class TestRegistrationConsistency(TestCase):
         ):
             response = self._post_registration("reg_consistency_failure")
 
-        self.assertEqual(response.status_code, 200)
+        content = _assert_register_page_contract(response)
+        self.assertIn("注册失败：系统忙，请稍后重试", content)
         self.assertFalse(User.objects.filter(username="reg_consistency_failure").exists())
         self.assertFalse(AccountProfileModel.objects.filter(user__username="reg_consistency_failure").exists())
         self.assertFalse(PortfolioModel.objects.filter(user__username="reg_consistency_failure").exists())

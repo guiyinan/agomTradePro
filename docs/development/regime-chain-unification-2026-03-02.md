@@ -16,7 +16,8 @@
 - `growth_indicator=PMI`
 - `inflation_indicator=CPI`
 - `use_pit=True`（除显式传参外）
-- 数据源来自 `DataSourceConfig` 的激活优先级首项
+- 数据源默认来自激活优先级首项；自 2026-04-16 起，`/regime/dashboard/` 在用户未显式指定 `source` 时，会自动回退到首个可成功产出 PMI/CPI Regime 结果的数据源，避免因单一激活源缺数导致页面空白
+- `ProviderConfigModel` / `MacroFactModel` 相关的 Dashboard 回归测试必须使用真实数据库状态覆盖默认源、缺数和回退链路；禁止通过 mock `_get_available_sources()` 或伪造 source 顺序来替代这类集成场景
 - `apps/regime/infrastructure/macro_data_provider.py` 从 2026-04-05 起统一读取 `apps/data_center` 的 `MacroFact` / `IndicatorCatalog`，不再直连 legacy `apps.macro` ORM 仓储
 - 失败时回退到 `get_latest_snapshot()`，再失败返回 `Unknown`
 

@@ -5,10 +5,48 @@ Alpha Domain Entities
 仅使用 Python 标准库，不依赖 Django 或外部库。
 """
 
+import re
+from hashlib import sha1
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+
+_SUFFIX_STOCK_CODE_PATTERN = re.compile(r"\b(?P<code>\d{6})\.(?P<exchange>SH|SZ|BJ)\b", re.IGNORECASE)
+_PREFIX_STOCK_CODE_PATTERN = re.compile(r"\b(?P<exchange>SH|SZ|BJ)(?P<code>\d{6})\b", re.IGNORECASE)
+_PLAIN_STOCK_CODE_PATTERN = re.compile(r"\b(?P<code>\d{6})\b")
+
+
+def normalize_stock_code(raw_value: object) -> str:
+    """Normalize legacy / tuple-serialized stock codes into canonical tushare format."""
+    if raw_value in (None, ""):
+        return ""
+
+    raw_text = str(raw_value).strip().upper()
+    if not raw_text:
+        return ""
+
+    suffix_match = _SUFFIX_STOCK_CODE_PATTERN.search(raw_text)
+    if suffix_match:
+        return f"{suffix_match.group('code')}.{suffix_match.group('exchange')}"
+
+    prefix_match = _PREFIX_STOCK_CODE_PATTERN.search(raw_text)
+    if prefix_match:
+        return f"{prefix_match.group('code')}.{prefix_match.group('exchange')}"
+
+    plain_match = _PLAIN_STOCK_CODE_PATTERN.search(raw_text)
+    if not plain_match:
+        return raw_text
+
+    code = plain_match.group("code")
+    if code.startswith(("4", "8")):
+        exchange = "BJ"
+    elif code.startswith(("5", "6", "9")):
+        exchange = "SH"
+    else:
+        exchange = "SZ"
+    return f"{code}.{exchange}"
 
 
 class InvalidationType(Enum):
@@ -187,6 +225,86 @@ class StockScore:
             feature_set_id=data.get("feature_set_id"),
             label_id=data.get("label_id"),
             data_version=data.get("data_version"),
+        )
+
+
+@dataclass(frozen=True)
+class AlphaPoolScope:
+    """账户驱动 Alpha 股票池定义。"""
+
+    pool_type: str
+    market: str
+    instrument_codes: tuple[str, ...]
+    selection_reason: str
+    trade_date: date
+    display_label: str = ""
+    portfolio_id: int | None = None
+    portfolio_name: str | None = None
+
+    def __post_init__(self) -> None:
+        canonical_codes = tuple(
+            code
+            for code in (normalize_stock_code(raw_code) for raw_code in self.instrument_codes)
+            if code
+        )
+        unique_codes = tuple(dict.fromkeys(canonical_codes))
+        object.__setattr__(self, "instrument_codes", unique_codes)
+
+    @property
+    def pool_size(self) -> int:
+        """返回池子内股票数量。"""
+        return len(self.instrument_codes)
+
+    @property
+    def scope_hash(self) -> str:
+        """返回稳定的 scope hash，用于缓存和历史追踪。"""
+        basis = "|".join(
+            [
+                self.pool_type,
+                self.market,
+                self.trade_date.isoformat(),
+                ",".join(self.instrument_codes),
+                str(self.portfolio_id or ""),
+            ]
+        )
+        return sha1(basis.encode("utf-8")).hexdigest()[:16]
+
+    @property
+    def universe_id(self) -> str:
+        """返回兼容旧接口的 synthetic universe id。"""
+        if self.portfolio_id is not None:
+            return f"portfolio-{self.portfolio_id}-{self.scope_hash}"
+        return f"{self.market.lower()}-{self.pool_type}-{self.scope_hash}"
+
+    def to_dict(self) -> dict[str, Any]:
+        """转换为 JSON-safe 字典。"""
+        return {
+            "pool_type": self.pool_type,
+            "market": self.market,
+            "instrument_codes": list(self.instrument_codes),
+            "pool_size": self.pool_size,
+            "selection_reason": self.selection_reason,
+            "trade_date": self.trade_date.isoformat(),
+            "display_label": self.display_label,
+            "portfolio_id": self.portfolio_id,
+            "portfolio_name": self.portfolio_name,
+            "scope_hash": self.scope_hash,
+            "universe_id": self.universe_id,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "AlphaPoolScope":
+        """从字典重建股票池定义。"""
+        trade_date_raw = data.get("trade_date")
+        return cls(
+            pool_type=str(data.get("pool_type") or "portfolio_market"),
+            market=str(data.get("market") or "CN"),
+            instrument_codes=tuple(data.get("instrument_codes") or ()),
+            selection_reason=str(data.get("selection_reason") or ""),
+            trade_date=date.fromisoformat(trade_date_raw) if trade_date_raw else date.today(),
+            display_label=str(data.get("display_label") or ""),
+            portfolio_id=data.get("portfolio_id"),
+            portfolio_name=data.get("portfolio_name"),
         )
 
 

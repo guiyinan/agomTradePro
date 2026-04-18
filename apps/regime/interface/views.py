@@ -10,6 +10,7 @@ DRF Views and page views for regime calculation.
 """
 
 from datetime import date
+from types import SimpleNamespace
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -17,7 +18,6 @@ from django.views.decorators.http import require_http_methods
 
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from apps.regime.infrastructure.macro_data_provider import (
-    DjangoDataSourceConfig,
     MacroRepositoryAdapter,
 )
 from apps.regime.infrastructure.macro_source_config_gateway import (
@@ -25,13 +25,110 @@ from apps.regime.infrastructure.macro_source_config_gateway import (
 )
 
 # API Cache layer
-from core.cache_utils import CACHE_TTL, cached_api
+from core.cache_utils import cached_api
 
 
 def _get_available_sources():
     """Return active data sources for template rendering."""
     gateway = DjangoMacroSourceConfigGateway()
     return gateway.list_active_sources()
+
+
+def _build_regime_v2_response(use_case, as_of_date: date, data_source: str | None, skip_cache: bool):
+    """Execute the V2 regime use case with a consistent request payload."""
+    request_obj = CalculateRegimeV2Request(
+        as_of_date=as_of_date,
+        use_pit=True,
+        growth_indicator="PMI",
+        inflation_indicator="CPI",
+        data_source=data_source,
+        skip_cache=skip_cache,
+    )
+    return use_case.execute(request_obj)
+
+
+def _append_source_option(
+    available_sources: list,
+    source_type: str | None,
+) -> list:
+    """Ensure the effective source is still visible in the selector."""
+    if not source_type:
+        return available_sources
+
+    if any(getattr(source, "source_type", None) == source_type for source in available_sources):
+        return available_sources
+
+    fallback_names = {
+        "akshare": "AKShare",
+        "tushare": "Tushare Pro",
+    }
+    return [
+        *available_sources,
+        SimpleNamespace(source_type=source_type, name=fallback_names.get(source_type, source_type)),
+    ]
+
+
+def _resolve_dashboard_response(
+    use_case,
+    available_sources: list,
+    requested_source: str | None,
+    as_of_date: date,
+    skip_cache: bool,
+):
+    """
+    Resolve the effective source for dashboard rendering.
+
+    If the user explicitly selected a source, keep that choice even when it has
+    no data. If the source was implicit, automatically fall back to the first
+    source that can actually produce a regime result.
+    """
+    candidate_sources: list[str | None] = []
+    explicit_source = bool(requested_source)
+
+    if explicit_source:
+        candidate_sources.append(requested_source)
+    else:
+        candidate_sources.extend(
+            getattr(source, "source_type", None)
+            for source in available_sources
+            if getattr(source, "source_type", None)
+        )
+        candidate_sources.extend(["akshare", "tushare", None])
+
+    deduped_candidates: list[str | None] = []
+    seen: set[str | None] = set()
+    for candidate in candidate_sources:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped_candidates.append(candidate)
+
+    last_response = None
+    selected_source = requested_source
+    warnings: list[str] = []
+    primary_source = deduped_candidates[0] if deduped_candidates else None
+
+    for candidate in deduped_candidates:
+        response = _build_regime_v2_response(
+            use_case=use_case,
+            as_of_date=as_of_date,
+            data_source=candidate,
+            skip_cache=skip_cache,
+        )
+        last_response = response
+        if response.success and response.result is not None:
+            selected_source = candidate
+            if (
+                not explicit_source
+                and primary_source
+                and candidate != primary_source
+            ):
+                warnings.append(
+                    f"默认数据源 {primary_source} 暂无 Regime 所需数据，已自动切换到 {candidate or 'all'}。"
+                )
+            return response, selected_source, warnings
+
+    return last_response, selected_source, warnings
 
 
 def regime_dashboard_view(request):
@@ -41,11 +138,9 @@ def regime_dashboard_view(request):
     available_sources = _get_available_sources()
 
     try:
-        # 获取可用的数据源列表 - 使用本地配置
-        # 重构说明 (2026-03-11): 使用 DjangoDataSourceConfig 替代 macro 模块导入
-        config = DjangoDataSourceConfig()
         default_source = available_sources[0].source_type if available_sources else 'akshare'
-        data_source = request.GET.get('source', default_source)
+        requested_source = request.GET.get('source')
+        data_source = requested_source or default_source
 
         # 获取分析时点参数
         as_of_date_str = request.GET.get('as_of_date')
@@ -62,15 +157,15 @@ def regime_dashboard_view(request):
         # 重构说明 (2026-03-11): 使用 MacroRepositoryAdapter 替代 DjangoMacroRepository
         repository = MacroRepositoryAdapter()
         use_case = CalculateRegimeV2UseCase(repository)
-        request_obj = CalculateRegimeV2Request(
+        response, effective_source, auto_warnings = _resolve_dashboard_response(
+            use_case=use_case,
+            available_sources=available_sources,
+            requested_source=requested_source,
             as_of_date=as_of_date,
-            use_pit=True,
-            growth_indicator="PMI",
-            inflation_indicator="CPI",
-            data_source=data_source,
-            skip_cache=skip_cache
+            skip_cache=skip_cache,
         )
-        response = use_case.execute(request_obj)
+        available_sources = _append_source_option(available_sources, effective_source)
+        data_source = effective_source or data_source
 
         # V2 结果格式
         result_v2 = response.result if response.success else None
@@ -122,7 +217,7 @@ def regime_dashboard_view(request):
         context = {
             'result_v2': result_v2,
             'regime_result': regime_result,
-            'warnings': response.warnings if response.success else [],
+            'warnings': (response.warnings if response.success else []) + auto_warnings,
             'error': response.error if not response.success else None,
             'current_date': date.today(),
             'as_of_date': as_of_date,

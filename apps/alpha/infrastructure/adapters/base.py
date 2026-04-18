@@ -12,7 +12,7 @@ from datetime import date
 from functools import wraps
 from typing import Any, Dict, List, Optional
 
-from ...domain.entities import AlphaResult, StockScore
+from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from ...domain.interfaces import AlphaProvider, AlphaProviderStatus
 
 logger = logging.getLogger(__name__)
@@ -136,7 +136,7 @@ class BaseAlphaProvider(AlphaProvider):
         """
         self._initialized = True
 
-    def supports(self, universe_id: str) -> bool:
+    def supports(self, universe_id: str, pool_scope: AlphaPoolScope | None = None) -> bool:
         """
         检查是否支持指定的股票池
 

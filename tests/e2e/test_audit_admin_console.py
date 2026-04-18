@@ -12,6 +12,51 @@ from apps.audit.infrastructure.models import AttributionReport, ValidationSummar
 from apps.backtest.infrastructure.models import BacktestResultModel
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
+def _assert_operation_logs_admin_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "操作审计日志",
+        "总操作数",
+        "错误数",
+        "平均耗时",
+        "Top 模块",
+        'id="stats-cards"',
+        'id="filter-form"',
+        'id="export-csv-btn"',
+        'id="export-json-btn"',
+        'id="logs-table"',
+        'id="detail-drawer"',
+        "操作详情",
+    )
+
+
+def _assert_review_page_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "审计复核工作台",
+        "审计复盘中心",
+        "快速入口",
+        "最近归因报告",
+        "/audit/review/",
+        "/audit/reports/",
+        "/audit/threshold-validation/",
+    )
+
+
 @pytest.mark.django_db
 class TestAuditAdminConsole:
     @pytest.fixture(autouse=True)
@@ -40,9 +85,7 @@ class TestAuditAdminConsole:
         client.force_login(admin)
 
         response = client.get("/audit/operation-logs/")
-        assert response.status_code == 200
-        content = response.content.decode("utf-8")
-        assert "操作审计日志" in content
+        _assert_operation_logs_admin_contract(response)
 
     def test_review_route_renders_frontend_page(self):
         user_model = get_user_model()
@@ -55,10 +98,7 @@ class TestAuditAdminConsole:
         client.force_login(user)
 
         response = client.get("/audit/review/")
-        assert response.status_code == 200
-        content = response.content.decode("utf-8")
-        assert "审计复盘中心" in content
-        assert "快速入口" in content
+        content = _assert_review_page_contract(response)
         assert "给 `/audit/review/` 一个真正可用的前端入口" in content
 
     def test_regular_user_gets_403_on_admin_page(self):
@@ -132,10 +172,9 @@ class TestAuditAdminConsole:
         client.force_login(user)
 
         response = client.get("/audit/review/")
-        assert response.status_code == 200
-
-        content = response.content.decode("utf-8")
+        content = _assert_review_page_contract(response)
         assert "审计复核工作台" in content
         assert "Macro Review Backtest" in content
         assert "Reported Backtest" in content
+        assert "最新验证摘要" in content
         assert "/api/audit/" not in content

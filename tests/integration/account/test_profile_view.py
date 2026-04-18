@@ -8,6 +8,30 @@ from django.utils import timezone
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_profile_page_contract(response) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in (
+        "我的账户 - AgomTradePro",
+        "<h1>我的账户</h1>",
+        "账户概览",
+        "我的投资组合",
+        "波动率分析",
+        "管理我的投资组合",
+        'id="volatilityChart"',
+        "/account/settings/",
+        "/backtest/create/",
+    ):
+        assert fragment in content
+    return content
+
+
 @pytest.mark.django_db
 def test_profile_view_renders_investment_accounts_without_interface_cross_imports():
     user = get_user_model().objects.create_user(
@@ -43,8 +67,7 @@ def test_profile_view_renders_investment_accounts_without_interface_cross_import
 
     response = client.get("/account/profile/")
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
+    content = _assert_profile_page_contract(response)
     assert "真实账户A" in content
     assert "模拟账户B" in content
     assert "156000.00" in content

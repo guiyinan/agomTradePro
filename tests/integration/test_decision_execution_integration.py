@@ -8,13 +8,34 @@
 4. 状态回写验证
 """
 
-from decimal import Decimal
-
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 
 # ========== API 契约测试 ==========
+
+
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_decision_workspace_contract(response) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in (
+        "AgomTradePro - 决策工作台",
+        "投资决策工作台",
+        "决策账户",
+        "账户现状",
+        "当前持仓摘要",
+        "workspace-account-selector",
+        "funnel-stepper",
+        "decision-workspace.css",
+    ):
+        assert fragment in content
+    return content
 
 
 @pytest.mark.django_db
@@ -279,7 +300,7 @@ class TestWorkspaceTodo(TestCase):
         )
 
         response = self.client.get("/decision/workspace/")
-        self.assertEqual(response.status_code, 200)
+        _assert_decision_workspace_contract(response)
 
     def test_failed_request_included(self):
         """测试失败请求包含在待办中（支持重试）"""
@@ -320,4 +341,4 @@ class TestWorkspaceTodo(TestCase):
         )
 
         response = self.client.get("/decision/workspace/")
-        self.assertEqual(response.status_code, 200)
+        _assert_decision_workspace_contract(response)

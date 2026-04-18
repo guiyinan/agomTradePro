@@ -12,6 +12,67 @@ from apps.agent_runtime.infrastructure.models import (
 )
 
 
+def _response_text(response) -> str:
+    return response.content.decode("utf-8")
+
+
+def _assert_html_contract(response, *fragments: str) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in fragments:
+        assert fragment in content
+    return content
+
+
+def _assert_operator_task_list_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "Agent Runtime Operator - AgomTradePro",
+        "任务列表、attention 队列和 proposal 状态总览。",
+        "筛选",
+        "Task List",
+        "Task Counts",
+        "Proposal Counts",
+        "查看 Proposal Queue",
+        "Dashboard API",
+        "应用筛选",
+        "重置",
+    )
+
+
+def _assert_operator_task_detail_contract(response, request_id: str, proposal_request_id: str) -> str:
+    return _assert_html_contract(
+        response,
+        request_id,
+        proposal_request_id,
+        "Task Overview",
+        "Timeline",
+        "Proposals",
+        "Guardrails",
+        "Execution Records",
+        "Handoffs",
+        "返回 Task List",
+        "Task API",
+    )
+
+
+def _assert_operator_proposal_detail_contract(response, request_id: str, *fragments: str) -> str:
+    return _assert_html_contract(
+        response,
+        request_id,
+        "Proposal Overview",
+        "Task Timeline Context",
+        "Operator Actions",
+        "Guardrail Decisions",
+        "Execution Records",
+        "返回 Proposal Queue",
+        "Proposal API",
+        *fragments,
+    )
+
+
 @pytest.fixture
 def staff_user(django_user_model):
     return django_user_model.objects.create_user(
@@ -125,11 +186,11 @@ def test_operator_pages_allow_staff_and_operator(client, staff_user, operator_us
 
     client.force_login(operator_user)
     operator_response = client.get(task_list_url)
-    assert operator_response.status_code == 200
+    _assert_operator_task_list_contract(operator_response)
 
     client.force_login(staff_user)
     staff_response = client.get(task_list_url)
-    assert staff_response.status_code == 200
+    _assert_operator_task_list_contract(staff_response)
 
 
 @pytest.mark.django_db
@@ -138,13 +199,11 @@ def test_task_detail_page_renders_timeline_guardrails_and_handoffs(client, staff
 
     response = client.get(reverse("agent_runtime_pages:task_detail", args=[runtime_task.id]))
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
-    assert runtime_task.request_id in content
-    assert "Timeline" in content
-    assert "Guardrails" in content
-    assert "Handoffs" in content
-    assert generated_proposal.request_id in content
+    _assert_operator_task_detail_contract(
+        response,
+        runtime_task.request_id,
+        generated_proposal.request_id,
+    )
 
 
 @pytest.mark.django_db
@@ -154,7 +213,13 @@ def test_proposal_detail_submit_action_transitions_generated_proposal(client, st
 
     response = client.post(url, {"action": "submit"}, follow=True)
 
-    assert response.status_code == 200
+    _assert_operator_proposal_detail_contract(
+        response,
+        generated_proposal.request_id,
+        "submitted",
+        "批准 Proposal",
+        "拒绝 Proposal",
+    )
     generated_proposal.refresh_from_db()
     assert generated_proposal.status == "submitted"
     assert AgentGuardrailDecisionModel._default_manager.filter(proposal=generated_proposal).exists()
@@ -170,14 +235,25 @@ def test_proposal_detail_approve_and_execute_actions(client, staff_user, submitt
         {"action": "approve", "reason": "Looks good"},
         follow=True,
     )
-    assert approve_response.status_code == 200
+    _assert_operator_proposal_detail_contract(
+        approve_response,
+        submitted_proposal.request_id,
+        "approved",
+        "Looks good",
+        "执行 Proposal",
+    )
 
     submitted_proposal.refresh_from_db()
     assert submitted_proposal.status == "approved"
     assert submitted_proposal.approval_status == "approved"
 
     execute_response = client.post(url, {"action": "execute"}, follow=True)
-    assert execute_response.status_code == 200
+    _assert_operator_proposal_detail_contract(
+        execute_response,
+        submitted_proposal.request_id,
+        "executed",
+        "当前状态无可执行 operator 动作。",
+    )
 
     submitted_proposal.refresh_from_db()
     assert submitted_proposal.status == "executed"

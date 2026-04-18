@@ -74,6 +74,18 @@ class AlphaVisualizationQuery:
             ic_trends_meta=self._build_ic_trends_meta(ic_trends),
         )
 
+    def execute_metrics(self, ic_days: int = 30) -> AlphaVisualizationData:
+        """Load dashboard Alpha metrics without fetching stock scores."""
+        ic_trends = self._get_ic_trends(ic_days)
+        return AlphaVisualizationData(
+            stock_scores=[],
+            stock_scores_meta={},
+            provider_status=self._get_lightweight_provider_status(),
+            coverage_metrics=self._get_coverage_metrics(),
+            ic_trends=ic_trends,
+            ic_trends_meta=self._build_ic_trends_meta(ic_trends),
+        )
+
     def _get_stock_scores_payload(
         self,
         top_n: int,
@@ -85,7 +97,8 @@ class AlphaVisualizationQuery:
 
             service = AlphaService()
             result = None
-            for provider_name in ("cache", "simple", "etf"):
+            attempts: list[tuple[str, Any]] = []
+            for provider_name in ("qlib", "cache", "simple", "etf"):
                 candidate = service.get_stock_scores(
                     universe_id="csi300",
                     intended_trade_date=date.today(),
@@ -93,8 +106,14 @@ class AlphaVisualizationQuery:
                     user=user,
                     provider_filter=provider_name,
                 )
+                attempts.append((provider_name, candidate))
                 result = candidate
                 if candidate.success and candidate.scores:
+                    result = self._annotate_dashboard_alpha_result(
+                        candidate,
+                        selected_provider=provider_name,
+                        attempts=attempts,
+                    )
                     break
 
             if result and result.success and result.scores:
@@ -138,6 +157,51 @@ class AlphaVisualizationQuery:
                 },
             }
 
+    def _annotate_dashboard_alpha_result(
+        self,
+        result,
+        *,
+        selected_provider: str,
+        attempts: list[tuple[str, Any]],
+    ):
+        """Attach dashboard-specific freshness hints when the page falls back from realtime qlib."""
+        metadata = dict(getattr(result, "metadata", {}) or {})
+        qlib_attempt = next((candidate for provider, candidate in attempts if provider == "qlib"), None)
+        if (
+            selected_provider != "qlib"
+            and qlib_attempt is not None
+            and not getattr(qlib_attempt, "success", False)
+        ):
+            qlib_metadata = dict(getattr(qlib_attempt, "metadata", {}) or {})
+            fallback_reason = (
+                getattr(qlib_attempt, "error_message", None)
+                or qlib_metadata.get("reliability_notice", {}).get("message")
+                or "实时 Qlib 结果尚未就绪"
+            )
+            refresh_triggered = bool(qlib_metadata.get("async_task_triggered"))
+            asof_date = metadata.get("asof_date") or metadata.get("cache_date")
+
+            metadata.setdefault("fallback_from", "qlib")
+            metadata.setdefault("fallback_reason", fallback_reason)
+            metadata["refresh_triggered"] = refresh_triggered
+            metadata["uses_cached_data"] = selected_provider == "cache" or bool(
+                metadata.get("uses_cached_data", False)
+            )
+
+            if selected_provider == "cache" and not metadata.get("reliability_notice"):
+                message = f"当前展示的是 {asof_date or '未知日期'} 的缓存评分。原因：{fallback_reason}"
+                if refresh_triggered:
+                    message += " 系统已自动触发实时刷新任务，可稍后重试。"
+                metadata["reliability_notice"] = {
+                    "level": "warning",
+                    "code": "dashboard_cache_fallback",
+                    "title": "Alpha 当前使用缓存结果",
+                    "message": message,
+                }
+
+        result.metadata = metadata
+        return result
+
     def _build_stock_scores_meta(self, result) -> dict[str, Any]:
         """Build template/API-friendly metadata for Alpha score reliability."""
         metadata = dict(getattr(result, "metadata", {}) or {})
@@ -155,6 +219,12 @@ class AlphaVisualizationQuery:
             "warning_level": notice.get("level"),
             "warning_code": notice.get("code"),
             "qlib_data_latest_date": metadata.get("qlib_data_latest_date"),
+            "cache_date": metadata.get("cache_date"),
+            "cache_created_at": metadata.get("created_at"),
+            "provider_source": metadata.get("provider_source"),
+            "fallback_from": metadata.get("fallback_from"),
+            "fallback_reason": metadata.get("fallback_reason"),
+            "refresh_triggered": bool(metadata.get("refresh_triggered", False)),
         }
 
     def _resolve_security_names(self, codes: list[str]) -> dict[str, str]:
@@ -266,6 +336,54 @@ class AlphaVisualizationQuery:
                 "status": "degraded",
                 "data_source": "fallback",
                 "warning_message": "provider_status_unavailable",
+            }
+
+    def _get_lightweight_provider_status(self) -> dict[str, Any]:
+        """Get Alpha Provider metadata for homepage metrics without health checks."""
+        try:
+            from apps.alpha.application.services import AlphaService
+            from shared.infrastructure.metrics import get_alpha_metrics
+
+            service = AlphaService()
+            if hasattr(service, "get_provider_registry_status"):
+                provider_status = service.get_provider_registry_status()
+            else:
+                provider_status = service.get_provider_status()
+            metrics = get_alpha_metrics()
+
+            provider_metrics = {}
+            for provider_name in provider_status.keys():
+                success_rate = metrics.registry.get_metric(
+                    "alpha_provider_success_rate",
+                    {"provider": provider_name}
+                )
+                latency = metrics.registry.get_metric(
+                    "alpha_provider_latency_ms",
+                    {"provider": provider_name}
+                )
+
+                provider_metrics[provider_name] = {
+                    "success_rate": round(success_rate.value, 3) if success_rate else 0.0,
+                    "latency_ms": int(latency.value) if latency else 0,
+                }
+
+            return {
+                "providers": provider_status,
+                "metrics": provider_metrics,
+                "timestamp": django_timezone.now().isoformat(),
+                "status": "registered",
+                "data_source": "registry",
+                "warning_message": None,
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get lightweight alpha provider status: {e}")
+            return {
+                "providers": {},
+                "metrics": {},
+                "timestamp": django_timezone.now().isoformat(),
+                "status": "degraded",
+                "data_source": "fallback",
+                "warning_message": "provider_registry_unavailable",
             }
 
     def _get_coverage_metrics(self) -> dict[str, Any]:
@@ -1189,6 +1307,7 @@ class DashboardDetailQuery:
 _alpha_visualization_query: AlphaVisualizationQuery | None = None
 _decision_plane_query: DecisionPlaneQuery | None = None
 _alpha_decision_chain_query: AlphaDecisionChainQuery | None = None
+_alpha_homepage_query = None
 _regime_summary_query: RegimeSummaryQuery | None = None
 _dashboard_detail_query: DashboardDetailQuery | None = None
 
@@ -1215,6 +1334,16 @@ def get_alpha_decision_chain_query() -> AlphaDecisionChainQuery:
     if _alpha_decision_chain_query is None:
         _alpha_decision_chain_query = AlphaDecisionChainQuery()
     return _alpha_decision_chain_query
+
+
+def get_alpha_homepage_query():
+    """获取 Alpha 首页候选查询服务单例。"""
+    global _alpha_homepage_query
+    if _alpha_homepage_query is None:
+        from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
+
+        _alpha_homepage_query = AlphaHomepageQuery()
+    return _alpha_homepage_query
 
 
 def get_regime_summary_query() -> RegimeSummaryQuery:
