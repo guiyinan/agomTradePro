@@ -375,7 +375,11 @@ class AlphaProviderRegistry:
                 attempted_providers.append(provider.name)
 
                 # 检查是否支持该 universe
-                if not provider.supports(universe_id, pool_scope=pool_scope):
+                if not self._call_provider_supports(
+                    provider=provider,
+                    universe_id=universe_id,
+                    pool_scope=pool_scope,
+                ):
                     logger.debug(f"[AlphaProvider] Provider {provider.name} 不支持 {universe_id}")
                     continue
 
@@ -601,6 +605,23 @@ class AlphaProviderRegistry:
             top_n,
             **kwargs,
         )
+
+    def _call_provider_supports(
+        self,
+        *,
+        provider: AlphaProvider,
+        universe_id: str,
+        pool_scope: AlphaPoolScope | None,
+    ) -> bool:
+        """Call provider.supports with optional pool scope only when supported."""
+        signature = inspect.signature(provider.supports)
+        parameters = signature.parameters
+        accepts_kwargs = any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
+        )
+        if accepts_kwargs or "pool_scope" in parameters:
+            return provider.supports(universe_id, pool_scope=pool_scope)
+        return provider.supports(universe_id)
 
     def _create_fallback_alert(
         self, current_provider: str, attempted_providers: list, reason: str
