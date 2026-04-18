@@ -129,7 +129,9 @@ def test_dashboard_use_case_ignores_pending_policy_for_allocation_advice():
 
 
 @pytest.mark.django_db
-def test_dashboard_ai_insights_uses_ai_provider_config_model(monkeypatch):
+def test_dashboard_ai_insights_uses_ai_provider_config_model(settings, monkeypatch):
+    settings.DASHBOARD_SYNC_AI_INSIGHTS_ENABLED = True
+
     use_case = GetDashboardDataUseCase(
         account_repo=AccountRepository(),
         portfolio_repo=PortfolioRepository(),
@@ -194,6 +196,7 @@ def test_dashboard_ai_insights_uses_ai_provider_config_model(monkeypatch):
 
 @pytest.mark.django_db
 def test_dashboard_ai_insights_falls_back_when_encrypted_key_is_invalid(settings, monkeypatch):
+    settings.DASHBOARD_SYNC_AI_INSIGHTS_ENABLED = True
     settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
     wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
 
@@ -250,6 +253,7 @@ def test_dashboard_ai_insights_skips_invalid_provider_when_later_provider_is_usa
     settings,
     monkeypatch,
 ):
+    settings.DASHBOARD_SYNC_AI_INSIGHTS_ENABLED = True
     settings.AGOMTRADEPRO_ENCRYPTION_KEY = FieldEncryptionService.generate_key()
     wrong_service = FieldEncryptionService(FieldEncryptionService.generate_key())
 
