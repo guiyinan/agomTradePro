@@ -27,6 +27,7 @@ def _get_cache_model():
     if AlphaScoreCacheModel is not None:
         return AlphaScoreCacheModel
     from ...infrastructure.models import AlphaScoreCacheModel as cache_model
+
     return cache_model
 
 
@@ -85,11 +86,9 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """
         try:
             cache_model = _get_cache_model()
-            latest_cache = (
-                cache_model.objects
-                .order_by("-intended_trade_date", "-created_at")
-                .first()
-            )
+            latest_cache = cache_model.objects.order_by(
+                "-intended_trade_date", "-created_at"
+            ).first()
             if not latest_cache:
                 self._last_health_message = "暂无缓存数据"
                 return AlphaProviderStatus.DEGRADED
@@ -167,12 +166,14 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         if not cache:
             return self._create_error_result(
-                f"未找到 {universe_id} 的缓存数据",
-                status="unavailable"
+                f"未找到 {universe_id} 的缓存数据", status="unavailable"
             )
 
         # 3. 检查 staleness
-        staleness_days = cache.get_staleness_days()
+        staleness_days = self._calculate_staleness_days(
+            cache=cache,
+            intended_trade_date=intended_trade_date,
+        )
         is_stale = staleness_days > self.max_staleness_days
 
         # 4. 解析评分
@@ -192,7 +193,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
             return self._create_degraded_result(
                 scores=scores,
                 staleness_days=staleness_days,
-                reason=f"缓存数据过期 {staleness_days} 天（最大允许 {self.max_staleness_days} 天）"
+                reason=f"缓存数据过期 {staleness_days} 天（最大允许 {self.max_staleness_days} 天）",
             )
 
         return self._create_success_result(
@@ -206,7 +207,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 "scope_hash": cache.scope_hash,
                 "scope_label": cache.scope_label,
                 "scope_metadata": cache.scope_metadata or {},
-            }
+            },
         )
 
     def _build_universe_filter(
@@ -228,14 +229,12 @@ class CacheAlphaProvider(BaseAlphaProvider):
         freshest historical cache on or before the requested trade date.
         """
         exact_cache = (
-            queryset
-            .filter(intended_trade_date=intended_trade_date)
+            queryset.filter(intended_trade_date=intended_trade_date)
             .order_by("-asof_date", "-created_at")
             .first()
         )
         historical_cache = (
-            queryset
-            .filter(intended_trade_date__lte=intended_trade_date)
+            queryset.filter(intended_trade_date__lte=intended_trade_date)
             .order_by("-asof_date", "-intended_trade_date", "-created_at")
             .first()
         )
@@ -245,8 +244,14 @@ class CacheAlphaProvider(BaseAlphaProvider):
         if historical_cache is None:
             return exact_cache
 
-        exact_staleness = exact_cache.get_staleness_days()
-        history_staleness = historical_cache.get_staleness_days()
+        exact_staleness = self._calculate_staleness_days(
+            cache=exact_cache,
+            intended_trade_date=intended_trade_date,
+        )
+        history_staleness = self._calculate_staleness_days(
+            cache=historical_cache,
+            intended_trade_date=intended_trade_date,
+        )
         if exact_staleness <= self.max_staleness_days:
             return exact_cache
         if history_staleness <= self.max_staleness_days:
@@ -257,6 +262,13 @@ class CacheAlphaProvider(BaseAlphaProvider):
             if historical_cache.asof_date > exact_cache.asof_date:
                 return historical_cache
         return exact_cache
+
+    @staticmethod
+    def _calculate_staleness_days(*, cache, intended_trade_date: date) -> int:
+        """Calculate cache age relative to the requested signal date."""
+        if not cache.asof_date:
+            return 999
+        return max((intended_trade_date - cache.asof_date).days, 0)
 
     def _parse_scores(
         self,
@@ -294,12 +306,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         return scores
 
-    def get_available_dates(
-        self,
-        universe_id: str,
-        start_date: date,
-        end_date: date
-    ) -> list[date]:
+    def get_available_dates(self, universe_id: str, start_date: date, end_date: date) -> list[date]:
         """
         获取指定日期范围内的可用缓存日期
 
@@ -313,11 +320,15 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """
         cache_model = _get_cache_model()
 
-        caches = cache_model.objects.filter(
-            universe_id=universe_id,
-            intended_trade_date__gte=start_date,
-            intended_trade_date__lte=end_date
-        ).values_list("intended_trade_date", flat=True).distinct()
+        caches = (
+            cache_model.objects.filter(
+                universe_id=universe_id,
+                intended_trade_date__gte=start_date,
+                intended_trade_date__lte=end_date,
+            )
+            .values_list("intended_trade_date", flat=True)
+            .distinct()
+        )
 
         return sorted(set(caches))
 
@@ -333,17 +344,15 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """
         cache_model = _get_cache_model()
 
-        cache = cache_model.objects.filter(
-            universe_id=universe_id
-        ).order_by("-intended_trade_date").first()
+        cache = (
+            cache_model.objects.filter(universe_id=universe_id)
+            .order_by("-intended_trade_date")
+            .first()
+        )
 
         return cache.intended_trade_date if cache else None
 
-    def clear_stale_cache(
-        self,
-        universe_id: str,
-        days_to_keep: int = 30
-    ) -> int:
+    def clear_stale_cache(self, universe_id: str, days_to_keep: int = 30) -> int:
         """
         清理过期缓存
 
@@ -359,8 +368,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
         deleted, _ = cache_model.objects.filter(
-            universe_id=universe_id,
-            intended_trade_date__lt=cutoff_date
+            universe_id=universe_id, intended_trade_date__lt=cutoff_date
         ).delete()
 
         logger.info(f"清理了 {deleted} 条过期缓存（{universe_id}）")

@@ -5,6 +5,7 @@ Alpha 服务层，实现 Provider 注册中心和 AlphaService。
 """
 
 import logging
+import inspect
 import time
 from datetime import date, timezone
 from typing import Any, Optional
@@ -57,9 +58,7 @@ def _build_reliability_notice(
     if not result.success:
         message = result.error_message or "当前 Alpha 数据不可用。"
         if qlib_latest_date:
-            message = (
-                f"{message} 本地 Qlib 数据最新交易日为 {qlib_latest_date}。"
-            )
+            message = f"{message} 本地 Qlib 数据最新交易日为 {qlib_latest_date}。"
         return {
             "level": "error",
             "code": "alpha_unavailable",
@@ -69,7 +68,9 @@ def _build_reliability_notice(
 
     if metadata.get("trade_date_adjusted"):
         effective_trade_date = metadata.get("effective_trade_date") or asof_date or "历史日期"
-        requested_trade_date = metadata.get("requested_trade_date") or intended_trade_date.isoformat()
+        requested_trade_date = (
+            metadata.get("requested_trade_date") or intended_trade_date.isoformat()
+        )
         return {
             "level": "warning",
             "code": "qlib_trade_date_adjusted",
@@ -93,32 +94,24 @@ def _build_reliability_notice(
 
     if result.status == "degraded" and result.source == "cache":
         age_text = (
-            f"，距请求日约 {result.staleness_days} 天"
-            if result.staleness_days is not None
-            else ""
+            f"，距请求日约 {result.staleness_days} 天" if result.staleness_days is not None else ""
         )
         return {
             "level": "warning",
             "code": "historical_cache_result",
             "title": "Alpha 当前使用历史缓存",
-            "message": (
-                f"当前展示的是 {asof_date or '未知日期'} 的缓存评分{age_text}。"
-            ),
+            "message": (f"当前展示的是 {asof_date or '未知日期'} 的缓存评分{age_text}。"),
         }
 
     if result.status == "degraded" and result.source == "qlib":
         age_text = (
-            f"，距请求日约 {result.staleness_days} 天"
-            if result.staleness_days is not None
-            else ""
+            f"，距请求日约 {result.staleness_days} 天" if result.staleness_days is not None else ""
         )
         return {
             "level": "warning",
             "code": "degraded_qlib_result",
             "title": "Alpha 当前使用降级 Qlib 结果",
-            "message": (
-                f"当前展示的是 {asof_date or '历史日期'} 的 Qlib 结果{age_text}。"
-            ),
+            "message": (f"当前展示的是 {asof_date or '历史日期'} 的 Qlib 结果{age_text}。"),
         }
 
     return None
@@ -134,13 +127,15 @@ def _enrich_result_metadata(result: AlphaResult, intended_trade_date: date) -> A
         or metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache"
         or metadata.get("provider_source") == "cache"
     )
-    metadata.update({
-        "requested_trade_date": intended_trade_date.isoformat(),
-        "effective_asof_date": asof_date,
-        "is_degraded": result.status == "degraded",
-        "uses_cached_data": uses_cached_data,
-        "reliability_notice": notice,
-    })
+    metadata.update(
+        {
+            "requested_trade_date": intended_trade_date.isoformat(),
+            "effective_asof_date": asof_date,
+            "is_degraded": result.status == "degraded",
+            "uses_cached_data": uses_cached_data,
+            "reliability_notice": notice,
+        }
+    )
     scope_metadata = metadata.get("scope_metadata") or {}
     if scope_metadata:
         metadata.setdefault("scope_hash", scope_metadata.get("scope_hash"))
@@ -385,10 +380,11 @@ class AlphaProviderRegistry:
                     continue
 
                 # 获取评分（Cache Provider 支持 user 参数）
-                result = provider.get_stock_scores(
-                    universe_id,
-                    intended_trade_date,
-                    top_n,
+                result = self._call_provider_get_stock_scores(
+                    provider=provider,
+                    universe_id=universe_id,
+                    intended_trade_date=intended_trade_date,
+                    top_n=top_n,
                     pool_scope=pool_scope,
                     user=user,
                 )
@@ -425,10 +421,8 @@ class AlphaProviderRegistry:
 
                     # 标记 degraded
                     result.status = "degraded"
-                    if (
-                        best_degraded_result is None
-                        or (result.staleness_days or 10**9)
-                        < (best_degraded_result.staleness_days or 10**9)
+                    if best_degraded_result is None or (result.staleness_days or 10**9) < (
+                        best_degraded_result.staleness_days or 10**9
                     ):
                         best_degraded_result = result
                         best_degraded_provider_name = provider.name
@@ -578,6 +572,34 @@ class AlphaProviderRegistry:
             timestamp=date.today().isoformat(),
             status="unavailable",
             error_message="所有 Alpha Provider 失败或数据过期",
+        )
+
+    def _call_provider_get_stock_scores(
+        self,
+        *,
+        provider: AlphaProvider,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int,
+        pool_scope: AlphaPoolScope | None,
+        user,
+    ) -> AlphaResult:
+        """Call providers with only the optional context parameters they support."""
+        signature = inspect.signature(provider.get_stock_scores)
+        parameters = signature.parameters
+        accepts_kwargs = any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
+        )
+        kwargs: dict[str, Any] = {}
+        if accepts_kwargs or "pool_scope" in parameters:
+            kwargs["pool_scope"] = pool_scope
+        if accepts_kwargs or "user" in parameters:
+            kwargs["user"] = user
+        return provider.get_stock_scores(
+            universe_id,
+            intended_trade_date,
+            top_n,
+            **kwargs,
         )
 
     def _create_fallback_alert(
