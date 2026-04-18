@@ -743,6 +743,20 @@ Remove fake data generation from Alpha providers
 
 ---
 
+## 2026-04-18 补充记录 | Dashboard Alpha E2E/UAT 对齐
+
+- 本地 `tests/playwright/tests/uat` 在 `http://localhost:8000` 跑通，`74 passed`
+- 本地 `tests/e2e` 初始失败 2 项，根因都不是线上逻辑回退，而是测试桩仍按旧版 Dashboard Alpha 接口断言
+- 修复点：
+  - E2E 改为 mock `_get_alpha_stock_scores_payload(top_n, user, portfolio_id)`，与账户池作用域接口保持一致
+  - JSON 端点断言从旧字段 `items` 改为当前返回字段 `top_candidates`
+  - 页面动作文案断言从旧文案 `加入观察` 更新为当前文案 `在 Workflow 中查看`
+- 结果：本地复跑 `tests/e2e`，`96 passed`
+
+这次收口的是测试契约漂移，不是产品偷偷回退。Dashboard Alpha 现在线上行为与测试已经重新对齐。
+
+---
+
 ## 下一步计划
 
 - 更多 AI Agent 集成

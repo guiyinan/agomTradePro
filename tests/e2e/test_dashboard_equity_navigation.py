@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -29,25 +28,9 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
 
     monkeypatch.setattr(
         views,
-        "_get_alpha_visualization_data",
-        lambda top_n=10, ic_days=30, user=None: SimpleNamespace(
-            stock_scores_meta={"provider_source": "cache"},
-        ),
-    )
-    monkeypatch.setattr(
-        views,
-        "_get_decision_plane_data",
-        lambda max_candidates=5, max_pending=10: SimpleNamespace(
-            actionable_candidates=[],
-            pending_requests=[],
-            alpha_actionable_count=0,
-        ),
-    )
-    monkeypatch.setattr(
-        views,
-        "_get_alpha_decision_chain_data",
-        lambda top_n=10, ic_days=30, max_candidates=5, max_pending=10, user=None, alpha_visualization_data=None, decision_plane_data=None: SimpleNamespace(
-            top_stocks=[
+        "_get_alpha_stock_scores_payload",
+        lambda top_n=10, user=None, portfolio_id=None: {
+            "items": [
                 {
                     "code": "600519.SH",
                     "name": "贵州茅台",
@@ -60,8 +43,13 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
                     "workflow_stage_label": "仅在 Alpha Top 排名",
                 }
             ],
-            overview={"top_ranked_count": 1},
-        ),
+            "meta": {"provider_source": "cache"},
+            "pool": {},
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "recent_runs": [],
+            "history_run_id": None,
+        },
     )
 
     response = authenticated_client.get("/api/dashboard/alpha/stocks/?format=json&top_n=5")
@@ -73,7 +61,7 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
     assert payload["success"] is True
     assert payload["data"]["count"] == 1
     assert payload["data"]["top_n"] == 5
-    assert payload["data"]["items"][0]["code"] == "600519.SH"
+    assert payload["data"]["top_candidates"][0]["code"] == "600519.SH"
 
 
 @pytest.mark.django_db
@@ -95,7 +83,7 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
     monkeypatch.setattr(
         views,
         "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None: {
+        lambda top_n=10, user=None, portfolio_id=None: {
             "items": [
                 {
                     "code": "600519.SH",
@@ -108,6 +96,11 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
                 }
             ],
             "meta": {"provider_source": "cache"},
+            "pool": {},
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "recent_runs": [],
+            "history_run_id": None,
         },
     )
 
@@ -116,7 +109,7 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "/decision/workspace/?source=dashboard-alpha&security_code=" in content
-    assert "加入观察" in content
+    assert "在 Workflow 中查看" in content
 
 
 @pytest.mark.django_db
