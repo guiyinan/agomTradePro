@@ -38,9 +38,10 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: Run Unit Tests (full)
+        timeout-minutes: 25
         run: |
           python -m pytest tests/unit/ -q \
-            -n auto \
+            -n 4 \
             --dist loadscope \
             --timeout=300 \
             --timeout-method=thread \
@@ -51,6 +52,7 @@ jobs:
             --cov-report=html:htmlcov-unit
 
       - name: Run API And Migration Tests
+        timeout-minutes: 20
         run: |
           python -m pytest tests/api/ tests/migrations/ -v \
             --cov=apps \
@@ -58,6 +60,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Integration Tests (core)
+        timeout-minutes: 30
         run: |
           python -m pytest tests/integration/ -v \
             --cov=apps \
@@ -67,6 +70,7 @@ jobs:
             -n auto
 
       - name: Run App-Local Module Tests
+        timeout-minutes: 25
         run: |
           python -m pytest apps/*/tests -v \
             --cov=apps \
@@ -74,6 +78,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Guardrail Tests
+        timeout-minutes: 15
         run: |
           python -m pytest tests/guardrails/ -v \
             --cov=apps \
@@ -81,6 +86,7 @@ jobs:
             --cov-report=xml:coverage-guardrail.xml
 
       - name: Run Playwright Smoke Tests
+        timeout-minutes: 15
         run: |
           python manage.py runserver 8000 &
           sleep 3
