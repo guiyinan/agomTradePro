@@ -11,7 +11,10 @@ from apps.account.application.use_cases import GetSizingContextUseCase
 from apps.account.infrastructure.repositories import PortfolioRepository
 from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 from apps.alpha.application.services import AlphaService
-from apps.dashboard.infrastructure.repositories import AlphaRecommendationHistoryRepository
+from apps.dashboard.infrastructure.repositories import (
+    AlphaRecommendationHistoryRepository,
+    DashboardAlphaContextRepository,
+)
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 
 logger = logging.getLogger(__name__)
@@ -37,8 +40,10 @@ class AlphaHomepageQuery:
         self,
         *,
         history_repo: AlphaRecommendationHistoryRepository | None = None,
+        context_repo: DashboardAlphaContextRepository | None = None,
     ) -> None:
         self.history_repo = history_repo or AlphaRecommendationHistoryRepository()
+        self.context_repo = context_repo or DashboardAlphaContextRepository()
         self.portfolio_repo = PortfolioRepository()
         self.alpha_service = AlphaService()
         self.decision_engine = DecisionPolicyEngine()
@@ -370,69 +375,13 @@ class AlphaHomepageQuery:
         }
 
     def _load_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
-        if not codes:
-            return {}
-        from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
-
-        info_rows = StockInfoModel._default_manager.filter(stock_code__in=codes).values(
-            "stock_code",
-            "name",
-            "sector",
-            "market",
-        )
-        info_map = {row["stock_code"].upper(): row for row in info_rows}
-
-        daily_rows = (
-            StockDailyModel._default_manager.filter(stock_code__in=codes)
-            .order_by("stock_code", "-trade_date")
-            .values("stock_code", "trade_date", "close", "volume")
-        )
-        daily_map: dict[str, dict[str, Any]] = {}
-        for row in daily_rows:
-            code = str(row["stock_code"]).upper()
-            if code not in daily_map:
-                daily_map[code] = row
-
-        context: dict[str, dict[str, Any]] = {}
-        for code in codes:
-            info = dict(info_map.get(code, {}))
-            latest_daily = daily_map.get(code, {})
-            info.update(
-                {
-                    "name": info.get("name", ""),
-                    "sector": info.get("sector", ""),
-                    "market": info.get("market", ""),
-                    "close": float(latest_daily.get("close") or 0.0),
-                    "volume": float(latest_daily.get("volume") or 0.0),
-                    "trade_date": (
-                        latest_daily.get("trade_date").isoformat()
-                        if latest_daily.get("trade_date")
-                        else None
-                    ),
-                }
-            )
-            context[code] = info
-        return context
+        return self.context_repo.load_stock_context(codes)
 
     def _load_actionable_map(self) -> dict[str, Any]:
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-
-        queryset = AlphaCandidateModel._default_manager.filter(status="ACTIONABLE").order_by(
-            "-confidence", "-created_at"
-        )
-        return {str(item.asset_code).upper(): item for item in queryset[:200]}
+        return self.context_repo.load_actionable_map()
 
     def _load_pending_map(self) -> dict[str, Any]:
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-
-        queryset = DecisionRequestModel._default_manager.filter(
-            response__approved=True, execution_status__in=["PENDING", "FAILED"]
-        ).order_by("-requested_at")
-        pending_map: dict[str, Any] = {}
-        for item in queryset[:200]:
-            code = str(item.asset_code or "").upper()
-            pending_map.setdefault(code, item)
-        return pending_map
+        return self.context_repo.load_pending_map()
 
     def _load_portfolio_context(
         self,
@@ -457,26 +406,7 @@ class AlphaHomepageQuery:
         return position_map, portfolio_snapshot, sizing_context
 
     def _load_policy_state(self) -> dict[str, Any]:
-        try:
-            from apps.policy.infrastructure.models import PolicyLog
-
-            policy = (
-                PolicyLog._default_manager.filter(gate_effective=True)
-                .exclude(gate_level__isnull=True)
-                .order_by("-effective_at", "-event_date")
-                .first()
-            )
-            if policy is None:
-                return {"gate_level": "L0", "effective": False}
-            return {
-                "gate_level": policy.gate_level or "L0",
-                "effective": bool(policy.gate_effective),
-                "event_date": policy.event_date.isoformat(),
-                "title": policy.title,
-            }
-        except Exception as exc:
-            logger.warning("Failed to load policy gate state: %s", exc)
-            return {"gate_level": "L0", "effective": False}
+        return self.context_repo.load_policy_state()
 
     def _build_candidate_item(
         self,

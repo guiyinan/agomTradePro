@@ -39,6 +39,98 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+class DashboardAlphaContextRepository:
+    """ORM-backed context loader for the Dashboard Alpha homepage view."""
+
+    def load_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
+        if not codes:
+            return {}
+
+        from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
+
+        info_rows = StockInfoModel._default_manager.filter(stock_code__in=codes).values(
+            "stock_code",
+            "name",
+            "sector",
+            "market",
+        )
+        info_map = {row["stock_code"].upper(): row for row in info_rows}
+
+        daily_rows = (
+            StockDailyModel._default_manager.filter(stock_code__in=codes)
+            .order_by("stock_code", "-trade_date")
+            .values("stock_code", "trade_date", "close", "volume")
+        )
+        daily_map: dict[str, dict[str, Any]] = {}
+        for row in daily_rows:
+            code = str(row["stock_code"]).upper()
+            if code not in daily_map:
+                daily_map[code] = row
+
+        context: dict[str, dict[str, Any]] = {}
+        for code in codes:
+            info = dict(info_map.get(code, {}))
+            latest_daily = daily_map.get(code, {})
+            info.update(
+                {
+                    "name": info.get("name", ""),
+                    "sector": info.get("sector", ""),
+                    "market": info.get("market", ""),
+                    "close": float(latest_daily.get("close") or 0.0),
+                    "volume": float(latest_daily.get("volume") or 0.0),
+                    "trade_date": (
+                        latest_daily.get("trade_date").isoformat()
+                        if latest_daily.get("trade_date")
+                        else None
+                    ),
+                }
+            )
+            context[code] = info
+        return context
+
+    def load_actionable_map(self) -> dict[str, Any]:
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+
+        queryset = AlphaCandidateModel._default_manager.filter(status="ACTIONABLE").order_by(
+            "-confidence", "-created_at"
+        )
+        return {str(item.asset_code).upper(): item for item in queryset[:200]}
+
+    def load_pending_map(self) -> dict[str, Any]:
+        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+
+        queryset = DecisionRequestModel._default_manager.filter(
+            response__approved=True, execution_status__in=["PENDING", "FAILED"]
+        ).order_by("-requested_at")
+        pending_map: dict[str, Any] = {}
+        for item in queryset[:200]:
+            code = str(item.asset_code or "").upper()
+            pending_map.setdefault(code, item)
+        return pending_map
+
+    def load_policy_state(self) -> dict[str, Any]:
+        try:
+            from apps.policy.infrastructure.models import PolicyLog
+
+            policy = (
+                PolicyLog._default_manager.filter(gate_effective=True)
+                .exclude(gate_level__isnull=True)
+                .order_by("-effective_at", "-event_date")
+                .first()
+            )
+            if policy is None:
+                return {"gate_level": "L0", "effective": False}
+            return {
+                "gate_level": policy.gate_level or "L0",
+                "effective": bool(policy.gate_effective),
+                "event_date": policy.event_date.isoformat(),
+                "title": policy.title,
+            }
+        except Exception as exc:
+            logger.warning("Failed to load policy gate state: %s", exc)
+            return {"gate_level": "L0", "effective": False}
+
+
 class DashboardConfigRepository:
     """
     仪表盘配置仓储
@@ -60,8 +152,7 @@ class DashboardConfigRepository:
         """
         try:
             return DashboardConfigModel._default_manager.filter(
-                is_default=True,
-                is_active=True
+                is_default=True, is_active=True
             ).first()
         except Exception as e:
             logger.error(f"Error getting default config: {e}")
@@ -128,11 +219,7 @@ class DashboardConfigRepository:
         )
         return config
 
-    def update_config(
-        self,
-        config_id: str,
-        **kwargs
-    ) -> DashboardConfigModel | None:
+    def update_config(self, config_id: str, **kwargs) -> DashboardConfigModel | None:
         """
         更新配置
 
@@ -300,18 +387,13 @@ class AlphaRecommendationHistoryRepository:
 
     def get_run_detail(self, *, user_id: int, run_id: int) -> AlphaRecommendationRunModel | None:
         try:
-            return (
-                AlphaRecommendationRunModel._default_manager
-                .prefetch_related("snapshots")
-                .get(id=run_id, user_id=user_id)
+            return AlphaRecommendationRunModel._default_manager.prefetch_related("snapshots").get(
+                id=run_id, user_id=user_id
             )
         except AlphaRecommendationRunModel.DoesNotExist:
             return None
 
-    def get_or_create_preferences(
-        self,
-        user_id: int
-    ) -> DashboardPreferences:
+    def get_or_create_preferences(self, user_id: int) -> DashboardPreferences:
         """
         获取或创建用户偏好
 
@@ -327,7 +409,7 @@ class AlphaRecommendationHistoryRepository:
                 user=user,
                 defaults={
                     "dashboard_config": DashboardConfigRepository().get_default_config(),
-                }
+                },
             )
             return self._to_domain_entity(config_model)
         except User.DoesNotExist:
@@ -337,11 +419,7 @@ class AlphaRecommendationHistoryRepository:
                 layout_id="default",
             )
 
-    def update_preferences(
-        self,
-        user_id: int,
-        **kwargs
-    ) -> DashboardPreferences | None:
+    def update_preferences(self, user_id: int, **kwargs) -> DashboardPreferences | None:
         """
         更新用户偏好
 
@@ -538,17 +616,12 @@ class DashboardCardRepository:
         Returns:
             卡片列表
         """
-        return list(DashboardCardModel._default_manager.filter(
-            card_type=card_type.value,
-            is_visible=True
-        ))
+        return list(
+            DashboardCardModel._default_manager.filter(card_type=card_type.value, is_visible=True)
+        )
 
     def create_card(
-        self,
-        card_id: str,
-        card_type: CardType,
-        title: str = "",
-        **kwargs
+        self, card_id: str, card_type: CardType, title: str = "", **kwargs
     ) -> DashboardCardModel:
         """
         创建卡片
@@ -563,18 +636,11 @@ class DashboardCardRepository:
             创建的卡片
         """
         card = DashboardCardModel._default_manager.create(
-            card_id=card_id,
-            card_type=card_type.value,
-            title=title,
-            **kwargs
+            card_id=card_id, card_type=card_type.value, title=title, **kwargs
         )
         return card
 
-    def update_card_visibility(
-        self,
-        card_id: str,
-        is_visible: bool
-    ) -> bool:
+    def update_card_visibility(self, card_id: str, is_visible: bool) -> bool:
         """
         更新卡片可见性
 
@@ -639,10 +705,9 @@ class DashboardAlertRepository:
         Returns:
             告警列表
         """
-        return list(DashboardAlertModel._default_manager.filter(
-            severity=severity.value,
-            is_enabled=True
-        ))
+        return list(
+            DashboardAlertModel._default_manager.filter(severity=severity.value, is_enabled=True)
+        )
 
     def create_alert(
         self,
@@ -651,7 +716,7 @@ class DashboardAlertRepository:
         metric: str,
         threshold: float,
         severity: AlertSeverity = AlertSeverity.WARNING,
-        **kwargs
+        **kwargs,
     ) -> DashboardAlertModel:
         """
         创建告警
@@ -673,7 +738,7 @@ class DashboardAlertRepository:
             metric=metric,
             threshold=threshold,
             severity=severity.value,
-            **kwargs
+            **kwargs,
         )
         return alert
 
@@ -707,9 +772,7 @@ class DashboardSnapshotRepository:
     """
 
     def create_snapshot(
-        self,
-        user_id: int,
-        snapshot_data: dict[str, Any]
+        self, user_id: int, snapshot_data: dict[str, Any]
     ) -> DashboardSnapshotModel | None:
         """
         创建快照
@@ -724,18 +787,13 @@ class DashboardSnapshotRepository:
         try:
             user = User._default_manager.get(id=user_id)
             snapshot = DashboardSnapshotModel._default_manager.create(
-                user=user,
-                snapshot_data=snapshot_data
+                user=user, snapshot_data=snapshot_data
             )
             return snapshot
         except User.DoesNotExist:
             return None
 
-    def get_recent_snapshots(
-        self,
-        user_id: int,
-        limit: int = 10
-    ) -> list[DashboardSnapshotModel]:
+    def get_recent_snapshots(self, user_id: int, limit: int = 10) -> list[DashboardSnapshotModel]:
         """
         获取最近的快照
 
@@ -748,17 +806,15 @@ class DashboardSnapshotRepository:
         """
         try:
             user = User._default_manager.get(id=user_id)
-            return list(DashboardSnapshotModel._default_manager.filter(
-                user=user
-            ).order_by("-captured_at")[:limit])
+            return list(
+                DashboardSnapshotModel._default_manager.filter(user=user).order_by("-captured_at")[
+                    :limit
+                ]
+            )
         except User.DoesNotExist:
             return []
 
-    def delete_old_snapshots(
-        self,
-        user_id: int,
-        keep_count: int = 100
-    ) -> int:
+    def delete_old_snapshots(self, user_id: int, keep_count: int = 100) -> int:
         """
         删除旧快照
 
@@ -771,9 +827,9 @@ class DashboardSnapshotRepository:
         """
         try:
             user = User._default_manager.get(id=user_id)
-            snapshots = DashboardSnapshotModel._default_manager.filter(
-                user=user
-            ).order_by("-captured_at")
+            snapshots = DashboardSnapshotModel._default_manager.filter(user=user).order_by(
+                "-captured_at"
+            )
 
             total = snapshots.count()
             if total > keep_count:
@@ -784,4 +840,3 @@ class DashboardSnapshotRepository:
             return 0
         except User.DoesNotExist:
             return 0
-
