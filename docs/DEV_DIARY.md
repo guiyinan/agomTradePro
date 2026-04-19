@@ -782,6 +782,24 @@ Remove fake data generation from Alpha providers
 
 ---
 
+## 2026-04-19 补充记录 | Nightly Smoke 空库契约修正
+
+- 现象：`Nightly Tests` 的 Playwright smoke 在 GitHub Actions 上失败 6 项，但本地带业务数据的开发库无法稳定复现。
+- 根因：nightly 使用的是“迁移后但未灌业务数据”的全新 SQLite 数据库；`macro / regime / signal / audit / filter / rotation` 六个页面会合法进入空态，但 smoke 断言仍硬要求 `.ind-item / .regime-card / .signal-card / .report-card / .summary-value / .asset-card` 必须存在。
+- 处理：
+  1. `tests/playwright/tests/smoke/test_critical_paths.py` 新增可见空态识别辅助函数；
+  2. 上述六个页面改为校验“数据态 or 合法空态”二选一；
+  3. 仍然保留页面骨架、标题、核心控件等断言，避免把 smoke 放宽成“HTTP 200 即通过”。
+- 本地验证：
+  - 新建空库 `tmp/nightly-smoke.sqlite3`
+  - 执行 `migrate` 并创建 `admin`
+  - 先复跑 6 个失败点：`6 passed`
+  - 再按 nightly 等价命令复跑整套 `tests/playwright/tests/smoke`：`28 passed`
+
+这次修的是 smoke 契约，不是给产品加 mock 数据，也不是吞掉真实失败。以后如果页面在空库下渲染坏掉，nightly 仍会报红；只是不会再因为“合法空态”被误判成失败。
+
+---
+
 ## 下一步计划
 
 - 更多 AI Agent 集成

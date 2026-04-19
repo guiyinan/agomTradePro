@@ -268,6 +268,30 @@ pytest tests/integration/strategy/test_strategy_page_save_flow.py -q
 
 同步文档：`docs/development/consistency-audit-2026-03-28.md`
 
+### 2026-04-19 Nightly Smoke 空态契约补充
+
+#### 原则调整
+
+Nightly Playwright smoke 默认针对“刚迁移完成、未预灌业务数据”的数据库执行，因此页面级契约必须接受两类合法状态：
+
+1. **数据态**：核心业务卡片/图表/列表正常渲染；
+2. **空态**：页面骨架、标题、核心操作控件仍可用，并出现明确的空态提示。
+
+#### 当前已纳入空态契约的页面
+
+1. `macro/data`
+2. `regime/dashboard`
+3. `signal/manage`
+4. `audit/report_list`
+5. `filter/dashboard`
+6. `rotation/assets`
+
+#### 边界
+
+- 这不是放宽为“返回 200 即通过”；
+- smoke 仍需验证页面 shell、标题、关键按钮/选择器和可见空态文案；
+- 任何 404/500、错误壳页、主控件缺失、空态文案缺失，都应继续判定失败。
+
 ### 2026-03-30 Alpha Dashboard 用户隔离回归
 
 #### 覆盖新增

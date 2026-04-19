@@ -7,7 +7,7 @@ import time
 from collections.abc import Iterable
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 from tests.playwright.config.test_config import config
 from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
@@ -78,6 +78,28 @@ def _assert_box_size(
     assert box["height"] >= min_height, f"{selector} height too small: {box['height']}"
 
 
+def _first_visible_locator(page: Page, selector: str) -> Locator | None:
+    """Return the first visible locator that matches ``selector``."""
+    locator = page.locator(selector)
+    for index in range(locator.count()):
+        candidate = locator.nth(index)
+        if candidate.is_visible():
+            return candidate
+    return None
+
+
+def _assert_empty_state(page: Page, *expected_fragments: str) -> Locator:
+    """Assert a visible empty-state container exists with expected text fragments."""
+    empty_state = _first_visible_locator(page, ".empty-state")
+    assert empty_state is not None, "Expected a visible empty state"
+    empty_text = _normalize_text(empty_state.inner_text(timeout=5000))
+    for expected in expected_fragments:
+        assert expected in empty_text, (
+            f"Expected empty state to include {expected!r}, got {empty_text!r}"
+        )
+    return empty_state
+
+
 def _assert_card_style(page: Page, selector: str) -> None:
     """Assert that a card-like element has real styling applied."""
     locator = page.locator(selector).first
@@ -127,6 +149,18 @@ def _assert_macro_contract(page: Page) -> None:
     _assert_page_shell(page, "/macro/data/")
     expect(page.locator("h1")).to_have_text("宏观数据中心")
     _assert_min_count(page, ".stat-card", 3)
+
+    indicator_items = page.locator(".ind-item")
+    if indicator_items.count() == 0:
+        placeholder = page.locator("#chartPlaceholder")
+        expect(placeholder).to_be_visible(timeout=10000)
+        placeholder_text = _normalize_text(placeholder.inner_text(timeout=5000))
+        assert "选择一个指标查看趋势" in placeholder_text
+        assert not page.locator("#indicatorInfoBar").is_visible(), (
+            "Macro page should keep the indicator info bar hidden when no data is available"
+        )
+        return
+
     _assert_min_count(page, ".ind-item", 5)
 
     indicator_info_bar = page.locator("#indicatorInfoBar")
@@ -145,12 +179,18 @@ def _assert_regime_contract(page: Page) -> None:
     """Assert regime dashboard renders the current quadrant instead of an empty shell."""
     _assert_page_shell(page, "/regime/dashboard/")
     expect(page.locator("h1")).to_have_text("Regime 判定")
+    visible_empty_state = _first_visible_locator(page, ".empty-state")
+    if visible_empty_state is not None:
+        empty_text = _normalize_text(visible_empty_state.inner_text(timeout=5000))
+        if "暂无 Regime 判定数据" in empty_text:
+            assert page.locator(".regime-card").count() == 0
+            return
+
     _wait_for_non_placeholder_text(page, ".source-badge")
     expect(page.get_by_text("当前象限：")).to_be_visible()
     _assert_min_count(page, ".regime-card", 4)
     _assert_min_count(page, ".chart-card", 2)
     assert page.locator(".regime-card.active").count() == 1, "Expected exactly one active regime card"
-    assert not page.locator(".empty-state").is_visible(), "Regime dashboard should not fall back to empty state"
     _assert_card_style(page, ".regime-card.active")
 
 
@@ -159,6 +199,11 @@ def _assert_signal_contract(page: Page) -> None:
     _assert_page_shell(page, "/signal/manage/")
     expect(page.locator("h1")).to_have_text("投资信号")
     _assert_min_count(page, ".stat-card", 5)
+    if page.locator(".signal-card").count() == 0:
+        _assert_empty_state(page, "暂无信号")
+        expect(page.get_by_role("button", name="创建信号")).to_be_visible()
+        return
+
     _assert_min_count(page, ".signal-card", 1)
     _assert_min_count(page, ".action-btn", 1)
     _wait_for_non_placeholder_text(page, ".signal-card .signal-code")
@@ -269,8 +314,13 @@ def _assert_audit_contract(page: Page) -> None:
     _assert_page_shell(page, "/audit/")
     title_text = _wait_for_non_placeholder_text(page, "h1")
     assert "审计" in title_text
+    _assert_min_count(page, ".btn-primary", 1)
+
+    if page.locator(".report-card").count() == 0:
+        _assert_empty_state(page, "暂无归因报告")
+        return
+
     _assert_min_count(page, ".report-card", 1)
-    _assert_min_count(page, ".header-actions .btn-primary", 1)
     _assert_card_style(page, ".report-card")
 
 
@@ -280,9 +330,14 @@ def _assert_filter_contract(page: Page) -> None:
     expect(page.locator("h1")).to_have_text("趋势滤波器")
     expect(page.locator("#filterTypeSelect")).to_be_visible()
     assert page.locator("#filterTypeSelect").input_value() in {"hp", "kalman"}
+    expect(page.locator("#applyBtn")).to_be_visible()
+
+    if page.locator(".summary-value").count() == 0:
+        _assert_empty_state(page, "暂无滤波数据")
+        return
+
     _assert_min_count(page, ".summary-value", 4)
     _assert_box_size(page, "#mainChart", min_width=400, min_height=240)
-    assert not page.locator(".empty-state").is_visible(), "Filter dashboard should render chart data"
     _assert_card_style(page, ".sidebar-card")
 
 
@@ -291,6 +346,12 @@ def _assert_rotation_contract(page: Page) -> None:
     _assert_page_shell(page, "/rotation/")
     expect(page.locator("h1")).to_have_text("资产类别")
     _assert_min_count(page, ".stat-card", 4)
+
+    if page.locator(".asset-card").count() == 0:
+        _assert_empty_state(page, "暂无资产类别数据")
+        expect(page.get_by_role("button", name=re.compile("新建资产"))).to_be_visible()
+        return
+
     _assert_min_count(page, ".asset-card", 1)
     _wait_for_non_placeholder_text(page, ".asset-card .asset-name")
     _assert_card_style(page, ".asset-card")
