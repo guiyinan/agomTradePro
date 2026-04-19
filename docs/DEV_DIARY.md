@@ -757,6 +757,31 @@ Remove fake data generation from Alpha providers
 
 ---
 
+## 2026-04-18 补充记录 | 本地全量回归入口与 CI 假绿收口
+
+- 问题 1：RC Gate 的 Journey Tests 之前没有显式启动 Django server，Playwright 在 live server 不可达时可能整组 `skip`，workflow 仍然通过。
+- 问题 2：nightly 的 Playwright smoke 带 `|| true`，失败不会阻断 nightly。
+- 问题 3：consistency check 还保留 route baseline=35 的历史容忍逻辑，而当前实际已经是 `0` 违规。
+- 问题 4：本地完整回归没有统一入口，开发者需要手工拼命令，容易漏跑。
+
+这次一起收口：
+
+1. 新增 `scripts/run_live_server_pytest.py`，统一负责：
+   - 起 Django live server
+   - 等待 `/account/login/` 可达
+   - 显式注入 `--base-url`
+   - 生成 JUnit XML
+   - 校验最小执行数
+   - 拒绝“整组 skip 但门禁仍绿”
+2. 新增 `scripts/run_full_regression.py`，把一致性、架构、安全、本地后端矩阵、浏览器矩阵、RC 等价子集统一成一个命令。
+3. `tests/playwright/conftest.py` 增加严格模式：CI 或 `AGOM_PLAYWRIGHT_REQUIRE_SERVER=1` 时，live server 不可达直接 fail。
+4. `tests/uat/run_uat.py` 改为复用统一 helper，不再各自维护一套 Playwright 启动路径。
+5. `rc-gate.yml` / `nightly-tests.yml` / `consistency-check.yml` 统一切到真实失败语义。
+
+这类改动不改变产品功能，但会明显提高“本地绿”和“CI 绿”的可信度。后面再出红灯，就更大概率是真问题，不是门禁自己在骗我们。
+
+---
+
 ## 下一步计划
 
 - 更多 AI Agent 集成

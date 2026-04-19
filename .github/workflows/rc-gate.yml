@@ -115,8 +115,19 @@ jobs:
           echo "==================================="
           echo "Check 6: Journey Tests (>= 90%)"
           echo "==================================="
-          pytest tests/playwright/tests/uat/ -v --tb=short \
-            --junitxml=reports/journey-results.xml \
+          python scripts/run_live_server_pytest.py \
+            --suite-name rc-journey-tests \
+            --host 127.0.0.1 \
+            --port 8000 \
+            --base-url http://127.0.0.1:8000 \
+            --settings-module core.settings.development_sqlite \
+            --health-timeout 180 \
+            --min-tests 20 \
+            --junitxml reports/journey-results.xml \
+            --server-log reports/journey-server.log \
+            --pytest-log reports/journey-pytest.log \
+            -- \
+            tests/playwright/tests/uat/ -v --tb=short \
             --cov=apps \
             --cov-report=xml:reports/coverage-rc.xml \
             --cov-report=html:reports/coverage-html \
@@ -399,6 +410,9 @@ jobs:
           path: |
             reports/coverage-rc.xml
             reports/coverage-html/
+            reports/journey-results.xml
+            reports/journey-server.log
+            reports/journey-pytest.log
           retention-days: 90
 
       - name: RC Gate Summary

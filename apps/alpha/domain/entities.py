@@ -6,7 +6,7 @@ Alpha Domain Entities
 """
 
 import re
-from hashlib import sha1
+import hashlib
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
@@ -267,7 +267,10 @@ class AlphaPoolScope:
                 str(self.portfolio_id or ""),
             ]
         )
-        return sha1(basis.encode("utf-8")).hexdigest()[:16]
+        return hashlib.sha1(
+            basis.encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest()[:16]
 
     @property
     def universe_id(self) -> str:

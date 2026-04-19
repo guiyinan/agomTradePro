@@ -68,7 +68,10 @@ class AIProviderRepository:
         try:
             return self._crypto_service.decrypt(encrypted_key, suppress_warning=True)
         except (InvalidToken, ValueError):
-            fingerprint = hashlib.sha1(encrypted_key.encode("utf-8")).hexdigest()[:12]
+            fingerprint = hashlib.sha1(
+                encrypted_key.encode("utf-8"),
+                usedforsecurity=False,
+            ).hexdigest()[:12]
             if fingerprint not in _UNUSABLE_ENCRYPTED_KEY_FINGERPRINTS:
                 logger.info(
                     "Skipping encrypted API key that cannot be decrypted in current environment"

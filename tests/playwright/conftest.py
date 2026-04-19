@@ -1,6 +1,7 @@
 """
 Global fixtures for Playwright tests.
 """
+import os
 from collections.abc import Generator
 from pathlib import Path
 from typing import Optional
@@ -80,12 +81,21 @@ def ensure_playwright_admin_user(django_db_setup, django_db_blocker) -> None:
 
 @pytest.fixture(scope="session", autouse=True)
 def require_live_server(base_url: str) -> None:
-    """Skip Playwright suite when the target app server is not reachable."""
+    """Require the target app server to be reachable before browser suites begin."""
     try:
         response = requests.get(f"{base_url}/account/login/", timeout=5)
         response.raise_for_status()
     except requests.RequestException as exc:
-        pytest.skip(f"Playwright tests require a live app server at {base_url}: {exc}")
+        message = f"Playwright tests require a live app server at {base_url}: {exc}"
+        strict_live_server = os.environ.get("AGOM_PLAYWRIGHT_REQUIRE_SERVER", "").lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        } or os.environ.get("CI", "").lower() in {"1", "true", "yes", "on"}
+        if strict_live_server:
+            pytest.fail(message, pytrace=False)
+        pytest.skip(message)
 
 
 @pytest.fixture(scope="session")

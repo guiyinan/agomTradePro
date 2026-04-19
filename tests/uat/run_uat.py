@@ -23,10 +23,23 @@ from uuid import uuid4
 class UATRunner:
     """Execute UAT tests and generate reports."""
 
-    def __init__(self, base_dir: Path):
+    def __init__(
+        self,
+        base_dir: Path,
+        *,
+        base_url: str,
+        settings_module: str,
+        server_port: int,
+        skip_server: bool,
+    ):
         self.base_dir = base_dir
         self.reports_dir = base_dir / "tests" / "uat" / "reports"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.base_url = base_url
+        self.settings_module = settings_module
+        self.server_port = server_port
+        self.skip_server = skip_server
+        self.live_server_runner = self.base_dir / "scripts" / "run_live_server_pytest.py"
         self.test_results: dict[str, Any] = {
             "journeys": {},
             "navigation": {},
@@ -75,15 +88,72 @@ class UATRunner:
     def run_playwright_tests(self, journeys: list[str] | None = None) -> dict[str, Any]:
         """Run Playwright UAT tests."""
         extra_args: list[str] = []
+        min_tests = 20
         if journeys:
             marker_expr = " or ".join(f"journey_{journey.lower()}" for journey in journeys)
             extra_args.extend(["-m", marker_expr])
+            min_tests = 1
+        xml_path = self.reports_dir / "playwright_uat.xml"
+        stdout_path = self.reports_dir / "playwright_uat.stdout.log"
+        stderr_path = self.reports_dir / "playwright_uat.stderr.log"
+        server_log_path = self.reports_dir / "playwright_uat.server.log"
 
-        return self._run_pytest_suite(
-            suite_name="playwright_uat",
-            test_targets=["tests/playwright/tests/uat/test_user_journeys.py"],
-            extra_args=extra_args,
+        cmd = [
+            sys.executable,
+            str(self.live_server_runner),
+            "--suite-name",
+            "playwright-uat",
+            "--base-url",
+            self.base_url,
+            "--port",
+            str(self.server_port),
+            "--settings-module",
+            self.settings_module,
+            "--health-timeout",
+            "180",
+            "--junitxml",
+            str(xml_path),
+            "--min-tests",
+            str(min_tests),
+            "--pytest-log",
+            str(stdout_path),
+            "--server-log",
+            str(server_log_path),
+        ]
+        if self.skip_server:
+            cmd.append("--skip-server")
+        cmd.extend(
+            [
+                "--",
+                "tests/playwright/tests/uat/test_user_journeys.py",
+                "-v",
+                f"--base-url={self.base_url}",
+            ]
         )
+        cmd.extend(extra_args)
+
+        print(f"Running: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            cwd=self.base_dir,
+            capture_output=True,
+            text=True,
+        )
+
+        stderr_payload = result.stderr
+        if server_log_path.exists():
+            stderr_payload = f"{stderr_payload}\n[server-log] {server_log_path}"
+        stderr_path.write_text(stderr_payload, encoding="utf-8")
+
+        return {
+            "suite": "playwright_uat",
+            "exit_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": stderr_payload,
+            "xml_path": str(xml_path),
+            "stdout_path": str(stdout_path),
+            "stderr_path": str(stderr_path),
+        }
 
     def run_api_compliance_tests(self) -> dict[str, Any]:
         """Run API compliance and route baseline tests."""
@@ -460,9 +530,38 @@ def main() -> int:
         default=Path.cwd(),
         help="Project base directory",
     )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        default="http://127.0.0.1:8011",
+        help="Base URL for Playwright UAT. Default uses an isolated local port.",
+    )
+    parser.add_argument(
+        "--settings-module",
+        type=str,
+        default="core.settings.development_sqlite",
+        help="DJANGO_SETTINGS_MODULE used when the UAT runner manages Django runserver.",
+    )
+    parser.add_argument(
+        "--server-port",
+        type=int,
+        default=8011,
+        help="Port used when the UAT runner manages Django runserver.",
+    )
+    parser.add_argument(
+        "--skip-server",
+        action="store_true",
+        help="Do not manage Django runserver. Requires a reachable --base-url.",
+    )
 
     args = parser.parse_args()
-    runner = UATRunner(args.base_dir)
+    runner = UATRunner(
+        args.base_dir,
+        base_url=args.base_url,
+        settings_module=args.settings_module,
+        server_port=args.server_port,
+        skip_server=args.skip_server,
+    )
 
     if args.generate_report:
         report_path = runner.generate_acceptance_report()

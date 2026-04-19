@@ -89,14 +89,21 @@ jobs:
       - name: Run Playwright Smoke Tests
         timeout-minutes: 15
         run: |
-          python manage.py runserver 8000 &
-          sleep 3
-          python -m pytest tests/playwright/tests/smoke/ -v \
+          python scripts/run_live_server_pytest.py \
+            --suite-name nightly-playwright-smoke \
+            --host 127.0.0.1 \
+            --port 8000 \
+            --base-url http://127.0.0.1:8000 \
+            --settings-module core.settings.development_sqlite \
+            --health-timeout 180 \
+            --min-tests 10 \
+            --junitxml reports/quality/nightly-playwright-smoke.xml \
+            --server-log reports/quality/nightly-playwright-smoke.server.log \
+            --pytest-log reports/quality/nightly-playwright-smoke.pytest.log \
+            -- \
+            tests/playwright/tests/smoke/ -v \
             --screenshot=only-on-failure \
-            --video=retain-on-failure \
-            --base-url=http://127.0.0.1:8000 \
-            || true  # Don't fail nightly on Playwright issues
-          kill %1 || true
+            --video=retain-on-failure
         env:
           DJANGO_SETTINGS_MODULE: core.settings.development
           PYTEST_PLAYWRIGHT_DRIVER: chromium
@@ -123,12 +130,15 @@ jobs:
 
       - name: Upload Playwright Artifacts
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-artifacts
           path: |
             tests/playwright/test-results/
             tests/playwright/screenshots/
+            reports/quality/nightly-playwright-smoke.xml
+            reports/quality/nightly-playwright-smoke.server.log
+            reports/quality/nightly-playwright-smoke.pytest.log
 
       - name: Notify on Failure
         if: failure()

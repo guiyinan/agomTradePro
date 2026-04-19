@@ -111,11 +111,11 @@ pytest -q \
 ## 4.3 执行命令
 
 ```bash
-# 1) Playwright smoke
-pytest -q tests/playwright/tests/smoke/test_critical_paths.py
+# 1) Playwright smoke（显式起 Django server + base-url + 最小执行数校验）
+python scripts/run_live_server_pytest.py --suite-name smoke --port 8010 --base-url http://127.0.0.1:8010 --junitxml reports/quality/local-smoke.xml --min-tests 10 -- tests/playwright/tests/smoke -q --browser chromium
 
-# 2) UAT journeys
-pytest -q tests/playwright/tests/uat/test_user_journeys.py -v
+# 2) UAT journeys（同上，禁止 live server 不可达时整组 skip）
+python scripts/run_live_server_pytest.py --suite-name uat --port 8011 --base-url http://127.0.0.1:8011 --junitxml reports/quality/local-uat.xml --min-tests 20 -- tests/playwright/tests/uat -q --browser chromium
 
 # 3) UAT API 命名和路由一致性
 pytest -q tests/uat/test_api_naming_compliance.py tests/uat/test_route_baseline_consistency.py
@@ -127,6 +127,15 @@ pytest -q tests/uat/test_api_naming_compliance.py tests/uat/test_route_baseline_
 2. 需要使用正式数据验证时，先复制 `db.sqlite3` 生成快照，再通过 `DATABASE_URL=sqlite:///...` 拉起隔离实例。
 3. Playwright 回归必须显式传入 `--base-url`，并确保全局测试配置与运行时 base URL 同步，避免误打到默认 `localhost:8000`。
 4. 允许在快照库中重置测试账号口令或补齐只影响测试的配置，但不得回写正式库。
+5. RC/Nightly/本地浏览器回归统一通过 `scripts/run_live_server_pytest.py` 管理 Django server 生命周期；CI 中 live server 不可达必须 fail，不允许以整组 skip 通过门禁。
+
+### 2026-04-18 测试基础设施收口
+
+1. `rc-gate.yml` 的 Journey Tests 改为显式启动 Django server，并强制校验最小执行数，避免 server 未起时整组 skip 仍然通过。
+2. `nightly-tests.yml` 的 Playwright smoke 移除 `|| true`，失败直接暴露。
+3. `consistency-check.yml` 的 route check 改为 `python scripts/check_routes.py --strict`，不再保留过时的 baseline=35 容忍逻辑。
+4. 新增 `scripts/run_full_regression.py` 作为本地统一回归入口，串起一致性、架构、安全、后端矩阵、浏览器矩阵和 RC 等价子集。
+5. `tests/uat/run_uat.py` 接入统一 live-server helper，避免仓库内残留第二条旧的假绿执行路径。
 
 ## 5. 风险与整改优先级
 

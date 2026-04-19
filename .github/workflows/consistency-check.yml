@@ -35,17 +35,7 @@ jobs:
 
       - name: Run route consistency check
         run: |
-          # Run check and capture violation count (baseline: 35 known duplicate_api_route issues)
-          ROUTE_BASELINE=35
-          OUTPUT=$(python scripts/check_routes.py 2>&1) || true
-          echo "$OUTPUT"
-          VIOLATION_COUNT=$(echo "$OUTPUT" | grep -oP '发现 \K\d+' || echo "0")
-          if [ "$VIOLATION_COUNT" -gt "$ROUTE_BASELINE" ]; then
-            echo "::error::New route violations detected ($VIOLATION_COUNT > baseline $ROUTE_BASELINE)"
-            exit 1
-          elif [ "$VIOLATION_COUNT" -gt 0 ]; then
-            echo "::warning::$VIOLATION_COUNT known route violations (baseline: $ROUTE_BASELINE)"
-          fi
+          python scripts/check_routes.py --strict
 
       - name: Upload results
         if: always()

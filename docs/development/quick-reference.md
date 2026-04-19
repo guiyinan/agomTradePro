@@ -133,13 +133,22 @@ celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
 # 运行全部测试
 pytest tests/ -v
 
+# 运行本地全量回归入口（默认包含 preflight + backend + browser + RC 子集）
+python scripts/run_full_regression.py
+
+# 只跑测试基础设施和浏览器矩阵
+python scripts/run_full_regression.py --stages preflight,browser
+
 # 运行特定模块测试
 pytest tests/unit/domain/ -v
 pytest tests/integration/ -v
 
-# 运行综合 UAT 回归（Playwright，需本地服务已启动）
-# 建议配合 `python manage.py runserver --noreload`，避免自动重载残留孤儿进程
-pytest tests/playwright/tests/uat/test_comprehensive_regression.py -m uat -q
+# 运行综合 UAT 回归（显式管理 Django live server，拒绝整组 skip 假绿）
+python tests/uat/run_uat.py
+
+# 单独跑 Playwright smoke / UAT（helper 会起服务、传 --base-url、校验最小执行数）
+python scripts/run_live_server_pytest.py --suite-name smoke --port 8010 --base-url http://127.0.0.1:8010 --junitxml reports/quality/local-smoke.xml --min-tests 10 -- tests/playwright/tests/smoke -q --browser chromium
+python scripts/run_live_server_pytest.py --suite-name uat --port 8011 --base-url http://127.0.0.1:8011 --junitxml reports/quality/local-uat.xml --min-tests 20 -- tests/playwright/tests/uat -q --browser chromium
 
 # 生成覆盖率报告
 pytest tests/ -v --cov=apps --cov-report=html
@@ -147,6 +156,9 @@ pytest tests/ -v --cov=apps --cov-report=html
 # 运行特定测试文件
 pytest tests/unit/test_regime_services.py -v
 ```
+
+- `scripts/run_live_server_pytest.py` 会在执行前检查 `/account/login/` 可达，CI/本地严格模式下服务不可达直接失败，不再把整组 Playwright 用例 skip 成假绿。
+- `scripts/run_full_regression.py` 默认使用 `core.settings.development_sqlite` 和独立端口 `8010`，避免误打正在开发的 `8000` 服务。
 
 ```powershell
 # 自动化调试日志 API 端到端回归（含鉴权/增量/导出）
