@@ -32,9 +32,13 @@ def test_get_dashboard_alpha_candidates_calls_sdk(mock_client_cls) -> None:
     register_dashboard_tools(server)
 
     tool_fn = server._tool_manager._tools["get_dashboard_alpha_candidates"].fn
-    result = tool_fn(top_n=12, portfolio_id=21)
+    result = tool_fn(top_n=12, portfolio_id=21, pool_mode="market")
 
-    mock_client.dashboard.alpha_stocks.assert_called_once_with(top_n=12, portfolio_id=21)
+    mock_client.dashboard.alpha_stocks.assert_called_once_with(
+        top_n=12,
+        portfolio_id=21,
+        pool_mode="market",
+    )
     assert result["success"] is True
 
 
@@ -89,9 +93,13 @@ def test_dashboard_alpha_history_detail_and_refresh_call_sdk(mock_client_cls) ->
     refresh_fn = server._tool_manager._tools["trigger_dashboard_alpha_refresh"].fn
 
     detail = detail_fn(run_id=9)
-    refresh = refresh_fn(top_n=15, portfolio_id=3)
+    refresh = refresh_fn(top_n=15, portfolio_id=3, pool_mode="price_covered")
 
     mock_client.dashboard.alpha_history_detail.assert_called_once_with(9)
-    mock_client.dashboard.alpha_refresh.assert_called_once_with(top_n=15, portfolio_id=3)
+    mock_client.dashboard.alpha_refresh.assert_called_once_with(
+        top_n=15,
+        portfolio_id=3,
+        pool_mode="price_covered",
+    )
     assert detail["data"]["id"] == 9
     assert refresh["task_id"] == "task-123"
