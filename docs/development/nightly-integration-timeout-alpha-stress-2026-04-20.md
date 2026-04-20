@@ -33,6 +33,7 @@ Keep the stress intent, but make the path deterministic:
 - seed a local available cache record
 - force `provider_filter="cache"` in `test_concurrent_requests`
 - force `provider_filter="cache"` in `test_rapid_sequential_requests`
+- run `test_concurrent_requests` with `transaction=True` so worker threads can read the seeded cache row from independent database connections
 - reset `AlphaService` singleton around the class
 
 This preserves the assertion that repeated and concurrent requests do not crash, while removing accidental dependence on the live fallback chain.

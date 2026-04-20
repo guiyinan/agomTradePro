@@ -301,6 +301,7 @@ class TestHighLoadScenarios:
     def teardown_method(self):
         _reset_alpha_service()
 
+    @pytest.mark.django_db(transaction=True)
     def test_concurrent_requests(self):
         """测试并发请求"""
         import threading
