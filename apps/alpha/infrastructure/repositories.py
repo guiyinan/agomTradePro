@@ -120,3 +120,32 @@ class AlphaPoolDataRepository:
             ).values_list("asset_code", flat=True)
             if normalize_stock_code(code)
         }
+
+
+class QlibModelRegistryRepository:
+    """ORM-backed access to Qlib model registry rows."""
+
+    def get_by_artifact_hash(self, artifact_hash: str) -> Any:
+        from .models import QlibModelRegistryModel
+
+        return QlibModelRegistryModel._default_manager.get(artifact_hash=artifact_hash)
+
+    def update_metrics(
+        self,
+        *,
+        artifact_hash: str,
+        ic: float | None,
+        icir: float | None,
+        rank_ic: float | None,
+    ) -> Any:
+        model = self.get_by_artifact_hash(artifact_hash)
+
+        if ic is not None:
+            model.ic = ic
+        if icir is not None:
+            model.icir = icir
+        if rank_ic is not None:
+            model.rank_ic = rank_ic
+
+        model.save(update_fields=["ic", "icir", "rank_ic"])
+        return model

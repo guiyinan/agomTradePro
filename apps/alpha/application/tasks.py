@@ -613,13 +613,12 @@ def qlib_evaluate_model(
         from django.utils import timezone as tz
 
         from ..infrastructure.cache_evaluation import evaluate_model_from_cache
-        from ..infrastructure.models import QlibModelRegistryModel
+        from ..infrastructure.repositories import QlibModelRegistryRepository
 
         logger.info(f"开始评估模型: {model_artifact_hash}")
 
-        model = QlibModelRegistryModel._default_manager.get(
-            artifact_hash=model_artifact_hash
-        )
+        registry_repo = QlibModelRegistryRepository()
+        model = registry_repo.get_by_artifact_hash(model_artifact_hash)
 
         # 计算 IC/ICIR：取最近 60 天缓存数据评估
         end_date = tz.now().date()
@@ -632,14 +631,12 @@ def qlib_evaluate_model(
             end_date=end_date,
         )
 
-        # 更新模型记录
-        if metrics.ic is not None:
-            model.ic = metrics.ic
-        if metrics.icir is not None:
-            model.icir = metrics.icir
-        if metrics.rank_ic is not None:
-            model.rank_ic = metrics.rank_ic
-        model.save(update_fields=['ic', 'icir', 'rank_ic'])
+        model = registry_repo.update_metrics(
+            artifact_hash=model_artifact_hash,
+            ic=metrics.ic,
+            icir=metrics.icir,
+            rank_ic=metrics.rank_ic,
+        )
 
         logger.info(
             f"模型评估完成: {model_artifact_hash}, "

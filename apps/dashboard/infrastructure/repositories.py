@@ -195,6 +195,96 @@ class DashboardAlphaContextRepository:
             pending_map.setdefault(code, item)
         return pending_map
 
+    def load_actionable_candidates(self, max_count: int | None) -> list[Any]:
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
+        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+        from apps.equity.infrastructure.models import ValuationRepairTrackingModel
+
+        pending_codes = {
+            (code or "").upper()
+            for code in DecisionRequestModel._default_manager.filter(
+                response__approved=True,
+                execution_status__in=["PENDING", "FAILED"],
+            ).values_list("asset_code", flat=True)
+        }
+        manual_override_trigger_ids = set(
+            AlphaTriggerModel._default_manager.filter(
+                trigger_type=AlphaTriggerModel.MANUAL_OVERRIDE,
+                status__in=[AlphaTriggerModel.ACTIVE, AlphaTriggerModel.TRIGGERED],
+            ).values_list("trigger_id", flat=True)
+        )
+        candidates = list(
+            AlphaCandidateModel._default_manager.filter(status="ACTIONABLE")
+            .order_by("-confidence", "-created_at")[:50]
+        )
+
+        candidate_codes = [
+            (getattr(item, "asset_code", "") or "").upper()
+            for item in candidates
+        ]
+        repair_map = self._load_valuation_repair_map(candidate_codes)
+
+        deduped: list[Any] = []
+        seen_codes: set[str] = set()
+        for item in candidates:
+            code = (getattr(item, "asset_code", "") or "").upper()
+            trigger_id = str(getattr(item, "trigger_id", "") or "")
+            if (
+                not code
+                or code in seen_codes
+                or code in pending_codes
+                or trigger_id in manual_override_trigger_ids
+            ):
+                continue
+            seen_codes.add(code)
+
+            repair_payload = repair_map.get(code)
+            item.valuation_repair = repair_payload
+            item._valuation_repair = repair_payload
+            deduped.append(item)
+            if max_count is not None and len(deduped) >= max_count:
+                break
+
+        return deduped
+
+    def _load_valuation_repair_map(self, candidate_codes: list[str]) -> dict[str, dict[str, Any]]:
+        if not candidate_codes:
+            return {}
+
+        from apps.equity.infrastructure.models import ValuationRepairTrackingModel
+
+        try:
+            repair_records = ValuationRepairTrackingModel._default_manager.filter(
+                stock_code__in=[code for code in candidate_codes if code],
+                is_active=True,
+            ).values(
+                "stock_code",
+                "current_phase",
+                "signal",
+                "composite_percentile",
+                "repair_progress",
+                "repair_speed_per_30d",
+                "estimated_days_to_target",
+            )
+        except Exception as exc:
+            logger.warning("Failed to get valuation repair info: %s", exc)
+            return {}
+
+        repair_map: dict[str, dict[str, Any]] = {}
+        for record in repair_records:
+            stock_code = str(record.get("stock_code") or "").upper()
+            if not stock_code:
+                continue
+            repair_map[stock_code] = {
+                "phase": record.get("current_phase"),
+                "signal": record.get("signal"),
+                "composite_percentile": record.get("composite_percentile"),
+                "repair_progress": record.get("repair_progress"),
+                "repair_speed_per_30d": record.get("repair_speed_per_30d"),
+                "estimated_days_to_target": record.get("estimated_days_to_target"),
+            }
+        return repair_map
+
     def load_policy_state(self) -> dict[str, Any]:
         try:
             from apps.policy.infrastructure.models import PolicyLog
