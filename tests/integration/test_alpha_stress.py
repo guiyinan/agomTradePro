@@ -39,6 +39,41 @@ def _reset_alpha_service():
     AlphaService._instance = None
 
 
+def _create_available_cache(universe_id: str = "csi300", intended_trade_date: date | None = None):
+    """Create a deterministic cache payload so stress tests stay offline and fast."""
+    trade_date = intended_trade_date or date.today()
+    return AlphaScoreCacheModel.objects.create(
+        universe_id=universe_id,
+        intended_trade_date=trade_date,
+        provider_source="cache",
+        asof_date=trade_date,
+        scores=[
+            {
+                "code": "600519.SH",
+                "score": 0.98,
+                "rank": 1,
+                "factors": {"quality": 0.98},
+                "confidence": 0.95,
+            },
+            {
+                "code": "300750.SZ",
+                "score": 0.92,
+                "rank": 2,
+                "factors": {"momentum": 0.92},
+                "confidence": 0.9,
+            },
+            {
+                "code": "000333.SZ",
+                "score": 0.88,
+                "rank": 3,
+                "factors": {"value": 0.88},
+                "confidence": 0.88,
+            },
+        ],
+        status="available",
+    )
+
+
 @pytest.mark.django_db
 class TestQlibNotInstalled:
     """测试 Qlib 未安装场景"""
@@ -260,10 +295,17 @@ class TestCompleteDegradation:
 class TestHighLoadScenarios:
     """测试高负载场景"""
 
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
     def test_concurrent_requests(self):
         """测试并发请求"""
         import threading
 
+        _create_available_cache()
         service = AlphaService()
         results = []
         errors = []
@@ -271,7 +313,11 @@ class TestHighLoadScenarios:
         def get_scores():
             try:
                 close_old_connections()
-                result = service.get_stock_scores("csi300")
+                result = service.get_stock_scores(
+                    "csi300",
+                    provider_filter="cache",
+                    top_n=3,
+                )
                 results.append(result)
             except Exception as e:
                 errors.append(e)
@@ -294,15 +340,24 @@ class TestHighLoadScenarios:
         # 验证：所有请求都应该成功，没有异常
         assert len(errors) == 0
         assert len(results) == 10
+        assert all(result.success for result in results)
+        assert all(result.source == "cache" for result in results)
 
     def test_rapid_sequential_requests(self):
         """测试快速连续请求"""
+        _create_available_cache()
         service = AlphaService()
 
         # 快速发送 100 个请求
         for _ in range(100):
-            result = service.get_stock_scores("csi300")
+            result = service.get_stock_scores(
+                "csi300",
+                provider_filter="cache",
+                top_n=3,
+            )
             assert result is not None
+            assert result.success
+            assert result.source == "cache"
 
 
 @pytest.mark.django_db
