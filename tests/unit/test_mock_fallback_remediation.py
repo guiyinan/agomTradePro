@@ -67,7 +67,24 @@ class _UnavailableMarketAdapter:
 
 
 @pytest.mark.django_db
-def test_alpha_visualization_query_returns_unavailable_ic_trends_without_live_models():
+def test_alpha_visualization_query_returns_unavailable_ic_trends_without_live_models(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        AlphaVisualizationQuery,
+        "_get_stock_scores_payload",
+        lambda self, top_n, user=None: {
+            "items": [],
+            "meta": {
+                "status": "error",
+                "source": "none",
+                "warning_message": "alpha_stock_scores_unavailable",
+                "is_degraded": True,
+                "uses_cached_data": False,
+            },
+        },
+    )
+
     data = AlphaVisualizationQuery().execute(top_n=5, ic_days=3)
 
     assert len(data.ic_trends) == 3
