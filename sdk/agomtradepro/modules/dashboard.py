@@ -52,6 +52,7 @@ class DashboardModule(BaseModule):
         self,
         top_n: int = 10,
         portfolio_id: int | None = None,
+        pool_mode: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {
             "format": "json",
@@ -59,6 +60,8 @@ class DashboardModule(BaseModule):
         }
         if portfolio_id is not None:
             params["portfolio_id"] = portfolio_id
+        if pool_mode:
+            params["pool_mode"] = pool_mode
         payload = self._get("alpha/stocks/", params=params)
         return self._with_alpha_candidate_contract(payload)
 
@@ -137,10 +140,13 @@ class DashboardModule(BaseModule):
         self,
         top_n: int = 10,
         portfolio_id: int | None = None,
+        pool_mode: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {"top_n": top_n}
         if portfolio_id is not None:
             payload["portfolio_id"] = portfolio_id
+        if pool_mode:
+            payload["pool_mode"] = pool_mode
         response = self._post("alpha/refresh/", data=payload)
         return self._with_alpha_refresh_contract(response)
 

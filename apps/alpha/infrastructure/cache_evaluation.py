@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Set
 import numpy as np
 
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel
+from apps.alpha.infrastructure.cache_code_parser import extract_cached_score_code
 from shared.infrastructure.model_evaluation import (
     IC_Calculator,
     ModelEvaluator,
@@ -112,8 +113,12 @@ def evaluate_model_from_cache(
     for cache in caches:
         stock_codes = set()
         for stock_data in cache.scores:
-            stock_code = stock_data["code"]
-            score = stock_data["score"]
+            stock_code = extract_cached_score_code(stock_data)
+            if not stock_code:
+                continue
+            score = stock_data.get("score") if isinstance(stock_data, dict) else None
+            if score is None:
+                continue
             all_predictions[stock_code] = score
             stock_codes.add(stock_code)
 

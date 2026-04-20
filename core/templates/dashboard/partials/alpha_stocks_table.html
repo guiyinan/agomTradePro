@@ -16,9 +16,23 @@
                 <span>池子规模 {{ alpha_pool.pool_size|default:0 }}</span>
                 <span>市场 {{ alpha_pool.market|default:"CN" }}</span>
                 <span>组合 {{ alpha_pool.portfolio_name|default:"默认组合" }}</span>
+                <span>模式 {{ alpha_pool.pool_mode|default:selected_alpha_pool_mode|default:"strict_valuation" }}</span>
             </div>
         </div>
-        <div class="alpha-pool-reason">{{ alpha_pool.selection_reason|default:"按当前激活组合所属市场生成候选池。" }}</div>
+        <div>
+            <div class="alpha-pool-reason">{{ alpha_pool.selection_reason|default:"按当前激活组合所属市场生成候选池。" }}</div>
+            <div class="alpha-pool-controls" style="margin-top: 10px;">
+                <label for="alphaPoolModeSelect"><strong>股票池模式</strong></label>
+                <select id="alphaPoolModeSelect"
+                        class="form-control form-control-sm"
+                        onchange="reloadAlphaStocksTable(10)"
+                        style="max-width: 220px; display: inline-block; margin-left: 8px;">
+                    {% for choice in alpha_pool_mode_choices %}
+                    <option value="{{ choice.value }}" {% if choice.value == selected_alpha_pool_mode %}selected{% endif %}>{{ choice.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
     </div>
 
     {% if alpha_meta.warning_message %}
@@ -73,6 +87,11 @@
         <span>尚无可用 cache</span>
         {% endif %}
     </div>
+    <div style="margin-top: 12px;">
+        <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
+            触发实时推理
+        </button>
+    </div>
     {% else %}
     <div class="alpha-cache-summary alpha-cache-summary-live">
         <strong>当前优先展示实时结果</strong>
@@ -96,7 +115,7 @@
         <div class="alpha-top-grid">
             {% for stock in alpha_stocks %}
             <article class="alpha-stock-card alpha-stage-{{ stock.stage|default:'top_ranked' }}"
-                hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}"
+                hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
                 hx-trigger="click"
                 hx-target="#alphaFactorPanel"
                 hx-swap="innerHTML">
@@ -182,6 +201,9 @@
             <p>
                 {{ alpha_meta.no_recommendation_reason|default:"账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。" }}
             </p>
+            <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
+                触发实时推理
+            </button>
         </div>
         {% endif %}
     </section>

@@ -258,6 +258,43 @@ calculate_regime(as_of_date, growth_indicator, inflation_indicator)
 get_regime_history(start_date, end_date)
 get_regime_distribution(start_date, end_date)
 explain_regime(regime_type)
+
+### Dashboard Alpha Tools
+
+```
+get_dashboard_alpha_candidates(top_n, portfolio_id, pool_mode)
+trigger_dashboard_alpha_refresh(top_n, portfolio_id, pool_mode)
+get_dashboard_alpha_history(portfolio_id, trade_date, stock_code, stage, source)
+get_dashboard_alpha_history_detail(run_id)
+```
+
+`pool_mode` 支持：
+
+- `strict_valuation`：严格估值覆盖池
+- `market`：市场可交易池
+- `price_covered`：价格覆盖池
+
+使用约束：
+
+- `trigger_dashboard_alpha_refresh(...)` 只排队后台 Alpha 推理，不直接返回推荐
+- 读取候选时要检查返回里的 `contract`
+- 当 `contract.must_not_treat_as_recommendation=true` 时，Agent 不得把返回内容解释为当前有效推荐
+
+示例：
+
+```python
+get_dashboard_alpha_candidates(
+    top_n=10,
+    portfolio_id=135,
+    pool_mode="market",
+)
+
+trigger_dashboard_alpha_refresh(
+    top_n=10,
+    portfolio_id=135,
+    pool_mode="price_covered",
+)
+```
 get_recommended_assets(regime_type)
 ```
 

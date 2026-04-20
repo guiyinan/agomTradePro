@@ -1,6 +1,6 @@
 # 统一财经数据源中台与统一注册表说明
 
-> 更新日期：2026-04-13
+> 更新日期：2026-04-19
 > 适用版本：AgomTradePro 0.7.0
 
 ---
@@ -452,12 +452,51 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 - `apps.data_center.infrastructure.registries.source_registry`
 - `apps.data_center.domain.protocols.ProviderProtocol`
 
+资产主数据解析层：
+
+- `apps.data_center.infrastructure.models.AssetMasterModel`
+- `apps.data_center.infrastructure.models.AssetAliasModel`
+- `apps.data_center.infrastructure.repositories.AssetRepository`
+- `apps.data_center.application.use_cases.ResolveAssetUseCase`
+
 当前 provider：
 
 - `apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway`
 - `apps.data_center.infrastructure.gateways.akshare_general_gateway`
 - `apps.data_center.infrastructure.gateways.tushare_gateway`
 - `apps.data_center.infrastructure.gateways.qmt_gateway`
+
+### 15.1 资产代码与简称收口原则
+
+从 2026-04-19 起，股票 / ETF / 基金 / 指数的代码归一化与简称解析，应以
+`apps.data_center` 中的 `AssetMaster + AssetAlias` 作为统一主数据入口。
+
+执行规则：
+
+- 页面、API、SDK、MCP 不应各自维护独立的 `code -> name` 逻辑
+- 读取资产名称时，优先走 `AssetRepository` / `ResolveAssetUseCase`
+- 迁移期允许从 `equity_stock_info`、`rotation_asset_class`、`asset_pool_entry` 等旧表回填
+- 只要旧表成功解析出名称，就应优先补入 `data_center_asset_master`
+- 历史快照若仅存了代码，没有简称，允许按 canonical code 从 `data_center` 回填显示名称
+
+目标是让系统内所有资产展示共享同一份 canonical asset master，避免同一资产在不同页面出现名称不一致、空名称或只显示代码。
+
+### 15.2 主数据补数命令
+
+统一补齐入口：
+
+```bash
+python manage.py backfill_asset_master
+python manage.py backfill_asset_master --codes 601899.SH 510300 --include-remote
+```
+
+执行规则：
+
+- 资产主数据补数统一由 `apps.data_center` 负责，页面与业务模块不得各自实现跨表补名
+- 默认先扫本地旧表：`equity_stock_info`、`fund_info`、`fund_holding`、`rotation_asset_class`、`asset_pool_entry`
+- `--include-remote` 只在本地仍缺失名称时触发远程证券元数据补齐，并回写 `data_center_asset_master`
+- 补数时同步写入 alias，保证裸代码、旧格式代码与 canonical code 稳定收口到同一资产
+- 页面请求内的兜底补齐仅使用本地旧表；批量补缺口由命令承担远程补数责任
 
 ---
 

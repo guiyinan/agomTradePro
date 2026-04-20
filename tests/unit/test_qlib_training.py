@@ -23,6 +23,7 @@ from apps.alpha.application.tasks import (
     _resolve_qlib_handler_class,
     _resolve_qlib_stock_list,
     _save_model_artifact,
+    qlib_evaluate_model,
     qlib_train_model,
 )
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
@@ -87,6 +88,41 @@ class TestQlibTrainingTasks:
             )
 
         assert "Training failed" in str(exc_info.value)
+
+    @patch("apps.alpha.infrastructure.cache_evaluation.evaluate_model_from_cache")
+    def test_qlib_evaluate_model_updates_registry_metrics(self, mock_evaluate):
+        """评估任务应能导入 cache_evaluation 并回写指标。"""
+        from shared.infrastructure.model_evaluation import ModelMetrics
+
+        mock_evaluate.return_value = ModelMetrics(
+            ic=0.12,
+            icir=1.34,
+            rank_ic=0.09,
+        )
+
+        model = QlibModelRegistryModel.objects.create(
+            model_name="eval_model",
+            artifact_hash="eval_hash_001",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026.04.19",
+            model_path="/models/eval.pkl",
+        )
+
+        result = qlib_evaluate_model.apply(args=[model.artifact_hash]).get()
+
+        model.refresh_from_db()
+        assert result["status"] == "success"
+        assert result["model_artifact_hash"] == "eval_hash_001"
+        assert result["ic"] == pytest.approx(0.12)
+        assert result["icir"] == pytest.approx(1.34)
+        assert float(model.ic) == pytest.approx(0.12)
+        assert float(model.icir) == pytest.approx(1.34)
+        assert float(model.rank_ic) == pytest.approx(0.09)
+        mock_evaluate.assert_called_once()
 
 
 class TestQlibTrainingHelpers:

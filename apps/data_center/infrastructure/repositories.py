@@ -276,6 +276,19 @@ class AssetRepository:
         )
         return self._from_model(m)
 
+    def upsert_alias(self, alias: AssetAlias) -> AssetAlias:
+        asset = AssetMasterModel.objects.get(code=alias.asset_code)
+        m, _ = AssetAliasModel.objects.update_or_create(
+            provider_name=alias.provider_name,
+            alias_code=alias.alias_code,
+            defaults={"asset": asset},
+        )
+        return AssetAlias(
+            asset_code=m.asset.code,
+            provider_name=m.provider_name,
+            alias_code=m.alias_code,
+        )
+
     def list_by_exchange(self, exchange: str) -> list[AssetMaster]:
         return [
             self._from_model(m)

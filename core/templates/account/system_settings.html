@@ -98,6 +98,19 @@
             <p class="help-text">当前生效：{{ market_visuals.label }}</p>
         </div>
 
+        <div class="settings-section">
+            <h2>Alpha 默认股票池</h2>
+            <div class="form-group">
+                <label for="alpha_pool_mode">首页 Alpha 默认池子模式</label>
+                <select id="alpha_pool_mode" name="alpha_pool_mode" class="form-control">
+                    {% for value, label in alpha_pool_mode_choices %}
+                    <option value="{{ value }}" {% if system_settings.alpha_pool_mode == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <p class="help-text">严格估值覆盖池最保守；市场可交易池按资产主数据放宽；价格覆盖池按本地价格库可用资产放宽。</p>
+            </div>
+        </div>
+
         <!-- 用户协议配置 -->
         <div class="settings-section">
             <h2>用户协议内容</h2>

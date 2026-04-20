@@ -698,75 +698,11 @@ class DecisionPlaneQuery:
     def _get_actionable_candidates(self, max_count: int | None) -> list[Any]:
         """获取可操作候选列表"""
         try:
-            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-            from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-            from apps.equity.infrastructure.models import ValuationRepairTrackingModel
+            from apps.dashboard.infrastructure.repositories import DashboardAlphaContextRepository
 
-            # 获取已批准但未执行的资产代码
-            pending_codes = {
-                (code or "").upper()
-                for code in DecisionRequestModel._default_manager
-                .filter(
-                    response__approved=True,
-                    execution_status__in=['PENDING', 'FAILED']
-                )
-                .values_list('asset_code', flat=True)
-            }
-
-            candidates = list(
-                AlphaCandidateModel._default_manager
-                .filter(status='ACTIONABLE')
-                .order_by('-confidence', '-created_at')[:50]
-            )
-
-            # 批量获取估值修复状态
-            candidate_codes = [
-                (getattr(item, "asset_code", "") or "").upper()
-                for item in candidates
-            ]
-            repair_map = {}
-            try:
-                repair_records = ValuationRepairTrackingModel._default_manager.filter(
-                    stock_code__in=[c for c in candidate_codes if c],
-                    is_active=True
-                ).values(
-                    'stock_code', 'current_phase', 'signal', 'composite_percentile',
-                    'repair_progress', 'repair_speed_per_30d', 'estimated_days_to_target'
-                )
-                repair_map = {r['stock_code']: r for r in repair_records}
-            except Exception as e:
-                logger.warning(f"Failed to get valuation repair info: {e}")
-
-            deduped = []
-            seen_codes = set()
-            for item in candidates:
-                code = (getattr(item, "asset_code", "") or "").upper()
-                if not code or code in seen_codes or code in pending_codes:
-                    continue
-                seen_codes.add(code)
-
-                # 添加估值修复信息
-                if code in repair_map:
-                    r = repair_map[code]
-                    repair_payload = {
-                        'phase': r.get('current_phase'),
-                        'signal': r.get('signal'),
-                        'composite_percentile': r.get('composite_percentile'),
-                        'repair_progress': r.get('repair_progress'),
-                        'repair_speed_per_30d': r.get('repair_speed_per_30d'),
-                        'estimated_days_to_target': r.get('estimated_days_to_target'),
-                    }
-                    item.valuation_repair = repair_payload
-                    item._valuation_repair = repair_payload
-                else:
-                    item.valuation_repair = None
-                    item._valuation_repair = None
-
-                deduped.append(item)
-                if max_count is not None and len(deduped) >= max_count:
-                    break
-
-            return self._attach_asset_names(deduped)
+            context_repo = DashboardAlphaContextRepository()
+            candidates = context_repo.load_actionable_candidates(max_count=max_count)
+            return self._attach_asset_names(candidates)
         except Exception as e:
             logger.warning(f"Failed to get actionable candidates: {e}")
             return []

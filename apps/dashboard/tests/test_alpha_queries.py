@@ -10,6 +10,7 @@ from apps.dashboard.application.queries import (
     DecisionPlaneQuery,
 )
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
+from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 from apps.equity.infrastructure.models import StockInfoModel
 from apps.rotation.infrastructure.models import AssetClassModel
 
@@ -452,6 +453,64 @@ def test_decision_plane_query_attach_asset_names_supports_exchange_suffix(monkey
     assert enriched[0].asset_name == "平安银行"
     assert enriched[1].asset_name == "沪深300ETF"
     assert enriched[2].asset_name == "创业板ETF"
+
+
+@pytest.mark.django_db
+def test_decision_plane_query_skips_manual_override_candidates():
+    StockInfoModel.objects.create(
+        stock_code="000001.SZ",
+        name="平安银行",
+        sector="银行",
+        market="SZ",
+        list_date=date(1991, 4, 3),
+    )
+    StockInfoModel.objects.create(
+        stock_code="600519.SH",
+        name="贵州茅台",
+        sector="食品饮料",
+        market="SH",
+        list_date=date(2001, 8, 27),
+    )
+
+    AlphaTriggerModel.objects.create(
+        trigger_id="trigger-auto-1",
+        trigger_type=AlphaTriggerModel.MOMENTUM_SIGNAL,
+        asset_code="000001.SZ",
+        asset_class="equity",
+        confidence=0.82,
+        status=AlphaTriggerModel.TRIGGERED,
+    )
+    AlphaTriggerModel.objects.create(
+        trigger_id="trigger-manual-1",
+        trigger_type=AlphaTriggerModel.MANUAL_OVERRIDE,
+        asset_code="600519.SH",
+        asset_class="equity",
+        confidence=0.95,
+        status=AlphaTriggerModel.TRIGGERED,
+    )
+    AlphaCandidateModel.objects.create(
+        candidate_id="cand-auto-1",
+        trigger_id="trigger-auto-1",
+        asset_code="000001.SZ",
+        asset_class="equity",
+        confidence=0.82,
+        status=AlphaCandidateModel.ACTIONABLE,
+    )
+    AlphaCandidateModel.objects.create(
+        candidate_id="cand-manual-1",
+        trigger_id="trigger-manual-1",
+        asset_code="600519.SH",
+        asset_class="equity",
+        confidence=0.95,
+        status=AlphaCandidateModel.ACTIONABLE,
+    )
+
+    query = DecisionPlaneQuery()
+
+    items = query._get_actionable_candidates(max_count=None)
+
+    assert [item.asset_code for item in items] == ["000001.SZ"]
+    assert items[0].asset_name == "平安银行"
 
 
 def test_alpha_decision_chain_query_builds_unified_chain_relationship():

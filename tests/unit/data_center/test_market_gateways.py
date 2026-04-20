@@ -65,6 +65,33 @@ class TestTushareGateway:
         gw = TushareGateway()
         assert gw.get_technical_snapshot("000001.SZ") is None
 
+    @patch("apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices")
+    @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
+    def test_history_falls_back_to_tencent_when_tushare_errors(self, mock_client_factory, mock_tencent_history):
+        from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+        from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
+
+        mock_client_factory.side_effect = RuntimeError("timeout")
+        mock_tencent_history.return_value = [
+            HistoricalPriceBar(
+                asset_code="000001.SZ",
+                trade_date=pd.Timestamp("2026-04-01").date(),
+                open=11.09,
+                high=11.23,
+                low=11.08,
+                close=11.15,
+                volume=918925,
+                amount=None,
+                source="tencent",
+            )
+        ]
+
+        bars = TushareGateway().get_historical_prices("000001.SZ", "20260401", "20260419")
+
+        assert len(bars) == 1
+        assert bars[0].source == "tencent"
+        mock_tencent_history.assert_called_once_with("000001.SZ", "20260401", "20260419")
+
 
 class TestQMTGateway:
     def test_provider_name(self):
@@ -255,6 +282,39 @@ class TestAKShareEastMoneyGateway:
         gw.get_capital_flows("830001.BJ", period="5d")
 
         assert mock_fund_flow.call_args.kwargs["market"] == "bj"
+
+    @patch("apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices")
+    def test_history_falls_back_to_tencent_when_akshare_errors(self, mock_tencent_history):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+        from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
+
+        mock_tencent_history.return_value = [
+            HistoricalPriceBar(
+                asset_code="000001.SZ",
+                trade_date=pd.Timestamp("2026-04-01").date(),
+                open=11.09,
+                high=11.23,
+                low=11.08,
+                close=11.15,
+                volume=918925,
+                amount=None,
+                source="tencent",
+            )
+        ]
+
+        gw = AKShareEastMoneyGateway()
+        with patch.object(
+            gw,
+            "_fetch_with_retries",
+            side_effect=RuntimeError("connection aborted"),
+        ):
+            bars = gw.get_historical_prices("000001.SZ", "20260401", "20260419")
+
+        assert len(bars) == 1
+        assert bars[0].source == "tencent"
+        mock_tencent_history.assert_called_once_with("000001.SZ", "20260401", "20260419")
 
 
 

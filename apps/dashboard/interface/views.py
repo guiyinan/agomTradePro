@@ -27,6 +27,11 @@ from apps.account.infrastructure.repositories import (
     PortfolioRepository,
     PositionRepository,
 )
+from apps.alpha.application.pool_resolver import (
+    PortfolioAlphaPoolResolver,
+    get_alpha_pool_mode_choices,
+    normalize_alpha_pool_mode,
+)
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.queries import (
     get_alpha_decision_chain_query,
@@ -414,11 +419,17 @@ def _get_alpha_stock_scores_payload(
     top_n: int = 10,
     user=None,
     portfolio_id: int | None = None,
+    pool_mode: str | None = None,
 ) -> dict:
     """Return Alpha stock items plus reliability metadata."""
     try:
         query = get_alpha_homepage_query()
-        data = query.execute(top_n=top_n, user=user, portfolio_id=portfolio_id)
+        data = query.execute(
+            top_n=top_n,
+            user=user,
+            portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
+        )
         return {
             "items": data.top_candidates,
             "meta": data.meta,
@@ -500,7 +511,12 @@ def _get_alpha_metrics_data(ic_days: int = 30):
         return _get_empty_alpha_metrics_data()
 
 
-def _get_alpha_stock_scores(top_n: int = 10, user=None, portfolio_id: int | None = None) -> list:
+def _get_alpha_stock_scores(
+    top_n: int = 10,
+    user=None,
+    portfolio_id: int | None = None,
+    pool_mode: str | None = None,
+) -> list:
     """
     获取 Alpha 选股评分结果
 
@@ -508,12 +524,27 @@ def _get_alpha_stock_scores(top_n: int = 10, user=None, portfolio_id: int | None
     - 委托至 AlphaVisualizationQuery
     - 隐藏跨模块导入细节
     """
-    return _get_alpha_stock_scores_payload(top_n=top_n, user=user, portfolio_id=portfolio_id)["items"]
+    return _get_alpha_stock_scores_payload(
+        top_n=top_n,
+        user=user,
+        portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
+    )["items"]
 
 
-def _get_alpha_stock_scores_meta(top_n: int = 10, user=None, portfolio_id: int | None = None) -> dict:
+def _get_alpha_stock_scores_meta(
+    top_n: int = 10,
+    user=None,
+    portfolio_id: int | None = None,
+    pool_mode: str | None = None,
+) -> dict:
     """Return stock-score reliability metadata for dashboard rendering."""
-    return _get_alpha_stock_scores_payload(top_n=top_n, user=user, portfolio_id=portfolio_id)["meta"]
+    return _get_alpha_stock_scores_payload(
+        top_n=top_n,
+        user=user,
+        portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
+    )["meta"]
 
 
 def _get_alpha_provider_status(user=None) -> dict:
@@ -630,18 +661,24 @@ def _build_alpha_factor_panel(
     scores: list[dict] | None = None,
     user=None,
     portfolio_id: int | None = None,
+    pool_mode: str | None = None,
 ) -> dict:
     """Build factor panel data for a single alpha stock."""
     selected = None
     if scores is not None:
         score_items = list(scores)
     elif portfolio_id is None:
-        score_items = _get_alpha_stock_scores(top_n=max(top_n, 10), user=user)
+        score_items = _get_alpha_stock_scores(
+            top_n=max(top_n, 10),
+            user=user,
+            pool_mode=pool_mode,
+        )
     else:
         score_items = _get_alpha_stock_scores(
             top_n=max(top_n, 10),
             user=user,
             portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
         )
     for item in score_items:
         if item.get("code") == stock_code:
@@ -746,6 +783,7 @@ def dashboard_view(request):
             selected_portfolio_id = None
     else:
         selected_portfolio_id = None
+    selected_alpha_pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
 
     decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
     if decision_plane_data is None:
@@ -768,6 +806,7 @@ def dashboard_view(request):
         top_n=10,
         user=request.user,
         portfolio_id=selected_portfolio_id,
+        pool_mode=selected_alpha_pool_mode,
     )
     workflow_actionable_candidates = decision_plane_data.actionable_candidates
     workflow_pending_requests = decision_plane_data.pending_requests
@@ -860,6 +899,8 @@ def dashboard_view(request):
         "alpha_recent_runs": alpha_payload["recent_runs"],
         "alpha_history_run_id": alpha_payload["history_run_id"],
         "selected_portfolio_id": selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
+        "selected_alpha_pool_mode": selected_alpha_pool_mode or alpha_payload["pool"].get("pool_mode"),
+        "alpha_pool_mode_choices": get_alpha_pool_mode_choices(),
         "alpha_provider_status": alpha_metrics_data.provider_status,
         "alpha_coverage_metrics": alpha_metrics_data.coverage_metrics,
         "alpha_ic_trends": alpha_metrics_data.ic_trends,
@@ -869,6 +910,7 @@ def dashboard_view(request):
             scores=alpha_stock_scores,
             user=request.user,
             portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
+            pool_mode=selected_alpha_pool_mode,
         ),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
@@ -1417,6 +1459,7 @@ def alpha_refresh_htmx(request):
             default=10,
         )
         raw_portfolio_id = request.POST.get("portfolio_id")
+        pool_mode = normalize_alpha_pool_mode(request.POST.get("pool_mode"))
         portfolio_id = (
             _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
             if raw_portfolio_id not in (None, "")
@@ -1424,7 +1467,6 @@ def alpha_refresh_htmx(request):
         )
 
         from apps.alpha.application.tasks import qlib_predict_scores
-        from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 
         user_id = _get_request_user_id(request.user)
         raw_universe_id = str(request.POST.get("universe_id") or "").strip() or "csi300"
@@ -1434,6 +1476,7 @@ def alpha_refresh_htmx(request):
                 user_id=user_id,
                 portfolio_id=portfolio_id,
                 trade_date=date.today(),
+                pool_mode=pool_mode,
             )
 
         if resolved_pool is None:
@@ -1445,6 +1488,7 @@ def alpha_refresh_htmx(request):
                 "portfolio_id": portfolio_id,
                 "scope_hash": None,
                 "requested_trade_date": date.today().isoformat(),
+                "pool_mode": pool_mode,
                 "message": "已触发 Alpha 实时刷新任务，请稍后刷新查看最新结果。",
                 "poll_after_ms": 5000,
             }
@@ -1462,6 +1506,7 @@ def alpha_refresh_htmx(request):
                 "portfolio_id": resolved_pool.portfolio_id,
                 "scope_hash": resolved_pool.scope.scope_hash,
                 "requested_trade_date": date.today().isoformat(),
+                "pool_mode": resolved_pool.scope.pool_mode,
                 "message": "已触发 Qlib 实时刷新任务，请稍后刷新查看最新结果。",
                 "poll_after_ms": 5000,
             }
@@ -1490,6 +1535,7 @@ def alpha_stocks_htmx(request):
             default=10,
         )
         raw_portfolio_id = request.GET.get("portfolio_id")
+        pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
         portfolio_id = (
             _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
             if raw_portfolio_id not in (None, "")
@@ -1501,6 +1547,7 @@ def alpha_stocks_htmx(request):
         top_n=top_n,
         user=request.user,
         portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
     )
     scores = scores_payload["items"]
     meta = scores_payload["meta"]
@@ -1540,6 +1587,8 @@ def alpha_stocks_htmx(request):
         'alpha_recent_runs': recent_runs,
         'alpha_history_run_id': scores_payload["history_run_id"],
         'selected_portfolio_id': portfolio_id or pool.get("portfolio_id"),
+        'selected_alpha_pool_mode': pool_mode or pool.get("pool_mode"),
+        'alpha_pool_mode_choices': get_alpha_pool_mode_choices(),
         'top_n': top_n,
     }
 
@@ -1686,6 +1735,7 @@ def alpha_factor_panel_htmx(request):
     stock_code = (request.GET.get('code') or '').strip()
     source = (request.GET.get('source') or '').strip() or None
     raw_portfolio_id = request.GET.get("portfolio_id")
+    pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
     try:
         top_n = _parse_positive_int_param(
             request.GET.get('top_n', 10),
@@ -1721,5 +1771,6 @@ def alpha_factor_panel_htmx(request):
         top_n=top_n,
         user=request.user,
         portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
     )
     return render(request, 'dashboard/partials/alpha_factor_panel.html', context)

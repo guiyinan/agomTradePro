@@ -39,14 +39,59 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     assert captured["top_n"] == 12
 
 
+def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeTask:
+        id = "task-456"
+
+    class FakeApplyAsyncWrapper:
+        @staticmethod
+        def delay(universe_id: str, intended_trade_date: str, top_n: int, scope_payload=None):
+            captured["universe_id"] = universe_id
+            captured["scope_payload"] = scope_payload
+            return FakeTask()
+
+    class FakeResolver:
+        def resolve(self, *, user_id: int, portfolio_id=None, trade_date=None, pool_mode=None):
+            captured["pool_mode"] = pool_mode
+            return SimpleNamespace(
+                portfolio_id=portfolio_id,
+                scope=SimpleNamespace(
+                    universe_id="portfolio-9-scope",
+                    scope_hash="scope-9",
+                    pool_mode=pool_mode,
+                    to_dict=lambda: {"pool_mode": pool_mode, "instrument_codes": ["000001.SZ"]},
+                ),
+            )
+
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 10, "portfolio_id": 9, "pool_mode": "price_covered"},
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeApplyAsyncWrapper)
+    monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert captured["pool_mode"] == "price_covered"
+    assert payload["pool_mode"] == "price_covered"
+
+
 def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     captured: dict[str, object] = {}
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None):
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None):
             captured["top_n"] = top_n
             captured["user"] = user
             captured["portfolio_id"] = portfolio_id
+            captured["pool_mode"] = pool_mode
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -70,6 +115,7 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
                 pool={
                     "label": "账户驱动 Alpha 池",
                     "pool_size": 3200,
+                    "pool_mode": "market",
                     "selection_reason": "按当前激活组合所属市场生成候选池。",
                 },
                 actionable_candidates=[],
@@ -80,7 +126,7 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
 
     request = RequestFactory().get(
         "/api/dashboard/alpha/stocks/",
-        {"format": "json", "top_n": 1, "portfolio_id": 9},
+        {"format": "json", "top_n": 1, "portfolio_id": 9, "pool_mode": "market"},
     )
     request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
 
@@ -92,6 +138,7 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     assert captured["user"] is request.user
     assert captured["top_n"] == 1
     assert captured["portfolio_id"] == 9
+    assert captured["pool_mode"] == "market"
     assert payload["success"] is True
     assert payload["data"]["count"] == 1
     assert payload["data"]["meta"]["uses_cached_data"] is True
@@ -109,7 +156,7 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
     request.user = SimpleNamespace(is_authenticated=True, username="admin")
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None):
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -146,6 +193,7 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
                 pool={
                     "label": "账户驱动 Alpha 池",
                     "pool_size": 3200,
+                    "pool_mode": "price_covered",
                     "market": "CN",
                     "portfolio_name": "默认组合",
                     "selection_reason": "按当前激活组合所属市场生成候选池。",
@@ -194,15 +242,41 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
     assert "discardAlphaPendingRequest" in content
     assert "req\\u002D123" in content
     assert "mcp smoke" in content
+    assert "股票池模式" in content
+
+
+def test_alpha_stocks_empty_state_renders_refresh_cta():
+    content = render_to_string(
+        "dashboard/partials/alpha_stocks_table.html",
+        {
+            "alpha_meta": {
+                "no_recommendation_reason": "当前账户池暂无真实 Alpha 推理结果。",
+                "requested_trade_date": "2026-04-19",
+            },
+            "alpha_pool": {},
+            "alpha_stocks": [],
+            "alpha_actionable_candidates": [],
+            "alpha_pending_requests": [],
+            "alpha_recent_runs": [],
+            "selected_portfolio_id": None,
+            "selected_alpha_pool_mode": "strict_valuation",
+            "alpha_pool_mode_choices": [],
+        },
+    )
+
+    assert "暂无可信 Alpha 候选数据" in content
+    assert "触发实时推理" in content
+    assert "triggerAlphaRealtimeRefresh(10)" in content
 
 
 def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
     captured: dict[str, object] = {}
     user = SimpleNamespace(is_authenticated=True, username="admin")
 
-    def fake_get_alpha_stock_scores(top_n: int = 10, user=None):
+    def fake_get_alpha_stock_scores(top_n: int = 10, user=None, pool_mode=None):
         captured["top_n"] = top_n
         captured["user"] = user
+        captured["pool_mode"] = pool_mode
         return [
             {
                 "code": "000001.SZ",
@@ -226,6 +300,7 @@ def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
 
     assert captured["user"] is user
     assert captured["top_n"] == 10
+    assert captured["pool_mode"] is None
     assert panel["stock"]["code"] == "000001.SZ"
     assert panel["factor_count"] == 1
 
@@ -369,7 +444,7 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
             )
 
     class FakeHomepageQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None):
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None):
             captured["homepage_calls"] += 1
             return SimpleNamespace(
                 top_candidates=[

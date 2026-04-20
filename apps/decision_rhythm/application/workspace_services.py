@@ -482,12 +482,54 @@ def update_workspace_recommendation_action(
     )
     if recommendation is None:
         return None
+    if action == UserDecisionAction.IGNORED:
+        _cancel_recommendation_sources(recommendation)
     dto = UnifiedRecommendationDTO.from_domain(recommendation)
     _attach_security_name(dto, _resolve_security_name_map([recommendation.security_code]))
     dto.valuation_repair = get_valuation_repair_map([recommendation.security_code]).get(
         (recommendation.security_code or "").upper()
     )
     return dto
+
+
+def _cancel_recommendation_sources(recommendation) -> None:
+    """Cancel source candidates/triggers so ignored ideas stop reappearing in workflow."""
+    candidate_ids = list(getattr(recommendation, "source_candidate_ids", []) or [])
+    if not candidate_ids:
+        return
+
+    try:
+        from apps.alpha_trigger.domain.entities import CandidateStatus
+        from apps.alpha_trigger.infrastructure.repositories import (
+            get_candidate_repository,
+            get_trigger_repository,
+        )
+
+        candidate_repo = get_candidate_repository()
+        trigger_repo = get_trigger_repository()
+    except Exception as exc:
+        logger.warning("Failed to prepare alpha-trigger suppression for ignored recommendation: %s", exc)
+        return
+
+    for candidate_id in candidate_ids:
+        try:
+            candidate = candidate_repo.get_by_id(candidate_id)
+            if candidate is None:
+                continue
+
+            if getattr(candidate, "status", None) != CandidateStatus.CANCELLED:
+                candidate_repo.update_status(candidate_id, CandidateStatus.CANCELLED)
+
+            trigger_id = str(getattr(candidate, "trigger_id", "") or "").strip()
+            if trigger_id:
+                trigger_repo.delete(trigger_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to suppress ignored recommendation source %s for %s: %s",
+                candidate_id,
+                getattr(recommendation, "recommendation_id", ""),
+                exc,
+            )
 
 
 def refresh_workspace_recommendations(dto: RefreshRecommendationsRequestDTO) -> RefreshRecommendationsResponseDTO:

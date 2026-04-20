@@ -192,6 +192,15 @@ Canonical API routing for SDK/MCP is documented in:
 
 `client.dashboard.alpha_refresh(...)` and MCP `trigger_dashboard_alpha_refresh(...)` only queue backend inference for the account-driven pool. They never return recommendations directly.
 
+Dashboard Alpha caller-controlled pool selection:
+
+- `client.dashboard.alpha_stocks(..., pool_mode="strict_valuation" | "market" | "price_covered")`
+- `client.dashboard.alpha_refresh(..., pool_mode="strict_valuation" | "market" | "price_covered")`
+- MCP `get_dashboard_alpha_candidates(..., pool_mode=...)`
+- MCP `trigger_dashboard_alpha_refresh(..., pool_mode=...)`
+
+This keeps SDK/MCP behavior aligned with the dashboard UI: callers can explicitly choose the Alpha screening universe instead of relying only on the backend default.
+
 ### Workbench Tools (New)
 - **Workbench**: `get_workbench_summary`, `get_workbench_items`
 - **Review**: `approve_workbench_event`, `reject_workbench_event`, `rollback_workbench_event`, `override_workbench_event`

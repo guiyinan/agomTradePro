@@ -239,6 +239,40 @@ client.strategy.get_strategy_position_rule(strategy_id) -> dict
 client.strategy.evaluate_strategy_position_management(strategy_id, context) -> dict
 ```
 
+## Dashboard Module
+
+```python
+client.dashboard.alpha_stocks(
+    top_n=10,
+    portfolio_id=None,
+    pool_mode=None,
+) -> dict
+client.dashboard.alpha_refresh(
+    top_n=10,
+    portfolio_id=None,
+    pool_mode=None,
+) -> dict
+client.dashboard.alpha_history(portfolio_id=None, trade_date=None, stock_code=None, stage=None, source=None) -> dict
+client.dashboard.alpha_history_detail(run_id) -> dict
+client.dashboard.alpha_provider_status() -> dict
+client.dashboard.alpha_coverage() -> dict
+client.dashboard.alpha_ic_trends() -> dict
+```
+
+`pool_mode` 支持：
+
+| Value | Description |
+|-------|-------------|
+| `strict_valuation` | 严格估值覆盖池。仅筛选当前市场内且最新估值覆盖完整的股票。 |
+| `market` | 市场可交易池。优先从资产主数据选当前可交易 A 股。 |
+| `price_covered` | 价格覆盖池。仅筛选本地价格库已覆盖的股票。 |
+
+Dashboard Alpha contract 约束：
+
+- `client.dashboard.alpha_stocks()` 返回真实候选时，`contract.recommendation_ready=true`
+- `client.dashboard.alpha_refresh()` 只会排队触发 scoped Alpha 推理，不直接返回推荐
+- 当 `contract.must_not_treat_as_recommendation=true` 时，调用方不得把返回内容当成当前有效推荐
+
 ### Alpha Trigger Module
 
 ```python

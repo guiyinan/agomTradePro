@@ -369,7 +369,13 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
             'fields': ('notes',)
         }),
         ('运行时市场配置', {
-            'fields': ('benchmark_code_map', 'asset_proxy_code_map', 'macro_index_catalog')
+            'fields': (
+                'alpha_fixed_provider',
+                'alpha_pool_mode',
+                'benchmark_code_map',
+                'asset_proxy_code_map',
+                'macro_index_catalog',
+            )
         }),
         ('时间戳', {
             'fields': ('created_at', 'updated_at'),

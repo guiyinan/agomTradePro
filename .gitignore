@@ -120,3 +120,4 @@ docs/DEV_DIARY.md
 *.gz
 /logs
 cookies.txt
+/tmp
