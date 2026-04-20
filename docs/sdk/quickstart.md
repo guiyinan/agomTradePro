@@ -196,7 +196,32 @@ print(context["step3_sectors"]["rotation_signal_date"])
 print(context["step6_audit"]["attribution_method"])
 ```
 
-### 9. Read Regime Navigator And Top-Down Action
+### 9. Control Dashboard Alpha Pool Mode
+
+```python
+alpha = client.dashboard.alpha_stocks(
+    top_n=10,
+    portfolio_id=135,
+    pool_mode="market",
+)
+print(alpha["contract"]["recommendation_ready"])
+print(alpha["data"]["meta"].get("pool_scope"))
+
+refresh = client.dashboard.alpha_refresh(
+    top_n=10,
+    portfolio_id=135,
+    pool_mode="price_covered",
+)
+print(refresh["contract"]["async_refresh_queued"])
+```
+
+可选 `pool_mode`：
+
+- `strict_valuation`: 严格估值覆盖池
+- `market`: 市场可交易池
+- `price_covered`: 价格覆盖池
+
+### 10. Read Regime Navigator And Top-Down Action
 
 ```python
 navigator = client.pulse.get_navigator()
@@ -214,6 +239,7 @@ Notes:
 - `client.decision_workflow.list_recommendations()` returns the same unified recommendation payload as the Decision Workspace API, including `security_name`.
 - SDK 当前内建的是 `precheck / list_recommendations / refresh_recommendations / apply_recommendation_action / get_funnel_context`；交易计划生成与审批仍使用 HTTP Decision Workspace API。
 - `client.pulse.*` reads canonical JSON APIs directly; it does not depend on dashboard HTML rendering.
+- `client.dashboard.alpha_*` 现在支持 `pool_mode`，可显式控制首页 Alpha 推理/读取所用的股票池范围，而不是依赖后端默认值。
 
 ## Module Overview
 

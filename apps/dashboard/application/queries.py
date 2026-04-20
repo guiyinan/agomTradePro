@@ -698,7 +698,10 @@ class DecisionPlaneQuery:
     def _get_actionable_candidates(self, max_count: int | None) -> list[Any]:
         """获取可操作候选列表"""
         try:
-            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+            from apps.alpha_trigger.infrastructure.models import (
+                AlphaCandidateModel,
+                AlphaTriggerModel,
+            )
             from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
             from apps.equity.infrastructure.models import ValuationRepairTrackingModel
 
@@ -712,6 +715,14 @@ class DecisionPlaneQuery:
                 )
                 .values_list('asset_code', flat=True)
             }
+            manual_override_trigger_ids = set(
+                AlphaTriggerModel._default_manager
+                .filter(
+                    trigger_type=AlphaTriggerModel.MANUAL_OVERRIDE,
+                    status__in=[AlphaTriggerModel.ACTIVE, AlphaTriggerModel.TRIGGERED],
+                )
+                .values_list("trigger_id", flat=True)
+            )
 
             candidates = list(
                 AlphaCandidateModel._default_manager
@@ -741,7 +752,13 @@ class DecisionPlaneQuery:
             seen_codes = set()
             for item in candidates:
                 code = (getattr(item, "asset_code", "") or "").upper()
-                if not code or code in seen_codes or code in pending_codes:
+                trigger_id = str(getattr(item, "trigger_id", "") or "")
+                if (
+                    not code
+                    or code in seen_codes
+                    or code in pending_codes
+                    or trigger_id in manual_override_trigger_ids
+                ):
                     continue
                 seen_codes.add(code)
 

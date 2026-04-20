@@ -302,49 +302,107 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             ak = get_akshare_module()
             import pandas as pd
 
+            normalized_asset_code = str(asset_code or "").strip().upper()
             code = _to_akshare_code(asset_code)
             df = None
             source_tag = "eastmoney"
 
             # ETF
             if code.startswith(("51", "15", "56", "58")):
-                with _eastmoney_direct_network():
-                    df = ak.fund_etf_hist_em(
+                df = self._fetch_with_retries(
+                    lambda: ak.fund_etf_hist_em(
                         symbol=code,
                         start_date=start_date,
                         end_date=end_date,
                         adjust="qfq",
-                    )
+                    ),
+                    asset_code=normalized_asset_code,
+                    request_kind="fund_etf_hist_em",
+                )
                 if df is not None and not df.empty:
                     return self._parse_em_cn_bars(df, code, source_tag)
 
             # 指数
-            elif code.startswith(("000", "399")):
+            elif self._is_index_asset(normalized_asset_code):
                 prefix = "sh" if code.startswith("000") else "sz"
-                with _eastmoney_direct_network():
-                    df = ak.stock_zh_index_daily(symbol=f"{prefix}{code}")
+                df = self._fetch_with_retries(
+                    lambda: ak.stock_zh_index_daily(symbol=f"{prefix}{code}"),
+                    asset_code=normalized_asset_code,
+                    request_kind="stock_zh_index_daily",
+                )
                 if df is not None and not df.empty:
                     return self._parse_en_bars(df, code, start_date, end_date, source_tag)
 
             # 股票
             else:
-                ts_code = _to_tushare_code(code)
-                market = "1" if ts_code.endswith(".SH") else "0"
-                with _eastmoney_direct_network():
-                    df = ak.stock_zh_a_hist(
+                df = self._fetch_with_retries(
+                    lambda: ak.stock_zh_a_hist(
                         symbol=code,
                         start_date=start_date,
                         end_date=end_date,
                         adjust="qfq",
-                    )
+                    ),
+                    asset_code=normalized_asset_code,
+                    request_kind="stock_zh_a_hist",
+                )
                 if df is not None and not df.empty:
                     return self._parse_em_cn_bars(df, code, source_tag)
 
-            return []
+            return self._fallback_historical_prices(asset_code, start_date, end_date)
 
         except Exception:
             logger.exception("东方财富历史 K 线获取失败: %s", asset_code)
+            return self._fallback_historical_prices(asset_code, start_date, end_date)
+
+    def _fetch_with_retries(self, fetcher, *, asset_code: str, request_kind: str, attempts: int = 3):
+        last_error: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                with _eastmoney_direct_network():
+                    return fetcher()
+            except Exception as exc:
+                last_error = exc
+                if attempt == attempts:
+                    raise
+                logger.warning(
+                    "东方财富 %s 失败，将重试: asset=%s attempt=%s/%s error=%s",
+                    request_kind,
+                    asset_code,
+                    attempt,
+                    attempts,
+                    exc,
+                )
+                time.sleep(max(self._request_interval, 0.8) * attempt)
+        if last_error is not None:
+            raise last_error
+        return None
+
+    @staticmethod
+    def _fallback_historical_prices(
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> list[HistoricalPriceBar]:
+        try:
+            from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+
+            bars = TencentGateway().get_historical_prices(asset_code, start_date, end_date)
+            if bars:
+                logger.info("东方财富历史 K 线降级到腾讯成功: %s 获取 %d 条", asset_code, len(bars))
+            return bars
+        except Exception:
+            logger.exception("东方财富历史 K 线降级腾讯失败: %s", asset_code)
             return []
+
+    @staticmethod
+    def _is_index_asset(asset_code: str) -> bool:
+        normalized = str(asset_code or "").strip().upper()
+        base_code = normalized.split(".", 1)[0]
+        if normalized.endswith(".SH"):
+            return base_code.startswith("000")
+        if normalized.endswith(".SZ"):
+            return base_code.startswith("399")
+        return base_code.startswith(("000", "399"))
 
     def _parse_em_cn_bars(
         self,

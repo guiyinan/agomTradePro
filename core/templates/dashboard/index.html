@@ -1026,10 +1026,15 @@ function getCookie(name) {
 
 function reloadAlphaStocksTable(topN = 10) {
     const portfolioSelect = document.getElementById('alphaPortfolioSelect');
+    const poolModeSelect = document.getElementById('alphaPoolModeSelect');
     const portfolioId = portfolioSelect ? portfolioSelect.value : '';
+    const poolMode = poolModeSelect ? poolModeSelect.value : '';
     const query = new URLSearchParams({ top_n: String(topN) });
     if (portfolioId) {
         query.set('portfolio_id', portfolioId);
+    }
+    if (poolMode) {
+        query.set('pool_mode', poolMode);
     }
     if (window.htmx) {
         window.htmx.ajax('GET', `${API_URLS.alphaStocks}?${query.toString()}`, {
@@ -1083,7 +1088,9 @@ async function triggerAlphaRealtimeRefresh(topN = 10) {
 
     try {
         const portfolioSelect = document.getElementById('alphaPortfolioSelect');
+        const poolModeSelect = document.getElementById('alphaPoolModeSelect');
         const portfolioId = portfolioSelect ? portfolioSelect.value : '';
+        const poolMode = poolModeSelect ? poolModeSelect.value : '';
         const response = await fetch(API_URLS.alphaRefresh, {
             method: 'POST',
             headers: {
@@ -1093,6 +1100,7 @@ async function triggerAlphaRealtimeRefresh(topN = 10) {
             body: new URLSearchParams({
                 top_n: String(topN),
                 portfolio_id: portfolioId,
+                pool_mode: poolMode,
             }),
         });
         const data = await response.json();

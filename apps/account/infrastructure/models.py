@@ -1322,6 +1322,16 @@ class SystemSettingsModel(models.Model):
         ("etf", "仅使用 ETF"),
     ]
 
+    ALPHA_POOL_MODE_STRICT_VALUATION = "strict_valuation"
+    ALPHA_POOL_MODE_MARKET = "market"
+    ALPHA_POOL_MODE_PRICE_COVERED = "price_covered"
+
+    ALPHA_POOL_MODE_CHOICES = [
+        (ALPHA_POOL_MODE_STRICT_VALUATION, "严格估值覆盖池"),
+        (ALPHA_POOL_MODE_MARKET, "市场可交易池"),
+        (ALPHA_POOL_MODE_PRICE_COVERED, "价格覆盖池"),
+    ]
+
     alpha_fixed_provider = models.CharField(
         max_length=20,
         blank=True,
@@ -1329,6 +1339,14 @@ class SystemSettingsModel(models.Model):
         choices=ALPHA_PROVIDER_CHOICES,
         verbose_name="固定 Alpha Provider",
         help_text="强制使用指定的 Provider（禁用自动降级），留空则启用自动降级",
+    )
+
+    alpha_pool_mode = models.CharField(
+        max_length=32,
+        default=ALPHA_POOL_MODE_STRICT_VALUATION,
+        choices=ALPHA_POOL_MODE_CHOICES,
+        verbose_name="Alpha 默认股票池模式",
+        help_text="控制首页 Alpha 和实时推理默认使用哪个候选股票集合",
     )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
@@ -1617,6 +1635,12 @@ class SystemSettingsModel(models.Model):
         """获取运行时 Alpha 固定 Provider 配置（类方法，便于调用）"""
         settings_obj = cls.get_settings()
         return settings_obj.alpha_fixed_provider or ""
+
+    @classmethod
+    def get_runtime_alpha_pool_mode(cls) -> str:
+        """获取运行时 Alpha 股票池模式（类方法，便于调用）"""
+        settings_obj = cls.get_settings()
+        return settings_obj.alpha_pool_mode or cls.ALPHA_POOL_MODE_STRICT_VALUATION
 
     @staticmethod
     def _get_default_agreement():

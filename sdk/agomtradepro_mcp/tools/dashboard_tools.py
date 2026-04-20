@@ -45,6 +45,7 @@ def register_dashboard_tools(server: FastMCP) -> None:
     def get_dashboard_alpha_candidates(
         top_n: int = 10,
         portfolio_id: int | None = None,
+        pool_mode: str | None = None,
     ) -> dict[str, Any]:
         """
         获取账户驱动的 Dashboard Alpha 候选视图。
@@ -52,9 +53,14 @@ def register_dashboard_tools(server: FastMCP) -> None:
         返回当前组合的 `Alpha Top 候选/排名`、`可行动候选`、`待执行队列`、
         缓存/实时元数据，以及最近历史 run 摘要。响应会附带 `contract`：
         `recommendation_ready=false` 时，Agent 不得把待执行或异步排队状态解释为推荐。
+        `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()
-        return client.dashboard.alpha_stocks(top_n=top_n, portfolio_id=portfolio_id)
+        return client.dashboard.alpha_stocks(
+            top_n=top_n,
+            portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
+        )
 
     @server.tool()
     def get_dashboard_alpha_history(
@@ -92,6 +98,7 @@ def register_dashboard_tools(server: FastMCP) -> None:
     def trigger_dashboard_alpha_refresh(
         top_n: int = 10,
         portfolio_id: int | None = None,
+        pool_mode: str | None = None,
     ) -> dict[str, Any]:
         """
         手动触发当前组合的 Dashboard Alpha 实时刷新。
@@ -99,9 +106,14 @@ def register_dashboard_tools(server: FastMCP) -> None:
         该工具只触发 Qlib 后台刷新任务，作用于账户驱动池，而不是固定指数池。
         返回的 `contract.must_not_treat_as_recommendation` 恒为 true；刷新完成后需再次调用
         `get_dashboard_alpha_candidates` 读取真实 scoped cache。
+        `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()
-        return client.dashboard.alpha_refresh(top_n=top_n, portfolio_id=portfolio_id)
+        return client.dashboard.alpha_refresh(
+            top_n=top_n,
+            portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
+        )
 
     @server.tool()
     def get_dashboard_positions() -> dict[str, Any]:

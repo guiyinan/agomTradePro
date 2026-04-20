@@ -54,6 +54,8 @@ def test_decision_workspace_step_templates_use_window_bound_actions():
     workspace_template = Path("core/templates/decision/workspace.html").read_text(encoding="utf-8")
 
     assert "window.loadRecommendations()" in screen_template
+    assert 'id="ignored-filter-toggle"' in screen_template
+    assert "window.toggleIgnoredRecommendationsFilter()" in screen_template
     assert "window.loadTransitionPlanStep()" in plan_template
     assert "window.generateTransitionPlan()" in plan_template
     assert "window.saveTransitionPlan()" in plan_template
@@ -61,6 +63,9 @@ def test_decision_workspace_step_templates_use_window_bound_actions():
     assert "window.loadExecutionPlanPanel()" in execute_template
 
     assert "Object.assign(window, {" in workspace_template
+    assert "syncIgnoredRecommendationsFilterButton" in workspace_template
+    assert "toggleIgnoredRecommendationsFilter," in workspace_template
+    assert "include_ignored" in workspace_template
     assert "loadTransitionPlanStep," in workspace_template
     assert "generateTransitionPlan," in workspace_template
     assert "submitTransitionPlanForApproval," in workspace_template

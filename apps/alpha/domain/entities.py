@@ -234,6 +234,7 @@ class AlphaPoolScope:
 
     pool_type: str
     market: str
+    pool_mode: str
     instrument_codes: tuple[str, ...]
     selection_reason: str
     trade_date: date
@@ -262,6 +263,7 @@ class AlphaPoolScope:
             [
                 self.pool_type,
                 self.market,
+                self.pool_mode,
                 self.trade_date.isoformat(),
                 ",".join(self.instrument_codes),
                 str(self.portfolio_id or ""),
@@ -284,6 +286,7 @@ class AlphaPoolScope:
         return {
             "pool_type": self.pool_type,
             "market": self.market,
+            "pool_mode": self.pool_mode,
             "instrument_codes": list(self.instrument_codes),
             "pool_size": self.pool_size,
             "selection_reason": self.selection_reason,
@@ -302,6 +305,7 @@ class AlphaPoolScope:
         return cls(
             pool_type=str(data.get("pool_type") or "portfolio_market"),
             market=str(data.get("market") or "CN"),
+            pool_mode=str(data.get("pool_mode") or "strict_valuation"),
             instrument_codes=tuple(data.get("instrument_codes") or ()),
             selection_reason=str(data.get("selection_reason") or ""),
             trade_date=date.fromisoformat(trade_date_raw) if trade_date_raw else date.today(),

@@ -1212,6 +1212,12 @@ def system_settings_view(request):
             market_color_convention = request.POST.get(
                 "market_color_convention", system_settings.market_color_convention
             )
+            alpha_pool_mode_choices = {
+                key for key, _ in SystemSettingsModel.ALPHA_POOL_MODE_CHOICES
+            }
+            alpha_pool_mode = request.POST.get(
+                "alpha_pool_mode", system_settings.alpha_pool_mode
+            )
 
             if not isinstance(benchmark_code_map, dict):
                 raise ValueError("基准代码映射必须是 JSON 对象")
@@ -1221,6 +1227,8 @@ def system_settings_view(request):
                 raise ValueError("宏观指数目录必须是 JSON 数组")
             if market_color_convention not in market_color_choices:
                 raise ValueError("市场颜色约定不合法")
+            if alpha_pool_mode not in alpha_pool_mode_choices:
+                raise ValueError("Alpha 股票池模式不合法")
 
             system_settings.require_user_approval = (
                 request.POST.get("require_user_approval") == "on"
@@ -1233,6 +1241,7 @@ def system_settings_view(request):
                 request.POST.get("allow_token_plaintext_view") == "on"
             )
             system_settings.market_color_convention = market_color_convention
+            system_settings.alpha_pool_mode = alpha_pool_mode
             system_settings.user_agreement_content = request.POST.get("user_agreement_content", "")
             system_settings.risk_warning_content = request.POST.get("risk_warning_content", "")
             system_settings.notes = request.POST.get("notes", "")
@@ -1249,6 +1258,7 @@ def system_settings_view(request):
     context = {
         "system_settings": system_settings,
         "market_color_choices": SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES,
+        "alpha_pool_mode_choices": SystemSettingsModel.ALPHA_POOL_MODE_CHOICES,
         "market_visuals": system_settings.get_market_visual_tokens(),
         "benchmark_code_map_json": json.dumps(
             system_settings.benchmark_code_map or {}, ensure_ascii=False, indent=2

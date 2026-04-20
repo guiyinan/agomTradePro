@@ -47,17 +47,18 @@ class DashboardAlphaContextRepository:
             return {}
 
         from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
-
-        info_rows = StockInfoModel._default_manager.filter(stock_code__in=codes).values(
+        code_aliases = self._build_code_aliases(codes)
+        lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
+        info_rows = StockInfoModel._default_manager.filter(stock_code__in=lookup_codes).values(
             "stock_code",
             "name",
             "sector",
             "market",
         )
-        info_map = {row["stock_code"].upper(): row for row in info_rows}
+        info_map = {str(row["stock_code"]).upper(): row for row in info_rows}
 
         daily_rows = (
-            StockDailyModel._default_manager.filter(stock_code__in=codes)
+            StockDailyModel._default_manager.filter(stock_code__in=lookup_codes)
             .order_by("stock_code", "-trade_date")
             .values("stock_code", "trade_date", "close", "volume")
         )
@@ -67,15 +68,28 @@ class DashboardAlphaContextRepository:
             if code not in daily_map:
                 daily_map[code] = row
 
+        asset_context = self._load_data_center_asset_context(codes)
+        missing_codes = [
+            code
+            for code in codes
+            if not self._extract_name_from_rows(code_aliases.get(code, {code}), info_map)
+            and not asset_context.get(code, {}).get("name")
+        ]
+        if missing_codes:
+            self._backfill_data_center_assets(missing_codes)
+            asset_context.update(self._load_data_center_asset_context(missing_codes))
+
         context: dict[str, dict[str, Any]] = {}
         for code in codes:
-            info = dict(info_map.get(code, {}))
-            latest_daily = daily_map.get(code, {})
+            aliases = code_aliases.get(code, {code})
+            info = self._extract_info_row(aliases, info_map)
+            latest_daily = self._extract_daily_row(aliases, daily_map)
+            master_info = asset_context.get(code, {})
             info.update(
                 {
-                    "name": info.get("name", ""),
-                    "sector": info.get("sector", ""),
-                    "market": info.get("market", ""),
+                    "name": info.get("name") or master_info.get("name") or "",
+                    "sector": info.get("sector") or master_info.get("sector") or "",
+                    "market": info.get("market") or master_info.get("market") or "",
                     "close": float(latest_daily.get("close") or 0.0),
                     "volume": float(latest_daily.get("volume") or 0.0),
                     "trade_date": (
@@ -87,6 +101,79 @@ class DashboardAlphaContextRepository:
             )
             context[code] = info
         return context
+
+    @staticmethod
+    def _build_code_aliases(codes: list[str]) -> dict[str, set[str]]:
+        aliases: dict[str, set[str]] = {}
+        for raw_code in codes:
+            normalized = str(raw_code or "").strip().upper()
+            if not normalized:
+                continue
+            code_aliases = {normalized}
+            base_code = normalized.split(".", 1)[0]
+            if base_code:
+                code_aliases.add(base_code)
+            aliases[normalized] = code_aliases
+        return aliases
+
+    @staticmethod
+    def _extract_info_row(
+        aliases: set[str],
+        info_map: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        for alias in aliases:
+            row = info_map.get(alias)
+            if row:
+                return dict(row)
+        return {}
+
+    @staticmethod
+    def _extract_daily_row(
+        aliases: set[str],
+        daily_map: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
+        for alias in aliases:
+            row = daily_map.get(alias)
+            if row:
+                return row
+        return {}
+
+    @staticmethod
+    def _extract_name_from_rows(
+        aliases: set[str],
+        info_map: dict[str, dict[str, Any]],
+    ) -> str:
+        for alias in aliases:
+            name = str((info_map.get(alias) or {}).get("name") or "").strip()
+            if name:
+                return name
+        return ""
+
+    def _load_data_center_asset_context(self, codes: list[str]) -> dict[str, dict[str, str]]:
+        from apps.data_center.infrastructure.repositories import AssetRepository
+
+        asset_repo = AssetRepository()
+        context: dict[str, dict[str, str]] = {}
+        for code in codes:
+            asset = asset_repo.get_by_code(code)
+            if asset is None:
+                continue
+            context[str(code).strip().upper()] = {
+                "name": asset.short_name or asset.name,
+                "sector": asset.sector or asset.industry or "",
+                "market": asset.exchange.value,
+            }
+        return context
+
+    def _backfill_data_center_assets(self, codes: list[str]) -> None:
+        if not codes:
+            return
+
+        from apps.data_center.infrastructure.asset_master_backfill import (
+            AssetMasterBackfillService,
+        )
+
+        AssetMasterBackfillService().backfill_codes(codes, include_remote=False)
 
     def load_actionable_map(self) -> dict[str, Any]:
         from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel

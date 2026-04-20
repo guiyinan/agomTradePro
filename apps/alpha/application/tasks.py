@@ -612,8 +612,8 @@ def qlib_evaluate_model(
 
         from django.utils import timezone as tz
 
-        from ...infrastructure.cache_evaluation import evaluate_model_from_cache
-        from ...infrastructure.models import QlibModelRegistryModel
+        from ..infrastructure.cache_evaluation import evaluate_model_from_cache
+        from ..infrastructure.models import QlibModelRegistryModel
 
         logger.info(f"开始评估模型: {model_artifact_hash}")
 

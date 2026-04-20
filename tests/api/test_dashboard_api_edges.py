@@ -1,6 +1,13 @@
 import pytest
 from django.contrib.auth import get_user_model
 
+from apps.dashboard.infrastructure.models import (
+    AlphaRecommendationRunModel,
+    AlphaRecommendationSnapshotModel,
+)
+from apps.data_center.infrastructure.models import AssetMasterModel
+from apps.fund.infrastructure.models import FundHoldingModel
+
 
 @pytest.fixture
 def auth_user(db):
@@ -72,3 +79,116 @@ def test_dashboard_alpha_ic_trends_rejects_non_positive_days(client, auth_user):
     payload = response.json()
     assert payload["success"] is False
     assert "days" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_dashboard_alpha_history_detail_fills_missing_snapshot_name_from_data_center(
+    client,
+    auth_user,
+):
+    client.force_login(auth_user)
+    AssetMasterModel.objects.create(
+        code="600519.SH",
+        name="贵州茅台",
+        short_name="茅台",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+    run = AlphaRecommendationRunModel.objects.create(
+        user=auth_user,
+        portfolio_id=135,
+        portfolio_name="测试组合",
+        trade_date="2026-04-19",
+        scope_hash="scope-001",
+        scope_label="默认组合 · CN A-share 可交易池",
+        source="cache",
+        provider_source="cache",
+        uses_cached_data=True,
+        cache_reason="legacy snapshot missing name",
+        fallback_reason="",
+        meta={},
+    )
+    AlphaRecommendationSnapshotModel.objects.create(
+        run=run,
+        stock_code="600519.SH",
+        stock_name="",
+        stage="top_ranked",
+        gate_status="pass",
+        rank=1,
+        alpha_score=0.95,
+        confidence=0.91,
+        source="cache",
+        buy_reasons=[],
+        no_buy_reasons=[],
+        invalidation_rule={},
+        risk_snapshot={},
+        suggested_position_pct=10.0,
+        suggested_notional=100000.0,
+        suggested_quantity=100.0,
+        extra_payload={},
+    )
+
+    response = client.get(f"/api/dashboard/alpha/history/{run.id}/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["snapshots"][0]["code"] == "600519.SH"
+    assert payload["data"]["snapshots"][0]["name"] == "茅台"
+
+
+@pytest.mark.django_db
+def test_dashboard_alpha_history_detail_backfills_asset_master_from_legacy_holding(
+    client,
+    auth_user,
+):
+    client.force_login(auth_user)
+    run = AlphaRecommendationRunModel.objects.create(
+        user=auth_user,
+        portfolio_id=135,
+        portfolio_name="测试组合",
+        trade_date="2026-04-19",
+        scope_hash="scope-legacy-001",
+        scope_label="默认组合 · CN A-share 可交易池",
+        source="cache",
+        provider_source="cache",
+        uses_cached_data=True,
+        cache_reason="legacy holding fallback",
+        fallback_reason="",
+        meta={},
+    )
+    AlphaRecommendationSnapshotModel.objects.create(
+        run=run,
+        stock_code="601899.SH",
+        stock_name="",
+        stage="top_ranked",
+        gate_status="pass",
+        rank=1,
+        alpha_score=0.88,
+        confidence=0.83,
+        source="cache",
+        buy_reasons=[],
+        no_buy_reasons=[],
+        invalidation_rule={},
+        risk_snapshot={},
+        suggested_position_pct=8.0,
+        suggested_notional=80000.0,
+        suggested_quantity=100.0,
+        extra_payload={},
+    )
+    FundHoldingModel.objects.create(
+        fund_code="000001",
+        report_date="2026-03-31",
+        stock_code="601899.SH",
+        stock_name="紫金矿业",
+    )
+
+    response = client.get(f"/api/dashboard/alpha/history/{run.id}/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["snapshots"][0]["name"] == "紫金矿业"
+    assert AssetMasterModel.objects.filter(code="601899.SH", name="紫金矿业").exists()

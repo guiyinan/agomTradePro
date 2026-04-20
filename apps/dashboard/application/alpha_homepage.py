@@ -56,12 +56,14 @@ class AlphaHomepageQuery:
         user,
         top_n: int = 10,
         portfolio_id: int | None = None,
+        pool_mode: str | None = None,
     ) -> AlphaHomepageData:
         today = date.today()
         resolved_pool = PortfolioAlphaPoolResolver().resolve(
             user_id=user.id,
             portfolio_id=portfolio_id,
             trade_date=today,
+            pool_mode=pool_mode,
         )
         scope = resolved_pool.scope
 
@@ -136,6 +138,7 @@ class AlphaHomepageQuery:
                 "label": scope.display_label,
                 "pool_type": scope.pool_type,
                 "market": scope.market,
+                "pool_mode": scope.pool_mode,
                 "pool_size": scope.pool_size,
                 "selection_reason": scope.selection_reason,
                 "scope_hash": scope.scope_hash,
@@ -172,12 +175,19 @@ class AlphaHomepageQuery:
         run = self.history_repo.get_run_detail(user_id=user_id, run_id=run_id)
         if run is None:
             return None
+        snapshot_codes = [str(snapshot.stock_code or "").strip().upper() for snapshot in run.snapshots.all()]
+        stock_context = self.context_repo.load_stock_context(snapshot_codes)
         snapshots = []
         for snapshot in run.snapshots.all():
+            snapshot_code = str(snapshot.stock_code or "").strip().upper()
+            fallback_name = (stock_context.get(snapshot_code) or {}).get("name") or snapshot_code
+            stock_name = str(snapshot.stock_name or "").strip() or fallback_name
+            if stock_name.upper() == snapshot_code:
+                stock_name = fallback_name
             snapshots.append(
                 {
-                    "code": snapshot.stock_code,
-                    "name": snapshot.stock_name,
+                    "code": snapshot_code,
+                    "name": stock_name,
                     "stage": snapshot.stage,
                     "gate_status": snapshot.gate_status,
                     "rank": snapshot.rank,

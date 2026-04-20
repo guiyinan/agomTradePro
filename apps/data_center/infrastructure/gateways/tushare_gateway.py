@@ -163,7 +163,8 @@ class TushareGateway(GatewayProviderProtocol):
 
             pro = create_tushare_pro_client()
 
-            code = asset_code.split(".")[0] if "." in asset_code else asset_code
+            normalized_asset_code = str(asset_code or "").strip().upper()
+            code = normalized_asset_code.split(".")[0] if "." in normalized_asset_code else normalized_asset_code
             ts_code = self._to_tushare_code(code)
             df = None
 
@@ -177,7 +178,7 @@ class TushareGateway(GatewayProviderProtocol):
 
             # 指数
             if df is None or (hasattr(df, 'empty') and df.empty):
-                if code.startswith(("000", "399")):
+                if self._is_index_asset(normalized_asset_code):
                     df = pro.index_daily(
                         ts_code=ts_code,
                         start_date=start_date,
@@ -193,7 +194,7 @@ class TushareGateway(GatewayProviderProtocol):
                 )
 
             if df is None or df.empty:
-                return []
+                return self._fallback_historical_prices(asset_code, start_date, end_date)
 
             df = df.sort_values("trade_date")
             bars: list[HistoricalPriceBar] = []
@@ -219,7 +220,7 @@ class TushareGateway(GatewayProviderProtocol):
 
         except Exception:
             logger.exception("Tushare 历史 K 线获取失败: %s", asset_code)
-            return []
+            return self._fallback_historical_prices(asset_code, start_date, end_date)
 
     @staticmethod
     def _to_tushare_code(code: str) -> str:
@@ -236,3 +237,30 @@ class TushareGateway(GatewayProviderProtocol):
                 return f"{code}.SH"
             return f"{code}.SZ"
         return f"{code}.SH"
+
+    @staticmethod
+    def _is_index_asset(asset_code: str) -> bool:
+        normalized = str(asset_code or "").strip().upper()
+        base_code = normalized.split(".", 1)[0]
+        if normalized.endswith(".SH"):
+            return base_code.startswith("000")
+        if normalized.endswith(".SZ"):
+            return base_code.startswith("399")
+        return base_code.startswith(("000", "399"))
+
+    @staticmethod
+    def _fallback_historical_prices(
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> list[HistoricalPriceBar]:
+        try:
+            from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+
+            bars = TencentGateway().get_historical_prices(asset_code, start_date, end_date)
+            if bars:
+                logger.info("Tushare 历史 K 线降级到腾讯成功: %s 获取 %d 条", asset_code, len(bars))
+            return bars
+        except Exception:
+            logger.exception("Tushare 历史 K 线降级腾讯失败: %s", asset_code)
+            return []

@@ -104,7 +104,7 @@ class _FakeClient:
                 "actionable_candidates": [],
                 "pending_requests": [],
             },
-            alpha_stocks=lambda top_n=10, portfolio_id=None: {
+            alpha_stocks=lambda top_n=10, portfolio_id=None, pool_mode=None: {
                 "success": True,
                 "data": {
                     "top_candidates": [],
@@ -116,6 +116,7 @@ class _FakeClient:
                         "hardcoded_fallback_used": False,
                         "no_recommendation_reason": "No account-scope Alpha cache.",
                         "scope_hash": "scope-1",
+                        "pool_mode": pool_mode,
                     },
                 },
                 "contract": {
@@ -128,9 +129,10 @@ class _FakeClient:
                     "hardcoded_fallback_used": False,
                 },
             },
-            alpha_refresh=lambda top_n=10, portfolio_id=None: {
+            alpha_refresh=lambda top_n=10, portfolio_id=None, pool_mode=None: {
                 "success": True,
                 "task_id": "task-alpha-refresh-1",
+                "pool_mode": pool_mode,
                 "contract": {
                     "recommendation_ready": False,
                     "must_not_treat_as_recommendation": True,
@@ -382,8 +384,14 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
             "get_dashboard_alpha_decision_chain_v1",
             {"top_n": 10, "max_candidates": 5, "max_pending": 10},
         ),
-        ("get_dashboard_alpha_candidates", {"top_n": 10, "portfolio_id": 135}),
-        ("trigger_dashboard_alpha_refresh", {"top_n": 10, "portfolio_id": 135}),
+        (
+            "get_dashboard_alpha_candidates",
+            {"top_n": 10, "portfolio_id": 135, "pool_mode": "market"},
+        ),
+        (
+            "trigger_dashboard_alpha_refresh",
+            {"top_n": 10, "portfolio_id": 135, "pool_mode": "price_covered"},
+        ),
         ("get_dashboard_regime_quadrant_v1", {}),
         ("get_dashboard_equity_curve_v1", {}),
         ("get_dashboard_signal_status_v1", {}),
@@ -556,3 +564,32 @@ def test_dashboard_alpha_candidates_contract_exposes_async_status(monkeypatch: p
     assert "must_not_treat_as_recommendation" in rendered
     assert "async_refresh_queued" in rendered
     assert "hardcoded_fallback_used" in rendered
+
+
+def test_dashboard_alpha_tools_accept_pool_mode(monkeypatch: pytest.MonkeyPatch):
+    try:
+        from agomtradepro_mcp.server import server
+    except ModuleNotFoundError as exc:
+        if "mcp" in str(exc):
+            pytest.skip("mcp package not installed in current test environment")
+        raise
+
+    _patch_extended_tool_modules(monkeypatch)
+
+    result = asyncio.run(
+        server.call_tool(
+            "get_dashboard_alpha_candidates",
+            {"top_n": 10, "portfolio_id": 135, "pool_mode": "market"},
+        )
+    )
+    rendered = str(result)
+    assert "market" in rendered
+
+    refresh_result = asyncio.run(
+        server.call_tool(
+            "trigger_dashboard_alpha_refresh",
+            {"top_n": 10, "portfolio_id": 135, "pool_mode": "price_covered"},
+        )
+    )
+    refresh_rendered = str(refresh_result)
+    assert "price_covered" in refresh_rendered

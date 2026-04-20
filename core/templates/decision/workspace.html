@@ -1110,6 +1110,31 @@ function refreshWorkspaceDecisionLists() {
     loadExecutionPlanPanel();
 }
 
+function syncIgnoredRecommendationsFilterButton() {
+    const toggleButton = document.getElementById('ignored-filter-toggle');
+    const decisionFilter = document.getElementById('decision-filter');
+    if (!toggleButton || !decisionFilter) {
+        return;
+    }
+
+    const ignoredOnly = decisionFilter.value === 'IGNORED';
+    toggleButton.className = ignoredOnly ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+    toggleButton.innerHTML = ignoredOnly ? '<i class="bi bi-eye-slash"></i> 退出已忽略' : '<i class="bi bi-filter"></i> 已忽略';
+    toggleButton.setAttribute('aria-pressed', ignoredOnly ? 'true' : 'false');
+    toggleButton.title = ignoredOnly ? '切回全部用户动作' : '快捷查看已忽略推荐';
+}
+
+function toggleIgnoredRecommendationsFilter() {
+    const decisionFilter = document.getElementById('decision-filter');
+    if (!decisionFilter) {
+        return;
+    }
+
+    decisionFilter.value = decisionFilter.value === 'IGNORED' ? '' : 'IGNORED';
+    syncIgnoredRecommendationsFilterButton();
+    loadRecommendations();
+}
+
 function handleWorkspaceAccountChange() {
     const accountId = getSelectedWorkspaceAccountId();
     const url = new URL(window.location.href);
@@ -1226,6 +1251,7 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
     const targetId = event.detail?.target?.id;
     if (targetId && targetId.startsWith('step-')) {
         syncWorkspaceAccountSummary();
+        syncIgnoredRecommendationsFilterButton();
     }
 });
 
@@ -1272,6 +1298,7 @@ async function loadRecommendations() {
         return;
     }
     syncWorkspaceAccountSummary();
+    syncIgnoredRecommendationsFilterButton();
     const accountId = getSelectedWorkspaceAccountId();
     const statusFilter = document.getElementById('status-filter')?.value || '';
     const decisionFilter = document.getElementById('decision-filter')?.value || '';
@@ -2538,6 +2565,7 @@ function getStatusText(status) {
 
 Object.assign(window, {
     loadRecommendations,
+    toggleIgnoredRecommendationsFilter,
     loadTransitionPlanStep,
     generateTransitionPlan,
     saveTransitionPlan,
