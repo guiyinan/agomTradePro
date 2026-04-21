@@ -309,6 +309,52 @@ def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
     assert "csi300" not in str(captured)
 
 
+def test_alpha_homepage_query_triggers_scoped_refresh_when_using_broader_cache():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeAlphaService:
+        def get_stock_scores(
+            self,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+            user=None,
+            provider_filter=None,
+            pool_scope=None,
+        ):
+            return SimpleNamespace(
+                success=True,
+                scores=[SimpleNamespace(code="000001.SZ")],
+                source="cache",
+                status="available",
+                metadata={
+                    "derived_from_broader_cache": True,
+                    "provider_source": "qlib",
+                },
+            )
+
+    query.alpha_service = FakeAlphaService()
+    query._trigger_async_inference_if_needed = lambda **kwargs: {
+        "refresh_triggered": True,
+        "refresh_status": "queued",
+        "async_task_id": "task-scope-2",
+        "poll_after_ms": 5000,
+        "message": "已触发 scoped Qlib 推理。",
+    }
+
+    result = query._fetch_alpha_result(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=SimpleNamespace(universe_id="portfolio-7-deadbeef"),
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert result.success is True
+    assert result.metadata["refresh_triggered"] is True
+    assert result.metadata["refresh_status"] == "queued"
+    assert result.metadata["async_task_id"] == "task-scope-2"
+
+
 def test_alpha_homepage_factor_basis_is_explicit_and_data_driven():
     query = object.__new__(AlphaHomepageQuery)
 

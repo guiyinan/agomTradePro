@@ -73,7 +73,15 @@ class AlphaHomepageQuery:
             trade_date=today,
             top_n=top_n,
         )
-        meta = self._build_meta(alpha_result=alpha_result, scope=scope)
+        self._attach_scope_resolution_metadata(
+            result=alpha_result,
+            resolved_pool=resolved_pool,
+        )
+        meta = self._build_meta(
+            alpha_result=alpha_result,
+            scope=scope,
+            resolved_pool=resolved_pool,
+        )
 
         top_scores = list(alpha_result.scores[:top_n]) if alpha_result.success else []
         stock_context = self._load_stock_context([score.code for score in top_scores])
@@ -140,6 +148,10 @@ class AlphaHomepageQuery:
                 "market": scope.market,
                 "pool_mode": scope.pool_mode,
                 "pool_size": scope.pool_size,
+                "requested_pool_mode": resolved_pool.requested_pool_mode,
+                "requested_pool_size": resolved_pool.requested_pool_size,
+                "scope_fallback": resolved_pool.scope_fallback,
+                "fallback_reason": resolved_pool.fallback_reason,
                 "selection_reason": scope.selection_reason,
                 "scope_hash": scope.scope_hash,
             },
@@ -238,6 +250,25 @@ class AlphaHomepageQuery:
             )
             result = candidate
             if candidate.success and candidate.scores:
+                metadata = dict(getattr(candidate, "metadata", {}) or {})
+                if metadata.get("derived_from_broader_cache"):
+                    async_status = self._trigger_async_inference_if_needed(
+                        user=user,
+                        scope=scope,
+                        trade_date=trade_date,
+                        top_n=top_n,
+                    )
+                    metadata.update(
+                        {
+                            "refresh_triggered": bool(async_status.get("refresh_triggered", False)),
+                            "refresh_status": async_status.get("refresh_status", ""),
+                            "async_task_id": async_status.get("async_task_id", ""),
+                            "poll_after_ms": async_status.get("poll_after_ms", 5000),
+                            "auto_refresh_message": async_status.get("message", ""),
+                            "auto_refresh_error": async_status.get("auto_refresh_error", ""),
+                        }
+                    )
+                    candidate.metadata = metadata
                 return candidate
         if result is not None:
             async_status = self._trigger_async_inference_if_needed(
@@ -346,9 +377,40 @@ class AlphaHomepageQuery:
         result.metadata = metadata
         result.status = "unavailable"
 
-    def _build_meta(self, *, alpha_result, scope) -> dict[str, Any]:
+    def _attach_scope_resolution_metadata(self, *, result, resolved_pool) -> None:
+        metadata = dict(getattr(result, "metadata", {}) or {})
+        metadata.update(
+            {
+                "requested_pool_mode": resolved_pool.requested_pool_mode,
+                "requested_pool_size": resolved_pool.requested_pool_size,
+                "effective_pool_mode": resolved_pool.scope.pool_mode,
+                "effective_pool_size": resolved_pool.scope.pool_size,
+                "scope_fallback": resolved_pool.scope_fallback,
+                "scope_fallback_reason": resolved_pool.fallback_reason,
+                "scope_fallback_universe_id": resolved_pool.scope.universe_id,
+            }
+        )
+        if resolved_pool.scope_fallback and not metadata.get("reliability_notice"):
+            metadata["reliability_notice"] = {
+                "level": "warning",
+                "code": "account_scope_widened",
+                "title": "Alpha 已自动扩大账户池范围",
+                "message": resolved_pool.fallback_reason,
+            }
+        result.metadata = metadata
+
+    def _build_meta(self, *, alpha_result, scope, resolved_pool=None) -> dict[str, Any]:
         metadata = dict(getattr(alpha_result, "metadata", {}) or {})
         scope_metadata = scope.to_dict() if hasattr(scope, "to_dict") else {}
+        requested_pool_mode = metadata.get("requested_pool_mode")
+        requested_pool_size = metadata.get("requested_pool_size")
+        if resolved_pool is not None:
+            requested_pool_mode = requested_pool_mode or resolved_pool.requested_pool_mode
+            requested_pool_size = requested_pool_size or resolved_pool.requested_pool_size
+        if requested_pool_mode is None:
+            requested_pool_mode = getattr(scope, "pool_mode", "")
+        if requested_pool_size is None:
+            requested_pool_size = getattr(scope, "pool_size", 0)
         return {
             "status": getattr(alpha_result, "status", "unavailable"),
             "source": getattr(alpha_result, "source", "none"),
@@ -366,6 +428,7 @@ class AlphaHomepageQuery:
             "fallback_reason": metadata.get("fallback_reason") or "",
             "fallback_from": metadata.get("fallback_from"),
             "scope_fallback": bool(metadata.get("scope_fallback", False)),
+            "scope_fallback_reason": metadata.get("scope_fallback_reason") or "",
             "scope_fallback_universe_id": metadata.get("scope_fallback_universe_id"),
             "no_recommendation_reason": metadata.get("no_recommendation_reason") or "",
             "hardcoded_fallback_used": bool(metadata.get("hardcoded_fallback_used", False)),
@@ -378,8 +441,12 @@ class AlphaHomepageQuery:
             "warning_message": (metadata.get("reliability_notice") or {}).get("message"),
             "warning_level": (metadata.get("reliability_notice") or {}).get("level"),
             "refresh_triggered": bool(metadata.get("refresh_triggered", False)),
-            "scope_hash": scope.scope_hash,
-            "scope_label": scope.display_label,
+            "requested_pool_mode": requested_pool_mode,
+            "requested_pool_size": requested_pool_size,
+            "effective_pool_mode": metadata.get("effective_pool_mode") or getattr(scope, "pool_mode", ""),
+            "effective_pool_size": metadata.get("effective_pool_size") or getattr(scope, "pool_size", 0),
+            "scope_hash": getattr(scope, "scope_hash", ""),
+            "scope_label": getattr(scope, "display_label", ""),
             "scope_metadata": scope_metadata,
             "model_hash": metadata.get("model_artifact_hash", ""),
         }
@@ -537,13 +604,6 @@ class AlphaHomepageQuery:
                 {
                     "code": "POLICY_GATE_TIGHT",
                     "text": f"当前政策闸门 {policy_state.get('gate_level')}，新仓需要更严格审查。",
-                }
-            )
-        if meta.get("uses_cached_data"):
-            no_buy_reasons.append(
-                {
-                    "code": "CACHE_FALLBACK",
-                    "text": f"当前展示为缓存结果，原因：{meta.get('cache_reason') or '实时结果未就绪'}",
                 }
             )
         if action == "watch":

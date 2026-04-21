@@ -164,6 +164,85 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 intended_trade_date=intended_trade_date,
             )
 
+        if (
+            cache is not None
+            and pool_scope is not None
+            and self._should_prefer_broader_qlib_cache(
+                cache=cache,
+                cache_model=cache_model,
+            )
+        ):
+            broader_cache_result = self._select_broader_cache_for_scope(
+                cache_model=cache_model,
+                intended_trade_date=intended_trade_date,
+                top_n=top_n,
+                pool_scope=pool_scope,
+            )
+            if broader_cache_result is not None:
+                broader_cache, scores, metadata = broader_cache_result
+                staleness_days = self._calculate_staleness_days(
+                    cache=broader_cache,
+                    intended_trade_date=intended_trade_date,
+                )
+                if not self._is_cache_degraded(
+                    cache=broader_cache,
+                    staleness_days=staleness_days,
+                    cache_model=cache_model,
+                ):
+                    result = self._create_success_result(
+                        scores=scores,
+                        staleness_days=staleness_days,
+                        metadata=metadata,
+                    )
+                    result.metadata = {
+                        **dict(getattr(result, "metadata", {}) or {}),
+                        **metadata,
+                    }
+                    return result
+
+        if not cache and pool_scope is not None:
+            broader_cache_result = self._select_broader_cache_for_scope(
+                cache_model=cache_model,
+                intended_trade_date=intended_trade_date,
+                top_n=top_n,
+                pool_scope=pool_scope,
+            )
+            if broader_cache_result is not None:
+                broader_cache, scores, metadata = broader_cache_result
+                staleness_days = self._calculate_staleness_days(
+                    cache=broader_cache,
+                    intended_trade_date=intended_trade_date,
+                )
+                if self._is_cache_degraded(
+                    cache=broader_cache,
+                    staleness_days=staleness_days,
+                    cache_model=cache_model,
+                ):
+                    result = self._create_degraded_result(
+                        scores=scores,
+                        staleness_days=staleness_days,
+                        reason=self._build_cache_degraded_reason(
+                            cache=broader_cache,
+                            staleness_days=staleness_days,
+                            cache_model=cache_model,
+                            fallback_reason=(
+                                f"账户池专属缓存缺失，改用 {metadata['scope_fallback_source_universe_id']} "
+                                f"裁剪后的历史缓存，数据过期 {staleness_days} 天"
+                            ),
+                        ),
+                    )
+                else:
+                    result = self._create_success_result(
+                        scores=scores,
+                        staleness_days=staleness_days,
+                        metadata=metadata,
+                    )
+                result.metadata = {
+                    **dict(getattr(result, "metadata", {}) or {}),
+                    **metadata,
+                }
+                return result
+
         if not cache:
             return self._create_error_result(
                 f"未找到 {universe_id} 的缓存数据", status="unavailable"
@@ -189,25 +268,34 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 status="unavailable",
             )
 
-        if is_stale:
-            return self._create_degraded_result(
+        metadata = {
+            **self._build_cache_metadata(cache=cache),
+        }
+        if self._is_cache_degraded(
+            cache=cache,
+            staleness_days=staleness_days,
+            cache_model=cache_model,
+        ):
+            degraded_reason = self._build_cache_degraded_reason(
+                cache=cache,
+                staleness_days=staleness_days,
+                cache_model=cache_model,
+            )
+            result = self._create_degraded_result(
                 scores=scores,
                 staleness_days=staleness_days,
-                reason=f"缓存数据过期 {staleness_days} 天（最大允许 {self.max_staleness_days} 天）",
+                reason=degraded_reason,
             )
+            result.metadata = {
+                **metadata,
+                "fallback_reason": degraded_reason,
+            }
+            return result
 
         return self._create_success_result(
             scores=scores,
             staleness_days=staleness_days,
-            metadata={
-                "cache_date": cache.intended_trade_date.isoformat(),
-                "asof_date": cache.asof_date.isoformat(),
-                "provider_source": cache.provider_source,
-                "created_at": cache.created_at.isoformat(),
-                "scope_hash": cache.scope_hash,
-                "scope_label": cache.scope_label,
-                "scope_metadata": cache.scope_metadata or {},
-            },
+            metadata=metadata,
         )
 
     def _build_universe_filter(
@@ -263,12 +351,150 @@ class CacheAlphaProvider(BaseAlphaProvider):
                 return historical_cache
         return exact_cache
 
+    def _select_broader_cache_for_scope(
+        self,
+        *,
+        cache_model,
+        intended_trade_date: date,
+        top_n: int,
+        pool_scope: AlphaPoolScope,
+    ) -> tuple[object, list[StockScore], dict[str, object]] | None:
+        scope_codes = {normalize_stock_code(code) for code in pool_scope.instrument_codes}
+        if not scope_codes:
+            return None
+
+        broader_caches = (
+            cache_model.objects.filter(
+                user=None,
+                provider_source=cache_model.PROVIDER_QLIB,
+                intended_trade_date__lte=intended_trade_date,
+            )
+            .exclude(scores=[])
+            .exclude(scope_hash=pool_scope.scope_hash)
+            .order_by("-asof_date", "-intended_trade_date", "-created_at")[:30]
+        )
+
+        for broader_cache in broader_caches:
+            filtered_scores = self._filter_scores_by_scope(
+                raw_scores=broader_cache.scores or [],
+                allowed_codes=scope_codes,
+                top_n=top_n,
+                default_asof_date=broader_cache.asof_date,
+                default_intended_trade_date=broader_cache.intended_trade_date,
+            )
+            if not filtered_scores:
+                continue
+            return (
+                broader_cache,
+                filtered_scores,
+                {
+                    **self._build_cache_metadata(cache=broader_cache),
+                    "cache_date": broader_cache.intended_trade_date.isoformat(),
+                    "asof_date": broader_cache.asof_date.isoformat(),
+                    "provider_source": broader_cache.provider_source,
+                    "created_at": broader_cache.created_at.isoformat(),
+                    "scope_hash": pool_scope.scope_hash,
+                    "scope_label": pool_scope.display_label,
+                    "scope_metadata": pool_scope.to_dict(),
+                    "scope_fallback": True,
+                    "scope_fallback_universe_id": broader_cache.universe_id,
+                    "scope_fallback_source_universe_id": broader_cache.universe_id,
+                    "scope_fallback_reason": (
+                        f"账户池专属缓存缺失，已使用 {broader_cache.universe_id} 的最近 Qlib 缓存，"
+                        "并按当前账户池成分裁剪。"
+                    ),
+                    "derived_from_broader_cache": True,
+                    "derived_from_broader_cache_universe_id": broader_cache.universe_id,
+                    "derived_from_broader_cache_reason": (
+                        f"账户池专属缓存缺失，已使用 {broader_cache.universe_id} 的最近 Qlib 缓存，"
+                        "并按当前账户池成分裁剪。"
+                    ),
+                    "reliability_notice": {
+                        "level": "warning",
+                        "code": "scoped_cache_derived_from_broader_cache",
+                        "title": "Alpha 当前使用账户池映射缓存",
+                        "message": (
+                            f"账户池专属缓存尚未生成，当前展示的是 {broader_cache.intended_trade_date.isoformat()} "
+                            f"的 {broader_cache.universe_id} Qlib 缓存，并按当前账户池成分裁剪后的结果。"
+                        ),
+                    },
+                },
+            )
+        return None
+
+    def _filter_scores_by_scope(
+        self,
+        *,
+        raw_scores: list,
+        allowed_codes: set[str],
+        top_n: int,
+        default_asof_date: date | None,
+        default_intended_trade_date: date | None,
+    ) -> list[StockScore]:
+        filtered_raw_scores = []
+        for item in raw_scores:
+            payload = dict(item)
+            normalized_code = normalize_stock_code(payload.get("code"))
+            if normalized_code and normalized_code in allowed_codes:
+                payload["code"] = normalized_code
+                filtered_raw_scores.append(payload)
+        return self._parse_scores(
+            filtered_raw_scores,
+            top_n,
+            default_asof_date=default_asof_date,
+            default_intended_trade_date=default_intended_trade_date,
+        )
+
     @staticmethod
     def _calculate_staleness_days(*, cache, intended_trade_date: date) -> int:
         """Calculate cache age relative to the requested signal date."""
         if not cache.asof_date:
             return 999
         return max((intended_trade_date - cache.asof_date).days, 0)
+
+    @staticmethod
+    def _build_cache_metadata(*, cache) -> dict[str, object]:
+        metadata = dict(getattr(cache, "metrics_snapshot", {}) or {})
+        metadata.update(
+            {
+                "cache_date": cache.intended_trade_date.isoformat(),
+                "asof_date": cache.asof_date.isoformat() if cache.asof_date else None,
+                "provider_source": cache.provider_source,
+                "created_at": cache.created_at.isoformat(),
+                "cache_status": cache.status,
+                "scope_hash": cache.scope_hash,
+                "scope_label": cache.scope_label,
+                "scope_metadata": cache.scope_metadata or {},
+            }
+        )
+        return metadata
+
+    def _is_cache_degraded(self, *, cache, staleness_days: int, cache_model) -> bool:
+        if staleness_days > self.max_staleness_days:
+            return True
+        return getattr(cache, "status", "") == cache_model.STATUS_DEGRADED
+
+    @staticmethod
+    def _should_prefer_broader_qlib_cache(*, cache, cache_model) -> bool:
+        if getattr(cache, "status", "") != cache_model.STATUS_DEGRADED:
+            return False
+        metrics_snapshot = dict(getattr(cache, "metrics_snapshot", {}) or {})
+        return metrics_snapshot.get("fallback_mode") == "forward_fill_latest_qlib_cache"
+
+    def _build_cache_degraded_reason(
+        self,
+        *,
+        cache,
+        staleness_days: int,
+        cache_model,
+        fallback_reason: str | None = None,
+    ) -> str:
+        if staleness_days > self.max_staleness_days:
+            return f"缓存数据过期 {staleness_days} 天（最大允许 {self.max_staleness_days} 天）"
+        if getattr(cache, "status", "") == cache_model.STATUS_DEGRADED:
+            metrics_snapshot = dict(getattr(cache, "metrics_snapshot", {}) or {})
+            return str(metrics_snapshot.get("fallback_reason") or fallback_reason or "缓存结果当前为降级状态")
+        return str(fallback_reason or "")
 
     def _parse_scores(
         self,

@@ -389,12 +389,27 @@
 </div>
 
 <script>
-const DASHBOARD_ALPHA_API_URL = '/api/dashboard/alpha/stocks/?format=json&top_n=10';
 const urlParams = new URLSearchParams(window.location.search);
 let screeningResults = [];
 let currentResults = [];
 let currentSourceLabel = '手动筛选';
 let autoRecommendationItems = [];
+
+function buildDashboardAlphaApiUrl() {
+    const query = new URLSearchParams();
+    query.set('format', 'json');
+    query.set('top_n', '10');
+
+    const portfolioId = urlParams.get('portfolio_id');
+    const poolMode = urlParams.get('pool_mode');
+    if (portfolioId) {
+        query.set('portfolio_id', portfolioId);
+    }
+    if (poolMode) {
+        query.set('pool_mode', poolMode);
+    }
+    return `/api/dashboard/alpha/stocks/?${query.toString()}`;
+}
 
 function switchTab(tab) {
     // Tab 切换逻辑
@@ -663,12 +678,14 @@ async function loadDashboardAlphaRecommendations(renderResults = true) {
 
     const startTime = Date.now();
     try {
-        const payload = await window.fetchJsonOrThrow(DASHBOARD_ALPHA_API_URL, {
+        const payload = await window.fetchJsonOrThrow(buildDashboardAlphaApiUrl(), {
             headers: {
                 'Accept': 'application/json'
             }
         });
-        const items = Array.isArray(payload?.data?.items) ? payload.data.items : [];
+        const items = Array.isArray(payload?.data?.items)
+            ? payload.data.items
+            : (Array.isArray(payload?.data?.top_candidates) ? payload.data.top_candidates : []);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         autoRecommendationItems = items;
         renderAutoRecommendationGrid(items);

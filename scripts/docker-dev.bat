@@ -159,7 +159,9 @@ REM ========== 5. Start Celery Worker ==========
 if %START_CELERY%==1 (
     call :kill_existing_celery_worker
     echo [5/5] Starting Celery Worker...
-    start "Celery Worker" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && .\%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo"
+    REM Listen to the default queue plus dedicated Qlib queues; otherwise
+    REM qlib_predict_scores stays stuck in qlib_infer and homepage Alpha never refreshes.
+    start "Celery Worker" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && .\%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo -Q celery,qlib_infer,qlib_train"
     timeout /t 2 >nul
     echo [OK] Celery Worker started
 )

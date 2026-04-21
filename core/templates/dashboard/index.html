@@ -449,7 +449,7 @@
                     <div class="card-header">
                         <h3>账户驱动 Alpha 候选</h3>
                         <div class="alpha-card-actions">
-                            <a href="{% url 'equity:screen' %}?source=dashboard-alpha" class="alpha-section-link">进入个股筛选</a>
+                            <a href="{% url 'equity:screen' %}?source=dashboard-alpha{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if alpha_pool.pool_mode %}&pool_mode={{ alpha_pool.pool_mode }}{% endif %}" class="alpha-section-link">进入个股筛选</a>
                             <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-section-link">推荐历史</a>
                             <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
                         </div>

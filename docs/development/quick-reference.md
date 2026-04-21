@@ -78,6 +78,9 @@ agomtradepro/Scripts/python manage.py list_models
 - `install.bat` 默认只安装本地最小运行依赖（`requirements-prod.txt`），不会再强制拉起 Playwright / pytest 等开发工具；如需完整开发栈，显式使用 `install.bat --dev`。
 - `scripts/dev.bat` 现在会先执行 `manage.py bootstrap_local_env`，自动创建 `.env` 并补齐 `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`，避免首次启动出现密钥缺失 warning。
 - 开发环境默认强制使用本地内存缓存；即使 `.env` 里保留了 `REDIS_URL`，也不会把登录和页面 API 绑死到 Redis。只有显式设置 `USE_REDIS_CACHE=true` 才会启用开发态 Redis 缓存。
+- 使用 `start.bat` 选项 `2` / `scripts/docker-dev.bat --sqlite` 启动 Celery 时，worker 会同时监听 `celery,qlib_infer,qlib_train` 三个队列；否则 `apps.alpha.application.tasks.qlib_predict_scores` 会堆积在 `qlib_infer` 队列，首页 Alpha 无法自动刷新。
+- Dashboard 首页 Alpha 默认仍优先走账户池专属 cache；当 `strict_valuation` / `price_covered` 覆盖过窄时，系统会自动扩大到更宽的账户池模式，并优先复用最近的广义 Qlib cache 再按当前账户池成分裁剪，避免空白推荐。
+- `python manage.py build_qlib_data --check-only` 的默认新鲜度窗口已收紧到 `5` 天，与首页 Alpha cache 判定保持一致；若请求日尚无本地日线，但最新交易日仍在该窗口内，页面会展示“最新可用交易日”的 Qlib 结果，而不是误报为历史缓存。
 - 本地未启动 Redis 时，登录锁定缓存和 DRF 节流会自动降级为“记录 warning 但不阻断页面/API”，因此 `/ai/`、`/ai/me/`、`/ai/quotas/` 等入口不再因 Redis 缺失直接报 500。
 - 从 2026-04-03 起，开发环境 `runserver` 会额外落盘到项目本地 `logs/` 目录，文件名格式为 `django-dev-YYYYMMDD-HHMMSS.log`，每次启动生成一个新文件。
 - 开发日志默认按单文件 `20MB` 轮转，保留 `5` 个备份；可用环境变量 `DJANGO_DEV_LOG_MAX_MB` 和 `DJANGO_DEV_LOG_BACKUP_COUNT` 覆盖。
@@ -635,6 +638,12 @@ pip install -r requirements.txt
 - 访问 `/admin/` Django Admin 后台
 - 访问 `/api/regime/current/` 获取当前 Regime
 - 访问 `/api/realtime/health/` 检查实时数据服务状态
+
+## Alpha / Screen Notes
+
+- `/api/dashboard/alpha/stocks/` JSON 同时返回 `data.items` 和 `data.top_candidates`，供首页 HTMX 和 `/equity/screen/` 共用。
+- 从首页进入 `/equity/screen/?source=dashboard-alpha` 时，应同时携带 `portfolio_id` 与 `pool_mode`，保证与首页看到的是同一账户池。
+- `simulated.daily_portfolio_inspection` 必须显式配置有效的 `account_id` 和 `strategy_id`；历史失效 beat 记录不要重新启用，应直接删除后按新配置重建。
 
 ---
 

@@ -1561,6 +1561,7 @@ def alpha_stocks_htmx(request):
             {
                 "success": True,
                 "data": {
+                    "items": scores,
                     "top_candidates": scores,
                     "actionable_candidates": actionable_candidates,
                     "pending_requests": pending_requests,

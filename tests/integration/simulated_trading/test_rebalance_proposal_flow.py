@@ -143,6 +143,31 @@ class TestRebalanceProposalCreation:
         assert proposal["summary"]["sell_count"] == 1
         assert proposal["summary"]["rebalance_assets"] == ["512880.SH", "515050.SH"]
 
+
+@pytest.mark.django_db
+class TestDailyInspectionTaskGuard:
+    """Task guard rails for dirty beat configuration."""
+
+    def test_daily_portfolio_inspection_task_skips_when_missing_configuration(self):
+        result = daily_portfolio_inspection_task.__wrapped__(
+            account_id=None,
+            strategy_id=None,
+        )
+
+        assert result["success"] is True
+        assert result["status"] == "skipped"
+        assert result["reason"] == "missing_task_configuration"
+
+    def test_daily_portfolio_inspection_task_skips_when_account_is_missing(self):
+        result = daily_portfolio_inspection_task.__wrapped__(
+            account_id=679,
+            strategy_id=4,
+        )
+
+        assert result["success"] is True
+        assert result["status"] == "skipped"
+        assert result["reason"] == "account_not_found"
+
     def test_proposal_not_created_when_no_rebalance_needed(self):
         """Test proposal is not created when no rebalance is needed."""
         from django.contrib.auth import get_user_model
@@ -648,6 +673,7 @@ class TestDailyInspectionWithProposal:
         ):
             result = daily_portfolio_inspection_task(
                 account_id=account.id,
+                strategy_id=4,
                 auto_create_proposal=True,
             )
 

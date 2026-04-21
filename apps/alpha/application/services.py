@@ -45,12 +45,63 @@ def _derive_result_asof_date(result: AlphaResult) -> str | None:
     return None
 
 
+def _parse_result_date(value: object) -> date | None:
+    """Parse ISO-like metadata values into dates."""
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def _is_latest_available_qlib_result(
+    result: AlphaResult,
+    intended_trade_date: date,
+) -> bool:
+    """Return True when the cache row is only the delivery channel for the latest Qlib output."""
+    metadata = result.metadata or {}
+    if result.status != "available":
+        return False
+    if str(metadata.get("provider_source") or "").strip().lower() != "qlib":
+        return False
+    if metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache":
+        return False
+
+    asof_date = (
+        _parse_result_date(metadata.get("effective_asof_date"))
+        or _parse_result_date(metadata.get("asof_date"))
+        or _parse_result_date(metadata.get("fallback_source_asof_date"))
+        or next(
+            (
+                getattr(score, "asof_date", None)
+                for score in result.scores
+                if getattr(score, "asof_date", None) is not None
+            ),
+            None,
+        )
+    )
+    if asof_date is None:
+        return False
+
+    if metadata.get("trade_date_adjusted"):
+        effective_trade_date = _parse_result_date(metadata.get("effective_trade_date")) or asof_date
+        return asof_date == effective_trade_date
+
+    return asof_date == intended_trade_date
+
+
 def _build_reliability_notice(
     result: AlphaResult,
     intended_trade_date: date,
 ) -> dict[str, str] | None:
     """Build a user-facing reliability notice for degraded or unavailable Alpha results."""
     metadata = result.metadata or {}
+    explicit_notice = metadata.get("reliability_notice")
+    if isinstance(explicit_notice, dict) and explicit_notice.get("message"):
+        return explicit_notice
     asof_date = _derive_result_asof_date(result)
     fallback_mode = metadata.get("fallback_mode")
     qlib_latest_date = metadata.get("qlib_data_latest_date")
@@ -122,10 +173,14 @@ def _enrich_result_metadata(result: AlphaResult, intended_trade_date: date) -> A
     metadata = dict(result.metadata or {})
     asof_date = _derive_result_asof_date(result)
     notice = _build_reliability_notice(result, intended_trade_date)
+    latest_available_qlib = _is_latest_available_qlib_result(result, intended_trade_date)
     uses_cached_data = (
-        result.source == "cache"
-        or metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache"
-        or metadata.get("provider_source") == "cache"
+        not latest_available_qlib
+        and (
+            result.source == "cache"
+            or metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache"
+            or metadata.get("provider_source") == "cache"
+        )
     )
     metadata.update(
         {
@@ -133,6 +188,7 @@ def _enrich_result_metadata(result: AlphaResult, intended_trade_date: date) -> A
             "effective_asof_date": asof_date,
             "is_degraded": result.status == "degraded",
             "uses_cached_data": uses_cached_data,
+            "latest_available_qlib_result": latest_available_qlib,
             "reliability_notice": notice,
         }
     )

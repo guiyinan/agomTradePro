@@ -192,6 +192,8 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
         updated_count = 0
         error_count = 0
         errors: list[dict[str, Any]] = []
+        warning_count = 0
+        warnings: list[dict[str, Any]] = []
 
         for account in accounts:
             positions = position_repo.get_by_account(account.account_id)
@@ -206,31 +208,36 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
                     )
 
                     # 更新持仓价格和市值
-                    from apps.simulated_trading.domain.entities import Position
-                    updated_position = Position(
-                        position_id=position.position_id,
-                        account_id=position.account_id,
-                        asset_code=position.asset_code,
-                        asset_name=position.asset_name,
-                        asset_type=position.asset_type,
-                        quantity=position.quantity,
-                        available_quantity=position.available_quantity,
-                        avg_cost=position.avg_cost,
-                        total_cost=position.total_cost,
+                    updated_position = replace(
+                        position,
                         current_price=current_price,
                         market_value=position.quantity * current_price,
                         unrealized_pnl=(current_price - position.avg_cost) * position.quantity,
                         unrealized_pnl_pct=((current_price - position.avg_cost) / position.avg_cost) * 100
                         if position.avg_cost > 0 else 0.0,
-                        first_buy_date=position.first_buy_date,
                         last_update_date=date.today(),
-                        signal_id=position.signal_id,
-                        entry_reason=position.entry_reason,
                     )
                     position_repo.save(updated_position)
                     updated_count += 1
 
                 except DataFetchError as e:
+                    if position.current_price > 0:
+                        logger.warning(
+                            "更新持仓 %s 失败，沿用库内价格: %s",
+                            position.asset_code,
+                            e,
+                        )
+                        warning_count += 1
+                        warnings.append(
+                            {
+                                "account_id": account.account_id,
+                                "asset_code": position.asset_code,
+                                "warning": str(e),
+                                "fallback": "cached_position_price",
+                                "details": e.details,
+                            }
+                        )
+                        continue
                     logger.error(f"更新持仓 {position.asset_code} 失败: {e}")
                     account_has_errors = True
                     error_count += 1
@@ -276,6 +283,8 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
         return {
             'success': error_count == 0,
             'updated_count': updated_count,
+            'warning_count': warning_count,
+            'warnings': warnings,
             'error_count': error_count,
             'errors': errors,
         }
@@ -563,16 +572,16 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
 )
 def daily_portfolio_inspection_task(
     self,
-    account_id: int = 679,
-    strategy_id: int | None = 4,
+    account_id: int | None = None,
+    strategy_id: int | None = None,
     inspection_date: str | None = None,
     auto_create_proposal: bool = True,
 ) -> dict[str, Any]:
     """
     日更巡检任务（ETF稳健组合）
 
-    默认巡检账户 679，自动读取策略 4 及其仓位规则。
-    可选择是否自动创建再平衡建议草案。
+    该任务必须由 beat/调度器显式提供 account_id 和 strategy_id。
+    未配置时直接跳过，避免历史脏配置持续刷错。
 
     Args:
         account_id: 账户ID
@@ -588,8 +597,34 @@ def daily_portfolio_inspection_task(
         target_date,
         auto_create_proposal,
     )
+    if account_id is None or strategy_id is None:
+        logger.warning(
+            "跳过日更巡检：缺少必要配置 account_id=%s strategy_id=%s",
+            account_id,
+            strategy_id,
+        )
+        return {
+            "success": True,
+            "status": "skipped",
+            "reason": "missing_task_configuration",
+            "account_id": account_id,
+            "strategy_id": strategy_id,
+            "inspection_date": target_date.isoformat(),
+        }
     try:
-        inspection_repo = DjangoInspectionRepository()
+        account_repo = DjangoSimulatedAccountRepository()
+        account = account_repo.get_by_id(account_id)
+        if account is None:
+            logger.warning("跳过日更巡检：账户不存在 account_id=%s", account_id)
+            return {
+                "success": True,
+                "status": "skipped",
+                "reason": "account_not_found",
+                "account_id": account_id,
+                "strategy_id": strategy_id,
+                "inspection_date": target_date.isoformat(),
+            }
+
         # 使用新方法运行巡检并可能创建再平衡建议
         result = DailyInspectionService.run_and_create_proposal(
             account_id=account_id,

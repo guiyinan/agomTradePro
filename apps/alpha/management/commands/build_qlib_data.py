@@ -16,7 +16,7 @@ def _build_qlib_blocker_message(
     *,
     target_date: date,
     has_tushare_token: bool,
-    max_staleness_days: int = 10,
+    max_staleness_days: int = 5,
 ) -> str | None:
     """Return a user-facing blocker when local/public qlib data is still stale."""
     if latest_trade_date is not None and target_date <= latest_trade_date + timedelta(days=max_staleness_days):
@@ -90,7 +90,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--max-staleness-days",
             type=int,
-            default=10,
+            default=5,
             dest="max_staleness_days",
             help="Allowed staleness window before data is considered blocked.",
         )

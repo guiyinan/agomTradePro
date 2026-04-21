@@ -16,7 +16,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from apps.alpha.domain.entities import normalize_stock_code
-from apps.alpha.infrastructure.qlib_builder import resolve_effective_trade_date
+from apps.alpha.infrastructure.qlib_builder import normalize_qlib_symbol, resolve_effective_trade_date
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,31 @@ def _normalize_calendar_date(value) -> date | None:
         return date.fromisoformat(str(value)[:10])
     except ValueError:
         return None
+
+
+def _normalize_qlib_instrument_code(raw_code: str) -> str:
+    """Convert app-level stock codes into qlib instrument ids when needed."""
+    normalized = str(raw_code or "").strip()
+    if not normalized:
+        return normalized
+    if "." in normalized:
+        return normalize_qlib_symbol(normalized)
+    if normalized[:2].upper() in {"SH", "SZ", "BJ"}:
+        return normalized.upper()
+    return normalized
+
+
+def _normalize_qlib_instrument_list(raw_codes: list[str] | tuple[str, ...]) -> list[str]:
+    """Normalize and de-duplicate qlib instrument codes while keeping order."""
+    normalized_codes: list[str] = []
+    seen: set[str] = set()
+    for raw_code in raw_codes:
+        normalized_code = _normalize_qlib_instrument_code(str(raw_code))
+        if not normalized_code or normalized_code in seen:
+            continue
+        normalized_codes.append(normalized_code)
+        seen.add(normalized_code)
+    return normalized_codes
 
 
 def _install_qlib_pandas_compat() -> None:
@@ -666,7 +691,8 @@ def qlib_evaluate_model(
 def qlib_refresh_cache(
     self,
     universe_id: str,
-    days_back: int = 7
+    days_back: int = 7,
+    top_n: int = 30,
 ) -> dict:
     """
     刷新 Qlib 缓存任务
@@ -676,6 +702,7 @@ def qlib_refresh_cache(
     Args:
         universe_id: 股票池标识
         days_back: 回溯天数
+        top_n: 每日缓存保留的推荐数量
 
     Returns:
         刷新结果字典
@@ -687,7 +714,7 @@ def qlib_refresh_cache(
     try:
         from datetime import timedelta
 
-        logger.info(f"开始刷新缓存: {universe_id}, 回溯 {days_back} 天")
+        logger.info(f"开始刷新缓存: {universe_id}, 回溯 {days_back} 天, top_n={top_n}")
 
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
@@ -700,7 +727,8 @@ def qlib_refresh_cache(
             if current_date.weekday() < 5:  # 周一到周五
                 result = qlib_predict_scores.delay(
                     universe_id,
-                    current_date.isoformat()
+                    current_date.isoformat(),
+                    top_n,
                 )
                 results.append({
                     "date": current_date.isoformat(),
@@ -714,6 +742,7 @@ def qlib_refresh_cache(
         return {
             "status": "success",
             "universe_id": universe_id,
+            "top_n": top_n,
             "tasks_triggered": len(results),
             "tasks": results,
         }
@@ -848,10 +877,20 @@ def _reuse_latest_qlib_cache(
     ).order_by("-intended_trade_date", "-created_at").first()
     if latest_cache is None:
         latest_cache = base_queryset.order_by("-intended_trade_date", "-created_at").first()
+    reused_scores_data: list[dict] | None = None
+    if latest_cache is None and pool_scope is not None:
+        broader_cache_result = _find_broader_qlib_cache_for_scope(
+            active_model=active_model,
+            trade_date=trade_date,
+            top_n=top_n,
+            pool_scope=pool_scope,
+        )
+        if broader_cache_result is not None:
+            latest_cache, reused_scores_data = broader_cache_result
     if latest_cache is None:
         return None
 
-    scores_data = _normalize_reused_scores(latest_cache.scores or [], top_n)
+    scores_data = reused_scores_data or _normalize_reused_scores(latest_cache.scores or [], top_n)
     if not scores_data:
         return None
 
@@ -862,6 +901,17 @@ def _reuse_latest_qlib_cache(
         "fallback_source_trade_date": latest_cache.intended_trade_date.isoformat(),
         "fallback_source_asof_date": latest_cache.asof_date.isoformat(),
     })
+    if reused_scores_data is not None:
+        metrics_snapshot.update(
+            {
+                "scope_fallback": True,
+                "scope_fallback_universe_id": latest_cache.universe_id,
+                "scope_fallback_reason": (
+                    f"账户池专属 Qlib cache 缺失，已使用 {latest_cache.universe_id} "
+                    "的最近缓存并按当前账户池成分裁剪。"
+                ),
+            }
+        )
     if extra_metadata:
         metrics_snapshot.update(extra_metadata)
 
@@ -887,8 +937,57 @@ def _reuse_latest_qlib_cache(
         "model_artifact_hash": active_model.artifact_hash,
         "fallback_source_trade_date": latest_cache.intended_trade_date.isoformat(),
         "fallback_source_asof_date": latest_cache.asof_date.isoformat(),
+        "scope_fallback_universe_id": latest_cache.universe_id if reused_scores_data is not None else None,
         **(extra_metadata or {}),
     }
+
+
+def _find_broader_qlib_cache_for_scope(
+    *,
+    active_model,
+    trade_date: date,
+    top_n: int,
+    pool_scope,
+) -> tuple[object, list[dict]] | None:
+    """Find a broader qlib cache row and trim it to the current scoped instrument set."""
+    from ..infrastructure.models import AlphaScoreCacheModel
+
+    scope_codes = {
+        normalize_stock_code(raw_code)
+        for raw_code in getattr(pool_scope, "instrument_codes", ()) or ()
+        if normalize_stock_code(raw_code)
+    }
+    if not scope_codes:
+        return None
+
+    querysets = [
+        AlphaScoreCacheModel._default_manager.filter(
+            provider_source="qlib",
+            intended_trade_date__lte=trade_date,
+            model_artifact_hash=active_model.artifact_hash,
+        ).exclude(scores=[]),
+        AlphaScoreCacheModel._default_manager.filter(
+            provider_source="qlib",
+            intended_trade_date__lte=trade_date,
+        ).exclude(scores=[]),
+    ]
+
+    for queryset in querysets:
+        broader_caches = queryset.exclude(scope_hash=getattr(pool_scope, "scope_hash", None)).order_by(
+            "-asof_date", "-intended_trade_date", "-created_at"
+        )[:30]
+        for broader_cache in broader_caches:
+            filtered_scores: list[dict] = []
+            for raw_score in broader_cache.scores or []:
+                score_item = dict(raw_score)
+                normalized_code = normalize_stock_code(score_item.get("code"))
+                if normalized_code and normalized_code in scope_codes:
+                    score_item["code"] = normalized_code
+                    filtered_scores.append(score_item)
+            normalized_scores = _normalize_reused_scores(filtered_scores, top_n)
+            if normalized_scores:
+                return broader_cache, normalized_scores
+    return None
 
 def _execute_qlib_prediction(
     active_model,
@@ -949,7 +1048,7 @@ def _execute_qlib_prediction(
             model = pickle.load(f)
 
         if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
-            stock_list = list(pool_scope.instrument_codes)
+            stock_list = _normalize_qlib_instrument_list(list(pool_scope.instrument_codes))
         else:
             stock_list = _resolve_qlib_stock_list(
                 D,

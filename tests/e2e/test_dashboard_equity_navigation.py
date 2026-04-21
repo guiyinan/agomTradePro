@@ -29,7 +29,7 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
     monkeypatch.setattr(
         views,
         "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None, portfolio_id=None: {
+        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None: {
             "items": [
                 {
                     "code": "600519.SH",
@@ -61,6 +61,7 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
     assert payload["success"] is True
     assert payload["data"]["count"] == 1
     assert payload["data"]["top_n"] == 5
+    assert payload["data"]["items"][0]["code"] == "600519.SH"
     assert payload["data"]["top_candidates"][0]["code"] == "600519.SH"
 
 
@@ -70,7 +71,8 @@ def test_equity_screen_page_contains_dashboard_alpha_navigation(authenticated_cl
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
-    assert "/api/dashboard/alpha/stocks/?format=json&top_n=10" in content
+    assert "/api/dashboard/alpha/stocks/" in content
+    assert "buildDashboardAlphaApiUrl" in content
     assert "系统自动推荐" in content
     assert "手动二次筛选" in content
     assert "/decision/workspace/?source=equity-screen&security_code=" in content
@@ -83,7 +85,7 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
     monkeypatch.setattr(
         views,
         "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None, portfolio_id=None: {
+        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None: {
             "items": [
                 {
                     "code": "600519.SH",

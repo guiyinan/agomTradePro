@@ -184,11 +184,19 @@ class AlphaVisualizationQuery:
             metadata.setdefault("fallback_from", "qlib")
             metadata.setdefault("fallback_reason", fallback_reason)
             metadata["refresh_triggered"] = refresh_triggered
-            metadata["uses_cached_data"] = selected_provider == "cache" or bool(
+            metadata["uses_cached_data"] = bool(
                 metadata.get("uses_cached_data", False)
+                or (
+                    selected_provider == "cache"
+                    and not metadata.get("latest_available_qlib_result", False)
+                )
             )
 
-            if selected_provider == "cache" and not metadata.get("reliability_notice"):
+            if (
+                selected_provider == "cache"
+                and metadata.get("uses_cached_data")
+                and not metadata.get("reliability_notice")
+            ):
                 message = f"当前展示的是 {asof_date or '未知日期'} 的缓存评分。原因：{fallback_reason}"
                 if refresh_triggered:
                     message += " 系统已自动触发实时刷新任务，可稍后重试。"

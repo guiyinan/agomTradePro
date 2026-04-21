@@ -653,6 +653,11 @@ class TestPriceUpdateTask(TestCase):
         )
 
     def test_update_position_prices_task_returns_error_when_price_missing(self):
+        PositionModel.objects.filter(account_id=self.account.account_id, asset_code="510300.SH").update(
+            current_price=0,
+            market_value=0,
+        )
+
         with patch(
             "apps.simulated_trading.application.tasks.UnifiedPriceService.require_latest_price",
             side_effect=DataFetchError(
@@ -668,3 +673,24 @@ class TestPriceUpdateTask(TestCase):
         self.assertEqual(result["error_count"], 1)
         self.assertEqual(result["errors"][0]["asset_code"], "510300.SH")
         self.assertEqual(result["errors"][0]["details"]["asset_type"], "etf")
+
+    def test_update_position_prices_task_uses_cached_price_when_latest_price_missing(self):
+        position = self.position_repo.get_position(self.account.account_id, "510300.SH")
+        assert position is not None
+
+        with patch(
+            "apps.simulated_trading.application.tasks.UnifiedPriceService.require_latest_price",
+            side_effect=DataFetchError(
+                message="无法获取 510300.SH 的最新价格",
+                code="PRICE_UNAVAILABLE",
+                details={"requested_code": "510300.SH", "asset_type": "etf"},
+            ),
+        ):
+            result = update_position_prices_task.__wrapped__(account_id=self.account.account_id)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["updated_count"], 0)
+        self.assertEqual(result["warning_count"], 1)
+        self.assertEqual(result["error_count"], 0)
+        self.assertEqual(result["warnings"][0]["asset_code"], "510300.SH")
+        self.assertEqual(result["warnings"][0]["fallback"], "cached_position_price")
