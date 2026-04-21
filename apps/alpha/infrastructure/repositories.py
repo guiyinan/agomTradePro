@@ -149,3 +149,72 @@ class QlibModelRegistryRepository:
 
         model.save(update_fields=["ic", "icir", "rank_ic"])
         return model
+
+
+class AlphaScoreCacheRepository:
+    """ORM-backed access to Alpha score cache rows."""
+
+    def get_latest_qlib_cache(
+        self,
+        *,
+        universe_id: str,
+        model_artifact_hash: str,
+        scope_hash: str | None = None,
+    ) -> Any | None:
+        from .models import AlphaScoreCacheModel
+
+        queryset = AlphaScoreCacheModel._default_manager.filter(
+            universe_id=universe_id,
+            provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        ).exclude(scores=[])
+        if scope_hash is not None:
+            queryset = queryset.filter(scope_hash=scope_hash)
+
+        latest_cache = queryset.filter(
+            model_artifact_hash=model_artifact_hash,
+        ).order_by("-intended_trade_date", "-created_at").first()
+        if latest_cache is not None:
+            return latest_cache
+        return queryset.order_by("-intended_trade_date", "-created_at").first()
+
+    def find_broader_qlib_cache_for_scope(
+        self,
+        *,
+        trade_date: date,
+        model_artifact_hash: str,
+        scope_hash: str | None,
+        allowed_codes: set[str],
+        limit: int = 30,
+    ) -> tuple[Any, list[dict[str, Any]]] | None:
+        from .models import AlphaScoreCacheModel
+
+        if not allowed_codes:
+            return None
+
+        querysets = [
+            AlphaScoreCacheModel._default_manager.filter(
+                provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+                intended_trade_date__lte=trade_date,
+                model_artifact_hash=model_artifact_hash,
+            ).exclude(scores=[]),
+            AlphaScoreCacheModel._default_manager.filter(
+                provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+                intended_trade_date__lte=trade_date,
+            ).exclude(scores=[]),
+        ]
+
+        for queryset in querysets:
+            broader_caches = queryset.exclude(scope_hash=scope_hash).order_by(
+                "-asof_date", "-intended_trade_date", "-created_at"
+            )[:limit]
+            for broader_cache in broader_caches:
+                filtered_scores: list[dict[str, Any]] = []
+                for raw_score in broader_cache.scores or []:
+                    score_item = dict(raw_score)
+                    normalized_code = normalize_stock_code(score_item.get("code"))
+                    if normalized_code and normalized_code in allowed_codes:
+                        score_item["code"] = normalized_code
+                        filtered_scores.append(score_item)
+                if filtered_scores:
+                    return broader_cache, filtered_scores
+        return None

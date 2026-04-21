@@ -864,19 +864,14 @@ def _reuse_latest_qlib_cache(
     extra_metadata: dict | None = None,
 ) -> dict | None:
     """Forward-fill the latest qlib cache into today's active model slot when fresh inference fails."""
-    from ..infrastructure.models import AlphaScoreCacheModel
+    from ..infrastructure.repositories import AlphaScoreCacheRepository
 
-    base_queryset = AlphaScoreCacheModel._default_manager.filter(
+    cache_repository = AlphaScoreCacheRepository()
+    latest_cache = cache_repository.get_latest_qlib_cache(
         universe_id=universe_id,
-        provider_source="qlib",
-    ).exclude(scores=[])
-    if pool_scope is not None:
-        base_queryset = base_queryset.filter(scope_hash=pool_scope.scope_hash)
-    latest_cache = base_queryset.filter(
-        model_artifact_hash=active_model.artifact_hash
-    ).order_by("-intended_trade_date", "-created_at").first()
-    if latest_cache is None:
-        latest_cache = base_queryset.order_by("-intended_trade_date", "-created_at").first()
+        model_artifact_hash=active_model.artifact_hash,
+        scope_hash=getattr(pool_scope, "scope_hash", None),
+    )
     reused_scores_data: list[dict] | None = None
     if latest_cache is None and pool_scope is not None:
         broader_cache_result = _find_broader_qlib_cache_for_scope(
@@ -921,14 +916,14 @@ def _reuse_latest_qlib_cache(
         trade_date=trade_date,
         asof_date=latest_cache.asof_date,
         scores_data=scores_data,
-        status=AlphaScoreCacheModel.STATUS_DEGRADED,
+        status="degraded",
         metrics_snapshot=metrics_snapshot,
         pool_scope=pool_scope,
     )
 
     return {
         "status": "success",
-        "cache_status": AlphaScoreCacheModel.STATUS_DEGRADED,
+        "cache_status": "degraded",
         "fallback_used": True,
         "universe_id": universe_id,
         "trade_date": trade_date.isoformat(),
@@ -950,7 +945,7 @@ def _find_broader_qlib_cache_for_scope(
     pool_scope,
 ) -> tuple[object, list[dict]] | None:
     """Find a broader qlib cache row and trim it to the current scoped instrument set."""
-    from ..infrastructure.models import AlphaScoreCacheModel
+    from ..infrastructure.repositories import AlphaScoreCacheRepository
 
     scope_codes = {
         normalize_stock_code(raw_code)
@@ -960,33 +955,17 @@ def _find_broader_qlib_cache_for_scope(
     if not scope_codes:
         return None
 
-    querysets = [
-        AlphaScoreCacheModel._default_manager.filter(
-            provider_source="qlib",
-            intended_trade_date__lte=trade_date,
-            model_artifact_hash=active_model.artifact_hash,
-        ).exclude(scores=[]),
-        AlphaScoreCacheModel._default_manager.filter(
-            provider_source="qlib",
-            intended_trade_date__lte=trade_date,
-        ).exclude(scores=[]),
-    ]
-
-    for queryset in querysets:
-        broader_caches = queryset.exclude(scope_hash=getattr(pool_scope, "scope_hash", None)).order_by(
-            "-asof_date", "-intended_trade_date", "-created_at"
-        )[:30]
-        for broader_cache in broader_caches:
-            filtered_scores: list[dict] = []
-            for raw_score in broader_cache.scores or []:
-                score_item = dict(raw_score)
-                normalized_code = normalize_stock_code(score_item.get("code"))
-                if normalized_code and normalized_code in scope_codes:
-                    score_item["code"] = normalized_code
-                    filtered_scores.append(score_item)
-            normalized_scores = _normalize_reused_scores(filtered_scores, top_n)
-            if normalized_scores:
-                return broader_cache, normalized_scores
+    broader_cache_result = AlphaScoreCacheRepository().find_broader_qlib_cache_for_scope(
+        trade_date=trade_date,
+        model_artifact_hash=active_model.artifact_hash,
+        scope_hash=getattr(pool_scope, "scope_hash", None),
+        allowed_codes=scope_codes,
+    )
+    if broader_cache_result is not None:
+        broader_cache, filtered_scores = broader_cache_result
+        normalized_scores = _normalize_reused_scores(filtered_scores, top_n)
+        if normalized_scores:
+            return broader_cache, normalized_scores
     return None
 
 def _execute_qlib_prediction(
