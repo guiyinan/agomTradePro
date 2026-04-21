@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Dashboard / SDK / MCP 的账户驱动 Alpha 候选读取现统一暴露 `pool_mode`（`strict_valuation` / `market` / `price_covered`）以及共享 `contract` 字段，明确区分可行动推荐、异步刷新中与兜底结果
 - README 新增可日更维护的 `What's New` 区域，便于对外同步最近 1-7 天的重要变化
 - Dashboard 增加可选浏览器级 Pulse 转向提醒（本地 Notification 开关）
 - Regime 页面增加历史 `Regime + Pulse + Action` 三层叠加时序图
@@ -26,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard 新增 Alpha 推荐历史页与历史 JSON 接口，支持查看 run 详情、逐票买入理由、不买理由、证伪条件与建议仓位
 
 ### Changed
+- Pulse 按需重算现在会在重建前刷新上游宏观输入，减少 stale / degraded 快照反复重算后继续输出低质量上下文的情况
+- Alpha Qlib / cache 访问重新回收到 repository 边界内，应用层不再直接碰缓存模型，Architecture Layer Guard 与 Nightly 主链重新对齐
+- Dashboard、Decision Workspace、SDK 与 MCP 现在使用一致的账户池语义和 Alpha 推荐契约，首页研究排序、待执行队列和真实 scoped 推荐的边界更清晰
 - Dashboard 与顶部导航完成 redesign 收口，`beta_gate` / `alpha_trigger` / `decision_rhythm` 不再作为首页独立主入口暴露
 - Dashboard 首页决策入口统一到新的 `decision/workspace` 6-step workflow，不再混用旧的 5-step 主流程表述
 - SDK / MCP / 文档口径统一到当前 canonical 契约，补充 `client.pulse.*` 与 `decision_workflow_get_funnel_context(trade_id, backtest_id)` 使用说明
@@ -56,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 `/api/pulse/current/`、SDK `client.pulse.get_current()` 与 MCP `get_pulse_current()` 在 stale 快照触发刷新时，可能因当前 Regime 解析为 `Unknown` 而覆盖掉最近有效 Pulse 快照的问题
+- 修复 Alpha Qlib 推理与 scoped cache 读取链的边界漂移；Dashboard、Decision、Simulated Trading 和 MCP 读取账户驱动候选时，缓存/回退路径已重新稳定
 - 修复 Dashboard 首页 Alpha 榜单把 Qlib 多级索引 `(Timestamp, code)` 直接序列化进缓存导致股票名解析失败、详情链接 404、因子面板拿不到正确代码的问题；Alpha 缓存现统一写入/读取 canonical 股票代码，并补齐 `asof_date`
 - 调整 Dashboard Alpha 首页为 `qlib -> cache -> simple -> etf` 的实时优先链路，并在使用缓存时显式展示缓存评分日、缓存写入时间和回退原因
 - 新增 Dashboard 手动“实时刷新”入口，可显式触发当天 Qlib 刷新任务；同时对 Qlib 异步推理投递增加短时节流，避免首页重复刷新时连续堆积相同任务
@@ -241,4 +247,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Maintained by**: AgomTradePro Team
-**Last Updated**: 2026-04-05
+**Last Updated**: 2026-04-21

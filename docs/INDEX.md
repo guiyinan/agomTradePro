@@ -241,7 +241,13 @@
 
 **业务模块**: 35个
 
-**测试覆盖**: 1,600+ 个测试用例
+**MCP 工具**: 302个（本地注册快照）
+
+**REST API 路径**: 515个（OpenAPI 快照）
+
+**测试规模**: 5,212 个已收集测试项（`pytest --collect-only` 快照）
+
+**文档文件**: 271个（`docs/` 目录）
 
 **版本管理**: 参见 [VERSION.md](VERSION.md)
 
@@ -344,15 +350,20 @@
 
 ## 文档口径来源
 
-- 代码扫描日期：`2026-02-26`
+- 代码扫描日期：`2026-04-21`
 - 事实来源：
-  - `core/settings/base.py`（`INSTALLED_APPS` 模块清单）
-  - `apps/*` 目录结构扫描（四层完整性）
-  - `python manage.py check`（系统健康）
+  - `apps/*` 目录结构扫描（业务模块数，排除 `__pycache__`）
+  - `python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`（MCP 工具注册数）
+  - `docs/testing/api/openapi.json` 的 `paths` 键计数（REST API 路径）
+  - `pytest --collect-only -q`（全仓库已收集测试项）
+  - `docs/` 目录文件计数（文档文件）
 - 口径说明：
   - "业务模块数"按 `apps/`（排除 `shared` 与 `__pycache__`）统计
+  - "MCP 工具数"按本地 server `list_tools()` 注册结果统计
+  - "REST API 路径"按 OpenAPI `paths` 键数量统计
+  - "文档文件"按 `docs/` 目录中的文件数量统计
   - "完成度"使用里程碑状态，不再维护固定百分比
-  - "测试覆盖"以最新 CI/本地执行结果为准
+  - "测试规模"以最新 CI/本地 collect / 执行结果为准
 
 ---
 

@@ -162,11 +162,18 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally:
+You can validate tool registration locally. Current local snapshot on `2026-04-21`: `302` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
 ```
+
+## Recent MCP-Facing Changes
+
+- Dashboard Alpha 工具现在统一支持 `pool_mode`：`strict_valuation`、`market`、`price_covered`
+- `get_dashboard_alpha_candidates(...)` / `trigger_dashboard_alpha_refresh(...)` 返回共享 `contract`，用于区分真实推荐、异步刷新和兜底结果
+- `decision_workflow_get_funnel_context(...)` 会附带顶层 `step3_status` / `step3_signal_date` 等摘要字段，便于 Agent 直接消费
+- `get_pulse_current()` 继续返回 canonical `/api/pulse/current/` JSON；当当前 Regime 只能解析成 `Unknown` 时，后端会保留最近有效的 Pulse 快照，而不是把 tactical context 覆盖成未知状态
 
 ## Available Tools
 
@@ -258,6 +265,8 @@ calculate_regime(as_of_date, growth_indicator, inflation_indicator)
 get_regime_history(start_date, end_date)
 get_regime_distribution(start_date, end_date)
 explain_regime(regime_type)
+get_recommended_assets(regime_type)
+```
 
 ### Dashboard Alpha Tools
 
@@ -276,9 +285,13 @@ get_dashboard_alpha_history_detail(run_id)
 
 使用约束：
 
+- 这组工具面向“账户驱动池”，不是固定指数 universe
 - `trigger_dashboard_alpha_refresh(...)` 只排队后台 Alpha 推理，不直接返回推荐
-- 读取候选时要检查返回里的 `contract`
-- 当 `contract.must_not_treat_as_recommendation=true` 时，Agent 不得把返回内容解释为当前有效推荐
+- 读取候选时必须检查返回里的 `contract`
+- `contract.recommendation_ready=true`：当前 scoped 结果可被当作真实候选排序读取
+- `contract.must_not_treat_as_recommendation=true`：Agent 不得把返回内容解释为当前有效推荐
+- `contract.async_refresh_queued=true`：后台推理仍在进行，需等待后再次读取
+- `contract.hardcoded_fallback_used=true`：命中了兜底路径，只能作为可用性信号，不应表述为正式推荐
 
 示例：
 
@@ -295,7 +308,18 @@ trigger_dashboard_alpha_refresh(
     pool_mode="price_covered",
 )
 ```
-get_recommended_assets(regime_type)
+
+典型 `contract` 片段：
+
+```json
+{
+  "contract": {
+    "recommendation_ready": false,
+    "must_not_treat_as_recommendation": true,
+    "async_refresh_queued": true,
+    "hardcoded_fallback_used": false
+  }
+}
 ```
 
 ### Signal Tools
@@ -451,7 +475,7 @@ Notes:
 - `decision_workflow_get_funnel_context` retrieves the complete end-to-end macro context evaluation spanning steps 1 to 3 (environment, direction, sector) and step 6 (audit/attribution). `backtest_id` should be passed when the agent needs deterministic audit replay instead of latest-backtest fallback.
 - `decision_workflow_get_funnel_context` 的 `step3_sectors` 现在包含 `rotation_data_source`、`rotation_is_stale`、`rotation_warning_message`、`rotation_signal_date`；Agent 在输出轮动结论前应先检查这些字段，识别是否为历史 signal 回退结果。
 - MCP 工具返回会额外附带顶层便捷摘要：`step3_status`（`current` / `fallback` / `unknown`）、`step3_data_source`、`step3_signal_date`、`step3_warning_message`，便于 agent 直接消费而不必重复解析嵌套字段。
-- `get_pulse_current` returns the latest tactical pulse snapshot.
+- `get_pulse_current` returns the canonical `/api/pulse/current/` JSON envelope. Read `data.observed_at`, `data.data_source`, `data.is_reliable`, and `data.regime_context`; when the live Regime chain only yields `Unknown`, backend preserves the last valid snapshot instead of overwriting it with an unknown rebuild.
 - `get_pulse_history` returns recent pulse history for trend inspection.
 - `get_regime_navigator` returns the richer regime navigator output beyond the basic current regime.
 - `get_action_recommendation` returns the current top-down allocation recommendation derived from regime + pulse.

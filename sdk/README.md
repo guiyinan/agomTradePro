@@ -337,12 +337,12 @@ agomtradepro-mcp
 ## Project Status
 
 - **Version**: 1.2.0
-- **App Modules**: 32 business modules
-- **SDK Modules**: 15 modules
-- **MCP Tools**: 65+ tools
+- **App Modules**: 35 business modules
+- **SDK Modules**: 36 service modules
+- **MCP Tools**: 302 tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
-- **Last Updated**: 2026-03-18
+- **Last Updated**: 2026-04-21
 
 ## License
 

@@ -10,9 +10,9 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-1%2C600+-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#testing)
 [![Modules](https://img.shields.io/badge/business_modules-35-purple.svg)](#architecture)
-[![MCP Tools](https://img.shields.io/badge/MCP_tools-65+-orange.svg)](#ai-native-integration)
+[![MCP Tools](https://img.shields.io/badge/MCP_tools-302-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -203,7 +203,7 @@ Your Idea → Regime Gate → Policy Gate → Signal Validation → Approval →
 Not just an API wrapper. AgomTradePro is built for the AI agent era:
 
 - **Python SDK** — full programmatic access across the system's business modules
-- **MCP Server (65+ tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
+- **MCP Server (302 registered tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
 - **Terminal CLI** — AI-interactive command interface
 - **Agent Runtime** — task orchestration with proposal → approval → execution lifecycle
 
@@ -415,7 +415,7 @@ Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
          look at hedge positions instead."
 ```
 
-**65+ MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
+**302 MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
 
 ### Decision Workflow via AI
 
@@ -579,18 +579,18 @@ pytest tests/ -v --cov=apps
 | **Visualization** | Streamlit, Plotly |
 | **Frontend** | Django Templates + HTMX |
 | **AI Integration** | MCP Server, Python SDK |
-| **Testing** | Pytest (1,600+ tests), Playwright (E2E) |
+| **Testing** | Pytest (5,212 collected tests), Playwright (E2E) |
 
 ---
 
 ## Project Stats
 
 ```
-35   business modules (complete DDD four-layer each)
-65+  MCP tools for AI agents
-100+ REST API endpoints
-1,600+ automated tests
-230+ documentation files
+35    business modules (apps/, excluding __pycache__)
+302   MCP tools (current local registration snapshot)
+515   REST API paths (OpenAPI snapshot)
+5,212 automated test items (pytest --collect-only snapshot)
+271   documentation files (docs/ directory)
 ```
 
 ---

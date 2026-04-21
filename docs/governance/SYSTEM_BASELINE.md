@@ -24,10 +24,12 @@
 |------|------|------|
 | **系统版本** | 0.7.0 | `core/version.py` |
 | **发布状态** | 生产就绪 | `docs/development/system-review-report.md` |
-| **最后更新** | 2026-03-23 | Git log |
+| **最后更新** | 2026-04-21 | Git log |
 | **业务模块** | 35个 | `apps/` 目录扫描 |
+| **MCP 工具** | 302个 | `sdk/agomtradepro_mcp.server` 本地注册 |
+| **测试规模** | 5,212项 | `pytest --collect-only -q` |
 | **代码行数** | 50,000+ | 代码统计 |
-| **API 端点** | 100+ | API 扫描 |
+| **API 路径** | 515个 | `docs/testing/api/openapi.json` |
 | **数据库表** | 80+ | Migration 文件 |
 
 ---
