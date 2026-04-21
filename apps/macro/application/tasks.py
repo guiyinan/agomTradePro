@@ -18,9 +18,11 @@ from typing import Optional
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
-from apps.macro.application.use_cases import SyncMacroDataUseCase
+from apps.macro.application.use_cases import (
+    SyncMacroDataRequest,
+    build_sync_macro_data_use_case,
+)
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from shared.config.secrets import get_secrets
 
 logger = get_task_logger(__name__)
 
@@ -58,15 +60,13 @@ def sync_macro_data(
     try:
         logger.info(f"Starting macro data sync from {source}, indicator={indicator}, days_back={days_back}")
 
-        repository = DjangoMacroRepository()
-        use_case = SyncMacroDataUseCase(repository)
+        use_case = build_sync_macro_data_use_case(source)
 
         # 计算日期范围
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
 
         # 构建请求对象
-        from apps.macro.application.use_cases import SyncMacroDataRequest
         request = SyncMacroDataRequest(
             start_date=start_date,
             end_date=end_date,
@@ -279,10 +279,8 @@ def sync_high_frequency_bonds(
         end_date = date.today()
         start_date = end_date - timedelta(days=365 * years_back)
 
-        repository = DjangoMacroRepository()
-        use_case = SyncMacroDataUseCase(repository)
+        use_case = build_sync_macro_data_use_case(source)
 
-        from apps.macro.application.use_cases import SyncMacroDataRequest
         request = SyncMacroDataRequest(
             start_date=start_date,
             end_date=end_date,
@@ -342,10 +340,8 @@ def sync_high_frequency_commodities(
         end_date = date.today()
         start_date = end_date - timedelta(days=365 * years_back)
 
-        repository = DjangoMacroRepository()
-        use_case = SyncMacroDataUseCase(repository)
+        use_case = build_sync_macro_data_use_case(source)
 
-        from apps.macro.application.use_cases import SyncMacroDataRequest
         request = SyncMacroDataRequest(
             start_date=start_date,
             end_date=end_date,

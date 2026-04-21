@@ -85,6 +85,13 @@ from apps.regime.infrastructure.models import RegimeStateModel
 latest = RegimeStateModel.objects.order_by('-calc_date').first()
 print(f'Latest regime: {latest.regime} on {latest.calc_date}')
 "
+
+# Trigger a Pulse rebuild with upstream macro refresh
+python manage.py shell -c "
+from apps.pulse.application.use_cases import CalculatePulseUseCase
+snapshot = CalculatePulseUseCase().execute()
+print(snapshot.composite_score if snapshot else 'pulse refresh failed')
+"
 ```
 
 ---

@@ -358,3 +358,26 @@ class GetLatestMacroDataUseCase:
             data=data,
             missing=missing
         )
+
+
+def build_sync_macro_data_use_case(
+    source: str | None = None,
+) -> SyncMacroDataUseCase:
+    """Build a sync use case pre-wired with the configured macro adapters."""
+    from apps.macro.infrastructure.adapters import (
+        AKShareAdapter,
+        TushareAdapter,
+        create_default_adapter,
+    )
+    from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+    repository = DjangoMacroRepository()
+
+    if source == "akshare":
+        adapters: Dict[str, object] = {"akshare": AKShareAdapter()}
+    elif source == "tushare":
+        adapters = {"tushare": TushareAdapter()}
+    else:
+        adapters = {"default": create_default_adapter()}
+
+    return SyncMacroDataUseCase(repository=repository, adapters=adapters)

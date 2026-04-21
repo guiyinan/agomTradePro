@@ -1,13 +1,22 @@
 """Pulse Application Layer Use Cases"""
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8
+PULSE_MACRO_SYNC_LOOKBACK_DAYS = 120
+PULSE_MACRO_SYNC_INDICATORS = (
+    "CN_PMI",
+    "CN_NEW_CREDIT",
+    "CN_CPI_NATIONAL_YOY",
+    "CN_SHIBOR",
+    "CN_LPR",
+    "CN_M2",
+)
 
 
 def _is_snapshot_usable(
@@ -25,6 +34,32 @@ def _is_snapshot_usable(
     if require_reliable and not snapshot.is_reliable:
         return False
     return True
+
+
+def _refresh_macro_inputs_for_pulse(target_date: date) -> None:
+    """Refresh the macro indicators that feed Pulse before recalculation."""
+    try:
+        from apps.macro.application.use_cases import (
+            SyncMacroDataRequest,
+            build_sync_macro_data_use_case,
+        )
+
+        sync_use_case = build_sync_macro_data_use_case()
+        response = sync_use_case.execute(
+            SyncMacroDataRequest(
+                start_date=target_date - timedelta(days=PULSE_MACRO_SYNC_LOOKBACK_DAYS),
+                end_date=target_date,
+                indicators=list(PULSE_MACRO_SYNC_INDICATORS),
+                force_refresh=False,
+            )
+        )
+        if response.errors:
+            logger.warning(
+                "Pulse macro refresh completed with errors: %s",
+                response.errors,
+            )
+    except Exception as exc:
+        logger.warning("Failed to refresh Pulse macro inputs: %s", exc)
 
 
 class CalculatePulseUseCase:
@@ -48,7 +83,10 @@ class CalculatePulseUseCase:
             regime_result = resolve_current_regime(as_of_date=target_date)
             regime_context = regime_result.dominant_regime
 
-            # 2. 获取所有指标读数
+            # 2. 先刷新上游宏观指标，避免 stale 快照持续降级为全 0
+            _refresh_macro_inputs_for_pulse(target_date)
+
+            # 3. 获取所有指标读数
             from apps.pulse.infrastructure.data_provider import DjangoPulseDataProvider
             provider = DjangoPulseDataProvider()
             readings = provider.get_all_readings(target_date)
@@ -57,14 +95,14 @@ class CalculatePulseUseCase:
                 logger.warning("No pulse indicator readings available")
                 return None
 
-            # 3. 计算 Pulse
+            # 4. 计算 Pulse
             snapshot = calculate_pulse(
                 readings=readings,
                 regime_context=regime_context,
                 observed_at=target_date,
             )
 
-            # 4. 持久化
+            # 5. 持久化
             from apps.pulse.infrastructure.repositories import PulseRepository
             repo = PulseRepository()
             repo.save_snapshot(snapshot)
