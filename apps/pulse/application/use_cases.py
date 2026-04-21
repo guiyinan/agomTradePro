@@ -83,6 +83,13 @@ class CalculatePulseUseCase:
             regime_result = resolve_current_regime(as_of_date=target_date)
             regime_context = regime_result.dominant_regime
 
+            if not regime_context or regime_context == "Unknown":
+                logger.warning(
+                    "Skipping Pulse calculation for %s because current regime is unavailable",
+                    target_date.isoformat(),
+                )
+                return None
+
             # 2. 先刷新上游宏观指标，避免 stale 快照持续降级为全 0
             _refresh_macro_inputs_for_pulse(target_date)
 

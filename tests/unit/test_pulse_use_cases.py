@@ -2,10 +2,11 @@ from datetime import date
 
 import pytest
 
-from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.pulse.application.use_cases import CalculatePulseUseCase, GetLatestPulseUseCase
 from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
 from apps.pulse.infrastructure.models import PulseLog
 from apps.pulse.infrastructure.repositories import PulseRepository
+from apps.regime.application.current_regime import CurrentRegimeResult
 
 
 def _pulse_snapshot(
@@ -115,3 +116,34 @@ def test_get_latest_refreshes_stale_snapshot_when_requested(monkeypatch):
 
     assert snapshot == refreshed
     assert captured["as_of_date"] == date(2026, 4, 8)
+
+
+@pytest.mark.django_db
+def test_calculate_pulse_skips_unknown_regime(monkeypatch):
+    def _fake_resolve_current_regime(*, as_of_date=None, data_source=None, use_pit=True, skip_cache=False):
+        return CurrentRegimeResult(
+            dominant_regime="Unknown",
+            confidence=0.0,
+            observed_at=as_of_date or date(2026, 4, 8),
+            data_source="akshare",
+            warnings=["regime unavailable"],
+            distribution=None,
+            is_fallback=True,
+        )
+
+    def _unexpected_refresh(*args, **kwargs):
+        raise AssertionError("pulse should not refresh macro inputs when regime is unknown")
+
+    monkeypatch.setattr(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        _fake_resolve_current_regime,
+    )
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases._refresh_macro_inputs_for_pulse",
+        _unexpected_refresh,
+    )
+
+    snapshot = CalculatePulseUseCase().execute(as_of_date=date(2026, 4, 8))
+
+    assert snapshot is None
+    assert PulseLog.objects.count() == 0

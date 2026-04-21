@@ -94,6 +94,8 @@ print(snapshot.composite_score if snapshot else 'pulse refresh failed')
 "
 ```
 
+- 如果当前 Regime 链路只能返回 `Unknown`，Pulse 重建会直接失败并保留最近有效快照，避免用未知象限覆盖现有战术上下文。
+
 ---
 
 ## 3. Celery Task Troubleshooting
