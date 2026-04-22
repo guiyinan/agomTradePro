@@ -46,15 +46,18 @@ def register_dashboard_tools(server: FastMCP) -> None:
         top_n: int = 10,
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
+        alpha_scope: str | None = None,
     ) -> dict[str, Any]:
         """
-        获取账户驱动的 Dashboard Alpha 候选视图。
+        获取 Dashboard Alpha 候选视图。
 
-        返回当前组合的 `Alpha Top 候选/排名`、`可行动候选`、`待执行队列`、
-        缓存/实时元数据，以及最近历史 run 摘要。响应会附带 `contract`：
-        `recommendation_ready=false` 时，Agent 不得把待执行或异步排队状态解释为推荐。
-        同时会返回 `readiness_status`、`scope_verification_status`、`freshness_status`、
-        `blocked_reason` 等字段，用于区分“研究结果”和“可执行推荐”。
+        `alpha_scope=general` 返回通用研究排名，可使用 broader/universe cache，
+        但始终是 research-only，不得用于真实决策。
+        `alpha_scope=portfolio` 返回账户专属 scoped Alpha 结果，只有 strict readiness
+        全部通过时，`recommendation_ready` 才可能为 true。
+        响应会附带 `contract`，其中包含 `alpha_scope`、`readiness_status`、
+        `scope_verification_status`、`freshness_status`、`blocked_reason` 等字段，
+        用于明确区分“研究结果”和“可执行推荐”。
         `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()
@@ -62,6 +65,7 @@ def register_dashboard_tools(server: FastMCP) -> None:
             top_n=top_n,
             portfolio_id=portfolio_id,
             pool_mode=pool_mode,
+            alpha_scope=alpha_scope,
         )
 
     @server.tool()
@@ -101,13 +105,15 @@ def register_dashboard_tools(server: FastMCP) -> None:
         top_n: int = 10,
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
+        alpha_scope: str | None = None,
     ) -> dict[str, Any]:
         """
-        手动触发当前组合的 Dashboard Alpha 实时刷新。
+        手动触发 Dashboard Alpha 刷新。
 
-        该工具只触发 Qlib 后台刷新任务，作用于账户驱动池，而不是固定指数池。
+        `alpha_scope=general` 触发通用研究池刷新，结果只用于研究排名。
+        `alpha_scope=portfolio` 触发账户专属 scoped Qlib 推理；此时必须提供 `portfolio_id`。
         返回的 `contract.must_not_treat_as_recommendation` 恒为 true；刷新完成后需再次调用
-        `get_dashboard_alpha_candidates` 读取真实 scoped cache。
+        `get_dashboard_alpha_candidates` 读取对应 scope 的真实结果。
         `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()
@@ -115,6 +121,7 @@ def register_dashboard_tools(server: FastMCP) -> None:
             top_n=top_n,
             portfolio_id=portfolio_id,
             pool_mode=pool_mode,
+            alpha_scope=alpha_scope,
         )
 
     @server.tool()

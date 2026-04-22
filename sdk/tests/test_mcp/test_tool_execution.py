@@ -104,12 +104,13 @@ class _FakeClient:
                 "actionable_candidates": [],
                 "pending_requests": [],
             },
-            alpha_stocks=lambda top_n=10, portfolio_id=None, pool_mode=None: {
+            alpha_stocks=lambda top_n=10, portfolio_id=None, pool_mode=None, alpha_scope=None: {
                 "success": True,
                 "data": {
                     "top_candidates": [],
                     "pending_requests": [{"id": 1, "stock_code": "600519.SH"}],
                     "meta": {
+                        "alpha_scope": alpha_scope or "portfolio",
                         "refresh_status": "queued",
                         "async_task_id": "task-alpha-1",
                         "poll_after_ms": 5000,
@@ -120,6 +121,7 @@ class _FakeClient:
                     },
                 },
                 "contract": {
+                    "alpha_scope": alpha_scope or "portfolio",
                     "recommendation_ready": False,
                     "must_not_treat_as_recommendation": True,
                     "async_refresh_queued": True,
@@ -129,11 +131,13 @@ class _FakeClient:
                     "hardcoded_fallback_used": False,
                 },
             },
-            alpha_refresh=lambda top_n=10, portfolio_id=None, pool_mode=None: {
+            alpha_refresh=lambda top_n=10, portfolio_id=None, pool_mode=None, alpha_scope=None: {
                 "success": True,
+                "alpha_scope": alpha_scope or "portfolio",
                 "task_id": "task-alpha-refresh-1",
                 "pool_mode": pool_mode,
                 "contract": {
+                    "alpha_scope": alpha_scope or "portfolio",
                     "recommendation_ready": False,
                     "must_not_treat_as_recommendation": True,
                     "async_refresh_queued": True,
@@ -593,3 +597,32 @@ def test_dashboard_alpha_tools_accept_pool_mode(monkeypatch: pytest.MonkeyPatch)
     )
     refresh_rendered = str(refresh_result)
     assert "price_covered" in refresh_rendered
+
+
+def test_dashboard_alpha_tools_accept_alpha_scope(monkeypatch: pytest.MonkeyPatch):
+    try:
+        from agomtradepro_mcp.server import server
+    except ModuleNotFoundError as exc:
+        if "mcp" in str(exc):
+            pytest.skip("mcp package not installed in current test environment")
+        raise
+
+    _patch_extended_tool_modules(monkeypatch)
+
+    general_result = asyncio.run(
+        server.call_tool(
+            "get_dashboard_alpha_candidates",
+            {"top_n": 10, "alpha_scope": "general"},
+        )
+    )
+    general_rendered = str(general_result)
+    assert "general" in general_rendered
+
+    portfolio_result = asyncio.run(
+        server.call_tool(
+            "trigger_dashboard_alpha_refresh",
+            {"top_n": 10, "portfolio_id": 135, "alpha_scope": "portfolio"},
+        )
+    )
+    portfolio_rendered = str(portfolio_result)
+    assert "portfolio" in portfolio_rendered

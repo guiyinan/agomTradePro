@@ -53,7 +53,9 @@ class DashboardModule(BaseModule):
         top_n: int = 10,
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
+        alpha_scope: str | None = None,
     ) -> dict[str, Any]:
+        """Read Dashboard Alpha results for either the general or portfolio scope."""
         params: dict[str, Any] = {
             "format": "json",
             "top_n": top_n,
@@ -62,6 +64,8 @@ class DashboardModule(BaseModule):
             params["portfolio_id"] = portfolio_id
         if pool_mode:
             params["pool_mode"] = pool_mode
+        if alpha_scope:
+            params["alpha_scope"] = alpha_scope
         payload = self._get("alpha/stocks/", params=params)
         return self._with_alpha_candidate_contract(payload)
 
@@ -80,6 +84,12 @@ class DashboardModule(BaseModule):
         pending_requests = data.get("pending_requests") or []
         actionable_candidates = data.get("actionable_candidates") or []
         existing_contract = data.get("contract") if isinstance(data.get("contract"), dict) else {}
+        alpha_scope = str(
+            meta.get("alpha_scope")
+            or data.get("alpha_scope")
+            or payload.get("alpha_scope")
+            or "portfolio"
+        )
         refresh_status = str(meta.get("refresh_status") or "")
         async_task_id = str(meta.get("async_task_id") or "")
         hardcoded_fallback_used = bool(meta.get("hardcoded_fallback_used", False))
@@ -99,12 +109,17 @@ class DashboardModule(BaseModule):
             recommendation_ready = bool(top_candidates) and not hardcoded_fallback_used
             if no_recommendation_reason:
                 recommendation_ready = False
+        if alpha_scope == "general":
+            recommendation_ready = False
+            if not no_recommendation_reason:
+                no_recommendation_reason = "General Alpha is research-only and must not be used for decisions."
         async_refresh_queued = DashboardModule._is_async_refresh_active(
             refresh_status=refresh_status,
             async_task_id=async_task_id,
         )
 
         contract = {
+            "alpha_scope": alpha_scope,
             "recommendation_ready": recommendation_ready,
             "must_not_treat_as_recommendation": not recommendation_ready,
             "must_not_use_for_decision": not recommendation_ready,
@@ -172,12 +187,16 @@ class DashboardModule(BaseModule):
         top_n: int = 10,
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
+        alpha_scope: str | None = None,
     ) -> dict[str, Any]:
+        """Queue Dashboard Alpha recomputation for the requested scope."""
         payload: dict[str, Any] = {"top_n": top_n}
         if portfolio_id is not None:
             payload["portfolio_id"] = portfolio_id
         if pool_mode:
             payload["pool_mode"] = pool_mode
+        if alpha_scope:
+            payload["alpha_scope"] = alpha_scope
         response = self._post("alpha/refresh/", data=payload)
         return self._with_alpha_refresh_contract(response)
 
@@ -202,17 +221,31 @@ class DashboardModule(BaseModule):
             or (data.get("status") if isinstance(data, dict) else "")
             or "queued"
         )
+        alpha_scope = str(
+            payload.get("alpha_scope")
+            or (data.get("alpha_scope") if isinstance(data, dict) else "")
+            or "portfolio"
+        )
         poll_after_ms = (
             data.get("poll_after_ms")
             if isinstance(data, dict) and data.get("poll_after_ms") is not None
             else payload.get("poll_after_ms")
         )
+        if alpha_scope == "general":
+            refresh_blocked_reason = (
+                "Refresh only queues general Alpha research ranking; it must remain research-only."
+            )
+        else:
+            refresh_blocked_reason = (
+                "Refresh only queues scoped Alpha inference; call alpha_stocks after completion."
+            )
         contract = {
+            "alpha_scope": alpha_scope,
             "recommendation_ready": False,
             "must_not_treat_as_recommendation": True,
             "must_not_use_for_decision": True,
             "readiness_status": "refresh_queued",
-            "blocked_reason": "Refresh only queues scoped Alpha inference; call alpha_stocks after completion.",
+            "blocked_reason": refresh_blocked_reason,
             "async_refresh_queued": DashboardModule._is_async_refresh_active(
                 refresh_status=refresh_status,
                 async_task_id=async_task_id,
@@ -221,7 +254,7 @@ class DashboardModule(BaseModule):
             "async_task_id": async_task_id,
             "poll_after_ms": DashboardModule._safe_int(poll_after_ms, default=5000),
             "hardcoded_fallback_used": False,
-            "no_recommendation_reason": "Refresh only queues scoped Alpha inference; call alpha_stocks after completion.",
+            "no_recommendation_reason": refresh_blocked_reason,
             "scope_verification_status": "pending_refresh",
             "freshness_status": "pending_refresh",
             "result_age_days": None,

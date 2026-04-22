@@ -106,6 +106,39 @@ def test_alpha_stocks_contract_marks_real_scoped_scores_as_recommendation_ready(
     assert contract["hardcoded_fallback_used"] is False
 
 
+def test_alpha_stocks_general_scope_is_forwarded_and_kept_research_only() -> None:
+    fake_client = _FakeClient(
+        get_payload={
+            "success": True,
+            "data": {
+                "top_candidates": [{"stock_code": "000001.SZ"}],
+                "pending_requests": [],
+                "meta": {
+                    "alpha_scope": "general",
+                    "refresh_status": "available",
+                    "hardcoded_fallback_used": False,
+                    "source": "cache",
+                    "status": "available",
+                    "scope_verification_status": "general_universe",
+                },
+            },
+        }
+    )
+    module = DashboardModule(fake_client)
+
+    result = module.alpha_stocks(top_n=5, alpha_scope="general")
+    contract = result["contract"]
+
+    assert fake_client.last_get == (
+        "/api/dashboard/alpha/stocks/",
+        {"format": "json", "top_n": 5, "alpha_scope": "general"},
+    )
+    assert contract["alpha_scope"] == "general"
+    assert contract["recommendation_ready"] is False
+    assert contract["must_not_use_for_decision"] is True
+    assert "research-only" in contract["no_recommendation_reason"]
+
+
 def test_alpha_stocks_contract_respects_backend_readiness_metadata() -> None:
     module = DashboardModule(
         _FakeClient(
@@ -210,3 +243,27 @@ def test_alpha_refresh_contract_is_explicitly_async_and_not_a_recommendation() -
     assert contract["async_task_id"] == "task-refresh-1"
     assert contract["hardcoded_fallback_used"] is False
     assert contract["readiness_status"] == "refresh_queued"
+
+
+def test_alpha_refresh_general_scope_forwards_scope_and_uses_research_message() -> None:
+    fake_client = _FakeClient(
+        post_payload={
+            "success": True,
+            "alpha_scope": "general",
+            "task_id": "task-refresh-general",
+            "refresh_status": "queued",
+            "poll_after_ms": 5000,
+        }
+    )
+    module = DashboardModule(fake_client)
+
+    result = module.alpha_refresh(top_n=12, alpha_scope="general")
+    contract = result["contract"]
+
+    assert fake_client.last_post == (
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 12, "alpha_scope": "general"},
+    )
+    assert contract["alpha_scope"] == "general"
+    assert contract["must_not_use_for_decision"] is True
+    assert "research ranking" in contract["blocked_reason"]

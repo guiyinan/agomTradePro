@@ -64,8 +64,15 @@
   - `/api/dashboard/v1/alpha-decision-chain/`
 - 页面、SDK、MCP 不应再各自拼接三份并行数据来解释这三个区块之间的关系。
 - `alpha/stocks/` 仍保留给 HTMX 表格刷新使用，但它展示的链路状态必须来自同一份 `AlphaDecisionChainQuery` 聚合结果。
+- `alpha_scope=general|portfolio` 是 Dashboard Alpha 的显式范围参数：
+  - `general` 固定 research-only，不能被 SDK/MCP 提升为 actionable
+  - `portfolio` 绑定 `portfolio_id + pool_mode + scope_hash`，只有 scoped readiness 通过后才允许 actionable
+- SDK / MCP 对 `alpha/stocks/` 和 `alpha/refresh/` 的封装必须同步暴露 `alpha_scope`，不得默认把所有请求都当成账户专属查询。
+- `/api/dashboard/alpha/factor-panel/` 右侧解释面板必须与左侧列表共用同一份 `alpha_scope / portfolio_id / pool_mode / code`，禁止 scope 混线。
 - SDK 对应方法：`dashboard.alpha_decision_chain_v1(...)`
+- SDK 标签页接口：`dashboard.alpha_stocks(..., alpha_scope=...)`、`dashboard.alpha_refresh(..., alpha_scope=...)`
 - MCP 对应工具：`get_dashboard_alpha_decision_chain_v1`
+- MCP 标签页接口：`get_dashboard_alpha_candidates(alpha_scope=...)`、`trigger_dashboard_alpha_refresh(alpha_scope=...)`
 
 ## 统一账户口径（2026-04-01）
 

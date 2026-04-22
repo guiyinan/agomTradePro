@@ -1,6 +1,6 @@
 # Dashboard Alpha 决策链收束说明（2026-04-12）
 
-> 补充更新：2026-04-18
+> 补充更新：2026-04-18、2026-04-22
 
 ## 目标
 
@@ -16,6 +16,22 @@
 - MCP：提供同名只读工具，避免继续拼接旧接口
 
 ## 业务口径
+
+### 0. Alpha 页面拆分（2026-04-22）
+
+- Dashboard Alpha 现拆分为两个标签：
+  - `通用 Alpha`：只展示研究排名，可使用 broader/universe cache，但始终 `must_not_use_for_decision=true`
+  - `账户专属 Alpha`：绑定 `portfolio_id + pool_mode + scope_hash`，只有 strict readiness 通过后才允许展示 actionable 语义
+- `alpha_scope=general|portfolio` 是新的显式范围参数：
+  - `general` 不进入账户专属 actionable 逻辑
+  - `portfolio` 继续走 scoped cache / scoped inference / readiness guard
+- 右侧 `Alpha 分值解释` 面板必须与左侧列表共用同一份 scope payload：
+  - `alpha_scope`
+  - `portfolio_id`
+  - `pool_mode`
+  - `requested_trade_date`
+  - 同一只股票的 `code`
+- 禁止出现“左侧是 portfolio scope，右侧解释来自 general/broader cache”的混线展示。
 
 ### 1. Top 10 选股结果
 
@@ -105,8 +121,22 @@ Dashboard 现在按同一链路展示：
 新增统一读取端点：
 
 - `/api/dashboard/v1/alpha-decision-chain/`
-- `/api/dashboard/alpha/stocks/?format=json`
+- `/api/dashboard/alpha/stocks/?format=json&alpha_scope=general|portfolio`
 - `/api/dashboard/alpha/refresh/`
+- `/api/dashboard/alpha/factor-panel/`
+
+关键约束：
+
+- `/api/dashboard/alpha/stocks/`
+  - `alpha_scope=general`：返回研究排名，固定 `must_not_use_for_decision=true`
+  - `alpha_scope=portfolio`：返回账户专属 scoped Alpha readiness；broader cache、trade-date adjusted、stale、degraded 仍然 blocked
+- `/api/dashboard/alpha/refresh/`
+  - `alpha_scope=general`：只触发通用研究池刷新
+  - `alpha_scope=portfolio`：只触发账户专属 scoped Qlib 推理，必须带 `portfolio_id`
+- `/api/dashboard/alpha/factor-panel/`
+  - 右侧解释面板入口
+  - 必须透传与左侧列表一致的 `alpha_scope / portfolio_id / pool_mode / code`
+  - 展示分值摘要、计算链路、因子贡献、数据来源、freshness / scope verification、blocked reason
 
 返回结构：
 
@@ -131,14 +161,18 @@ Dashboard 现在按同一链路展示：
 
 - 文件：`sdk/agomtradepro/modules/dashboard.py`
 - 方法：`DashboardModule.alpha_decision_chain_v1(...)`
+- 研究/专属标签页统一入口：
+  - `DashboardModule.alpha_stocks(..., alpha_scope="general|portfolio")`
+  - `DashboardModule.alpha_refresh(..., alpha_scope="general|portfolio")`
 
 ### MCP
 
 - 文件：`sdk/agomtradepro_mcp/tools/dashboard_tools.py`
 - 工具：`get_dashboard_alpha_decision_chain_v1`
-- 首页账户视角工具：`get_dashboard_alpha_candidates`
+- 首页 Alpha 工具：`get_dashboard_alpha_candidates(alpha_scope=...)`
 - 历史回溯工具：`get_dashboard_alpha_history`、`get_dashboard_alpha_history_detail`
-- 实时刷新工具：`trigger_dashboard_alpha_refresh`
+- 实时刷新工具：`trigger_dashboard_alpha_refresh(alpha_scope=...)`
+- 当前右侧解释面板仍由 Dashboard 页面直接消费 `/api/dashboard/alpha/factor-panel/`，尚未新增独立 MCP 工具；若后续暴露给 Agent，必须复用同一份 scope payload，不能单独走 broader cache 查询。
 
 ## 首屏性能约束
 
