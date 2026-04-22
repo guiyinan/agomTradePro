@@ -33,6 +33,50 @@ from apps.regime.domain.navigator_services import (
 logger = logging.getLogger(__name__)
 
 
+def _build_blocked_action_recommendation(
+    *,
+    navigator: RegimeNavigatorOutput,
+    as_of_date: date,
+    blocked_reason: str,
+    blocked_code: str,
+    pulse_snapshot=None,
+) -> RegimeActionRecommendation:
+    """Build a non-decision-grade response when Pulse is unavailable or stale."""
+    stale_indicator_codes: list[str] = []
+    pulse_observed_at = None
+    pulse_is_reliable = False
+    if pulse_snapshot is not None:
+        pulse_observed_at = getattr(pulse_snapshot, "observed_at", None)
+        pulse_is_reliable = bool(getattr(pulse_snapshot, "is_reliable", False))
+        stale_indicator_codes = [
+            str(reading.code)
+            for reading in getattr(pulse_snapshot, "indicator_readings", [])
+            if getattr(reading, "is_stale", False)
+        ]
+
+    return RegimeActionRecommendation(
+        asset_weights={},
+        risk_budget_pct=0.0,
+        position_limit_pct=0.0,
+        recommended_sectors=[],
+        benefiting_styles=[],
+        hedge_recommendation=None,
+        reasoning=blocked_reason,
+        regime_contribution=(
+            f"{navigator.regime_name} 导航仪仍可读取，但 Pulse 数据未达到决策级可靠性。"
+        ),
+        pulse_contribution="Pulse 数据不可靠，联合行动建议已阻断。",
+        generated_at=as_of_date,
+        confidence=float(navigator.confidence),
+        must_not_use_for_decision=True,
+        blocked_reason=blocked_reason,
+        blocked_code=blocked_code,
+        pulse_observed_at=pulse_observed_at,
+        pulse_is_reliable=pulse_is_reliable,
+        stale_indicator_codes=stale_indicator_codes,
+    )
+
+
 def _load_asset_config_from_db() -> RegimeAssetConfig | None:
     """从数据库加载 Navigator 资产配置，失败返回 None（使用 Domain 默认）"""
     try:
@@ -222,22 +266,51 @@ class GetActionRecommendationUseCase:
                 return None
 
             # 2. 获取 Pulse 快照
-            pulse_score = 0.0
-            pulse_strength = "moderate"
+            pulse_use_case = None
+            pulse = None
 
             try:
                 from apps.pulse.application.use_cases import GetLatestPulseUseCase
+
                 pulse_use_case = GetLatestPulseUseCase()
                 pulse = pulse_use_case.execute(
                     as_of_date=target_date,
                     require_reliable=True,
                     refresh_if_stale=True,
                 )
-                if pulse:
-                    pulse_score = pulse.composite_score
-                    pulse_strength = pulse.regime_strength
             except Exception as e:
-                logger.warning(f"Pulse not available, using defaults: {e}")
+                logger.warning("Pulse not available for action recommendation: %s", e)
+
+            if pulse is None:
+                diagnostic_pulse = None
+                if pulse_use_case is not None:
+                    try:
+                        diagnostic_pulse = pulse_use_case.execute(
+                            as_of_date=target_date,
+                            require_reliable=False,
+                            refresh_if_stale=False,
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to load diagnostic Pulse snapshot: %s", exc)
+
+                blocked_reason = (
+                    "Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。"
+                )
+                if diagnostic_pulse is not None and getattr(diagnostic_pulse, "observed_at", None):
+                    blocked_reason = (
+                        f"Pulse 数据未通过 freshness/reliability 校验（最近快照 "
+                        f"{diagnostic_pulse.observed_at.isoformat()}），联合行动建议已阻断。"
+                    )
+                return _build_blocked_action_recommendation(
+                    navigator=navigator,
+                    as_of_date=target_date,
+                    blocked_reason=blocked_reason,
+                    blocked_code="pulse_unreliable",
+                    pulse_snapshot=diagnostic_pulse,
+                )
+
+            pulse_score = pulse.composite_score
+            pulse_strength = pulse.regime_strength
 
             # 3. 调用 action mapper
             guidance = navigator.asset_guidance
@@ -276,6 +349,8 @@ class GetActionRecommendationUseCase:
                         "risk_budget_pct": action_rec.risk_budget_pct,
                         "recommended_sectors": action_rec.recommended_sectors,
                         "benefiting_styles": action_rec.benefiting_styles,
+                        "must_not_use_for_decision": action_rec.must_not_use_for_decision,
+                        "blocked_reason": action_rec.blocked_reason,
                     }
                 )
             except Exception as e:

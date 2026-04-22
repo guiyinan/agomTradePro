@@ -7,7 +7,7 @@ Pulse 数据提供者 — 从 macro 模块已入库的数据中读取指标。
 
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
@@ -17,21 +17,23 @@ logger = logging.getLogger(__name__)
 
 # ==================== Domain 层默认指标配置 ====================
 
+
 @dataclass
 class PulseIndicatorDef:
     """单个 Pulse 指标的完整定义"""
+
     code: str
     name: str
-    dimension: str       # growth / inflation / liquidity / sentiment
-    frequency: str       # daily / monthly
+    dimension: str  # growth / inflation / liquidity / sentiment
+    frequency: str  # daily / monthly
     weight: float = 1.0  # 维度内权重
 
     # 信号阈值配置
-    signal_type: str = "zscore"       # zscore / level / pct_change
+    signal_type: str = "zscore"  # zscore / level / pct_change
     bullish_threshold: float = 1.0
     bearish_threshold: float = -1.0
-    neutral_band: float = 0.5        # |z| < neutral_band → neutral
-    signal_multiplier: float = 0.4   # z_score → signal_score 的乘数
+    neutral_band: float = 0.5  # |z| < neutral_band → neutral
+    signal_multiplier: float = 0.4  # z_score → signal_score 的乘数
 
 
 # Domain 层默认指标列表（用于 DB 无配置时 fallback）
@@ -69,9 +71,9 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         dimension="liquidity",
         frequency="daily",
         signal_type="zscore",
-        bullish_threshold=-1.0,     # 宽松 → bullish
-        bearish_threshold=1.0,      # 紧缩 → bearish
-        signal_multiplier=-0.4,     # 负号：z 高=利率高=bearish
+        bullish_threshold=-1.0,  # 宽松 → bullish
+        bearish_threshold=1.0,  # 紧缩 → bearish
+        signal_multiplier=-0.4,  # 负号：z 高=利率高=bearish
     ),
     PulseIndicatorDef(
         code="CN_LPR",
@@ -124,27 +126,25 @@ class DjangoPulseDataProvider:
             return self._indicator_defs
 
         try:
-            from apps.pulse.infrastructure.models import PulseIndicatorConfigModel, PulseWeightConfig
-
-            db_configs = list(
-                PulseIndicatorConfigModel.objects.filter(is_active=True)
+            from apps.pulse.infrastructure.models import (
+                PulseIndicatorConfigModel,
+                PulseWeightConfig,
             )
+
+            db_configs = list(PulseIndicatorConfigModel.objects.filter(is_active=True))
 
             # Override weights from active PulseWeightConfig
             active_weight_cfg = PulseWeightConfig.objects.filter(is_active=True).first()
             weight_overrides = {}
             if active_weight_cfg:
-                weight_overrides = {
-                    w.indicator_code: w 
-                    for w in active_weight_cfg.weights.all()
-                }
+                weight_overrides = {w.indicator_code: w for w in active_weight_cfg.weights.all()}
 
             if db_configs:
                 self._indicator_defs = []
                 for c in db_configs:
                     w_model = weight_overrides.get(c.indicator_code)
                     if w_model and not w_model.is_enabled:
-                        continue # If explicitly disabled, skip
+                        continue  # If explicitly disabled, skip
                     weight = w_model.weight if w_model else c.weight
                     self._indicator_defs.append(
                         PulseIndicatorDef(
@@ -170,7 +170,7 @@ class DjangoPulseDataProvider:
                 if w_model and not w_model.is_enabled:
                     continue
                 weight = w_model.weight if w_model else default_ind.weight
-                
+
                 # Copy and update weight
                 ind_kwargs = {
                     k: getattr(default_ind, k) for k in default_ind.__annotations__.keys()
@@ -205,21 +205,14 @@ class DjangoPulseDataProvider:
     ) -> PulseIndicatorReading | None:
         """获取单个指标的读数"""
         try:
-            from apps.macro.infrastructure.models import MacroIndicator
-
-            # 获取最近的观测值
-            obs = (
-                MacroIndicator.objects
-                .filter(code=ind_def.code, reporting_period__lte=as_of_date)
-                .order_by("-reporting_period")
-                .first()
-            )
-            if not obs:
+            series = self._load_data_center_series(ind_def.code, as_of_date)
+            if not series:
+                series = self._load_legacy_macro_series(ind_def.code, as_of_date)
+            if not series:
                 return None
 
-            current_value = float(obs.value)
-            observed_date = obs.reporting_period
-            freshness_anchor = obs.published_at or observed_date
+            observed_date, current_value, published_at = series[-1]
+            freshness_anchor = published_at or observed_date
             data_age = (as_of_date - freshness_anchor).days
 
             # 判断是否过期
@@ -230,25 +223,11 @@ class DjangoPulseDataProvider:
             )
             is_stale = data_age > stale_days
 
-            # 获取历史数据计算 z-score
-            lookback = as_of_date - timedelta(days=365)
-            history_qs = (
-                MacroIndicator.objects
-                .filter(
-                    code=ind_def.code,
-                    reporting_period__gte=lookback,
-                    reporting_period__lte=as_of_date,
-                )
-                .order_by("reporting_period")
-                .values_list("value", flat=True)
-            )
-            history = [float(v) for v in history_qs]
+            history = [value for _observed_at, value, _published_at in series]
 
             z_score = self._calculate_z_score(history, current_value)
             direction = self._determine_direction(history)
-            signal, signal_score = self._calculate_signal(
-                ind_def, current_value, z_score, history
-            )
+            signal, signal_score = self._calculate_signal(ind_def, current_value, z_score, history)
 
             return PulseIndicatorReading(
                 code=ind_def.code,
@@ -267,6 +246,72 @@ class DjangoPulseDataProvider:
         except Exception as e:
             logger.warning(f"Error reading pulse indicator {ind_def.code}: {e}")
             return None
+
+    def _load_data_center_series(
+        self,
+        code: str,
+        as_of_date: date,
+    ) -> list[tuple[date, float, date | None]]:
+        """Read Pulse inputs from Data Center facts before legacy macro tables."""
+        lookback = as_of_date - timedelta(days=365)
+        if self._is_asset_code(code):
+            from apps.data_center.infrastructure.models import PriceBarModel
+
+            rows = (
+                PriceBarModel.objects.filter(
+                    asset_code=code,
+                    bar_date__gte=lookback,
+                    bar_date__lte=as_of_date,
+                )
+                .order_by("bar_date")
+                .values_list("bar_date", "close")
+            )
+            return [(bar_date, float(close), None) for bar_date, close in rows]
+
+        from apps.data_center.infrastructure.models import MacroFactModel
+
+        rows = (
+            MacroFactModel.objects.filter(
+                indicator_code=code,
+                reporting_period__gte=lookback,
+                reporting_period__lte=as_of_date,
+            )
+            .order_by("reporting_period", "revision_number")
+            .values_list("reporting_period", "value", "published_at")
+        )
+        return [
+            (reporting_period, float(value), published_at)
+            for reporting_period, value, published_at in rows
+        ]
+
+    def _load_legacy_macro_series(
+        self,
+        code: str,
+        as_of_date: date,
+    ) -> list[tuple[date, float, date | None]]:
+        if self._is_asset_code(code):
+            return []
+
+        lookback = as_of_date - timedelta(days=365)
+        from apps.macro.infrastructure.models import MacroIndicator
+
+        rows = (
+            MacroIndicator.objects.filter(
+                code=code,
+                reporting_period__gte=lookback,
+                reporting_period__lte=as_of_date,
+            )
+            .order_by("reporting_period")
+            .values_list("reporting_period", "value", "published_at")
+        )
+        return [
+            (reporting_period, float(value), published_at)
+            for reporting_period, value, published_at in rows
+        ]
+
+    @staticmethod
+    def _is_asset_code(code: str) -> bool:
+        return code.endswith((".SH", ".SZ", ".BJ"))
 
     def _calculate_z_score(self, series: list[float], value: float) -> float:
         """计算 z-score"""
@@ -311,9 +356,7 @@ class DjangoPulseDataProvider:
         else:
             return self._signal_by_zscore(ind_def, z_score)
 
-    def _signal_by_level(
-        self, ind_def: PulseIndicatorDef, value: float
-    ) -> tuple[str, float]:
+    def _signal_by_level(self, ind_def: PulseIndicatorDef, value: float) -> tuple[str, float]:
         """基于绝对水平的信号"""
         # 特殊处理：VIX 类逆向指标
         if ind_def.code == "VIX_INDEX":
@@ -355,9 +398,7 @@ class DjangoPulseDataProvider:
             return "bearish", -0.8
         return "neutral", change_pct * ind_def.signal_multiplier
 
-    def _signal_by_zscore(
-        self, ind_def: PulseIndicatorDef, z_score: float
-    ) -> tuple[str, float]:
+    def _signal_by_zscore(self, ind_def: PulseIndicatorDef, z_score: float) -> tuple[str, float]:
         """基于 z-score 的信号（通用）"""
         # 对于 SHIBOR 等逆向指标，multiplier 为负数
         effective_z = z_score * (1 if ind_def.signal_multiplier >= 0 else -1)

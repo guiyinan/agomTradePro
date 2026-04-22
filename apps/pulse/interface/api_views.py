@@ -130,6 +130,27 @@ class PulseCalculateView(APIView):
 
 def _serialize_snapshot(snapshot) -> dict:
     """Serialize a pulse snapshot into the public API contract."""
+    stale_indicator_codes = [
+        str(reading.code)
+        for reading in snapshot.indicator_readings
+        if getattr(reading, "is_stale", False)
+    ]
+    is_stale = bool(stale_indicator_codes) or snapshot.data_source == "stale"
+    must_not_use_for_decision = not snapshot.is_reliable
+    blocked_reason = (
+        "Pulse 数据未通过 freshness/reliability 校验，当前快照仅可用于诊断，不得直接用于决策。"
+        if must_not_use_for_decision
+        else ""
+    )
+    contract = {
+        "observed_at": snapshot.observed_at.isoformat(),
+        "data_source": snapshot.data_source,
+        "is_reliable": snapshot.is_reliable,
+        "is_stale": is_stale,
+        "stale_indicator_codes": stale_indicator_codes,
+        "must_not_use_for_decision": must_not_use_for_decision,
+        "blocked_reason": blocked_reason,
+    }
     return {
         "observed_at": snapshot.observed_at.isoformat(),
         "regime_context": snapshot.regime_context,
@@ -140,6 +161,11 @@ def _serialize_snapshot(snapshot) -> dict:
         "transition_reasons": snapshot.transition_reasons,
         "data_source": snapshot.data_source,
         "is_reliable": snapshot.is_reliable,
+        "is_stale": is_stale,
+        "stale_indicator_codes": stale_indicator_codes,
+        "must_not_use_for_decision": must_not_use_for_decision,
+        "blocked_reason": blocked_reason,
+        "contract": contract,
         "dimensions": {
             ds.dimension: {
                 "score": ds.score,

@@ -45,6 +45,54 @@ def _pulse_snapshot() -> PulseSnapshot:
     )
 
 
+def _stale_pulse_snapshot() -> PulseSnapshot:
+    return PulseSnapshot(
+        observed_at=date(2026, 4, 21),
+        regime_context="Recovery",
+        dimension_scores=[
+            DimensionScore("growth", 0.4, "bullish", 2, "增长脉搏偏强"),
+            DimensionScore("inflation", 0.0, "neutral", 1, "通胀脉搏中性"),
+            DimensionScore("liquidity", -0.3, "bearish", 2, "流动性脉搏偏弱"),
+            DimensionScore("sentiment", 0.2, "neutral", 2, "情绪脉搏中性"),
+        ],
+        composite_score=0.351,
+        regime_strength="strong",
+        transition_warning=False,
+        transition_direction=None,
+        transition_reasons=[],
+        indicator_readings=[
+            PulseIndicatorReading(
+                code="CN_PMI",
+                name="中国 PMI",
+                dimension="growth",
+                value=49.4,
+                z_score=0.5,
+                direction="deteriorating",
+                signal="bearish",
+                signal_score=-0.4,
+                weight=1.0,
+                data_age_days=3762,
+                is_stale=True,
+            ),
+            PulseIndicatorReading(
+                code="000300.SH",
+                name="沪深300",
+                dimension="sentiment",
+                value=3900.0,
+                z_score=0.1,
+                direction="stable",
+                signal="neutral",
+                signal_score=0.0,
+                weight=1.0,
+                data_age_days=15,
+                is_stale=True,
+            ),
+        ],
+        data_source="stale",
+        stale_indicator_count=2,
+    )
+
+
 @pytest.fixture
 def authenticated_client(db):
     user = User.objects.create_user(username="pulse-api", password="pass")
@@ -65,6 +113,28 @@ def test_pulse_current_api_contract(authenticated_client):
     assert payload["success"] is True
     assert payload["data"]["regime_context"] == "Recovery"
     assert "dimensions" in payload["data"]
+    assert payload["data"]["must_not_use_for_decision"] is False
+    assert payload["data"]["contract"]["must_not_use_for_decision"] is False
+
+
+@pytest.mark.django_db
+def test_pulse_current_api_marks_stale_snapshot_as_diagnostic_only(authenticated_client):
+    PulseRepository().save_snapshot(_stale_pulse_snapshot())
+
+    response = authenticated_client.get("/api/pulse/current/")
+
+    assert response.status_code == status.HTTP_200_OK
+    payload = response.json()
+    contract = payload["data"]["contract"]
+    assert payload["success"] is True
+    assert payload["data"]["data_source"] == "stale"
+    assert payload["data"]["is_reliable"] is False
+    assert payload["data"]["is_stale"] is True
+    assert payload["data"]["must_not_use_for_decision"] is True
+    assert payload["data"]["stale_indicator_codes"] == ["CN_PMI", "000300.SH"]
+    assert contract["must_not_use_for_decision"] is True
+    assert contract["stale_indicator_codes"] == ["CN_PMI", "000300.SH"]
+    assert "仅可用于诊断" in contract["blocked_reason"]
 
 
 @pytest.mark.django_db

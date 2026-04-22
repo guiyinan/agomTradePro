@@ -12,7 +12,17 @@
         </span>
     </div>
 
+    {% if action_blocked %}
+    <div class="pulse-stale-notice">
+        ⛔ 当前联合行动建议已阻断：{{ action_blocked_reason|default:"Pulse 数据未达到决策级可靠性。" }}
+        {% if action_stale_indicator_codes %}
+        <span>异常指标：{{ action_stale_indicator_codes|join:", " }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- 资产配置条 -->
+    {% if action_weights %}
     <div class="action-rec__allocations">
         {% for category, weight in action_weights.items %}
         <div class="action-alloc-item">
@@ -31,6 +41,7 @@
         </div>
         {% endfor %}
     </div>
+    {% endif %}
 
     <!-- 风险预算 -->
     <div class="action-rec__risk-row">

@@ -30,11 +30,13 @@ def register_pulse_tools(server: FastMCP) -> None:
             - dimension_scores: 4 维度分数
             - transition_warning: 是否有转折预警
             - observed_at: 观测日期
+            - contract.must_not_use_for_decision: 当前快照是否禁止用于决策
+            - contract.blocked_reason: 禁止用于决策时的原因
 
         Example:
             >>> pulse = get_pulse_current()
-            >>> print(f"综合评分: {pulse['composite_score']}")
-            >>> print(f"Regime 强度: {pulse['regime_strength']}")
+            >>> if pulse["data"]["contract"]["must_not_use_for_decision"]:
+            ...     print(pulse["data"]["contract"]["blocked_reason"])
         """
         client = AgomTradeProClient()
         return client.pulse.get_current()
@@ -101,6 +103,8 @@ def register_pulse_tools(server: FastMCP) -> None:
 
         基于当前 Regime 和 Pulse 数据，计算具体的资产配置百分比
         和投资建议。这是系统最核心的决策输出。
+        若 Pulse stale 或不可靠，返回值会携带阻断契约，Agent 不得继续
+        把该结果解释为可执行配置建议。
 
         Returns:
             包含以下字段的字典：
@@ -117,12 +121,14 @@ def register_pulse_tools(server: FastMCP) -> None:
             - reasoning: 综合配置逻辑
             - confidence: 置信度
             - as_of_date: 生效日期
+            - must_not_use_for_decision: 是否禁止用于决策
+            - blocked_reason: 阻断原因
+            - pulse_is_reliable: Pulse 是否达到决策级可靠性
 
         Example:
             >>> action = get_action_recommendation()
-            >>> w = action['asset_weights']
-            >>> print(f"权益 {w['equity']:.0%} | 债券 {w['bond']:.0%}")
-            >>> print(f"风险预算: {action['risk_budget_pct']:.0%}")
+            >>> if action["data"]["contract"]["must_not_use_for_decision"]:
+            ...     print(action["data"]["contract"]["blocked_reason"])
         """
         client = AgomTradeProClient()
         return client.pulse.get_action_recommendation()

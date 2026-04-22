@@ -40,3 +40,45 @@ def test_regime_action_api_contract(monkeypatch):
     assert payload["data"]["asset_weights"]["equity"] == 0.56
     assert "risk_budget_pct" in payload["data"]
     assert "regime_contribution" in payload["data"]
+    assert payload["data"]["must_not_use_for_decision"] is False
+    assert payload["data"]["contract"]["must_not_use_for_decision"] is False
+
+
+@pytest.mark.django_db
+def test_regime_action_api_returns_blocked_contract_for_unreliable_pulse(monkeypatch):
+    user = User.objects.create_user(username="action-api-blocked", password="pass")
+    client = APIClient()
+    client.force_authenticate(user=user)
+    blocked = RegimeActionRecommendation(
+        asset_weights={},
+        risk_budget_pct=0.0,
+        position_limit_pct=0.0,
+        recommended_sectors=[],
+        benefiting_styles=[],
+        hedge_recommendation=None,
+        reasoning="Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。",
+        regime_contribution="Recovery 导航仪仍可读取，但 Pulse 数据未达到决策级可靠性。",
+        pulse_contribution="Pulse 数据不可靠，联合行动建议已阻断。",
+        generated_at=date(2026, 4, 21),
+        confidence=0.41,
+        must_not_use_for_decision=True,
+        blocked_reason="Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。",
+        blocked_code="pulse_unreliable",
+        pulse_observed_at=date(2026, 4, 20),
+        pulse_is_reliable=False,
+        stale_indicator_codes=["CN_PMI", "000300.SH"],
+    )
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase.execute",
+        lambda self, as_of_date=None: blocked,
+    )
+
+    response = client.get("/api/regime/action/")
+
+    assert response.status_code == status.HTTP_200_OK
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["must_not_use_for_decision"] is True
+    assert payload["data"]["blocked_code"] == "pulse_unreliable"
+    assert payload["data"]["stale_indicator_codes"] == ["CN_PMI", "000300.SH"]
+    assert payload["data"]["contract"]["pulse_is_reliable"] is False

@@ -1,14 +1,13 @@
 """Pulse Application Layer Use Cases"""
 
 import logging
-from datetime import date, timedelta
+from datetime import date
 
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8
-PULSE_MACRO_SYNC_LOOKBACK_DAYS = 120
 PULSE_MACRO_SYNC_INDICATORS = (
     "CN_PMI",
     "CN_NEW_CREDIT",
@@ -37,29 +36,22 @@ def _is_snapshot_usable(
 
 
 def _refresh_macro_inputs_for_pulse(target_date: date) -> None:
-    """Refresh the macro indicators that feed Pulse before recalculation."""
+    """Refresh Data Center inputs that feed Pulse before recalculation."""
     try:
-        from apps.macro.application.use_cases import (
-            SyncMacroDataRequest,
-            build_sync_macro_data_use_case,
-        )
+        from django.core.management import call_command
 
-        sync_use_case = build_sync_macro_data_use_case()
-        response = sync_use_case.execute(
-            SyncMacroDataRequest(
-                start_date=target_date - timedelta(days=PULSE_MACRO_SYNC_LOOKBACK_DAYS),
-                end_date=target_date,
-                indicators=list(PULSE_MACRO_SYNC_INDICATORS),
-                force_refresh=False,
-            )
+        call_command(
+            "repair_decision_data_reliability",
+            target_date=target_date.isoformat(),
+            macro_indicator_codes=",".join(PULSE_MACRO_SYNC_INDICATORS),
+            asset_codes="000300.SH",
+            skip_pulse=True,
+            skip_alpha=True,
+            strict=False,
+            verbosity=0,
         )
-        if response.errors:
-            logger.warning(
-                "Pulse macro refresh completed with errors: %s",
-                response.errors,
-            )
     except Exception as exc:
-        logger.warning("Failed to refresh Pulse macro inputs: %s", exc)
+        logger.warning("Failed to refresh Pulse Data Center inputs: %s", exc)
 
 
 class CalculatePulseUseCase:
@@ -80,6 +72,7 @@ class CalculatePulseUseCase:
         try:
             # 1. 获取当前 regime
             from apps.regime.application.current_regime import resolve_current_regime
+
             regime_result = resolve_current_regime(as_of_date=target_date)
             regime_context = regime_result.dominant_regime
 
@@ -95,6 +88,7 @@ class CalculatePulseUseCase:
 
             # 3. 获取所有指标读数
             from apps.pulse.infrastructure.data_provider import DjangoPulseDataProvider
+
             provider = DjangoPulseDataProvider()
             readings = provider.get_all_readings(target_date)
 
@@ -111,6 +105,7 @@ class CalculatePulseUseCase:
 
             # 5. 持久化
             from apps.pulse.infrastructure.repositories import PulseRepository
+
             repo = PulseRepository()
             repo.save_snapshot(snapshot)
 

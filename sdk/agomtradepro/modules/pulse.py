@@ -42,6 +42,8 @@ class PulseModule(BaseModule):
             >>> pulse = client.pulse.get_current()
             >>> print(f"综合分数: {pulse['composite_score']}")
             >>> print(f"Regime 强度: {pulse['regime_strength']}")
+            >>> if pulse["data"]["contract"]["must_not_use_for_decision"]:
+            ...     print(pulse["data"]["contract"]["blocked_reason"])
         """
         return self._get("current/")
 
@@ -120,6 +122,8 @@ class PulseModule(BaseModule):
         获取 Regime + Pulse 联合行动建议
 
         返回具体的资产配置百分比、风险预算、推荐板块/风格、对冲建议。
+        当 Pulse 未通过 freshness / reliability 校验时，服务端会返回
+        `must_not_use_for_decision=true` 的阻断契约，而不是继续给出可执行建议。
 
         Returns:
             包含以下字段的字典:
@@ -130,12 +134,17 @@ class PulseModule(BaseModule):
             - hedge_recommendation: 对冲建议
             - regime_contribution: Regime 贡献说明
             - pulse_contribution: Pulse 贡献说明
+            - must_not_use_for_decision: 是否禁止用于决策
+            - blocked_reason: 阻断原因
+            - blocked_code: 阻断代码
+            - pulse_is_reliable: Pulse 是否达到决策级可靠性
+            - stale_indicator_codes: stale 指标代码列表
 
         Example:
             >>> client = AgomTradeProClient()
             >>> action = client.pulse.get_action_recommendation()
-            >>> print(f"权益: {action['asset_weights']['equity']:.0%}")
-            >>> print(f"风险预算: {action['risk_budget_pct']:.0%}")
+            >>> if action["data"]["contract"]["must_not_use_for_decision"]:
+            ...     print(action["data"]["contract"]["blocked_reason"])
         """
         return self._get_from("/api/regime/action/")
 

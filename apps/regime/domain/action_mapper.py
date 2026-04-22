@@ -61,6 +61,12 @@ class RegimeActionRecommendation:
     # 元数据
     generated_at: date
     confidence: float  # 综合置信度
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
+    blocked_code: str = ""
+    pulse_observed_at: date | None = None
+    pulse_is_reliable: bool = True
+    stale_indicator_codes: list[str] = field(default_factory=list)
 
 
 def map_regime_pulse_to_action(
@@ -156,4 +162,10 @@ def map_regime_pulse_to_action(
         pulse_contribution=pulse_contrib,
         generated_at=as_of_date,
         confidence=confidence,
+        must_not_use_for_decision=False,
+        blocked_reason="",
+        blocked_code="",
+        pulse_observed_at=as_of_date,
+        pulse_is_reliable=True,
+        stale_indicator_codes=[],
     )

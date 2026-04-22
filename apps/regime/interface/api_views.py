@@ -357,6 +357,16 @@ class RegimeActionView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+            contract = {
+                "must_not_use_for_decision": bool(action.must_not_use_for_decision),
+                "blocked_reason": action.blocked_reason,
+                "blocked_code": action.blocked_code,
+                "pulse_observed_at": (
+                    action.pulse_observed_at.isoformat() if action.pulse_observed_at else None
+                ),
+                "pulse_is_reliable": bool(action.pulse_is_reliable),
+                "stale_indicator_codes": list(action.stale_indicator_codes or []),
+            }
             data = {
                 "asset_weights": action.asset_weights,
                 "risk_budget_pct": action.risk_budget_pct,
@@ -369,6 +379,13 @@ class RegimeActionView(APIView):
                 "pulse_contribution": action.pulse_contribution,
                 "generated_at": action.generated_at.isoformat(),
                 "confidence": action.confidence,
+                "must_not_use_for_decision": contract["must_not_use_for_decision"],
+                "blocked_reason": contract["blocked_reason"],
+                "blocked_code": contract["blocked_code"],
+                "pulse_observed_at": contract["pulse_observed_at"],
+                "pulse_is_reliable": contract["pulse_is_reliable"],
+                "stale_indicator_codes": contract["stale_indicator_codes"],
+                "contract": contract,
             }
 
             return Response({"success": True, "data": data})

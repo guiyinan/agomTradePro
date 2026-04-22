@@ -198,8 +198,8 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_action_recommendation_ignores_unreliable_pulse(monkeypatch):
-    captured: dict[str, object] = {}
+def test_action_recommendation_blocks_unreliable_pulse(monkeypatch):
+    captured_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(
         "apps.regime.application.navigator_use_cases.BuildRegimeNavigatorUseCase.execute",
@@ -207,7 +207,7 @@ def test_action_recommendation_ignores_unreliable_pulse(monkeypatch):
     )
 
     def _fake_execute(self, *args, **kwargs):
-        captured.update(kwargs)
+        captured_calls.append(dict(kwargs))
         if kwargs.get("require_reliable"):
             return None
         return _sample_pulse_snapshot()
@@ -220,6 +220,9 @@ def test_action_recommendation_ignores_unreliable_pulse(monkeypatch):
     action = GetActionRecommendationUseCase().execute(date(2026, 4, 8))
 
     assert action is not None
-    assert captured["require_reliable"] is True
-    assert captured["refresh_if_stale"] is True
-    assert "score=0.00" in action.pulse_contribution
+    assert any(call.get("require_reliable") is True for call in captured_calls)
+    assert any(call.get("refresh_if_stale") is True for call in captured_calls)
+    assert any(call.get("require_reliable") is False for call in captured_calls)
+    assert action.must_not_use_for_decision is True
+    assert action.blocked_code == "pulse_unreliable"
+    assert "已阻断" in action.blocked_reason
