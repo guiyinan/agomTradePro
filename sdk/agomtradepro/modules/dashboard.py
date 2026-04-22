@@ -78,13 +78,27 @@ class DashboardModule(BaseModule):
         meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
         top_candidates = data.get("top_candidates") or data.get("items") or []
         pending_requests = data.get("pending_requests") or []
+        actionable_candidates = data.get("actionable_candidates") or []
+        existing_contract = data.get("contract") if isinstance(data.get("contract"), dict) else {}
         refresh_status = str(meta.get("refresh_status") or "")
         async_task_id = str(meta.get("async_task_id") or "")
         hardcoded_fallback_used = bool(meta.get("hardcoded_fallback_used", False))
         no_recommendation_reason = str(meta.get("no_recommendation_reason") or "")
-        recommendation_ready = bool(top_candidates) and not hardcoded_fallback_used
-        if no_recommendation_reason:
-            recommendation_ready = False
+        scope_verification_status = str(meta.get("scope_verification_status") or "")
+        verified_scope_hash = str(meta.get("verified_scope_hash") or "")
+        if not verified_scope_hash and scope_verification_status == "verified":
+            verified_scope_hash = str(meta.get("scope_hash") or "")
+        verified_asof_date = meta.get("verified_asof_date")
+        if verified_asof_date in (None, "") and scope_verification_status == "verified":
+            verified_asof_date = meta.get("effective_asof_date")
+        if "recommendation_ready" in meta:
+            recommendation_ready = bool(meta.get("recommendation_ready"))
+        elif existing_contract:
+            recommendation_ready = bool(existing_contract.get("recommendation_ready", False))
+        else:
+            recommendation_ready = bool(top_candidates) and not hardcoded_fallback_used
+            if no_recommendation_reason:
+                recommendation_ready = False
         async_refresh_queued = DashboardModule._is_async_refresh_active(
             refresh_status=refresh_status,
             async_task_id=async_task_id,
@@ -93,6 +107,9 @@ class DashboardModule(BaseModule):
         contract = {
             "recommendation_ready": recommendation_ready,
             "must_not_treat_as_recommendation": not recommendation_ready,
+            "must_not_use_for_decision": not recommendation_ready,
+            "readiness_status": str(meta.get("readiness_status") or ""),
+            "blocked_reason": str(meta.get("blocked_reason") or no_recommendation_reason),
             "async_refresh_queued": async_refresh_queued,
             "refresh_status": refresh_status,
             "async_task_id": async_task_id,
@@ -100,13 +117,27 @@ class DashboardModule(BaseModule):
             "hardcoded_fallback_used": hardcoded_fallback_used,
             "no_recommendation_reason": no_recommendation_reason,
             "top_candidate_count": len(top_candidates) if isinstance(top_candidates, list) else 0,
+            "actionable_candidate_count": (
+                len(actionable_candidates) if isinstance(actionable_candidates, list) else 0
+            ),
             "pending_request_count": (
                 len(pending_requests) if isinstance(pending_requests, list) else 0
             ),
             "source": str(meta.get("source") or ""),
             "status": str(meta.get("status") or ""),
             "scope_hash": str(meta.get("scope_hash") or ""),
+            "scope_verification_status": scope_verification_status,
+            "freshness_status": str(meta.get("freshness_status") or ""),
+            "result_age_days": meta.get("result_age_days"),
+            "is_stale": bool(meta.get("is_stale", False)),
+            "latest_available_qlib_result": bool(meta.get("latest_available_qlib_result", False)),
+            "derived_from_broader_cache": bool(meta.get("derived_from_broader_cache", False)),
+            "trade_date_adjusted": bool(meta.get("trade_date_adjusted", False)),
+            "verified_scope_hash": verified_scope_hash,
+            "verified_asof_date": verified_asof_date,
         }
+        if existing_contract:
+            contract = {**contract, **existing_contract}
         payload["contract"] = contract
         if payload.get("data") is data:
             data["contract"] = contract
@@ -179,6 +210,9 @@ class DashboardModule(BaseModule):
         contract = {
             "recommendation_ready": False,
             "must_not_treat_as_recommendation": True,
+            "must_not_use_for_decision": True,
+            "readiness_status": "refresh_queued",
+            "blocked_reason": "Refresh only queues scoped Alpha inference; call alpha_stocks after completion.",
             "async_refresh_queued": DashboardModule._is_async_refresh_active(
                 refresh_status=refresh_status,
                 async_task_id=async_task_id,
@@ -188,6 +222,15 @@ class DashboardModule(BaseModule):
             "poll_after_ms": DashboardModule._safe_int(poll_after_ms, default=5000),
             "hardcoded_fallback_used": False,
             "no_recommendation_reason": "Refresh only queues scoped Alpha inference; call alpha_stocks after completion.",
+            "scope_verification_status": "pending_refresh",
+            "freshness_status": "pending_refresh",
+            "result_age_days": None,
+            "is_stale": False,
+            "latest_available_qlib_result": False,
+            "derived_from_broader_cache": False,
+            "trade_date_adjusted": False,
+            "verified_scope_hash": "",
+            "verified_asof_date": None,
         }
         payload["contract"] = contract
         if isinstance(data, dict) and payload.get("data") is data:

@@ -1,7 +1,7 @@
 <div class="alpha-factor-panel">
     <div class="factor-panel-header">
         <div>
-            <h3 class="factor-panel-title">单股因子暴露</h3>
+            <h3 class="factor-panel-title">Alpha 分值解释</h3>
             {% if stock_code %}
             <div class="factor-panel-subtitle">
                 <strong>{{ stock_code }}</strong>
@@ -12,6 +12,7 @@
             {% endif %}
         </div>
         <div class="factor-panel-badges">
+            <span class="factor-provider-badge">{{ alpha_scope|default:"portfolio" }}</span>
             <span class="factor-provider-badge factor-provider-{{ provider|default:'unknown' }}">{{ provider|default:"unknown" }}</span>
             {% if factor_count %}
             <span class="factor-count-badge">{{ factor_count }} factors</span>
@@ -38,6 +39,53 @@
             <span class="summary-value">{{ stock.asof_date|default:"-" }}</span>
         </div>
     </div>
+
+    <div class="factor-detail-block">
+        <h4>计算链路</h4>
+        <div class="factor-detail-grid">
+            <div><span>Provider</span><strong>{{ recommendation_basis.provider_source|default:provider|default:"-" }}</strong></div>
+            <div><span>Universe</span><strong>{% if recommendation_basis.universe_id %}{{ recommendation_basis.universe_id }}{% elif alpha_pool.universe_id %}{{ alpha_pool.universe_id }}{% else %}-{% endif %}</strong></div>
+            <div><span>Pool Mode</span><strong>{% if recommendation_basis.pool_mode %}{{ recommendation_basis.pool_mode }}{% elif alpha_pool.pool_mode %}{{ alpha_pool.pool_mode }}{% else %}-{% endif %}</strong></div>
+            <div><span>Scope Hash</span><strong>{% if recommendation_basis.scope_hash %}{{ recommendation_basis.scope_hash }}{% elif alpha_pool.scope_hash %}{{ alpha_pool.scope_hash }}{% else %}-{% endif %}</strong></div>
+            <div><span>请求交易日</span><strong>{% if recommendation_basis.requested_trade_date %}{{ recommendation_basis.requested_trade_date }}{% elif alpha_meta.requested_trade_date %}{{ alpha_meta.requested_trade_date }}{% else %}-{% endif %}</strong></div>
+            <div><span>实际评分日</span><strong>{% if recommendation_basis.effective_asof_date %}{{ recommendation_basis.effective_asof_date }}{% elif alpha_meta.effective_asof_date %}{{ alpha_meta.effective_asof_date }}{% else %}-{% endif %}</strong></div>
+        </div>
+    </div>
+
+    <div class="factor-detail-block">
+        <h4>数据可靠性</h4>
+        <div class="factor-detail-grid">
+            <div><span>Freshness</span><strong>{% if recommendation_basis.freshness_status %}{{ recommendation_basis.freshness_status }}{% elif alpha_meta.freshness_status %}{{ alpha_meta.freshness_status }}{% else %}-{% endif %}</strong></div>
+            <div><span>Scope Verification</span><strong>{% if recommendation_basis.scope_verification_status %}{{ recommendation_basis.scope_verification_status }}{% elif alpha_meta.scope_verification_status %}{{ alpha_meta.scope_verification_status }}{% else %}-{% endif %}</strong></div>
+            <div><span>Broader Cache</span><strong>{% if recommendation_basis.derived_from_broader_cache or alpha_meta.derived_from_broader_cache %}yes{% else %}no{% endif %}</strong></div>
+            <div><span>Trade Date Adjusted</span><strong>{% if recommendation_basis.trade_date_adjusted or alpha_meta.trade_date_adjusted %}yes{% else %}no{% endif %}</strong></div>
+            <div><span>Verified Scope</span><strong>{% if recommendation_basis.verified_scope_hash %}{{ recommendation_basis.verified_scope_hash }}{% elif alpha_meta.verified_scope_hash %}{{ alpha_meta.verified_scope_hash }}{% else %}-{% endif %}</strong></div>
+            <div><span>Verified Asof</span><strong>{% if recommendation_basis.verified_asof_date %}{{ recommendation_basis.verified_asof_date }}{% elif alpha_meta.verified_asof_date %}{{ alpha_meta.verified_asof_date }}{% else %}-{% endif %}</strong></div>
+        </div>
+    </div>
+
+    {% if recommendation_basis.must_not_use_for_decision or alpha_meta.must_not_use_for_decision or alpha_scope == "general" %}
+    <div class="factor-decision-block factor-decision-blocked">
+        <strong>仅研究，不可用于决策</strong>
+        <p>{% if recommendation_basis.blocked_reason %}{{ recommendation_basis.blocked_reason }}{% elif stock.blocked_reason %}{{ stock.blocked_reason }}{% elif alpha_meta.blocked_reason %}{{ alpha_meta.blocked_reason }}{% else %}当前 Alpha 结果未通过账户专属 readiness 校验。{% endif %}</p>
+    </div>
+    {% else %}
+    <div class="factor-decision-block factor-decision-ready">
+        <strong>账户专属 readiness 已通过</strong>
+        <p>该标的可进入后续执行前风控与仓位评估。</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if factor_basis %}
+    <div class="factor-detail-block">
+        <h4>因子依据</h4>
+        <ul class="factor-explain-list">
+            {% for basis in factor_basis %}
+            <li>{{ basis }}</li>
+            {% endfor %}
+        </ul>
+    </div>
     {% endif %}
 
     {% if factors %}
@@ -61,6 +109,43 @@
     <div class="factor-empty-state">
         <div class="factor-empty-icon">◌</div>
         <p>{{ empty_reason }}</p>
+    </div>
+    {% endif %}
+
+    {% if buy_reasons %}
+    <div class="factor-detail-block">
+        <h4>支持理由</h4>
+        <ul class="factor-explain-list">
+            {% for reason in buy_reasons|slice:":5" %}
+            <li>{{ reason.text }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if no_buy_reasons %}
+    <div class="factor-detail-block">
+        <h4>阻断/不买理由</h4>
+        <ul class="factor-explain-list">
+            {% for reason in no_buy_reasons|slice:":5" %}
+            <li>{{ reason.text }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if risk_snapshot %}
+    <div class="factor-detail-block">
+        <h4>风险与仓位上下文</h4>
+        <div class="factor-detail-grid">
+            <div><span>Policy Gate</span><strong>{{ risk_snapshot.policy_gate_level|default:"-" }}</strong></div>
+            <div><span>Regime</span><strong>{{ risk_snapshot.regime_name|default:"-" }}</strong></div>
+            <div><span>Regime Conf.</span><strong>{{ risk_snapshot.regime_confidence|default:"-" }}</strong></div>
+            <div><span>Pulse</span><strong>{{ risk_snapshot.pulse_composite|default:"-" }}</strong></div>
+        </div>
+        {% if risk_snapshot.sizing_explain %}
+        <p class="factor-origin-note">{{ risk_snapshot.sizing_explain }}</p>
+        {% endif %}
     </div>
     {% endif %}
 </div>

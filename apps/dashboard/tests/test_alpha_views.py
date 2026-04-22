@@ -1,10 +1,12 @@
 import json
+from datetime import date
 from types import SimpleNamespace
 
-from django.test import RequestFactory
 from django.template.loader import render_to_string
+from django.test import RequestFactory
 
 from apps.dashboard.interface import views
+from apps.regime.domain.action_mapper import RegimeActionRecommendation
 
 
 def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
@@ -81,17 +83,35 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     assert payload["success"] is True
     assert captured["pool_mode"] == "price_covered"
     assert payload["pool_mode"] == "price_covered"
+    assert payload["alpha_scope"] == "portfolio"
+    assert payload["must_not_use_for_decision"] is True
+
+
+def test_alpha_refresh_portfolio_scope_requires_portfolio_id():
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 10, "alpha_scope": "portfolio", "pool_mode": "price_covered"},
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+
+    assert response.status_code == 400
+    assert payload["success"] is False
+    assert "portfolio_id" in payload["error"]
 
 
 def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     captured: dict[str, object] = {}
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None):
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
             captured["top_n"] = top_n
             captured["user"] = user
             captured["portfolio_id"] = portfolio_id
             captured["pool_mode"] = pool_mode
+            captured["alpha_scope"] = alpha_scope
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -139,12 +159,187 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     assert captured["top_n"] == 1
     assert captured["portfolio_id"] == 9
     assert captured["pool_mode"] == "market"
+    assert captured["alpha_scope"] == "portfolio"
     assert payload["success"] is True
     assert payload["data"]["count"] == 1
     assert payload["data"]["meta"]["uses_cached_data"] is True
     assert payload["data"]["pool"]["pool_size"] == 3200
     assert payload["data"]["history_run_id"] == 12
     assert payload["data"]["top_candidates"][0]["stage"] == "top_ranked"
+
+
+def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
+    class FakeQuery:
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+            return SimpleNamespace(
+                top_candidates=[
+                    {
+                        "code": "000001.SZ",
+                        "name": "平安银行",
+                        "alpha_score": 0.91,
+                        "rank": 1,
+                        "stage": "top_ranked",
+                        "stage_label": "仅排名",
+                        "source": "cache",
+                    }
+                ],
+                meta={
+                    "status": "available",
+                    "source": "cache",
+                    "recommendation_ready": False,
+                    "must_not_use_for_decision": True,
+                    "readiness_status": "blocked_broader_scope_cache",
+                    "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+                    "scope_verification_status": "derived_from_broader_cache",
+                    "freshness_status": "fresh",
+                    "result_age_days": 0,
+                    "derived_from_broader_cache": True,
+                    "latest_available_qlib_result": False,
+                    "scope_hash": "scope-123",
+                    "poll_after_ms": 5000,
+                },
+                pool={"label": "账户驱动 Alpha 池", "pool_size": 3200},
+                actionable_candidates=[],
+                pending_requests=[],
+                recent_runs=[],
+                history_run_id=8,
+            )
+
+    request = RequestFactory().get("/api/dashboard/alpha/stocks/", {"format": "json", "top_n": 1})
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+
+    response = views.alpha_stocks_htmx(request)
+    payload = json.loads(response.content)
+    contract = payload["data"]["contract"]
+
+    assert response.status_code == 200
+    assert contract["recommendation_ready"] is False
+    assert contract["must_not_treat_as_recommendation"] is True
+    assert contract["readiness_status"] == "blocked_broader_scope_cache"
+    assert contract["scope_verification_status"] == "derived_from_broader_cache"
+    assert contract["freshness_status"] == "fresh"
+    assert contract["blocked_reason"] == "当前结果来自 broader-scope cache 映射。"
+    assert contract["verified_scope_hash"] == ""
+
+
+def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeQuery:
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+            captured["alpha_scope"] = alpha_scope
+            captured["portfolio_id"] = portfolio_id
+            return SimpleNamespace(
+                top_candidates=[
+                    {
+                        "code": "000001.SZ",
+                        "name": "平安银行",
+                        "alpha_score": 0.91,
+                        "rank": 1,
+                        "stage": "top_ranked",
+                        "stage_label": "Alpha Top 候选/排名",
+                        "source": "cache",
+                    }
+                ],
+                meta={
+                    "alpha_scope": "general",
+                    "status": "available",
+                    "source": "cache",
+                    "recommendation_ready": False,
+                    "must_not_use_for_decision": True,
+                    "readiness_status": "research_only",
+                    "blocked_reason": "通用 Alpha 仅用于研究排名。",
+                    "scope_verification_status": "general_universe",
+                },
+                pool={"alpha_scope": "general", "label": "通用 Alpha 研究池", "pool_size": 1},
+                actionable_candidates=[],
+                pending_requests=[],
+                recent_runs=[],
+                history_run_id=None,
+            )
+
+    request = RequestFactory().get(
+        "/api/dashboard/alpha/stocks/",
+        {"format": "json", "top_n": 1, "alpha_scope": "general", "portfolio_id": 9},
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+
+    response = views.alpha_stocks_htmx(request)
+    payload = json.loads(response.content)
+    contract = payload["data"]["contract"]
+
+    assert response.status_code == 200
+    assert captured["alpha_scope"] == "general"
+    assert captured["portfolio_id"] is None
+    assert payload["data"]["alpha_scope"] == "general"
+    assert payload["data"]["actionable_candidates"] == []
+    assert contract["must_not_use_for_decision"] is True
+    assert contract["readiness_status"] == "research_only"
+
+
+def test_alpha_stocks_htmx_json_contract_exposes_trade_date_adjustment(monkeypatch):
+    class FakeQuery:
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+            return SimpleNamespace(
+                top_candidates=[
+                    {
+                        "code": "000001.SZ",
+                        "name": "平安银行",
+                        "alpha_score": 0.91,
+                        "rank": 1,
+                        "stage": "top_ranked",
+                        "stage_label": "仅排名",
+                        "source": "cache",
+                    }
+                ],
+                meta={
+                    "status": "available",
+                    "source": "cache",
+                    "recommendation_ready": False,
+                    "must_not_use_for_decision": True,
+                    "readiness_status": "blocked_trade_date_adjusted",
+                    "blocked_reason": "请求交易日 2026-04-21 的 Qlib 日线尚未落地。",
+                    "scope_verification_status": "verified",
+                    "freshness_status": "trade_date_adjusted",
+                    "result_age_days": 1,
+                    "is_stale": True,
+                    "trade_date_adjusted": True,
+                    "derived_from_broader_cache": False,
+                    "latest_available_qlib_result": True,
+                    "scope_hash": "scope-123",
+                    "verified_scope_hash": "scope-123",
+                    "verified_asof_date": "2026-04-20",
+                    "poll_after_ms": 5000,
+                },
+                pool={"label": "账户驱动 Alpha 池", "pool_size": 3200},
+                actionable_candidates=[],
+                pending_requests=[],
+                recent_runs=[],
+                history_run_id=8,
+            )
+
+    request = RequestFactory().get("/api/dashboard/alpha/stocks/", {"format": "json", "top_n": 1})
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+
+    response = views.alpha_stocks_htmx(request)
+    payload = json.loads(response.content)
+    contract = payload["data"]["contract"]
+
+    assert response.status_code == 200
+    assert contract["recommendation_ready"] is False
+    assert contract["must_not_use_for_decision"] is True
+    assert contract["readiness_status"] == "blocked_trade_date_adjusted"
+    assert contract["scope_verification_status"] == "verified"
+    assert contract["freshness_status"] == "trade_date_adjusted"
+    assert contract["trade_date_adjusted"] is True
+    assert contract["verified_scope_hash"] == "scope-123"
+    assert contract["verified_asof_date"] == "2026-04-20"
 
 
 def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
@@ -156,7 +351,7 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
     request.user = SimpleNamespace(is_authenticated=True, username="admin")
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None):
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -265,32 +460,98 @@ def test_alpha_stocks_empty_state_renders_refresh_cta():
     )
 
     assert "暂无可信 Alpha 候选数据" in content
-    assert "触发实时推理" in content
-    assert "triggerAlphaRealtimeRefresh(10)" in content
+    assert "触发账户专属推理" in content
+
+
+def test_action_recommendation_partial_blocks_unreliable_pulse(monkeypatch):
+    request = RequestFactory().get(
+        "/api/dashboard/action-recommendation/",
+        HTTP_HX_REQUEST="true",
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    blocked_action = RegimeActionRecommendation(
+        asset_weights={},
+        risk_budget_pct=0.0,
+        position_limit_pct=0.0,
+        recommended_sectors=[],
+        benefiting_styles=[],
+        hedge_recommendation=None,
+        reasoning="Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。",
+        regime_contribution="Recovery 导航仪仍可读取，但 Pulse 数据未达到决策级可靠性。",
+        pulse_contribution="Pulse 数据不可靠，联合行动建议已阻断。",
+        generated_at=date(2026, 4, 21),
+        confidence=0.4,
+        must_not_use_for_decision=True,
+        blocked_reason="Pulse 数据未通过 freshness/reliability 校验，联合行动建议已阻断。",
+        blocked_code="pulse_unreliable",
+        pulse_observed_at=date(2026, 4, 20),
+        pulse_is_reliable=False,
+        stale_indicator_codes=["CN_PMI", "000300.SH"],
+    )
+    monkeypatch.setattr(
+        views,
+        "_load_phase1_macro_components",
+        lambda as_of_date=None: (None, None, blocked_action),
+    )
+
+    response = views.action_recommendation_htmx(request)
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "行动建议已阻断" in content
+    assert "CN_PMI, 000300.SH" in content
 
 
 def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
     captured: dict[str, object] = {}
     user = SimpleNamespace(is_authenticated=True, username="admin")
 
-    def fake_get_alpha_stock_scores(top_n: int = 10, user=None, pool_mode=None):
+    def fake_get_alpha_stock_scores_payload(
+        top_n: int = 10,
+        user=None,
+        portfolio_id=None,
+        pool_mode=None,
+        alpha_scope=None,
+    ):
         captured["top_n"] = top_n
         captured["user"] = user
+        captured["portfolio_id"] = portfolio_id
         captured["pool_mode"] = pool_mode
-        return [
-            {
-                "code": "000001.SZ",
-                "name": "平安银行",
-                "score": 0.91,
-                "rank": 1,
-                "source": "cache",
-                "confidence": 0.88,
-                "factors": {"quality": 0.4},
-                "asof_date": "2026-03-10",
-            }
-        ]
+        captured["alpha_scope"] = alpha_scope
+        return {
+            "items": [
+                {
+                    "code": "000001.SZ",
+                    "name": "平安银行",
+                    "score": 0.91,
+                    "rank": 1,
+                    "source": "cache",
+                    "confidence": 0.88,
+                    "factors": {"quality": 0.4},
+                    "asof_date": "2026-03-10",
+                    "recommendation_basis": {
+                        "factor_basis": ["quality=0.400"],
+                        "scope_hash": "scope-123",
+                        "freshness_status": "fresh",
+                    },
+                    "blocked_reason": "仅研究",
+                    "must_not_use_for_decision": True,
+                }
+            ],
+            "meta": {
+                "alpha_scope": "portfolio",
+                "blocked_reason": "仅研究",
+                "must_not_use_for_decision": True,
+            },
+            "pool": {"scope_hash": "scope-123"},
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "recent_runs": [],
+            "history_run_id": None,
+        }
 
-    monkeypatch.setattr(views, "_get_alpha_stock_scores", fake_get_alpha_stock_scores)
+    monkeypatch.setattr(views, "_get_alpha_stock_scores_payload", fake_get_alpha_stock_scores_payload)
 
     panel = views._build_alpha_factor_panel(
         stock_code="000001.SZ",
@@ -301,8 +562,67 @@ def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
     assert captured["user"] is user
     assert captured["top_n"] == 10
     assert captured["pool_mode"] is None
+    assert captured["alpha_scope"] == "portfolio"
     assert panel["stock"]["code"] == "000001.SZ"
     assert panel["factor_count"] == 1
+    assert panel["recommendation_basis"]["scope_hash"] == "scope-123"
+    assert panel["factor_basis"] == ["quality=0.400"]
+
+
+def test_alpha_factor_panel_renders_score_explanation_contract():
+    content = render_to_string(
+        "dashboard/partials/alpha_factor_panel.html",
+        {
+            "stock": {
+                "code": "000001.SZ",
+                "name": "平安银行",
+                "score": 0.91,
+                "rank": 1,
+                "confidence": 0.88,
+                "asof_date": "2026-04-21",
+                "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+            },
+            "stock_code": "000001.SZ",
+            "provider": "cache",
+            "alpha_scope": "portfolio",
+            "alpha_meta": {
+                "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+                "scope_verification_status": "derived_from_broader_cache",
+                "freshness_status": "fresh",
+                "must_not_use_for_decision": True,
+            },
+            "alpha_pool": {"scope_hash": "scope-123", "universe_id": "portfolio-366-scope"},
+            "recommendation_basis": {
+                "provider_source": "qlib",
+                "universe_id": "portfolio-366-scope",
+                "scope_hash": "scope-123",
+                "pool_mode": "price_covered",
+                "requested_trade_date": "2026-04-21",
+                "effective_asof_date": "2026-04-21",
+                "freshness_status": "fresh",
+                "scope_verification_status": "derived_from_broader_cache",
+                "derived_from_broader_cache": True,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+            },
+            "factor_basis": ["momentum=0.910"],
+            "buy_reasons": [{"text": "Alpha 排名第 1"}],
+            "no_buy_reasons": [{"text": "当前结果来自 broader-scope cache 映射。"}],
+            "risk_snapshot": {"policy_gate_level": "P1", "regime_name": "Recovery"},
+            "factor_origin": "score_payload",
+            "factors": [{"name": "momentum", "value": 0.91, "bar_width": 91, "direction": "positive"}],
+            "factor_count": 1,
+            "empty_reason": "",
+        },
+    )
+
+    assert "Alpha 分值解释" in content
+    assert "计算链路" in content
+    assert "portfolio-366-scope" in content
+    assert "数据可靠性" in content
+    assert "derived_from_broader_cache" in content
+    assert "仅研究，不可用于决策" in content
+    assert "momentum=0.910" in content
 
 
 def test_alpha_history_list_api_returns_filtered_runs(monkeypatch):
@@ -444,7 +764,7 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
             )
 
     class FakeHomepageQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None):
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
             captured["homepage_calls"] += 1
             return SimpleNamespace(
                 top_candidates=[

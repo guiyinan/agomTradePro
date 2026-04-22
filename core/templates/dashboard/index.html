@@ -356,6 +356,21 @@
                     <span class="ds-badge ds-etf" title="ETF 成份股兜底">🛡️ ETF</span>
                 </div>
                 <div class="header-actions">
+                    <input type="hidden" id="alphaScopeMode" value="{{ selected_alpha_scope|default:'portfolio' }}">
+                    <div class="alpha-scope-tabs" role="tablist" aria-label="Alpha scope">
+                        <button type="button"
+                                id="alphaScopeGeneralTab"
+                                class="alpha-scope-tab {% if selected_alpha_scope == 'general' %}active{% endif %}"
+                                onclick="setAlphaScopeMode('general')">
+                            通用 Alpha
+                        </button>
+                        <button type="button"
+                                id="alphaScopePortfolioTab"
+                                class="alpha-scope-tab {% if selected_alpha_scope != 'general' %}active{% endif %}"
+                                onclick="setAlphaScopeMode('portfolio')">
+                            账户专属 Alpha
+                        </button>
+                    </div>
                     <select id="alphaPortfolioSelect" class="sort-select" onchange="reloadAlphaStocksTable(10)">
                         {% for portfolio in portfolio_options %}
                         <option value="{{ portfolio.id }}" {% if portfolio.id == selected_portfolio_id %}selected{% endif %}>
@@ -365,11 +380,7 @@
                         <option value="">当前组合</option>
                         {% endfor %}
                     </select>
-                    <button class="refresh-btn"
-                            hx-get="{% url 'api_dashboard:alpha_stocks' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}"
-                            hx-trigger="click"
-                            hx-target="#alphaStocksTable"
-                            hx-swap="innerHTML">
+                    <button type="button" class="refresh-btn" onclick="reloadAlphaStocksTable(10)">
                         <span>🔄 刷新</span>
                     </button>
                     <button
@@ -378,7 +389,7 @@
                         class="refresh-btn refresh-btn-realtime"
                         onclick="triggerAlphaRealtimeRefresh(10)"
                     >
-                        <span>⚡ 实时刷新</span>
+                        <span>⚡ 触发专属推理</span>
                     </button>
                     <span id="alphaRefreshStatus" class="alpha-refresh-status" aria-live="polite"></span>
                 </div>
@@ -447,7 +458,7 @@
                 <!-- 左侧：选股结果表格 -->
                 <div class="alpha-content-card alpha-stocks-card">
                     <div class="card-header">
-                        <h3>账户驱动 Alpha 候选</h3>
+                        <h3>Alpha 候选/排名</h3>
                         <div class="alpha-card-actions">
                             <a href="{% url 'equity:screen' %}?source=dashboard-alpha{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if alpha_pool.pool_mode %}&pool_mode={{ alpha_pool.pool_mode }}{% endif %}" class="alpha-section-link">进入个股筛选</a>
                             <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-section-link">推荐历史</a>
@@ -455,7 +466,7 @@
                         </div>
                     </div>
                     <div class="card-body" id="alphaStocksTable">
-                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_pool=alpha_pool alpha_actionable_candidates=alpha_actionable_candidates alpha_pending_requests=alpha_pending_requests alpha_recent_runs=alpha_recent_runs alpha_history_run_id=alpha_history_run_id selected_portfolio_id=selected_portfolio_id %}
+                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_pool=alpha_pool alpha_actionable_candidates=alpha_actionable_candidates alpha_pending_requests=alpha_pending_requests alpha_recent_runs=alpha_recent_runs alpha_history_run_id=alpha_history_run_id selected_portfolio_id=selected_portfolio_id selected_alpha_pool_mode=selected_alpha_pool_mode alpha_scope=selected_alpha_scope %}
                     </div>
                 </div>
 
@@ -463,11 +474,11 @@
                 <div class="alpha-content-right">
                     <div class="alpha-content-card factor-panel-card">
                         <div class="card-header">
-                            <h3>因子暴露面板</h3>
-                            <span class="card-hint">点击左侧股票加载</span>
+                            <h3>Alpha 分值解释</h3>
+                            <span class="card-hint">点击左侧分值或股票加载</span>
                         </div>
                         <div class="card-body" id="alphaFactorPanel">
-                            {% include 'dashboard/partials/alpha_factor_panel.html' with stock=alpha_factor_panel.stock stock_code=alpha_factor_panel.stock_code provider=alpha_factor_panel.provider factor_origin=alpha_factor_panel.factor_origin factors=alpha_factor_panel.factors factor_count=alpha_factor_panel.factor_count empty_reason=alpha_factor_panel.empty_reason %}
+                            {% include 'dashboard/partials/alpha_factor_panel.html' with stock=alpha_factor_panel.stock stock_code=alpha_factor_panel.stock_code provider=alpha_factor_panel.provider alpha_scope=alpha_factor_panel.alpha_scope alpha_meta=alpha_factor_panel.alpha_meta alpha_pool=alpha_factor_panel.alpha_pool recommendation_basis=alpha_factor_panel.recommendation_basis factor_basis=alpha_factor_panel.factor_basis buy_reasons=alpha_factor_panel.buy_reasons no_buy_reasons=alpha_factor_panel.no_buy_reasons risk_snapshot=alpha_factor_panel.risk_snapshot factor_origin=alpha_factor_panel.factor_origin factors=alpha_factor_panel.factors factor_count=alpha_factor_panel.factor_count empty_reason=alpha_factor_panel.empty_reason %}
                         </div>
                     </div>
 
@@ -1024,16 +1035,54 @@ function getCookie(name) {
     return cookieValue;
 }
 
+function getAlphaScopeMode() {
+    const scopeInput = document.getElementById('alphaScopeMode');
+    return scopeInput && scopeInput.value === 'general' ? 'general' : 'portfolio';
+}
+
+function updateAlphaScopeControls() {
+    const scope = getAlphaScopeMode();
+    const generalTab = document.getElementById('alphaScopeGeneralTab');
+    const portfolioTab = document.getElementById('alphaScopePortfolioTab');
+    const portfolioSelect = document.getElementById('alphaPortfolioSelect');
+    const refreshBtn = document.getElementById('alphaRealtimeRefreshBtn');
+
+    if (generalTab) {
+        generalTab.classList.toggle('active', scope === 'general');
+    }
+    if (portfolioTab) {
+        portfolioTab.classList.toggle('active', scope === 'portfolio');
+    }
+    if (portfolioSelect) {
+        portfolioSelect.disabled = scope === 'general';
+    }
+    if (refreshBtn) {
+        refreshBtn.innerHTML = scope === 'general'
+            ? '<span>⚡ 刷新通用排名</span>'
+            : '<span>⚡ 触发专属推理</span>';
+    }
+}
+
+function setAlphaScopeMode(scope) {
+    const scopeInput = document.getElementById('alphaScopeMode');
+    if (scopeInput) {
+        scopeInput.value = scope === 'general' ? 'general' : 'portfolio';
+    }
+    updateAlphaScopeControls();
+    reloadAlphaStocksTable(10);
+}
+
 function reloadAlphaStocksTable(topN = 10) {
     const portfolioSelect = document.getElementById('alphaPortfolioSelect');
     const poolModeSelect = document.getElementById('alphaPoolModeSelect');
+    const alphaScope = getAlphaScopeMode();
     const portfolioId = portfolioSelect ? portfolioSelect.value : '';
     const poolMode = poolModeSelect ? poolModeSelect.value : '';
-    const query = new URLSearchParams({ top_n: String(topN) });
-    if (portfolioId) {
+    const query = new URLSearchParams({ top_n: String(topN), alpha_scope: alphaScope });
+    if (alphaScope === 'portfolio' && portfolioId) {
         query.set('portfolio_id', portfolioId);
     }
-    if (poolMode) {
+    if (alphaScope === 'portfolio' && poolMode) {
         query.set('pool_mode', poolMode);
     }
     if (window.htmx) {
@@ -1089,19 +1138,27 @@ async function triggerAlphaRealtimeRefresh(topN = 10) {
     try {
         const portfolioSelect = document.getElementById('alphaPortfolioSelect');
         const poolModeSelect = document.getElementById('alphaPoolModeSelect');
+        const alphaScope = getAlphaScopeMode();
         const portfolioId = portfolioSelect ? portfolioSelect.value : '';
         const poolMode = poolModeSelect ? poolModeSelect.value : '';
+        if (alphaScope === 'portfolio' && !portfolioId) {
+            throw new Error('账户专属 Alpha 推理必须先选择组合。');
+        }
+        const body = new URLSearchParams({
+            top_n: String(topN),
+            alpha_scope: alphaScope,
+        });
+        if (alphaScope === 'portfolio') {
+            body.set('portfolio_id', portfolioId);
+            body.set('pool_mode', poolMode);
+        }
         const response = await fetch(API_URLS.alphaRefresh, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
                 'X-CSRFToken': getCookie('csrftoken'),
             },
-            body: new URLSearchParams({
-                top_n: String(topN),
-                portfolio_id: portfolioId,
-                pool_mode: poolMode,
-            }),
+            body,
         });
         const data = await response.json();
         if (!response.ok || !data.success) {
@@ -1160,9 +1217,13 @@ async function discardAlphaPendingRequest(requestId) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', scheduleAlphaAutoRefreshFromPanel);
+document.addEventListener('DOMContentLoaded', () => {
+    updateAlphaScopeControls();
+    scheduleAlphaAutoRefreshFromPanel();
+});
 document.body.addEventListener('htmx:afterSwap', (event) => {
     if (event.target && event.target.id === 'alphaStocksTable') {
+        updateAlphaScopeControls();
         scheduleAlphaAutoRefreshFromPanel();
     }
 });
@@ -1797,6 +1858,31 @@ chatSendBtn.onclick = async function() {
     font-size: 13px;
     background: var(--bg-primary);
     cursor: pointer;
+}
+
+.alpha-scope-tabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: #f4f7fb;
+}
+
+.alpha-scope-tab {
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+}
+
+.alpha-scope-tab.active {
+    background: #122c57;
+    color: #fff;
 }
 
 .sortable {
@@ -2618,6 +2704,82 @@ chatSendBtn.onclick = async function() {
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 10px 12px;
+}
+
+.factor-detail-block {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    padding: 12px;
+}
+
+.factor-detail-block h4 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.factor-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.factor-detail-grid div {
+    min-width: 0;
+}
+
+.factor-detail-grid span {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+}
+
+.factor-detail-grid strong {
+    display: block;
+    font-size: 12px;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.factor-decision-block {
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.factor-decision-block strong {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.factor-decision-block p {
+    margin: 0;
+    font-size: 12px;
+}
+
+.factor-decision-blocked {
+    background: #fff8e8;
+    border: 1px solid #f2d08a;
+    color: #7a5418;
+}
+
+.factor-decision-ready {
+    background: #ecfdf3;
+    border: 1px solid #b7e4c7;
+    color: #166534;
+}
+
+.factor-explain-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.factor-explain-list li + li {
+    margin-top: 4px;
 }
 
 .summary-label {

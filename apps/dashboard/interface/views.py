@@ -17,6 +17,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone as django_timezone
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -27,12 +28,17 @@ from apps.account.infrastructure.repositories import (
     PortfolioRepository,
     PositionRepository,
 )
+from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver,
     get_alpha_pool_mode_choices,
     normalize_alpha_pool_mode,
 )
-from apps.account.interface.authentication import MultiTokenAuthentication
+from apps.dashboard.application.alpha_homepage import (
+    ALPHA_SCOPE_GENERAL,
+    ALPHA_SCOPE_PORTFOLIO,
+    normalize_alpha_scope,
+)
 from apps.dashboard.application.queries import (
     get_alpha_decision_chain_query,
     get_alpha_homepage_query,
@@ -86,6 +92,72 @@ def _build_alpha_decision_chain_overview(
         "actionable_conversion_pct": round((actionable_total / denominator) * 100, 2),
         "pending_conversion_pct": round((pending_total / denominator) * 100, 2),
     }
+
+
+def _build_alpha_readiness_contract(
+    *,
+    meta: dict,
+    top_candidates: list[dict],
+    actionable_candidates: list[dict],
+    pending_requests: list[dict],
+) -> dict:
+    """Build a decision-safety contract for dashboard Alpha payloads."""
+    refresh_status = str(meta.get("refresh_status") or "")
+    async_task_id = str(meta.get("async_task_id") or "")
+    recommendation_ready = bool(meta.get("recommendation_ready", False))
+    blocked_reason = str(meta.get("blocked_reason") or meta.get("no_recommendation_reason") or "")
+    return {
+        "alpha_scope": str(meta.get("alpha_scope") or ALPHA_SCOPE_PORTFOLIO),
+        "recommendation_ready": recommendation_ready,
+        "must_not_treat_as_recommendation": not recommendation_ready,
+        "must_not_use_for_decision": not recommendation_ready,
+        "readiness_status": str(meta.get("readiness_status") or ""),
+        "blocked_reason": blocked_reason,
+        "async_refresh_queued": DashboardModuleContract._is_async_refresh_active(
+            refresh_status=refresh_status,
+            async_task_id=async_task_id,
+        ),
+        "refresh_status": refresh_status,
+        "async_task_id": async_task_id,
+        "poll_after_ms": DashboardModuleContract._safe_int(meta.get("poll_after_ms"), default=5000),
+        "hardcoded_fallback_used": bool(meta.get("hardcoded_fallback_used", False)),
+        "no_recommendation_reason": str(meta.get("no_recommendation_reason") or ""),
+        "top_candidate_count": len(top_candidates),
+        "actionable_candidate_count": len(actionable_candidates),
+        "pending_request_count": len(pending_requests),
+        "source": str(meta.get("source") or ""),
+        "status": str(meta.get("status") or ""),
+        "scope_hash": str(meta.get("scope_hash") or ""),
+        "scope_verification_status": str(meta.get("scope_verification_status") or ""),
+        "freshness_status": str(meta.get("freshness_status") or ""),
+        "result_age_days": meta.get("result_age_days"),
+        "is_stale": bool(meta.get("is_stale", False)),
+        "latest_available_qlib_result": bool(meta.get("latest_available_qlib_result", False)),
+        "derived_from_broader_cache": bool(meta.get("derived_from_broader_cache", False)),
+        "trade_date_adjusted": bool(meta.get("trade_date_adjusted", False)),
+        "verified_scope_hash": str(meta.get("verified_scope_hash") or ""),
+        "verified_asof_date": meta.get("verified_asof_date"),
+    }
+
+
+class DashboardModuleContract:
+    """Shared helpers for dashboard readiness contract formatting."""
+
+    @staticmethod
+    def _safe_int(value, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _is_async_refresh_active(refresh_status: str, async_task_id: str) -> bool:
+        status = refresh_status.lower()
+        if status in {"queued", "recently_queued", "pending", "running", "started"}:
+            return True
+        if status in {"failed", "skipped", "available", "completed", "success", "done"}:
+            return False
+        return bool(async_task_id)
 
 
 def _build_dashboard_data(user_id: int):
@@ -242,7 +314,7 @@ def _build_regime_status_context(navigator, pulse, action) -> dict:
     asset_guidance = getattr(navigator, "asset_guidance", None)
     risk_budget_pct = 0.0
 
-    if action:
+    if action and not getattr(action, "must_not_use_for_decision", False):
         risk_budget_pct = action.risk_budget_pct * 100
     elif asset_guidance:
         risk_budget_pct = asset_guidance.risk_budget_pct * 100
@@ -255,6 +327,7 @@ def _build_regime_status_context(navigator, pulse, action) -> dict:
         "pulse_strength": getattr(pulse, "regime_strength", "moderate"),
         "risk_budget_pct": risk_budget_pct,
         "transition_warning": bool(pulse and pulse.transition_warning),
+        "action_blocked": bool(action and getattr(action, "must_not_use_for_decision", False)),
     }
 
 
@@ -304,8 +377,13 @@ def _build_action_recommendation_context(action) -> dict:
             "action_pulse_contribution": "",
             "action_reasoning": "当前暂无联合行动建议，请先完成 Regime 与 Pulse 数据计算。",
             "action_confidence": 0.0,
+            "action_blocked": False,
+            "action_blocked_reason": "",
+            "action_blocked_code": "",
+            "action_stale_indicator_codes": [],
         }
 
+    is_blocked = bool(getattr(action, "must_not_use_for_decision", False))
     return {
         "action_weights": {
             category: weight * 100 for category, weight in action.asset_weights.items()
@@ -319,6 +397,10 @@ def _build_action_recommendation_context(action) -> dict:
         "action_pulse_contribution": action.pulse_contribution,
         "action_reasoning": action.reasoning,
         "action_confidence": action.confidence * 100,
+        "action_blocked": is_blocked,
+        "action_blocked_reason": getattr(action, "blocked_reason", ""),
+        "action_blocked_code": getattr(action, "blocked_code", ""),
+        "action_stale_indicator_codes": list(getattr(action, "stale_indicator_codes", []) or []),
     }
 
 
@@ -420,8 +502,10 @@ def _get_alpha_stock_scores_payload(
     user=None,
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
+    alpha_scope: str | None = None,
 ) -> dict:
     """Return Alpha stock items plus reliability metadata."""
+    normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
     try:
         query = get_alpha_homepage_query()
         data = query.execute(
@@ -429,11 +513,16 @@ def _get_alpha_stock_scores_payload(
             user=user,
             portfolio_id=portfolio_id,
             pool_mode=pool_mode,
+            alpha_scope=normalized_alpha_scope,
         )
+        meta = dict(data.meta)
+        meta.setdefault("alpha_scope", normalized_alpha_scope)
+        pool = dict(data.pool)
+        pool.setdefault("alpha_scope", normalized_alpha_scope)
         return {
             "items": data.top_candidates,
-            "meta": data.meta,
-            "pool": data.pool,
+            "meta": meta,
+            "pool": pool,
             "actionable_candidates": data.actionable_candidates,
             "pending_requests": data.pending_requests,
             "recent_runs": data.recent_runs,
@@ -449,8 +538,11 @@ def _get_alpha_stock_scores_payload(
                 "warning_message": "alpha_stock_scores_unavailable",
                 "is_degraded": True,
                 "uses_cached_data": False,
+                "alpha_scope": normalized_alpha_scope,
+                "recommendation_ready": False,
+                "must_not_use_for_decision": True,
             },
-            "pool": {},
+            "pool": {"alpha_scope": normalized_alpha_scope},
             "actionable_candidates": [],
             "pending_requests": [],
             "recent_runs": [],
@@ -516,6 +608,7 @@ def _get_alpha_stock_scores(
     user=None,
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
+    alpha_scope: str | None = None,
 ) -> list:
     """
     获取 Alpha 选股评分结果
@@ -529,6 +622,7 @@ def _get_alpha_stock_scores(
         user=user,
         portfolio_id=portfolio_id,
         pool_mode=pool_mode,
+        alpha_scope=alpha_scope,
     )["items"]
 
 
@@ -537,6 +631,7 @@ def _get_alpha_stock_scores_meta(
     user=None,
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
+    alpha_scope: str | None = None,
 ) -> dict:
     """Return stock-score reliability metadata for dashboard rendering."""
     return _get_alpha_stock_scores_payload(
@@ -544,6 +639,7 @@ def _get_alpha_stock_scores_meta(
         user=user,
         portfolio_id=portfolio_id,
         pool_mode=pool_mode,
+        alpha_scope=alpha_scope,
     )["meta"]
 
 
@@ -662,24 +758,23 @@ def _build_alpha_factor_panel(
     user=None,
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
+    alpha_scope: str | None = None,
 ) -> dict:
     """Build factor panel data for a single alpha stock."""
+    normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
     selected = None
+    payload: dict | None = None
     if scores is not None:
         score_items = list(scores)
-    elif portfolio_id is None:
-        score_items = _get_alpha_stock_scores(
-            top_n=max(top_n, 10),
-            user=user,
-            pool_mode=pool_mode,
-        )
     else:
-        score_items = _get_alpha_stock_scores(
+        payload = _get_alpha_stock_scores_payload(
             top_n=max(top_n, 10),
             user=user,
             portfolio_id=portfolio_id,
             pool_mode=pool_mode,
+            alpha_scope=normalized_alpha_scope,
         )
+        score_items = payload["items"]
     for item in score_items:
         if item.get("code") == stock_code:
             selected = item
@@ -697,7 +792,7 @@ def _build_alpha_factor_panel(
             service = AlphaService()
             provider_instance = service._registry.get_provider(provider)
             if provider_instance:
-                factors = provider_instance.get_factor_exposure(stock_code, date.today()) or {}
+                factors = provider_instance.get_factor_exposure(stock_code, django_timezone.localdate()) or {}
                 if factors:
                     factor_origin = f"{provider}_provider"
         except Exception as exc:
@@ -713,25 +808,47 @@ def _build_alpha_factor_panel(
         else:
             empty_reason = "当前股票暂无可展示的因子暴露数据。"
 
-    sorted_factors = sorted(
-        (
+    sorted_factors = []
+    for key, value in factors.items():
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            continue
+        sorted_factors.append(
             {
                 "name": key,
-                "value": float(value),
-                "abs_value": abs(float(value)),
-                "bar_width": min(abs(float(value)) * 100, 100),
-                "direction": "positive" if float(value) >= 0 else "negative",
+                "value": numeric_value,
+                "abs_value": abs(numeric_value),
+                "bar_width": min(abs(numeric_value) * 100, 100),
+                "direction": "positive" if numeric_value >= 0 else "negative",
             }
-            for key, value in factors.items()
-        ),
-        key=lambda item: item["abs_value"],
-        reverse=True,
-    )
+        )
+    sorted_factors.sort(key=lambda item: item["abs_value"], reverse=True)
+
+    recommendation_basis = dict((selected or {}).get("recommendation_basis") or {})
+    alpha_meta = dict(payload["meta"]) if payload else {}
+    alpha_pool = dict(payload["pool"]) if payload else {}
+    if not alpha_meta and selected:
+        alpha_meta = {
+            "alpha_scope": normalized_alpha_scope,
+            "readiness_status": recommendation_basis.get("freshness_status") or "",
+            "scope_verification_status": recommendation_basis.get("scope_verification_status") or "",
+            "blocked_reason": recommendation_basis.get("blocked_reason") or selected.get("blocked_reason") or "",
+            "must_not_use_for_decision": selected.get("must_not_use_for_decision", True),
+        }
 
     return {
         "stock": selected,
         "stock_code": stock_code,
         "provider": provider,
+        "alpha_scope": normalized_alpha_scope,
+        "alpha_meta": alpha_meta,
+        "alpha_pool": alpha_pool,
+        "recommendation_basis": recommendation_basis,
+        "factor_basis": recommendation_basis.get("factor_basis") or [],
+        "buy_reasons": (selected or {}).get("buy_reasons") or [],
+        "no_buy_reasons": (selected or {}).get("no_buy_reasons") or [],
+        "risk_snapshot": (selected or {}).get("risk_snapshot") or {},
         "factor_origin": factor_origin,
         "factors": sorted_factors,
         "factor_count": len(sorted_factors),
@@ -784,6 +901,15 @@ def dashboard_view(request):
     else:
         selected_portfolio_id = None
     selected_alpha_pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
+    try:
+        portfolio_options = PortfolioRepository().get_user_portfolios(request.user.id)
+    except Exception as e:
+        logger.warning(f"Failed to get portfolio options: {e}")
+        portfolio_options = []
+    requested_alpha_scope = request.GET.get("alpha_scope")
+    selected_alpha_scope = normalize_alpha_scope(requested_alpha_scope)
+    if requested_alpha_scope in (None, "") and not portfolio_options and selected_portfolio_id is None:
+        selected_alpha_scope = ALPHA_SCOPE_GENERAL
 
     decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
     if decision_plane_data is None:
@@ -807,6 +933,7 @@ def dashboard_view(request):
         user=request.user,
         portfolio_id=selected_portfolio_id,
         pool_mode=selected_alpha_pool_mode,
+        alpha_scope=selected_alpha_scope,
     )
     workflow_actionable_candidates = decision_plane_data.actionable_candidates
     workflow_pending_requests = decision_plane_data.pending_requests
@@ -821,11 +948,6 @@ def dashboard_view(request):
     )
     initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
     investment_accounts = _get_dashboard_accounts(request.user)
-    try:
-        portfolio_options = PortfolioRepository().get_user_portfolios(request.user.id)
-    except Exception as e:
-        logger.warning(f"Failed to get portfolio options: {e}")
-        portfolio_options = []
     try:
         from apps.equity.application.config import get_valuation_repair_config_summary
         valuation_repair_config_summary = get_valuation_repair_config_summary(use_cache=False)
@@ -900,6 +1022,7 @@ def dashboard_view(request):
         "alpha_history_run_id": alpha_payload["history_run_id"],
         "selected_portfolio_id": selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
         "selected_alpha_pool_mode": selected_alpha_pool_mode or alpha_payload["pool"].get("pool_mode"),
+        "selected_alpha_scope": selected_alpha_scope,
         "alpha_pool_mode_choices": get_alpha_pool_mode_choices(),
         "alpha_provider_status": alpha_metrics_data.provider_status,
         "alpha_coverage_metrics": alpha_metrics_data.coverage_metrics,
@@ -911,6 +1034,7 @@ def dashboard_view(request):
             user=request.user,
             portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
             pool_mode=selected_alpha_pool_mode,
+            alpha_scope=selected_alpha_scope,
         ),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
@@ -1453,6 +1577,7 @@ def alpha_refresh_htmx(request):
         return HttpResponseNotAllowed(["POST"])
 
     try:
+        target_date = django_timezone.localdate()
         top_n = _parse_positive_int_param(
             request.POST.get("top_n", 10),
             field_name="top_n",
@@ -1460,55 +1585,68 @@ def alpha_refresh_htmx(request):
         )
         raw_portfolio_id = request.POST.get("portfolio_id")
         pool_mode = normalize_alpha_pool_mode(request.POST.get("pool_mode"))
+        raw_alpha_scope = request.POST.get("alpha_scope")
+        alpha_scope = normalize_alpha_scope(raw_alpha_scope)
         portfolio_id = (
             _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
             if raw_portfolio_id not in (None, "")
             else None
         )
+        if alpha_scope == ALPHA_SCOPE_PORTFOLIO and raw_alpha_scope not in (None, "") and portfolio_id is None:
+            raise ValueError("账户专属 Alpha 推理必须提供 portfolio_id")
 
         from apps.alpha.application.tasks import qlib_predict_scores
 
         user_id = _get_request_user_id(request.user)
         raw_universe_id = str(request.POST.get("universe_id") or "").strip() or "csi300"
         resolved_pool = None
-        if user_id is not None:
+        if alpha_scope == ALPHA_SCOPE_PORTFOLIO and user_id is not None:
             resolved_pool = PortfolioAlphaPoolResolver().resolve(
                 user_id=user_id,
                 portfolio_id=portfolio_id,
-                trade_date=date.today(),
+                trade_date=target_date,
                 pool_mode=pool_mode,
             )
 
         if resolved_pool is None:
-            task = qlib_predict_scores.delay(raw_universe_id, date.today().isoformat(), top_n)
+            task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
+            message = (
+                "已触发通用 Alpha 刷新任务；结果仅用于研究排名，不作为账户专属建议。"
+                if alpha_scope == ALPHA_SCOPE_GENERAL
+                else "已触发 Alpha 实时刷新任务，请稍后刷新查看最新结果。"
+            )
             response_payload = {
                 "success": True,
+                "alpha_scope": alpha_scope,
                 "task_id": task.id,
                 "universe_id": raw_universe_id,
                 "portfolio_id": portfolio_id,
                 "scope_hash": None,
-                "requested_trade_date": date.today().isoformat(),
+                "requested_trade_date": target_date.isoformat(),
                 "pool_mode": pool_mode,
-                "message": "已触发 Alpha 实时刷新任务，请稍后刷新查看最新结果。",
+                "message": message,
                 "poll_after_ms": 5000,
+                "must_not_use_for_decision": True,
             }
         else:
             task = qlib_predict_scores.delay(
                 resolved_pool.scope.universe_id,
-                date.today().isoformat(),
+                target_date.isoformat(),
                 top_n,
                 scope_payload=resolved_pool.scope.to_dict(),
             )
             response_payload = {
                 "success": True,
+                "alpha_scope": ALPHA_SCOPE_PORTFOLIO,
                 "task_id": task.id,
                 "universe_id": resolved_pool.scope.universe_id,
                 "portfolio_id": resolved_pool.portfolio_id,
                 "scope_hash": resolved_pool.scope.scope_hash,
-                "requested_trade_date": date.today().isoformat(),
+                "requested_trade_date": target_date.isoformat(),
                 "pool_mode": resolved_pool.scope.pool_mode,
-                "message": "已触发 Qlib 实时刷新任务，请稍后刷新查看最新结果。",
+                "message": "已触发账户专属 scoped Qlib 推理任务，请稍后刷新查看最新结果。",
                 "poll_after_ms": 5000,
+                "must_not_use_for_decision": True,
             }
         return JsonResponse(response_payload)
     except ValueError as exc:
@@ -1536,6 +1674,7 @@ def alpha_stocks_htmx(request):
         )
         raw_portfolio_id = request.GET.get("portfolio_id")
         pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
+        alpha_scope = normalize_alpha_scope(request.GET.get("alpha_scope"))
         portfolio_id = (
             _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
             if raw_portfolio_id not in (None, "")
@@ -1546,8 +1685,9 @@ def alpha_stocks_htmx(request):
     scores_payload = _get_alpha_stock_scores_payload(
         top_n=top_n,
         user=request.user,
-        portfolio_id=portfolio_id,
+        portfolio_id=None if alpha_scope == ALPHA_SCOPE_GENERAL else portfolio_id,
         pool_mode=pool_mode,
+        alpha_scope=alpha_scope,
     )
     scores = scores_payload["items"]
     meta = scores_payload["meta"]
@@ -1555,6 +1695,12 @@ def alpha_stocks_htmx(request):
     actionable_candidates = scores_payload["actionable_candidates"]
     pending_requests = scores_payload["pending_requests"]
     recent_runs = scores_payload["recent_runs"]
+    contract = _build_alpha_readiness_contract(
+        meta=meta,
+        top_candidates=scores,
+        actionable_candidates=actionable_candidates,
+        pending_requests=pending_requests,
+    )
 
     if request.GET.get("format") == "json":
         return JsonResponse(
@@ -1569,6 +1715,8 @@ def alpha_stocks_htmx(request):
                     "pool": pool,
                     "recent_runs": recent_runs,
                     "history_run_id": scores_payload["history_run_id"],
+                    "contract": contract,
+                    "alpha_scope": alpha_scope,
                     "count": len(scores),
                     "top_n": top_n,
                 },
@@ -1589,6 +1737,7 @@ def alpha_stocks_htmx(request):
         'alpha_history_run_id': scores_payload["history_run_id"],
         'selected_portfolio_id': portfolio_id or pool.get("portfolio_id"),
         'selected_alpha_pool_mode': pool_mode or pool.get("pool_mode"),
+        'alpha_scope': alpha_scope,
         'alpha_pool_mode_choices': get_alpha_pool_mode_choices(),
         'top_n': top_n,
     }
@@ -1737,6 +1886,7 @@ def alpha_factor_panel_htmx(request):
     source = (request.GET.get('source') or '').strip() or None
     raw_portfolio_id = request.GET.get("portfolio_id")
     pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
+    alpha_scope = normalize_alpha_scope(request.GET.get("alpha_scope"))
     try:
         top_n = _parse_positive_int_param(
             request.GET.get('top_n', 10),
@@ -1763,6 +1913,14 @@ def alpha_factor_panel_htmx(request):
                 'factors': [],
                 'factor_count': 0,
                 'empty_reason': '请选择左侧一只股票查看因子暴露。',
+                'alpha_scope': alpha_scope,
+                'alpha_meta': {},
+                'alpha_pool': {},
+                'recommendation_basis': {},
+                'factor_basis': [],
+                'buy_reasons': [],
+                'no_buy_reasons': [],
+                'risk_snapshot': {},
             },
         )
 
@@ -1773,5 +1931,6 @@ def alpha_factor_panel_htmx(request):
         user=request.user,
         portfolio_id=portfolio_id,
         pool_mode=pool_mode,
+        alpha_scope=alpha_scope,
     )
     return render(request, 'dashboard/partials/alpha_factor_panel.html', context)

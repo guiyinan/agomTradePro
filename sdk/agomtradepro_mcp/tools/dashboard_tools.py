@@ -53,6 +53,8 @@ def register_dashboard_tools(server: FastMCP) -> None:
         返回当前组合的 `Alpha Top 候选/排名`、`可行动候选`、`待执行队列`、
         缓存/实时元数据，以及最近历史 run 摘要。响应会附带 `contract`：
         `recommendation_ready=false` 时，Agent 不得把待执行或异步排队状态解释为推荐。
+        同时会返回 `readiness_status`、`scope_verification_status`、`freshness_status`、
+        `blocked_reason` 等字段，用于区分“研究结果”和“可执行推荐”。
         `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()

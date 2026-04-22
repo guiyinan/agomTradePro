@@ -106,6 +106,86 @@ def test_alpha_stocks_contract_marks_real_scoped_scores_as_recommendation_ready(
     assert contract["hardcoded_fallback_used"] is False
 
 
+def test_alpha_stocks_contract_respects_backend_readiness_metadata() -> None:
+    module = DashboardModule(
+        _FakeClient(
+            get_payload={
+                "success": True,
+                "data": {
+                    "top_candidates": [{"stock_code": "000001.SZ"}],
+                    "actionable_candidates": [],
+                    "pending_requests": [],
+                    "meta": {
+                        "recommendation_ready": False,
+                        "must_not_use_for_decision": True,
+                        "readiness_status": "blocked_broader_scope_cache",
+                        "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+                        "scope_verification_status": "derived_from_broader_cache",
+                        "freshness_status": "fresh",
+                        "result_age_days": 0,
+                        "latest_available_qlib_result": False,
+                        "derived_from_broader_cache": True,
+                        "scope_hash": "scope-1",
+                    },
+                },
+            }
+        )
+    )
+
+    result = module.alpha_stocks()
+    contract = result["contract"]
+
+    assert contract["recommendation_ready"] is False
+    assert contract["must_not_treat_as_recommendation"] is True
+    assert contract["readiness_status"] == "blocked_broader_scope_cache"
+    assert contract["scope_verification_status"] == "derived_from_broader_cache"
+    assert contract["freshness_status"] == "fresh"
+    assert contract["blocked_reason"] == "当前结果来自 broader-scope cache 映射。"
+    assert contract["derived_from_broader_cache"] is True
+
+
+def test_alpha_stocks_contract_exposes_trade_date_adjustment_and_scope_trace() -> None:
+    module = DashboardModule(
+        _FakeClient(
+            get_payload={
+                "success": True,
+                "data": {
+                    "top_candidates": [{"stock_code": "000001.SZ"}],
+                    "actionable_candidates": [],
+                    "pending_requests": [],
+                    "meta": {
+                        "recommendation_ready": False,
+                        "must_not_use_for_decision": True,
+                        "readiness_status": "blocked_trade_date_adjusted",
+                        "blocked_reason": "请求交易日 2026-04-21 的 Qlib 日线尚未落地。",
+                        "scope_verification_status": "verified",
+                        "freshness_status": "trade_date_adjusted",
+                        "result_age_days": 1,
+                        "is_stale": True,
+                        "latest_available_qlib_result": True,
+                        "derived_from_broader_cache": False,
+                        "trade_date_adjusted": True,
+                        "scope_hash": "scope-1",
+                        "effective_asof_date": "2026-04-20",
+                    },
+                },
+            }
+        )
+    )
+
+    result = module.alpha_stocks()
+    contract = result["contract"]
+
+    assert contract["recommendation_ready"] is False
+    assert contract["must_not_use_for_decision"] is True
+    assert contract["readiness_status"] == "blocked_trade_date_adjusted"
+    assert contract["scope_verification_status"] == "verified"
+    assert contract["freshness_status"] == "trade_date_adjusted"
+    assert contract["trade_date_adjusted"] is True
+    assert contract["verified_scope_hash"] == "scope-1"
+    assert contract["verified_asof_date"] == "2026-04-20"
+
+
 def test_alpha_refresh_contract_is_explicitly_async_and_not_a_recommendation() -> None:
     fake_client = _FakeClient(
         post_payload={
@@ -129,3 +209,4 @@ def test_alpha_refresh_contract_is_explicitly_async_and_not_a_recommendation() -
     assert contract["async_refresh_queued"] is True
     assert contract["async_task_id"] == "task-refresh-1"
     assert contract["hardcoded_fallback_used"] is False
+    assert contract["readiness_status"] == "refresh_queued"

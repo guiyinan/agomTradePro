@@ -7,10 +7,13 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
+from django.utils import timezone as django_timezone
+
 from apps.account.application.use_cases import GetSizingContextUseCase
 from apps.account.infrastructure.repositories import PortfolioRepository
 from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 from apps.alpha.application.services import AlphaService
+from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.dashboard.infrastructure.repositories import (
     AlphaRecommendationHistoryRepository,
     DashboardAlphaContextRepository,
@@ -18,6 +21,18 @@ from apps.dashboard.infrastructure.repositories import (
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 
 logger = logging.getLogger(__name__)
+
+ALPHA_SCOPE_GENERAL = "general"
+ALPHA_SCOPE_PORTFOLIO = "portfolio"
+ALPHA_SCOPE_CHOICES = {ALPHA_SCOPE_GENERAL, ALPHA_SCOPE_PORTFOLIO}
+
+
+def normalize_alpha_scope(raw_value: str | None) -> str:
+    """Normalize Dashboard Alpha scope mode."""
+    normalized = str(raw_value or "").strip().lower()
+    if normalized in ALPHA_SCOPE_CHOICES:
+        return normalized
+    return ALPHA_SCOPE_PORTFOLIO
 
 
 @dataclass(frozen=True)
@@ -57,8 +72,17 @@ class AlphaHomepageQuery:
         top_n: int = 10,
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
+        alpha_scope: str | None = None,
     ) -> AlphaHomepageData:
-        today = date.today()
+        today = django_timezone.localdate()
+        normalized_scope = normalize_alpha_scope(alpha_scope)
+        if normalized_scope == ALPHA_SCOPE_GENERAL:
+            return self._execute_general(
+                user=user,
+                top_n=top_n,
+                trade_date=today,
+            )
+
         resolved_pool = PortfolioAlphaPoolResolver().resolve(
             user_id=user.id,
             portfolio_id=portfolio_id,
@@ -141,6 +165,7 @@ class AlphaHomepageQuery:
 
         return AlphaHomepageData(
             pool={
+                "alpha_scope": ALPHA_SCOPE_PORTFOLIO,
                 "portfolio_id": resolved_pool.portfolio_id,
                 "portfolio_name": resolved_pool.portfolio_name,
                 "label": scope.display_label,
@@ -161,6 +186,64 @@ class AlphaHomepageQuery:
             pending_requests=pending_requests,
             recent_runs=recent_runs,
             history_run_id=history_run_id,
+        )
+
+    def _execute_general(self, *, user, top_n: int, trade_date: date) -> AlphaHomepageData:
+        """Build a broad-universe research-only Alpha ranking payload."""
+        alpha_result = self._fetch_general_alpha_result(
+            user=user,
+            trade_date=trade_date,
+            top_n=top_n,
+        )
+        self._mark_general_research_only(result=alpha_result, trade_date=trade_date)
+        top_scores = list(alpha_result.scores[:top_n]) if alpha_result.success else []
+        scope = self._build_general_scope(
+            trade_date=trade_date,
+            instrument_codes=[score.code for score in top_scores],
+        )
+        meta = self._build_meta(alpha_result=alpha_result, scope=scope)
+
+        stock_context = self._load_stock_context([score.code for score in top_scores])
+        policy_state = self._load_policy_state()
+        top_candidates = [
+            self._build_candidate_item(
+                score=score,
+                stock_context=stock_context.get(score.code, {}),
+                actionable_candidate=None,
+                pending_request=None,
+                sizing_context=None,
+                portfolio_snapshot=None,
+                position_map={},
+                policy_state=policy_state,
+                meta=meta,
+            )
+            for score in top_scores
+        ]
+
+        return AlphaHomepageData(
+            pool={
+                "alpha_scope": ALPHA_SCOPE_GENERAL,
+                "portfolio_id": None,
+                "portfolio_name": "通用研究池",
+                "label": scope.display_label,
+                "pool_type": scope.pool_type,
+                "market": scope.market,
+                "pool_mode": scope.pool_mode,
+                "pool_size": scope.pool_size,
+                "requested_pool_mode": scope.pool_mode,
+                "requested_pool_size": scope.pool_size,
+                "scope_fallback": False,
+                "fallback_reason": "",
+                "selection_reason": scope.selection_reason,
+                "scope_hash": scope.scope_hash,
+                "universe_id": "csi300",
+            },
+            meta=meta,
+            top_candidates=top_candidates,
+            actionable_candidates=[],
+            pending_requests=[],
+            recent_runs=[],
+            history_run_id=None,
         )
 
     def list_history(
@@ -236,6 +319,62 @@ class AlphaHomepageQuery:
             "meta": run.meta,
             "snapshots": snapshots,
         }
+
+    def _fetch_general_alpha_result(self, *, user, trade_date: date, top_n: int):
+        result = None
+        for provider_name in ("qlib", "cache", "simple", "etf"):
+            candidate = self.alpha_service.get_stock_scores(
+                universe_id="csi300",
+                intended_trade_date=trade_date,
+                top_n=top_n,
+                user=user,
+                provider_filter=provider_name,
+            )
+            result = candidate
+            if candidate.success and candidate.scores:
+                return candidate
+        return result or AlphaResult(
+            success=False,
+            scores=[],
+            source="none",
+            timestamp=trade_date.isoformat(),
+            status="unavailable",
+            error_message="general_alpha_unavailable",
+            metadata={},
+        )
+
+    def _mark_general_research_only(self, *, result, trade_date: date) -> None:
+        metadata = dict(getattr(result, "metadata", {}) or {})
+        metadata.update(
+            {
+                "alpha_scope": ALPHA_SCOPE_GENERAL,
+                "research_only": True,
+                "must_not_use_for_decision": True,
+                "recommendation_ready": False,
+                "requested_trade_date": metadata.get("requested_trade_date") or trade_date.isoformat(),
+                "reliability_notice": {
+                    "level": "info",
+                    "code": "general_alpha_research_only",
+                    "title": "通用 Alpha 仅供研究",
+                    "message": "通用 Alpha 使用 broader/universe 级结果，只展示研究排名，不作为账户专属可执行建议。",
+                },
+            }
+        )
+        result.metadata = metadata
+
+    @staticmethod
+    def _build_general_scope(*, trade_date: date, instrument_codes: list[str]) -> AlphaPoolScope:
+        return AlphaPoolScope(
+            pool_type="general_universe",
+            market="CN",
+            pool_mode="general",
+            instrument_codes=tuple(instrument_codes),
+            selection_reason="通用市场研究股票池，不绑定任何账户、组合或仓位约束。",
+            trade_date=trade_date,
+            display_label="通用 Alpha 研究池",
+            portfolio_id=None,
+            portfolio_name="通用研究池",
+        )
 
     def _fetch_alpha_result(self, *, user, scope, trade_date: date, top_n: int):
         result = None
@@ -399,6 +538,145 @@ class AlphaHomepageQuery:
             }
         result.metadata = metadata
 
+    @staticmethod
+    def _parse_meta_date(value: Any) -> date | None:
+        if value in (None, ""):
+            return None
+        if isinstance(value, date):
+            return value
+        try:
+            return date.fromisoformat(str(value)[:10])
+        except ValueError:
+            return None
+
+    def _build_readiness_fields(self, *, alpha_result, scope, metadata: dict[str, Any]) -> dict[str, Any]:
+        requested_trade_date = self._parse_meta_date(metadata.get("requested_trade_date"))
+        effective_asof_date = self._parse_meta_date(metadata.get("effective_asof_date"))
+        result_age_days = getattr(alpha_result, "staleness_days", None)
+        if result_age_days is None and requested_trade_date and effective_asof_date:
+            result_age_days = max((requested_trade_date - effective_asof_date).days, 0)
+
+        derived_from_broader_cache = bool(metadata.get("derived_from_broader_cache", False))
+        scope_fallback = bool(metadata.get("scope_fallback", False))
+        trade_date_adjusted = bool(metadata.get("trade_date_adjusted", False))
+        latest_available_qlib_result = bool(metadata.get("latest_available_qlib_result", False))
+        hardcoded_fallback_used = bool(metadata.get("hardcoded_fallback_used", False))
+        is_degraded = bool(metadata.get("is_degraded", False))
+        research_only = bool(metadata.get("research_only", False)) or (
+            metadata.get("alpha_scope") == ALPHA_SCOPE_GENERAL
+        )
+        no_recommendation_reason = str(metadata.get("no_recommendation_reason") or "")
+        fallback_mode = str(metadata.get("fallback_mode") or "")
+        scores = list(getattr(alpha_result, "scores", []) or [])
+
+        scope_verification_status = "verified"
+        if not scores:
+            scope_verification_status = "unavailable"
+        elif research_only:
+            scope_verification_status = "general_universe"
+        elif derived_from_broader_cache:
+            scope_verification_status = "derived_from_broader_cache"
+        elif scope_fallback:
+            scope_verification_status = "scope_fallback"
+
+        freshness_status = "fresh"
+        if not scores:
+            freshness_status = "unavailable"
+        elif trade_date_adjusted:
+            freshness_status = "trade_date_adjusted"
+        elif fallback_mode == "forward_fill_latest_qlib_cache":
+            freshness_status = "forward_filled_cache"
+        elif result_age_days not in (None, 0):
+            freshness_status = "stale"
+        elif is_degraded or not latest_available_qlib_result:
+            freshness_status = "degraded"
+
+        blocked_reason = ""
+        readiness_status = "ready"
+        recommendation_ready = bool(scores)
+        if no_recommendation_reason:
+            readiness_status = "blocked_no_verified_result"
+            blocked_reason = no_recommendation_reason
+            recommendation_ready = False
+        elif research_only:
+            readiness_status = "research_only"
+            blocked_reason = "通用 Alpha 仅用于研究排名；未绑定账户 scope，不能作为真实交易决策。"
+            recommendation_ready = False
+        elif hardcoded_fallback_used:
+            readiness_status = "blocked_hardcoded_fallback"
+            blocked_reason = "当前结果仍含硬编码回退痕迹，不能作为真实 Alpha 推荐。"
+            recommendation_ready = False
+        elif derived_from_broader_cache:
+            readiness_status = "blocked_broader_scope_cache"
+            blocked_reason = (
+                "当前结果来自 broader-scope cache 映射，账户专属 scoped Alpha 推理尚未完成。"
+            )
+            recommendation_ready = False
+        elif scope_fallback:
+            readiness_status = "blocked_scope_fallback"
+            blocked_reason = str(
+                metadata.get("scope_fallback_reason")
+                or "当前 Alpha 股票池已扩大到回退范围，不能视为原始账户池推荐。"
+            )
+            recommendation_ready = False
+        elif trade_date_adjusted:
+            readiness_status = "blocked_trade_date_adjusted"
+            blocked_reason = str(
+                ((metadata.get("reliability_notice") or {}).get("message"))
+                or "请求交易日的 Alpha 数据尚未落地，当前只拿到了最新可用交易日结果。"
+            )
+            recommendation_ready = False
+        elif fallback_mode == "forward_fill_latest_qlib_cache":
+            readiness_status = "blocked_forward_filled_cache"
+            blocked_reason = str(
+                metadata.get("fallback_reason")
+                or "当前结果为前推缓存，尚未通过当期 Alpha 实时推理验证。"
+            )
+            recommendation_ready = False
+        elif result_age_days not in (None, 0):
+            readiness_status = "blocked_stale"
+            blocked_reason = f"当前 Alpha 结果相对请求交易日已陈旧 {result_age_days} 天。"
+            recommendation_ready = False
+        elif is_degraded:
+            readiness_status = "blocked_degraded"
+            blocked_reason = str(
+                ((metadata.get("reliability_notice") or {}).get("message"))
+                or "当前 Alpha 结果处于 degraded 状态，不能作为决策推荐。"
+            )
+            recommendation_ready = False
+        elif not latest_available_qlib_result:
+            readiness_status = "blocked_unverified_delivery"
+            blocked_reason = (
+                "当前 Alpha 输出尚未验证为请求交易日的最新 scoped Qlib 结果。"
+            )
+            recommendation_ready = False
+
+        verified_scope_hash = ""
+        verified_asof_date = None
+        if scores and scope_verification_status == "verified":
+            verified_scope_hash = getattr(scope, "scope_hash", "") or ""
+            verified_asof_date = (
+                effective_asof_date.isoformat() if effective_asof_date is not None else None
+            )
+
+        return {
+            "result_age_days": result_age_days,
+            "freshness_status": freshness_status,
+            "is_stale": result_age_days not in (None, 0),
+            "scope_verification_status": scope_verification_status,
+            "is_scope_verified": scope_verification_status == "verified",
+            "latest_available_qlib_result": latest_available_qlib_result,
+            "derived_from_broader_cache": derived_from_broader_cache,
+            "trade_date_adjusted": trade_date_adjusted,
+            "effective_trade_date": metadata.get("effective_trade_date"),
+            "recommendation_ready": recommendation_ready,
+            "must_not_use_for_decision": not recommendation_ready,
+            "blocked_reason": blocked_reason,
+            "readiness_status": readiness_status,
+            "verified_scope_hash": verified_scope_hash,
+            "verified_asof_date": verified_asof_date,
+        }
+
     def _build_meta(self, *, alpha_result, scope, resolved_pool=None) -> dict[str, Any]:
         metadata = dict(getattr(alpha_result, "metadata", {}) or {})
         scope_metadata = scope.to_dict() if hasattr(scope, "to_dict") else {}
@@ -411,7 +689,9 @@ class AlphaHomepageQuery:
             requested_pool_mode = getattr(scope, "pool_mode", "")
         if requested_pool_size is None:
             requested_pool_size = getattr(scope, "pool_size", 0)
-        return {
+        meta = {
+            "alpha_scope": metadata.get("alpha_scope") or ALPHA_SCOPE_PORTFOLIO,
+            "research_only": bool(metadata.get("research_only", False)),
             "status": getattr(alpha_result, "status", "unavailable"),
             "source": getattr(alpha_result, "source", "none"),
             "provider_source": metadata.get("provider_source")
@@ -448,8 +728,18 @@ class AlphaHomepageQuery:
             "scope_hash": getattr(scope, "scope_hash", ""),
             "scope_label": getattr(scope, "display_label", ""),
             "scope_metadata": scope_metadata,
+            "universe_id": getattr(scope, "universe_id", ""),
+            "pool_mode": getattr(scope, "pool_mode", ""),
             "model_hash": metadata.get("model_artifact_hash", ""),
         }
+        meta.update(
+            self._build_readiness_fields(
+                alpha_result=alpha_result,
+                scope=scope,
+                metadata={**metadata, **meta},
+            )
+        )
+        return meta
 
     def _load_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
         return self.context_repo.load_stock_context(codes)
@@ -554,13 +844,18 @@ class AlphaHomepageQuery:
 
         stage = "top_ranked"
         gate_status = "blocked"
+        reliability_blocked = bool(meta.get("must_not_use_for_decision", False))
+        reliability_blocked_reason = str(meta.get("blocked_reason") or "")
+
         if pending_request is not None:
             stage = "pending"
             gate_status = "warn"
-        elif passed and action == "allow" and suggested_position_pct > 0:
+        elif not reliability_blocked and passed and action == "allow" and suggested_position_pct > 0:
             stage = "actionable"
             gate_status = "passed"
         elif passed and action == "watch":
+            gate_status = "warn"
+        elif reliability_blocked and passed:
             gate_status = "warn"
 
         buy_reasons = [
@@ -598,6 +893,13 @@ class AlphaHomepageQuery:
         if pending_request is not None:
             no_buy_reasons.append(
                 {"code": "ALREADY_PENDING", "text": "已进入待执行队列，避免重复下单。"}
+            )
+        if reliability_blocked and reliability_blocked_reason:
+            no_buy_reasons.append(
+                {
+                    "code": "ALPHA_RELIABILITY_BLOCK",
+                    "text": reliability_blocked_reason,
+                }
             )
         if policy_state.get("gate_level") in {"L2", "L3"}:
             no_buy_reasons.append(
@@ -665,8 +967,11 @@ class AlphaHomepageQuery:
             "buy_reasons": buy_reasons,
             "buy_reason_summary": "；".join(reason["text"] for reason in buy_reasons[:3]),
             "recommendation_basis": {
+                "alpha_scope": meta.get("alpha_scope"),
                 "provider_source": meta.get("provider_source") or score.source,
                 "score_source": score.source,
+                "universe_id": meta.get("universe_id"),
+                "pool_mode": meta.get("pool_mode"),
                 "scope_hash": meta.get("scope_hash"),
                 "scope_label": meta.get("scope_label"),
                 "asof_date": score.asof_date.isoformat() if score.asof_date else None,
@@ -676,6 +981,17 @@ class AlphaHomepageQuery:
                 "score": round(float(score.score), 4),
                 "confidence": round(float(score.confidence), 3),
                 "factor_basis": factor_basis,
+                "scope_verification_status": meta.get("scope_verification_status"),
+                "freshness_status": meta.get("freshness_status"),
+                "result_age_days": meta.get("result_age_days"),
+                "verified_scope_hash": meta.get("verified_scope_hash"),
+                "verified_asof_date": meta.get("verified_asof_date"),
+                "latest_available_qlib_result": bool(meta.get("latest_available_qlib_result", False)),
+                "derived_from_broader_cache": bool(meta.get("derived_from_broader_cache", False)),
+                "trade_date_adjusted": bool(meta.get("trade_date_adjusted", False)),
+                "research_only": bool(meta.get("research_only", False)),
+                "must_not_use_for_decision": bool(meta.get("must_not_use_for_decision", False)),
+                "blocked_reason": reliability_blocked_reason,
             },
             "no_buy_reasons": no_buy_reasons,
             "no_buy_reason_summary": "；".join(reason["text"] for reason in no_buy_reasons[:3]),
@@ -683,6 +999,14 @@ class AlphaHomepageQuery:
             "invalidation_summary": invalidation_rule["summary"],
             "source_candidate_id": getattr(actionable_candidate, "id", None),
             "source_recommendation_id": getattr(pending_request, "id", None),
+            "recommendation_ready": stage == "actionable" and not reliability_blocked,
+            "must_not_use_for_decision": not (stage == "actionable" and not reliability_blocked),
+            "blocked_reason": (
+                "当前已在待执行队列中。"
+                if pending_request is not None
+                else reliability_blocked_reason
+                or (no_buy_reasons[0]["text"] if no_buy_reasons else "当前候选仅供研究，不构成可执行推荐。")
+            ),
             "extra_payload": {
                 "decision_action": action,
                 "decision_codes": decision_codes,
@@ -730,6 +1054,9 @@ class AlphaHomepageQuery:
             "suggested_quantity": float(getattr(request_model, "quantity", 0.0) or 0.0),
             "source_recommendation_id": getattr(request_model, "id", None),
             "reason_summary": reason,
+            "recommendation_ready": False,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "当前已在待执行队列中。",
             "risk_snapshot": {
                 "execution_status": getattr(request_model, "execution_status", ""),
                 "reason": reason,
@@ -755,7 +1082,7 @@ class AlphaHomepageQuery:
                 user_id=user_id,
                 portfolio_id=portfolio_id,
                 portfolio_name=portfolio_name,
-                trade_date=date.today(),
+                trade_date=django_timezone.localdate(),
                 scope_hash=scope.scope_hash,
                 scope_label=scope.display_label,
                 scope_metadata=scope.to_dict(),

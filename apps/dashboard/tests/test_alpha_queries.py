@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
 from apps.dashboard.application.queries import (
     AlphaDecisionChainQuery,
@@ -10,7 +11,6 @@ from apps.dashboard.application.queries import (
     DecisionPlaneQuery,
 )
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
 from apps.equity.infrastructure.models import StockInfoModel
 from apps.rotation.infrastructure.models import AssetClassModel
 
@@ -353,6 +353,186 @@ def test_alpha_homepage_query_triggers_scoped_refresh_when_using_broader_cache()
     assert result.metadata["refresh_triggered"] is True
     assert result.metadata["refresh_status"] == "queued"
     assert result.metadata["async_task_id"] == "task-scope-2"
+
+
+def test_alpha_homepage_meta_marks_broader_cache_as_not_ready():
+    query = object.__new__(AlphaHomepageQuery)
+    scope = SimpleNamespace(
+        scope_hash="deadbeef",
+        display_label="默认组合 · CN A-share 可交易池",
+        pool_mode="market",
+        pool_size=3200,
+        to_dict=lambda: {"scope_hash": "deadbeef"},
+    )
+    result = SimpleNamespace(
+        success=True,
+        scores=[SimpleNamespace(code="000001.SZ")],
+        source="cache",
+        status="available",
+        staleness_days=0,
+        metadata={
+            "provider_source": "qlib",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "derived_from_broader_cache": True,
+            "latest_available_qlib_result": False,
+        },
+    )
+
+    meta = query._build_meta(alpha_result=result, scope=scope)
+
+    assert meta["recommendation_ready"] is False
+    assert meta["must_not_use_for_decision"] is True
+    assert meta["scope_verification_status"] == "derived_from_broader_cache"
+    assert meta["readiness_status"] == "blocked_broader_scope_cache"
+    assert "broader-scope cache" in meta["blocked_reason"]
+
+
+def test_alpha_homepage_meta_marks_general_scope_as_research_only():
+    query = object.__new__(AlphaHomepageQuery)
+    scope = SimpleNamespace(
+        scope_hash="general-scope",
+        display_label="通用 Alpha 研究池",
+        pool_mode="general",
+        pool_size=1,
+        universe_id="csi300",
+        to_dict=lambda: {"scope_hash": "general-scope", "universe_id": "csi300"},
+    )
+    alpha_result = SimpleNamespace(
+        success=True,
+        source="cache",
+        status="available",
+        staleness_days=0,
+        scores=[SimpleNamespace(code="000001.SZ")],
+        metadata={
+            "alpha_scope": "general",
+            "research_only": True,
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "latest_available_qlib_result": True,
+        },
+    )
+
+    meta = query._build_meta(alpha_result=alpha_result, scope=scope)
+
+    assert meta["alpha_scope"] == "general"
+    assert meta["recommendation_ready"] is False
+    assert meta["must_not_use_for_decision"] is True
+    assert meta["scope_verification_status"] == "general_universe"
+    assert meta["readiness_status"] == "research_only"
+
+
+def test_alpha_homepage_meta_marks_trade_date_adjusted_cache_as_traceable_not_ready():
+    query = object.__new__(AlphaHomepageQuery)
+    scope = SimpleNamespace(
+        scope_hash="deadbeef",
+        display_label="默认组合 · CN A-share 可交易池",
+        pool_mode="market",
+        pool_size=3200,
+        to_dict=lambda: {"scope_hash": "deadbeef"},
+    )
+    result = SimpleNamespace(
+        success=True,
+        scores=[SimpleNamespace(code="000001.SZ")],
+        source="cache",
+        status="available",
+        staleness_days=None,
+        metadata={
+            "provider_source": "qlib",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-20",
+            "trade_date_adjusted": True,
+            "latest_available_qlib_result": True,
+            "reliability_notice": {
+                "message": "请求交易日 2026-04-21 的 Qlib 日线尚未落地。",
+            },
+        },
+    )
+
+    meta = query._build_meta(alpha_result=result, scope=scope)
+
+    assert meta["recommendation_ready"] is False
+    assert meta["must_not_use_for_decision"] is True
+    assert meta["scope_verification_status"] == "verified"
+    assert meta["freshness_status"] == "trade_date_adjusted"
+    assert meta["readiness_status"] == "blocked_trade_date_adjusted"
+    assert meta["result_age_days"] == 1
+    assert meta["is_stale"] is True
+    assert meta["trade_date_adjusted"] is True
+    assert meta["verified_scope_hash"] == "deadbeef"
+    assert meta["verified_asof_date"] == "2026-04-20"
+
+
+def test_alpha_homepage_candidate_is_not_actionable_when_readiness_is_blocked():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeDecisionEngine:
+        @staticmethod
+        def evaluate(**kwargs):
+            return "allow", ["ALLOW"], "允许观察", {}
+
+    class FakeSizingEngine:
+        @staticmethod
+        def calculate(**kwargs):
+            return 10000.0, 100.0, None, None, "sizing ok"
+
+    class FakeRiskGate:
+        @staticmethod
+        def check(**kwargs):
+            return True, [], [], {"liquidity": "ok"}
+
+    query.decision_engine = FakeDecisionEngine()
+    query.sizing_engine = FakeSizingEngine()
+    query.risk_gate = FakeRiskGate()
+
+    item = query._build_candidate_item(
+        score=SimpleNamespace(
+            code="000001.SZ",
+            score=0.91,
+            rank=1,
+            source="qlib",
+            confidence=0.82,
+            factors={"momentum": 0.9},
+            asof_date=date(2026, 4, 21),
+        ),
+        stock_context={"name": "平安银行", "close": 10.0, "volume": 1000000},
+        actionable_candidate=None,
+        pending_request=None,
+        sizing_context=SimpleNamespace(
+            multiplier_result=SimpleNamespace(multiplier=1.0),
+            regime_name="Recovery",
+            regime_confidence=0.8,
+            pulse_composite=0.2,
+            pulse_warning=False,
+        ),
+        portfolio_snapshot=SimpleNamespace(total_value=100000.0),
+        position_map={},
+        policy_state={"gate_level": "L1"},
+        meta={
+            "provider_source": "qlib",
+            "scope_hash": "scope-1",
+            "scope_label": "账户驱动 Alpha 池",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "recommendation_ready": False,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+            "scope_verification_status": "derived_from_broader_cache",
+            "freshness_status": "fresh",
+            "result_age_days": 0,
+            "verified_scope_hash": "",
+            "verified_asof_date": None,
+            "latest_available_qlib_result": False,
+            "derived_from_broader_cache": True,
+        },
+    )
+
+    assert item["stage"] == "top_ranked"
+    assert item["recommendation_ready"] is False
+    assert item["must_not_use_for_decision"] is True
+    assert item["blocked_reason"] == "当前结果来自 broader-scope cache 映射。"
+    assert item["recommendation_basis"]["scope_verification_status"] == "derived_from_broader_cache"
+    assert item["no_buy_reasons"][0]["code"] == "ALPHA_RELIABILITY_BLOCK"
 
 
 def test_alpha_homepage_factor_basis_is_explicit_and_data_driven():

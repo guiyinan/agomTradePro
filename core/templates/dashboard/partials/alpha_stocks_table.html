@@ -1,4 +1,5 @@
 <div class="alpha-homepage-panel"
+     data-alpha-scope="{{ alpha_scope|default:'portfolio' }}"
      data-alpha-refresh-status="{{ alpha_meta.refresh_status|default:'' }}"
      data-alpha-refresh-triggered="{% if alpha_meta.refresh_triggered %}true{% else %}false{% endif %}"
      data-alpha-poll-after-ms="{{ alpha_meta.poll_after_ms|default:5000 }}">
@@ -9,18 +10,31 @@
         </div>
     </div>
 
+    {% if alpha_scope == "general" %}
+    <div class="alpha-banner alpha-banner-info">
+        <strong>通用 Alpha 仅供研究排名</strong>
+        <span>当前结果不绑定账户、组合、scope hash 或仓位约束，不会生成可执行建议。</span>
+    </div>
+    {% endif %}
+
     <div class="alpha-pool-summary">
         <div>
-            <strong>{{ alpha_pool.label|default:"账户驱动 Alpha 池" }}</strong>
+            <strong>{% if alpha_scope == "general" %}{{ alpha_pool.label|default:"通用 Alpha 研究池" }}{% else %}{{ alpha_pool.label|default:"账户驱动 Alpha 池" }}{% endif %}</strong>
             <div class="alpha-pool-meta">
                 <span>池子规模 {{ alpha_pool.pool_size|default:0 }}</span>
                 <span>市场 {{ alpha_pool.market|default:"CN" }}</span>
+                {% if alpha_scope == "general" %}
+                <span>用途 研究排名</span>
+                {% else %}
                 <span>组合 {{ alpha_pool.portfolio_name|default:"默认组合" }}</span>
                 <span>模式 {{ alpha_pool.pool_mode|default:selected_alpha_pool_mode|default:"strict_valuation" }}</span>
+                {% if alpha_pool.scope_hash %}<span>scope {{ alpha_pool.scope_hash }}</span>{% endif %}
+                {% endif %}
             </div>
         </div>
         <div>
             <div class="alpha-pool-reason">{{ alpha_pool.selection_reason|default:"按当前激活组合所属市场生成候选池。" }}</div>
+            {% if alpha_scope != "general" %}
             <div class="alpha-pool-controls" style="margin-top: 10px;">
                 <label for="alphaPoolModeSelect"><strong>股票池模式</strong></label>
                 <select id="alphaPoolModeSelect"
@@ -32,6 +46,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -89,7 +104,7 @@
     </div>
     <div style="margin-top: 12px;">
         <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
-            触发实时推理
+            {% if alpha_scope == "general" %}刷新通用排名{% else %}触发账户专属推理{% endif %}
         </button>
     </div>
     {% else %}
@@ -105,7 +120,7 @@
         <div class="alpha-section-header">
             <div>
                 <h4>Alpha Top 候选/排名</h4>
-                <p>研究层排序，不等于最终买入建议。</p>
+                <p>{% if alpha_scope == "general" %}通用研究层排序，不生成可执行建议。{% else %}账户专属排序，只有 readiness 通过才可进入可行动候选。{% endif %}</p>
             </div>
             <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-history-link">
                 查看历史记录
@@ -115,7 +130,7 @@
         <div class="alpha-top-grid">
             {% for stock in alpha_stocks %}
             <article class="alpha-stock-card alpha-stage-{{ stock.stage|default:'top_ranked' }}"
-                hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
+                hx-get="{% url 'api_dashboard:alpha_factor_panel' %}?code={{ stock.code|urlencode }}&source={{ stock.source|urlencode }}&top_n={{ top_n|default:10 }}&alpha_scope={{ alpha_scope|default:'portfolio'|urlencode }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
                 hx-trigger="click"
                 hx-target="#alphaFactorPanel"
                 hx-swap="innerHTML">
@@ -147,7 +162,7 @@
                     <strong>推荐依据</strong>
                     <ul>
                         {% if stock.recommendation_basis.provider_source %}
-                        <li>模型/数据源：{{ stock.recommendation_basis.provider_source }}，评分日 {{ stock.recommendation_basis.asof_date|default:stock.recommendation_basis.effective_asof_date|default:"-" }}</li>
+                        <li>模型/数据源：{{ stock.recommendation_basis.provider_source }}，评分日 {% if stock.recommendation_basis.asof_date %}{{ stock.recommendation_basis.asof_date }}{% elif stock.recommendation_basis.effective_asof_date %}{{ stock.recommendation_basis.effective_asof_date }}{% else %}-{% endif %}</li>
                         {% endif %}
                         {% if stock.recommendation_basis.scope_hash %}
                         <li>账户池：{{ stock.recommendation_basis.scope_label|default:"账户驱动 Alpha 池" }} / {{ stock.recommendation_basis.scope_hash }}</li>
@@ -199,15 +214,29 @@
             <div class="empty-icon">📊</div>
             <p>暂无可信 Alpha 候选数据</p>
             <p>
-                {{ alpha_meta.no_recommendation_reason|default:"账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。" }}
+                {% if alpha_scope == "general" %}
+                    通用 Alpha 暂无可展示研究排名；不会用静态名单冒充结果。
+                {% else %}
+                    {{ alpha_meta.no_recommendation_reason|default:"账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。" }}
+                {% endif %}
             </p>
             <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
-                触发实时推理
+                {% if alpha_scope == "general" %}刷新通用排名{% else %}触发账户专属推理{% endif %}
             </button>
         </div>
         {% endif %}
     </section>
 
+    {% if alpha_scope == "general" %}
+    <section class="alpha-section-block alpha-research-only-block">
+        <div class="alpha-section-header">
+            <div>
+                <h4>通用 Alpha 不生成行动建议</h4>
+                <p>{{ alpha_meta.blocked_reason|default:"通用 Alpha 仅用于研究排名；请切换到账户专属 Alpha 并完成 scoped 推理后再评估可行动候选。" }}</p>
+            </div>
+        </div>
+    </section>
+    {% else %}
     <div class="alpha-secondary-grid">
         <section class="alpha-section-block">
             <div class="alpha-section-header">
@@ -283,6 +312,7 @@
             {% endif %}
         </section>
     </div>
+    {% endif %}
 
     <section class="alpha-section-block">
         <div class="alpha-section-header">
@@ -394,6 +424,13 @@
     background: #fff0f0;
     border-color: #efb5b5;
     color: #933030;
+}
+
+.alpha-banner-info,
+.alpha-research-only-block {
+    background: #eef7ff;
+    border-color: #b8d7f4;
+    color: #244c77;
 }
 
 .alpha-section-header {
