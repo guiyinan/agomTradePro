@@ -33,8 +33,15 @@ def _provider_config() -> ProviderConfig:
 
 
 class _ProviderRepo:
+    def __init__(self):
+        self.saved: list[ProviderConfig] = []
+
     def get_by_id(self, provider_id: int):
         return _provider_config() if provider_id == 1 else None
+
+    def save(self, config: ProviderConfig):
+        self.saved.append(config)
+        return config
 
 
 class _ProviderFactory:
@@ -102,10 +109,11 @@ class _Provider:
 
 def test_sync_macro_use_case_stores_facts_and_audit():
     provider = _Provider()
+    provider_repo = _ProviderRepo()
     raw_repo = _RawAuditRepo()
     fact_repo = _MacroFactRepo()
     use_case = SyncMacroUseCase(
-        provider_repo=_ProviderRepo(),
+        provider_repo=provider_repo,
         provider_factory=_ProviderFactory(provider),
         fact_repo=fact_repo,
         raw_audit_repo=raw_repo,
@@ -126,14 +134,17 @@ def test_sync_macro_use_case_stores_facts_and_audit():
     assert len(raw_repo.items) == 1
     assert raw_repo.items[0].capability == "macro"
     assert raw_repo.items[0].status == "ok"
+    assert provider_repo.saved
+    assert provider_repo.saved[-1].extra_config["health_metrics"]["macro"]["last_success_at"]
 
 
 def test_sync_news_use_case_stores_articles_and_audit():
     provider = _Provider()
+    provider_repo = _ProviderRepo()
     raw_repo = _RawAuditRepo()
     news_repo = _NewsRepo()
     use_case = SyncNewsUseCase(
-        provider_repo=_ProviderRepo(),
+        provider_repo=provider_repo,
         provider_factory=_ProviderFactory(provider),
         fact_repo=news_repo,
         raw_audit_repo=raw_repo,

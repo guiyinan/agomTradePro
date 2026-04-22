@@ -71,6 +71,7 @@ class DataCenterModule(BaseModule):
         end: Optional[str] = None,
         limit: Optional[int] = None,
         source: Optional[str] = None,
+        allow_legacy_fallback: Optional[bool] = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"indicator_code": indicator_code}
         if start:
@@ -81,6 +82,8 @@ class DataCenterModule(BaseModule):
             params["limit"] = limit
         if source:
             params["source"] = source
+        if allow_legacy_fallback is not None:
+            params["allow_legacy_fallback"] = str(allow_legacy_fallback).lower()
         return self._get("macro/series/", params=params)
 
     def sync_macro(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -111,11 +114,45 @@ class DataCenterModule(BaseModule):
     def sync_prices(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("sync/prices/", json=payload)
 
-    def get_latest_quotes(self, asset_code: str) -> dict[str, Any]:
-        return self._get("prices/quotes/", params={"asset_code": asset_code})
+    def get_latest_quotes(
+        self,
+        asset_code: str,
+        *,
+        strict_freshness: Optional[bool] = None,
+        max_age_hours: Optional[float] = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"asset_code": asset_code}
+        if strict_freshness is not None:
+            params["strict_freshness"] = str(strict_freshness).lower()
+        if max_age_hours is not None:
+            params["max_age_hours"] = max_age_hours
+        return self._get("prices/quotes/", params=params)
 
     def sync_quotes(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("sync/quotes/", json=payload)
+
+    def repair_decision_data_reliability(
+        self,
+        *,
+        target_date: Optional[str] = None,
+        portfolio_id: Optional[int] = None,
+        asset_codes: Optional[list[str]] = None,
+        macro_indicator_codes: Optional[list[str]] = None,
+        strict: bool = True,
+        quote_max_age_hours: Optional[float] = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"strict": strict}
+        if target_date:
+            payload["target_date"] = target_date
+        if portfolio_id is not None:
+            payload["portfolio_id"] = portfolio_id
+        if asset_codes is not None:
+            payload["asset_codes"] = asset_codes
+        if macro_indicator_codes is not None:
+            payload["macro_indicator_codes"] = macro_indicator_codes
+        if quote_max_age_hours is not None:
+            payload["quote_max_age_hours"] = quote_max_age_hours
+        return self._post("decision-reliability/repair/", json=payload)
 
     def get_fund_nav(
         self,

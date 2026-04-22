@@ -14,7 +14,13 @@ class ProviderConfigSerializer(serializers.Serializer):
     """Input / output serializer for a provider configuration."""
 
     SOURCE_TYPE_CHOICES = [
-        "tushare", "akshare", "eastmoney", "qmt", "fred", "wind", "choice",
+        "tushare",
+        "akshare",
+        "eastmoney",
+        "qmt",
+        "fred",
+        "wind",
+        "choice",
     ]
 
     id = serializers.IntegerField(read_only=True)
@@ -23,12 +29,16 @@ class ProviderConfigSerializer(serializers.Serializer):
     is_active = serializers.BooleanField(default=True)
     priority = serializers.IntegerField(default=100)
     api_key = serializers.CharField(
-        max_length=500, allow_blank=True, default="",
+        max_length=500,
+        allow_blank=True,
+        default="",
         # Write-only so tokens are never echoed in list responses
         style={"input_type": "password"},
     )
     api_secret = serializers.CharField(
-        max_length=500, allow_blank=True, default="",
+        max_length=500,
+        allow_blank=True,
+        default="",
         style={"input_type": "password"},
     )
     http_url = serializers.URLField(allow_blank=True, default="")
@@ -107,6 +117,23 @@ class SyncQuoteRequestSerializer(serializers.Serializer):
     asset_codes = serializers.ListField(child=serializers.CharField(max_length=20))
 
 
+class DecisionReliabilityRepairRequestSerializer(serializers.Serializer):
+    target_date = serializers.DateField(required=False, allow_null=True, default=None)
+    portfolio_id = serializers.IntegerField(required=False, allow_null=True, default=None)
+    asset_codes = serializers.ListField(
+        child=serializers.CharField(max_length=20),
+        required=False,
+        default=list,
+    )
+    macro_indicator_codes = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+        default=list,
+    )
+    strict = serializers.BooleanField(required=False, default=True)
+    quote_max_age_hours = serializers.FloatField(required=False, min_value=0.1, default=4.0)
+
+
 class SyncFundNavRequestSerializer(serializers.Serializer):
     provider_id = serializers.IntegerField()
     fund_code = serializers.CharField(max_length=20)
@@ -130,7 +157,9 @@ class SyncValuationRequestSerializer(serializers.Serializer):
 class SyncSectorMembershipRequestSerializer(serializers.Serializer):
     provider_id = serializers.IntegerField()
     sector_code = serializers.CharField(max_length=30, required=False, allow_blank=True, default="")
-    sector_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    sector_name = serializers.CharField(
+        max_length=100, required=False, allow_blank=True, default=""
+    )
     effective_date = serializers.DateField(required=False, allow_null=True, default=None)
 
     def validate(self, attrs):

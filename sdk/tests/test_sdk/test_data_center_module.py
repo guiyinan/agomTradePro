@@ -79,6 +79,23 @@ def client():
             {"ok": True},
         ),
         (
+            lambda c: c.data_center.get_macro_series(
+                "CN_PMI",
+                limit=12,
+                allow_legacy_fallback=True,
+            ),
+            "GET",
+            "/api/data-center/macro/series/",
+            {
+                "params": {
+                    "indicator_code": "CN_PMI",
+                    "limit": 12,
+                    "allow_legacy_fallback": "true",
+                }
+            },
+            {"ok": True},
+        ),
+        (
             lambda c: c.data_center.get_price_history("000001.SZ", limit=5),
             "GET",
             "/api/data-center/prices/history/",
@@ -90,6 +107,23 @@ def client():
             "GET",
             "/api/data-center/prices/quotes/",
             {"params": {"asset_code": "000001.SZ"}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.get_latest_quotes(
+                "000001.SZ",
+                strict_freshness=True,
+                max_age_hours=1.5,
+            ),
+            "GET",
+            "/api/data-center/prices/quotes/",
+            {
+                "params": {
+                    "asset_code": "000001.SZ",
+                    "strict_freshness": "true",
+                    "max_age_hours": 1.5,
+                }
+            },
             {"ok": True},
         ),
         (
@@ -106,6 +140,26 @@ def client():
             "POST",
             "/api/data-center/sync/capital-flows/",
             {"data": None, "json": {"provider_id": 3, "asset_code": "000001.SZ", "period": "5d"}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.repair_decision_data_reliability(
+                target_date="2026-04-21",
+                portfolio_id=366,
+                asset_codes=["510300.SH"],
+                strict=True,
+            ),
+            "POST",
+            "/api/data-center/decision-reliability/repair/",
+            {
+                "data": None,
+                "json": {
+                    "strict": True,
+                    "target_date": "2026-04-21",
+                    "portfolio_id": 366,
+                    "asset_codes": ["510300.SH"],
+                },
+            },
             {"ok": True},
         ),
     ],

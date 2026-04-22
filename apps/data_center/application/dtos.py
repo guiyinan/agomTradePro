@@ -129,6 +129,7 @@ class MacroSeriesRequest:
     end: date | None = None
     limit: int = 500
     source: str | None = None  # if None, return all sources
+    allow_legacy_fallback: bool = False
 
 
 @dataclass
@@ -142,6 +143,10 @@ class MacroDataPoint:
     source: str
     quality: str
     published_at: date | None
+    age_days: int
+    is_stale: bool
+    freshness_status: str
+    decision_grade: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -152,6 +157,10 @@ class MacroDataPoint:
             "source": self.source,
             "quality": self.quality,
             "published_at": self.published_at.isoformat() if self.published_at else None,
+            "age_days": self.age_days,
+            "is_stale": self.is_stale,
+            "freshness_status": self.freshness_status,
+            "decision_grade": self.decision_grade,
         }
 
 
@@ -161,15 +170,58 @@ class MacroSeriesResponse:
 
     indicator_code: str
     name_cn: str
+    period_type: str
     data: list[MacroDataPoint] = field(default_factory=list)
     total: int = 0
+    data_source: str = "none"
+    freshness_status: str = "missing"
+    decision_grade: str = "blocked"
+    must_not_use_for_decision: bool = True
+    blocked_reason: str = ""
+    latest_reporting_period: date | None = None
+    latest_published_at: date | None = None
+    latest_quality: str = ""
+    legacy_fallback_available: bool = False
+    legacy_fallback_used: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        contract = {
+            "data_source": self.data_source,
+            "freshness_status": self.freshness_status,
+            "decision_grade": self.decision_grade,
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reason": self.blocked_reason,
+            "latest_reporting_period": (
+                self.latest_reporting_period.isoformat() if self.latest_reporting_period else None
+            ),
+            "latest_published_at": (
+                self.latest_published_at.isoformat() if self.latest_published_at else None
+            ),
+            "latest_quality": self.latest_quality,
+            "legacy_fallback_available": self.legacy_fallback_available,
+            "legacy_fallback_used": self.legacy_fallback_used,
+        }
         return {
             "indicator_code": self.indicator_code,
             "name_cn": self.name_cn,
+            "period_type": self.period_type,
             "total": self.total,
             "data": [p.to_dict() for p in self.data],
+            "data_source": self.data_source,
+            "freshness_status": self.freshness_status,
+            "decision_grade": self.decision_grade,
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reason": self.blocked_reason,
+            "latest_reporting_period": (
+                self.latest_reporting_period.isoformat() if self.latest_reporting_period else None
+            ),
+            "latest_published_at": (
+                self.latest_published_at.isoformat() if self.latest_published_at else None
+            ),
+            "latest_quality": self.latest_quality,
+            "legacy_fallback_available": self.legacy_fallback_available,
+            "legacy_fallback_used": self.legacy_fallback_used,
+            "contract": contract,
         }
 
 
@@ -218,6 +270,7 @@ class LatestQuoteRequest:
     """Input DTO for fetching the latest quote snapshot."""
 
     asset_code: str
+    max_age_hours: float = 4.0
 
 
 @dataclass
@@ -233,8 +286,23 @@ class QuoteResponse:
     prev_close: float | None
     volume: float | None
     source: str
+    age_minutes: int
+    is_stale: bool
+    freshness_status: str
+    must_not_use_for_decision: bool
+    blocked_reason: str
+    max_age_hours: float
 
     def to_dict(self) -> dict[str, Any]:
+        contract = {
+            "snapshot_at": self.snapshot_at.isoformat(),
+            "age_minutes": self.age_minutes,
+            "is_stale": self.is_stale,
+            "freshness_status": self.freshness_status,
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reason": self.blocked_reason,
+            "max_age_hours": self.max_age_hours,
+        }
         return {
             "asset_code": self.asset_code,
             "snapshot_at": self.snapshot_at.isoformat(),
@@ -245,6 +313,13 @@ class QuoteResponse:
             "prev_close": self.prev_close,
             "volume": self.volume,
             "source": self.source,
+            "age_minutes": self.age_minutes,
+            "is_stale": self.is_stale,
+            "freshness_status": self.freshness_status,
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reason": self.blocked_reason,
+            "max_age_hours": self.max_age_hours,
+            "contract": contract,
         }
 
 
@@ -335,4 +410,93 @@ class SyncResult:
             "stored_count": self.stored_count,
             "status": self.status,
             "error_message": self.error_message,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Decision reliability repair DTOs
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DecisionReliabilityRepairRequest:
+    """Input DTO for repairing decision-grade data dependencies."""
+
+    target_date: date | None = None
+    portfolio_id: int | None = None
+    asset_codes: list[str] = field(default_factory=list)
+    macro_indicator_codes: list[str] = field(default_factory=list)
+    strict: bool = True
+    quote_max_age_hours: float = 4.0
+    macro_lookback_days: int = 180
+    price_lookback_days: int = 30
+    repair_pulse: bool = True
+    repair_alpha: bool = True
+
+
+@dataclass
+class DecisionReliabilitySection:
+    """Uniform readiness section used by the repair report."""
+
+    status: str
+    must_not_use_for_decision: bool
+    blocked_reasons: list[str] = field(default_factory=list)
+    details: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reasons": self.blocked_reasons,
+            "details": self.details,
+        }
+
+
+@dataclass
+class DecisionReliabilityRepairReport:
+    """Output DTO for the full data reliability repair workflow."""
+
+    target_date: date
+    portfolio_id: int | None
+    macro_status: DecisionReliabilitySection
+    quote_status: DecisionReliabilitySection
+    pulse_status: DecisionReliabilitySection
+    alpha_status: DecisionReliabilitySection
+    provider_bootstrap: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def must_not_use_for_decision(self) -> bool:
+        return any(
+            section.must_not_use_for_decision
+            for section in (
+                self.macro_status,
+                self.quote_status,
+                self.pulse_status,
+                self.alpha_status,
+            )
+        )
+
+    @property
+    def blocked_reasons(self) -> list[str]:
+        reasons: list[str] = []
+        for section in (
+            self.macro_status,
+            self.quote_status,
+            self.pulse_status,
+            self.alpha_status,
+        ):
+            reasons.extend(section.blocked_reasons)
+        return reasons
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "target_date": self.target_date.isoformat(),
+            "portfolio_id": self.portfolio_id,
+            "macro_status": self.macro_status.to_dict(),
+            "quote_status": self.quote_status.to_dict(),
+            "pulse_status": self.pulse_status.to_dict(),
+            "alpha_status": self.alpha_status.to_dict(),
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reasons": self.blocked_reasons,
+            "provider_bootstrap": self.provider_bootstrap,
         }

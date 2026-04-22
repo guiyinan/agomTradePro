@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date
 from types import SimpleNamespace
 
 import pandas as pd
@@ -33,8 +33,12 @@ def _config(source_type: str, name: str | None = None) -> ProviderConfig:
 
 
 def test_build_unified_provider_adapter_returns_expected_types():
-    assert isinstance(build_unified_provider_adapter(_config("tushare")), TushareUnifiedProviderAdapter)
-    assert isinstance(build_unified_provider_adapter(_config("akshare")), AkshareUnifiedProviderAdapter)
+    assert isinstance(
+        build_unified_provider_adapter(_config("tushare")), TushareUnifiedProviderAdapter
+    )
+    assert isinstance(
+        build_unified_provider_adapter(_config("akshare")), AkshareUnifiedProviderAdapter
+    )
     assert isinstance(build_unified_provider_adapter(_config("fred")), FredUnifiedProviderAdapter)
 
 
@@ -126,3 +130,34 @@ def test_akshare_unified_provider_adapter_maps_capital_flows(monkeypatch):
     assert facts[0].main_net == 12.3
     assert facts[0].extra["main_net_ratio"] == 1.2
     assert facts[0].source == "akshare-main"
+
+
+def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
+    class _FakeGateway:
+        def get_historical_prices(self, asset_code, start_date, end_date):
+            assert asset_code == "000300.SH"
+            return [
+                SimpleNamespace(
+                    asset_code="000300",
+                    trade_date=date(2026, 4, 21),
+                    open=4750.0,
+                    high=4776.0,
+                    low=4722.0,
+                    close=4768.0,
+                    volume=1000,
+                    amount=2000.0,
+                )
+            ]
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway.AKShareEastMoneyGateway",
+        _FakeGateway,
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    bars = adapter.fetch_price_history("000300.SH", date(2026, 4, 1), date(2026, 4, 21))
+
+    assert len(bars) == 1
+    assert bars[0].asset_code == "000300.SH"
+    assert bars[0].bar_date == date(2026, 4, 21)
+    assert bars[0].source == "AKShare Public"

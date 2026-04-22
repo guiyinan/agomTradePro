@@ -13,8 +13,7 @@ Phase 2: AssetRepository, IndicatorCatalogRepository, MacroFactRepository,
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from decimal import Decimal
+from datetime import date
 
 from apps.data_center.domain.entities import (
     AssetAlias,
@@ -35,7 +34,6 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import (
     AssetType,
-    DataCapability,
     DataQualityStatus,
     FinancialPeriodType,
     MarketExchange,
@@ -208,11 +206,12 @@ def _resolve_asset_code_candidates(asset_code: str) -> list[str]:
     base_code = candidates[0].split(".", 1)[0]
     if base_code and "." not in normalized:
         resolved_codes.extend(
-            AssetMasterModel.objects.filter(code__startswith=f"{base_code}.")
-            .values_list("code", flat=True)[:5]
+            AssetMasterModel.objects.filter(code__startswith=f"{base_code}.").values_list(
+                "code", flat=True
+            )[:5]
         )
 
-    return _dedupe_codes(resolved_codes + candidates)
+    return _dedupe_codes(candidates + resolved_codes)
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +250,7 @@ class AssetRepository:
 
     def search(self, query: str, limit: int = 20) -> list[AssetMaster]:
         from django.db.models import Q
+
         qs = AssetMasterModel.objects.filter(
             Q(code__icontains=query) | Q(name__icontains=query) | Q(short_name__icontains=query)
         )[:limit]
@@ -320,10 +320,7 @@ class IndicatorCatalogRepository:
             return None
 
     def list_active(self) -> list[IndicatorCatalog]:
-        return [
-            self._from_model(m)
-            for m in IndicatorCatalogModel.objects.filter(is_active=True)
-        ]
+        return [self._from_model(m) for m in IndicatorCatalogModel.objects.filter(is_active=True)]
 
     def upsert(self, catalog: IndicatorCatalog) -> IndicatorCatalog:
         m, _ = IndicatorCatalogModel.objects.update_or_create(
@@ -380,9 +377,11 @@ class MacroFactRepository:
         return [self._from_model(m) for m in qs.order_by("-reporting_period")[:limit]]
 
     def get_latest(self, indicator_code: str) -> MacroFact | None:
-        m = MacroFactModel.objects.filter(indicator_code=indicator_code).order_by(
-            "-reporting_period", "-revision_number"
-        ).first()
+        m = (
+            MacroFactModel.objects.filter(indicator_code=indicator_code)
+            .order_by("-reporting_period", "-revision_number")
+            .first()
+        )
         return self._from_model(m) if m else None
 
     def bulk_upsert(self, facts: list[MacroFact]) -> int:
@@ -480,8 +479,12 @@ class PriceBarRepository:
                 adjustment=b.adjustment.value,
                 source=b.source,
                 defaults=dict(
-                    open=b.open, high=b.high, low=b.low, close=b.close,
-                    volume=b.volume, amount=b.amount,
+                    open=b.open,
+                    high=b.high,
+                    low=b.low,
+                    close=b.close,
+                    volume=b.volume,
+                    amount=b.amount,
                 ),
             )
             count += 1
@@ -511,9 +514,11 @@ class QuoteSnapshotRepository:
 
     def get_latest(self, asset_code: str) -> QuoteSnapshot | None:
         for candidate in _resolve_asset_code_candidates(asset_code):
-            m = QuoteSnapshotModel.objects.filter(asset_code=candidate).order_by(
-                "-snapshot_at"
-            ).first()
+            m = (
+                QuoteSnapshotModel.objects.filter(asset_code=candidate)
+                .order_by("-snapshot_at")
+                .first()
+            )
             if m is not None:
                 return self._from_model(m)
         return None
@@ -542,10 +547,14 @@ class QuoteSnapshotRepository:
                 source=q.source,
                 defaults=dict(
                     current_price=q.current_price,
-                    open=q.open, high=q.high, low=q.low,
+                    open=q.open,
+                    high=q.high,
+                    low=q.low,
                     prev_close=q.prev_close,
-                    volume=q.volume, amount=q.amount,
-                    bid=q.bid, ask=q.ask,
+                    volume=q.volume,
+                    amount=q.amount,
+                    bid=q.bid,
+                    ask=q.ask,
                     extra=q.extra,
                 ),
             )
@@ -594,7 +603,9 @@ class FundNavRepository:
                 nav_date=f.nav_date,
                 source=f.source,
                 defaults=dict(
-                    nav=f.nav, acc_nav=f.acc_nav, daily_return=f.daily_return,
+                    nav=f.nav,
+                    acc_nav=f.acc_nav,
+                    daily_return=f.daily_return,
                     extra=f.extra,
                 ),
             )
@@ -657,8 +668,10 @@ class FinancialFactRepository:
                 metric_code=f.metric_code,
                 source=f.source,
                 defaults=dict(
-                    value=f.value, unit=f.unit,
-                    report_date=f.report_date, extra=f.extra,
+                    value=f.value,
+                    unit=f.unit,
+                    report_date=f.report_date,
+                    extra=f.extra,
                 ),
             )
             count += 1
@@ -704,7 +717,11 @@ class ValuationFactRepository:
 
     def get_latest(self, asset_code: str) -> ValuationFact | None:
         for candidate in _resolve_asset_code_candidates(asset_code):
-            m = ValuationFactModel.objects.filter(asset_code=candidate).order_by("-val_date").first()
+            m = (
+                ValuationFactModel.objects.filter(asset_code=candidate)
+                .order_by("-val_date")
+                .first()
+            )
             if m is not None:
                 return self._from_model(m)
         return None
@@ -717,10 +734,14 @@ class ValuationFactRepository:
                 val_date=f.val_date,
                 source=f.source,
                 defaults=dict(
-                    pe_ttm=f.pe_ttm, pe_static=f.pe_static, pb=f.pb,
-                    ps_ttm=f.ps_ttm, market_cap=f.market_cap,
+                    pe_ttm=f.pe_ttm,
+                    pe_static=f.pe_static,
+                    pb=f.pb,
+                    ps_ttm=f.ps_ttm,
+                    market_cap=f.market_cap,
                     float_market_cap=f.float_market_cap,
-                    dv_ratio=f.dv_ratio, extra=f.extra,
+                    dv_ratio=f.dv_ratio,
+                    extra=f.extra,
                 ),
             )
             count += 1
@@ -748,9 +769,9 @@ class SectorMembershipRepository:
     ) -> list[SectorMembershipFact]:
         qs = SectorMembershipFactModel.objects.filter(sector_code=sector_code)
         if as_of:
-            qs = qs.filter(effective_date__lte=as_of).filter(
-                expiry_date__isnull=True
-            ) | qs.filter(effective_date__lte=as_of, expiry_date__gte=as_of)
+            qs = qs.filter(effective_date__lte=as_of).filter(expiry_date__isnull=True) | qs.filter(
+                effective_date__lte=as_of, expiry_date__gte=as_of
+            )
         return [self._from_model(m) for m in qs]
 
     def get_sectors_for_asset(
@@ -758,9 +779,9 @@ class SectorMembershipRepository:
     ) -> list[SectorMembershipFact]:
         qs = SectorMembershipFactModel.objects.filter(asset_code=asset_code)
         if as_of:
-            qs = qs.filter(effective_date__lte=as_of).filter(
-                expiry_date__isnull=True
-            ) | qs.filter(effective_date__lte=as_of, expiry_date__gte=as_of)
+            qs = qs.filter(effective_date__lte=as_of).filter(expiry_date__isnull=True) | qs.filter(
+                effective_date__lte=as_of, expiry_date__gte=as_of
+            )
         return [self._from_model(m) for m in qs]
 
     def bulk_upsert(self, facts: list[SectorMembershipFact]) -> int:
@@ -888,7 +909,11 @@ class CapitalFlowRepository:
 
     def get_latest(self, asset_code: str) -> CapitalFlowFact | None:
         for candidate in _resolve_asset_code_candidates(asset_code):
-            m = CapitalFlowFactModel.objects.filter(asset_code=candidate).order_by("-flow_date").first()
+            m = (
+                CapitalFlowFactModel.objects.filter(asset_code=candidate)
+                .order_by("-flow_date")
+                .first()
+            )
             if m is not None:
                 return self._from_model(m)
         return None
@@ -901,9 +926,12 @@ class CapitalFlowRepository:
                 flow_date=f.flow_date,
                 source=f.source,
                 defaults=dict(
-                    main_net=f.main_net, retail_net=f.retail_net,
-                    super_large_net=f.super_large_net, large_net=f.large_net,
-                    medium_net=f.medium_net, small_net=f.small_net,
+                    main_net=f.main_net,
+                    retail_net=f.retail_net,
+                    super_large_net=f.super_large_net,
+                    large_net=f.large_net,
+                    medium_net=f.medium_net,
+                    small_net=f.small_net,
                     extra=f.extra,
                 ),
             )

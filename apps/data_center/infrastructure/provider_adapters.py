@@ -233,14 +233,15 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 
         gateway = TushareGateway()
+        canonical_asset_code = normalize_asset_code(asset_code, "tushare")
         bars = gateway.get_historical_prices(
-            asset_code=normalize_asset_code(asset_code, "tushare"),
+            asset_code=canonical_asset_code,
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
         return [
             PriceBar(
-                asset_code=normalize_asset_code(bar.asset_code, "tushare"),
+                asset_code=canonical_asset_code,
                 bar_date=bar.trade_date,
                 open=bar.open,
                 high=bar.high,
@@ -324,20 +325,48 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
             facts.extend(
                 [
-                    FinancialFact(metric_code="revenue", value=float(record.revenue), unit="元", **common),
-                    FinancialFact(metric_code="net_profit", value=float(record.net_profit), unit="元", **common),
-                    FinancialFact(metric_code="total_assets", value=float(record.total_assets), unit="元", **common),
-                    FinancialFact(metric_code="total_liabilities", value=float(record.total_liabilities), unit="元", **common),
-                    FinancialFact(metric_code="equity", value=float(record.equity), unit="元", **common),
+                    FinancialFact(
+                        metric_code="revenue", value=float(record.revenue), unit="元", **common
+                    ),
+                    FinancialFact(
+                        metric_code="net_profit",
+                        value=float(record.net_profit),
+                        unit="元",
+                        **common,
+                    ),
+                    FinancialFact(
+                        metric_code="total_assets",
+                        value=float(record.total_assets),
+                        unit="元",
+                        **common,
+                    ),
+                    FinancialFact(
+                        metric_code="total_liabilities",
+                        value=float(record.total_liabilities),
+                        unit="元",
+                        **common,
+                    ),
+                    FinancialFact(
+                        metric_code="equity", value=float(record.equity), unit="元", **common
+                    ),
                     FinancialFact(metric_code="roe", value=float(record.roe), unit="%", **common),
-                    FinancialFact(metric_code="debt_ratio", value=float(record.debt_ratio), unit="%", **common),
+                    FinancialFact(
+                        metric_code="debt_ratio", value=float(record.debt_ratio), unit="%", **common
+                    ),
                 ]
             )
             if record.roa is not None:
-                facts.append(FinancialFact(metric_code="roa", value=float(record.roa), unit="%", **common))
+                facts.append(
+                    FinancialFact(metric_code="roa", value=float(record.roa), unit="%", **common)
+                )
             if record.revenue_growth is not None:
                 facts.append(
-                    FinancialFact(metric_code="revenue_growth", value=float(record.revenue_growth), unit="%", **common)
+                    FinancialFact(
+                        metric_code="revenue_growth",
+                        value=float(record.revenue_growth),
+                        unit="%",
+                        **common,
+                    )
                 )
             if record.net_profit_growth is not None:
                 facts.append(
@@ -372,7 +401,9 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 ps_ttm=float(record.ps) if record.ps is not None else None,
                 market_cap=float(record.total_mv) if record.total_mv is not None else None,
                 float_market_cap=float(record.circ_mv) if record.circ_mv is not None else None,
-                dv_ratio=float(record.dividend_yield) if record.dividend_yield is not None else None,
+                dv_ratio=(
+                    float(record.dividend_yield) if record.dividend_yield is not None else None
+                ),
                 source=self.provider_name(),
             )
             for record in batch.records
@@ -421,14 +452,15 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
 
         gateway = AKShareEastMoneyGateway()
+        canonical_asset_code = normalize_asset_code(asset_code, "akshare")
         bars = gateway.get_historical_prices(
-            asset_code=normalize_asset_code(asset_code, "akshare"),
+            asset_code=canonical_asset_code,
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
         return [
             PriceBar(
-                asset_code=normalize_asset_code(bar.asset_code, "akshare"),
+                asset_code=canonical_asset_code,
                 bar_date=bar.trade_date,
                 open=bar.open,
                 high=bar.high,
@@ -511,13 +543,34 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
             facts.extend(
                 [
-                    FinancialFact(metric_code="revenue", value=float(record.revenue), unit="元", **common),
-                    FinancialFact(metric_code="net_profit", value=float(record.net_profit), unit="元", **common),
-                    FinancialFact(metric_code="total_assets", value=float(record.total_assets), unit="元", **common),
-                    FinancialFact(metric_code="total_liabilities", value=float(record.total_liabilities), unit="元", **common),
-                    FinancialFact(metric_code="equity", value=float(record.equity), unit="元", **common),
+                    FinancialFact(
+                        metric_code="revenue", value=float(record.revenue), unit="元", **common
+                    ),
+                    FinancialFact(
+                        metric_code="net_profit",
+                        value=float(record.net_profit),
+                        unit="元",
+                        **common,
+                    ),
+                    FinancialFact(
+                        metric_code="total_assets",
+                        value=float(record.total_assets),
+                        unit="元",
+                        **common,
+                    ),
+                    FinancialFact(
+                        metric_code="total_liabilities",
+                        value=float(record.total_liabilities),
+                        unit="元",
+                        **common,
+                    ),
+                    FinancialFact(
+                        metric_code="equity", value=float(record.equity), unit="元", **common
+                    ),
                     FinancialFact(metric_code="roe", value=float(record.roe), unit="%", **common),
-                    FinancialFact(metric_code="debt_ratio", value=float(record.debt_ratio), unit="%", **common),
+                    FinancialFact(
+                        metric_code="debt_ratio", value=float(record.debt_ratio), unit="%", **common
+                    ),
                 ]
             )
         return facts
@@ -541,7 +594,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 ps_ttm=float(record.ps) if record.ps is not None else None,
                 market_cap=float(record.total_mv) if record.total_mv is not None else None,
                 float_market_cap=float(record.circ_mv) if record.circ_mv is not None else None,
-                dv_ratio=float(record.dividend_yield) if record.dividend_yield is not None else None,
+                dv_ratio=(
+                    float(record.dividend_yield) if record.dividend_yield is not None else None
+                ),
                 source=self.provider_name(),
             )
             for record in batch.records
@@ -651,14 +706,15 @@ class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[PriceBar]:
+        canonical_asset_code = normalize_asset_code(asset_code, "qmt")
         bars = self._gateway().get_historical_prices(
-            asset_code=normalize_asset_code(asset_code, "qmt"),
+            asset_code=canonical_asset_code,
             start_date=start_date.strftime("%Y%m%d"),
             end_date=end_date.strftime("%Y%m%d"),
         )
         return [
             PriceBar(
-                asset_code=normalize_asset_code(bar.asset_code, "qmt"),
+                asset_code=canonical_asset_code,
                 bar_date=bar.trade_date,
                 open=bar.open,
                 high=bar.high,

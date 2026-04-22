@@ -25,6 +25,7 @@ from apps.data_center.interface.api_views import (
     provider_settings,
     provider_status,
     provider_test_connection,
+    repair_decision_reliability,
     sector_constituents,
     sync_capital_flows,
     sync_financials,
@@ -59,6 +60,7 @@ class DataCenterApiRootView(APIView):
                     "sector_constituents": "/api/data-center/sectors/constituents/",
                     "news": "/api/data-center/news/",
                     "capital_flows": "/api/data-center/capital-flows/",
+                    "decision_reliability_repair": "/api/data-center/decision-reliability/repair/",
                 }
             }
         )
@@ -89,6 +91,11 @@ urlpatterns = [
     path("sectors/constituents/", sector_constituents, name="dc-sector-constituents"),
     path("news/", news, name="dc-news"),
     path("capital-flows/", capital_flows, name="dc-capital-flows"),
+    path(
+        "decision-reliability/repair/",
+        repair_decision_reliability,
+        name="dc-decision-reliability-repair",
+    ),
     # --- Phase 4: sync endpoints ---
     path("sync/macro/", sync_macro, name="dc-sync-macro"),
     path("sync/prices/", sync_prices, name="dc-sync-prices"),

@@ -8,7 +8,7 @@ No Django, no ORM, no external libraries — only stdlib.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 # ---------------------------------------------------------------------------
 # Unit-normalisation (migrated from macro.domain.entities)
@@ -152,6 +152,15 @@ def normalize_asset_code(code: str, source_type: str = "") -> str:
 # Staleness check
 # ---------------------------------------------------------------------------
 
+DEFAULT_MACRO_MAX_LAG_DAYS_BY_PERIOD_TYPE: dict[str, int] = {
+    "D": 7,
+    "W": 21,
+    "M": 45,
+    "Q": 120,
+    "H": 220,
+    "Y": 400,
+}
+
 
 def is_stale(fetched_at: datetime, max_age_hours: float) -> bool:
     """Return True if *fetched_at* is older than *max_age_hours*.
@@ -179,3 +188,38 @@ def is_stale(fetched_at: datetime, max_age_hours: float) -> bool:
         fetched_at = fetched_at.replace(tzinfo=timezone.utc)
     age_hours = (now - fetched_at).total_seconds() / 3600
     return age_hours > max_age_hours
+
+
+def get_macro_max_lag_days(period_type: str | None) -> int:
+    """Return the default freshness threshold for a macro period type."""
+    normalized = (period_type or "M").strip().upper()
+    return DEFAULT_MACRO_MAX_LAG_DAYS_BY_PERIOD_TYPE.get(normalized, 45)
+
+
+def get_macro_age_days(
+    reporting_period: date,
+    published_at: date | None = None,
+    *,
+    as_of_date: date | None = None,
+) -> int:
+    """Return the age in whole days using published_at when available."""
+    target_date = as_of_date or date.today()
+    reference_date = published_at or reporting_period
+    if reference_date > target_date:
+        return 0
+    return (target_date - reference_date).days
+
+
+def is_macro_observation_stale(
+    reporting_period: date,
+    published_at: date | None = None,
+    *,
+    period_type: str | None = None,
+    as_of_date: date | None = None,
+) -> bool:
+    """Return True when a macro observation exceeds its expected reporting lag."""
+    return get_macro_age_days(
+        reporting_period,
+        published_at,
+        as_of_date=as_of_date,
+    ) > get_macro_max_lag_days(period_type)

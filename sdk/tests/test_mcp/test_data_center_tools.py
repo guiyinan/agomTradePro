@@ -20,18 +20,28 @@ class _FakeClient:
                 "success": True,
             },
             get_provider_status=lambda: [{"provider_name": "tushare-main", "status": "healthy"}],
-            get_latest_quotes=lambda asset_code: {"asset_code": asset_code, "price": 12.34},
+            get_latest_quotes=lambda asset_code, strict_freshness=None, max_age_hours=None: {
+                "asset_code": asset_code,
+                "strict_freshness": strict_freshness,
+                "max_age_hours": max_age_hours,
+                "price": 12.34,
+            },
             get_price_history=lambda asset_code, start=None, end=None, limit=None: {
                 "asset_code": asset_code,
                 "start": start,
                 "end": end,
                 "limit": limit,
             },
-            get_macro_series=lambda indicator_code, start=None, end=None, limit=None: {
+            get_macro_series=lambda indicator_code, start=None, end=None, limit=None, allow_legacy_fallback=None: {
                 "indicator_code": indicator_code,
                 "start": start,
                 "end": end,
                 "limit": limit,
+                "allow_legacy_fallback": allow_legacy_fallback,
+            },
+            repair_decision_data_reliability=lambda **kwargs: {
+                "ok": True,
+                "payload": kwargs,
             },
             get_capital_flows=lambda asset_code, period="5d": {
                 "asset_code": asset_code,
@@ -59,8 +69,25 @@ class _FakeClient:
         ("test_data_center_provider_connection", {"provider_id": 1}),
         ("get_data_center_provider_status", {}),
         ("data_center_get_quotes", {"asset_code": "000001.SZ"}),
+        (
+            "data_center_get_quotes",
+            {"asset_code": "000001.SZ", "strict_freshness": True, "max_age_hours": 1.5},
+        ),
         ("data_center_get_price_history", {"asset_code": "000001.SZ", "limit": 5}),
         ("data_center_get_macro_series", {"indicator_code": "CN_PMI", "limit": 12}),
+        (
+            "data_center_get_macro_series",
+            {"indicator_code": "CN_PMI", "limit": 12, "allow_legacy_fallback": True},
+        ),
+        (
+            "data_center_repair_decision_data_reliability",
+            {
+                "target_date": "2026-04-21",
+                "portfolio_id": 366,
+                "asset_codes": ["510300.SH"],
+                "strict": True,
+            },
+        ),
         ("data_center_get_capital_flows", {"asset_code": "000001.SZ", "period": "10d"}),
         (
             "data_center_sync_capital_flows",
