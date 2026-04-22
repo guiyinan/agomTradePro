@@ -103,3 +103,28 @@ def test_dashboard_alpha_history_detail_and_refresh_call_sdk(mock_client_cls) ->
     )
     assert detail["data"]["id"] == 9
     assert refresh["task_id"] == "task-123"
+
+
+@patch("agomtradepro_mcp.tools.dashboard_tools.AgomTradeProClient")
+def test_dashboard_alpha_tools_forward_alpha_scope_when_explicit(mock_client_cls) -> None:
+    mock_client = MagicMock()
+    mock_client.dashboard.alpha_stocks.return_value = {"success": True, "data": {"top_candidates": []}}
+    mock_client.dashboard.alpha_refresh.return_value = {"success": True, "task_id": "task-general"}
+    mock_client_cls.return_value = mock_client
+
+    server = FastMCP("test")
+    register_dashboard_tools(server)
+
+    candidates_fn = server._tool_manager._tools["get_dashboard_alpha_candidates"].fn
+    refresh_fn = server._tool_manager._tools["trigger_dashboard_alpha_refresh"].fn
+
+    candidates_fn(top_n=10, alpha_scope="general")
+    refresh_fn(top_n=8, portfolio_id=5, pool_mode="price_covered", alpha_scope="portfolio")
+
+    mock_client.dashboard.alpha_stocks.assert_called_once_with(top_n=10, portfolio_id=None, pool_mode=None, alpha_scope="general")
+    mock_client.dashboard.alpha_refresh.assert_called_once_with(
+        top_n=8,
+        portfolio_id=5,
+        pool_mode="price_covered",
+        alpha_scope="portfolio",
+    )

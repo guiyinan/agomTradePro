@@ -61,11 +61,15 @@ def register_dashboard_tools(server: FastMCP) -> None:
         `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()
+        kwargs = {
+            "top_n": top_n,
+            "portfolio_id": portfolio_id,
+            "pool_mode": pool_mode,
+        }
+        if alpha_scope is not None:
+            kwargs["alpha_scope"] = alpha_scope
         return client.dashboard.alpha_stocks(
-            top_n=top_n,
-            portfolio_id=portfolio_id,
-            pool_mode=pool_mode,
-            alpha_scope=alpha_scope,
+            **kwargs,
         )
 
     @server.tool()
@@ -117,12 +121,14 @@ def register_dashboard_tools(server: FastMCP) -> None:
         `pool_mode` 支持 `strict_valuation`、`market`、`price_covered`。
         """
         client = AgomTradeProClient()
-        return client.dashboard.alpha_refresh(
-            top_n=top_n,
-            portfolio_id=portfolio_id,
-            pool_mode=pool_mode,
-            alpha_scope=alpha_scope,
-        )
+        kwargs = {
+            "top_n": top_n,
+            "portfolio_id": portfolio_id,
+            "pool_mode": pool_mode,
+        }
+        if alpha_scope is not None:
+            kwargs["alpha_scope"] = alpha_scope
+        return client.dashboard.alpha_refresh(**kwargs)
 
     @server.tool()
     def get_dashboard_positions() -> dict[str, Any]:

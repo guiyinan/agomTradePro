@@ -14,11 +14,6 @@ from apps.pulse.domain.entities import PulseIndicatorReading
 def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
     captured: dict[str, object] = {}
 
-    class FakeSyncUseCase:
-        def execute(self, request):
-            captured["sync_request"] = request
-            return SimpleNamespace(success=True, synced_count=6, skipped_count=0, errors=[])
-
     class FakeProvider:
         def get_all_readings(self, as_of_date):
             captured["provider_date"] = as_of_date
@@ -43,8 +38,8 @@ def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
             captured["saved_snapshot"] = snapshot
 
     monkeypatch.setattr(
-        "apps.macro.application.use_cases.build_sync_macro_data_use_case",
-        lambda source=None: FakeSyncUseCase(),
+        "django.core.management.call_command",
+        lambda name, **kwargs: captured.update({"repair_command": name, "repair_kwargs": kwargs}),
     )
     monkeypatch.setattr(
         "apps.regime.application.current_regime.resolve_current_regime",
@@ -64,5 +59,11 @@ def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
     assert snapshot is not None
     assert captured["provider_date"] == date(2026, 4, 20)
     assert captured["saved_snapshot"].observed_at == date(2026, 4, 20)
-    assert captured["sync_request"].end_date == date(2026, 4, 20)
-    assert captured["sync_request"].indicators == list(PULSE_MACRO_SYNC_INDICATORS)
+    assert captured["repair_command"] == "repair_decision_data_reliability"
+    assert captured["repair_kwargs"]["target_date"] == "2026-04-20"
+    assert captured["repair_kwargs"]["macro_indicator_codes"] == ",".join(
+        PULSE_MACRO_SYNC_INDICATORS
+    )
+    assert captured["repair_kwargs"]["asset_codes"] == "000300.SH"
+    assert captured["repair_kwargs"]["skip_pulse"] is True
+    assert captured["repair_kwargs"]["skip_alpha"] is True
