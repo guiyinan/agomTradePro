@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 个人投研平台
-> **最后更新**: 2026-04-21
+> **最后更新**: 2026-04-22
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -104,6 +104,7 @@
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
 | [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 待开发 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
+| [architecture-debt-remediation-260422.md](plans/architecture-debt-remediation-260422.md) | **架构技术债整改方案（core/shared/App 分阶段清债）** | ✅ 2026-04-22 新增 |
 | [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
 | [phase-1-regime-navigator-pulse-mvp.md](plans/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |
 | [phase-2-decision-funnel.md](plans/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | ✅ 已完成 |
