@@ -534,7 +534,7 @@ class GetDashboardDataUseCase:
         signal_list = list(signals)
 
         # 批量解析资产名称
-        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+        from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
         asset_codes = [s.asset_code for s in signal_list if s.asset_code]
         asset_name_map = resolve_asset_names(asset_codes)

@@ -13,6 +13,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.invalidation_checker import InvalidationCheckService
 from apps.signal.application.use_cases import (
@@ -52,8 +53,6 @@ def signal_manage_view(request):
     signals = list(queryset.order_by("-created_at")[:50])
 
     # 批量解析资产名称
-    from shared.infrastructure.asset_name_resolver import resolve_asset_names
-
     asset_codes = [s.asset_code for s in signals if s.asset_code]
     asset_name_map = resolve_asset_names(asset_codes)
     for signal in signals:

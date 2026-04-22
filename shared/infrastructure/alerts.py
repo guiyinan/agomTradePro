@@ -9,7 +9,7 @@ import logging
 import os
 import smtplib
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
@@ -30,7 +30,7 @@ class AlertMessage:
 
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.now()
+            self.timestamp = datetime.now(UTC)
         if self.metadata is None:
             self.metadata = {}
 

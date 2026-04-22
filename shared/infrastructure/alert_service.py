@@ -7,12 +7,18 @@ Alert Service - Infrastructure Layer
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+
+def _current_timestamp_text() -> str:
+    """Return an ISO-like UTC timestamp string for alert content."""
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 class AlertLevel(Enum):
@@ -229,7 +235,7 @@ class EmailAlertChannel(AlertChannel):
             <body>
                 <h2>{title}</h2>
                 <p><strong>级别:</strong> {level.value.upper()}</p>
-                <p><strong>时间:</strong> {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                <p><strong>时间:</strong> {_current_timestamp_text()}</p>
                 <hr>
                 <pre>{message}</pre>
             </body>
@@ -290,7 +296,7 @@ class ConsoleAlertChannel(AlertChannel):
         """打印告警到控制台"""
         try:
             # 获取时间戳
-            timestamp = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = _current_timestamp_text()
 
             # 根据级别选择颜色符号
             symbols = {

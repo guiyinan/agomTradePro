@@ -666,7 +666,7 @@ def test_decision_plane_query_attach_asset_names_supports_exchange_suffix(monkey
     ]
 
     monkeypatch.setattr(
-        "shared.infrastructure.asset_name_resolver.resolve_asset_names",
+        "apps.asset_analysis.application.asset_name_service.resolve_asset_names",
         lambda codes: {
             "000001": "平安银行",
             "510300.SH": "沪深300ETF",

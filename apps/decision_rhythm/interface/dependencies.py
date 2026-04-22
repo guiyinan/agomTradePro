@@ -84,7 +84,9 @@ def _recommendation_repository():
 
 
 def _resolve_asset_names(values):
-    return import_module("shared.infrastructure.asset_name_resolver").resolve_asset_names(values)
+    return import_module("apps.asset_analysis.application.asset_name_service").resolve_asset_names(
+        values
+    )
 
 
 def _build_rhythm_manager() -> RhythmManager:

@@ -16,7 +16,7 @@ django.setup()
 from django.test import TestCase
 from django.core.cache import cache
 
-from shared.infrastructure.asset_name_resolver import (
+from apps.asset_analysis.application.asset_name_service import (
     AssetNameResolver,
     enrich_with_asset_names,
     resolve_asset_name,

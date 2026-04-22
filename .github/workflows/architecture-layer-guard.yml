@@ -83,6 +83,14 @@ jobs:
           interface_rules = [
               (re.compile(r"^\s*(from|import)\s+.*infrastructure\."), "Interface layer must call Application use cases, not Infrastructure directly"),
           ]
+          core_interface_rules = [
+              (re.compile(r"^\s*(from|import)\s+apps\..*infrastructure\."), "Core controller code must call Application use cases, not Infrastructure directly"),
+              (re.compile(r"\._default_manager\b"), "Core controller code must not access ORM managers directly"),
+              (re.compile(r"\.objects\."), "Core controller code must not access ORM managers directly"),
+          ]
+          shared_rules = [
+              (re.compile(r"^\s*(from|import)\s+apps\."), "Shared layer must not depend on apps modules"),
+          ]
 
           violations = []
           base_ref = os.environ.get("BASE_REF", "").strip()
@@ -90,7 +98,13 @@ jobs:
 
           def render_full_scan_diff() -> str:
               paths = subprocess.check_output(
-                  ["git", "ls-files", ":(glob)apps/**/*.py"],
+                  [
+                      "git",
+                      "ls-files",
+                      ":(glob)apps/**/*.py",
+                      ":(glob)core/**/*.py",
+                      ":(glob)shared/**/*.py",
+                  ],
                   text=True,
               ).splitlines()
               chunks: list[str] = []
@@ -106,8 +120,27 @@ jobs:
                   return render_full_scan_diff()
 
               diff_commands = [
-                  ["git", "diff", "-U0", f"{base_ref}...{head_ref}", "--", ":(glob)apps/**/*.py"],
-                  ["git", "diff", "-U0", base_ref, head_ref, "--", ":(glob)apps/**/*.py"],
+                  [
+                      "git",
+                      "diff",
+                      "-U0",
+                      f"{base_ref}...{head_ref}",
+                      "--",
+                      ":(glob)apps/**/*.py",
+                      ":(glob)core/**/*.py",
+                      ":(glob)shared/**/*.py",
+                  ],
+                  [
+                      "git",
+                      "diff",
+                      "-U0",
+                      base_ref,
+                      head_ref,
+                      "--",
+                      ":(glob)apps/**/*.py",
+                      ":(glob)core/**/*.py",
+                      ":(glob)shared/**/*.py",
+                  ],
               ]
               for command in diff_commands:
                   try:
@@ -135,7 +168,17 @@ jobs:
                   return render_full_scan_diff()
 
               return subprocess.check_output(
-                  ["git", "diff", "-U0", fallback_base, head_ref, "--", ":(glob)apps/**/*.py"],
+                  [
+                      "git",
+                      "diff",
+                      "-U0",
+                      fallback_base,
+                      head_ref,
+                      "--",
+                      ":(glob)apps/**/*.py",
+                      ":(glob)core/**/*.py",
+                      ":(glob)shared/**/*.py",
+                  ],
                   text=True,
                   stderr=subprocess.STDOUT,
               )
@@ -173,6 +216,14 @@ jobs:
                       rules = application_rules
                   elif "/interface/" in norm:
                       rules = interface_rules
+                  elif norm.startswith("core/application/"):
+                      rules = application_rules
+                  elif norm.startswith("core/views") or norm.startswith("core/api_views") or norm in {
+                      "core/context_processors.py",
+                  }:
+                      rules = core_interface_rules
+                  elif norm.startswith("shared/"):
+                      rules = shared_rules
                   else:
                       rules = []
 

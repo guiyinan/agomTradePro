@@ -1,13 +1,15 @@
 """
-Asset Name Resolver - 资产名称解析服务
+Asset name resolver owned by the asset_analysis module.
 
-提供统一的资产代码到资产名称的解析功能，支持股票、基金、指数等多种资产类型。
+Provides a single place to resolve asset codes to display names while keeping
+the implementation out of shared/.
 """
+
+from __future__ import annotations
 
 import hashlib
 import json
 import logging
-from typing import Dict, List, Set
 
 from django.core.cache import cache
 
@@ -19,21 +21,18 @@ CACHE_TTL = 3600
 
 class AssetNameResolver:
     """
-    资产名称解析器。
-
-    根据资产代码从数据库中查询对应的资产名称。
-    支持股票、基金、指数等多种资产类型。
+    Resolve asset codes to display names across supported asset tables.
     """
 
     def resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         """
-        批量解析资产代码对应的名称。
+        Resolve a batch of asset codes.
 
         Args:
-            codes: 资产代码列表
+            codes: Asset code list.
 
         Returns:
-            Dict[str, str]: 资产代码到名称的映射，未找到的代码不会出现在结果中
+            Mapping from asset code to asset name.
         """
         code_set: set[str] = {code for code in codes if code}
         if not code_set:
@@ -51,13 +50,13 @@ class AssetNameResolver:
 
     def resolve_asset_name(self, code: str) -> str:
         """
-        解析单个资产代码对应的名称。
+        Resolve a single asset code.
 
         Args:
-            code: 资产代码
+            code: Asset code.
 
         Returns:
-            str: 资产名称，如果未找到则返回代码本身
+            Asset name when found, otherwise the original code.
         """
         if not code:
             return code
@@ -66,7 +65,7 @@ class AssetNameResolver:
         return result.get(code, code)
 
     def _resolve_stocks(self, codes: set[str]) -> dict[str, str]:
-        """从股票信息表解析名称"""
+        """Resolve names from stock master data."""
         if not codes:
             return {}
 
@@ -80,13 +79,13 @@ class AssetNameResolver:
             for row in rows:
                 if row["name"]:
                     resolved[row["stock_code"]] = row["name"]
-        except Exception as e:
-            logger.warning("Failed to resolve stock names: %s", e)
+        except Exception as exc:
+            logger.warning("Failed to resolve stock names: %s", exc)
 
         return resolved
 
     def _resolve_funds(self, codes: set[str]) -> dict[str, str]:
-        """从基金信息表解析名称"""
+        """Resolve names from fund master data."""
         if not codes:
             return {}
 
@@ -102,13 +101,13 @@ class AssetNameResolver:
             for code, fund_code in code_to_fund_code.items():
                 if fund_code in fund_name_map and fund_name_map[fund_code]:
                     resolved[code] = fund_name_map[fund_code]
-        except Exception as e:
-            logger.warning("Failed to resolve fund names: %s", e)
+        except Exception as exc:
+            logger.warning("Failed to resolve fund names: %s", exc)
 
         return resolved
 
     def _resolve_rotation_assets(self, codes: set[str]) -> dict[str, str]:
-        """从 rotation 资产表解析 ETF / 债券 / 商品等名称。"""
+        """Resolve ETF, bond, and commodity names from rotation assets."""
         if not codes:
             return {}
 
@@ -125,13 +124,13 @@ class AssetNameResolver:
             for code, base_code in code_to_base.items():
                 if base_code in name_map and name_map[base_code]:
                     resolved[code] = name_map[base_code]
-        except Exception as e:
-            logger.warning("Failed to resolve rotation asset names: %s", e)
+        except Exception as exc:
+            logger.warning("Failed to resolve rotation asset names: %s", exc)
 
         return resolved
 
     def _resolve_fund_holdings(self, codes: set[str]) -> dict[str, str]:
-        """从基金持仓表回填成分股名称，补齐 ETF 降级路径下缺失的股票名称。"""
+        """Backfill stock names from fund holdings for ETF downgrade paths."""
         if not codes:
             return {}
 
@@ -169,13 +168,13 @@ class AssetNameResolver:
                 for code, base_code in code_to_base.items():
                     if code not in resolved and base_code in base_name_map:
                         resolved[code] = base_name_map[base_code]
-        except Exception as e:
-            logger.warning("Failed to resolve stock names from fund holdings: %s", e)
+        except Exception as exc:
+            logger.warning("Failed to resolve stock names from fund holdings: %s", exc)
 
         return resolved
 
     def _resolve_indices(self, codes: set[str]) -> dict[str, str]:
-        """从资产池条目表解析名称"""
+        """Resolve names from asset pool entries."""
         if not codes:
             return {}
 
@@ -191,14 +190,14 @@ class AssetNameResolver:
             for row in rows:
                 if row["asset_name"]:
                     resolved[row["asset_code"]] = row["asset_name"]
-        except Exception as e:
-            logger.debug("Failed to resolve index names from AssetPoolEntry: %s", e)
+        except Exception as exc:
+            logger.debug("Failed to resolve index names from AssetPoolEntry: %s", exc)
 
         return resolved
 
 
 def _build_cache_key(codes: list[str]) -> str:
-    """构建缓存键"""
+    """Build the cache key for a code batch."""
     sorted_codes = sorted(set(c for c in codes if c))
     codes_hash = hashlib.sha256(json.dumps(sorted_codes).encode()).hexdigest()[:32]
     return f"{CACHE_PREFIX}:{codes_hash}"
@@ -206,13 +205,13 @@ def _build_cache_key(codes: list[str]) -> str:
 
 def resolve_asset_names(codes: list[str]) -> dict[str, str]:
     """
-    批量解析资产代码对应的名称（带缓存）。
+    Resolve asset names with cache support.
 
     Args:
-        codes: 资产代码列表
+        codes: Asset code list.
 
     Returns:
-        Dict[str, str]: 资产代码到名称的映射
+        Mapping from asset code to asset name.
     """
     code_set = {code for code in codes if code}
     if not code_set:
@@ -224,29 +223,29 @@ def resolve_asset_names(codes: list[str]) -> dict[str, str]:
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
-    except Exception as e:
-        logger.warning("Cache get failed: %s", e)
+    except Exception as exc:
+        logger.warning("Cache get failed: %s", exc)
 
     resolver = AssetNameResolver()
     result = resolver.resolve_asset_names(list(code_set))
 
     try:
         cache.set(cache_key, result, CACHE_TTL)
-    except Exception as e:
-        logger.warning("Cache set failed: %s", e)
+    except Exception as exc:
+        logger.warning("Cache set failed: %s", exc)
 
     return result
 
 
 def resolve_asset_name(code: str) -> str:
     """
-    解析单个资产代码对应的名称。
+    Resolve a single asset code to its display name.
 
     Args:
-        code: 资产代码
+        code: Asset code.
 
     Returns:
-        str: 资产名称，如果未找到则返回代码本身
+        Asset name when found, otherwise the original code.
     """
     if not code:
         return code
@@ -259,15 +258,15 @@ def enrich_with_asset_names(
     items: list[dict], code_field: str = "asset_code", name_field: str = "asset_name"
 ) -> list[dict]:
     """
-    为字典列表批量添加资产名称字段。
+    Enrich dict items with resolved asset names.
 
     Args:
-        items: 字典列表
-        code_field: 代码字段名
-        name_field: 名称字段名
+        items: Item list.
+        code_field: Source code field name.
+        name_field: Destination name field name.
 
     Returns:
-        List[dict]: 添加了名称字段的字典列表
+        The input items with names filled in when missing.
     """
     if not items:
         return items

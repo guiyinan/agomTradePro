@@ -851,7 +851,7 @@ def alpha_trigger_list_view(request):
         }
 
         # 批量解析资产名称
-        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+        from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
         all_codes = (
             [t.asset_code for t in active_triggers if t.asset_code]
@@ -976,7 +976,7 @@ def alpha_trigger_edit_view(request, trigger_id):
         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
 
         # 解析资产名称
-        from shared.infrastructure.asset_name_resolver import resolve_asset_name
+        from apps.asset_analysis.application.asset_name_service import resolve_asset_name
 
         trigger.asset_name = resolve_asset_name(trigger.asset_code)
 
@@ -1038,7 +1038,7 @@ def alpha_trigger_detail_view(request, trigger_id):
         )
 
         # 批量解析资产名称
-        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+        from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
         all_codes = [trigger.asset_code] + [c.asset_code for c in candidates if c.asset_code]
         asset_name_map = resolve_asset_names(all_codes)

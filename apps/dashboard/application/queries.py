@@ -242,7 +242,7 @@ class AlphaVisualizationQuery:
             return {}
 
         try:
-            from shared.infrastructure.asset_name_resolver import resolve_asset_names
+            from apps.asset_analysis.application.asset_name_service import resolve_asset_names
         except Exception as e:
             logger.debug(f"Failed to import asset name resolver: {e}")
             return {}
@@ -679,7 +679,7 @@ class DecisionPlaneQuery:
             return items
 
         try:
-            from shared.infrastructure.asset_name_resolver import resolve_asset_names
+            from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
             name_map = resolve_asset_names(list(lookup_codes))
         except Exception as e:

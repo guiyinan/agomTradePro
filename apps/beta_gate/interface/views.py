@@ -527,7 +527,7 @@ def beta_gate_test_view(request):
             recent_tests = []
 
         # 批量解析资产名称
-        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+        from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
         asset_codes = [t.asset_code for t in recent_tests if t.asset_code]
         asset_name_map = resolve_asset_names(asset_codes)
@@ -1066,7 +1066,7 @@ def beta_gate_config_view(request):
             recent_decisions = []
 
         # 批量解析资产名称
-        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+        from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
         asset_codes = [d.asset_code for d in recent_decisions if d.asset_code]
         asset_name_map = resolve_asset_names(asset_codes)
