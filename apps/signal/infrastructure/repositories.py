@@ -8,6 +8,7 @@ import json
 from datetime import date
 from typing import Any, List, Optional
 
+from django.db.models import Q
 from django.db import transaction
 from django.utils import timezone
 
@@ -192,6 +193,178 @@ class DjangoSignalRepository:
         """
         query = self._model.objects.filter(status='approved').order_by('-created_at')
         return [self._orm_to_entity(obj) for obj in query]
+
+    def list_signal_records(
+        self,
+        *,
+        status_filter: str = "",
+        asset_class: str = "",
+        direction: str = "",
+        search: str = "",
+        limit: int = 50,
+    ) -> list[InvestmentSignalModel]:
+        """Return signal ORM records for the management page."""
+
+        queryset = self._model._default_manager.all()
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        if asset_class:
+            queryset = queryset.filter(asset_class=asset_class)
+        if direction:
+            queryset = queryset.filter(direction=direction)
+        if search:
+            queryset = queryset.filter(
+                Q(asset_code__icontains=search) | Q(logic_desc__icontains=search)
+            )
+        return list(queryset.order_by("-created_at")[:limit])
+
+    def get_signal_management_metadata(self) -> dict[str, Any]:
+        """Return status counts and filter options for the management page."""
+
+        manager = self._model._default_manager
+        return {
+            "stats": {
+                "total": manager.count(),
+                "pending": manager.filter(status="pending").count(),
+                "approved": manager.filter(status="approved").count(),
+                "rejected": manager.filter(status="rejected").count(),
+                "invalidated": manager.filter(status="invalidated").count(),
+            },
+            "asset_classes": [
+                item["asset_class"]
+                for item in manager.values("asset_class").distinct()
+                if item.get("asset_class")
+            ],
+            "directions": [
+                item["direction"]
+                for item in manager.values("direction").distinct()
+                if item.get("direction")
+            ],
+        }
+
+    def list_signal_payloads(
+        self,
+        *,
+        status_filter: str = "",
+        asset_class: str = "",
+        direction: str = "",
+        search: str = "",
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Return serialized signal payloads for API responses."""
+
+        return [
+            self._serialize_signal_record(signal)
+            for signal in self.list_signal_records(
+                status_filter=status_filter,
+                asset_class=asset_class,
+                direction=direction,
+                search=search,
+                limit=limit,
+            )
+        ]
+
+    def get_signal_payload(self, signal_id: str) -> dict[str, Any] | None:
+        """Return one serialized signal payload by id."""
+
+        signal = self._model._default_manager.filter(id=signal_id).first()
+        if signal is None:
+            return None
+        return self._serialize_signal_record(signal)
+
+    def create_signal_record(
+        self,
+        *,
+        asset_code: str,
+        asset_class: str,
+        direction: str,
+        logic_desc: str,
+        invalidation_logic: str,
+        invalidation_threshold: float | None,
+        invalidation_rules: dict | None,
+        invalidation_description: str | None = None,
+        invalidation_rule_json: dict[str, Any] | None = None,
+        target_regime: str,
+        status: str,
+        rejection_reason: str,
+    ) -> dict[str, Any]:
+        """Create one investment signal record and return its serialized payload."""
+
+        signal = self._model._default_manager.create(
+            asset_code=asset_code,
+            asset_class=asset_class,
+            direction=direction,
+            logic_desc=logic_desc,
+            invalidation_description=invalidation_description or invalidation_logic,
+            invalidation_logic=invalidation_logic,
+            invalidation_threshold=invalidation_threshold,
+            invalidation_rules=invalidation_rules if invalidation_rules else None,
+            invalidation_rule_json=invalidation_rule_json,
+            target_regime=target_regime,
+            status=status,
+            rejection_reason=rejection_reason,
+        )
+        return self._serialize_signal_record(signal)
+
+    def update_signal_record_fields(
+        self,
+        signal_id: str,
+        **fields: Any,
+    ) -> dict[str, Any] | None:
+        """Update arbitrary signal fields and return the serialized payload."""
+
+        try:
+            signal = self._model._default_manager.get(id=signal_id)
+        except self._model.DoesNotExist:
+            return None
+
+        update_fields: list[str] = []
+        for field_name, value in fields.items():
+            setattr(signal, field_name, value)
+            update_fields.append(field_name)
+
+        if update_fields:
+            update_fields.append("updated_at")
+            signal.save(update_fields=update_fields)
+        return self._serialize_signal_record(signal)
+
+    def update_signal_record_status(
+        self,
+        *,
+        signal_id: str,
+        status: str,
+        rejection_reason: str = "",
+    ) -> dict[str, Any] | None:
+        """Update one signal status and return public fields."""
+
+        try:
+            signal = self._model._default_manager.get(id=signal_id)
+        except self._model.DoesNotExist:
+            return None
+
+        signal.status = status
+        signal.rejection_reason = rejection_reason
+        update_fields = ["status", "rejection_reason", "updated_at"]
+        if status == "invalidated":
+            signal.invalidated_at = timezone.now()
+            update_fields.insert(2, "invalidated_at")
+        signal.save(update_fields=update_fields)
+        return self._serialize_signal_record(signal)
+
+    def delete_signal_record(self, signal_id: str) -> str | None:
+        """Delete one signal record and return its asset code if found."""
+
+        signal = self._model._default_manager.filter(id=signal_id).first()
+        if signal is None:
+            return None
+        asset_code = signal.asset_code
+        signal.delete()
+        return asset_code
+
+    def count_signal_records(self) -> int:
+        """Return the total number of investment signal records."""
+
+        return self._model._default_manager.count()
 
     def find_signals_with_invalidation_rules(
         self,
@@ -557,6 +730,29 @@ class DjangoSignalRepository:
                 "invalidation_logic": row.get("invalidation_logic") or "",
             }
             for row in rows
+        }
+
+    @staticmethod
+    def _serialize_signal_record(signal: InvestmentSignalModel) -> dict[str, Any]:
+        """Serialize one investment signal ORM record for interface consumers."""
+
+        return {
+            "id": signal.id,
+            "asset_code": signal.asset_code,
+            "asset_class": signal.asset_class,
+            "direction": signal.direction,
+            "status": signal.status,
+            "logic_desc": signal.logic_desc,
+            "invalidation_description": signal.invalidation_description or signal.invalidation_logic,
+            "invalidation_rule": signal.invalidation_rule_json or signal.invalidation_rules,
+            "human_readable_invalidation": signal.get_human_readable_rules(),
+            "target_regime": signal.target_regime,
+            "rejection_reason": signal.rejection_reason,
+            "created_at": signal.created_at,
+            "updated_at": signal.updated_at,
+            "invalidated_at": signal.invalidated_at,
+            "backtest_performance_score": signal.backtest_performance_score,
+            "avg_backtest_return": signal.avg_backtest_return,
         }
 
     @staticmethod

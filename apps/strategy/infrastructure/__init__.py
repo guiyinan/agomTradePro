@@ -1,17 +1,6 @@
 """Compatibility re-exports for legacy strategy serializer imports."""
 
-from apps.strategy.interface.serializers import (
-    AIStrategyConfigSerializer,
-    PortfolioStrategyAssignmentDetailSerializer,
-    PortfolioStrategyAssignmentSerializer,
-    RuleConditionListSerializer,
-    RuleConditionSerializer,
-    ScriptConfigSerializer,
-    StrategyDetailSerializer,
-    StrategyExecutionLogListSerializer,
-    StrategyExecutionLogSerializer,
-    StrategySerializer,
-)
+from importlib import import_module
 
 __all__ = [
     "AIStrategyConfigSerializer",
@@ -25,3 +14,10 @@ __all__ = [
     "StrategyExecutionLogSerializer",
     "StrategySerializer",
 ]
+
+
+def __getattr__(name: str):
+    if name not in __all__:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = import_module("apps.strategy.interface.serializers")
+    return getattr(module, name)

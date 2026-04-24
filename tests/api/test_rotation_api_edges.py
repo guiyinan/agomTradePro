@@ -47,7 +47,7 @@ def test_rotation_compare_requires_asset_codes(authenticated_client):
 @pytest.mark.django_db
 def test_rotation_generate_signal_returns_404_when_service_returns_none(authenticated_client):
     with patch(
-        "apps.rotation.interface.views.RotationIntegrationService.generate_rotation_signal",
+        "apps.rotation.application.interface_services.RotationIntegrationService.generate_rotation_signal",
         return_value=None,
     ):
         response = authenticated_client.post(
@@ -62,7 +62,9 @@ def test_rotation_generate_signal_returns_404_when_service_returns_none(authenti
 
 @pytest.mark.django_db
 def test_rotation_clear_cache_calls_service(authenticated_client):
-    with patch("apps.rotation.interface.views.RotationIntegrationService.clear_price_cache") as mock_clear:
+    with patch(
+        "apps.rotation.application.interface_services.RotationIntegrationService.clear_price_cache"
+    ) as mock_clear:
         response = authenticated_client.post("/api/rotation/clear-cache/", {}, format="json")
 
     assert response.status_code == 200

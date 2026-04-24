@@ -24,15 +24,8 @@ from apps.audit.domain.services import (
     ThresholdValidator,
     analyze_attribution,
 )
-from apps.audit.infrastructure.models import (
-    IndicatorPerformanceModel,
-    IndicatorThresholdConfigModel,
-    ValidationSummaryModel,
-)
 from apps.audit.infrastructure.repositories import DjangoAuditRepository
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.macro.infrastructure.models import MacroIndicator
-from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from core.exceptions import DataValidationError, InsufficientDataError
 

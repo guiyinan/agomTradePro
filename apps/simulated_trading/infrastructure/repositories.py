@@ -7,7 +7,8 @@ Infrastructure层:
 - 封装数据库操作细节
 """
 from datetime import date
-from typing import List, Optional
+from decimal import Decimal
+from typing import Any, List, Optional
 
 from django.db import models
 from django.db.models import Avg, Count, F, Max, Min, Q, Sum
@@ -330,6 +331,19 @@ class DjangoSimulatedAccountRepository:
         except SimulatedAccountModel.DoesNotExist:
             return None
 
+    def get_account_model_by_id(self, account_id: int) -> Any | None:
+        """Return one account ORM row for UI/application composition."""
+
+        return SimulatedAccountModel._default_manager.filter(id=account_id).first()
+
+    def get_account_model_for_user(self, account_id: int, user_id: int) -> Any | None:
+        """Return one account ORM row owned by a specific user."""
+
+        return SimulatedAccountModel._default_manager.filter(
+            id=account_id,
+            user_id=user_id,
+        ).first()
+
     def get_by_name(self, account_name: str) -> SimulatedAccount | None:
         """根据名称获取账户"""
         try:
@@ -366,6 +380,43 @@ class DjangoSimulatedAccountRepository:
         ).order_by('-created_at')
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
+    def list_account_models_for_user(self, user_id: int) -> list[Any]:
+        """Return account ORM rows for a user's account management pages."""
+
+        return list(
+            SimulatedAccountModel._default_manager.filter(
+                user_id=user_id,
+            ).order_by("-created_at")
+        )
+
+    def create_account_model_for_user(
+        self,
+        *,
+        user: Any,
+        account_name: str,
+        account_type: str,
+        initial_capital: Any,
+    ) -> Any:
+        """Create one account ORM row for user-facing account pages."""
+
+        return SimulatedAccountModel._default_manager.create(
+            user=user,
+            account_name=account_name,
+            account_type=account_type,
+            initial_capital=initial_capital,
+            current_cash=initial_capital,
+            total_value=initial_capital,
+        )
+
+    def get_active_account_models_for_user(self, user_id: int) -> list[Any]:
+        """Return active ORM account rows for UI contexts that need model display helpers."""
+        return list(
+            SimulatedAccountModel._default_manager.filter(
+                user_id=user_id,
+                is_active=True,
+            ).select_related('rotation_config').order_by('account_type', 'account_name')
+        )
+
     def get_by_user_and_type(self, user_id: int, account_type: str) -> list[SimulatedAccount]:
         """
         ⭐ 新增：根据用户ID和账户类型获取投资组合
@@ -399,9 +450,118 @@ class DjangoSimulatedAccountRepository:
             user_id=user_id,
         ).exists()
 
+    def delete_account_with_summary(self, account_id: int) -> dict | None:
+        """Delete an account row and return small cascade counts for UI feedback."""
+
+        account = self.get_account_model_by_id(account_id)
+        if not account:
+            return None
+
+        summary = {
+            "account_id": account.id,
+            "account_name": account.account_name,
+            "deleted_positions": PositionModel._default_manager.filter(account=account).count(),
+            "deleted_trades": SimulatedTradeModel._default_manager.filter(account=account).count(),
+            "deleted_reports": DailyInspectionReportModel._default_manager.filter(account=account).count(),
+        }
+        account.delete()
+        return summary
+
 
 class DjangoPositionRepository:
     """持仓Repository实现"""
+
+    def get_position_record(self, account_id: int, asset_code: str) -> PositionModel | None:
+        """Return one ORM position row for compatibility call sites."""
+
+        return PositionModel._default_manager.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        ).first()
+
+    def update_position_prices(self, price_by_code: dict[str, Any]) -> list[dict]:
+        """Update open positions and account totals from latest prices."""
+
+        if not price_by_code:
+            return []
+
+        updates = []
+        positions = PositionModel._default_manager.select_related("account").filter(
+            asset_code__in=price_by_code.keys(),
+            quantity__gt=0,
+        )
+
+        for position in positions:
+            old_price = position.current_price
+            new_price = Decimal(str(price_by_code[position.asset_code]))
+            market_value = new_price * position.quantity
+            unrealized_pnl = market_value - position.total_cost
+            unrealized_pnl_pct = (
+                float((unrealized_pnl / position.total_cost) * Decimal("100"))
+                if position.total_cost > 0
+                else 0.0
+            )
+
+            position.current_price = new_price
+            position.market_value = market_value
+            position.unrealized_pnl = unrealized_pnl
+            position.unrealized_pnl_pct = unrealized_pnl_pct
+            position.save(
+                update_fields=[
+                    "current_price",
+                    "market_value",
+                    "unrealized_pnl",
+                    "unrealized_pnl_pct",
+                ]
+            )
+
+            self._update_account_value(position.account)
+            updates.append(
+                {
+                    "asset_code": position.asset_code,
+                    "old_price": old_price,
+                    "new_price": new_price,
+                    "price_changed": old_price != new_price,
+                }
+            )
+
+        return updates
+
+    def _update_account_value(self, account: Any) -> None:
+        """Recalculate account totals after position price changes."""
+
+        positions = PositionModel._default_manager.filter(account=account)
+        market_value = sum(
+            (position.market_value for position in positions),
+            start=Decimal("0"),
+        )
+        total_value = market_value + account.current_cash
+        total_return = (
+            float(((total_value - account.initial_capital) / account.initial_capital) * Decimal("100"))
+            if account.initial_capital > 0
+            else 0.0
+        )
+
+        account.current_market_value = market_value
+        account.total_value = total_value
+        account.total_return = total_return
+        account.save(update_fields=["current_market_value", "total_value", "total_return"])
+
+    def save_position_record(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        defaults: dict,
+    ) -> PositionModel:
+        """Create or update one ORM position row and return it."""
+
+        model, _ = PositionModel._default_manager.update_or_create(
+            account_id=account_id,
+            asset_code=asset_code,
+            defaults=defaults,
+        )
+        return model
 
     def save(self, position: Position) -> int:
         """
@@ -441,6 +601,14 @@ class DjangoPositionRepository:
         """获取账户的所有持仓"""
         models = PositionModel._default_manager.filter(account_id=account_id)
         return [PositionMapper.to_entity(m) for m in models]
+
+    def list_position_models_for_account(self, account_id: int, limit: int | None = None) -> list[Any]:
+        """Return position ORM rows for template rendering."""
+
+        queryset = PositionModel._default_manager.filter(account_id=account_id)
+        if limit is not None:
+            queryset = queryset[:limit]
+        return list(queryset)
 
     def get_position_snapshots(self, account_id: int) -> list[dict]:
         """返回交易计划所需的持仓快照。"""
@@ -548,6 +716,11 @@ class DjangoPositionRepository:
 class DjangoTradeRepository:
     """交易记录Repository实现"""
 
+    def create_trade_record(self, **payload) -> SimulatedTradeModel:
+        """Create one ORM trade row and return it."""
+
+        return SimulatedTradeModel._default_manager.create(**payload)
+
     def save(self, trade: SimulatedTrade) -> int:
         """
         保存交易记录
@@ -566,6 +739,29 @@ class DjangoTradeRepository:
             account_id=account_id
         ).order_by('-execution_date', '-execution_time')
         return [SimulatedTradeMapper.to_entity(m) for m in models]
+
+    def list_trade_models_for_account(self, account_id: int, limit: int | None = None) -> list[Any]:
+        """Return trade ORM rows for template rendering."""
+
+        queryset = SimulatedTradeModel._default_manager.filter(account_id=account_id)
+        if limit is not None:
+            queryset = queryset[:limit]
+        return list(queryset)
+
+    def get_trade_model_summary_for_account(self, account_id: int, limit: int = 100) -> dict:
+        """Return trade rows plus lightweight counts for account trade pages."""
+
+        queryset = SimulatedTradeModel._default_manager.filter(account_id=account_id)
+        buy_count = queryset.filter(action="buy").count()
+        sell_count = queryset.filter(action="sell").count()
+        trades = list(queryset[:limit])
+        total_realized_pnl = sum(float(trade.realized_pnl or 0) for trade in trades)
+        return {
+            "trades": trades,
+            "buy_count": buy_count,
+            "sell_count": sell_count,
+            "total_realized_pnl": total_realized_pnl,
+        }
 
     def get_by_date_range(
         self,
@@ -757,6 +953,69 @@ class DjangoFeeConfigRepository:
 
 class DjangoInspectionRepository:
     """日更巡检相关仓储。"""
+
+    def get_or_create_notification_config_model(self, account_id: int) -> tuple[Any, Any] | None:
+        """Return account and notification config ORM rows for the settings page."""
+
+        account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
+        if not account:
+            return None
+        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(account=account)
+        return account, config
+
+    def update_notification_config(
+        self,
+        account_id: int,
+        *,
+        is_enabled: bool,
+        include_owner_email: bool,
+        notify_on: str,
+        recipient_emails: list[str],
+    ) -> Any | None:
+        """Persist notification settings for one account."""
+
+        context = self.get_or_create_notification_config_model(account_id)
+        if context is None:
+            return None
+        _, config = context
+        config.is_enabled = is_enabled
+        config.include_owner_email = include_owner_email
+        config.notify_on = notify_on
+        config.recipient_emails = sorted(set(recipient_emails))
+        config.save()
+        return config
+
+    def list_report_payloads(
+        self,
+        account_id: int,
+        *,
+        limit: int,
+        inspection_date: date | None = None,
+    ) -> list[dict]:
+        """Return serialized daily inspection reports for API responses."""
+
+        queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
+            "-inspection_date",
+            "-updated_at",
+        )
+        if inspection_date:
+            queryset = queryset.filter(inspection_date=inspection_date)
+
+        return [
+            {
+                "report_id": report.id,
+                "account_id": report.account_id,
+                "inspection_date": report.inspection_date.isoformat(),
+                "status": report.status,
+                "macro_regime": report.macro_regime,
+                "policy_gear": report.policy_gear,
+                "strategy_id": report.strategy_id,
+                "position_rule_id": report.position_rule_id,
+                "summary": report.summary,
+                "checks": report.checks,
+            }
+            for report in queryset[:limit]
+        ]
 
     def upsert_report(
         self,

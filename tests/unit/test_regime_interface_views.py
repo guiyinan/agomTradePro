@@ -92,7 +92,7 @@ def test_regime_dashboard_view_handles_invalid_raw_data_values(authenticated_cli
     )
 
     monkeypatch.setattr(
-        "apps.regime.interface.views.CalculateRegimeV2UseCase.execute",
+        "apps.regime.application.interface_services.CalculateRegimeV2UseCase.execute",
         lambda self, request_obj: fake_response,
     )
 

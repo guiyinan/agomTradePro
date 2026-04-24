@@ -5,6 +5,7 @@ AI Capability Catalog Infrastructure Repositories.
 from datetime import UTC, datetime, timezone
 from typing import Any, List, Optional
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from ..domain.entities import (
@@ -256,8 +257,27 @@ class DjangoSyncLogRepository:
             return None
 
 
+class DjangoCapabilityExecutionSupportRepository:
+    """Helpers for application-layer execution support concerns."""
+
+    def get_user_by_id(self, user_id: int) -> Any | None:
+        """Return one auth user instance by id, or None if missing."""
+        user_model = get_user_model()
+        try:
+            return user_model._default_manager.get(pk=user_id)
+        except user_model.DoesNotExist:
+            return None
+
+
+def get_capability_execution_support_repository() -> DjangoCapabilityExecutionSupportRepository:
+    """Return execution support repository instance."""
+    return DjangoCapabilityExecutionSupportRepository()
+
+
 __all__ = [
     "DjangoCapabilityRepository",
     "DjangoRoutingLogRepository",
     "DjangoSyncLogRepository",
+    "DjangoCapabilityExecutionSupportRepository",
+    "get_capability_execution_support_repository",
 ]

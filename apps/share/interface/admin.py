@@ -3,14 +3,15 @@ Share Admin Configuration
 
 Django Admin 配置。
 """
+from django.apps import apps as django_apps
 from django.contrib import admin
 
-from apps.share.infrastructure.models import (
-    ShareAccessLogModel,
-    ShareDisclaimerConfigModel,
-    ShareLinkModel,
-    ShareSnapshotModel,
-)
+from apps.share.application.interface_services import has_share_disclaimer_config
+
+ShareAccessLogModel = django_apps.get_model("share", "ShareAccessLogModel")
+ShareDisclaimerConfigModel = django_apps.get_model("share", "ShareDisclaimerConfigModel")
+ShareLinkModel = django_apps.get_model("share", "ShareLinkModel")
+ShareSnapshotModel = django_apps.get_model("share", "ShareSnapshotModel")
 
 
 @admin.register(ShareLinkModel)
@@ -129,7 +130,7 @@ class ShareDisclaimerConfigAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        return not ShareDisclaimerConfigModel.objects.exists()
+        return not has_share_disclaimer_config()
 
     def has_delete_permission(self, request, obj=None):
         return False

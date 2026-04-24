@@ -5,7 +5,7 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from django.db import models, transaction
 from django.utils import timezone
@@ -376,6 +376,78 @@ class DjangoPolicyRepository:
             'by_level': stats
         }
 
+    def delete_events_before(self, cutoff_date: date) -> int:
+        """Delete policy events older than the cutoff date."""
+
+        return self._model._default_manager.filter(event_date__lt=cutoff_date).delete()[0]
+
+    def get_category_stats(self) -> dict[str, int]:
+        """Return aggregate counts grouped by info category."""
+
+        return self._model._default_manager.aggregate(
+            macro=models.Count("id", filter=models.Q(info_category="macro")),
+            sector=models.Count("id", filter=models.Q(info_category="sector")),
+            individual=models.Count("id", filter=models.Q(info_category="individual")),
+            sentiment=models.Count("id", filter=models.Q(info_category="sentiment")),
+            other=models.Count("id", filter=models.Q(info_category="other")),
+        )
+
+    def list_blacklist_policies(self, asset_code: str) -> list[dict[str, Any]]:
+        """Return blacklist and high-risk macro policies affecting one asset."""
+
+        direct_blacklist = list(
+            self._model._default_manager.filter(
+                is_blacklist=True,
+                structured_data__affected_stocks__contains=asset_code,
+            ).values("id", "title", "level", "info_category", "structured_data")
+        )
+        high_risk_macro = list(
+            self._model._default_manager.filter(
+                info_category="macro",
+                level__in=["P2", "P3"],
+                risk_impact="high_risk",
+            ).values("id", "title", "level", "info_category", "structured_data")
+        )
+        return direct_blacklist + high_risk_macro
+
+    def list_whitelist_policies(self, asset_code: str) -> list[dict[str, Any]]:
+        """Return whitelist policies affecting one asset."""
+
+        return list(
+            self._model._default_manager.filter(
+                is_whitelist=True,
+                structured_data__affected_stocks__contains=asset_code,
+            ).values("id", "title", "level", "info_category", "structured_data")
+        )
+
+    def list_recent_sector_policies(self, cutoff_datetime) -> list[dict[str, Any]]:
+        """Return recent approved sector policies."""
+
+        return list(
+            self._model._default_manager.filter(
+                info_category="sector",
+                audit_status__in=["auto_approved", "manual_approved"],
+                created_at__gte=cutoff_datetime,
+            ).values("id", "title", "level", "info_category", "structured_data")
+        )
+
+    def list_recent_sentiment_policies(
+        self,
+        *,
+        asset_code: str,
+        cutoff_datetime,
+    ) -> list[dict[str, Any]]:
+        """Return recent approved individual sentiment policies for one asset."""
+
+        return list(
+            self._model._default_manager.filter(
+                info_category="individual",
+                audit_status__in=["auto_approved", "manual_approved"],
+                structured_data__affected_stocks__contains=asset_code,
+                created_at__gte=cutoff_datetime,
+            ).values("id", "title", "level", "info_category", "structured_data")
+        )
+
     def get_existing_for_update(
         self,
         event_id: int | None = None,
@@ -404,6 +476,78 @@ class DjangoPolicyRepository:
                 'event_date': obj.event_date,
             }
         return None
+
+    def create_raw_rss_policy_log(
+        self,
+        *,
+        event_date: date,
+        title: str,
+        description: str,
+        evidence_url: str,
+        rss_source_id: int,
+        rss_item_guid: str,
+        processing_metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create the initial raw RSS policy log row before classification."""
+
+        orm_obj = self._model._default_manager.create(
+            event_date=event_date,
+            level="PX",
+            title=title,
+            description=description,
+            evidence_url=evidence_url,
+            info_category="other",
+            audit_status="pending_review",
+            ai_confidence=None,
+            structured_data={},
+            risk_impact="unknown",
+            rss_source_id=rss_source_id,
+            rss_item_guid=rss_item_guid,
+            processing_metadata=processing_metadata or {"processing_stage": "raw_ingested"},
+        )
+        return {
+            "id": orm_obj.id,
+            "processing_metadata": orm_obj.processing_metadata or {},
+        }
+
+    def update_policy_log_fields(self, policy_log_id: int, **fields) -> bool:
+        """Update one policy log row by id."""
+
+        return self._model._default_manager.filter(id=policy_log_id).update(**fields) > 0
+
+    def append_policy_log_processing_metadata(
+        self,
+        policy_log_id: int,
+        metadata: dict[str, Any],
+    ) -> bool:
+        """Merge processing metadata onto an existing policy log row."""
+
+        orm_obj = self._model._default_manager.filter(id=policy_log_id).first()
+        if orm_obj is None:
+            return False
+
+        orm_obj.processing_metadata = {
+            **(orm_obj.processing_metadata or {}),
+            **metadata,
+        }
+        orm_obj.save(update_fields=["processing_metadata"])
+        return True
+
+    def ensure_audit_queue_item(
+        self,
+        *,
+        policy_log_id: int,
+        priority: str,
+    ) -> dict[str, Any]:
+        """Ensure one audit queue row exists for a policy log."""
+
+        from .models import PolicyAuditQueue
+
+        queue_item, created = PolicyAuditQueue._default_manager.get_or_create(
+            policy_log_id=policy_log_id,
+            defaults={"priority": priority},
+        )
+        return {"id": queue_item.id, "created": created}
 
     @staticmethod
     def _orm_to_entity(orm_obj: PolicyLog) -> PolicyEvent:
@@ -662,6 +806,124 @@ class WorkbenchRepository:
         """获取待审核事件数量"""
         return self._model.objects.filter(audit_status='pending_review').count()
 
+    def list_audit_queue_items(
+        self,
+        *,
+        assigned_user_id: int,
+        status: str = "pending_review",
+        priority: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Return assigned audit queue items for one reviewer."""
+
+        from .models import PolicyAuditQueue
+
+        queryset = PolicyAuditQueue._default_manager.filter(
+            policy_log__audit_status=status,
+            assigned_to_id=assigned_user_id,
+        ).select_related("policy_log", "assigned_to")
+
+        if priority:
+            queryset = queryset.filter(priority=priority)
+
+        priority_order = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
+        rows = list(queryset[:limit])
+        rows.sort(key=lambda item: priority_order.get(item.priority, 99))
+
+        return [
+            {
+                "id": item.policy_log.id,
+                "title": item.policy_log.title,
+                "description": item.policy_log.description[:200] + "..."
+                if len(item.policy_log.description) > 200
+                else item.policy_log.description,
+                "level": item.policy_log.level,
+                "info_category": item.policy_log.info_category,
+                "ai_confidence": item.policy_log.ai_confidence,
+                "structured_data": item.policy_log.structured_data,
+                "priority": item.priority,
+                "created_at": item.policy_log.created_at.isoformat(),
+                "assigned_at": item.assigned_at.isoformat() if item.assigned_at else None,
+                "rss_source": item.policy_log.rss_source.name
+                if item.policy_log.rss_source
+                else None,
+            }
+            for item in rows
+        ]
+
+    def list_unassigned_audit_queue_ids(self) -> list[int]:
+        """Return pending unassigned audit queue ids ordered by recency."""
+
+        from .models import PolicyAuditQueue
+
+        return list(
+            PolicyAuditQueue._default_manager.filter(
+                assigned_to__isnull=True,
+                policy_log__audit_status="pending_review",
+            )
+            .order_by("-created_at")
+            .values_list("id", flat=True)
+        )
+
+    def list_staff_auditor_ids(self) -> list[int]:
+        """Return staff user ids eligible for audit assignment."""
+
+        from django.contrib.auth.models import User
+
+        return list(
+            User._default_manager.filter(is_staff=True)
+            .values_list("id", flat=True)
+            .distinct()
+        )
+
+    def get_pending_assignment_counts(self, auditor_ids: list[int]) -> dict[int, int]:
+        """Return pending assignment counts keyed by auditor id."""
+
+        from .models import PolicyAuditQueue
+
+        if not auditor_ids:
+            return {}
+
+        rows = (
+            PolicyAuditQueue._default_manager.filter(
+                assigned_to_id__in=auditor_ids,
+                policy_log__audit_status="pending_review",
+            )
+            .values("assigned_to_id")
+            .annotate(count=models.Count("id"))
+        )
+        return {row["assigned_to_id"]: row["count"] for row in rows}
+
+    def assign_audit_queue_item(
+        self,
+        *,
+        queue_id: int,
+        auditor_id: int,
+        assigned_at,
+    ) -> bool:
+        """Assign one audit queue item to an auditor."""
+
+        from .models import PolicyAuditQueue
+
+        updated = PolicyAuditQueue._default_manager.filter(
+            id=queue_id,
+            assigned_to__isnull=True,
+            policy_log__audit_status="pending_review",
+        ).update(
+            assigned_to_id=auditor_id,
+            assigned_at=assigned_at,
+        )
+        return updated > 0
+
+    def delete_reviewed_queue_before(self, cutoff_datetime) -> int:
+        """Delete audit queue rows whose related policy was reviewed before cutoff."""
+
+        from .models import PolicyAuditQueue
+
+        return PolicyAuditQueue._default_manager.filter(
+            policy_log__reviewed_at__lt=cutoff_datetime
+        ).delete()[0]
+
     def get_sla_exceeded_count(self, p23_sla_hours: int = 2, normal_sla_hours: int = 24) -> int:
         """
         获取 SLA 超时事件数量
@@ -697,6 +959,36 @@ class WorkbenchRepository:
 
         return p23_count + normal_count
 
+    def get_sla_exceeded_breakdown(
+        self,
+        *,
+        p23_sla_hours: int = 2,
+        normal_sla_hours: int = 24,
+    ) -> dict[str, int]:
+        """Return SLA-exceeded counts split by severity bucket."""
+
+        from datetime import timedelta
+
+        now = timezone.now()
+        p23_cutoff = now - timedelta(hours=p23_sla_hours)
+        normal_cutoff = now - timedelta(hours=normal_sla_hours)
+
+        p23_count = self._model.objects.filter(
+            audit_status="pending_review",
+            level__in=["P2", "P3"],
+            created_at__lt=p23_cutoff,
+        ).count()
+        normal_count = self._model.objects.filter(
+            audit_status="pending_review",
+            level__in=["P0", "P1"],
+            created_at__lt=normal_cutoff,
+        ).count()
+        return {
+            "p23_exceeded": p23_count,
+            "normal_exceeded": normal_count,
+            "total_exceeded": p23_count + normal_count,
+        }
+
     def get_global_heat_sentiment(self) -> tuple[float | None, float | None]:
         """
         获取全局热度与情绪评分
@@ -729,6 +1021,145 @@ class WorkbenchRepository:
             gate_effective=True,
             effective_at__date=today
         ).count()
+
+    def get_daily_policy_summary(self, target_date: date) -> dict[str, Any]:
+        """Return daily policy summary grouped by level/category/audit status."""
+
+        from .models import PolicyAuditQueue
+
+        today_policies = self._model._default_manager.filter(created_at__date=target_date)
+        summary = {
+            "date": target_date.isoformat(),
+            "total_new": today_policies.count(),
+            "by_level": {},
+            "by_category": {},
+            "by_audit_status": {},
+            "pending_review": PolicyAuditQueue._default_manager.filter(
+                policy_log__audit_status="pending_review"
+            ).count(),
+            "ai_classified": today_policies.filter(
+                models.Q(audit_status="auto_approved") | models.Q(audit_status="pending_review"),
+                ai_confidence__isnull=False,
+            ).count(),
+        }
+
+        for level_code, level_name in self._model.POLICY_LEVELS:
+            count = today_policies.filter(level=level_code).count()
+            if count > 0:
+                summary["by_level"][level_name] = count
+
+        for cat_code, cat_name in self._model.INFO_CATEGORY_CHOICES:
+            count = today_policies.filter(info_category=cat_code).count()
+            if count > 0:
+                summary["by_category"][cat_name] = count
+
+        for status_code, status_name in self._model.AUDIT_STATUS_CHOICES:
+            count = today_policies.filter(audit_status=status_code).count()
+            if count > 0:
+                summary["by_audit_status"][status_name] = count
+
+        return summary
+
+    def get_latest_effective_policy_title(self) -> str | None:
+        """Return the title of the latest effective policy event."""
+
+        return (
+            self._model._default_manager.filter(event_type="policy", gate_effective=True)
+            .order_by("-event_date", "-effective_at")
+            .values_list("title", flat=True)
+            .first()
+        )
+
+    def get_last_fetch_at(self):
+        """Return the latest RSS fetch timestamp."""
+
+        return (
+            RSSFetchLog._default_manager.order_by("-fetched_at")
+            .values_list("fetched_at", flat=True)
+            .first()
+        )
+
+    def list_workbench_items(
+        self,
+        *,
+        tab: str = "pending",
+        event_type: str | None = None,
+        level: str | None = None,
+        gate_level: str | None = None,
+        asset_class: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        search: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Return filtered workbench items and total count."""
+
+        query = self._model._default_manager.all()
+
+        if tab == "pending":
+            query = query.filter(audit_status="pending_review")
+        elif tab == "effective":
+            query = query.filter(gate_effective=True)
+
+        if event_type:
+            query = query.filter(event_type=event_type)
+        if level:
+            query = query.filter(level=level)
+        if gate_level:
+            query = query.filter(gate_level=gate_level)
+        if asset_class:
+            query = query.filter(asset_class=asset_class)
+        if start_date:
+            query = query.filter(event_date__gte=start_date)
+        if end_date:
+            query = query.filter(event_date__lte=end_date)
+        if search:
+            query = query.filter(
+                models.Q(title__icontains=search)
+                | models.Q(description__icontains=search)
+            )
+
+        if tab == "pending":
+            query = query.order_by("-created_at")
+        elif tab == "effective":
+            query = query.order_by("-effective_at")
+        else:
+            query = query.order_by("-event_date", "-created_at")
+
+        total = query.count()
+        items = query[offset : offset + limit]
+
+        return {
+            "total": total,
+            "items": [
+                {
+                    "id": item.id,
+                    "event_date": item.event_date.isoformat() if item.event_date else None,
+                    "event_type": item.event_type,
+                    "level": item.level,
+                    "gate_level": item.gate_level,
+                    "title": item.title,
+                    "description": item.description[:200] + "..."
+                    if len(item.description) > 200
+                    else item.description,
+                    "evidence_url": item.evidence_url,
+                    "ai_confidence": item.ai_confidence,
+                    "heat_score": item.heat_score,
+                    "sentiment_score": item.sentiment_score,
+                    "gate_effective": item.gate_effective,
+                    "asset_class": item.asset_class,
+                    "asset_scope": item.asset_scope,
+                    "audit_status": item.audit_status,
+                    "created_at": item.created_at.isoformat() if item.created_at else None,
+                    "effective_at": item.effective_at.isoformat() if item.effective_at else None,
+                    "effective_by_id": item.effective_by_id,
+                    "review_notes": item.review_notes,
+                    "rollback_reason": item.rollback_reason,
+                }
+                for item in items
+            ],
+        }
 
     # ========== 事件操作 ==========
 
@@ -896,6 +1327,45 @@ class WorkbenchRepository:
         except self._model.DoesNotExist:
             return None
 
+    def review_policy_item(
+        self,
+        *,
+        policy_log_id: int,
+        approved: bool,
+        reviewer_id: int,
+        notes: str = "",
+        modifications: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        """Approve or reject one pending policy item and clear its audit queue rows."""
+
+        from .models import PolicyAuditQueue
+
+        event = self._model._default_manager.filter(id=policy_log_id).first()
+        if event is None:
+            return None
+
+        with transaction.atomic():
+            update_fields = ["audit_status", "reviewed_by_id", "reviewed_at", "review_notes"]
+            event.reviewed_by_id = reviewer_id
+            event.reviewed_at = timezone.now()
+
+            if approved:
+                event.audit_status = "manual_approved"
+                event.review_notes = notes
+                if modifications:
+                    structured_data = dict(event.structured_data or {})
+                    structured_data.update(modifications)
+                    event.structured_data = structured_data
+                    update_fields.append("structured_data")
+            else:
+                event.audit_status = "rejected"
+                event.review_notes = notes or "人工拒绝"
+
+            event.save(update_fields=update_fields)
+            PolicyAuditQueue._default_manager.filter(policy_log_id=event.id).delete()
+
+        return {"id": event.id, "audit_status": event.audit_status}
+
     # ========== 配置管理 ==========
 
     def get_ingestion_config(self) -> 'PolicyIngestionConfig':
@@ -960,4 +1430,105 @@ class WorkbenchRepository:
 def get_workbench_repository() -> WorkbenchRepository:
     """工作台仓储工厂函数"""
     return WorkbenchRepository()
+
+
+class HedgePositionRepository:
+    """Repository for hedge position records."""
+
+    def create_hedge_position(
+        self,
+        *,
+        portfolio_id: int,
+        instrument_code: str,
+        instrument_type: str,
+        hedge_ratio: float,
+        hedge_value,
+        policy_level: str,
+        status: str,
+        notes: str,
+        execution_price=None,
+        opening_cost=None,
+        total_cost=None,
+        executed_at=None,
+    ) -> dict[str, Any]:
+        """Create one hedge position row and return a lightweight snapshot."""
+
+        from .models import HedgePositionModel
+
+        hedge = HedgePositionModel._default_manager.create(
+            portfolio_id=portfolio_id,
+            instrument_code=instrument_code,
+            instrument_type=instrument_type,
+            hedge_ratio=hedge_ratio,
+            hedge_value=hedge_value,
+            policy_level=policy_level,
+            status=status,
+            notes=notes,
+            execution_price=execution_price,
+            opening_cost=opening_cost,
+            total_cost=total_cost,
+            executed_at=executed_at,
+        )
+        return {
+            "id": hedge.id,
+            "instrument_code": hedge.instrument_code,
+            "hedge_ratio": hedge.hedge_ratio,
+            "hedge_value": hedge.hedge_value,
+            "execution_price": hedge.execution_price,
+            "status": hedge.status,
+            "executed_at": hedge.executed_at,
+            "total_cost": hedge.total_cost,
+            "opening_cost": hedge.opening_cost,
+            "closing_cost": hedge.closing_cost,
+            "beta_before": hedge.beta_before,
+            "beta_after": hedge.beta_after,
+            "hedge_profit": hedge.hedge_profit,
+        }
+
+    def get_hedge_position(self, *, hedge_id: int, portfolio_id: int) -> dict[str, Any] | None:
+        """Return one hedge position snapshot by id and portfolio."""
+
+        from .models import HedgePositionModel
+
+        hedge = HedgePositionModel._default_manager.filter(
+            id=hedge_id,
+            portfolio_id=portfolio_id,
+        ).first()
+        if hedge is None:
+            return None
+        return {
+            "id": hedge.id,
+            "portfolio_id": hedge.portfolio_id,
+            "instrument_code": hedge.instrument_code,
+            "instrument_type": hedge.instrument_type,
+            "hedge_ratio": hedge.hedge_ratio,
+            "hedge_value": hedge.hedge_value,
+            "policy_level": hedge.policy_level,
+            "status": hedge.status,
+            "execution_price": hedge.execution_price,
+            "executed_at": hedge.executed_at,
+            "opening_cost": hedge.opening_cost,
+            "closing_cost": hedge.closing_cost,
+            "total_cost": hedge.total_cost,
+            "beta_before": hedge.beta_before,
+            "beta_after": hedge.beta_after,
+            "hedge_profit": hedge.hedge_profit,
+            "notes": hedge.notes,
+        }
+
+    def update_beta_metrics(
+        self,
+        *,
+        hedge_id: int,
+        beta_before: float,
+        beta_after: float,
+    ) -> bool:
+        """Persist computed beta metrics for one hedge position."""
+
+        from .models import HedgePositionModel
+
+        return HedgePositionModel._default_manager.filter(id=hedge_id).update(
+            beta_before=beta_before,
+            beta_after=beta_after,
+        ) > 0
 

@@ -110,6 +110,41 @@ class DjangoSectorRepository:
             print(f"保存板块信息失败: {e}")
             return False
 
+    def get_stock_sector_name_map(self) -> dict[str, list[str]]:
+        """Return current stock-to-sector-name mapping for policy influence checks."""
+
+        constituent_rows = list(
+            SectorConstituentModel._default_manager.filter(is_current=True).values(
+                "stock_code",
+                "sector_code",
+            )
+        )
+        if not constituent_rows:
+            return {}
+
+        sector_codes = {
+            row["sector_code"] for row in constituent_rows if row.get("sector_code")
+        }
+        sector_name_map = {
+            row["sector_code"]: row["sector_name"]
+            for row in SectorInfoModel._default_manager.filter(
+                sector_code__in=list(sector_codes),
+                is_active=True,
+            ).values("sector_code", "sector_name")
+        }
+
+        mapping: dict[str, list[str]] = {}
+        for row in constituent_rows:
+            stock_code = row.get("stock_code")
+            sector_name = sector_name_map.get(row.get("sector_code"))
+            if not stock_code or not sector_name:
+                continue
+            mapping.setdefault(stock_code, [])
+            if sector_name not in mapping[stock_code]:
+                mapping[stock_code].append(sector_name)
+
+        return mapping
+
     # ===== 板块指数数据 =====
 
     def get_sector_index(

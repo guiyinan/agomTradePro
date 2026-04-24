@@ -10,6 +10,7 @@ See: docs/plans/ai-native/schema-contract.md
 import logging
 from typing import Any, Dict, Optional
 
+from django.apps import apps as django_apps
 from django.db.models import Q
 from django.http import Http404
 from rest_framework import serializers as drf_serializers
@@ -29,6 +30,21 @@ from apps.agent_runtime.application.proposal_use_cases import (
     RejectProposalUseCase,
     SubmitProposalForApprovalUseCase,
 )
+from apps.agent_runtime.application.interface_services import (
+    get_dashboard_executions_payload,
+    get_dashboard_guardrails_payload,
+    get_dashboard_proposals_payload,
+    get_dashboard_summary_payload,
+    get_dashboard_task_detail_payload,
+    get_needs_attention_tasks,
+    get_proposal_model,
+    get_task_for_actor,
+    get_task_artifacts,
+    get_task_models_by_ids,
+    get_task_queryset_for_actor,
+    get_task_request_id,
+    get_task_timeline_events,
+)
 from apps.agent_runtime.application.use_cases import (
     CancelTaskInput,
     CancelTaskUseCase,
@@ -42,14 +58,6 @@ from apps.agent_runtime.application.use_cases import (
 )
 from apps.agent_runtime.domain.entities import EventSource, TaskDomain, TaskStatus
 from apps.agent_runtime.domain.services import InvalidStateTransitionError
-from apps.agent_runtime.infrastructure.models import (
-    AgentArtifactModel,
-    AgentExecutionRecordModel,
-    AgentGuardrailDecisionModel,
-    AgentProposalModel,
-    AgentTaskModel,
-    AgentTimelineEventModel,
-)
 from apps.agent_runtime.interface.serializers import (
     AgentArtifactSerializer,
     AgentExecutionRecordSerializer,
@@ -64,6 +72,13 @@ from apps.agent_runtime.interface.serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+AgentArtifactModel = django_apps.get_model("agent_runtime", "AgentArtifactModel")
+AgentExecutionRecordModel = django_apps.get_model("agent_runtime", "AgentExecutionRecordModel")
+AgentGuardrailDecisionModel = django_apps.get_model("agent_runtime", "AgentGuardrailDecisionModel")
+AgentProposalModel = django_apps.get_model("agent_runtime", "AgentProposalModel")
+AgentTaskModel = django_apps.get_model("agent_runtime", "AgentTaskModel")
+AgentTimelineEventModel = django_apps.get_model("agent_runtime", "AgentTimelineEventModel")
 
 
 class IsStaffOrOperator(BasePermission):
@@ -184,13 +199,10 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """Return queryset with user filtering."""
-        queryset = AgentTaskModel._default_manager.all()
-
-        # Filter by user if not staff
-        if not self.request.user.is_staff:
-            queryset = queryset.filter(created_by_id=getattr(self.request.user, "id", None))
-
-        return queryset.order_by("-created_at")
+        return get_task_queryset_for_actor(
+            user_id=getattr(self.request.user, "id", None),
+            is_staff=getattr(self.request.user, "is_staff", False),
+        )
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
@@ -202,10 +214,11 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
     def _get_task_for_action(self, pk: Any) -> AgentTaskModel:
         """Fetch a task with the same ownership rules used by the queryset."""
-        filters: dict[str, Any] = {"pk": pk}
-        if not self.request.user.is_staff:
-            filters["created_by_id"] = getattr(self.request.user, "id", None)
-        task_model = AgentTaskModel._default_manager.filter(**filters).first()
+        task_model = get_task_for_actor(
+            task_id=pk,
+            user_id=getattr(self.request.user, "id", None),
+            is_staff=getattr(self.request.user, "is_staff", False),
+        )
         if task_model is None:
             raise Http404
         return task_model
@@ -230,9 +243,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
     def _lookup_task_request_id(self, pk: Any) -> str | None:
         """Best-effort request_id lookup for error responses."""
         try:
-            task_model = AgentTaskModel._default_manager.filter(pk=pk).only("request_id").first()
-            rid = getattr(task_model, "request_id", None)
-            return rid if isinstance(rid, str) else None
+            return get_task_request_id(task_id=int(pk))
         except Exception:
             return None
 
@@ -337,8 +348,8 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         output = use_case.execute(input_dto)
 
         # Get models for serialization
-        task_ids = [t.id for t in output.tasks]
-        task_models = AgentTaskModel._default_manager.filter(id__in=task_ids)
+        task_ids = [t.id for t in output.tasks if getattr(t, "id", None) is not None]
+        task_models = get_task_models_by_ids(task_ids=task_ids)
         task_map = {t.id: t for t in task_models}
 
         # Serialize in order
@@ -570,9 +581,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         """
         task_model = self.get_object()
 
-        events = AgentTimelineEventModel._default_manager.filter(
-            task_id=task_model.id
-        ).order_by("created_at")
+        events = get_task_timeline_events(task_id=task_model.id)
 
         serializer = AgentTimelineEventSerializer(events, many=True)
 
@@ -598,9 +607,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         """
         task_model = self.get_object()
 
-        artifacts = AgentArtifactModel._default_manager.filter(
-            task_id=task_model.id
-        ).order_by("-created_at")
+        artifacts = get_task_artifacts(task_id=task_model.id)
 
         serializer = AgentArtifactSerializer(artifacts, many=True)
 
@@ -686,17 +693,11 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             "total_count": 5
         }
         """
-        queryset = self.get_queryset().filter(
-            requires_human=True
-        ) | self.get_queryset().filter(
-            status__in=[TaskStatus.NEEDS_HUMAN.value, TaskStatus.FAILED.value]
-        )
-
-        queryset = queryset.distinct().order_by("-updated_at")
-
-        # Limit results
         limit = min(int(request.query_params.get("limit", 20)), 100)
-        queryset = queryset[:limit]
+        queryset, total_count = get_needs_attention_tasks(
+            base_queryset=self.get_queryset(),
+            limit=limit,
+        )
 
         serializer = AgentTaskListSerializer(queryset, many=True)
 
@@ -704,7 +705,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             {
                 "request_id": generate_request_id(),
                 "tasks": serializer.data,
-                "total_count": queryset.count(),
+                "total_count": total_count,
             }
         )
 
@@ -851,11 +852,10 @@ class AgentProposalViewSet(viewsets.ViewSet):
 
     def _get_proposal_data(self, proposal_entity: Any) -> dict[str, Any]:
         """Get serialized proposal data, preferring model if available."""
-        try:
-            model = AgentProposalModel._default_manager.get(pk=proposal_entity.id)
+        model = get_proposal_model(proposal_id=proposal_entity.id)
+        if model is not None:
             return AgentProposalSerializer(model).data
-        except AgentProposalModel.DoesNotExist:
-            return self._serialize_proposal(proposal_entity)
+        return self._serialize_proposal(proposal_entity)
 
     def _get_actor(self, request: Any) -> dict[str, Any]:
         """Build actor dict from request, including Django group names as roles."""
@@ -1199,37 +1199,15 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
         """System-wide summary for operator dashboard."""
-        from django.db.models import Count
-
-        task_counts = dict(
-            AgentTaskModel._default_manager.values("status")
-            .annotate(count=Count("id"))
-            .values_list("status", "count")
-        )
-        proposal_counts = dict(
-            AgentProposalModel._default_manager.values("status")
-            .annotate(count=Count("id"))
-            .values_list("status", "count")
-        )
-        needs_attention = AgentTaskModel._default_manager.filter(
-            Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
-        ).distinct().count()
-
-        return Response({
-            "request_id": generate_request_id(),
-            "task_counts_by_status": task_counts,
-            "proposal_counts_by_status": proposal_counts,
-            "needs_attention_count": needs_attention,
-            "total_tasks": AgentTaskModel._default_manager.count(),
-            "total_proposals": AgentProposalModel._default_manager.count(),
-        })
+        payload = get_dashboard_summary_payload()
+        payload["request_id"] = generate_request_id()
+        return Response(payload)
 
     @action(detail=False, methods=["get"], url_path="task/(?P<task_id>[^/.]+)")
     def task_detail(self, request, task_id=None):
         """Full task detail with timeline, proposals, and guardrails."""
-        try:
-            task_model = AgentTaskModel._default_manager.get(pk=int(task_id))
-        except AgentTaskModel.DoesNotExist:
+        payload = get_dashboard_task_detail_payload(task_id=int(task_id))
+        if payload is None:
             return build_error_response(
                 request_id=generate_request_id(),
                 error_code="not_found",
@@ -1237,46 +1215,19 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
                 status_code=status.HTTP_404_NOT_FOUND,
             )
 
-        task_data = AgentTaskSerializer(task_model).data
-
-        # Timeline
-        timeline = list(
-            AgentTimelineEventModel._default_manager.filter(task_id=task_model.id)
-            .order_by("created_at")
-            .values("id", "event_type", "event_source", "event_payload", "created_at")
-        )
-
-        # Proposals
-        proposals = list(
-            AgentProposalModel._default_manager.filter(task_id=task_model.id)
-            .order_by("-created_at")
-            .values(
-                "id", "request_id", "proposal_type", "status",
-                "risk_level", "approval_status", "approval_reason", "created_at",
-            )
-        )
-
-        # Guardrail decisions
-        guardrails = list(
-            AgentGuardrailDecisionModel._default_manager.filter(task_id=task_model.id)
-            .order_by("-created_at")
-            .values("id", "decision", "reason_code", "message", "requires_human", "created_at")
-        )
-
-        # Execution records
-        executions = list(
-            AgentExecutionRecordModel._default_manager.filter(task_id=task_model.id)
-            .order_by("-created_at")
-            .values("id", "execution_status", "started_at", "completed_at", "error_details")
-        )
-
         return Response({
             "request_id": generate_request_id(),
-            "task": task_data,
-            "timeline": timeline,
-            "proposals": proposals,
-            "guardrail_decisions": guardrails,
-            "execution_records": executions,
+            "task": AgentTaskSerializer(payload["task"]).data,
+            "timeline": AgentTimelineEventSerializer(payload["timeline"], many=True).data,
+            "proposals": AgentProposalSerializer(payload["proposals"], many=True).data,
+            "guardrail_decisions": AgentGuardrailDecisionSerializer(
+                payload["guardrail_decisions"],
+                many=True,
+            ).data,
+            "execution_records": AgentExecutionRecordSerializer(
+                payload["execution_records"],
+                many=True,
+            ).data,
         })
 
     @action(detail=False, methods=["get"], url_path="proposals")
@@ -1286,15 +1237,12 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
         offset = int(request.query_params.get("offset", 0))
         status_filter = request.query_params.get("status")
 
-        qs = AgentProposalModel._default_manager.all()
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-        total = qs.count()
-
-        proposals = AgentProposalSerializer(
-            qs.order_by("-created_at")[offset:offset + limit],
-            many=True,
-        ).data
+        proposals_qs, total = get_dashboard_proposals_payload(
+            status_filter=status_filter,
+            limit=limit,
+            offset=offset,
+        )
+        proposals = AgentProposalSerializer(proposals_qs, many=True).data
 
         return Response({
             "request_id": generate_request_id(),
@@ -1308,7 +1256,7 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
         limit = min(int(request.query_params.get("limit", 50)), 200)
 
         decisions = AgentGuardrailDecisionSerializer(
-            AgentGuardrailDecisionModel._default_manager.order_by("-created_at")[:limit],
+            get_dashboard_guardrails_payload(limit=limit),
             many=True,
         ).data
 
@@ -1323,7 +1271,7 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
         limit = min(int(request.query_params.get("limit", 50)), 200)
 
         records = AgentExecutionRecordSerializer(
-            AgentExecutionRecordModel._default_manager.order_by("-created_at")[:limit],
+            get_dashboard_executions_payload(limit=limit),
             many=True,
         ).data
 

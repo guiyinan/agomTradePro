@@ -6,11 +6,10 @@ DRF ViewSets and page views for the rotation module.
 
 import csv
 import json
-from datetime import date, datetime
+from datetime import datetime
 
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -18,30 +17,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.rotation.application.dtos import (
-    AssetsViewRequest,
-    RotationConfigsViewRequest,
-    RotationSignalsViewRequest,
-)
-from apps.rotation.application.use_cases import (
-    GetAssetsForViewUseCase,
-    GetRotationConfigsForViewUseCase,
-    GetRotationSignalsForViewUseCase,
-)
-from apps.rotation.infrastructure.default_assets import DEFAULT_ROTATION_ASSETS
-from apps.rotation.infrastructure.models import (
-    AssetClassModel,
-    PortfolioRotationConfigModel,
-    RotationConfigModel,
-    RotationSignalModel,
-    RotationTemplateModel,
-)
-from apps.rotation.infrastructure.services import RotationIntegrationService
+from apps.rotation.application import interface_services as rotation_interface_services
 from apps.rotation.interface.serializers import (
     AssetClassSerializer,
     PortfolioRotationConfigSerializer,
     RotationConfigSerializer,
-    RotationSignalRequestSerializer,
     RotationSignalSerializer,
     RotationTemplateSerializer,
 )
@@ -49,7 +29,7 @@ from apps.rotation.interface.serializers import (
 
 class AssetClassViewSet(viewsets.ModelViewSet):
     """ViewSet for AssetClass model"""
-    queryset = AssetClassModel._default_manager.all()
+    queryset = rotation_interface_services.get_asset_queryset()
     serializer_class = AssetClassSerializer
     filterset_fields = ['category', 'is_active']
     search_fields = ['code', 'name', 'description']
@@ -59,55 +39,19 @@ class AssetClassViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def with_prices(self, request):
         """Get all assets with current price information"""
-        service = RotationIntegrationService()
-        assets = service.get_all_assets()
+        assets = rotation_interface_services.get_all_assets_with_prices()
         return Response(assets)
 
     @action(detail=False, methods=['post'], url_path='import-defaults')
     def import_defaults(self, request):
         """Import or reactivate default rotation assets."""
-        created = 0
-        reactivated = 0
-        existing = 0
-
-        for asset_data in DEFAULT_ROTATION_ASSETS:
-            asset, was_created = AssetClassModel._default_manager.get_or_create(
-                code=asset_data['code'],
-                defaults=asset_data,
-            )
-            if was_created:
-                created += 1
-                continue
-
-            should_update = False
-            for field, value in asset_data.items():
-                if getattr(asset, field) != value:
-                    setattr(asset, field, value)
-                    should_update = True
-            if not asset.is_active:
-                asset.is_active = True
-                reactivated += 1
-                should_update = True
-            else:
-                existing += 1
-
-            if should_update:
-                asset.save()
-
-        return Response({
-            'created': created,
-            'reactivated': reactivated,
-            'existing': existing,
-            'total_defaults': len(DEFAULT_ROTATION_ASSETS),
-        })
+        return Response(rotation_interface_services.import_default_assets())
 
     @action(detail=False, methods=['get'], url_path='export')
     def export_assets(self, request):
         """Export current rotation asset pool as JSON or CSV."""
         export_format = request.query_params.get('format', 'json').lower()
-        queryset = self.get_queryset().order_by('category', 'code')
-        fields = ['code', 'name', 'category', 'description', 'underlying_index', 'currency', 'is_active']
-        rows = list(queryset.values(*fields))
+        fields, rows = rotation_interface_services.export_asset_rows()
 
         if export_format == 'csv':
             response = HttpResponse(content_type='text/csv; charset=utf-8')
@@ -128,9 +72,8 @@ class AssetClassViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def detail(self, request, pk=None):
         """Get detailed information about a specific asset"""
-        service = RotationIntegrationService()
         asset_code = pk
-        info = service.get_asset_info(asset_code)
+        info = rotation_interface_services.get_asset_info(asset_code)
 
         if info:
             return Response(info)
@@ -155,7 +98,7 @@ class AssetClassViewSet(viewsets.ModelViewSet):
 
 class RotationConfigViewSet(viewsets.ModelViewSet):
     """ViewSet for RotationConfig model"""
-    queryset = RotationConfigModel._default_manager.all()
+    queryset = rotation_interface_services.get_rotation_config_queryset()
     serializer_class = RotationConfigSerializer
     filterset_fields = ['is_active', 'strategy_type', 'rebalance_frequency']
     search_fields = ['name', 'description']
@@ -181,9 +124,8 @@ class RotationConfigViewSet(viewsets.ModelViewSet):
     def generate_signal(self, request, pk=None):
         """Generate rotation signal for this configuration"""
         config = self.get_object()
-        service = RotationIntegrationService()
 
-        signal = service.generate_rotation_signal(config.name)
+        signal = rotation_interface_services.generate_rotation_signal(config.name)
 
         if signal:
             return Response(signal)
@@ -195,7 +137,7 @@ class RotationConfigViewSet(viewsets.ModelViewSet):
 
 class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for RotationSignal model"""
-    queryset = RotationSignalModel._default_manager.all()
+    queryset = rotation_interface_services.get_rotation_signal_queryset()
     serializer_class = RotationSignalSerializer
     filterset_fields = ['config', 'signal_date', 'current_regime', 'action_required']
     ordering = ['-signal_date']
@@ -203,17 +145,11 @@ class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def latest(self, request):
         """Get the latest signal for each configuration"""
-        service = RotationIntegrationService()
-
-        # Get all active configs and their latest signals
-        configs = RotationConfigModel._default_manager.filter(is_active=True)
         signals = []
 
-        for config in configs:
-            latest_signal = self.queryset.filter(config=config).first()
-            if latest_signal:
-                serializer = self.get_serializer(latest_signal)
-                signals.append(serializer.data)
+        for latest_signal in rotation_interface_services.get_latest_signal_models_for_active_configs():
+            serializer = self.get_serializer(latest_signal)
+            signals.append(serializer.data)
 
         return Response(signals)
 
@@ -238,8 +174,7 @@ class RotationActionViewSet(viewsets.ViewSet):
         """Get rotation recommendation based on strategy type"""
         strategy_type = request.query_params.get('strategy', 'momentum')
 
-        service = RotationIntegrationService()
-        result = service.get_rotation_recommendation(strategy_type)
+        result = rotation_interface_services.get_rotation_recommendation(strategy_type)
 
         return Response(result)
 
@@ -255,8 +190,7 @@ class RotationActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = RotationIntegrationService()
-        result = service.compare_assets(asset_codes, lookback_days)
+        result = rotation_interface_services.compare_assets(asset_codes, lookback_days)
 
         return Response(result)
 
@@ -272,8 +206,7 @@ class RotationActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = RotationIntegrationService()
-        result = service.get_correlation_matrix(asset_codes, window_days)
+        result = rotation_interface_services.get_correlation_matrix(asset_codes, window_days)
 
         return Response(result)
 
@@ -289,8 +222,7 @@ class RotationActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = RotationIntegrationService()
-        signal = service.generate_rotation_signal(config_name, signal_date)
+        signal = rotation_interface_services.generate_rotation_signal(config_name, signal_date)
 
         if signal:
             return Response(signal)
@@ -302,8 +234,7 @@ class RotationActionViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'], url_path='clear-cache')
     def clear_cache(self, request):
         """Clear price data cache"""
-        service = RotationIntegrationService()
-        service.clear_price_cache()
+        rotation_interface_services.clear_price_cache()
         return Response({'status': 'cache cleared'})
 
 
@@ -313,134 +244,44 @@ class RotationActionViewSet(viewsets.ViewSet):
 
 def rotation_assets_view(request):
     """资产类别管理页面 - 显示所有资产类别、价格和动量信息"""
-    service = RotationIntegrationService()
-    use_case = GetAssetsForViewUseCase(service)
-
-    response = use_case.execute(AssetsViewRequest())
-
-    # Convert DTOs to dict format for template
-    momentum_scores_dict = {}
-    for asset_code, score_dto in response.momentum_scores.items():
-        momentum_scores_dict[asset_code] = {
-            'composite_score': score_dto.composite_score,
-            'rank': score_dto.rank,
-            'momentum_1m': score_dto.momentum_1m,
-            'momentum_3m': score_dto.momentum_3m,
-            'momentum_6m': score_dto.momentum_6m,
-            'trend_strength': score_dto.trend_strength,
-            'calc_date': score_dto.calc_date,
-        }
-
-    context = {
-        'assets': response.assets,
-        'categories': response.categories,
-        'momentum_scores': momentum_scores_dict,
-        'latest_calc_date': response.latest_calc_date,
-        'maintenance_notice': response.maintenance_notice,
-        'current_date': date.today(),
-        'asset_category_choices': AssetClassModel._meta.get_field('category').choices,
-    }
-
-    return render(request, 'rotation/assets.html', context)
+    return render(
+        request,
+        'rotation/assets.html',
+        rotation_interface_services.build_rotation_assets_context(),
+    )
 
 
 def rotation_configs_view(request):
     """轮动配置管理页面 - 显示和编辑策略配置"""
-    service = RotationIntegrationService()
-    use_case = GetRotationConfigsForViewUseCase(service)
-
-    response = use_case.execute(RotationConfigsViewRequest())
-
-    # Convert ConfigLatestSignal DTOs to dict format for template
-    latest_signals_dict = {}
-    for config_id, signal_dto in response.latest_signals.items():
-        latest_signals_dict[config_id] = {
-            'signal_date': signal_dto.signal_date,
-            'current_regime': signal_dto.current_regime,
-            'action_required': signal_dto.action_required,
-            'target_allocation': signal_dto.target_allocation,
-        }
-
-    # Attach latest signal to each config for simple template rendering
-    for config in response.configs:
-        config['latest_signal'] = latest_signals_dict.get(config['id'])
-
-    # 当前用户所有账户及其轮动配置状态
-    user_accounts = []
-    if request.user.is_authenticated:
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-        user_accounts = list(
-            SimulatedAccountModel.objects.filter(
-                user=request.user, is_active=True
-            ).select_related('rotation_config').order_by('account_type', 'account_name')
-        )
-
-    context = {
-        'configs': response.configs,
-        'latest_signals': latest_signals_dict,
-        'strategy_types': response.strategy_types,
-        'frequencies': response.frequencies,
-        'current_date': date.today(),
-        'user_accounts': user_accounts,
-        'assets': AssetClassModel.objects.filter(is_active=True).order_by('category', 'code'),
-    }
-
-    return render(request, 'rotation/configs.html', context)
+    return render(
+        request,
+        'rotation/configs.html',
+        rotation_interface_services.build_rotation_configs_context(request.user),
+    )
 
 
 def rotation_signals_view(request):
     """轮动信号页面 - 显示当前推荐和历史信号"""
-    service = RotationIntegrationService()
-    use_case = GetRotationSignalsForViewUseCase(service)
-
-    # Get filter parameters from request
-    request_dto = RotationSignalsViewRequest(
-        config_filter=request.GET.get('config', ''),
-        regime_filter=request.GET.get('regime', ''),
-        action_filter=request.GET.get('action', ''),
+    return render(
+        request,
+        'rotation/signals.html',
+        rotation_interface_services.build_rotation_signals_context(
+            {
+                'config': request.GET.get('config', ''),
+                'regime': request.GET.get('regime', ''),
+                'action': request.GET.get('action', ''),
+            }
+        ),
     )
-
-    response = use_case.execute(request_dto)
-
-    context = {
-        'signals': response.signals,
-        'configs': response.configs,
-        'latest_by_config': response.latest_by_config,
-        'current_regime': response.current_regime,
-        'filter_config': response.filter_config,
-        'filter_regime': response.filter_regime,
-        'filter_action': response.filter_action,
-        'regime_choices': response.regime_choices,
-        'action_choices': response.action_choices,
-        'current_date': date.today(),
-    }
-
-    return render(request, 'rotation/signals.html', context)
 
 
 def rotation_account_config_view(request):
     """账户轮动配置页面 - 每个账户独立配置风险偏好和象限配置"""
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-    user_accounts = []
-    if request.user.is_authenticated:
-        user_accounts = list(
-            SimulatedAccountModel.objects.filter(
-                user=request.user, is_active=True
-            ).select_related('rotation_config').order_by('account_type', 'account_name')
-        )
-
-    assets = AssetClassModel.objects.filter(is_active=True).order_by('category', 'code')
-    templates = RotationTemplateModel.objects.filter(is_active=True).order_by('display_order')
-
-    context = {
-        'user_accounts': user_accounts,
-        'assets': assets,
-        'templates': templates,
-        'current_date': date.today(),
-        'risk_tolerance_choices': PortfolioRotationConfigModel.RISK_TOLERANCE_CHOICES,
-    }
-    return render(request, 'rotation/account_config.html', context)
+    return render(
+        request,
+        'rotation/account_config.html',
+        rotation_interface_services.build_rotation_account_config_context(request.user),
+    )
 
 
 @require_http_methods(["POST"])
@@ -464,8 +305,7 @@ def rotation_generate_signal_view(request):
             except ValueError:
                 pass
 
-        service = RotationIntegrationService()
-        signal = service.generate_rotation_signal(config_name, signal_date)
+        signal = rotation_interface_services.generate_rotation_signal(config_name, signal_date)
 
         if signal:
             return JsonResponse({
@@ -533,7 +373,7 @@ class RotationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     GET /api/rotation/templates/
     GET /api/rotation/templates/{id}/
     """
-    queryset = RotationTemplateModel.objects.filter(is_active=True)
+    queryset = rotation_interface_services.get_active_template_queryset()
     serializer_class = RotationTemplateSerializer
     permission_classes = [IsAuthenticated]
 
@@ -562,9 +402,9 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return PortfolioRotationConfigModel.objects.filter(
-            account__user=self.request.user
-        ).select_related('account', 'base_config')
+        return rotation_interface_services.get_portfolio_rotation_config_queryset(
+            self.request.user
+        )
 
     def perform_create(self, serializer: PortfolioRotationConfigSerializer) -> None:
         account = serializer.validated_data['account']
@@ -586,19 +426,15 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
         if not template_key:
             return Response({'error': 'template_key 不能为空'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            template = RotationTemplateModel.objects.get(key=template_key, is_active=True)
-        except RotationTemplateModel.DoesNotExist:
+        config = rotation_interface_services.apply_template_to_portfolio_config(
+            config,
+            template_key,
+        )
+        if config is None:
             return Response(
                 {'error': f'模板 "{template_key}" 不存在'},
                 status=status.HTTP_404_NOT_FOUND
             )
-
-        config.regime_allocations = template.regime_allocations
-        # 模板 key 与 risk_tolerance 一致（conservative/moderate/aggressive）
-        if template_key in ('conservative', 'moderate', 'aggressive'):
-            config.risk_tolerance = template_key
-        config.save()
 
         return Response(PortfolioRotationConfigSerializer(config).data)
 
@@ -610,12 +446,11 @@ class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
         GET /api/rotation/account-configs/by-account/{account_id}/
         若该账户尚未创建配置，返回 404。
         """
-        try:
-            config = PortfolioRotationConfigModel.objects.get(
-                account_id=account_id,
-                account__user=request.user,
-            )
-        except PortfolioRotationConfigModel.DoesNotExist:
+        config = rotation_interface_services.get_portfolio_rotation_config_by_account(
+            account_id,
+            request.user,
+        )
+        if config is None:
             return Response({'detail': '该账户尚未配置轮动'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(PortfolioRotationConfigSerializer(config).data)

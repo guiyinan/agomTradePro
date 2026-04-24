@@ -19,9 +19,9 @@ from ..domain.entities import (
 )
 from ..domain.services import get_event_bus
 from ..infrastructure.event_store import (
-    DatabaseEventStore,
     get_event_store,
     get_replay_handler,
+    get_snapshot_store,
 )
 
 logger = get_task_logger(__name__)
@@ -308,33 +308,18 @@ def cleanup_old_events(
         执行结果
     """
     try:
-        from datetime import timedelta
-
-        from django.db import transaction
-
-        from ..infrastructure.event_store import StoredEventModel
-
-        cutoff = timezone.now() - timedelta(days=older_than_days)
-
-        # 获取要删除的事件 ID
-        event_ids = list(
-            StoredEventModel._default_manager
-            .filter(occurred_at__lt=cutoff)
-            .values_list("event_id", flat=True)[:batch_size]
+        event_store = get_event_store()
+        deleted_count = event_store.cleanup_old_events(
+            older_than_days=older_than_days,
+            batch_size=batch_size,
         )
 
-        if not event_ids:
+        if deleted_count == 0:
             return {
                 "success": True,
                 "deleted_count": 0,
                 "message": "No old events to delete",
             }
-
-        # 批量删除
-        with transaction.atomic():
-            deleted_count, _ = StoredEventModel._default_manager.filter(
-                event_id__in=event_ids
-            ).delete()
 
         logger.info(f"Cleaned up {deleted_count} old events (older than {older_than_days} days)")
 
@@ -378,41 +363,11 @@ def cleanup_old_snapshots(
         执行结果
     """
     try:
-        from datetime import timedelta
-
-        from ..infrastructure.event_store import EventSnapshotModel
-
-        cutoff = timezone.now() - timedelta(days=older_than_days)
-
-        # 获取所有快照
-        snapshots = EventSnapshotModel._default_manager.filter(
-            created_at__lt=cutoff
+        snapshot_store = get_snapshot_store()
+        deleted_count = snapshot_store.cleanup_old_snapshots(
+            older_than_days=older_than_days,
+            keep_latest=keep_latest,
         )
-
-        deleted_count = 0
-
-        # 按聚合根分组
-        from django.db.models import Max, Min
-        aggregates = snapshots.values("aggregate_type", "aggregate_id").distinct()
-
-        for agg in aggregates:
-            # 获取该聚合根的快照
-            agg_snapshots = list(
-                EventSnapshotModel._default_manager
-                .filter(
-                    aggregate_type=agg["aggregate_type"],
-                    aggregate_id=agg["aggregate_id"],
-                    created_at__lt=cutoff,
-                )
-                .order_by("-version")
-            )
-
-            # 保留最新的 N 个
-            if len(agg_snapshots) > keep_latest:
-                to_delete = agg_snapshots[keep_latest:]
-                for snapshot in to_delete:
-                    snapshot.delete()
-                    deleted_count += 1
 
         logger.info(f"Cleaned up {deleted_count} old snapshots")
 

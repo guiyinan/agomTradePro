@@ -29,7 +29,6 @@ from ..infrastructure.adapters.function_registry import (
 )
 from ..infrastructure.adapters.macro_adapter import FunctionExecutor, MacroDataAdapter
 from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.models import PromptExecutionLogORM
 from ..infrastructure.repositories import (
     DjangoChainRepository,
     DjangoExecutionLogRepository,

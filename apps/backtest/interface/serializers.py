@@ -5,9 +5,11 @@ DRF Serializers for Backtest Module.
 from datetime import date
 from typing import Optional
 
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
-from ..infrastructure.models import BacktestResultModel, BacktestTradeModel
+BacktestResultModel = django_apps.get_model("backtest", "BacktestResultModel")
+BacktestTradeModel = django_apps.get_model("backtest", "BacktestTradeModel")
 
 
 class BacktestConfigSerializer(serializers.Serializer):

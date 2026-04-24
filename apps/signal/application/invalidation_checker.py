@@ -9,13 +9,11 @@ Application 层：编排 Domain 层业务逻辑和 Infrastructure 层数据获�
 - Application 层：编排两者，提供检查服务
 """
 
-import importlib
 import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Protocol
 
-from django.core.exceptions import SynchronousOnlyOperation
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -31,23 +29,6 @@ from apps.signal.domain.invalidation import (
     InvalidationRule,
     evaluate_rule,
 )
-
-
-class InvestmentSignalModel:  # backward-compatible test patch target
-    pass
-
-
-def _resolve_investment_signal_model():
-    """Lazy-load ORM model to avoid static infrastructure import in Application layer."""
-    if InvestmentSignalModel is not None and hasattr(InvestmentSignalModel, "_default_manager"):
-        return InvestmentSignalModel
-    return importlib.import_module("apps.signal.infrastructure.models").InvestmentSignalModel
-
-
-def _should_use_orm_fallback(exc: Exception) -> bool:
-    """Return whether the legacy ORM fallback should handle this access failure."""
-    return isinstance(exc, SynchronousOnlyOperation) or "Database access not allowed" in str(exc)
-
 
 class NotificationServiceProtocol(Protocol):
     """Protocol for notification service"""
@@ -512,26 +493,13 @@ class InvalidationCheckService:
         # 获取所有有证伪规则的已批准信号
         invalidated_ids = []
 
-        try:
-            approved_signals = self.signal_repository.find_signals_with_invalidation_rules(
-                status=SignalStatus.APPROVED
-            )
-            for signal in approved_signals:
-                result = self._check_signal_entity(signal)
-                if result and result.is_invalidated:
-                    invalidated_ids.append(signal.id)
-        except (RuntimeError, SynchronousOnlyOperation) as exc:
-            if not _should_use_orm_fallback(exc):
-                raise
-            model_cls = _resolve_investment_signal_model()
-            approved_signals = model_cls._default_manager.filter(
-                status='approved',
-                invalidation_rule_json__isnull=False
-            ).exclude(invalidation_rule_json={})
-            for signal_model in approved_signals:
-                result = self._check_signal_model(signal_model)
-                if result and result.is_invalidated:
-                    invalidated_ids.append(signal_model.id)
+        approved_signals = self.signal_repository.find_signals_with_invalidation_rules(
+            status=SignalStatus.APPROVED
+        )
+        for signal in approved_signals:
+            result = self._check_signal_entity(signal)
+            if result and result.is_invalidated:
+                invalidated_ids.append(signal.id)
 
         return invalidated_ids
 
@@ -547,26 +515,13 @@ class InvalidationCheckService:
         # 获取所有有证伪规则的待处理信号
         rejected_ids = []
 
-        try:
-            pending_signals = self.signal_repository.find_signals_with_invalidation_rules(
-                status=SignalStatus.PENDING
-            )
-            for signal in pending_signals:
-                result = self._check_signal_entity(signal)
-                if result and result.is_invalidated:
-                    rejected_ids.append(signal.id)
-        except (RuntimeError, SynchronousOnlyOperation) as exc:
-            if not _should_use_orm_fallback(exc):
-                raise
-            model_cls = _resolve_investment_signal_model()
-            pending_signals = model_cls._default_manager.filter(
-                status='pending',
-                invalidation_rule_json__isnull=False
-            ).exclude(invalidation_rule_json={})
-            for signal_model in pending_signals:
-                result = self._check_signal_model(signal_model)
-                if result and result.is_invalidated:
-                    rejected_ids.append(signal_model.id)
+        pending_signals = self.signal_repository.find_signals_with_invalidation_rules(
+            status=SignalStatus.PENDING
+        )
+        for signal in pending_signals:
+            result = self._check_signal_entity(signal)
+            if result and result.is_invalidated:
+                rejected_ids.append(signal.id)
 
         return rejected_ids
 
@@ -608,15 +563,8 @@ def check_and_invalidate_signals() -> dict:
     rejected_ids = service.check_pending_signals()
 
     # 统计数量
-    try:
-        approved_count = repository.count_by_status('approved')
-        pending_count = repository.count_by_status('pending')
-    except (RuntimeError, SynchronousOnlyOperation) as exc:
-        if not _should_use_orm_fallback(exc):
-            raise
-        model_cls = _resolve_investment_signal_model()
-        approved_count = model_cls._default_manager.filter(status='approved').count()
-        pending_count = model_cls._default_manager.filter(status='pending').count()
+    approved_count = repository.count_by_status('approved')
+    pending_count = repository.count_by_status('pending')
 
     return {
         'checked': approved_count + pending_count,

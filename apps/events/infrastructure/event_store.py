@@ -10,7 +10,7 @@ Event Store Implementation
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -423,6 +423,26 @@ class DatabaseEventStore:
             events_by_type=by_type,
         )
 
+    def cleanup_old_events(self, older_than_days: int = 30, batch_size: int = 1000) -> int:
+        """Delete old stored events in bounded batches."""
+
+        cutoff = timezone.now() - timedelta(days=older_than_days)
+        event_ids = list(
+            self.model.objects
+            .filter(occurred_at__lt=cutoff)
+            .values_list("event_id", flat=True)[:batch_size]
+        )
+
+        if not event_ids:
+            return 0
+
+        with transaction.atomic():
+            deleted_count, _ = self.model.objects.filter(
+                event_id__in=event_ids,
+            ).delete()
+
+        return deleted_count
+
     def _to_domain_event(self, model: StoredEventModel) -> DomainEvent:
         """转换 ORM 模型为领域事件"""
         try:
@@ -655,6 +675,34 @@ class SnapshotStore:
             )
 
         return count
+
+    def cleanup_old_snapshots(self, older_than_days: int = 90, keep_latest: int = 10) -> int:
+        """Delete old snapshots while keeping the latest versions per aggregate."""
+
+        cutoff = timezone.now() - timedelta(days=older_than_days)
+        snapshots = self.model.objects.filter(created_at__lt=cutoff)
+        aggregates = snapshots.values("aggregate_type", "aggregate_id").distinct()
+
+        deleted_count = 0
+        for aggregate in aggregates:
+            aggregate_snapshots = list(
+                self.model.objects
+                .filter(
+                    aggregate_type=aggregate["aggregate_type"],
+                    aggregate_id=aggregate["aggregate_id"],
+                    created_at__lt=cutoff,
+                )
+                .order_by("-version")
+            )
+
+            if len(aggregate_snapshots) <= keep_latest:
+                continue
+
+            for snapshot in aggregate_snapshots[keep_latest:]:
+                snapshot.delete()
+                deleted_count += 1
+
+        return deleted_count
 
 
 # ========== Event Replay ==========

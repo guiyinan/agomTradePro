@@ -1,12 +1,11 @@
 """Forms for policy management pages."""
 
+from django.apps import apps as django_apps
 from django import forms
 
-from apps.policy.infrastructure.models import (
-    PolicyLevelKeywordModel,
-    PolicyLog,
-    RSSSourceConfigModel,
-)
+PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
+PolicyLog = django_apps.get_model("policy", "PolicyLog")
+RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
 
 
 class PolicyEventForm(forms.ModelForm):

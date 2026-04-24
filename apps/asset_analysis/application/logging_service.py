@@ -12,6 +12,9 @@ from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
+from apps.asset_analysis.application.repository_provider import (
+    get_asset_analysis_log_repository,
+)
 from apps.asset_analysis.domain.entities import AssetScore
 from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 
@@ -50,9 +53,10 @@ class ScoringLogger:
     负责记录每次评分操作的详细信息。
     """
 
-    def __init__(self):
+    def __init__(self, repository=None):
         """初始化日志记录器"""
         self.logger = logging.getLogger(__name__)
+        self.repository = repository or get_asset_analysis_log_repository()
 
     def log_scoring(
         self,
@@ -68,37 +72,36 @@ class ScoringLogger:
             日志记录ID，如果记录失败则返回 None
         """
         try:
-            from apps.asset_analysis.infrastructure.models import AssetScoringLog
-
-            log = AssetScoringLog._default_manager.create(
-                asset_type=entry.asset_type,
-                request_source=entry.request_source,
-                user_id=entry.user_id,
-                regime=entry.regime,
-                policy_level=entry.policy_level,
-                sentiment_index=entry.sentiment_index,
-                active_signals_count=entry.active_signals_count,
-                weight_config_name=entry.weight_config_name,
-                regime_weight=entry.regime_weight,
-                policy_weight=entry.policy_weight,
-                sentiment_weight=entry.sentiment_weight,
-                signal_weight=entry.signal_weight,
-                filters=entry.filters,
-                total_assets=entry.total_assets,
-                scored_assets=entry.scored_assets,
-                filtered_assets=entry.filtered_assets,
-                execution_time_ms=entry.execution_time_ms,
-                cache_hit=entry.cache_hit,
-                status=entry.status,
-                error_message=entry.error_message,
+            log_id = self.repository.create_scoring_log(
+                {
+                    "asset_type": entry.asset_type,
+                    "request_source": entry.request_source,
+                    "user_id": entry.user_id,
+                    "regime": entry.regime,
+                    "policy_level": entry.policy_level,
+                    "sentiment_index": entry.sentiment_index,
+                    "active_signals_count": entry.active_signals_count,
+                    "weight_config_name": entry.weight_config_name,
+                    "regime_weight": entry.regime_weight,
+                    "policy_weight": entry.policy_weight,
+                    "sentiment_weight": entry.sentiment_weight,
+                    "signal_weight": entry.signal_weight,
+                    "filters": entry.filters,
+                    "total_assets": entry.total_assets,
+                    "scored_assets": entry.scored_assets,
+                    "filtered_assets": entry.filtered_assets,
+                    "execution_time_ms": entry.execution_time_ms,
+                    "cache_hit": entry.cache_hit,
+                    "status": entry.status,
+                    "error_message": entry.error_message,
+                }
             )
 
             self.logger.info(
                 f"评分日志已记录: {entry.asset_type} - {entry.status} - "
                 f"筛选 {entry.filtered_assets}/{entry.total_assets} 资产"
             )
-
-            return log.id
+            return log_id
 
         except Exception as e:
             self.logger.error(f"记录评分日志失败: {str(e)}")
@@ -169,9 +172,10 @@ class AlertService:
     负责创建和管理告警。
     """
 
-    def __init__(self):
+    def __init__(self, repository=None):
         """初始化告警服务"""
         self.logger = logging.getLogger(__name__)
+        self.repository = repository or get_asset_analysis_log_repository()
 
     def create_alert(
         self,
@@ -201,24 +205,24 @@ class AlertService:
             告警ID，如果创建失败则返回 None
         """
         try:
-            from apps.asset_analysis.infrastructure.models import AssetAnalysisAlert
-
-            alert = AssetAnalysisAlert._default_manager.create(
-                severity=severity,
-                alert_type=alert_type,
-                title=title,
-                message=message,
-                asset_type=asset_type,
-                asset_code=asset_code,
-                context=context or {},
-                stack_trace=stack_trace,
+            alert_id = self.repository.create_alert(
+                {
+                    "severity": severity,
+                    "alert_type": alert_type,
+                    "title": title,
+                    "message": message,
+                    "asset_type": asset_type,
+                    "asset_code": asset_code,
+                    "context": context or {},
+                    "stack_trace": stack_trace,
+                }
             )
 
             self.logger.warning(
                 f"告警已创建: [{severity.upper()}] {title}"
             )
 
-            return alert.id
+            return alert_id
 
         except Exception as e:
             self.logger.error(f"创建告警失败: {str(e)}")
@@ -388,18 +392,11 @@ class AlertService:
         Returns:
             告警列表
         """
-        from apps.asset_analysis.infrastructure.models import AssetAnalysisAlert
-
-        queryset = AssetAnalysisAlert._default_manager.filter(
-            is_resolved=False
+        return self.repository.list_unresolved_alerts(
+            severity=severity,
+            alert_type=alert_type,
+            limit=limit,
         )
-
-        if severity:
-            queryset = queryset.filter(severity=severity)
-        if alert_type:
-            queryset = queryset.filter(alert_type=alert_type)
-
-        return list(queryset.order_by('-created_at')[:limit])
 
     def resolve_alert(
         self,
@@ -419,21 +416,19 @@ class AlertService:
             是否成功解决
         """
         try:
-            from apps.asset_analysis.infrastructure.models import AssetAnalysisAlert
-
-            alert = AssetAnalysisAlert._default_manager.get(id=alert_id)
-            alert.is_resolved = True
-            alert.resolved_at = timezone.now()
-            alert.resolved_by = resolved_by
-            alert.resolution_notes = resolution_notes
-            alert.save()
+            success = self.repository.resolve_alert(
+                alert_id=alert_id,
+                resolved_by=resolved_by,
+                resolved_at=timezone.now(),
+                resolution_notes=resolution_notes,
+            )
+            if not success:
+                self.logger.error(f"告警不存在: {alert_id}")
+                return False
 
             self.logger.info(f"告警已解决: {alert_id}")
             return True
 
-        except AssetAnalysisAlert.DoesNotExist:
-            self.logger.error(f"告警不存在: {alert_id}")
-            return False
         except Exception as e:
             self.logger.error(f"解决告警失败: {str(e)}")
             return False

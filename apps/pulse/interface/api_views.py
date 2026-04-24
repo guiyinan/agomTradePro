@@ -54,26 +54,9 @@ class PulseHistoryView(APIView):
     def get(self, request):
         try:
             months = int(request.query_params.get("months", 6))
-            from apps.pulse.infrastructure.repositories import PulseRepository
+            from apps.pulse.application.query_services import list_pulse_history_payloads
 
-            repo = PulseRepository()
-            logs = repo.get_history(months=months)
-
-            data = [
-                {
-                    "observed_at": log.observed_at.isoformat(),
-                    "regime_context": log.regime_context,
-                    "composite_score": log.composite_score,
-                    "regime_strength": log.regime_strength,
-                    "growth_score": log.growth_score,
-                    "inflation_score": log.inflation_score,
-                    "liquidity_score": log.liquidity_score,
-                    "sentiment_score": log.sentiment_score,
-                    "transition_warning": log.transition_warning,
-                    "transition_direction": log.transition_direction,
-                }
-                for log in logs
-            ]
+            data = list_pulse_history_payloads(months=months)
 
             return Response({"success": True, "count": len(data), "data": data})
 

@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -40,14 +40,11 @@ def test_prompt_api_root_contract(authenticated_client):
 
 @pytest.mark.django_db
 def test_prompt_chat_returns_502_when_provider_returns_error_status(authenticated_client):
-    mock_client = Mock()
-    mock_client.chat_completion.return_value = {
-        "status": "error",
-        "error_message": "provider unavailable",
-    }
-
-    with patch("apps.prompt.interface.views.AIClientFactory") as mock_factory:
-        mock_factory.return_value.get_client.return_value = mock_client
+    with patch("apps.prompt.interface.views.generate_chat_completion") as mock_completion:
+        mock_completion.return_value = {
+            "status": "error",
+            "error_message": "provider unavailable",
+        }
         response = authenticated_client.post(
             "/api/prompt/chat",
             {"message": "hello", "provider_name": "openai-main", "model": "gpt-4.1"},

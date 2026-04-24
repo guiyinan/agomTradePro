@@ -240,10 +240,8 @@ class AuditHealthChecker:
             检查结果
         """
         try:
-            from ..infrastructure.models import OperationLogModel
-
             # 尝试查询审计表
-            count = OperationLogModel._default_manager.count()
+            count = self.audit_repo.count_operation_logs()
 
             return HealthCheckResult(
                 component="audit_tables_accessible",
@@ -293,10 +291,8 @@ class AuditHealthChecker:
             指标字典
         """
         try:
-            from ..infrastructure.models import OperationLogModel
-
             # 获取基本统计
-            total_logs = OperationLogModel._default_manager.count()
+            total_logs = self.audit_repo.count_operation_logs()
 
             # 获取失败统计
             failure_stats = self.failure_counter.get_failure_stats()

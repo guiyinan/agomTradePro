@@ -35,6 +35,7 @@ def _resolve_ai_client(
 def generate_chat_completion(
     *,
     messages: list[dict[str, Any]],
+    model: str | None = None,
     temperature: float = 0.2,
     max_tokens: int = 500,
     user: Any | None = None,
@@ -47,8 +48,11 @@ def generate_chat_completion(
         provider_ref=provider_ref,
         user=user,
     )
-    return ai_client.chat_completion(
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    request_payload: dict[str, Any] = {
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if model:
+        request_payload["model"] = model
+    return ai_client.chat_completion(**request_payload)

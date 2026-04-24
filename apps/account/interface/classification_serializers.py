@@ -5,13 +5,12 @@ DRF Serializers for Asset Classification and Multi-Currency Support.
 from datetime import date
 from decimal import Decimal
 
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
-from apps.account.infrastructure.models import (
-    AssetCategoryModel,
-    CurrencyModel,
-    ExchangeRateModel,
-)
+AssetCategoryModel = django_apps.get_model("account", "AssetCategoryModel")
+CurrencyModel = django_apps.get_model("account", "CurrencyModel")
+ExchangeRateModel = django_apps.get_model("account", "ExchangeRateModel")
 
 # ==================== Asset Category ====================
 

@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional, Union
 
 from django.utils import timezone
 
+from apps.agent_runtime.application.repository_provider import get_timeline_repository
 from apps.agent_runtime.domain.entities import (
     AgentProposal,
     AgentTask,
@@ -34,6 +35,9 @@ class TimelineEventWriterService:
     - request_id: The stable request trace id
     - Additional context based on event type
     """
+
+    def __init__(self, timeline_repository: Any | None = None) -> None:
+        self.timeline_repository = timeline_repository or get_timeline_repository()
 
     def write_event(
         self,
@@ -61,8 +65,6 @@ class TimelineEventWriterService:
             The created event ID, or None if creation failed
         """
         try:
-            from apps.agent_runtime.infrastructure.models import AgentTimelineEventModel
-
             # Normalize string enums to enum values
             if isinstance(event_type, str):
                 event_type = TimelineEventType(event_type)
@@ -75,7 +77,7 @@ class TimelineEventWriterService:
                 **event_payload,
             }
 
-            event = AgentTimelineEventModel._default_manager.create(
+            event_id = self.timeline_repository.create_event(
                 request_id=request_id,
                 task_id=task_id,
                 proposal_id=proposal_id,
@@ -88,7 +90,7 @@ class TimelineEventWriterService:
             logger.debug(
                 f"Timeline event written: {event_type.value} for task {task_id}"
             )
-            return event.id
+            return event_id
 
         except Exception as e:
             logger.error(f"Failed to write timeline event: {e}")

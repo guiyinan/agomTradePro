@@ -6,12 +6,32 @@ DRF Serializers for the hedge module API.
 
 from rest_framework import serializers
 
-from apps.hedge.infrastructure.models import (
-    CorrelationHistoryModel,
-    HedgeAlertModel,
-    HedgePairModel,
-    HedgePerformanceModel,
-    HedgePortfolioSnapshotModel,
+from shared.model_loading import resolve_model
+
+CorrelationHistoryModel = resolve_model(
+    "hedge",
+    "CorrelationHistoryModel",
+    "apps.hedge.infrastructure.models",
+)
+HedgeAlertModel = resolve_model(
+    "hedge",
+    "HedgeAlertModel",
+    "apps.hedge.infrastructure.models",
+)
+HedgePairModel = resolve_model(
+    "hedge",
+    "HedgePairModel",
+    "apps.hedge.infrastructure.models",
+)
+HedgePerformanceModel = resolve_model(
+    "hedge",
+    "HedgePerformanceModel",
+    "apps.hedge.infrastructure.models",
+)
+HedgePortfolioSnapshotModel = resolve_model(
+    "hedge",
+    "HedgePortfolioSnapshotModel",
+    "apps.hedge.infrastructure.models",
 )
 
 

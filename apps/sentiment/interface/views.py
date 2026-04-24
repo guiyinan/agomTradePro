@@ -5,11 +5,9 @@ Sentiment 模块 - Interface 层视图
 """
 
 import logging
-from datetime import date, datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse
 from django.views.generic import TemplateView
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
@@ -17,15 +15,17 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-from apps.sentiment.application.services import SentimentAnalyzer, SentimentIndexCalculator
-from apps.sentiment.infrastructure.models import SentimentCache, SentimentIndexModel
-from apps.sentiment.infrastructure.repositories import (
-    SentimentAnalysisLogRepository,
-    SentimentCacheRepository,
-    SentimentIndexRepository,
+from apps.sentiment.application.interface_services import (
+    analyze_sentiment_batch,
+    analyze_sentiment_text,
+    clear_sentiment_cache_payload,
+    get_recent_sentiment_indices_payload,
+    get_sentiment_analyze_page_context,
+    get_sentiment_dashboard_context,
+    get_sentiment_health_payload,
+    get_sentiment_index_payload,
+    get_sentiment_index_range_payload,
 )
-
 from .serializers import (
     BatchAnalysisRequestSerializer,
     BatchAnalysisResponseSerializer,
@@ -33,7 +33,6 @@ from .serializers import (
     SentimentAnalysisResponseSerializer,
     SentimentHealthResponseSerializer,
     SentimentIndexListSerializer,
-    SentimentIndexRangeRequestSerializer,
     SentimentIndexSerializer,
 )
 
@@ -74,32 +73,12 @@ class SentimentAnalyzeView(APIView):
         use_cache = serializer.validated_data.get('use_cache', True)
 
         try:
-            # 尝试从缓存获取
-            cache_repo = SentimentCacheRepository()
-            if use_cache:
-                cached_result = cache_repo.get(text)
-                if cached_result:
-                    return Response(cached_result.to_dict())
-
-            # 执行 AI 分析
-            provider_repo = AIProviderRepository()
-            analyzer = SentimentAnalyzer(provider_repository=provider_repo)
-            result = analyzer.analyze_text(text)
-
-            # 存入缓存
-            if use_cache:
-                cache_repo.set(text, result)
-
-            # 记录日志
-            log_repo = SentimentAnalysisLogRepository()
-            log_repo.log(
-                source_type='manual',
-                input_text=text,
-                result=result,
+            return Response(
+                analyze_sentiment_text(
+                    text=text,
+                    use_cache=use_cache,
+                )
             )
-
-            return Response(result.to_dict())
-
         except RuntimeError as e:
             logger.error(f"AI 服务不可用: {e}")
             return Response(
@@ -138,14 +117,7 @@ class SentimentBatchAnalyzeView(APIView):
         texts = serializer.validated_data['texts']
 
         try:
-            provider_repo = AIProviderRepository()
-            analyzer = SentimentAnalyzer(provider_repository=provider_repo)
-            results = analyzer.analyze_batch(texts)
-
-            return Response({
-                'results': [r.to_dict() for r in results],
-                'total': len(results),
-            })
+            return Response(analyze_sentiment_batch(texts=texts))
 
         except Exception as e:
             logger.error(f"批量分析失败: {e}")
@@ -179,14 +151,10 @@ class SentimentIndexView(APIView):
         """获取情绪指数"""
         target_date = request.query_params.get('date')
 
-        repo = SentimentIndexRepository()
-
         try:
             if target_date:
                 target_date = datetime.strptime(target_date, '%Y-%m-%d').date()
-                index = repo.get_by_date(target_date)
-            else:
-                index = repo.get_latest()
+            index = get_sentiment_index_payload(target_date)
 
             if not index:
                 return Response(
@@ -194,7 +162,7 @@ class SentimentIndexView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            return Response(index.to_dict())
+            return Response(index)
 
         except ValueError:
             return Response(
@@ -250,14 +218,12 @@ class SentimentIndexRangeView(APIView):
         try:
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-
-            repo = SentimentIndexRepository()
-            indices = repo.get_range(start_date, end_date)
-
-            return Response({
-                'indices': [idx.to_dict() for idx in indices],
-                'total': len(indices),
-            })
+            return Response(
+                get_sentiment_index_range_payload(
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            )
 
         except ValueError:
             return Response(
@@ -301,13 +267,7 @@ class SentimentIndexRecentView(APIView):
         except ValueError:
             days = 30
 
-        repo = SentimentIndexRepository()
-        indices = repo.get_recent(days=days)
-
-        return Response({
-            'indices': [idx.to_dict() for idx in indices],
-            'total': len(indices),
-        })
+        return Response(get_recent_sentiment_indices_payload(days=days))
 
 
 class SentimentHealthView(APIView):
@@ -323,24 +283,7 @@ class SentimentHealthView(APIView):
     def get(self, request):
         """健康检查"""
         try:
-            # 检查 AI 提供商
-            provider_repo = AIProviderRepository()
-            providers = provider_repo.get_active_providers()
-            ai_available = len(providers) > 0
-
-            # 获取缓存数量
-            cache_count = SentimentCache._default_manager.count()
-
-            # 获取最新指数日期
-            latest = SentimentIndexModel._default_manager.order_by('-index_date').first()
-            latest_date = latest.index_date.isoformat() if latest else None
-
-            return Response({
-                'status': 'healthy' if ai_available else 'degraded',
-                'ai_provider_available': ai_available,
-                'cache_count': cache_count,
-                'latest_index_date': latest_date,
-            })
+            return Response(get_sentiment_health_payload())
 
         except Exception as e:
             logger.error(f"健康检查失败: {e}")
@@ -362,13 +305,7 @@ class SentimentCacheClearView(APIView):
     )
     def post(self, request):
         """清除缓存"""
-        cache_repo = SentimentCacheRepository()
-        count = cache_repo.clear()
-
-        return Response({
-            'success': True,
-            'message': f'已清除 {count} 条缓存记录',
-        })
+        return Response(clear_sentiment_cache_payload())
 
 
 # ============ HTML Page Views ============
@@ -382,21 +319,7 @@ class SentimentDashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         try:
-            # 获取最新情绪指数
-            repo = SentimentIndexRepository()
-            latest_index = repo.get_latest()
-
-            # 获取最近30天趋势
-            recent_indices = repo.get_recent(days=30)
-
-            context['latest_index'] = latest_index.to_dict() if latest_index else None
-            context['recent_indices'] = [idx.to_dict() for idx in recent_indices]
-
-            # 检查 AI 状态
-            provider_repo = AIProviderRepository()
-            providers = provider_repo.get_active_providers()
-            context['ai_available'] = len(providers) > 0
-
+            context.update(get_sentiment_dashboard_context())
         except Exception as e:
             logger.error(f"获取情感分析数据失败: {e}")
             context['latest_index'] = None
@@ -415,11 +338,8 @@ class SentimentAnalyzePageView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # 检查 AI 状态
         try:
-            provider_repo = AIProviderRepository()
-            providers = provider_repo.get_active_providers()
-            context['ai_available'] = len(providers) > 0
+            context.update(get_sentiment_analyze_page_context())
         except Exception:
             context['ai_available'] = False
 

@@ -13,7 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 import core.admin as agom_admin_config
 
 # 文档管理后台视图
-from apps.account.infrastructure.views import (
+from apps.account.interface.documentation_views import (
     doc_delete,
     doc_edit,
     doc_export_all,

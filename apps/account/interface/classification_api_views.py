@@ -1,24 +1,28 @@
-"""
-DRF API Views for Asset Classification and Multi-Currency Support.
+"""DRF API Views for Asset Classification and Multi-Currency Support."""
 
-资产分类、币种和汇率管理的 API 视图。
-"""
-
-from decimal import Decimal
-
-from django.db.models import Sum
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.account.infrastructure.models import (
-    AssetCategoryModel,
-    CurrencyModel,
-    ExchangeRateModel,
-    PortfolioModel,
-    PositionModel,
+from apps.account.application.interface_services import (
+    convert_currency_amount,
+    create_asset_category,
+    create_exchange_rate,
+    delete_asset_category,
+    delete_exchange_rate,
+    get_asset_category_children,
+    get_asset_category_queryset,
+    get_asset_category_roots,
+    get_asset_category_tree_roots,
+    get_base_currency,
+    get_currency_queryset,
+    get_exchange_rate_queryset,
+    get_latest_exchange_rate,
+    get_portfolio_allocation_payload,
+    update_asset_category,
+    update_exchange_rate,
 )
 
 from .classification_serializers import (
@@ -46,15 +50,37 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
     - GET /api/account/categories/{id}/children/ - 获取子分类
     """
 
-    queryset = AssetCategoryModel._default_manager.filter(is_active=True)
     serializer_class = AssetCategorySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return active asset categories through the application layer."""
+
+        return get_asset_category_queryset()
 
     def get_permissions(self):
         """只有管理员可以创建/更新/删除分类"""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        """Create asset categories through the application layer."""
+
+        serializer.instance = create_asset_category(validated_data=serializer.validated_data)
+
+    def perform_update(self, serializer):
+        """Update asset categories through the application layer."""
+
+        serializer.instance = update_asset_category(
+            category_id=self.get_object().id,
+            validated_data=serializer.validated_data,
+        )
+
+    def perform_destroy(self, instance):
+        """Delete asset categories through the application layer."""
+
+        delete_asset_category(category_id=instance.id)
 
     @action(detail=False, methods=['get'])
     def roots(self, request):
@@ -63,7 +89,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
 
         GET /api/account/categories/roots/
         """
-        categories = self.queryset.filter(level=1).order_by('sort_order')
+        categories = get_asset_category_roots()
         serializer = AssetCategorySerializer(categories, many=True)
         return Response({
             'success': True,
@@ -77,7 +103,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
 
         GET /api/account/categories/tree/
         """
-        roots = self.queryset.filter(level=1, parent__isnull=True).order_by('sort_order')
+        roots = get_asset_category_tree_roots()
         serializer = AssetCategoryTreeSerializer(roots, many=True)
         return Response({
             'success': True,
@@ -92,7 +118,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
         GET /api/account/categories/{id}/children/
         """
         category = self.get_object()
-        children = category.children.filter(is_active=True).order_by('sort_order')
+        children = get_asset_category_children(category_id=category.id)
         serializer = AssetCategorySerializer(children, many=True)
         return Response({
             'success': True,
@@ -111,9 +137,13 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet):
     - GET /api/account/currencies/base/ - 获取基准货币
     """
 
-    queryset = CurrencyModel._default_manager.filter(is_active=True)
     serializer_class = CurrencySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return active currencies through the application layer."""
+
+        return get_currency_queryset()
 
     @action(detail=False, methods=['get'])
     def base(self, request):
@@ -122,7 +152,7 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet):
 
         GET /api/account/currencies/base/
         """
-        currency = CurrencyModel.get_base_currency()
+        currency = get_base_currency()
         if not currency:
             return Response({
                 'success': False,
@@ -146,8 +176,12 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
     - POST /api/account/exchange-rates/convert/ - 货币转换
     """
 
-    queryset = ExchangeRateModel._default_manager.all()
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return exchange rates through the application layer."""
+
+        return get_exchange_rate_queryset()
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -161,6 +195,24 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
             return [IsAdminUser()]
         return [IsAuthenticated()]
 
+    def perform_create(self, serializer):
+        """Create exchange rates through the application layer."""
+
+        serializer.instance = create_exchange_rate(validated_data=serializer.validated_data)
+
+    def perform_update(self, serializer):
+        """Update exchange rates through the application layer."""
+
+        serializer.instance = update_exchange_rate(
+            exchange_rate_id=self.get_object().id,
+            validated_data=serializer.validated_data,
+        )
+
+    def perform_destroy(self, instance):
+        """Delete exchange rates through the application layer."""
+
+        delete_exchange_rate(exchange_rate_id=instance.id)
+
     @action(detail=False, methods=['get'], url_path='latest/(?P<from_code>[^/]+)/(?P<to_code>[^/]+)')
     def latest(self, request, from_code=None, to_code=None):
         """
@@ -168,7 +220,7 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
 
         GET /api/account/exchange-rates/latest/{from_code}/{to_code}/
         """
-        rate = ExchangeRateModel.get_latest_rate(from_code, to_code)
+        rate = get_latest_exchange_rate(from_code=from_code, to_code=to_code)
         if not rate:
             return Response({
                 'success': False,
@@ -198,31 +250,18 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         try:
-            converted_amount = ExchangeRateModel.convert_amount(
+            conversion = convert_currency_amount(
                 amount=data['amount'],
-                from_code=data['from_currency'],
-                to_code=data['to_currency'],
-                date=data.get('date')
+                from_currency=data['from_currency'],
+                to_currency=data['to_currency'],
+                date_value=data.get('date'),
             )
-
-            # 获取使用的汇率
-            queryset = ExchangeRateModel._default_manager.filter(
-                from_currency__code=data['from_currency'],
-                to_currency__code=data['to_currency']
-            )
-
-            if data.get('date'):
-                queryset = queryset.filter(effective_date__lte=data['date']).order_by('-effective_date')
-            else:
-                queryset = queryset.order_by('-effective_date')
-
-            rate = queryset.first()
 
             return Response({
                 'success': True,
-                'converted_amount': converted_amount,
-                'rate_used': rate.rate,
-                'rate_date': rate.effective_date
+                'converted_amount': conversion['converted_amount'],
+                'rate_used': conversion['rate_used'],
+                'rate_date': conversion['rate_date'],
             })
 
         except ValueError as e:
@@ -249,11 +288,13 @@ class PortfolioAllocationView(APIView):
 
         支持按资产分类和币种进行配置分析
         """
-        portfolio = PortfolioModel._default_manager.filter(
-            id=portfolio_id,
-            user=request.user,
-        ).first()
-        if portfolio is None:
+        dimension = request.query_params.get('dimension', 'category')
+        payload = get_portfolio_allocation_payload(
+            portfolio_id=portfolio_id,
+            user_id=request.user.id,
+            dimension=dimension,
+        )
+        if payload is None:
             return Response(
                 {
                     'success': False,
@@ -262,115 +303,18 @@ class PortfolioAllocationView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        dimension = request.query_params.get('dimension', 'category')  # category 或 currency
-
-        if dimension == 'currency':
-            return self._get_currency_allocation(portfolio)
+        serializer_class = CurrencyAllocationSerializer if dimension == 'currency' else AssetAllocationSerializer
+        serializer = serializer_class(payload['data'], many=True)
+        response_payload = {
+            'success': True,
+            'dimension': payload['dimension'],
+            'data': serializer.data,
+        }
+        if payload['dimension'] == 'currency':
+            response_payload['base_currency'] = payload['base_currency']
+            response_payload['total_value_base'] = payload['total_value_base']
         else:
-            return self._get_category_allocation(portfolio)
-
-    def _get_category_allocation(self, portfolio):
-        """按资产分类统计配置"""
-        positions = portfolio.positions.filter(is_closed=False).select_related('category')
-
-        # 按分类汇总
-        category_allocation = {}
-        total_value = Decimal('0')
-
-        for pos in positions:
-            category_path = pos.category.get_full_path() if pos.category else '未分类'
-            amount = pos.market_value
-
-            if category_path not in category_allocation:
-                category_allocation[category_path] = Decimal('0')
-            category_allocation[category_path] += amount
-            total_value += amount
-
-        # 转换为序列化格式
-        data = []
-        for category_path, amount in category_allocation.items():
-            data.append({
-                'category_path': category_path,
-                'amount': amount,
-                'percentage': float(amount / total_value * 100) if total_value > 0 else 0
-            })
-
-        serializer = AssetAllocationSerializer(data, many=True)
-        return Response({
-            'success': True,
-            'dimension': 'category',
-            'total_value': total_value,
-            'data': serializer.data
-        })
-
-    def _get_currency_allocation(self, portfolio):
-        """按币种统计配置"""
-        from apps.account.infrastructure.models import ExchangeRateModel
-
-        positions = portfolio.positions.filter(is_closed=False)
-        base_currency = portfolio.base_currency or CurrencyModel.get_base_currency()
-
-        # 按币种汇总（原币）
-        currency_allocation = {}
-        total_value_base = Decimal('0')
-
-        for pos in positions:
-            currency_code = pos.currency.code if pos.currency else 'CNY'
-            amount = pos.market_value  # 这里是原币金额
-
-            if currency_code not in currency_allocation:
-                currency_allocation[currency_code] = Decimal('0')
-            currency_allocation[currency_code] += amount
-
-            # 转换为基准货币
-            if currency_code != base_currency.code:
-                try:
-                    amount_base = ExchangeRateModel.convert_amount(
-                        amount=amount,
-                        from_code=currency_code,
-                        to_code=base_currency.code
-                    )
-                except ValueError:
-                    # 如果没有汇率，使用原币金额
-                    amount_base = amount
-            else:
-                amount_base = amount
-
-            total_value_base += amount_base
-
-        # 转换为序列化格式
-        data = []
-        for currency_code, amount in currency_allocation.items():
-            currency = CurrencyModel._default_manager.filter(code=currency_code).first()
-
-            # 转换为基准货币
-            if currency_code != base_currency.code:
-                try:
-                    amount_base = ExchangeRateModel.convert_amount(
-                        amount=amount,
-                        from_code=currency_code,
-                        to_code=base_currency.code
-                    )
-                except ValueError:
-                    amount_base = amount
-            else:
-                amount_base = amount
-
-            data.append({
-                'currency_code': currency_code,
-                'currency_name': currency.name if currency else currency_code,
-                'amount': amount,
-                'amount_base': amount_base,
-                'percentage': float(amount_base / total_value_base * 100) if total_value_base > 0 else 0
-            })
-
-        serializer = CurrencyAllocationSerializer(data, many=True)
-        return Response({
-            'success': True,
-            'dimension': 'currency',
-            'base_currency': base_currency.code,
-            'total_value_base': total_value_base,
-            'data': serializer.data
-        })
+            response_payload['total_value'] = payload['total_value']
+        return Response(response_payload)
 
 

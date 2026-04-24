@@ -6,29 +6,36 @@ Django Admin for Account Module.
 from decimal import Decimal
 
 from django import forms
+from django.apps import apps as django_apps
 from django.contrib import admin
 from django.db.models import DecimalField, F, Sum
 from django.utils.html import format_html
 
-from ..infrastructure.models import (
-    AccountProfileModel,
-    AssetCategoryModel,
-    AssetMetadataModel,
-    CapitalFlowModel,
-    CurrencyModel,
-    DocumentationModel,
-    ExchangeRateModel,
-    InvestmentRuleModel,
-    PortfolioDailySnapshotModel,
-    PortfolioModel,
-    PositionModel,
-    StopLossConfigModel,
-    StopLossTriggerModel,
-    SystemSettingsModel,
-    TakeProfitConfigModel,
-    TransactionModel,
-    UserAccessTokenModel,
-)
+from apps.account.application.repository_provider import get_account_interface_repository
+
+AccountProfileModel = django_apps.get_model("account", "AccountProfileModel")
+AssetCategoryModel = django_apps.get_model("account", "AssetCategoryModel")
+AssetMetadataModel = django_apps.get_model("account", "AssetMetadataModel")
+CapitalFlowModel = django_apps.get_model("account", "CapitalFlowModel")
+CurrencyModel = django_apps.get_model("account", "CurrencyModel")
+DocumentationModel = django_apps.get_model("account", "DocumentationModel")
+ExchangeRateModel = django_apps.get_model("account", "ExchangeRateModel")
+InvestmentRuleModel = django_apps.get_model("account", "InvestmentRuleModel")
+PortfolioDailySnapshotModel = django_apps.get_model("account", "PortfolioDailySnapshotModel")
+PortfolioModel = django_apps.get_model("account", "PortfolioModel")
+PositionModel = django_apps.get_model("account", "PositionModel")
+StopLossConfigModel = django_apps.get_model("account", "StopLossConfigModel")
+StopLossTriggerModel = django_apps.get_model("account", "StopLossTriggerModel")
+SystemSettingsModel = django_apps.get_model("account", "SystemSettingsModel")
+TakeProfitConfigModel = django_apps.get_model("account", "TakeProfitConfigModel")
+TransactionModel = django_apps.get_model("account", "TransactionModel")
+UserAccessTokenModel = django_apps.get_model("account", "UserAccessTokenModel")
+
+
+def _account_interface_repository():
+    """Return the lightweight account interface repository."""
+
+    return get_account_interface_repository()
 
 
 class SystemSettingsAdminForm(forms.ModelForm):
@@ -323,7 +330,7 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         """禁止手动添加（单例模式）"""
-        return not SystemSettingsModel._default_manager.exists()
+        return not _account_interface_repository().has_system_settings_singleton()
 
     def has_delete_permission(self, request, obj=None):
         """禁止删除配置"""
@@ -386,8 +393,8 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         """自定义列表页（单例模式）"""
-        if SystemSettingsModel._default_manager.exists():
-            config = SystemSettingsModel._default_manager.first()
+        config = _account_interface_repository().get_existing_system_settings()
+        if config is not None:
             return super().change_view(
                 request,
                 str(config.pk),

@@ -14,6 +14,17 @@ class DecisionRhythmConfig(AppConfig):
 
     def ready(self):
         """应用启动时初始化"""
+        from .application.global_alert_service import (
+            configure_decision_rhythm_global_alert_repository,
+        )
+        from .infrastructure.global_alert_repository import (
+            DjangoDecisionRhythmGlobalAlertRepository,
+        )
+
+        configure_decision_rhythm_global_alert_repository(
+            DjangoDecisionRhythmGlobalAlertRepository()
+        )
+
         # 导入admin以注册模型
         try:
             from .interface import admin  # noqa

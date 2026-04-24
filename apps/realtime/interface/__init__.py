@@ -11,7 +11,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.regime.application.repository_provider import get_regime_repository
 
 logger = get_task_logger(__name__)
 
@@ -105,7 +105,7 @@ def notify_regime_change(regime_result: dict) -> dict:
         logger.info(f"Checking regime change for notification: {regime_result.get('dominant_regime')}")
 
         # 获取上一次的 Regime
-        regime_repo = DjangoRegimeRepository()
+        regime_repo = get_regime_repository()
         current_date = date.fromisoformat(regime_result['as_of_date'])
         last_snapshot = regime_repo.get_latest_snapshot(before_date=current_date)
 
@@ -152,7 +152,7 @@ def check_regime_health() -> dict:
     try:
         logger.info("Checking regime calculation health")
 
-        regime_repo = DjangoRegimeRepository()
+        regime_repo = get_regime_repository()
         latest = regime_repo.get_latest_snapshot()
 
         if not latest:

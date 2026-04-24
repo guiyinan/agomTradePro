@@ -6,12 +6,26 @@ Django Rest Framework serializers for request/response validation.
 
 from rest_framework import serializers
 
-from ..infrastructure.models import (
-    ChainConfigORM,
-    ChatSessionORM,
-    PromptExecutionLogORM,
-    PromptTemplateORM,
+from ..application.interface_services import (
+    create_chain_config,
+    create_prompt_template,
+    update_chain_config,
+    update_prompt_template,
 )
+
+PROMPT_CATEGORY_CHOICES = [
+    "report",
+    "signal",
+    "analysis",
+    "chat",
+]
+
+CHAIN_EXECUTION_MODE_CHOICES = [
+    "serial",
+    "parallel",
+    "tool",
+    "hybrid",
+]
 
 
 class PlaceholderSerializer(serializers.Serializer):
@@ -27,18 +41,26 @@ class PlaceholderSerializer(serializers.Serializer):
     function_params = serializers.JSONField(required=False, allow_null=True)
 
 
-class PromptTemplateSerializer(serializers.ModelSerializer):
+class PromptTemplateSerializer(serializers.Serializer):
     """Prompt模板序列化器"""
-
-    class Meta:
-        model = PromptTemplateORM
-        fields = [
-            'id', 'name', 'category', 'version',
-            'template_content', 'system_prompt', 'placeholders',
-            'temperature', 'max_tokens', 'description',
-            'is_active', 'created_at', 'updated_at', 'last_used_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'last_used_at']
+    id = serializers.CharField(read_only=True)
+    name = serializers.CharField(max_length=100)
+    category = serializers.ChoiceField(choices=PROMPT_CATEGORY_CHOICES)
+    version = serializers.CharField(max_length=20, required=False, default="1.0")
+    template_content = serializers.CharField()
+    system_prompt = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
+    placeholders = PlaceholderSerializer(many=True, required=False)
+    temperature = serializers.FloatField(required=False, default=0.7)
+    max_tokens = serializers.IntegerField(required=False, allow_null=True)
+    description = serializers.CharField(allow_blank=True, required=False, default="")
+    is_active = serializers.BooleanField(required=False, default=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+    last_used_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
     def validate_temperature(self, value):
         """验证温度参数"""
@@ -65,13 +87,38 @@ class PromptTemplateSerializer(serializers.ModelSerializer):
 
         return value
 
+    def to_representation(self, instance):
+        """Normalize domain entities and ORM instances into the same payload."""
+
+        data = super().to_representation(instance)
+        category = getattr(instance, "category", None)
+        if hasattr(category, "value"):
+            data["category"] = category.value
+
+        placeholders = getattr(instance, "placeholders", None) or []
+        if placeholders and not isinstance(placeholders[0], dict):
+            data["placeholders"] = [
+                {
+                    "name": placeholder.name,
+                    "type": placeholder.type.value,
+                    "description": placeholder.description,
+                    "default_value": placeholder.default_value,
+                    "required": placeholder.required,
+                    "function_name": placeholder.function_name,
+                    "function_params": placeholder.function_params,
+                }
+                for placeholder in placeholders
+            ]
+
+        return data
+
 
 class PromptTemplateCreateSerializer(PromptTemplateSerializer):
     """Prompt模板创建序列化器"""
 
-    def create(self, validated_data):
-        """创建模板"""
-        # 从域服务创建
+    def _build_entity(self, validated_data):
+        """Build the prompt template domain entity from validated data."""
+
         from ..domain.entities import (
             PlaceholderDef,
             PlaceholderType,
@@ -107,11 +154,33 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
             description=validated_data.get('description', ''),
             is_active=validated_data.get('is_active', True)
         )
+        return entity
 
-        # 使用仓储保存
-        from ..infrastructure.repositories import DjangoPromptRepository
-        repository = DjangoPromptRepository()
-        return repository.create_template(entity)
+    def create(self, validated_data):
+        """创建模板"""
+
+        return create_prompt_template(self._build_entity(dict(validated_data)))
+
+    def update(self, instance, validated_data):
+        """更新模板"""
+
+        merged_data = {
+            "name": getattr(instance, "name", ""),
+            "category": getattr(getattr(instance, "category", None), "value", getattr(instance, "category", "")),
+            "version": getattr(instance, "version", "1.0"),
+            "template_content": getattr(instance, "template_content", ""),
+            "placeholders": getattr(instance, "placeholders", []),
+            "system_prompt": getattr(instance, "system_prompt", None),
+            "temperature": getattr(instance, "temperature", 0.7),
+            "max_tokens": getattr(instance, "max_tokens", None),
+            "description": getattr(instance, "description", ""),
+            "is_active": getattr(instance, "is_active", True),
+        }
+        merged_data.update(validated_data)
+        updated = update_prompt_template(int(getattr(instance, "id")), self._build_entity(merged_data))
+        if updated is None:
+            raise serializers.ValidationError("模板不存在或更新失败")
+        return updated
 
 
 class ChainStepSerializer(serializers.Serializer):
@@ -131,17 +200,18 @@ class ChainStepSerializer(serializers.Serializer):
     )
 
 
-class ChainConfigSerializer(serializers.ModelSerializer):
+class ChainConfigSerializer(serializers.Serializer):
     """链配置序列化器"""
-
-    class Meta:
-        model = ChainConfigORM
-        fields = [
-            'id', 'name', 'category', 'description',
-            'steps', 'execution_mode', 'aggregate_step',
-            'is_active', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+    id = serializers.CharField(read_only=True)
+    name = serializers.CharField(max_length=100)
+    category = serializers.ChoiceField(choices=PROMPT_CATEGORY_CHOICES)
+    description = serializers.CharField(allow_blank=True, required=False, default="")
+    steps = ChainStepSerializer(many=True)
+    execution_mode = serializers.ChoiceField(choices=CHAIN_EXECUTION_MODE_CHOICES)
+    aggregate_step = ChainStepSerializer(required=False, allow_null=True)
+    is_active = serializers.BooleanField(required=False, default=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
     def validate_steps(self, value):
         """验证步骤配置"""
@@ -161,12 +231,46 @@ class ChainConfigSerializer(serializers.ModelSerializer):
 
         return value
 
+    def to_representation(self, instance):
+        """Normalize domain entities and ORM instances into the same payload."""
+
+        data = super().to_representation(instance)
+        category = getattr(instance, "category", None)
+        execution_mode = getattr(instance, "execution_mode", None)
+        if hasattr(category, "value"):
+            data["category"] = category.value
+        if hasattr(execution_mode, "value"):
+            data["execution_mode"] = execution_mode.value
+
+        def _serialize_step(step):
+            if isinstance(step, dict):
+                return step
+            return {
+                "step_id": step.step_id,
+                "template_id": step.template_id,
+                "step_name": step.step_name,
+                "order": step.order,
+                "input_mapping": step.input_mapping,
+                "output_parser": step.output_parser,
+                "parallel_group": step.parallel_group,
+                "enable_tool_calling": step.enable_tool_calling,
+                "available_tools": step.available_tools,
+            }
+
+        steps = getattr(instance, "steps", None) or []
+        data["steps"] = [_serialize_step(step) for step in steps]
+
+        aggregate_step = getattr(instance, "aggregate_step", None)
+        data["aggregate_step"] = _serialize_step(aggregate_step) if aggregate_step else None
+        return data
+
 
 class ChainConfigCreateSerializer(ChainConfigSerializer):
     """链配置创建序列化器"""
 
-    def create(self, validated_data):
-        """创建链配置"""
+    def _build_entity(self, validated_data):
+        """Build the chain config domain entity from validated data."""
+
         from ..domain.entities import ChainConfig, ChainExecutionMode, ChainStep, PromptCategory
 
         steps_data = validated_data.pop('steps')
@@ -211,10 +315,34 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
             aggregate_step=aggregate_step,
             is_active=validated_data.get('is_active', True)
         )
+        return entity
 
-        from ..infrastructure.repositories import DjangoChainRepository
-        repository = DjangoChainRepository()
-        return repository.create_chain(entity)
+    def create(self, validated_data):
+        """创建链配置"""
+
+        return create_chain_config(self._build_entity(dict(validated_data)))
+
+    def update(self, instance, validated_data):
+        """更新链配置"""
+
+        merged_data = {
+            "name": getattr(instance, "name", ""),
+            "category": getattr(getattr(instance, "category", None), "value", getattr(instance, "category", "")),
+            "description": getattr(instance, "description", ""),
+            "steps": getattr(instance, "steps", []),
+            "execution_mode": getattr(
+                getattr(instance, "execution_mode", None),
+                "value",
+                getattr(instance, "execution_mode", "serial"),
+            ),
+            "aggregate_step": getattr(instance, "aggregate_step", None),
+            "is_active": getattr(instance, "is_active", True),
+        }
+        merged_data.update(validated_data)
+        updated = update_chain_config(int(getattr(instance, "id")), self._build_entity(merged_data))
+        if updated is None:
+            raise serializers.ValidationError("链配置不存在或更新失败")
+        return updated
 
 
 class ExecutePromptSerializer(serializers.Serializer):
@@ -324,27 +452,35 @@ class ChatResponseSerializer(serializers.Serializer):
     metadata = serializers.JSONField()
 
 
-class ExecutionLogSerializer(serializers.ModelSerializer):
+class ExecutionLogSerializer(serializers.Serializer):
     """执行日志序列化器"""
+    id = serializers.IntegerField(read_only=True)
+    execution_id = serializers.CharField(read_only=True)
+    template_id = serializers.IntegerField(read_only=True, allow_null=True)
+    chain_id = serializers.IntegerField(read_only=True, allow_null=True)
+    step_id = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
+    status = serializers.CharField(read_only=True)
+    provider_used = serializers.CharField(read_only=True, allow_blank=True)
+    model_used = serializers.CharField(read_only=True, allow_blank=True)
+    total_tokens = serializers.IntegerField(read_only=True)
+    estimated_cost = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        read_only=True,
+    )
+    response_time_ms = serializers.IntegerField(read_only=True)
+    error_message = serializers.CharField(read_only=True, allow_blank=True)
+    created_at = serializers.DateTimeField(read_only=True)
 
-    class Meta:
-        model = PromptExecutionLogORM
-        fields = [
-            'id', 'execution_id', 'template_id', 'chain_id',
-            'step_id', 'status', 'provider_used', 'model_used',
-            'total_tokens', 'estimated_cost', 'response_time_ms',
-            'error_message', 'created_at'
-        ]
-        read_only_fields = ['id', 'created_at']
 
-
-class ChatSessionSerializer(serializers.ModelSerializer):
+class ChatSessionSerializer(serializers.Serializer):
     """聊天会话序列化器"""
-
-    class Meta:
-        model = ChatSessionORM
-        fields = ['id', 'session_id', 'user_message', 'ai_response', 'context', 'created_at']
-        read_only_fields = ['id', 'created_at']
+    id = serializers.IntegerField(read_only=True)
+    session_id = serializers.CharField(read_only=True)
+    user_message = serializers.CharField(read_only=True)
+    ai_response = serializers.CharField(read_only=True)
+    context = serializers.JSONField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
 
 
 # ==================== Agent Runtime Serializers ====================

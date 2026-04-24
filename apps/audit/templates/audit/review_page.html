@@ -442,7 +442,7 @@
                     <div class="report-stat-label">准确率</div>
                 </div>
                 <div class="report-stat">
-                    <div class="report-stat-value">{{ report.loss_analyses|length }}</div>
+                            <div class="report-stat-value">{{ report.loss_analyses_count|default:0 }}</div>
                     <div class="report-stat-label">损失项</div>
                 </div>
             </div>

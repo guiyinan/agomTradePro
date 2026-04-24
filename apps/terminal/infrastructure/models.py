@@ -201,7 +201,10 @@ class TerminalCommandORM(models.Model):
     @classmethod
     def from_entity(cls, entity: TerminalCommand) -> 'TerminalCommandORM':
         """Map domain entity to ORM model."""
-        instance = cls(pk=int(entity.id)) if entity.id and str(entity.id).isdigit() else cls()
+        if entity.id and str(entity.id).isdigit():
+            instance = cls._default_manager.filter(pk=int(entity.id)).first() or cls(pk=int(entity.id))
+        else:
+            instance = cls()
         instance.name = entity.name
         instance.description = entity.description
         instance.command_type = entity.command_type.value

@@ -19,9 +19,8 @@ from apps.macro.application.data_management import (
     FetchDataUseCase,
     ScheduleDataFetchUseCase,
 )
-from apps.macro.infrastructure.adapters import AKShareAdapter
 
-from .helpers import get_repository, get_sync_use_case
+from .helpers import get_repository, get_supported_indicators, get_sync_use_case
 
 logger = logging.getLogger(__name__)
 
@@ -175,13 +174,7 @@ def api_get_supported_indicators(request):
     try:
         # 从适配器获取支持的指标列表
         try:
-            adapter = AKShareAdapter()
-            indicators = [
-                {'code': code, 'name': name}
-                for code, name in adapter.SUPPORTED_INDICATORS.items()
-            ]
-            # 按代码排序
-            indicators.sort(key=lambda x: x['code'])
+            indicators = get_supported_indicators()
         except Exception as e:
             logger.error(f"获取适配器指标列表失败: {e}")
             indicators = []

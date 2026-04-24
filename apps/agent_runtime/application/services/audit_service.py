@@ -268,16 +268,17 @@ class AgentRuntimeAuditService:
                 LogOperationUseCase,
             )
             from apps.audit.infrastructure.repositories import DjangoAuditRepository
+            from apps.agent_runtime.application.repository_provider import (
+                get_runtime_user_repository,
+            )
 
             # Get username if user_id is provided
             username = "anonymous"
             if user_id:
-                try:
-                    from django.contrib.auth.models import User
-                    user = User.objects.get(id=user_id)
-                    username = user.username
-                except Exception:
-                    username = f"user_{user_id}"
+                username = (
+                    get_runtime_user_repository().get_username_by_id(user_id)
+                    or f"user_{user_id}"
+                )
 
             # Create the use case and request
             audit_repo = DjangoAuditRepository()

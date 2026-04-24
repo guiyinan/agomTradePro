@@ -33,7 +33,7 @@ def test_sentiment_api_root_contract(authenticated_client):
 @pytest.mark.django_db
 def test_sentiment_analyze_returns_503_when_ai_unavailable(authenticated_client):
     with patch(
-        "apps.sentiment.interface.views.SentimentAnalyzer.analyze_text",
+        "apps.sentiment.interface.views.analyze_sentiment_text",
         side_effect=RuntimeError("AI provider unavailable"),
     ):
         response = authenticated_client.post(
@@ -56,8 +56,8 @@ def test_sentiment_index_rejects_invalid_date_format(authenticated_client):
 
 @pytest.mark.django_db
 def test_sentiment_recent_days_out_of_range_falls_back_to_default(authenticated_client):
-    with patch("apps.sentiment.interface.views.SentimentIndexRepository.get_recent") as mock_recent:
-        mock_recent.return_value = []
+    with patch("apps.sentiment.interface.views.get_recent_sentiment_indices_payload") as mock_recent:
+        mock_recent.return_value = {"indices": [], "total": 0}
         response = authenticated_client.get("/api/sentiment/index/recent/?days=999")
 
     assert response.status_code == 200
@@ -66,7 +66,10 @@ def test_sentiment_recent_days_out_of_range_falls_back_to_default(authenticated_
 
 @pytest.mark.django_db
 def test_sentiment_cache_clear_returns_deleted_count(authenticated_client):
-    with patch("apps.sentiment.interface.views.SentimentCacheRepository.clear", return_value=7):
+    with patch(
+        "apps.sentiment.interface.views.clear_sentiment_cache_payload",
+        return_value={"success": True, "message": "已清除 7 条缓存记录"},
+    ):
         response = authenticated_client.post("/api/sentiment/cache/clear/")
 
     assert response.status_code == 200

@@ -8,9 +8,9 @@ Extends the base snapshot with ops-specific context:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from apps.agent_runtime.application.facades.base import BaseContextFacade, _unavailable
+from apps.agent_runtime.application.facades.base import BaseContextFacade
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,10 @@ class OpsTaskFacade(BaseContextFacade):
     def fetch_task_health_summary(self) -> dict[str, Any]:
         """Enhanced task health with event bus status."""
         base = super().fetch_task_health_summary()
-        # Add event bus metrics
         try:
-            from apps.events.infrastructure.models import EventRecord
-            total_events = EventRecord.objects.count()
-            base["total_event_records"] = total_events
+            event_bus = self.context_repository.fetch_event_bus_summary()
+            if event_bus.get("status") == "ok":
+                base["total_event_records"] = event_bus.get("total_event_records", 0)
         except Exception as e:
             logger.debug("Event bus metrics unavailable: %s", e)
         return base
@@ -35,19 +34,24 @@ class OpsTaskFacade(BaseContextFacade):
     def fetch_data_freshness_summary(self) -> dict[str, Any]:
         """Enhanced freshness with audit and AI provider status."""
         base = super().fetch_data_freshness_summary()
-        # Add AI provider status
         try:
-            from apps.ai_provider.infrastructure.models import AIProvider
-            active_providers = AIProvider.objects.filter(is_active=True).count()
-            base["sources"]["ai_providers_active"] = active_providers
+            provider_summary = self.context_repository.fetch_ai_provider_summary()
+            if provider_summary.get("status") == "ok":
+                base.setdefault("sources", {})["ai_providers_active"] = provider_summary.get(
+                    "ai_providers_active", 0
+                )
+            else:
+                base.setdefault("sources", {})["ai_providers"] = "unavailable"
         except Exception:
             base.setdefault("sources", {})["ai_providers"] = "unavailable"
-        # Add audit freshness
         try:
-            from apps.audit.infrastructure.models import AuditRecord
-            latest_audit = AuditRecord.objects.order_by("-created_at").first()
-            if latest_audit:
-                base["sources"]["audit"] = latest_audit.created_at.isoformat()
+            audit_summary = self.context_repository.fetch_audit_freshness_summary()
+            if audit_summary.get("status") == "ok":
+                base.setdefault("sources", {})["audit"] = audit_summary.get("audit")
+            elif audit_summary.get("status") == "no_data":
+                base.setdefault("sources", {})["audit"] = "no_data"
+            else:
+                base.setdefault("sources", {})["audit"] = "unavailable"
         except Exception:
             base.setdefault("sources", {})["audit"] = "unavailable"
         return base

@@ -6,11 +6,14 @@ Policy Application - Hedging Use Cases
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 from django.utils import timezone
+
+from apps.account.application.repository_provider import get_account_position_repository
+from apps.policy.application.repository_provider import get_hedge_position_repository
+from apps.realtime.application.repository_provider import get_realtime_price_repository
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +115,7 @@ class ExecuteHedgingUseCase:
     """
 
     def __init__(self):
-        pass
+        self.hedge_repository = get_hedge_position_repository()
 
     def execute_hedge(
         self,
@@ -141,20 +144,23 @@ class ExecuteHedgingUseCase:
         hedge_status = 'executed' if execution_price > 0 else 'pending'
 
         # 创建对冲记录
-        from apps.policy.infrastructure.models import HedgePositionModel
-
-        hedge = HedgePositionModel._default_manager.create(
+        hedge = self.hedge_repository.create_hedge_position(
             portfolio_id=portfolio_id,
             instrument_code=calculation.recommended_instrument,
+            instrument_type='future',
             hedge_ratio=calculation.hedge_ratio,
             hedge_value=calculation.hedge_value,
-            policy_level='',  # 从上下文获取
+            policy_level='',
             status=hedge_status,
             notes=calculation.reason,
+            execution_price=Decimal(str(execution_price)) if execution_price > 0 else None,
+            opening_cost=calculation.estimated_cost,
+            total_cost=calculation.estimated_cost,
+            executed_at=timezone.now() if hedge_status == 'executed' else None,
         )
 
         return HedgeExecutionResult(
-            hedge_id=hedge.id,
+            hedge_id=hedge["id"],
             instrument_code=calculation.recommended_instrument,
             hedge_ratio=calculation.hedge_ratio,
             hedge_value=calculation.hedge_value,
@@ -174,11 +180,10 @@ class ExecuteHedgingUseCase:
             当前价格，获取失败返回 0
         """
         try:
-            from apps.realtime.infrastructure.repositories import DjangoRealtimeRepository
-            repo = DjangoRealtimeRepository()
+            repo = get_realtime_price_repository()
             price_data = repo.get_latest_price(instrument_code)
-            if price_data and price_data.current_price > 0:
-                return float(price_data.current_price)
+            if price_data and price_data.price > 0:
+                return float(price_data.price)
         except Exception:
             pass
         return 0
@@ -192,7 +197,8 @@ class HedgeEffectivenessAnalyzer:
     """
 
     def __init__(self):
-        pass
+        self.hedge_repository = get_hedge_position_repository()
+        self.account_position_repository = get_account_position_repository()
 
     def analyze_hedge_effectiveness(
         self,
@@ -211,13 +217,11 @@ class HedgeEffectivenessAnalyzer:
         Returns:
             对冲效果分析结果
         """
-        from apps.policy.infrastructure.models import HedgePositionModel
-
-        try:
-            hedge = HedgePositionModel._default_manager.get(
-                id=hedge_id, portfolio_id=portfolio_id
-            )
-        except HedgePositionModel.DoesNotExist:
+        hedge = self.hedge_repository.get_hedge_position(
+            hedge_id=hedge_id,
+            portfolio_id=portfolio_id,
+        )
+        if hedge is None:
             return {
                 'error': f'对冲记录 {hedge_id} 不存在',
                 'beta_before': None,
@@ -228,16 +232,16 @@ class HedgeEffectivenessAnalyzer:
             }
 
         # 计算实际成本
-        total_cost = float(hedge.total_cost or 0)
+        total_cost = float(hedge.get('total_cost') or 0)
         if not total_cost:
-            opening = float(hedge.opening_cost or 0)
-            closing = float(hedge.closing_cost or 0)
+            opening = float(hedge.get('opening_cost') or 0)
+            closing = float(hedge.get('closing_cost') or 0)
             total_cost = opening + closing
 
         # 计算 beta before/after 和对冲收益
-        beta_before = hedge.beta_before
-        beta_after = hedge.beta_after
-        hedge_profit = float(hedge.hedge_profit or 0)
+        beta_before = hedge.get('beta_before')
+        beta_after = hedge.get('beta_after')
+        hedge_profit = float(hedge.get('hedge_profit') or 0)
 
         # 如果 DB 中没有记录 beta，尝试从持仓数据计算
         if beta_before is None or beta_after is None:
@@ -248,9 +252,11 @@ class HedgeEffectivenessAnalyzer:
             beta_after = computed.get('beta_after', beta_before)
 
             # 回写到 DB
-            hedge.beta_before = beta_before
-            hedge.beta_after = beta_after
-            hedge.save(update_fields=['beta_before', 'beta_after'])
+            self.hedge_repository.update_beta_metrics(
+                hedge_id=hedge_id,
+                beta_before=beta_before,
+                beta_after=beta_after,
+            )
 
         net_benefit = hedge_profit - total_cost
 
@@ -265,7 +271,7 @@ class HedgeEffectivenessAnalyzer:
     def _compute_beta_change(
         self,
         portfolio_id: int,
-        hedge: 'HedgePositionModel',
+        hedge: dict,
     ) -> dict:
         """
         根据持仓和对冲标的历史收益率，回归计算 beta
@@ -274,41 +280,19 @@ class HedgeEffectivenessAnalyzer:
             {'beta_before': float, 'beta_after': float}
         """
         try:
-            import numpy as np
-
-            from apps.account.infrastructure.models import PositionModel
-            from apps.equity.infrastructure.adapters import (
-                MarketDataRepositoryAdapter,
-                TushareStockAdapter,
-            )
-
             # 获取持仓
-            positions = PositionModel._default_manager.filter(
-                portfolio_id=portfolio_id
-            ).values_list('asset_code', 'weight')
+            positions = self.account_position_repository.list_portfolio_position_weights(
+                portfolio_id
+            )
 
             if not positions:
                 return {'beta_before': 1.0, 'beta_after': 1.0}
-
-            # 获取大盘收益率（60 天）
-            end_date = timezone.now().date()
-            start_date = end_date - timedelta(days=90)
-            market_adapter = MarketDataRepositoryAdapter()
-            market_returns_dict = market_adapter.get_index_daily_returns(
-                '000300.SH', start_date, end_date
-            )
-
-            if not market_returns_dict:
-                return {'beta_before': 1.0, 'beta_after': 1.0}
-
-            market_dates = sorted(market_returns_dict.keys())
-            market_ret = np.array([market_returns_dict[d] for d in market_dates])
 
             # 简化：用组合权重加权的 beta 估计
             # beta_before ≈ 1.0 (组合无对冲时假设 beta=1)
             # beta_after = beta_before * (1 - hedge_ratio)
             beta_before = 1.0
-            beta_after = beta_before * (1.0 - hedge.hedge_ratio)
+            beta_after = beta_before * (1.0 - hedge['hedge_ratio'])
 
             return {'beta_before': beta_before, 'beta_after': max(0.0, beta_after)}
 

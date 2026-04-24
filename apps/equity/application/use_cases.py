@@ -887,12 +887,14 @@ class AnalyzeRegimeCorrelationUseCase:
         Returns:
             {日期: 收益率}
         """
-        from apps.account.infrastructure.models import SystemSettingsModel
+        from apps.account.application.config_summary_service import (
+            get_account_config_summary_service,
+        )
         from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
 
         try:
             market_adapter = MarketDataRepositoryAdapter()
-            benchmark_code = SystemSettingsModel.get_runtime_benchmark_code(
+            benchmark_code = get_account_config_summary_service().get_runtime_benchmark_code(
                 "equity_market_benchmark"
             )
             if not benchmark_code:

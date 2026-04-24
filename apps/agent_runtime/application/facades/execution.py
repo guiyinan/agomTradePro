@@ -8,9 +8,9 @@ Extends the base snapshot with execution-specific context:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from apps.agent_runtime.application.facades.base import BaseContextFacade, _unavailable
+from apps.agent_runtime.application.facades.base import BaseContextFacade
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +26,13 @@ class ExecutionTaskFacade(BaseContextFacade):
         if base.get("status") != "ok":
             return base
         try:
-            from apps.account.infrastructure.models import Position
             portfolio_id = base.get("portfolio_id")
             if portfolio_id:
-                positions = list(
-                    Position.objects.filter(
-                        portfolio_id=portfolio_id, is_closed=False
-                    ).values("asset_code", "shares", "avg_cost")[:10]
+                position_summary = self.context_repository.fetch_portfolio_position_summary(
+                    portfolio_id
                 )
-                base["top_positions"] = positions
+                if position_summary.get("status") == "ok":
+                    base["top_positions"] = position_summary.get("top_positions", [])
         except Exception as e:
             logger.debug("Position details unavailable: %s", e)
         return base
@@ -43,9 +41,12 @@ class ExecutionTaskFacade(BaseContextFacade):
         """Enhanced risk summary with beta gate test results."""
         base = super().fetch_risk_alerts_summary()
         try:
-            from apps.simulated_trading.infrastructure.models import SimulatedAccount
-            active_accounts = SimulatedAccount.objects.filter(is_active=True).count()
-            base["active_simulated_accounts"] = active_accounts
+            account_summary = self.context_repository.fetch_simulated_account_summary()
+            if account_summary.get("status") == "ok":
+                base["active_simulated_accounts"] = account_summary.get(
+                    "active_simulated_accounts",
+                    0,
+                )
         except Exception as e:
             logger.debug("Simulated accounts unavailable: %s", e)
         return base

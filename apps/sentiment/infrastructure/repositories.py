@@ -11,6 +11,7 @@ from typing import List, Optional
 from apps.sentiment.domain.entities import SentimentAnalysisResult, SentimentIndex
 from apps.sentiment.infrastructure.models import (
     SentimentAnalysisLog,
+    SentimentAlertModel,
     SentimentCache,
     SentimentIndexModel,
 )
@@ -113,6 +114,14 @@ class SentimentIndexRepository:
 
         start_date = date.today() - timedelta(days=days)
         return self.get_range(start_date, date.today())
+
+    def get_latest_index_date(self) -> date | None:
+        """Return the latest stored sentiment index date."""
+
+        latest = SentimentIndexModel._default_manager.order_by("-index_date").first()
+        if latest is None:
+            return None
+        return latest.index_date
 
     @staticmethod
     def _to_entity(model: SentimentIndexModel) -> SentimentIndex:
@@ -289,6 +298,11 @@ class SentimentCacheRepository:
 
         return count
 
+    def count(self) -> int:
+        """Return the number of cached sentiment analysis records."""
+
+        return SentimentCache._default_manager.count()
+
     @staticmethod
     def _compute_hash(text: str) -> str:
         """
@@ -301,4 +315,26 @@ class SentimentCacheRepository:
             SHA256 哈希值
         """
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+class SentimentAlertRepository:
+    """情绪模块告警仓储。"""
+
+    def create_alert(
+        self,
+        *,
+        alert_type: str,
+        severity: str,
+        title: str,
+        message: str,
+        metadata: dict | None = None,
+    ) -> SentimentAlertModel:
+        """创建一条情绪模块告警记录。"""
+        return SentimentAlertModel._default_manager.create(
+            alert_type=alert_type,
+            severity=severity,
+            title=title,
+            message=message,
+            metadata=metadata or {},
+        )
 

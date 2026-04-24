@@ -14,6 +14,17 @@ class BetaGateConfig(AppConfig):
 
     def ready(self):
         """应用启动时初始化"""
+        from .application.config_summary_service import (
+            configure_beta_gate_config_summary_repository,
+        )
+        from .infrastructure.config_summary_repository import (
+            DjangoBetaGateConfigSummaryRepository,
+        )
+
+        configure_beta_gate_config_summary_repository(
+            DjangoBetaGateConfigSummaryRepository()
+        )
+
         # 导入admin以注册模型
         try:
             from .interface import admin  # noqa

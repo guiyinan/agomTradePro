@@ -14,14 +14,13 @@ from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from django.apps import apps
-from django.contrib.auth import get_user_model
 from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.terminal.infrastructure.repositories import get_terminal_runtime_settings_repository
 from core.health_checks import is_healthy, run_readiness_checks
 
 from ..application.dtos import (
@@ -51,6 +50,7 @@ from ..infrastructure.repositories import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
     DjangoSyncLogRepository,
+    get_capability_execution_support_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -175,15 +175,8 @@ _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
 
 
 def _get_fallback_chat_system_prompt() -> str:
-    settings_model = apps.get_model("terminal", "TerminalRuntimeSettingsORM")
-    settings_obj, _ = settings_model._default_manager.get_or_create(
-        singleton_key="default",
-        defaults={
-            "answer_chain_enabled": True,
-            "fallback_chat_system_prompt": "",
-        },
-    )
-    custom_prompt = (getattr(settings_obj, "fallback_chat_system_prompt", "") or "").strip()
+    settings_data = get_terminal_runtime_settings_repository().get_settings()
+    custom_prompt = str(settings_data.get("fallback_chat_system_prompt", "") or "").strip()
     return custom_prompt or _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT
 
 
@@ -509,12 +502,9 @@ class CapabilityExecutionDispatcher:
         )
 
         if context.user_id:
-            user_model = get_user_model()
-            try:
-                user = user_model.objects.get(pk=context.user_id)
+            user = get_capability_execution_support_repository().get_user_by_id(context.user_id)
+            if user is not None:
                 force_authenticate(request, user=user)
-            except user_model.DoesNotExist:
-                pass
 
         try:
             match = resolve(f"/{path}")

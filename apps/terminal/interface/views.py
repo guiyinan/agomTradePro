@@ -10,6 +10,8 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 
+from apps.terminal.application.interface_services import get_terminal_config_page_context
+
 
 def _staff_required(view_func):
     """Decorator: login_required + staff/superuser check."""
@@ -48,24 +50,7 @@ class TerminalConfigView(View):
     """
 
     def get(self, request):
-        from ..infrastructure.models import TerminalCommandORM
-
-        commands = TerminalCommandORM._default_manager.all().order_by('category', 'name')
-
-        # 按分类分组
-        categories = {}
-        for cmd in commands:
-            if cmd.category not in categories:
-                categories[cmd.category] = []
-            categories[cmd.category].append(cmd)
-
-        context = {
-            'page_title': 'Terminal Command Config',
-            'page_description': 'Configure terminal commands',
-            'commands': commands,
-            'categories': categories,
-        }
-        return render(request, 'terminal/config.html', context)
+        return render(request, 'terminal/config.html', get_terminal_config_page_context())
 
 
 # 函数式视图兼容

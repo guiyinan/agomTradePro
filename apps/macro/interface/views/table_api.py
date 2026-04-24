@@ -1,343 +1,248 @@
-"""
-Table API Views for Macro Data.
-
-Handles table data operations including CRUD operations.
-"""
+"""Table API views for macro data."""
 
 import json
 import logging
-from datetime import datetime
+from datetime import date, datetime
+from json import JSONDecodeError
+from typing import Any
 
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 
-from apps.macro.application.indicator_service import UnitDisplayService
-from apps.macro.infrastructure.models import MacroIndicator
+from apps.macro.application.interface_services import (
+    batch_delete_macro_records,
+    create_macro_record,
+    delete_macro_record,
+    get_macro_indicator_data,
+    get_macro_table_page,
+    update_macro_record,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _format_indicator_for_display(item: MacroIndicator) -> dict:
-    """
-    将指标数据格式化为展示格式
+def _parse_iso_date(value: str, *, field_name: str) -> date:
+    """Parse an ISO date or datetime string into a date."""
 
-    将存储值（元）转换为展示值（原始单位）
-
-    Args:
-        item: MacroIndicator ORM 对象
-
-    Returns:
-        dict: 格式化后的数据
-    """
-    # 转换为展示值（原始单位）
-    display_value, display_unit = UnitDisplayService.convert_for_display(
-        float(item.value),
-        item.unit,  # 存储单位
-        item.original_unit or item.unit  # 原始单位（如果为空则使用存储单位）
-    )
-
-    return {
-        'id': item.id,
-        'code': item.code,
-        'value': display_value,  # 展示值（原始单位）
-        'unit': display_unit,  # 展示单位（原始单位）
-        'storage_value': float(item.value),  # 存储值（元）
-        'storage_unit': item.unit,  # 存储单位（元）
-        'reporting_period': item.reporting_period.isoformat(),
-        'period_type': item.period_type,
-        'period_type_display': item.get_period_type_display(),
-        'observed_at': item.observed_at.isoformat(),  # 兼容旧 API
-        'published_at': item.published_at.isoformat() if item.published_at else None,
-        'source': item.source,
-        'revision_number': item.revision_number,
-        'publication_lag_days': item.publication_lag_days,
-    }
+    try:
+        return datetime.fromisoformat(value).date()
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} 日期格式无效，应为 YYYY-MM-DD") from exc
 
 
-def api_get_indicator_data(request):
-    """
-    API: 获取指标数据详情
-    支持参数: code / indicator_code / indicator, limit, start_date, end_date
-    """
-    if request.method != 'GET':
-        return JsonResponse({'success': False, 'message': '仅支持 GET 请求'}, status=405)
+def _load_json_body(request: HttpRequest) -> dict[str, Any]:
+    """Parse a request JSON body into a dictionary payload."""
+
+    try:
+        payload = json.loads(request.body)
+    except JSONDecodeError as exc:
+        raise ValueError("请求体不是有效的 JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("请求体必须是 JSON 对象")
+    return payload
+
+
+def api_get_indicator_data(request: HttpRequest) -> JsonResponse:
+    """API: 获取指标数据详情。"""
+
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "仅支持 GET 请求"}, status=405)
 
     try:
         code = (
-            request.GET.get('code')
-            or request.GET.get('indicator_code')
-            or request.GET.get('indicator')
+            request.GET.get("code")
+            or request.GET.get("indicator_code")
+            or request.GET.get("indicator")
         )
-        limit = int(request.GET.get('limit', 500))  # 增加默认值
-        start_date = request.GET.get('start_date', '')
-        end_date = request.GET.get('end_date', '')
+        limit = int(request.GET.get("limit", 500))
+        start_date_raw = request.GET.get("start_date", "")
+        end_date_raw = request.GET.get("end_date", "")
 
         if not code:
-            return JsonResponse({
-                'success': False,
-                'message': '请指定指标代码'
-            }, status=400)
+            return JsonResponse(
+                {"success": False, "message": "请指定指标代码"},
+                status=400,
+            )
 
-        # 构建查询
-        queryset = MacroIndicator._default_manager.filter(code=code)
-
-        # 时间范围过滤
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-
-        # 排序并限制数量
-        queryset = queryset.order_by('reporting_period', 'revision_number')[:limit]
-
-        data = [_format_indicator_for_display(item) for item in queryset]
-
-        return JsonResponse({
-            'success': True,
-            'data': data,
-            'count': len(data)
-        })
-
-    except Exception as e:
-        logger.exception("获取指标数据 API 错误")
-        return JsonResponse({
-            'success': False,
-            'message': f'获取失败: {str(e)}'
-        }, status=500)
-
-
-def api_table_data(request):
-    """
-    API: 获取表格数据（支持分页和过滤）
-    """
-    if request.method != 'GET':
-        return JsonResponse({'success': False, 'message': '仅支持 GET 请求'}, status=405)
-
-    try:
-        # 获取查询参数
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 50))
-        code_filter = request.GET.get('code', '')
-        source_filter = request.GET.get('source', '')
-        period_type_filter = request.GET.get('period_type', '')
-        start_date = request.GET.get('start_date', '')
-        end_date = request.GET.get('end_date', '')
-        sort_field = request.GET.get('sort_field', '-reporting_period')
-
-        # 构建查询
-        queryset = MacroIndicator._default_manager.all()
-
-        if code_filter:
-            queryset = queryset.filter(code__icontains=code_filter)
-        if source_filter:
-            queryset = queryset.filter(source=source_filter)
-        if period_type_filter:
-            queryset = queryset.filter(period_type=period_type_filter)
-        if start_date:
-            queryset = queryset.filter(reporting_period__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(reporting_period__lte=end_date)
-
-        # 排序
-        queryset = queryset.order_by(sort_field)
-
-        # 总数
-        total = queryset.count()
-
-        # 分页
-        start_idx = (page - 1) * page_size
-        end_idx = start_idx + page_size
-        records = queryset[start_idx:end_idx]
-
-        data = [_format_indicator_for_display(item) for item in records]
-
-        return JsonResponse({
-            'success': True,
-            'data': data,
-            'total': total,
-            'page': page,
-            'page_size': page_size,
-            'total_pages': (total + page_size - 1) // page_size
-        })
-
-    except Exception as e:
-        logger.exception("获取表格数据 API 错误")
-        return JsonResponse({
-            'success': False,
-            'message': f'获取失败: {str(e)}'
-        }, status=500)
-
-
-def api_delete_record(request, record_id):
-    """
-    API: 删除单条记录
-    """
-    if request.method != 'DELETE':
-        return JsonResponse({'success': False, 'message': '仅支持 DELETE 请求'}, status=405)
-
-    try:
-        record = MacroIndicator._default_manager.get(id=record_id)
-        record.delete()
-
-        return JsonResponse({
-            'success': True,
-            'message': '删除成功'
-        })
-
-    except MacroIndicator.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': '记录不存在'
-        }, status=404)
-
-    except Exception as e:
-        logger.exception("删除记录 API 错误")
-        return JsonResponse({
-            'success': False,
-            'message': f'删除失败: {str(e)}'
-        }, status=500)
-
-
-def api_batch_delete(request):
-    """
-    API: 批量删除记录
-    """
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': '仅支持 POST 请求'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        record_ids = data.get('ids', [])
-
-        if not record_ids:
-            return JsonResponse({
-                'success': False,
-                'message': '请选择要删除的记录'
-            }, status=400)
-
-        count, _ = MacroIndicator._default_manager.filter(id__in=record_ids).delete()
-
-        return JsonResponse({
-            'success': True,
-            'message': f'成功删除 {count} 条记录',
-            'deleted_count': count
-        })
-
-    except Exception as e:
-        logger.exception("批量删除 API 错误")
-        return JsonResponse({
-            'success': False,
-            'message': f'删除失败: {str(e)}'
-        }, status=500)
-
-
-def api_create_record(request):
-    """
-    API: 新增记录
-    """
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': '仅支持 POST 请求'}, status=405)
-
-    try:
-        data = json.loads(request.body)
-        code = data.get('code')
-        value = data.get('value')
-        period_raw = data.get('observed_at') or data.get('reporting_period')
-
-        if not code:
-            return JsonResponse({
-                'success': False,
-                'message': '创建失败: 缺少必填字段 code'
-            }, status=400)
-        if value is None:
-            return JsonResponse({
-                'success': False,
-                'message': '创建失败: 缺少必填字段 value'
-            }, status=400)
-        if not period_raw:
-            return JsonResponse({
-                'success': False,
-                'message': '创建失败: 缺少必填字段 reporting_period'
-            }, status=400)
-
-        try:
-            reporting_period = datetime.fromisoformat(period_raw).date()
-        except ValueError:
-            return JsonResponse({
-                'success': False,
-                'message': '创建失败: reporting_period 日期格式无效，应为 YYYY-MM-DD'
-            }, status=400)
-
-        record = MacroIndicator._default_manager.create(
+        start_date = _parse_iso_date(start_date_raw, field_name="start_date") if start_date_raw else None
+        end_date = _parse_iso_date(end_date_raw, field_name="end_date") if end_date_raw else None
+        data = get_macro_indicator_data(
             code=code,
-            value=value,
-            reporting_period=reporting_period,
-            period_type=data.get('period_type', 'D'),
-            published_at=datetime.fromisoformat(data['published_at']).date() if data.get('published_at') else None,
-            source=data.get('source', 'manual'),
-            revision_number=data.get('revision_number', 1),
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
         )
-
-        return JsonResponse({
-            'success': True,
-            'message': '创建成功',
-            'data': _format_indicator_for_display(record)
-        })
-
-    except Exception as e:
-        logger.exception("创建记录 API 错误")
-        return JsonResponse({
-            'success': False,
-            'message': f'创建失败: {str(e)}'
-        }, status=500)
+        return JsonResponse({"success": True, "data": data, "count": len(data)})
+    except ValueError as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+    except Exception as exc:
+        logger.exception("获取指标数据 API 错误")
+        return JsonResponse({"success": False, "message": f"获取失败: {exc}"}, status=500)
 
 
-def api_update_record(request, record_id):
-    """
-    API: 更新记录
-    """
-    if request.method != 'PUT':
-        return JsonResponse({'success': False, 'message': '仅支持 PUT 请求'}, status=405)
+def api_table_data(request: HttpRequest) -> JsonResponse:
+    """API: 获取表格数据。"""
+
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "仅支持 GET 请求"}, status=405)
 
     try:
-        data = json.loads(request.body)
-        record = MacroIndicator._default_manager.get(id=record_id)
+        page = int(request.GET.get("page", 1))
+        page_size = int(request.GET.get("page_size", 50))
+        code_filter = request.GET.get("code", "")
+        source_filter = request.GET.get("source", "")
+        period_type_filter = request.GET.get("period_type", "")
+        start_date_raw = request.GET.get("start_date", "")
+        end_date_raw = request.GET.get("end_date", "")
+        sort_field = request.GET.get("sort_field", "-reporting_period")
 
-        if 'code' in data:
-            record.code = data['code']
-        if 'value' in data:
-            record.value = data['value']
-        # 支持 observed_at 或 reporting_period
-        if 'observed_at' in data or 'reporting_period' in data:
-            record.reporting_period = datetime.fromisoformat(
-                data.get('observed_at') or data.get('reporting_period')
-            ).date()
-        if 'period_type' in data:
-            record.period_type = data['period_type']
-        if 'published_at' in data:
-            record.published_at = datetime.fromisoformat(data['published_at']).date() if data['published_at'] else None
-        if 'source' in data:
-            record.source = data['source']
-        if 'revision_number' in data:
-            record.revision_number = data['revision_number']
+        start_date = _parse_iso_date(start_date_raw, field_name="start_date") if start_date_raw else None
+        end_date = _parse_iso_date(end_date_raw, field_name="end_date") if end_date_raw else None
+        payload = get_macro_table_page(
+            page=page,
+            page_size=page_size,
+            code_filter=code_filter,
+            source_filter=source_filter,
+            period_type_filter=period_type_filter,
+            start_date=start_date,
+            end_date=end_date,
+            sort_field=sort_field,
+        )
+        return JsonResponse({"success": True, **payload})
+    except ValueError as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+    except Exception as exc:
+        logger.exception("获取表格数据 API 错误")
+        return JsonResponse({"success": False, "message": f"获取失败: {exc}"}, status=500)
 
-        record.save()
 
-        return JsonResponse({
-            'success': True,
-            'message': '更新成功',
-            'data': _format_indicator_for_display(record)
-        })
+def api_delete_record(request: HttpRequest, record_id: int) -> JsonResponse:
+    """API: 删除单条记录。"""
 
-    except MacroIndicator.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': '记录不存在'
-        }, status=404)
+    if request.method != "DELETE":
+        return JsonResponse({"success": False, "message": "仅支持 DELETE 请求"}, status=405)
 
-    except Exception as e:
+    try:
+        deleted = delete_macro_record(record_id)
+        if not deleted:
+            return JsonResponse({"success": False, "message": "记录不存在"}, status=404)
+        return JsonResponse({"success": True, "message": "删除成功"})
+    except Exception as exc:
+        logger.exception("删除记录 API 错误")
+        return JsonResponse({"success": False, "message": f"删除失败: {exc}"}, status=500)
+
+
+def api_batch_delete(request: HttpRequest) -> JsonResponse:
+    """API: 批量删除记录。"""
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "仅支持 POST 请求"}, status=405)
+
+    try:
+        data = _load_json_body(request)
+        record_ids = data.get("ids", [])
+        if not record_ids:
+            return JsonResponse({"success": False, "message": "请选择要删除的记录"}, status=400)
+
+        deleted_count = batch_delete_macro_records(record_ids)
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"成功删除 {deleted_count} 条记录",
+                "deleted_count": deleted_count,
+            }
+        )
+    except ValueError as exc:
+        return JsonResponse({"success": False, "message": str(exc)}, status=400)
+    except Exception as exc:
+        logger.exception("批量删除 API 错误")
+        return JsonResponse({"success": False, "message": f"删除失败: {exc}"}, status=500)
+
+
+def api_create_record(request: HttpRequest) -> JsonResponse:
+    """API: 新增记录。"""
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "仅支持 POST 请求"}, status=405)
+
+    try:
+        data = _load_json_body(request)
+        code = data.get("code")
+        value = data.get("value")
+        period_raw = data.get("observed_at") or data.get("reporting_period")
+
+        if not code:
+            return JsonResponse({"success": False, "message": "创建失败: 缺少必填字段 code"}, status=400)
+        if value is None:
+            return JsonResponse({"success": False, "message": "创建失败: 缺少必填字段 value"}, status=400)
+        if not period_raw:
+            return JsonResponse(
+                {"success": False, "message": "创建失败: 缺少必填字段 reporting_period"},
+                status=400,
+            )
+
+        record = create_macro_record(
+            code=code,
+            value=float(value),
+            reporting_period=_parse_iso_date(period_raw, field_name="reporting_period"),
+            period_type=data.get("period_type", "D"),
+            published_at=(
+                _parse_iso_date(data["published_at"], field_name="published_at")
+                if data.get("published_at")
+                else None
+            ),
+            source=data.get("source", "manual"),
+            revision_number=int(data.get("revision_number", 1)),
+        )
+        return JsonResponse({"success": True, "message": "创建成功", "data": record})
+    except ValueError as exc:
+        return JsonResponse({"success": False, "message": f"创建失败: {exc}"}, status=400)
+    except Exception as exc:
+        logger.exception("创建记录 API 错误")
+        return JsonResponse({"success": False, "message": f"创建失败: {exc}"}, status=500)
+
+
+def api_update_record(request: HttpRequest, record_id: int) -> JsonResponse:
+    """API: 更新记录。"""
+
+    if request.method != "PUT":
+        return JsonResponse({"success": False, "message": "仅支持 PUT 请求"}, status=405)
+
+    try:
+        data = _load_json_body(request)
+        update_kwargs: dict[str, Any] = {}
+        if "code" in data:
+            update_kwargs["code"] = data["code"]
+        if "value" in data:
+            update_kwargs["value"] = float(data["value"]) if data["value"] is not None else None
+        if "observed_at" in data or "reporting_period" in data:
+            update_kwargs["reporting_period"] = _parse_iso_date(
+                data.get("observed_at") or data.get("reporting_period"),
+                field_name="reporting_period",
+            )
+        if "period_type" in data:
+            update_kwargs["period_type"] = data["period_type"]
+        if "published_at" in data:
+            update_kwargs["published_at"] = (
+                _parse_iso_date(data["published_at"], field_name="published_at")
+                if data["published_at"]
+                else None
+            )
+        if "source" in data:
+            update_kwargs["source"] = data["source"]
+        if "revision_number" in data:
+            update_kwargs["revision_number"] = (
+                int(data["revision_number"])
+                if data["revision_number"] is not None
+                else None
+            )
+
+        record = update_macro_record(record_id, **update_kwargs)
+        if record is None:
+            return JsonResponse({"success": False, "message": "记录不存在"}, status=404)
+
+        return JsonResponse({"success": True, "message": "更新成功", "data": record})
+    except ValueError as exc:
+        return JsonResponse({"success": False, "message": f"更新失败: {exc}"}, status=400)
+    except Exception as exc:
         logger.exception("更新记录 API 错误")
-        return JsonResponse({
-            'success': False,
-            'message': f'更新失败: {str(e)}'
-        }, status=500)
-
+        return JsonResponse({"success": False, "message": f"更新失败: {exc}"}, status=500)

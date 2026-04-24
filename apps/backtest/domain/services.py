@@ -455,7 +455,7 @@ class BacktestEngine:
             Dict[str, float]: 目标权重 {asset_class: weight}
         """
         # 基础配置：等权分配给 PREFERRED 资产
-        from shared.domain.asset_eligibility import (
+        from apps.regime.domain.asset_eligibility import (
             Eligibility,
             check_eligibility,
             get_eligibility_matrix,

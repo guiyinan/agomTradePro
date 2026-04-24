@@ -7,8 +7,12 @@ import ORM models directly.
 
 from typing import Any, Dict, List, Optional
 
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Prefetch, Q
+
 from apps.agent_runtime.domain.entities import AgentProposal, AgentTask
 from apps.agent_runtime.infrastructure.models import (
+    AgentArtifactModel,
     AgentContextSnapshotModel,
     AgentExecutionRecordModel,
     AgentGuardrailDecisionModel,
@@ -16,6 +20,7 @@ from apps.agent_runtime.infrastructure.models import (
     AgentProposalModel,
     AgentTaskModel,
     AgentTaskStepModel,
+    AgentTimelineEventModel,
 )
 
 
@@ -79,6 +84,54 @@ class AgentTaskRepository:
             "tasks": [model.to_domain_entity() for model in models],
             "total_count": total_count,
         }
+
+
+class AgentRuntimeUserRepository:
+    """User lookup helpers needed by agent runtime application services."""
+
+    def get_username_by_id(self, user_id: int) -> str | None:
+        """Return a display username for an authenticated user id."""
+
+        user_model = get_user_model()
+        username_field = getattr(user_model, "USERNAME_FIELD", "username")
+        try:
+            user = user_model._default_manager.only(username_field).get(pk=user_id)
+        except user_model.DoesNotExist:
+            return None
+        if hasattr(user, "get_username"):
+            return str(user.get_username())
+        username = getattr(user, "username", None)
+        return str(username) if username else None
+
+
+class AgentTimelineRepository:
+    """Timeline event persistence helpers."""
+
+    def create_event(
+        self,
+        *,
+        request_id: str,
+        task_id: int,
+        proposal_id: int | None,
+        event_type: str,
+        event_source: str,
+        step_index: int | None,
+        event_payload: dict[str, Any],
+    ) -> int:
+        """Create one timeline event and return its primary key."""
+
+        from apps.agent_runtime.infrastructure.models import AgentTimelineEventModel
+
+        model = AgentTimelineEventModel._default_manager.create(
+            request_id=request_id,
+            task_id=task_id,
+            proposal_id=proposal_id,
+            event_type=event_type,
+            event_source=event_source,
+            step_index=step_index,
+            event_payload=event_payload,
+        )
+        return int(model.id)
 
     def update_task_state(
         self,
@@ -277,3 +330,238 @@ class AgentContextRepository:
             }
             for step in steps
         ]
+
+
+class AgentOperatorRepository:
+    """Read helpers used by agent runtime operator pages."""
+
+    def get_summary(self) -> dict[str, Any]:
+        """Return aggregate counts for operator overview cards."""
+
+        task_counts = dict(
+            AgentTaskModel._default_manager.values("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
+        )
+        proposal_counts = dict(
+            AgentProposalModel._default_manager.values("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
+        )
+        needs_attention = AgentTaskModel._default_manager.filter(
+            Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
+        ).distinct()
+        return {
+            "task_counts": task_counts,
+            "proposal_counts": proposal_counts,
+            "needs_attention_count": needs_attention.count(),
+            "total_tasks": AgentTaskModel._default_manager.count(),
+            "total_proposals": AgentProposalModel._default_manager.count(),
+        }
+
+    def list_tasks(
+        self,
+        *,
+        status_filter: str = "",
+        domain_filter: str = "",
+        search: str = "",
+        attention_only: bool = False,
+        limit: int = 100,
+        offset: int = 0,
+    ):
+        """Return task queryset with operator-facing annotations."""
+
+        tasks = (
+            AgentTaskModel._default_manager.select_related("created_by")
+            .annotate(
+                timeline_count=Count("timeline_events", distinct=True),
+                proposal_count=Count("proposals", distinct=True),
+                guardrail_count=Count("guardrail_decisions", distinct=True),
+            )
+            .order_by("-created_at")
+        )
+        if status_filter:
+            tasks = tasks.filter(status=status_filter)
+        if domain_filter:
+            tasks = tasks.filter(task_domain=domain_filter)
+        if search:
+            tasks = tasks.filter(Q(request_id__icontains=search) | Q(task_type__icontains=search))
+        if attention_only:
+            tasks = tasks.filter(Q(requires_human=True) | Q(status__in=["needs_human", "failed"]))
+        return tasks[offset : offset + limit]
+
+    def get_task_queryset(self, *, user_id: int | None, is_staff: bool):
+        """Return base task queryset with ownership filtering."""
+
+        queryset = AgentTaskModel._default_manager.all()
+        if not is_staff:
+            queryset = queryset.filter(created_by_id=user_id)
+        return queryset.order_by("-created_at")
+
+    def get_task_request_id(self, task_id: int) -> str | None:
+        """Return one task request_id when available."""
+
+        task_model = AgentTaskModel._default_manager.filter(pk=task_id).only("request_id").first()
+        rid = getattr(task_model, "request_id", None)
+        return rid if isinstance(rid, str) else None
+
+    def get_task_models_by_ids(self, task_ids: list[int]):
+        """Return task ORM models by ids."""
+
+        return AgentTaskModel._default_manager.filter(id__in=task_ids)
+
+    def get_task_status_choices(self) -> list[tuple[str, str]]:
+        """Return task status filter choices."""
+
+        return sorted(AgentTaskModel._meta.get_field("status").choices)
+
+    def get_task_domain_choices(self) -> list[tuple[str, str]]:
+        """Return task domain filter choices."""
+
+        return sorted(AgentTaskModel._meta.get_field("task_domain").choices)
+
+    def get_task_detail(self, task_id: int):
+        """Return one task with related operator data prefetched."""
+
+        return (
+            AgentTaskModel._default_manager.select_related("created_by")
+            .prefetch_related(
+                Prefetch("timeline_events", queryset=AgentTimelineEventModel._default_manager.order_by("created_at")),
+                Prefetch("proposals", queryset=AgentProposalModel._default_manager.order_by("-created_at")),
+                Prefetch(
+                    "guardrail_decisions",
+                    queryset=AgentGuardrailDecisionModel._default_manager.order_by("-created_at"),
+                ),
+                Prefetch(
+                    "execution_records",
+                    queryset=AgentExecutionRecordModel._default_manager.order_by("-created_at"),
+                ),
+                Prefetch("handoffs", queryset=AgentHandoffModel._default_manager.order_by("-created_at")),
+            )
+            .filter(pk=task_id)
+            .first()
+        )
+
+    def get_latest_context(self, task_id: int):
+        """Return the latest context snapshot for a task."""
+
+        return (
+            AgentContextSnapshotModel._default_manager.filter(task_id=task_id)
+            .order_by("-created_at")
+            .first()
+        )
+
+    def list_proposals(
+        self,
+        *,
+        status_filter: str = "",
+        approval_filter: str = "",
+        risk_filter: str = "",
+        search: str = "",
+        limit: int = 100,
+    ):
+        """Return proposal queryset for the operator queue."""
+
+        proposals = AgentProposalModel._default_manager.select_related("task", "created_by").order_by("-created_at")
+        if status_filter:
+            proposals = proposals.filter(status=status_filter)
+        if approval_filter:
+            proposals = proposals.filter(approval_status=approval_filter)
+        if risk_filter:
+            proposals = proposals.filter(risk_level=risk_filter)
+        if search:
+            proposals = proposals.filter(
+                Q(request_id__icontains=search)
+                | Q(proposal_type__icontains=search)
+                | Q(task__request_id__icontains=search)
+        )
+        return proposals[:limit]
+
+    def list_proposals_for_task(self, task_id: int):
+        """Return proposals linked to one task."""
+
+        return AgentProposalModel._default_manager.filter(task_id=task_id).order_by("-created_at")
+
+    def get_proposal_status_choices(self) -> list[tuple[str, str]]:
+        """Return proposal status filter choices."""
+
+        return sorted(AgentProposalModel._meta.get_field("status").choices)
+
+    def get_proposal_approval_choices(self) -> list[tuple[str, str]]:
+        """Return proposal approval filter choices."""
+
+        return sorted(AgentProposalModel._meta.get_field("approval_status").choices)
+
+    def get_proposal_risk_choices(self) -> list[tuple[str, str]]:
+        """Return proposal risk filter choices."""
+
+        return sorted(AgentProposalModel._meta.get_field("risk_level").choices)
+
+    def get_proposal_detail(self, proposal_id: int):
+        """Return one proposal with linked task and creator."""
+
+        return (
+            AgentProposalModel._default_manager.select_related("task", "created_by")
+            .filter(pk=proposal_id)
+            .first()
+        )
+
+    def list_guardrails_for_proposal(self, proposal_id: int):
+        """Return guardrail decisions for one proposal."""
+
+        return AgentGuardrailDecisionModel._default_manager.filter(proposal_id=proposal_id).order_by("-created_at")
+
+    def list_executions_for_proposal(self, proposal_id: int):
+        """Return execution records for one proposal."""
+
+        return AgentExecutionRecordModel._default_manager.filter(proposal_id=proposal_id).order_by("-created_at")
+
+    def list_guardrails_for_task(self, task_id: int):
+        """Return guardrail decisions for one task."""
+
+        return AgentGuardrailDecisionModel._default_manager.filter(task_id=task_id).order_by("-created_at")
+
+    def list_executions_for_task(self, task_id: int):
+        """Return execution records for one task."""
+
+        return AgentExecutionRecordModel._default_manager.filter(task_id=task_id).order_by("-created_at")
+
+    def list_timeline_for_task(self, task_id: int):
+        """Return timeline events for one task."""
+
+        return AgentTimelineEventModel._default_manager.filter(task_id=task_id).order_by("created_at")
+
+    def list_artifacts_for_task(self, task_id: int):
+        """Return task artifacts ordered newest first."""
+
+        return AgentArtifactModel._default_manager.filter(task_id=task_id).order_by("-created_at")
+
+    def get_proposal_model(self, proposal_id: int):
+        """Return one proposal ORM model when available."""
+
+        return AgentProposalModel._default_manager.filter(pk=proposal_id).first()
+
+    def list_proposals_paginated(
+        self,
+        *,
+        status_filter: str | None,
+        limit: int,
+        offset: int,
+    ):
+        """Return proposal queryset page plus total count."""
+
+        queryset = AgentProposalModel._default_manager.all()
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        total = queryset.count()
+        return queryset.order_by("-created_at")[offset : offset + limit], total
+
+    def list_recent_guardrails(self, *, limit: int):
+        """Return recent guardrail decisions."""
+
+        return AgentGuardrailDecisionModel._default_manager.order_by("-created_at")[:limit]
+
+    def list_recent_executions(self, *, limit: int):
+        """Return recent execution records."""
+
+        return AgentExecutionRecordModel._default_manager.order_by("-created_at")[:limit]

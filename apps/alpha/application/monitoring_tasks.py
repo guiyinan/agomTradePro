@@ -12,9 +12,9 @@ from celery import shared_task
 from django.db.models import Avg, Count, Max
 from django.utils import timezone
 
-from apps.alpha.infrastructure.models import (
-    AlphaScoreCacheModel,
-    QlibModelRegistryModel,
+from apps.alpha.infrastructure.repositories import (
+    AlphaScoreCacheRepository,
+    QlibModelRegistryRepository,
 )
 from shared.infrastructure.metrics import AlertManager, MetricType, get_alpha_metrics
 from shared.infrastructure.model_evaluation import (
@@ -23,6 +23,10 @@ from shared.infrastructure.model_evaluation import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+_cache_repository = AlphaScoreCacheRepository()
+_registry_repository = QlibModelRegistryRepository()
 
 
 @shared_task(name="alpha.monitor.evaluate_alerts")
@@ -84,15 +88,15 @@ def update_provider_metrics():
 
         for provider in providers:
             # 统计最近的缓存记录
-            recent_caches = AlphaScoreCacheModel._default_manager.filter(
-                provider_source=provider,
-                created_at__gte=timezone.now() - timedelta(hours=1)
+            recent_caches = _cache_repository.list_recent_provider_caches(
+                provider=provider,
+                since=timezone.now() - timedelta(hours=1),
             )
 
-            total = recent_caches.count()
+            total = len(recent_caches)
             if total > 0:
                 # 成功率：status 为 available 的比例
-                available = recent_caches.filter(status="available").count()
+                available = sum(1 for cache in recent_caches if cache.status == "available")
                 success_rate = available / total
                 metrics.registry.set_gauge(
                     "alpha_provider_success_rate",
@@ -119,13 +123,9 @@ def update_provider_metrics():
                 )
 
         # 2. 计算覆盖率
-        latest_cache = (
-            AlphaScoreCacheModel._default_manager.filter(
-                universe_id="csi300",
-                created_at__gte=timezone.now() - timedelta(days=1),
-            )
-            .order_by("-created_at")
-            .first()
+        latest_cache = _cache_repository.get_latest_cache_for_universe(
+            universe_id="csi300",
+            since=timezone.now() - timedelta(days=1),
         )
 
         if latest_cache and latest_cache.scores:
@@ -164,29 +164,27 @@ def calculate_ic_drift():
         metrics = get_alpha_metrics()
 
         # 获取激活的模型
-        active_model = QlibModelRegistryModel._default_manager.filter(
-            is_active=True
-        ).first()
+        active_model = _registry_repository.get_active_model()
 
         if not active_model:
             logger.warning("没有激活的模型，跳过 IC 漂移计算")
             return {"status": "skipped", "reason": "no_active_model"}
 
         # 获取该模型的缓存记录（用于计算历史 IC）
-        caches = AlphaScoreCacheModel._default_manager.filter(
+        caches = _cache_repository.list_caches_for_model(
             model_artifact_hash=active_model.artifact_hash,
-            provider_source="qlib"
-        ).order_by('intended_trade_date')
+            provider_source="qlib",
+        )
 
-        if caches.count() < 20:
-            logger.warning(f"缓存数据不足 ({caches.count()} 条)，跳过 IC 漂移计算")
+        if len(caches) < 20:
+            logger.warning(f"缓存数据不足 ({len(caches)} 条)，跳过 IC 漂移计算")
             return {"status": "skipped", "reason": "insufficient_data"}
 
         # 使用 cache_evaluation 计算滚动 IC
         from apps.alpha.infrastructure.cache_evaluation import calculate_rolling_metrics
 
-        first_cache = caches.first()
-        last_cache = caches.last()
+        first_cache = caches[0]
+        last_cache = caches[-1]
 
         rolling = calculate_rolling_metrics(
             model_artifact_hash=active_model.artifact_hash,
@@ -300,29 +298,25 @@ def generate_daily_report():
         today = timezone.now().date()
 
         # 统计今天的缓存记录
-        today_caches = AlphaScoreCacheModel._default_manager.filter(
-            created_at__date=today
-        )
+        today_caches = _cache_repository.list_today_cache_rows(today)
 
         # 按 Provider 分组
         provider_stats = {}
         for cache in today_caches:
-            provider = cache.provider_source
+            provider = cache["provider_source"]
             if provider not in provider_stats:
                 provider_stats[provider] = {"count": 0, "available": 0}
             provider_stats[provider]["count"] += 1
-            if cache.status == "available":
+            if cache["status"] == "available":
                 provider_stats[provider]["available"] += 1
 
         # 统计模型活动
-        model_activations = QlibModelRegistryModel._default_manager.filter(
-            activated_at__date=today
-        ).count()
+        model_activations = _registry_repository.count_activations_on(today)
 
         # 生成报告
         report = {
             "date": today.isoformat(),
-            "cache_records": today_caches.count(),
+            "cache_records": len(today_caches),
             "provider_stats": provider_stats,
             "model_activations": model_activations,
             "metrics_snapshot": metrics.get_metrics_json()
@@ -361,9 +355,7 @@ def cleanup_old_metrics(days: int = 30):
         cutoff_date = timezone.now().date() - timedelta(days=days)
 
         # 删除旧的缓存记录
-        deleted_count = AlphaScoreCacheModel._default_manager.filter(
-            intended_trade_date__lt=cutoff_date
-        ).delete()[0]
+        deleted_count = _cache_repository.cleanup_before(cutoff_date)
 
         logger.info(f"清理了 {deleted_count} 条过期缓存记录")
 

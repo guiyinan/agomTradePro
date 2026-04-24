@@ -182,6 +182,22 @@ ruff check .
 mypy apps/ --strict
 ```
 
+### 架构治理命令
+
+```bash
+# 全量边界校验（不含审计 hard fail）
+python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text
+
+# 增量 diff 门禁（CI 同款，拦截新增污染）
+python scripts/check_architecture_delta.py --rules-file governance/architecture_rules.json --base-ref <base> --head-ref <head> --include-audit --fail-on-audit-violations --format text
+
+# 生成模块账本 / 审计报告
+python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --include-audit --write-report reports/architecture/architecture-audit.json --write-ledger reports/architecture/module-ledger.md
+
+# 生成 application provider 脚手架
+python scripts/scaffold_application_providers.py --module prompt --provider get_prompt_repository=apps.prompt.infrastructure.repositories:DjangoPromptRepository --provider get_chain_repository=apps.prompt.infrastructure.repositories:DjangoChainRepository
+```
+
 ### API 改动同步检查
 
 如果本次提交修改了 API 路径、参数、响应字段、状态码或 fallback 语义，合入前额外执行：

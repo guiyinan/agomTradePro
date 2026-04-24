@@ -10,6 +10,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
+
 
 class ScreenStocksRequestSerializer(serializers.Serializer):
     """筛选个股请求序列化器"""
@@ -539,72 +541,72 @@ class ValuationFreshnessResponseSerializer(serializers.Serializer):
 
 # ============== 估值修复配置序列化器 ==============
 
-class ValuationRepairConfigSerializer(serializers.ModelSerializer):
+class ValuationRepairConfigSerializer(serializers.Serializer):
     """估值修复配置序列化器（读取）"""
 
-    class Meta:
-        from apps.equity.infrastructure.models import ValuationRepairConfigModel
-        model = ValuationRepairConfigModel
-        fields = [
-            'id', 'version', 'is_active', 'effective_from',
-            # 历史数据要求
-            'min_history_points', 'default_lookback_days',
-            # 修复确认参数
-            'confirm_window', 'min_rebound',
-            # 停滞检测参数
-            'stall_window', 'stall_min_progress',
-            # 阶段判定阈值
-            'target_percentile', 'undervalued_threshold',
-            'near_target_threshold', 'overvalued_threshold',
-            # 复合百分位权重
-            'pe_weight', 'pb_weight',
-            # 置信度计算参数
-            'confidence_base', 'confidence_sample_threshold',
-            'confidence_sample_bonus', 'confidence_blend_bonus',
-            'confidence_repair_start_bonus', 'confidence_not_stalled_bonus',
-            # 其他阈值
-            'repairing_threshold', 'eta_max_days',
-            # 审计字段
-            'change_reason', 'created_by', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['id', 'version', 'created_at', 'updated_at']
+    id = serializers.IntegerField(read_only=True)
+    version = serializers.IntegerField(read_only=True)
+    is_active = serializers.BooleanField(read_only=True)
+    effective_from = serializers.DateTimeField(allow_null=True, read_only=True)
+    min_history_points = serializers.IntegerField(read_only=True)
+    default_lookback_days = serializers.IntegerField(read_only=True)
+    confirm_window = serializers.IntegerField(read_only=True)
+    min_rebound = serializers.FloatField(read_only=True)
+    stall_window = serializers.IntegerField(read_only=True)
+    stall_min_progress = serializers.FloatField(read_only=True)
+    target_percentile = serializers.FloatField(read_only=True)
+    undervalued_threshold = serializers.FloatField(read_only=True)
+    near_target_threshold = serializers.FloatField(read_only=True)
+    overvalued_threshold = serializers.FloatField(read_only=True)
+    pe_weight = serializers.FloatField(read_only=True)
+    pb_weight = serializers.FloatField(read_only=True)
+    confidence_base = serializers.FloatField(read_only=True)
+    confidence_sample_threshold = serializers.IntegerField(read_only=True)
+    confidence_sample_bonus = serializers.FloatField(read_only=True)
+    confidence_blend_bonus = serializers.FloatField(read_only=True)
+    confidence_repair_start_bonus = serializers.FloatField(read_only=True)
+    confidence_not_stalled_bonus = serializers.FloatField(read_only=True)
+    repairing_threshold = serializers.FloatField(read_only=True)
+    eta_max_days = serializers.IntegerField(read_only=True)
+    change_reason = serializers.CharField(read_only=True)
+    created_by = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
 
-class ValuationRepairConfigCreateSerializer(serializers.ModelSerializer):
+class ValuationRepairConfigCreateSerializer(serializers.Serializer):
     """估值修复配置序列化器（创建/更新）"""
 
-    class Meta:
-        from apps.equity.infrastructure.models import ValuationRepairConfigModel
-        model = ValuationRepairConfigModel
-        fields = [
-            # 历史数据要求
-            'min_history_points', 'default_lookback_days',
-            # 修复确认参数
-            'confirm_window', 'min_rebound',
-            # 停滞检测参数
-            'stall_window', 'stall_min_progress',
-            # 阶段判定阈值
-            'target_percentile', 'undervalued_threshold',
-            'near_target_threshold', 'overvalued_threshold',
-            # 复合百分位权重
-            'pe_weight', 'pb_weight',
-            # 置信度计算参数
-            'confidence_base', 'confidence_sample_threshold',
-            'confidence_sample_bonus', 'confidence_blend_bonus',
-            'confidence_repair_start_bonus', 'confidence_not_stalled_bonus',
-            # 其他阈值
-            'repairing_threshold', 'eta_max_days',
-            # 变更原因
-            'change_reason',
-        ]
+    min_history_points = serializers.IntegerField(required=False)
+    default_lookback_days = serializers.IntegerField(required=False)
+    confirm_window = serializers.IntegerField(required=False)
+    min_rebound = serializers.FloatField(required=False)
+    stall_window = serializers.IntegerField(required=False)
+    stall_min_progress = serializers.FloatField(required=False)
+    target_percentile = serializers.FloatField(required=False)
+    undervalued_threshold = serializers.FloatField(required=False)
+    near_target_threshold = serializers.FloatField(required=False)
+    overvalued_threshold = serializers.FloatField(required=False)
+    pe_weight = serializers.FloatField(required=False)
+    pb_weight = serializers.FloatField(required=False)
+    confidence_base = serializers.FloatField(required=False)
+    confidence_sample_threshold = serializers.IntegerField(required=False)
+    confidence_sample_bonus = serializers.FloatField(required=False)
+    confidence_blend_bonus = serializers.FloatField(required=False)
+    confidence_repair_start_bonus = serializers.FloatField(required=False)
+    confidence_not_stalled_bonus = serializers.FloatField(required=False)
+    repairing_threshold = serializers.FloatField(required=False)
+    eta_max_days = serializers.IntegerField(required=False)
+    change_reason = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate(self, data):
         """验证配置参数合理性"""
         errors = []
+        defaults = DEFAULT_VALUATION_REPAIR_CONFIG
 
         # 权重和应该为 1
-        pe_weight = data.get('pe_weight', 0.6)
-        pb_weight = data.get('pb_weight', 0.4)
+        pe_weight = data.get('pe_weight', defaults.pe_weight)
+        pb_weight = data.get('pb_weight', defaults.pb_weight)
         if abs(pe_weight + pb_weight - 1.0) > 0.01:
             errors.append(f"PE + PB 权重和应为 1.0，当前为 {pe_weight + pb_weight}")
 
@@ -617,10 +619,10 @@ class ValuationRepairConfigCreateSerializer(serializers.ModelSerializer):
                 errors.append(f"{field} 应在 0-1 范围内")
 
         # 阈值逻辑检查
-        undervalued = data.get('undervalued_threshold', 0.20)
-        near_target = data.get('near_target_threshold', 0.45)
-        target = data.get('target_percentile', 0.50)
-        overvalued = data.get('overvalued_threshold', 0.80)
+        undervalued = data.get('undervalued_threshold', defaults.undervalued_threshold)
+        near_target = data.get('near_target_threshold', defaults.near_target_threshold)
+        target = data.get('target_percentile', defaults.target_percentile)
+        overvalued = data.get('overvalued_threshold', defaults.overvalued_threshold)
 
         if not (undervalued < near_target < target < overvalued):
             errors.append(
@@ -633,7 +635,3 @@ class ValuationRepairConfigCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"config": errors})
 
         return data
-
-
-# 别名，保持向后兼容
-ValuationRepairConfigCreateSerializer = ValuationRepairConfigCreateSerializer

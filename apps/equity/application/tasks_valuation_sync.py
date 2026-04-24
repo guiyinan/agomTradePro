@@ -15,7 +15,6 @@ from apps.equity.infrastructure.financial_source_gateway import (
     AKShareFinancialGateway,
     TushareFinancialGateway,
 )
-from apps.equity.infrastructure.models import StockInfoModel
 from apps.equity.infrastructure.repositories import (
     DjangoStockRepository,
     DjangoValuationDataQualityRepository,
@@ -156,16 +155,13 @@ def sync_financial_data_task(
         periods: 获取最近几个报告期
         stock_codes: 指定股票代码列表（None 表示全部活跃股票）
     """
-    # 获取要同步的股票列表
-    if stock_codes:
-        stocks = StockInfoModel.objects.filter(stock_code__in=stock_codes, is_active=True)
-    else:
-        stocks = StockInfoModel.objects.filter(is_active=True).order_by("stock_code")
-
-    if not stocks.exists():
-        return {"success": False, "error": "没有找到活跃股票"}
-
     stock_repo = DjangoStockRepository()
+
+    # 获取要同步的股票列表
+    active_stock_codes = stock_repo.list_active_stock_codes(stock_codes=stock_codes)
+
+    if not active_stock_codes:
+        return {"success": False, "error": "没有找到活跃股票"}
 
     # 初始化网关
     if source == "tushare":
@@ -186,21 +182,21 @@ def sync_financial_data_task(
     error_count = 0
     errors = []
 
-    for stock in stocks:
+    for stock_code in active_stock_codes:
         try:
-            batch = gateway.fetch(stock.stock_code, periods=periods)
+            batch = gateway.fetch(stock_code, periods=periods)
             for record in batch.records:
                 stock_repo.save_financial_data(record)
             synced_count += len(batch.records)
         except Exception as e:
             error_count += 1
             if len(errors) < 10:  # 只记录前 10 个错误
-                errors.append(f"{stock.stock_code}: {str(e)}")
+                errors.append(f"{stock_code}: {str(e)}")
 
     return {
         "success": True,
         "synced_count": synced_count,
         "error_count": error_count,
-        "total_stocks": stocks.count(),
+        "total_stocks": len(active_stock_codes),
         "errors": errors,
     }

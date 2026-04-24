@@ -14,6 +14,8 @@ from rest_framework.test import APIClient
 from apps.policy.infrastructure.models import (
     PolicyIngestionConfig,
     PolicyLog,
+    RSSFetchLog,
+    RSSSourceConfigModel,
     SentimentGateConfig,
 )
 
@@ -420,3 +422,111 @@ class TestIngestionConfigAPI:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data['success'] is True
+
+
+@pytest.mark.django_db
+class TestSentimentGateConfigAPI:
+    """Tests for /api/policy/sentiment-gate-config/ endpoint."""
+
+    def test_put_gate_config_updates_existing_config(self, authenticated_client, gate_config):
+        """PUT should update an existing gate config through the interface service."""
+        client, user = authenticated_client
+
+        response = client.put('/api/policy/sentiment-gate-config/', {
+            'asset_class': 'all',
+            'heat_l1_threshold': 35.0,
+            'heat_l2_threshold': 65.0,
+            'heat_l3_threshold': 90.0,
+            'sentiment_l1_threshold': -0.25,
+            'sentiment_l2_threshold': -0.55,
+            'sentiment_l3_threshold': -0.75,
+            'max_position_cap_l2': 0.6,
+            'max_position_cap_l3': 0.3,
+            'enabled': True,
+        }, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert response.data['asset_class'] == 'all'
+        assert response.data['created'] is False
+
+        gate_config.refresh_from_db()
+        assert gate_config.heat_l1_threshold == 35.0
+        assert gate_config.version == response.data['version']
+        assert gate_config.updated_by == user
+
+
+@pytest.mark.django_db
+class TestWorkbenchBootstrapAPI:
+    """Tests for /api/policy/workbench/bootstrap/ endpoint."""
+
+    def test_bootstrap_returns_sources_and_fetch_status(
+        self,
+        authenticated_client,
+        ingestion_config,
+        gate_config,
+    ):
+        """Bootstrap should include active sources and recent fetch errors."""
+        client, user = authenticated_client
+        source = RSSSourceConfigModel.objects.create(
+            name='Policy Feed',
+            url='https://example.com/rss',
+            category='other',
+            is_active=True,
+        )
+        RSSFetchLog.objects.create(
+            source=source,
+            status='error',
+            items_count=10,
+            new_items_count=0,
+            error_message='upstream timeout',
+        )
+
+        response = client.get('/api/policy/workbench/bootstrap/')
+
+        assert response.status_code == status.HTTP_200_OK
+        payload = response.data
+        assert payload['success'] is True
+        assert payload['filter_options']['sources'][0]['name'] == 'Policy Feed'
+        assert payload['fetch_status']['last_fetch_status'] == 'error'
+        assert payload['fetch_status']['recent_fetch_errors'][0]['source__name'] == 'Policy Feed'
+
+
+@pytest.mark.django_db
+class TestWorkbenchItemDetailAPI:
+    """Tests for /api/policy/workbench/items/{id}/ endpoint."""
+
+    def test_item_detail_returns_related_names(self, authenticated_client):
+        """Detail should resolve related RSS source and user names."""
+        client, user = authenticated_client
+        source = RSSSourceConfigModel.objects.create(
+            name='Detail Feed',
+            url='https://example.com/detail-rss',
+            category='other',
+            is_active=True,
+        )
+        event = PolicyLog.objects.create(
+            event_date=date.today(),
+            level='P2',
+            title='Detailed Event',
+            description='Detail payload',
+            evidence_url='https://example.com/detail',
+            event_type='policy',
+            gate_effective=True,
+            effective_at=datetime.now(UTC),
+            effective_by=user,
+            audit_status='manual_approved',
+            reviewed_by=user,
+            reviewed_at=datetime.now(UTC),
+            rss_source=source,
+            rss_item_guid='guid-123',
+        )
+
+        response = client.get(f'/api/policy/workbench/items/{event.id}/')
+
+        assert response.status_code == status.HTTP_200_OK
+        payload = response.data
+        assert payload['success'] is True
+        assert payload['item']['rss_source_name'] == 'Detail Feed'
+        assert payload['item']['effective_by_name'] == user.username
+        assert payload['item']['reviewed_by_name'] == user.username

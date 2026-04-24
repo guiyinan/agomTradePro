@@ -10,8 +10,8 @@ import re
 from typing import Any, Optional
 
 import requests
-from django.apps import apps
 
+from apps.terminal.infrastructure.repositories import get_terminal_runtime_settings_repository
 from ..domain.entities import TerminalCommand
 
 logger = logging.getLogger(__name__)
@@ -249,14 +249,10 @@ class AnswerChainSettingsService:
 
     @staticmethod
     def get_config(user) -> dict[str, Any]:
-        settings_model = apps.get_model("terminal", "TerminalRuntimeSettingsORM")
-        settings_obj, _ = settings_model._default_manager.get_or_create(
-            singleton_key="default",
-            defaults={"answer_chain_enabled": True},
-        )
+        settings_data = get_terminal_runtime_settings_repository().get_settings()
         is_admin = bool(user and (user.is_staff or user.is_superuser))
         return {
-            "enabled": bool(settings_obj.answer_chain_enabled),
+            "enabled": settings_data["answer_chain_enabled"],
             "visibility": "technical" if is_admin else "masked",
             "is_admin": is_admin,
         }
@@ -279,13 +275,6 @@ class ChatScopeSettingsService:
 
     @staticmethod
     def get_fallback_chat_system_prompt() -> str:
-        settings_model = apps.get_model("terminal", "TerminalRuntimeSettingsORM")
-        settings_obj, _ = settings_model._default_manager.get_or_create(
-            singleton_key="default",
-            defaults={
-                "answer_chain_enabled": True,
-                "fallback_chat_system_prompt": "",
-            },
-        )
-        custom_prompt = (getattr(settings_obj, "fallback_chat_system_prompt", "") or "").strip()
+        settings_data = get_terminal_runtime_settings_repository().get_settings()
+        custom_prompt = settings_data["fallback_chat_system_prompt"].strip()
         return custom_prompt or ChatScopeSettingsService.DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT

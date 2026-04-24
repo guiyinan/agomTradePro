@@ -10,14 +10,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..application.dtos import RouteRequestDTO
+from ..application.interface_services import list_capability_summary_payloads
 from ..application.use_cases import (
     GetCapabilityDetailUseCase,
-    GetCapabilityListUseCase,
     GetCatalogStatsUseCase,
     RouteMessageUseCase,
     SyncCapabilitiesUseCase,
 )
-from ..infrastructure.repositories import DjangoCapabilityRepository
 from .serializers import (
     CapabilityDetailSerializer,
     CapabilityPublicDetailSerializer,
@@ -354,10 +353,8 @@ def list_capabilities(request):
     q = (request.query_params.get("q") or "").strip().lower()
     enabled_only = request.query_params.get("enabled_only", "true").lower() == "true"
 
-    use_case = GetCapabilityListUseCase()
-
     try:
-        capabilities = use_case.execute(
+        capabilities = list_capability_summary_payloads(
             source_type=source_type,
             route_group=route_group,
             category=category,
@@ -475,13 +472,12 @@ class CapabilityViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        repo = DjangoCapabilityRepository()
         source_type = self.request.query_params.get("source_type")
         route_group = self.request.query_params.get("route_group")
         category = self.request.query_params.get("category")
         enabled_only = self.request.query_params.get("enabled_only", "true").lower() == "true"
 
-        return repo.list_capabilities(
+        return list_capability_summary_payloads(
             source_type=source_type,
             route_group=route_group,
             category=category,

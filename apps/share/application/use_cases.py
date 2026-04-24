@@ -4,9 +4,8 @@ Share Application Use Cases
 用例编排层，协调 Domain 层和 Infrastructure 层完成业务用例。
 """
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -17,13 +16,17 @@ from apps.share.domain.entities import (
     ShareStatus,
     ShareTheme,
 )
-from apps.share.infrastructure.models import (
-    ShareAccessLogModel,
-    ShareLinkModel,
-    ShareSnapshotModel,
+from apps.share.infrastructure.orm_handles import (
+    ShareLinkDoesNotExist,
+    ShareSnapshotDoesNotExist,
+    SimulatedAccountDoesNotExist,
+    UserDoesNotExist,
+    share_access_log_manager,
+    share_link_manager,
+    share_snapshot_manager,
+    simulated_account_manager,
+    user_manager,
 )
-
-User = get_user_model()
 
 
 class ShareLinkUseCases:
@@ -84,16 +87,15 @@ class ShareLinkUseCases:
         from apps.share.domain.services import generate_short_code
 
         # 验证账户存在
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
         try:
-            account = SimulatedAccountModel.objects.get(id=account_id)
-        except SimulatedAccountModel.DoesNotExist:
+            account = simulated_account_manager.get(id=account_id)
+        except SimulatedAccountDoesNotExist:
             raise ValidationError({"account_id": "模拟账户不存在"})
 
         # 验证用户
         try:
-            user = User.objects.get(id=owner_id)
-        except User.DoesNotExist:
+            user = user_manager.get(id=owner_id)
+        except UserDoesNotExist:
             raise ValidationError({"owner_id": "用户不存在"})
 
         # 生成或验证短码
@@ -101,14 +103,14 @@ class ShareLinkUseCases:
             # 生成唯一短码
             for _ in range(10):  # 最多尝试10次
                 code = generate_short_code(10)
-                if not ShareLinkModel.objects.filter(short_code=code).exists():
+                if not share_link_manager.filter(short_code=code).exists():
                     short_code = code
                     break
             else:
                 raise ValidationError("无法生成唯一短码，请稍后重试")
         else:
             # 验证预设短码格式和唯一性
-            if ShareLinkModel.objects.filter(short_code=short_code).exists():
+            if share_link_manager.filter(short_code=short_code).exists():
                 raise ValidationError({"short_code": "短码已存在"})
 
         # 处理密码哈希
@@ -118,7 +120,7 @@ class ShareLinkUseCases:
             password_hash = make_password(password)
 
         # 创建模型实例
-        model = ShareLinkModel.objects.create(
+        model = share_link_manager.create(
             owner_id=owner_id,
             account_id=account_id,
             short_code=short_code,
@@ -153,9 +155,9 @@ class ShareLinkUseCases:
             ShareLinkEntity 或 None
         """
         try:
-            model = ShareLinkModel.objects.get(id=share_link_id)
+            model = share_link_manager.get(id=share_link_id)
             return self._model_to_entity(model)
-        except ShareLinkModel.DoesNotExist:
+        except ShareLinkDoesNotExist:
             return None
 
     def get_share_link_by_code(self, short_code: str) -> ShareLinkEntity | None:
@@ -169,9 +171,9 @@ class ShareLinkUseCases:
             ShareLinkEntity 或 None
         """
         try:
-            model = ShareLinkModel.objects.get(short_code=short_code)
+            model = share_link_manager.get(short_code=short_code)
             return self._model_to_entity(model)
-        except ShareLinkModel.DoesNotExist:
+        except ShareLinkDoesNotExist:
             return None
 
     def list_share_links(
@@ -193,7 +195,7 @@ class ShareLinkUseCases:
         Returns:
             ShareLinkEntity 列表
         """
-        queryset = ShareLinkModel.objects.all()
+        queryset = share_link_manager.all()
 
         if owner_id is not None:
             queryset = queryset.filter(owner_id=owner_id)
@@ -240,8 +242,8 @@ class ShareLinkUseCases:
             ValidationError: 验证失败
         """
         try:
-            model = ShareLinkModel.objects.get(id=share_link_id)
-        except ShareLinkModel.DoesNotExist:
+            model = share_link_manager.get(id=share_link_id)
+        except ShareLinkDoesNotExist:
             return None
 
         # 验证权限
@@ -318,11 +320,11 @@ class ShareLinkUseCases:
             是否成功
         """
         try:
-            model = ShareLinkModel.objects.get(id=share_link_id, owner_id=owner_id)
+            model = share_link_manager.get(id=share_link_id, owner_id=owner_id)
             model.status = "revoked"
             model.save(update_fields=["status"])
             return True
-        except ShareLinkModel.DoesNotExist:
+        except ShareLinkDoesNotExist:
             return False
 
     def delete_share_link(self, share_link_id: int, owner_id: int) -> bool:
@@ -337,10 +339,10 @@ class ShareLinkUseCases:
             是否成功
         """
         try:
-            model = ShareLinkModel.objects.get(id=share_link_id, owner_id=owner_id)
+            model = share_link_manager.get(id=share_link_id, owner_id=owner_id)
             model.delete()
             return True
-        except ShareLinkModel.DoesNotExist:
+        except ShareLinkDoesNotExist:
             return False
 
     def verify_password(self, share_link_id: int, password: str) -> bool:
@@ -355,15 +357,15 @@ class ShareLinkUseCases:
             是否正确
         """
         try:
-            model = ShareLinkModel.objects.get(id=share_link_id)
+            model = share_link_manager.get(id=share_link_id)
             if not model.password_hash:
                 return True  # 无密码即通过
             from django.contrib.auth.hashers import check_password
             return check_password(password, model.password_hash)
-        except ShareLinkModel.DoesNotExist:
+        except ShareLinkDoesNotExist:
             return False
 
-    def _model_to_entity(self, model: ShareLinkModel) -> ShareLinkEntity:
+    def _model_to_entity(self, model: Any) -> ShareLinkEntity:
         """将 ORM 模型转换为 Domain 实体"""
         return ShareLinkEntity(
             id=model.id,
@@ -428,11 +430,11 @@ class ShareSnapshotUseCases:
             快照 ID 或 None
         """
         try:
-            share_link = ShareLinkModel.objects.get(id=share_link_id)
+            share_link = share_link_manager.get(id=share_link_id)
 
             # 获取当前最大版本号
             last_version = (
-                ShareSnapshotModel.objects.filter(share_link_id=share_link_id)
+                share_snapshot_manager.filter(share_link_id=share_link_id)
                 .order_by('-snapshot_version')
                 .values_list('snapshot_version', flat=True)
                 .first()
@@ -440,7 +442,7 @@ class ShareSnapshotUseCases:
 
             next_version = (last_version + 1) if last_version is not None else 1
 
-            snapshot = ShareSnapshotModel.objects.create(
+            snapshot = share_snapshot_manager.create(
                 share_link=share_link,
                 snapshot_version=next_version,
                 summary_payload=summary_payload or {},
@@ -458,7 +460,7 @@ class ShareSnapshotUseCases:
 
             return snapshot.id
 
-        except ShareLinkModel.DoesNotExist:
+        except ShareLinkDoesNotExist:
             return None
 
     def get_latest_snapshot(self, share_link_id: int) -> dict | None:
@@ -472,7 +474,7 @@ class ShareSnapshotUseCases:
             快照数据字典或 None
         """
         try:
-            snapshot = ShareSnapshotModel.objects.filter(
+            snapshot = share_snapshot_manager.filter(
                 share_link_id=share_link_id
             ).order_by('-snapshot_version').first()
 
@@ -492,7 +494,7 @@ class ShareSnapshotUseCases:
                 "source_range_end": snapshot.source_range_end,
             }
 
-        except ShareSnapshotModel.DoesNotExist:
+        except ShareSnapshotDoesNotExist:
             return None
 
 
@@ -531,7 +533,7 @@ class ShareAccessUseCases:
         # 对 IP 进行哈希
         ip_hash = hashlib.sha256(ip_address.encode()).hexdigest()
 
-        log = ShareAccessLogModel.objects.create(
+        log = share_access_log_manager.create(
             share_link_id=share_link_id,
             ip_hash=ip_hash,
             user_agent=user_agent,
@@ -557,7 +559,7 @@ class ShareAccessUseCases:
         Returns:
             日志列表
         """
-        logs = ShareAccessLogModel.objects.filter(
+        logs = share_access_log_manager.filter(
             share_link_id=share_link_id
         ).order_by('-accessed_at')[:limit]
 
@@ -584,7 +586,7 @@ class ShareAccessUseCases:
         Returns:
             统计数据
         """
-        logs = ShareAccessLogModel.objects.filter(share_link_id=share_link_id)
+        logs = share_access_log_manager.filter(share_link_id=share_link_id)
 
         total = logs.count()
         successful = logs.filter(result_status="success").count()

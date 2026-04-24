@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from apps.account.domain.entities import (
     Position,
@@ -30,13 +30,12 @@ from apps.account.domain.services import (
     TakeProfitService,
 )
 from apps.account.infrastructure.market_price_service import MarketPriceService
-from apps.account.infrastructure.models import (
-    PositionModel,
-    StopLossConfigModel,
-    StopLossTriggerModel,
-    TakeProfitConfigModel,
-)
 from apps.account.infrastructure.notification_service import InMemoryStopLossNotificationService
+from apps.account.infrastructure.repositories import (
+    PositionRepository,
+    StopLossRepository,
+    TakeProfitRepository,
+)
 from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
@@ -78,6 +77,8 @@ class AutoStopLossUseCase:
         self,
         market_data_service: MarketDataPort | None = None,
         notification_service: StopLossNotificationPort | None = None,
+        stop_loss_repo: StopLossRepository | None = None,
+        position_repo: PositionRepository | None = None,
     ):
         """
         初始化自动止损用例
@@ -88,6 +89,8 @@ class AutoStopLossUseCase:
         """
         self.market_data_service = market_data_service or _MarketDataAdapter()
         self.notification_service = notification_service or InMemoryStopLossNotificationService()
+        self.stop_loss_repo = stop_loss_repo or StopLossRepository()
+        self.position_repo = position_repo or PositionRepository()
 
     def check_and_execute_stop_loss(self, user_id: int | None = None) -> list[StopLossCheckOutput]:
         """
@@ -100,11 +103,7 @@ class AutoStopLossUseCase:
             List[StopLossCheckOutput]: 检查结果列表
         """
         # 获取所有激活的止损配置
-        queryset = StopLossConfigModel._default_manager.filter(status='active')
-        if user_id:
-            queryset = queryset.filter(position__portfolio__user_id=user_id)
-
-        active_configs = queryset.select_related('position', 'position__portfolio').all()
+        active_configs = self.stop_loss_repo.get_active_stop_loss_configs(user_id=user_id)
 
         results = []
 
@@ -119,7 +118,7 @@ class AutoStopLossUseCase:
 
         return results
 
-    def _check_single_position(self, config: StopLossConfigModel) -> StopLossCheckOutput | None:
+    def _check_single_position(self, config: dict[str, Any]) -> StopLossCheckOutput | None:
         """
         检查单个持仓的止损
 
@@ -129,57 +128,64 @@ class AutoStopLossUseCase:
         Returns:
             StopLossCheckOutput or None
         """
-        position = config.position
+        position = config["position"]
 
         # 从行情接口获取当前价格
-        current_price = self._get_current_price(position.asset_code)
+        current_price = self._get_current_price(position["asset_code"])
         if current_price is None:
-            logger.warning(f"无法获取资产 {position.asset_code} 的价格，跳过止损检查")
+            logger.warning(f"无法获取资产 {position['asset_code']} 的价格，跳过止损检查")
             return None
 
-        entry_price = float(position.avg_cost)
-        highest_price = float(config.highest_price or entry_price)
+        entry_price = float(position["avg_cost"])
+        highest_price = float(config["highest_price"] or entry_price)
 
         # 检查价格止损
-        if config.stop_loss_type in ['fixed', 'trailing']:
+        if config["stop_loss_type"] in ['fixed', 'trailing']:
             check_result = StopLossService.check_stop_loss(
                 entry_price=entry_price,
                 current_price=current_price,
                 highest_price=highest_price,
-                stop_loss_pct=config.stop_loss_pct,
-                stop_loss_type=config.stop_loss_type,
-                trailing_stop_pct=config.trailing_stop_pct,
+                stop_loss_pct=config["stop_loss_pct"],
+                stop_loss_type=config["stop_loss_type"],
+                trailing_stop_pct=config["trailing_stop_pct"],
             )
 
         # 检查时间止损
-        elif config.stop_loss_type == 'time_based' and config.max_holding_days:
+        elif config["stop_loss_type"] == 'time_based' and config["max_holding_days"]:
             check_result = StopLossService.check_time_stop_loss(
-                opened_at=position.opened_at,
+                opened_at=position["opened_at"],
                 current_time=datetime.now(UTC),
-                max_holding_days=config.max_holding_days,
+                max_holding_days=config["max_holding_days"],
             )
         else:
             return None
 
         # 更新移动止损的最高价
-        if config.stop_loss_type == 'trailing':
+        if config["stop_loss_type"] == 'trailing':
             new_highest, new_time = StopLossService.update_trailing_stop_highest(
                 current_highest=highest_price,
                 current_price=current_price,
                 current_price_time=datetime.now(UTC),
-                last_update_time=config.highest_price_updated_at,
+                last_update_time=config["highest_price_updated_at"],
             )
             if new_highest != highest_price:
-                config.highest_price = Decimal(str(new_highest))
-                config.highest_price_updated_at = new_time
-                config.save(update_fields=['highest_price', 'highest_price_updated_at'])
+                highest_price_decimal = Decimal(str(new_highest))
+                self.stop_loss_repo.update_stop_loss_config(
+                    config["id"],
+                    highest_price=highest_price_decimal,
+                    highest_price_updated_at=new_time,
+                )
+                config["highest_price"] = highest_price_decimal
+                config["highest_price_updated_at"] = new_time
 
         # 计算盈亏
-        unrealized_pnl = Decimal(str(check_result.unrealized_pnl_pct)) * Decimal(str(position.shares * float(position.avg_cost)))
+        unrealized_pnl = Decimal(str(check_result.unrealized_pnl_pct)) * Decimal(
+            str(position["shares"] * float(position["avg_cost"]))
+        )
 
         return StopLossCheckOutput(
-            position_id=position.id,
-            asset_code=position.asset_code,
+            position_id=position["id"],
+            asset_code=position["asset_code"],
             should_close=check_result.should_trigger,
             check_result=check_result,
             current_price=current_price,
@@ -206,7 +212,7 @@ class AutoStopLossUseCase:
             logger.error(f"获取资产 {asset_code} 价格失败: {e}")
             return None
 
-    def _execute_stop_loss(self, config: StopLossConfigModel, check_result: StopLossCheckOutput):
+    def _execute_stop_loss(self, config: dict[str, Any], check_result: StopLossCheckOutput):
         """
         执行止损平仓
 
@@ -214,31 +220,29 @@ class AutoStopLossUseCase:
             config: 止损配置
             check_result: 检查结果
         """
-        from apps.account.infrastructure.repositories import PositionRepository
-
-        position = config.position
+        position = config["position"]
         current_price = Decimal(str(check_result.current_price))
 
         # 执行平仓
-        repo = PositionRepository()
-        closed_position = repo.close_position(
-            position_id=position.id,
+        self.position_repo.close_position(
+            position_id=position["id"],
             shares=None,  # 全部平仓
             price=current_price,
             reason=f"止损触发: {check_result.check_result.trigger_reason}",
         )
 
         # 更新止损配置状态
-        config.status = 'triggered'
-        config.triggered_at = datetime.now(UTC)
-        config.save(update_fields=['status', 'triggered_at'])
+        self.stop_loss_repo.update_stop_loss_config(
+            config["id"],
+            status="triggered",
+            triggered_at=datetime.now(UTC),
+        )
 
         # 创建触发记录
-        StopLossTriggerModel._default_manager.create(
-            position=position,
-            trigger_type=config.stop_loss_type,
+        self.stop_loss_repo.create_stop_loss_trigger(
+            position_id=position["id"],
+            trigger_type=config["stop_loss_type"],
             trigger_price=current_price,
-            trigger_time=datetime.now(UTC),
             trigger_reason=check_result.check_result.trigger_reason,
             pnl=check_result.unrealized_pnl,
             pnl_pct=check_result.unrealized_pnl_pct,
@@ -254,8 +258,8 @@ class AutoStopLossUseCase:
 
     def _send_stop_loss_notification(
         self,
-        position: PositionModel,
-        config: StopLossConfigModel,
+        position: dict[str, Any],
+        config: dict[str, Any],
         check_result: StopLossCheckOutput,
     ):
         """
@@ -268,29 +272,29 @@ class AutoStopLossUseCase:
         """
         try:
             # 获取用户邮箱
-            user_email = position.portfolio.user.email
+            user_email = position["user_email"]
 
             # 构造通知数据
             notification_data = StopLossNotificationData(
-                user_id=position.portfolio.user_id,
+                user_id=position["user_id"],
                 user_email=user_email,
-                position_id=position.id,
-                asset_code=position.asset_code,
-                trigger_type=config.stop_loss_type,
+                position_id=position["id"],
+                asset_code=position["asset_code"],
+                trigger_type=config["stop_loss_type"],
                 trigger_price=Decimal(str(check_result.current_price)),
                 trigger_time=datetime.now(UTC),
                 trigger_reason=check_result.check_result.trigger_reason,
                 pnl=check_result.unrealized_pnl,
                 pnl_pct=check_result.unrealized_pnl_pct,
-                shares_closed=position.shares,  # 全部平仓
+                shares_closed=position["shares"],  # 全部平仓
             )
 
             # 发送通知
             success = self.notification_service.notify_stop_loss_triggered(notification_data)
             if success:
-                logger.info(f"止损通知已发送: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+                logger.info(f"止损通知已发送: 用户 {position['user_id']}, 持仓 {position['id']}")
             else:
-                logger.warning(f"止损通知发送失败: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+                logger.warning(f"止损通知发送失败: 用户 {position['user_id']}, 持仓 {position['id']}")
 
         except Exception as e:
             # 通知失败不应影响止损执行
@@ -308,6 +312,8 @@ class AutoTakeProfitUseCase:
         self,
         market_data_service: MarketDataPort | None = None,
         notification_service: StopLossNotificationPort | None = None,
+        take_profit_repo: TakeProfitRepository | None = None,
+        position_repo: PositionRepository | None = None,
     ):
         """
         初始化自动止盈用例
@@ -318,6 +324,8 @@ class AutoTakeProfitUseCase:
         """
         self.market_data_service = market_data_service or _MarketDataAdapter()
         self.notification_service = notification_service or InMemoryStopLossNotificationService()
+        self.take_profit_repo = take_profit_repo or TakeProfitRepository()
+        self.position_repo = position_repo or PositionRepository()
 
     def check_and_execute_take_profit(self, user_id: int | None = None) -> list[TakeProfitCheckOutput]:
         """
@@ -330,11 +338,7 @@ class AutoTakeProfitUseCase:
             List[TakeProfitCheckOutput]: 检查结果列表
         """
         # 获取所有激活的止盈配置
-        queryset = TakeProfitConfigModel._default_manager.filter(is_active=True)
-        if user_id:
-            queryset = queryset.filter(position__portfolio__user_id=user_id)
-
-        active_configs = queryset.select_related('position', 'position__portfolio').all()
+        active_configs = self.take_profit_repo.get_active_take_profit_configs(user_id=user_id)
 
         results = []
 
@@ -347,7 +351,7 @@ class AutoTakeProfitUseCase:
 
         return results
 
-    def _check_single_position(self, config: TakeProfitConfigModel) -> TakeProfitCheckOutput | None:
+    def _check_single_position(self, config: dict[str, Any]) -> TakeProfitCheckOutput | None:
         """
         检查单个持仓的止盈
 
@@ -357,30 +361,32 @@ class AutoTakeProfitUseCase:
         Returns:
             TakeProfitCheckOutput or None
         """
-        position = config.position
+        position = config["position"]
 
         # 从行情接口获取当前价格
-        current_price = self._get_current_price(position.asset_code)
+        current_price = self._get_current_price(position["asset_code"])
         if current_price is None:
-            logger.warning(f"无法获取资产 {position.asset_code} 的价格，跳过止盈检查")
+            logger.warning(f"无法获取资产 {position['asset_code']} 的价格，跳过止盈检查")
             return None
 
-        entry_price = float(position.avg_cost)
+        entry_price = float(position["avg_cost"])
 
         # 检查止盈
         check_result = TakeProfitService.check_take_profit(
             entry_price=entry_price,
             current_price=current_price,
-            take_profit_pct=config.take_profit_pct,
-            partial_levels=config.partial_profit_levels,
+            take_profit_pct=config["take_profit_pct"],
+            partial_levels=config["partial_profit_levels"],
         )
 
         # 计算盈亏
-        unrealized_pnl = Decimal(str(check_result.unrealized_pnl_pct)) * Decimal(str(position.shares * float(position.avg_cost)))
+        unrealized_pnl = Decimal(str(check_result.unrealized_pnl_pct)) * Decimal(
+            str(position["shares"] * float(position["avg_cost"]))
+        )
 
         return TakeProfitCheckOutput(
-            position_id=position.id,
-            asset_code=position.asset_code,
+            position_id=position["id"],
+            asset_code=position["asset_code"],
             should_close=check_result.should_trigger,
             check_result=check_result,
             current_price=current_price,
@@ -408,7 +414,7 @@ class AutoTakeProfitUseCase:
             logger.error(f"获取资产 {asset_code} 价格失败: {e}")
             return None
 
-    def _execute_take_profit(self, config: TakeProfitConfigModel, check_result: TakeProfitCheckOutput):
+    def _execute_take_profit(self, config: dict[str, Any], check_result: TakeProfitCheckOutput):
         """
         执行止盈平仓
 
@@ -416,23 +422,20 @@ class AutoTakeProfitUseCase:
             config: 止盈配置
             check_result: 检查结果
         """
-        from apps.account.infrastructure.repositories import PositionRepository
-
-        position = config.position
+        position = config["position"]
         current_price = Decimal(str(check_result.current_price))
 
         # 如果是分批止盈，计算平仓数量
-        if check_result.partial_level and config.partial_profit_levels:
+        if check_result.partial_level and config["partial_profit_levels"]:
             # 简化处理：每批平仓 1/3
-            sell_shares = position.shares / len(config.partial_profit_levels)
+            sell_shares = position["shares"] / len(config["partial_profit_levels"])
         else:
             # 全部止盈
             sell_shares = None
 
         # 执行平仓
-        repo = PositionRepository()
-        repo.close_position(
-            position_id=position.id,
+        self.position_repo.close_position(
+            position_id=position["id"],
             shares=sell_shares,
             price=current_price,
             reason=f"止盈触发: {check_result.check_result.trigger_reason}",
@@ -440,8 +443,7 @@ class AutoTakeProfitUseCase:
 
         # 如果全部止盈，禁用配置
         if sell_shares is None:
-            config.is_active = False
-            config.save(update_fields=['is_active'])
+            self.take_profit_repo.update_take_profit_config(config["id"], is_active=False)
 
         # 发送通知
         self._send_take_profit_notification(
@@ -453,8 +455,8 @@ class AutoTakeProfitUseCase:
 
     def _send_take_profit_notification(
         self,
-        position: PositionModel,
-        config: TakeProfitConfigModel,
+        position: dict[str, Any],
+        config: dict[str, Any],
         check_result: TakeProfitCheckOutput,
         sell_shares: float | None,
     ):
@@ -469,14 +471,14 @@ class AutoTakeProfitUseCase:
         """
         try:
             # 获取用户邮箱
-            user_email = position.portfolio.user.email
+            user_email = position["user_email"]
 
             # 构造通知数据
             notification_data = StopLossNotificationData(
-                user_id=position.portfolio.user_id,
+                user_id=position["user_id"],
                 user_email=user_email,
-                position_id=position.id,
-                asset_code=position.asset_code,
+                position_id=position["id"],
+                asset_code=position["asset_code"],
                 trigger_type="take_profit",
                 trigger_price=Decimal(str(check_result.current_price)),
                 trigger_time=datetime.now(UTC),
@@ -489,9 +491,9 @@ class AutoTakeProfitUseCase:
             # 发送通知
             success = self.notification_service.notify_take_profit_triggered(notification_data)
             if success:
-                logger.info(f"止盈通知已发送: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+                logger.info(f"止盈通知已发送: 用户 {position['user_id']}, 持仓 {position['id']}")
             else:
-                logger.warning(f"止盈通知发送失败: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+                logger.warning(f"止盈通知发送失败: 用户 {position['user_id']}, 持仓 {position['id']}")
 
         except Exception as e:
             # 通知失败不应影响止盈执行
@@ -503,6 +505,14 @@ class CreateStopLossConfigUseCase:
     创建止损配置用例
     """
 
+    def __init__(
+        self,
+        position_repo: PositionRepository | None = None,
+        stop_loss_repo: StopLossRepository | None = None,
+    ):
+        self.position_repo = position_repo or PositionRepository()
+        self.stop_loss_repo = stop_loss_repo or StopLossRepository()
+
     def execute(
         self,
         position_id: int,
@@ -510,7 +520,7 @@ class CreateStopLossConfigUseCase:
         stop_loss_pct: float,
         trailing_stop_pct: float | None = None,
         max_holding_days: int | None = None,
-    ) -> StopLossConfigModel:
+    ) -> dict[str, Any]:
         """
         创建止损配置
 
@@ -522,27 +532,25 @@ class CreateStopLossConfigUseCase:
             max_holding_days: 最大持仓天数
 
         Returns:
-            StopLossConfigModel: 创建的止损配置
+            dict: 创建的止损配置
         """
         # 获取持仓
-        try:
-            position = PositionModel._default_manager.get(id=position_id)
-        except PositionModel.DoesNotExist:
+        position = self.position_repo.get_position_stop_management_context(position_id)
+        if position is None:
             raise ValueError(f"持仓 {position_id} 不存在")
 
         # 检查是否已有止损配置
-        if hasattr(position, 'stop_loss_config'):
+        if self.stop_loss_repo.get_stop_loss_config_by_position(position_id):
             raise ValueError(f"持仓 {position_id} 已有止损配置")
 
         # 创建止损配置
-        config = StopLossConfigModel._default_manager.create(
+        config = self.stop_loss_repo.create_stop_loss_config(
             position_id=position_id,
             stop_loss_type=stop_loss_type,
             stop_loss_pct=stop_loss_pct,
             trailing_stop_pct=trailing_stop_pct,
             max_holding_days=max_holding_days,
-            highest_price=position.avg_cost,  # 初始最高价为开仓价
-            status='active',
+            highest_price=position["avg_cost"],  # 初始最高价为开仓价
         )
 
         return config
@@ -553,12 +561,20 @@ class CreateTakeProfitConfigUseCase:
     创建止盈配置用例
     """
 
+    def __init__(
+        self,
+        position_repo: PositionRepository | None = None,
+        take_profit_repo: TakeProfitRepository | None = None,
+    ):
+        self.position_repo = position_repo or PositionRepository()
+        self.take_profit_repo = take_profit_repo or TakeProfitRepository()
+
     def execute(
         self,
         position_id: int,
         take_profit_pct: float,
         partial_profit_levels: list[float] | None = None,
-    ) -> TakeProfitConfigModel:
+    ) -> dict[str, Any]:
         """
         创建止盈配置
 
@@ -568,24 +584,22 @@ class CreateTakeProfitConfigUseCase:
             partial_profit_levels: 分批止盈点位
 
         Returns:
-            TakeProfitConfigModel: 创建的止盈配置
+            dict: 创建的止盈配置
         """
         # 获取持仓
-        try:
-            position = PositionModel._default_manager.get(id=position_id)
-        except PositionModel.DoesNotExist:
+        position = self.position_repo.get_position_stop_management_context(position_id)
+        if position is None:
             raise ValueError(f"持仓 {position_id} 不存在")
 
         # 检查是否已有止盈配置
-        if hasattr(position, 'take_profit_config'):
+        if self.take_profit_repo.get_take_profit_config_by_position(position_id):
             raise ValueError(f"持仓 {position_id} 已有止盈配置")
 
         # 创建止盈配置
-        config = TakeProfitConfigModel._default_manager.create(
+        config = self.take_profit_repo.create_take_profit_config(
             position_id=position_id,
             take_profit_pct=take_profit_pct,
             partial_profit_levels=partial_profit_levels,
-            is_active=True,
         )
 
         return config

@@ -301,11 +301,6 @@ class EventMetricsView(BaseAPIView):
             # 转换为 DTO
             metrics_dto = metrics_to_dto(use_case_response)
 
-            # 获取按类型分组统计
-            from apps.events.infrastructure.event_store import get_event_store
-            event_store = get_event_store()
-            stored_metrics = event_store.get_metrics()
-
             return self.success_response(
                 data={
                     "metrics": {
@@ -317,7 +312,7 @@ class EventMetricsView(BaseAPIView):
                         "last_event_at": metrics_dto.last_event_at,
                         "success_rate": metrics_dto.success_rate,
                     },
-                    "events_by_type": stored_metrics.events_by_type,
+                    "events_by_type": use_case_response.events_by_type,
                     "active_subscriptions": metrics_dto.total_subscribers,
                     "queue_size": 0,  # 内存队列大小，暂不暴露
                 },

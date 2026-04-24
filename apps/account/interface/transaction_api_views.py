@@ -4,17 +4,21 @@ from decimal import Decimal
 from importlib import import_module
 from typing import Any
 
-from django.apps import apps as django_apps
 from django.db import models
 from django.db.models import Count, Q, Sum
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.account.application.interface_services import (
+    get_user_capital_flow_queryset,
+    get_user_portfolio,
+    get_user_transaction_queryset,
+)
 
 from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
 from .serializers import (
@@ -39,10 +43,6 @@ from .serializers import (
     TransactionSerializer,
 )
 
-CapitalFlowModel = django_apps.get_model("account", "CapitalFlowModel")
-PortfolioModel = django_apps.get_model("account", "PortfolioModel")
-TransactionModel = django_apps.get_model("account", "TransactionModel")
-
 class TransactionViewSet(viewsets.ModelViewSet):
     """
     交易记录 API ViewSet
@@ -57,10 +57,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只返回当前用户投资组合的交易"""
-        user_portfolios = PortfolioModel._default_manager.filter(user=self.request.user)
-        return TransactionModel._default_manager.filter(portfolio__in=user_portfolios).select_related(
-            'portfolio', 'position'
-        )
+        return get_user_transaction_queryset(self.request.user.id)
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -99,8 +96,7 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只返回当前用户投资组合的资金流水"""
-        user_portfolios = PortfolioModel._default_manager.filter(user=self.request.user)
-        return CapitalFlowModel._default_manager.filter(portfolio__in=user_portfolios).select_related('portfolio')
+        return get_user_capital_flow_queryset(self.request.user.id)
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -110,11 +106,13 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """创建时验证投资组合归属"""
-        portfolio_id = self.request.data.get('portfolio')
-        portfolio = get_object_or_404(
-            PortfolioModel,
-            id=portfolio_id,
-            user=self.request.user
+        portfolio_value = serializer.validated_data.get("portfolio")
+        portfolio_id = getattr(portfolio_value, "id", None) or self.request.data.get("portfolio")
+        portfolio = get_user_portfolio(
+            user_id=self.request.user.id,
+            portfolio_id=portfolio_id,
         )
+        if portfolio is None:
+            raise NotFound()
         serializer.save(portfolio=portfolio, user=self.request.user)
 

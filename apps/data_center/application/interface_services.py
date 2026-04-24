@@ -1,0 +1,379 @@
+"""Application-side dependency builders for data_center interface endpoints."""
+
+from __future__ import annotations
+
+from datetime import date
+from typing import Any
+
+from apps.realtime.application.price_polling_service import PricePollingUseCase
+
+from apps.data_center.domain.entities import DataProviderSettings
+
+from .use_cases import (
+    ManageProviderConfigUseCase,
+    QueryCapitalFlowsUseCase,
+    QueryFinancialsUseCase,
+    QueryFundNavUseCase,
+    QueryLatestQuoteUseCase,
+    QueryMacroSeriesUseCase,
+    QueryNewsUseCase,
+    QueryPriceHistoryUseCase,
+    QuerySectorConstituentsUseCase,
+    QueryValuationsUseCase,
+    RepairDecisionDataReliabilityUseCase,
+    ResolveAssetUseCase,
+    RunProviderConnectionTestUseCase,
+    SyncCapitalFlowUseCase,
+    SyncFinancialUseCase,
+    SyncFundNavUseCase,
+    SyncMacroUseCase,
+    SyncNewsUseCase,
+    SyncPriceUseCase,
+    SyncQuoteUseCase,
+    SyncSectorMembershipUseCase,
+    SyncValuationUseCase,
+)
+from ..infrastructure.connection_tester import run_connection_test
+from ..infrastructure.provider_factory import UnifiedProviderFactory
+from ..infrastructure.repositories import (
+    AssetRepository,
+    CapitalFlowRepository,
+    DataProviderSettingsRepository,
+    FinancialFactRepository,
+    FundNavRepository,
+    IndicatorCatalogRepository,
+    LegacyMacroSeriesRepository,
+    MacroFactRepository,
+    NewsRepository,
+    PriceBarRepository,
+    ProviderConfigRepository,
+    QuoteSnapshotRepository,
+    RawAuditRepository,
+    SectorMembershipRepository,
+    ValuationFactRepository,
+)
+
+
+def _make_provider_repo() -> ProviderConfigRepository:
+    return ProviderConfigRepository()
+
+
+def _make_provider_factory() -> UnifiedProviderFactory:
+    return UnifiedProviderFactory(_make_provider_repo())
+
+
+def _make_raw_audit_repo() -> RawAuditRepository:
+    return RawAuditRepository()
+
+
+def make_manage_provider_config_use_case() -> ManageProviderConfigUseCase:
+    """Build the provider configuration management use case."""
+
+    return ManageProviderConfigUseCase(_make_provider_repo())
+
+
+def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUseCase:
+    """Build the provider connection test use case."""
+
+    class _Tester:
+        def test(self, config):
+            return run_connection_test(config)
+
+    return RunProviderConnectionTestUseCase(_make_provider_repo(), _Tester())
+
+
+def load_provider_settings_payload() -> dict[str, Any]:
+    """Return the global provider settings as a response payload."""
+
+    settings = DataProviderSettingsRepository().load()
+    return {
+        "default_source": settings.default_source,
+        "enable_failover": settings.enable_failover,
+        "failover_tolerance": settings.failover_tolerance,
+    }
+
+
+def save_provider_settings_payload(
+    *,
+    default_source: str,
+    enable_failover: bool,
+    failover_tolerance: float,
+) -> dict[str, Any]:
+    """Persist the global provider settings and return a response payload."""
+
+    saved = DataProviderSettingsRepository().save(
+        DataProviderSettings(
+            default_source=default_source,
+            enable_failover=enable_failover,
+            failover_tolerance=failover_tolerance,
+        )
+    )
+    return {
+        "default_source": saved.default_source,
+        "enable_failover": saved.enable_failover,
+        "failover_tolerance": saved.failover_tolerance,
+    }
+
+
+def make_resolve_asset_use_case() -> ResolveAssetUseCase:
+    """Build the asset resolution use case."""
+
+    return ResolveAssetUseCase(AssetRepository())
+
+
+def make_query_macro_series_use_case() -> QueryMacroSeriesUseCase:
+    """Build the macro series query use case."""
+
+    return QueryMacroSeriesUseCase(
+        MacroFactRepository(),
+        IndicatorCatalogRepository(),
+        LegacyMacroSeriesRepository(),
+    )
+
+
+def make_query_price_history_use_case() -> QueryPriceHistoryUseCase:
+    """Build the historical price query use case."""
+
+    return QueryPriceHistoryUseCase(PriceBarRepository())
+
+
+def make_query_latest_quote_use_case() -> QueryLatestQuoteUseCase:
+    """Build the latest quote query use case."""
+
+    return QueryLatestQuoteUseCase(QuoteSnapshotRepository())
+
+
+def fetch_latest_realtime_prices(asset_codes: list[str]) -> list[dict[str, Any]]:
+    """Fetch real-time prices from the realtime app fallback service."""
+
+    return PricePollingUseCase().get_latest_prices(asset_codes)
+
+
+def make_query_fund_nav_use_case() -> QueryFundNavUseCase:
+    """Build the fund NAV query use case."""
+
+    return QueryFundNavUseCase(FundNavRepository())
+
+
+def make_query_financials_use_case() -> QueryFinancialsUseCase:
+    """Build the financial facts query use case."""
+
+    return QueryFinancialsUseCase(FinancialFactRepository())
+
+
+def make_query_valuations_use_case() -> QueryValuationsUseCase:
+    """Build the valuation query use case."""
+
+    return QueryValuationsUseCase(ValuationFactRepository())
+
+
+def make_query_sector_constituents_use_case() -> QuerySectorConstituentsUseCase:
+    """Build the sector constituents query use case."""
+
+    return QuerySectorConstituentsUseCase(SectorMembershipRepository())
+
+
+def make_query_news_use_case() -> QueryNewsUseCase:
+    """Build the news query use case."""
+
+    return QueryNewsUseCase(NewsRepository())
+
+
+def make_query_capital_flows_use_case() -> QueryCapitalFlowsUseCase:
+    """Build the capital flow query use case."""
+
+    return QueryCapitalFlowsUseCase(CapitalFlowRepository())
+
+
+def _build_pulse_refresher():
+    def _refresh(target_date: date):
+        from apps.pulse.application.use_cases import CalculatePulseUseCase
+
+        return CalculatePulseUseCase().execute(as_of_date=target_date)
+
+    return _refresh
+
+
+def _build_alpha_refresher(user):
+    def _refresh(target_date: date, portfolio_id: int | None) -> dict:
+        if portfolio_id is None:
+            return {"status": "skipped", "message": "portfolio_id is required"}
+
+        from django.core.management import call_command
+
+        from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
+        from apps.alpha.application.tasks import qlib_predict_scores
+
+        call_command(
+            "build_qlib_data",
+            target_date=target_date.isoformat(),
+            universes="csi300,csi500,sse50,csi1000",
+            lookback_days=400,
+            verbosity=0,
+        )
+        resolved = PortfolioAlphaPoolResolver().resolve(
+            user_id=user.id,
+            portfolio_id=portfolio_id,
+            trade_date=target_date,
+            pool_mode="price_covered",
+        )
+        task_result = qlib_predict_scores.apply(
+            args=[resolved.scope.universe_id, target_date.isoformat(), 30],
+            kwargs={"scope_payload": resolved.scope.to_dict()},
+        ).get()
+        return {
+            "status": "completed",
+            "scope_hash": resolved.scope.scope_hash,
+            "universe_id": resolved.scope.universe_id,
+            "qlib_result": task_result,
+        }
+
+    return _refresh
+
+
+def _build_alpha_status_reader(user):
+    def _read(target_date: date, portfolio_id: int | None) -> dict:
+        if portfolio_id is None:
+            return {"status": "blocked", "recommendation_ready": False}
+
+        from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
+
+        data = AlphaHomepageQuery().execute(
+            user=user,
+            top_n=10,
+            portfolio_id=portfolio_id,
+            pool_mode="price_covered",
+        )
+        meta = dict(data.meta or {})
+        return {
+            "status": "ready" if meta.get("recommendation_ready") else "blocked",
+            "recommendation_ready": bool(meta.get("recommendation_ready")),
+            "actionable_candidate_count": len(data.actionable_candidates),
+            "requested_trade_date": meta.get("requested_trade_date") or target_date.isoformat(),
+            "verified_asof_date": meta.get("verified_asof_date"),
+            "scope_verification_status": meta.get("scope_verification_status"),
+            "scope_hash": meta.get("scope_hash") or data.pool.get("scope_hash"),
+            "freshness_status": meta.get("freshness_status"),
+            "must_not_use_for_decision": bool(meta.get("must_not_use_for_decision", True)),
+            "blocked_reason": meta.get("blocked_reason")
+            or meta.get("no_recommendation_reason", ""),
+        }
+
+    return _read
+
+
+def make_decision_repair_use_case(user) -> RepairDecisionDataReliabilityUseCase:
+    """Build the decision reliability repair use case."""
+
+    return RepairDecisionDataReliabilityUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        macro_fact_repo=MacroFactRepository(),
+        indicator_catalog_repo=IndicatorCatalogRepository(),
+        price_bar_repo=PriceBarRepository(),
+        quote_snapshot_repo=QuoteSnapshotRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+        legacy_macro_repo=LegacyMacroSeriesRepository(),
+        pulse_refresher=_build_pulse_refresher(),
+        alpha_refresher=_build_alpha_refresher(user),
+        alpha_status_reader=_build_alpha_status_reader(user),
+    )
+
+
+def make_sync_macro_use_case() -> SyncMacroUseCase:
+    """Build the macro sync use case."""
+
+    return SyncMacroUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=MacroFactRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_price_use_case() -> SyncPriceUseCase:
+    """Build the historical price sync use case."""
+
+    return SyncPriceUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=PriceBarRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_quote_use_case() -> SyncQuoteUseCase:
+    """Build the quote sync use case."""
+
+    return SyncQuoteUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=QuoteSnapshotRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
+    """Build the fund NAV sync use case."""
+
+    return SyncFundNavUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=FundNavRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_financial_use_case() -> SyncFinancialUseCase:
+    """Build the financial facts sync use case."""
+
+    return SyncFinancialUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=FinancialFactRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_valuation_use_case() -> SyncValuationUseCase:
+    """Build the valuation sync use case."""
+
+    return SyncValuationUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=ValuationFactRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_sector_membership_use_case() -> SyncSectorMembershipUseCase:
+    """Build the sector membership sync use case."""
+
+    return SyncSectorMembershipUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=SectorMembershipRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_news_use_case() -> SyncNewsUseCase:
+    """Build the news sync use case."""
+
+    return SyncNewsUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=NewsRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_capital_flow_use_case() -> SyncCapitalFlowUseCase:
+    """Build the capital flow sync use case."""
+
+    return SyncCapitalFlowUseCase(
+        provider_repo=_make_provider_repo(),
+        provider_factory=_make_provider_factory(),
+        fact_repo=CapitalFlowRepository(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )

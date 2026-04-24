@@ -8,7 +8,8 @@ Provides clean separation between domain logic and data persistence.
 from datetime import date
 from typing import Dict, List, Optional
 
-from django.db.models import Q
+from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from apps.hedge.domain.entities import (
     CorrelationMetric,
@@ -38,11 +39,18 @@ def _attach_domain_meta(entity, model, fields: tuple[str, ...]):
 class HedgePairRepository:
     """Repository for HedgePair entities"""
 
+    def get_queryset(self, active_only: bool | None = None) -> QuerySet[HedgePairModel]:
+        """Return the ORM queryset for hedge pairs."""
+        queryset = HedgePairModel._default_manager.all()
+        if active_only is True:
+            queryset = queryset.filter(is_active=True)
+        elif active_only is False:
+            queryset = queryset.filter(is_active=False)
+        return queryset
+
     def get_all(self, active_only: bool = True) -> list[HedgePair]:
         """Get all hedge pairs"""
-        queryset = HedgePairModel._default_manager.all()
-        if active_only:
-            queryset = queryset.filter(is_active=True)
+        queryset = self.get_queryset(active_only=True if active_only else None)
 
         return [
             _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
@@ -130,6 +138,10 @@ class HedgePairRepository:
 class CorrelationHistoryRepository:
     """Repository for correlation history data"""
 
+    def get_queryset(self) -> QuerySet[CorrelationHistoryModel]:
+        """Return the ORM queryset for correlation history."""
+        return CorrelationHistoryModel._default_manager.all()
+
     def get_latest(
         self,
         asset1: str,
@@ -210,6 +222,10 @@ class CorrelationHistoryRepository:
 class HedgePortfolioRepository:
     """Repository for hedge portfolio snapshots"""
 
+    def get_queryset(self) -> QuerySet[HedgePortfolioSnapshotModel]:
+        """Return the ORM queryset for portfolio snapshots."""
+        return HedgePortfolioSnapshotModel._default_manager.select_related('pair').all()
+
     def save_portfolio(self, portfolio: HedgePortfolio) -> HedgePortfolio:
         """Save hedge portfolio state"""
         pair_model = HedgePairModel._default_manager.filter(name=portfolio.pair_name).first()
@@ -286,7 +302,7 @@ class HedgePortfolioRepository:
         Get recent snapshots with filtering.
         Returns dict representations for view rendering.
         """
-        queryset = HedgePortfolioSnapshotModel._default_manager.select_related('pair').all()
+        queryset = self.get_queryset()
 
         if pair_name:
             queryset = queryset.filter(pair__name__icontains=pair_name)
@@ -345,9 +361,16 @@ class HedgePortfolioRepository:
 class HedgeAlertRepository:
     """Repository for hedge alerts"""
 
+    def get_queryset(self, is_resolved: bool | None = None) -> QuerySet[HedgeAlertModel]:
+        """Return the ORM queryset for hedge alerts."""
+        queryset = HedgeAlertModel._default_manager.all()
+        if is_resolved is not None:
+            queryset = queryset.filter(is_resolved=is_resolved)
+        return queryset
+
     def get_active_alerts(self, pair_name: str | None = None) -> list[HedgeAlert]:
         """Get all active (unresolved) alerts"""
-        queryset = HedgeAlertModel._default_manager.filter(is_resolved=False)
+        queryset = self.get_queryset(is_resolved=False)
 
         if pair_name:
             queryset = queryset.filter(pair_name=pair_name)
@@ -400,7 +423,7 @@ class HedgeAlertRepository:
         try:
             model = HedgeAlertModel._default_manager.get(id=alert_id)
             model.is_resolved = True
-            model.resolved_at = date.today()
+            model.resolved_at = timezone.now()
             model.save()
             return _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
         except HedgeAlertModel.DoesNotExist:

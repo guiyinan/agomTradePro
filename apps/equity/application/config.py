@@ -68,11 +68,12 @@ _SETTINGS_MAPPING = {
 def _get_config_from_db() -> ValuationRepairConfig | None:
     """从数据库获取激活的配置"""
     try:
-        from apps.equity.infrastructure.models import ValuationRepairConfigModel
-        db_config = ValuationRepairConfigModel.get_active_config()
+        from apps.equity.infrastructure.repositories import ValuationRepairConfigRepository
+
+        db_config = ValuationRepairConfigRepository().get_active_domain_config()
         if db_config:
-            logger.debug(f"Using DB config v{db_config.version}")
-            return db_config.to_domain_config()
+            logger.debug("Using active DB valuation repair config")
+            return db_config
     except Exception as e:
         logger.warning(f"Failed to get config from DB: {e}")
     return None
@@ -134,11 +135,10 @@ def get_valuation_repair_config_summary(use_cache: bool = True) -> dict[str, Any
     source = "settings"
 
     try:
-        from apps.equity.infrastructure.models import ValuationRepairConfigModel
+        from apps.equity.infrastructure.repositories import ValuationRepairConfigRepository
 
-        active_config = ValuationRepairConfigModel.get_active_config()
-        if active_config:
-            active_version = active_config.version
+        active_version = ValuationRepairConfigRepository().get_active_version()
+        if active_version:
             source = "database"
     except Exception as e:
         logger.warning(f"Failed to get config summary from DB: {e}")

@@ -9,19 +9,19 @@ P1-4: 接入输入消毒，防止 XSS 攻击
 from datetime import date
 from typing import Optional
 
+from django.apps import apps as django_apps
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from shared.infrastructure.sanitization import sanitize_plain_text
+from shared.sanitization import sanitize_plain_text
 
 from ..domain.entities import PolicyLevel
-from ..infrastructure.models import (
-    PolicyLevelKeywordModel,
-    PolicyLog,
-    RSSFetchLog,
-    RSSSourceConfigModel,
-)
+
+PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
+PolicyLog = django_apps.get_model("policy", "PolicyLog")
+RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
+RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
 
 
 @extend_schema_field(OpenApiTypes.STR)

@@ -129,6 +129,7 @@ AgomTradePro/
 │   │
 │   ├── regime/                  # Regime 判定引擎
 │   │   ├── domain/
+│   │   │   └── asset_eligibility.py # 资产准入矩阵与 Regime 适配规则
 │   │   ├── infrastructure/
 │   │   │   └── models.py        #     Django ORM 模型
 │   │   └── interface/
@@ -333,10 +334,9 @@ AgomTradePro/
 ├── shared/                      # 跨应用共享模块（纯技术组件）
 │   ├── config/                  #   配置管理
 │   │   └── secrets.py           #     密钥管理
-│   ├── domain/                  #   共享领域逻辑
+│   ├── domain/                  #   共享领域逻辑（技术性定义）
 │   │   ├── interfaces.py        #     Protocol 定义
-│   │   ├── value_objects.py     #     值对象
-│   │   └── asset_eligibility.py #     资产准入（待迁移）
+│   │   └── value_objects.py     #     值对象
 │   ├── infrastructure/          #   共享基础设施
 │   │   ├── kalman_filter.py     #     Kalman 滤波器
 │   │   ├── calculators.py       #     HP 滤波、Z-score 计算

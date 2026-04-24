@@ -10,6 +10,7 @@
 import logging
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import requests
@@ -1736,7 +1737,11 @@ class DjangoStockRepository:
 
         return list(sectors)
 
-    def list_active_stock_codes(self, limit: int | None = None) -> list[str]:
+    def list_active_stock_codes(
+        self,
+        limit: int | None = None,
+        stock_codes: list[str] | None = None,
+    ) -> list[str]:
         """
         获取所有活跃股票代码列表
 
@@ -1744,13 +1749,20 @@ class DjangoStockRepository:
 
         Args:
             limit: 数量限制（可选）
+            stock_codes: 指定股票代码列表（可选）
 
         Returns:
             股票代码列表
         """
         queryset = StockInfoModel._default_manager.filter(
             is_active=True
-        ).values_list('stock_code', flat=True).order_by('stock_code')
+        )
+
+        if stock_codes:
+            normalized_codes = [str(code).strip().upper() for code in stock_codes if code]
+            queryset = queryset.filter(stock_code__in=normalized_codes)
+
+        queryset = queryset.values_list('stock_code', flat=True).order_by('stock_code')
 
         if limit:
             queryset = queryset[:limit]
@@ -2061,6 +2073,130 @@ class DjangoValuationDataQualityRepository:
             .filter(is_gate_passed=True)
             .order_by("-as_of_date")
             .first()
+        )
+
+
+class ValuationRepairConfigRepository:
+    """估值修复配置仓储。"""
+
+    def get_queryset(self):
+        """Return the config queryset ordered for admin/API use."""
+
+        from .models import ValuationRepairConfigModel
+
+        return ValuationRepairConfigModel._default_manager.all().order_by(
+            "-is_active",
+            "-version",
+            "-created_at",
+        )
+
+    def get_active_model(self):
+        """Return the active config model if present."""
+
+        return self.get_queryset().filter(is_active=True).first()
+
+    def get_active_domain_config(self):
+        """Return the active config as a domain config object if present."""
+        model = self.get_active_model()
+        return model.to_domain_config() if model else None
+
+    def get_active_version(self) -> int:
+        """Return the active config version, or 0 if missing."""
+        model = self.get_active_model()
+        return int(getattr(model, "version", 0) or 0)
+
+    def list_models(self) -> list:
+        """Return all config models for interface/application consumers."""
+
+        return list(self.get_queryset())
+
+    def get_by_id(self, config_id: int):
+        """Return one config model by primary key, if present."""
+
+        return self.get_queryset().filter(pk=config_id).first()
+
+    def create(self, *, data: dict, created_by: str):
+        """Create one config model."""
+
+        from .models import ValuationRepairConfigModel
+
+        model = ValuationRepairConfigModel(
+            **data,
+            created_by=created_by,
+        )
+        model.save()
+        return model
+
+    def update(self, *, config_id: int, data: dict):
+        """Update one config model and return the refreshed instance."""
+
+        model = self.get_by_id(config_id)
+        if model is None:
+            return None
+
+        for field_name, value in data.items():
+            setattr(model, field_name, value)
+        model.save()
+        return model
+
+    def activate(self, *, config_id: int):
+        """Activate one config model and return the refreshed instance."""
+
+        model = self.get_by_id(config_id)
+        if model is None:
+            return None
+
+        model.is_active = True
+        model.effective_from = timezone.now()
+        model.save()
+        return model
+
+    def delete(self, *, config_id: int) -> bool:
+        """Delete one config model if present."""
+
+        model = self.get_by_id(config_id)
+        if model is None:
+            return False
+
+        model.delete()
+        return True
+
+
+class EquityBootstrapConfigRepository:
+    """Persistence helpers for equity bootstrap configuration commands."""
+
+    def upsert_stock_screening_rule(self, rule_data: dict[str, Any]) -> None:
+        """Create or update one stock screening rule row."""
+
+        from shared.infrastructure.models import StockScreeningRuleConfigModel
+
+        StockScreeningRuleConfigModel._default_manager.update_or_create(
+            regime=rule_data["regime"],
+            rule_name=rule_data["rule_name"],
+            defaults=rule_data,
+        )
+
+    def upsert_sector_preference(self, preference: dict[str, Any]) -> None:
+        """Create or update one sector preference row."""
+
+        from shared.infrastructure.models import SectorPreferenceConfigModel
+
+        SectorPreferenceConfigModel._default_manager.update_or_create(
+            regime=preference["regime"],
+            sector_name=preference["sector_name"],
+            defaults=preference,
+        )
+
+    def upsert_fund_type_preference(self, preference: dict[str, Any]) -> None:
+        """Create or update one fund-type preference row."""
+
+        from shared.infrastructure.models import FundTypePreferenceConfigModel
+
+        FundTypePreferenceConfigModel._default_manager.update_or_create(
+            regime=preference["regime"],
+            fund_type=preference["fund_type"],
+            style=preference["style"],
+            defaults=preference,
         )
 
 

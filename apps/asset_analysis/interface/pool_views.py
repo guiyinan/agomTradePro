@@ -1,23 +1,16 @@
-"""
-资产分析模块 - 资产筛选 API 视图
-"""
-
-from datetime import date
+"""资产分析模块 - 资产筛选 API 视图。"""
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.asset_analysis.application.interface_services import (
+    build_asset_pool_context,
+    screen_equity_assets,
+    screen_fund_assets,
+    summarize_asset_pool_counts,
+)
 from apps.asset_analysis.application.pool_service import AssetPoolManager
-from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.equity.application.services import EquityMultiDimScorer
-from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
-from apps.fund.application.services import FundMultiDimScorer
-from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-from apps.regime.application.current_regime import resolve_current_regime
-from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 class AssetPoolScreenAPIView(APIView):
@@ -43,31 +36,7 @@ class AssetPoolScreenAPIView(APIView):
 
         # 2. 获取评分上下文
         try:
-            # Regime
-            resolved_regime = resolve_current_regime()
-            current_regime = regime or (resolved_regime.dominant_regime if resolved_regime else "Recovery")
-
-            # Policy
-            policy_repo = DjangoPolicyRepository()
-            latest_policy = policy_repo.get_current_policy_level()
-            policy_level = latest_policy.value if latest_policy else "P1"
-
-            # Sentiment
-            sentiment_repo = SentimentIndexRepository()
-            latest_sentiment = sentiment_repo.get_latest()
-            sentiment_index = latest_sentiment.composite_index if latest_sentiment else 0.0
-
-            # Signals
-            signal_repo = DjangoSignalRepository()
-            active_signals = signal_repo.get_active_signals()
-
-            context = ScoreContext(
-                current_regime=current_regime,
-                policy_level=policy_level,
-                sentiment_index=sentiment_index,
-                active_signals=active_signals,
-            )
-
+            context_payload = build_asset_pool_context(regime_override=regime)
         except Exception as e:
             return Response({
                 "success": False,
@@ -77,9 +46,9 @@ class AssetPoolScreenAPIView(APIView):
         # 3. 根据资产类型执行筛选
         try:
             if asset_type == "equity":
-                scored_assets = self._screen_equity(context, request.data)
+                scored_assets = screen_equity_assets(context_payload.score_context, request.data)
             elif asset_type == "fund":
-                scored_assets = self._screen_fund(context, request.data)
+                scored_assets = screen_fund_assets(context_payload.score_context, request.data)
             else:
                 return Response({
                     "success": False,
@@ -103,7 +72,7 @@ class AssetPoolScreenAPIView(APIView):
         from apps.asset_analysis.domain.pool import PoolCategory
         category = PoolCategory.EQUITY if asset_type == "equity" else PoolCategory.FUND
 
-        pools = pool_manager.create_pools(scored_assets, context, category)
+        pools = pool_manager.create_pools(scored_assets, context_payload.score_context, category)
 
         # 5. 过滤结果
         filtered_assets = []
@@ -131,61 +100,14 @@ class AssetPoolScreenAPIView(APIView):
             "success": True,
             "asset_type": asset_type,
             "context": {
-                "regime": current_regime,
-                "policy_level": policy_level,
-                "sentiment_index": sentiment_index,
-                "active_signals_count": len(active_signals),
+                "regime": context_payload.current_regime,
+                "policy_level": context_payload.policy_level,
+                "sentiment_index": context_payload.sentiment_index,
+                "active_signals_count": len(context_payload.active_signals),
             },
             "pools_summary": pool_manager.get_pool_summary(pools),
             "assets": assets_data,
         }, status=status.HTTP_200_OK)
-
-    def _screen_equity(self, context, filters):
-        """筛选股票"""
-        repo = DjangoEquityAssetRepository()
-        scorer = EquityMultiDimScorer(repo)
-
-        # 获取筛选条件
-        sector = filters.get("sector")
-        market = filters.get("market")
-        min_market_cap = filters.get("min_market_cap")
-        max_pe = filters.get("max_pe")
-
-        # 构建过滤条件
-        filter_dict = {}
-        if sector:
-            filter_dict["sector"] = sector
-        if market:
-            filter_dict["market"] = market
-        if min_market_cap is not None:
-            filter_dict["min_market_cap"] = min_market_cap
-        if max_pe is not None:
-            filter_dict["max_pe"] = max_pe
-
-        assets = repo.get_assets_by_filter(asset_type="equity", filters=filter_dict)
-        return scorer.score_batch(assets, context)
-
-    def _screen_fund(self, context, filters):
-        """筛选基金"""
-        repo = DjangoFundAssetRepository()
-        scorer = FundMultiDimScorer(repo)
-
-        # 获取筛选条件
-        fund_type = filters.get("fund_type")
-        investment_style = filters.get("investment_style")
-        min_scale = filters.get("min_scale")
-
-        # 构建过滤条件
-        filter_dict = {}
-        if fund_type:
-            filter_dict["fund_type"] = fund_type
-        if investment_style:
-            filter_dict["investment_style"] = investment_style
-        if min_scale is not None:
-            filter_dict["min_scale"] = min_scale
-
-        assets = repo.get_assets_by_filter(asset_type="fund", filters=filter_dict)
-        return scorer.score_batch(assets, context)
 
 
 class AssetPoolSummaryAPIView(APIView):
@@ -199,20 +121,9 @@ class AssetPoolSummaryAPIView(APIView):
         """获取所有资产池的摘要信息"""
         asset_type = request.query_params.get("asset_type")
 
-        from apps.asset_analysis.domain.pool import PoolType
-        from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-
         try:
-            queryset = AssetPoolEntry._default_manager.filter(is_active=True)
-            if asset_type:
-                queryset = queryset.filter(asset_category=asset_type)
-
-            summary = {}
-            total = 0
-            for pool_type in PoolType:
-                count = queryset.filter(pool_type=pool_type.value).count()
-                summary[pool_type.value] = count
-                total += count
+            summary = summarize_asset_pool_counts(asset_type)
+            total = sum(summary.values())
             summary["total"] = total
 
             return Response({

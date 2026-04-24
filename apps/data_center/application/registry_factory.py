@@ -142,23 +142,23 @@ def reset_registry() -> None:
 def _build_registry() -> SourceRegistry:
     registry = SourceRegistry()
     try:
-        from apps.data_center.infrastructure.models import ProviderConfigModel
+        from apps.data_center.infrastructure.repositories import ProviderConfigRepository
 
-        for model in ProviderConfigModel.objects.filter(is_active=True).order_by("priority"):
-            provider = _DbProvider(model.name, model.source_type)
+        for config in ProviderConfigRepository().list_active():
+            provider = _DbProvider(config.name, config.source_type)
             if not provider._caps:
                 logger.warning(
                     "Provider '%s' (source_type='%s') has no mapped capabilities — skipping",
-                    model.name,
-                    model.source_type,
+                    config.name,
+                    config.source_type,
                 )
                 continue
-            registry.register(provider, priority=model.priority)
+            registry.register(provider, priority=config.priority)
             logger.info(
                 "Registered data_center provider '%s' (source_type=%s, priority=%d, caps=%d)",
-                model.name,
-                model.source_type,
-                model.priority,
+                config.name,
+                config.source_type,
+                config.priority,
                 len(provider._caps),
             )
     except Exception:

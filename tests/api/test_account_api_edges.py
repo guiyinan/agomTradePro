@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -8,6 +8,9 @@ from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (
     AccountProfileModel,
+    AssetCategoryModel,
+    CurrencyModel,
+    ExchangeRateModel,
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
@@ -94,6 +97,196 @@ def test_account_portfolio_allocation_category_contract(authenticated_client, au
     payload = response.json()
     assert payload["success"] is True
     assert payload["dimension"] == "category"
+
+
+@pytest.mark.django_db
+def test_account_category_roots_contract(authenticated_client):
+    root = AssetCategoryModel.objects.create(
+        code="fund_root",
+        name="基金",
+        level=1,
+        path="基金",
+        is_active=True,
+        sort_order=1,
+    )
+    AssetCategoryModel.objects.create(
+        code="bond_fund",
+        name="债券基金",
+        parent=root,
+        level=2,
+        path="基金/债券基金",
+        is_active=True,
+        sort_order=1,
+    )
+
+    response = authenticated_client.get("/api/account/categories/roots/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"][0]["code"] == "fund_root"
+
+
+@pytest.mark.django_db
+def test_account_currency_base_contract(authenticated_client):
+    CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+
+    response = authenticated_client.get("/api/account/currencies/base/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["code"] == "CNY"
+    assert payload["is_base"] is True
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_latest_contract(authenticated_client):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    ExchangeRateModel.objects.create(
+        from_currency=usd,
+        to_currency=cny,
+        rate=Decimal("7.123400"),
+        effective_date=date(2026, 4, 1),
+    )
+
+    response = authenticated_client.get("/api/account/exchange-rates/latest/USD/CNY/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["from_currency_code"] == "USD"
+    assert payload["to_currency_code"] == "CNY"
+    assert Decimal(str(payload["rate"])) == Decimal("7.123400")
+
+
+@pytest.mark.django_db
+def test_account_exchange_rate_convert_contract(authenticated_client):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    ExchangeRateModel.objects.create(
+        from_currency=usd,
+        to_currency=cny,
+        rate=Decimal("7.123400"),
+        effective_date=date(2026, 4, 1),
+    )
+
+    response = authenticated_client.post(
+        "/api/account/exchange-rates/convert/",
+        {
+            "amount": "100.00",
+            "from_currency": "USD",
+            "to_currency": "CNY",
+            "date": "2026-04-01",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert Decimal(str(payload["converted_amount"])) == Decimal("712.340000")
+    assert Decimal(str(payload["rate_used"])) == Decimal("7.123400")
+    assert payload["rate_date"] == "2026-04-01"
+
+
+@pytest.mark.django_db
+def test_account_portfolio_allocation_currency_contract(authenticated_client, auth_user):
+    usd = CurrencyModel.objects.create(
+        code="USD",
+        name="美元",
+        symbol="$",
+        is_base=False,
+        is_active=True,
+        precision=2,
+    )
+    cny = CurrencyModel.objects.create(
+        code="CNY",
+        name="人民币",
+        symbol="¥",
+        is_base=True,
+        is_active=True,
+        precision=2,
+    )
+    portfolio = PortfolioModel.objects.create(
+        user=auth_user,
+        name="Currency Allocation Portfolio",
+        is_active=True,
+        base_currency=cny,
+    )
+    PositionModel.objects.create(
+        portfolio=portfolio,
+        asset_code="SPY",
+        asset_class="equity",
+        region="US",
+        cross_border="cross_border",
+        shares=10,
+        avg_cost=Decimal("50.0000"),
+        current_price=Decimal("52.0000"),
+        market_value=Decimal("520.00"),
+        unrealized_pnl=Decimal("20.00"),
+        unrealized_pnl_pct=4.0,
+        currency=usd,
+    )
+    ExchangeRateModel.objects.create(
+        from_currency=usd,
+        to_currency=cny,
+        rate=Decimal("7.200000"),
+        effective_date=date(2026, 4, 1),
+    )
+
+    response = authenticated_client.get(
+        f"/api/account/portfolios/{portfolio.id}/allocation/?dimension=currency"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["dimension"] == "currency"
+    assert payload["base_currency"] == "CNY"
+    assert payload["data"][0]["currency_code"] == "USD"
 
 
 @pytest.mark.django_db

@@ -1,0 +1,40 @@
+"""Repository providers for dashboard application services."""
+
+from apps.account.infrastructure.repositories import (
+    AccountRepository,
+    PortfolioRepository,
+    PositionRepository,
+)
+from apps.dashboard.infrastructure.repositories import DashboardOverviewRepository
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
+
+
+def get_account_repository() -> AccountRepository:
+    """Return the default account repository."""
+    return AccountRepository()
+
+
+def get_portfolio_repository() -> PortfolioRepository:
+    """Return the default portfolio repository."""
+    return PortfolioRepository()
+
+
+def get_position_repository() -> PositionRepository:
+    """Return the default position repository."""
+    return PositionRepository()
+
+
+def get_regime_repository() -> DjangoRegimeRepository:
+    """Return the default regime repository."""
+    return DjangoRegimeRepository()
+
+
+def get_signal_repository() -> DjangoSignalRepository:
+    """Return the default signal repository."""
+    return DjangoSignalRepository()
+
+
+def get_dashboard_overview_repository() -> DashboardOverviewRepository:
+    """Return the dashboard overview read model repository."""
+    return DashboardOverviewRepository()

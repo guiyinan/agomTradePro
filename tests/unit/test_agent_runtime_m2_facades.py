@@ -175,12 +175,79 @@ class TestResearchFacade:
     def test_domain_is_research(self):
         assert ResearchTaskFacade().domain == "research"
 
+    def test_fetch_regime_summary_adds_history_count(self):
+        repository = MagicMock()
+        repository.fetch_regime_summary.return_value = {
+            "status": "ok",
+            "dominant_regime": "Recovery",
+        }
+        repository.fetch_regime_history_summary.return_value = {
+            "status": "ok",
+            "history_records": 128,
+        }
+
+        facade = ResearchTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_regime_summary()
+
+        assert summary["history_records"] == 128
+
+    def test_fetch_active_signals_summary_adds_invalidation_count(self):
+        repository = MagicMock()
+        repository.fetch_active_signals_summary.return_value = {
+            "status": "ok",
+            "active_count": 6,
+        }
+        repository.fetch_signal_invalidation_summary.return_value = {
+            "status": "ok",
+            "with_invalidation_logic": 5,
+        }
+
+        facade = ResearchTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_active_signals_summary()
+
+        assert summary["with_invalidation_logic"] == 5
+
 
 class TestMonitoringFacade:
     """Test MonitoringTaskFacade specific behavior."""
 
     def test_domain_is_monitoring(self):
         assert MonitoringTaskFacade().domain == "monitoring"
+
+    def test_fetch_risk_alerts_summary_adds_price_alerts(self):
+        repository = MagicMock()
+        repository.fetch_risk_alerts_summary.return_value = {"status": "ok"}
+        repository.fetch_price_alert_summary.return_value = {
+            "status": "ok",
+            "active_price_alerts": 5,
+            "triggered_price_alerts": 2,
+        }
+
+        facade = MonitoringTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_risk_alerts_summary()
+
+        assert summary["active_price_alerts"] == 5
+        assert summary["triggered_price_alerts"] == 2
+
+    def test_fetch_data_freshness_summary_adds_sentiment_timestamp(self):
+        repository = MagicMock()
+        repository.fetch_data_freshness_summary.return_value = {
+            "status": "ok",
+            "sources": {"macro": "2026-03-16"},
+        }
+        repository.fetch_sentiment_freshness_summary.return_value = {
+            "status": "ok",
+            "sentiment": "2026-03-16T13:00:00+00:00",
+        }
+
+        facade = MonitoringTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_data_freshness_summary()
+
+        assert summary["sources"]["sentiment"] == "2026-03-16T13:00:00+00:00"
 
 
 class TestDecisionFacade:
@@ -189,6 +256,40 @@ class TestDecisionFacade:
     def test_domain_is_decision(self):
         assert DecisionTaskFacade().domain == "decision"
 
+    def test_fetch_open_decisions_summary_adds_quotas(self):
+        repository = MagicMock()
+        repository.fetch_open_decisions_summary.return_value = {
+            "status": "ok",
+            "pending_count": 1,
+        }
+        repository.fetch_decision_quota_summary.return_value = {
+            "status": "ok",
+            "quotas": [{"decision_type": "macro", "max_count": 3, "current_count": 1}],
+        }
+
+        facade = DecisionTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_open_decisions_summary()
+
+        assert summary["quotas"][0]["decision_type"] == "macro"
+
+    def test_fetch_active_signals_summary_adds_pending_approval(self):
+        repository = MagicMock()
+        repository.fetch_active_signals_summary.return_value = {
+            "status": "ok",
+            "active_count": 4,
+        }
+        repository.fetch_pending_signal_summary.return_value = {
+            "status": "ok",
+            "pending_approval": 2,
+        }
+
+        facade = DecisionTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_active_signals_summary()
+
+        assert summary["pending_approval"] == 2
+
 
 class TestExecutionFacade:
     """Test ExecutionTaskFacade specific behavior."""
@@ -196,9 +297,81 @@ class TestExecutionFacade:
     def test_domain_is_execution(self):
         assert ExecutionTaskFacade().domain == "execution"
 
+    def test_fetch_portfolio_summary_adds_top_positions(self):
+        repository = MagicMock()
+        repository.fetch_portfolio_summary.return_value = {
+            "status": "ok",
+            "portfolio_id": 7,
+        }
+        repository.fetch_portfolio_position_summary.return_value = {
+            "status": "ok",
+            "top_positions": [{"asset_code": "000001.SH", "shares": 100}],
+        }
+
+        facade = ExecutionTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_portfolio_summary()
+
+        assert summary["top_positions"][0]["asset_code"] == "000001.SH"
+
+    def test_fetch_risk_alerts_summary_adds_simulated_account_count(self):
+        repository = MagicMock()
+        repository.fetch_risk_alerts_summary.return_value = {"status": "ok"}
+        repository.fetch_simulated_account_summary.return_value = {
+            "status": "ok",
+            "active_simulated_accounts": 3,
+        }
+
+        facade = ExecutionTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_risk_alerts_summary()
+
+        assert summary["active_simulated_accounts"] == 3
+
 
 class TestOpsFacade:
     """Test OpsTaskFacade specific behavior."""
 
     def test_domain_is_ops(self):
         assert OpsTaskFacade().domain == "ops"
+
+    def test_fetch_task_health_summary_adds_event_bus_metrics(self):
+        repository = MagicMock()
+        repository.fetch_task_health_summary.return_value = {
+            "status": "ok",
+            "active_tasks": 2,
+        }
+        repository.fetch_event_bus_summary.return_value = {
+            "status": "ok",
+            "total_event_records": 42,
+        }
+
+        facade = OpsTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_task_health_summary()
+
+        assert summary["active_tasks"] == 2
+        assert summary["total_event_records"] == 42
+
+    def test_fetch_data_freshness_summary_adds_provider_and_audit_metrics(self):
+        repository = MagicMock()
+        repository.fetch_data_freshness_summary.return_value = {
+            "status": "ok",
+            "sources": {"regime": "2026-03-16T12:00:00+00:00"},
+        }
+        repository.fetch_ai_provider_summary.return_value = {
+            "status": "ok",
+            "ai_providers_active": 3,
+        }
+        repository.fetch_audit_freshness_summary.return_value = {
+            "status": "ok",
+            "audit": "2026-03-16T13:00:00+00:00",
+        }
+
+        facade = OpsTaskFacade(context_repository=repository)
+
+        summary = facade.fetch_data_freshness_summary()
+
+        assert summary["sources"]["regime"] == "2026-03-16T12:00:00+00:00"
+        assert summary["sources"]["ai_providers_active"] == 3
+        assert summary["sources"]["audit"] == "2026-03-16T13:00:00+00:00"

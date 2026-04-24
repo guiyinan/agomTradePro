@@ -9,6 +9,7 @@ Interface层:
 import json
 import logging
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
@@ -25,19 +26,37 @@ from apps.strategy.application.position_management_service import (
     PositionManagementService,
     PositionRuleError,
 )
+from apps.strategy.application.interface_services import (
+    bind_strategy_assignment,
+    build_strategy_executor,
+    build_strategy_list_context,
+    delete_strategy_script_config,
+    get_ai_strategy_config_queryset,
+    get_assignment_queryset,
+    get_execution_log_queryset,
+    get_position_management_rule_queryset,
+    get_rule_condition_queryset,
+    get_script_config_queryset,
+    get_strategy_ai_config,
+    get_strategy_execution_logs_page,
+    get_strategy_position_rule,
+    get_strategy_queryset,
+    get_strategy_queryset_for_owner,
+    get_strategy_script_config,
+    list_active_assignments_for_strategy,
+    list_assignments_by_portfolio,
+    list_execution_logs_by_portfolio,
+    list_execution_logs_by_strategy,
+    replace_strategy_rule_conditions,
+    set_assignment_active,
+    set_rule_enabled,
+    set_strategy_active,
+    unbind_strategy_assignments,
+)
 from apps.strategy.domain.services import (
     DecisionPolicyEngine,
     PreTradeRiskGate,
     SizingEngine,
-)
-from apps.strategy.infrastructure.models import (
-    AIStrategyConfigModel,
-    PortfolioStrategyAssignmentModel,
-    PositionManagementRuleModel,
-    RuleConditionModel,
-    ScriptConfigModel,
-    StrategyExecutionLogModel,
-    StrategyModel,
 )
 from apps.strategy.interface.serializers import (
     AIStrategyConfigSerializer,
@@ -59,6 +78,14 @@ from apps.strategy.interface.serializers import (
 from core.exceptions import DuplicateResourceError, InvalidInputError
 
 logger = logging.getLogger(__name__)
+
+AIStrategyConfigModel = django_apps.get_model("strategy", "AIStrategyConfigModel")
+PortfolioStrategyAssignmentModel = django_apps.get_model("strategy", "PortfolioStrategyAssignmentModel")
+PositionManagementRuleModel = django_apps.get_model("strategy", "PositionManagementRuleModel")
+RuleConditionModel = django_apps.get_model("strategy", "RuleConditionModel")
+ScriptConfigModel = django_apps.get_model("strategy", "ScriptConfigModel")
+StrategyExecutionLogModel = django_apps.get_model("strategy", "StrategyExecutionLogModel")
+StrategyModel = django_apps.get_model("strategy", "StrategyModel")
 
 _UNSET = object()
 DEFAULT_SCRIPT_ALLOWED_MODULES = ['math', 'datetime', 'statistics', 'pandas', 'numpy']
@@ -174,9 +201,7 @@ def _replace_rule_conditions(strategy: StrategyModel, rules_payload) -> None:
             ) from exc
         validated_rules.append(serializer.validated_data)
 
-    RuleConditionModel._default_manager.filter(strategy=strategy).delete()
-    for validated_rule in validated_rules:
-        RuleConditionModel._default_manager.create(**validated_rule)
+    replace_strategy_rule_conditions(strategy.id, validated_rules)
 
 
 def _save_script_config(
@@ -188,12 +213,12 @@ def _save_script_config(
     if script_code_payload is _UNSET:
         return
 
-    existing_config = ScriptConfigModel._default_manager.filter(strategy=strategy).first()
+    existing_config = get_strategy_script_config(strategy.id)
     script_code = (script_code_payload or '').strip()
 
     if not script_code:
         if existing_config is not None:
-            existing_config.delete()
+            delete_strategy_script_config(strategy.id)
         return
 
     if script_language not in VALID_SCRIPT_LANGUAGES:
@@ -224,12 +249,15 @@ def _save_script_config(
 class StrategyViewSet(viewsets.ModelViewSet):
     """策略 CRUD API"""
 
-    queryset = StrategyModel._default_manager.all()
+    serializer_class = StrategySerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['strategy_type', 'is_active']
     search_fields = ['name', 'description']
     ordering_fields = ['created_at', 'name', 'version']
     ordering = ['-created_at']
+
+    def get_queryset(self):
+        return get_strategy_queryset()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -249,7 +277,7 @@ class StrategyViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def my_strategies(self, request):
         """获取我的策略列表"""
-        strategies = self.queryset.filter(created_by=request.user.account_profile)
+        strategies = get_strategy_queryset_for_owner(request.user.account_profile.id)
         serializer = self.get_serializer(strategies, many=True)
         return Response(serializer.data)
 
@@ -262,8 +290,7 @@ class StrategyViewSet(viewsets.ModelViewSet):
     def activate(self, request, pk=None):
         """激活策略"""
         strategy = self.get_object()
-        strategy.is_active = True
-        strategy.save()
+        strategy = set_strategy_active(strategy.id, True) or strategy
         serializer = self.get_serializer(strategy)
         return Response(serializer.data)
 
@@ -276,8 +303,7 @@ class StrategyViewSet(viewsets.ModelViewSet):
     def deactivate(self, request, pk=None):
         """停用策略"""
         strategy = self.get_object()
-        strategy.is_active = False
-        strategy.save()
+        strategy = set_strategy_active(strategy.id, False) or strategy
         serializer = self.get_serializer(strategy)
         return Response(serializer.data)
 
@@ -303,15 +329,14 @@ class StrategyViewSet(viewsets.ModelViewSet):
     def script_config(self, request, pk=None):
         """获取策略的脚本配置"""
         strategy = self.get_object()
-        try:
-            config = strategy.script_config
-            serializer = ScriptConfigSerializer(config)
-            return Response(serializer.data)
-        except ScriptConfigModel.DoesNotExist:
+        config = get_strategy_script_config(strategy.id)
+        if config is None:
             return Response(
                 {'detail': '该策略没有脚本配置'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        serializer = ScriptConfigSerializer(config)
+        return Response(serializer.data)
 
     @extend_schema(
         summary="获取策略的 AI 配置",
@@ -322,15 +347,14 @@ class StrategyViewSet(viewsets.ModelViewSet):
     def ai_config(self, request, pk=None):
         """获取策略的 AI 配置"""
         strategy = self.get_object()
-        try:
-            config = strategy.ai_config
-            serializer = AIStrategyConfigSerializer(config)
-            return Response(serializer.data)
-        except AIStrategyConfigModel.DoesNotExist:
+        config = get_strategy_ai_config(strategy.id)
+        if config is None:
             return Response(
                 {'detail': '该策略没有 AI 配置'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        serializer = AIStrategyConfigSerializer(config)
+        return Response(serializer.data)
 
     @extend_schema(
         summary="获取策略的执行日志",
@@ -341,15 +365,12 @@ class StrategyViewSet(viewsets.ModelViewSet):
     def execution_logs(self, request, pk=None):
         """获取策略的执行日志（支持分页）"""
         strategy = self.get_object()
-        queryset = strategy.execution_logs.all().order_by('-execution_time')
 
         # 分页参数
         offset = int(request.query_params.get('offset', 0))
         limit = int(request.query_params.get('limit', 20))
 
-        # 应用分页
-        logs = queryset[offset:offset + limit]
-        total = queryset.count()
+        logs, total = get_strategy_execution_logs_page(strategy.id, offset, limit)
 
         serializer = StrategyExecutionLogListSerializer(logs, many=True)
         return Response({
@@ -368,9 +389,8 @@ class StrategyViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def position_rule(self, request, pk=None):
         strategy = self.get_object()
-        try:
-            rule = strategy.position_management_rule
-        except PositionManagementRuleModel.DoesNotExist:
+        rule = get_strategy_position_rule(strategy.id)
+        if rule is None:
             return Response(
                 {'detail': '该策略尚未配置仓位管理规则'},
                 status=status.HTTP_404_NOT_FOUND
@@ -386,9 +406,8 @@ class StrategyViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def evaluate_position_management(self, request, pk=None):
         strategy = self.get_object()
-        try:
-            rule = strategy.position_management_rule
-        except PositionManagementRuleModel.DoesNotExist:
+        rule = get_strategy_position_rule(strategy.id)
+        if rule is None:
             return Response(
                 {'detail': '该策略尚未配置仓位管理规则'},
                 status=status.HTTP_404_NOT_FOUND
@@ -421,13 +440,15 @@ class StrategyViewSet(viewsets.ModelViewSet):
 class PositionManagementRuleViewSet(viewsets.ModelViewSet):
     """仓位管理规则 CRUD + 评估 API"""
 
-    queryset = PositionManagementRuleModel._default_manager.select_related('strategy')
     serializer_class = PositionManagementRuleSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['strategy', 'is_active']
     search_fields = ['name', 'strategy__name']
     ordering_fields = ['updated_at', 'created_at']
     ordering = ['-updated_at']
+
+    def get_queryset(self):
+        return get_position_management_rule_queryset()
 
     @extend_schema(
         summary="评估仓位管理规则",
@@ -465,13 +486,15 @@ class PositionManagementRuleViewSet(viewsets.ModelViewSet):
 class RuleConditionViewSet(viewsets.ModelViewSet):
     """规则条件 CRUD API"""
 
-    queryset = RuleConditionModel._default_manager.all()
     serializer_class = RuleConditionSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['strategy', 'rule_type', 'is_enabled']
     search_fields = ['rule_name']
     ordering_fields = ['priority', 'created_at']
     ordering = ['-priority', '-created_at']
+
+    def get_queryset(self):
+        return get_rule_condition_queryset()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -488,8 +511,7 @@ class RuleConditionViewSet(viewsets.ModelViewSet):
     def enable(self, request, pk=None):
         """启用规则"""
         rule = self.get_object()
-        rule.is_enabled = True
-        rule.save()
+        rule = set_rule_enabled(rule.id, True) or rule
         serializer = self.get_serializer(rule)
         return Response(serializer.data)
 
@@ -502,8 +524,7 @@ class RuleConditionViewSet(viewsets.ModelViewSet):
     def disable(self, request, pk=None):
         """停用规则"""
         rule = self.get_object()
-        rule.is_enabled = False
-        rule.save()
+        rule = set_rule_enabled(rule.id, False) or rule
         serializer = self.get_serializer(rule)
         return Response(serializer.data)
 
@@ -515,11 +536,13 @@ class RuleConditionViewSet(viewsets.ModelViewSet):
 class ScriptConfigViewSet(viewsets.ModelViewSet):
     """脚本配置 CRUD API"""
 
-    queryset = ScriptConfigModel._default_manager.all()
     serializer_class = ScriptConfigSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['strategy', 'is_active']
     search_fields = ['strategy__name']
+
+    def get_queryset(self):
+        return get_script_config_queryset()
 
 
 # ========================================================================
@@ -529,11 +552,13 @@ class ScriptConfigViewSet(viewsets.ModelViewSet):
 class AIStrategyConfigViewSet(viewsets.ModelViewSet):
     """AI策略配置 CRUD API"""
 
-    queryset = AIStrategyConfigModel._default_manager.all()
     serializer_class = AIStrategyConfigSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['strategy', 'approval_mode', 'ai_provider']
     search_fields = ['strategy__name']
+
+    def get_queryset(self):
+        return get_ai_strategy_config_queryset()
 
 
 # ========================================================================
@@ -543,12 +568,14 @@ class AIStrategyConfigViewSet(viewsets.ModelViewSet):
 class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
     """投资组合策略关联 CRUD API"""
 
-    queryset = PortfolioStrategyAssignmentModel._default_manager.all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['portfolio', 'strategy', 'is_active']
     search_fields = ['portfolio__account_name', 'strategy__name']
     ordering_fields = ['assigned_at', 'created_at']
     ordering = ['-assigned_at']
+
+    def get_queryset(self):
+        return get_assignment_queryset()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -583,7 +610,7 @@ class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        assignments = self.queryset.filter(portfolio_id=portfolio_id)
+        assignments = list_assignments_by_portfolio(portfolio_id)
         serializer = self.get_serializer(assignments, many=True)
         return Response(serializer.data)
 
@@ -596,8 +623,7 @@ class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
     def activate(self, request, pk=None):
         """激活策略分配"""
         assignment = self.get_object()
-        assignment.is_active = True
-        assignment.save()
+        assignment = set_assignment_active(assignment.id, True) or assignment
         serializer = self.get_serializer(assignment)
         return Response(serializer.data)
 
@@ -610,8 +636,7 @@ class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
     def deactivate(self, request, pk=None):
         """停用策略分配"""
         assignment = self.get_object()
-        assignment.is_active = False
-        assignment.save()
+        assignment = set_assignment_active(assignment.id, False) or assignment
         serializer = self.get_serializer(assignment)
         return Response(serializer.data)
 
@@ -623,11 +648,13 @@ class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
 class StrategyExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
     """策略执行日志 API（只读）"""
 
-    queryset = StrategyExecutionLogModel._default_manager.all()
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['strategy', 'portfolio', 'is_success']
     ordering_fields = ['execution_time', 'execution_duration_ms']
     ordering = ['-execution_time']
+
+    def get_queryset(self):
+        return get_execution_log_queryset()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -658,7 +685,7 @@ class StrategyExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        logs = self.queryset.filter(strategy_id=strategy_id)[:100]
+        logs = list_execution_logs_by_strategy(strategy_id, limit=100)
         serializer = StrategyExecutionLogListSerializer(logs, many=True)
         return Response(serializer.data)
 
@@ -685,7 +712,7 @@ class StrategyExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        logs = self.queryset.filter(portfolio_id=portfolio_id)[:100]
+        logs = list_execution_logs_by_portfolio(portfolio_id, limit=100)
         serializer = StrategyExecutionLogListSerializer(logs, many=True)
         return Response(serializer.data)
 
@@ -698,36 +725,8 @@ class StrategyExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 @login_required
 def strategy_list(request):
     """策略列表页面"""
-    # 获取当前用户的策略
-    user_profile = request.user.account_profile
-    strategies = StrategyModel._default_manager.filter(created_by=user_profile).annotate(
-        rule_count=Count('rules'),
-        execution_count=Count('execution_logs'),
-        portfolio_count=Count('portfolio_assignments')
-    ).order_by('-created_at')
-
-    # 计算统计数据
-    stats = {
-        'total': strategies.count(),
-        'active': strategies.filter(is_active=True).count(),
-        'inactive': strategies.filter(is_active=False).count(),
-        'by_type': {
-            'rule_based': strategies.filter(strategy_type='rule_based').count(),
-            'script_based': strategies.filter(strategy_type='script_based').count(),
-            'hybrid': strategies.filter(strategy_type='hybrid').count(),
-            'ai_driven': strategies.filter(strategy_type='ai_driven').count(),
-        }
-    }
-
-    # 为每个策略添加规则摘要
-    for strategy in strategies:
-        rules = strategy.rules.filter(is_enabled=True)[:3]
-        strategy.rule_summary = rules
-
-    return render(request, 'strategy/list.html', {
-        'strategies': strategies,
-        'stats': stats
-    })
+    context = build_strategy_list_context(request.user.account_profile.id)
+    return render(request, 'strategy/list.html', context)
 
 
 @login_required
@@ -857,39 +856,7 @@ def strategy_execute(request, strategy_id):
         portfolio_id = data.get('portfolio_id')
 
         # 初始化策略执行引擎
-        from apps.strategy.application.strategy_executor import StrategyExecutor
-        from apps.strategy.infrastructure.providers import (
-            DjangoAssetPoolProvider,
-            DjangoMacroDataProvider,
-            DjangoPortfolioDataProvider,
-            DjangoRegimeProvider,
-            DjangoSignalProvider,
-        )
-        from apps.strategy.infrastructure.repositories import (
-            DjangoStrategyExecutionLogRepository,
-            DjangoStrategyRepository,
-        )
-
-        # 创建提供者实例
-        strategy_repository = DjangoStrategyRepository()
-        execution_log_repository = DjangoStrategyExecutionLogRepository()
-        macro_provider = DjangoMacroDataProvider()
-        regime_provider = DjangoRegimeProvider()
-        asset_pool_provider = DjangoAssetPoolProvider()
-        signal_provider = DjangoSignalProvider()
-        portfolio_provider = DjangoPortfolioDataProvider()
-
-        # 创建策略执行引擎
-        executor = StrategyExecutor(
-            strategy_repository=strategy_repository,
-            execution_log_repository=execution_log_repository,
-            macro_provider=macro_provider,
-            regime_provider=regime_provider,
-            asset_pool_provider=asset_pool_provider,
-            signal_provider=signal_provider,
-            portfolio_provider=portfolio_provider,
-            script_security_mode='relaxed'
-        )
+        executor = build_strategy_executor()
 
         # 执行策略
         results = []
@@ -913,11 +880,7 @@ def strategy_execute(request, strategy_id):
 
         else:
             # 执行所有绑定的投资组合
-            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
-            assignments = PortfolioStrategyAssignmentModel.objects.filter(
-                strategy=strategy,
-                is_active=True
-            ).select_related('portfolio').all()
+            assignments = list_active_assignments_for_strategy(strategy.id)
 
             for assignment in assignments:
                 portfolio = assignment.portfolio
@@ -1094,23 +1057,11 @@ def bind_strategy(request):
             return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
         with transaction.atomic():
-            assignments = PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
-                portfolio_id=portfolio_id
-            )
-            assignments.filter(is_active=True).exclude(strategy=strategy).update(is_active=False)
-
-            assignment, created = assignments.get_or_create(
+            bind_strategy_assignment(
                 portfolio_id=portfolio_id,
                 strategy=strategy,
-                defaults={
-                    'assigned_by': request.user.account_profile,
-                    'is_active': True,
-                }
+                assigned_by=request.user.account_profile,
             )
-            if not created and (not assignment.is_active or assignment.assigned_by_id != request.user.account_profile.id):
-                assignment.is_active = True
-                assignment.assigned_by = request.user.account_profile
-                assignment.save(update_fields=['is_active', 'assigned_by', 'updated_at'])
 
         return JsonResponse({'success': True, 'message': '策略绑定成功'})
 
@@ -1142,11 +1093,7 @@ def unbind_strategy(request):
         if not get_simulated_trading_facade().user_owns_account(portfolio_id, request.user.id):
             return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
-        with transaction.atomic():
-            PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
-                portfolio_id=portfolio_id,
-                is_active=True,
-            ).update(is_active=False)
+        unbind_strategy_assignments(portfolio_id)
 
         return JsonResponse({'success': True, 'message': '策略已解绑'})
 
@@ -1279,8 +1226,6 @@ def test_strategy(request, strategy_id):
 
     import json
     import time
-
-    from apps.strategy.application.strategy_executor import StrategyExecutor
 
     strategy = get_object_or_404(StrategyModel, id=strategy_id, created_by=request.user.account_profile)
 

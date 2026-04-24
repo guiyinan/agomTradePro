@@ -12,14 +12,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.repository_provider import get_sector_adapter, get_sector_repository
 from ..application.use_cases import (
     AnalyzeSectorRotationRequest,
     AnalyzeSectorRotationUseCase,
     UpdateSectorDataRequest,
     UpdateSectorDataUseCase,
 )
-from ..infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
-from ..infrastructure.repositories import DjangoSectorRepository
 from .serializers import (
     AnalyzeSectorRotationRequestSerializer,
     SectorRotationResultSerializer,
@@ -41,8 +40,8 @@ class SectorRotationViewSet(viewsets.ViewSet):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.sector_repo = DjangoSectorRepository()
-        self.adapter = AKShareSectorAdapter()
+        self.sector_repo = get_sector_repository()
+        self.adapter = get_sector_adapter()
 
     def _run_analysis(self, use_case_request):
         use_case = AnalyzeSectorRotationUseCase(sector_repo=self.sector_repo)
@@ -160,8 +159,8 @@ class SectorDataUpdateView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.sector_repo = DjangoSectorRepository()
-        self.adapter = AKShareSectorAdapter()
+        self.sector_repo = get_sector_repository()
+        self.adapter = get_sector_adapter()
 
     def post(self, request):
         """

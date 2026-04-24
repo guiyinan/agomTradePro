@@ -227,24 +227,25 @@ class HealthCheckView(View):
                 "last_poll_time": "2024-01-13T10:30:00"
             }
         """
-        from apps.realtime.infrastructure.repositories import CompositePriceDataProvider
-
-        # 检查数据源是否可用（加超时保护，避免健康检查阻塞）
         use_case = PricePollingUseCase()
-        is_available = False
-        health_error = None
-        executor = ThreadPoolExecutor(max_workers=1)
-        try:
-            future = executor.submit(use_case.price_provider.is_available)
-            is_available = future.result(timeout=2.0)
-        except FutureTimeoutError:
-            health_error = "provider_check_timeout"
-            logger.warning("Realtime health provider check timed out")
-        except Exception as exc:
-            health_error = str(exc)
-            logger.warning("Realtime health provider check failed: %s", exc)
-        finally:
-            executor.shutdown(wait=False, cancel_futures=True)
+        check_provider_availability = getattr(type(use_case), "check_provider_availability", None)
+        if callable(check_provider_availability):
+            is_available, health_error = use_case.check_provider_availability(timeout_seconds=2.0)
+        else:
+            is_available = False
+            health_error = None
+            executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                future = executor.submit(use_case.price_provider.is_available)
+                is_available = future.result(timeout=2.0)
+            except FutureTimeoutError:
+                health_error = "provider_check_timeout"
+                logger.warning("Realtime health provider check timed out")
+            except Exception as exc:
+                health_error = str(exc)
+                logger.warning("Realtime health provider check failed: %s", exc)
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
 
         return JsonResponse({
             "success": True,

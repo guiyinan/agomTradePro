@@ -15,6 +15,11 @@ from pathlib import Path
 from celery import shared_task
 from django.utils import timezone
 
+from apps.account.application.config_summary_service import get_account_config_summary_service
+from apps.alpha.application.repository_provider import (
+    get_alpha_score_cache_repository,
+    get_qlib_model_registry_repository,
+)
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.alpha.infrastructure.qlib_builder import normalize_qlib_symbol, resolve_effective_trade_date
 
@@ -147,9 +152,7 @@ def _get_qlib_data_latest_date() -> date | None:
     import qlib
     from qlib.data import D
 
-    from apps.account.infrastructure.models import SystemSettingsModel
-
-    qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+    qlib_config = _get_runtime_qlib_config()
     provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
     region = _normalize_qlib_region(qlib_config.get("region", "CN"))
 
@@ -185,6 +188,12 @@ def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
         return "Qlib 未安装，无法检查本地数据目录，请安装 pyqlib 或复用历史缓存"
 
     return f"读取本地 Qlib 数据状态失败: {exc}"
+
+
+def _get_runtime_qlib_config() -> dict:
+    """Return runtime qlib config through account-owned application service."""
+
+    return get_account_config_summary_service().get_runtime_qlib_config()
 
 
 def _resolve_qlib_stock_list(
@@ -298,7 +307,6 @@ def qlib_predict_scores(
         >>> qlib_predict_scores.delay("csi300", "2026-02-05", 30)
     """
     try:
-        from ..infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
         from ..domain.entities import AlphaPoolScope
 
         logger.info(
@@ -308,9 +316,7 @@ def qlib_predict_scores(
         pool_scope = AlphaPoolScope.from_dict(scope_payload) if scope_payload else None
 
         # 1. 获取激活的模型
-        active_model = QlibModelRegistryModel._default_manager.filter(
-            is_active=True
-        ).first()
+        active_model = get_qlib_model_registry_repository().get_active_model()
 
         if not active_model:
             raise Exception("没有激活的 Qlib 模型")
@@ -456,7 +462,7 @@ def qlib_predict_scores(
             trade_date=trade_date,
             asof_date=asof_date,
             scores_data=scores_data,
-            status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+            status="available",
             metrics_snapshot=execution_metadata,
             pool_scope=pool_scope,
         )
@@ -522,9 +528,8 @@ def qlib_train_model(
         ... )
     """
     try:
-        from ..infrastructure.models import QlibModelRegistryModel
-
         logger.info(f"开始 Qlib 训练: {model_name} ({model_type})")
+        registry_repo = get_qlib_model_registry_repository()
 
         # 解析训练配置
         universe = train_config.get("universe", "csi300")
@@ -567,7 +572,7 @@ def qlib_train_model(
 
         # 6. 写入 Registry
         logger.info("  写入模型注册表...")
-        registry_model = QlibModelRegistryModel._default_manager.create(
+        registry_model = registry_repo.create_model_entry(
             model_name=model_name,
             artifact_hash=artifact_hash,
             model_type=model_type,
@@ -584,7 +589,10 @@ def qlib_train_model(
         )
 
         if activate_after_train:
-            registry_model.activate(activated_by="qlib_train_task")
+            registry_model = registry_repo.activate_model(
+                artifact_hash=artifact_hash,
+                activated_by="qlib_train_task",
+            )
 
         logger.info(f"Qlib 训练完成: {model_name}")
         logger.info(f"  Artifact Hash: {artifact_hash[:12]}...")
@@ -818,28 +826,15 @@ def _upsert_qlib_cache(
     pool_scope=None,
 ):
     """Persist a qlib cache row for the active model."""
-    from ..infrastructure.models import AlphaScoreCacheModel
-
-    return AlphaScoreCacheModel._default_manager.update_or_create(
+    return get_alpha_score_cache_repository().upsert_qlib_cache(
         universe_id=universe_id,
-        intended_trade_date=trade_date,
-        provider_source="qlib",
-        model_artifact_hash=active_model.artifact_hash,
-        defaults={
-            "asof_date": asof_date,
-            "model_id": active_model.model_name,
-            "model_artifact_hash": active_model.artifact_hash,
-            "feature_set_id": active_model.feature_set_id,
-            "label_id": active_model.label_id,
-            "data_version": active_model.data_version,
-            "scores": _make_json_safe(scores_data),
-            "status": status,
-            "metrics_snapshot": _make_json_safe(metrics_snapshot),
-            "user": None,
-            "scope_hash": getattr(pool_scope, "scope_hash", None),
-            "scope_label": getattr(pool_scope, "display_label", None),
-            "scope_metadata": _make_json_safe(pool_scope.to_dict()) if pool_scope else None,
-        }
+        trade_date=trade_date,
+        asof_date=asof_date,
+        active_model=active_model,
+        scores_data=_make_json_safe(scores_data),
+        status=status,
+        metrics_snapshot=_make_json_safe(metrics_snapshot),
+        pool_scope=pool_scope,
     )
 
 
@@ -864,9 +859,7 @@ def _reuse_latest_qlib_cache(
     extra_metadata: dict | None = None,
 ) -> dict | None:
     """Forward-fill the latest qlib cache into today's active model slot when fresh inference fails."""
-    from ..infrastructure.repositories import AlphaScoreCacheRepository
-
-    cache_repository = AlphaScoreCacheRepository()
+    cache_repository = get_alpha_score_cache_repository()
     latest_cache = cache_repository.get_latest_qlib_cache(
         universe_id=universe_id,
         model_artifact_hash=active_model.artifact_hash,
@@ -945,8 +938,6 @@ def _find_broader_qlib_cache_for_scope(
     pool_scope,
 ) -> tuple[object, list[dict]] | None:
     """Find a broader qlib cache row and trim it to the current scoped instrument set."""
-    from ..infrastructure.repositories import AlphaScoreCacheRepository
-
     scope_codes = {
         normalize_stock_code(raw_code)
         for raw_code in getattr(pool_scope, "instrument_codes", ()) or ()
@@ -955,7 +946,7 @@ def _find_broader_qlib_cache_for_scope(
     if not scope_codes:
         return None
 
-    broader_cache_result = AlphaScoreCacheRepository().find_broader_qlib_cache_for_scope(
+    broader_cache_result = get_alpha_score_cache_repository().find_broader_qlib_cache_for_scope(
         trade_date=trade_date,
         model_artifact_hash=active_model.artifact_hash,
         scope_hash=getattr(pool_scope, "scope_hash", None),
@@ -999,8 +990,7 @@ def _execute_qlib_prediction(
         from qlib.data.dataset import DatasetH
 
         # 获取 Qlib 配置（优先从数据库读取）
-        from apps.account.infrastructure.models import SystemSettingsModel
-        qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+        qlib_config = _get_runtime_qlib_config()
 
         if not qlib_config.get('enabled'):
             logger.warning("Qlib 未启用，跳过预测")
@@ -1240,8 +1230,7 @@ def _train_qlib_model(
         from qlib.data.dataset import DatasetH
 
         # 获取 Qlib 配置（优先从数据库读取）
-        from apps.account.infrastructure.models import SystemSettingsModel
-        qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+        qlib_config = _get_runtime_qlib_config()
 
         if not qlib_config.get('enabled'):
             raise ValueError("Qlib 未启用，请先在系统配置中启用 Qlib")

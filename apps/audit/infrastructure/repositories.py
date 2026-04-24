@@ -107,6 +107,42 @@ class DjangoAuditRepository:
         except AttributionReport.DoesNotExist:
             return None
 
+    def list_attribution_report_records(
+        self,
+        attribution_method: str | None = None,
+        limit: int | None = None,
+    ) -> list[AttributionReport]:
+        """返回归因报告 ORM 记录，供界面层查询服务组装页面上下文。"""
+        queryset = AttributionReport._default_manager.select_related("backtest").order_by(
+            "-created_at"
+        )
+        if attribution_method:
+            queryset = queryset.filter(attribution_method=attribution_method)
+        if limit is not None:
+            queryset = queryset[:limit]
+        return list(queryset)
+
+    def count_attribution_reports(self) -> int:
+        """统计归因报告总数。"""
+        return AttributionReport._default_manager.count()
+
+    def count_operation_logs(self) -> int:
+        """统计操作审计日志总数。"""
+        from .models import OperationLogModel
+
+        return OperationLogModel._default_manager.count()
+
+    def get_reported_backtest_ids(self) -> set[int]:
+        """返回已生成归因报告的回测 ID 集合。"""
+        return set(AttributionReport._default_manager.values_list("backtest_id", flat=True))
+
+    def get_attribution_report_record(self, report_id: int) -> AttributionReport | None:
+        """按 ID 返回归因报告 ORM 记录。"""
+        try:
+            return AttributionReport._default_manager.select_related("backtest").get(id=report_id)
+        except AttributionReport.DoesNotExist:
+            return None
+
     def get_reports_by_backtest(self, backtest_id: int) -> list[dict]:
         """获取指定回测的所有归因报告"""
         reports = AttributionReport._default_manager.filter(
@@ -147,6 +183,12 @@ class DjangoAuditRepository:
             for a in analyses
         ]
 
+    def get_loss_analysis_records(self, report_id: int) -> list[LossAnalysis]:
+        """返回损失分析 ORM 记录。"""
+        return list(
+            LossAnalysis._default_manager.filter(report_id=report_id).order_by("-impact")
+        )
+
     def get_experience_summaries(self, report_id: int) -> list[dict]:
         """获取报告的经验总结"""
         summaries = ExperienceSummary._default_manager.filter(
@@ -164,6 +206,14 @@ class DjangoAuditRepository:
             }
             for s in summaries
         ]
+
+    def get_experience_summary_records(self, report_id: int) -> list[ExperienceSummary]:
+        """返回经验总结 ORM 记录。"""
+        return list(
+            ExperienceSummary._default_manager.filter(report_id=report_id).order_by(
+                "-priority", "-created_at"
+            )
+        )
 
     def _serialize_report(self, report: AttributionReport) -> dict:
         """序列化归因报告"""
@@ -233,6 +283,60 @@ class DjangoAuditRepository:
                 'recommended_weight': float(performance.recommended_weight),
                 'confidence_level': float(performance.confidence_level),
                 'created_at': performance.created_at.isoformat(),
+            }
+        except IndicatorPerformanceModel.DoesNotExist:
+            return None
+
+    def get_latest_indicator_performance_detail(self, indicator_code: str) -> dict | None:
+        """获取指标最新表现的完整详情。"""
+        try:
+            performance = (
+                IndicatorPerformanceModel._default_manager.filter(indicator_code=indicator_code)
+                .order_by("-evaluation_period_end")
+                .first()
+            )
+            if performance is None:
+                return None
+            return {
+                "indicator_code": performance.indicator_code,
+                "evaluation_period_start": performance.evaluation_period_start,
+                "evaluation_period_end": performance.evaluation_period_end,
+                "true_positive_count": performance.true_positive_count,
+                "false_positive_count": performance.false_positive_count,
+                "true_negative_count": performance.true_negative_count,
+                "false_negative_count": performance.false_negative_count,
+                "precision": float(performance.precision)
+                if performance.precision is not None
+                else None,
+                "recall": float(performance.recall) if performance.recall is not None else None,
+                "f1_score": float(performance.f1_score)
+                if performance.f1_score is not None
+                else None,
+                "accuracy": float(performance.accuracy)
+                if performance.accuracy is not None
+                else None,
+                "lead_time_mean": float(performance.lead_time_mean)
+                if performance.lead_time_mean is not None
+                else None,
+                "lead_time_std": float(performance.lead_time_std)
+                if performance.lead_time_std is not None
+                else None,
+                "stability_score": float(performance.stability_score)
+                if performance.stability_score is not None
+                else None,
+                "decay_rate": float(performance.decay_rate)
+                if performance.decay_rate is not None
+                else None,
+                "signal_strength": float(performance.signal_strength)
+                if performance.signal_strength is not None
+                else None,
+                "recommended_action": performance.recommended_action,
+                "recommended_weight": float(performance.recommended_weight)
+                if performance.recommended_weight is not None
+                else None,
+                "confidence_level": float(performance.confidence_level)
+                if performance.confidence_level is not None
+                else None,
             }
         except IndicatorPerformanceModel.DoesNotExist:
             return None
@@ -463,6 +567,26 @@ class DjangoAuditRepository:
         except ValidationSummaryModel.DoesNotExist:
             return None
 
+    def get_validation_summary_record_by_id(
+        self, summary_id: int
+    ) -> ValidationSummaryModel | None:
+        """根据 ID 获取验证摘要 ORM 记录。"""
+        try:
+            return ValidationSummaryModel._default_manager.get(id=summary_id)
+        except ValidationSummaryModel.DoesNotExist:
+            return None
+
+    def get_latest_validation_summary_model(
+        self,
+        *,
+        is_shadow_mode: bool | None = None,
+    ) -> ValidationSummaryModel | None:
+        """获取最新的验证摘要 ORM 记录。"""
+        queryset = ValidationSummaryModel._default_manager.all()
+        if is_shadow_mode is not None:
+            queryset = queryset.filter(is_shadow_mode=is_shadow_mode)
+        return queryset.order_by("-run_date").first()
+
     def get_latest_validation_summary_record(self) -> dict | None:
         """获取最新的验证摘要记录"""
         try:
@@ -515,6 +639,31 @@ class DjangoAuditRepository:
             }
             for p in queryset
         ]
+
+    def get_indicator_performance_records_by_period(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[IndicatorPerformanceModel]:
+        """按评估周期返回指标表现 ORM 记录。"""
+        return list(
+            IndicatorPerformanceModel._default_manager.filter(
+                evaluation_period_start=start_date,
+                evaluation_period_end=end_date,
+            ).order_by("indicator_code")
+        )
+
+    def get_recent_indicator_performance_records(
+        self,
+        indicator_code: str,
+        *,
+        limit: int = 3,
+    ) -> list[IndicatorPerformanceModel]:
+        """返回某个指标最近的若干条表现记录。"""
+        return list(
+            IndicatorPerformanceModel._default_manager.filter(indicator_code=indicator_code)
+            .order_by("-evaluation_period_end")[:limit]
+        )
 
     # ============ 跨模块查询包装方法 ============
 
@@ -782,6 +931,26 @@ class DjangoAuditRepository:
             )
             config.base_weight = new_weight
             config.save()
+            return True
+        except IndicatorThresholdConfigModel.DoesNotExist:
+            return False
+
+    def update_threshold_config_levels(
+        self,
+        indicator_code: str,
+        *,
+        level_low: float,
+        level_high: float,
+    ) -> bool:
+        """更新阈值配置的高低阈值。"""
+        try:
+            config = IndicatorThresholdConfigModel._default_manager.get(
+                indicator_code=indicator_code,
+                is_active=True,
+            )
+            config.level_low = level_low
+            config.level_high = level_high
+            config.save(update_fields=["level_low", "level_high", "updated_at"])
             return True
         except IndicatorThresholdConfigModel.DoesNotExist:
             return False

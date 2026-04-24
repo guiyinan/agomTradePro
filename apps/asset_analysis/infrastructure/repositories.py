@@ -15,7 +15,12 @@ from apps.asset_analysis.domain.interfaces import (
 )
 from apps.asset_analysis.domain.pool import PoolType
 from apps.asset_analysis.domain.value_objects import WeightConfig
-from apps.asset_analysis.infrastructure.models import AssetPoolEntry, WeightConfigModel
+from apps.asset_analysis.infrastructure.models import (
+    AssetAnalysisAlert,
+    AssetPoolEntry,
+    AssetScoringLog,
+    WeightConfigModel,
+)
 
 
 class AssetRepositoryFactory:
@@ -304,4 +309,54 @@ class DjangoAssetPoolQueryRepository:
             pool_type.value: queryset.filter(pool_type=pool_type.value).count()
             for pool_type in PoolType
         }
+
+
+class AssetAnalysisLogRepository:
+    """ORM-backed repository for asset-analysis scoring logs and alerts."""
+
+    def create_scoring_log(self, payload: dict) -> int:
+        """Create one scoring log row and return its id."""
+
+        log = AssetScoringLog._default_manager.create(**payload)
+        return int(log.id)
+
+    def create_alert(self, payload: dict) -> int:
+        """Create one analysis alert row and return its id."""
+
+        alert = AssetAnalysisAlert._default_manager.create(**payload)
+        return int(alert.id)
+
+    def list_unresolved_alerts(
+        self,
+        *,
+        severity: str | None = None,
+        alert_type: str | None = None,
+        limit: int = 100,
+    ) -> list[AssetAnalysisAlert]:
+        """Return unresolved alerts with optional filters."""
+
+        queryset = AssetAnalysisAlert._default_manager.filter(is_resolved=False)
+        if severity:
+            queryset = queryset.filter(severity=severity)
+        if alert_type:
+            queryset = queryset.filter(alert_type=alert_type)
+        return list(queryset.order_by("-created_at")[:limit])
+
+    def resolve_alert(
+        self,
+        *,
+        alert_id: int,
+        resolved_by: int,
+        resolved_at,
+        resolution_notes: str | None = None,
+    ) -> bool:
+        """Mark one alert as resolved."""
+
+        updated = AssetAnalysisAlert._default_manager.filter(id=alert_id).update(
+            is_resolved=True,
+            resolved_at=resolved_at,
+            resolved_by=resolved_by,
+            resolution_notes=resolution_notes,
+        )
+        return updated > 0
 

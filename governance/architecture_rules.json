@@ -1,11 +1,20 @@
 {
-  "version": "2026-04-02.v1",
+  "version": "2026-04-22.v1",
+  "source_roots": [
+    "apps",
+    "core",
+    "shared"
+  ],
   "boundary_rules": [
     {
       "id": "regime_runtime_no_macro_impl_imports",
       "description": "Regime runtime layers must use Protocol/Adapter/Gateway abstractions instead of macro implementation imports.",
       "source_module": "regime",
-      "source_layers": ["application", "interface", "management"],
+      "source_layers": [
+        "application",
+        "interface",
+        "management"
+      ],
       "forbidden_import_prefixes": [
         "apps.macro.application.tasks",
         "apps.macro.infrastructure.models",
@@ -17,7 +26,12 @@
       "id": "strategy_no_simulated_trading_orm_imports",
       "description": "Strategy must not import simulated_trading ORM models directly.",
       "source_module": "strategy",
-      "source_layers": ["application", "domain", "interface", "management"],
+      "source_layers": [
+        "application",
+        "domain",
+        "interface",
+        "management"
+      ],
       "forbidden_import_prefixes": [
         "apps.simulated_trading.infrastructure.models"
       ],
@@ -27,7 +41,12 @@
       "id": "simulated_trading_no_strategy_orm_imports",
       "description": "Simulated trading must not import strategy ORM models directly.",
       "source_module": "simulated_trading",
-      "source_layers": ["application", "domain", "interface", "management"],
+      "source_layers": [
+        "application",
+        "domain",
+        "interface",
+        "management"
+      ],
       "forbidden_import_prefixes": [
         "apps.strategy.infrastructure.models"
       ],
@@ -37,7 +56,13 @@
       "id": "events_no_direct_downstream_models_or_handlers",
       "description": "Events must not import downstream handlers or ORM models directly.",
       "source_module": "events",
-      "source_layers": ["application", "domain", "infrastructure", "interface", "management"],
+      "source_layers": [
+        "application",
+        "domain",
+        "infrastructure",
+        "interface",
+        "management"
+      ],
       "forbidden_import_prefixes": [
         "apps.alpha_trigger.application.handlers",
         "apps.alpha_trigger.infrastructure.models",
@@ -50,7 +75,9 @@
       "id": "account_interface_no_simulated_trading_orm_imports",
       "description": "Account interface must not import simulated_trading ORM models or migration commands directly.",
       "source_module": "account",
-      "source_layers": ["interface"],
+      "source_layers": [
+        "interface"
+      ],
       "forbidden_import_prefixes": [
         "apps.simulated_trading.infrastructure.models",
         "apps.simulated_trading.management.commands.migrate_account_ledger"
@@ -58,40 +85,166 @@
       "rationale": "Route cross-module reads through account-owned repositories or gateways."
     }
   ],
+  "audit_rules": [
+    {
+      "id": "apps_application_no_infrastructure_model_imports",
+      "description": "Application layers must not import infrastructure models directly, including dynamic import escapes.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbidden_import_patterns": [
+        "(^|\\.)infrastructure\\.models$"
+      ],
+      "forbidden_line_patterns": [
+        "importlib\\.import_module\\([\"'][^\"']*\\.infrastructure\\.models[\"']\\)"
+      ],
+      "rationale": "Move ORM access behind repositories or adapters."
+    },
+    {
+      "id": "apps_application_no_orm_manager_access",
+      "description": "Application layers must not access ORM managers directly.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbidden_line_patterns": [
+        "\\._default_manager\\b",
+        "\\.objects\\."
+      ],
+      "rationale": "Application code should coordinate repositories instead of talking to ORM managers."
+    },
+    {
+      "id": "apps_interface_no_infrastructure_imports",
+      "description": "Interface layers must call application services, not infrastructure packages directly.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "interface"
+      ],
+      "exclude_path_patterns": [
+        "/admin\\.py$"
+      ],
+      "forbidden_import_patterns": [
+        "(^|\\.)infrastructure(?:\\.|$)"
+      ],
+      "rationale": "Interface should stay at validation and response formatting boundaries."
+    },
+    {
+      "id": "core_application_no_cross_app_infrastructure_access",
+      "description": "Core application code must not directly depend on app infrastructure packages or ORM managers.",
+      "source_roots": [
+        "core"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\..*\\.infrastructure(?:\\.|$)"
+      ],
+      "forbidden_line_patterns": [
+        "importlib\\.import_module\\([\"']apps\\.[^\"']*\\.infrastructure\\.[^\"']+[\"']\\)",
+        "\\._default_manager\\b",
+        "\\.objects\\."
+      ],
+      "rationale": "core/application should remain project orchestration, not an extra business module."
+    },
+    {
+      "id": "core_controller_no_cross_app_infrastructure_access",
+      "description": "Core controller entrypoints must not import app infrastructure packages or touch ORM managers directly.",
+      "source_roots": [
+        "core"
+      ],
+      "path_patterns": [
+        "^core/views.*\\.py$",
+        "^core/api_views.*\\.py$",
+        "^core/context_processors\\.py$",
+        "^core/urls\\.py$"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\..*\\.infrastructure(?:\\.|$)"
+      ],
+      "forbidden_line_patterns": [
+        "importlib\\.import_module\\([\"']apps\\.[^\"']*\\.infrastructure\\.[^\"']+[\"']\\)",
+        "\\._default_manager\\b",
+        "\\.objects\\."
+      ],
+      "rationale": "Core controllers should delegate to app application services."
+    },
+    {
+      "id": "shared_no_apps_dependencies",
+      "description": "Shared code must not depend on business apps.",
+      "source_roots": [
+        "shared"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\."
+      ],
+      "forbidden_line_patterns": [
+        "importlib\\.import_module\\([\"']apps\\.[^\"']+[\"']\\)"
+      ],
+      "rationale": "shared/ must remain a pure technical component layer."
+    }
+  ],
   "module_metadata": {
     "regime": {
       "role": "core",
-      "patterns": ["Protocol", "Adapter", "Gateway"],
+      "patterns": [
+        "Protocol",
+        "Adapter",
+        "Gateway"
+      ],
       "note": "Runtime access to macro is mediated by regime-owned abstractions."
     },
     "macro": {
       "role": "core",
-      "patterns": ["Orchestration"],
+      "patterns": [
+        "Orchestration"
+      ],
       "note": "Macro sync is invoked through regime orchestration boundaries."
     },
     "events": {
       "role": "integration",
-      "patterns": ["Registry", "Repository wrapper"],
+      "patterns": [
+        "Registry",
+        "Repository wrapper"
+      ],
       "note": "Event fan-out should stop at registry/repository boundaries."
     },
     "strategy": {
       "role": "business",
-      "patterns": ["Facade", "Gateway"],
+      "patterns": [
+        "Facade",
+        "Gateway"
+      ],
       "note": "Strategy should not reach simulated_trading ORM directly."
     },
     "simulated_trading": {
       "role": "business",
-      "patterns": ["Facade", "Gateway"],
+      "patterns": [
+        "Facade",
+        "Gateway"
+      ],
       "note": "Simulated trading should not reach strategy ORM directly."
     },
     "dashboard": {
       "role": "aggregation",
-      "patterns": ["Query Service"],
+      "patterns": [
+        "Query Service"
+      ],
       "note": "Dashboard keeps cross-module reads in query/DTO boundaries."
     },
     "account": {
       "role": "business",
-      "patterns": ["Repository", "Query Service"],
+      "patterns": [
+        "Repository",
+        "Query Service"
+      ],
       "note": "Interface reads from account-owned repositories instead of simulated_trading ORM imports."
     }
   }

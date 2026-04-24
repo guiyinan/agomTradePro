@@ -2,17 +2,19 @@
 Django admin configuration for AI provider management.
 """
 
+from django.apps import apps as django_apps
 from django.contrib import admin
 
-from ..infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
-from ..infrastructure.repositories import AIProviderRepository
+from apps.ai_provider.application.interface_services import get_masked_provider_api_key
+
+AIProviderConfig = django_apps.get_model("ai_provider", "AIProviderConfig")
+AIUsageLog = django_apps.get_model("ai_provider", "AIUsageLog")
+AIUserFallbackQuota = django_apps.get_model("ai_provider", "AIUserFallbackQuota")
 
 
 @admin.register(AIProviderConfig)
 class AIProviderConfigAdmin(admin.ModelAdmin):
     """AI提供商配置管理"""
-
-    _provider_repo = AIProviderRepository()
 
     list_display = [
         "name",
@@ -43,10 +45,7 @@ class AIProviderConfigAdmin(admin.ModelAdmin):
     readonly_fields = ["created_at", "updated_at", "last_used_at"]
 
     def masked_api_key(self, obj):
-        api_key = self._provider_repo.get_api_key(obj)
-        if api_key:
-            return f"****{api_key[-4:]}" if len(api_key) >= 4 else "****"
-        return "****"
+        return get_masked_provider_api_key(obj)
 
     masked_api_key.short_description = "API Key"
 

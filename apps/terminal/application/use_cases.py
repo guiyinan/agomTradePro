@@ -78,8 +78,12 @@ class CreateCommandRequest:
     timeout: int = 60
     provider_name: str | None = None
     model_name: str | None = None
+    risk_level: str = TerminalRiskLevel.READ.value
+    requires_mcp: bool = True
+    enabled_in_terminal: bool = True
     category: str = 'general'
     tags: list[str] = field(default_factory=list)
+    is_active: bool = True
 
 
 @dataclass
@@ -107,6 +111,9 @@ class UpdateCommandRequest:
     timeout: int | None = None
     provider_name: str | None = None
     model_name: str | None = None
+    risk_level: str | None = None
+    requires_mcp: bool | None = None
+    enabled_in_terminal: bool | None = None
     category: str | None = None
     tags: list[str] | None = None
     is_active: bool | None = None
@@ -347,9 +354,8 @@ class ListCommandsUseCase:
         """获取命令列表"""
         if category:
             return self._repository.get_by_category(category)
-        elif include_inactive:
-            # 获取所有命令（需要扩展仓储接口或直接使用ORM）
-            return self._repository.get_all_active()
+        elif include_inactive and hasattr(self._repository, "get_all"):
+            return self._repository.get_all()
         else:
             return self._repository.get_all_active()
 
@@ -390,8 +396,12 @@ class CreateCommandUseCase:
             timeout=request.timeout,
             provider_name=request.provider_name,
             model_name=request.model_name,
+            risk_level=TerminalRiskLevel(request.risk_level),
+            requires_mcp=request.requires_mcp,
+            enabled_in_terminal=request.enabled_in_terminal,
             category=request.category,
             tags=request.tags,
+            is_active=request.is_active,
         )
 
         # 保存
@@ -455,6 +465,12 @@ class UpdateCommandUseCase:
             command.provider_name = request.provider_name
         if request.model_name is not None:
             command.model_name = request.model_name
+        if request.risk_level is not None:
+            command.risk_level = TerminalRiskLevel(request.risk_level)
+        if request.requires_mcp is not None:
+            command.requires_mcp = request.requires_mcp
+        if request.enabled_in_terminal is not None:
+            command.enabled_in_terminal = request.enabled_in_terminal
         if request.category is not None:
             command.category = request.category
         if request.tags is not None:

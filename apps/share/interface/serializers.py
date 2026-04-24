@@ -3,14 +3,15 @@ Share API Serializers
 
 DRF 序列化器定义。
 """
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from apps.share.infrastructure.models import (
-    ShareAccessLogModel,
-    ShareLinkModel,
-    ShareSnapshotModel,
-)
+from apps.share.application.interface_services import validate_share_account_access
+
+ShareAccessLogModel = django_apps.get_model("share", "ShareAccessLogModel")
+ShareLinkModel = django_apps.get_model("share", "ShareLinkModel")
+ShareSnapshotModel = django_apps.get_model("share", "ShareSnapshotModel")
 
 User = get_user_model()
 
@@ -112,15 +113,10 @@ class CreateShareLinkSerializer(serializers.Serializer):
 
     def validate_account_id(self, value):
         """验证账户存在且属于当前用户"""
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-        try:
-            account = SimulatedAccountModel.objects.get(id=value)
-            # 验证账户属于当前用户
-            request = self.context.get("request")
-            if request and request.user.is_authenticated and account.user_id != request.user.id:
-                raise serializers.ValidationError("无权分享此账户")
-        except SimulatedAccountModel.DoesNotExist:
-            raise serializers.ValidationError("模拟账户不存在")
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            if not validate_share_account_access(account_id=value, owner_id=request.user.id):
+                raise serializers.ValidationError("模拟账户不存在或无权分享此账户")
         return value
 
 

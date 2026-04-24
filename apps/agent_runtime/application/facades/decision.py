@@ -8,9 +8,9 @@ Extends the base snapshot with decision-specific context:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from apps.agent_runtime.application.facades.base import BaseContextFacade, _unavailable
+from apps.agent_runtime.application.facades.base import BaseContextFacade
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,10 @@ class DecisionTaskFacade(BaseContextFacade):
     def fetch_open_decisions_summary(self) -> dict[str, Any]:
         """Enhanced decision summary with quota information."""
         base = super().fetch_open_decisions_summary()
-        # Add quota information
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionQuota
-            quotas = list(
-                DecisionQuota.objects.values("decision_type", "max_count", "current_count")[:10]
-            )
-            base["quotas"] = quotas
+            quota_summary = self.context_repository.fetch_decision_quota_summary()
+            if quota_summary.get("status") == "ok":
+                base["quotas"] = quota_summary.get("quotas", [])
         except Exception as e:
             logger.debug("Decision quotas unavailable: %s", e)
         return base
@@ -40,11 +37,9 @@ class DecisionTaskFacade(BaseContextFacade):
         if base.get("status") != "ok":
             return base
         try:
-            from apps.signal.infrastructure.models import InvestmentSignal
-            pending = InvestmentSignal.objects.filter(
-                is_active=True, status="pending_approval"
-            ).count()
-            base["pending_approval"] = pending
+            signal_summary = self.context_repository.fetch_pending_signal_summary()
+            if signal_summary.get("status") == "ok":
+                base["pending_approval"] = signal_summary.get("pending_approval", 0)
         except Exception:
             pass
         return base

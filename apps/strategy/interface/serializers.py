@@ -5,24 +5,24 @@ Interface层:
 - 负责输入验证和输出格式化
 - 使用DRF Serializer进行数据转换
 """
+from django.apps import apps as django_apps
+from django.core.validators import MaxValueValidator, MinValueValidator
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
-from django.core.validators import MaxValueValidator, MinValueValidator
 from rest_framework import serializers
 
 from apps.strategy.application.position_management_service import (
     PositionManagementService,
     PositionRuleError,
 )
-from apps.strategy.infrastructure.models import (
-    AIStrategyConfigModel,
-    PortfolioStrategyAssignmentModel,
-    PositionManagementRuleModel,
-    RuleConditionModel,
-    ScriptConfigModel,
-    StrategyExecutionLogModel,
-    StrategyModel,
-)
+
+AIStrategyConfigModel = django_apps.get_model("strategy", "AIStrategyConfigModel")
+PortfolioStrategyAssignmentModel = django_apps.get_model("strategy", "PortfolioStrategyAssignmentModel")
+PositionManagementRuleModel = django_apps.get_model("strategy", "PositionManagementRuleModel")
+RuleConditionModel = django_apps.get_model("strategy", "RuleConditionModel")
+ScriptConfigModel = django_apps.get_model("strategy", "ScriptConfigModel")
+StrategyExecutionLogModel = django_apps.get_model("strategy", "StrategyExecutionLogModel")
+StrategyModel = django_apps.get_model("strategy", "StrategyModel")
 
 # ========================================================================
 # Strategy Serializers

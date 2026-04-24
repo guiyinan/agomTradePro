@@ -12,3 +12,19 @@ class AccountConfig(AppConfig):
         """
         import apps.account.application.tasks  # noqa: F401 - Import Celery tasks
         import apps.account.infrastructure.signals  # noqa: F401
+
+        from apps.account.application.config_summary_service import (
+            configure_account_config_summary_repository,
+        )
+        from apps.account.application.documentation_use_cases import (
+            configure_documentation_repository,
+        )
+        from apps.account.infrastructure.config_summary_repository import (
+            DjangoAccountConfigSummaryRepository,
+        )
+        from apps.account.infrastructure.documentation_repository import (
+            DjangoDocumentationRepository,
+        )
+
+        configure_account_config_summary_repository(DjangoAccountConfigSummaryRepository())
+        configure_documentation_repository(DjangoDocumentationRepository())

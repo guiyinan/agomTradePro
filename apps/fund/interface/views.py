@@ -20,6 +20,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application import interface_services
 from ..application.use_cases import (
     AnalyzeFundStyleRequest,
     AnalyzeFundStyleUseCase,
@@ -29,7 +30,6 @@ from ..application.use_cases import (
     ScreenFundsRequest,
     ScreenFundsUseCase,
 )
-from ..infrastructure.repositories import DjangoFundRepository
 from .serializers import (
     AnalyzeFundStyleRequestSerializer,
     AnalyzeFundStyleResponseSerializer,
@@ -52,65 +52,7 @@ def dashboard_view(request):
 
     GET /fund/dashboard/
     """
-    # 获取当前 Regime 信息
-    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-    from apps.regime.application.current_regime import resolve_current_regime
-    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
-
-    latest_regime = resolve_current_regime()
-
-    # 获取当前政策档位
-    policy_repo = DjangoPolicyRepository()
-    latest_policy = policy_repo.get_current_policy_level()
-
-    # 获取最新情绪指数
-    sentiment_repo = SentimentIndexRepository()
-    latest_sentiment = sentiment_repo.get_latest()
-    signal_repo = DjangoSignalRepository()
-    active_signals = signal_repo.get_active_signals()
-
-    regime_display = {
-        'Recovery': '复苏',
-        'Overheat': '过热',
-        'Stagflation': '滞胀',
-        'Deflation': '通缩',
-    }
-
-    policy_display = {
-        'P0': 'P0（极度宽松）',
-        'P1': 'P1（宽松）',
-        'P2': 'P2（收紧）',
-        'P3': 'P3（极度收紧）',
-    }
-
-    # 情绪等级
-    sentiment_level = "中性"
-    if latest_sentiment:
-        idx = latest_sentiment.composite_index
-        if idx >= 1.5:
-            sentiment_level = "极度乐观"
-        elif idx >= 0.5:
-            sentiment_level = "乐观"
-        elif idx <= -1.5:
-            sentiment_level = "极度悲观"
-        elif idx <= -0.5:
-            sentiment_level = "悲观"
-
-    context = {
-        'current_regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
-        'regime_display': regime_display.get(latest_regime.dominant_regime) if latest_regime else '未知',
-        'regime_confidence': f"{latest_regime.confidence:.1%}" if latest_regime else "N/A",
-        # 新增：Policy 档位
-        'current_policy': latest_policy.value if latest_policy else 'P1',
-        'policy_display': policy_display.get(latest_policy.value) if latest_policy else 'P1（宽松）',
-        # 新增：情绪指数
-        'sentiment_index': f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00",
-        'sentiment_level': sentiment_level,
-        'sentiment_date': latest_sentiment.index_date.strftime('%Y-%m-%d') if latest_sentiment else '-',
-        'active_signals_count': len(active_signals),
-    }
-
+    context = interface_services.build_dashboard_context()
     return render(request, 'fund/dashboard.html', context)
 
 
@@ -142,9 +84,7 @@ class ScreenFundsView(APIView):
         )
 
         # 3. 执行用例
-        fund_repo = DjangoFundRepository()
-        use_case = ScreenFundsUseCase(fund_repo)
-        response = use_case.execute(screen_request)
+        response = interface_services.screen_funds(screen_request)
 
         # 4. 序列化响应
         response_serializer = ScreenFundsResponseSerializer(response)
@@ -177,9 +117,7 @@ class AnalyzeFundStyleView(APIView):
         )
 
         # 3. 执行用例
-        fund_repo = DjangoFundRepository()
-        use_case = AnalyzeFundStyleUseCase(fund_repo)
-        response = use_case.execute(analyze_request)
+        response = interface_services.analyze_fund_style(analyze_request)
 
         # 4. 序列化响应
         response_serializer = AnalyzeFundStyleResponseSerializer(response)
@@ -213,9 +151,7 @@ class CalculateFundPerformanceView(APIView):
         )
 
         # 3. 执行用例
-        fund_repo = DjangoFundRepository()
-        use_case = CalculateFundPerformanceUseCase(fund_repo)
-        response = use_case.execute(perf_request)
+        response = interface_services.calculate_fund_performance(perf_request)
 
         # 4. 序列化响应
         response_serializer = CalculateFundPerformanceResponseSerializer(response)
@@ -235,9 +171,7 @@ class RankFundsView(APIView):
         max_count = int(request.query_params.get('max_count', 50))
 
         # 执行用例
-        fund_repo = DjangoFundRepository()
-        use_case = RankFundsUseCase(fund_repo)
-        fund_scores = use_case.execute(regime, max_count)
+        fund_scores = interface_services.rank_funds(regime, max_count)
 
         # 序列化响应
         serializer = FundScoreSerializer(fund_scores, many=True)
@@ -257,8 +191,7 @@ class FundInfoView(APIView):
 
     def get(self, request, fund_code: str) -> Response:
         """获取基金信息"""
-        fund_repo = DjangoFundRepository()
-        fund_info = fund_repo.get_fund_info(fund_code)
+        fund_info = interface_services.get_fund_info(fund_code)
 
         if not fund_info:
             return Response(
@@ -296,8 +229,7 @@ class FundNavView(APIView):
         if end_date_str:
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
 
-        fund_repo = DjangoFundRepository()
-        nav_list = fund_repo.get_fund_nav(fund_code, start_date, end_date)
+        nav_list = interface_services.get_fund_nav(fund_code, start_date, end_date)
 
         if not nav_list:
             return Response(
@@ -332,8 +264,7 @@ class FundHoldingView(APIView):
         if report_date_str:
             report_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
 
-        fund_repo = DjangoFundRepository()
-        holdings = fund_repo.get_fund_holdings(fund_code, report_date)
+        holdings = interface_services.get_fund_holdings(fund_code, report_date)
 
         if not holdings:
             return Response(
@@ -364,14 +295,6 @@ class FundMultiDimScreenAPIView(APIView):
     使用通用资产分析框架进行多维度评分筛选。
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        from apps.fund.application.services import FundMultiDimScorer
-        from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
-
-        self.asset_repo = DjangoFundAssetRepository()
-        self.scorer = FundMultiDimScorer(self.asset_repo)
-
     def post(self, request) -> Response:
         """
         多维度筛选基金
@@ -396,30 +319,15 @@ class FundMultiDimScreenAPIView(APIView):
         context_data = request.data.get("context", {})
         max_count = request.data.get("max_count", 30)
 
-        # 2. 构建评分上下文
-        from apps.asset_analysis.domain.value_objects import ScoreContext
-        from apps.signal.infrastructure.repositories import DjangoSignalRepository
-
-        # 获取激活的信号
-        signal_repo = DjangoSignalRepository()
-        active_signals = signal_repo.get_active_signals()
-
-        context = ScoreContext(
-            current_regime=context_data.get("regime", "Recovery"),
-            policy_level=context_data.get("policy_level", "P0"),
-            sentiment_index=context_data.get("sentiment_index", 0.0),
-            active_signals=active_signals,
-        )
-
-        # 3. 执行筛选
         try:
-            result = self.scorer.screen_funds(
+            payload = interface_services.screen_funds_multidim(
                 filters=filters,
-                context=context,
+                context_data=context_data,
                 max_count=max_count,
             )
+            result = payload["result"]
+            context = payload["context"]
 
-            # 4. 返回响应
             return Response({
                 "success": result["success"],
                 "count": result["count"],
@@ -427,7 +335,7 @@ class FundMultiDimScreenAPIView(APIView):
                     "regime": context.current_regime,
                     "policy_level": context.policy_level,
                     "sentiment_index": context.sentiment_index,
-                    "active_signals_count": len(active_signals),
+                    "active_signals_count": payload["active_signals_count"],
                 },
                 "funds": result["funds"],
             }, status=status.HTTP_200_OK if result["success"] else status.HTTP_404_NOT_FOUND)

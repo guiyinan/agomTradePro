@@ -1,16 +1,19 @@
 """Policy workbench API views."""
 
 import logging
-from importlib import import_module
 
-from django.apps import apps as django_apps
-from django.db import models
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.repository_provider import (
+    get_current_policy_repository,
+    get_policy_workbench_interface_service,
+    get_rss_repository,
+    get_workbench_repository,
+)
 from ..application.use_cases import (
     ApproveEventInput,
     ApproveEventUseCase,
@@ -53,22 +56,22 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-PolicyLog = django_apps.get_model("policy", "PolicyLog")
-RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
-RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
-SentimentGateConfig = django_apps.get_model("policy", "SentimentGateConfig")
-
-
 def _workbench_repository():
-    return import_module("apps.policy.infrastructure.repositories").WorkbenchRepository()
+    return get_workbench_repository()
 
 
 def _policy_repository():
-    return import_module("apps.policy.infrastructure.repositories").DjangoPolicyRepository()
+    return get_current_policy_repository()
 
 
 def _rss_repository():
-    return import_module("apps.policy.infrastructure.repositories").RSSRepository()
+    return get_rss_repository()
+
+
+def _workbench_interface_service():
+    """Return the workbench interface service."""
+
+    return get_policy_workbench_interface_service()
 
 class WorkbenchSummaryView(APIView):
     """
@@ -530,25 +533,7 @@ class SentimentGateConfigView(APIView):
     def get(self, request):
         """获取闸门配置列表"""
         try:
-            workbench_repo = _workbench_repository()
-            configs = workbench_repo.get_all_gate_configs()
-            data = [
-                {
-                    'asset_class': c.asset_class,
-                    'heat_l1_threshold': c.heat_l1_threshold,
-                    'heat_l2_threshold': c.heat_l2_threshold,
-                    'heat_l3_threshold': c.heat_l3_threshold,
-                    'sentiment_l1_threshold': c.sentiment_l1_threshold,
-                    'sentiment_l2_threshold': c.sentiment_l2_threshold,
-                    'sentiment_l3_threshold': c.sentiment_l3_threshold,
-                    'max_position_cap_l2': c.max_position_cap_l2,
-                    'max_position_cap_l3': c.max_position_cap_l3,
-                    'enabled': c.enabled,
-                    'version': c.version,
-                }
-                for c in configs
-            ]
-            return Response(data)
+            return Response(_workbench_interface_service().list_gate_configs())
 
         except Exception as e:
             logger.error(f"Failed to get gate configs: {e}", exc_info=True)
@@ -574,35 +559,12 @@ class SentimentGateConfigView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            asset_class = serializer.validated_data['asset_class']
-
-            # 尝试获取已存在的配置
-            try:
-                config = SentimentGateConfig.objects.get(asset_class=asset_class)
-                # 更新已存在的配置
-                for key, value in serializer.validated_data.items():
-                    if key != 'asset_class':
-                        setattr(config, key, value)
-                config.updated_by = request.user
-                config.version = models.F('version') + 1
-                config.save()
-                config.refresh_from_db()  # 刷新以获取实际的 version 值
-                created = False
-            except SentimentGateConfig.DoesNotExist:
-                # 创建新配置
-                config = SentimentGateConfig.objects.create(
-                    **serializer.validated_data,
-                    updated_by=request.user,
-                    version=1
+            return Response(
+                _workbench_interface_service().upsert_gate_config(
+                    payload=serializer.validated_data,
+                    updated_by_id=request.user.id,
                 )
-                created = True
-
-            return Response({
-                'success': True,
-                'asset_class': config.asset_class,
-                'version': config.version,
-                'created': created
-            })
+            )
 
         except Exception as e:
             logger.error(f"Failed to update gate config: {e}", exc_info=True)
@@ -629,114 +591,15 @@ class WorkbenchBootstrapView(APIView):
     def get(self, request):
         """获取工作台启动数据"""
         try:
-            from .serializers import (
-                WorkbenchBootstrapSerializer,
-                WorkbenchFetchStatusSerializer,
-                WorkbenchFilterOptionsSerializer,
-                WorkbenchTrendSerializer,
-            )
-
-            # 1. 获取 summary
-            summary_use_case = GetWorkbenchSummaryUseCase(workbench_repo=_workbench_repository())
-            summary_output = summary_use_case.execute(WorkbenchSummaryInput())
-            summary_data = WorkbenchSummarySerializer(summary_output.summary).data if summary_output.success else {}
-
-            # 2. 获取 default list (tab=all, limit=50)
-            items_input = WorkbenchItemsInput(tab='all', limit=50, offset=0)
-            items_use_case = GetWorkbenchItemsUseCase(workbench_repo=_workbench_repository())
-            items_output = items_use_case.execute(items_input)
-            default_list = items_output.items if items_output.success else []
-
-            # 3. 获取 filter options
-            event_types = [
-                {'value': choice[0], 'label': choice[1]}
-                for choice in PolicyLog.EVENT_TYPE_CHOICES
-            ]
-            levels = [
-                {'value': choice[0], 'label': choice[1]}
-                for choice in PolicyLog.POLICY_LEVELS
-            ]
-            gate_levels = [
-                {'value': choice[0], 'label': choice[1]}
-                for choice in PolicyLog.GATE_LEVEL_CHOICES
-            ]
-            asset_classes = ['equity', 'bond', 'commodity', 'fx', 'crypto', 'all']
-            sources = list(RSSSourceConfigModel.objects.filter(is_active=True).values('id', 'name', 'category'))
-
-            filter_options = {
-                'event_types': event_types,
-                'levels': levels,
-                'gate_levels': gate_levels,
-                'asset_classes': asset_classes,
-                'sources': sources,
-            }
-
-            # 4. 获取 trend data (近30天)
-            from datetime import timedelta
-
-            from django.db.models import Avg, Count
-            from django.utils import timezone
-
-            end_date = timezone.now().date()
-            start_date = end_date - timedelta(days=30)
-
-            # 情绪趋势
-            sentiment_trend = list(
-                PolicyLog.objects.filter(
-                    gate_effective=True,
-                    event_type__in=['hotspot', 'sentiment', 'mixed'],
-                    event_date__gte=start_date,
-                    event_date__lte=end_date,
-                )
-                .extra(select={'day': 'date(event_date)'})
-                .values('day')
-                .annotate(
-                    avg_heat=Avg('heat_score'),
-                    avg_sentiment=Avg('sentiment_score'),
-                    count=Count('id')
-                )
-                .order_by('day')
-            )
-
-            # 生效事件趋势
-            events_trend = list(
-                PolicyLog.objects.filter(
-                    gate_effective=True,
-                    event_date__gte=start_date,
-                    event_date__lte=end_date,
-                )
-                .extra(select={'day': 'date(event_date)'})
-                .values('day', 'event_type')
-                .annotate(count=Count('id'))
-                .order_by('day', 'event_type')
-            )
-
-            trend = {
-                'sentiment_recent_30d': sentiment_trend,
-                'effective_events_recent_30d': events_trend,
-            }
-
-            # 5. 获取 fetch status
-            last_fetch_log = RSSFetchLog.objects.order_by('-fetched_at').first()
-            recent_errors = list(
-                RSSFetchLog.objects.filter(status='error')
-                .order_by('-fetched_at')[:5]
-                .values('fetched_at', 'source__name', 'error_message')
-            )
-
-            fetch_status = {
-                'last_fetch_at': last_fetch_log.fetched_at if last_fetch_log else None,
-                'last_fetch_status': last_fetch_log.status if last_fetch_log else None,
-                'recent_fetch_errors': recent_errors,
-            }
-
+            bootstrap = _workbench_interface_service().get_workbench_bootstrap()
+            summary = bootstrap['summary']
             return Response({
                 'success': True,
-                'summary': summary_data,
-                'default_list': default_list,
-                'filter_options': filter_options,
-                'trend': trend,
-                'fetch_status': fetch_status,
+                'summary': WorkbenchSummarySerializer(summary).data if summary else {},
+                'default_list': bootstrap['default_list'],
+                'filter_options': bootstrap['filter_options'],
+                'trend': bootstrap['trend'],
+                'fetch_status': bootstrap['fetch_status'],
             })
 
         except Exception as e:
@@ -768,70 +631,16 @@ class WorkbenchItemDetailView(APIView):
     def get(self, request, event_id):
         """获取事件详情"""
         try:
-            from .serializers import WorkbenchItemDetailSerializer
-
-            event = PolicyLog.objects.filter(pk=event_id).first()
-            if not event:
+            item = _workbench_interface_service().get_workbench_item_detail(event_id)
+            if item is None:
                 return Response(
                     {'success': False, 'error': 'Event not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            # 获取来源名称
-            rss_source_name = None
-            if event.rss_source_id:
-                source = RSSSourceConfigModel.objects.filter(pk=event.rss_source_id).first()
-                if source:
-                    rss_source_name = source.name
-
-            # 获取生效人名称
-            effective_by_name = None
-            if event.effective_by_id:
-                from django.contrib.auth.models import User
-                user = User.objects.filter(pk=event.effective_by_id).first()
-                if user:
-                    effective_by_name = user.username
-
-            # 获取审核人名称
-            reviewed_by_name = None
-            if event.reviewed_by_id:
-                reviewed_by_name = event.reviewed_by.username if event.reviewed_by else None
-
-            data = {
-                'id': event.id,
-                'event_date': event.event_date,
-                'event_type': event.event_type,
-                'level': event.level,
-                'gate_level': event.gate_level,
-                'title': event.title,
-                'description': event.description,
-                'evidence_url': event.evidence_url,
-                'ai_confidence': event.ai_confidence,
-                'heat_score': event.heat_score,
-                'sentiment_score': event.sentiment_score,
-                'structured_data': event.structured_data or {},
-                'gate_effective': event.gate_effective,
-                'effective_at': event.effective_at,
-                'effective_by_id': event.effective_by_id,
-                'effective_by_name': effective_by_name,
-                'audit_status': event.audit_status,
-                'reviewed_by_id': event.reviewed_by_id,
-                'reviewed_by_name': reviewed_by_name,
-                'reviewed_at': event.reviewed_at,
-                'review_notes': event.review_notes or '',
-                'asset_class': event.asset_class,
-                'asset_scope': event.asset_scope or [],
-                'rollback_reason': event.rollback_reason or '',
-                'rss_source_id': event.rss_source_id,
-                'rss_source_name': rss_source_name,
-                'rss_item_guid': event.rss_item_guid,
-                'created_at': event.created_at,
-                'updated_at': event.updated_at if hasattr(event, 'updated_at') else None,
-            }
-
             return Response({
                 'success': True,
-                'item': data,
+                'item': item,
             })
 
         except Exception as e:

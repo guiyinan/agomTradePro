@@ -5,14 +5,43 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.db import transaction
-from django.db.models import Max, Q
+from django.db.models import Avg, Count, Max, Min, Q
 from django.utils import timezone
 
 from ..domain.entities import MacroIndicator, PeriodType
-from .models import MacroIndicator as MacroIndicatorORM
+from .models import IndicatorUnitConfig, MacroIndicator as MacroIndicatorORM
+
+
+def _get_period_type_display(period_type: str) -> str:
+    """Return a display label for standard and extended period types."""
+
+    standard_types = dict(MacroIndicatorORM.PERIOD_TYPE_CHOICES)
+    if period_type in standard_types:
+        return standard_types[period_type]
+    return MacroIndicatorORM.EXTENDED_PERIOD_TYPES.get(period_type, period_type)
+
+
+def _serialize_indicator_row(orm_obj: MacroIndicatorORM) -> dict[str, Any]:
+    """Serialize an ORM row into a lightweight application payload."""
+
+    return {
+        "id": orm_obj.id,
+        "code": orm_obj.code,
+        "value": float(orm_obj.value),
+        "unit": orm_obj.unit,
+        "original_unit": orm_obj.original_unit,
+        "reporting_period": orm_obj.reporting_period,
+        "period_type": orm_obj.period_type,
+        "period_type_display": _get_period_type_display(orm_obj.period_type),
+        "observed_at": orm_obj.observed_at,
+        "published_at": orm_obj.published_at,
+        "source": orm_obj.source,
+        "revision_number": orm_obj.revision_number,
+        "publication_lag_days": orm_obj.publication_lag_days,
+    }
 
 
 class MacroRepositoryError(Exception):
@@ -534,6 +563,71 @@ class DjangoMacroRepository:
         count, _ = query.delete()
         return count
 
+    def get_record_by_id(self, record_id: int) -> dict[str, Any] | None:
+        """Return one persisted indicator row by primary key."""
+
+        record = self._model.objects.filter(id=record_id).first()
+        if record is None:
+            return None
+        return _serialize_indicator_row(record)
+
+    def create_record(
+        self,
+        *,
+        code: str,
+        value: float,
+        reporting_period: date,
+        period_type: str = "D",
+        published_at: date | None = None,
+        source: str = "manual",
+        revision_number: int = 1,
+    ) -> dict[str, Any]:
+        """Create one indicator row and return a lightweight payload."""
+
+        record = self._model.objects.create(
+            code=code,
+            value=value,
+            reporting_period=reporting_period,
+            period_type=period_type,
+            published_at=published_at,
+            source=source,
+            revision_number=revision_number,
+        )
+        return _serialize_indicator_row(record)
+
+    def update_record(
+        self,
+        record_id: int,
+        **updates: Any,
+    ) -> dict[str, Any] | None:
+        """Apply partial updates to one indicator row."""
+
+        record = self._model.objects.filter(id=record_id).first()
+        if record is None:
+            return None
+
+        for field_name, value in updates.items():
+            setattr(record, field_name, value)
+        record.save()
+        record.refresh_from_db()
+        return _serialize_indicator_row(record)
+
+    def delete_record_by_id(self, record_id: int) -> bool:
+        """Delete one indicator row by primary key."""
+
+        deleted_count, _ = self._model.objects.filter(id=record_id).delete()
+        return deleted_count > 0
+
+    def delete_records_by_ids(self, record_ids: list[int]) -> int:
+        """Delete multiple indicator rows by primary key list."""
+
+        deleted_count, _ = self._model.objects.filter(id__in=record_ids).delete()
+        return deleted_count
+
+    def count_records_before_date(self, cutoff_date: date) -> int:
+        """统计指定日期之前的指标记录数量。"""
+        return self._model.objects.filter(reporting_period__lt=cutoff_date).count()
+
     def get_statistics(self) -> dict:
         """
         获取数据统计信息
@@ -628,3 +722,246 @@ class DjangoMacroRepository:
             published_at=orm_obj.published_at,
             source=orm_obj.source,
         )
+
+
+class MacroIndicatorReadRepository:
+    """Read-model repository for macro indicator application queries."""
+
+    @staticmethod
+    def _build_filtered_queryset(
+        *,
+        code: str | None = None,
+        code_filter: str = "",
+        source_filter: str = "",
+        period_type_filter: str = "",
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ):
+        """Build the common queryset for interface-facing indicator queries."""
+
+        queryset = MacroIndicatorORM._default_manager.all()
+        if code:
+            queryset = queryset.filter(code=code)
+        if code_filter:
+            queryset = queryset.filter(code__icontains=code_filter)
+        if source_filter:
+            queryset = queryset.filter(source=source_filter)
+        if period_type_filter:
+            queryset = queryset.filter(period_type=period_type_filter)
+        if start_date:
+            queryset = queryset.filter(reporting_period__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(reporting_period__lte=end_date)
+        return queryset
+
+    def get_indicator_unit_config(
+        self,
+        indicator_code: str,
+        source: str | None = None,
+    ) -> dict | None:
+        """Return the best matching unit config as a lightweight dict."""
+
+        queryset = IndicatorUnitConfig._default_manager.filter(
+            indicator_code=indicator_code,
+            is_active=True,
+        )
+        if source:
+            config = queryset.filter(source=source).values(
+                "indicator_code",
+                "source",
+                "original_unit",
+                "priority",
+            ).first()
+            if config:
+                return config
+
+        config = queryset.filter(source="manual").values(
+            "indicator_code",
+            "source",
+            "original_unit",
+            "priority",
+        ).first()
+        if config:
+            return config
+
+        return queryset.order_by("-priority").values(
+            "indicator_code",
+            "source",
+            "original_unit",
+            "priority",
+        ).first()
+
+    def list_distinct_codes(self) -> list[str]:
+        """Return distinct indicator codes stored in the database."""
+
+        return list(
+            MacroIndicatorORM._default_manager.values_list("code", flat=True).distinct()
+        )
+
+    def get_storage_summary(self) -> dict[str, Any]:
+        """Return aggregate counts and date range for stored macro data."""
+
+        queryset = MacroIndicatorORM._default_manager.all()
+        aggregates = queryset.aggregate(
+            latest_date=Max("reporting_period"),
+            min_date=Min("reporting_period"),
+            max_date=Max("reporting_period"),
+        )
+        return {
+            "total_indicators": queryset.values("code").distinct().count(),
+            "total_records": queryset.count(),
+            "latest_date": aggregates["latest_date"],
+            "min_date": aggregates["min_date"],
+            "max_date": aggregates["max_date"],
+        }
+
+    def list_indicator_rollups(self) -> list[dict[str, Any]]:
+        """Return per-code counts and latest reporting date for the controller page."""
+
+        return list(
+            MacroIndicatorORM._default_manager.values("code")
+            .annotate(count=Count("id"), latest=Max("reporting_period"))
+            .order_by("code")
+        )
+
+    def list_source_rollups(self) -> list[dict[str, Any]]:
+        """Return per-source counts for the controller page."""
+
+        return list(
+            MacroIndicatorORM._default_manager.values("source")
+            .annotate(count=Count("id"))
+            .order_by("-count", "source")
+        )
+
+    def get_indicator_rows(
+        self,
+        *,
+        code: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        limit: int | None = None,
+        ascending: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Return serialized rows for one indicator code."""
+
+        queryset = self._build_filtered_queryset(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if ascending:
+            queryset = queryset.order_by("reporting_period", "revision_number")
+        else:
+            queryset = queryset.order_by("-reporting_period", "-revision_number")
+        if limit is not None:
+            queryset = queryset[:limit]
+        return [_serialize_indicator_row(row) for row in queryset]
+
+    def count_table_rows(
+        self,
+        *,
+        code_filter: str = "",
+        source_filter: str = "",
+        period_type_filter: str = "",
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> int:
+        """Return row count for the table endpoint filters."""
+
+        queryset = self._build_filtered_queryset(
+            code_filter=code_filter,
+            source_filter=source_filter,
+            period_type_filter=period_type_filter,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return queryset.count()
+
+    def get_table_rows(
+        self,
+        *,
+        code_filter: str = "",
+        source_filter: str = "",
+        period_type_filter: str = "",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        sort_field: str = "-reporting_period",
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Return paginated serialized rows for the table endpoint."""
+
+        queryset = self._build_filtered_queryset(
+            code_filter=code_filter,
+            source_filter=source_filter,
+            period_type_filter=period_type_filter,
+            start_date=start_date,
+            end_date=end_date,
+        ).order_by(sort_field, "-revision_number")
+        rows = queryset[offset:offset + limit]
+        return [_serialize_indicator_row(row) for row in rows]
+
+    def get_latest_indicator(self, code: str) -> dict | None:
+        """Return the latest indicator row for one code."""
+
+        return MacroIndicatorORM._default_manager.filter(code=code).order_by(
+            "-reporting_period"
+        ).values(
+            "code",
+            "value",
+            "unit",
+            "original_unit",
+            "reporting_period",
+            "period_type",
+        ).first()
+
+    def get_indicator_stats(self, code: str, start_date: date) -> dict[str, float | None]:
+        """Return aggregate stats for one indicator code from a start date."""
+
+        stats = MacroIndicatorORM._default_manager.filter(
+            code=code,
+            reporting_period__gte=start_date,
+        ).aggregate(
+            avg_value=Avg("value"),
+            max_value=Max("value"),
+            min_value=Min("value"),
+        )
+        return {
+            "avg_value": float(stats["avg_value"]) if stats["avg_value"] is not None else None,
+            "max_value": float(stats["max_value"]) if stats["max_value"] is not None else None,
+            "min_value": float(stats["min_value"]) if stats["min_value"] is not None else None,
+        }
+
+    def get_indicator_history(
+        self,
+        code: str,
+        *,
+        start_date: date,
+        end_date: date,
+        limit: int,
+    ) -> list[dict]:
+        """Return recent indicator history rows for one code."""
+
+        rows = MacroIndicatorORM._default_manager.filter(
+            code=code,
+            reporting_period__gte=start_date,
+            reporting_period__lte=end_date,
+        ).order_by("-reporting_period").values(
+            "value",
+            "unit",
+            "original_unit",
+            "reporting_period",
+            "period_type",
+        )[:limit]
+        return list(rows)
+
+    def get_latest_values_by_codes(self, codes: list[str]) -> list[dict]:
+        """Return ordered code/value rows for latest-value projection."""
+
+        rows = (
+            MacroIndicatorORM._default_manager
+            .filter(code__in=codes)
+            .order_by("code", "-reporting_period")
+            .values("code", "value")
+        )
+        return list(rows)

@@ -22,6 +22,7 @@ from apps.sentiment.domain.entities import (
     SentimentIndex,
     SentimentSource,
 )
+from apps.sentiment.infrastructure.repositories import SentimentAlertRepository
 from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)
@@ -312,9 +313,7 @@ class SentimentAnalyzer:
 
         try:
             # 创建告警记录到数据库
-            from ..infrastructure.models import SentimentAlertModel
-
-            SentimentAlertModel._default_manager.create(
+            SentimentAlertRepository().create_alert(
                 alert_type="ai_failure",
                 severity="warning",
                 title="Sentiment AI 调用失败",

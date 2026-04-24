@@ -8,9 +8,9 @@ Extends the base snapshot with research-specific context:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from apps.agent_runtime.application.facades.base import BaseContextFacade, _unavailable
+from apps.agent_runtime.application.facades.base import BaseContextFacade
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +25,10 @@ class ResearchTaskFacade(BaseContextFacade):
         base = super().fetch_regime_summary()
         if base.get("status") != "ok":
             return base
-        # Add regime history count for research context
         try:
-            from apps.regime.infrastructure.models import RegimeRecord
-            history_count = RegimeRecord.objects.count()
-            base["history_records"] = history_count
+            history_summary = self.context_repository.fetch_regime_history_summary()
+            if history_summary.get("status") == "ok":
+                base["history_records"] = history_summary.get("history_records", 0)
         except Exception:
             pass
         return base
@@ -40,11 +39,12 @@ class ResearchTaskFacade(BaseContextFacade):
         if base.get("status") != "ok":
             return base
         try:
-            from apps.signal.infrastructure.models import InvestmentSignal
-            approaching_invalidation = InvestmentSignal.objects.filter(
-                is_active=True,
-            ).exclude(invalidation_logic="").count()
-            base["with_invalidation_logic"] = approaching_invalidation
+            signal_summary = self.context_repository.fetch_signal_invalidation_summary()
+            if signal_summary.get("status") == "ok":
+                base["with_invalidation_logic"] = signal_summary.get(
+                    "with_invalidation_logic",
+                    0,
+                )
         except Exception:
             pass
         return base

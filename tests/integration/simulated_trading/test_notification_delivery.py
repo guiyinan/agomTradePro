@@ -110,9 +110,15 @@ class TestInAppNotificationChannel:
     def test_channel_is_available_without_model(self):
         """Test channel availability when model is not configured."""
         channel = InAppNotificationChannel(model_class=None)
-        # Without model and no app available, channel is not available
-        # This is expected behavior - the notifications app needs to be created
+        # Without explicit model injection, in-app notification stays disabled.
         assert channel.is_available() is False
+
+    def test_channel_is_available_with_injected_model(self):
+        """Test channel availability when model class is injected explicitly."""
+        fake_model = MagicMock()
+        channel = InAppNotificationChannel(model_class=fake_model)
+
+        assert channel.is_available() is True
 
     def test_validate_recipient_with_user_id(self):
         """Test recipient validation with user_id."""

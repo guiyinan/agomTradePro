@@ -9,6 +9,12 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 
+from apps.equity.application.interface_services import (
+    init_fund_type_preferences,
+    init_sector_preferences,
+    init_stock_screening_rules,
+)
+
 
 class Command(BaseCommand):
     help = '初始化个股/板块/基金配置'
@@ -23,8 +29,6 @@ class Command(BaseCommand):
 
     def init_stock_screening_rules(self):
         """初始化个股筛选规则"""
-        from shared.infrastructure.models import StockScreeningRuleConfigModel
-
         rules = [
             {
                 "regime": "Recovery",
@@ -77,19 +81,11 @@ class Command(BaseCommand):
             },
         ]
 
-        for rule_data in rules:
-            StockScreeningRuleConfigModel._default_manager.update_or_create(
-                regime=rule_data["regime"],
-                rule_name=rule_data["rule_name"],
-                defaults=rule_data
-            )
-
+        init_stock_screening_rules(rules=rules)
         self.stdout.write(f"已初始化 {len(rules)} 条个股筛选规则")
 
     def init_sector_preferences(self):
         """初始化板块偏好"""
-        from shared.infrastructure.models import SectorPreferenceConfigModel
-
         preferences = [
             # Recovery
             {"regime": "Recovery", "sector_name": "证券", "weight": 1.0},
@@ -113,19 +109,11 @@ class Command(BaseCommand):
             {"regime": "Deflation", "sector_name": "保险", "weight": 0.9},
         ]
 
-        for pref in preferences:
-            SectorPreferenceConfigModel._default_manager.update_or_create(
-                regime=pref["regime"],
-                sector_name=pref["sector_name"],
-                defaults=pref
-            )
-
+        init_sector_preferences(preferences=preferences)
         self.stdout.write(f"已初始化 {len(preferences)} 条板块偏好配置")
 
     def init_fund_type_preferences(self):
         """初始化基金类型偏好"""
-        from shared.infrastructure.models import FundTypePreferenceConfigModel
-
         preferences = [
             # Recovery
             {"regime": "Recovery", "fund_type": "股票型", "style": "成长", "priority": 2},
@@ -143,13 +131,6 @@ class Command(BaseCommand):
             {"regime": "Deflation", "fund_type": "债券型", "style": "纯债", "priority": 1},
         ]
 
-        for pref in preferences:
-            FundTypePreferenceConfigModel._default_manager.update_or_create(
-                regime=pref["regime"],
-                fund_type=pref["fund_type"],
-                style=pref["style"],
-                defaults=pref
-            )
-
+        init_fund_type_preferences(preferences=preferences)
         self.stdout.write(f"已初始化 {len(preferences)} 条基金类型偏好配置")
 

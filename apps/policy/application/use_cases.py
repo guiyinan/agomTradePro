@@ -45,8 +45,7 @@ from ..domain.rules import (
 )
 from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from ..infrastructure.adapters.content_extractor import ContentExtractorError
-from ..infrastructure.models import PolicyAuditQueue, PolicyLog, RSSSourceConfigModel
-from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
+from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository, WorkbenchRepository
 
 logger = logging.getLogger(__name__)
 
@@ -763,7 +762,7 @@ class FetchRSSUseCase:
         return output
 
     def _fetch_single_source(
-        self, source: RSSSourceConfigModel, force_refetch: bool
+        self, source: Any, force_refetch: bool
     ) -> dict[str, Any]:
         """
         抓取单个RSS源（增强版 - 集成AI分类）
@@ -798,7 +797,7 @@ class FetchRSSUseCase:
         # 5. 处理每个条目
         new_events_count = 0
         for item in items:
-            policy_log_orm = None
+            policy_log_record = None
             try:
                 # 去重检查
                 if not force_refetch and self.rss_repository.is_item_exists(item.link, item.guid):
@@ -806,20 +805,13 @@ class FetchRSSUseCase:
                     continue
 
                 # 阶段1：先落库原始记录，保证后续处理失败也不会丢数据
-                policy_log_orm = PolicyLog._default_manager.create(
+                policy_log_record = self.policy_repository.create_raw_rss_policy_log(
                     event_date=item.pub_date.date(),
-                    level="PX",  # 待分类
                     title=item.title,
                     description=item.description or item.title,
                     evidence_url=item.link,
-                    info_category="other",
-                    audit_status="pending_review",
-                    ai_confidence=None,
-                    structured_data={},
-                    risk_impact="unknown",
                     rss_source_id=source.id,
                     rss_item_guid=item.guid or item.link,
-                    processing_metadata={"processing_stage": "raw_ingested"},
                 )
                 new_events_count += 1
 
@@ -962,33 +954,24 @@ class FetchRSSUseCase:
                 }
 
                 # 阶段2：处理完成后更新已落库记录
-                policy_log_orm.level = level.value
-                policy_log_orm.description = description
-                policy_log_orm.info_category = extra_fields["info_category"]
-                policy_log_orm.audit_status = extra_fields["audit_status"]
-                policy_log_orm.ai_confidence = extra_fields["ai_confidence"]
-                policy_log_orm.structured_data = extra_fields["structured_data"]
-                policy_log_orm.risk_impact = extra_fields["risk_impact"]
-                policy_log_orm.processing_metadata = {
-                    **extra_fields["processing_metadata"],
-                    "processing_stage": "processed",
-                }
-                policy_log_orm.save(
-                    update_fields=[
-                        "level",
-                        "description",
-                        "info_category",
-                        "audit_status",
-                        "ai_confidence",
-                        "structured_data",
-                        "risk_impact",
-                        "processing_metadata",
-                    ]
+                self.policy_repository.update_policy_log_fields(
+                    policy_log_record["id"],
+                    level=level.value,
+                    description=description,
+                    info_category=extra_fields["info_category"],
+                    audit_status=extra_fields["audit_status"],
+                    ai_confidence=extra_fields["ai_confidence"],
+                    structured_data=extra_fields["structured_data"],
+                    risk_impact=extra_fields["risk_impact"],
+                    processing_metadata={
+                        **extra_fields["processing_metadata"],
+                        "processing_stage": "processed",
+                    },
                 )
 
                 # ========== 审核队列管理 ==========
                 # 如果需要人工审核，加入审核队列（使用 get_or_create 避免重复）
-                if audit_status == AuditStatus.PENDING_REVIEW and policy_log_orm:
+                if audit_status == AuditStatus.PENDING_REVIEW and policy_log_record:
                     # 根据风险级别设置优先级
                     if level in [PolicyLevel.P2, PolicyLevel.P3]:
                         priority = "urgent"
@@ -997,12 +980,14 @@ class FetchRSSUseCase:
                     else:
                         priority = "normal"
 
-                    _, created = PolicyAuditQueue._default_manager.get_or_create(
-                        policy_log=policy_log_orm, defaults={"priority": priority}
+                    queue_result = self.policy_repository.ensure_audit_queue_item(
+                        policy_log_id=policy_log_record["id"],
+                        priority=priority,
                     )
-                    if created:
+                    if queue_result["created"]:
                         logger.info(
-                            f"Added policy {policy_log_orm.id} to audit queue (priority: {priority})"
+                            f"Added policy {policy_log_record['id']} to audit queue "
+                            f"(priority: {priority})"
                         )
 
                 logger.info(
@@ -1030,28 +1015,23 @@ class FetchRSSUseCase:
                 )
                 record_exception(e, module="policy", is_handled=True)
                 try:
-                    if policy_log_orm:
-                        policy_log_orm.processing_metadata = {
-                            **(policy_log_orm.processing_metadata or {}),
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                            "saved_as_pending": True,
-                            "processing_stage": "failed",
-                        }
-                        policy_log_orm.save(update_fields=["processing_metadata"])
+                    if policy_log_record:
+                        self.policy_repository.append_policy_log_processing_metadata(
+                            policy_log_record["id"],
+                            {
+                                "error": str(e),
+                                "error_type": type(e).__name__,
+                                "saved_as_pending": True,
+                                "processing_stage": "failed",
+                            },
+                        )
                         logger.info(f"Kept pending RSS item (processing failed): {item.title}")
                     else:
-                        PolicyLog._default_manager.create(
+                        self.policy_repository.create_raw_rss_policy_log(
                             event_date=item.pub_date.date(),
-                            level="PX",
                             title=item.title,
                             description=item.description or item.title,
                             evidence_url=item.link,
-                            info_category="other",
-                            audit_status="pending_review",
-                            ai_confidence=None,
-                            structured_data={},
-                            risk_impact="unknown",
                             rss_source_id=source.id,
                             rss_item_guid=item.guid or item.link,
                             processing_metadata={
@@ -1106,7 +1086,7 @@ class FetchRSSUseCase:
             "error": error_msg,
         }
 
-    def _orm_to_domain_config(self, orm_obj: RSSSourceConfigModel) -> RSSSourceConfig:
+    def _orm_to_domain_config(self, orm_obj: Any) -> RSSSourceConfig:
         """ORM转Domain实体"""
         proxy_config = None
         if orm_obj.proxy_enabled:
@@ -1245,7 +1225,11 @@ class ReviewPolicyItemOutput:
 class GetAuditQueueUseCase:
     """获取审核队列用例"""
 
-    def __init__(self, policy_repository: DjangoPolicyRepository):
+    def __init__(
+        self,
+        policy_repository: DjangoPolicyRepository,
+        workbench_repo: WorkbenchRepository | None = None,
+    ):
         """
         初始化用例
 
@@ -1253,6 +1237,7 @@ class GetAuditQueueUseCase:
             policy_repository: 政策仓储
         """
         self.policy_repository = policy_repository
+        self.workbench_repo = workbench_repo or WorkbenchRepository()
 
     def execute(
         self,
@@ -1273,43 +1258,12 @@ class GetAuditQueueUseCase:
         Returns:
             List[Dict]: 待审核政策列表
         """
-        from ..infrastructure.models import PolicyAuditQueue
-
-        queryset = PolicyAuditQueue._default_manager.filter(
-            policy_log__audit_status=status
-        ).select_related("policy_log", "assigned_to")
-
-        if priority:
-            queryset = queryset.filter(priority=priority)
-
-        # 如果指定了用户，只返回分配给该用户的
-        queryset = queryset.filter(assigned_to=user)
-
-        # 优先级排序
-        priority_order = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
-        results = list(queryset[:limit])
-        results.sort(key=lambda x: priority_order.get(x.priority, 99))
-
-        return [
-            {
-                "id": item.policy_log.id,
-                "title": item.policy_log.title,
-                "description": item.policy_log.description[:200] + "..."
-                if len(item.policy_log.description) > 200
-                else item.policy_log.description,
-                "level": item.policy_log.level,
-                "info_category": item.policy_log.info_category,
-                "ai_confidence": item.policy_log.ai_confidence,
-                "structured_data": item.policy_log.structured_data,
-                "priority": item.priority,
-                "created_at": item.policy_log.created_at.isoformat(),
-                "assigned_at": item.assigned_at.isoformat() if item.assigned_at else None,
-                "rss_source": item.policy_log.rss_source.name
-                if item.policy_log.rss_source
-                else None,
-            }
-            for item in results
-        ]
+        return self.workbench_repo.list_audit_queue_items(
+            assigned_user_id=user.id,
+            status=status,
+            priority=priority,
+            limit=limit,
+        )
 
 
 class ReviewPolicyItemUseCase:
@@ -1319,9 +1273,11 @@ class ReviewPolicyItemUseCase:
         self,
         policy_repository: DjangoPolicyRepository,
         alert_service: AlertServiceProtocol | None = None,
+        workbench_repo: WorkbenchRepository | None = None,
     ):
         self.policy_repository = policy_repository
         self.alert_service = alert_service
+        self.workbench_repo = workbench_repo or WorkbenchRepository()
 
     def execute(self, input: ReviewPolicyItemInput) -> ReviewPolicyItemOutput:
         """
@@ -1333,62 +1289,31 @@ class ReviewPolicyItemUseCase:
         Returns:
             ReviewPolicyItemOutput: 审核结果
         """
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyAuditQueue, PolicyLog
-
         output = ReviewPolicyItemOutput(
             success=False, audit_status=AuditStatus.PENDING_REVIEW, message=""
         )
 
         try:
-            # 获取政策日志
-            policy_log = PolicyLog._default_manager.get(id=input.policy_log_id)
+            review_result = self.workbench_repo.review_policy_item(
+                policy_log_id=input.policy_log_id,
+                approved=input.approved,
+                reviewer_id=input.reviewer.id,
+                notes=input.notes,
+                modifications=input.modifications,
+            )
+            if review_result is None:
+                output.errors.append(f"政策日志 {input.policy_log_id} 不存在")
+                logger.error(f"Policy log {input.policy_log_id} not found")
+                return output
 
-            # 更新审核状态
-            if input.approved:
-                policy_log.audit_status = AuditStatus.MANUAL_APPROVED.value
-                policy_log.reviewed_by = input.reviewer
-                policy_log.reviewed_at = timezone.now()
-                policy_log.review_notes = input.notes
+            output.audit_status = AuditStatus(review_result["audit_status"])
+            output.message = "政策已审核通过" if input.approved else "政策已拒绝"
+            output.success = True
 
-                # 如果审核者提供了修改，更新结构化数据
-                if input.modifications:
-                    if policy_log.structured_data is None:
-                        policy_log.structured_data = {}
-                    policy_log.structured_data.update(input.modifications)
-
-                policy_log.save()
-
-                # 从审核队列中移除
-                PolicyAuditQueue._default_manager.filter(policy_log=policy_log).delete()
-
-                output.audit_status = AuditStatus.MANUAL_APPROVED
-                output.message = "政策已审核通过"
-                output.success = True
-
-                logger.info(f"Policy {policy_log.id} approved by {input.reviewer.username}")
-
-            else:
-                # 拒绝
-                policy_log.audit_status = AuditStatus.REJECTED.value
-                policy_log.reviewed_by = input.reviewer
-                policy_log.reviewed_at = timezone.now()
-                policy_log.review_notes = input.notes or "人工拒绝"
-                policy_log.save()
-
-                # 从审核队列中移除
-                PolicyAuditQueue._default_manager.filter(policy_log=policy_log).delete()
-
-                output.audit_status = AuditStatus.REJECTED
-                output.message = "政策已拒绝"
-                output.success = True
-
-                logger.info(f"Policy {policy_log.id} rejected by {input.reviewer.username}")
-
-        except PolicyLog.DoesNotExist:
-            output.errors.append(f"政策日志 {input.policy_log_id} 不存在")
-            logger.error(f"Policy log {input.policy_log_id} not found")
+            logger.info(
+                f"Policy {input.policy_log_id} "
+                f"{'approved' if input.approved else 'rejected'} by {input.reviewer.username}"
+            )
 
         except Exception as e:
             output.errors.append(f"审核失败: {str(e)}")
@@ -1439,6 +1364,9 @@ class BulkReviewUseCase:
 class AutoAssignAuditsUseCase:
     """自动分配审核任务用例"""
 
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None):
+        self.workbench_repo = workbench_repo or WorkbenchRepository()
+
     def execute(self, max_per_user: int = 10) -> dict[str, Any]:
         """
         自动将待审核的政策分配给审核人员
@@ -1449,48 +1377,43 @@ class AutoAssignAuditsUseCase:
         Returns:
             Dict: 分配结果统计
         """
-        from django.contrib.auth.models import User
         from django.utils import timezone
 
-        from ..infrastructure.models import PolicyAuditQueue
+        unassigned_ids = self.workbench_repo.list_unassigned_audit_queue_ids()
+        auditor_ids = self.workbench_repo.list_staff_auditor_ids()
 
-        # 获取所有待审核且未分配的政策
-        unassigned = PolicyAuditQueue._default_manager.filter(
-            assigned_to__isnull=True, policy_log__audit_status="pending_review"
-        ).order_by("-created_at")
-
-        # 获取可用的审核人员（有权限的用户）
-        auditors = User._default_manager.filter(is_staff=True).distinct()
-
-        if not auditors:
+        if not auditor_ids:
             logger.warning("No auditors found with staff privileges")
-            return {"assigned": 0, "remaining": unassigned.count()}
+            return {"assigned": 0, "remaining": len(unassigned_ids)}
 
-        # 轮询分配
+        assignment_counts = self.workbench_repo.get_pending_assignment_counts(auditor_ids)
         assigned_count = 0
-        for idx, queue_item in enumerate(unassigned):
-            auditor = auditors[idx % auditors.count()]
+        auditor_count = len(auditor_ids)
+        for idx, queue_id in enumerate(unassigned_ids):
+            assigned = False
+            for offset in range(auditor_count):
+                auditor_id = auditor_ids[(idx + offset) % auditor_count]
+                current_assigned = assignment_counts.get(auditor_id, 0)
+                if current_assigned >= max_per_user:
+                    continue
+                if self.workbench_repo.assign_audit_queue_item(
+                    queue_id=queue_id,
+                    auditor_id=auditor_id,
+                    assigned_at=timezone.now(),
+                ):
+                    assignment_counts[auditor_id] = current_assigned + 1
+                    assigned_count += 1
+                assigned = True
+                break
+            if not assigned:
+                logger.debug(f"No available auditor slot for queue item {queue_id}")
 
-            # 检查该用户已分配数量
-            current_assigned = PolicyAuditQueue._default_manager.filter(
-                assigned_to=auditor, policy_log__audit_status="pending_review"
-            ).count()
-
-            if current_assigned >= max_per_user:
-                continue
-
-            queue_item.assigned_to = auditor
-            queue_item.assigned_at = timezone.now()
-            queue_item.save()
-
-            assigned_count += 1
-
-        logger.info(f"Auto-assigned {assigned_count} policy reviews to {auditors.count()} auditors")
+        logger.info(f"Auto-assigned {assigned_count} policy reviews to {auditor_count} auditors")
 
         return {
             "assigned": assigned_count,
-            "remaining": unassigned.count() - assigned_count,
-            "auditors": auditors.count(),
+            "remaining": len(unassigned_ids) - assigned_count,
+            "auditors": auditor_count,
         }
 
 
@@ -1514,9 +1437,6 @@ from ..domain.rules import (
     is_sla_exceeded,
     should_auto_approve,
 )
-from ..infrastructure.repositories import WorkbenchRepository
-
-
 @dataclass
 class WorkbenchSummaryInput:
     """工作台概览输入 DTO"""
@@ -1536,9 +1456,13 @@ class WorkbenchSummaryOutput:
 class GetWorkbenchSummaryUseCase:
     """获取工作台概览用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
+    def __init__(
+        self,
+        workbench_repo: WorkbenchRepository | None = None,
+        policy_repo: DjangoPolicyRepository | None = None,
+    ):
         self.workbench_repo = workbench_repo or WorkbenchRepository()
-        self.policy_repo = DjangoPolicyRepository()
+        self.policy_repo = policy_repo or DjangoPolicyRepository()
 
     def execute(self, input_dto: WorkbenchSummaryInput = None) -> WorkbenchSummaryOutput:
         """
@@ -1552,16 +1476,7 @@ class GetWorkbenchSummaryUseCase:
             policy_level = self.policy_repo.get_current_policy_level()
 
             # 获取触发政策档位的事件
-            latest_policy_event = None
-            from ..infrastructure.models import PolicyLog
-
-            policy_event = (
-                PolicyLog._default_manager.filter(event_type="policy", gate_effective=True)
-                .order_by("-event_date", "-effective_at")
-                .first()
-            )
-            if policy_event:
-                latest_policy_event = policy_event.title
+            latest_policy_event = self.workbench_repo.get_latest_effective_policy_title()
 
             # 获取全局热度与情绪
             global_heat, global_sentiment = self.workbench_repo.get_global_heat_sentiment()
@@ -1592,10 +1507,7 @@ class GetWorkbenchSummaryUseCase:
             effective_today_count = self.workbench_repo.get_effective_today_count()
 
             # 获取最后抓取时间
-            from ..infrastructure.models import RSSFetchLog
-
-            last_fetch = RSSFetchLog._default_manager.order_by("-fetched_at").first()
-            last_fetch_at = last_fetch.fetched_at if last_fetch else None
+            last_fetch_at = self.workbench_repo.get_last_fetch_at()
 
             summary = WorkbenchSummary(
                 policy_level=policy_level,
@@ -1659,82 +1571,23 @@ class GetWorkbenchItemsUseCase:
             WorkbenchItemsOutput: 事件列表
         """
         try:
-            from django.db.models import Q
-
-            from ..infrastructure.models import PolicyLog
-
-            query = PolicyLog._default_manager.all()
-
-            # Tab 筛选
-            if input_dto.tab == "pending":
-                query = query.filter(audit_status="pending_review")
-            elif input_dto.tab == "effective":
-                query = query.filter(gate_effective=True)
-
-            # 其他筛选
-            if input_dto.event_type:
-                query = query.filter(event_type=input_dto.event_type)
-            if input_dto.level:
-                query = query.filter(level=input_dto.level)
-            if input_dto.gate_level:
-                query = query.filter(gate_level=input_dto.gate_level)
-            if input_dto.asset_class:
-                query = query.filter(asset_class=input_dto.asset_class)
-            if input_dto.start_date:
-                query = query.filter(event_date__gte=input_dto.start_date)
-            if input_dto.end_date:
-                query = query.filter(event_date__lte=input_dto.end_date)
-            if input_dto.search:
-                query = query.filter(
-                    Q(title__icontains=input_dto.search)
-                    | Q(description__icontains=input_dto.search)
-                )
-
-            # 排序
-            if input_dto.tab == "pending":
-                query = query.order_by("-created_at")
-            elif input_dto.tab == "effective":
-                query = query.order_by("-effective_at")
-            else:
-                query = query.order_by("-event_date", "-created_at")
-
-            # 分页
-            total = query.count()
-            items = query[input_dto.offset : input_dto.offset + input_dto.limit]
-
-            # 转换为字典
-            items_data = []
-            for item in items:
-                items_data.append(
-                    {
-                        "id": item.id,
-                        "event_date": item.event_date.isoformat() if item.event_date else None,
-                        "event_type": item.event_type,
-                        "level": item.level,
-                        "gate_level": item.gate_level,
-                        "title": item.title,
-                        "description": item.description[:200] + "..."
-                        if len(item.description) > 200
-                        else item.description,
-                        "evidence_url": item.evidence_url,
-                        "ai_confidence": item.ai_confidence,
-                        "heat_score": item.heat_score,
-                        "sentiment_score": item.sentiment_score,
-                        "gate_effective": item.gate_effective,
-                        "asset_class": item.asset_class,
-                        "asset_scope": item.asset_scope,
-                        "audit_status": item.audit_status,
-                        "created_at": item.created_at.isoformat() if item.created_at else None,
-                        "effective_at": item.effective_at.isoformat()
-                        if item.effective_at
-                        else None,
-                        "effective_by_id": item.effective_by_id,
-                        "review_notes": item.review_notes,
-                        "rollback_reason": item.rollback_reason,
-                    }
-                )
-
-            return WorkbenchItemsOutput(success=True, items=items_data, total=total)
+            result = self.workbench_repo.list_workbench_items(
+                tab=input_dto.tab,
+                event_type=input_dto.event_type,
+                level=input_dto.level,
+                gate_level=input_dto.gate_level,
+                asset_class=input_dto.asset_class,
+                start_date=input_dto.start_date,
+                end_date=input_dto.end_date,
+                search=input_dto.search,
+                limit=input_dto.limit,
+                offset=input_dto.offset,
+            )
+            return WorkbenchItemsOutput(
+                success=True,
+                items=result["items"],
+                total=result["total"],
+            )
 
         except Exception as e:
             logger.exception(f"Failed to get workbench items: {e}")

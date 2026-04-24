@@ -1,45 +1,21 @@
 """Account observer grant API views."""
 
-from decimal import Decimal
 from importlib import import_module
 from typing import Any
 
-from django.apps import apps as django_apps
-from django.db import models
-from django.db.models import Count, Q, Sum
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
+from django.http import Http404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
+from apps.account.application import interface_services
+from .permissions import GeneralPermission
 from .serializers import (
-    AccountProfileSerializer,
-    AccountProfileUpdateSerializer,
-    AssetMetadataSerializer,
-    CapitalFlowCreateSerializer,
-    CapitalFlowSerializer,
     ObserverGrantCreateSerializer,
     ObserverGrantSerializer,
     ObserverGrantUpdateSerializer,
-    PortfolioCreateSerializer,
-    PortfolioSerializer,
-    PortfolioStatisticsSerializer,
-    PositionCreateSerializer,
-    PositionSerializer,
-    PositionUpdateSerializer,
-    TradingCostCalculationSerializer,
-    TradingCostConfigCreateSerializer,
-    TradingCostConfigSerializer,
-    TransactionCreateSerializer,
-    TransactionSerializer,
 )
-
-PortfolioModel = django_apps.get_model("account", "PortfolioModel")
-PortfolioObserverGrantModel = django_apps.get_model("account", "PortfolioObserverGrantModel")
 
 class ObserverGrantViewSet(viewsets.ModelViewSet):
     """
@@ -57,26 +33,13 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """支持 owner 和 observer 双视角查询"""
-        # 支持观察员视角查询
         as_observer = self.request.query_params.get('as_observer') == '1'
-
-        if as_observer:
-            # 返回当前用户作为观察员的授权
-            queryset = PortfolioObserverGrantModel._default_manager.filter(
-                observer_user_id=self.request.user
-            ).select_related('observer_user_id', 'owner_user_id', 'revoked_by')
-        else:
-            # 返回当前用户作为 owner 的授权
-            queryset = PortfolioObserverGrantModel._default_manager.filter(
-                owner_user_id=self.request.user
-            ).select_related('observer_user_id', 'owner_user_id', 'revoked_by')
-
-        # 支持按状态过滤
         status_filter = self.request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-
-        return queryset.order_by('-created_at')
+        return interface_services.list_observer_grants_queryset(
+            user_id=self.request.user.id,
+            as_observer=as_observer,
+            status_filter=status_filter,
+        )
 
     def get_object(self):
         """
@@ -85,12 +48,9 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
         if self.action in ['destroy', 'update', 'partial_update', 'retrieve', 'positions']:
             lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
             lookup_value = self.kwargs.get(lookup_url_kwarg)
-            grant = get_object_or_404(
-                PortfolioObserverGrantModel._default_manager.select_related(
-                    'owner_user_id', 'observer_user_id', 'revoked_by'
-                ),
-                **{self.lookup_field: lookup_value},
-            )
+            grant = interface_services.get_observer_grant_by_id(lookup_value)
+            if grant is None:
+                raise Http404
             if self.action in ['retrieve', 'positions']:
                 if grant.owner_user_id == self.request.user or grant.observer_user_id == self.request.user:
                     return grant
@@ -132,57 +92,7 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
                 'error': '授权已过期，无法查看'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 获取 owner 的活跃投资组合
-        portfolio = PortfolioModel._default_manager.filter(
-            user=grant.owner_user_id,
-            is_active=True
-        ).first()
-
-        if not portfolio:
-            return Response({
-                'success': True,
-                'data': {
-                    'positions': [],
-                    'statistics': {
-                        'position_count': 0,
-                        'total_value': 0,
-                        'total_cost': 0,
-                        'total_pnl': 0,
-                        'total_pnl_pct': 0
-                    }
-                }
-            })
-
-        # 获取持仓
-        positions = portfolio.positions.filter(is_closed=False).select_related()
-
-        # 计算统计
-        position_count = positions.count()
-        total_value = positions.aggregate(total=Sum('market_value'))['total'] or Decimal('0')
-        total_cost = positions.aggregate(
-            total=Sum(
-                models.F('shares') * models.F('avg_cost'),
-                output_field=models.DecimalField(max_digits=20, decimal_places=2),
-            )
-        )['total'] or Decimal('0')
-        total_pnl = total_value - total_cost
-        total_pnl_pct = float((total_pnl / total_cost * 100) if total_cost > 0 else 0)
-
-        # 序列化持仓数据
-        positions_data = []
-        for pos in positions:
-            positions_data.append({
-                'id': pos.id,
-                'asset_code': pos.asset_code,
-                'asset_name': getattr(pos, 'asset_name', pos.asset_code),
-                'asset_class': pos.asset_class,
-                'shares': float(pos.shares),
-                'avg_cost': float(pos.avg_cost),
-                'current_price': float(pos.current_price),
-                'market_value': float(pos.market_value),
-                'unrealized_pnl': float(pos.unrealized_pnl),
-                'unrealized_pnl_pct': float(pos.unrealized_pnl_pct),
-            })
+        payload = interface_services.build_observer_positions_payload(grant.owner_user_id_id)
 
         # 记录观察员访问审计日志
         self._log_audit_action(
@@ -193,21 +103,15 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
             response_status=200,
             extra_context={
                 'grant_owner': grant.owner_user_id.username,
-                'portfolio_id': portfolio.id,
+                'portfolio_id': payload['portfolio_id'],
             }
         )
 
         return Response({
             'success': True,
             'data': {
-                'positions': positions_data,
-                'statistics': {
-                    'position_count': position_count,
-                    'total_value': float(total_value),
-                    'total_cost': float(total_cost),
-                    'total_pnl': float(total_pnl),
-                    'total_pnl_pct': total_pnl_pct,
-                }
+                'positions': payload['positions'],
+                'statistics': payload['statistics'],
             }
         })
 
@@ -222,6 +126,14 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """创建时自动关联当前用户为 owner"""
         serializer.save(owner_user_id=self.request.user)
+
+    def perform_update(self, serializer):
+        """更新时通过 application service 下沉持久化。"""
+
+        serializer.instance = interface_services.update_observer_grant(
+            grant_id=serializer.instance.id,
+            expires_at=serializer.validated_data.get("expires_at", serializer.instance.expires_at),
+        )
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -246,7 +158,10 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # 撤销授权
-        grant.revoke(request.user)
+        grant = interface_services.revoke_observer_grant(
+            grant_id=grant.id,
+            revoked_by_user_id=request.user.id,
+        )
 
         # 审计打点
         self._log_audit_action(

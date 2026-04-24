@@ -312,53 +312,17 @@ class GetFactorDefinitionsForViewUseCase:
 
     def execute(self, request: FactorListViewRequest) -> FactorListViewResponse:
         """Get factor definitions with filters for the view"""
-        from django.db.models import Count, Q
-
-        from apps.factor.infrastructure.models import FactorDefinitionModel
-
-        # Base queryset
-        queryset = FactorDefinitionModel._default_manager.all()
-
-        # Apply filters
-        if request.category:
-            queryset = queryset.filter(category=request.category)
-        if request.is_active is not None:
-            queryset = queryset.filter(is_active=request.is_active)
-        if request.search:
-            queryset = queryset.filter(
-                Q(code__icontains=request.search) |
-                Q(name__icontains=request.search) |
-                Q(description__icontains=request.search)
-            )
-
-        # Get factor list
-        factors = list(queryset.order_by('category', 'code'))
-
-        # Statistics
-        stats = {
-            'total': FactorDefinitionModel._default_manager.count(),
-            'active': FactorDefinitionModel._default_manager.filter(is_active=True).count(),
-            'by_category': dict(
-                FactorDefinitionModel._default_manager.values('category')
-                .annotate(count=Count('id'))
-                .values_list('category', 'count')
-            )
-        }
-
-        # Get all categories
-        categories = list(
-            FactorDefinitionModel._default_manager.values('category')
-            .distinct()
-        )
-        category_choices = dict(
-            FactorDefinitionModel._default_manager.model._meta.get_field('category').choices
+        factors = self.factor_repo.list_models_for_view(
+            category=request.category,
+            is_active=request.is_active,
+            search=request.search,
         )
 
         return FactorListViewResponse(
             factors=factors,
-            stats=stats,
-            categories=categories,
-            category_choices=category_choices,
+            stats=self.factor_repo.get_view_stats(),
+            categories=self.factor_repo.list_category_rows(),
+            category_choices=self.factor_repo.get_category_choices(),
         )
 
 
@@ -371,46 +335,9 @@ class GetPortfolioConfigsForViewUseCase:
 
     def execute(self, request: PortfolioListViewRequest) -> PortfolioListViewResponse:
         """Get portfolio configurations with filters for the view"""
-        from django.db.models import Q
-
-        from apps.factor.infrastructure.models import (
-            FactorDefinitionModel,
-            FactorPortfolioConfigModel,
-        )
-
-        # Base queryset
-        queryset = FactorPortfolioConfigModel._default_manager.all()
-
-        # Apply filters
-        if request.is_active is not None:
-            queryset = queryset.filter(is_active=request.is_active)
-        if request.search:
-            queryset = queryset.filter(
-                Q(name__icontains=request.search) |
-                Q(description__icontains=request.search)
-            )
-
-        # Get portfolio configurations
-        configs = list(queryset.order_by('-is_active', '-created_at'))
-
-        # For each config, get the latest holdings count
-        for config in configs:
-            latest_holding = config.holdings.order_by('-trade_date').first()
-            config.latest_trade_date = latest_holding.trade_date if latest_holding else None
-            config.holdings_count = (
-                config.holdings.filter(trade_date=latest_holding.trade_date).count()
-                if latest_holding else 0
-            )
-
-        # Statistics
-        stats = {
-            'total': FactorPortfolioConfigModel._default_manager.count(),
-            'active': FactorPortfolioConfigModel._default_manager.filter(is_active=True).count(),
-        }
-
-        # Get available factor definitions for creating new config
-        factor_definitions = list(
-            FactorDefinitionModel._default_manager.filter(is_active=True)
+        configs = self.portfolio_repo.list_models_for_view(
+            is_active=request.is_active,
+            search=request.search,
         )
 
         # Universe choices
@@ -439,8 +366,8 @@ class GetPortfolioConfigsForViewUseCase:
 
         return PortfolioListViewResponse(
             configs=configs,
-            stats=stats,
-            factor_definitions=factor_definitions,
+            stats=self.portfolio_repo.get_view_stats(),
+            factor_definitions=self.factor_repo.list_active_models(),
             universe_choices=universe_choices,
             weight_method_choices=weight_method_choices,
             rebalance_choices=rebalance_choices,
@@ -456,21 +383,8 @@ class GetFactorCalculationDataUseCase:
 
     def execute(self, request: FactorCalculateViewRequest) -> FactorCalculateViewResponse:
         """Get calculation page data"""
-        from apps.factor.infrastructure.models import (
-            FactorDefinitionModel,
-            FactorPortfolioConfigModel,
-            FactorPortfolioHoldingModel,
-        )
-
-        # Get available portfolio configurations
-        configs = list(
-            FactorPortfolioConfigModel._default_manager.filter(is_active=True)
-        )
-
-        # Get available factor definitions
-        factors = list(
-            FactorDefinitionModel._default_manager.filter(is_active=True)
-        )
+        configs = self.portfolio_repo.list_active_models()
+        factors = self.factor_repo.list_active_models()
 
         # Group factors by category
         factors_by_category = {}
@@ -485,48 +399,18 @@ class GetFactorCalculationDataUseCase:
         calculated_results = None
 
         if request.config_id:
-            try:
-                selected_config = FactorPortfolioConfigModel._default_manager.get(
-                    id=request.config_id
+            selected_config, calculated_results = (
+                self.portfolio_repo.get_latest_calculation_results(
+                    config_id=request.config_id,
+                    top_n=request.top_n,
                 )
-
-                # Get latest holdings for this config
-                latest_holding = FactorPortfolioHoldingModel._default_manager.filter(
-                    config=selected_config
-                ).order_by('-trade_date').first()
-
-                if latest_holding:
-                    total_stocks = FactorPortfolioHoldingModel._default_manager.filter(
-                        config=selected_config,
-                        trade_date=latest_holding.trade_date
-                    ).count()
-
-                    # Get holdings for this trade date
-                    holdings = FactorPortfolioHoldingModel._default_manager.filter(
-                        config=selected_config,
-                        trade_date=latest_holding.trade_date
-                    ).order_by('rank')[:request.top_n]
-
-                    calculated_results = {
-                        'trade_date': latest_holding.trade_date,
-                        'total_stocks': total_stocks,
-                        'holdings': holdings,
-                        'config_name': selected_config.name,
-                        'top_n': request.top_n,
-                    }
-            except FactorPortfolioConfigModel.DoesNotExist:
-                pass
-
-        # Category choices for display
-        category_choices = dict(
-            FactorDefinitionModel._default_manager.model._meta.get_field('category').choices
-        )
+            )
 
         return FactorCalculateViewResponse(
             configs=configs,
             factors=factors,
             factors_by_category=factors_by_category,
-            category_choices=category_choices,
+            category_choices=self.factor_repo.get_category_choices(),
             selected_config=selected_config,
             calculated_results=calculated_results,
             trade_date=request.trade_date,
@@ -543,8 +427,6 @@ class CreatePortfolioConfigUseCase:
 
     def execute(self, request: CreatePortfolioConfigRequest) -> CreatePortfolioConfigResponse:
         """Create a new portfolio configuration"""
-        from apps.factor.infrastructure.models import FactorPortfolioConfigModel
-
         try:
             if not request.name:
                 return CreatePortfolioConfigResponse(
@@ -593,28 +475,38 @@ class UpdatePortfolioConfigUseCase:
 
     def execute(self, request: PortfolioConfigActionRequest) -> dict:
         """Execute portfolio config action"""
-        from apps.factor.infrastructure.models import FactorPortfolioConfigModel
-
         try:
-            config = FactorPortfolioConfigModel._default_manager.get(id=request.config_id)
-
             if request.action_type == 'activate':
-                config.is_active = True
-                config.save()
+                config = self.portfolio_repo.set_active(request.config_id, True)
+                if config is None:
+                    return {
+                        'success': False,
+                        'error': '配置不存在'
+                    }
                 return {
                     'success': True,
                     'message': f'组合配置 "{config.name}" 已启用'
                 }
 
             elif request.action_type == 'deactivate':
-                config.is_active = False
-                config.save()
+                config = self.portfolio_repo.set_active(request.config_id, False)
+                if config is None:
+                    return {
+                        'success': False,
+                        'error': '配置不存在'
+                    }
                 return {
                     'success': True,
                     'message': f'组合配置 "{config.name}" 已禁用'
                 }
 
             elif request.action_type == 'generate':
+                config = self.portfolio_repo.get_model_by_id(request.config_id)
+                if config is None:
+                    return {
+                        'success': False,
+                        'error': '配置不存在'
+                    }
                 if self.integration_service:
                     portfolio = self.integration_service.create_factor_portfolio(config.name)
 
@@ -641,11 +533,6 @@ class UpdatePortfolioConfigUseCase:
                     'error': 'Unknown action'
                 }
 
-        except FactorPortfolioConfigModel.DoesNotExist:
-            return {
-                'success': False,
-                'error': '配置不存在'
-            }
         except Exception as e:
             return {
                 'success': False,
@@ -656,13 +543,16 @@ class UpdatePortfolioConfigUseCase:
 class CalculateScoresUseCase:
     """UseCase for calculating factor scores"""
 
-    def __init__(self, integration_service):
+    def __init__(self, integration_service, portfolio_repo=None):
         self.integration_service = integration_service
+        if portfolio_repo is None:
+            from apps.factor.infrastructure.repositories import FactorPortfolioConfigRepository
+
+            portfolio_repo = FactorPortfolioConfigRepository()
+        self.portfolio_repo = portfolio_repo
 
     def execute(self, request: CalculateScoresRequest) -> CalculateScoresResponse:
         """Calculate factor scores for a portfolio configuration"""
-        from apps.factor.infrastructure.models import FactorPortfolioConfigModel
-
         try:
             if not request.config_id:
                 return CalculateScoresResponse(
@@ -670,7 +560,12 @@ class CalculateScoresUseCase:
                     error='请选择组合配置'
                 )
 
-            config = FactorPortfolioConfigModel._default_manager.get(id=request.config_id)
+            config = self.portfolio_repo.get_model_by_id(request.config_id)
+            if config is None:
+                return CalculateScoresResponse(
+                    success=False,
+                    error='配置不存在'
+                )
 
             # Get factor weights from config
             factor_weights = config.factor_weights or {}
@@ -693,11 +588,6 @@ class CalculateScoresUseCase:
                 message=f'计算完成，共 {len(scores)} 只股票'
             )
 
-        except FactorPortfolioConfigModel.DoesNotExist:
-            return CalculateScoresResponse(
-                success=False,
-                error='配置不存在'
-            )
         except Exception as e:
             return CalculateScoresResponse(
                 success=False,

@@ -135,6 +135,7 @@ class GetEventMetricsResponse:
     total_subscribers: int
     avg_processing_time_ms: float
     last_event_at: datetime | None
+    events_by_type: dict[str, int] = field(default_factory=dict)
 
 
 # ========== Use Cases ==========
@@ -475,6 +476,7 @@ class GetEventMetricsUseCase:
                 total_subscribers=memory_metrics.total_subscribers,
                 avg_processing_time_ms=memory_metrics.avg_processing_time_ms,
                 last_event_at=memory_metrics.last_event_at,
+                events_by_type=stored_metrics.events_by_type,
             )
 
         except Exception as e:
@@ -486,4 +488,5 @@ class GetEventMetricsUseCase:
                 total_subscribers=0,
                 avg_processing_time_ms=0.0,
                 last_event_at=None,
+                events_by_type={},
             )

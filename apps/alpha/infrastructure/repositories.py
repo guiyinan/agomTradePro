@@ -125,6 +125,22 @@ class AlphaPoolDataRepository:
 class QlibModelRegistryRepository:
     """ORM-backed access to Qlib model registry rows."""
 
+    def get_active_model(self) -> Any | None:
+        """Return the active qlib model row, if any."""
+
+        from .models import QlibModelRegistryModel
+
+        return QlibModelRegistryModel._default_manager.filter(is_active=True).first()
+
+    def count_activations_on(self, target_date: date) -> int:
+        """Return how many models were activated on one day."""
+
+        from .models import QlibModelRegistryModel
+
+        return QlibModelRegistryModel._default_manager.filter(
+            activated_at__date=target_date
+        ).count()
+
     def get_by_artifact_hash(self, artifact_hash: str) -> Any:
         from .models import QlibModelRegistryModel
 
@@ -150,9 +166,154 @@ class QlibModelRegistryRepository:
         model.save(update_fields=["ic", "icir", "rank_ic"])
         return model
 
+    def create_model_entry(
+        self,
+        *,
+        model_name: str,
+        artifact_hash: str,
+        model_type: str,
+        universe: str,
+        train_config: dict[str, Any],
+        feature_set_id: str,
+        label_id: str,
+        data_version: str,
+        ic: float | None,
+        icir: float | None,
+        rank_ic: float | None,
+        model_path: str,
+        is_active: bool = False,
+    ) -> Any:
+        """Create one qlib model registry row."""
+
+        from .models import QlibModelRegistryModel
+
+        return QlibModelRegistryModel._default_manager.create(
+            model_name=model_name,
+            artifact_hash=artifact_hash,
+            model_type=model_type,
+            universe=universe,
+            train_config=train_config,
+            feature_set_id=feature_set_id,
+            label_id=label_id,
+            data_version=data_version,
+            ic=ic,
+            icir=icir,
+            rank_ic=rank_ic,
+            model_path=model_path,
+            is_active=is_active,
+        )
+
+    def activate_model(self, *, artifact_hash: str, activated_by: str) -> Any:
+        """Activate one model entry."""
+
+        model = self.get_by_artifact_hash(artifact_hash)
+        model.activate(activated_by=activated_by)
+        return model
+
 
 class AlphaScoreCacheRepository:
     """ORM-backed access to Alpha score cache rows."""
+
+    def list_recent_provider_caches(self, *, provider: str, since) -> list[Any]:
+        """Return recent cache rows for one provider."""
+
+        from .models import AlphaScoreCacheModel
+
+        return list(
+            AlphaScoreCacheModel._default_manager.filter(
+                provider_source=provider,
+                created_at__gte=since,
+            )
+        )
+
+    def get_latest_cache_for_universe(self, *, universe_id: str, since) -> Any | None:
+        """Return the latest cache row for one universe since a cutoff."""
+
+        from .models import AlphaScoreCacheModel
+
+        return (
+            AlphaScoreCacheModel._default_manager.filter(
+                universe_id=universe_id,
+                created_at__gte=since,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+    def list_caches_for_model(
+        self,
+        *,
+        model_artifact_hash: str,
+        provider_source: str,
+    ) -> list[Any]:
+        """Return ordered cache rows for one model/provider pair."""
+
+        from .models import AlphaScoreCacheModel
+
+        return list(
+            AlphaScoreCacheModel._default_manager.filter(
+                model_artifact_hash=model_artifact_hash,
+                provider_source=provider_source,
+            ).order_by("intended_trade_date")
+        )
+
+    def list_today_cache_rows(self, target_date: date) -> list[dict[str, Any]]:
+        """Return lightweight cache rows created on one day."""
+
+        from .models import AlphaScoreCacheModel
+
+        return list(
+            AlphaScoreCacheModel._default_manager.filter(
+                created_at__date=target_date
+            ).values("provider_source", "status")
+        )
+
+    def cleanup_before(self, cutoff_date: date) -> int:
+        """Delete cache rows older than the cutoff trade date."""
+
+        from .models import AlphaScoreCacheModel
+
+        return AlphaScoreCacheModel._default_manager.filter(
+            intended_trade_date__lt=cutoff_date
+        ).delete()[0]
+
+    def upsert_qlib_cache(
+        self,
+        *,
+        universe_id: str,
+        trade_date: date,
+        asof_date: date,
+        active_model: Any,
+        scores_data: list[dict[str, Any]],
+        status: str,
+        metrics_snapshot: dict[str, Any] | None = None,
+        pool_scope: Any | None = None,
+    ) -> tuple[Any, bool]:
+        """Create or update one qlib cache row."""
+
+        from .models import AlphaScoreCacheModel
+
+        return AlphaScoreCacheModel._default_manager.update_or_create(
+            universe_id=universe_id,
+            intended_trade_date=trade_date,
+            provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+            model_artifact_hash=active_model.artifact_hash,
+            defaults={
+                "asof_date": asof_date,
+                "model_id": active_model.model_name,
+                "model_artifact_hash": active_model.artifact_hash,
+                "feature_set_id": active_model.feature_set_id,
+                "label_id": active_model.label_id,
+                "data_version": active_model.data_version,
+                "scores": scores_data,
+                "status": status,
+                "metrics_snapshot": metrics_snapshot,
+                "user": None,
+                "scope_hash": getattr(pool_scope, "scope_hash", None),
+                "scope_label": getattr(pool_scope, "display_label", None),
+                "scope_metadata": pool_scope.to_dict() if pool_scope else None,
+            },
+        )
 
     def get_latest_qlib_cache(
         self,
@@ -218,3 +379,48 @@ class AlphaScoreCacheRepository:
                 if filtered_scores:
                     return broader_cache, filtered_scores
         return None
+
+
+class AlphaAlertRepository:
+    """ORM-backed access to alpha alert rows."""
+
+    def get_open_alert(self, *, alert_type: str) -> Any | None:
+        from .models import AlphaAlertModel
+
+        return AlphaAlertModel._default_manager.filter(
+            alert_type=alert_type,
+            is_resolved=False,
+        ).first()
+
+    def create_alert(
+        self,
+        *,
+        alert_type: str,
+        severity: str,
+        title: str,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> Any:
+        from .models import AlphaAlertModel
+
+        return AlphaAlertModel._default_manager.create(
+            alert_type=alert_type,
+            severity=severity,
+            title=title,
+            message=message,
+            metadata=metadata,
+        )
+
+    def update_alert(
+        self,
+        *,
+        alert_id: int,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        from .models import AlphaAlertModel
+
+        return AlphaAlertModel._default_manager.filter(id=alert_id).update(
+            message=message,
+            metadata=metadata,
+        ) > 0

@@ -5,11 +5,11 @@ Terminal Infrastructure Repositories.
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from ..domain.entities import TerminalAuditEntry, TerminalCommand
 from ..domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
-from .models import TerminalAuditLogORM
+from .models import TerminalAuditLogORM, TerminalRuntimeSettingsORM
 from .models import TerminalCommandORM as TerminalCommandModel
 
 logger = logging.getLogger(__name__)
@@ -130,6 +130,25 @@ class DjangoTerminalAuditRepository:
         return [m.to_entity() for m in qs[:limit]]
 
 
+class DjangoTerminalRuntimeSettingsRepository:
+    """基于 Django ORM 的 Terminal 运行设置仓储。"""
+
+    def get_settings(self) -> dict[str, Any]:
+        """Return singleton terminal runtime settings as a plain dict."""
+
+        settings_obj, _ = TerminalRuntimeSettingsORM._default_manager.get_or_create(
+            singleton_key="default",
+            defaults={
+                "answer_chain_enabled": True,
+                "fallback_chat_system_prompt": "",
+            },
+        )
+        return {
+            "answer_chain_enabled": bool(settings_obj.answer_chain_enabled),
+            "fallback_chat_system_prompt": settings_obj.fallback_chat_system_prompt or "",
+        }
+
+
 # 仓储工厂函数
 def get_terminal_command_repository() -> TerminalCommandRepository:
     """获取终端命令仓储实例"""
@@ -139,3 +158,9 @@ def get_terminal_command_repository() -> TerminalCommandRepository:
 def get_terminal_audit_repository() -> TerminalAuditRepository:
     """获取终端审计日志仓储实例"""
     return DjangoTerminalAuditRepository()
+
+
+def get_terminal_runtime_settings_repository() -> DjangoTerminalRuntimeSettingsRepository:
+    """获取终端运行设置仓储实例。"""
+
+    return DjangoTerminalRuntimeSettingsRepository()

@@ -4,17 +4,17 @@ Rotation Module Interface Layer - Serializers
 DRF Serializers for the rotation module API.
 """
 
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
-from apps.rotation.infrastructure.models import (
-    AssetClassModel,
-    MomentumScoreModel,
-    PortfolioRotationConfigModel,
-    RotationConfigModel,
-    RotationPortfolioModel,
-    RotationSignalModel,
-    RotationTemplateModel,
-)
+
+AssetClassModel = django_apps.get_model('rotation', 'AssetClassModel')
+MomentumScoreModel = django_apps.get_model('rotation', 'MomentumScoreModel')
+PortfolioRotationConfigModel = django_apps.get_model('rotation', 'PortfolioRotationConfigModel')
+RotationConfigModel = django_apps.get_model('rotation', 'RotationConfigModel')
+RotationPortfolioModel = django_apps.get_model('rotation', 'RotationPortfolioModel')
+RotationSignalModel = django_apps.get_model('rotation', 'RotationSignalModel')
+RotationTemplateModel = django_apps.get_model('rotation', 'RotationTemplateModel')
 
 
 class AssetClassSerializer(serializers.ModelSerializer):

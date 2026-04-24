@@ -11,17 +11,27 @@ from __future__ import annotations
 from datetime import date
 
 from django.contrib.auth.decorators import login_required
-from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.equity.application.interface_services import (
+    activate_valuation_repair_config,
+    clear_valuation_repair_config_cache_payload,
+    create_valuation_repair_config,
+    delete_valuation_repair_config,
+    get_active_valuation_repair_config_payload,
+    get_valuation_repair_config_by_id,
+    list_valuation_repair_configs,
+    update_valuation_repair_config,
+)
 from apps.equity.application.use_cases import (
     AnalyzeRegimeCorrelationRequest,
     AnalyzeRegimeCorrelationUseCase,
@@ -58,11 +68,16 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
 )
-from apps.equity.infrastructure.repositories import (
-    DjangoStockRepository,
-    DjangoValuationDataQualityRepository,
-    DjangoValuationRepairRepository,
+from apps.equity.application.repository_provider import (
+    get_equity_asset_repository,
+    get_equity_regime_history_repository,
+    get_equity_regime_repository,
+    get_equity_stock_pool_repository,
+    get_equity_stock_repository,
+    get_equity_valuation_data_quality_repository,
+    get_equity_valuation_repair_repository,
 )
+from apps.signal.application.repository_provider import get_signal_repository
 
 from .serializers import (
     AnalyzeRegimeCorrelationRequestSerializer,
@@ -88,6 +103,7 @@ from .serializers import (
     TechnicalChartRequestSerializer,
     TechnicalChartResponseSerializer,
     ValidateValuationDataRequestSerializer,
+    ValuationRepairConfigCreateSerializer,
     ValuationRepairConfigSerializer,
     ValuationFreshnessResponseSerializer,
     ValuationQualitySnapshotResponseSerializer,
@@ -98,6 +114,18 @@ from .serializers import (
 # ============================================================================
 # 页面视图（前端）
 # ============================================================================
+
+
+def DjangoStockRepository():
+    """Compatibility factory kept for legacy API tests."""
+
+    return get_equity_stock_repository()
+
+
+def DjangoValuationRepairRepository():
+    """Compatibility factory kept for legacy API tests."""
+
+    return get_equity_valuation_repair_repository()
 
 
 @login_required(login_url="/account/login/")
@@ -178,15 +206,9 @@ class EquityViewSet(viewsets.ViewSet):
         super().__init__(*args, **kwargs)
         self.stock_repo = DjangoStockRepository()
         self.repair_repo = DjangoValuationRepairRepository()
-        self.quality_repo = DjangoValuationDataQualityRepository()
-        # 注入 regime_repo（使用适配器）
-        from apps.equity.infrastructure.adapters import RegimeRepositoryAdapter
-
-        self.regime_repo = RegimeRepositoryAdapter()
-        # 注入 stock_pool_adapter（用于估值修复扫描）
-        from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
-
-        self.pool_adapter = StockPoolRepositoryAdapter()
+        self.quality_repo = get_equity_valuation_data_quality_repository()
+        self.regime_repo = get_equity_regime_repository()
+        self.pool_adapter = get_equity_stock_pool_repository()
 
     @extend_schema(
         summary="筛选个股",
@@ -485,10 +507,9 @@ class EquityViewSet(viewsets.ViewSet):
         )
 
         # 3. 执行用例
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-
         use_case = AnalyzeRegimeCorrelationUseCase(
-            stock_repository=self.stock_repo, regime_repository=DjangoRegimeRepository()
+            stock_repository=self.stock_repo,
+            regime_repository=get_equity_regime_history_repository(),
         )
         use_case_response = use_case.execute(use_case_request)
 
@@ -619,19 +640,14 @@ class EquityViewSet(viewsets.ViewSet):
 
         获取当前股票池
         """
-        from datetime import date
-
-        from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
         from apps.regime.application.current_regime import resolve_current_regime
 
         try:
-            pool_adapter = StockPoolRepositoryAdapter()
-
             # 获取当前股票池
-            stock_codes = pool_adapter.get_current_pool()
+            stock_codes = self.pool_adapter.get_current_pool()
 
             # 获取股票池元数据
-            pool_info = pool_adapter.get_latest_pool_info()
+            pool_info = self.pool_adapter.get_latest_pool_info()
 
             # 获取当前 Regime
             latest_regime = resolve_current_regime()
@@ -727,7 +743,6 @@ class EquityViewSet(viewsets.ViewSet):
 
         基于当前 Regime 重新筛选股票池。
         """
-        from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
         from apps.regime.application.current_regime import resolve_current_regime
 
         try:
@@ -758,8 +773,7 @@ class EquityViewSet(viewsets.ViewSet):
                 )
 
             # 保存新的股票池
-            pool_adapter = StockPoolRepositoryAdapter()
-            pool_adapter.save_pool(
+            self.pool_adapter.save_pool(
                 stock_codes=screen_response.stock_codes,
                 regime=latest_regime.dominant_regime,
                 as_of_date=date.today(),
@@ -1229,9 +1243,8 @@ class EquityMultiDimScreenAPIView(APIView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from apps.equity.application.services import EquityMultiDimScorer
-        from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
 
-        self.asset_repo = DjangoEquityAssetRepository()
+        self.asset_repo = get_equity_asset_repository()
         self.scorer = EquityMultiDimScorer(self.asset_repo)
 
     def post(self, request) -> Response:
@@ -1261,10 +1274,9 @@ class EquityMultiDimScreenAPIView(APIView):
 
         # 2. 构建评分上下文
         from apps.asset_analysis.domain.value_objects import ScoreContext
-        from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
         # 获取激活的信号
-        signal_repo = DjangoSignalRepository()
+        signal_repo = get_signal_repository()
         active_signals = signal_repo.get_active_signals()
 
         context = ScoreContext(
@@ -1312,7 +1324,7 @@ class EquityMultiDimScreenAPIView(APIView):
 # ============== 估值修复配置管理 API ==============
 
 
-class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
+class ValuationRepairConfigViewSet(viewsets.ViewSet):
     """估值修复策略参数配置管理
 
     支持在线调参，包含版本控制、生效时间和审计。
@@ -1325,20 +1337,56 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
     - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
     """
 
-    from apps.equity.infrastructure.models import ValuationRepairConfigModel
-
-    queryset = ValuationRepairConfigModel.objects.all()
     permission_classes = [IsAdminUser]
 
-    def get_serializer_class(self):
-        from apps.equity.interface.serializers import (
-            ValuationRepairConfigCreateSerializer,
-            ValuationRepairConfigSerializer,
+    def list(self, request):
+        """GET /api/equity/config/valuation-repair/"""
+
+        serializer = ValuationRepairConfigSerializer(
+            list_valuation_repair_configs(),
+            many=True,
+        )
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """GET /api/equity/config/valuation-repair/{id}/"""
+
+        config = self._get_config_or_404(pk)
+        serializer = ValuationRepairConfigSerializer(config)
+        return Response(serializer.data)
+
+    def create(self, request):
+        """POST /api/equity/config/valuation-repair/"""
+
+        serializer = ValuationRepairConfigCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        config = create_valuation_repair_config(
+            data=serializer.validated_data,
+            created_by=self._get_created_by(),
+        )
+        return Response(
+            ValuationRepairConfigSerializer(config).data,
+            status=status.HTTP_201_CREATED,
         )
 
-        if self.action in ["create", "update", "partial_update"]:
-            return ValuationRepairConfigCreateSerializer
-        return ValuationRepairConfigSerializer
+    def update(self, request, pk=None):
+        """PUT /api/equity/config/valuation-repair/{id}/"""
+
+        return self._update_config(request, pk=pk, partial=False)
+
+    def partial_update(self, request, pk=None):
+        """PATCH /api/equity/config/valuation-repair/{id}/"""
+
+        return self._update_config(request, pk=pk, partial=True)
+
+    def destroy(self, request, pk=None):
+        """DELETE /api/equity/config/valuation-repair/{id}/"""
+
+        config_id = self._parse_config_id(pk)
+        deleted = delete_valuation_repair_config(config_id=config_id)
+        if not deleted:
+            raise NotFound("配置不存在")
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(
         summary="获取当前激活配置",
@@ -1351,51 +1399,19 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
 
         获取当前激活的配置
         """
-        from apps.equity.application.config import get_valuation_repair_config
-        from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
+        payload = get_active_valuation_repair_config_payload()
 
-        runtime_config = get_valuation_repair_config(use_cache=False)
-        try:
-            config = self.queryset.filter(is_active=True).first()
-        except (OperationalError, ProgrammingError):
-            config = None
-        if not config:
-            source = "settings"
-            if runtime_config == DEFAULT_VALUATION_REPAIR_CONFIG:
-                source = "default"
-            return Response(
-                {
-                    "success": True,
-                    "source": source,
-                    "data": {
-                        "version": 0,
-                        "is_active": False,
-                        "min_history_points": runtime_config.min_history_points,
-                        "default_lookback_days": runtime_config.default_lookback_days,
-                        "confirm_window": runtime_config.confirm_window,
-                        "min_rebound": runtime_config.min_rebound,
-                        "stall_window": runtime_config.stall_window,
-                        "stall_min_progress": runtime_config.stall_min_progress,
-                        "target_percentile": runtime_config.target_percentile,
-                        "undervalued_threshold": runtime_config.undervalued_threshold,
-                        "near_target_threshold": runtime_config.near_target_threshold,
-                        "overvalued_threshold": runtime_config.overvalued_threshold,
-                        "pe_weight": runtime_config.pe_weight,
-                        "pb_weight": runtime_config.pb_weight,
-                        "confidence_base": runtime_config.confidence_base,
-                        "confidence_sample_threshold": runtime_config.confidence_sample_threshold,
-                        "confidence_sample_bonus": runtime_config.confidence_sample_bonus,
-                        "confidence_blend_bonus": runtime_config.confidence_blend_bonus,
-                        "confidence_repair_start_bonus": runtime_config.confidence_repair_start_bonus,
-                        "confidence_not_stalled_bonus": runtime_config.confidence_not_stalled_bonus,
-                        "repairing_threshold": runtime_config.repairing_threshold,
-                        "eta_max_days": runtime_config.eta_max_days,
-                    },
-                }
-            )
-
-        serializer = self.get_serializer(config)
-        return Response({"success": True, "source": "database", "data": serializer.data})
+        if payload["source"] == "database":
+            data = ValuationRepairConfigSerializer(payload["data"]).data
+        else:
+            data = payload["data"]
+        return Response(
+            {
+                "success": payload["success"],
+                "source": payload["source"],
+                "data": data,
+            }
+        )
 
     @extend_schema(
         summary="激活指定配置",
@@ -1408,17 +1424,11 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
 
         激活指定配置
         """
-        config = self.get_object()
-        config.is_active = True
-        config.effective_from = timezone.now()
-        config.save()
+        config = activate_valuation_repair_config(config_id=self._parse_config_id(pk))
+        if config is None:
+            raise NotFound("配置不存在")
 
-        # 清除缓存
-        from apps.equity.application.config import clear_config_cache
-
-        clear_config_cache()
-
-        serializer = self.get_serializer(config)
+        serializer = ValuationRepairConfigSerializer(config)
         return Response(
             {"success": True, "message": f"配置 v{config.version} 已激活", "data": serializer.data}
         )
@@ -1447,21 +1457,41 @@ class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
 
         清除配置缓存
         """
-        from apps.equity.application.config import clear_config_cache
+        return Response(clear_valuation_repair_config_cache_payload())
 
-        clear_config_cache()
-        return Response({"success": True, "message": "配置缓存已清除"})
+    def _update_config(self, request, *, pk: str | None, partial: bool) -> Response:
+        """Update one config via application service."""
 
-    def perform_create(self, serializer):
-        """创建时记录创建人"""
-        serializer.save(
-            created_by=self.request.user.username if self.request.user.is_authenticated else "api"
+        serializer = ValuationRepairConfigCreateSerializer(data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        config = update_valuation_repair_config(
+            config_id=self._parse_config_id(pk),
+            data=serializer.validated_data,
         )
+        if config is None:
+            raise NotFound("配置不存在")
+        return Response(ValuationRepairConfigSerializer(config).data)
 
-    def perform_update(self, serializer):
-        """更新后清缓存，避免激活配置或草稿配置读到旧值。"""
-        serializer.save()
-        from apps.equity.application.config import clear_config_cache
+    def _get_config_or_404(self, pk: str | None):
+        """Return one config or raise 404."""
 
-        clear_config_cache()
+        config = get_valuation_repair_config_by_id(config_id=self._parse_config_id(pk))
+        if config is None:
+            raise NotFound("配置不存在")
+        return config
+
+    def _parse_config_id(self, pk: str | None) -> int:
+        """Parse config id from router params."""
+
+        try:
+            return int(pk or "")
+        except (TypeError, ValueError) as exc:
+            raise NotFound("配置不存在") from exc
+
+    def _get_created_by(self) -> str:
+        """Resolve actor name for audit fields."""
+
+        if self.request.user.is_authenticated:
+            return self.request.user.username
+        return "api"
 

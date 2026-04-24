@@ -4,21 +4,15 @@
 使用 Django REST Framework 定义 API 视图。
 """
 
-from datetime import date
-
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
-from apps.asset_analysis.domain.interfaces import (
-    AssetRepositoryProtocol,
-    WeightConfigRepositoryProtocol,
-)
-from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.asset_analysis.infrastructure.repositories import (
-    DjangoAssetRepository,
-    DjangoWeightConfigRepository,
+from apps.asset_analysis.application.interface_services import (
+    build_asset_pool_context,
+    execute_multidim_screen,
+    get_current_weight_config,
+    get_weight_configs,
 )
 from apps.asset_analysis.interface.serializers import (
     ScreenRequestSerializer,
@@ -33,12 +27,6 @@ class MultiDimScreenAPIView(APIView):
 
     POST /api/asset-analysis/multidim-screen/
     """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # 初始化仓储
-        self.weight_repo = DjangoWeightConfigRepository()
-        self.asset_repo = DjangoAssetRepository()
 
     def post(self, request):
         """
@@ -75,97 +63,26 @@ class MultiDimScreenAPIView(APIView):
         )
 
         # 4. 执行用例
-        use_case = MultiDimScreenUseCase(self.weight_repo, self.asset_repo)
-        response_dto = use_case.execute(request_dto, context)
+        response_dto = execute_multidim_screen(request_dto, context)
 
         # 5. 返回响应
         response_serializer = ScreenResponseSerializer(response_dto.to_dict())
         http_status = status.HTTP_200_OK if response_dto.success else status.HTTP_500_INTERNAL_SERVER_ERROR
         return Response(response_serializer.data, status=http_status)
 
-    def _build_score_context(self, request) -> ScoreContext:
+    def _build_score_context(self, request):
         """
         构建评分上下文
 
         从系统中获取实际的 Regime、Policy、Sentiment 数据。
         """
-        # 获取当前 Regime
-        current_regime = "Recovery"  # 默认值
-        try:
-            from apps.regime.application.current_regime import resolve_current_regime
-
-            regime_value = resolve_current_regime().dominant_regime
-            regime_mapping = {
-                "Recovery": "Recovery",
-                "Overheat": "Overheat",
-                "Stagflation": "Stagflation",
-                "Deflation": "Deflation",
-            }
-            current_regime = regime_mapping.get(regime_value, "Recovery")
-        except Exception:
-            # 使用默认值
-            pass
-
-        # 获取当前 Policy 档位
-        policy_level = "P0"  # 默认值
-        try:
-            from apps.policy.application.use_cases import GetCurrentPolicyUseCase
-            from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-
-            policy_repo = DjangoPolicyRepository()
-            policy_use_case = GetCurrentPolicyUseCase(policy_repo)
-            policy_response = policy_use_case.execute()
-
-            if policy_response.success and policy_response.policy_level:
-                policy_level = policy_response.policy_level.value
-        except Exception:
-            # 使用默认值
-            pass
-
-        # 获取当前情绪指数
-        sentiment_index = 0.0  # 默认值
-        try:
-            from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
-
-            sentiment_repo = SentimentIndexRepository()
-            # 获取最新的情绪记录
-            latest_sentiment = sentiment_repo.get_latest()
-
-            if latest_sentiment:
-                # 将情绪值转换为 -3.0 到 3.0 的范围
-                # composite_index 范围是 -1 到 1，需要转换
-                sentiment_index = latest_sentiment.composite_index * 3
-        except Exception:
-            # 使用默认值
-            pass
-
-        # 获取激活的投资信号
-        active_signals = []
-        try:
-            from apps.signal.infrastructure.repositories import DjangoSignalRepository
-
-            signal_repo = DjangoSignalRepository()
-            active_signals = signal_repo.get_active_signals()
-
-            if not active_signals:
-                active_signals = []
-        except Exception:
-            # 使用空列表
-            pass
-
-        # 支持从请求中覆盖上下文值（用于测试）
-        current_regime = request.data.get("regime", current_regime)
-        policy_level = request.data.get("policy_level", policy_level)
-        sentiment_index = request.data.get("sentiment_index", sentiment_index)
-        active_signals = request.data.get("active_signals", active_signals)
-
-        return ScoreContext(
-            current_regime=current_regime,
-            policy_level=policy_level,
-            sentiment_index=sentiment_index,
-            active_signals=active_signals,
-            score_date=date.today(),
+        payload = build_asset_pool_context(
+            regime_override=request.data.get("regime"),
+            policy_level_override=request.data.get("policy_level"),
+            sentiment_index_override=request.data.get("sentiment_index"),
+            active_signals_override=request.data.get("active_signals"),
         )
+        return payload.score_context
 
 
 class WeightConfigsAPIView(APIView):
@@ -174,10 +91,6 @@ class WeightConfigsAPIView(APIView):
 
     GET /api/asset-analysis/weight-configs/
     """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.weight_repo = DjangoWeightConfigRepository()
 
     def get(self, request):
         """
@@ -192,8 +105,7 @@ class WeightConfigsAPIView(APIView):
             "active": "default"
         }
         """
-        use_case = GetWeightConfigsUseCase(self.weight_repo)
-        result = use_case.execute()
+        result = get_weight_configs()
 
         response_serializer = WeightConfigsResponseSerializer(result)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
@@ -206,10 +118,6 @@ class CurrentWeightAPIView(APIView):
     GET /api/asset-analysis/current-weight/?asset_type=fund
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.weight_repo = DjangoWeightConfigRepository()
-
     def get(self, request):
         """
         获取当前生效的权重配置
@@ -221,14 +129,9 @@ class CurrentWeightAPIView(APIView):
         asset_type = request.query_params.get("asset_type")
         market_condition = request.query_params.get("market_condition")
 
-        weights = self.weight_repo.get_active_weights(
+        result = get_current_weight_config(
             asset_type=asset_type,
             market_condition=market_condition
         )
 
-        return Response({
-            "success": True,
-            "weights": weights.to_dict(),
-            "asset_type": asset_type,
-            "market_condition": market_condition,
-        }, status=status.HTTP_200_OK)
+        return Response(result, status=status.HTTP_200_OK)

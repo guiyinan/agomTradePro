@@ -6,6 +6,7 @@ Dashboard Interface Serializers
 
 from datetime import datetime
 
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
 from apps.dashboard.domain.entities import (
@@ -24,12 +25,11 @@ from apps.dashboard.domain.services import (
     LayoutResolutionResult,
     MetricCalculationResult,
 )
-from apps.dashboard.infrastructure.models import (
-    DashboardAlertModel,
-    DashboardCardModel,
-    DashboardConfigModel,
-    DashboardUserConfigModel,
-)
+
+DashboardAlertModel = django_apps.get_model("dashboard", "DashboardAlertModel")
+DashboardCardModel = django_apps.get_model("dashboard", "DashboardCardModel")
+DashboardConfigModel = django_apps.get_model("dashboard", "DashboardConfigModel")
+DashboardUserConfigModel = django_apps.get_model("dashboard", "DashboardUserConfigModel")
 
 # ========== Domain Entity Serializers ==========
 

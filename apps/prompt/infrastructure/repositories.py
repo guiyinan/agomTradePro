@@ -43,6 +43,11 @@ class DjangoPromptRepository:
     def __init__(self):
         self._model = PromptTemplateORM
 
+    def get_active_template_queryset(self) -> Any:
+        """Return the active template queryset ordered for API consumption."""
+
+        return self._model._default_manager.filter(is_active=True).order_by("category", "name")
+
     def get_template_by_id(self, template_id: int) -> PromptTemplate | None:
         """根据ID获取模板
 
@@ -236,6 +241,11 @@ class DjangoChainRepository:
 
     def __init__(self):
         self._model = ChainConfigORM
+
+    def get_active_chain_queryset(self) -> Any:
+        """Return the active chain queryset ordered for API consumption."""
+
+        return self._model._default_manager.filter(is_active=True).order_by("category", "name")
 
     def get_chain_by_id(self, chain_id: int) -> ChainConfig | None:
         """根据ID获取链配置
@@ -448,6 +458,27 @@ class DjangoExecutionLogRepository:
 
     def __init__(self):
         self._model = PromptExecutionLogORM
+
+    def get_filtered_queryset(
+        self,
+        *,
+        template_id: str | None = None,
+        chain_id: str | None = None,
+        execution_id: str | None = None,
+        status_filter: str | None = None,
+    ) -> Any:
+        """Return a filtered execution log queryset for API consumers."""
+
+        queryset = self._model._default_manager.all()
+        if template_id:
+            queryset = queryset.filter(template_id=template_id)
+        if chain_id:
+            queryset = queryset.filter(chain_id=chain_id)
+        if execution_id:
+            queryset = queryset.filter(execution_id=execution_id)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset.order_by("-created_at")
 
     def create_log(self, log_data: dict[str, Any]) -> PromptExecutionLogORM:
         """创建执行日志

@@ -1167,46 +1167,20 @@ class CalculateRegimeV2UseCase:
     def _load_threshold_config(self) -> "ThresholdConfig":
         """从数据库加载阈值配置"""
         from ..domain.services_v2 import ThresholdConfig
-        from ..infrastructure.models import RegimeIndicatorThreshold, RegimeThresholdConfig
 
         try:
-            # 获取激活的配置
-            config_model = RegimeThresholdConfig._default_manager.filter(is_active=True).first()
+            from ..infrastructure.repositories import get_regime_repository
 
-            if config_model:
-                # 读取各指标的阈值
-                thresholds = {
-                    t.indicator_code: t
-                    for t in config_model.thresholds.all()
-                }
-
-                # 获取 PMI 阈值
-                pmi_threshold = thresholds.get('PMI')
-                pmi_expansion = pmi_threshold.level_high if pmi_threshold else 50.0
-                pmi_contraction = pmi_threshold.level_low if pmi_threshold else 50.0
-
-                # 获取 CPI 阈值
-                cpi_threshold = thresholds.get('CPI')
-                if cpi_threshold:
-                    cpi_high = cpi_threshold.level_high
-                    cpi_low = cpi_threshold.level_low
-                    cpi_deflation = 0.0  # 默认值
-                else:
-                    cpi_high = 2.0
-                    cpi_low = 1.0
-                    cpi_deflation = 0.0
-
-                # 获取趋势权重
-                trend_config = config_model.trend_indicators.filter(indicator_code='PMI').first()
-                momentum_weight = trend_config.trend_weight if trend_config else 0.3
+            values = get_regime_repository().get_active_threshold_config_values()
+            if values:
 
                 return ThresholdConfig(
-                    pmi_expansion=pmi_expansion,
-                    pmi_contraction=pmi_contraction,
-                    cpi_high=cpi_high,
-                    cpi_low=cpi_low,
-                    cpi_deflation=cpi_deflation,
-                    momentum_weight=momentum_weight
+                    pmi_expansion=values["pmi_expansion"],
+                    pmi_contraction=values["pmi_contraction"],
+                    cpi_high=values["cpi_high"],
+                    cpi_low=values["cpi_low"],
+                    cpi_deflation=values["cpi_deflation"],
+                    momentum_weight=values["momentum_weight"],
                 )
         except Exception as e:
             logger.warning(f"Failed to load threshold config from database: {e}, using defaults")

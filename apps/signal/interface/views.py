@@ -4,130 +4,58 @@ Page Views for Investment Signal Management.
 
 from datetime import date
 
-from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.asset_analysis.application.asset_name_service import resolve_asset_names
-from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.invalidation_checker import InvalidationCheckService
+from apps.signal.application.query_services import (
+    build_signal_management_context,
+    create_investment_signal_record,
+    delete_investment_signal_record,
+    get_current_regime_payload,
+    get_pending_unified_signals,
+    get_recommended_assets_payload,
+    get_unified_signals_by_asset,
+    mark_unified_signal_executed,
+    update_investment_signal_status,
+)
 from apps.signal.application.use_cases import (
-    GetRecommendedAssetsUseCase,
     ValidateSignalRequest,
     ValidateSignalUseCase,
 )
 from apps.signal.domain.rules import Eligibility, get_eligibility_matrix
-from apps.signal.infrastructure.models import InvestmentSignalModel
 from core.cache_utils import CACHE_TTL, cached_api
 
 
 def signal_manage_view(request):
     """投资信号管理页面"""
-    # 获取筛选参数
     status_filter = request.GET.get("status", "")
     asset_class = request.GET.get("asset_class", "")
     direction = request.GET.get("direction", "")
     search = request.GET.get("search", "")
 
-    # 基础查询
-    queryset = InvestmentSignalModel._default_manager.all()
-
-    # 应用筛选
-    if status_filter:
-        queryset = queryset.filter(status=status_filter)
-    if asset_class:
-        queryset = queryset.filter(asset_class=asset_class)
-    if direction:
-        queryset = queryset.filter(direction=direction)
-    if search:
-        queryset = queryset.filter(
-            Q(asset_code__icontains=search) | Q(logic_desc__icontains=search)
-        )
-
-    # 获取信号列表
-    signals = list(queryset.order_by("-created_at")[:50])
-
-    # 批量解析资产名称
-    asset_codes = [s.asset_code for s in signals if s.asset_code]
-    asset_name_map = resolve_asset_names(asset_codes)
-    for signal in signals:
-        signal.asset_name = asset_name_map.get(signal.asset_code, signal.asset_code)
-
-    # 统计信息
-    stats = {
-        "total": InvestmentSignalModel._default_manager.count(),
-        "pending": InvestmentSignalModel._default_manager.filter(status="pending").count(),
-        "approved": InvestmentSignalModel._default_manager.filter(status="approved").count(),
-        "rejected": InvestmentSignalModel._default_manager.filter(status="rejected").count(),
-        "invalidated": InvestmentSignalModel._default_manager.filter(status="invalidated").count(),
-    }
-
-    # 获取所有资产类别和方向
-    asset_classes = InvestmentSignalModel._default_manager.values("asset_class").distinct()
-    directions = InvestmentSignalModel._default_manager.values("direction").distinct()
-
-    # 获取当前 Regime 信息
-    current_regime = get_current_regime()
-
-    # 获取推荐资产
-    recommended_assets = get_recommended_assets(
-        current_regime["dominant_regime"] if current_regime else "Deflation"
+    context = build_signal_management_context(
+        status_filter=status_filter,
+        asset_class=asset_class,
+        direction=direction,
+        search=search,
     )
-
-    # 从数据库动态获取可用指标列表
-    from apps.macro.application.indicator_service import get_available_indicators_for_frontend
-
-    available_indicators = get_available_indicators_for_frontend()
-
-    context = {
-        "signals": signals,
-        "stats": stats,
-        "asset_classes": [ac["asset_class"] for ac in asset_classes],
-        "directions": [d["direction"] for d in directions],
-        "filter_status": status_filter,
-        "filter_asset_class": asset_class,
-        "filter_direction": direction,
-        "filter_search": search,
-        "current_regime": current_regime,
-        "recommended_assets": recommended_assets,
-        "all_asset_classes": list(get_eligibility_matrix().keys()),
-        "all_regimes": ["Recovery", "Overheat", "Stagflation", "Deflation"],
-        "available_indicators": available_indicators,
-    }
 
     return render(request, "signal/manage.html", context)
 
 
 def get_current_regime():
     """获取当前 Regime 信息"""
-    latest = resolve_current_regime(as_of_date=date.today())
-    return {
-        "dominant_regime": latest.dominant_regime,
-        "confidence": latest.confidence,
-        "observed_at": latest.observed_at,
-        "distribution": {},
-    }
+    return get_current_regime_payload()
 
 
 def get_recommended_assets(regime: str):
     """获取推荐资产列表"""
-    from apps.signal.application.use_cases import GetRecommendedAssetsRequest
-
-    use_case = GetRecommendedAssetsUseCase()
-    request = GetRecommendedAssetsRequest(current_regime=regime)
-
-    response = use_case.execute(request)
-
-    return {
-        "recommended": response.recommended,
-        "neutral": response.neutral,
-        "hostile": response.hostile,
-    }
+    return get_recommended_assets_payload(regime)
 
 
 @require_http_methods(["GET", "POST"])
@@ -185,8 +113,7 @@ def create_signal_view(request):
 
     response = validate_use_case.execute(validate_request)
 
-    # 创建信号
-    signal = InvestmentSignalModel._default_manager.create(
+    signal = create_investment_signal_record(
         asset_code=asset_code,
         asset_class=asset_class,
         direction=direction,
@@ -195,17 +122,17 @@ def create_signal_view(request):
         invalidation_threshold=invalidation_threshold,
         invalidation_rules=invalidation_rules if invalidation_rules else None,
         target_regime=target_regime,
-        status="approved" if response.is_approved else "rejected",
+        is_approved=response.is_approved,
         rejection_reason=response.rejection_record.reason if response.rejection_record else "",
     )
 
     return JsonResponse(
         {
             "success": True,
-            "signal_id": signal.id,
+            "signal_id": signal["id"],
             "is_approved": response.is_approved,
             "warnings": response.warnings,
-            "rejection_reason": signal.rejection_reason if not response.is_approved else None,
+            "rejection_reason": signal["rejection_reason"] if not response.is_approved else None,
         }
     )
 
@@ -241,13 +168,15 @@ def generate_invalidation_logic_text(rules: dict) -> str:
 def approve_signal_view(request):
     """手动批准信号"""
     signal_id = request.POST.get("signal_id")
-    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
+    signal = update_investment_signal_status(
+        signal_id=signal_id,
+        status="approved",
+        rejection_reason="",
+    )
+    if signal is None:
+        return JsonResponse({"success": False, "error": "信号不存在"}, status=404)
 
-    signal.status = "approved"
-    signal.rejection_reason = ""
-    signal.save()
-
-    return JsonResponse({"success": True, "message": f"信号 {signal.asset_code} 已批准"})
+    return JsonResponse({"success": True, "message": f"信号 {signal['asset_code']} 已批准"})
 
 
 @require_http_methods(["POST"])
@@ -256,12 +185,15 @@ def reject_signal_view(request):
     signal_id = request.POST.get("signal_id")
     reason = request.POST.get("reason", "手动拒绝").strip()
 
-    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
-    signal.status = "rejected"
-    signal.rejection_reason = reason
-    signal.save()
+    signal = update_investment_signal_status(
+        signal_id=signal_id,
+        status="rejected",
+        rejection_reason=reason,
+    )
+    if signal is None:
+        return JsonResponse({"success": False, "error": "信号不存在"}, status=404)
 
-    return JsonResponse({"success": True, "message": f"信号 {signal.asset_code} 已拒绝"})
+    return JsonResponse({"success": True, "message": f"信号 {signal['asset_code']} 已拒绝"})
 
 
 @require_http_methods(["POST"])
@@ -270,21 +202,23 @@ def invalidate_signal_view(request):
     signal_id = request.POST.get("signal_id")
     reason = request.POST.get("reason", "手动证伪").strip()
 
-    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
-    signal.status = "invalidated"
-    signal.rejection_reason = reason
-    signal.invalidated_at = timezone.now()
-    signal.save()
+    signal = update_investment_signal_status(
+        signal_id=signal_id,
+        status="invalidated",
+        rejection_reason=reason,
+    )
+    if signal is None:
+        return JsonResponse({"success": False, "error": "信号不存在"}, status=404)
 
-    return JsonResponse({"success": True, "message": f"信号 {signal.asset_code} 已证伪"})
+    return JsonResponse({"success": True, "message": f"信号 {signal['asset_code']} 已证伪"})
 
 
 @require_http_methods(["DELETE"])
 def delete_signal_view(request, signal_id):
     """删除信号"""
-    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
-    asset_code = signal.asset_code
-    signal.delete()
+    asset_code = delete_investment_signal_record(signal_id)
+    if asset_code is None:
+        return JsonResponse({"success": False, "error": "信号不存在"}, status=404)
 
     return JsonResponse({"success": True, "message": f"信号 {asset_code} 已删除"})
 
@@ -485,21 +419,19 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def pending(self, request):
         """Get pending (unexecuted) signals"""
-        from apps.signal.infrastructure.repositories import UnifiedSignalRepository
-
         min_priority = int(request.query_params.get("min_priority", 5))
         signal_type = request.query_params.get("type", None)
 
-        repo = UnifiedSignalRepository()
-        signals = repo.get_pending_signals(min_priority=min_priority, signal_type=signal_type)
+        signals = get_pending_unified_signals(
+            min_priority=min_priority,
+            signal_type=signal_type,
+        )
 
         return Response({"count": len(signals), "signals": signals})
 
     @action(detail=False, methods=["get"])
     def by_asset(self, request):
         """Get signals for a specific asset"""
-        from apps.signal.infrastructure.repositories import UnifiedSignalRepository
-
         asset_code = request.query_params.get("asset_code")
         if not asset_code:
             return Response({"error": "asset_code is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -507,8 +439,11 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
         days = int(request.query_params.get("days", 30))
         signal_source = request.query_params.get("source", None)
 
-        repo = UnifiedSignalRepository()
-        signals = repo.get_signals_by_asset(asset_code, days=days, signal_source=signal_source)
+        signals = get_unified_signals_by_asset(
+            asset_code=asset_code,
+            days=days,
+            signal_source=signal_source,
+        )
 
         return Response(
             {"asset_code": asset_code, "days": days, "count": len(signals), "signals": signals}
@@ -517,10 +452,7 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
     @action(detail=True, methods=["post"])
     def execute(self, request, pk=None):
         """Mark a signal as executed"""
-        from apps.signal.infrastructure.repositories import UnifiedSignalRepository
-
-        repo = UnifiedSignalRepository()
-        success = repo.mark_executed(pk)
+        success = mark_unified_signal_executed(pk)
 
         if success:
             return Response({"status": "executed", "signal_id": pk})

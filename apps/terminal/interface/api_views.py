@@ -6,8 +6,10 @@ RESTful API视图定义。
 
 import logging
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,6 +17,10 @@ from rest_framework.views import APIView
 from apps.account.application.rbac import get_user_role
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
+from ..application.repository_provider import (
+    get_terminal_audit_repository,
+    get_terminal_command_repository,
+)
 from ..application.services import AnswerChainSettingsService, CommandExecutionService
 from ..application.use_cases import (
     CreateCommandRequest,
@@ -28,11 +34,6 @@ from ..application.use_cases import (
 )
 from ..domain.entities import TerminalMode, TerminalRiskLevel
 from ..domain.services import TerminalPermissionService
-from ..infrastructure.models import TerminalCommandORM
-from ..infrastructure.repositories import (
-    get_terminal_audit_repository,
-    get_terminal_command_repository,
-)
 from .permissions import IsStaffOrAdmin
 from .serializers import (
     AvailableCommandSerializer,
@@ -61,7 +62,26 @@ def _get_answer_chain_config(user) -> dict:
     return AnswerChainSettingsService.get_config(user)
 
 
-class TerminalCommandViewSet(viewsets.ModelViewSet):
+def _normalize_prompt_template_id(value):
+    if value in (None, ''):
+        return None
+    return str(value)
+
+
+def _command_to_payload(command) -> dict:
+    """Serialize a terminal command entity into API response payload."""
+
+    payload = command.to_dict()
+    prompt_template = payload.pop('prompt_template_id', None)
+    payload['command_type'] = payload['type']
+    payload['prompt_template'] = int(prompt_template) if str(prompt_template).isdigit() else prompt_template
+    payload['param_count'] = len(payload.get('parameters') or [])
+    payload['created_at'] = command.created_at
+    payload['updated_at'] = command.updated_at
+    return payload
+
+
+class TerminalCommandViewSet(viewsets.ViewSet):
     """
     终端命令管理 API
 
@@ -74,7 +94,6 @@ class TerminalCommandViewSet(viewsets.ModelViewSet):
     available: 获取可用命令列表（简化版）
     """
 
-    queryset = TerminalCommandORM._default_manager.all()
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
@@ -89,6 +108,17 @@ class TerminalCommandViewSet(viewsets.ModelViewSet):
         elif self.action in ['update', 'partial_update']:
             return TerminalCommandUpdateSerializer
         return TerminalCommandSerializer
+
+    def _get_command(self, command_id: str):
+        repository = get_terminal_command_repository()
+        command = repository.get_by_id(command_id)
+        if not command:
+            raise NotFound(detail=f"Command with id '{command_id}' not found")
+        return command
+
+    def _build_command_payload(self, command):
+        serializer = TerminalCommandSerializer(_command_to_payload(command))
+        return serializer.data
 
     def _build_execute_request(self, data, request) -> ExecuteCommandRequest:
         """构建执行请求 DTO"""
@@ -125,6 +155,125 @@ class TerminalCommandViewSet(viewsets.ModelViewSet):
         response_serializer = ExecuteCommandResponseSerializer(response_data)
         return Response(response_serializer.data)
 
+    def list(self, request):
+        """获取所有命令（包含非激活命令）。"""
+
+        repository = get_terminal_command_repository()
+        commands = ListCommandsUseCase(repository).execute(include_inactive=True)
+        serializer = TerminalCommandSerializer(
+            [_command_to_payload(command) for command in commands],
+            many=True,
+        )
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """获取单个命令详情。"""
+
+        command = self._get_command(pk)
+        return Response(self._build_command_payload(command))
+
+    def create(self, request):
+        """创建新命令。"""
+
+        serializer = TerminalCommandCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        use_case = CreateCommandUseCase(get_terminal_command_repository())
+        request_obj = CreateCommandRequest(
+            name=data['name'],
+            description=data.get('description', ''),
+            command_type=data['command_type'],
+            prompt_template_id=_normalize_prompt_template_id(data.get('prompt_template')),
+            system_prompt=data.get('system_prompt') or None,
+            user_prompt_template=data.get('user_prompt_template', ''),
+            api_endpoint=data.get('api_endpoint') or None,
+            api_method=data.get('api_method', 'GET'),
+            response_jq_filter=data.get('response_jq_filter') or None,
+            parameters=data.get('parameters', []),
+            timeout=data.get('timeout', 60),
+            provider_name=data.get('provider_name') or None,
+            model_name=data.get('model_name') or None,
+            risk_level=data.get('risk_level', TerminalRiskLevel.READ.value),
+            requires_mcp=data.get('requires_mcp', True),
+            enabled_in_terminal=data.get('enabled_in_terminal', True),
+            category=data.get('category', 'general'),
+            tags=data.get('tags', []),
+            is_active=data.get('is_active', True),
+        )
+
+        try:
+            result = use_case.execute(request_obj)
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+
+        if not result.success:
+            return Response({'error': result.error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            self._build_command_payload(result.command),
+            status=status.HTTP_201_CREATED,
+        )
+
+    def update(self, request, pk=None):
+        """全量更新命令。"""
+
+        return self._update_command(request, pk, partial=False)
+
+    def partial_update(self, request, pk=None):
+        """部分更新命令。"""
+
+        return self._update_command(request, pk, partial=True)
+
+    def _update_command(self, request, pk=None, *, partial: bool):
+        self._get_command(pk)
+
+        serializer = TerminalCommandUpdateSerializer(data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        use_case = UpdateCommandUseCase(get_terminal_command_repository())
+        request_obj = UpdateCommandRequest(
+            command_id=str(pk),
+            name=data.get('name'),
+            description=data.get('description'),
+            command_type=data.get('command_type'),
+            prompt_template_id=_normalize_prompt_template_id(data.get('prompt_template'))
+            if 'prompt_template' in data else None,
+            system_prompt=(data.get('system_prompt') or None) if 'system_prompt' in data else None,
+            user_prompt_template=data.get('user_prompt_template'),
+            api_endpoint=(data.get('api_endpoint') or None) if 'api_endpoint' in data else None,
+            api_method=data.get('api_method'),
+            response_jq_filter=(data.get('response_jq_filter') or None)
+            if 'response_jq_filter' in data else None,
+            parameters=data.get('parameters'),
+            timeout=data.get('timeout'),
+            provider_name=(data.get('provider_name') or None) if 'provider_name' in data else None,
+            model_name=(data.get('model_name') or None) if 'model_name' in data else None,
+            risk_level=data.get('risk_level'),
+            requires_mcp=data.get('requires_mcp'),
+            enabled_in_terminal=data.get('enabled_in_terminal'),
+            category=data.get('category'),
+            tags=data.get('tags'),
+            is_active=data.get('is_active'),
+        )
+
+        try:
+            result = use_case.execute(request_obj)
+        except DjangoValidationError as exc:
+            return Response(exc.message_dict, status=status.HTTP_400_BAD_REQUEST)
+
+        if not result.success:
+            status_code = status.HTTP_404_NOT_FOUND if 'not found' in (result.error or '').lower() else status.HTTP_400_BAD_REQUEST
+            return Response({'error': result.error}, status=status_code)
+        return Response(self._build_command_payload(result.command))
+
+    def destroy(self, request, pk=None):
+        """删除命令。"""
+
+        self._get_command(pk)
+        DeleteCommandUseCase(get_terminal_command_repository()).execute(str(pk))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=['post'])
     def execute(self, request, pk=None):
         """
@@ -132,7 +281,7 @@ class TerminalCommandViewSet(viewsets.ModelViewSet):
 
         POST /api/terminal/commands/{id}/execute/
         """
-        command = self.get_object()
+        command = self._get_command(pk)
 
         serializer = ExecuteCommandSerializer(data={
             'name': command.name,

@@ -31,22 +31,48 @@
    `rg -n "from .*infrastructure\\.models|\\.objects\\." apps/*/application -S`
 3. Interface 越层调用扫描：  
    `rg -n "from .*infrastructure\\.|from .*domain\\.(services|rules)" apps/*/interface -S`
-4. 版本化边界校验：  
+4. 增量 diff 架构门禁：  
+   `python scripts/check_architecture_delta.py --rules-file governance/architecture_rules.json --base-ref <base> --head-ref <head> --include-audit --fail-on-audit-violations --format text`
+5. 版本化边界校验：  
    `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text`
-5. 模块账本生成：  
+6. 模块账本生成：  
    `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --write-ledger docs/development/module-ledger.md`
 
 ### 0.2) 架构账本与边界基线
 
 1. 边界规则单一来源：`governance/architecture_rules.json`
 2. 自动校验入口：`scripts/verify_architecture.py`
-3. 生成产物：`docs/development/module-ledger.md`
-4. 当前固化范围：
+3. 增量门禁入口：`scripts/check_architecture_delta.py`
+4. Provider 脚手架入口：`scripts/scaffold_application_providers.py`
+5. 生成产物：`docs/development/module-ledger.md`
+6. 当前固化范围：
    - `regime -> macro` 运行时实现导入禁令
    - `strategy -> simulated_trading ORM` 禁令
    - `simulated_trading -> strategy ORM` 禁令
    - `events -> downstream handlers/models` 禁令
    - `account interface -> simulated_trading ORM / migrate_account_ledger` 禁令
+
+### 0.3) 治理脚手架用法
+
+当某个 `interface/` 文件需要批量移除 `infrastructure` 依赖时，优先先在 `application/` 生成 provider 模块，再把 view / serializer 改成只调用 application。
+
+示例：
+
+```bash
+python scripts/scaffold_application_providers.py \
+  --module prompt \
+  --output apps/prompt/application/repository_provider.py \
+  --provider get_prompt_repository=apps.prompt.infrastructure.repositories:DjangoPromptRepository \
+  --provider get_chain_repository=apps.prompt.infrastructure.repositories:DjangoChainRepository \
+  --provider get_execution_log_repository=apps.prompt.infrastructure.repositories:DjangoExecutionLogRepository \
+  --force
+```
+
+生成后要求：
+
+1. Interface 层只 import `apps.*.application.*`
+2. ORM queryset / filter 逻辑继续下沉到 Infrastructure Repository
+3. 新增 provider 只是边界收口层，不承载业务规则
 
 ### 1) 配置唯一来源（Single Source of Truth）
 

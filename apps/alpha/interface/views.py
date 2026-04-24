@@ -7,7 +7,6 @@ Django REST Framework 视图定义。
 import logging
 from datetime import date
 
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -18,8 +17,11 @@ from rest_framework.response import Response
 
 from core.cache_utils import CACHE_TTL, cached_api
 
+from ..application.interface_services import (
+    resolve_requested_alpha_user,
+    upload_alpha_scores,
+)
 from ..application.services import AlphaService
-from ..infrastructure.models import AlphaScoreCacheModel
 from .serializers import (
     AlphaResultSerializer,
     GetStockScoresRequestSerializer,
@@ -28,7 +30,6 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
 
 
 @api_view(["GET"])
@@ -78,7 +79,10 @@ def get_stock_scores(request: Request) -> Response:
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            requested_user = User.objects.filter(pk=requested_user_id).first()
+            requested_user = resolve_requested_alpha_user(
+                actor=request.user,
+                requested_user_id=requested_user_id,
+            )
             if requested_user is None:
                 return Response(
                     {
@@ -292,18 +296,14 @@ def upload_scores(request: Request) -> Response:
         # 确定写入的 user：system 级别 user=None，否则 user=当前用户
         write_user = None if scope == "system" else request.user
 
-        cache_obj, created = AlphaScoreCacheModel.objects.update_or_create(
-            user=write_user,
+        cache_obj, created = upload_alpha_scores(
+            write_user=write_user,
             universe_id=data["universe_id"],
+            asof_date=data["asof_date"],
             intended_trade_date=data["intended_trade_date"],
-            provider_source="qlib",
+            model_id=data.get("model_id", "local_qlib"),
             model_artifact_hash=data.get("model_artifact_hash", "") or "",
-            defaults={
-                "asof_date": data["asof_date"],
-                "model_id": data.get("model_id", "local_qlib"),
-                "scores": data["scores"],
-                "status": AlphaScoreCacheModel.STATUS_AVAILABLE,
-            },
+            scores=data["scores"],
         )
 
         logger.info(

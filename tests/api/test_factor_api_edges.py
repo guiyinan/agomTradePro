@@ -47,7 +47,7 @@ def test_factor_create_portfolio_requires_config_name(authenticated_client):
 @pytest.mark.django_db
 def test_factor_create_portfolio_maps_value_error_to_400(authenticated_client):
     with patch(
-        "apps.factor.interface.views.FactorIntegrationService.create_factor_portfolio",
+        "apps.factor.interface.views.factor_interface_services.create_factor_portfolio",
         side_effect=ValueError("invalid trade date"),
     ):
         response = authenticated_client.post(
@@ -63,7 +63,7 @@ def test_factor_create_portfolio_maps_value_error_to_400(authenticated_client):
 @pytest.mark.django_db
 def test_factor_explain_stock_returns_500_when_service_returns_none(authenticated_client):
     with patch(
-        "apps.factor.interface.views.FactorIntegrationService.explain_stock_score",
+        "apps.factor.interface.views.factor_interface_services.explain_stock_score",
         return_value=None,
     ):
         response = authenticated_client.post(

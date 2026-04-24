@@ -11,7 +11,6 @@ from typing import Any, Dict, Optional
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db import DatabaseError, IntegrityError
-from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.exceptions import (
@@ -22,8 +21,13 @@ from core.exceptions import (
 from core.metrics import record_exception
 
 from ..domain.entities import PolicyEvent, PolicyLevel
-from ..infrastructure.notification_service import NotificationServiceFactory
-from ..infrastructure.repositories import DjangoPolicyRepository
+from .repository_provider import (
+    get_ai_policy_classifier,
+    get_current_policy_repository,
+    get_policy_notification_service,
+    get_rss_repository,
+    get_workbench_repository,
+)
 from .use_cases import GetPolicyStatusUseCase
 
 logger = logging.getLogger(__name__)
@@ -36,7 +40,7 @@ def _get_notification_service():
     """获取通知服务实例（延迟初始化）"""
     global _notification_service
     if _notification_service is None:
-        _notification_service = NotificationServiceFactory.get_alert_service()
+        _notification_service = get_policy_notification_service()
     return _notification_service
 
 
@@ -59,7 +63,7 @@ def check_policy_status_alert(self, as_of_date_str: str | None = None):
     try:
         as_of_date = date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
 
-        repo = DjangoPolicyRepository()
+        repo = get_current_policy_repository()
         use_case = GetPolicyStatusUseCase(event_store=repo)
 
         status = use_case.execute(as_of_date)
@@ -121,7 +125,7 @@ def monitor_policy_transitions():
     检查最近 24 小时内是否有档位变更，如有则发送摘要
     """
     try:
-        repo = DjangoPolicyRepository()
+        repo = get_current_policy_repository()
 
         today = date.today()
         yesterday = today - timedelta(days=1)
@@ -180,15 +184,9 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
         days_to_keep: 保留天数（默认 365 天）
     """
     try:
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyLog
-
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
-        deleted_count = PolicyLog._default_manager.filter(
-            event_date__lt=cutoff_date
-        ).delete()[0]
+        deleted_count = get_current_policy_repository().delete_events_before(cutoff_date)
 
         logger.info(f"Cleaned up {deleted_count} old policy logs")
 
@@ -282,17 +280,15 @@ def fetch_rss_sources(self, source_id: int | None = None):
     Args:
         source_id: 指定源ID，None表示抓取所有启用的源
     """
-    from ..infrastructure.adapters.ai_policy_classifier import create_ai_policy_classifier
-    from ..infrastructure.repositories import RSSRepository
     from .use_cases import FetchRSSInput, FetchRSSUseCase
 
     try:
-        rss_repo = RSSRepository()
-        policy_repo = DjangoPolicyRepository()
+        rss_repo = get_rss_repository()
+        policy_repo = get_current_policy_repository()
 
         # 创建AI分类器（如果配置了AI服务）
         try:
-            ai_classifier = create_ai_policy_classifier()
+            ai_classifier = get_ai_policy_classifier()
             if ai_classifier:
                 logger.info("AI classifier initialized successfully")
             else:
@@ -317,14 +313,7 @@ def fetch_rss_sources(self, source_id: int | None = None):
 
         # 统计各分类数量
         if output.new_policy_events > 0:
-            from ..infrastructure.models import PolicyLog
-            category_stats = PolicyLog._default_manager.aggregate(
-                macro=Count('id', filter=Q(info_category='macro')),
-                sector=Count('id', filter=Q(info_category='sector')),
-                individual=Count('id', filter=Q(info_category='individual')),
-                sentiment=Count('id', filter=Q(info_category='sentiment')),
-                other=Count('id', filter=Q(info_category='other'))
-            )
+            category_stats = policy_repo.get_category_stats()
             logger.info(f"Policy categories: {category_stats}")
 
         return {
@@ -353,9 +342,7 @@ def cleanup_old_rss_logs(days_to_keep: int = 90):
         days_to_keep: 保留天数
     """
     try:
-        from ..infrastructure.repositories import RSSRepository
-
-        rss_repo = RSSRepository()
+        rss_repo = get_rss_repository()
         deleted_count = rss_repo.cleanup_old_logs(days_to_keep)
 
         logger.info(f"Cleaned up {deleted_count} old RSS logs")
@@ -380,53 +367,48 @@ def auto_assign_pending_audits(max_per_user: int = 10):
         max_per_user: 每个用户最多分配数量
     """
     try:
-        from django.contrib.auth.models import User
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyAuditQueue
+        workbench_repo = get_workbench_repository()
 
         # 获取所有待审核且未分配的政策
-        unassigned = PolicyAuditQueue._default_manager.filter(
-            assigned_to__isnull=True,
-            policy_log__audit_status='pending_review'
-        ).order_by('-created_at')
+        unassigned_ids = workbench_repo.list_unassigned_audit_queue_ids()
 
         # 获取可用的审核人员（有审核权限的用户）
-        # 简化版本：获取所有员工用户
-        auditors = User._default_manager.filter(is_staff=True).distinct()
+        auditor_ids = workbench_repo.list_staff_auditor_ids()
 
-        if not auditors:
+        if not auditor_ids:
             logger.warning("No auditors found with staff privileges")
-            return {'assigned': 0, 'remaining': unassigned.count()}
+            return {'assigned': 0, 'remaining': len(unassigned_ids)}
 
         # 轮询分配
+        assigned_per_auditor = workbench_repo.get_pending_assignment_counts(auditor_ids)
         assigned_count = 0
-        for idx, queue_item in enumerate(unassigned):
-            auditor = auditors[idx % auditors.count()]
+        auditor_count = len(auditor_ids)
+        assignment_time = timezone.now()
+        for idx, queue_id in enumerate(unassigned_ids):
+            for offset in range(auditor_count):
+                auditor_id = auditor_ids[(idx + offset) % auditor_count]
+                current_assigned = assigned_per_auditor.get(auditor_id, 0)
 
-            # 检查该用户已分配数量
-            current_assigned = PolicyAuditQueue._default_manager.filter(
-                assigned_to=auditor,
-                policy_log__audit_status='pending_review'
-            ).count()
+                if current_assigned >= max_per_user:
+                    continue
 
-            if current_assigned >= max_per_user:
-                continue
-
-            queue_item.assigned_to = auditor
-            queue_item.assigned_at = timezone.now()
-            queue_item.save()
-
-            assigned_count += 1
+                if workbench_repo.assign_audit_queue_item(
+                    queue_id=queue_id,
+                    auditor_id=auditor_id,
+                    assigned_at=assignment_time,
+                ):
+                    assigned_per_auditor[auditor_id] = current_assigned + 1
+                    assigned_count += 1
+                    break
 
         logger.info(
-            f"Auto-assigned {assigned_count} policy reviews to {auditors.count()} auditors"
+            f"Auto-assigned {assigned_count} policy reviews to {auditor_count} auditors"
         )
 
         return {
             'assigned': assigned_count,
-            'remaining': unassigned.count() - assigned_count,
-            'auditors': auditors.count()
+            'remaining': len(unassigned_ids) - assigned_count,
+            'auditors': auditor_count
         }
 
     except Exception as e:
@@ -448,16 +430,10 @@ def cleanup_old_audit_queues(days_to_keep: int = 30):
         days_to_keep: 保留天数
     """
     try:
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyAuditQueue
-
         cutoff_date = timezone.now() - timedelta(days=days_to_keep)
 
         # 只删除已审核的队列记录
-        deleted_count = PolicyAuditQueue._default_manager.filter(
-            policy_log__reviewed_at__lt=cutoff_date
-        ).delete()[0]
+        deleted_count = get_workbench_repository().delete_reviewed_queue_before(cutoff_date)
 
         logger.info(f"Cleaned up {deleted_count} old audit queue records")
 
@@ -476,47 +452,8 @@ def generate_daily_policy_summary():
     汇总当天的政策状态，包括AI分类统计
     """
     try:
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyAuditQueue, PolicyLog
-
         today = timezone.now().date()
-
-        # 今日新增政策统计
-        today_policies = PolicyLog._default_manager.filter(created_at__date=today)
-
-        summary = {
-            "date": today.isoformat(),
-            "total_new": today_policies.count(),
-            "by_level": {},
-            "by_category": {},
-            "by_audit_status": {},
-            "pending_review": PolicyAuditQueue._default_manager.filter(
-                policy_log__audit_status='pending_review'
-            ).count(),
-            "ai_classified": today_policies.filter(
-                Q(audit_status='auto_approved') | Q(audit_status='pending_review'),
-                ai_confidence__isnull=False
-            ).count(),
-        }
-
-        # 按档位统计
-        for level_code, level_name in PolicyLog.POLICY_LEVELS:
-            count = today_policies.filter(level=level_code).count()
-            if count > 0:
-                summary["by_level"][level_name] = count
-
-        # 按分类统计
-        for cat_code, cat_name in PolicyLog.INFO_CATEGORY_CHOICES:
-            count = today_policies.filter(info_category=cat_code).count()
-            if count > 0:
-                summary["by_category"][cat_name] = count
-
-        # 按审核状态统计
-        for status_code, status_name in PolicyLog.AUDIT_STATUS_CHOICES:
-            count = today_policies.filter(audit_status=status_code).count()
-            if count > 0:
-                summary["by_audit_status"][status_name] = count
+        summary = get_workbench_repository().get_daily_policy_summary(today)
 
         # 存储摘要或发送告警
         logger.info(f"Daily policy summary generated: {summary}")
@@ -565,7 +502,7 @@ def trigger_signal_reevaluation(
             ReevaluateSignalsRequest,
             ReevaluateSignalsUseCase,
         )
-        from apps.signal.infrastructure.repositories import DjangoSignalRepository
+        from apps.signal.application.repository_provider import get_signal_repository
 
         logger.info(
             f"Starting signal reevaluation for policy level P{new_level}, "
@@ -578,7 +515,7 @@ def trigger_signal_reevaluation(
         regime_confidence = latest_regime.confidence
 
         # 创建仓储和用例
-        signal_repo = DjangoSignalRepository()
+        signal_repo = get_signal_repository()
         use_case = ReevaluateSignalsUseCase(signal_repository=signal_repo)
 
         # 执行重评
@@ -639,47 +576,30 @@ def monitor_sla_exceeded_task():
     该任务应由 Celery Beat 定时调用（如每 10 分钟一次）
     """
     try:
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyIngestionConfig, PolicyLog
-        from ..infrastructure.repositories import WorkbenchRepository
-
-        workbench_repo = WorkbenchRepository()
+        workbench_repo = get_workbench_repository()
         config = workbench_repo.get_ingestion_config()
-
-        now = timezone.now()
-
-        # P2/P3 超时
-        p23_cutoff = now - timedelta(hours=config.p23_sla_hours)
-        p23_exceeded = PolicyLog._default_manager.filter(
-            audit_status='pending_review',
-            level__in=['P2', 'P3'],
-            created_at__lt=p23_cutoff
+        breakdown = workbench_repo.get_sla_exceeded_breakdown(
+            p23_sla_hours=config.p23_sla_hours,
+            normal_sla_hours=config.normal_sla_hours,
         )
-
-        # 普通（P0/P1）超时
-        normal_cutoff = now - timedelta(hours=config.normal_sla_hours)
-        normal_exceeded = PolicyLog._default_manager.filter(
-            audit_status='pending_review',
-            level__in=['P0', 'P1'],
-            created_at__lt=normal_cutoff
-        )
-
-        total_exceeded = p23_exceeded.count() + normal_exceeded.count()
+        total_exceeded = breakdown["total_exceeded"]
 
         if total_exceeded > 0:
             logger.warning(
-                f"SLA exceeded: {p23_exceeded.count()} P2/P3, "
-                f"{normal_exceeded.count()} P0/P1"
+                f"SLA exceeded: {breakdown['p23_exceeded']} P2/P3, "
+                f"{breakdown['normal_exceeded']} P0/P1"
             )
             # 使用通知服务发送SLA告警
             alert_service = _get_notification_service()
-            alert_service.send_sla_alert(p23_exceeded.count(), normal_exceeded.count())
+            alert_service.send_sla_alert(
+                breakdown["p23_exceeded"],
+                breakdown["normal_exceeded"],
+            )
 
         return {
             "status": "success",
-            "p23_exceeded": p23_exceeded.count(),
-            "normal_exceeded": normal_exceeded.count(),
+            "p23_exceeded": breakdown["p23_exceeded"],
+            "normal_exceeded": breakdown["normal_exceeded"],
             "total_exceeded": total_exceeded,
         }
 
@@ -699,13 +619,9 @@ def refresh_gate_constraints_task():
     该任务应由 Celery Beat 定时调用（如每 5 分钟一次）
     """
     try:
-        from django.db.models import Avg
-
         from ..domain.rules import calculate_gate_level
-        from ..infrastructure.models import PolicyLog, SentimentGateConfig
-        from ..infrastructure.repositories import WorkbenchRepository
 
-        workbench_repo = WorkbenchRepository()
+        workbench_repo = get_workbench_repository()
 
         # 获取全局热度与情绪
         global_heat, global_sentiment = workbench_repo.get_global_heat_sentiment()

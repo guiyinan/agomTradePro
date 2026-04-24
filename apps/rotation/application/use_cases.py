@@ -29,6 +29,7 @@ from apps.rotation.domain.services import (
     RotationContext,
     RotationService,
 )
+from apps.rotation.infrastructure.repositories import RotationInterfaceRepository
 
 
 @dataclass
@@ -148,7 +149,7 @@ class GetAssetsForViewUseCase:
     Returns assets, categories, and momentum scores for template rendering.
     """
 
-    def __init__(self, integration_service):
+    def __init__(self, integration_service, view_repo=None):
         """
         Initialize with integration service.
 
@@ -156,6 +157,7 @@ class GetAssetsForViewUseCase:
             integration_service: RotationIntegrationService instance
         """
         self.service = integration_service
+        self.view_repo = view_repo or RotationInterfaceRepository()
 
     def execute(self, request: AssetsViewRequest) -> AssetsViewResponse:
         """
@@ -225,7 +227,7 @@ class GetRotationConfigsForViewUseCase:
     Returns configs and their latest signals for template rendering.
     """
 
-    def __init__(self, integration_service):
+    def __init__(self, integration_service, view_repo=None):
         """
         Initialize with integration service.
 
@@ -233,6 +235,7 @@ class GetRotationConfigsForViewUseCase:
             integration_service: RotationIntegrationService instance
         """
         self.service = integration_service
+        self.view_repo = view_repo or RotationInterfaceRepository()
 
     def execute(self, request: RotationConfigsViewRequest) -> RotationConfigsViewResponse:
         """
@@ -244,37 +247,14 @@ class GetRotationConfigsForViewUseCase:
         Returns:
             RotationConfigsViewResponse with configs and latest signals
         """
-        from apps.rotation.infrastructure.models import RotationConfigModel
-
-        # Get all configs ordered by active status and creation date
-        config_models = RotationConfigModel._default_manager.all().order_by('-is_active', '-created_at')
-
-        # Convert models to dict format for template
-        configs = []
-        for model in config_models:
-            configs.append({
-                'id': model.id,
-                'name': model.name,
-                'description': model.description,
-                'strategy_type': model.strategy_type,
-                'asset_universe': model.asset_universe,
-                'rebalance_frequency': model.rebalance_frequency,
-                'min_weight': model.min_weight,
-                'max_weight': model.max_weight,
-                'max_turnover': model.max_turnover,
-                'lookback_period': model.lookback_period,
-                'top_n': model.top_n,
-                'is_active': model.is_active,
-                'created_at': model.created_at,
-                'updated_at': model.updated_at,
-            })
+        configs = self.view_repo.list_config_rows()
 
         # Get latest signal for each config
         latest_signals = {}
-        for model in config_models:
-            latest_signal = self.service.signal_repo.get_latest_signal(model.id)
+        for config in configs:
+            latest_signal = self.service.signal_repo.get_latest_signal(config['id'])
             if latest_signal:
-                latest_signals[model.id] = ConfigLatestSignal(
+                latest_signals[config['id']] = ConfigLatestSignal(
                     signal_date=latest_signal.signal_date,
                     current_regime=latest_signal.current_regime,
                     action_required=latest_signal.action_required,
@@ -302,7 +282,7 @@ class GetRotationSignalsForViewUseCase:
     Returns signals with filters for template rendering.
     """
 
-    def __init__(self, integration_service):
+    def __init__(self, integration_service, view_repo=None):
         """
         Initialize with integration service.
 
@@ -310,6 +290,7 @@ class GetRotationSignalsForViewUseCase:
             integration_service: RotationIntegrationService instance
         """
         self.service = integration_service
+        self.view_repo = view_repo or RotationInterfaceRepository()
 
     def execute(self, request: RotationSignalsViewRequest) -> RotationSignalsViewResponse:
         """
@@ -321,54 +302,22 @@ class GetRotationSignalsForViewUseCase:
         Returns:
             RotationSignalsViewResponse with filtered signals and metadata
         """
-        from apps.rotation.infrastructure.models import RotationConfigModel, RotationSignalModel
-
-        # Build base query
-        queryset = RotationSignalModel._default_manager.all()
-
-        # Apply filters
-        if request.config_filter:
-            queryset = queryset.filter(config_id=request.config_filter)
-        if request.regime_filter:
-            queryset = queryset.filter(current_regime=request.regime_filter)
-        if request.action_filter:
-            queryset = queryset.filter(action_required=request.action_filter)
-
-        # Get signals (last 60 days)
         cutoff_date = date.today() - timedelta(days=60)
-        signal_models = queryset.filter(signal_date__gte=cutoff_date).order_by('-signal_date')[:50]
+        signals = self.view_repo.list_recent_signal_rows(
+            config_filter=request.config_filter,
+            regime_filter=request.regime_filter,
+            action_filter=request.action_filter,
+            cutoff_date=cutoff_date,
+        )
 
-        # Convert signals to dict format
-        signals = []
-        for model in signal_models:
-            signals.append({
-                'id': model.id,
-                'config_id': model.config_id,
-                'config_name': model.config.name if model.config else '',
-                'signal_date': model.signal_date,
-                'current_regime': model.current_regime,
-                'action_required': model.action_required,
-                'target_allocation': model.target_allocation,
-                'reason': model.reason,
-                'created_at': model.created_at,
-            })
-
-        # Get all active configs
-        config_models = RotationConfigModel._default_manager.filter(is_active=True)
-        configs = []
-        for model in config_models:
-            configs.append({
-                'id': model.id,
-                'name': model.name,
-                'strategy_type': model.strategy_type,
-            })
+        configs = self.view_repo.list_active_config_rows()
 
         # Get latest signal for each config
         latest_by_config = {}
-        for model in config_models:
-            latest = self.service.signal_repo.get_latest_signal(model.id)
+        for config in configs:
+            latest = self.service.signal_repo.get_latest_signal(config['id'])
             if latest:
-                latest_by_config[model.id] = {
+                latest_by_config[config['id']] = {
                     'id': latest.id,
                     'signal_date': latest.signal_date,
                     'current_regime': latest.current_regime,

@@ -570,16 +570,9 @@ class InAppNotificationChannel(NotificationChannelInterface):
     def is_available(self) -> bool:
         """检查站内通知是否可用"""
         try:
-            # 检查模型是否已配置
             if self.model_class is None:
-                # 尝试动态导入
-                try:
-                    from apps.notifications.infrastructure.models import InAppNotificationModel
-                    self.model_class = InAppNotificationModel
-                except ImportError:
-                    logger.warning("站内通知模型未配置")
-                    return False
-
+                logger.warning("站内通知模型未配置，请通过依赖注入显式传入 model_class")
+                return False
             return True
 
         except Exception as e:

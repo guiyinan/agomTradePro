@@ -14,6 +14,17 @@ class AlphaTriggerConfig(AppConfig):
 
     def ready(self):
         """应用启动时初始化"""
+        from .application.global_alert_service import (
+            configure_alpha_trigger_global_alert_repository,
+        )
+        from .infrastructure.global_alert_repository import (
+            DjangoAlphaTriggerGlobalAlertRepository,
+        )
+
+        configure_alpha_trigger_global_alert_repository(
+            DjangoAlphaTriggerGlobalAlertRepository()
+        )
+
         # 导入admin以注册模型
         try:
             from .interface import admin  # noqa

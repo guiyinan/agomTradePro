@@ -6,13 +6,17 @@ Django Rest Framework views for API endpoints.
 
 import logging
 
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+from apps.ai_provider.application.chat_completion import generate_chat_completion
+from apps.ai_provider.application.query_services import (
+    list_active_provider_summaries,
+    list_supported_models,
+)
 
 from ..application.dtos import (
     ExecuteChainRequest,
@@ -20,20 +24,15 @@ from ..application.dtos import (
     GenerateReportRequest,
     GenerateSignalRequest,
 )
-from ..application.use_cases import (
-    ExecuteChainUseCase,
-    ExecutePromptUseCase,
-    GenerateReportUseCase,
-    GenerateSignalUseCase,
-)
-from ..infrastructure.adapters.function_registry import create_builtin_tools
-from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
-from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.models import ChainConfigORM, PromptExecutionLogORM, PromptTemplateORM
-from ..infrastructure.repositories import (
-    DjangoChainRepository,
-    DjangoExecutionLogRepository,
-    DjangoPromptRepository,
+from ..application.interface_services import (
+    build_agent_runtime,
+    build_execute_chain_use_case,
+    build_execute_prompt_use_case,
+    build_generate_report_use_case,
+    build_generate_signal_use_case,
+    get_chain_config_queryset,
+    get_execution_log_queryset,
+    get_prompt_template_queryset,
 )
 from .serializers import (
     ChainConfigCreateSerializer,
@@ -59,8 +58,12 @@ logger = logging.getLogger(__name__)
 class PromptTemplateViewSet(viewsets.ModelViewSet):
     """Prompt模板管理ViewSet"""
 
-    queryset = PromptTemplateORM._default_manager.filter(is_active=True)
     serializer_class = PromptTemplateSerializer
+
+    def get_queryset(self):
+        """Return the interface-safe prompt template queryset."""
+
+        return get_prompt_template_queryset()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -107,21 +110,11 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def execute(self, request, pk=None):
         """执行模板"""
-        template = self.get_object()
+        self.get_object()
         serializer = ExecutePromptSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # 创建用例
-        ai_factory = AIClientFactory()
-        macro_adapter = MacroDataAdapter()
-        regime_adapter = RegimeDataAdapter()
-        use_case = ExecutePromptUseCase(
-            prompt_repository=DjangoPromptRepository(),
-            execution_log_repository=DjangoExecutionLogRepository(),
-            ai_client_factory=ai_factory,
-            macro_adapter=macro_adapter,
-            regime_adapter=regime_adapter
-        )
+        use_case = build_execute_prompt_use_case()
 
         request_dto = ExecutePromptRequest(
             **serializer.validated_data,
@@ -148,8 +141,12 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
 class ChainConfigViewSet(viewsets.ModelViewSet):
     """链配置管理ViewSet"""
 
-    queryset = ChainConfigORM._default_manager.filter(is_active=True)
     serializer_class = ChainConfigSerializer
+
+    def get_queryset(self):
+        """Return the interface-safe chain config queryset."""
+
+        return get_chain_config_queryset()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -160,26 +157,11 @@ class ChainConfigViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def execute(self, request, pk=None):
         """执行链"""
-        chain = self.get_object()
+        self.get_object()
         serializer = ExecuteChainSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # 创建用例
-        ai_factory = AIClientFactory()
-        macro_adapter = MacroDataAdapter()
-        regime_adapter = RegimeDataAdapter()
-
-        prompt_use_case = ExecutePromptUseCase(
-            prompt_repository=DjangoPromptRepository(),
-            execution_log_repository=DjangoExecutionLogRepository(),
-            ai_client_factory=ai_factory,
-            macro_adapter=macro_adapter,
-            regime_adapter=regime_adapter
-        )
-        chain_use_case = ExecuteChainUseCase(
-            chain_repository=DjangoChainRepository(),
-            prompt_use_case=prompt_use_case
-        )
+        chain_use_case = build_execute_chain_use_case()
 
         request_dto = ExecuteChainRequest(
             **serializer.validated_data,
@@ -211,23 +193,7 @@ class ReportGenerationView(APIView):
         serializer = GenerateReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # 创建用例
-        ai_factory = AIClientFactory()
-        macro_adapter = MacroDataAdapter()
-        regime_adapter = RegimeDataAdapter()
-
-        prompt_use_case = ExecutePromptUseCase(
-            prompt_repository=DjangoPromptRepository(),
-            execution_log_repository=DjangoExecutionLogRepository(),
-            ai_client_factory=ai_factory,
-            macro_adapter=macro_adapter,
-            regime_adapter=regime_adapter
-        )
-        chain_use_case = ExecuteChainUseCase(
-            chain_repository=DjangoChainRepository(),
-            prompt_use_case=prompt_use_case
-        )
-        report_use_case = GenerateReportUseCase(chain_use_case=chain_use_case)
+        report_use_case = build_generate_report_use_case()
 
         request_dto = GenerateReportRequest(
             **serializer.validated_data,
@@ -248,23 +214,7 @@ class SignalGenerationView(APIView):
         serializer = GenerateSignalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # 创建用例
-        ai_factory = AIClientFactory()
-        macro_adapter = MacroDataAdapter()
-        regime_adapter = RegimeDataAdapter()
-
-        prompt_use_case = ExecutePromptUseCase(
-            prompt_repository=DjangoPromptRepository(),
-            execution_log_repository=DjangoExecutionLogRepository(),
-            ai_client_factory=ai_factory,
-            macro_adapter=macro_adapter,
-            regime_adapter=regime_adapter
-        )
-        chain_use_case = ExecuteChainUseCase(
-            chain_repository=DjangoChainRepository(),
-            prompt_use_case=prompt_use_case
-        )
-        signal_use_case = GenerateSignalUseCase(chain_use_case=chain_use_case)
+        signal_use_case = build_generate_signal_use_case()
 
         request_dto = GenerateSignalRequest(
             **serializer.validated_data,
@@ -278,7 +228,7 @@ class SignalGenerationView(APIView):
 
 
 class ChatView(APIView):
-    """聊天视图 - 通过 AIClientFactory 统一走 ai_provider 模块"""
+    """聊天视图 - 通过 ai_provider application 服务统一执行。"""
 
     def post(self, request):
         """聊天提问"""
@@ -296,19 +246,15 @@ class ChatView(APIView):
         messages = context.get('history', [])
         messages.append({'role': 'user', 'content': message})
 
-        # 通过 AIClientFactory 获取客户端（自动 failover）
         import time
         start_time = time.time()
 
         try:
-            ai_factory = AIClientFactory()
-            ai_client = ai_factory.get_client(
-                provider_ref,
-                user=request.user if request.user.is_authenticated else None,
-            )
-            ai_response = ai_client.chat_completion(
+            ai_response = generate_chat_completion(
                 messages=messages,
                 model=model,
+                provider_ref=provider_ref,
+                user=request.user if request.user.is_authenticated else None,
             )
 
             ai_status = ai_response.get('status', 'error')
@@ -351,21 +297,7 @@ class ChatProvidersView(APIView):
 
     def get(self, request):
         """获取所有活跃的AI提供商"""
-        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-
-        provider_repo = AIProviderRepository()
-        providers = provider_repo.get_active_providers()
-
-        providers_data = []
-        for p in providers:
-            providers_data.append({
-                'name': p.name,
-                'provider_type': p.provider_type,
-                'default_model': p.default_model,
-                'is_active': p.is_active,
-                'priority': p.priority,
-                'display_label': f"{p.name} ({p.default_model})"
-            })
+        providers_data = list_active_provider_summaries()
 
         return Response({
             'providers': providers_data,
@@ -379,37 +311,7 @@ class ChatModelsView(APIView):
     def get(self, request):
         """获取模型列表"""
         provider_name = request.query_params.get('provider', '')
-
-        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-
-        provider_repo = AIProviderRepository()
-
-        if provider_name:
-            # 按提供商名称查询
-            provider = provider_repo.get_by_name(provider_name)
-            if provider:
-                # 优先从 extra_config 读取 supported_models
-                extra = provider.extra_config or {}
-                models = extra.get('supported_models')
-                if not models:
-                    models = [provider.default_model] if provider.default_model else []
-                return Response({'models': models})
-
-            # 按 provider_type 查询（兼容传入 "openai" / "deepseek" 等类型名）
-            providers = provider_repo.get_by_type(provider_name)
-            if providers:
-                models = list(dict.fromkeys([
-                    p.default_model for p in providers if p.default_model
-                ]))
-                return Response({'models': models})
-
-        # 无指定提供商：汇总所有活跃提供商的模型
-        active_providers = provider_repo.get_active_providers()
-        models = list(dict.fromkeys([
-            p.default_model for p in active_providers if p.default_model
-        ]))
-
-        return Response({'models': models})
+        return Response({'models': list_supported_models(provider_name)})
 
 
 class AgentExecuteView(APIView):
@@ -417,17 +319,6 @@ class AgentExecuteView(APIView):
 
     def post(self, request):
         """执行 Agent 任务"""
-        from ..application.agent_runtime import AgentRuntime
-        from ..application.context_builders import (
-            AssetPoolContextProvider,
-            ContextBundleBuilder,
-            MacroContextProvider,
-            PortfolioContextProvider,
-            RegimeContextProvider,
-            SignalContextProvider,
-        )
-        from ..application.tool_execution import create_agent_tool_registry
-        from ..application.trace_logging import AgentExecutionLogger
         from ..domain.agent_entities import AgentExecutionRequest
         from .serializers import AgentExecuteRequestSerializer, AgentExecuteResponseSerializer
 
@@ -436,59 +327,7 @@ class AgentExecuteView(APIView):
         data = serializer.validated_data
 
         try:
-            # 构建依赖
-            ai_factory = AIClientFactory()
-            macro_adapter = MacroDataAdapter()
-            regime_adapter = RegimeDataAdapter()
-
-            # 构建 portfolio/signal/asset_pool providers（按需加载）
-            portfolio_provider = None
-            signal_provider = None
-            asset_pool_provider = None
-            try:
-                from apps.strategy.infrastructure.providers import (
-                    DjangoAssetPoolProvider,
-                    DjangoPortfolioDataProvider,
-                    DjangoSignalProvider,
-                )
-                portfolio_provider = DjangoPortfolioDataProvider()
-                signal_provider = DjangoSignalProvider()
-                asset_pool_provider = DjangoAssetPoolProvider()
-            except ImportError:
-                logger.warning("Strategy providers not available, portfolio/signal/asset_pool context disabled")
-
-            # 构建工具注册表
-            tool_registry = create_agent_tool_registry(
-                macro_adapter=macro_adapter,
-                regime_adapter=regime_adapter,
-                portfolio_provider=portfolio_provider,
-                signal_provider=signal_provider,
-                asset_pool_provider=asset_pool_provider,
-            )
-
-            # 构建上下文构建器
-            context_builder = ContextBundleBuilder()
-            context_builder.register_provider(MacroContextProvider(macro_adapter))
-            context_builder.register_provider(RegimeContextProvider(regime_adapter))
-            if portfolio_provider:
-                context_builder.register_provider(PortfolioContextProvider(portfolio_provider))
-            if signal_provider:
-                context_builder.register_provider(SignalContextProvider(signal_provider))
-            if asset_pool_provider:
-                context_builder.register_provider(AssetPoolContextProvider(asset_pool_provider))
-
-            # 构建执行日志器
-            execution_logger = AgentExecutionLogger(
-                execution_log_repository=DjangoExecutionLogRepository()
-            )
-
-            # 构建 Runtime
-            runtime = AgentRuntime(
-                ai_client_factory=ai_factory,
-                tool_registry=tool_registry,
-                context_builder=context_builder,
-                execution_logger=execution_logger,
-            )
+            runtime = build_agent_runtime()
 
             # 构建执行请求
             agent_request = AgentExecutionRequest(
@@ -555,29 +394,20 @@ class AgentExecuteView(APIView):
 class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
     """执行日志ViewSet（只读）"""
 
-    queryset = PromptExecutionLogORM._default_manager.all()
     serializer_class = ExecutionLogSerializer
 
     def get_queryset(self):
         """获取查询集"""
-        queryset = super().get_queryset()
-
-        # 过滤参数
         template_id = self.request.query_params.get('template_id')
         chain_id = self.request.query_params.get('chain_id')
         execution_id = self.request.query_params.get('execution_id')
         status_filter = self.request.query_params.get('status')
-
-        if template_id:
-            queryset = queryset.filter(template_id=template_id)
-        if chain_id:
-            queryset = queryset.filter(chain_id=chain_id)
-        if execution_id:
-            queryset = queryset.filter(execution_id=execution_id)
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-
-        return queryset.order_by('-created_at')
+        return get_execution_log_queryset(
+            template_id=template_id,
+            chain_id=chain_id,
+            execution_id=execution_id,
+            status_filter=status_filter,
+        )
 
     @action(detail=False, methods=['get'])
     def recent(self, request):

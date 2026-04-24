@@ -8,6 +8,7 @@ See: docs/plans/ai-native/schema-contract.md
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
 from apps.agent_runtime.domain.entities import (
@@ -20,18 +21,17 @@ from apps.agent_runtime.domain.entities import (
     TaskStatus,
     TimelineEventType,
 )
-from apps.agent_runtime.infrastructure.models import (
-    AgentArtifactModel,
-    AgentContextSnapshotModel,
-    AgentExecutionRecordModel,
-    AgentGuardrailDecisionModel,
-    AgentHandoffModel,
-    AgentProposalModel,
-    AgentTaskModel,
-    AgentTaskStepModel,
-    AgentTimelineEventModel,
-)
-from shared.infrastructure.sanitization import sanitize_plain_text
+from shared.sanitization import sanitize_plain_text
+
+AgentArtifactModel = django_apps.get_model("agent_runtime", "AgentArtifactModel")
+AgentContextSnapshotModel = django_apps.get_model("agent_runtime", "AgentContextSnapshotModel")
+AgentExecutionRecordModel = django_apps.get_model("agent_runtime", "AgentExecutionRecordModel")
+AgentGuardrailDecisionModel = django_apps.get_model("agent_runtime", "AgentGuardrailDecisionModel")
+AgentHandoffModel = django_apps.get_model("agent_runtime", "AgentHandoffModel")
+AgentProposalModel = django_apps.get_model("agent_runtime", "AgentProposalModel")
+AgentTaskModel = django_apps.get_model("agent_runtime", "AgentTaskModel")
+AgentTaskStepModel = django_apps.get_model("agent_runtime", "AgentTaskStepModel")
+AgentTimelineEventModel = django_apps.get_model("agent_runtime", "AgentTimelineEventModel")
 
 
 class AgentTaskSerializer(serializers.ModelSerializer):

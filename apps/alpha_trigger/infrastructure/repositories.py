@@ -121,6 +121,35 @@ class AlphaTriggerRepository:
 
         return [m.to_domain() for m in models]
 
+    def get_by_asset(self, asset_code: str) -> list[AlphaTrigger]:
+        """按资产获取触发器。"""
+
+        models = self.model.objects.filter(asset_code=asset_code).order_by("-created_at")
+        return [model.to_domain() for model in models]
+
+    def get_model_by_id(self, trigger_id: str) -> Any | None:
+        """按 ID 获取触发器模型，供页面模板使用。"""
+
+        return self.model._default_manager.filter(trigger_id=trigger_id).first()
+
+    def list_active_models(self, limit: int | None = None) -> list[Any]:
+        """获取活跃触发器模型，供页面模板使用。"""
+
+        queryset = self.model._default_manager.filter(status=self.model.ACTIVE).order_by(
+            "-created_at"
+        )
+        return list(queryset if limit is None else queryset[:limit])
+
+    def count_all(self) -> int:
+        """获取触发器总数。"""
+
+        return self.model._default_manager.count()
+
+    def get_trigger_type_choices(self) -> list[tuple[str, str]]:
+        """获取触发器类型选项。"""
+
+        return list(self.model.TRIGGER_TYPE_CHOICES)
+
     def get_by_regime(self, regime: str) -> list[AlphaTrigger]:
         """
         按相关 Regime 获取触发器
@@ -427,6 +456,48 @@ class AlphaCandidateRepository:
         )
 
         return [m.to_domain() for m in models]
+
+    def get_model_by_id(self, candidate_id: str) -> Any | None:
+        """按 ID 获取候选模型，供页面模板使用。"""
+
+        return self.model._default_manager.filter(candidate_id=candidate_id).first()
+
+    def list_models_by_status(self, status: str, limit: int | None = None) -> list[Any]:
+        """按状态获取候选模型，供页面模板使用。"""
+
+        queryset = self.model._default_manager.filter(status=status).order_by("-created_at")
+        return list(queryset if limit is None else queryset[:limit])
+
+    def list_models_by_source_trigger_id(
+        self,
+        trigger_id: str,
+        limit: int | None = None,
+        since=None,
+    ) -> list[Any]:
+        """获取指定触发器产生的候选模型。"""
+
+        queryset = self.model._default_manager.filter(trigger_id=trigger_id)
+        if since is not None:
+            queryset = queryset.filter(created_at__gte=since)
+        queryset = queryset.order_by("-created_at")
+        return list(queryset if limit is None else queryset[:limit])
+
+    def list_recent_models(self, since) -> list[Any]:
+        """获取指定时间之后的候选模型。"""
+
+        return list(
+            self.model._default_manager.filter(created_at__gte=since).order_by("created_at")
+        )
+
+    def count_all(self) -> int:
+        """获取候选总数。"""
+
+        return self.model._default_manager.count()
+
+    def count_by_status(self, status: str) -> int:
+        """按状态统计候选数量。"""
+
+        return self.model._default_manager.filter(status=status).count()
 
     def save(self, candidate: AlphaCandidate) -> AlphaCandidate:
         """

@@ -5,7 +5,6 @@ Core Context Processors
 """
 
 import logging
-from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +17,11 @@ def get_market_visuals(request) -> dict[str, dict[str, str]]:
     而不是直接硬编码 red/green。
     """
     try:
-        from apps.account.infrastructure.models import SystemSettingsModel
+        from apps.account.application.config_summary_service import (
+            get_account_config_summary_service,
+        )
 
-        visual_tokens = SystemSettingsModel.get_runtime_market_visual_tokens()
+        visual_tokens = get_account_config_summary_service().get_market_visual_tokens()
     except Exception as exc:
         logger.warning("Failed to load market visual tokens: %s", exc)
         visual_tokens = {
@@ -55,27 +56,18 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
     alerts = []
 
     try:
-        from datetime import timedelta
-
-        from django.utils import timezone
-
         # ========== 配额告警 ==========
         try:
-            from apps.decision_rhythm.domain.entities import QuotaPeriod
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-            current_quota = (
-                DecisionQuotaModel._default_manager
-                .filter(period=QuotaPeriod.WEEKLY.value)
-                .order_by('-period_start')
-                .first()
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
             )
 
-            if current_quota:
-                quota_total = getattr(current_quota, 'max_decisions', 10)
-                quota_used = getattr(current_quota, 'used_decisions', 0)
-                quota_remaining = max(0, quota_total - quota_used)
-                usage_percent = round(quota_used / quota_total * 100, 1) if quota_total > 0 else 0
-
+            quota_usage = (
+                get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
+            )
+            if quota_usage:
+                quota_remaining = quota_usage["quota_remaining"]
+                usage_percent = quota_usage["usage_percent"]
                 if usage_percent >= 100:
                     alerts.append({
                         'type': 'danger',
@@ -101,21 +93,13 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
 
         # ========== 候选即将过期告警 ==========
         try:
-            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-            # AlphaCandidateModel 无 expires_at 字段，基于 created_at + time_horizon 近似计算
-            expiring_candidates = 0
-            now = timezone.now()
-            threshold = now + timedelta(days=2)
-            candidates = AlphaCandidateModel._default_manager.filter(
-                status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE']
-            ).only('created_at', 'time_horizon')
-            for c in candidates:
-                if not c.created_at or not c.time_horizon:
-                    continue
-                expires_at = c.created_at + timedelta(days=int(c.time_horizon))
-                if now < expires_at <= threshold:
-                    expiring_candidates += 1
+            from apps.alpha_trigger.application.global_alert_service import (
+                get_alpha_trigger_global_alert_service,
+            )
 
+            expiring_candidates = (
+                get_alpha_trigger_global_alert_service().count_expiring_candidates()
+            )
             if expiring_candidates > 0:
                 alerts.append({
                     'type': 'info',
@@ -131,14 +115,13 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
 
         # ========== 触发器即将过期告警 ==========
         try:
-            from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel
-            trigger_threshold = timezone.now() + timedelta(days=7)
-            expiring_triggers = AlphaTriggerModel._default_manager.filter(
-                status='ACTIVE',
-                expires_at__lte=trigger_threshold,
-                expires_at__gt=timezone.now()
-            ).count()
+            from apps.alpha_trigger.application.global_alert_service import (
+                get_alpha_trigger_global_alert_service,
+            )
 
+            expiring_triggers = (
+                get_alpha_trigger_global_alert_service().count_expiring_triggers()
+            )
             if expiring_triggers > 0:
                 alerts.append({
                     'type': 'info',
@@ -154,12 +137,13 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
 
         # ========== 冷却期活跃提示 ==========
         try:
-            from apps.decision_rhythm.infrastructure.models import CooldownPeriodModel
-            # 当前模型无 status 字段：以近 72 小时内有决策行为的冷却记录作为活跃近似
-            active_cooldowns = CooldownPeriodModel._default_manager.filter(
-                last_decision_at__gte=timezone.now() - timedelta(hours=72)
-            ).count()
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
+            )
 
+            active_cooldowns = (
+                get_decision_rhythm_global_alert_service().count_active_cooldowns()
+            )
             if active_cooldowns > 5:
                 alerts.append({
                     'type': 'info',
@@ -175,12 +159,13 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
 
         # ========== 高优先级待处理请求告警 ==========
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-            high_priority_count = DecisionRequestModel._default_manager.filter(
-                execution_status='PENDING',
-                priority='high'
-            ).count()
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
+            )
 
+            high_priority_count = (
+                get_decision_rhythm_global_alert_service().count_high_priority_pending_requests()
+            )
             if high_priority_count > 0:
                 alerts.append({
                     'type': 'warning',
@@ -196,10 +181,14 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
 
         # ========== Beta Gate 配置失效告警 ==========
         try:
-            from apps.beta_gate.infrastructure.models import GateConfigModel
-            active_config = GateConfigModel._default_manager.active().first()
+            from apps.beta_gate.application.config_summary_service import (
+                get_beta_gate_config_summary_service,
+            )
 
-            if not active_config:
+            beta_gate_summary = (
+                get_beta_gate_config_summary_service().get_beta_gate_summary(request.user)
+            )
+            if beta_gate_summary.get("status") == "missing":
                 alerts.append({
                     'type': 'warning',
                     'icon': '🚪',
@@ -214,11 +203,13 @@ def get_alerts(request) -> dict[str, list[dict[str, str]]]:
 
         # ========== 可操作候选数量告警 ==========
         try:
-            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-            actionable_count = AlphaCandidateModel._default_manager.filter(
-                status='ACTIONABLE'
-            ).count()
+            from apps.alpha_trigger.application.global_alert_service import (
+                get_alpha_trigger_global_alert_service,
+            )
 
+            actionable_count = (
+                get_alpha_trigger_global_alert_service().count_actionable_candidates()
+            )
             if actionable_count > 10:
                 alerts.append({
                     'type': 'success',

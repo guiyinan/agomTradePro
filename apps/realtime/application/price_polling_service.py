@@ -9,6 +9,8 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from decimal import Decimal
 from typing import List, Optional
 
@@ -25,7 +27,12 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
-from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedAccountModel
+from apps.realtime.application.repository_provider import (
+    get_realtime_price_provider,
+    get_realtime_price_repository,
+    get_watchlist_provider,
+)
+from apps.simulated_trading.application.repository_provider import get_simulated_position_repository
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +48,14 @@ class PricePollingService:
         price_repository: RealtimePriceRepositoryProtocol,
         price_provider: PriceDataProviderProtocol,
         watchlist_provider: WatchlistProviderProtocol,
-        config: PricePollingConfig = None
+        config: PricePollingConfig | None = None,
+        position_repository: object | None = None,
     ):
         self.price_repository = price_repository
         self.price_provider = price_provider
         self.watchlist_provider = watchlist_provider
         self.config = config or PricePollingConfig()
+        self.position_repository = position_repository or get_simulated_position_repository()
 
     def poll_and_update_prices(self) -> PriceSnapshot:
         """执行一次价格轮询和更新
@@ -163,81 +172,25 @@ class PricePollingService:
             PriceUpdate 对象列表
         """
         updates = []
-        price_dict = {p.asset_code: p for p in prices}
+        price_by_code = {price.asset_code: Decimal(price.price) for price in prices}
 
-        # 查询所有持仓
-        positions = PositionModel._default_manager.select_related("account").filter(
-            quantity__gt=0
-        )
-
-        for position in positions:
-            price_obj = price_dict.get(position.asset_code)
-
-            if price_obj is None:
-                continue
-
-            old_price = position.current_price
-            new_price = Decimal(price_obj.price)
-            market_value = new_price * position.quantity
-            unrealized_pnl = market_value - position.total_cost
-            unrealized_pnl_pct = (
-                float((unrealized_pnl / position.total_cost) * Decimal("100"))
-                if position.total_cost > 0
-                else 0.0
+        for result in self.position_repository.update_position_prices(price_by_code):
+            updates.append(
+                PriceUpdate(
+                    asset_code=result["asset_code"],
+                    old_price=result["old_price"],
+                    new_price=result["new_price"],
+                    status=(
+                        PriceUpdateStatus.SUCCESS
+                        if result["price_changed"]
+                        else PriceUpdateStatus.NO_CHANGE
+                    ),
+                    timestamp=timezone.now(),
+                )
             )
-
-            # 更新持仓价格
-            position.current_price = new_price
-            position.market_value = market_value
-            position.unrealized_pnl = unrealized_pnl
-            position.unrealized_pnl_pct = unrealized_pnl_pct
-            position.save(
-                update_fields=[
-                    "current_price",
-                    "market_value",
-                    "unrealized_pnl",
-                    "unrealized_pnl_pct",
-                ]
-            )
-
-            # 更新账户总价值
-            self._update_account_value(position.account)
-
-            updates.append(PriceUpdate(
-                asset_code=position.asset_code,
-                old_price=old_price,
-                new_price=new_price,
-                status=PriceUpdateStatus.SUCCESS if old_price != new_price else PriceUpdateStatus.NO_CHANGE,
-                timestamp=timezone.now()
-            ))
 
         logger.info(f"Updated {len(updates)} position prices")
         return updates
-
-    def _update_account_value(self, account: SimulatedAccountModel) -> None:
-        """更新账户总价值
-
-        Args:
-            account: 模拟账户模型
-        """
-        # 重新计算账户总价值
-        positions = PositionModel._default_manager.filter(account=account)
-        market_value = sum(
-            (position.market_value for position in positions),
-            start=Decimal("0"),
-        )
-
-        total_value = market_value + account.current_cash
-        total_return = (
-            float(((total_value - account.initial_capital) / account.initial_capital) * Decimal("100"))
-            if account.initial_capital > 0
-            else 0.0
-        )
-
-        account.current_market_value = market_value
-        account.total_value = total_value
-        account.total_return = total_return
-        account.save(update_fields=["current_market_value", "total_value", "total_return"])
 
     def force_refresh_all(self) -> PriceSnapshot:
         """强制刷新所有资产价格
@@ -255,36 +208,12 @@ class PricePollingUseCase:
     """
 
     def __init__(self):
-        # 延迟导入，避免循环依赖
         from apps.realtime.domain.entities import PricePollingConfig
-        from apps.realtime.infrastructure.repositories import (
-            AKSharePriceDataProvider,
-            CompositePriceDataProvider,
-            DataCenterPriceDataProvider,
-            DatabaseWatchlistProvider,
-            RedisRealtimePriceRepository,
-            TusharePriceDataProvider,
-        )
 
         # 初始化依赖
-        self.price_repository = RedisRealtimePriceRepository()
-
-        # 构建数据提供者链：统一 Market Data 层 → AKShare → Tushare
-        providers = []
-
-        try:
-            providers.append(DataCenterPriceDataProvider())
-        except Exception:
-            pass
-
-        akshare_provider = AKSharePriceDataProvider()
-        tushare_provider = TusharePriceDataProvider()
-        providers.extend([akshare_provider, tushare_provider])
-
-        # 创建组合数据提供者（按顺序尝试）
-        self.price_provider = CompositePriceDataProvider(providers)
-
-        self.watchlist_provider = DatabaseWatchlistProvider()
+        self.price_repository = get_realtime_price_repository()
+        self.price_provider = get_realtime_price_provider()
+        self.watchlist_provider = get_watchlist_provider()
 
         # 创建价格轮询服务
         self.service = PricePollingService(
@@ -328,4 +257,24 @@ class PricePollingUseCase:
             for asset_code in asset_codes
             if asset_code in prices_by_code
         ]
+
+    def check_provider_availability(self, timeout_seconds: float = 2.0) -> tuple[bool, str | None]:
+        """Check whether the configured price provider responds within timeout."""
+
+        health_error = None
+        is_available = False
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(self.price_provider.is_available)
+            is_available = future.result(timeout=timeout_seconds)
+        except FutureTimeoutError:
+            health_error = "provider_check_timeout"
+            logger.warning("Realtime health provider check timed out")
+        except Exception as exc:
+            health_error = str(exc)
+            logger.warning("Realtime health provider check failed: %s", exc)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        return is_available, health_error
 

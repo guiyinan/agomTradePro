@@ -64,6 +64,13 @@ class ProviderConfigRepository:
     def list_all(self) -> list[ProviderConfig]:
         return [m.to_domain() for m in ProviderConfigModel.objects.all()]
 
+    def list_active(self) -> list[ProviderConfig]:
+        """Return active provider configs ordered by priority."""
+        return [
+            m.to_domain()
+            for m in ProviderConfigModel.objects.filter(is_active=True).order_by("priority")
+        ]
+
     def get_by_id(self, provider_id: int) -> ProviderConfig | None:
         try:
             return ProviderConfigModel.objects.get(pk=provider_id).to_domain()

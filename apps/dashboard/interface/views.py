@@ -23,11 +23,6 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.account.infrastructure.repositories import (
-    AccountRepository,
-    PortfolioRepository,
-    PositionRepository,
-)
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver,
@@ -46,9 +41,7 @@ from apps.dashboard.application.queries import (
     get_dashboard_detail_query,
     get_decision_plane_query,
 )
-from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.dashboard.application import interface_services as dashboard_interface_services
 from core.cache_utils import CACHE_TTL, cached_api
 
 logger = logging.getLogger(__name__)
@@ -162,14 +155,7 @@ class DashboardModuleContract:
 
 def _build_dashboard_data(user_id: int):
     """Build dashboard DTO for API and page views."""
-    use_case = GetDashboardDataUseCase(
-        account_repo=AccountRepository(),
-        portfolio_repo=PortfolioRepository(),
-        position_repo=PositionRepository(),
-        regime_repo=DjangoRegimeRepository(),
-        signal_repo=DjangoSignalRepository(),
-    )
-    return use_case.execute(user_id)
+    return dashboard_interface_services.build_dashboard_data(user_id)
 
 
 def _load_simulated_positions_fallback(user_id: int, account_id: int | None = None) -> list[dict]:
@@ -179,72 +165,20 @@ def _load_simulated_positions_fallback(user_id: int, account_id: int | None = No
         user_id: The user whose positions to load.
         account_id: Optional account ID to filter positions by a specific account.
     """
-    from apps.simulated_trading.infrastructure.models import PositionModel
-
-    qs = PositionModel._default_manager.filter(account__user_id=user_id)
-    if account_id:
-        qs = qs.filter(account_id=account_id)
-    positions = qs.select_related("account").order_by("-market_value", "asset_code")
-    return [
-        {
-            "id": pos.id,
-            "asset_code": pos.asset_code,
-            "asset_name": pos.asset_name,
-            "asset_class": pos.asset_type,
-            "asset_class_display": pos.get_asset_type_display(),
-            "region": "CN",
-            "region_display": "中国",
-            "shares": float(pos.quantity),
-            "avg_cost": float(pos.avg_cost),
-            "current_price": float(pos.current_price),
-            "market_value": float(pos.market_value),
-            "unrealized_pnl": float(pos.unrealized_pnl),
-            "unrealized_pnl_pct": pos.unrealized_pnl_pct,
-            "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
-            "account_id": pos.account_id,
-            "account_name": pos.account.account_name if pos.account else "",
-        }
-        for pos in positions
-    ]
+    return dashboard_interface_services.load_simulated_positions_fallback(
+        user_id=user_id,
+        account_id=account_id,
+    )
 
 
 def _get_dashboard_accounts(user):
     """Load all user investment accounts for dashboard cards."""
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-    accounts = (
-        SimulatedAccountModel._default_manager
-        .filter(user=user)
-        .order_by("account_type", "-total_value", "-created_at")
-    )
-    return [
-        {
-            "id": account.id,
-            "name": account.account_name,
-            "type_code": account.account_type,
-            "type_label": "实仓" if account.account_type == "real" else "模拟仓",
-            "total_value": float(account.total_value or 0),
-            "cash": float(account.current_cash or 0),
-            "market_value": float(account.current_market_value or 0),
-            "total_return": float(account.total_return or 0),
-            "is_active": account.is_active,
-        }
-        for account in accounts
-    ]
+    return dashboard_interface_services.get_dashboard_accounts(user)
 
 
 def _ensure_dashboard_positions(data, user_id: int):
     """Backfill positions for page/HTMX rendering when portfolio snapshot is stale."""
-    if data.positions or data.invested_value <= 0:
-        return data
-
-    fallback_positions = _load_simulated_positions_fallback(user_id)
-    if not fallback_positions:
-        return data
-
-    data.positions = fallback_positions
-    data.position_count = len(fallback_positions)
-    return data
+    return dashboard_interface_services.ensure_dashboard_positions(data, user_id)
 
 
 def _load_phase1_macro_components(as_of_date: date | None = None):
@@ -902,7 +836,7 @@ def dashboard_view(request):
         selected_portfolio_id = None
     selected_alpha_pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
     try:
-        portfolio_options = PortfolioRepository().get_user_portfolios(request.user.id)
+        portfolio_options = dashboard_interface_services.get_portfolio_options(request.user.id)
     except Exception as e:
         logger.warning(f"Failed to get portfolio options: {e}")
         portfolio_options = []
@@ -1211,14 +1145,7 @@ def performance_chart_htmx(request):
     except ValueError as exc:
         return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
-    use_case = GetDashboardDataUseCase(
-        account_repo=AccountRepository(),
-        portfolio_repo=PortfolioRepository(),
-        position_repo=PositionRepository(),
-        regime_repo=DjangoRegimeRepository(),
-        signal_repo=DjangoSignalRepository(),
-    )
-    performance_data = use_case._generate_performance_chart_data(
+    performance_data = dashboard_interface_services.build_performance_chart_data(
         user_id=request.user.id,
         account_id=account_id,
     )

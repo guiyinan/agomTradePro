@@ -1,13 +1,12 @@
 """Share API and page views."""
 
-from decimal import Decimal
+from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
-from django.db.models import Q
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views import View
@@ -16,19 +15,23 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.decision_rhythm.infrastructure.models import (
-    DecisionRequestModel,
-    DecisionResponseModel,
+from apps.share.application.interface_services import (
+    build_share_manage_context,
+    build_share_snapshot_from_account,
+    get_live_share_snapshot,
+    get_owner_share_link,
+    get_public_share_link_model,
+    get_share_disclaimer_config,
+    get_share_disclaimer_lines,
+    get_share_link_model,
+    get_share_link_queryset,
+    increment_share_link_access_count,
+    list_share_snapshots,
+    update_share_disclaimer_config,
 )
 from apps.share.application.use_cases import (
     ShareAccessUseCases,
     ShareLinkUseCases,
-    ShareSnapshotUseCases,
-)
-from apps.share.infrastructure.models import (
-    ShareDisclaimerConfigModel,
-    ShareLinkModel,
-    ShareSnapshotModel,
 )
 from apps.share.interface.serializers import (
     CreateShareLinkSerializer,
@@ -38,16 +41,6 @@ from apps.share.interface.serializers import (
     ShareSnapshotSerializer,
     UpdateShareLinkSerializer,
 )
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-DECISION_STATUS_DISPLAY = {
-    "pending": "待处理",
-    "approved": "已批准",
-    "rejected": "已拒绝",
-    "executed": "已执行",
-    "failed": "执行失败",
-    "cancelled": "已取消",
-}
 
 
 def _normalize_portfolio_type(value: str | None) -> str:
@@ -68,14 +61,14 @@ class ShareVisibilityMixin:
     def _password_session_key(share_link_id: int) -> str:
         return f"share_verified_{share_link_id}"
 
-    def _is_password_verified(self, request, share_link: ShareLinkModel) -> bool:
+    def _is_password_verified(self, request, share_link: Any) -> bool:
         return bool(request.session.get(self._password_session_key(share_link.id), False))
 
-    def _mark_password_verified(self, request, share_link: ShareLinkModel) -> None:
+    def _mark_password_verified(self, request, share_link: Any) -> None:
         request.session[self._password_session_key(share_link.id)] = True
         request.session.modified = True
 
-    def _clear_password_verified(self, request, share_link: ShareLinkModel) -> None:
+    def _clear_password_verified(self, request, share_link: Any) -> None:
         request.session.pop(self._password_session_key(share_link.id), None)
         request.session.modified = True
 
@@ -97,7 +90,7 @@ class ShareVisibilityMixin:
             is_verified=is_verified,
         )
 
-    def _filter_snapshot_by_visibility(self, snapshot: dict, share_link: ShareLinkModel) -> dict:
+    def _filter_snapshot_by_visibility(self, snapshot: dict, share_link: Any) -> dict:
         result = {
             "generated_at": snapshot["generated_at"],
             "source_range_start": snapshot.get("source_range_start"),
@@ -186,7 +179,7 @@ class ShareVisibilityMixin:
 
     def _build_public_context(
         self,
-        share_link: ShareLinkModel,
+        share_link: Any,
         filtered_snapshot: dict | None,
         *,
         requires_password: bool = False,
@@ -206,14 +199,8 @@ class ShareVisibilityMixin:
                     return src[key]
             return default
 
-        disclaimer_config = ShareDisclaimerConfigModel.get_solo()
-        disclaimer_lines = list(disclaimer_config.lines or [])
-        if _normalize_portfolio_type(summary.get("portfolio_type")) == "simulated":
-            disclaimer_lines = [
-                *disclaimer_lines[:3],
-                "本账户为模拟交易账户，非真实资金运作。",
-                *disclaimer_lines[3:],
-            ]
+        disclaimer_config = get_share_disclaimer_config()
+        disclaimer_lines = get_share_disclaimer_lines(summary.get("portfolio_type"))
 
         return {
             "portfolio_name": share_link.title,
@@ -318,185 +305,6 @@ def _asset_type_label(asset_type: str | None) -> str:
     return mapping.get((asset_type or "").strip().lower(), "其他")
 
 
-def _decision_response(decision_request: DecisionRequestModel):
-    try:
-        return decision_request.response
-    except (DecisionResponseModel.DoesNotExist, ObjectDoesNotExist):
-        return None
-
-
-def _decision_status(decision_request: DecisionRequestModel, response) -> tuple[str, str]:
-    if decision_request.execution_status == "executed":
-        return "executed", DECISION_STATUS_DISPLAY["executed"]
-    if decision_request.execution_status == "failed":
-        return "failed", DECISION_STATUS_DISPLAY["failed"]
-    if decision_request.execution_status == "cancelled":
-        return "cancelled", DECISION_STATUS_DISPLAY["cancelled"]
-    if response is not None:
-        if response.approved:
-            return "approved", DECISION_STATUS_DISPLAY["approved"]
-        return "rejected", DECISION_STATUS_DISPLAY["rejected"]
-    return "pending", DECISION_STATUS_DISPLAY["pending"]
-
-
-def _build_decision_chain(
-    account, asset_codes: set[str], positions_by_code: dict[str, object]
-) -> tuple[list[dict], list[dict]]:
-    if not asset_codes:
-        return [], []
-
-    decision_requests = list(
-        DecisionRequestModel.objects.filter(asset_code__in=asset_codes)
-        .filter(
-            Q(unified_recommendation__account_id=str(account.id))
-            | Q(unified_recommendation__account_id=account.id)
-            | Q(execution_ref__account_id=account.id)
-            | Q(execution_ref__account_id=str(account.id))
-        )
-        .select_related(
-            "response",
-            "feature_snapshot",
-            "unified_recommendation",
-            "unified_recommendation__feature_snapshot",
-        )
-        .order_by("-requested_at")[:12]
-    )
-
-    decision_items = []
-    evidence_items = []
-
-    for decision_request in decision_requests:
-        response = _decision_response(decision_request)
-        recommendation = decision_request.unified_recommendation
-        feature_snapshot = decision_request.feature_snapshot or getattr(
-            recommendation, "feature_snapshot", None
-        )
-        position = positions_by_code.get(decision_request.asset_code)
-        status, status_display = _decision_status(decision_request, response)
-        reason_codes = list(getattr(recommendation, "reason_codes", []) or [])
-        invalidation_logic = _non_empty(
-            position.invalidation_description if position else None,
-            (
-                f"止损价 {float(recommendation.stop_loss_price):.4f}"
-                if recommendation
-                and recommendation.stop_loss_price
-                and recommendation.stop_loss_price > Decimal("0")
-                else None
-            ),
-        )
-
-        item = {
-            "title": f"{_direction_label(_non_empty(decision_request.direction, getattr(recommendation, 'side', '')))} {decision_request.asset_code}",
-            "status": status,
-            "get_status_display": status_display,
-            "description": _non_empty(
-                decision_request.reason,
-                response.approval_reason if response else None,
-                response.rejection_reason if response else None,
-                getattr(recommendation, "human_rationale", None),
-            ),
-            "rationale": _non_empty(
-                getattr(recommendation, "human_rationale", None),
-                response.approval_reason if response else None,
-                response.rejection_reason if response else None,
-                decision_request.reason,
-            ),
-            "asset_code": decision_request.asset_code,
-            "created_at": _as_iso_datetime(decision_request.requested_at),
-            "responded_at": _as_iso_datetime(response.responded_at) if response else None,
-            "executed_at": _as_iso_datetime(decision_request.executed_at),
-            "confidence": _non_empty(
-                _as_float(getattr(recommendation, "confidence", None)),
-                _as_float(decision_request.expected_confidence),
-            ),
-            "reason_codes": reason_codes,
-            "execution_target": decision_request.execution_target,
-            "execution_status": decision_request.execution_status,
-            "execution_ref": decision_request.execution_ref or {},
-            "invalidation_logic": invalidation_logic,
-        }
-        decision_items.append(item)
-
-        evidence_items.append(
-            {
-                "asset_code": decision_request.asset_code,
-                "requested_at": decision_request.requested_at.isoformat()
-                if decision_request.requested_at
-                else None,
-                "responded_at": _as_iso_datetime(response.responded_at) if response else None,
-                "executed_at": _as_iso_datetime(decision_request.executed_at),
-                "request_reason": decision_request.reason,
-                "approval_reason": response.approval_reason if response else "",
-                "rejection_reason": response.rejection_reason if response else "",
-                "cooldown_status": response.cooldown_status if response else "",
-                "quota_status": response.quota_status if response else None,
-                "alternative_suggestions": response.alternative_suggestions if response else None,
-                "reason_codes": reason_codes,
-                "confidence": item["confidence"],
-                "regime": _non_empty(
-                    getattr(feature_snapshot, "regime", None),
-                    getattr(recommendation, "regime", None),
-                ),
-                "regime_confidence": _non_empty(
-                    _as_float(getattr(feature_snapshot, "regime_confidence", None)),
-                    _as_float(getattr(recommendation, "regime_confidence", None)),
-                ),
-                "policy_level": _non_empty(
-                    getattr(feature_snapshot, "policy_level", None),
-                    getattr(recommendation, "policy_level", None),
-                ),
-                "beta_gate_passed": _non_empty(
-                    getattr(feature_snapshot, "beta_gate_passed", None),
-                    getattr(recommendation, "beta_gate_passed", None),
-                ),
-                "sentiment_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "sentiment_score", None)),
-                    _as_float(getattr(recommendation, "sentiment_score", None)),
-                ),
-                "flow_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "flow_score", None)),
-                    _as_float(getattr(recommendation, "flow_score", None)),
-                ),
-                "technical_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "technical_score", None)),
-                    _as_float(getattr(recommendation, "technical_score", None)),
-                ),
-                "fundamental_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "fundamental_score", None)),
-                    _as_float(getattr(recommendation, "fundamental_score", None)),
-                ),
-                "alpha_model_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "alpha_model_score", None)),
-                    _as_float(getattr(recommendation, "alpha_model_score", None)),
-                ),
-                "entry_price_low": _as_float(getattr(recommendation, "entry_price_low", None))
-                if recommendation
-                else None,
-                "entry_price_high": _as_float(getattr(recommendation, "entry_price_high", None))
-                if recommendation
-                else None,
-                "target_price_low": _as_float(getattr(recommendation, "target_price_low", None))
-                if recommendation
-                else None,
-                "target_price_high": _as_float(getattr(recommendation, "target_price_high", None))
-                if recommendation
-                else None,
-                "stop_loss_price": _as_float(getattr(recommendation, "stop_loss_price", None))
-                if recommendation
-                else None,
-                "position_pct": _as_float(getattr(recommendation, "position_pct", None))
-                if recommendation
-                else None,
-                "execution_target": decision_request.execution_target,
-                "execution_status": decision_request.execution_status,
-                "execution_ref": decision_request.execution_ref or {},
-                "invalidation_logic": invalidation_logic,
-            }
-        )
-
-    return decision_items, evidence_items
-
-
 class ShareLinkViewSet(viewsets.ModelViewSet):
     """Authenticated management API for share links."""
 
@@ -504,7 +312,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return ShareLinkModel.objects.filter(owner=self.request.user).order_by("-created_at")
+        return get_share_link_queryset(self.request.user.id)
 
     def create(self, request, *args, **kwargs):
         serializer = CreateShareLinkSerializer(data=request.data, context={"request": request})
@@ -533,7 +341,9 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         except Exception as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        model = ShareLinkModel.objects.get(id=entity.id)
+        model = get_share_link_model(entity.id)
+        if model is None:
+            return Response({"error": "创建后的分享链接不存在"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(
             ShareLinkSerializer(model, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
@@ -570,7 +380,9 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
         if not entity:
             return Response({"error": "更新失败"}, status=status.HTTP_400_BAD_REQUEST)
 
-        model = ShareLinkModel.objects.get(id=entity.id)
+        model = get_share_link_model(entity.id)
+        if model is None:
+            return Response({"error": "更新后的分享链接不存在"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ShareLinkSerializer(model, context={"request": request}).data)
 
     @action(detail=True, methods=["post"])
@@ -583,7 +395,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def snapshots(self, request, pk=None):
         instance = self.get_object()
-        snapshots = instance.snapshots.order_by("-snapshot_version")
+        snapshots = list_share_snapshots(instance.id)
         return Response(ShareSnapshotSerializer(snapshots, many=True).data)
 
     @action(detail=True, methods=["get"])
@@ -606,14 +418,14 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
 
     def retrieve(self, request, short_code=None):
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
-        if not entity:
+        model = get_public_share_link_model(short_code)
+        if not entity or model is None:
             return Response({"error": "分享链接不存在"}, status=status.HTTP_404_NOT_FOUND)
 
         is_accessible, result_status = entity.is_accessible(timezone.now())
         if not is_accessible:
             return Response({"error": result_status.value}, status=status.HTTP_403_FORBIDDEN)
 
-        model = ShareLinkModel.objects.get(id=entity.id)
         if entity.requires_password() and not self._is_password_verified(request, model):
             self._log_access(model.id, request, "password_required", is_verified=False)
             return Response(
@@ -621,7 +433,7 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        snapshot = _get_live_share_snapshot(model)
+        snapshot = get_live_share_snapshot(share_link_id=model.id)
         if snapshot:
             snapshot = self._filter_snapshot_by_visibility(snapshot, model)
         return Response(PublicShareLinkSerializer(model).data)
@@ -629,7 +441,8 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="(?P<short_code>[^/.]+)/access")
     def access(self, request, short_code=None):
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
-        if not entity:
+        model = get_public_share_link_model(short_code)
+        if not entity or model is None:
             return Response({"error": "分享链接不存在"}, status=status.HTTP_404_NOT_FOUND)
 
         is_accessible, result_status = entity.is_accessible(timezone.now())
@@ -639,7 +452,6 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         serializer = ShareAccessRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         password = serializer.validated_data.get("password")
-        model = ShareLinkModel.objects.get(id=entity.id)
 
         if entity.requires_password():
             if not password:
@@ -655,8 +467,8 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
             self._mark_password_verified(request, model)
 
         self._log_access(model.id, request, "success", is_verified=entity.requires_password())
-        model.increment_access_count()
-        snapshot = _get_live_share_snapshot(model)
+        increment_share_link_access_count(share_link_id=model.id)
+        snapshot = get_live_share_snapshot(share_link_id=model.id)
         if snapshot:
             snapshot = self._filter_snapshot_by_visibility(snapshot, model)
 
@@ -665,24 +477,24 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path="(?P<short_code>[^/.]+)/snapshot")
     def snapshot(self, request, short_code=None):
         entity = ShareLinkUseCases().get_share_link_by_code(short_code)
-        if not entity:
+        model = get_public_share_link_model(short_code)
+        if not entity or model is None:
             return Response({"error": "分享链接不存在"}, status=status.HTTP_404_NOT_FOUND)
 
         is_accessible, result_status = entity.is_accessible(timezone.now())
         if not is_accessible:
             return Response({"error": result_status.value}, status=status.HTTP_403_FORBIDDEN)
 
-        model = ShareLinkModel.objects.get(id=entity.id)
         if entity.requires_password() and not self._is_password_verified(request, model):
             self._log_access(model.id, request, "password_required", is_verified=False)
             return Response({"error": "需要密码验证"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        snapshot = _get_live_share_snapshot(model)
+        snapshot = get_live_share_snapshot(share_link_id=model.id)
         if not snapshot:
             return Response({"error": "快照不存在"}, status=status.HTTP_404_NOT_FOUND)
 
         self._log_access(model.id, request, "success", is_verified=entity.requires_password())
-        model.increment_access_count()
+        increment_share_link_access_count(share_link_id=model.id)
         return Response(self._filter_snapshot_by_visibility(snapshot, model))
 
 
@@ -691,8 +503,10 @@ class PublicSharePageView(ShareVisibilityMixin, View):
 
     template_name = "share/public_share.html"
 
-    def _get_share_link(self, short_code: str) -> ShareLinkModel:
-        share_link = get_object_or_404(ShareLinkModel, short_code=short_code)
+    def _get_share_link(self, short_code: str):
+        share_link = get_public_share_link_model(short_code)
+        if share_link is None:
+            raise Http404("分享链接不存在")
         if not share_link.is_accessible():
             raise Http404("分享链接不可访问")
         return share_link
@@ -703,7 +517,7 @@ class PublicSharePageView(ShareVisibilityMixin, View):
             context = self._build_public_context(share_link, None, requires_password=True)
             return render(request, self.template_name, context, status=401)
 
-        snapshot = _get_live_share_snapshot(share_link)
+        snapshot = get_live_share_snapshot(share_link_id=share_link.id)
         filtered_snapshot = (
             self._filter_snapshot_by_visibility(snapshot, share_link) if snapshot else None
         )
@@ -714,7 +528,7 @@ class PublicSharePageView(ShareVisibilityMixin, View):
             "success",
             is_verified=share_link.requires_password(),
         )
-        share_link.increment_access_count()
+        increment_share_link_access_count(share_link_id=share_link.id)
         return render(request, self.template_name, context)
 
     def post(self, request, short_code: str):
@@ -739,203 +553,16 @@ class PublicSharePageView(ShareVisibilityMixin, View):
         return redirect("share:public_share", short_code=short_code)
 
 
-def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None:
-    """Generate a snapshot directly from the current account state."""
-    account = get_object_or_404(
-        SimulatedAccountModel.objects.prefetch_related("positions", "trades"),
-        id=share_link.account_id,
-        user=share_link.owner,
-    )
-    positions = list(account.positions.all().order_by("-market_value"))
-    trades = list(account.trades.all().order_by("-execution_date", "-execution_time")[:20])
-    positions_by_code = {position.asset_code: position for position in positions}
-    asset_codes = {
-        asset_code
-        for asset_code in [
-            *(position.asset_code for position in positions),
-            *(trade.asset_code for trade in trades),
-        ]
-        if asset_code
-    }
-
-    total_assets = float(account.total_value or 0)
-    market_value = float(account.current_market_value or 0)
-    cash_value = float(account.current_cash or 0)
-    current_position = round((market_value / total_assets) * 100, 2) if total_assets else 0.0
-    allocation_by_type: dict[str, dict] = {}
-
-    position_items = []
-    for position in positions:
-        asset_type = (position.asset_type or "").strip().lower() or "other"
-        position_market_value = float(position.market_value or 0)
-        weight = (
-            round((float(position.market_value or 0) / total_assets) * 100, 2)
-            if total_assets
-            else 0.0
-        )
-        bucket = allocation_by_type.setdefault(
-            asset_type,
-            {
-                "key": asset_type,
-                "label": _asset_type_label(asset_type),
-                "value": 0.0,
-                "count": 0,
-            },
-        )
-        bucket["value"] += position_market_value
-        bucket["count"] += 1
-        position_items.append(
-            {
-                "asset_code": position.asset_code,
-                "asset_name": position.asset_name,
-                "asset_type": asset_type,
-                "asset_type_label": _asset_type_label(asset_type),
-                "quantity": float(position.quantity or 0),
-                "avg_cost": float(position.avg_cost or 0),
-                "current_price": float(position.current_price or 0),
-                "market_value": position_market_value,
-                "pnl": float(position.unrealized_pnl or 0),
-                "return_pct": float(position.unrealized_pnl_pct or 0),
-                "weight": weight,
-                "entry_reason": position.entry_reason,
-                "invalidation_logic": position.invalidation_description,
-            }
-        )
-
-    if cash_value > 0:
-        allocation_by_type["cash"] = {
-            "key": "cash",
-            "label": _asset_type_label("cash"),
-            "value": cash_value,
-            "count": 1,
-        }
-
-    asset_allocation = []
-    for bucket in sorted(
-        allocation_by_type.values(),
-        key=lambda item: item["value"],
-        reverse=True,
-    ):
-        asset_allocation.append(
-            {
-                **bucket,
-                "pct": round((bucket["value"] / total_assets) * 100, 2) if total_assets else 0.0,
-            }
-        )
-
-    transaction_items = []
-    for trade in trades:
-        transaction_items.append(
-            {
-                "asset_code": trade.asset_code,
-                "asset_name": trade.asset_name,
-                "action": trade.action,
-                "quantity": float(trade.quantity or 0),
-                "price": float(trade.price or 0),
-                "amount": float(trade.amount or 0),
-                "reason": trade.reason,
-                "created_at": _as_iso_datetime(trade.execution_time),
-            }
-        )
-
-    decision_items, evidence_items = _build_decision_chain(account, asset_codes, positions_by_code)
-    if not decision_items:
-        for trade in trades[:10]:
-            if trade.reason:
-                position = positions_by_code.get(trade.asset_code)
-                decision_items.append(
-                    {
-                        "title": f"{'买入' if trade.action == 'buy' else '卖出'} {trade.asset_name or trade.asset_code}",
-                        "status": "executed",
-                        "get_status_display": DECISION_STATUS_DISPLAY["executed"],
-                        "description": trade.reason,
-                        "rationale": trade.reason,
-                        "asset_code": trade.asset_code,
-                        "created_at": _as_iso_datetime(trade.execution_time),
-                        "execution_status": trade.status,
-                        "invalidation_logic": position.invalidation_description
-                        if position
-                        else None,
-                    }
-                )
-
-    summary_payload = {
-        "account_name": account.account_name,
-        "portfolio_type": _normalize_portfolio_type(account.account_type),
-        "current_position": current_position,
-        "inception_date": account.start_date.isoformat() if account.start_date else None,
-        "total_assets": total_assets,
-        "cash_balance": cash_value,
-    }
-    performance_payload = {
-        "total_return": float(account.total_return or 0),
-        "annualized_return": float(account.annual_return or 0),
-        "max_drawdown": float(account.max_drawdown or 0),
-        "sharpe_ratio": float(account.sharpe_ratio or 0),
-        "win_rate": float(account.win_rate or 0),
-        "return_7d": None,
-        "return_30d": None,
-        "benchmark_name": "沪深300",
-        "chart_dates": [],
-        "portfolio_values": [],
-        "benchmark_values": [],
-    }
-    positions_payload = {
-        "items": position_items,
-        "summary": {
-            "total_value": market_value,
-            "total_pnl": float(sum(float(p.unrealized_pnl or 0) for p in positions)),
-            "cash_balance": cash_value,
-            "total_assets": total_assets,
-            "position_count": len(position_items),
-            "asset_allocation": asset_allocation,
-        },
-        "position_count": len(position_items),
-    }
-    transactions_payload = {
-        "items": transaction_items,
-        "total_trades": account.total_trades,
-    }
-    decision_payload = {
-        "items": decision_items,
-        "evidence": evidence_items,
-    }
-
-    return ShareSnapshotUseCases().create_snapshot(
-        share_link_id=share_link.id,
-        summary_payload=summary_payload,
-        performance_payload=performance_payload,
-        positions_payload=positions_payload,
-        transactions_payload=transactions_payload,
-        decision_payload=decision_payload,
-        source_range_start=account.start_date,
-        source_range_end=timezone.now().date(),
-    )
-
-
-def _get_live_share_snapshot(share_link: ShareLinkModel) -> dict | None:
-    try:
-        _build_share_snapshot_from_account(share_link)
-    except Exception:
-        pass
-    return ShareSnapshotUseCases().get_latest_snapshot(share_link.id)
-
-
 @login_required
 def share_manage_page(request, share_link_id: int | None = None):
     """Management page for creating and reviewing share links."""
-    accounts = SimulatedAccountModel.objects.filter(user=request.user).order_by("-created_at")
-    selected_account_id = request.GET.get("account_id") or request.POST.get("account_id")
-    edit_share_link = None
-    edit_share_link_id = share_link_id or request.GET.get("edit")
-    if edit_share_link_id:
-        edit_share_link = get_object_or_404(
-            ShareLinkModel, id=edit_share_link_id, owner=request.user
-        )
-        selected_account_id = edit_share_link.account_id
+    selected_account_id_raw = request.GET.get("account_id") or request.POST.get("account_id")
+    selected_account_id = int(selected_account_id_raw) if str(selected_account_id_raw or "").isdigit() else None
+    edit_share_link_id_raw = share_link_id or request.GET.get("edit")
+    edit_share_link_id = int(edit_share_link_id_raw) if str(edit_share_link_id_raw or "").isdigit() else None
 
     if request.method == "POST":
-        share_link_id = request.POST.get("share_link_id")
+        share_link_id_raw = request.POST.get("share_link_id")
         account_id = request.POST.get("account_id")
         title = (request.POST.get("title") or "").strip()
         subtitle = (request.POST.get("subtitle") or "").strip() or None
@@ -957,10 +584,10 @@ def share_manage_page(request, share_link_id: int | None = None):
 
         try:
             use_case = ShareLinkUseCases()
-            if share_link_id:
+            if share_link_id_raw:
                 password_value = password if password_enabled else ""
                 entity = use_case.update_share_link(
-                    share_link_id=int(share_link_id),
+                    share_link_id=int(share_link_id_raw),
                     owner_id=request.user.id,
                     title=title,
                     subtitle=subtitle,
@@ -978,7 +605,7 @@ def share_manage_page(request, share_link_id: int | None = None):
                 )
                 if entity is None:
                     raise ValueError("分享链接不存在")
-                _build_share_snapshot_from_account(ShareLinkModel.objects.get(id=entity.id))
+                build_share_snapshot_from_account(share_link_id=entity.id)
                 messages.success(request, "分享链接已更新")
             else:
                 password_value = password if password_enabled and password else None
@@ -999,32 +626,22 @@ def share_manage_page(request, share_link_id: int | None = None):
                     show_decision_evidence=bool(request.POST.get("show_decision_evidence")),
                     show_invalidation_logic=bool(request.POST.get("show_invalidation_logic")),
                 )
-                _build_share_snapshot_from_account(ShareLinkModel.objects.get(id=entity.id))
+                build_share_snapshot_from_account(share_link_id=entity.id)
                 messages.success(request, "分享链接已创建")
             return redirect("share:manage")
         except Exception as exc:
             messages.error(request, f"创建分享链接失败：{exc}")
-            selected_account_id = account_id
+            selected_account_id = int(account_id) if str(account_id or "").isdigit() else None
 
-    share_links = (
-        ShareLinkModel.objects.filter(owner=request.user)
-        .select_related("owner")
-        .order_by("-created_at")
+    context = build_share_manage_context(
+        owner_id=request.user.id,
+        selected_account_id=selected_account_id,
+        edit_share_link_id=edit_share_link_id,
     )
-    account_map = {account.id: account for account in accounts}
-    for link in share_links:
-        account = account_map.get(link.account_id)
-        link.account_name = account.account_name if account else str(link.account_id)
-
     return render(
         request,
         "share/manage.html",
-        {
-            "accounts": accounts,
-            "share_links": share_links,
-            "selected_account_id": int(selected_account_id) if selected_account_id else None,
-            "edit_share_link": edit_share_link,
-        },
+        context,
     )
 
 
@@ -1048,9 +665,11 @@ def refresh_share_link_page(request, share_link_id: int):
     if request.method != "POST":
         raise Http404()
 
-    share_link = get_object_or_404(ShareLinkModel, id=share_link_id, owner=request.user)
+    share_link = get_owner_share_link(request.user.id, share_link_id)
+    if share_link is None:
+        raise Http404()
     try:
-        _build_share_snapshot_from_account(share_link)
+        build_share_snapshot_from_account(share_link_id=share_link.id)
         messages.success(request, "分享页缓存已同步，公开页默认也会实时更新")
     except Exception as exc:
         messages.error(request, f"同步失败：{exc}")
@@ -1063,7 +682,7 @@ def share_disclaimer_manage_page(request):
     if not request.user.is_staff:
         raise PermissionDenied("只有管理员可以修改分享页风险提示配置")
 
-    config = ShareDisclaimerConfigModel.get_solo()
+    config = get_share_disclaimer_config()
 
     if request.method == "POST":
         lines = [
@@ -1072,24 +691,15 @@ def share_disclaimer_manage_page(request):
         if not lines:
             messages.error(request, "风险提示内容不能为空")
         else:
-            config.is_enabled = bool(request.POST.get("is_enabled"))
-            config.modal_enabled = bool(request.POST.get("modal_enabled"))
-            config.modal_title = (
-                request.POST.get("modal_title") or "重要声明"
-            ).strip() or "重要声明"
-            config.modal_confirm_text = (
-                request.POST.get("modal_confirm_text") or "我已知悉"
-            ).strip() or "我已知悉"
-            config.lines = lines
-            config.save(
-                update_fields=[
-                    "is_enabled",
-                    "modal_enabled",
-                    "modal_title",
-                    "modal_confirm_text",
-                    "lines",
-                    "updated_at",
-                ]
+            config = update_share_disclaimer_config(
+                is_enabled=bool(request.POST.get("is_enabled")),
+                modal_enabled=bool(request.POST.get("modal_enabled")),
+                modal_title=(request.POST.get("modal_title") or "重要声明").strip() or "重要声明",
+                modal_confirm_text=(
+                    request.POST.get("modal_confirm_text") or "我已知悉"
+                ).strip()
+                or "我已知悉",
+                lines=lines,
             )
             messages.success(request, "分享页风险提示配置已更新")
             return redirect("share:manage_disclaimer")

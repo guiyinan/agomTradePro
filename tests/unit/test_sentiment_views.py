@@ -14,11 +14,6 @@ from django.test import RequestFactory, TestCase
 from rest_framework import status
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.sentiment.domain.entities import (
-    SentimentAnalysisResult,
-    SentimentCategory,
-    SentimentIndex,
-)
 from apps.sentiment.interface.views import (
     SentimentAnalyzePageView,
     SentimentAnalyzeView,
@@ -48,32 +43,14 @@ class TestSentimentAnalyzeView(TestCase):
         self.view = SentimentAnalyzeView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentCacheRepository')
-    @patch('apps.sentiment.interface.views.AIProviderRepository')
-    @patch('apps.sentiment.interface.views.SentimentAnalyzer')
-    @patch('apps.sentiment.interface.views.SentimentAnalysisLogRepository')
-    def test_analyze_text_success(
-        self, mock_log_repo, mock_analyzer_class, mock_provider_repo, mock_cache_repo
-    ):
+    @patch('apps.sentiment.interface.views.analyze_sentiment_text')
+    def test_analyze_text_success(self, mock_analyze_text):
         """Test successful text analysis"""
-        # Setup mocks
-        mock_cache = Mock()
-        mock_cache.get.return_value = None
-        mock_cache_repo.return_value = mock_cache
-
-        mock_provider = Mock()
-        mock_provider_repo.return_value.get_active_providers.return_value = [mock_provider]
-
-        mock_result = SentimentAnalysisResult(
-            text="测试文本",
-            sentiment_score=1.5,
-            confidence=0.8,
-            category=SentimentCategory.POSITIVE,
-            keywords=["测试"],
-        )
-        mock_analyzer = Mock()
-        mock_analyzer.analyze_text.return_value = mock_result
-        mock_analyzer_class.return_value = mock_analyzer
+        mock_analyze_text.return_value = {
+            'text': '测试文本',
+            'sentiment_score': 1.5,
+            'category': 'POSITIVE',
+        }
 
         # Create request
         request = self.factory.post(
@@ -103,16 +80,14 @@ class TestSentimentAnalyzeView(TestCase):
 
     def test_analyze_text_with_cache_hit(self):
         """Test analysis returns cached result when available"""
-        mock_cache = Mock()
-        cached_result = SentimentAnalysisResult(
-            text="测试文本",
-            sentiment_score=1.0,
-            confidence=0.9,
-            category=SentimentCategory.POSITIVE,
-        )
-        mock_cache.get.return_value = cached_result
-
-        with patch('apps.sentiment.interface.views.SentimentCacheRepository', return_value=mock_cache):
+        with patch(
+            'apps.sentiment.interface.views.analyze_sentiment_text',
+            return_value={
+                'text': '测试文本',
+                'sentiment_score': 1.0,
+                'category': 'POSITIVE',
+            },
+        ):
             request = self.factory.post(
                 '/sentiment/api/analyze/',
                 {'text': '测试文本', 'use_cache': True},
@@ -132,27 +107,16 @@ class TestSentimentBatchAnalyzeView(TestCase):
         self.view = SentimentBatchAnalyzeView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentAnalyzer')
-    @patch('apps.sentiment.interface.views.AIProviderRepository')
-    def test_batch_analyze_success(self, mock_provider_repo, mock_analyzer_class):
+    @patch('apps.sentiment.interface.views.analyze_sentiment_batch')
+    def test_batch_analyze_success(self, mock_analyze_batch):
         """Test successful batch analysis"""
-        # Setup mocks
-        mock_analyzer = Mock()
-        mock_analyzer.analyze_batch.return_value = [
-            SentimentAnalysisResult(
-                text="文本1",
-                sentiment_score=1.0,
-                confidence=0.8,
-                category=SentimentCategory.POSITIVE,
-            ),
-            SentimentAnalysisResult(
-                text="文本2",
-                sentiment_score=-0.5,
-                confidence=0.7,
-                category=SentimentCategory.NEGATIVE,
-            ),
-        ]
-        mock_analyzer_class.return_value = mock_analyzer
+        mock_analyze_batch.return_value = {
+            'results': [
+                {'text': '文本1', 'sentiment_score': 1.0, 'category': 'POSITIVE'},
+                {'text': '文本2', 'sentiment_score': -0.5, 'category': 'NEGATIVE'},
+            ],
+            'total': 2,
+        }
 
         request = self.factory.post(
             '/sentiment/api/batch-analyze/',
@@ -186,17 +150,10 @@ class TestSentimentIndexView(TestCase):
         self.view = SentimentIndexView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_latest_index(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_sentiment_index_payload')
+    def test_get_latest_index(self, mock_get_index):
         """Test getting latest sentiment index"""
-        mock_index = SentimentIndex(
-            index_date=datetime(2024, 1, 1),
-            composite_index=0.5,
-            confidence_level=0.8,
-        )
-        mock_repo = Mock()
-        mock_repo.get_latest.return_value = mock_index
-        mock_repo_class.return_value = mock_repo
+        mock_get_index.return_value = {'date': '2024-01-01', 'composite_index': 0.5}
 
         request = self.factory.get('/sentiment/api/index/')
         force_authenticate(request, user=self.user)
@@ -205,16 +162,10 @@ class TestSentimentIndexView(TestCase):
         assert response.status_code == status.HTTP_200_OK
         assert response.data['date'] == '2024-01-01'
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_index_by_date(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_sentiment_index_payload')
+    def test_get_index_by_date(self, mock_get_index):
         """Test getting sentiment index by specific date"""
-        mock_index = SentimentIndex(
-            index_date=datetime(2024, 1, 15),
-            composite_index=0.3,
-        )
-        mock_repo = Mock()
-        mock_repo.get_by_date.return_value = mock_index
-        mock_repo_class.return_value = mock_repo
+        mock_get_index.return_value = {'date': '2024-01-15', 'composite_index': 0.3}
 
         request = self.factory.get('/sentiment/api/index/?date=2024-01-15')
         force_authenticate(request, user=self.user)
@@ -223,12 +174,10 @@ class TestSentimentIndexView(TestCase):
         assert response.status_code == status.HTTP_200_OK
         assert response.data['date'] == '2024-01-15'
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_index_not_found(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_sentiment_index_payload')
+    def test_get_index_not_found(self, mock_get_index):
         """Test getting index when not found"""
-        mock_repo = Mock()
-        mock_repo.get_latest.return_value = None
-        mock_repo_class.return_value = mock_repo
+        mock_get_index.return_value = None
 
         request = self.factory.get('/sentiment/api/index/')
         force_authenticate(request, user=self.user)
@@ -240,9 +189,8 @@ class TestSentimentIndexView(TestCase):
         """Test getting index with invalid date format"""
         request = self.factory.get('/sentiment/api/index/?date=invalid')
         force_authenticate(request, user=self.user)
-        with patch('apps.sentiment.interface.views.SentimentIndexRepository'):
-            response = self.view(request)
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+        response = self.view(request)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 class TestSentimentIndexRangeView(TestCase):
@@ -253,17 +201,17 @@ class TestSentimentIndexRangeView(TestCase):
         self.view = SentimentIndexRangeView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_index_range(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_sentiment_index_range_payload')
+    def test_get_index_range(self, mock_get_range):
         """Test getting index range"""
-        mock_indices = [
-            SentimentIndex(index_date=datetime(2024, 1, 1), composite_index=0.1),
-            SentimentIndex(index_date=datetime(2024, 1, 2), composite_index=0.2),
-            SentimentIndex(index_date=datetime(2024, 1, 3), composite_index=0.3),
-        ]
-        mock_repo = Mock()
-        mock_repo.get_range.return_value = mock_indices
-        mock_repo_class.return_value = mock_repo
+        mock_get_range.return_value = {
+            'indices': [
+                {'date': '2024-01-01', 'composite_index': 0.1},
+                {'date': '2024-01-02', 'composite_index': 0.2},
+                {'date': '2024-01-03', 'composite_index': 0.3},
+            ],
+            'total': 3,
+        }
 
         request = self.factory.get(
             '/sentiment/api/index/range/?start_date=2024-01-01&end_date=2024-01-03'
@@ -290,47 +238,41 @@ class TestSentimentIndexRecentView(TestCase):
         self.view = SentimentIndexRecentView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_recent_indices_default_days(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_recent_sentiment_indices_payload')
+    def test_get_recent_indices_default_days(self, mock_get_recent):
         """Test getting recent indices with default days (30)"""
-        mock_repo = Mock()
-        mock_repo.get_recent.return_value = []
-        mock_repo_class.return_value = mock_repo
+        mock_get_recent.return_value = {'indices': [], 'total': 0}
 
         request = self.factory.get('/sentiment/api/index/recent/')
         force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
-        mock_repo.get_recent.assert_called_once_with(days=30)
+        mock_get_recent.assert_called_once_with(days=30)
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_recent_indices_custom_days(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_recent_sentiment_indices_payload')
+    def test_get_recent_indices_custom_days(self, mock_get_recent):
         """Test getting recent indices with custom days"""
-        mock_repo = Mock()
-        mock_repo.get_recent.return_value = []
-        mock_repo_class.return_value = mock_repo
+        mock_get_recent.return_value = {'indices': [], 'total': 0}
 
         request = self.factory.get('/sentiment/api/index/recent/?days=7')
         force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
-        mock_repo.get_recent.assert_called_once_with(days=7)
+        mock_get_recent.assert_called_once_with(days=7)
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    def test_get_recent_indices_clamps_days(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_recent_sentiment_indices_payload')
+    def test_get_recent_indices_clamps_days(self, mock_get_recent):
         """Test that days parameter is clamped to valid range"""
-        mock_repo = Mock()
-        mock_repo.get_recent.return_value = []
-        mock_repo_class.return_value = mock_repo
+        mock_get_recent.return_value = {'indices': [], 'total': 0}
 
         # Test exceeding maximum
         request = self.factory.get('/sentiment/api/index/recent/?days=400')
         force_authenticate(request, user=self.user)
         response = self.view(request)
         assert response.status_code == status.HTTP_200_OK
-        mock_repo.get_recent.assert_called_once_with(days=30)
+        mock_get_recent.assert_called_once_with(days=30)
 
         # Test below minimum
         request2 = self.factory.get('/sentiment/api/index/recent/?days=0')
@@ -347,18 +289,15 @@ class TestSentimentHealthView(TestCase):
         self.view = SentimentHealthView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.AIProviderRepository')
-    @patch('apps.sentiment.interface.views.SentimentCache')
-    @patch('apps.sentiment.interface.views.SentimentIndexModel')
-    def test_health_check_healthy(self, mock_index_model, mock_cache_model, mock_provider_repo):
+    @patch('apps.sentiment.interface.views.get_sentiment_health_payload')
+    def test_health_check_healthy(self, mock_health_payload):
         """Test health check when AI provider is available"""
-        # Setup mocks
-        mock_provider = Mock()
-        mock_provider_repo.return_value.get_active_providers.return_value = [mock_provider]
-        mock_cache_model._default_manager.count.return_value = 100
-        mock_latest = Mock()
-        mock_latest.index_date.isoformat.return_value = "2024-01-01"
-        mock_index_model._default_manager.order_by.return_value.first.return_value = mock_latest
+        mock_health_payload.return_value = {
+            'status': 'healthy',
+            'ai_provider_available': True,
+            'cache_count': 100,
+            'latest_index_date': '2024-01-01',
+        }
 
         request = self.factory.get('/sentiment/api/health/')
         force_authenticate(request, user=self.user)
@@ -368,10 +307,15 @@ class TestSentimentHealthView(TestCase):
         assert response.data['status'] == 'healthy'
         assert response.data['ai_provider_available'] is True
 
-    @patch('apps.sentiment.interface.views.AIProviderRepository')
-    def test_health_check_degraded(self, mock_provider_repo):
+    @patch('apps.sentiment.interface.views.get_sentiment_health_payload')
+    def test_health_check_degraded(self, mock_health_payload):
         """Test health check when no AI provider available"""
-        mock_provider_repo.return_value.get_active_providers.return_value = []
+        mock_health_payload.return_value = {
+            'status': 'degraded',
+            'ai_provider_available': False,
+            'cache_count': 0,
+            'latest_index_date': None,
+        }
 
         request = self.factory.get('/sentiment/api/health/')
         force_authenticate(request, user=self.user)
@@ -390,12 +334,13 @@ class TestSentimentCacheClearView(TestCase):
         self.view = SentimentCacheClearView.as_view()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentCacheRepository')
-    def test_clear_cache(self, mock_repo_class):
+    @patch('apps.sentiment.interface.views.clear_sentiment_cache_payload')
+    def test_clear_cache(self, mock_clear_cache):
         """Test clearing cache"""
-        mock_repo = Mock()
-        mock_repo.clear.return_value = 42
-        mock_repo_class.return_value = mock_repo
+        mock_clear_cache.return_value = {
+            'success': True,
+            'message': '已清除 42 条缓存记录',
+        }
 
         request = self.factory.post('/sentiment/api/cache/clear/')
         force_authenticate(request, user=self.user)
@@ -413,21 +358,14 @@ class TestSentimentDashboardView(TestCase):
         self.factory = RequestFactory()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.SentimentIndexRepository')
-    @patch('apps.sentiment.interface.views.AIProviderRepository')
-    def test_dashboard_authenticated(self, mock_provider_repo, mock_repo_class):
+    @patch('apps.sentiment.interface.views.get_sentiment_dashboard_context')
+    def test_dashboard_authenticated(self, mock_dashboard_context):
         """Test dashboard page for authenticated user"""
-        # Setup mocks
-        mock_index = SentimentIndex(
-            index_date=datetime(2024, 1, 1),
-            composite_index=0.5,
-        )
-        mock_repo = Mock()
-        mock_repo.get_latest.return_value = mock_index
-        mock_repo.get_recent.return_value = [mock_index]
-        mock_repo_class.return_value = mock_repo
-
-        mock_provider_repo.return_value.get_active_providers.return_value = [Mock()]
+        mock_dashboard_context.return_value = {
+            'latest_index': {'date': '2024-01-01', 'composite_index': 0.5},
+            'recent_indices': [{'date': '2024-01-01', 'composite_index': 0.5}],
+            'ai_available': True,
+        }
 
         view = SentimentDashboardView.as_view()
         request = self.factory.get('/sentiment/dashboard/')
@@ -455,10 +393,10 @@ class TestSentimentAnalyzePageView(TestCase):
         self.factory = RequestFactory()
         self.user = _make_test_user()
 
-    @patch('apps.sentiment.interface.views.AIProviderRepository')
-    def test_analyze_page_authenticated(self, mock_provider_repo):
+    @patch('apps.sentiment.interface.views.get_sentiment_analyze_page_context')
+    def test_analyze_page_authenticated(self, mock_page_context):
         """Test analyze page for authenticated user"""
-        mock_provider_repo.return_value.get_active_providers.return_value = [Mock()]
+        mock_page_context.return_value = {'ai_available': True}
 
         view = SentimentAnalyzePageView.as_view()
         request = self.factory.get('/sentiment/analyze/')
@@ -471,8 +409,8 @@ class TestSentimentAnalyzePageView(TestCase):
 
     def test_analyze_page_handles_exception(self):
         """Test analyze page handles exceptions gracefully"""
-        with patch('apps.sentiment.interface.views.AIProviderRepository') as mock_repo:
-            mock_repo.side_effect = Exception("Test error")
+        with patch('apps.sentiment.interface.views.get_sentiment_analyze_page_context') as mock_page_context:
+            mock_page_context.side_effect = Exception("Test error")
 
             view = SentimentAnalyzePageView.as_view()
             request = self.factory.get('/sentiment/analyze/')

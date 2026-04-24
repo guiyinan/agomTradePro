@@ -330,6 +330,42 @@ def test_docs_edit_page_uses_admin_console_language(superuser_client):
 
 
 @pytest.mark.django_db
+def test_public_docs_list_uses_documentation_service():
+    DocumentationModel.objects.create(
+        title="公开文档",
+        slug="public-doc",
+        category="user_guide",
+        content="# 文档",
+        summary="公开摘要",
+        order=1,
+        is_published=True,
+    )
+
+    response = Client().get("/docs/")
+
+    content = _assert_html_contract(response, "公开文档")
+    assert "/docs/public-doc/" in content
+
+
+@pytest.mark.django_db
+def test_public_docs_detail_uses_documentation_service():
+    DocumentationModel.objects.create(
+        title="详情文档",
+        slug="detail-doc",
+        category="concept",
+        content="# 详情",
+        summary="详情摘要",
+        order=1,
+        is_published=True,
+    )
+
+    response = Client().get("/docs/detail-doc/")
+
+    content = _assert_html_contract(response, "详情文档")
+    assert "# 详情" in content
+
+
+@pytest.mark.django_db
 def test_ai_provider_manage_page_uses_settings_language(superuser_client):
     response = superuser_client.get("/ai/")
 

@@ -565,6 +565,15 @@ class AIUserFallbackQuotaRepository:
         except AIUserFallbackQuota.DoesNotExist:
             return None
 
+    def list_active_users(self) -> list[Any]:
+        """Return active auth users ordered by primary key."""
+
+        user_model = get_user_model()
+        users = user_model._default_manager.all().order_by("id")
+        if hasattr(user_model, "is_active"):
+            users = users.filter(is_active=True)
+        return list(users)
+
     def get_with_usage(self, user) -> tuple[AIUserFallbackQuota | None, float, float]:
         """Return quota with today's and this month's usage."""
         quota = self.get_for_user(user)
@@ -606,10 +615,7 @@ class AIUserFallbackQuotaRepository:
         admin_note: str = "",
     ) -> dict[str, int]:
         """Apply the same quota to all active users."""
-        user_model = get_user_model()
-        users = user_model._default_manager.all()
-        if hasattr(user_model, "is_active"):
-            users = users.filter(is_active=True)
+        users = self.list_active_users()
 
         created_count = 0
         updated_count = 0

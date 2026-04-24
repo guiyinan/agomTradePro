@@ -4,12 +4,17 @@ from typing import Any
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Prefetch, Q
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
+from apps.agent_runtime.application.interface_services import (
+    get_operator_proposal_detail_context,
+    get_operator_proposal_list_context,
+    get_operator_task_detail_context,
+    get_operator_task_list_context,
+)
 from apps.agent_runtime.application.proposal_use_cases import (
     ApproveProposalUseCase,
     ExecuteProposalUseCase,
@@ -17,15 +22,6 @@ from apps.agent_runtime.application.proposal_use_cases import (
     InvalidProposalTransitionError,
     RejectProposalUseCase,
     SubmitProposalForApprovalUseCase,
-)
-from apps.agent_runtime.infrastructure.models import (
-    AgentContextSnapshotModel,
-    AgentExecutionRecordModel,
-    AgentGuardrailDecisionModel,
-    AgentHandoffModel,
-    AgentProposalModel,
-    AgentTaskModel,
-    AgentTimelineEventModel,
 )
 
 
@@ -48,29 +44,6 @@ def _build_actor(request: HttpRequest) -> dict[str, Any]:
     }
 
 
-def _operator_summary() -> dict[str, Any]:
-    task_counts = dict(
-        AgentTaskModel._default_manager.values("status")
-        .annotate(count=Count("id"))
-        .values_list("status", "count")
-    )
-    proposal_counts = dict(
-        AgentProposalModel._default_manager.values("status")
-        .annotate(count=Count("id"))
-        .values_list("status", "count")
-    )
-    needs_attention = AgentTaskModel._default_manager.filter(
-        Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
-    ).distinct()
-    return {
-        "task_counts": task_counts,
-        "proposal_counts": proposal_counts,
-        "needs_attention_count": needs_attention.count(),
-        "total_tasks": AgentTaskModel._default_manager.count(),
-        "total_proposals": AgentProposalModel._default_manager.count(),
-    }
-
-
 @require_http_methods(["GET"])
 def operator_task_list_view(request: HttpRequest) -> HttpResponse:
     _ensure_operator_access(request)
@@ -80,37 +53,12 @@ def operator_task_list_view(request: HttpRequest) -> HttpResponse:
     search = (request.GET.get("search") or "").strip()
     attention_only = request.GET.get("attention") == "1"
 
-    tasks = (
-        AgentTaskModel._default_manager.select_related("created_by")
-        .annotate(
-            timeline_count=Count("timeline_events", distinct=True),
-            proposal_count=Count("proposals", distinct=True),
-            guardrail_count=Count("guardrail_decisions", distinct=True),
-        )
-        .order_by("-created_at")
+    context = get_operator_task_list_context(
+        status_filter=status_filter,
+        domain_filter=domain_filter,
+        search=search,
+        attention_only=attention_only,
     )
-    if status_filter:
-        tasks = tasks.filter(status=status_filter)
-    if domain_filter:
-        tasks = tasks.filter(task_domain=domain_filter)
-    if search:
-        tasks = tasks.filter(Q(request_id__icontains=search) | Q(task_type__icontains=search))
-    if attention_only:
-        tasks = tasks.filter(Q(requires_human=True) | Q(status__in=["needs_human", "failed"]))
-
-    context = {
-        "page_title": "Agent Runtime Operator",
-        "summary": _operator_summary(),
-        "tasks": tasks[:100],
-        "filters": {
-            "status": status_filter,
-            "task_domain": domain_filter,
-            "search": search,
-            "attention": attention_only,
-        },
-        "status_choices": sorted(AgentTaskModel._meta.get_field("status").choices),
-        "domain_choices": sorted(AgentTaskModel._meta.get_field("task_domain").choices),
-    }
     return render(request, "agent_runtime/operator_task_list.html", context)
 
 
@@ -118,34 +66,9 @@ def operator_task_list_view(request: HttpRequest) -> HttpResponse:
 def operator_task_detail_view(request: HttpRequest, task_id: int) -> HttpResponse:
     _ensure_operator_access(request)
 
-    task = get_object_or_404(
-        AgentTaskModel._default_manager.select_related("created_by")
-        .prefetch_related(
-            Prefetch("timeline_events", queryset=AgentTimelineEventModel._default_manager.order_by("created_at")),
-            Prefetch("proposals", queryset=AgentProposalModel._default_manager.order_by("-created_at")),
-            Prefetch("guardrail_decisions", queryset=AgentGuardrailDecisionModel._default_manager.order_by("-created_at")),
-            Prefetch("execution_records", queryset=AgentExecutionRecordModel._default_manager.order_by("-created_at")),
-            Prefetch("handoffs", queryset=AgentHandoffModel._default_manager.order_by("-created_at")),
-        ),
-        pk=task_id,
-    )
-    latest_context = (
-        AgentContextSnapshotModel._default_manager.filter(task_id=task.id)
-        .order_by("-created_at")
-        .first()
-    )
-
-    context = {
-        "page_title": f"Task {task.request_id}",
-        "summary": _operator_summary(),
-        "task": task,
-        "timeline": list(task.timeline_events.all()),
-        "proposals": list(task.proposals.all()),
-        "guardrails": list(task.guardrail_decisions.all()),
-        "executions": list(task.execution_records.all()),
-        "handoffs": list(task.handoffs.all()),
-        "latest_context": latest_context,
-    }
+    context = get_operator_task_detail_context(task_id=task_id)
+    if context is None:
+        raise Http404
     return render(request, "agent_runtime/operator_task_detail.html", context)
 
 
@@ -158,34 +81,12 @@ def operator_proposal_list_view(request: HttpRequest) -> HttpResponse:
     risk_filter = (request.GET.get("risk_level") or "").strip()
     search = (request.GET.get("search") or "").strip()
 
-    proposals = AgentProposalModel._default_manager.select_related("task", "created_by").order_by("-created_at")
-    if status_filter:
-        proposals = proposals.filter(status=status_filter)
-    if approval_filter:
-        proposals = proposals.filter(approval_status=approval_filter)
-    if risk_filter:
-        proposals = proposals.filter(risk_level=risk_filter)
-    if search:
-        proposals = proposals.filter(
-            Q(request_id__icontains=search)
-            | Q(proposal_type__icontains=search)
-            | Q(task__request_id__icontains=search)
-        )
-
-    context = {
-        "page_title": "Proposal Approval Queue",
-        "summary": _operator_summary(),
-        "proposals": proposals[:100],
-        "filters": {
-            "status": status_filter,
-            "approval_status": approval_filter,
-            "risk_level": risk_filter,
-            "search": search,
-        },
-        "status_choices": sorted(AgentProposalModel._meta.get_field("status").choices),
-        "approval_choices": sorted(AgentProposalModel._meta.get_field("approval_status").choices),
-        "risk_choices": sorted(AgentProposalModel._meta.get_field("risk_level").choices),
-    }
+    context = get_operator_proposal_list_context(
+        status_filter=status_filter,
+        approval_filter=approval_filter,
+        risk_filter=risk_filter,
+        search=search,
+    )
     return render(request, "agent_runtime/operator_proposal_list.html", context)
 
 
@@ -193,10 +94,10 @@ def operator_proposal_list_view(request: HttpRequest) -> HttpResponse:
 def operator_proposal_detail_view(request: HttpRequest, proposal_id: int) -> HttpResponse:
     _ensure_operator_access(request)
 
-    proposal = get_object_or_404(
-        AgentProposalModel._default_manager.select_related("task", "created_by"),
-        pk=proposal_id,
-    )
+    context = get_operator_proposal_detail_context(proposal_id=proposal_id)
+    if context is None:
+        raise Http404
+    proposal = context["proposal"]
 
     if request.method == "POST":
         action_name = (request.POST.get("action") or "").strip()
@@ -222,19 +123,4 @@ def operator_proposal_detail_view(request: HttpRequest, proposal_id: int) -> Htt
         except GuardrailBlockedError as exc:
             messages.error(request, f"Guardrail blocked: {exc.guardrail_message}")
         return redirect(reverse("agent_runtime_pages:proposal_detail", args=[proposal.id]))
-
-    guardrails = AgentGuardrailDecisionModel._default_manager.filter(proposal_id=proposal.id).order_by("-created_at")
-    executions = AgentExecutionRecordModel._default_manager.filter(proposal_id=proposal.id).order_by("-created_at")
-    task_timeline = []
-    if proposal.task_id:
-        task_timeline = AgentTimelineEventModel._default_manager.filter(task_id=proposal.task_id).order_by("created_at")
-
-    context = {
-        "page_title": f"Proposal {proposal.request_id}",
-        "summary": _operator_summary(),
-        "proposal": proposal,
-        "guardrails": guardrails,
-        "executions": executions,
-        "task_timeline": task_timeline,
-    }
     return render(request, "agent_runtime/operator_proposal_detail.html", context)

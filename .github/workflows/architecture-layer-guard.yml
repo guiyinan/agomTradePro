@@ -64,191 +64,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import os
-          import re
-          import subprocess
-          import sys
-
-          domain_rules = [
-              (re.compile(r"^\s*(from|import)\s+django\b"), "Domain layer must not import django"),
-              (re.compile(r"^\s*(from|import)\s+pandas\b"), "Domain layer must not import pandas"),
-              (re.compile(r"^\s*(from|import)\s+numpy\b"), "Domain layer must not import numpy"),
-              (re.compile(r"^\s*(from|import)\s+requests\b"), "Domain layer must not import requests"),
-          ]
-          application_rules = [
-              (re.compile(r"^\s*(from|import)\s+.*infrastructure\.models\b"), "Application layer must not import infrastructure models directly"),
-              (re.compile(r"\.objects\."), "Application layer must not access ORM manager directly"),
-          ]
-          interface_rules = [
-              (re.compile(r"^\s*(from|import)\s+.*infrastructure\."), "Interface layer must call Application use cases, not Infrastructure directly"),
-          ]
-          core_interface_rules = [
-              (re.compile(r"^\s*(from|import)\s+apps\..*infrastructure\."), "Core controller code must call Application use cases, not Infrastructure directly"),
-              (re.compile(r"\._default_manager\b"), "Core controller code must not access ORM managers directly"),
-              (re.compile(r"\.objects\."), "Core controller code must not access ORM managers directly"),
-          ]
-          shared_rules = [
-              (re.compile(r"^\s*(from|import)\s+apps\."), "Shared layer must not depend on apps modules"),
-          ]
-
-          violations = []
-          base_ref = os.environ.get("BASE_REF", "").strip()
-          head_ref = os.environ.get("HEAD_REF", "").strip()
-
-          def render_full_scan_diff() -> str:
-              paths = subprocess.check_output(
-                  [
-                      "git",
-                      "ls-files",
-                      ":(glob)apps/**/*.py",
-                      ":(glob)core/**/*.py",
-                      ":(glob)shared/**/*.py",
-                  ],
-                  text=True,
-              ).splitlines()
-              chunks: list[str] = []
-              for path in paths:
-                  chunks.append(f"diff --git a/{path} b/{path}\n+++ b/{path}\n@@ -0,0 +1,999999 @@\n")
-                  with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-                      for ln in fh.read().splitlines():
-                          chunks.append(f"+{ln}\n")
-              return "".join(chunks)
-
-          def collect_incremental_diff(base_ref: str, head_ref: str) -> str:
-              if not base_ref or not head_ref or base_ref == head_ref:
-                  return render_full_scan_diff()
-
-              diff_commands = [
-                  [
-                      "git",
-                      "diff",
-                      "-U0",
-                      f"{base_ref}...{head_ref}",
-                      "--",
-                      ":(glob)apps/**/*.py",
-                      ":(glob)core/**/*.py",
-                      ":(glob)shared/**/*.py",
-                  ],
-                  [
-                      "git",
-                      "diff",
-                      "-U0",
-                      base_ref,
-                      head_ref,
-                      "--",
-                      ":(glob)apps/**/*.py",
-                      ":(glob)core/**/*.py",
-                      ":(glob)shared/**/*.py",
-                  ],
-              ]
-              for command in diff_commands:
-                  try:
-                      return subprocess.check_output(
-                          command,
-                          text=True,
-                          stderr=subprocess.STDOUT,
-                      )
-                  except subprocess.CalledProcessError as exc:
-                      # Force-push / rewritten history can make github.event.before unreachable.
-                      # In that case, fall back to the current commit's first parent diff.
-                      if exc.returncode != 128:
-                          raise
-
-              try:
-                  fallback_base = subprocess.check_output(
-                      ["git", "rev-parse", f"{head_ref}^"],
-                      text=True,
-                      stderr=subprocess.STDOUT,
-                  ).strip()
-              except subprocess.CalledProcessError:
-                  return render_full_scan_diff()
-
-              if not fallback_base or fallback_base == head_ref:
-                  return render_full_scan_diff()
-
-              return subprocess.check_output(
-                  [
-                      "git",
-                      "diff",
-                      "-U0",
-                      fallback_base,
-                      head_ref,
-                      "--",
-                      ":(glob)apps/**/*.py",
-                      ":(glob)core/**/*.py",
-                      ":(glob)shared/**/*.py",
-                  ],
-                  text=True,
-                  stderr=subprocess.STDOUT,
-              )
-
-          # Collect added lines only (strict for new changes, tolerant for legacy stock issues).
-          diff_text = collect_incremental_diff(base_ref, head_ref)
-
-          current_file = None
-          current_line = 0
-          hunk_re = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
-
-          for raw_line in diff_text.splitlines():
-              if raw_line.startswith("+++ b/"):
-                  current_file = raw_line[6:]
-                  current_line = 0
-                  continue
-
-              if current_file is None:
-                  continue
-
-              match = hunk_re.match(raw_line)
-              if match:
-                  current_line = int(match.group(1))
-                  continue
-
-              if raw_line.startswith("+") and not raw_line.startswith("+++"):
-                  line = raw_line[1:]
-                  norm = current_file.replace("\\", "/")
-
-                  if norm.endswith("/admin.py"):
-                      rules = []
-                  elif "/domain/" in norm:
-                      rules = domain_rules
-                  elif "/application/" in norm:
-                      rules = application_rules
-                  elif "/interface/" in norm:
-                      rules = interface_rules
-                  elif norm.startswith("core/application/"):
-                      rules = application_rules
-                  elif norm.startswith("core/views") or norm.startswith("core/api_views") or norm in {
-                      "core/context_processors.py",
-                  }:
-                      rules = core_interface_rules
-                  elif norm.startswith("shared/"):
-                      rules = shared_rules
-                  else:
-                      rules = []
-
-                  for pattern, message in rules:
-                      if pattern.search(line):
-                          violations.append((current_file, current_line, message, line.strip()))
-                  current_line += 1
-              elif raw_line.startswith("-") and not raw_line.startswith("---"):
-                  continue
-              else:
-                  if raw_line and not raw_line.startswith("\\"):
-                      current_line += 1
-
-          if violations:
-              print("Layer guard violations found:")
-              for fp, lineno, message, line in violations:
-                  print(f"- {fp}:{lineno}: {message}")
-                  print(f"    code: {line}")
-              sys.exit(1)
-
-          print("Layer guard passed: no violations in changed files.")
-          PY
+          python scripts/check_architecture_delta.py \
+            --rules-file governance/architecture_rules.json \
+            --base-ref "$BASE_REF" \
+            --head-ref "$HEAD_REF" \
+            --include-audit \
+            --fail-on-audit-violations \
+            --format text
 
       - name: Verify versioned architecture boundaries
         run: |
           python scripts/verify_architecture.py \
             --rules-file governance/architecture_rules.json \
             --format text
+
+  structure-audit-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate structural architecture audit
+        run: |
+          python scripts/verify_architecture.py \
+            --rules-file governance/architecture_rules.json \
+            --format text \
+            --include-audit \
+            --write-report reports/architecture/architecture-audit.json \
+            --write-ledger reports/architecture/module-ledger.md
+
+      - name: Upload architecture audit artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: architecture-audit
+          path: reports/architecture/

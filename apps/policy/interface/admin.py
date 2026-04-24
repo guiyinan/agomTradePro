@@ -4,21 +4,27 @@ Django Admin for Policy Events.
 增强的管理界面，提供统计、筛选和快速操作功能。
 """
 
+from django.apps import apps as django_apps
 from django.contrib import admin
-from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from ..application.repository_provider import get_policy_admin_interface_service
 from ..domain.entities import PolicyLevel
-from ..infrastructure.models import (
-    PolicyAuditQueue,
-    PolicyLevelKeywordModel,
-    PolicyLog,
-    RSSFetchLog,
-    RSSHubGlobalConfig,
-    RSSSourceConfigModel,
-)
+
+PolicyAuditQueue = django_apps.get_model("policy", "PolicyAuditQueue")
+PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
+PolicyLog = django_apps.get_model("policy", "PolicyLog")
+RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
+RSSHubGlobalConfig = django_apps.get_model("policy", "RSSHubGlobalConfig")
+RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
+
+
+def _policy_admin_service():
+    """Return the policy admin interface service."""
+
+    return get_policy_admin_interface_service()
 
 
 @admin.register(PolicyLog)
@@ -192,78 +198,76 @@ class PolicyLogAdmin(admin.ModelAdmin):
     # 批量操作
     def mark_as_p0(self, request, queryset):
         """批量标记为 P0"""
-        updated = queryset.update(level='P0')
+        updated = _policy_admin_service().mark_policy_logs_level(
+            list(queryset.values_list('id', flat=True)),
+            level='P0',
+        )
         self.message_user(request, f'{updated} 条事件已标记为 P0（常态）')
     mark_as_p0.short_description = '标记为 P0（常态）'
 
     def mark_as_p1(self, request, queryset):
         """批量标记为 P1"""
-        updated = queryset.update(level='P1')
+        updated = _policy_admin_service().mark_policy_logs_level(
+            list(queryset.values_list('id', flat=True)),
+            level='P1',
+        )
         self.message_user(request, f'{updated} 条事件已标记为 P1（预警）')
     mark_as_p1.short_description = '标记为 P1（预警）'
 
     def mark_as_p2(self, request, queryset):
         """批量标记为 P2"""
-        updated = queryset.update(level='P2')
+        updated = _policy_admin_service().mark_policy_logs_level(
+            list(queryset.values_list('id', flat=True)),
+            level='P2',
+        )
         self.message_user(request, f'{updated} 条事件已标记为 P2（干预）')
     mark_as_p2.short_description = '标记为 P2（干预）'
 
     def mark_as_p3(self, request, queryset):
         """批量标记为 P3"""
-        updated = queryset.update(level='P3')
+        updated = _policy_admin_service().mark_policy_logs_level(
+            list(queryset.values_list('id', flat=True)),
+            level='P3',
+        )
         self.message_user(request, f'{updated} 条事件已标记为 P3（危机）')
     mark_as_p3.short_description = '标记为 P3（危机）'
 
     def approve_selected(self, request, queryset):
         """批量通过"""
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyAuditQueue
-
-        count = queryset.filter(audit_status='pending_review').update(
-            audit_status='manual_approved',
-            reviewed_by=request.user,
-            reviewed_at=timezone.now()
+        count = _policy_admin_service().approve_policy_logs(
+            list(queryset.values_list('id', flat=True)),
+            reviewer_id=request.user.id,
         )
-
-        # 从审核队列移除
-        PolicyAuditQueue._default_manager.filter(
-            policy_log__in=queryset.filter(audit_status='manual_approved')
-        ).delete()
-
         self.message_user(request, f'✅ 已通过 {count} 条政策')
     approve_selected.short_description = '✅ 批量通过选中项'
 
     def reject_selected(self, request, queryset):
         """批量拒绝"""
-        from django.utils import timezone
-
-        from ..infrastructure.models import PolicyAuditQueue
-
-        count = queryset.filter(audit_status='pending_review').update(
-            audit_status='rejected',
-            reviewed_by=request.user,
-            reviewed_at=timezone.now(),
-            review_notes='批量拒绝'
+        count = _policy_admin_service().reject_policy_logs(
+            list(queryset.values_list('id', flat=True)),
+            reviewer_id=request.user.id,
+            review_notes='批量拒绝',
         )
-
-        # 从审核队列移除
-        PolicyAuditQueue._default_manager.filter(
-            policy_log__in=queryset.filter(audit_status='rejected')
-        ).delete()
-
         self.message_user(request, f'❌ 已拒绝 {count} 条政策')
     reject_selected.short_description = '❌ 批量拒绝选中项'
 
     def add_to_whitelist(self, request, queryset):
         """加入白名单"""
-        updated = queryset.update(is_whitelist=True, is_blacklist=False)
+        updated = _policy_admin_service().set_policy_list_flags(
+            list(queryset.values_list('id', flat=True)),
+            is_whitelist=True,
+            is_blacklist=False,
+        )
         self.message_user(request, f'⭐ 已将 {updated} 条政策加入白名单')
     add_to_whitelist.short_description = '⭐ 加入白名单'
 
     def add_to_blacklist(self, request, queryset):
         """加入黑名单"""
-        updated = queryset.update(is_blacklist=True, is_whitelist=False)
+        updated = _policy_admin_service().set_policy_list_flags(
+            list(queryset.values_list('id', flat=True)),
+            is_whitelist=False,
+            is_blacklist=True,
+        )
         self.message_user(request, f'🚫 已将 {updated} 条政策加入黑名单')
     add_to_blacklist.short_description = '🚫 加入黑名单'
 
@@ -287,25 +291,11 @@ class PolicyLogAdmin(admin.ModelAdmin):
 
         try:
             # 获取统计数据
-            qs = PolicyLog._default_manager.all()
-            total = qs.count()
-
-            # 档位统计
-            level_stats = qs.values('level').annotate(
-                count=Count('id')
-            ).order_by('level')
-
-            # 分类统计
-            category_stats = qs.values('info_category').annotate(
-                count=Count('id')
-            ).order_by('info_category')
-
-            # 审核状态统计
-            audit_stats = qs.values('audit_status').annotate(
-                count=Count('id')
-            ).order_by('audit_status')
-
-            stats_data = {item['level']: item['count'] for item in level_stats}
+            stats = _policy_admin_service().get_policy_log_statistics()
+            total = stats['total']
+            level_counts = stats['level_counts']
+            category_counts = stats['category_counts']
+            audit_counts = stats['audit_counts']
 
             # 构建统计信息
             stats_html = '<div style="padding: 15px; background: #f8f9fa; '
@@ -319,7 +309,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
             # 档位统计
             stats_html += '<div style="flex: 1;"><h4>按档位</h4><table style="width: 100%;">'
             for level_code, level_name in PolicyLog.POLICY_LEVELS:
-                count = stats_data.get(level_code, 0)
+                count = level_counts.get(level_code, 0)
                 pct = (count / total * 100) if total > 0 else 0
                 colors = {'P0': '#6c757d', 'P1': '#ffc107', 'P2': '#fd7e14', 'P3': '#dc3545'}
                 color = colors.get(level_code, '#6c757d')
@@ -329,10 +319,8 @@ class PolicyLogAdmin(admin.ModelAdmin):
 
             # 分类统计
             stats_html += '<div style="flex: 1;"><h4>按分类</h4><table style="width: 100%;">'
-            for item in category_stats:
-                cat_code = item['info_category']
+            for cat_code, count in category_counts.items():
                 cat_name = dict(PolicyLog.INFO_CATEGORY_CHOICES).get(cat_code, cat_code)
-                count = item['count']
                 pct = (count / total * 100) if total > 0 else 0
                 stats_html += f'<tr><td style="padding: 4px;">{cat_name}</td>'
                 stats_html += f'<td style="padding: 4px;"><strong>{count}</strong></td><td style="padding: 4px;">{pct:.1f}%</td></tr>'
@@ -340,10 +328,8 @@ class PolicyLogAdmin(admin.ModelAdmin):
 
             # 审核状态统计
             stats_html += '<div style="flex: 1;"><h4>审核状态</h4><table style="width: 100%;">'
-            for item in audit_stats:
-                status_code = item['audit_status']
+            for status_code, count in audit_counts.items():
                 status_name = dict(PolicyLog.AUDIT_STATUS_CHOICES).get(status_code, status_code)
-                count = item['count']
                 pct = (count / total * 100) if total > 0 else 0
                 stats_html += f'<tr><td style="padding: 4px;">{status_name}</td>'
                 stats_html += f'<td style="padding: 4px;"><strong>{count}</strong></td><td style="padding: 4px;">{pct:.1f}%</td></tr>'
@@ -354,16 +340,14 @@ class PolicyLogAdmin(admin.ModelAdmin):
             stats_html += '</div>'
 
             # 将统计信息添加到页面
-            response.context_data['cl'].root_queryset = qs
-            if not extra_context:
-                extra_context = {}
-            extra_context['stats_html'] = mark_safe(stats_html)
+            if response is not None and hasattr(response, 'context_data'):
+                response.context_data['stats_html'] = mark_safe(stats_html)
 
         except Exception as e:
             # 统计失败不影响页面显示
             pass
 
-        return super().changelist_view(request, extra_context)
+        return response
 
     def get_queryset(self, request):
         """优化查询"""
@@ -404,7 +388,7 @@ class RSSHubGlobalConfigAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         """禁止手动添加（单例模式）"""
-        return not RSSHubGlobalConfig._default_manager.exists()
+        return not _policy_admin_service().has_rsshub_global_config()
 
     def has_delete_permission(self, request, obj=None):
         """禁止删除配置"""
@@ -471,10 +455,11 @@ class RSSHubGlobalConfigAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         """自定义列表页（单例模式）"""
         # 如果已有配置，直接跳转到编辑页
-        if RSSHubGlobalConfig._default_manager.exists():
-            config = RSSHubGlobalConfig.get_config()
+        config_id = _policy_admin_service().get_rsshub_global_config_id()
+        if config_id is not None:
             return super().change_view(
-                str(config.pk),
+                request,
+                str(config_id),
                 extra_context=extra_context
             )
         return super().changelist_view(request, extra_context)

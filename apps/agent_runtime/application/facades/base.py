@@ -76,166 +76,50 @@ class BaseContextFacade:
 
     domain: str = "base"
 
+    def __init__(self, context_repository=None):
+        if context_repository is None:
+            from apps.agent_runtime.infrastructure.context_snapshot_repository import (
+                DjangoContextSnapshotRepository,
+            )
+
+            context_repository = DjangoContextSnapshotRepository()
+        self.context_repository = context_repository
+
     # ------------------------------------------------------------------
     # Individual data source fetchers (override in subclasses as needed)
     # ------------------------------------------------------------------
 
     def fetch_regime_summary(self) -> dict[str, Any]:
         """Fetch current regime state."""
-        try:
-            from apps.regime.infrastructure.models import RegimeRecord
-            latest = RegimeRecord.objects.order_by("-observed_at").first()
-            if latest is None:
-                return {"status": "no_data", "message": "No regime records found"}
-            return {
-                "status": "ok",
-                "dominant_regime": latest.dominant_regime,
-                "growth_level": latest.growth_level,
-                "inflation_level": latest.inflation_level,
-                "observed_at": str(latest.observed_at),
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch regime summary: %s", e)
-            return _unavailable("regime", str(e))
+        return self.context_repository.fetch_regime_summary()
 
     def fetch_policy_summary(self) -> dict[str, Any]:
         """Fetch current policy gear status."""
-        try:
-            from apps.policy.infrastructure.models import PolicyEvent
-            latest = PolicyEvent.objects.order_by("-event_date").first()
-            if latest is None:
-                return {"status": "no_data", "message": "No policy events found"}
-            return {
-                "status": "ok",
-                "current_gear": getattr(latest, "gear", None),
-                "event_date": str(latest.event_date),
-                "description": getattr(latest, "description", ""),
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch policy summary: %s", e)
-            return _unavailable("policy", str(e))
+        return self.context_repository.fetch_policy_summary()
 
     def fetch_portfolio_summary(self) -> dict[str, Any]:
         """Fetch portfolio overview."""
-        try:
-            from apps.account.infrastructure.models import Portfolio, Position
-            portfolio = Portfolio.objects.first()
-            if portfolio is None:
-                return {"status": "no_data", "message": "No portfolio found"}
-            open_positions = Position.objects.filter(
-                portfolio=portfolio, is_closed=False
-            ).count()
-            return {
-                "status": "ok",
-                "portfolio_id": portfolio.id,
-                "portfolio_name": portfolio.name,
-                "position_count": open_positions,
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch portfolio summary: %s", e)
-            return _unavailable("portfolio", str(e))
+        return self.context_repository.fetch_portfolio_summary()
 
     def fetch_active_signals_summary(self) -> dict[str, Any]:
         """Fetch active investment signals summary."""
-        try:
-            from apps.signal.infrastructure.models import InvestmentSignal
-            active_qs = InvestmentSignal.objects.filter(is_active=True)
-            total = active_qs.count()
-            recent = list(
-                active_qs.order_by("-created_at")[:5].values(
-                    "id", "asset_code", "signal_type", "created_at"
-                )
-            )
-            for item in recent:
-                if item.get("created_at"):
-                    item["created_at"] = item["created_at"].isoformat()
-            return {
-                "status": "ok",
-                "active_count": total,
-                "recent": recent,
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch active signals: %s", e)
-            return _unavailable("signal", str(e))
+        return self.context_repository.fetch_active_signals_summary()
 
     def fetch_open_decisions_summary(self) -> dict[str, Any]:
         """Fetch open decision requests summary."""
-        try:
-            from apps.decision_rhythm.infrastructure.models import DecisionRequest
-            pending = DecisionRequest.objects.filter(status="pending").count()
-            return {
-                "status": "ok",
-                "pending_count": pending,
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch open decisions: %s", e)
-            return _unavailable("decision_rhythm", str(e))
+        return self.context_repository.fetch_open_decisions_summary()
 
     def fetch_risk_alerts_summary(self) -> dict[str, Any]:
         """Fetch risk-related alerts."""
-        try:
-            from apps.beta_gate.infrastructure.models import BetaGateConfig
-            active_gates = BetaGateConfig.objects.filter(is_active=True).count()
-            return {
-                "status": "ok",
-                "active_beta_gates": active_gates,
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch risk alerts: %s", e)
-            return _unavailable("risk", str(e))
+        return self.context_repository.fetch_risk_alerts_summary()
 
     def fetch_task_health_summary(self) -> dict[str, Any]:
         """Fetch agent runtime task health."""
-        try:
-            from apps.agent_runtime.domain.entities import TaskStatus
-            from apps.agent_runtime.infrastructure.models import AgentTaskModel
-
-            total = AgentTaskModel._default_manager.count()
-            active = AgentTaskModel._default_manager.exclude(
-                status__in=[
-                    TaskStatus.COMPLETED.value,
-                    TaskStatus.CANCELLED.value,
-                ]
-            ).count()
-            needs_human = AgentTaskModel._default_manager.filter(
-                requires_human=True
-            ).count()
-            failed = AgentTaskModel._default_manager.filter(
-                status=TaskStatus.FAILED.value
-            ).count()
-            return {
-                "status": "ok",
-                "total_tasks": total,
-                "active_tasks": active,
-                "needs_human": needs_human,
-                "failed_tasks": failed,
-            }
-        except Exception as e:
-            logger.warning("Failed to fetch task health: %s", e)
-            return _unavailable("agent_runtime", str(e))
+        return self.context_repository.fetch_task_health_summary()
 
     def fetch_data_freshness_summary(self) -> dict[str, Any]:
         """Fetch data freshness metrics across sources."""
-        freshness: dict[str, Any] = {"status": "ok", "sources": {}}
-        # Regime freshness
-        try:
-            from apps.regime.infrastructure.models import RegimeRecord
-            latest = RegimeRecord.objects.order_by("-observed_at").first()
-            if latest:
-                freshness["sources"]["regime"] = str(latest.observed_at)
-        except Exception:
-            freshness["sources"]["regime"] = "unavailable"
-
-        # Macro freshness
-        try:
-            from apps.macro.infrastructure.models import MacroDataPoint
-            latest = MacroDataPoint.objects.order_by("-data_date").first()
-            if latest:
-                freshness["sources"]["macro"] = str(latest.data_date)
-        except Exception:
-            freshness["sources"]["macro"] = "unavailable"
-
-        return freshness
+        return self.context_repository.fetch_data_freshness_summary()
 
     # ------------------------------------------------------------------
     # Main aggregation

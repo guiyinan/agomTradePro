@@ -10,8 +10,14 @@ GetActionRecommendationUseCase: 获取联合行动建议（Regime + Pulse）
 import logging
 from datetime import date
 
+from apps.pulse.application.query_services import (
+    list_active_navigator_asset_config_payloads,
+)
+from apps.regime.application.repository_provider import (
+    get_default_macro_repository,
+    get_navigator_repository,
+)
 from apps.regime.domain.action_mapper import (
-    ActionMapperConfig,
     RegimeActionRecommendation,
     map_regime_pulse_to_action,
 )
@@ -24,7 +30,6 @@ from apps.regime.domain.entities import (
 )
 from apps.regime.domain.navigator_services import (
     RegimeAssetConfig,
-    WatchIndicatorConfig,
     assess_regime_movement,
     determine_watch_indicators,
     map_regime_to_asset_guidance,
@@ -80,9 +85,7 @@ def _build_blocked_action_recommendation(
 def _load_asset_config_from_db() -> RegimeAssetConfig | None:
     """从数据库加载 Navigator 资产配置，失败返回 None（使用 Domain 默认）"""
     try:
-        from apps.pulse.infrastructure.models import NavigatorAssetConfigModel
-
-        db_configs = list(NavigatorAssetConfigModel.objects.filter(is_active=True))
+        db_configs = list_active_navigator_asset_config_payloads()
         if not db_configs:
             return None
 
@@ -92,15 +95,15 @@ def _load_asset_config_from_db() -> RegimeAssetConfig | None:
         styles: dict[str, list[str]] = {}
 
         for cfg in db_configs:
-            regime = cfg.regime_name
-            # asset_weight_ranges: {"equity": [0.5, 0.7], ...}
-            ranges_dict = {}
-            for cat, (lo, hi) in cfg.asset_weight_ranges.items():
-                ranges_dict[cat] = (float(lo), float(hi))
+            regime = str(cfg["regime_name"])
+            ranges_dict: dict[str, tuple[float, float]] = {}
+            for cat, bounds in dict(cfg["asset_weight_ranges"]).items():
+                lo, hi = bounds
+                ranges_dict[str(cat)] = (float(lo), float(hi))
             asset_ranges[regime] = ranges_dict
-            risk_budget[regime] = cfg.risk_budget
-            sectors[regime] = cfg.recommended_sectors
-            styles[regime] = cfg.benefiting_styles
+            risk_budget[regime] = float(cfg["risk_budget"])
+            sectors[regime] = list(cfg["recommended_sectors"])
+            styles[regime] = list(cfg["benefiting_styles"])
 
         return RegimeAssetConfig(
             asset_ranges=asset_ranges,
@@ -141,8 +144,7 @@ class BuildRegimeNavigatorUseCase:
             # 获取 macro repo
             repo = self.macro_repo
             if repo is None:
-                from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-                repo = MacroRepositoryAdapter()
+                repo = get_default_macro_repository()
 
             # 1. 基础 regime 判定
             use_case = CalculateRegimeV2UseCase(repo)
@@ -338,8 +340,7 @@ class GetActionRecommendationUseCase:
 
             # 持久化 ActionRecommendationLog
             try:
-                from apps.regime.infrastructure.repositories import DjangoNavigatorRepository
-                repo = DjangoNavigatorRepository()
+                repo = get_navigator_repository()
                 repo.save_action_recommendation(
                     observed_at=target_date,
                     data={
@@ -378,8 +379,7 @@ class GetRegimeNavigatorHistoryUseCase:
 
     def execute(self, start_date: date, end_date: date) -> dict:
         try:
-            from apps.regime.infrastructure.repositories import DjangoNavigatorRepository
-            repo = DjangoNavigatorRepository()
+            repo = get_navigator_repository()
 
             # 1. Regime Transitions
             regimes = repo.get_regimes_in_range(start_date, end_date)

@@ -1,9 +1,10 @@
 """Pulse 数据仓储"""
 
 from datetime import date
+from typing import Any
 
 from apps.pulse.domain.entities import DimensionScore, PulseIndicatorReading, PulseSnapshot
-from apps.pulse.infrastructure.models import PulseLog
+from apps.pulse.infrastructure.models import NavigatorAssetConfigModel, PulseLog
 
 
 class PulseRepository:
@@ -132,6 +133,44 @@ class PulseRepository:
             data_source=log.data_source,
             stale_indicator_count=sum(1 for r in readings if r.is_stale),
         )
+
+
+class NavigatorAssetConfigRepository:
+    """Navigator 资产配置仓储。"""
+
+    def list_active_config_payloads(self) -> list[dict[str, Any]]:
+        """返回激活配置的原始载荷，避免 Application 层直接接触 ORM。"""
+        payloads: list[dict[str, Any]] = []
+        queryset = NavigatorAssetConfigModel.objects.filter(is_active=True).order_by(
+            "regime_name"
+        )
+
+        for config in queryset:
+            asset_weight_ranges: dict[str, tuple[float, float]] = {}
+            for category, bounds in (config.asset_weight_ranges or {}).items():
+                if not isinstance(bounds, (list, tuple)) or len(bounds) < 2:
+                    continue
+                asset_weight_ranges[str(category)] = (
+                    float(bounds[0]),
+                    float(bounds[1]),
+                )
+
+            payloads.append(
+                {
+                    "regime_name": str(config.regime_name),
+                    "asset_weight_ranges": asset_weight_ranges,
+                    "risk_budget": float(config.risk_budget),
+                    "recommended_sectors": [str(item) for item in config.recommended_sectors],
+                    "benefiting_styles": [str(item) for item in config.benefiting_styles],
+                }
+            )
+
+        return payloads
+
+
+def get_navigator_asset_config_repository() -> NavigatorAssetConfigRepository:
+    """返回 Navigator 资产配置仓储实例。"""
+    return NavigatorAssetConfigRepository()
 
 
 def _score_to_signal(score: float) -> str:

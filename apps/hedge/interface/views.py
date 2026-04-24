@@ -1,10 +1,4 @@
-"""
-Hedge Module Interface Layer - Views
-
-DRF ViewSets and page views for the hedge module.
-"""
-
-from datetime import date, datetime
+"""Hedge module interface views."""
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -14,41 +8,11 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-# Application layer UseCases - for page views
-from apps.hedge.application.use_cases import (
-    ActivateHedgePairRequest,
-    ActivateHedgePairUseCase,
-    DeactivateHedgePairRequest,
-    DeactivateHedgePairUseCase,
-    GetHedgeAlertsForViewUseCase,
-    GetHedgePairsForViewUseCase,
-    GetHedgeSnapshotsForViewUseCase,
-    HedgeAlertsViewRequest,
-    HedgePairsViewRequest,
-    HedgeSnapshotsViewRequest,
-    ResolveHedgeAlertRequest,
-    ResolveHedgeAlertUseCase,
-)
-
-# Infrastructure models - kept for DRF ViewSets (read-only access)
-from apps.hedge.infrastructure.models import (
-    CorrelationHistoryModel,
-    HedgeAlertModel,
-    HedgePairModel,
-    HedgePortfolioSnapshotModel,
-)
-from apps.hedge.infrastructure.repositories import (
-    CorrelationHistoryRepository,
-    HedgeAlertRepository,
-    HedgePairRepository,
-    HedgePortfolioRepository,
-)
-from apps.hedge.infrastructure.services import HedgeIntegrationService
+from apps.hedge.application import interface_services
 from apps.hedge.interface.serializers import (
     CorrelationHistorySerializer,
     CorrelationMatrixRequestSerializer,
     HedgeAlertSerializer,
-    HedgeEffectivenessRequestSerializer,
     HedgePairSerializer,
     HedgePortfolioSnapshotSerializer,
 )
@@ -56,35 +20,38 @@ from apps.hedge.interface.serializers import (
 
 class HedgePairViewSet(viewsets.ModelViewSet):
     """ViewSet for HedgePair model"""
-    queryset = HedgePairModel._default_manager.all()
     serializer_class = HedgePairSerializer
     filterset_fields = ['is_active', 'hedge_method']
     search_fields = ['name', 'long_asset', 'hedge_asset']
     ordering = ['-is_active', 'name']
 
+    def get_queryset(self):
+        """Return the hedge pair queryset."""
+        return interface_services.get_hedge_pair_queryset()
+
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         """Activate this hedge pair"""
         pair = self.get_object()
-        pair.is_active = True
-        pair.save()
+        response = interface_services.activate_hedge_pair(pair_id=pair.id)
+        if not response.success:
+            return Response({'error': response.message}, status=status.HTTP_404_NOT_FOUND)
         return Response({'status': 'activated'})
 
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
         """Deactivate this hedge pair"""
         pair = self.get_object()
-        pair.is_active = False
-        pair.save()
+        response = interface_services.deactivate_hedge_pair(pair_id=pair.id)
+        if not response.success:
+            return Response({'error': response.message}, status=status.HTTP_404_NOT_FOUND)
         return Response({'status': 'deactivated'})
 
     @action(detail=True, methods=['get', 'post'])
     def check_effectiveness(self, request, pk=None):
         """Check hedge effectiveness for this pair"""
         pair = self.get_object()
-        service = HedgeIntegrationService()
-
-        result = service.check_hedge_effectiveness(pair.name)
+        result = interface_services.get_hedge_effectiveness_payload(pair_name=pair.name)
 
         if result is None:
             return Response(
@@ -101,35 +68,29 @@ class HedgePairViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             asset_codes = serializer.validated_data.get('asset_codes', [])
             window_days = serializer.validated_data.get('window_days', 60)
-
-            service = HedgeIntegrationService()
-            matrix = service.get_correlation_matrix(asset_codes, window_days=window_days)
-
-            return Response({
-                'asset_codes': asset_codes,
-                'window_days': window_days,
-                'matrix': matrix,
-            })
+            return Response(
+                interface_services.get_correlation_matrix_payload(
+                    asset_codes=asset_codes,
+                    window_days=window_days,
+                )
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
     def all_effectiveness(self, request):
         """Get effectiveness for all active hedge pairs"""
-        service = HedgeIntegrationService()
-        results = service.get_all_effectiveness()
-
-        return Response({
-            'count': len(results),
-            'results': results,
-        })
+        return Response(interface_services.get_all_effectiveness_payload())
 
 
 class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for CorrelationHistory model"""
-    queryset = CorrelationHistoryModel._default_manager.all()
     serializer_class = CorrelationHistorySerializer
     filterset_fields = ['asset1', 'asset2', 'calc_date', 'window_days']
     ordering = ['-calc_date']
+
+    def get_queryset(self):
+        """Return the correlation history queryset."""
+        return interface_services.get_correlation_history_queryset()
 
     @action(detail=False, methods=['post'])
     def calculate(self, request):
@@ -144,8 +105,11 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = HedgeIntegrationService()
-        metric = service.calculate_correlation(asset1, asset2, window_days=window_days)
+        metric = interface_services.get_correlation_metric_payload(
+            asset1=asset1,
+            asset2=asset2,
+            window_days=window_days,
+        )
 
         if metric is None:
             return Response(
@@ -153,88 +117,48 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        return Response({
-            'asset1': metric.asset1,
-            'asset2': metric.asset2,
-            'calc_date': metric.calc_date.isoformat(),
-            'window_days': metric.window_days,
-            'correlation': round(metric.correlation, 4),
-            'beta': round(metric.beta, 4) if metric.beta else None,
-            'correlation_trend': metric.correlation_trend,
-            'alert': metric.alert,
-        })
+        return Response(metric)
 
 
 class HedgePortfolioSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for HedgePortfolioSnapshot model"""
-    queryset = HedgePortfolioSnapshotModel._default_manager.all()
     serializer_class = HedgePortfolioSnapshotSerializer
     filterset_fields = ['pair', 'trade_date', 'rebalance_needed']
     ordering = ['-trade_date']
 
+    def get_queryset(self):
+        """Return the hedge snapshot queryset."""
+        return interface_services.get_hedge_snapshot_queryset()
+
     @action(detail=False, methods=['get'])
     def latest(self, request):
         """Get the latest snapshot for each hedge pair"""
-        service = HedgeIntegrationService()
-        pairs = service.get_all_pairs(active_only=True)
-
-        snapshots = []
-        for pair in pairs:
-            latest = service.get_hedge_portfolio(pair.name)
-            if latest:
-                snapshots.append({
-                    'pair_name': latest.pair_name,
-                    'trade_date': latest.trade_date.isoformat(),
-                    'long_weight': round(latest.long_weight * 100, 2),
-                    'hedge_weight': round(latest.hedge_weight * 100, 2),
-                    'hedge_ratio': round(latest.hedge_ratio, 3),
-                    'current_correlation': round(latest.current_correlation, 3),
-                    'hedge_effectiveness': round(latest.hedge_effectiveness * 100, 1),
-                    'rebalance_needed': latest.rebalance_needed,
-                    'rebalance_reason': latest.rebalance_reason,
-                })
-
-        return Response({
-            'count': len(snapshots),
-            'results': snapshots,
-        })
+        return Response(interface_services.get_latest_snapshots_payload())
 
     @action(detail=False, methods=['post'])
     def update_all(self, request):
         """Update all hedge portfolios"""
-        service = HedgeIntegrationService()
-        portfolios = service.update_all_portfolios()
-
-        return Response({
-            'updated': len(portfolios),
-            'portfolios': [
-                {
-                    'pair_name': p.pair_name,
-                    'trade_date': p.trade_date.isoformat(),
-                    'hedge_ratio': round(p.hedge_ratio, 3),
-                    'rebalance_needed': p.rebalance_needed,
-                }
-                for p in portfolios
-            ]
-        })
+        return Response(interface_services.update_all_portfolios_payload())
 
 
 class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for HedgeAlert model"""
-    queryset = HedgeAlertModel._default_manager.filter(is_resolved=False)
     serializer_class = HedgeAlertSerializer
     filterset_fields = ['pair_name', 'alert_date', 'alert_type', 'severity', 'is_resolved']
     ordering = ['-alert_date', '-action_priority']
 
+    def get_queryset(self):
+        """Return the hedge alert queryset."""
+        return interface_services.get_hedge_alert_queryset()
+
     @action(detail=True, methods=['post'])
     def resolve(self, request, pk=None):
         """Mark alert as resolved"""
-        service = HedgeIntegrationService()
-        alert = service.resolve_alert(pk)
+        response = interface_services.resolve_hedge_alert(alert_id=pk)
 
-        if alert is None:
+        if not response.success:
             return Response(
-                {'error': 'Alert not found'},
+                {'error': response.message},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -252,44 +176,12 @@ class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet):
         except ValueError:
             days = 7
 
-        service = HedgeIntegrationService()
-        alerts = service.get_recent_alerts(days=days)
-
-        return Response({
-            'count': len(alerts),
-            'results': [
-                {
-                    'pair_name': a.pair_name,
-                    'alert_date': a.alert_date.isoformat(),
-                    'alert_type': a.alert_type.value,
-                    'severity': a.severity,
-                    'message': a.message,
-                    'action_required': a.action_required,
-                    'action_priority': a.action_priority,
-                }
-                for a in alerts
-            ]
-        })
+        return Response(interface_services.get_recent_alerts_payload(days=days))
 
     @action(detail=False, methods=['post'])
     def monitor(self, request):
         """Run hedge pair monitoring and generate alerts"""
-        service = HedgeIntegrationService()
-        alerts = service.monitor_hedge_pairs()
-
-        return Response({
-            'generated_alerts': len(alerts),
-            'alerts': [
-                {
-                    'pair_name': a.pair_name,
-                    'alert_date': a.alert_date.isoformat(),
-                    'alert_type': a.alert_type.value,
-                    'severity': a.severity,
-                    'message': a.message,
-                }
-                for a in alerts
-            ]
-        })
+        return Response(interface_services.monitor_hedge_pairs_payload())
 
 
 class HedgeActionViewSet(viewsets.ViewSet):
@@ -318,8 +210,11 @@ class HedgeActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = HedgeIntegrationService()
-        metric = service.calculate_correlation(asset1, asset2, window_days=window_days)
+        metric = interface_services.get_correlation_metric_payload(
+            asset1=asset1,
+            asset2=asset2,
+            window_days=window_days,
+        )
 
         if metric is None:
             return Response(
@@ -327,19 +222,7 @@ class HedgeActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        return Response({
-            'asset1': metric.asset1,
-            'asset2': metric.asset2,
-            'calc_date': metric.calc_date.isoformat(),
-            'window_days': metric.window_days,
-            'correlation': round(metric.correlation, 4),
-            'covariance': round(metric.covariance, 4) if metric.covariance else None,
-            'beta': round(metric.beta, 4) if metric.beta else None,
-            'correlation_trend': metric.correlation_trend,
-            'correlation_ma': round(metric.correlation_ma, 4) if metric.correlation_ma else None,
-            'alert': metric.alert,
-            'alert_type': metric.alert_type.value if metric.alert_type else None,
-        })
+        return Response(metric)
 
     @action(detail=False, methods=['post'])
     def check_hedge_ratio(self, request):
@@ -352,8 +235,7 @@ class HedgeActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = HedgeIntegrationService()
-        result = service.calculate_hedge_ratio(pair_name)
+        result = interface_services.get_hedge_ratio_payload(pair_name=pair_name)
 
         if result is None:
             return Response(
@@ -361,14 +243,7 @@ class HedgeActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        hedge_ratio, details = result
-
-        return Response({
-            'pair_name': pair_name,
-            'hedge_ratio': round(hedge_ratio, 4),
-            'method': details.get('method', 'unknown'),
-            'details': details,
-        })
+        return Response(result)
 
     @action(detail=False, methods=['post'])
     def get_correlation_matrix(self, request):
@@ -382,14 +257,12 @@ class HedgeActionViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = HedgeIntegrationService()
-        matrix = service.get_correlation_matrix(asset_codes, window_days=window_days)
-
-        return Response({
-            'asset_codes': asset_codes,
-            'window_days': window_days,
-            'matrix': matrix,
-        })
+        return Response(
+            interface_services.get_correlation_matrix_payload(
+                asset_codes=asset_codes,
+                window_days=window_days,
+            )
+        )
 
 
 # ============================================================================
@@ -418,41 +291,18 @@ def hedge_pairs_view(request):
     # Parse search filter
     search_term = search if search else None
 
-    # Create request DTO
-    usecase_request = HedgePairsViewRequest(
-        is_active=is_active,
-        hedge_method=hedge_method,
-        search=search_term,
+    return render(
+        request,
+        'hedge/pairs.html',
+        interface_services.get_hedge_pairs_page_context(
+            is_active=is_active,
+            hedge_method=hedge_method,
+            search=search_term,
+            filter_is_active=is_active_filter,
+            filter_hedge_method=hedge_method_filter,
+            filter_search=search,
+        ),
     )
-
-    # Instantiate repositories
-    pair_repo = HedgePairRepository()
-    correlation_repo = CorrelationHistoryRepository()
-    snapshot_repo = HedgePortfolioRepository()
-
-    # Execute UseCase
-    use_case = GetHedgePairsForViewUseCase(pair_repo, correlation_repo, snapshot_repo)
-    response = use_case.execute(usecase_request)
-
-    # Hedge method choices (for filter dropdown)
-    hedge_methods = [
-        ('beta', 'Beta对冲'),
-        ('min_variance', '最小方差'),
-        ('equal_risk', '等风险贡献'),
-        ('dollar_neutral', '货币中性'),
-        ('fixed_ratio', '固定比例'),
-    ]
-
-    context = {
-        'pairs': response.pairs,
-        'stats': response.stats,
-        'hedge_methods': hedge_methods,
-        'filter_is_active': is_active_filter,
-        'filter_hedge_method': hedge_method_filter,
-        'filter_search': search,
-    }
-
-    return render(request, 'hedge/pairs.html', context)
 
 
 @ensure_csrf_cookie
@@ -471,30 +321,16 @@ def hedge_snapshots_view(request):
     if rebalance_filter:
         rebalance_needed = (rebalance_filter == 'true')
 
-    # Create request DTO
-    usecase_request = HedgeSnapshotsViewRequest(
-        pair_name=pair_name,
-        rebalance_needed=rebalance_needed,
-        limit=50,
+    return render(
+        request,
+        'hedge/snapshots.html',
+        interface_services.get_hedge_snapshots_page_context(
+            pair_name=pair_name,
+            rebalance_needed=rebalance_needed,
+            filter_pair_name=pair_name_filter,
+            filter_rebalance_needed=rebalance_filter,
+        ),
     )
-
-    # Instantiate repositories
-    snapshot_repo = HedgePortfolioRepository()
-    pair_repo = HedgePairRepository()
-
-    # Execute UseCase
-    use_case = GetHedgeSnapshotsForViewUseCase(snapshot_repo, pair_repo)
-    response = use_case.execute(usecase_request)
-
-    context = {
-        'snapshots': response.snapshots,
-        'stats': response.stats,
-        'pair_names': response.pair_names,
-        'filter_pair_name': pair_name_filter,
-        'filter_rebalance_needed': rebalance_filter,
-    }
-
-    return render(request, 'hedge/snapshots.html', context)
 
 
 @ensure_csrf_cookie
@@ -517,36 +353,20 @@ def hedge_alerts_view(request):
     if is_resolved_filter:
         is_resolved = (is_resolved_filter == 'true')
 
-    # Create request DTO
-    usecase_request = HedgeAlertsViewRequest(
-        pair_name=pair_name,
-        severity=severity,
-        alert_type=alert_type,
-        is_resolved=is_resolved,
-        limit=100,
+    return render(
+        request,
+        'hedge/alerts.html',
+        interface_services.get_hedge_alerts_page_context(
+            pair_name=pair_name,
+            severity=severity,
+            alert_type=alert_type,
+            is_resolved=is_resolved,
+            filter_pair_name=pair_name_filter,
+            filter_severity=severity_filter,
+            filter_alert_type=alert_type_filter,
+            filter_is_resolved=is_resolved_filter,
+        ),
     )
-
-    # Instantiate repositories
-    alert_repo = HedgeAlertRepository()
-    pair_repo = HedgePairRepository()
-
-    # Execute UseCase
-    use_case = GetHedgeAlertsForViewUseCase(alert_repo, pair_repo)
-    response = use_case.execute(usecase_request)
-
-    context = {
-        'alerts': response.alerts,
-        'stats': response.stats,
-        'alert_types': response.alert_types,
-        'severity_choices': response.severity_choices,
-        'pair_names': response.pair_names,
-        'filter_pair_name': pair_name_filter,
-        'filter_severity': severity_filter,
-        'filter_alert_type': alert_type_filter,
-        'filter_is_resolved': is_resolved_filter,
-    }
-
-    return render(request, 'hedge/alerts.html', context)
 
 
 @require_http_methods(["POST"])
@@ -555,10 +375,7 @@ def activate_pair_view(request, pair_id):
     Activate a hedge pair.
     Uses UseCase to access data through Application layer.
     """
-    usecase_request = ActivateHedgePairRequest(pair_id=pair_id)
-    pair_repo = HedgePairRepository()
-    use_case = ActivateHedgePairUseCase(pair_repo)
-    response = use_case.execute(usecase_request)
+    response = interface_services.activate_hedge_pair(pair_id=pair_id)
 
     if response.success:
         return JsonResponse({
@@ -578,10 +395,7 @@ def deactivate_pair_view(request, pair_id):
     Deactivate a hedge pair.
     Uses UseCase to access data through Application layer.
     """
-    usecase_request = DeactivateHedgePairRequest(pair_id=pair_id)
-    pair_repo = HedgePairRepository()
-    use_case = DeactivateHedgePairUseCase(pair_repo)
-    response = use_case.execute(usecase_request)
+    response = interface_services.deactivate_hedge_pair(pair_id=pair_id)
 
     if response.success:
         return JsonResponse({
@@ -598,32 +412,22 @@ def deactivate_pair_view(request, pair_id):
 @require_http_methods(["POST"])
 def update_portfolios_view(request):
     """Update all hedge portfolios"""
-    service = HedgeIntegrationService()
-    portfolios = service.update_all_portfolios()
-
+    payload = interface_services.update_all_portfolios_payload()
     return JsonResponse({
         'success': True,
-        'updated': len(portfolios),
-        'portfolios': [
-            {
-                'pair_name': p.pair_name,
-                'trade_date': p.trade_date.isoformat(),
-                'hedge_ratio': round(p.hedge_ratio, 3),
-            }
-            for p in portfolios
-        ]
+        'updated': payload['updated'],
+        'portfolios': payload['portfolios'],
     })
 
 
 @require_http_methods(["POST"])
 def run_monitoring_view(request):
     """Run hedge pair monitoring"""
-    service = HedgeIntegrationService()
-    alerts = service.monitor_hedge_pairs()
+    payload = interface_services.monitor_hedge_pairs_payload()
 
     return JsonResponse({
         'success': True,
-        'generated_alerts': len(alerts),
+        'generated_alerts': payload['generated_alerts'],
     })
 
 
@@ -633,10 +437,7 @@ def resolve_alert_view(request, alert_id):
     Mark an alert as resolved.
     Uses UseCase to access data through Application layer.
     """
-    usecase_request = ResolveHedgeAlertRequest(alert_id=alert_id)
-    alert_repo = HedgeAlertRepository()
-    use_case = ResolveHedgeAlertUseCase(alert_repo)
-    response = use_case.execute(usecase_request)
+    response = interface_services.resolve_hedge_alert(alert_id=alert_id)
 
     if response.success:
         return JsonResponse({

@@ -1,0 +1,11 @@
+"""Application-facing rotation integration service."""
+
+from __future__ import annotations
+
+from apps.rotation.infrastructure.services import (
+    RotationIntegrationService as _RotationIntegrationService,
+)
+
+
+class RotationIntegrationService(_RotationIntegrationService):
+    """Expose rotation integration through the application layer."""

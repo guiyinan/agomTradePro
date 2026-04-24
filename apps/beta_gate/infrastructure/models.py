@@ -199,7 +199,7 @@ class GateConfigModel(models.Model):
 
         return GateConfig(
             config_id=self.config_id,
-            risk_profile=RiskProfile(self.risk_profile),
+            risk_profile=RiskProfile(str(self.risk_profile).lower()),
             regime_constraint=RegimeConstraint.from_dict(self.regime_constraints),
             policy_constraint=PolicyConstraint.from_dict(self.policy_constraints),
             portfolio_constraint=PortfolioConstraint.from_dict(self.portfolio_constraints),
@@ -214,7 +214,7 @@ class GateConfigModel(models.Model):
         """从 Domain 层实体创建"""
         return cls(
             config_id=config.config_id,
-            risk_profile=config.risk_profile.value,
+            risk_profile=config.risk_profile.value.upper(),
             version=config.version,
             is_active=config.is_active,
             regime_constraints=config.regime_constraint.to_dict(),

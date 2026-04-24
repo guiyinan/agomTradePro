@@ -13,7 +13,7 @@ from hashlib import sha256
 from typing import List, Optional
 
 from django.db import IntegrityError, transaction
-from django.db.models import F, Max, Prefetch, Q
+from django.db.models import Count, F, Max, Prefetch, Q
 
 from apps.strategy.domain.entities import (
     ActionType,
@@ -972,3 +972,174 @@ class DjangoStrategyGatewayRepository:
         if not rule:
             return None
         return PositionManagementService.evaluate(rule=rule, context=context).to_dict()
+
+
+class StrategyInterfaceRepository:
+    """Strategy interface 层只读/轻写入仓储。"""
+
+    def get_strategy_queryset(self):
+        return StrategyModel._default_manager.select_related("created_by").all()
+
+    def get_strategy_queryset_for_owner(self, owner_profile_id: int):
+        return self.get_strategy_queryset().filter(created_by_id=owner_profile_id)
+
+    def list_user_strategies_with_counts(self, owner_profile_id: int):
+        return (
+            self.get_strategy_queryset_for_owner(owner_profile_id)
+            .annotate(
+                rule_count=Count("rules", distinct=True),
+                execution_count=Count("execution_logs", distinct=True),
+                portfolio_count=Count("portfolio_assignments", distinct=True),
+            )
+            .order_by("-created_at")
+        )
+
+    def get_user_strategy_stats(self, owner_profile_id: int) -> dict:
+        queryset = StrategyModel._default_manager.filter(created_by_id=owner_profile_id)
+        return {
+            "total": queryset.count(),
+            "active": queryset.filter(is_active=True).count(),
+            "inactive": queryset.filter(is_active=False).count(),
+            "by_type": {
+                "rule_based": queryset.filter(strategy_type="rule_based").count(),
+                "script_based": queryset.filter(strategy_type="script_based").count(),
+                "hybrid": queryset.filter(strategy_type="hybrid").count(),
+                "ai_driven": queryset.filter(strategy_type="ai_driven").count(),
+            },
+        }
+
+    def list_strategy_rule_summary(self, strategy_id: int, limit: int = 3):
+        return list(
+            RuleConditionModel._default_manager.filter(
+                strategy_id=strategy_id,
+                is_enabled=True,
+            )
+            .order_by("-priority", "-created_at")[:limit]
+        )
+
+    def replace_rule_conditions(self, strategy_id: int, validated_rules: list[dict]) -> None:
+        with transaction.atomic():
+            RuleConditionModel._default_manager.filter(strategy_id=strategy_id).delete()
+            for validated_rule in validated_rules:
+                RuleConditionModel._default_manager.create(**validated_rule)
+
+    def get_strategy_script_config(self, strategy_id: int):
+        return ScriptConfigModel._default_manager.filter(strategy_id=strategy_id).first()
+
+    def delete_strategy_script_config(self, strategy_id: int) -> None:
+        ScriptConfigModel._default_manager.filter(strategy_id=strategy_id).delete()
+
+    def get_strategy_ai_config(self, strategy_id: int):
+        return AIStrategyConfigModel._default_manager.filter(strategy_id=strategy_id).first()
+
+    def get_strategy_execution_logs_page(self, strategy_id: int, offset: int, limit: int):
+        queryset = (
+            StrategyExecutionLogModel._default_manager.filter(strategy_id=strategy_id)
+            .select_related("strategy", "portfolio")
+            .order_by("-execution_time")
+        )
+        return queryset[offset : offset + limit], queryset.count()
+
+    def get_strategy_position_rule(self, strategy_id: int):
+        return (
+            PositionManagementRuleModel._default_manager.select_related("strategy")
+            .filter(strategy_id=strategy_id)
+            .first()
+        )
+
+    def get_position_management_rule_queryset(self):
+        return PositionManagementRuleModel._default_manager.select_related("strategy").all()
+
+    def get_rule_condition_queryset(self):
+        return RuleConditionModel._default_manager.select_related("strategy").all()
+
+    def get_script_config_queryset(self):
+        return ScriptConfigModel._default_manager.select_related("strategy").all()
+
+    def get_ai_strategy_config_queryset(self):
+        return AIStrategyConfigModel._default_manager.select_related(
+            "strategy",
+            "prompt_template",
+            "chain_config",
+            "ai_provider",
+        ).all()
+
+    def get_assignment_queryset(self):
+        return PortfolioStrategyAssignmentModel._default_manager.select_related(
+            "portfolio",
+            "strategy",
+            "assigned_by",
+        ).all()
+
+    def list_assignments_by_portfolio(self, portfolio_id: int):
+        return self.get_assignment_queryset().filter(portfolio_id=portfolio_id)
+
+    def list_active_assignments_for_strategy(self, strategy_id: int):
+        return list(
+            self.get_assignment_queryset().filter(
+                strategy_id=strategy_id,
+                is_active=True,
+            )
+        )
+
+    def bind_strategy(self, *, portfolio_id: int, strategy, assigned_by):
+        with transaction.atomic():
+            assignments = PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
+                portfolio_id=portfolio_id
+            )
+            assignments.filter(is_active=True).exclude(strategy=strategy).update(is_active=False)
+            assignment, created = assignments.get_or_create(
+                portfolio_id=portfolio_id,
+                strategy=strategy,
+                defaults={
+                    "assigned_by": assigned_by,
+                    "is_active": True,
+                },
+            )
+            if not created and (
+                not assignment.is_active or assignment.assigned_by_id != assigned_by.id
+            ):
+                assignment.is_active = True
+                assignment.assigned_by = assigned_by
+                assignment.save(update_fields=["is_active", "assigned_by", "updated_at"])
+            return assignment
+
+    def unbind_portfolio_strategies(self, portfolio_id: int) -> None:
+        with transaction.atomic():
+            PortfolioStrategyAssignmentModel._default_manager.select_for_update().filter(
+                portfolio_id=portfolio_id,
+                is_active=True,
+            ).update(is_active=False)
+
+    def set_strategy_active(self, strategy_id: int, is_active: bool):
+        strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
+        if strategy is None:
+            return None
+        strategy.is_active = is_active
+        strategy.save(update_fields=["is_active", "updated_at"])
+        return strategy
+
+    def set_rule_enabled(self, rule_id: int, is_enabled: bool):
+        rule = RuleConditionModel._default_manager.filter(id=rule_id).first()
+        if rule is None:
+            return None
+        rule.is_enabled = is_enabled
+        rule.save(update_fields=["is_enabled", "updated_at"])
+        return rule
+
+    def set_assignment_active(self, assignment_id: int, is_active: bool):
+        assignment = PortfolioStrategyAssignmentModel._default_manager.filter(id=assignment_id).first()
+        if assignment is None:
+            return None
+        assignment.is_active = is_active
+        assignment.save(update_fields=["is_active", "updated_at"])
+        return assignment
+
+    def get_execution_log_queryset(self):
+        return StrategyExecutionLogModel._default_manager.select_related("strategy", "portfolio").all()
+
+    def list_execution_logs_by_strategy(self, strategy_id: int, limit: int = 100):
+        return list(self.get_execution_log_queryset().filter(strategy_id=strategy_id)[:limit])
+
+    def list_execution_logs_by_portfolio(self, portfolio_id: int, limit: int = 100):
+        return list(self.get_execution_log_queryset().filter(portfolio_id=portfolio_id)[:limit])

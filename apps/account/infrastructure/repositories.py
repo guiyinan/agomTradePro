@@ -5,20 +5,26 @@ Account Infrastructure Repositories
 遵循依赖反转原则：Domain层定义接口，Infrastructure层实现。
 """
 
+import json
 import logging
 import warnings
 from datetime import date, datetime, timedelta
 
 logger = logging.getLogger(__name__)
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Coalesce
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
+from apps.account.infrastructure.backup_service import (
+    generate_backup_archive,
+    validate_download_token,
+)
 from apps.account.domain.entities import (
     AccountProfile,
     AssetClassType,
@@ -38,16 +44,24 @@ from apps.account.domain.entities import (
 )
 from apps.account.infrastructure.models import (
     AccountProfileModel,
+    AssetCategoryModel,
     AssetMetadataModel,
+    CapitalFlowModel,
+    CurrencyModel,
+    ExchangeRateModel,
     MacroSizingConfigModel,
     PortfolioDailySnapshotModel,
     PortfolioModel,
+    PortfolioObserverGrantModel,
     PositionModel,
     PositionSignalLogModel,
     StopLossConfigModel,
+    SystemSettingsModel,
     StopLossTriggerModel,
     TakeProfitConfigModel,
+    TradingCostConfigModel,
     TransactionModel,
+    UserAccessTokenModel,
 )
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
@@ -169,6 +183,159 @@ class AccountRepository:
             ]
         )
         return self.get_volatility_settings(user_id)
+
+
+class AccountClassificationRepository:
+    """Classification and FX persistence helpers for interface/application layers."""
+
+    def list_active_asset_categories(self):
+        """Return active asset categories with related parent/children loaded."""
+
+        return (
+            AssetCategoryModel._default_manager.filter(is_active=True)
+            .select_related("parent")
+            .prefetch_related("children")
+            .order_by("path", "sort_order")
+        )
+
+    def list_root_asset_categories(self):
+        """Return active root-level asset categories."""
+
+        return self.list_active_asset_categories().filter(level=1)
+
+    def list_tree_root_asset_categories(self):
+        """Return active root categories without parents."""
+
+        return self.list_active_asset_categories().filter(level=1, parent__isnull=True)
+
+    def list_child_asset_categories(self, category_id: int):
+        """Return active child categories for one parent."""
+
+        return (
+            AssetCategoryModel._default_manager.filter(parent_id=category_id, is_active=True)
+            .select_related("parent")
+            .order_by("sort_order")
+        )
+
+    def create_asset_category(self, **validated_data):
+        """Create one asset category."""
+
+        return AssetCategoryModel._default_manager.create(**validated_data)
+
+    def update_asset_category(self, *, category_id: int, **validated_data):
+        """Update one asset category and return the refreshed model."""
+
+        model = AssetCategoryModel._default_manager.get(id=category_id)
+        for field, value in validated_data.items():
+            setattr(model, field, value)
+        model.save()
+        return model
+
+    def delete_asset_category(self, *, category_id: int) -> None:
+        """Delete one asset category."""
+
+        AssetCategoryModel._default_manager.filter(id=category_id).delete()
+
+    def list_active_currencies(self):
+        """Return active currencies."""
+
+        return CurrencyModel._default_manager.filter(is_active=True).order_by("-is_base", "code")
+
+    def get_base_currency(self):
+        """Return the configured base currency."""
+
+        return self.list_active_currencies().filter(is_base=True).first() or self.list_active_currencies().filter(
+            code="CNY"
+        ).first()
+
+    def list_exchange_rates(self):
+        """Return exchange rates with currency relations loaded."""
+
+        return (
+            ExchangeRateModel._default_manager.select_related("from_currency", "to_currency")
+            .all()
+            .order_by("-effective_date")
+        )
+
+    def create_exchange_rate(self, **validated_data):
+        """Create one exchange rate."""
+
+        return ExchangeRateModel._default_manager.create(**validated_data)
+
+    def update_exchange_rate(self, *, exchange_rate_id: int, **validated_data):
+        """Update one exchange rate and return the refreshed model."""
+
+        model = ExchangeRateModel._default_manager.get(id=exchange_rate_id)
+        for field, value in validated_data.items():
+            setattr(model, field, value)
+        model.save()
+        return model
+
+    def delete_exchange_rate(self, *, exchange_rate_id: int) -> None:
+        """Delete one exchange rate."""
+
+        ExchangeRateModel._default_manager.filter(id=exchange_rate_id).delete()
+
+    def get_latest_exchange_rate(self, *, from_code: str, to_code: str):
+        """Return the latest exchange rate for one currency pair."""
+
+        return self.list_exchange_rates().filter(
+            from_currency__code=from_code,
+            to_currency__code=to_code,
+        ).first()
+
+    def get_exchange_rate_for_conversion(self, *, from_code: str, to_code: str, date_value=None):
+        """Return the effective exchange rate used for conversion."""
+
+        queryset = self.list_exchange_rates().filter(
+            from_currency__code=from_code,
+            to_currency__code=to_code,
+        )
+        if date_value:
+            queryset = queryset.filter(effective_date__lte=date_value)
+        return queryset.first()
+
+    def convert_amount(self, *, amount: Decimal, from_code: str, to_code: str, date_value=None) -> Decimal:
+        """Convert one amount between currencies."""
+
+        if from_code == to_code:
+            return amount
+
+        rate_model = self.get_exchange_rate_for_conversion(
+            from_code=from_code,
+            to_code=to_code,
+            date_value=date_value,
+        )
+        if rate_model is None:
+            raise ValueError(f"No exchange rate found for {from_code} -> {to_code}")
+        return rate_model.convert(amount)
+
+    def get_portfolio_for_user(self, *, portfolio_id: int, user_id: int):
+        """Return one portfolio owned by the given user."""
+
+        return (
+            PortfolioModel._default_manager.select_related("base_currency")
+            .filter(id=portfolio_id, user_id=user_id)
+            .first()
+        )
+
+    def list_portfolio_allocation_rows(self, *, portfolio_id: int) -> list[dict[str, Any]]:
+        """Return position rows required for category/currency allocation summaries."""
+
+        positions = (
+            PositionModel._default_manager.filter(portfolio_id=portfolio_id, is_closed=False)
+            .select_related("category", "currency")
+            .order_by("id")
+        )
+        return [
+            {
+                "category_path": position.category.get_full_path() if position.category else "未分类",
+                "currency_code": position.currency.code if position.currency else "CNY",
+                "currency_name": position.currency.name if position.currency else "CNY",
+                "amount": position.market_value,
+            }
+            for position in positions
+        ]
 
 
 class PortfolioRepository:
@@ -488,6 +655,28 @@ class PositionRepository:
             "user_email": model.portfolio.user.email,
             "portfolio_id": model.portfolio_id,
             "portfolio_name": model.portfolio.name,
+        }
+
+    def get_position_stop_management_context(self, position_id: int) -> dict[str, Any] | None:
+        """Return stop-loss/take-profit management context for one position."""
+
+        try:
+            model = PositionModel._default_manager.select_related("portfolio__user").get(
+                id=position_id
+            )
+        except PositionModel.DoesNotExist:
+            return None
+
+        return {
+            "id": model.id,
+            "asset_code": model.asset_code,
+            "shares": model.shares,
+            "avg_cost": model.avg_cost,
+            "current_price": model.current_price,
+            "opened_at": model.opened_at,
+            "portfolio_id": model.portfolio_id,
+            "user_id": model.portfolio.user_id,
+            "user_email": model.portfolio.user.email,
         }
 
     def create_position_legacy(
@@ -1018,6 +1207,7 @@ class StopLossRepository:
                     "opened_at": config.position.opened_at,
                     "portfolio_id": config.position.portfolio_id,
                     "user_id": config.position.portfolio.user_id,
+                    "user_email": config.position.portfolio.user.email,
                 },
             }
             for config in configs
@@ -1159,8 +1349,10 @@ class TakeProfitRepository:
                     "shares": config.position.shares,
                     "avg_cost": config.position.avg_cost,
                     "current_price": config.position.current_price,
+                    "opened_at": config.position.opened_at,
                     "portfolio_id": config.position.portfolio_id,
                     "user_id": config.position.portfolio.user_id,
+                    "user_email": config.position.portfolio.user.email,
                 },
             }
             for config in configs
@@ -1404,4 +1596,989 @@ class MacroSizingConfigRepository:
                 for item in drawdown_tiers
             ],
             version=version,
+        )
+
+
+class AccountInterfaceRepository:
+    """Interface-facing query and command helpers for the account module."""
+
+    def get_system_settings(self):
+        """Return the singleton system settings model."""
+
+        return SystemSettingsModel.get_settings()
+
+    def has_system_settings_singleton(self) -> bool:
+        """Return whether the singleton system settings row already exists."""
+
+        return SystemSettingsModel._default_manager.exists()
+
+    def get_existing_system_settings(self):
+        """Return the existing singleton settings row without creating one."""
+
+        return SystemSettingsModel._default_manager.first()
+
+    def get_active_access_token(self, key: str):
+        """Return one active access token with user/profile preloaded."""
+
+        return (
+            UserAccessTokenModel._default_manager.select_related(
+                "user",
+                "user__account_profile",
+            )
+            .filter(key=key, is_active=True)
+            .first()
+        )
+
+    def touch_access_token(self, token) -> None:
+        """Persist last-used metadata for one access token."""
+
+        token.last_used_at = timezone.now()
+        token.save(update_fields=["last_used_at", "updated_at"])
+
+    def provision_registered_user(
+        self,
+        *,
+        user: User,
+        display_name: str,
+        system_settings,
+        client_ip: str | None,
+        approval_status: str,
+        rbac_role: str,
+    ) -> None:
+        """Create account scaffolding for a newly registered user."""
+
+        AccountProfileModel._default_manager.update_or_create(
+            user=user,
+            defaults={
+                "display_name": display_name,
+                "initial_capital": Decimal("1000000.00"),
+                "risk_tolerance": "moderate",
+                "mcp_enabled": system_settings.default_mcp_enabled,
+                "user_agreement_accepted": True,
+                "risk_warning_acknowledged": True,
+                "agreement_accepted_at": timezone.now(),
+                "agreement_ip_address": client_ip,
+                "approval_status": approval_status,
+                "rbac_role": rbac_role,
+            },
+        )
+        PortfolioModel._default_manager.get_or_create(
+            user=user,
+            name="默认组合",
+            defaults={"is_active": True},
+        )
+
+    def build_profile_context(self, user_id: int) -> dict[str, Any]:
+        """Build the profile page context."""
+
+        user = User._default_manager.select_related("account_profile").get(id=user_id)
+        portfolios = PortfolioModel._default_manager.filter(user_id=user_id).order_by("-created_at")
+        investment_accounts = AccountRepository().list_investment_accounts(user_id)
+
+        total_assets = 0.0
+        if investment_accounts:
+            total_assets = sum(float(account["total_value"]) for account in investment_accounts)
+        else:
+            portfolio_repo = PortfolioRepository()
+            for portfolio in portfolios.filter(is_active=True):
+                snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)
+                if snapshot:
+                    total_assets += float(snapshot.total_value)
+
+        return {
+            "user": user,
+            "profile": user.account_profile,
+            "portfolios": portfolios,
+            "investment_accounts": investment_accounts,
+            "total_assets": total_assets,
+        }
+
+    def build_settings_context(self, user_id: int) -> dict[str, Any]:
+        """Build the settings page context."""
+
+        user = User._default_manager.select_related("account_profile").get(id=user_id)
+        profile = user.account_profile
+        portfolio = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True).first()
+        system_settings = SystemSettingsModel.get_settings()
+
+        if portfolio:
+            capital_flows = CapitalFlowModel._default_manager.filter(portfolio=portfolio).order_by(
+                "-flow_date", "-created_at"
+            )
+            total_deposit = capital_flows.filter(flow_type="deposit").aggregate(
+                total=Sum("amount")
+            )["total"] or Decimal("0")
+            total_withdraw = capital_flows.filter(flow_type="withdraw").aggregate(
+                total=Sum("amount")
+            )["total"] or Decimal("0")
+            net_capital = total_deposit - total_withdraw
+            trading_cost_config = TradingCostConfigModel._default_manager.filter(
+                portfolio=portfolio
+            ).first()
+        else:
+            capital_flows = []
+            total_deposit = Decimal("0")
+            total_withdraw = Decimal("0")
+            net_capital = Decimal("0")
+            trading_cost_config = None
+
+        access_tokens = UserAccessTokenModel._default_manager.filter(
+            user_id=user_id,
+            is_active=True,
+        ).order_by("-created_at")
+
+        return {
+            "user": user,
+            "profile": profile,
+            "portfolio": portfolio,
+            "capital_flows": capital_flows,
+            "total_deposit": total_deposit,
+            "total_withdraw": total_withdraw,
+            "net_capital": net_capital,
+            "trading_cost_config": trading_cost_config,
+            "system_settings": system_settings,
+            "access_tokens": access_tokens,
+        }
+
+    def update_account_settings(
+        self,
+        user_id: int,
+        *,
+        display_name: str,
+        risk_tolerance: str,
+        email: str,
+        new_password: str,
+    ) -> bool:
+        """Persist profile and credential changes. Returns whether password changed."""
+
+        user = User._default_manager.select_related("account_profile").get(id=user_id)
+        profile = user.account_profile
+        profile.display_name = display_name
+        profile.risk_tolerance = risk_tolerance
+        profile.save(update_fields=["display_name", "risk_tolerance", "updated_at"])
+
+        user_update_fields: list[str] = []
+        if email:
+            user.email = email
+            user_update_fields.append("email")
+        if new_password:
+            user.set_password(new_password)
+            user_update_fields.append("password")
+        if user_update_fields:
+            user.save(update_fields=user_update_fields)
+        return bool(new_password)
+
+    def get_api_profile(self, user_id: int):
+        """Return the account profile model for API serialization."""
+
+        user = User._default_manager.select_related("account_profile").get(id=user_id)
+        return user.account_profile
+
+    def update_api_profile(
+        self,
+        user_id: int,
+        *,
+        profile_data: Mapping[str, Any],
+        email: str | None = None,
+    ):
+        """Persist API profile updates and return the refreshed profile model."""
+
+        user = User._default_manager.select_related("account_profile").get(id=user_id)
+        profile = user.account_profile
+
+        update_fields: list[str] = []
+        for field_name in ("display_name", "risk_tolerance"):
+            if field_name in profile_data:
+                setattr(profile, field_name, profile_data[field_name])
+                update_fields.append(field_name)
+
+        if update_fields:
+            update_fields.append("updated_at")
+            profile.save(update_fields=update_fields)
+
+        if email:
+            user.email = email
+            user.save(update_fields=["email"])
+
+        return profile
+
+    def get_asset_metadata_queryset(self):
+        """Return the asset metadata queryset for API listing/retrieval."""
+
+        return AssetMetadataModel._default_manager.all()
+
+    def get_user_transaction_queryset(self, user_id: int):
+        """Return transactions scoped to portfolios owned by the user."""
+
+        return TransactionModel._default_manager.filter(
+            portfolio__user_id=user_id
+        ).select_related("portfolio", "position")
+
+    def get_user_capital_flow_queryset(self, user_id: int):
+        """Return capital flows scoped to portfolios owned by the user."""
+
+        return CapitalFlowModel._default_manager.filter(
+            portfolio__user_id=user_id
+        ).select_related("portfolio")
+
+    def get_user_portfolio(self, *, user_id: int, portfolio_id: int):
+        """Return one owned portfolio when available."""
+
+        return PortfolioModel._default_manager.filter(
+            id=portfolio_id,
+            user_id=user_id,
+        ).first()
+
+    def get_account_health_payload(self, user_id: int) -> dict[str, Any]:
+        """Return the API health summary for one user."""
+
+        return {
+            "status": "healthy",
+            "service": "account",
+            "portfolio_count": PortfolioModel._default_manager.filter(user_id=user_id).count(),
+            "position_count": PositionModel._default_manager.filter(
+                portfolio__user_id=user_id,
+                is_closed=False,
+            ).count(),
+        }
+
+    def search_observer_candidates(
+        self,
+        *,
+        owner_user_id: int,
+        query: str,
+    ) -> list[dict[str, Any]]:
+        """Search active users for collaboration grants."""
+
+        users = (
+            User._default_manager.filter(is_active=True)
+            .filter(
+                Q(username__icontains=query)
+                | Q(account_profile__display_name__icontains=query)
+            )
+            .exclude(id=owner_user_id)
+            .select_related("account_profile")[:10]
+        )
+        granted_user_ids = set(
+            PortfolioObserverGrantModel._default_manager.filter(
+                owner_user_id_id=owner_user_id,
+                status="active",
+            ).values_list("observer_user_id", flat=True)
+        )
+
+        return [
+            {
+                "id": user.id,
+                "username": user.username,
+                "display_name": (
+                    user.account_profile.display_name
+                    if hasattr(user, "account_profile")
+                    else user.username
+                ),
+                "email": user.email or "",
+                "is_already_granted": user.id in granted_user_ids,
+            }
+            for user in users
+        ]
+
+    def get_trading_cost_config_queryset(self, user_id: int):
+        """Return trading cost configs for portfolios owned by the user."""
+
+        return TradingCostConfigModel._default_manager.filter(
+            portfolio__user_id=user_id
+        ).select_related("portfolio")
+
+    def save_api_trading_cost_config(
+        self,
+        *,
+        actor_user_id: int,
+        portfolio_id: int,
+        commission_rate: float,
+        min_commission: float,
+        stamp_duty_rate: float,
+        transfer_fee_rate: float,
+        is_active: bool,
+    ):
+        """Create or update one trading cost configuration for the actor's portfolio."""
+
+        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
+        if portfolio.user_id != actor_user_id:
+            raise PermissionError("无权为此投资组合配置费率")
+
+        if commission_rate < 0 or commission_rate > 0.01:
+            raise ValueError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
+        if min_commission < 0:
+            raise ValueError("最低佣金不能为负数")
+        if stamp_duty_rate < 0 or stamp_duty_rate > 0.01:
+            raise ValueError("印花税率应在 0 ~ 0.01 之间")
+        if transfer_fee_rate < 0 or transfer_fee_rate > 0.001:
+            raise ValueError("过户费率应在 0 ~ 0.001 之间")
+
+        defaults = {
+            "commission_rate": commission_rate,
+            "min_commission": min_commission,
+            "stamp_duty_rate": stamp_duty_rate,
+            "transfer_fee_rate": transfer_fee_rate,
+            "is_active": is_active,
+        }
+        config, _ = TradingCostConfigModel._default_manager.update_or_create(
+            portfolio=portfolio,
+            defaults=defaults,
+        )
+        return config
+
+    def list_observer_grants_queryset(
+        self,
+        *,
+        user_id: int,
+        as_observer: bool,
+        status_filter: str | None = None,
+    ):
+        """Return observer grants scoped to the current owner or observer view."""
+
+        filter_key = "observer_user_id_id" if as_observer else "owner_user_id_id"
+        queryset = PortfolioObserverGrantModel._default_manager.filter(
+            **{filter_key: user_id}
+        ).select_related("observer_user_id", "owner_user_id", "revoked_by")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset.order_by("-created_at")
+
+    def get_observer_grant_by_id(self, grant_id):
+        """Return one observer grant with related users when available."""
+
+        return (
+            PortfolioObserverGrantModel._default_manager.select_related(
+                "owner_user_id",
+                "observer_user_id",
+                "revoked_by",
+            )
+            .filter(id=grant_id)
+            .first()
+        )
+
+    def build_observer_positions_payload(self, owner_user_id: int) -> dict[str, Any]:
+        """Return positions and summary statistics for the owner's active portfolio."""
+
+        portfolio = (
+            PortfolioModel._default_manager.filter(user_id=owner_user_id, is_active=True)
+            .first()
+        )
+        empty_statistics = {
+            "position_count": 0,
+            "total_value": 0.0,
+            "total_cost": 0.0,
+            "total_pnl": 0.0,
+            "total_pnl_pct": 0.0,
+        }
+        if portfolio is None:
+            return {
+                "portfolio_id": None,
+                "positions": [],
+                "statistics": empty_statistics,
+            }
+
+        positions = list(
+            PositionModel._default_manager.filter(portfolio=portfolio, is_closed=False)
+        )
+        position_count = len(positions)
+        total_value = sum((position.market_value or Decimal("0")) for position in positions)
+        total_cost = sum(
+            Decimal(str(position.shares)) * (position.avg_cost or Decimal("0"))
+            for position in positions
+        )
+        total_pnl = total_value - total_cost
+        total_pnl_pct = float((total_pnl / total_cost * 100) if total_cost > 0 else 0)
+
+        return {
+            "portfolio_id": portfolio.id,
+            "positions": [
+                {
+                    "id": position.id,
+                    "asset_code": position.asset_code,
+                    "asset_name": getattr(position, "asset_name", position.asset_code),
+                    "asset_class": position.asset_class,
+                    "shares": float(position.shares),
+                    "avg_cost": float(position.avg_cost),
+                    "current_price": float(position.current_price),
+                    "market_value": float(position.market_value),
+                    "unrealized_pnl": float(position.unrealized_pnl),
+                    "unrealized_pnl_pct": float(position.unrealized_pnl_pct),
+                }
+                for position in positions
+            ],
+            "statistics": {
+                "position_count": position_count,
+                "total_value": float(total_value),
+                "total_cost": float(total_cost),
+                "total_pnl": float(total_pnl),
+                "total_pnl_pct": total_pnl_pct,
+            },
+        }
+
+    def update_observer_grant(self, *, grant_id, expires_at):
+        """Persist a grant expiry update and return the refreshed model."""
+
+        grant = self.get_observer_grant_by_id(grant_id)
+        if grant is None:
+            raise PortfolioObserverGrantModel.DoesNotExist
+        grant.expires_at = expires_at
+        grant.save(update_fields=["expires_at"])
+        return grant
+
+    def revoke_observer_grant(self, *, grant_id, revoked_by_user_id: int):
+        """Revoke one observer grant and return the refreshed model."""
+
+        grant = self.get_observer_grant_by_id(grant_id)
+        if grant is None:
+            raise PortfolioObserverGrantModel.DoesNotExist
+        revoked_by = User._default_manager.get(id=revoked_by_user_id)
+        grant.revoke(revoked_by)
+        return grant
+
+    def save_trading_cost_config(
+        self,
+        *,
+        portfolio_id: int,
+        commission_rate: float,
+        min_commission: float,
+        stamp_duty_rate: float,
+        transfer_fee_rate: float,
+    ) -> TradingCostConfigModel:
+        """Create or update the trading cost configuration for a portfolio."""
+
+        if commission_rate < 0 or commission_rate > 0.01:
+            raise ValueError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
+        if min_commission < 0:
+            raise ValueError("最低佣金不能为负数")
+        if stamp_duty_rate < 0 or stamp_duty_rate > 0.01:
+            raise ValueError("印花税率应在 0 ~ 0.01 之间")
+        if transfer_fee_rate < 0 or transfer_fee_rate > 0.001:
+            raise ValueError("过户费率应在 0 ~ 0.001 之间")
+
+        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
+        defaults = {
+            "commission_rate": commission_rate,
+            "min_commission": min_commission,
+            "stamp_duty_rate": stamp_duty_rate,
+            "transfer_fee_rate": transfer_fee_rate,
+            "is_active": True,
+        }
+        config, _ = TradingCostConfigModel._default_manager.update_or_create(
+            portfolio=portfolio,
+            defaults=defaults,
+        )
+        return config
+
+    def create_access_token(
+        self,
+        *,
+        target_user_id: int,
+        created_by_user_id: int,
+        token_name: str,
+    ) -> tuple[UserAccessTokenModel, str]:
+        """Create a token for the target user."""
+
+        target_user = User._default_manager.select_related("account_profile").get(id=target_user_id)
+        created_by = User._default_manager.get(id=created_by_user_id)
+        token, raw_key = UserAccessTokenModel.create_token(
+            user=target_user,
+            name=token_name,
+            created_by=created_by,
+        )
+        return token, raw_key
+
+    def revoke_access_token_for_user(self, *, target_user_id: int, token_id: int) -> str:
+        """Revoke one active token owned by the target user."""
+
+        token = UserAccessTokenModel._default_manager.get(
+            id=token_id,
+            user_id=target_user_id,
+            is_active=True,
+        )
+        token_name = token.name
+        token.revoke()
+        return token_name
+
+    def revoke_all_access_tokens_for_user(self, *, target_user_id: int) -> dict[str, Any]:
+        """Revoke all active tokens for the target user."""
+
+        target_user = User._default_manager.get(id=target_user_id)
+        active_tokens = list(
+            UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True)
+        )
+        for token in active_tokens:
+            token.revoke()
+        return {
+            "username": target_user.username,
+            "deleted_count": len(active_tokens),
+        }
+
+    def revoke_access_token_by_id(self, token_id: int) -> dict[str, Any]:
+        """Revoke a token by id."""
+
+        token = UserAccessTokenModel._default_manager.select_related("user").get(
+            id=token_id,
+            is_active=True,
+        )
+        username = token.user.username
+        token_name = token.name
+        token.revoke()
+        return {"username": username, "token_name": token_name}
+
+    def create_capital_flow(
+        self,
+        *,
+        user_id: int,
+        flow_type: str,
+        amount: Decimal,
+        flow_date: date,
+        notes: str,
+    ) -> None:
+        """Create a capital flow for the user's active portfolio."""
+
+        user = User._default_manager.get(id=user_id)
+        portfolio = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True).first()
+        if portfolio is None:
+            portfolio = PortfolioModel._default_manager.create(
+                user=user,
+                name="默认组合",
+                is_active=True,
+            )
+
+        CapitalFlowModel._default_manager.create(
+            user=user,
+            portfolio=portfolio,
+            flow_type=flow_type,
+            amount=amount,
+            flow_date=flow_date,
+            notes=notes,
+        )
+
+    def build_user_management_context(
+        self,
+        *,
+        status_filter: str,
+        search_query: str,
+    ) -> dict[str, Any]:
+        """Build the admin user management context."""
+
+        profiles = AccountProfileModel._default_manager.select_related("user", "approved_by").all()
+        if status_filter:
+            profiles = profiles.filter(approval_status=status_filter)
+        if search_query:
+            profiles = profiles.filter(
+                Q(user__username__icontains=search_query)
+                | Q(user__email__icontains=search_query)
+                | Q(display_name__icontains=search_query)
+            )
+        profiles = profiles.order_by("-created_at")
+
+        return {
+            "profiles": profiles,
+            "system_settings": SystemSettingsModel.get_settings(),
+            "status_filter": status_filter,
+            "search_query": search_query,
+            "total_count": profiles.count(),
+            "pending_count": profiles.filter(approval_status="pending").count(),
+            "approved_count": profiles.filter(
+                approval_status__in=["approved", "auto_approved"]
+            ).count(),
+            "rejected_count": profiles.filter(approval_status="rejected").count(),
+        }
+
+    def build_token_management_context(
+        self,
+        *,
+        search_query: str,
+        only_without_token: bool,
+    ) -> dict[str, Any]:
+        """Build the admin token management context."""
+
+        users = User._default_manager.select_related("account_profile").all().order_by("-date_joined")
+        if search_query:
+            users = users.filter(
+                Q(username__icontains=search_query) | Q(email__icontains=search_query)
+            )
+
+        tokens = (
+            UserAccessTokenModel._default_manager.select_related("created_by")
+            .filter(is_active=True)
+            .order_by("-created_at")
+        )
+        token_map: dict[int, list[UserAccessTokenModel]] = {}
+        for token in tokens:
+            token_map.setdefault(token.user_id, []).append(token)
+
+        rows = []
+        for user in users:
+            user_tokens = token_map.get(user.id, [])
+            if only_without_token and user_tokens:
+                continue
+            rows.append(
+                {
+                    "user": user,
+                    "profile": getattr(user, "account_profile", None),
+                    "tokens": user_tokens,
+                    "has_token": bool(user_tokens),
+                    "token_count": len(user_tokens),
+                }
+            )
+
+        return {
+            "rows": rows,
+            "search_query": search_query,
+            "only_without_token": only_without_token,
+            "total_users": len(rows),
+            "with_token_count": sum(1 for row in rows if row["has_token"]),
+            "without_token_count": sum(1 for row in rows if not row["has_token"]),
+            "total_token_count": sum(row["token_count"] for row in rows),
+            "system_settings": SystemSettingsModel.get_settings(),
+        }
+
+    def toggle_user_mcp(self, target_user_id: int) -> dict[str, Any]:
+        """Toggle MCP access for a user."""
+
+        settings_obj = SystemSettingsModel.get_settings()
+        target_user = User._default_manager.select_related("account_profile").get(id=target_user_id)
+        profile = target_user.account_profile
+        profile.mcp_enabled = not profile.mcp_enabled
+        profile.save(update_fields=["mcp_enabled", "updated_at"])
+
+        if not profile.mcp_enabled:
+            for token in UserAccessTokenModel._default_manager.filter(
+                user=target_user,
+                is_active=True,
+            ):
+                token.revoke()
+
+        return {
+            "username": target_user.username,
+            "mcp_enabled": profile.mcp_enabled,
+            "default_mcp_enabled": settings_obj.default_mcp_enabled,
+        }
+
+    def approve_user(self, *, actor_user_id: int, target_user_id: int) -> dict[str, Any]:
+        """Approve a pending user."""
+
+        with transaction.atomic():
+            actor = User._default_manager.get(id=actor_user_id)
+            target_user = User._default_manager.get(id=target_user_id)
+            profile = target_user.account_profile
+
+            if profile.approval_status == "approved":
+                return {
+                    "level": "warning",
+                    "message": f"用户 {target_user.username} 已经被批准过了",
+                    "username": target_user.username,
+                }
+            if profile.approval_status == "rejected":
+                return {
+                    "level": "error",
+                    "message": f"用户 {target_user.username} 已被拒绝，请先取消拒绝状态",
+                    "username": target_user.username,
+                }
+            if profile.approval_status != "pending":
+                return {
+                    "level": "error",
+                    "message": f"用户 {target_user.username} 当前状态不允许批准",
+                    "username": target_user.username,
+                }
+
+            target_user.is_active = True
+            target_user.save(update_fields=["is_active"])
+
+            profile.approval_status = "approved"
+            profile.approved_at = timezone.now()
+            profile.approved_by = actor
+            profile.mcp_enabled = SystemSettingsModel.get_settings().default_mcp_enabled
+            profile.rejection_reason = ""
+            profile.save(
+                update_fields=[
+                    "approval_status",
+                    "approved_at",
+                    "approved_by",
+                    "mcp_enabled",
+                    "rejection_reason",
+                    "updated_at",
+                ]
+            )
+
+            return {
+                "level": "success",
+                "message": f"已批准用户 {target_user.username}",
+                "username": target_user.username,
+            }
+
+    def reject_user(
+        self,
+        *,
+        actor_user_id: int,
+        target_user_id: int,
+        rejection_reason: str,
+    ) -> dict[str, Any]:
+        """Reject a pending user and revoke active tokens."""
+
+        with transaction.atomic():
+            actor = User._default_manager.get(id=actor_user_id)
+            target_user = User._default_manager.get(id=target_user_id)
+            profile = target_user.account_profile
+
+            if target_user.id == actor.id:
+                return {"level": "error", "message": "不能拒绝自己", "username": target_user.username}
+
+            if profile.approval_status != "pending":
+                return {
+                    "level": "error",
+                    "message": f"用户 {target_user.username} 当前状态不允许拒绝",
+                    "username": target_user.username,
+                }
+
+            profile.approval_status = "rejected"
+            profile.rejection_reason = rejection_reason
+            profile.approved_at = None
+            profile.approved_by = None
+            profile.save(
+                update_fields=[
+                    "approval_status",
+                    "rejection_reason",
+                    "approved_at",
+                    "approved_by",
+                    "updated_at",
+                ]
+            )
+
+            target_user.is_active = False
+            target_user.save(update_fields=["is_active"])
+            for token in UserAccessTokenModel._default_manager.filter(
+                user=target_user,
+                is_active=True,
+            ):
+                token.revoke()
+
+            return {
+                "level": "success",
+                "message": f"已拒绝用户 {target_user.username}",
+                "username": target_user.username,
+            }
+
+    def set_user_role(self, *, target_user_id: int, rbac_role: str) -> dict[str, Any]:
+        """Update a user's RBAC role."""
+
+        target_user = User._default_manager.get(id=target_user_id)
+        profile = target_user.account_profile
+        profile.rbac_role = rbac_role
+        profile.save(update_fields=["rbac_role", "updated_at"])
+        return {
+            "level": "success",
+            "message": f"已将用户 {target_user.username} 角色更新为 {rbac_role}",
+            "username": target_user.username,
+        }
+
+    def reset_user_status(self, *, actor_user_id: int, target_user_id: int) -> dict[str, Any]:
+        """Reset a user's approval status back to pending."""
+
+        with transaction.atomic():
+            actor = User._default_manager.get(id=actor_user_id)
+            target_user = User._default_manager.get(id=target_user_id)
+            profile = target_user.account_profile
+
+            if target_user.id == actor.id:
+                return {"level": "error", "message": "不能重置自己", "username": target_user.username}
+
+            profile.approval_status = "pending"
+            profile.approved_at = None
+            profile.approved_by = None
+            profile.rejection_reason = ""
+            profile.save(
+                update_fields=[
+                    "approval_status",
+                    "approved_at",
+                    "approved_by",
+                    "rejection_reason",
+                    "updated_at",
+                ]
+            )
+
+            target_user.is_active = False
+            target_user.save(update_fields=["is_active"])
+            for token in UserAccessTokenModel._default_manager.filter(
+                user=target_user,
+                is_active=True,
+            ):
+                token.revoke()
+
+            return {
+                "level": "success",
+                "message": f"已重置用户 {target_user.username} 的状态",
+                "username": target_user.username,
+            }
+
+    def build_system_settings_context(self) -> dict[str, Any]:
+        """Build the system settings page context."""
+
+        system_settings = SystemSettingsModel.get_settings()
+        return {
+            "system_settings": system_settings,
+            "market_color_choices": SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES,
+            "alpha_pool_mode_choices": SystemSettingsModel.ALPHA_POOL_MODE_CHOICES,
+            "market_visuals": system_settings.get_market_visual_tokens(),
+            "benchmark_code_map_json": json.dumps(
+                system_settings.benchmark_code_map or {},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            "asset_proxy_code_map_json": json.dumps(
+                system_settings.asset_proxy_code_map or {},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            "macro_index_catalog_json": json.dumps(
+                system_settings.macro_index_catalog or [],
+                ensure_ascii=False,
+                indent=2,
+            ),
+        }
+
+    def update_system_settings_from_mapping(self, data: Mapping[str, Any]) -> None:
+        """Update system settings from an HTTP form mapping."""
+
+        system_settings = SystemSettingsModel.get_settings()
+        market_color_choices = {key for key, _ in SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES}
+        alpha_pool_mode_choices = {key for key, _ in SystemSettingsModel.ALPHA_POOL_MODE_CHOICES}
+
+        benchmark_code_map = json.loads(data.get("benchmark_code_map", "{}") or "{}")
+        asset_proxy_code_map = json.loads(data.get("asset_proxy_code_map", "{}") or "{}")
+        macro_index_catalog = json.loads(data.get("macro_index_catalog", "[]") or "[]")
+        market_color_convention = data.get(
+            "market_color_convention",
+            system_settings.market_color_convention,
+        )
+        alpha_pool_mode = data.get("alpha_pool_mode", system_settings.alpha_pool_mode)
+
+        if not isinstance(benchmark_code_map, dict):
+            raise ValueError("基准代码映射必须是 JSON 对象")
+        if not isinstance(asset_proxy_code_map, dict):
+            raise ValueError("资产代理代码映射必须是 JSON 对象")
+        if not isinstance(macro_index_catalog, list):
+            raise ValueError("宏观指数目录必须是 JSON 数组")
+        if market_color_convention not in market_color_choices:
+            raise ValueError("市场颜色约定不合法")
+        if alpha_pool_mode not in alpha_pool_mode_choices:
+            raise ValueError("Alpha 股票池模式不合法")
+
+        system_settings.require_user_approval = data.get("require_user_approval") == "on"
+        system_settings.auto_approve_first_admin = data.get("auto_approve_first_admin") == "on"
+        system_settings.default_mcp_enabled = data.get("default_mcp_enabled") == "on"
+        system_settings.allow_token_plaintext_view = data.get("allow_token_plaintext_view") == "on"
+        system_settings.market_color_convention = market_color_convention
+        system_settings.alpha_pool_mode = alpha_pool_mode
+        system_settings.user_agreement_content = data.get("user_agreement_content", "")
+        system_settings.risk_warning_content = data.get("risk_warning_content", "")
+        system_settings.notes = data.get("notes", "")
+        system_settings.benchmark_code_map = benchmark_code_map
+        system_settings.asset_proxy_code_map = asset_proxy_code_map
+        system_settings.macro_index_catalog = macro_index_catalog
+        system_settings.save()
+
+    def build_backup_download_payload(self, token: str) -> dict[str, Any]:
+        """Validate the download token and return a generated backup payload."""
+
+        config = SystemSettingsModel.get_settings()
+        max_age_seconds = max(config.backup_link_ttl_days, 1) * 86400
+
+        try:
+            payload = validate_download_token(token, max_age_seconds=max_age_seconds)
+        except Exception as exc:
+            raise LookupError("备份链接无效或已过期") from exc
+
+        if payload.get("settings_id") != config.pk or payload.get("email") != config.backup_email:
+            raise LookupError("备份链接无效")
+
+        if not config.backup_enabled:
+            raise ValueError("数据库备份邮件功能未启用")
+
+        archive = generate_backup_archive(config)
+        return {
+            "filename": archive.filename,
+            "content": archive.content,
+            "content_type": archive.content_type,
+        }
+
+    def has_active_observer_access(self, *, owner_user_id: int, observer_user_id: int) -> bool:
+        """Return whether the observer currently has a valid read grant."""
+
+        now = timezone.now()
+        return PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id=owner_user_id,
+            observer_user_id=observer_user_id,
+            status="active",
+        ).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+        ).exists()
+
+    def get_accessible_portfolios_queryset(self, user_id: int):
+        """Return portfolios owned by or shared with the given user."""
+
+        now = timezone.now()
+        active_grants = PortfolioObserverGrantModel._default_manager.filter(
+            observer_user_id=user_id,
+            status="active",
+        ).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+        ).values_list("owner_user_id", flat=True)
+        return PortfolioModel._default_manager.filter(
+            Q(user_id=user_id) | Q(user_id__in=active_grants)
+        )
+
+    def count_owned_active_observer_grants(self, user_id: int) -> int:
+        """Count active observer grants granted by the user."""
+
+        return PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id_id=user_id,
+            status="active",
+        ).count()
+
+    def count_observable_active_grants(self, user_id: int) -> int:
+        """Count active observer grants received by the user."""
+
+        return PortfolioObserverGrantModel._default_manager.filter(
+            observer_user_id_id=user_id,
+            status="active",
+        ).count()
+
+    def find_user_by_username(self, username: str):
+        """Return one user by username when available."""
+
+        return User._default_manager.filter(username=username).first()
+
+    def find_user_by_id(self, user_id: int):
+        """Return one user by id when available."""
+
+        return User._default_manager.filter(id=user_id).first()
+
+    def get_active_observer_grant(self, *, owner_user_id: int, observer_user_id: int):
+        """Return one active observer grant for the owner/observer pair."""
+
+        return PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id_id=owner_user_id,
+            observer_user_id_id=observer_user_id,
+            status="active",
+        ).first()
+
+    def create_observer_grant(
+        self,
+        *,
+        owner_user_id: int,
+        observer_user_id: int,
+        created_by_user_id: int,
+        expires_at,
+    ):
+        """Create one observer grant record."""
+
+        return PortfolioObserverGrantModel._default_manager.create(
+            owner_user_id_id=owner_user_id,
+            observer_user_id_id=observer_user_id,
+            created_by_id=created_by_user_id,
+            expires_at=expires_at,
         )

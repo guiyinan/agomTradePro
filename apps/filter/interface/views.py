@@ -10,6 +10,7 @@ from typing import Dict, List
 
 from django.shortcuts import render
 
+from ..application.repository_provider import get_filter_repository
 from ..application.use_cases import (
     ApplyFilterRequest,
     ApplyFilterUseCase,
@@ -18,7 +19,19 @@ from ..application.use_cases import (
     GetFilterDataUseCase,
 )
 from ..domain.entities import FilterType
-from ..infrastructure.repositories import DjangoFilterRepository
+
+
+class DjangoFilterRepository:
+    """Compatibility wrapper kept for legacy interface tests."""
+
+    def __init__(self):
+        self._repository = get_filter_repository()
+
+    def get_filter_config(self, indicator_code: str):
+        return self._repository.get_filter_config(indicator_code)
+
+    def __getattr__(self, item):
+        return getattr(self._repository, item)
 
 
 def filter_dashboard_view(request):

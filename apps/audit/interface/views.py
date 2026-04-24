@@ -15,27 +15,32 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.audit.application.use_cases import (
-    EvaluateIndicatorPerformanceRequest,
-    EvaluateIndicatorPerformanceUseCase,
-    GenerateAttributionReportRequest,
-    GenerateAttributionReportUseCase,
-    GetAuditSummaryRequest,
-    GetAuditSummaryUseCase,
-    ValidateThresholdsRequest,
-    ValidateThresholdsUseCase,
+from apps.audit.application.interface_services import (
+    build_audit_overview_context,
+    build_attribution_detail_context,
+    build_indicator_performance_page_context,
+    build_report_list_context,
+    build_threshold_validation_page_context,
+    export_audit_metrics_payload,
+    export_operation_logs_payload,
+    generate_attribution_report_payload,
+    get_attribution_chart_data_payload,
+    get_audit_failure_stats,
+    get_audit_metrics_summary_payload,
+    get_audit_summary_payload,
+    get_decision_trace_payload,
+    get_indicator_performance_chart_payload,
+    get_indicator_performance_detail_payload,
+    get_operation_log_detail_payload,
+    get_operation_stats_payload,
+    get_threshold_validation_data_payload,
+    list_decision_traces_payload,
+    log_operation_payload,
+    query_operation_logs_payload,
+    reset_audit_failure_counter,
+    run_threshold_validation,
+    update_indicator_threshold_levels,
 )
-from apps.audit.infrastructure.models import (
-    AttributionReport,
-    ExperienceSummary,
-    IndicatorPerformanceModel,
-    IndicatorThresholdConfigModel,
-    LossAnalysis,
-    ValidationSummaryModel,
-)
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
-from apps.backtest.infrastructure.models import BacktestResultModel
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 
 from .serializers import (
     AttributionReportSerializer,
@@ -79,30 +84,15 @@ class GenerateAttributionReportView(APIView):
 
         backtest_id = serializer.validated_data['backtest_id']
 
-        # 执行 Use Case
-        use_case = GenerateAttributionReportUseCase(
-            audit_repository=DjangoAuditRepository(),
-            backtest_repository=DjangoBacktestRepository(),
-        )
+        result = generate_attribution_report_payload(backtest_id)
 
-        response = use_case.execute(
-            GenerateAttributionReportRequest(backtest_id=backtest_id)
-        )
-
-        if not response.success:
+        if not result['success']:
             return Response(
-                {'error': response.error},
+                {'error': result['error']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 获取并返回报告
-        audit_repo = DjangoAuditRepository()
-        report = audit_repo.get_attribution_report(response.report_id)
-        if report:
-            report['loss_analyses'] = audit_repo.get_loss_analyses(response.report_id)
-            report['experience_summaries'] = audit_repo.get_experience_summaries(response.report_id)
-
-        serializer = AttributionReportSerializer(report)
+        serializer = AttributionReportSerializer(result['report'])
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -112,27 +102,13 @@ class AttributionChartDataView(APIView):
     def get(self, request, report_id):
         """获取归因报告的图表数据"""
         try:
-            audit_repo = DjangoAuditRepository()
-            report = audit_repo.get_attribution_report(report_id)
+            chart_data = get_attribution_chart_data_payload(report_id)
 
-            if not report:
+            if not chart_data:
                 return Response(
                     {'error': '报告不存在'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-
-            # 构造图表数据
-            chart_data = {
-                'report_id': report_id,
-                'total_pnl': report.get('total_pnl', 0),
-                'regime_timing_pnl': report.get('regime_timing_pnl', 0),
-                'asset_selection_pnl': report.get('asset_selection_pnl', 0),
-                'interaction_pnl': report.get('interaction_pnl', 0),
-                'regime_accuracy': report.get('regime_accuracy', 0),
-                'period_attributions': report.get('period_attributions', []),
-                'loss_analyses': report.get('loss_analyses', []),
-                'experience_summaries': report.get('experience_summaries', []),
-            }
 
             return Response(chart_data)
 
@@ -196,12 +172,9 @@ class AuditSummaryView(APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        # 构建请求
-        req = GetAuditSummaryRequest()
-
         if backtest_id:
             try:
-                req.backtest_id = int(backtest_id)
+                backtest_id = int(backtest_id)
             except ValueError:
                 return Response(
                     {'error': 'backtest_id 必须是整数'},
@@ -210,28 +183,27 @@ class AuditSummaryView(APIView):
 
         if start_date and end_date:
             try:
-                req.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-                req.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
             except ValueError:
                 return Response(
                     {'error': '日期格式错误，应为 YYYY-MM-DD'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        # 执行 Use Case
-        use_case = GetAuditSummaryUseCase(
-            audit_repository=DjangoAuditRepository()
+        result = get_audit_summary_payload(
+            backtest_id=backtest_id,
+            start_date=start_date,
+            end_date=end_date,
         )
 
-        response = use_case.execute(req)
-
-        if not response.success:
+        if not result['success']:
             return Response(
-                {'error': response.error},
+                {'error': result['error']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer = AttributionReportSerializer(response.reports, many=True)
+        serializer = AttributionReportSerializer(result['reports'], many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -243,10 +215,7 @@ class IndicatorPerformanceDetailView(APIView):
     def get(self, request, indicator_code):
         """获取单个指标的详细表现数据"""
         try:
-            # 获取最新的评估结果
-            performance = IndicatorPerformanceModel._default_manager.filter(
-                indicator_code=indicator_code
-            ).order_by('-evaluation_period_end').first()
+            performance = get_indicator_performance_detail_payload(indicator_code)
 
             if not performance:
                 return Response(
@@ -254,29 +223,7 @@ class IndicatorPerformanceDetailView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            data = {
-                'indicator_code': performance.indicator_code,
-                'evaluation_period_start': performance.evaluation_period_start,
-                'evaluation_period_end': performance.evaluation_period_end,
-                'true_positive_count': performance.true_positive_count,
-                'false_positive_count': performance.false_positive_count,
-                'true_negative_count': performance.true_negative_count,
-                'false_negative_count': performance.false_negative_count,
-                'precision': performance.precision,
-                'recall': performance.recall,
-                'f1_score': performance.f1_score,
-                'accuracy': performance.accuracy,
-                'lead_time_mean': performance.lead_time_mean,
-                'lead_time_std': performance.lead_time_std,
-                'stability_score': performance.stability_score,
-                'decay_rate': performance.decay_rate,
-                'signal_strength': performance.signal_strength,
-                'recommended_action': performance.recommended_action,
-                'recommended_weight': performance.recommended_weight,
-                'confidence_level': performance.confidence_level,
-            }
-
-            return Response(data)
+            return Response(performance)
 
         except Exception as e:
             logger.error(f"获取指标表现详情失败: {e}")
@@ -292,42 +239,12 @@ class IndicatorPerformanceChartDataView(APIView):
     def get(self, request, validation_id):
         """获取指标验证的图表数据"""
         try:
-            # 获取验证摘要
-            summary = ValidationSummaryModel._default_manager.get(id=validation_id)
-
-            # 获取该次验证的所有指标表现
-            performances = IndicatorPerformanceModel._default_manager.filter(
-                evaluation_period_start=summary.evaluation_period_start,
-                evaluation_period_end=summary.evaluation_period_end,
-            )
-
-            # 构造图表数据
-            chart_data = {
-                'validation_run_id': summary.validation_run_id,
-                'evaluation_period': {
-                    'start': summary.evaluation_period_start,
-                    'end': summary.evaluation_period_end,
-                },
-                'total_indicators': summary.total_indicators,
-                'approved_indicators': summary.approved_indicators,
-                'rejected_indicators': summary.rejected_indicators,
-                'pending_indicators': summary.pending_indicators,
-                'avg_f1_score': summary.avg_f1_score,
-                'avg_stability_score': summary.avg_stability_score,
-                'indicators': [
-                    {
-                        'indicator_code': p.indicator_code,
-                        'f1_score': p.f1_score,
-                        'stability_score': p.stability_score,
-                        'recommended_action': p.recommended_action,
-                    }
-                    for p in performances
-                ],
-            }
-
+            chart_data = get_indicator_performance_chart_payload(validation_id)
+            if chart_data is None:
+                raise LookupError
             return Response(chart_data)
 
-        except ValidationSummaryModel.DoesNotExist:
+        except LookupError:
             return Response(
                 {'error': '验证记录不存在'},
                 status=status.HTTP_404_NOT_FOUND
@@ -360,18 +277,11 @@ class ValidateAllIndicatorsView(APIView):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-            # 执行验证
-            use_case = ValidateThresholdsUseCase(
-                audit_repository=DjangoAuditRepository()
-            )
-
-            request_obj = ValidateThresholdsRequest(
+            response = run_threshold_validation(
                 start_date=start_date,
                 end_date=end_date,
                 use_shadow_mode=use_shadow_mode
             )
-
-            response = use_case.execute(request_obj)
 
             if not response.success:
                 return Response(
@@ -414,21 +324,17 @@ class UpdateThresholdView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # 更新配置
-            config = IndicatorThresholdConfigModel._default_manager.filter(
+            updated = update_indicator_threshold_levels(
                 indicator_code=indicator_code,
-                is_active=True
-            ).first()
+                level_low=level_low,
+                level_high=level_high,
+            )
 
-            if not config:
+            if not updated:
                 return Response(
                     {'error': f'指标 {indicator_code} 的配置不存在'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-
-            config.level_low = level_low
-            config.level_high = level_high
-            config.save()
 
             return Response({
                 'success': True,
@@ -461,18 +367,11 @@ class RunValidationView(APIView):
                 start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-            # 执行验证
-            use_case = ValidateThresholdsUseCase(
-                audit_repository=DjangoAuditRepository()
-            )
-
-            request_obj = ValidateThresholdsRequest(
+            response = run_threshold_validation(
                 start_date=start_date,
                 end_date=end_date,
                 use_shadow_mode=False
             )
-
-            response = use_case.execute(request_obj)
 
             if not response.success:
                 return Response(
@@ -548,64 +447,12 @@ class ThresholdValidationDataView(APIView):
     def get(self, request, summary_id):
         """获取阈值验证的详细数据"""
         try:
-            summary = ValidationSummaryModel._default_manager.get(id=summary_id)
-
-            # 获取所有相关的指标表现
-            performances = IndicatorPerformanceModel._default_manager.filter(
-                evaluation_period_start=summary.evaluation_period_start,
-                evaluation_period_end=summary.evaluation_period_end,
-            )
-
-            # 获取所有阈值配置
-            threshold_configs = IndicatorThresholdConfigModel._default_manager.filter(
-                is_active=True
-            )
-
-            # 构造响应数据
-            validation_data = {
-                'summary': {
-                    'validation_run_id': summary.validation_run_id,
-                    'run_date': summary.run_date,
-                    'evaluation_period_start': summary.evaluation_period_start,
-                    'evaluation_period_end': summary.evaluation_period_end,
-                    'total_indicators': summary.total_indicators,
-                    'approved_indicators': summary.approved_indicators,
-                    'rejected_indicators': summary.rejected_indicators,
-                    'pending_indicators': summary.pending_indicators,
-                    'avg_f1_score': summary.avg_f1_score,
-                    'avg_stability_score': summary.avg_stability_score,
-                    'overall_recommendation': summary.overall_recommendation,
-                    'status': summary.status,
-                },
-                'indicator_reports': [
-                    {
-                        'indicator_code': p.indicator_code,
-                        'f1_score': p.f1_score,
-                        'precision': p.precision,
-                        'recall': p.recall,
-                        'stability_score': p.stability_score,
-                        'decay_rate': p.decay_rate,
-                        'signal_strength': p.signal_strength,
-                        'recommended_action': p.recommended_action,
-                        'recommended_weight': p.recommended_weight,
-                    }
-                    for p in performances
-                ],
-                'threshold_configs': [
-                    {
-                        'indicator_code': c.indicator_code,
-                        'indicator_name': c.indicator_name,
-                        'level_low': c.level_low,
-                        'level_high': c.level_high,
-                        'base_weight': c.base_weight,
-                    }
-                    for c in threshold_configs
-                ],
-            }
-
+            validation_data = get_threshold_validation_data_payload(summary_id)
+            if validation_data is None:
+                raise LookupError
             return Response(validation_data)
 
-        except ValidationSummaryModel.DoesNotExist:
+        except LookupError:
             return Response(
                 {'error': '验证记录不存在'},
                 status=status.HTTP_404_NOT_FOUND
@@ -622,39 +469,17 @@ class ThresholdValidationDataView(APIView):
 
 def _build_audit_overview_context() -> dict[str, object]:
     """Build shared overview context for audit HTML pages."""
-    context: dict[str, object] = {
-        'latest_validation': None,
-        'recent_reports': [],
-        'pending_backtests': [],
-        'report_total_count': 0,
-        'completed_backtest_count': 0,
-    }
-
     try:
-        latest_validation = ValidationSummaryModel._default_manager.filter(
-            is_shadow_mode=False
-        ).order_by('-run_date').first()
-        recent_reports = list(
-            AttributionReport._default_manager.select_related('backtest').order_by('-created_at')[:5]
-        )
-        report_backtest_ids = set(
-            AttributionReport._default_manager.values_list('backtest_id', flat=True)
-        )
-        completed_backtests = list(
-            BacktestResultModel._default_manager.filter(status='completed').order_by('-end_date')[:50]
-        )
-
-        context['latest_validation'] = latest_validation
-        context['recent_reports'] = recent_reports
-        context['pending_backtests'] = [
-            backtest for backtest in completed_backtests if backtest.id not in report_backtest_ids
-        ][:5]
-        context['report_total_count'] = AttributionReport._default_manager.count()
-        context['completed_backtest_count'] = len(completed_backtests)
+        return build_audit_overview_context()
     except Exception as e:
         logger.error(f"获取审计概览数据失败: {e}")
-
-    return context
+        return {
+            'latest_validation': None,
+            'recent_reports': [],
+            'pending_backtests': [],
+            'report_total_count': 0,
+            'completed_backtest_count': 0,
+        }
 
 class AuditPageView(LoginRequiredMixin, TemplateView):
     """审计模块主页 - HTML 视图"""
@@ -688,33 +513,12 @@ class ReportListView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         try:
             method_filter = self.request.GET.get('method', '')
-            queryset = AttributionReport._default_manager.select_related(
-                'backtest'
-            ).order_by('-created_at')
-
-            if method_filter:
-                queryset = queryset.filter(attribution_method=method_filter)
-
-            context['reports'] = queryset[:50]
-            context['method_filter'] = method_filter
-            context['total_count'] = AttributionReport._default_manager.count()
+            context.update(build_report_list_context(method_filter))
         except Exception as e:
             logger.error(f"获取报告列表失败: {e}")
             context['reports'] = []
+            context['method_filter'] = ''
             context['total_count'] = 0
-
-        # 可用回测（已完成且未生成过报告的）
-        try:
-            existing_backtest_ids = set(
-                AttributionReport._default_manager.values_list('backtest_id', flat=True)
-            )
-            backtests = BacktestResultModel._default_manager.filter(
-                status='completed',
-            ).order_by('-end_date')[:50]
-            context['backtests'] = backtests
-            context['existing_backtest_ids'] = existing_backtest_ids
-        except Exception as e:
-            logger.error(f"获取回测列表失败: {e}")
             context['backtests'] = []
             context['existing_backtest_ids'] = set()
 
@@ -731,16 +535,7 @@ class AttributionDetailView(LoginRequiredMixin, TemplateView):
         report_id = kwargs.get('report_id')
 
         try:
-            report = AttributionReport._default_manager.get(id=report_id)
-            context['report'] = report
-            context['loss_analyses'] = LossAnalysis._default_manager.filter(
-                report_id=report_id
-            ).order_by('-impact')
-            context['experience_summaries'] = ExperienceSummary._default_manager.filter(
-                report_id=report_id
-            ).order_by('-priority', '-created_at')
-        except AttributionReport.DoesNotExist:
-            context['report'] = None
+            context.update(build_attribution_detail_context(report_id))
         except Exception as e:
             logger.error(f"获取归因详情失败: {e}")
             context['report'] = None
@@ -757,63 +552,7 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         try:
-            # 获取最新的验证摘要
-            latest_summary = ValidationSummaryModel._default_manager.filter(
-                is_shadow_mode=False
-            ).order_by('-run_date').first()
-
-            if latest_summary:
-                # 获取所有指标表现
-                performances = IndicatorPerformanceModel._default_manager.filter(
-                    evaluation_period_start=latest_summary.evaluation_period_start,
-                    evaluation_period_end=latest_summary.evaluation_period_end,
-                )
-
-                # 获取阈值配置用于分类
-                threshold_configs = {
-                    c.indicator_code: c
-                    for c in IndicatorThresholdConfigModel._default_manager.filter(is_active=True)
-                }
-
-                # 为每个表现添加分类
-                indicator_reports = []
-                for p in performances:
-                    config = threshold_configs.get(p.indicator_code)
-                    report_data = {
-                        'indicator_code': p.indicator_code,
-                        'indicator_name': config.indicator_name if config else p.indicator_code,
-                        'category': config.category if config else '',
-                        'f1_score': p.f1_score,
-                        'stability_score': p.stability_score,
-                        'lead_time_mean': p.lead_time_mean,
-                        'recommended_action': p.recommended_action,
-                        'recommended_weight': p.recommended_weight,
-                        'true_positive_count': p.true_positive_count,
-                        'false_positive_count': p.false_positive_count,
-                        'true_negative_count': p.true_negative_count,
-                        'false_negative_count': p.false_negative_count,
-                    }
-                    indicator_reports.append(report_data)
-
-                context['total_indicators'] = latest_summary.total_indicators
-                context['approved_indicators'] = latest_summary.approved_indicators
-                context['pending_indicators'] = latest_summary.pending_indicators
-                context['rejected_indicators'] = latest_summary.rejected_indicators
-                context['avg_f1_score'] = latest_summary.avg_f1_score
-                context['avg_stability_score'] = latest_summary.avg_stability_score
-                context['indicator_reports'] = indicator_reports
-                context['indicator_data'] = json.dumps(indicator_reports, ensure_ascii=False)
-            else:
-                # 没有验证记录时的默认数据
-                context['total_indicators'] = 0
-                context['approved_indicators'] = 0
-                context['pending_indicators'] = 0
-                context['rejected_indicators'] = 0
-                context['avg_f1_score'] = 0
-                context['avg_stability_score'] = 0
-                context['indicator_reports'] = []
-                context['indicator_data'] = '[]'
-
+            context.update(build_indicator_performance_page_context())
         except Exception as e:
             logger.error(f"获取指标表现数据失败: {e}")
             # 设置默认值
@@ -833,63 +572,7 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         try:
-            # 获取所有活跃的阈值配置
-            threshold_configs = IndicatorThresholdConfigModel._default_manager.filter(
-                is_active=True
-            )
-
-            # 为每个配置添加历史验证结果
-            configs_with_history = []
-            for config in threshold_configs:
-                # 获取该指标的历史验证结果
-                validation_history = IndicatorPerformanceModel._default_manager.filter(
-                    indicator_code=config.indicator_code
-                ).order_by('-evaluation_period_end')[:3]
-
-                config_dict = {
-                    'indicator_code': config.indicator_code,
-                    'indicator_name': config.indicator_name,
-                    'level_low': config.level_low,
-                    'level_high': config.level_high,
-                    'base_weight': config.base_weight,
-                    'category': config.category,
-                    'validation_history': [
-                        {
-                            'validation_date': p.evaluation_period_end,
-                            'f1_score': p.f1_score,
-                            'stability_score': p.stability_score,
-                        }
-                        for p in validation_history
-                    ],
-                }
-                configs_with_history.append(config_dict)
-
-            context['threshold_configs'] = configs_with_history
-            context['threshold_data'] = json.dumps(
-                {
-                    c['indicator_code']: {
-                        'level_low': float(c['level_low'] or 0),
-                        'level_high': float(c['level_high'] or 0),
-                    }
-                    for c in configs_with_history
-                },
-                ensure_ascii=False,
-            )
-
-            # 获取最新验证状态
-            latest_validation = ValidationSummaryModel._default_manager.filter(
-                is_shadow_mode=False
-            ).order_by('-run_date').first()
-
-            if latest_validation:
-                context['validation_status'] = latest_validation.status
-                context['validation_status_label'] = latest_validation.get_status_display()
-                context['validation_message'] = f"验证于 {latest_validation.run_date.strftime('%Y-%m-%d %H:%M')} 运行"
-            else:
-                context['validation_status'] = 'pending'
-                context['validation_status_label'] = '待运行'
-                context['validation_message'] = '尚未运行验证'
-
+            context.update(build_threshold_validation_page_context())
         except Exception as e:
             logger.error(f"获取阈值验证数据失败: {e}")
             context['threshold_configs'] = []
@@ -1101,50 +784,39 @@ class OperationLogListView(APIView):
         # 判断是否为管理员
         is_admin = IsAuditAdmin().has_permission(request, self)
 
-        from apps.audit.application.use_cases import (
-            QueryOperationLogsRequest,
-            QueryOperationLogsUseCase,
+        response = query_operation_logs_payload(
+            user_id=data.get('user_id'),
+            username=data.get('username'),
+            operation_type=data.get('operation_type'),
+            module=data.get('module'),
+            action=data.get('action'),
+            mcp_tool_name=data.get('mcp_tool_name'),
+            mcp_client_id=data.get('mcp_client_id'),
+            mcp_role=data.get('mcp_role'),
+            response_status=data.get('response_status'),
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            resource_id=data.get('resource_id'),
+            source=data.get('source'),
+            ordering=data.get('ordering', '-timestamp'),
+            page=data.get('page', 1),
+            page_size=data.get('page_size', 20),
+            is_admin=is_admin,
+            current_user_id=request.user.id if request.user.is_authenticated else None,
         )
 
-        use_case = QueryOperationLogsUseCase(
-            audit_repository=DjangoAuditRepository()
-        )
-
-        response = use_case.execute(
-            QueryOperationLogsRequest(
-                user_id=data.get('user_id'),
-                username=data.get('username'),
-                operation_type=data.get('operation_type'),
-                module=data.get('module'),
-                action=data.get('action'),
-                mcp_tool_name=data.get('mcp_tool_name'),
-                mcp_client_id=data.get('mcp_client_id'),
-                mcp_role=data.get('mcp_role'),
-                response_status=data.get('response_status'),
-                start_date=data.get('start_date'),
-                end_date=data.get('end_date'),
-                resource_id=data.get('resource_id'),
-                source=data.get('source'),
-                ordering=data.get('ordering', '-timestamp'),
-                page=data.get('page', 1),
-                page_size=data.get('page_size', 20),
-                is_admin=is_admin,
-                current_user_id=request.user.id if request.user.is_authenticated else None,
-            )
-        )
-
-        if not response.success:
+        if not response['success']:
             return Response(
-                {'success': False, 'error': response.error},
+                {'success': False, 'error': response['error']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         return Response({
             'success': True,
-            'logs': response.logs,
-            'total_count': response.total_count,
-            'page': response.page,
-            'page_size': response.page_size,
+            'logs': response['logs'],
+            'total_count': response['total_count'],
+            'page': response['page'],
+            'page_size': response['page_size'],
         })
 
 
@@ -1166,39 +838,27 @@ class OperationLogDetailView(APIView):
     )
     def get(self, request, log_id):
         """获取操作日志详情"""
-        from apps.audit.application.use_cases import (
-            GetOperationLogDetailRequest,
-            GetOperationLogDetailUseCase,
-        )
-
         is_admin = IsAuditAdmin().has_permission(request, self)
-
-        use_case = GetOperationLogDetailUseCase(
-            audit_repository=DjangoAuditRepository()
+        response = get_operation_log_detail_payload(
+            log_id=log_id,
+            current_user_id=request.user.id if request.user.is_authenticated else None,
+            is_admin=is_admin,
         )
 
-        response = use_case.execute(
-            GetOperationLogDetailRequest(
-                log_id=log_id,
-                current_user_id=request.user.id if request.user.is_authenticated else None,
-                is_admin=is_admin,
-            )
-        )
-
-        if not response.success:
-            if '无权' in (response.error or ''):
+        if not response['success']:
+            if '无权' in (response['error'] or ''):
                 return Response(
-                    {'success': False, 'error': response.error},
+                    {'success': False, 'error': response['error']},
                     status=status.HTTP_403_FORBIDDEN
                 )
             return Response(
-                {'success': False, 'error': response.error},
+                {'success': False, 'error': response['error']},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         return Response({
             'success': True,
-            'log': response.log,
+            'log': response['log'],
         })
 
 
@@ -1250,11 +910,6 @@ class OperationLogExportView(APIView):
     )
     def get(self, request):
         """导出操作日志"""
-        from apps.audit.application.use_cases import (
-            ExportOperationLogsRequest,
-            ExportOperationLogsUseCase,
-        )
-
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         export_format = request.query_params.get('format', 'csv')
@@ -1270,30 +925,24 @@ class OperationLogExportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        use_case = ExportOperationLogsUseCase(
-            audit_repository=DjangoAuditRepository()
+        response = export_operation_logs_payload(
+            start_date=start,
+            end_date=end,
+            mcp_client_id=mcp_client_id,
+            format=export_format,
         )
 
-        response = use_case.execute(
-            ExportOperationLogsRequest(
-                start_date=start,
-                end_date=end,
-                mcp_client_id=mcp_client_id,
-                format=export_format,
-            )
-        )
-
-        if not response.success:
+        if not response['success']:
             return Response(
-                {'success': False, 'error': response.error},
+                {'success': False, 'error': response['error']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # 设置响应头
         from django.http import HttpResponse
         content_type = 'text/csv' if export_format == 'csv' else 'application/json'
-        http_response = HttpResponse(response.data, content_type=content_type)
-        http_response['Content-Disposition'] = f'attachment; filename="{response.filename}"'
+        http_response = HttpResponse(response['data'], content_type=content_type)
+        http_response['Content-Disposition'] = f'attachment; filename="{response["filename"]}"'
         return http_response
 
 
@@ -1337,11 +986,6 @@ class OperationLogStatsView(APIView):
     )
     def get(self, request):
         """获取操作统计"""
-        from apps.audit.application.use_cases import (
-            GetOperationStatsRequest,
-            GetOperationStatsUseCase,
-        )
-
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         group_by = request.query_params.get('group_by', 'module')
@@ -1356,25 +1000,19 @@ class OperationLogStatsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        use_case = GetOperationStatsUseCase(
-            audit_repository=DjangoAuditRepository()
+        response = get_operation_stats_payload(
+            start_date=start,
+            end_date=end,
+            group_by=group_by,
         )
 
-        response = use_case.execute(
-            GetOperationStatsRequest(
-                start_date=start,
-                end_date=end,
-                group_by=group_by,
-            )
-        )
-
-        if not response.success:
+        if not response['success']:
             return Response(
-                {'success': False, 'error': response.error},
+                {'success': False, 'error': response['error']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        return Response(response.stats)
+        return Response(response['stats'])
 
 
 class OperationLogIngestView(APIView):
@@ -1405,56 +1043,45 @@ class OperationLogIngestView(APIView):
 
         data = serializer.validated_data
 
-        from apps.audit.application.use_cases import (
-            LogOperationRequest,
-            LogOperationUseCase,
+        response = log_operation_payload(
+            request_id=data.get('request_id', ''),
+            user_id=data.get('user_id'),
+            username=data.get('username', 'anonymous'),
+            source=data.get('source', 'MCP'),
+            operation_type=data.get('operation_type', 'MCP_CALL'),
+            module=data.get('module', ''),
+            action=data.get('action', 'READ'),
+            mcp_tool_name=data.get('mcp_tool_name'),
+            request_params=data.get('request_params'),
+            response_payload=data.get('response_payload'),
+            response_text=data.get('response_text', ''),
+            response_status=data.get('response_status', 200),
+            response_message=data.get('response_message', ''),
+            error_code=data.get('error_code', ''),
+            exception_traceback=data.get('exception_traceback', ''),
+            duration_ms=data.get('duration_ms'),
+            ip_address=data.get('ip_address'),
+            user_agent=data.get('user_agent', ''),
+            client_id=data.get('client_id', ''),
+            resource_type=data.get('resource_type', ''),
+            resource_id=data.get('resource_id'),
+            mcp_client_id=data.get('mcp_client_id', ''),
+            mcp_role=data.get('mcp_role', ''),
+            sdk_version=data.get('sdk_version', ''),
+            request_method=data.get('request_method', 'MCP'),
+            request_path=data.get('request_path', ''),
         )
 
-        use_case = LogOperationUseCase(
-            audit_repository=DjangoAuditRepository()
-        )
-
-        response = use_case.execute(
-            LogOperationRequest(
-                request_id=data.get('request_id', ''),
-                user_id=data.get('user_id'),
-                username=data.get('username', 'anonymous'),
-                source=data.get('source', 'MCP'),
-                operation_type=data.get('operation_type', 'MCP_CALL'),
-                module=data.get('module', ''),
-                action=data.get('action', 'READ'),
-                mcp_tool_name=data.get('mcp_tool_name'),
-                request_params=data.get('request_params'),
-                response_payload=data.get('response_payload'),
-                response_text=data.get('response_text', ''),
-                response_status=data.get('response_status', 200),
-                response_message=data.get('response_message', ''),
-                error_code=data.get('error_code', ''),
-                exception_traceback=data.get('exception_traceback', ''),
-                duration_ms=data.get('duration_ms'),
-                ip_address=data.get('ip_address'),
-                user_agent=data.get('user_agent', ''),
-                client_id=data.get('client_id', ''),
-                resource_type=data.get('resource_type', ''),
-                resource_id=data.get('resource_id'),
-                mcp_client_id=data.get('mcp_client_id', ''),
-                mcp_role=data.get('mcp_role', ''),
-                sdk_version=data.get('sdk_version', ''),
-                request_method=data.get('request_method', 'MCP'),
-                request_path=data.get('request_path', ''),
-            )
-        )
-
-        if response.success:
+        if response['success']:
             return Response(
-                {'success': True, 'log_id': response.log_id},
+                {'success': True, 'log_id': response['log_id']},
                 status=status.HTTP_201_CREATED
             )
         else:
             # 审计失败：返回 202 Accepted 表示请求已收到但处理不完整
             # 这样 SDK 可以通过检查 response.success 来判断是否真正成功
             return Response(
-                {'success': False, 'error': response.error, 'log_id': None},
+                {'success': False, 'error': response['error'], 'log_id': None},
                 status=status.HTTP_202_ACCEPTED
             )
 
@@ -1476,8 +1103,7 @@ class DecisionTraceListView(APIView):
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 20))
         mcp_client_id = request.query_params.get('mcp_client_id') or None
-        repo = DjangoAuditRepository()
-        traces, total_count = repo.list_decision_traces(
+        traces, total_count = list_decision_traces_payload(
             current_user_id=request.user.id if request.user.is_authenticated else None,
             is_admin=is_admin,
             mcp_client_id=mcp_client_id,
@@ -1508,8 +1134,7 @@ class DecisionTraceDetailView(APIView):
     def get(self, request, request_id):
         is_admin = IsAuditAdmin().has_permission(request, self)
         mcp_client_id = request.query_params.get('mcp_client_id') or None
-        repo = DjangoAuditRepository()
-        trace = repo.get_decision_trace(
+        trace = get_decision_trace_payload(
             request_id=request_id,
             mcp_client_id=mcp_client_id,
             current_user_id=request.user.id if request.user.is_authenticated else None,
@@ -1595,12 +1220,7 @@ class AuditFailureCounterView(APIView):
     )
     def get(self, request):
         """获取失败计数"""
-        from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
-
-        counter = get_audit_failure_counter()
-        stats = counter.get_failure_stats()
-
-        return Response(stats.to_dict())
+        return Response(get_audit_failure_stats())
 
     @extend_schema(
         summary="重置审计失败计数器",
@@ -1612,10 +1232,7 @@ class AuditFailureCounterView(APIView):
     )
     def post(self, request):
         """重置计数器"""
-        from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
-
-        counter = get_audit_failure_counter()
-        counter.reset()
+        reset_audit_failure_counter()
 
         logger.info("Audit failure counter reset", extra={'user': request.user})
 
@@ -1643,22 +1260,18 @@ class AuditMetricsView(APIView):
         - prometheus: Prometheus 文本格式（默认）
         - json: JSON 格式的指标摘要
         """
-        from apps.audit.infrastructure.metrics import export_metrics, get_audit_metrics_summary
-
         format_type = request.query_params.get('format', 'prometheus')
 
         if format_type == 'json':
             # 返回 JSON 格式的指标摘要
-            summary = get_audit_metrics_summary()
-            return Response(summary)
+            return Response(get_audit_metrics_summary_payload())
 
         else:
             # 返回 Prometheus 文本格式
             from django.http import HttpResponse
 
-            metrics_text = export_metrics()
             return HttpResponse(
-                metrics_text,
+                export_audit_metrics_payload(),
                 content_type='text/plain; version=0.0.4; charset=utf-8',
                 status=status.HTTP_200_OK,
             )

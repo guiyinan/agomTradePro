@@ -7,11 +7,11 @@ Domain 层纯业务逻辑，只使用 Python 标准库。
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from shared.domain.asset_eligibility import (
+from apps.regime.domain.asset_eligibility import (
     Eligibility,
     get_eligibility_matrix,
 )
-from shared.domain.asset_eligibility import (
+from apps.regime.domain.asset_eligibility import (
     check_eligibility as _check_eligibility,
 )
 

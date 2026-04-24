@@ -5,8 +5,6 @@ Use cases for AI provider management.
 from datetime import date
 from typing import Any
 
-from django.contrib.auth import get_user_model
-
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
 from ..infrastructure.adapters import OpenAICompatibleAdapter
@@ -522,10 +520,7 @@ class ListUserFallbackQuotasUseCase:
         self._quota_repo = quota_repo or AIUserFallbackQuotaRepository()
 
     def execute(self) -> list[UserFallbackQuotaDTO]:
-        user_model = get_user_model()
-        users = user_model._default_manager.all().order_by("id")
-        if hasattr(user_model, "is_active"):
-            users = users.filter(is_active=True)
+        users = self._quota_repo.list_active_users()
         get_use_case = GetUserFallbackQuotaUseCase(quota_repo=self._quota_repo)
         return [get_use_case.execute(user=user) for user in users]
 

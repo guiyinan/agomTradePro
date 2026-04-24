@@ -7,9 +7,13 @@ Core Views for AgomTradePro
 from datetime import UTC, date, datetime, timezone
 
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render
 
+from apps.account.application.documentation_use_cases import (
+    DocumentationNotFound,
+    get_documentation_service,
+)
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
@@ -73,13 +77,13 @@ def terminal_view(request):
 
     提供 bash 风格的命令行界面，用于与 AI 中台交互
     """
-    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.policy.application.repository_provider import get_current_policy_repository
     from apps.regime.application.current_regime import resolve_current_regime
 
     # 获取当前上下文信息
     current_regime = resolve_current_regime()
 
-    policy_repo = DjangoPolicyRepository()
+    policy_repo = get_current_policy_repository()
     latest_policy = policy_repo.get_current_policy_level()
 
     regime_display = {
@@ -131,16 +135,18 @@ def asset_screen_view(request):
 
     统一的多资产筛选和资产池管理界面
     """
-    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+    from apps.policy.application.repository_provider import get_current_policy_repository
+    from apps.sentiment.application.repository_provider import (
+        get_sentiment_index_repository,
+    )
 
     # 获取当前上下文信息
     current_regime = resolve_current_regime()
 
-    policy_repo = DjangoPolicyRepository()
+    policy_repo = get_current_policy_repository()
     latest_policy = policy_repo.get_current_policy_level()
 
-    sentiment_repo = SentimentIndexRepository()
+    sentiment_repo = get_sentiment_index_repository()
     latest_sentiment = sentiment_repo.get_latest()
 
     regime_display = {
@@ -174,30 +180,24 @@ def asset_screen_view(request):
 
 def docs_view(request, doc_slug=""):
     """文档查看视图"""
-    from django.http import Http404
-
-    from apps.account.infrastructure.models import DocumentationModel
+    documentation_service = get_documentation_service()
 
     if doc_slug:
         # 显示具体文档
         try:
-            doc = DocumentationModel._default_manager.get(slug=doc_slug, is_published=True)
-        except DocumentationModel.DoesNotExist:
+            doc = documentation_service.get_published_doc_by_slug(doc_slug)
+        except DocumentationNotFound:
             raise Http404(f"文档 {doc_slug} 不存在")
 
         context = {
             "doc": doc,
             "slug": doc_slug,
-            "all_docs": DocumentationModel._default_manager.filter(is_published=True).order_by(
-                "category", "order"
-            ),
+            "all_docs": documentation_service.list_published_docs(),
         }
         return render(request, "docs/detail.html", context)
     else:
         # 显示文档列表
-        docs = DocumentationModel._default_manager.filter(is_published=True).order_by(
-            "category", "order"
-        )
+        docs = documentation_service.list_published_docs()
 
         # 按分类分组
         categories = {
@@ -260,7 +260,7 @@ def decision_workspace_view(request):
     import logging
 
     from apps.policy.application.use_cases import GetCurrentPolicyUseCase
-    from apps.policy.infrastructure.repositories import get_policy_repository
+    from apps.policy.application.repository_provider import get_current_policy_repository
 
     logger = logging.getLogger(__name__)
 
@@ -290,7 +290,7 @@ def decision_workspace_view(request):
 
     # ========== 获取当前 Policy ==========
     try:
-        policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
+        policy_use_case = GetCurrentPolicyUseCase(get_current_policy_repository())
         policy_response = policy_use_case.execute()
         if policy_response.success and policy_response.policy_level:
             context["current_policy"] = policy_response.policy_level.value
@@ -300,19 +300,16 @@ def decision_workspace_view(request):
 
     # ========== Beta Gate 数据 ==========
     try:
-        from apps.beta_gate.infrastructure.models import GateConfigModel
+        from apps.beta_gate.application.config_summary_service import (
+            get_beta_gate_config_summary_service,
+        )
 
-        active_config = GateConfigModel._default_manager.active().first()
-        if active_config:
-            regime_constraints = (
-                active_config.regime_constraints
-                if isinstance(active_config.regime_constraints, dict)
-                else {}
-            )
-            context["beta_gate_allowed_classes"] = regime_constraints.get(
-                "allowed_asset_classes", []
-            )
-            context["beta_gate_config_id"] = active_config.config_id
+        beta_gate_context = (
+            get_beta_gate_config_summary_service().get_active_config_context()
+        )
+        context["beta_gate_allowed_classes"] = beta_gate_context["allowed_asset_classes"]
+        if beta_gate_context["config_id"]:
+            context["beta_gate_config_id"] = beta_gate_context["config_id"]
         else:
             context["beta_gate_allowed_classes"] = []
     except Exception as e:
@@ -321,28 +318,16 @@ def decision_workspace_view(request):
 
     # ========== Alpha Trigger 数据 ==========
     try:
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
-
-        # 统计各状态数量
-        context["alpha_trigger_count"] = AlphaTriggerModel._default_manager.filter(
-            status="ACTIVE"
-        ).count()
-        context["alpha_watch_count"] = AlphaCandidateModel._default_manager.filter(
-            status="WATCH"
-        ).count()
-        context["alpha_candidate_count"] = AlphaCandidateModel._default_manager.filter(
-            status="CANDIDATE"
-        ).count()
-        context["alpha_actionable_count"] = AlphaCandidateModel._default_manager.filter(
-            status="ACTIONABLE"
-        ).count()
-
-        # 可操作候选（按优先级排序）
-        raw_actionable_candidates = list(
-            AlphaCandidateModel._default_manager.filter(status="ACTIONABLE").order_by(
-                "-confidence", "-created_at"
-            )[:50]
+        from apps.alpha_trigger.application.global_alert_service import (
+            get_alpha_trigger_global_alert_service,
         )
+
+        alpha_summary = get_alpha_trigger_global_alert_service().get_workspace_summary()
+        context["alpha_trigger_count"] = alpha_summary["alpha_trigger_count"]
+        context["alpha_watch_count"] = alpha_summary["alpha_watch_count"]
+        context["alpha_candidate_count"] = alpha_summary["alpha_candidate_count"]
+        context["alpha_actionable_count"] = alpha_summary["alpha_actionable_count"]
+        raw_actionable_candidates = alpha_summary["actionable_candidates"]
         actionable_candidates = _group_by_asset_code(
             raw_actionable_candidates, direction_attr="direction"
         )[:5]
@@ -358,25 +343,18 @@ def decision_workspace_view(request):
 
     # ========== Decision Rhythm 数据 ==========
     try:
-        from apps.decision_rhythm.domain.entities import QuotaPeriod
-        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-
-        current_quota = (
-            DecisionQuotaModel._default_manager.filter(period=QuotaPeriod.WEEKLY.value)
-            .order_by("-period_start")
-            .first()
+        from apps.decision_rhythm.application.global_alert_service import (
+            get_decision_rhythm_global_alert_service,
         )
-        if current_quota:
-            context["quota_total"] = current_quota.max_decisions
-            context["quota_used"] = current_quota.used_decisions
-            context["quota_remaining"] = max(
-                0, current_quota.max_decisions - current_quota.used_decisions
-            )
-            context["quota_usage_percent"] = (
-                round(current_quota.used_decisions / current_quota.max_decisions * 100, 1)
-                if current_quota.max_decisions > 0
-                else 0
-            )
+
+        quota_usage = (
+            get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
+        )
+        if quota_usage:
+            context["quota_total"] = quota_usage["quota_total"]
+            context["quota_used"] = quota_usage["quota_used"]
+            context["quota_remaining"] = quota_usage["quota_remaining"]
+            context["quota_usage_percent"] = quota_usage["usage_percent"]
         else:
             context["quota_total"] = 10
             context["quota_used"] = 0
@@ -391,17 +369,12 @@ def decision_workspace_view(request):
 
     # ========== 决策待办列表（优先级排序） ==========
     try:
-        from apps.decision_rhythm.infrastructure.models import (
-            DecisionRequestModel,
-            DecisionResponseModel,
+        from apps.decision_rhythm.application.global_alert_service import (
+            get_decision_rhythm_global_alert_service,
         )
 
-        # 待处理定义：已批准但未执行的请求
-        # P1-8: 查询条件改为 PENDING + FAILED，以支持重试分支
-        raw_pending_requests = list(
-            DecisionRequestModel._default_manager.filter(
-                response__approved=True, execution_status__in=["PENDING", "FAILED"]
-            ).order_by("-requested_at")[:100]
+        raw_pending_requests = (
+            get_decision_rhythm_global_alert_service().list_pending_execution_requests()
         )
         pending_requests = _group_by_asset_code(raw_pending_requests, direction_attr="direction")[
             :10
@@ -438,22 +411,13 @@ def decision_workspace_view(request):
 
     # 候选即将过期告警
     try:
-        from datetime import timedelta
+        from apps.alpha_trigger.application.global_alert_service import (
+            get_alpha_trigger_global_alert_service,
+        )
 
-        from django.utils import timezone
-
-        expiring_soon = 0
-        now = timezone.now()
-        threshold = now + timedelta(days=2)
-        candidates = AlphaCandidateModel._default_manager.filter(
-            status__in=["WATCH", "CANDIDATE", "ACTIONABLE"]
-        ).only("created_at", "time_horizon")
-        for c in candidates:
-            if not c.created_at or not c.time_horizon:
-                continue
-            expires_at = c.created_at + timedelta(days=int(c.time_horizon))
-            if now < expires_at <= threshold:
-                expiring_soon += 1
+        expiring_soon = (
+            get_alpha_trigger_global_alert_service().count_expiring_candidates()
+        )
         if expiring_soon > 0:
             alerts.append(
                 {
@@ -509,14 +473,12 @@ def settings_center_view(request):
 @user_passes_test(lambda user: user.is_superuser, login_url="/account/login/")
 def admin_console_view(request):
     """Unified admin operations console for superusers."""
-    from django.contrib.auth.models import User
-
-    from apps.account.infrastructure.models import (
-        AccountProfileModel,
-        DocumentationModel,
-        UserAccessTokenModel,
+    from apps.account.application.config_summary_service import (
+        get_account_config_summary_service,
     )
 
+    documentation_stats = get_documentation_service().get_stats()
+    admin_counts = get_account_config_summary_service().get_admin_console_counts()
     sections = [
         {
             "title": "管理员与访问控制",
@@ -524,13 +486,13 @@ def admin_console_view(request):
                 {
                     "name": "用户管理",
                     "description": "审批新用户、调整角色、重置状态。",
-                    "summary": f"待审批 {AccountProfileModel._default_manager.filter(approval_status='pending').count()} 人",
+                    "summary": f"待审批 {admin_counts['pending_profiles']} 人",
                     "url": "/account/admin/users/",
                 },
                 {
                     "name": "Token 管理",
                     "description": "轮换、吊销和核查 MCP/SDK 访问令牌。",
-                    "summary": f"活跃 Token {UserAccessTokenModel._default_manager.filter(is_active=True).count()} 个",
+                    "summary": f"活跃 Token {admin_counts['active_tokens']} 个",
                     "url": "/account/admin/tokens/",
                 },
                 {
@@ -553,13 +515,13 @@ def admin_console_view(request):
                 {
                     "name": "文档管理",
                     "description": "管理系统内建文档、草稿和导入导出。",
-                    "summary": f"草稿 {DocumentationModel._default_manager.filter(is_published=False).count()} 篇 / 总计 {DocumentationModel._default_manager.count()} 篇",
+                    "summary": f"草稿 {documentation_stats.draft} 篇 / 总计 {documentation_stats.total} 篇",
                     "url": "/admin/docs/manage/",
                 },
                 {
                     "name": "Django Admin",
                     "description": "进入底层模型后台，处理仍未产品化的管理项。",
-                    "summary": f"用户总数 {User.objects.count()}",
+                    "summary": f"用户总数 {admin_counts['users']}",
                     "url": "/admin/",
                 },
             ],

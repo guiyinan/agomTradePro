@@ -574,14 +574,8 @@ class TestEvaluateIndicatorPerformanceUseCase:
         use_case = EvaluateIndicatorPerformanceUseCase(audit_repository=mock_audit_repository)
         assert use_case.audit_repo == mock_audit_repository
 
-    @patch('apps.audit.application.use_cases.IndicatorThresholdConfigModel')
-    @patch('apps.audit.application.use_cases.MacroIndicator')
-    @patch('apps.audit.application.use_cases.RegimeLog')
     def test_execute_success(
         self,
-        mock_regime_log,
-        mock_macro_indicator,
-        mock_threshold_config_model,
         use_case,
         mock_threshold_dict
     ):
@@ -614,8 +608,7 @@ class TestEvaluateIndicatorPerformanceUseCase:
         assert response.success is True
         assert response.report is not None
 
-    @patch('apps.audit.application.use_cases.IndicatorThresholdConfigModel')
-    def test_execute_threshold_not_found(self, mock_threshold_config_model, use_case):
+    def test_execute_threshold_not_found(self, use_case):
         """Test with non-existent threshold config."""
         use_case.audit_repo.get_threshold_config_by_indicator.return_value = None
 
@@ -629,12 +622,8 @@ class TestEvaluateIndicatorPerformanceUseCase:
         assert response.success is False
         assert "不存在" in response.error
 
-    @patch('apps.audit.application.use_cases.IndicatorThresholdConfigModel')
-    @patch('apps.audit.application.use_cases.MacroIndicator')
     def test_execute_no_indicator_data(
         self,
-        mock_macro_indicator,
-        mock_threshold_config_model,
         use_case,
         mock_threshold_dict
     ):
@@ -652,14 +641,8 @@ class TestEvaluateIndicatorPerformanceUseCase:
         assert response.success is False
         assert "无数据" in response.error
 
-    @patch('apps.audit.application.use_cases.IndicatorThresholdConfigModel')
-    @patch('apps.audit.application.use_cases.MacroIndicator')
-    @patch('apps.audit.application.use_cases.RegimeLog')
     def test_shadow_mode_no_save(
         self,
-        mock_regime_log,
-        mock_macro_indicator,
-        mock_threshold_config_model,
         use_case,
         mock_threshold_dict
     ):

@@ -7,20 +7,21 @@ Dashboard Application Use Cases
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from apps.account.domain.entities import (
     AssetAllocation,
     Position,
     RegimeMatchAnalysis,
 )
-from apps.account.infrastructure.repositories import (
-    AccountRepository,
-    PortfolioRepository,
-    PositionRepository,
+from apps.dashboard.application.repository_provider import (
+    get_account_repository,
+    get_dashboard_overview_repository,
+    get_portfolio_repository,
+    get_position_repository,
+    get_regime_repository,
+    get_signal_repository,
 )
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 logger = logging.getLogger(__name__)
 
@@ -152,17 +153,19 @@ class GetDashboardDataUseCase:
 
     def __init__(
         self,
-        account_repo: AccountRepository,
-        portfolio_repo: PortfolioRepository,
-        position_repo: PositionRepository,
-        regime_repo: DjangoRegimeRepository,
-        signal_repo: DjangoSignalRepository,
+        account_repo: Any | None = None,
+        portfolio_repo: Any | None = None,
+        position_repo: Any | None = None,
+        regime_repo: Any | None = None,
+        signal_repo: Any | None = None,
+        overview_repo: Any | None = None,
     ):
-        self.account_repo = account_repo
-        self.portfolio_repo = portfolio_repo
-        self.position_repo = position_repo
-        self.regime_repo = regime_repo
-        self.signal_repo = signal_repo
+        self.account_repo = account_repo or get_account_repository()
+        self.portfolio_repo = portfolio_repo or get_portfolio_repository()
+        self.position_repo = position_repo or get_position_repository()
+        self.regime_repo = regime_repo or get_regime_repository()
+        self.signal_repo = signal_repo or get_signal_repository()
+        self.overview_repo = overview_repo or get_dashboard_overview_repository()
 
     def execute(self, user_id: int) -> DashboardData:
         """
@@ -335,10 +338,8 @@ class GetDashboardDataUseCase:
 
     def _get_user_account_totals(self, user_id: int) -> dict[str, float]:
         """Prefer the current simulated-account system for dashboard totals."""
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-        accounts = SimulatedAccountModel._default_manager.filter(user_id=user_id)
-        if not accounts.exists():
+        account_totals = self.overview_repo.get_user_simulated_account_totals(user_id)
+        if account_totals is None:
             portfolio_id = self.account_repo.get_or_create_default_portfolio(user_id)
             snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
             total_assets = float(snapshot.total_value)
@@ -354,30 +355,7 @@ class GetDashboardDataUseCase:
                 "total_return": float(snapshot.total_return),
                 "total_return_pct": snapshot.total_return_pct,
             }
-
-        total_assets = 0.0
-        initial_capital = 0.0
-        cash_balance = 0.0
-        invested_value = 0.0
-        for account in accounts:
-            total_assets += float(account.total_value or 0.0)
-            initial_capital += float(account.initial_capital or 0.0)
-            cash_balance += float(account.current_cash or 0.0)
-            invested_value += float(account.current_market_value or 0.0)
-
-        total_return = total_assets - initial_capital
-        total_return_pct = (total_return / initial_capital * 100) if initial_capital else 0.0
-        invested_ratio = (invested_value / total_assets) if total_assets else 0.0
-
-        return {
-            "total_assets": total_assets,
-            "initial_capital": initial_capital,
-            "cash_balance": cash_balance,
-            "invested_value": invested_value,
-            "invested_ratio": invested_ratio,
-            "total_return": total_return,
-            "total_return_pct": total_return_pct,
-        }
+        return account_totals
 
     def _assess_macro_data_health(
         self,
@@ -386,20 +364,19 @@ class GetDashboardDataUseCase:
         as_of_date: date,
     ) -> dict[str, object]:
         """评估 Regime 输入数据健康度（时效+完整性）。"""
-        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-
-        repo = MacroRepositoryAdapter()
         warnings: list[str] = []
 
-        growth_full = repo.get_growth_series_full(
+        growth_full = self.overview_repo.get_growth_series(
             indicator_code=growth_indicator,
             end_date=as_of_date,
             use_pit=False,
+            full=True,
         )
-        inflation_full = repo.get_inflation_series_full(
+        inflation_full = self.overview_repo.get_inflation_series(
             indicator_code=inflation_indicator,
             end_date=as_of_date,
             use_pit=False,
+            full=True,
         )
 
         growth_points = len(growth_full)
@@ -466,33 +443,26 @@ class GetDashboardDataUseCase:
 
     def _get_simulated_positions(self, user_id: int) -> list[dict]:
         """Load holdings from the active simulated-account system."""
-        from apps.simulated_trading.infrastructure.models import PositionModel
-
-        sim_positions = (
-            PositionModel._default_manager
-            .filter(account__user_id=user_id)
-            .select_related("account")
-            .order_by("-market_value", "asset_code")
-        )
-        if not sim_positions.exists():
+        sim_positions = self.overview_repo.get_simulated_positions(user_id)
+        if not sim_positions:
             return []
 
         return [
             {
-                "id": pos.id,
-                "asset_code": pos.asset_code,
-                "asset_name": pos.asset_name,
-                "asset_class": pos.asset_type,
-                "asset_class_display": self._get_asset_class_display(pos.asset_type),
+                "id": pos["id"],
+                "asset_code": pos["asset_code"],
+                "asset_name": pos["asset_name"],
+                "asset_class": pos["asset_class"],
+                "asset_class_display": self._get_asset_class_display(pos["asset_class"]),
                 "region": "CN",
                 "region_display": self._get_region_display("CN"),
-                "shares": float(pos.quantity),
-                "avg_cost": float(pos.avg_cost),
-                "current_price": float(pos.current_price),
-                "market_value": float(pos.market_value),
-                "unrealized_pnl": float(pos.unrealized_pnl),
-                "unrealized_pnl_pct": pos.unrealized_pnl_pct,
-                "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
+                "shares": pos["shares"],
+                "avg_cost": pos["avg_cost"],
+                "current_price": pos["current_price"],
+                "market_value": pos["market_value"],
+                "unrealized_pnl": pos["unrealized_pnl"],
+                "unrealized_pnl_pct": pos["unrealized_pnl_pct"],
+                "opened_at": pos["opened_at"],
             }
             for pos in sim_positions
         ]
@@ -670,10 +640,7 @@ class GetDashboardDataUseCase:
         try:
             import requests
 
-            from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-
-            provider_repo = AIProviderRepository()
-            provider = next(iter(provider_repo.get_active_configured_system_providers()), None)
+            provider = self.overview_repo.get_primary_system_ai_provider_payload()
 
             if not provider:
                 # 如果没有配置 AI，使用数据库规则作为后备
@@ -681,19 +648,17 @@ class GetDashboardDataUseCase:
                     current_regime, snapshot, match_analysis, active_signals, policy_level
                 )
 
-            api_key = provider_repo.get_api_key(provider)
-
             # 构建 API 请求
-            api_url = _build_ai_api_url(provider.base_url)
+            api_url = _build_ai_api_url(str(provider["base_url"]))
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {provider['api_key']}",
             }
 
             # 根据不同的提供商调整请求格式
-            if provider.provider_type == "openai":
+            if provider["provider_type"] == "openai":
                 payload = {
-                    "model": provider.default_model,
+                    "model": provider["default_model"],
                     "messages": [
                         {
                             "role": "system",
@@ -704,9 +669,9 @@ class GetDashboardDataUseCase:
                     "temperature": 0.7,
                     "max_tokens": 500,
                 }
-            elif provider.provider_type == "deepseek":
+            elif provider["provider_type"] == "deepseek":
                 payload = {
-                    "model": provider.default_model,
+                    "model": provider["default_model"],
                     "messages": [
                         {
                             "role": "system",
@@ -719,7 +684,7 @@ class GetDashboardDataUseCase:
                 }
             else:  # 通用格式
                 payload = {
-                    "model": provider.default_model,
+                    "model": provider["default_model"],
                     "messages": [
                         {
                             "role": "system",
@@ -738,7 +703,7 @@ class GetDashboardDataUseCase:
                 data = response.json()
 
                 # 解析响应
-                if provider.provider_type in ["openai", "deepseek", "qwen"]:
+                if provider["provider_type"] in ["openai", "deepseek", "qwen"]:
                     content = data["choices"][0]["message"]["content"]
                 else:
                     content = str(data)
@@ -786,9 +751,7 @@ class GetDashboardDataUseCase:
         - 支持多层规则优先级
         - 永不空白，至少返回静态建议
         """
-        from apps.account.infrastructure.models import InvestmentRuleModel
-
-        insights = []
+        insights: list[str] = []
         invested_ratio = snapshot.get_invested_ratio()
         match_score = match_analysis.total_match_score
 
@@ -796,21 +759,18 @@ class GetDashboardDataUseCase:
         policy_level_num = self._policy_to_numeric(policy_level or "P0")
 
         # 获取所有启用的全局规则
-        all_rules = InvestmentRuleModel._default_manager.filter(
-            is_active=True,
-            user__isnull=True,  # 全局规则
-        ).order_by("priority", "id")
+        all_rules = self.overview_repo.list_global_investment_rule_payloads()
 
         # ==================== Level 1: 组合规则（最高优先级） ====================
 
         # 1. Regime + Policy 组合规则
-        combo_rules = all_rules.filter(rule_type="regime_policy_combo")
+        combo_rules = self._select_rule_payloads(all_rules, "regime_policy_combo")
         for rule in combo_rules:
-            conditions = rule.conditions
+            conditions = rule.get("conditions") or {}
             if conditions.get("regime") == current_regime:
                 min_policy = conditions.get("min_policy_level", 0)
                 if policy_level_num >= min_policy:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         regime=current_regime,
                         policy_level=policy_level or "P0",
                         match_score=f"{match_score:.0f}",
@@ -821,15 +781,15 @@ class GetDashboardDataUseCase:
 
         # 2. 匹配度 + 仓位 组合规则
         if not insights:  # 只在前面没有匹配时检查
-            match_pos_rules = all_rules.filter(rule_type="match_position_combo")
+            match_pos_rules = self._select_rule_payloads(all_rules, "match_position_combo")
             for rule in match_pos_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 max_match = conditions.get("max_match_score", 100)
                 min_invested = conditions.get("min_invested_ratio", 0)
                 max_invested = conditions.get("max_invested_ratio", 1)
 
                 if match_score <= max_match and min_invested <= invested_ratio <= max_invested:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         match_score=f"{match_score:.0f}",
                         invested_ratio=f"{invested_ratio * 100:.0f}%",
                     )
@@ -838,14 +798,14 @@ class GetDashboardDataUseCase:
 
         # 3. Regime + 仓位 组合规则
         if not insights:
-            regime_pos_rules = all_rules.filter(rule_type="regime_position_combo")
+            regime_pos_rules = self._select_rule_payloads(all_rules, "regime_position_combo")
             for rule in regime_pos_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 if conditions.get("regime") == current_regime:
                     min_invested = conditions.get("min_invested_ratio", 0)
                     max_invested = conditions.get("max_invested_ratio", 1)
                     if min_invested <= invested_ratio <= max_invested:
-                        advice = rule.advice_template.format(
+                        advice = str(rule.get("advice_template") or "").format(
                             regime=current_regime,
                             invested_ratio=f"{invested_ratio * 100:.0f}%",
                         )
@@ -856,11 +816,11 @@ class GetDashboardDataUseCase:
 
         # 4. Regime环境建议
         if len(insights) < 3:  # 限制建议数量
-            regime_rules = all_rules.filter(rule_type="regime_advice")
+            regime_rules = self._select_rule_payloads(all_rules, "regime_advice")
             for rule in regime_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 if conditions.get("regime") == current_regime:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         regime=current_regime,
                         growth_direction="↑" if current_regime in ["Recovery", "Overheat"] else "↓",
                         inflation_direction="↑"
@@ -872,13 +832,13 @@ class GetDashboardDataUseCase:
 
         # 5. Policy档位建议
         if len(insights) < 3:
-            policy_rules = all_rules.filter(rule_type="policy_advice")
+            policy_rules = self._select_rule_payloads(all_rules, "policy_advice")
             for rule in policy_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 min_policy = conditions.get("min_policy_level", 0)
                 max_policy = conditions.get("max_policy_level", 3)
                 if min_policy <= policy_level_num <= max_policy:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         policy_level=policy_level or "P0",
                     )
                     insights.append(advice)
@@ -886,13 +846,13 @@ class GetDashboardDataUseCase:
 
         # 6. 仓位建议
         if len(insights) < 3:
-            position_rules = all_rules.filter(rule_type="position_advice")
+            position_rules = self._select_rule_payloads(all_rules, "position_advice")
             for rule in position_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 min_invested = conditions.get("min_invested_ratio", 0)
                 max_invested = conditions.get("max_invested_ratio", 1)
                 if min_invested <= invested_ratio <= max_invested:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         invested_ratio=f"{invested_ratio * 100:.0f}%",
                         cash_ratio=f"{(1 - invested_ratio) * 100:.0f}%",
                     )
@@ -901,13 +861,13 @@ class GetDashboardDataUseCase:
 
         # 7. 匹配度建议
         if len(insights) < 3:
-            match_rules = all_rules.filter(rule_type="match_advice")
+            match_rules = self._select_rule_payloads(all_rules, "match_advice")
             for rule in match_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 min_match = conditions.get("min_match_score", 0)
                 max_match = conditions.get("max_match_score", 100)
                 if min_match <= match_score <= max_match:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         match_score=f"{match_score:.0f}",
                     )
                     insights.append(advice)
@@ -920,9 +880,9 @@ class GetDashboardDataUseCase:
 
         # 8. 信号建议
         if len(insights) < 3:
-            signal_rules = all_rules.filter(rule_type="signal_advice")
+            signal_rules = self._select_rule_payloads(all_rules, "signal_advice")
             for rule in signal_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 min_count = conditions.get("min_signal_count", 0)
                 has_active = conditions.get("has_active_signals", True)
 
@@ -933,7 +893,7 @@ class GetDashboardDataUseCase:
                     match = True
 
                 if match:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         signal_count=len(active_signals),
                     )
                     insights.append(advice)
@@ -941,13 +901,13 @@ class GetDashboardDataUseCase:
 
         # 9. 风险提示
         if len(insights) < 3:
-            risk_rules = all_rules.filter(rule_type="risk_alert")
+            risk_rules = self._select_rule_payloads(all_rules, "risk_alert")
             for rule in risk_rules:
-                conditions = rule.conditions
+                conditions = rule.get("conditions") or {}
                 min_return = conditions.get("min_return_pct", -100)
                 max_return = conditions.get("max_return_pct", 100)
                 if min_return <= snapshot.total_return_pct <= max_return:
-                    advice = rule.advice_template.format(
+                    advice = str(rule.get("advice_template") or "").format(
                         return_pct=f"{snapshot.total_return_pct:.0f}",
                     )
                     insights.append(advice)
@@ -956,9 +916,9 @@ class GetDashboardDataUseCase:
         # ==================== Level 3: 静态保底规则（永不空白） ====================
 
         if len(insights) < 2:
-            static_rules = all_rules.filter(rule_type="static_advice")
+            static_rules = self._select_rule_payloads(all_rules, "static_advice")
             for rule in static_rules:
-                insights.append(rule.advice_template)
+                insights.append(str(rule.get("advice_template") or ""))
                 if len(insights) >= 2:
                     break
 
@@ -967,6 +927,14 @@ class GetDashboardDataUseCase:
             insights.append("定期查看持仓与Regime的匹配度，关注市场变化")
 
         return insights[:5]  # 最多返回5条建议
+
+    @staticmethod
+    def _select_rule_payloads(
+        rules: list[dict[str, Any]],
+        rule_type: str,
+    ) -> list[dict[str, Any]]:
+        """Filter investment rule payloads by type."""
+        return [rule for rule in rules if rule.get("rule_type") == rule_type]
 
     def _policy_to_numeric(self, policy_level: str) -> int:
         """将Policy档位转换为数字"""
@@ -987,13 +955,9 @@ class GetDashboardDataUseCase:
 
     def _get_latest_macro_values(self) -> tuple:
         """获取最新的 PMI 和 CPI 值"""
-        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-
-        macro_repo = MacroRepositoryAdapter()
-
         # 获取最新 PMI
         try:
-            pmi_series = macro_repo.get_growth_series(
+            pmi_series = self.overview_repo.get_growth_series(
                 indicator_code="PMI", end_date=date.today(), use_pit=False
             )
             pmi_value = float(pmi_series[-1]) if pmi_series else None
@@ -1002,7 +966,7 @@ class GetDashboardDataUseCase:
 
         # 获取最新 CPI
         try:
-            cpi_series = macro_repo.get_inflation_series(
+            cpi_series = self.overview_repo.get_inflation_series(
                 indicator_code="CPI", end_date=date.today(), use_pit=False
             )
             cpi_value = float(cpi_series[-1]) if cpi_series else None
@@ -1013,66 +977,7 @@ class GetDashboardDataUseCase:
 
     def _get_policy_environment(self, user_id: int) -> tuple:
         """获取政策环境信息"""
-        from datetime import timedelta
-
-        from django.utils import timezone
-
-        from apps.policy.infrastructure.models import PolicyAuditQueue, PolicyLog
-        from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-
-        # 获取当前政策档位
-        policy_repo = DjangoPolicyRepository()
-        current_policy_level = None
-        current_policy_date = None
-
-        try:
-            current_level = policy_repo.get_current_policy_level(date.today())
-            current_policy_level = current_level.value
-
-            latest_effective = (
-                PolicyLog._default_manager.filter(gate_effective=True)
-                .order_by("-event_date", "-effective_at")
-                .only("event_date")
-                .first()
-            )
-            if latest_effective:
-                current_policy_date = latest_effective.event_date
-        except Exception:
-            pass  # 政策信息获取失败不影响其他功能
-
-        # 获取待审核数量（分配给当前用户的）
-        pending_review_count = 0
-        try:
-            pending_review_count = PolicyAuditQueue._default_manager.filter(
-                assigned_to__user_id=user_id, status__in=["pending", "in_progress"]
-            ).count()
-        except Exception:
-            pass
-
-        # 获取最近政策（7天内已审核通过的）
-        recent_policies = []
-        try:
-            recent_logs = PolicyLog._default_manager.filter(
-                created_at__gte=timezone.now() - timedelta(days=7),
-                audit_status__in=["auto_approved", "manual_approved"],
-            ).order_by("-created_at")[:5]
-
-            for p in recent_logs:
-                recent_policies.append(
-                    {
-                        "id": p.id,
-                        "title": p.title,
-                        "level": p.level,
-                        "level_display": p.get_level_display(),
-                        "category": p.info_category,
-                        "category_display": p.get_info_category_display(),
-                        "created_at": p.created_at.strftime("%Y-%m-%d %H:%M"),
-                    }
-                )
-        except Exception:
-            pass
-
-        return current_policy_level, current_policy_date, pending_review_count, recent_policies
+        return self.overview_repo.get_policy_environment(user_id)
 
     @staticmethod
     def _normalize_policy_level_for_strategy(policy_level: str | None) -> str | None:
@@ -1176,128 +1081,13 @@ class GetDashboardDataUseCase:
             List[Dict]: [{"date": "2026-01-01", "return_pct": 5.2}, ...]
         """
         if portfolio_id is not None:
-            from apps.account.infrastructure.models import PortfolioDailySnapshotModel
-
-            snapshots = list(
-                PortfolioDailySnapshotModel._default_manager.filter(
-                    portfolio_id=portfolio_id
-                ).order_by("snapshot_date")
-            )
-            if not snapshots:
-                return []
-
-            base_value = float(snapshots[0].total_value) if snapshots[0].total_value else 1.0
-            if base_value <= 0:
-                base_value = 1.0
-
-            return [
-                {
-                    "date": snapshot.snapshot_date.isoformat(),
-                    "portfolio_value": float(snapshot.total_value),
-                    "return_pct": round(
-                        ((float(snapshot.total_value) - base_value) / base_value) * 100,
-                        2,
-                    ),
-                    "cash_balance": float(snapshot.cash_balance),
-                    "invested_value": float(snapshot.invested_value),
-                    "position_count": snapshot.position_count,
-                }
-                for snapshot in snapshots
-            ]
+            return self.overview_repo.get_portfolio_snapshot_performance_data(portfolio_id)
 
         if user_id is None:
             return []
 
-        from apps.simulated_trading.infrastructure.models import (
-            DailyNetValueModel,
-            SimulatedAccountModel,
+        return self.overview_repo.get_simulated_performance_data(
+            user_id=user_id,
+            account_id=account_id,
+            days=days,
         )
-
-        if days <= 0:
-            return []
-
-        end_date = date.today()
-        start_date = end_date - timedelta(days=max(days - 1, 0))
-
-        if account_id:
-            # 单账户：直接查询该账户的每日净值
-            records = list(
-                DailyNetValueModel._default_manager.filter(
-                    account_id=account_id,
-                    account__user_id=user_id,
-                    record_date__gte=start_date,
-                    record_date__lte=end_date,
-                ).order_by("record_date")
-            )
-            if not records:
-                return []
-
-            return [
-                {
-                    "date": r.record_date.isoformat(),
-                    "portfolio_value": float(r.net_value),
-                    "return_pct": round(r.cumulative_return, 2),
-                    "cash_balance": float(r.cash),
-                    "invested_value": float(r.market_value),
-                    "position_count": r.positions_count,
-                }
-                for r in records
-            ]
-        else:
-            # 全部账户：按日期汇总
-            account_ids = list(
-                SimulatedAccountModel._default_manager.filter(user_id=user_id)
-                .values_list("id", flat=True)
-            )
-            if not account_ids:
-                return []
-
-            records = list(
-                DailyNetValueModel._default_manager.filter(
-                    account_id__in=account_ids,
-                    record_date__gte=start_date,
-                    record_date__lte=end_date,
-                ).order_by("record_date")
-            )
-            if not records:
-                return []
-
-            # 按日期汇总
-            daily_totals: dict[date, dict] = {}
-            for r in records:
-                d = r.record_date
-                bucket = daily_totals.setdefault(d, {
-                    "net_value": 0.0,
-                    "cash": 0.0,
-                    "market_value": 0.0,
-                    "positions_count": 0,
-                })
-                bucket["net_value"] += float(r.net_value)
-                bucket["cash"] += float(r.cash)
-                bucket["market_value"] += float(r.market_value)
-                bucket["positions_count"] += r.positions_count
-
-            # 计算总初始资金（用于收益率基准）
-            total_initial = sum(
-                float(a.initial_capital)
-                for a in SimulatedAccountModel._default_manager.filter(id__in=account_ids)
-            )
-            if total_initial <= 0:
-                total_initial = next(iter(daily_totals.values()))["net_value"] if daily_totals else 1.0
-
-            performance_data = []
-            for d in sorted(daily_totals.keys()):
-                bucket = daily_totals[d]
-                return_pct = ((bucket["net_value"] - total_initial) / total_initial) * 100 if total_initial else 0.0
-                performance_data.append(
-                    {
-                        "date": d.isoformat(),
-                        "portfolio_value": bucket["net_value"],
-                        "return_pct": round(return_pct, 2),
-                        "cash_balance": bucket["cash"],
-                        "invested_value": bucket["market_value"],
-                        "position_count": bucket["positions_count"],
-                    }
-                )
-
-            return performance_data

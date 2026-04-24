@@ -6,14 +6,13 @@
 - 禁止业务逻辑
 - 包含 API 视图（DRF）
 """
-from datetime import date, datetime
-from typing import Optional
+from datetime import date
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -21,12 +20,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
-from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
-from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
-from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
-from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.simulated_trading.application import interface_services as simulated_interface_services
 from apps.simulated_trading.application.use_cases import (
     CreateSimulatedAccountUseCase,
     ExecuteBuyOrderUseCase,
@@ -34,21 +28,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
     ListAccountsUseCase,
 )
-from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.domain.entities import AccountType
-from apps.simulated_trading.infrastructure.models import (
-    DailyInspectionNotificationConfigModel,
-    DailyInspectionReportModel,
-    PositionModel,
-    SimulatedAccountModel,
-    SimulatedTradeModel,
-)
-from apps.simulated_trading.infrastructure.repositories import (
-    DjangoFeeConfigRepository,
-    DjangoPositionRepository,
-    DjangoSimulatedAccountRepository,
-    DjangoTradeRepository,
-)
 from core.exceptions import DataFetchError
 
 from .serializers import (
@@ -77,48 +57,30 @@ from .serializers import (
 )
 
 
-def _can_manage_account(user, account: SimulatedAccountModel) -> bool:
+def _can_manage_account(user, account) -> bool:
     """Whether the current user can delete or mutate the account."""
-    if not getattr(user, "is_authenticated", False):
-        return False
-    return bool(user.is_superuser or account.user_id == user.id)
+    return simulated_interface_services.can_manage_account(user, account)
 
 
 def _get_owned_account_or_response(request, account_id: int, action: str = "访问"):
     """Return owned account model or an error response."""
-    if not request.user or not request.user.is_authenticated:
+    result = simulated_interface_services.get_account_access(
+        user=request.user,
+        account_id=account_id,
+        action=action,
+    )
+    if not result.allowed:
         return Response(
-            {'success': False, 'error': f'请先登录后再{action}账户'},
-            status=status.HTTP_401_UNAUTHORIZED,
+            {'success': False, 'error': result.error},
+            status=result.status_code,
         )
 
-    account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-    if not account:
-        return Response(
-            {'success': False, 'error': f'账户不存在: {account_id}'},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    if not _can_manage_account(request.user, account):
-        return Response(
-            {'success': False, 'error': f'无权{action}该账户'},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    return account
+    return result.account
 
 
-def _delete_account_with_summary(account: SimulatedAccountModel) -> dict:
+def _delete_account_with_summary(account) -> dict:
     """Delete the account and provide small cascade stats for feedback."""
-    summary = {
-        "account_id": account.id,
-        "account_name": account.account_name,
-        "deleted_positions": PositionModel._default_manager.filter(account=account).count(),
-        "deleted_trades": SimulatedTradeModel._default_manager.filter(account=account).count(),
-        "deleted_reports": DailyInspectionReportModel._default_manager.filter(account=account).count(),
-    }
-    account.delete()
-    return summary
+    return simulated_interface_services.delete_account_with_summary(account.id) or {}
 
 
 def _parse_iso_date(raw_value: str, *, field_name: str) -> date:
@@ -212,13 +174,11 @@ def my_accounts_page(request):
             return redirect("/simulated-trading/my-accounts/")
 
         # 创建账户
-        account = SimulatedAccountModel._default_manager.create(
+        simulated_interface_services.create_account_for_user(
             user=request.user,
             account_name=account_name,
             account_type=account_type,
             initial_capital=initial_capital,
-            current_cash=initial_capital,
-            total_value=initial_capital,
         )
 
         type_label = "真实账户" if account_type == "real" else "模拟账户"
@@ -226,38 +186,7 @@ def my_accounts_page(request):
         return redirect("/simulated-trading/my-accounts/")
 
     # GET 请求：显示用户账户列表
-    from apps.simulated_trading.application.facade import get_simulated_trading_facade
-
-    facade = get_simulated_trading_facade()
-    accounts = SimulatedAccountModel._default_manager.filter(
-        user=request.user
-    ).order_by('-created_at')
-
-    total_assets = 0
-
-    for account in accounts:
-        # 兼容现有模板：给 account 注入 active_strategy 属性
-        account.active_strategy = facade.get_active_strategy_summary(account.id)
-
-        account_data = {
-            'id': account.id,
-            'name': account.account_name,
-            'type': '真实账户' if account.account_type == 'real' else '模拟账户',
-            'type_code': account.account_type,
-            'initial_capital': float(account.initial_capital),
-            'current_cash': float(account.current_cash),
-            'total_value': float(account.total_value),
-            'total_return': account.total_return,
-            'is_active': account.is_active,
-        }
-
-        total_assets += float(account.total_value)
-
-    context = {
-        'total_assets': total_assets,
-        'user': request.user,
-        'accounts': accounts,
-    }
+    context = simulated_interface_services.build_my_accounts_context(request.user)
     return render(request, 'simulated_trading/my_accounts.html', context)
 
 
@@ -270,31 +199,9 @@ def my_account_detail_page(request, account_id):
     显示指定账户的详细信息、持仓和交易记录
     GET /simulated-trading/my-accounts/{id}/
     """
-    # 获取用户的账户
-    account = get_object_or_404(
-        SimulatedAccountModel,
-        id=account_id,
-        user=request.user
-    )
-
-    # 获取持仓和交易记录
-    positions = account.positions.all()[:10]  # 最近10条持仓
-    trades = account.trades.all()[:20]  # 最近20条交易
-    from apps.share.infrastructure.models import ShareLinkModel
-    share_links = ShareLinkModel.objects.filter(
-        owner=request.user,
-        account_id=account.id,
-    ).order_by('-created_at')
-
-    context = {
-        'account': account,
-        'account_type': '真实账户' if account.account_type == 'real' else '模拟账户',
-        'account_type_code': account.account_type,
-        'positions': positions,
-        'trades': trades,
-        'share_links': share_links,
-        'user': request.user,
-    }
+    context = simulated_interface_services.build_my_account_detail_context(request.user, account_id)
+    if context is None:
+        raise Http404("账户不存在")
     return render(request, 'simulated_trading/my_account_detail.html', context)
 
 
@@ -307,21 +214,9 @@ def my_positions_page(request, account_id):
     显示指定账户的所有持仓
     GET /simulated-trading/my-accounts/{id}/positions/
     """
-    account = get_object_or_404(
-        SimulatedAccountModel,
-        id=account_id,
-        user=request.user
-    )
-
-    positions = account.positions.all()
-
-    context = {
-        'account': account,
-        'account_type': '真实账户' if account.account_type == 'real' else '模拟账户',
-        'account_type_code': account.account_type,
-        'positions': positions,
-        'user': request.user,
-    }
+    context = simulated_interface_services.build_my_positions_context(request.user, account_id)
+    if context is None:
+        raise Http404("账户不存在")
     return render(request, 'simulated_trading/my_positions.html', context)
 
 
@@ -334,28 +229,9 @@ def my_trades_page(request, account_id):
     显示指定账户的所有交易记录
     GET /simulated-trading/my-accounts/{id}/trades/
     """
-    account = get_object_or_404(
-        SimulatedAccountModel,
-        id=account_id,
-        user=request.user
-    )
-
-    trades_qs = account.trades.all()
-    buy_count = trades_qs.filter(action="buy").count()
-    sell_count = trades_qs.filter(action="sell").count()
-    trades = trades_qs[:100]  # 最近100条交易
-    total_realized_pnl = sum(float(trade.realized_pnl or 0) for trade in trades)
-
-    context = {
-        'account': account,
-        'account_type': '真实账户' if account.account_type == 'real' else '模拟账户',
-        'account_type_code': account.account_type,
-        'trades': trades,
-        'buy_count': buy_count,
-        'sell_count': sell_count,
-        'total_realized_pnl': total_realized_pnl,
-        'user': request.user,
-    }
+    context = simulated_interface_services.build_my_trades_context(request.user, account_id)
+    if context is None:
+        raise Http404("账户不存在")
     return render(request, 'simulated_trading/my_trades.html', context)
 
 
@@ -369,13 +245,9 @@ def my_inspection_notify_page(request, account_id):
     """
     from django.contrib import messages
 
-    account = get_object_or_404(
-        SimulatedAccountModel,
-        id=account_id,
-        user=request.user
-    )
-
-    config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(account=account)
+    context = simulated_interface_services.build_inspection_notify_context(request.user, account_id)
+    if context is None:
+        raise Http404("账户不存在")
 
     if request.method == "POST":
         is_enabled = request.POST.get("is_enabled") == "on"
@@ -400,19 +272,15 @@ def my_inspection_notify_page(request, account_id):
         if invalid:
             messages.error(request, f"以下邮箱格式无效: {', '.join(invalid)}")
         else:
-            config.is_enabled = is_enabled
-            config.include_owner_email = include_owner_email
-            config.notify_on = notify_on
-            config.recipient_emails = sorted(set(emails))
-            config.save()
+            simulated_interface_services.save_inspection_notification_config(
+                account_id=account_id,
+                is_enabled=is_enabled,
+                include_owner_email=include_owner_email,
+                notify_on=notify_on,
+                recipient_emails=emails,
+            )
             messages.success(request, "巡检邮件通知配置已保存")
             return redirect(f"/simulated-trading/my-accounts/{account_id}/inspection-notify/")
-
-    context = {
-        "account": account,
-        "config": config,
-        "recipient_emails_text": "\n".join(config.recipient_emails or []),
-    }
     return render(request, "simulated_trading/inspection_notify.html", context)
 
 
@@ -425,7 +293,7 @@ class AccountListAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
+        self.account_repo = simulated_interface_services.get_account_repository()
 
     @extend_schema(
         summary="获取统一账户列表",
@@ -619,9 +487,9 @@ class AccountDetailAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.position_repo = DjangoPositionRepository()
-        self.trade_repo = DjangoTradeRepository()
+        self.account_repo = simulated_interface_services.get_account_repository()
+        self.position_repo = simulated_interface_services.get_position_repository()
+        self.trade_repo = simulated_interface_services.get_trade_repository()
 
     @extend_schema(
         summary="获取账户详情",
@@ -698,17 +566,9 @@ class AccountDetailAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-        if not account:
-            return Response(
-                {'success': False, 'error': f'账户不存在: {account_id}'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        if not _can_manage_account(request.user, account):
-            return Response(
-                {'success': False, 'error': '无权删除该账户'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        account = _get_owned_account_or_response(request, account_id, action="删除")
+        if isinstance(account, Response):
+            return account
 
         summary = _delete_account_with_summary(account)
         return Response({
@@ -742,12 +602,9 @@ class AccountBatchDeleteAPIView(APIView):
         failed = []
 
         for account_id in serializer.validated_data['account_ids']:
-            account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-            if not account:
-                failed.append({'account_id': account_id, 'error': '账户不存在'})
-                continue
-            if not _can_manage_account(request.user, account):
-                failed.append({'account_id': account_id, 'error': '无权删除该账户'})
+            account = _get_owned_account_or_response(request, account_id, action="删除")
+            if isinstance(account, Response):
+                failed.append({'account_id': account_id, 'error': account.data.get('error')})
                 continue
 
             summary = _delete_account_with_summary(account)
@@ -770,8 +627,8 @@ class PositionListAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.position_repo = DjangoPositionRepository()
+        self.account_repo = simulated_interface_services.get_account_repository()
+        self.position_repo = simulated_interface_services.get_position_repository()
 
     @extend_schema(
         summary="获取账户持仓列表",
@@ -845,8 +702,8 @@ class TradeListAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.trade_repo = DjangoTradeRepository()
+        self.account_repo = simulated_interface_services.get_account_repository()
+        self.trade_repo = simulated_interface_services.get_trade_repository()
 
     @extend_schema(
         summary="获取账户交易记录",
@@ -984,9 +841,9 @@ class PerformanceAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.position_repo = DjangoPositionRepository()
-        self.trade_repo = DjangoTradeRepository()
+        self.account_repo = simulated_interface_services.get_account_repository()
+        self.position_repo = simulated_interface_services.get_position_repository()
+        self.trade_repo = simulated_interface_services.get_trade_repository()
 
     @extend_schema(
         summary="获取账户绩效",
@@ -1082,9 +939,9 @@ class ManualTradeAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.position_repo = DjangoPositionRepository()
-        self.trade_repo = DjangoTradeRepository()
+        self.account_repo = simulated_interface_services.get_account_repository()
+        self.position_repo = simulated_interface_services.get_position_repository()
+        self.trade_repo = simulated_interface_services.get_trade_repository()
 
     @extend_schema(
         summary="手动交易",
@@ -1128,7 +985,7 @@ class ManualTradeAPIView(APIView):
         try:
             # 2. 根据动作执行不同用例
             if data['action'] == 'buy':
-                signal_repo = DjangoSignalRepository()
+                signal_repo = simulated_interface_services.get_trading_signal_repository()
                 use_case = ExecuteBuyOrderUseCase(
                     self.account_repo,
                     self.position_repo,
@@ -1204,7 +1061,7 @@ class FeeConfigListAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.fee_config_repo = DjangoFeeConfigRepository()
+        self.fee_config_repo = simulated_interface_services.get_fee_config_repository()
 
     @extend_schema(
         summary="获取费率配置列表",
@@ -1254,9 +1111,9 @@ class EquityCurveAPIView(APIView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.trade_repo = DjangoTradeRepository()
-        self.performance_calculator = PerformanceCalculator()
+        self.account_repo = simulated_interface_services.get_account_repository()
+        self.trade_repo = simulated_interface_services.get_trade_repository()
+        self.performance_calculator = simulated_interface_services.get_performance_calculator()
 
     @extend_schema(
         summary="获取净值曲线",
@@ -1404,37 +1261,7 @@ class AutoTradingAPIView(APIView):
         trade_date = data.get('trade_date') or date.today()
 
         # 2. 初始化引擎
-        account_repo = DjangoSimulatedAccountRepository()
-        position_repo = DjangoPositionRepository()
-        trade_repo = DjangoTradeRepository()
-        signal_repo = DjangoSignalRepository()
-
-        buy_use_case = ExecuteBuyOrderUseCase(
-            account_repo,
-            position_repo,
-            trade_repo,
-            signal_repo=signal_repo,
-        )
-        sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
-        performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
-
-        price_provider = UnifiedPriceService()
-        asset_pool_service = AssetPoolQueryService(
-            asset_pool_repo=DjangoAssetPoolQueryRepository(),
-            signal_repo=signal_repo,
-        )
-
-        engine = AutoTradingEngine(
-            account_repo=account_repo,
-            position_repo=position_repo,
-            trade_repo=trade_repo,
-            buy_use_case=buy_use_case,
-            sell_use_case=sell_use_case,
-            performance_use_case=performance_use_case,
-            asset_pool_service=asset_pool_service,
-            price_provider=price_provider,
-            signal_service=signal_repo,
-        )
+        engine = simulated_interface_services.build_auto_trading_engine()
 
         # 3. 执行自动交易
         try:
@@ -1481,7 +1308,7 @@ class DailyInspectionRunAPIView(APIView):
         data = serializer.validated_data
 
         try:
-            result = DailyInspectionService.run(
+            result = simulated_interface_services.run_daily_inspection(
                 account_id=account_id,
                 inspection_date=data.get("inspection_date") or date.today(),
                 strategy_id=data.get("strategy_id"),
@@ -1491,9 +1318,9 @@ class DailyInspectionRunAPIView(APIView):
                 "count": 1,
                 "reports": [result],
             })
-        except SimulatedAccountModel.DoesNotExist:
+        except ValueError as exc:
             return Response(
-                {"success": False, "error": f"账户不存在: {account_id}"},
+                {"success": False, "error": str(exc)},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as exc:
@@ -1537,30 +1364,11 @@ class DailyInspectionReportListAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
-            "-inspection_date",
-            "-updated_at",
+        payload = simulated_interface_services.list_daily_inspection_report_payloads(
+            account_id=account_id,
+            limit=limit,
+            inspection_date=inspection_date,
         )
-        if inspection_date:
-            queryset = queryset.filter(inspection_date=inspection_date)
-        reports = queryset[:limit]
-
-        payload = []
-        for report in reports:
-            payload.append(
-                {
-                    "report_id": report.id,
-                    "account_id": report.account_id,
-                    "inspection_date": report.inspection_date.isoformat(),
-                    "status": report.status,
-                    "macro_regime": report.macro_regime,
-                    "policy_gear": report.policy_gear,
-                    "strategy_id": report.strategy_id,
-                    "position_rule_id": report.position_rule_id,
-                    "summary": report.summary,
-                    "checks": report.checks,
-                }
-            )
 
         return Response(
             {

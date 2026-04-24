@@ -202,207 +202,51 @@ def _safe_summary(builder, fallback_name: str, user: Any) -> dict[str, Any]:
 
 
 def get_account_settings_summary(user: Any) -> dict[str, Any]:
-    from apps.account.infrastructure.models import AccountProfileModel, UserAccessTokenModel
+    from apps.account.application.config_summary_service import (
+        get_account_config_summary_service,
+    )
 
-    if not getattr(user, "is_authenticated", False):
-        return {
-            "status": "missing",
-            "summary": {"message": "请先登录"},
-        }
-
-    profile = AccountProfileModel._default_manager.filter(user=user).first()
-    if profile is None:
-        return {
-            "status": "missing",
-            "summary": {
-                "message": "未发现账户档案",
-                "email_configured": bool(getattr(user, "email", "")),
-            },
-        }
-
-    active_token_count = UserAccessTokenModel._default_manager.filter(
-        user=user,
-        is_active=True,
-    ).count()
-    return {
-        "status": "configured",
-        "summary": {
-            "display_name": profile.display_name or getattr(user, "username", ""),
-            "risk_tolerance": profile.risk_tolerance,
-            "mcp_enabled": profile.mcp_enabled,
-            "active_token_count": active_token_count,
-        },
-    }
+    return get_account_config_summary_service().get_account_settings_summary(user)
 
 
 def get_system_settings_summary(user: Any = None) -> dict[str, Any]:
-    from apps.account.infrastructure.models import SystemSettingsModel
+    from apps.account.application.config_summary_service import (
+        get_account_config_summary_service,
+    )
 
-    settings_obj = SystemSettingsModel.get_settings()
-    return {
-        "status": "configured",
-        "summary": {
-            "default_mcp_enabled": settings_obj.default_mcp_enabled,
-            "allow_token_plaintext_view": settings_obj.allow_token_plaintext_view,
-            "market_color_convention": settings_obj.market_color_convention,
-            "market_color_label": settings_obj.get_market_visual_tokens()["label"],
-            "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
-            "macro_index_catalog_size": len(settings_obj.macro_index_catalog or []),
-            "updated_at": (
-                settings_obj.updated_at.isoformat()
-                if getattr(settings_obj, "updated_at", None)
-                else None
-            ),
-        },
-    }
+    return get_account_config_summary_service().get_system_settings_summary()
 
 
 def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
-    from django.db.models import Q
-
-    from apps.agent_runtime.infrastructure.models import AgentProposalModel, AgentTaskModel
-
-    needs_attention_count = (
-        AgentTaskModel._default_manager.filter(
-            Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
-        )
-        .distinct()
-        .count()
+    from apps.agent_runtime.application.config_summary_service import (
+        get_agent_runtime_config_summary_service,
     )
-    pending_approval_count = AgentProposalModel._default_manager.filter(
-        status__in=["generated", "submitted", "approved"]
-    ).count()
 
-    status = "configured"
-    if needs_attention_count > 0 or pending_approval_count > 0:
-        status = "attention"
-
-    return {
-        "status": status,
-        "summary": {
-            "total_tasks": AgentTaskModel._default_manager.count(),
-            "needs_attention_count": needs_attention_count,
-            "pending_approval_count": pending_approval_count,
-            "operator_url": "/settings/agent-runtime/",
-        },
-    }
+    return get_agent_runtime_config_summary_service().get_operator_summary(user)
 
 
 def get_data_center_provider_summary(user: Any) -> dict[str, Any]:
-    from apps.data_center.infrastructure.models import (
-        DataProviderSettingsModel,
-        ProviderConfigModel,
+    from apps.data_center.application.config_summary_service import (
+        get_data_center_config_summary_service,
     )
 
-    provider_settings = DataProviderSettingsModel.load()
-    rows = list(
-        ProviderConfigModel._default_manager.all().values(
-            "source_type",
-            "name",
-            "is_active",
-            "api_key",
-            "http_url",
-        )
-    )
-    active_rows = [row for row in rows if row["is_active"]]
-    requires_key_types = {"tushare", "fred", "wind", "choice"}
-    missing_key_count = sum(
-        1
-        for row in active_rows
-        if row["source_type"] in requires_key_types and not (row.get("api_key") or "").strip()
-    )
-    status = "configured"
-    if active_rows and missing_key_count > 0:
-        status = "attention"
-    custom_http_url_count = sum(
-        1
-        for row in active_rows
-        if row["source_type"] == "tushare" and (row.get("http_url") or "").strip()
-    )
-    if not rows:
-        return {
-            "status": status,
-            "summary": {
-                "message": "当前没有配置 Provider 记录。",
-                "total_providers": 0,
-                "active_providers": 0,
-                "default_source": provider_settings.default_source,
-                "enable_failover": provider_settings.enable_failover,
-                "custom_http_url_count": 0,
-                "missing_api_key_count": 0,
-            },
-        }
-
-    return {
-        "status": status,
-        "summary": {
-            "total_providers": len(rows),
-            "active_providers": len(active_rows),
-            "source_types": sorted({row["source_type"] for row in active_rows}),
-            "default_source": provider_settings.default_source,
-            "enable_failover": provider_settings.enable_failover,
-            "missing_api_key_count": missing_key_count,
-            "custom_http_url_count": custom_http_url_count,
-        },
-    }
+    return get_data_center_config_summary_service().get_provider_summary()
 
 
 def get_data_center_runtime_summary(user: Any) -> dict[str, Any]:
-    from apps.data_center.application.registry_factory import get_registry
-    from apps.data_center.infrastructure.models import ProviderConfigModel
-
-    configured = list(
-        ProviderConfigModel._default_manager.filter(is_active=True).values_list("name", flat=True)
+    from apps.data_center.application.config_summary_service import (
+        get_data_center_config_summary_service,
     )
-    snapshots = [snapshot.to_dict() for snapshot in get_registry().get_all_statuses()]
-    unique_providers = sorted({snap["provider_name"] for snap in snapshots})
-    circuit_open_count = sum(1 for snap in snapshots if snap["status"] == "circuit_open")
-    degraded_count = sum(1 for snap in snapshots if snap["status"] == "degraded")
-    healthy_count = sum(1 for snap in snapshots if snap["status"] == "healthy")
 
-    status = "configured" if configured else "missing"
-    if circuit_open_count > 0 or degraded_count > 0:
-        status = "attention"
-
-    return {
-        "status": status,
-        "summary": {
-            "configured_provider_count": len(configured),
-            "runtime_provider_count": len(unique_providers),
-            "healthy_snapshot_count": healthy_count,
-            "degraded_snapshot_count": degraded_count,
-            "circuit_open_snapshot_count": circuit_open_count,
-            "providers": unique_providers[:5],
-        },
-    }
+    return get_data_center_config_summary_service().get_runtime_summary()
 
 
 def get_beta_gate_summary(user: Any) -> dict[str, Any]:
-    from apps.beta_gate.infrastructure.models import GateConfigModel
+    from apps.beta_gate.application.config_summary_service import (
+        get_beta_gate_config_summary_service,
+    )
 
-    active_config = GateConfigModel._default_manager.active().first()
-    total_versions = GateConfigModel._default_manager.count()
-    if not active_config:
-        return {
-            "status": "missing",
-            "summary": {
-                "message": "未发现激活的 Beta Gate 配置",
-                "total_versions": total_versions,
-            },
-        }
-
-    return {
-        "status": "configured",
-        "summary": {
-            "config_id": active_config.config_id,
-            "risk_profile": active_config.risk_profile,
-            "version": active_config.version,
-            "total_versions": total_versions,
-            "effective_date": (
-                active_config.effective_date.isoformat() if active_config.effective_date else None
-            ),
-        },
-    }
+    return get_beta_gate_config_summary_service().get_beta_gate_summary(user)
 
 
 def get_valuation_repair_summary(user: Any) -> dict[str, Any]:
@@ -416,82 +260,19 @@ def get_valuation_repair_summary(user: Any) -> dict[str, Any]:
 
 
 def get_ai_provider_summary(user: Any) -> dict[str, Any]:
-    from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog
-
-    providers = list(
-        AIProviderConfig._default_manager.all().values(
-            "id",
-            "name",
-            "provider_type",
-            "is_active",
-            "default_model",
-        )
+    from apps.ai_provider.application.config_summary_service import (
+        get_ai_provider_config_summary_service,
     )
-    if not providers:
-        return {
-            "status": "missing",
-            "summary": {"message": "未配置 AI Provider", "provider_count": 0, "active_count": 0},
-        }
 
-    active_providers = [provider for provider in providers if provider["is_active"]]
-    recent_error_count = AIUsageLog._default_manager.filter(status__in=["error", "timeout"]).count()
-    status = "configured" if active_providers else "attention"
-    return {
-        "status": status,
-        "summary": {
-            "provider_count": len(providers),
-            "active_count": len(active_providers),
-            "active_names": [provider["name"] for provider in active_providers[:5]],
-            "recent_error_count": recent_error_count,
-        },
-    }
+    return get_ai_provider_config_summary_service().get_provider_summary(user)
 
 
 def get_trading_cost_summary(user: Any) -> dict[str, Any]:
-    from apps.account.infrastructure.models import PortfolioModel, TradingCostConfigModel
-
-    if not getattr(user, "is_authenticated", False):
-        return {
-            "status": "missing",
-            "summary": {"message": "请先登录"},
-        }
-
-    portfolios = list(
-        PortfolioModel._default_manager.filter(user=user).values("id", "name", "is_active")
+    from apps.account.application.config_summary_service import (
+        get_account_config_summary_service,
     )
-    if not portfolios:
-        return {
-            "status": "missing",
-            "summary": {
-                "message": "当前用户暂无投资组合",
-                "portfolio_count": 0,
-            },
-        }
 
-    portfolio_ids = [portfolio["id"] for portfolio in portfolios]
-    configs = list(
-        TradingCostConfigModel._default_manager.filter(portfolio_id__in=portfolio_ids).values(
-            "portfolio_id",
-            "commission_rate",
-            "stamp_duty_rate",
-            "is_active",
-            "updated_at",
-        )
-    )
-    active_configs = [cfg for cfg in configs if cfg["is_active"]]
-    active_portfolio_count = sum(1 for portfolio in portfolios if portfolio["is_active"])
-    status = "configured" if active_configs else "attention"
-    return {
-        "status": status,
-        "summary": {
-            "portfolio_count": len(portfolios),
-            "active_portfolio_count": active_portfolio_count,
-            "config_count": len(configs),
-            "active_count": len(active_configs),
-            "commission_rate": active_configs[0]["commission_rate"] if active_configs else None,
-            "stamp_duty_rate": active_configs[0]["stamp_duty_rate"] if active_configs else None,
-        },
-    }
+    return get_account_config_summary_service().get_trading_cost_summary(user)
 
 
 _SUMMARY_BUILDERS = {

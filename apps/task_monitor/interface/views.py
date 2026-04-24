@@ -18,9 +18,9 @@ from apps.task_monitor.application.use_cases import (
     GetTaskStatusUseCase,
     ListTasksUseCase,
 )
-from apps.task_monitor.infrastructure.repositories import (
-    CeleryHealthChecker,
-    DjangoTaskRecordRepository,
+from apps.task_monitor.application.provider import (
+    get_celery_health_checker,
+    get_task_record_repository,
 )
 from apps.task_monitor.interface.serializers import (
     HealthCheckSerializer,
@@ -51,7 +51,7 @@ def get_task_status(request, task_id: str) -> Response:
     GET /api/system/tasks/status/{task_id}/
     """
     try:
-        use_case = GetTaskStatusUseCase(repository=DjangoTaskRecordRepository())
+        use_case = GetTaskStatusUseCase(repository=get_task_record_repository())
         result = use_case.execute(task_id=task_id)
 
         if not result:
@@ -121,7 +121,7 @@ def list_tasks(request) -> Response:
         limit = int(request.query_params.get("limit", 100))
         failures_only = request.query_params.get("failures_only", "false").lower() == "true"
 
-        use_case = ListTasksUseCase(repository=DjangoTaskRecordRepository())
+        use_case = ListTasksUseCase(repository=get_task_record_repository())
         result = use_case.execute(
             task_name=task_name,
             status=status_filter,
@@ -183,7 +183,7 @@ def get_task_statistics(request) -> Response:
 
         days = int(request.query_params.get("days", 7))
 
-        use_case = GetTaskStatisticsUseCase(repository=DjangoTaskRecordRepository())
+        use_case = GetTaskStatisticsUseCase(repository=get_task_record_repository())
         result = use_case.execute(task_name=task_name, days=days)
 
         if not result:
@@ -218,10 +218,7 @@ def health_check(request) -> Response:
     GET /api/system/celery/health/
     """
     try:
-        from core.celery import app as celery_app
-
-        health_checker = CeleryHealthChecker(celery_app=celery_app)
-        use_case = CheckCeleryHealthUseCase(health_checker=health_checker)
+        use_case = CheckCeleryHealthUseCase(health_checker=get_celery_health_checker())
         result = use_case.execute()
 
         serializer = HealthCheckSerializer(result)
@@ -258,15 +255,12 @@ def dashboard(request) -> Response:
     GET /api/system/tasks/dashboard/
     """
     try:
-        from core.celery import app as celery_app
-
         # 获取最近的失败任务
-        list_use_case = ListTasksUseCase(repository=DjangoTaskRecordRepository())
+        list_use_case = ListTasksUseCase(repository=get_task_record_repository())
         failures = list_use_case.execute(failures_only=True, limit=10)
 
         # 检查 Celery 健康状态
-        health_checker = CeleryHealthChecker(celery_app=celery_app)
-        health_use_case = CheckCeleryHealthUseCase(health_checker=health_checker)
+        health_use_case = CheckCeleryHealthUseCase(health_checker=get_celery_health_checker())
         health = health_use_case.execute()
 
         return Response({

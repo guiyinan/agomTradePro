@@ -9,7 +9,10 @@ from typing import Dict, List, Optional, Tuple
 
 from django.utils import timezone
 
-from apps.macro.infrastructure.models import IndicatorUnitConfig, MacroIndicator
+from apps.account.application.config_summary_service import (
+    get_account_config_summary_service,
+)
+from apps.macro.infrastructure.repositories import MacroIndicatorReadRepository
 
 
 class UnitDisplayService:
@@ -17,6 +20,8 @@ class UnitDisplayService:
 
     负责将存储值（统一为"元"）转换回展示值（原始单位）
     """
+
+    read_repository = MacroIndicatorReadRepository()
 
     @staticmethod
     def convert_for_display(
@@ -103,7 +108,7 @@ class UnitDisplayService:
         return f"{display_value:.{precision}f}{display_unit}"
 
     @classmethod
-    def get_indicator_config(cls, indicator_code: str, source: str = None) -> IndicatorUnitConfig | None:
+    def get_indicator_config(cls, indicator_code: str, source: str = None) -> dict | None:
         """
         获取指标的单位配置
 
@@ -117,26 +122,9 @@ class UnitDisplayService:
             source: 数据源（可选）
 
         Returns:
-            IndicatorUnitConfig: 单位配置，不存在则返回 None
+            dict: 单位配置快照，不存在则返回 None
         """
-        queryset = IndicatorUnitConfig._default_manager.filter(
-            indicator_code=indicator_code,
-            is_active=True
-        )
-
-        if source:
-            # 优先查找指定数据源的配置
-            config = queryset.filter(source=source).first()
-            if config:
-                return config
-
-        # 查找手动配置
-        config = queryset.filter(source='manual').first()
-        if config:
-            return config
-
-        # 返回优先级最高的配置
-        return queryset.order_by('-priority').first()
+        return cls.read_repository.get_indicator_unit_config(indicator_code, source)
 
     @classmethod
     def get_original_unit(cls, indicator_code: str, source: str = None) -> str:
@@ -152,7 +140,7 @@ class UnitDisplayService:
         """
         config = cls.get_indicator_config(indicator_code, source)
         if config:
-            return config.original_unit
+            return str(config.get("original_unit", ""))
 
         # 回退到 IndicatorUnitService 的配置
         return IndicatorUnitService.get_unit_for_indicator(indicator_code)
@@ -248,9 +236,10 @@ class IndicatorUnitService:
         if indicator_code in cls.INDICATOR_UNITS:
             return cls.INDICATOR_UNITS[indicator_code]
 
-        from apps.account.infrastructure.models import SystemSettingsModel
-
-        metadata = SystemSettingsModel.get_runtime_macro_index_metadata_map().get(indicator_code, {})
+        metadata = get_account_config_summary_service().get_runtime_macro_index_metadata_map().get(
+            indicator_code,
+            {},
+        )
         return metadata.get("unit", "")
 
     @classmethod
@@ -281,6 +270,8 @@ class IndicatorUnitService:
 
 class IndicatorService:
     """宏观经济指标服务"""
+
+    read_repository = MacroIndicatorReadRepository()
 
     CODE_ALIASES: dict[str, list[str]] = {
         'CN_PMI_MANUFACTURING': ['CN_PMI_MANUFACTURING', 'CN_PMI'],
@@ -507,10 +498,8 @@ class IndicatorService:
 
     @classmethod
     def get_indicator_metadata_map(cls) -> dict[str, dict]:
-        from apps.account.infrastructure.models import SystemSettingsModel
-
         metadata = dict(cls.INDICATOR_METADATA)
-        metadata.update(SystemSettingsModel.get_runtime_macro_index_metadata_map())
+        metadata.update(get_account_config_summary_service().get_runtime_macro_index_metadata_map())
         return metadata
 
     @classmethod
@@ -532,12 +521,12 @@ class IndicatorService:
         返回数据库中实际存在数据的指标
         """
         # 获取数据库中存在的指标代码
-        distinct_codes = MacroIndicator._default_manager.values_list('code', flat=True).distinct()
+        distinct_codes = cls.read_repository.list_distinct_codes()
 
         indicators = []
         for code in distinct_codes:
             # 获取最新数据
-            latest = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period').first()
+            latest = cls.read_repository.get_latest_indicator(code)
 
             if not latest:
                 continue
@@ -547,9 +536,9 @@ class IndicatorService:
 
             # 转换最新值为展示值
             display_value, display_unit = UnitDisplayService.convert_for_display(
-                float(latest.value),
-                latest.unit,
-                latest.original_unit or metadata.get('unit', '')
+                float(latest['value']),
+                latest['unit'],
+                latest['original_unit'] or metadata.get('unit', '')
             )
 
             avg_value = None
@@ -557,18 +546,13 @@ class IndicatorService:
             min_value = None
             if include_stats:
                 # 历史统计是重查询，允许按场景关闭以避免页面阻塞
-                from django.db.models import Avg, Max, Min
-                stats = MacroIndicator._default_manager.filter(
+                stats = cls.read_repository.get_indicator_stats(
                     code=code,
-                    reporting_period__gte=timezone.now().date() - timedelta(days=365)
-                ).aggregate(
-                    avg_value=Avg('value'),
-                    max_value=Max('value'),
-                    min_value=Min('value')
+                    start_date=timezone.now().date() - timedelta(days=365),
                 )
-                avg_value = float(stats['avg_value']) if stats['avg_value'] else None
-                max_value = float(stats['max_value']) if stats['max_value'] else None
-                min_value = float(stats['min_value']) if stats['min_value'] else None
+                avg_value = stats['avg_value']
+                max_value = stats['max_value']
+                min_value = stats['min_value']
 
             indicators.append({
                 'code': code,
@@ -578,8 +562,8 @@ class IndicatorService:
                 'unit': display_unit,  # 使用展示单位
                 'description': metadata.get('description', ''),
                 'latest_value': display_value,  # 使用展示值
-                'latest_date': latest.reporting_period.isoformat(),
-                'period_type': latest.period_type,
+                'latest_date': latest['reporting_period'].isoformat(),
+                'period_type': latest['period_type'],
                 # 推荐阈值
                 'threshold_bullish': metadata.get('threshold_bullish'),
                 'threshold_bearish': metadata.get('threshold_bearish'),
@@ -598,7 +582,7 @@ class IndicatorService:
     def get_indicator_by_code(cls, code: str) -> dict | None:
         """获取单个指标的详细信息"""
         try:
-            latest = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period').first()
+            latest = cls.read_repository.get_latest_indicator(code)
             if not latest:
                 return None
 
@@ -606,9 +590,9 @@ class IndicatorService:
 
             # 转换为展示值
             display_value, display_unit = UnitDisplayService.convert_for_display(
-                float(latest.value),
-                latest.unit,
-                latest.original_unit or metadata.get('unit', '')
+                float(latest['value']),
+                latest['unit'],
+                latest['original_unit'] or metadata.get('unit', '')
             )
 
             return {
@@ -619,8 +603,8 @@ class IndicatorService:
                 'unit': display_unit,  # 使用展示单位
                 'description': metadata.get('description', ''),
                 'latest_value': display_value,  # 使用展示值
-                'latest_date': latest.reporting_period.isoformat(),
-                'period_type': latest.period_type,
+                'latest_date': latest['reporting_period'].isoformat(),
+                'period_type': latest['period_type'],
             }
         except:
             return None
@@ -631,11 +615,12 @@ class IndicatorService:
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=periods * 35)
 
-        data_points = MacroIndicator._default_manager.filter(
-            code=code,
-            reporting_period__gte=start_date,
-            reporting_period__lte=end_date
-        ).order_by('-reporting_period')[:periods]
+        data_points = cls.read_repository.get_indicator_history(
+            code,
+            start_date=start_date,
+            end_date=end_date,
+            limit=periods,
+        )
 
         # 获取元数据中的单位配置
         metadata = cls.get_indicator_metadata_map().get(code, {})
@@ -643,14 +628,14 @@ class IndicatorService:
 
         return [
             {
-                'date': d.reporting_period.isoformat(),
+                'date': d['reporting_period'].isoformat(),
                 'value': UnitDisplayService.convert_for_display(
-                    float(d.value),
-                    d.unit,
-                    d.original_unit or default_unit
+                    float(d['value']),
+                    d['unit'],
+                    d['original_unit'] or default_unit
                 )[0],  # 只返回值
-                'unit': d.original_unit or default_unit,  # 返回原始单位
-                'period_type': d.period_type,
+                'unit': d['original_unit'] or default_unit,  # 返回原始单位
+                'period_type': d['period_type'],
             }
             for d in data_points
         ]
@@ -690,12 +675,7 @@ def get_available_indicators_for_frontend(include_stats: bool = False) -> list[d
                 query_codes.append(candidate)
 
     # Single query to fetch recent values for known indicator set.
-    rows = (
-        MacroIndicator._default_manager
-        .filter(code__in=query_codes)
-        .order_by('code', '-reporting_period')
-        .values('code', 'value')
-    )
+    rows = IndicatorService.read_repository.get_latest_values_by_codes(query_codes)
 
     for row in rows:
         candidate_code = row['code']

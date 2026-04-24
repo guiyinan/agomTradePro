@@ -1,8 +1,9 @@
 """Forms for macro configuration pages."""
 
+from django.apps import apps as django_apps
 from django import forms
 
-from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
+DataSourceConfig = django_apps.get_model("data_center", "ProviderConfigModel")
 
 
 class DataSourceConfigForm(forms.ModelForm):

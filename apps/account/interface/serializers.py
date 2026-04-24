@@ -5,20 +5,27 @@ DRF Serializers for Account API.
 from datetime import date
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.apps import apps as django_apps
 from rest_framework import serializers
 
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    AssetCategoryModel,
-    AssetMetadataModel,
-    CapitalFlowModel,
-    CurrencyModel,
-    PortfolioModel,
-    PortfolioObserverGrantModel,
-    PositionModel,
-    TransactionModel,
+from apps.account.application.interface_services import (
+    count_owned_active_observer_grants,
+    create_observer_grant_record,
+    find_user_by_id,
+    find_user_by_username,
+    get_active_observer_grant,
 )
+
+AccountProfileModel = django_apps.get_model("account", "AccountProfileModel")
+AssetCategoryModel = django_apps.get_model("account", "AssetCategoryModel")
+AssetMetadataModel = django_apps.get_model("account", "AssetMetadataModel")
+CapitalFlowModel = django_apps.get_model("account", "CapitalFlowModel")
+CurrencyModel = django_apps.get_model("account", "CurrencyModel")
+PortfolioModel = django_apps.get_model("account", "PortfolioModel")
+PortfolioObserverGrantModel = django_apps.get_model("account", "PortfolioObserverGrantModel")
+PositionModel = django_apps.get_model("account", "PositionModel")
+TradingCostConfigModel = django_apps.get_model("account", "TradingCostConfigModel")
+TransactionModel = django_apps.get_model("account", "TransactionModel")
 
 # ==================== Account Profile ====================
 
@@ -265,8 +272,7 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
     """观察员授权创建序列化器"""
 
     # 支持通过 observer_user_id 或 username 指定观察员
-    observer_user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
+    observer_user_id = serializers.IntegerField(
         required=False,
         write_only=True,
         help_text="观察员用户ID（与 username 二选一）"
@@ -297,26 +303,14 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
             })
 
         if username:
-            # 通过 username 查找用户
-            try:
-                observer = User.objects.get(username=username)
-                attrs['observer_user_id'] = observer
-            except User.DoesNotExist:
+            observer = find_user_by_username(username)
+            if observer is None:
                 raise serializers.ValidationError({
                     "username": f"用户 '{username}' 不存在"
                 })
-
-        # observer_user_id 可能是 User 对象（来自 PrimaryKeyRelatedField 或 username 转换）
-        # 或整数 ID（来自直接传递）
-        observer_user_id_value = attrs.get('observer_user_id')
-
-        # 处理 DRF 反序列化的情况：可能是 User 对象或整数 ID
-        if isinstance(observer_user_id_value, User):
-            observer = observer_user_id_value
-        elif observer_user_id_value:
-            try:
-                observer = User.objects.get(id=observer_user_id_value)
-            except (User.DoesNotExist, ValueError, TypeError):
+        elif observer_user_id:
+            observer = find_user_by_id(int(observer_user_id))
+            if observer is None:
                 raise serializers.ValidationError({
                     "observer_user_id": "观察员用户不存在"
                 })
@@ -325,6 +319,8 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
                 "observer_user_id": "请提供观察员用户"
             })
 
+        attrs['observer_user_id'] = observer.id
+
         # 不能授权给自己
         if observer.id == request.user.id:
             raise serializers.ValidationError({
@@ -332,21 +328,17 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
             })
 
         # 检查是否已存在 active 授权
-        existing = PortfolioObserverGrantModel._default_manager.filter(
-            owner_user_id=request.user,
-            observer_user_id=observer,
-            status='active'
-        ).first()
+        existing = get_active_observer_grant(
+            owner_user_id=request.user.id,
+            observer_user_id=observer.id,
+        )
         if existing:
             raise serializers.ValidationError({
                 "observer_user_id": f"该用户已被授权为观察员，授权 ID: {existing.id}"
             })
 
         # 检查观察员数量限制（每账户最多 10 个）
-        active_count = PortfolioObserverGrantModel._default_manager.filter(
-            owner_user_id=request.user,
-            status='active'
-        ).count()
+        active_count = count_owned_active_observer_grants(request.user.id)
         if active_count >= 10:
             raise serializers.ValidationError({
                 "__all__": "已达到观察员数量上限（10个），请先撤销部分授权"
@@ -366,12 +358,12 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """创建授权记录"""
         validated_data.pop('username', None)  # 移除临时字段
-
-        # owner_user_id 由视图的 perform_create 方法提供
-        # 这里只处理 validated_data 中的字段
-        grant = PortfolioObserverGrantModel._default_manager.create(
-            created_by=self.context['request'].user,
-            **validated_data
+        owner = validated_data.pop('owner_user_id')
+        grant = create_observer_grant_record(
+            owner_user_id=getattr(owner, 'id', owner),
+            observer_user_id=int(validated_data.pop('observer_user_id')),
+            created_by_user_id=self.context['request'].user.id,
+            expires_at=validated_data.get('expires_at'),
         )
         return grant
 
@@ -402,7 +394,6 @@ class TradingCostConfigSerializer(serializers.ModelSerializer):
     stamp_duty_rate_qian = serializers.SerializerMethodField()
 
     class Meta:
-        from apps.account.infrastructure.models import TradingCostConfigModel
         model = TradingCostConfigModel
         fields = [
             'id', 'portfolio', 'commission_rate', 'min_commission',
@@ -425,7 +416,6 @@ class TradingCostConfigCreateSerializer(serializers.ModelSerializer):
     """交易费率配置创建/更新序列化器"""
 
     class Meta:
-        from apps.account.infrastructure.models import TradingCostConfigModel
         model = TradingCostConfigModel
         fields = [
             'portfolio', 'commission_rate', 'min_commission',

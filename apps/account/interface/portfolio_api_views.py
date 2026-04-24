@@ -14,20 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    AssetMetadataModel,
-    CapitalFlowModel,
-    PortfolioModel,
-    PortfolioObserverGrantModel,
-    PositionModel,
-    TradingCostConfigModel,
-    TransactionModel,
-)
-from apps.account.infrastructure.repositories import (
-    PortfolioRepository,
-    PositionRepository,
-)
+from apps.account.application.repository_provider import get_account_position_repository
+from apps.audit.application import interface_services as audit_interface_services
 
 from .permissions import GeneralPermission, ObserverAccessPermission, TradingPermission
 from .serializers import (
@@ -55,6 +43,19 @@ from .serializers import (
 def _get_simulated_trading_model(model_name: str):
     """Resolve simulated_trading ORM models without direct infrastructure imports."""
     return django_apps.get_model("simulated_trading", model_name)
+
+
+def _get_account_model(model_name: str):
+    """Resolve account ORM models without direct infrastructure imports."""
+
+    return django_apps.get_model("account", model_name)
+
+
+AssetMetadataModel = _get_account_model("AssetMetadataModel")
+CapitalFlowModel = _get_account_model("CapitalFlowModel")
+PortfolioModel = _get_account_model("PortfolioModel")
+PortfolioObserverGrantModel = _get_account_model("PortfolioObserverGrantModel")
+PositionModel = _get_account_model("PositionModel")
 
 def _map_account_asset_type(asset_class: str) -> str:
     """Map account asset classes to unified ledger asset types."""
@@ -369,8 +370,6 @@ class PortfolioViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         from django.utils import timezone
         from rest_framework.exceptions import NotFound
 
-        from apps.account.infrastructure.models import PortfolioModel, PortfolioObserverGrantModel
-
         # 先尝试获取对象（不限制 queryset）
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
         pk = self.kwargs[lookup_url_kwarg]
@@ -591,25 +590,14 @@ class PortfolioViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         try:
             import uuid
 
-            from apps.audit.domain.entities import (
-                OperationAction,
-                OperationLog,
-                OperationSource,
-                OperationType,
-            )
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
-
-            audit_repo = DjangoAuditRepository()
-
-            # 构造审计日志实体
-            log_entity = OperationLog.create(
+            audit_interface_services.log_operation_payload(
                 request_id=str(uuid.uuid4()),
                 user_id=request.user.id,
                 username=request.user.username,
-                source=OperationSource.API,
-                operation_type=OperationType.API_ACCESS,
+                source="API",
+                operation_type="API_ACCESS",
                 module='account',
-                action=OperationAction[action],
+                action=action,
                 resource_type=resource_type,
                 resource_id=resource_id,
                 request_method=request.method,
@@ -617,9 +605,8 @@ class PortfolioViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
                 response_status=response_status,
                 ip_address=self._get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                request_params=extra_context or {},
             )
-
-            audit_repo.save_operation_log(log_entity)
 
         except Exception as e:
             # 审计失败不影响主流程
@@ -1077,7 +1064,10 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         )
 
         if legacy_projection is not None:
-            closed_position = PositionRepository().close_position(legacy_projection.id, close_shares)
+            closed_position = get_account_position_repository().close_position(
+                legacy_projection.id,
+                close_shares,
+            )
             if closed_position is None:
                 return Response({"success": False, "error": "平仓失败"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             legacy_projection.refresh_from_db()
@@ -1178,25 +1168,14 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
         try:
             import uuid
 
-            from apps.audit.domain.entities import (
-                OperationAction,
-                OperationLog,
-                OperationSource,
-                OperationType,
-            )
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
-
-            audit_repo = DjangoAuditRepository()
-
-            # 构造审计日志实体
-            log_entity = OperationLog.create(
+            audit_interface_services.log_operation_payload(
                 request_id=str(uuid.uuid4()),
                 user_id=request.user.id,
                 username=request.user.username,
-                source=OperationSource.API,
-                operation_type=OperationType.API_ACCESS,
+                source="API",
+                operation_type="API_ACCESS",
                 module='account',
-                action=OperationAction[action],
+                action=action,
                 resource_type=resource_type,
                 resource_id=resource_id,
                 request_method=request.method,
@@ -1204,9 +1183,8 @@ class PositionViewSet(UnifiedLedgerMixin, viewsets.ModelViewSet):
                 response_status=response_status,
                 ip_address=self._get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                request_params=extra_context or {},
             )
-
-            audit_repo.save_operation_log(log_entity)
 
         except Exception as e:
             # 审计失败不影响主流程

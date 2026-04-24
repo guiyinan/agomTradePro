@@ -5,7 +5,7 @@ Dashboard Infrastructure Repositories
 """
 
 import logging
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth import get_user_model
@@ -306,6 +306,531 @@ class DashboardAlphaContextRepository:
         except Exception as exc:
             logger.warning("Failed to load policy gate state: %s", exc)
             return {"gate_level": "L0", "effective": False}
+
+
+class DashboardOverviewRepository:
+    """ORM-backed read model for dashboard overview use cases."""
+
+    def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float] | None:
+        """Return aggregated totals from the simulated-account system."""
+
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        accounts = list(SimulatedAccountModel._default_manager.filter(user_id=user_id))
+        if not accounts:
+            return None
+
+        total_assets = 0.0
+        initial_capital = 0.0
+        cash_balance = 0.0
+        invested_value = 0.0
+        for account in accounts:
+            total_assets += float(account.total_value or 0.0)
+            initial_capital += float(account.initial_capital or 0.0)
+            cash_balance += float(account.current_cash or 0.0)
+            invested_value += float(account.current_market_value or 0.0)
+
+        total_return = total_assets - initial_capital
+        total_return_pct = (total_return / initial_capital * 100) if initial_capital else 0.0
+        invested_ratio = (invested_value / total_assets) if total_assets else 0.0
+
+        return {
+            "total_assets": total_assets,
+            "initial_capital": initial_capital,
+            "cash_balance": cash_balance,
+            "invested_value": invested_value,
+            "invested_ratio": invested_ratio,
+            "total_return": total_return,
+            "total_return_pct": total_return_pct,
+        }
+
+    def get_simulated_positions(self, user_id: int) -> list[dict]:
+        """Return holdings from the simulated-account system."""
+
+        from apps.simulated_trading.infrastructure.models import PositionModel
+
+        sim_positions = (
+            PositionModel._default_manager.filter(account__user_id=user_id)
+            .select_related("account")
+            .order_by("-market_value", "asset_code")
+        )
+        if not sim_positions.exists():
+            return []
+
+        return [
+            {
+                "id": pos.id,
+                "asset_code": pos.asset_code,
+                "asset_name": pos.asset_name,
+                "asset_class": pos.asset_type,
+                "shares": float(pos.quantity),
+                "avg_cost": float(pos.avg_cost),
+                "current_price": float(pos.current_price),
+                "market_value": float(pos.market_value),
+                "unrealized_pnl": float(pos.unrealized_pnl),
+                "unrealized_pnl_pct": pos.unrealized_pnl_pct,
+                "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
+            }
+            for pos in sim_positions
+        ]
+
+    def get_simulated_positions_for_dashboard(
+        self,
+        user_id: int,
+        account_id: int | None = None,
+    ) -> list[dict]:
+        """Return simulated-account positions with account metadata for dashboard views."""
+
+        from apps.simulated_trading.infrastructure.models import PositionModel
+
+        qs = PositionModel._default_manager.filter(account__user_id=user_id)
+        if account_id:
+            qs = qs.filter(account_id=account_id)
+        positions = qs.select_related("account").order_by("-market_value", "asset_code")
+        return [
+            {
+                "id": pos.id,
+                "asset_code": pos.asset_code,
+                "asset_name": pos.asset_name,
+                "asset_class": pos.asset_type,
+                "asset_class_display": pos.get_asset_type_display(),
+                "region": "CN",
+                "region_display": "中国",
+                "shares": float(pos.quantity),
+                "avg_cost": float(pos.avg_cost),
+                "current_price": float(pos.current_price),
+                "market_value": float(pos.market_value),
+                "unrealized_pnl": float(pos.unrealized_pnl),
+                "unrealized_pnl_pct": pos.unrealized_pnl_pct,
+                "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
+                "account_id": pos.account_id,
+                "account_name": pos.account.account_name if pos.account else "",
+            }
+            for pos in positions
+        ]
+
+    def get_dashboard_accounts(self, user_id: int) -> list[dict]:
+        """Return investment account cards for the dashboard homepage."""
+
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        accounts = (
+            SimulatedAccountModel._default_manager
+            .filter(user_id=user_id)
+            .order_by("account_type", "-total_value", "-created_at")
+        )
+        return [
+            {
+                "id": account.id,
+                "name": account.account_name,
+                "type_code": account.account_type,
+                "type_label": "实仓" if account.account_type == "real" else "模拟仓",
+                "total_value": float(account.total_value or 0),
+                "cash": float(account.current_cash or 0),
+                "market_value": float(account.current_market_value or 0),
+                "total_return": float(account.total_return or 0),
+                "is_active": account.is_active,
+            }
+            for account in accounts
+        ]
+
+    def get_policy_environment(self, user_id: int) -> tuple[str | None, date | None, int, list[dict]]:
+        """Return policy environment data for the dashboard."""
+
+        from apps.policy.infrastructure.models import PolicyAuditQueue, PolicyLog
+        from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+
+        policy_repo = DjangoPolicyRepository()
+        current_policy_level = None
+        current_policy_date = None
+
+        try:
+            current_level = policy_repo.get_current_policy_level(date.today())
+            current_policy_level = current_level.value
+            latest_effective = (
+                PolicyLog._default_manager.filter(gate_effective=True)
+                .order_by("-event_date", "-effective_at")
+                .only("event_date")
+                .first()
+            )
+            if latest_effective:
+                current_policy_date = latest_effective.event_date
+        except Exception:
+            pass
+
+        pending_review_count = 0
+        try:
+            pending_review_count = PolicyAuditQueue._default_manager.filter(
+                assigned_to__user_id=user_id,
+                status__in=["pending", "in_progress"],
+            ).count()
+        except Exception:
+            pass
+
+        recent_policies: list[dict] = []
+        try:
+            recent_logs = PolicyLog._default_manager.filter(
+                created_at__gte=timezone.now() - timedelta(days=7),
+                audit_status__in=["auto_approved", "manual_approved"],
+            ).order_by("-created_at")[:5]
+            for policy in recent_logs:
+                recent_policies.append(
+                    {
+                        "id": policy.id,
+                        "title": policy.title,
+                        "level": policy.level,
+                        "level_display": policy.get_level_display(),
+                        "category": policy.info_category,
+                        "category_display": policy.get_info_category_display(),
+                        "created_at": policy.created_at.strftime("%Y-%m-%d %H:%M"),
+                    }
+                )
+        except Exception:
+            pass
+
+        return current_policy_level, current_policy_date, pending_review_count, recent_policies
+
+    def get_growth_series(
+        self,
+        indicator_code: str,
+        end_date: date,
+        *,
+        use_pit: bool = False,
+        full: bool = False,
+    ) -> list[Any]:
+        """Return growth indicator series via the regime macro adapter."""
+
+        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
+
+        repo = MacroRepositoryAdapter()
+        series = (
+            repo.get_growth_series_full(
+                indicator_code=indicator_code,
+                end_date=end_date,
+                use_pit=use_pit,
+            )
+            if full
+            else repo.get_growth_series(
+                indicator_code=indicator_code,
+                end_date=end_date,
+                use_pit=use_pit,
+            )
+        )
+        return list(series or [])
+
+    def get_inflation_series(
+        self,
+        indicator_code: str,
+        end_date: date,
+        *,
+        use_pit: bool = False,
+        full: bool = False,
+    ) -> list[Any]:
+        """Return inflation indicator series via the regime macro adapter."""
+
+        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
+
+        repo = MacroRepositoryAdapter()
+        series = (
+            repo.get_inflation_series_full(
+                indicator_code=indicator_code,
+                end_date=end_date,
+                use_pit=use_pit,
+            )
+            if full
+            else repo.get_inflation_series(
+                indicator_code=indicator_code,
+                end_date=end_date,
+                use_pit=use_pit,
+            )
+        )
+        return list(series or [])
+
+    def get_primary_system_ai_provider_payload(self) -> dict[str, Any] | None:
+        """Return the first active configured system AI provider payload."""
+
+        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+
+        provider_repo = AIProviderRepository()
+        provider = next(iter(provider_repo.get_active_configured_system_providers()), None)
+        if provider is None:
+            return None
+
+        api_key = provider_repo.get_api_key(provider)
+        if not api_key:
+            return None
+
+        return {
+            "name": provider.name,
+            "base_url": provider.base_url,
+            "provider_type": provider.provider_type,
+            "default_model": provider.default_model,
+            "api_key": api_key,
+        }
+
+    def list_global_investment_rule_payloads(self) -> list[dict[str, Any]]:
+        """Return active global investment rule payloads for dashboard hints."""
+
+        from apps.account.infrastructure.models import InvestmentRuleModel
+
+        queryset = (
+            InvestmentRuleModel._default_manager.filter(
+                is_active=True,
+                user__isnull=True,
+            )
+            .order_by("priority", "id")
+            .values("rule_type", "conditions", "advice_template")
+        )
+        return [
+            {
+                "rule_type": str(row["rule_type"]),
+                "conditions": dict(row.get("conditions") or {}),
+                "advice_template": str(row.get("advice_template") or ""),
+            }
+            for row in queryset
+        ]
+
+    def get_portfolio_snapshot_performance_data(self, portfolio_id: int) -> list[dict]:
+        """Return performance chart data from legacy portfolio snapshots."""
+
+        from apps.account.infrastructure.models import PortfolioDailySnapshotModel
+
+        snapshots = list(
+            PortfolioDailySnapshotModel._default_manager.filter(
+                portfolio_id=portfolio_id
+            ).order_by("snapshot_date")
+        )
+        if not snapshots:
+            return []
+
+        base_value = float(snapshots[0].total_value) if snapshots[0].total_value else 1.0
+        if base_value <= 0:
+            base_value = 1.0
+
+        return [
+            {
+                "date": snapshot.snapshot_date.isoformat(),
+                "portfolio_value": float(snapshot.total_value),
+                "return_pct": round(
+                    ((float(snapshot.total_value) - base_value) / base_value) * 100,
+                    2,
+                ),
+                "cash_balance": float(snapshot.cash_balance),
+                "invested_value": float(snapshot.invested_value),
+                "position_count": snapshot.position_count,
+            }
+            for snapshot in snapshots
+        ]
+
+    def get_simulated_performance_data(
+        self,
+        *,
+        user_id: int,
+        account_id: int | None,
+        days: int,
+    ) -> list[dict]:
+        """Return performance chart data from simulated-account net values."""
+
+        from apps.simulated_trading.infrastructure.models import (
+            DailyNetValueModel,
+            SimulatedAccountModel,
+        )
+
+        if days <= 0:
+            return []
+
+        end_date = date.today()
+        start_date = end_date - timedelta(days=max(days - 1, 0))
+
+        if account_id:
+            records = list(
+                DailyNetValueModel._default_manager.filter(
+                    account_id=account_id,
+                    account__user_id=user_id,
+                    record_date__gte=start_date,
+                    record_date__lte=end_date,
+                ).order_by("record_date")
+            )
+            if not records:
+                return []
+
+            return [
+                {
+                    "date": record.record_date.isoformat(),
+                    "portfolio_value": float(record.net_value),
+                    "return_pct": round(record.cumulative_return, 2),
+                    "cash_balance": float(record.cash),
+                    "invested_value": float(record.market_value),
+                    "position_count": record.positions_count,
+                }
+                for record in records
+            ]
+
+        account_ids = list(
+            SimulatedAccountModel._default_manager.filter(user_id=user_id).values_list(
+                "id",
+                flat=True,
+            )
+        )
+        if not account_ids:
+            return []
+
+        records = list(
+            DailyNetValueModel._default_manager.filter(
+                account_id__in=account_ids,
+                record_date__gte=start_date,
+                record_date__lte=end_date,
+            ).order_by("record_date")
+        )
+        if not records:
+            return []
+
+        daily_totals: dict[date, dict] = {}
+        for record in records:
+            bucket = daily_totals.setdefault(
+                record.record_date,
+                {
+                    "net_value": 0.0,
+                    "cash": 0.0,
+                    "market_value": 0.0,
+                    "positions_count": 0,
+                },
+            )
+            bucket["net_value"] += float(record.net_value)
+            bucket["cash"] += float(record.cash)
+            bucket["market_value"] += float(record.market_value)
+            bucket["positions_count"] += record.positions_count
+
+        total_initial = sum(
+            float(account.initial_capital)
+            for account in SimulatedAccountModel._default_manager.filter(id__in=account_ids)
+        )
+        if total_initial <= 0:
+            total_initial = next(iter(daily_totals.values()))["net_value"] if daily_totals else 1.0
+
+        performance_data: list[dict] = []
+        for record_date in sorted(daily_totals.keys()):
+            bucket = daily_totals[record_date]
+            return_pct = (
+                ((bucket["net_value"] - total_initial) / total_initial) * 100
+                if total_initial
+                else 0.0
+            )
+            performance_data.append(
+                {
+                    "date": record_date.isoformat(),
+                    "portfolio_value": bucket["net_value"],
+                    "return_pct": round(return_pct, 2),
+                    "cash_balance": bucket["cash"],
+                    "invested_value": bucket["market_value"],
+                    "position_count": bucket["positions_count"],
+                }
+            )
+
+        return performance_data
+
+
+class DashboardQueryRepository:
+    """ORM-backed query helpers for dashboard application query services."""
+
+    def get_alpha_ic_trends(self, days: int) -> list[dict[str, Any]]:
+        """Return Alpha IC/ICIR trend rows for the last N days."""
+
+        from apps.alpha.infrastructure.models import QlibModelRegistryModel
+
+        active_models = QlibModelRegistryModel._default_manager.filter(is_active=True)
+        if not active_models.exists():
+            return []
+
+        trends: list[dict[str, Any]] = []
+        base_date = date.today()
+        for i in range(days):
+            check_date = base_date - timedelta(days=i)
+            model_metrics = QlibModelRegistryModel._default_manager.filter(
+                created_at__date=check_date
+            ).first()
+            if model_metrics:
+                trends.append(
+                    {
+                        "date": check_date.isoformat(),
+                        "ic": round(float(model_metrics.ic), 4) if model_metrics.ic else None,
+                        "icir": round(float(model_metrics.icir), 4) if model_metrics.icir else None,
+                        "rank_ic": (
+                            round(float(model_metrics.rank_ic), 4) if model_metrics.rank_ic else None
+                        ),
+                    }
+                )
+            else:
+                trends.append(
+                    {
+                        "date": check_date.isoformat(),
+                        "ic": None,
+                        "icir": None,
+                        "rank_ic": None,
+                    }
+                )
+        return list(reversed(trends))
+
+    def get_latest_macro_indicator_value(self, indicator_code: str) -> float | None:
+        """Return the latest macro indicator value for one code."""
+
+        from apps.macro.infrastructure.models import MacroIndicator
+
+        latest = (
+            MacroIndicator._default_manager.filter(code=indicator_code)
+            .order_by("-reporting_period")
+            .first()
+        )
+        return float(latest.value) if latest else None
+
+    def get_position_detail(self, user_id: int, asset_code: str) -> dict[str, Any]:
+        """Return one account position and related active signals."""
+
+        from apps.account.infrastructure.models import PositionModel
+        from apps.signal.infrastructure.models import InvestmentSignalModel
+
+        position = PositionModel._default_manager.get(
+            user_id=user_id,
+            asset_code=asset_code,
+        )
+        related_signals = list(
+            InvestmentSignalModel._default_manager.filter(
+                asset_code=asset_code,
+                status="active",
+            ).order_by("-created_at")[:5]
+        )
+        return {
+            "position": position,
+            "related_signals": related_signals,
+            "asset_code": asset_code,
+            "error": None,
+        }
+
+    def load_alpha_candidate_generation_context(self) -> dict[str, Any]:
+        """Return trigger/candidate context for batch candidate generation."""
+
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
+
+        active_triggers = list(
+            AlphaTriggerModel._default_manager.filter(
+                status__in=[AlphaTriggerModel.ACTIVE, AlphaTriggerModel.TRIGGERED]
+            ).order_by("-created_at")[:50]
+        )
+        trigger_ids = [trigger.trigger_id for trigger in active_triggers]
+        existing_trigger_ids = set(
+            AlphaCandidateModel._default_manager.filter(
+                trigger_id__in=trigger_ids,
+                status__in=["WATCH", "CANDIDATE", "ACTIONABLE"],
+            ).values_list("trigger_id", flat=True)
+        )
+        actionable_count = AlphaCandidateModel._default_manager.filter(
+            status="ACTIONABLE"
+        ).count()
+        return {
+            "active_triggers": active_triggers,
+            "existing_trigger_ids": existing_trigger_ids,
+            "actionable_count": actionable_count,
+        }
 
 
 class DashboardConfigRepository:

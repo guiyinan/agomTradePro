@@ -429,39 +429,12 @@ class AlphaVisualizationQuery:
     def _get_ic_trends(self, days: int) -> list[dict[str, Any]]:
         """获取 Alpha IC/ICIR 趋势数据"""
         try:
-            from apps.alpha.infrastructure.models import QlibModelRegistryModel
+            from apps.dashboard.infrastructure.repositories import DashboardQueryRepository
 
-            active_models = QlibModelRegistryModel._default_manager.filter(is_active=True)
-
-            if not active_models.exists():
-                return self._empty_ic_data(days)
-
-            trends = []
-            base_date = date.today()
-
-            for i in range(days):
-                check_date = base_date - timedelta(days=i)
-
-                model_metrics = QlibModelRegistryModel._default_manager.filter(
-                    created_at__date=check_date
-                ).first()
-
-                if model_metrics:
-                    trends.append({
-                        "date": check_date.isoformat(),
-                        "ic": round(float(model_metrics.ic), 4) if model_metrics.ic else None,
-                        "icir": round(float(model_metrics.icir), 4) if model_metrics.icir else None,
-                        "rank_ic": round(float(model_metrics.rank_ic), 4) if model_metrics.rank_ic else None,
-                    })
-                else:
-                    trends.append({
-                        "date": check_date.isoformat(),
-                        "ic": None,
-                        "icir": None,
-                        "rank_ic": None,
-                    })
-
-            return list(reversed(trends))
+            trends = DashboardQueryRepository().get_alpha_ic_trends(days)
+            if trends:
+                return trends
+            return self._empty_ic_data(days)
 
         except Exception as e:
             logger.warning(f"Failed to get alpha IC trends: {e}")
@@ -573,14 +546,16 @@ class DecisionPlaneQuery:
     def _get_beta_gate_visible_classes(self) -> str:
         """获取 Beta Gate 允许的可见资产类别"""
         try:
-            from apps.beta_gate.infrastructure.models import GateConfigModel
+            from apps.beta_gate.application.config_summary_service import (
+                get_beta_gate_config_summary_service,
+            )
 
-            config = GateConfigModel._default_manager.active().first()
-            if config:
-                regime_c = config.regime_constraints if isinstance(config.regime_constraints, dict) else {}
-                allowed_classes = regime_c.get('allowed_asset_classes', [])
-                if allowed_classes:
-                    return ", ".join(allowed_classes[:3])
+            beta_gate_context = (
+                get_beta_gate_config_summary_service().get_active_config_context()
+            )
+            allowed_classes = beta_gate_context.get("allowed_asset_classes", [])
+            if allowed_classes:
+                return ", ".join(allowed_classes[:3])
             return "全部"
         except Exception as e:
             logger.warning(f"Failed to get beta gate visible classes: {e}")
@@ -589,9 +564,17 @@ class DecisionPlaneQuery:
     def _get_alpha_status_count(self, status: str) -> int:
         """获取 Alpha 候选状态计数"""
         try:
-            from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+            from apps.alpha_trigger.application.global_alert_service import (
+                get_alpha_trigger_global_alert_service,
+            )
 
-            return AlphaCandidateModel._default_manager.filter(status=status).count()
+            summary = get_alpha_trigger_global_alert_service().get_workspace_summary()
+            key_by_status = {
+                "WATCH": "alpha_watch_count",
+                "CANDIDATE": "alpha_candidate_count",
+                "ACTIONABLE": "alpha_actionable_count",
+            }
+            return int(summary.get(key_by_status.get(status, ""), 0))
         except Exception as e:
             logger.warning(f"Failed to get alpha status count for {status}: {e}")
             return 0
@@ -599,16 +582,12 @@ class DecisionPlaneQuery:
     def _get_quota_total(self) -> int:
         """获取决策配额总数"""
         try:
-            from apps.decision_rhythm.domain.entities import QuotaPeriod
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-
-            quota = (
-                DecisionQuotaModel._default_manager
-                .filter(period=QuotaPeriod.WEEKLY.value)
-                .order_by('-period_start')
-                .first()
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
             )
-            return getattr(quota, "max_decisions", 10) if quota else 10
+
+            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
+            return quota["quota_total"] if quota else 10
         except Exception as e:
             logger.warning(f"Failed to get quota total: {e}")
             return 10
@@ -616,16 +595,12 @@ class DecisionPlaneQuery:
     def _get_quota_used(self) -> int:
         """获取已使用的决策配额"""
         try:
-            from apps.decision_rhythm.domain.entities import QuotaPeriod
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-
-            quota = (
-                DecisionQuotaModel._default_manager
-                .filter(period=QuotaPeriod.WEEKLY.value)
-                .order_by('-period_start')
-                .first()
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
             )
-            return getattr(quota, "used_decisions", 0) if quota else 0
+
+            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
+            return quota["quota_used"] if quota else 0
         except Exception as e:
             logger.warning(f"Failed to get quota used: {e}")
             return 0
@@ -633,20 +608,12 @@ class DecisionPlaneQuery:
     def _get_quota_remaining(self) -> int:
         """获取剩余决策配额"""
         try:
-            from apps.decision_rhythm.domain.entities import QuotaPeriod
-            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-
-            quota = (
-                DecisionQuotaModel._default_manager
-                .filter(period=QuotaPeriod.WEEKLY.value)
-                .order_by('-period_start')
-                .first()
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
             )
-            if quota:
-                max_decisions = getattr(quota, "max_decisions", 10)
-                used_decisions = getattr(quota, "used_decisions", 0)
-                return max(0, max_decisions - used_decisions)
-            return 10
+
+            quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
+            return quota["quota_remaining"] if quota else 10
         except Exception as e:
             logger.warning(f"Failed to get quota remaining: {e}")
             return 10
@@ -718,15 +685,12 @@ class DecisionPlaneQuery:
     def _get_pending_requests(self, max_count: int | None) -> list[Any]:
         """获取待处理请求列表"""
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+            from apps.decision_rhythm.application.global_alert_service import (
+                get_decision_rhythm_global_alert_service,
+            )
 
-            requests = list(
-                DecisionRequestModel._default_manager
-                .filter(
-                    response__approved=True,
-                    execution_status__in=['PENDING', 'FAILED']
-                )
-                .order_by('-requested_at')[:50]
+            requests = (
+                get_decision_rhythm_global_alert_service().list_pending_execution_requests()
             )
 
             deduped = []
@@ -1119,17 +1083,9 @@ class RegimeSummaryQuery:
     def _get_latest_macro_value(self, indicator_code: str) -> float | None:
         """获取最新宏观指标值"""
         try:
-            from apps.macro.infrastructure.models import MacroIndicator
+            from apps.dashboard.infrastructure.repositories import DashboardQueryRepository
 
-            latest = (
-                MacroIndicator._default_manager
-                .filter(code=indicator_code)
-                .order_by('-reporting_period')
-                .first()
-            )
-            if latest:
-                return float(latest.value)
-            return None
+            return DashboardQueryRepository().get_latest_macro_indicator_value(indicator_code)
         except Exception as e:
             logger.debug(f"Failed to get macro value for {indicator_code}: {e}")
             return None
@@ -1141,33 +1097,21 @@ class DashboardDetailQuery:
     def get_position_detail(self, user_id: int, asset_code: str) -> dict[str, Any]:
         """获取持仓详情和相关信号。"""
         try:
-            from apps.account.infrastructure.models import PositionModel
-            from apps.signal.infrastructure.models import InvestmentSignalModel
+            from apps.dashboard.infrastructure.repositories import DashboardQueryRepository
 
-            position = PositionModel._default_manager.get(
+            return DashboardQueryRepository().get_position_detail(
                 user_id=user_id,
                 asset_code=asset_code,
             )
-            related_signals = list(
-                InvestmentSignalModel._default_manager.filter(
-                    asset_code=asset_code,
-                    status='active',
-                ).order_by('-created_at')[:5]
-            )
-            return {
-                "position": position,
-                "related_signals": related_signals,
-                "asset_code": asset_code,
-                "error": None,
-            }
-        except PositionModel.DoesNotExist:
-            return {
-                "position": None,
-                "related_signals": [],
-                "asset_code": asset_code,
-                "error": f'未找到持仓 {asset_code}',
-            }
         except Exception as e:
+            position_error = str(e)
+            if "matching query does not exist" in position_error.lower():
+                return {
+                    "position": None,
+                    "related_signals": [],
+                    "asset_code": asset_code,
+                    "error": f'未找到持仓 {asset_code}',
+                }
             logger.warning(f"Failed to get position detail for {asset_code}: {e}")
             return {
                 "position": None,
@@ -1183,27 +1127,20 @@ class DashboardDetailQuery:
             GenerateCandidateUseCase,
         )
         from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
         from apps.alpha_trigger.infrastructure.repositories import (
             get_candidate_repository,
             get_trigger_repository,
         )
+        from apps.dashboard.infrastructure.repositories import DashboardQueryRepository
 
         trigger_repo = get_trigger_repository()
         candidate_repo = get_candidate_repository()
         use_case = GenerateCandidateUseCase(trigger_repo, candidate_repo)
-
-        active_triggers = list(
-            AlphaTriggerModel._default_manager
-            .filter(status__in=[AlphaTriggerModel.ACTIVE, AlphaTriggerModel.TRIGGERED])
-            .order_by('-created_at')[:50]
+        generation_context = (
+            DashboardQueryRepository().load_alpha_candidate_generation_context()
         )
-        trigger_ids = [t.trigger_id for t in active_triggers]
-        existing_trigger_ids = set(
-            AlphaCandidateModel._default_manager
-            .filter(trigger_id__in=trigger_ids, status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'])
-            .values_list('trigger_id', flat=True)
-        )
+        active_triggers = generation_context["active_triggers"]
+        existing_trigger_ids = generation_context["existing_trigger_ids"]
 
         generated = 0
         promoted = 0
@@ -1233,14 +1170,13 @@ class DashboardDetailQuery:
                 except Exception:
                     pass
 
-        actionable_count = AlphaCandidateModel._default_manager.filter(status='ACTIONABLE').count()
         return {
             "generated": generated,
             "promoted_to_actionable": promoted,
             "skipped_existing": skipped,
             "failed": failed,
             "active_trigger_count": len(active_triggers),
-            "actionable_count": actionable_count,
+            "actionable_count": generation_context["actionable_count"],
         }
 
 

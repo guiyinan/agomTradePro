@@ -207,28 +207,29 @@ class TestInvalidationCheckServiceIntegration:
         # Should return None for signals without invalidation rule
         assert result is None
 
-    @patch('apps.signal.application.invalidation_checker.InvestmentSignalModel')
-    def test_check_pending_signals_method_exists(self, mock_model):
+    def test_check_pending_signals_method_exists(self):
         """测试 check_pending_signals 方法存在"""
-        service = InvalidationCheckService()
-
-        # Mock the queryset
-        mock_qs = Mock()
-        mock_qs.filter.return_value.exclude.return_value = []
-        mock_model._default_manager = mock_qs
+        signal_repository = Mock()
+        signal_repository.find_signals_with_invalidation_rules.return_value = []
+        service = InvalidationCheckService(
+            signal_repository=signal_repository,
+            macro_repository=Mock(),
+        )
 
         # Should not raise
         result = service.check_pending_signals()
         assert result == []
+        signal_repository.find_signals_with_invalidation_rules.assert_called_once_with(
+            status=SignalStatus.PENDING
+        )
 
-    @patch('apps.signal.application.invalidation_checker.InvestmentSignalModel')
-    def test_check_and_invalidate_returns_correct_structure(self, mock_model):
+    @patch('apps.signal.infrastructure.repositories.DjangoSignalRepository')
+    def test_check_and_invalidate_returns_correct_structure(self, mock_repository_cls):
         """测试 check_and_invalidate_signals 返回正确的结构"""
-        # Mock the count queries and iteration
-        mock_qs = Mock()
-        mock_qs.filter.return_value.count.return_value = 1
-        mock_qs.filter.return_value.exclude.return_value.__iter__ = lambda self: iter([])
-        mock_model._default_manager = mock_qs
+        repository = Mock()
+        repository.find_signals_with_invalidation_rules.return_value = []
+        repository.count_by_status.side_effect = lambda status: 1 if status == "approved" else 0
+        mock_repository_cls.return_value = repository
 
         result = check_and_invalidate_signals()
 

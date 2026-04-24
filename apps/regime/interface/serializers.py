@@ -7,8 +7,6 @@ from typing import Any, Dict
 
 from rest_framework import serializers
 
-from apps.regime.infrastructure.models import RegimeLog
-
 
 class RegimeSnapshotSerializer(serializers.Serializer):
     """Serializer for RegimeSnapshot domain entity"""
@@ -44,17 +42,17 @@ class RegimeCalculateResponseSerializer(serializers.Serializer):
     intermediate_data = serializers.DictField(allow_null=True, required=False)
 
 
-class RegimeLogSerializer(serializers.ModelSerializer):
-    """Serializer for RegimeLog model"""
+class RegimeLogSerializer(serializers.Serializer):
+    """Serializer for regime history payloads."""
 
-    class Meta:
-        model = RegimeLog
-        fields = [
-            'id', 'observed_at', 'dominant_regime', 'confidence',
-            'growth_momentum_z', 'inflation_momentum_z',
-            'distribution', 'created_at'
-        ]
-        read_only_fields = ['created_at']
+    id = serializers.IntegerField()
+    observed_at = serializers.DateField()
+    dominant_regime = serializers.CharField(max_length=20)
+    confidence = serializers.FloatField()
+    growth_momentum_z = serializers.FloatField(allow_null=True)
+    inflation_momentum_z = serializers.FloatField(allow_null=True)
+    distribution = serializers.DictField(required=False)
+    created_at = serializers.DateTimeField()
 
 
 class RegimeHistoryQuerySerializer(serializers.Serializer):

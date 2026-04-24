@@ -1,79 +1,71 @@
-"""
-DRF Serializers for Signal API.
-
-P1-4: 接入输入消毒，防止 XSS 攻击
-"""
-
-from datetime import date
-from typing import Any, Dict, Optional
+"""DRF serializers for the signal API."""
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.signal.domain.entities import SignalStatus
-from apps.signal.infrastructure.models import InvestmentSignalModel
-from shared.infrastructure.sanitization import sanitize_plain_text
+from shared.sanitization import sanitize_plain_text
 
 
-class InvestmentSignalSerializer(serializers.ModelSerializer):
-    """Serializer for InvestmentSignalModel"""
+class InvestmentSignalSerializer(serializers.Serializer):
+    """Read serializer for investment signal payloads."""
 
-    # 添加结构化证伪规则字段（只读）
-    invalidation_rule = serializers.JSONField(source='invalidation_rule_json', read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    asset_code = serializers.CharField(read_only=True)
+    asset_class = serializers.CharField(read_only=True)
+    direction = serializers.CharField(read_only=True)
+    status = serializers.CharField(read_only=True)
+    logic_desc = serializers.CharField(read_only=True)
+    invalidation_description = serializers.CharField(read_only=True, allow_blank=True)
+    invalidation_rule = serializers.JSONField(read_only=True)
     human_readable_invalidation = serializers.SerializerMethodField()
-
-    class Meta:
-        model = InvestmentSignalModel
-        fields = [
-            'id', 'asset_code', 'asset_class', 'direction', 'status',
-            'logic_desc', 'invalidation_description', 'invalidation_rule',
-            'human_readable_invalidation', 'target_regime', 'rejection_reason',
-            'created_at', 'updated_at', 'invalidated_at',
-            'backtest_performance_score', 'avg_backtest_return',
-        ]
-        read_only_fields = [
-            'created_at', 'updated_at', 'rejection_reason',
-            'invalidated_at', 'backtest_performance_score', 'avg_backtest_return'
-        ]
+    target_regime = serializers.CharField(read_only=True)
+    rejection_reason = serializers.CharField(read_only=True, allow_blank=True)
+    created_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    updated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    invalidated_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    backtest_performance_score = serializers.FloatField(read_only=True, allow_null=True)
+    avg_backtest_return = serializers.FloatField(read_only=True, allow_null=True)
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_human_readable_invalidation(self, obj) -> str:
-        """获取人类可读的证伪描述"""
-        return obj.get_human_readable_rules()
+        """Return the human-readable invalidation description."""
+
+        if isinstance(obj, dict):
+            return (
+                obj.get("human_readable_invalidation")
+                or obj.get("invalidation_description")
+                or ""
+            )
+        if hasattr(obj, "get_human_readable_rules"):
+            return obj.get_human_readable_rules()
+        return getattr(obj, "invalidation_description", "") or ""
 
 
-class InvestmentSignalCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating InvestmentSignal"""
+class InvestmentSignalCreateSerializer(serializers.Serializer):
+    """Write serializer for creating investment signals."""
 
-    # 新的证伪字段
+    asset_code = serializers.CharField()
+    asset_class = serializers.CharField()
+    direction = serializers.CharField()
+    logic_desc = serializers.CharField()
     invalidation_logic = serializers.CharField(
         write_only=True,
         required=True,
-        help_text="自然语言描述的证伪逻辑，如 'PMI 跌破 50' 或 'CPI > 3 且 M2 < 10'"
+        help_text="自然语言描述的证伪逻辑，如 'PMI 跌破 50' 或 'CPI > 3 且 M2 < 10'",
     )
-
-    class Meta:
-        model = InvestmentSignalModel
-        fields = [
-            'asset_code', 'asset_class', 'direction',
-            'logic_desc', 'invalidation_logic', 'target_regime'
-        ]
+    target_regime = serializers.CharField()
 
     def validate_invalidation_logic(self, value):
-        """验证证伪逻辑（含 XSS 消毒）"""
-        # P1-4: XSS 消毒
+        """Validate and sanitize invalidation logic."""
+
         value = sanitize_plain_text(value)
-
         if not value or len(value.strip()) < 5:
-            raise serializers.ValidationError(
-                "证伪逻辑至少需要 5 个字符"
-            )
+            raise serializers.ValidationError("证伪逻辑至少需要 5 个字符")
 
-        # 检查是否包含可量化关键词
         quantifiable_keywords = [
-            '跌破', '突破', '小于', '大于', '低于', '高于',
-            '<', '>', '<=', '>=', '涨幅', '跌幅', '%'
+            "跌破", "突破", "小于", "大于", "低于", "高于",
+            "<", ">", "<=", ">=", "涨幅", "跌幅", "%",
         ]
         has_keyword = any(kw in value for kw in quantifiable_keywords)
         if not has_keyword:
@@ -84,33 +76,42 @@ class InvestmentSignalCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_logic_desc(self, value):
-        """验证投资逻辑描述（含 XSS 消毒）"""
-        # P1-4: XSS 消毒
+        """Validate and sanitize logic description."""
+
         return sanitize_plain_text(value)
 
     def create(self, validated_data):
-        """创建信号，解析证伪逻辑"""
-        from apps.signal.domain.parser import InvalidationLogicParser
+        """Create a signal via application query services."""
 
-        invalidation_logic = validated_data.pop('invalidation_logic')
+        from apps.signal.application.query_services import create_investment_signal_payload
 
-        # 解析证伪逻辑
-        parser = InvalidationLogicParser()
-        parse_result = parser.parse(invalidation_logic)
+        try:
+            return create_investment_signal_payload(**validated_data)
+        except ValueError as exc:
+            raise serializers.ValidationError(
+                {"invalidation_logic": str(exc)}
+            ) from exc
 
-        if not parse_result.success:
-            raise serializers.ValidationError({
-                'invalidation_logic': f"解析失败: {parse_result.error}"
-            })
 
-        # 创建信号
-        signal = InvestmentSignalModel._default_manager.create(
-            **validated_data,
-            invalidation_description=invalidation_logic,
-            invalidation_rule_json=parse_result.rule.to_dict(),
-        )
+class InvestmentSignalUpdateSerializer(serializers.Serializer):
+    """Write serializer for updating investment signals."""
 
-        return signal
+    asset_code = serializers.CharField(required=False)
+    asset_class = serializers.CharField(required=False)
+    direction = serializers.CharField(required=False)
+    logic_desc = serializers.CharField(required=False)
+    invalidation_logic = serializers.CharField(required=False)
+    target_regime = serializers.CharField(required=False)
+
+    def validate_invalidation_logic(self, value):
+        """Reuse create-time invalidation validation."""
+
+        return InvestmentSignalCreateSerializer().validate_invalidation_logic(value)
+
+    def validate_logic_desc(self, value):
+        """Reuse create-time logic sanitization."""
+
+        return sanitize_plain_text(value)
 
 
 class InvestmentSignalValidateRequestSerializer(serializers.Serializer):
@@ -143,36 +144,26 @@ class SignalListQuerySerializer(serializers.Serializer):
     limit = serializers.IntegerField(default=50, min_value=1, max_value=500)
 
 
-class UnifiedSignalSerializer(serializers.ModelSerializer):
-    """Serializer for UnifiedSignalModel"""
+class UnifiedSignalSerializer(serializers.Serializer):
+    """Read serializer for unified signal payloads."""
 
-    signal_source_display = serializers.CharField(source='get_signal_source_display', read_only=True)
-    signal_type_display = serializers.CharField(source='get_signal_type_display', read_only=True)
-    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
-
-    class Meta:
-        from apps.signal.infrastructure.models import UnifiedSignalModel
-        model = UnifiedSignalModel
-        fields = [
-            'id',
-            'signal_date',
-            'signal_source',
-            'signal_source_display',
-            'signal_type',
-            'signal_type_display',
-            'asset_code',
-            'asset_name',
-            'target_weight',
-            'current_weight',
-            'priority',
-            'priority_display',
-            'is_executed',
-            'executed_at',
-            'reason',
-            'action_required',
-            'extra_data',
-            'related_signal_id',
-            'created_at',
-            'updated_at',
-        ]
-        read_only_fields = ['created_at', 'updated_at', 'executed_at']
+    id = serializers.IntegerField(read_only=True)
+    signal_date = serializers.CharField(read_only=True)
+    signal_source = serializers.CharField(read_only=True)
+    signal_source_display = serializers.CharField(read_only=True, required=False)
+    signal_type = serializers.CharField(read_only=True)
+    signal_type_display = serializers.CharField(read_only=True, required=False)
+    asset_code = serializers.CharField(read_only=True)
+    asset_name = serializers.CharField(read_only=True, allow_blank=True)
+    target_weight = serializers.FloatField(read_only=True, allow_null=True)
+    current_weight = serializers.FloatField(read_only=True, allow_null=True)
+    priority = serializers.IntegerField(read_only=True)
+    priority_display = serializers.CharField(read_only=True, required=False)
+    is_executed = serializers.BooleanField(read_only=True)
+    executed_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    reason = serializers.CharField(read_only=True)
+    action_required = serializers.CharField(read_only=True, allow_blank=True)
+    extra_data = serializers.JSONField(read_only=True)
+    related_signal_id = serializers.CharField(read_only=True, allow_blank=True)
+    created_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    updated_at = serializers.DateTimeField(read_only=True, allow_null=True)

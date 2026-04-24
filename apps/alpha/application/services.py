@@ -10,8 +10,11 @@ import time
 from datetime import date, timezone
 from typing import Any, Optional
 
+from apps.account.application.config_summary_service import get_account_config_summary_service
+
 from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
+from .repository_provider import get_alpha_alert_repository
 from .pool_resolver import PortfolioAlphaPoolResolver
 from ..infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from ..infrastructure.adapters.etf_adapter import ETFFallbackProvider
@@ -31,6 +34,18 @@ def get_alpha_metrics():
 
         _alpha_metrics_instance = _get_metrics()
     return _alpha_metrics_instance
+
+
+def _get_runtime_qlib_config() -> dict[str, Any]:
+    """Return runtime qlib config through account-owned application service."""
+
+    return get_account_config_summary_service().get_runtime_qlib_config()
+
+
+def _get_runtime_alpha_fixed_provider() -> str:
+    """Return runtime fixed alpha provider through account-owned application service."""
+
+    return get_account_config_summary_service().get_runtime_alpha_fixed_provider()
 
 
 def _derive_result_asof_date(result: AlphaResult) -> str | None:
@@ -352,9 +367,7 @@ class AlphaProviderRegistry:
 
         # 检查是否配置了固定 Provider
         try:
-            from apps.account.infrastructure.models import SystemSettingsModel
-
-            fixed_provider = SystemSettingsModel.get_runtime_alpha_fixed_provider()
+            fixed_provider = _get_runtime_alpha_fixed_provider()
             if fixed_provider and not provider_filter:
                 logger.info(f"[AlphaConfig] 系统配置固定使用 Provider: {fixed_provider}")
                 provider_filter = fixed_provider
@@ -609,11 +622,9 @@ class AlphaProviderRegistry:
 
         # 创建严重告警
         try:
-            from ..infrastructure.models import AlphaAlertModel
-
-            AlphaAlertModel.objects.create(
-                alert_type=AlphaAlertModel.ALERT_PROVIDER_UNAVAILABLE,
-                severity=AlphaAlertModel.SEVERITY_ERROR,
+            get_alpha_alert_repository().create_alert(
+                alert_type="provider_unavailable",
+                severity="error",
                 title="所有 Alpha Provider 不可用",
                 message=f"尝试顺序: {', '.join(attempted_providers)}",
                 metadata={
@@ -691,27 +702,26 @@ class AlphaProviderRegistry:
             reason: 降级原因
         """
         try:
-            from ..infrastructure.models import AlphaAlertModel
-
+            alert_repository = get_alpha_alert_repository()
             # 检查是否已有相同告警（避免重复）
-            recent_alert = AlphaAlertModel.objects.filter(
-                alert_type=AlphaAlertModel.ALERT_MODEL_DEGRADED, is_resolved=False
-            ).first()
+            recent_alert = alert_repository.get_open_alert(alert_type="model_degraded")
 
             # 如果有未解决的降级告警，更新它；否则创建新的
             if recent_alert:
-                recent_alert.message = reason
-                recent_alert.metadata = {
-                    "current_provider": current_provider,
-                    "attempted_providers": attempted_providers,
-                    "alert_updated_at": timezone.now().isoformat(),
-                }
-                recent_alert.save()
+                alert_repository.update_alert(
+                    alert_id=recent_alert.id,
+                    message=reason,
+                    metadata={
+                        "current_provider": current_provider,
+                        "attempted_providers": attempted_providers,
+                        "alert_updated_at": timezone.now().isoformat(),
+                    },
+                )
                 logger.info(f"[AlphaAlert] 更新降级告警: {reason}")
             else:
-                AlphaAlertModel.objects.create(
-                    alert_type=AlphaAlertModel.ALERT_MODEL_DEGRADED,
-                    severity=AlphaAlertModel.SEVERITY_WARNING,
+                alert_repository.create_alert(
+                    alert_type="model_degraded",
+                    severity="warning",
                     title="Alpha Provider 降级",
                     message=reason,
                     metadata={
@@ -776,11 +786,9 @@ class AlphaService:
         """
         # 1. Qlib Provider（最高优先级，但可能不可用）
         try:
-            from apps.account.infrastructure.models import SystemSettingsModel
-
             from ..infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 
-            qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+            qlib_config = _get_runtime_qlib_config()
             if qlib_config.get("enabled"):
                 qlib_provider = QlibAlphaProvider(
                     provider_uri=qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data"),

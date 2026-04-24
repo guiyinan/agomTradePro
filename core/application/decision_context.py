@@ -14,14 +14,14 @@ from apps.audit.application.use_cases import (
     GenerateAttributionReportRequest,
     GenerateAttributionReportUseCase,
 )
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
+from apps.audit.application.repository_provider import get_audit_repository
+from apps.backtest.application.repository_provider import get_backtest_repository
 from apps.regime.application.navigator_use_cases import (
     BuildRegimeNavigatorUseCase,
     GetActionRecommendationUseCase,
 )
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
-from apps.rotation.infrastructure.services import RotationIntegrationService
+from apps.rotation.application.integration_service import RotationIntegrationService
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +106,8 @@ class DecisionContextUseCase:
         self.pulse_usecase = GetLatestPulseUseCase()
         self.action_usecase = GetActionRecommendationUseCase()
         self.rotation_service = RotationIntegrationService()
-        self.audit_repository = DjangoAuditRepository()
-        self.backtest_repository = DjangoBacktestRepository()
+        self.audit_repository = get_audit_repository()
+        self.backtest_repository = get_backtest_repository()
 
     def get_step1_context(self, as_of_date: Optional[date] = None) -> DecisionStep1Response:
         """Step 1: Environment Assessment
