@@ -19,14 +19,14 @@ def test_guardrail_no_raw_decimal_in_json_payload_builders():
     This catches the pattern that causes:
       TypeError: Object of type Decimal is not JSON serializable
 
-    Checked functions: `_build_share_snapshot_from_account` in
-    `apps/share/interface/views.py`.
+    Checked functions: `build_share_snapshot_from_account` in
+    `apps/share/application/interface_services.py`.
     """
-    views_file = APPS_DIR / "share" / "interface" / "views.py"
-    if not views_file.exists():
-        pytest.skip("share/interface/views.py not found")
+    target_file = APPS_DIR / "share" / "application" / "interface_services.py"
+    if not target_file.exists():
+        pytest.skip("share/application/interface_services.py not found")
 
-    source = views_file.read_text(encoding="utf-8")
+    source = target_file.read_text(encoding="utf-8")
     tree = ast.parse(source)
     parents = {}
     for parent in ast.walk(tree):
@@ -51,7 +51,7 @@ def test_guardrail_no_raw_decimal_in_json_payload_builders():
     }
 
     target_functions = {
-        "_build_share_snapshot_from_account",
+        "build_share_snapshot_from_account",
     }
 
     violations = []
@@ -89,7 +89,7 @@ def test_guardrail_no_raw_decimal_in_json_payload_builders():
                 ]:
                     if not is_wrapped_in_float(attr, value):
                         violations.append(
-                            f"{views_file}:{node.lineno} - "
+                            f"{target_file}:{node.lineno} - "
                             f"dict key '{key.value}' uses raw Decimal attribute "
                             f"'{attr.attr}' without float() wrapping"
                         )
@@ -120,8 +120,8 @@ def test_guardrail_live_share_snapshot_payloads_are_json_serializable():
     from django.contrib.auth import get_user_model
     from django.utils import timezone
 
+    from apps.share.application.interface_services import build_share_snapshot_from_account
     from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
-    from apps.share.interface.views import _build_share_snapshot_from_account
     from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedAccountModel
 
     user = get_user_model().objects.create_user(
@@ -167,7 +167,7 @@ def test_guardrail_live_share_snapshot_payloads_are_json_serializable():
         show_decision_summary=True,
     )
 
-    snapshot_id = _build_share_snapshot_from_account(share_link)
+    snapshot_id = build_share_snapshot_from_account(share_link_id=share_link.id)
     snapshot = ShareSnapshotModel.objects.get(id=snapshot_id)
 
     _assert_no_decimal(snapshot.summary_payload)
