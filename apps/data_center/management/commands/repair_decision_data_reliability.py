@@ -9,10 +9,12 @@ from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
 
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest
+from apps.data_center.application.dtos import SyncQuoteRequest
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     DEFAULT_DECISION_MACRO_INDICATORS,
     RepairDecisionDataReliabilityUseCase,
+    SyncQuoteUseCase,
 )
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.repositories import (
@@ -54,6 +56,12 @@ class Command(BaseCommand):
         )
         parser.add_argument("--skip-pulse", dest="skip_pulse", action="store_true")
         parser.add_argument("--skip-alpha", dest="skip_alpha", action="store_true")
+        parser.add_argument(
+            "--sync-alpha",
+            dest="sync_alpha",
+            action="store_true",
+            help="Run scoped Alpha inference synchronously. Default queues it to avoid blocking repair.",
+        )
 
     def handle(self, *args, **options):
         target_date = (
@@ -73,7 +81,10 @@ class Command(BaseCommand):
             raw_audit_repo=RawAuditRepository(),
             legacy_macro_repo=LegacyMacroSeriesRepository(),
             pulse_refresher=self._build_pulse_refresher(),
-            alpha_refresher=self._build_alpha_refresher(user),
+            alpha_refresher=self._build_alpha_refresher(
+                user,
+                sync_alpha=bool(options.get("sync_alpha")),
+            ),
             alpha_status_reader=self._build_alpha_status_reader(user),
         )
         report = use_case.execute(
@@ -115,7 +126,7 @@ class Command(BaseCommand):
         return _refresh
 
     @staticmethod
-    def _build_alpha_refresher(user):
+    def _build_alpha_refresher(user, *, sync_alpha: bool = False):
         def _refresh(target_date: date, portfolio_id: int | None) -> dict:
             if user is None:
                 return {"status": "skipped", "message": "No admin user is available."}
@@ -125,31 +136,108 @@ class Command(BaseCommand):
             from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
             from apps.alpha.application.tasks import qlib_predict_scores
 
-            call_command(
-                "build_qlib_data",
-                target_date=target_date.isoformat(),
-                universes="csi300,csi500,sse50,csi1000",
-                lookback_days=400,
-                verbosity=0,
-            )
+            try:
+                call_command(
+                    "build_qlib_data",
+                    check_only=True,
+                    target_date=target_date.isoformat(),
+                    verbosity=0,
+                )
+            except CommandError:
+                call_command(
+                    "build_qlib_data",
+                    target_date=target_date.isoformat(),
+                    universes="csi300,csi500,sse50,csi1000",
+                    lookback_days=400,
+                    verbosity=0,
+                )
             resolved = PortfolioAlphaPoolResolver().resolve(
                 user_id=user.id,
                 portfolio_id=portfolio_id,
                 trade_date=target_date,
                 pool_mode="price_covered",
             )
-            result = qlib_predict_scores.apply(
-                args=[resolved.scope.universe_id, target_date.isoformat(), 30],
-                kwargs={"scope_payload": resolved.scope.to_dict()},
-            ).get()
+            quote_sync_result = Command._sync_scope_quotes(
+                list(getattr(resolved.scope, "instrument_codes", ()) or ())
+            )
+            task_kwargs = {"scope_payload": resolved.scope.to_dict()}
+            if sync_alpha:
+                result = qlib_predict_scores.apply(
+                    args=[resolved.scope.universe_id, target_date.isoformat(), 30],
+                    kwargs=task_kwargs,
+                ).get()
+                status = "completed"
+                task_id = ""
+            else:
+                from kombu.exceptions import OperationalError as KombuOperationalError
+
+                try:
+                    task = qlib_predict_scores.apply_async(
+                        args=[resolved.scope.universe_id, target_date.isoformat(), 30],
+                        kwargs=task_kwargs,
+                    )
+                except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
+                    return {
+                        "status": "queue_failed",
+                        "scope_hash": resolved.scope.scope_hash,
+                        "universe_id": resolved.scope.universe_id,
+                        "task_id": "",
+                        "qlib_result": {
+                            "message": "Scoped Alpha inference queue is unavailable.",
+                            "error_message": str(exc),
+                        },
+                        "quote_sync": quote_sync_result,
+                    }
+                result = {
+                    "message": "Scoped Alpha inference queued.",
+                    "task_id": getattr(task, "id", ""),
+                }
+                status = "queued"
+                task_id = getattr(task, "id", "")
             return {
-                "status": "completed",
+                "status": status,
                 "scope_hash": resolved.scope.scope_hash,
                 "universe_id": resolved.scope.universe_id,
+                "task_id": task_id,
                 "qlib_result": result,
+                "quote_sync": quote_sync_result,
             }
 
         return _refresh
+
+    @staticmethod
+    def _sync_scope_quotes(asset_codes: list[str]) -> dict:
+        normalized_codes = [str(code or "").strip().upper() for code in asset_codes if code]
+        if not normalized_codes:
+            return {"status": "skipped", "message": "No scoped instruments to sync."}
+
+        provider_repo = ProviderConfigRepository()
+        source_priority = {"akshare": 0, "eastmoney": 1, "tushare": 2}
+        providers = [
+            item
+            for item in provider_repo.list_all()
+            if item.is_active and item.id is not None and item.source_type in source_priority
+        ]
+        providers.sort(key=lambda item: (source_priority[item.source_type], item.priority))
+        provider = providers[0] if providers else None
+        if provider is None or provider.id is None:
+            return {"status": "skipped", "message": "No realtime quote provider is available."}
+
+        try:
+            result = SyncQuoteUseCase(
+                provider_repo=provider_repo,
+                provider_factory=UnifiedProviderFactory(provider_repo),
+                fact_repo=QuoteSnapshotRepository(),
+                raw_audit_repo=RawAuditRepository(),
+            ).execute(
+                SyncQuoteRequest(
+                    provider_id=provider.id,
+                    asset_codes=normalized_codes,
+                )
+            )
+        except Exception as exc:
+            return {"status": "failed", "error_message": str(exc)}
+        return result.to_dict()
 
     @staticmethod
     def _build_alpha_status_reader(user):

@@ -256,7 +256,13 @@ class GetActionRecommendationUseCase:
     def __init__(self, macro_repo=None):
         self.macro_repo = macro_repo
 
-    def execute(self, as_of_date: date | None = None) -> RegimeActionRecommendation | None:
+    def execute(
+        self,
+        as_of_date: date | None = None,
+        *,
+        refresh_pulse_if_stale: bool = True,
+    ) -> RegimeActionRecommendation | None:
+        """Build an action recommendation, optionally refreshing stale Pulse data."""
         target_date = as_of_date or date.today()
 
         try:
@@ -278,7 +284,7 @@ class GetActionRecommendationUseCase:
                 pulse = pulse_use_case.execute(
                     as_of_date=target_date,
                     require_reliable=True,
-                    refresh_if_stale=True,
+                    refresh_if_stale=refresh_pulse_if_stale,
                 )
             except Exception as e:
                 logger.warning("Pulse not available for action recommendation: %s", e)

@@ -5,13 +5,17 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
+from types import SimpleNamespace
 from typing import Any
 
 from django.utils import timezone as django_timezone
 
 from apps.account.application.use_cases import GetSizingContextUseCase
 from apps.account.infrastructure.repositories import PortfolioRepository
-from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
+from apps.alpha.application.pool_resolver import (
+    ALPHA_POOL_MODE_PRICE_COVERED,
+    PortfolioAlphaPoolResolver,
+)
 from apps.alpha.application.services import AlphaService
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.dashboard.infrastructure.repositories import (
@@ -73,6 +77,7 @@ class AlphaHomepageQuery:
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
         alpha_scope: str | None = None,
+        refresh_sizing_pulse_if_stale: bool = False,
     ) -> AlphaHomepageData:
         today = django_timezone.localdate()
         normalized_scope = normalize_alpha_scope(alpha_scope)
@@ -87,7 +92,7 @@ class AlphaHomepageQuery:
             user_id=user.id,
             portfolio_id=portfolio_id,
             trade_date=today,
-            pool_mode=pool_mode,
+            pool_mode=pool_mode or ALPHA_POOL_MODE_PRICE_COVERED,
         )
         scope = resolved_pool.scope
 
@@ -114,6 +119,7 @@ class AlphaHomepageQuery:
         position_map, portfolio_snapshot, sizing_context = self._load_portfolio_context(
             user_id=user.id,
             portfolio_id=resolved_pool.portfolio_id,
+            refresh_pulse_if_stale=refresh_sizing_pulse_if_stale,
         )
         policy_state = self._load_policy_state()
 
@@ -378,7 +384,8 @@ class AlphaHomepageQuery:
 
     def _fetch_alpha_result(self, *, user, scope, trade_date: date, top_n: int):
         result = None
-        for provider_name in ("cache",):
+        broader_cache_candidate = None
+        for provider_name in ("cache", "simple"):
             candidate = self.alpha_service.get_stock_scores(
                 universe_id=scope.universe_id,
                 intended_trade_date=trade_date,
@@ -391,6 +398,7 @@ class AlphaHomepageQuery:
             if candidate.success and candidate.scores:
                 metadata = dict(getattr(candidate, "metadata", {}) or {})
                 if metadata.get("derived_from_broader_cache"):
+                    broader_cache_candidate = candidate
                     async_status = self._trigger_async_inference_if_needed(
                         user=user,
                         scope=scope,
@@ -408,7 +416,10 @@ class AlphaHomepageQuery:
                         }
                     )
                     candidate.metadata = metadata
+                    continue
                 return candidate
+        if broader_cache_candidate is not None:
+            return broader_cache_candidate
         if result is not None:
             async_status = self._trigger_async_inference_if_needed(
                 user=user,
@@ -568,6 +579,14 @@ class AlphaHomepageQuery:
         no_recommendation_reason = str(metadata.get("no_recommendation_reason") or "")
         fallback_mode = str(metadata.get("fallback_mode") or "")
         scores = list(getattr(alpha_result, "scores", []) or [])
+        provider_source = str(
+            metadata.get("provider_source") or getattr(alpha_result, "source", "")
+        ).strip().lower()
+        data_driven_simple_result = (
+            provider_source == "simple"
+            and str(metadata.get("factor_basis") or "") in {"quote_momentum", ""}
+            and bool(scores)
+        )
 
         scope_verification_status = "verified"
         if not scores:
@@ -588,6 +607,8 @@ class AlphaHomepageQuery:
             freshness_status = "forward_filled_cache"
         elif result_age_days not in (None, 0):
             freshness_status = "stale"
+        elif data_driven_simple_result:
+            freshness_status = "fresh"
         elif is_degraded or not latest_available_qlib_result:
             freshness_status = "degraded"
 
@@ -644,7 +665,7 @@ class AlphaHomepageQuery:
                 or "当前 Alpha 结果处于 degraded 状态，不能作为决策推荐。"
             )
             recommendation_ready = False
-        elif not latest_available_qlib_result:
+        elif not latest_available_qlib_result and not data_driven_simple_result:
             readiness_status = "blocked_unverified_delivery"
             blocked_reason = (
                 "当前 Alpha 输出尚未验证为请求交易日的最新 scoped Qlib 结果。"
@@ -755,6 +776,7 @@ class AlphaHomepageQuery:
         *,
         user_id: int,
         portfolio_id: int | None,
+        refresh_pulse_if_stale: bool,
     ) -> tuple[dict[str, float], Any | None, Any | None]:
         if portfolio_id is None:
             return {}, None, None
@@ -763,9 +785,24 @@ class AlphaHomepageQuery:
         if portfolio_snapshot is not None:
             for position in portfolio_snapshot.positions:
                 position_map[str(position.asset_code).upper()] = float(position.market_value)
+        if portfolio_snapshot is None or float(getattr(portfolio_snapshot, "total_value", 0.0) or 0.0) <= 0:
+            context_repo = getattr(self, "context_repo", None)
+            account_totals = (
+                context_repo.load_user_account_totals(user_id)
+                if context_repo is not None
+                else None
+            )
+            total_assets = float((account_totals or {}).get("total_assets") or 0.0)
+            if total_assets > 0:
+                portfolio_snapshot = SimpleNamespace(
+                    total_value=total_assets,
+                    positions=getattr(portfolio_snapshot, "positions", []) if portfolio_snapshot else [],
+                )
         try:
             sizing_context = GetSizingContextUseCase().execute(
-                portfolio_id=portfolio_id, user_id=user_id
+                portfolio_id=portfolio_id,
+                user_id=user_id,
+                refresh_pulse_if_stale=refresh_pulse_if_stale,
             )
         except Exception as exc:
             logger.warning("Failed to load sizing context for portfolio %s: %s", portfolio_id, exc)
@@ -930,6 +967,18 @@ class AlphaHomepageQuery:
                 "当前候选进入待执行队列或被 workflow 显式否决",
             ],
         }
+        recommendation_ready = stage == "actionable" and not reliability_blocked
+        decision_usable = not reliability_blocked
+        not_actionable_reason = (
+            "当前已在待执行队列中。"
+            if pending_request is not None
+            else reliability_blocked_reason
+            or (
+                no_buy_reasons[0]["text"]
+                if no_buy_reasons
+                else "当前候选仅供研究，不构成可执行推荐。"
+            )
+        )
 
         return {
             "code": code,
@@ -999,14 +1048,12 @@ class AlphaHomepageQuery:
             "invalidation_summary": invalidation_rule["summary"],
             "source_candidate_id": getattr(actionable_candidate, "id", None),
             "source_recommendation_id": getattr(pending_request, "id", None),
-            "recommendation_ready": stage == "actionable" and not reliability_blocked,
-            "must_not_use_for_decision": not (stage == "actionable" and not reliability_blocked),
-            "blocked_reason": (
-                "当前已在待执行队列中。"
-                if pending_request is not None
-                else reliability_blocked_reason
-                or (no_buy_reasons[0]["text"] if no_buy_reasons else "当前候选仅供研究，不构成可执行推荐。")
-            ),
+            "recommendation_ready": recommendation_ready,
+            "must_not_treat_as_recommendation": not recommendation_ready,
+            "decision_usable": decision_usable,
+            "must_not_use_for_decision": not decision_usable,
+            "blocked_reason": not_actionable_reason,
+            "not_actionable_reason": not_actionable_reason,
             "extra_payload": {
                 "decision_action": action,
                 "decision_codes": decision_codes,

@@ -901,10 +901,15 @@ class RepairDecisionDataReliabilityUseCase:
             if latest_bar is None:
                 blocked_reasons.append(f"{asset_code}: 无可用历史价格。")
             elif latest_bar.bar_date < target_date:
-                price_details["freshness_status"] = "stale"
-                blocked_reasons.append(
-                    f"{asset_code}: 最新价格日线仅到 {latest_bar.bar_date.isoformat()}。"
-                )
+                lag_days = (target_date - latest_bar.bar_date).days
+                price_details["lag_days"] = lag_days
+                if lag_days <= 3:
+                    price_details["freshness_status"] = "latest_completed_session"
+                else:
+                    price_details["freshness_status"] = "stale"
+                    blocked_reasons.append(
+                        f"{asset_code}: 最新价格日线仅到 {latest_bar.bar_date.isoformat()}。"
+                    )
             else:
                 price_details["freshness_status"] = "fresh"
             details["prices"][asset_code] = price_details
@@ -1006,10 +1011,19 @@ class RepairDecisionDataReliabilityUseCase:
         failed = False
         if self._alpha_refresher is not None:
             try:
-                details["repair"] = self._alpha_refresher(
+                repair_payload = self._alpha_refresher(
                     target_date,
                     request.portfolio_id,
                 )
+                details["repair"] = repair_payload
+                if repair_payload.get("status") in {"failed", "queue_failed"}:
+                    failed = True
+                    message = (
+                        repair_payload.get("qlib_result", {}).get("error_message")
+                        or repair_payload.get("message")
+                        or repair_payload.get("status")
+                    )
+                    blocked_reasons.append(f"Alpha 修复失败: {message}")
             except Exception as exc:
                 failed = True
                 blocked_reasons.append(f"Alpha 修复失败: {exc}")

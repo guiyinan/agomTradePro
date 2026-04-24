@@ -197,8 +197,9 @@ class _ProviderFactory:
 
 
 class _DecisionRepairProvider:
-    def __init__(self, target_date: date) -> None:
+    def __init__(self, target_date: date, price_date: date | None = None) -> None:
         self.target_date = target_date
+        self.price_date = price_date or target_date
 
     def provider_name(self) -> str:
         return "AKShare Public"
@@ -230,7 +231,7 @@ class _DecisionRepairProvider:
         return [
             PriceBar(
                 asset_code=asset_code,
-                bar_date=self.target_date,
+                bar_date=self.price_date,
                 open=3.9,
                 high=4.0,
                 low=3.8,
@@ -545,9 +546,12 @@ class TestRepairDecisionDataReliabilityUseCase:
         *,
         provider_repo: _InMemoryRepo | None = None,
         target_date: date = date(2026, 4, 21),
+        price_date: date | None = None,
+        alpha_refresher=None,
+        alpha_status_reader=None,
     ) -> RepairDecisionDataReliabilityUseCase:
         repo = provider_repo or _InMemoryRepo()
-        provider = _DecisionRepairProvider(target_date)
+        provider = _DecisionRepairProvider(target_date, price_date=price_date)
         return RepairDecisionDataReliabilityUseCase(
             provider_repo=repo,
             provider_factory=_ProviderFactory(provider),
@@ -564,6 +568,8 @@ class TestRepairDecisionDataReliabilityUseCase:
             quote_snapshot_repo=_QuoteSnapshotRepo(),
             raw_audit_repo=_RawAuditRepo(),
             legacy_macro_repo=_LegacyMacroSeriesRepo(),
+            alpha_refresher=alpha_refresher,
+            alpha_status_reader=alpha_status_reader,
         )
 
     def test_bootstraps_akshare_and_repairs_fresh_macro_quote_price(self):
@@ -588,6 +594,30 @@ class TestRepairDecisionDataReliabilityUseCase:
             == "AKShare Public"
         )
         assert payload["quote_status"]["status"] == "ready"
+        assert payload["must_not_use_for_decision"] is False
+
+    def test_accepts_latest_completed_price_session_with_fresh_quote(self):
+        target_date = date(2026, 4, 24)
+        use_case = self._make_use_case(
+            target_date=target_date,
+            price_date=date(2026, 4, 23),
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=target_date,
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_PMI"],
+                repair_pulse=False,
+                repair_alpha=False,
+            )
+        )
+
+        payload = report.to_dict()
+        assert payload["quote_status"]["status"] == "ready"
+        price_contract = payload["quote_status"]["details"]["prices"]["510300.SH"]
+        assert price_contract["freshness_status"] == "latest_completed_session"
+        assert price_contract["lag_days"] == 1
         assert payload["must_not_use_for_decision"] is False
 
     def test_existing_inactive_akshare_is_not_overwritten(self):
@@ -621,3 +651,44 @@ class TestRepairDecisionDataReliabilityUseCase:
 
         assert report.provider_bootstrap["status"] == "inactive_exists"
         assert len([p for p in repo.list_all() if p.source_type == "akshare"]) == 1
+
+    def test_alpha_queue_failure_blocks_decision_even_when_old_readiness_exists(self):
+        target_date = date(2026, 4, 21)
+
+        def alpha_refresher(target_date, portfolio_id):
+            return {
+                "status": "queue_failed",
+                "qlib_result": {
+                    "error_message": "redis unavailable",
+                },
+            }
+
+        def alpha_status_reader(target_date, portfolio_id):
+            return {
+                "recommendation_ready": True,
+                "requested_trade_date": target_date.isoformat(),
+                "verified_asof_date": target_date.isoformat(),
+                "scope_verification_status": "verified",
+            }
+
+        use_case = self._make_use_case(
+            target_date=target_date,
+            alpha_refresher=alpha_refresher,
+            alpha_status_reader=alpha_status_reader,
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=target_date,
+                portfolio_id=366,
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_PMI"],
+                repair_pulse=False,
+                repair_alpha=True,
+            )
+        )
+
+        payload = report.to_dict()
+        assert payload["alpha_status"]["status"] == "failed"
+        assert payload["alpha_status"]["must_not_use_for_decision"] is True
+        assert "redis unavailable" in payload["alpha_status"]["blocked_reasons"][0]

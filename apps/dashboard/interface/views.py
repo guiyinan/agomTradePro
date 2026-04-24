@@ -25,6 +25,7 @@ from rest_framework.response import Response
 
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.alpha.application.pool_resolver import (
+    ALPHA_POOL_MODE_PRICE_COVERED,
     PortfolioAlphaPoolResolver,
     get_alpha_pool_mode_choices,
     normalize_alpha_pool_mode,
@@ -181,7 +182,11 @@ def _ensure_dashboard_positions(data, user_id: int):
     return dashboard_interface_services.ensure_dashboard_positions(data, user_id)
 
 
-def _load_phase1_macro_components(as_of_date: date | None = None):
+def _load_phase1_macro_components(
+    as_of_date: date | None = None,
+    *,
+    refresh_if_stale: bool = False,
+):
     """Load navigator, pulse, and action recommendation objects for dashboard widgets."""
     target_date = as_of_date or date.today()
     navigator = None
@@ -200,7 +205,7 @@ def _load_phase1_macro_components(as_of_date: date | None = None):
 
         pulse = GetLatestPulseUseCase().execute(
             as_of_date=target_date,
-            refresh_if_stale=True,
+            refresh_if_stale=refresh_if_stale,
         )
     except Exception as exc:
         logger.warning("Failed to load pulse widget data: %s", exc)
@@ -208,7 +213,10 @@ def _load_phase1_macro_components(as_of_date: date | None = None):
     try:
         from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 
-        action = GetActionRecommendationUseCase().execute(target_date)
+        action = GetActionRecommendationUseCase().execute(
+            target_date,
+            refresh_pulse_if_stale=refresh_if_stale,
+        )
     except Exception as exc:
         logger.warning("Failed to load action recommendation widget data: %s", exc)
 
@@ -240,6 +248,12 @@ def _parse_positive_int_param(
         raise ValueError(f"{field_name} 必须大于 0")
 
     return value
+
+
+def _normalize_dashboard_alpha_pool_mode(raw_value: str | None) -> str:
+    """Dashboard defaults to a usable price-covered account pool."""
+
+    return normalize_alpha_pool_mode(raw_value or ALPHA_POOL_MODE_PRICE_COVERED)
 
 
 def _build_regime_status_context(navigator, pulse, action) -> dict:
@@ -693,6 +707,7 @@ def _build_alpha_factor_panel(
     portfolio_id: int | None = None,
     pool_mode: str | None = None,
     alpha_scope: str | None = None,
+    load_provider_factors: bool = True,
 ) -> dict:
     """Build factor panel data for a single alpha stock."""
     normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
@@ -719,7 +734,7 @@ def _build_alpha_factor_panel(
     factor_origin = "score_payload" if factors else ""
     empty_reason = ""
 
-    if not factors and provider in {"simple", "qlib", "etf"}:
+    if load_provider_factors and not factors and provider in {"simple", "qlib", "etf"}:
         try:
             from apps.alpha.application.services import AlphaService
 
@@ -834,7 +849,7 @@ def dashboard_view(request):
             selected_portfolio_id = None
     else:
         selected_portfolio_id = None
-    selected_alpha_pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
+    selected_alpha_pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
     try:
         portfolio_options = dashboard_interface_services.get_portfolio_options(request.user.id)
     except Exception as e:
@@ -969,6 +984,7 @@ def dashboard_view(request):
             portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
             pool_mode=selected_alpha_pool_mode,
             alpha_scope=selected_alpha_scope,
+            load_provider_factors=False,
         ),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
@@ -1511,7 +1527,7 @@ def alpha_refresh_htmx(request):
             default=10,
         )
         raw_portfolio_id = request.POST.get("portfolio_id")
-        pool_mode = normalize_alpha_pool_mode(request.POST.get("pool_mode"))
+        pool_mode = _normalize_dashboard_alpha_pool_mode(request.POST.get("pool_mode"))
         raw_alpha_scope = request.POST.get("alpha_scope")
         alpha_scope = normalize_alpha_scope(raw_alpha_scope)
         portfolio_id = (
@@ -1600,7 +1616,7 @@ def alpha_stocks_htmx(request):
             default=10,
         )
         raw_portfolio_id = request.GET.get("portfolio_id")
-        pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
+        pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
         alpha_scope = normalize_alpha_scope(request.GET.get("alpha_scope"))
         portfolio_id = (
             _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
@@ -1812,7 +1828,7 @@ def alpha_factor_panel_htmx(request):
     stock_code = (request.GET.get('code') or '').strip()
     source = (request.GET.get('source') or '').strip() or None
     raw_portfolio_id = request.GET.get("portfolio_id")
-    pool_mode = normalize_alpha_pool_mode(request.GET.get("pool_mode"))
+    pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
     alpha_scope = normalize_alpha_scope(request.GET.get("alpha_scope"))
     try:
         top_n = _parse_positive_int_param(

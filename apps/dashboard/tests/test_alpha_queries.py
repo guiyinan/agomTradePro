@@ -157,6 +157,38 @@ def test_alpha_visualization_query_uses_dashboard_fast_path_providers(monkeypatc
     assert "异步推理任务" in data.stock_scores_meta["fallback_reason"]
 
 
+def test_alpha_homepage_portfolio_context_does_not_refresh_pulse_by_default(monkeypatch):
+    captured: dict[str, object] = {}
+    query = object.__new__(AlphaHomepageQuery)
+    query.portfolio_repo = SimpleNamespace(
+        get_portfolio_snapshot=lambda portfolio_id: SimpleNamespace(positions=[])
+    )
+
+    class FakeSizingContextUseCase:
+        def execute(self, *, portfolio_id, user_id, refresh_pulse_if_stale=True):
+            captured["portfolio_id"] = portfolio_id
+            captured["user_id"] = user_id
+            captured["refresh_pulse_if_stale"] = refresh_pulse_if_stale
+            return SimpleNamespace()
+
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage.GetSizingContextUseCase",
+        FakeSizingContextUseCase,
+    )
+
+    query._load_portfolio_context(
+        user_id=7,
+        portfolio_id=21,
+        refresh_pulse_if_stale=False,
+    )
+
+    assert captured == {
+        "portfolio_id": 21,
+        "user_id": 7,
+        "refresh_pulse_if_stale": False,
+    }
+
+
 def test_alpha_homepage_query_uses_cache_first_for_initial_page():
     calls: list[str] = []
     query = object.__new__(AlphaHomepageQuery)
@@ -216,6 +248,15 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
                     metadata={},
                     error_message="scope cache missing",
                 )
+            if provider_filter == "simple" and pool_scope is not None:
+                return SimpleNamespace(
+                    success=False,
+                    scores=[],
+                    source="simple",
+                    status="unavailable",
+                    metadata={},
+                    error_message="fresh quote data missing",
+                )
             raise AssertionError("homepage must not query hardcoded market fallback providers")
 
     query.alpha_service = FakeAlphaService()
@@ -241,7 +282,10 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
     )
 
     assert result.success is False
-    assert calls == [("cache", "portfolio-7-deadbeef", True)]
+    assert calls == [
+        ("cache", "portfolio-7-deadbeef", True),
+        ("simple", "portfolio-7-deadbeef", True),
+    ]
     assert result.status == "unavailable"
     assert result.metadata["hardcoded_fallback_used"] is False
     assert result.metadata["refresh_triggered"] is True
@@ -255,6 +299,64 @@ def test_alpha_homepage_query_does_not_use_hardcoded_market_fallback_when_scope_
     assert meta["refresh_status"] == "queued"
     assert meta["async_task_id"] == "task-scope-1"
     assert meta["no_recommendation_reason"] == result.metadata["no_recommendation_reason"]
+
+
+def test_alpha_homepage_query_uses_simple_when_cache_is_broader_mapping():
+    calls: list[str] = []
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeAlphaService:
+        def get_stock_scores(
+            self,
+            universe_id: str,
+            intended_trade_date: date,
+            top_n: int,
+            user=None,
+            provider_filter=None,
+            pool_scope=None,
+        ):
+            calls.append(provider_filter)
+            if provider_filter == "cache":
+                return SimpleNamespace(
+                    success=True,
+                    scores=[SimpleNamespace(code="000001.SZ")],
+                    source="cache",
+                    status="available",
+                    metadata={"derived_from_broader_cache": True},
+                )
+            if provider_filter == "simple":
+                return SimpleNamespace(
+                    success=True,
+                    scores=[SimpleNamespace(code="000002.SZ")],
+                    source="simple",
+                    status="available",
+                    staleness_days=0,
+                    metadata={
+                        "provider_source": "simple",
+                        "factor_basis": "quote_momentum",
+                    },
+                )
+            raise AssertionError(provider_filter)
+
+    query.alpha_service = FakeAlphaService()
+    query._trigger_async_inference_if_needed = lambda **kwargs: {
+        "refresh_triggered": True,
+        "refresh_status": "queued",
+    }
+    result = query._fetch_alpha_result(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=SimpleNamespace(
+            universe_id="portfolio-7-deadbeef",
+            scope_hash="deadbeef",
+            to_dict=lambda: {"scope_hash": "deadbeef"},
+        ),
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert calls == ["cache", "simple"]
+    assert result.source == "simple"
+    assert result.scores[0].code == "000002.SZ"
 
 
 def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
@@ -386,6 +488,39 @@ def test_alpha_homepage_meta_marks_broader_cache_as_not_ready():
     assert meta["scope_verification_status"] == "derived_from_broader_cache"
     assert meta["readiness_status"] == "blocked_broader_scope_cache"
     assert "broader-scope cache" in meta["blocked_reason"]
+
+
+def test_alpha_homepage_meta_allows_fresh_data_driven_simple_result():
+    query = object.__new__(AlphaHomepageQuery)
+    scope = SimpleNamespace(
+        scope_hash="deadbeef",
+        display_label="默认组合 · CN A-share 可交易池",
+        pool_mode="market",
+        pool_size=42,
+        to_dict=lambda: {"scope_hash": "deadbeef"},
+    )
+    result = SimpleNamespace(
+        success=True,
+        scores=[SimpleNamespace(code="000001.SZ")],
+        source="simple",
+        status="available",
+        staleness_days=0,
+        metadata={
+            "provider_source": "simple",
+            "factor_basis": "quote_momentum",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "latest_available_qlib_result": False,
+        },
+    )
+
+    meta = query._build_meta(alpha_result=result, scope=scope)
+
+    assert meta["recommendation_ready"] is True
+    assert meta["must_not_use_for_decision"] is False
+    assert meta["scope_verification_status"] == "verified"
+    assert meta["freshness_status"] == "fresh"
+    assert meta["readiness_status"] == "ready"
 
 
 def test_alpha_homepage_meta_marks_general_scope_as_research_only():
@@ -533,6 +668,80 @@ def test_alpha_homepage_candidate_is_not_actionable_when_readiness_is_blocked():
     assert item["blocked_reason"] == "当前结果来自 broader-scope cache 映射。"
     assert item["recommendation_basis"]["scope_verification_status"] == "derived_from_broader_cache"
     assert item["no_buy_reasons"][0]["code"] == "ALPHA_RELIABILITY_BLOCK"
+
+
+def test_alpha_homepage_watch_candidate_remains_usable_for_decision():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeDecisionEngine:
+        @staticmethod
+        def evaluate(**kwargs):
+            return "watch", ["LOW_CONFIDENCE"], "宏观置信度偏低，先观察", {}
+
+    class FakeSizingEngine:
+        @staticmethod
+        def calculate(**kwargs):
+            return 10000.0, 100.0, None, None, "sizing ok"
+
+    class FakeRiskGate:
+        @staticmethod
+        def check(**kwargs):
+            return True, [], [], {"liquidity": "ok"}
+
+    query.decision_engine = FakeDecisionEngine()
+    query.sizing_engine = FakeSizingEngine()
+    query.risk_gate = FakeRiskGate()
+
+    item = query._build_candidate_item(
+        score=SimpleNamespace(
+            code="000001.SZ",
+            score=0.91,
+            rank=1,
+            source="simple",
+            confidence=0.82,
+            factors={"momentum": 0.9},
+            asof_date=date(2026, 4, 21),
+        ),
+        stock_context={"name": "平安银行", "close": 10.0, "volume": 1000000},
+        actionable_candidate=None,
+        pending_request=None,
+        sizing_context=SimpleNamespace(
+            multiplier_result=SimpleNamespace(multiplier=1.0),
+            regime_name="Recovery",
+            regime_confidence=0.37,
+            pulse_composite=0.2,
+            pulse_warning=False,
+        ),
+        portfolio_snapshot=SimpleNamespace(total_value=100000.0),
+        position_map={},
+        policy_state={"gate_level": "L1"},
+        meta={
+            "provider_source": "simple",
+            "scope_hash": "scope-1",
+            "scope_label": "账户驱动 Alpha 池",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "recommendation_ready": True,
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+            "scope_verification_status": "verified",
+            "freshness_status": "fresh",
+            "result_age_days": 0,
+            "verified_scope_hash": "scope-1",
+            "verified_asof_date": "2026-04-21",
+            "latest_available_qlib_result": False,
+            "derived_from_broader_cache": False,
+        },
+    )
+
+    assert item["stage"] == "top_ranked"
+    assert item["gate_status"] == "warn"
+    assert item["recommendation_ready"] is False
+    assert item["must_not_treat_as_recommendation"] is True
+    assert item["decision_usable"] is True
+    assert item["must_not_use_for_decision"] is False
+    assert item["blocked_reason"] == "宏观置信度偏低，先观察"
+    assert item["no_buy_reasons"][0]["code"] == "DECISION_WATCH"
 
 
 def test_alpha_homepage_factor_basis_is_explicit_and_data_driven():
@@ -838,3 +1047,73 @@ def test_alpha_decision_chain_query_builds_unified_chain_relationship():
     assert data.actionable_candidates[1]["origin_stage_label"] == "当前不在 Top 10"
     assert data.pending_requests[0]["is_in_top10"] is True
     assert data.pending_requests[0]["current_top_rank"] == 2
+
+
+def test_alpha_decision_chain_execute_uses_homepage_fast_path_for_user(monkeypatch):
+    captured: dict[str, object] = {}
+    user = SimpleNamespace(id=7, username="admin")
+
+    class FakeHomepageQuery:
+        def execute(self, *, user, top_n):
+            captured["homepage_user"] = user
+            captured["homepage_top_n"] = top_n
+            return SimpleNamespace(
+                top_candidates=[
+                    {
+                        "code": "000001.SZ",
+                        "name": "平安银行",
+                        "score": 0.91,
+                        "rank": 1,
+                        "source": "cache",
+                        "confidence": 0.88,
+                        "asof_date": "2026-04-12",
+                    }
+                ],
+                meta={
+                    "requested_trade_date": "2026-04-12",
+                    "effective_asof_date": "2026-04-11",
+                },
+            )
+
+    class FakeVisualizationQuery:
+        def execute(self, *args, **kwargs):
+            raise AssertionError("authenticated decision chain should use homepage fast path")
+
+    class FakeDecisionPlaneQuery:
+        def execute(self, *, max_candidates, max_pending):
+            captured["max_candidates"] = max_candidates
+            captured["max_pending"] = max_pending
+            return SimpleNamespace(
+                alpha_actionable_count=0,
+                actionable_candidates=[],
+                pending_requests=[],
+            )
+
+    monkeypatch.setattr(
+        "apps.dashboard.application.queries.get_alpha_homepage_query",
+        lambda: FakeHomepageQuery(),
+    )
+    monkeypatch.setattr(
+        "apps.dashboard.application.queries.get_alpha_visualization_query",
+        lambda: FakeVisualizationQuery(),
+    )
+    monkeypatch.setattr(
+        "apps.dashboard.application.queries.get_decision_plane_query",
+        lambda: FakeDecisionPlaneQuery(),
+    )
+
+    data = AlphaDecisionChainQuery().execute(
+        user=user,
+        top_n=5,
+        max_candidates=3,
+        max_pending=4,
+    )
+
+    assert captured == {
+        "homepage_user": user,
+        "homepage_top_n": 5,
+        "max_candidates": 3,
+        "max_pending": 4,
+    }
+    assert data.top_stocks[0]["code"] == "000001.SZ"
+    assert data.overview["requested_trade_date"] == "2026-04-12"

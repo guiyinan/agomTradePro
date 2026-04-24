@@ -569,6 +569,73 @@ def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
     assert panel["factor_basis"] == ["quality=0.400"]
 
 
+def test_dashboard_macro_components_do_not_refresh_stale_pulse(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeNavigatorUseCase:
+        def execute(self, as_of_date=None):
+            captured["navigator_as_of_date"] = as_of_date
+            return SimpleNamespace(regime_name="Recovery", confidence=0.8)
+
+    class FakePulseUseCase:
+        def execute(self, *args, **kwargs):
+            captured["pulse_kwargs"] = kwargs
+            return None
+
+    class FakeActionUseCase:
+        def execute(self, as_of_date=None, *, refresh_pulse_if_stale=True):
+            captured["action_as_of_date"] = as_of_date
+            captured["action_refresh_pulse_if_stale"] = refresh_pulse_if_stale
+            return None
+
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.BuildRegimeNavigatorUseCase",
+        FakeNavigatorUseCase,
+    )
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase",
+        FakePulseUseCase,
+    )
+    monkeypatch.setattr(
+        "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase",
+        FakeActionUseCase,
+    )
+
+    views._load_phase1_macro_components(as_of_date=date(2026, 4, 24))
+
+    assert captured["navigator_as_of_date"] == date(2026, 4, 24)
+    assert captured["pulse_kwargs"]["as_of_date"] == date(2026, 4, 24)
+    assert captured["pulse_kwargs"]["refresh_if_stale"] is False
+    assert captured["action_as_of_date"] == date(2026, 4, 24)
+    assert captured["action_refresh_pulse_if_stale"] is False
+
+
+def test_initial_alpha_factor_panel_skips_provider_lookup(monkeypatch):
+    class FailingAlphaService:
+        def __init__(self):
+            raise AssertionError("initial dashboard render should not query alpha providers")
+
+    monkeypatch.setattr("apps.alpha.application.services.AlphaService", FailingAlphaService)
+
+    panel = views._build_alpha_factor_panel(
+        stock_code="000001.SZ",
+        scores=[
+            {
+                "code": "000001.SZ",
+                "name": "平安银行",
+                "source": "qlib",
+                "factors": {},
+                "recommendation_basis": {},
+            }
+        ],
+        load_provider_factors=False,
+    )
+
+    assert panel["provider"] == "qlib"
+    assert panel["factor_count"] == 0
+    assert "Qlib" in panel["empty_reason"]
+
+
 def test_alpha_factor_panel_renders_score_explanation_contract():
     content = render_to_string(
         "dashboard/partials/alpha_factor_panel.html",

@@ -157,6 +157,10 @@ class ActionRecommendationLog(models.Model):
     # 其他推荐
     recommended_sectors = models.JSONField("推荐板块", default=list)
     benefiting_styles = models.JSONField("受益风格", default=list)
+
+    # 决策安全契约
+    must_not_use_for_decision = models.BooleanField("禁止用于决策", default=False)
+    blocked_reason = models.TextField("阻断原因", blank=True, default="")
     
     created_at = models.DateTimeField(auto_now_add=True)
 

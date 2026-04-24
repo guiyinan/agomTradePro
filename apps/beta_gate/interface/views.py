@@ -12,6 +12,7 @@ import re
 from dataclasses import replace
 
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import redirect, render
 from rest_framework import status, viewsets
 from rest_framework.response import Response
@@ -31,12 +32,14 @@ logger = logging.getLogger(__name__)
 
 def _activate_gate_config_model(target_config):
     """Atomically switch the active Beta Gate config."""
-    return get_beta_gate_config_query_service().activate_config(target_config.config_id)
+    with transaction.atomic():
+        return get_beta_gate_config_query_service().activate_config(target_config.config_id)
 
 
 def _save_gate_config_form(form: GateConfigForm):
     """Persist a GateConfig form with single-active semantics."""
-    return get_beta_gate_config_query_service().save_form_data(form.save(commit=False))
+    with transaction.atomic():
+        return get_beta_gate_config_query_service().save_form_data(form.save(commit=False))
 
 
 class BetaGateVersionCompareAPIView(APIView):
@@ -957,7 +960,8 @@ def beta_gate_config_activate_view(request, config_id):
     if request.method != "POST":
         return redirect("beta_gate:version")
 
-    config = get_beta_gate_config_query_service().activate_config(config_id)
+    with transaction.atomic():
+        config = get_beta_gate_config_query_service().activate_config(config_id)
     if config is None:
         messages.error(request, f"配置不存在: {config_id}")
         return redirect("beta_gate:version")

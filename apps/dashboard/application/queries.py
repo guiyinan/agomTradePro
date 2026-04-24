@@ -727,11 +727,22 @@ class AlphaDecisionChainQuery:
         user: Any | None = None,
     ) -> AlphaDecisionChainData:
         """执行 Alpha 决策链聚合查询。"""
-        alpha_visualization_data = get_alpha_visualization_query().execute(
-            top_n=top_n,
-            ic_days=ic_days,
-            user=user,
-        )
+        if user is not None:
+            homepage_data = get_alpha_homepage_query().execute(user=user, top_n=top_n)
+            alpha_visualization_data = AlphaVisualizationData(
+                stock_scores=homepage_data.top_candidates,
+                stock_scores_meta=dict(homepage_data.meta or {}),
+                provider_status={},
+                coverage_metrics={},
+                ic_trends=[],
+                ic_trends_meta={},
+            )
+        else:
+            alpha_visualization_data = get_alpha_visualization_query().execute(
+                top_n=top_n,
+                ic_days=ic_days,
+                user=user,
+            )
         decision_plane_data = get_decision_plane_query().execute(
             max_candidates=max_candidates,
             max_pending=max_pending,

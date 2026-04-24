@@ -6,6 +6,7 @@
 
 import logging
 import re
+from calendar import monthrange
 from datetime import date
 from typing import List
 
@@ -34,12 +35,15 @@ INDICATOR_UNITS = {
 
 
 def parse_chinese_date(date_str: str) -> str:
-    """解析中文日期格式 (如: '2024年1月')"""
+    """解析中文月份格式为期末日期（如: '2024年1月' -> '2024-01-31'）。"""
     if '年' in str(date_str) and '月' in str(date_str):
         match = re.match(r'(\d{4})年(\d{1,2})月', str(date_str))
         if match:
             year, month = match.groups()
-            return f"{year}-{month.zfill(2)}"
+            year_int = int(year)
+            month_int = int(month)
+            last_day = monthrange(year_int, month_int)[1]
+            return f"{year}-{month.zfill(2)}-{last_day:02d}"
     return date_str
 
 

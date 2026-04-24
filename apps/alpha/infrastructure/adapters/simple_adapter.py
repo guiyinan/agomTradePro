@@ -10,12 +10,14 @@ Simple Alpha Provider
 """
 
 import logging
+import math
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 
 from django.conf import settings
 from django.db.models import Max, Q
+from django.utils import timezone
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
@@ -98,14 +100,19 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         """
         try:
             from apps.equity.infrastructure.models import ValuationModel
+            from apps.data_center.infrastructure.models import QuoteSnapshotModel
 
             # 检查是否有最近 7 天内的估值数据
             cutoff_date = date.today() - timedelta(days=7)
             has_data = ValuationModel._default_manager.filter(
                 trade_date__gte=cutoff_date
             ).exists()
+            quote_cutoff = timezone.now() - timedelta(hours=4)
+            has_fresh_quotes = QuoteSnapshotModel._default_manager.filter(
+                snapshot_at__gte=quote_cutoff
+            ).exists()
 
-            if has_data:
+            if has_data or has_fresh_quotes:
                 return AlphaProviderStatus.AVAILABLE
             return AlphaProviderStatus.UNAVAILABLE
         except Exception as e:
@@ -148,6 +155,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             return self._create_error_result(
                 f"股票池 {universe_id} 中没有可用的估值数据，请先同步估值数据"
             )
+        score_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
 
         # 2. 获取基本面数据
         fundamental_data, data_quality = self._get_fundamental_data(
@@ -155,14 +163,46 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             intended_trade_date
         )
 
-        if not fundamental_data:
+        min_usable_fundamental_count = min(top_n, max(3, int(len(stock_list) * 0.3)))
+        if not fundamental_data or len(fundamental_data) < min_usable_fundamental_count:
+            quote_scores, quote_quality, staleness_days = self._compute_quote_momentum_scores(
+                stock_list=stock_list,
+                universe_id=score_universe_id,
+                intended_trade_date=intended_trade_date,
+            )
+            if quote_scores and len(quote_scores) > len(fundamental_data):
+                return self._create_success_result(
+                    scores=quote_scores[:top_n],
+                    staleness_days=staleness_days,
+                    metadata={
+                        "provider_source": "simple",
+                        "universe_size": len(stock_list),
+                        "scored_count": len(quote_scores),
+                        "data_quality": {
+                            **data_quality,
+                            **quote_quality,
+                            "fundamental_coverage_too_low": bool(fundamental_data),
+                            "min_usable_fundamental_count": min_usable_fundamental_count,
+                        },
+                        "factor_basis": "quote_momentum",
+                        "factor_weights": {
+                            "intraday_return": 0.45,
+                            "range_position": 0.25,
+                            "liquidity": 0.20,
+                            "open_gap": 0.10,
+                        },
+                        "scope_hash": pool_scope.scope_hash if pool_scope else None,
+                        "scope_label": pool_scope.display_label if pool_scope else None,
+                        "scope_metadata": pool_scope.to_dict() if pool_scope else {},
+                    },
+                )
+
             return self._create_error_result(
-                f"无法获取基本面数据: {data_quality.get('error', '未知错误')}。"
-                f"请确保已运行估值数据同步命令: python manage.py sync_equity_valuation"
+                f"无法获取基本面或实时价格数据: {data_quality.get('error', '未知错误')}。"
+                "请先同步估值数据或实时行情。"
             )
 
         # 3. 计算评分
-        score_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
         scores = self._compute_scores(fundamental_data, score_universe_id, intended_trade_date)
 
         if not scores:
@@ -192,6 +232,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         return self._create_success_result(
             scores=top_scores,
             metadata={
+                "provider_source": "simple",
                 "universe_size": len(stock_list),
                 "scored_count": len(scores),
                 "factor_weights": self._factor_weights,
@@ -481,6 +522,146 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             ))
 
         return scores
+
+    def _compute_quote_momentum_scores(
+        self,
+        *,
+        stock_list: list[str],
+        universe_id: str,
+        intended_trade_date: date,
+    ) -> tuple[list[StockScore], dict[str, object], int | None]:
+        """Build a data-driven intraday Alpha fallback from fresh quote snapshots."""
+
+        try:
+            from apps.data_center.infrastructure.models import QuoteSnapshotModel
+        except ImportError as exc:
+            return [], {"quote_error": f"无法导入实时行情模型: {exc}"}, None
+
+        quote_cutoff = timezone.now() - timedelta(hours=4)
+        normalized_codes = [str(code or "").strip().upper() for code in stock_list if code]
+        snapshots = (
+            QuoteSnapshotModel._default_manager.filter(
+                asset_code__in=normalized_codes,
+                snapshot_at__gte=quote_cutoff,
+            )
+            .order_by("asset_code", "-snapshot_at")
+        )
+        latest_by_code = {}
+        for snapshot in snapshots:
+            code = str(snapshot.asset_code or "").upper()
+            latest_by_code.setdefault(code, snapshot)
+
+        raw_rows: list[dict[str, object]] = []
+        latest_snapshot_at = None
+        for code in normalized_codes:
+            snapshot = latest_by_code.get(code)
+            if snapshot is None:
+                continue
+            current_price = float(snapshot.current_price or 0.0)
+            prev_close = float(snapshot.prev_close or 0.0)
+            open_price = float(snapshot.open or 0.0)
+            high = float(snapshot.high or 0.0)
+            low = float(snapshot.low or 0.0)
+            volume = float(snapshot.volume or 0.0)
+            if current_price <= 0 or prev_close <= 0:
+                continue
+
+            intraday_return = (current_price - prev_close) / prev_close
+            open_gap = (current_price - open_price) / open_price if open_price > 0 else 0.0
+            range_position = 0.5
+            if high > low:
+                range_position = min(max((current_price - low) / (high - low), 0.0), 1.0)
+            raw_rows.append(
+                {
+                    "code": code,
+                    "snapshot_at": snapshot.snapshot_at,
+                    "intraday_return": intraday_return,
+                    "range_position": range_position,
+                    "liquidity": math.log1p(max(volume, 0.0)),
+                    "open_gap": open_gap,
+                }
+            )
+            if latest_snapshot_at is None or snapshot.snapshot_at > latest_snapshot_at:
+                latest_snapshot_at = snapshot.snapshot_at
+
+        if not raw_rows:
+            return [], {
+                "quote_count": len(latest_by_code),
+                "price_momentum_count": 0,
+                "quote_error": "账户池内没有 freshness 阈值内的可评分实时行情。",
+            }, None
+
+        normalized_factors = {
+            factor: self._normalize_factor_values([float(row[factor]) for row in raw_rows])
+            for factor in ("intraday_return", "range_position", "liquidity", "open_gap")
+        }
+        weights = {
+            "intraday_return": 0.45,
+            "range_position": 0.25,
+            "liquidity": 0.20,
+            "open_gap": 0.10,
+        }
+
+        scores: list[StockScore] = []
+        asof_date = timezone.localtime(latest_snapshot_at).date() if latest_snapshot_at else intended_trade_date
+        staleness_days = max((intended_trade_date - asof_date).days, 0)
+        for index, row in enumerate(raw_rows):
+            factors = {
+                factor: normalized_factors[factor][index]
+                for factor in weights
+            }
+            total_score = sum(factors[factor] * weight for factor, weight in weights.items())
+            confidence = 0.65
+            if float(row["liquidity"]) > 0:
+                confidence += 0.15
+            if float(row["range_position"]) not in (0.0, 0.5, 1.0):
+                confidence += 0.10
+            scores.append(
+                StockScore(
+                    code=str(row["code"]),
+                    score=total_score,
+                    rank=0,
+                    factors=factors,
+                    source="simple",
+                    confidence=min(confidence, 0.9),
+                    asof_date=asof_date,
+                    intended_trade_date=intended_trade_date,
+                    universe_id=universe_id,
+                )
+            )
+
+        scores.sort(key=lambda score: score.score, reverse=True)
+        ranked_scores = [
+            StockScore(
+                code=score.code,
+                score=score.score,
+                rank=index,
+                factors=score.factors,
+                source=score.source,
+                confidence=score.confidence,
+                asof_date=score.asof_date,
+                intended_trade_date=score.intended_trade_date,
+                universe_id=score.universe_id,
+            )
+            for index, score in enumerate(scores, start=1)
+        ]
+        return ranked_scores, {
+            "quote_count": len(latest_by_code),
+            "price_momentum_count": len(ranked_scores),
+            "latest_snapshot_at": latest_snapshot_at.isoformat() if latest_snapshot_at else None,
+            "quote_cutoff": quote_cutoff.isoformat(),
+        }, staleness_days
+
+    @staticmethod
+    def _normalize_factor_values(values: list[float]) -> list[float]:
+        if not values:
+            return []
+        min_value = min(values)
+        max_value = max(values)
+        range_value = max_value - min_value
+        if range_value == 0:
+            return [0.5] * len(values)
+        return [(value - min_value) / range_value for value in values]
 
     def get_factor_exposure(
         self,

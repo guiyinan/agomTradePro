@@ -3,6 +3,10 @@ Prompt interface compatibility exports.
 
 Keep the historical ``apps.prompt.interface`` import surface stable for tests
 and callers that still reference the init command from this package root.
+
+Force reload safety contract: the delegated management command updates existing
+records via ``repository.update_template`` and ``repository.update_chain`` rather
+than deleting and recreating Prompt records.
 """
 
 from apps.prompt.management.commands import init_prompt_templates as _command_module

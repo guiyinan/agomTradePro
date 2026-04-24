@@ -69,6 +69,7 @@ class DashboardAlphaContextRepository:
                 daily_map[code] = row
 
         asset_context = self._load_data_center_asset_context(codes)
+        quote_context = self._load_data_center_quote_context(codes, code_aliases)
         missing_codes = [
             code
             for code in codes
@@ -90,13 +91,23 @@ class DashboardAlphaContextRepository:
                     "name": info.get("name") or master_info.get("name") or "",
                     "sector": info.get("sector") or master_info.get("sector") or "",
                     "market": info.get("market") or master_info.get("market") or "",
-                    "close": float(latest_daily.get("close") or 0.0),
-                    "volume": float(latest_daily.get("volume") or 0.0),
+                    "close": float(
+                        quote_context.get(code, {}).get("current_price")
+                        or latest_daily.get("close")
+                        or 0.0
+                    ),
+                    "volume": float(
+                        quote_context.get(code, {}).get("volume")
+                        or latest_daily.get("volume")
+                        or 0.0
+                    ),
                     "trade_date": (
                         latest_daily.get("trade_date").isoformat()
                         if latest_daily.get("trade_date")
                         else None
                     ),
+                    "quote_snapshot_at": quote_context.get(code, {}).get("snapshot_at"),
+                    "quote_source": quote_context.get(code, {}).get("source", ""),
                 }
             )
             context[code] = info
@@ -165,6 +176,49 @@ class DashboardAlphaContextRepository:
             }
         return context
 
+    def _load_data_center_quote_context(
+        self,
+        codes: list[str],
+        code_aliases: dict[str, set[str]],
+    ) -> dict[str, dict[str, Any]]:
+        if not codes:
+            return {}
+
+        from apps.data_center.infrastructure.models import QuoteSnapshotModel
+
+        lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
+        rows = (
+            QuoteSnapshotModel._default_manager.filter(asset_code__in=lookup_codes)
+            .order_by("asset_code", "-snapshot_at")
+            .values(
+                "asset_code",
+                "snapshot_at",
+                "current_price",
+                "volume",
+                "source",
+            )
+        )
+        latest_by_code: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            code = str(row["asset_code"]).upper()
+            latest_by_code.setdefault(code, row)
+
+        context: dict[str, dict[str, Any]] = {}
+        for code in codes:
+            for alias in code_aliases.get(code, {code}):
+                row = latest_by_code.get(str(alias).upper())
+                if not row:
+                    continue
+                snapshot_at = row.get("snapshot_at")
+                context[code] = {
+                    "current_price": float(row.get("current_price") or 0.0),
+                    "volume": float(row.get("volume") or 0.0),
+                    "snapshot_at": snapshot_at.isoformat() if snapshot_at else None,
+                    "source": row.get("source") or "",
+                }
+                break
+        return context
+
     def _backfill_data_center_assets(self, codes: list[str]) -> None:
         if not codes:
             return
@@ -194,6 +248,11 @@ class DashboardAlphaContextRepository:
             code = str(item.asset_code or "").upper()
             pending_map.setdefault(code, item)
         return pending_map
+
+    def load_user_account_totals(self, user_id: int) -> dict[str, float] | None:
+        """Load simulated account totals for sizing fallback."""
+
+        return DashboardOverviewRepository().get_user_simulated_account_totals(user_id)
 
     def load_actionable_candidates(self, max_count: int | None) -> list[Any]:
         from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel, AlphaTriggerModel

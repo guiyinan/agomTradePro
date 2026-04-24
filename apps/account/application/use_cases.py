@@ -636,7 +636,13 @@ class GetSizingContextUseCase:
         self.snapshot_repo = snapshot_repo or PortfolioSnapshotRepository()
         self.config_repo = config_repo or MacroSizingConfigRepository()
 
-    def execute(self, portfolio_id: int, user_id: int) -> SizingContextOutput:
+    def execute(
+        self,
+        portfolio_id: int,
+        user_id: int,
+        *,
+        refresh_pulse_if_stale: bool = True,
+    ) -> SizingContextOutput:
         if not self.portfolio_repo.user_owns_portfolio(portfolio_id, user_id):
             raise ValueError(f"投资组合 {portfolio_id} 不存在或无权限")
 
@@ -663,7 +669,7 @@ class GetSizingContextUseCase:
             pulse_snapshot = GetLatestPulseUseCase().execute(
                 as_of_date=target_date,
                 require_reliable=True,
-                refresh_if_stale=True,
+                refresh_if_stale=refresh_pulse_if_stale,
             )
         except Exception:
             logger.exception("Failed to load latest pulse for macro sizing context")
