@@ -26,6 +26,12 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-04-24
+
+- The architecture-debt remediation line has landed on `main`: multiple Interface / Application hot paths now route through application interface services, repository providers, and infrastructure repositories instead of touching ORM or infrastructure directly
+- Contract drift in Alpha recommendations, Decision readiness, Data Center sync, and Share snapshot JSON serialization has been repaired, and the related guardrail and integration tests now match the current implementation
+- `main` and `dev/next-development` are aligned to the same commit, with the latest push CI and Nightly green across unit, API, integration, app-local, guardrail, architecture report, and Playwright smoke stages
+
 ### 2026-04-05
 
 - The financial datasource page has been consolidated into a unified datasource center, so public providers, licensed providers, local-terminal providers, and pending configs now live in one workbench

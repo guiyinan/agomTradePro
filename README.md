@@ -26,6 +26,12 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-04-24
+
+- 架构债治理主线已合入 `main`：多个 Interface / Application 热路径从直接触碰 ORM 或 Infrastructure，收口到 application interface service、repository provider 和 infrastructure repository 边界
+- Alpha 推荐、Decision readiness、Data Center 同步与 Share 快照 JSON 序列化链路的合同漂移已修复，相关 guardrails 与 integration 回归重新对齐当前实现
+- `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 和 Nightly（unit / API / integration / app-local / guardrail / architecture report / Playwright smoke）均为绿色
+
 ### 2026-04-21
 
 - `Pulse` 当前读口径已完成最后一层防护：当 Regime 链路只能解析到 `Unknown` 时，`/api/pulse/current/`、SDK 和 MCP 不会再把最近有效脉搏快照覆盖成未知状态
