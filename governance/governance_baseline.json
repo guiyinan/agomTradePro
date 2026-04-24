@@ -1,0 +1,47 @@
+{
+  "version": "2026-04-24.v1",
+  "mcp_tool_count": 303,
+  "module_shape_minimums": {
+    "account": 9,
+    "agent_runtime": 9,
+    "ai_capability": 9,
+    "ai_provider": 9,
+    "alpha": 11,
+    "alpha_trigger": 8,
+    "asset_analysis": 10,
+    "audit": 9,
+    "backtest": 9,
+    "beta_gate": 9,
+    "dashboard": 11,
+    "data_center": 10,
+    "decision_rhythm": 9,
+    "equity": 10,
+    "events": 11,
+    "factor": 10,
+    "filter": 9,
+    "fund": 9,
+    "hedge": 10,
+    "macro": 9,
+    "policy": 8,
+    "prompt": 11,
+    "pulse": 11,
+    "realtime": 11,
+    "regime": 9,
+    "rotation": 10,
+    "sector": 9,
+    "sentiment": 11,
+    "setup_wizard": 8,
+    "share": 10,
+    "signal": 9,
+    "simulated_trading": 10,
+    "strategy": 11,
+    "task_monitor": 8,
+    "terminal": 9
+  },
+  "allowed_application_third_party_imports": {
+    "apps/alpha/application/tasks.py": {
+      "numpy": 1,
+      "pandas": 4
+    }
+  }
+}

@@ -255,6 +255,7 @@ module_patterns = [
     ),
     path("strategy/", include(("apps.strategy.interface.urls", "strategy"), namespace="strategy")),
     path("realtime/", include(("apps.realtime.interface.urls", "realtime"), namespace="realtime")),
+    path("pulse/", include(("apps.pulse.interface.urls", "pulse"), namespace="pulse")),
     # Policy management (包含页面和 API).
     path("policy/", include(("apps.policy.interface.urls", "policy"), namespace="policy")),
     # Events module - 事件总线 API
@@ -272,7 +273,7 @@ module_patterns = [
         "sentiment/", include(("apps.sentiment.interface.urls", "sentiment"), namespace="sentiment")
     ),
     # Alpha signal abstraction.
-    path("api/alpha/", include("apps.alpha.interface.urls")),
+    path("api/alpha/", include("apps.alpha.interface.api_urls")),
     # ========== 统一 API 路由挂载（新规范） ==========
     # 这些路由提供 /api/{module}/ 模式的 API 端点
     # P0: Account 模块
@@ -359,7 +360,7 @@ module_patterns = [
     ),
     path(
         "api/realtime/",
-        include(("apps.realtime.interface.urls", "api_realtime"), namespace="api_realtime"),
+        include(("apps.realtime.interface.api_urls", "api_realtime"), namespace="api_realtime"),
     ),
     path(
         "api/factor/",

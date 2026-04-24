@@ -12,7 +12,7 @@
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#testing)
 [![Modules](https://img.shields.io/badge/business_modules-35-purple.svg)](#architecture)
-[![MCP Tools](https://img.shields.io/badge/MCP_tools-302-orange.svg)](#ai-native-integration)
+[![MCP Tools](https://img.shields.io/badge/MCP_tools-303-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -209,7 +209,7 @@ Your Idea → Regime Gate → Policy Gate → Signal Validation → Approval →
 Not just an API wrapper. AgomTradePro is built for the AI agent era:
 
 - **Python SDK** — full programmatic access across the system's business modules
-- **MCP Server (302 registered tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
+- **MCP Server (303 registered tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
 - **Terminal CLI** — AI-interactive command interface
 - **Agent Runtime** — task orchestration with proposal → approval → execution lifecycle
 
@@ -421,7 +421,7 @@ Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
          look at hedge positions instead."
 ```
 
-**302 MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
+**303 MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
 
 ### Decision Workflow via AI
 
@@ -593,7 +593,7 @@ pytest tests/ -v --cov=apps
 
 ```
 35    business modules (apps/, excluding __pycache__)
-302   MCP tools (current local registration snapshot)
+303   MCP tools (current local registration snapshot)
 515   REST API paths (OpenAPI snapshot)
 5,212 automated test items (pytest --collect-only snapshot)
 271   documentation files (docs/ directory)

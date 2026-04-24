@@ -27,7 +27,7 @@ def test_guardrail_architecture_boundaries_have_no_violations():
 
     assert result.returncode == 0, result.stdout or result.stderr
     report = json.loads(result.stdout)
-    assert report["rules_version"] == "2026-04-22.v1"
+    assert report["rules_version"] == "2026-04-24.v1"
     assert report["scan_roots"] == ["apps", "core", "shared"]
     assert report["violation_count"] == 0
     rule_ids = set()
@@ -63,11 +63,11 @@ def test_guardrail_architecture_audit_report_can_be_generated(tmp_path):
 
     assert result.returncode == 0, result.stdout or result.stderr
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    assert report["rules_version"] == "2026-04-22.v1"
+    assert report["rules_version"] == "2026-04-24.v1"
     assert report["scan_roots"] == ["apps", "core", "shared"]
     assert report["violation_count"] == 0
     assert "audit" in report
-    assert report["audit"]["rule_count"] == 6
+    assert report["audit"]["rule_count"] == 8
     assert report["audit"]["violation_count"] >= 0
 
     with open(REPO_ROOT / "governance/architecture_rules.json", encoding="utf-8") as fh:
@@ -75,6 +75,8 @@ def test_guardrail_architecture_audit_report_can_be_generated(tmp_path):
     audit_rule_ids = {rule["id"] for rule in ruleset["audit_rules"]}
     assert "core_application_no_cross_app_infrastructure_access" in audit_rule_ids
     assert "shared_no_apps_dependencies" in audit_rule_ids
+    assert "apps_application_no_pandas_numpy_imports" in audit_rule_ids
+    assert "apps_no_misplaced_app_config" in audit_rule_ids
 
 
 @pytest.mark.guardrail

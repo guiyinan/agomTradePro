@@ -37,6 +37,12 @@ jobs:
         run: |
           python scripts/check_routes.py --strict
 
+      - name: Run governance consistency check
+        run: |
+          python scripts/check_governance_consistency.py \
+            --baseline governance/governance_baseline.json \
+            --write-report reports/consistency/governance-consistency.json
+
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4

@@ -26,7 +26,7 @@
 | **发布状态** | 生产就绪 | `docs/development/system-review-report.md` |
 | **最后更新** | 2026-04-21 | Git log |
 | **业务模块** | 35个 | `apps/` 目录扫描 |
-| **MCP 工具** | 302个 | `sdk/agomtradepro_mcp.server` 本地注册 |
+| **MCP 工具** | 303个 | `sdk/agomtradepro_mcp.server` 本地注册 |
 | **测试规模** | 5,212项 | `pytest --collect-only -q` |
 | **代码行数** | 50,000+ | 代码统计 |
 | **API 路径** | 515个 | `docs/testing/api/openapi.json` |
@@ -116,7 +116,7 @@ package-for-vps.ps1  scp    deploy-on-vps.sh  /api/health/
 | **测试文件数** | 238 | `find tests/ -name "test_*.py" | wc -l` |
 | **测试用例数** | 1,500+ | pytest 执行统计 |
 | **Domain 层覆盖率** | ≥ 90% | coverage 报告 |
-| **模块覆盖率** | 100% (33/33) | 扫描结果 |
+| **模块覆盖率** | 100% (35/35) | 扫描结果 |
 
 ### 5.3 质量门禁
 

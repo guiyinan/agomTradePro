@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-22.v1",
+  "version": "2026-04-24.v1",
   "source_roots": [
     "apps",
     "core",
@@ -117,6 +117,35 @@
         "\\.objects\\."
       ],
       "rationale": "Application code should coordinate repositories instead of talking to ORM managers."
+    },
+    {
+      "id": "apps_application_no_pandas_numpy_imports",
+      "description": "Application layers must not introduce pandas or numpy imports; data-frame and vectorized work belongs in infrastructure adapters/services.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbidden_import_patterns": [
+        "^(pandas|numpy)$"
+      ],
+      "rationale": "Keep application code focused on orchestration and keep heavy data processing behind infrastructure boundaries."
+    },
+    {
+      "id": "apps_no_misplaced_app_config",
+      "description": "Django AppConfig definitions must live in app-root apps.py only.",
+      "source_roots": [
+        "apps"
+      ],
+      "exclude_path_patterns": [
+        "^apps/[^/]+/apps\\.py$"
+      ],
+      "forbidden_line_patterns": [
+        "^\\s*from\\s+django\\.apps\\s+import\\s+AppConfig\\b",
+        "class\\s+\\w+Config\\(AppConfig\\)"
+      ],
+      "rationale": "Layer packages must not double as Django app configuration modules."
     },
     {
       "id": "apps_interface_no_infrastructure_imports",

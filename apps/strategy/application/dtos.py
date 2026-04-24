@@ -7,6 +7,7 @@ Application 层 DTO（Data Transfer Objects）
 - 使用 dataclass 定义
 - 可包含序列化/反序列化逻辑
 """
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -26,9 +27,11 @@ from apps.strategy.domain.entities import (
 # 请求 DTO
 # ========================================================================
 
+
 @dataclass
 class EvaluateExecutionRequestDTO:
     """执行评估请求 DTO"""
+
     strategy_id: int
     portfolio_id: int
     symbol: str
@@ -42,6 +45,7 @@ class EvaluateExecutionRequestDTO:
 @dataclass
 class SubmitOrderIntentRequestDTO:
     """提交订单意图请求 DTO"""
+
     intent_id: str
     strategy_id: int
     portfolio_id: int
@@ -58,9 +62,11 @@ class SubmitOrderIntentRequestDTO:
 # 响应 DTO
 # ========================================================================
 
+
 @dataclass
 class EvaluateExecutionResponseDTO:
     """执行评估响应 DTO"""
+
     # 决策结果
     action: str  # "allow" | "deny" | "watch"
     reason_codes: list[str]
@@ -83,11 +89,8 @@ class EvaluateExecutionResponseDTO:
 
     @classmethod
     def from_domain(
-        cls,
-        decision: DecisionResult,
-        sizing: SizingResult,
-        risk_snapshot: RiskSnapshot
-    ) -> 'EvaluateExecutionResponseDTO':
+        cls, decision: DecisionResult, sizing: SizingResult, risk_snapshot: RiskSnapshot
+    ) -> "EvaluateExecutionResponseDTO":
         """从领域对象创建 DTO"""
         return cls(
             action=decision.action.value,
@@ -108,6 +111,7 @@ class EvaluateExecutionResponseDTO:
 @dataclass
 class OrderIntentResponseDTO:
     """订单意图响应 DTO"""
+
     intent_id: str
     strategy_id: int
     portfolio_id: int
@@ -130,7 +134,7 @@ class OrderIntentResponseDTO:
     expected_risk_pct: float
 
     @classmethod
-    def from_domain(cls, intent: OrderIntent) -> 'OrderIntentResponseDTO':
+    def from_domain(cls, intent: OrderIntent) -> "OrderIntentResponseDTO":
         """从领域对象创建 DTO"""
         return cls(
             intent_id=intent.intent_id,
@@ -155,6 +159,7 @@ class OrderIntentResponseDTO:
 @dataclass
 class OrderIntentListResponseDTO:
     """订单意图列表响应 DTO"""
+
     items: list[OrderIntentResponseDTO]
     total: int
     page: int
@@ -164,6 +169,7 @@ class OrderIntentListResponseDTO:
 @dataclass
 class ExecutionAdapterResultDTO:
     """执行适配器结果 DTO"""
+
     success: bool
     broker_order_id: str | None = None
     error_code: str | None = None
@@ -177,9 +183,11 @@ class ExecutionAdapterResultDTO:
 # 风控 DTO
 # ========================================================================
 
+
 @dataclass
 class PreTradeRiskCheckRequestDTO:
     """预交易风控检查请求 DTO"""
+
     intent_id: str
     symbol: str
     side: str
@@ -192,6 +200,7 @@ class PreTradeRiskCheckRequestDTO:
 @dataclass
 class PreTradeRiskCheckResponseDTO:
     """预交易风控检查响应 DTO"""
+
     passed: bool
     violations: list[str]
     warnings: list[str]

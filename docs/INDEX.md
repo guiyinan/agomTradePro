@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 个人投研平台
-> **最后更新**: 2026-04-22
+> **最后更新**: 2026-04-24
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -35,6 +35,7 @@
 | [SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **系统基线（单一叙事来源）** | ✅ 2026-03-18 新增 |
 | [MODULE_CLASSIFICATION.md](governance/MODULE_CLASSIFICATION.md) | **模块分级表（核心/成熟/试验）** | ✅ 2026-03-18 新增 |
 | [DEVELOPMENT_BANLIST.md](governance/DEVELOPMENT_BANLIST.md) | **开发禁令（5条核心约束）** | ✅ 2026-03-18 新增 |
+| [ARCHITECTURE_GUARDRAILS.md](governance/ARCHITECTURE_GUARDRAILS.md) | **架构与治理 CI 护栏说明** | ✅ 2026-04-24 新增 |
 
 ### 1. 架构设计 (`architecture/`)
 
@@ -57,6 +58,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 核心业务需求文档（2650行） | 最新 |
+| [human-judgment-decision-layering.md](business/human-judgment-decision-layering.md) | **人机协同决策分层：客观底盘、系统解释、个人约束、人工判断与复盘** | ✅ 2026-04-24 新增 |
 | [valuation-pricing-engine.md](business/valuation-pricing-engine.md) | **估值定价引擎业务文档** | ✅ 2026-03-02 新增 |
 | [valuation-repair-config.md](business/valuation-repair-config.md) | **估值修复策略参数配置（在线调参/版本管理/回滚）** | ✅ 2026-03-11 新增 |
 | [config-center-matrix.md](business/config-center-matrix.md) | **配置中心能力矩阵（前端/API/SDK/MCP/权限）** | ✅ 2026-03-11 新增 |
@@ -106,10 +108,10 @@
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [architecture-audit-report-2026-04-22.md](plans/architecture-audit-report-2026-04-22.md) | **修订版架构审计与整改总计划** | ✅ 2026-04-22 修订 |
 | [architecture-debt-remediation-260422.md](plans/architecture-debt-remediation-260422.md) | 已并入修订版架构审计报告（兼容跳转） | ✅ 2026-04-22 |
-| [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
-| [phase-1-regime-navigator-pulse-mvp.md](plans/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |
-| [phase-2-decision-funnel.md](plans/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | ✅ 已完成 |
-| [phase-3-enrichment-polish.md](plans/phase-3-enrichment-polish.md) | Phase 3: 增强与打磨（Pulse V2 + 配置化 + 历史回溯） | ✅ 已完成 |
+| [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
+| [phase-1-regime-navigator-pulse-mvp.md](plans/regime-navigator/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |
+| [phase-2-decision-funnel.md](plans/regime-navigator/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | ✅ 已完成 |
+| [phase-3-enrichment-polish.md](plans/regime-navigator/phase-3-enrichment-polish.md) | Phase 3: 增强与打磨（Pulse V2 + 配置化 + 历史回溯） | ✅ 已完成 |
 
 ### 5. 测试文档 (`testing/`)
 
@@ -130,12 +132,12 @@
 | [api/decision-workspace-v2.md](api/decision-workspace-v2.md) | **决策工作台 V2 API 草稿（统一推荐/参数）** | ✅ 2026-03-02 新增 |
 | [decision-workspace-v2-acceptance.md](testing/decision-workspace-v2-acceptance.md) | **决策工作台 V2 验收测试清单（功能/数据/测试/性能/回归）** | ✅ 2026-03-03 新增 |
 
-### 3.0 实施计划 (`plan/`)
+### 3.0 实施计划 (`plans/`)
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [qlib-local-upload-user-isolation.md](plan/qlib-local-upload-user-isolation.md) | Qlib 本地上传用户隔离方案 | 完整 |
-| [eastmoney-integration.md](plan/eastmoney-integration.md) | **东方财富数据源集成计划（资金流向/新闻情感/实时行情/技术指标）** | ✅ 2026-03-09 新增 |
+| [qlib-local-upload-user-isolation.md](archive/plans/qlib-local-upload-user-isolation.md) | Qlib 本地上传用户隔离方案 | 完整 |
+| [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划（资金流向/新闻情感/实时行情/技术指标）** | ✅ 2026-03-09 新增 |
 
 ### 3.1 开发技术专题 (`development/`)
 
@@ -244,13 +246,13 @@
 
 **业务模块**: 35个
 
-**MCP 工具**: 302个（本地注册快照）
+**MCP 工具**: 303个（本地注册快照）
 
 **REST API 路径**: 515个（OpenAPI 快照）
 
 **测试规模**: 5,212 个已收集测试项（`pytest --collect-only` 快照）
 
-**文档文件**: 271个（`docs/` 目录）
+**文档文件**: 272个（`docs/` 目录）
 
 **版本管理**: 参见 [VERSION.md](VERSION.md)
 
@@ -338,7 +340,7 @@
 6. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
 
 ### 理解 AI 选股
-1. [business/alpha-quickstart.md](business/alpha-alpha-quickstart.md) - Alpha 模块快速开始
+1. [business/alpha-quickstart.md](business/alpha-quickstart.md) - Alpha 模块快速开始
 2. [modules/alpha/qlib-model-import-guide.md](modules/alpha/qlib-model-import-guide.md) - Qlib 模型导入说明
 3. [plans/implementation-progress-summary.md](plans/implementation-progress-summary.md) - 实施进度
 
@@ -381,7 +383,14 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-28)
+## 最近更新 (2026-02-20 ~ 2026-04-24)
+
+### 2026-04-24
+- ✅ **人机协同决策分层文档**
+  - 新增 `docs/business/human-judgment-decision-layering.md`
+  - 明确 L0 数据与来源、L1 客观事实、L2 规则与信号、L3 解释与情景、L4 个人约束、L5 人工判断、L6 执行与复盘
+  - 确立“客观底盘可复现，主观判断可追踪”的产品原则
+  - 为后续 Investor Profile、Decision Memo、Override 留痕、反方观点和复盘机制提供业务边界
 
 ### 2026-03-28
 - ✅ **Pulse 脉搏层模块文档补齐**
@@ -514,4 +523,4 @@
 ---
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-03-28
+**最后更新**: 2026-04-24
