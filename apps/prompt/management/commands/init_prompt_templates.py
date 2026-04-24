@@ -115,10 +115,7 @@ class Command(BaseCommand):
                         if dry_run:
                             self.stdout.write(f'  [FORCE] {template.name} - 将覆盖')
                         else:
-                            # 删除旧模板（使用ORM）
-                            existing_orm.delete()
-                            # 创建新模板
-                            repository.create_template(template)
+                            repository.update_template(existing_orm.id, template)
                             self.stdout.write(self.style.SUCCESS(f'  [更新] {template.name}'))
                             count += 1
                     else:
@@ -153,10 +150,7 @@ class Command(BaseCommand):
                         if dry_run:
                             self.stdout.write(f'  [FORCE] {chain.name} - 将覆盖')
                         else:
-                            # 删除旧配置（使用ORM）
-                            existing_orm.delete()
-                            # 创建新配置
-                            repository.create_chain(chain)
+                            repository.update_chain(existing_orm.id, chain)
                             self.stdout.write(self.style.SUCCESS(f'  [更新] {chain.name}'))
                             count += 1
                     else:
