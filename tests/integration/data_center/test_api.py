@@ -148,7 +148,7 @@ def test_sync_macro_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
         priority=1,
     )
     mocker.patch(
-        "apps.data_center.interface.api_views._make_provider_factory",
+        "apps.data_center.application.interface_services._make_provider_factory",
         return_value=_StubFactory(),
     )
 
@@ -180,7 +180,7 @@ def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mock
         priority=1,
     )
     mocker.patch(
-        "apps.data_center.interface.api_views._make_provider_factory",
+        "apps.data_center.application.interface_services._make_provider_factory",
         return_value=_StubFactory(),
     )
 
@@ -204,7 +204,7 @@ def test_sync_fund_nav_endpoint_persists_fact_and_raw_audit(admin_client, mocker
         priority=1,
     )
     mocker.patch(
-        "apps.data_center.interface.api_views._make_provider_factory",
+        "apps.data_center.application.interface_services._make_provider_factory",
         return_value=_StubFactory(),
     )
 

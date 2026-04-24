@@ -193,9 +193,13 @@ def test_data_center_provider_test_connection_endpoint_returns_probe_logs(admin_
                 "tested_at": datetime(2026, 4, 5, tzinfo=UTC),
             }
 
+    class _UseCase:
+        def execute(self, provider_id):
+            return _Result()
+
     mocker.patch(
-        "apps.data_center.interface.api_views.RunProviderConnectionTestUseCase.execute",
-        return_value=_Result(),
+        "apps.data_center.interface.api_views.make_run_provider_connection_test_use_case",
+        return_value=_UseCase(),
     )
 
     response = admin_client.post(f"/api/data-center/providers/{provider.id}/test/")
