@@ -166,9 +166,13 @@ class TestAlphaComparabilityImprovements:
 
         registry.register(mock_qlib)
 
-        # Mock SystemSettingsModel 返回固定 provider
-        with patch("apps.account.infrastructure.models.SystemSettingsModel") as mock_settings:
+        # Mock application config service 返回固定 provider，避免 Application 层直接依赖 ORM。
+        with patch(
+            "apps.alpha.application.services.get_account_config_summary_service"
+        ) as mock_service_factory:
+            mock_settings = MagicMock()
             mock_settings.get_runtime_alpha_fixed_provider.return_value = "qlib"
+            mock_service_factory.return_value = mock_settings
 
             # 测试系统配置固定使用 qlib
             result = registry.get_scores_with_fallback(

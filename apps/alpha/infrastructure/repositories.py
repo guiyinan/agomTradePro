@@ -281,34 +281,54 @@ class AlphaScoreCacheRepository:
         self,
         *,
         universe_id: str,
-        trade_date: date,
-        asof_date: date,
-        active_model: Any,
-        scores_data: list[dict[str, Any]],
-        status: str,
+        trade_date: date | None = None,
+        intended_trade_date: date | None = None,
+        asof_date: date | None = None,
+        active_model: Any | None = None,
+        model_id: str | None = None,
+        model_artifact_hash: str | None = None,
+        scores_data: list[dict[str, Any]] | None = None,
+        scores: list[dict[str, Any]] | None = None,
+        status: str = "available",
         metrics_snapshot: dict[str, Any] | None = None,
         pool_scope: Any | None = None,
+        user: Any | None = None,
     ) -> tuple[Any, bool]:
         """Create or update one qlib cache row."""
 
         from .models import AlphaScoreCacheModel
 
+        resolved_trade_date = trade_date or intended_trade_date
+        if resolved_trade_date is None:
+            raise ValueError("trade_date or intended_trade_date is required")
+        if asof_date is None:
+            raise ValueError("asof_date is required")
+
+        resolved_model_id = model_id or getattr(active_model, "model_name", "")
+        resolved_artifact_hash = model_artifact_hash or getattr(
+            active_model, "artifact_hash", ""
+        )
+        resolved_scores = scores_data if scores_data is not None else scores
+        if resolved_scores is None:
+            resolved_scores = []
+
         return AlphaScoreCacheModel._default_manager.update_or_create(
+            user=user,
             universe_id=universe_id,
-            intended_trade_date=trade_date,
+            intended_trade_date=resolved_trade_date,
             provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
-            model_artifact_hash=active_model.artifact_hash,
+            model_artifact_hash=resolved_artifact_hash,
             defaults={
                 "asof_date": asof_date,
-                "model_id": active_model.model_name,
-                "model_artifact_hash": active_model.artifact_hash,
-                "feature_set_id": active_model.feature_set_id,
-                "label_id": active_model.label_id,
-                "data_version": active_model.data_version,
-                "scores": scores_data,
+                "model_id": resolved_model_id,
+                "model_artifact_hash": resolved_artifact_hash,
+                "feature_set_id": getattr(active_model, "feature_set_id", None),
+                "label_id": getattr(active_model, "label_id", None),
+                "data_version": getattr(active_model, "data_version", None),
+                "scores": resolved_scores,
                 "status": status,
                 "metrics_snapshot": metrics_snapshot,
-                "user": None,
+                "user": user,
                 "scope_hash": getattr(pool_scope, "scope_hash", None),
                 "scope_label": getattr(pool_scope, "display_label", None),
                 "scope_metadata": pool_scope.to_dict() if pool_scope else None,
