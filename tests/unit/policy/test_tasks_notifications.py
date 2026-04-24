@@ -20,13 +20,13 @@ class TestNotificationServiceIntegration:
         """每个测试前重置通知服务"""
         tasks._notification_service = None
 
-    @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    def test_send_policy_alert_uses_notification_service(self, mock_factory):
+    @patch("apps.policy.application.tasks.get_policy_notification_service")
+    def test_send_policy_alert_uses_notification_service(self, mock_get_notification):
         """测试 _send_policy_alert 使用通知服务"""
         # 创建模拟服务
         mock_alert_service = Mock()
         mock_alert_service.send_policy_alert.return_value = True
-        mock_factory.get_alert_service.return_value = mock_alert_service
+        mock_get_notification.return_value = mock_alert_service
 
         # 创建测试数据
         event = PolicyEvent(
@@ -48,12 +48,12 @@ class TestNotificationServiceIntegration:
             PolicyLevel.P2, event, status
         )
 
-    @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    def test_send_transition_summary_uses_notification_service(self, mock_factory):
+    @patch("apps.policy.application.tasks.get_policy_notification_service")
+    def test_send_transition_summary_uses_notification_service(self, mock_get_notification):
         """测试 _send_transition_summary 使用通知服务"""
         mock_alert_service = Mock()
         mock_alert_service.send_transition_summary.return_value = True
-        mock_factory.get_alert_service.return_value = mock_alert_service
+        mock_get_notification.return_value = mock_alert_service
 
         changes = [
             {"date": "2026-03-04", "from": "P0", "to": "P2", "title": "Change 1"},
@@ -63,12 +63,12 @@ class TestNotificationServiceIntegration:
 
         mock_alert_service.send_transition_summary.assert_called_once_with(changes)
 
-    @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    def test_send_policy_alert_handles_exception(self, mock_factory):
+    @patch("apps.policy.application.tasks.get_policy_notification_service")
+    def test_send_policy_alert_handles_exception(self, mock_get_notification):
         """测试 _send_policy_alert 处理异常"""
         mock_alert_service = Mock()
         mock_alert_service.send_policy_alert.side_effect = Exception("Send failed")
-        mock_factory.get_alert_service.return_value = mock_alert_service
+        mock_get_notification.return_value = mock_alert_service
 
         event = PolicyEvent(
             event_date=date(2026, 3, 4),
@@ -82,12 +82,12 @@ class TestNotificationServiceIntegration:
         # 不应该抛出异常
         tasks._send_policy_alert(PolicyLevel.P2, event, status)
 
-    @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    def test_send_transition_summary_handles_exception(self, mock_factory):
+    @patch("apps.policy.application.tasks.get_policy_notification_service")
+    def test_send_transition_summary_handles_exception(self, mock_get_notification):
         """测试 _send_transition_summary 处理异常"""
         mock_alert_service = Mock()
         mock_alert_service.send_transition_summary.side_effect = Exception("Send failed")
-        mock_factory.get_alert_service.return_value = mock_alert_service
+        mock_get_notification.return_value = mock_alert_service
 
         # 不应该抛出异常
         tasks._send_transition_summary([])
@@ -100,40 +100,27 @@ class TestMonitorSlaExceededTask:
         """每个测试前重置通知服务"""
         tasks._notification_service = None
 
-    @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    @patch('apps.policy.infrastructure.repositories.WorkbenchRepository')
-    @patch('apps.policy.infrastructure.models.PolicyLog')
-    @patch('apps.policy.application.tasks.timezone')
+    @patch("apps.policy.application.tasks.get_policy_notification_service")
+    @patch("apps.policy.application.tasks.get_workbench_repository")
     def test_sla_exceeded_sends_alert(
-        self, mock_timezone, mock_policy_log, mock_repo_cls, mock_factory
+        self, mock_get_workbench_repository, mock_get_notification
     ):
         """测试 SLA 超时时发送告警"""
-        # 设置模拟时间
-        mock_now = datetime(2026, 3, 4, 12, 0, 0)
-        mock_timezone.now.return_value = mock_now
-
         # 设置模拟配置
         mock_config = Mock()
         mock_config.p23_sla_hours = 2
         mock_config.normal_sla_hours = 24
-        mock_repo_cls.return_value.get_ingestion_config.return_value = mock_config
-
-        # 设置模拟的 PolicyLog 查询
-        mock_p23_qs = Mock()
-        mock_p23_qs.count.return_value = 3
-        mock_normal_qs = Mock()
-        mock_normal_qs.count.return_value = 5
-
-        def mock_filter(**kwargs):
-            if 'level__in' in kwargs and 'P2' in kwargs['level__in']:
-                return mock_p23_qs
-            return mock_normal_qs
-
-        mock_policy_log._default_manager.filter.side_effect = mock_filter
+        mock_repo = mock_get_workbench_repository.return_value
+        mock_repo.get_ingestion_config.return_value = mock_config
+        mock_repo.get_sla_exceeded_breakdown.return_value = {
+            "p23_exceeded": 3,
+            "normal_exceeded": 5,
+            "total_exceeded": 8,
+        }
 
         # 设置模拟通知服务
         mock_alert_service = Mock()
-        mock_factory.get_alert_service.return_value = mock_alert_service
+        mock_get_notification.return_value = mock_alert_service
 
         # 执行任务
         result = tasks.monitor_sla_exceeded_task()
@@ -146,36 +133,25 @@ class TestMonitorSlaExceededTask:
         assert result["p23_exceeded"] == 3
         assert result["normal_exceeded"] == 5
 
-    @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    @patch('apps.policy.infrastructure.repositories.WorkbenchRepository')
-    @patch('apps.policy.infrastructure.models.PolicyLog')
-    @patch('apps.policy.application.tasks.timezone')
+    @patch("apps.policy.application.tasks.get_policy_notification_service")
+    @patch("apps.policy.application.tasks.get_workbench_repository")
     def test_no_sla_exceeded_no_alert(
-        self, mock_timezone, mock_policy_log, mock_repo_cls, mock_factory
+        self, mock_get_workbench_repository, mock_get_notification
     ):
         """测试无 SLA 超时不发送告警"""
-        mock_now = datetime(2026, 3, 4, 12, 0, 0)
-        mock_timezone.now.return_value = mock_now
-
         mock_config = Mock()
         mock_config.p23_sla_hours = 2
         mock_config.normal_sla_hours = 24
-        mock_repo_cls.return_value.get_ingestion_config.return_value = mock_config
-
-        mock_p23_qs = Mock()
-        mock_p23_qs.count.return_value = 0
-        mock_normal_qs = Mock()
-        mock_normal_qs.count.return_value = 0
-
-        def mock_filter(**kwargs):
-            if 'level__in' in kwargs and 'P2' in kwargs['level__in']:
-                return mock_p23_qs
-            return mock_normal_qs
-
-        mock_policy_log._default_manager.filter.side_effect = mock_filter
+        mock_repo = mock_get_workbench_repository.return_value
+        mock_repo.get_ingestion_config.return_value = mock_config
+        mock_repo.get_sla_exceeded_breakdown.return_value = {
+            "p23_exceeded": 0,
+            "normal_exceeded": 0,
+            "total_exceeded": 0,
+        }
 
         mock_alert_service = Mock()
-        mock_factory.get_alert_service.return_value = mock_alert_service
+        mock_get_notification.return_value = mock_alert_service
 
         result = tasks.monitor_sla_exceeded_task()
 
@@ -191,9 +167,9 @@ class TestCheckPolicyStatusAlert:
 
     @patch('apps.policy.application.tasks._send_policy_alert')
     @patch('apps.policy.application.tasks.GetPolicyStatusUseCase')
-    @patch('apps.policy.application.tasks.DjangoPolicyRepository')
+    @patch('apps.policy.application.tasks.get_current_policy_repository')
     def test_sends_alert_for_p2_level(
-        self, mock_repo_cls, mock_use_case_cls, mock_send_alert
+        self, mock_get_repository, mock_use_case_cls, mock_send_alert
     ):
         """测试 P2 档位发送告警"""
         # 创建模拟状态
@@ -222,9 +198,9 @@ class TestCheckPolicyStatusAlert:
 
     @patch('apps.policy.application.tasks._send_policy_alert')
     @patch('apps.policy.application.tasks.GetPolicyStatusUseCase')
-    @patch('apps.policy.application.tasks.DjangoPolicyRepository')
+    @patch('apps.policy.application.tasks.get_current_policy_repository')
     def test_sends_alert_for_p3_level(
-        self, mock_repo_cls, mock_use_case_cls, mock_send_alert
+        self, mock_get_repository, mock_use_case_cls, mock_send_alert
     ):
         """测试 P3 档位发送告警"""
         mock_status = Mock()
@@ -247,9 +223,9 @@ class TestCheckPolicyStatusAlert:
 
     @patch('apps.policy.application.tasks._send_policy_alert')
     @patch('apps.policy.application.tasks.GetPolicyStatusUseCase')
-    @patch('apps.policy.application.tasks.DjangoPolicyRepository')
+    @patch('apps.policy.application.tasks.get_current_policy_repository')
     def test_no_alert_for_p0_p1_levels(
-        self, mock_repo_cls, mock_use_case_cls, mock_send_alert
+        self, mock_get_repository, mock_use_case_cls, mock_send_alert
     ):
         """测试 P0/P1 档位不发送告警"""
         for level in [PolicyLevel.P0, PolicyLevel.P1]:
@@ -269,9 +245,9 @@ class TestMonitorPolicyTransitions:
     """测试政策档位变更监控任务"""
 
     @patch('apps.policy.application.tasks._send_transition_summary')
-    @patch('apps.policy.application.tasks.DjangoPolicyRepository')
+    @patch('apps.policy.application.tasks.get_current_policy_repository')
     def test_sends_summary_on_transitions(
-        self, mock_repo_cls, mock_send_summary
+        self, mock_get_repository, mock_send_summary
     ):
         """测试有档位变更时发送摘要"""
         today = date(2026, 3, 4)
@@ -281,7 +257,7 @@ class TestMonitorPolicyTransitions:
         event1 = PolicyEvent(yesterday, PolicyLevel.P0, "Event 1", "Desc 1", "url1")
         event2 = PolicyEvent(today, PolicyLevel.P2, "Event 2", "Desc 2", "url2")
 
-        mock_repo_cls.return_value.get_events_in_range.return_value = [event1, event2]
+        mock_get_repository.return_value.get_events_in_range.return_value = [event1, event2]
 
         result = tasks.monitor_policy_transitions()
 
@@ -293,9 +269,9 @@ class TestMonitorPolicyTransitions:
         assert call_args[0]["to"] == "P2"
 
     @patch('apps.policy.application.tasks._send_transition_summary')
-    @patch('apps.policy.application.tasks.DjangoPolicyRepository')
+    @patch('apps.policy.application.tasks.get_current_policy_repository')
     def test_no_summary_on_same_level(
-        self, mock_repo_cls, mock_send_summary
+        self, mock_get_repository, mock_send_summary
     ):
         """测试无档位变更时不发送摘要"""
         today = date(2026, 3, 4)
@@ -305,7 +281,7 @@ class TestMonitorPolicyTransitions:
         event1 = PolicyEvent(yesterday, PolicyLevel.P0, "Event 1", "Desc 1", "url1")
         event2 = PolicyEvent(today, PolicyLevel.P0, "Event 2", "Desc 2", "url2")
 
-        mock_repo_cls.return_value.get_events_in_range.return_value = [event1, event2]
+        mock_get_repository.return_value.get_events_in_range.return_value = [event1, event2]
 
         result = tasks.monitor_policy_transitions()
 
@@ -313,12 +289,12 @@ class TestMonitorPolicyTransitions:
         mock_send_summary.assert_not_called()
 
     @patch('apps.policy.application.tasks._send_transition_summary')
-    @patch('apps.policy.application.tasks.DjangoPolicyRepository')
+    @patch('apps.policy.application.tasks.get_current_policy_repository')
     def test_handles_insufficient_events(
-        self, mock_repo_cls, mock_send_summary
+        self, mock_get_repository, mock_send_summary
     ):
         """测试事件不足时处理"""
-        mock_repo_cls.return_value.get_events_in_range.return_value = [
+        mock_get_repository.return_value.get_events_in_range.return_value = [
             PolicyEvent(date(2026, 3, 4), PolicyLevel.P0, "Event", "Desc", "url")
         ]
 
