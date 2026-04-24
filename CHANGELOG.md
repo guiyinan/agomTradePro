@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 新增全仓治理检查脚本 `scripts/check_governance_consistency.py`，覆盖 MCP 工具数、关键文档计数、`docs/INDEX.md` 死链、模块 11 项形态、错位 `AppConfig`、单数 `dto.py` 与 Application 层 pandas/numpy 导入
+- 新增 `governance/governance_baseline.json`，用 baseline 记录当前已知历史债务与模块形态分数，防止后续新增或倒退
+- 新增 `docs/governance/ARCHITECTURE_GUARDRAILS.md`，说明增量架构门禁、全仓治理检查和历史债务 baseline 的关系
+- 新增 guardrail 测试 `tests/guardrails/test_governance_consistency.py`，确保治理一致性脚本在 CI 中持续可运行
 - 新增架构债治理公开摘要：README / README_EN 现在同步记录 2026-04-24 的架构边界收口、合同回归修复和 CI / Nightly 绿色状态
 - Dashboard / SDK / MCP 的账户驱动 Alpha 候选读取现统一暴露 `pool_mode`（`strict_valuation` / `market` / `price_covered`）以及共享 `contract` 字段，明确区分可行动推荐、异步刷新中与兜底结果
 - README 新增可日更维护的 `What's New` 区域，便于对外同步最近 1-7 天的重要变化
@@ -28,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard 新增 Alpha 推荐历史页与历史 JSON 接口，支持查看 run 详情、逐票买入理由、不买理由、证伪条件与建议仓位
 
 ### Changed
+- GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
+- 架构审计规则版本更新为 `2026-04-24.v1`，新增 Application 层 pandas/numpy 导入审计和错位 `AppConfig` 审计规则
+- `pulse`、`realtime`、`alpha`、`sentiment`、`strategy` 的四层规范文件形态已补齐到当前治理基线；`strategy/application/dto.py` 已统一为 `dtos.py`
+- MCP 工具数文档口径从 302 同步为 303，系统模块覆盖口径同步为 35/35
 - 本轮架构债治理将多个 Interface / Application 热路径收口到 application interface service、repository provider 与 infrastructure repository 边界，减少直接 ORM / Infrastructure 耦合
 - `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 与 Nightly 主链重新保持绿色
 - Pulse 按需重算现在会在重建前刷新上游宏观输入，减少 stale / degraded 快照反复重算后继续输出低质量上下文的情况
@@ -63,6 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (TBD)
 
 ### Fixed
+- 修复 `docs/INDEX.md` 中 Regime Navigator 计划文档、Qlib 本地上传方案和 Alpha 快速开始等链接漂移
+- 清理多个非 app-root 包中的错位 `AppConfig` 定义，避免 layer package 被误当作 Django app 配置入口
+- `simulated_trading/application/performance_calculator.py` 去除 Application 层 pandas/numpy 依赖，改用标准库统计与纯 Python 回撤计算
 - 修复 Alpha cache upload、Decision readiness、Policy notification task、Data Center integration provider 与 Share snapshot Decimal JSON guardrail 的合同漂移，恢复本轮 main / dev 对齐前的完整回归链路
 - 修复 `/api/pulse/current/`、SDK `client.pulse.get_current()` 与 MCP `get_pulse_current()` 在 stale 快照触发刷新时，可能因当前 Regime 解析为 `Unknown` 而覆盖掉最近有效 Pulse 快照的问题
 - 修复 Alpha Qlib 推理与 scoped cache 读取链的边界漂移；Dashboard、Decision、Simulated Trading 和 MCP 读取账户驱动候选时，缓存/回退路径已重新稳定

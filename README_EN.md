@@ -28,6 +28,7 @@
 
 ### 2026-04-24
 
+- Repository-wide governance checks are now in place: `governance/governance_baseline.json`, `scripts/check_governance_consistency.py`, and the CI workflow now lock historical debt while blocking regressions in module shape, MCP counts, docs links, AppConfig placement, and Application-layer pandas/numpy imports
 - The architecture-debt remediation line has landed on `main`: multiple Interface / Application hot paths now route through application interface services, repository providers, and infrastructure repositories instead of touching ORM or infrastructure directly
 - Contract drift in Alpha recommendations, Decision readiness, Data Center sync, and Share snapshot JSON serialization has been repaired, and the related guardrail and integration tests now match the current implementation
 - `main` and `dev/next-development` are aligned to the same commit, with the latest push CI and Nightly green across unit, API, integration, app-local, guardrail, architecture report, and Playwright smoke stages
@@ -339,7 +340,17 @@ Core business logic follows strict **Domain-Driven Design** with four explicit l
 - you can plug in your own agents without removing approval and audit controls
 - you can extract individual modules instead of dragging the whole app everywhere
 
-### 3. AI Architecture
+### 3. Governance Guardrails
+
+The architecture rules are enforced by CI, not only documented.
+
+- **Delta guard**: `Architecture Layer Guard` scans changed lines and fails new Domain / Application / Interface layer violations
+- **Repository-wide governance check**: `scripts/check_governance_consistency.py` scans MCP tool counts, key documentation counters, `docs/INDEX.md` links, module shape, misplaced `AppConfig`, singular `dto.py`, and Application-layer pandas/numpy imports
+- **Historical-debt baseline**: `governance/governance_baseline.json` records the current accepted state, so old debt stays visible while new regressions fail CI
+
+See [Architecture Guardrails](docs/governance/ARCHITECTURE_GUARDRAILS.md) for details.
+
+### 4. AI Architecture
 
 - **MCP Server** exposes system capabilities directly to Claude, Cursor, Codex, and other agentic tools
 - **Terminal CLI** provides an operations-oriented AI interface instead of a generic chat widget
@@ -348,7 +359,7 @@ Core business logic follows strict **Domain-Driven Design** with four explicit l
 
 This is one of the strongest reasons to fork the project: the AI layer is native to the product, not stapled onto the side.
 
-### 4. Current State
+### 5. Current State
 
 - **Core structure is stable enough** to keep extending confidently
 - **Product surfaces are mature enough** to show that this is not a toy project

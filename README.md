@@ -28,6 +28,7 @@
 
 ### 2026-04-24
 
+- 全仓治理检查已落地：新增 `governance/governance_baseline.json`、`scripts/check_governance_consistency.py` 和 CI 挂钩，用 baseline 锁住历史债务，阻止模块形态、MCP 计数、文档链接、AppConfig 位置和 Application 层 pandas/numpy 导入继续倒退
 - 架构债治理主线已合入 `main`：多个 Interface / Application 热路径从直接触碰 ORM 或 Infrastructure，收口到 application interface service、repository provider 和 infrastructure repository 边界
 - Alpha 推荐、Decision readiness、Data Center 同步与 Share 快照 JSON 序列化链路的合同漂移已修复，相关 guardrails 与 integration 回归重新对齐当前实现
 - `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 和 Nightly（unit / API / integration / app-local / guardrail / architecture report / Playwright smoke）均为绿色
@@ -522,7 +523,17 @@ AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投
 - 你可以只接入自己的 Agent，不动审批与审计链
 - 你可以把某个模块单独拿出去复用，而不是连根拔整个项目
 
-### 3. AI 架构：不是外挂，而是内建
+### 3. 治理护栏：全仓扫描 + 增量拦截
+
+架构约束不是只写在文档里。当前仓库同时使用两类检查：
+
+- **增量门禁**：`Architecture Layer Guard` 扫描本次变更，新增 Domain / Application / Interface 越层依赖会直接失败
+- **全仓治理检查**：`scripts/check_governance_consistency.py` 对 MCP 工具数、关键文档计数、`docs/INDEX.md` 链接、模块 11 项形态、错位 `AppConfig`、单数 `dto.py` 和 Application 层 pandas/numpy 导入做全量扫描
+- **历史债务 baseline**：`governance/governance_baseline.json` 记录当前可接受状态；清债前不让历史问题阻断所有开发，但任何新增或倒退都会被 CI 拦住
+
+细节见 [架构与治理 CI 护栏说明](docs/governance/ARCHITECTURE_GUARDRAILS.md)。
+
+### 4. AI 架构：不是外挂，而是内建
 
 - **MCP Server** 直接暴露系统能力给 Claude、Cursor、Codex 这一类 Agent
 - **Terminal CLI** 提供面向操作的 AI 交互界面，而不是单纯聊天窗
@@ -531,7 +542,7 @@ AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投
 
 这部分是整个仓库最适合 public 展示、也最容易让人想 Fork 的地方，因为它天然适合二次开发。
 
-### 4. 当前状态
+### 5. 当前状态
 
 - **核心结构已稳定**：足够支撑继续加模块
 - **产品表面已成型**：足够让别人一眼看懂这不是 toy project
