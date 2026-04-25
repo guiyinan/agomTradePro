@@ -11,6 +11,7 @@ import logging
 import pickle
 from datetime import date, datetime, timedelta
 from pathlib import Path, PureWindowsPath
+from typing import Any
 
 from celery import shared_task
 from django.utils import timezone
@@ -261,6 +262,69 @@ def _refresh_qlib_runtime_data(
         "status": "success",
         "provider_uri": provider_uri,
         "universes": normalized_universes,
+        "requested_target_date": summary.requested_target_date.isoformat(),
+        "effective_target_date": (
+            summary.effective_target_date.isoformat()
+            if summary.effective_target_date
+            else None
+        ),
+        "latest_local_date_before": (
+            summary.latest_local_date_before.isoformat()
+            if summary.latest_local_date_before
+            else None
+        ),
+        "latest_local_date_after": (
+            summary.latest_local_date_after.isoformat()
+            if summary.latest_local_date_after
+            else None
+        ),
+        "calendar_days_written": summary.calendar_days_written,
+        "instrument_files_written": summary.instrument_files_written,
+        "feature_series_written": summary.feature_series_written,
+        "stock_count": summary.stock_count,
+        "warning_messages": list(summary.warning_messages),
+    }
+
+
+def _refresh_qlib_runtime_data_for_codes(
+    *,
+    target_date: date,
+    stock_codes: list[str] | tuple[str, ...] | set[str],
+    universe_id: str = "scoped_portfolios",
+    lookback_days: int = 120,
+) -> dict:
+    """Refresh qlib data for explicit account/portfolio stock scopes."""
+    qlib_config = _get_runtime_qlib_config()
+    if not qlib_config.get("enabled"):
+        return {
+            "status": "skipped",
+            "reason": "qlib_disabled",
+        }
+
+    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+    normalized_code_set: set[str] = set()
+    for code in stock_codes:
+        normalized_code = normalize_stock_code(code)
+        if normalized_code:
+            normalized_code_set.add(normalized_code)
+    normalized_codes = sorted(normalized_code_set)
+    if not normalized_codes:
+        return {
+            "status": "skipped",
+            "reason": "empty_stock_scope",
+            "stock_count": 0,
+        }
+
+    summary = TushareQlibBuilder(provider_uri).build_recent_data_for_codes(
+        target_date=target_date,
+        stock_codes=normalized_codes,
+        universe_id=universe_id,
+        lookback_days=lookback_days,
+    )
+    return {
+        "status": "success",
+        "provider_uri": provider_uri,
+        "universe_id": universe_id,
         "requested_target_date": summary.requested_target_date.isoformat(),
         "effective_target_date": (
             summary.effective_target_date.isoformat()
@@ -952,8 +1016,10 @@ def qlib_daily_inference_alias(
 def qlib_daily_scoped_inference(
     self,
     top_n: int = 30,
-    portfolio_limit: int = 50,
+    portfolio_limit: int = 0,
     pool_mode: str = "price_covered",
+    refresh_data: bool = True,
+    lookback_days: int = 120,
 ) -> dict:
     """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
@@ -963,6 +1029,8 @@ def qlib_daily_scoped_inference(
     portfolio_refs = AlphaPoolDataRepository().list_active_portfolio_refs(limit=portfolio_limit)
     resolver = PortfolioAlphaPoolResolver()
 
+    resolved_scopes: list[tuple[dict, Any]] = []
+    scoped_codes: set[str] = set()
     queued: list[dict] = []
     skipped: list[dict] = []
     for ref in portfolio_refs:
@@ -979,19 +1047,63 @@ def qlib_daily_scoped_inference(
                     "reason": "empty_scope",
                 })
                 continue
+            resolved_scopes.append((ref, resolved.scope))
+            scoped_codes.update(
+                normalized
+                for normalized in (
+                    normalize_stock_code(code)
+                    for code in getattr(resolved.scope, "instrument_codes", ()) or ()
+                )
+                if normalized
+            )
+        except Exception as exc:
+            logger.error(
+                "Qlib scoped inference resolve failed: portfolio_id=%s, error=%s",
+                ref.get("portfolio_id"),
+                exc,
+                exc_info=True,
+            )
+            skipped.append({
+                "portfolio_id": ref.get("portfolio_id"),
+                "reason": str(exc),
+            })
+
+    refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
+    if refresh_data and scoped_codes:
+        try:
+            refresh_result = _refresh_qlib_runtime_data_for_codes(
+                target_date=trade_date,
+                stock_codes=scoped_codes,
+                universe_id="scoped_portfolios",
+                lookback_days=lookback_days,
+            )
+        except Exception as exc:
+            logger.error(
+                "Qlib scoped data refresh failed, continue queueing inference: %s",
+                exc,
+                exc_info=True,
+            )
+            refresh_result = {
+                "status": "failed",
+                "error": str(exc),
+                "stock_count": len(scoped_codes),
+            }
+
+    for ref, scope in resolved_scopes:
+        try:
             task = qlib_predict_scores.delay(
-                resolved.scope.universe_id,
+                scope.universe_id,
                 trade_date.isoformat(),
                 top_n,
-                scope_payload=resolved.scope.to_dict(),
+                scope_payload=scope.to_dict(),
             )
             queued.append(
                 {
                     "portfolio_id": ref["portfolio_id"],
                     "user_id": ref["user_id"],
-                    "scope_hash": resolved.scope.scope_hash,
-                    "universe_id": resolved.scope.universe_id,
-                    "pool_size": resolved.scope.pool_size,
+                    "scope_hash": scope.scope_hash,
+                    "universe_id": scope.universe_id,
+                    "pool_size": scope.pool_size,
                     "task_id": task.id,
                 }
             )
@@ -1012,6 +1124,8 @@ def qlib_daily_scoped_inference(
         "trade_date": trade_date.isoformat(),
         "top_n": top_n,
         "portfolio_count": len(portfolio_refs),
+        "scoped_stock_count": len(scoped_codes),
+        "refresh_result": refresh_result,
         "queued_count": len(queued),
         "skipped_count": len(skipped),
         "queued": queued,
@@ -1022,14 +1136,18 @@ def qlib_daily_scoped_inference(
 @shared_task(name="apps.alpha.application.tasks.qlib_daily_scoped_inference")
 def qlib_daily_scoped_inference_alias(
     top_n: int = 30,
-    portfolio_limit: int = 50,
+    portfolio_limit: int = 0,
     pool_mode: str = "price_covered",
+    refresh_data: bool = True,
+    lookback_days: int = 120,
 ) -> dict:
     """Backwards-compatible alias for database/beat task paths."""
     return qlib_daily_scoped_inference.run(
         top_n=top_n,
         portfolio_limit=portfolio_limit,
         pool_mode=pool_mode,
+        refresh_data=refresh_data,
+        lookback_days=lookback_days,
     )
 
 

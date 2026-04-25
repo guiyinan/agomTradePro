@@ -17,14 +17,15 @@ logger = logging.getLogger(__name__)
 class AlphaPoolDataRepository:
     """ORM-backed data access for portfolio-driven Alpha pool resolution."""
 
-    def list_active_portfolio_refs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+    def list_active_portfolio_refs(self, *, limit: int | None = 50) -> list[dict[str, Any]]:
         """Return active portfolio identifiers for scheduled scoped Alpha inference."""
-        rows = (
+        queryset = (
             PortfolioModel._default_manager.filter(is_active=True)
             .exclude(user_id=None)
             .order_by("-updated_at", "-created_at")
-            .values("id", "user_id", "name")[:limit]
+            .values("id", "user_id", "name")
         )
+        rows = queryset[:limit] if limit and limit > 0 else queryset
         return [
             {
                 "portfolio_id": row["id"],

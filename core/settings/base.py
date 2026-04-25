@@ -641,8 +641,10 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=17, minute=40, day_of_week="mon-fri"),  # 每个交易日 17:40
         "kwargs": {
             "top_n": 30,
-            "portfolio_limit": 50,
+            "portfolio_limit": 0,
             "pool_mode": "price_covered",
+            "refresh_data": True,
+            "lookback_days": 120,
         },
         "options": {
             "expires": 7200,  # 2 小时超时

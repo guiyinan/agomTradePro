@@ -134,10 +134,49 @@ class TushareQlibBuilder:
         if not normalized_universes:
             raise ValueError("至少需要一个 universe")
 
+        universe_members = self._fetch_universe_members(normalized_universes, target_date)
+        return self._build_recent_data_for_members(
+            target_date=target_date,
+            universe_members=universe_members,
+            lookback_days=lookback_days,
+        )
+
+    def build_recent_data_for_codes(
+        self,
+        *,
+        target_date: date,
+        stock_codes: Iterable[str],
+        universe_id: str = "scoped_portfolios",
+        lookback_days: int = 120,
+    ) -> QlibBuildSummary:
+        """Build recent daily qlib data for an explicit stock-code scope."""
+        normalized_codes = sorted(
+            {
+                str(code).strip().upper()
+                for code in stock_codes
+                if str(code).strip() and "." in str(code).strip()
+            }
+        )
+        if not normalized_codes:
+            raise ValueError("至少需要一个股票代码")
+
+        return self._build_recent_data_for_members(
+            target_date=target_date,
+            universe_members={str(universe_id).strip().lower(): normalized_codes},
+            lookback_days=lookback_days,
+        )
+
+    def _build_recent_data_for_members(
+        self,
+        *,
+        target_date: date,
+        universe_members: dict[str, list[str]],
+        lookback_days: int,
+    ) -> QlibBuildSummary:
+        """Build qlib data for already-resolved universe members."""
         latest_before = inspect_latest_trade_date(str(self._provider_uri))
         requested_start_date = target_date - timedelta(days=max(lookback_days, 90))
 
-        universe_members = self._fetch_universe_members(normalized_universes, target_date)
         stock_codes = sorted({code for members in universe_members.values() for code in members})
         if not stock_codes:
             raise RuntimeError("未从 Tushare 获取到任何股票池成分股")

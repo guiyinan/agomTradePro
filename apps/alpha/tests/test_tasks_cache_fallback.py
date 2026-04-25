@@ -156,6 +156,10 @@ def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
             "apps.alpha.application.pool_resolver.PortfolioAlphaPoolResolver.resolve",
             return_value=SimpleNamespace(scope=scope),
         ) as resolve_mock,
+        patch(
+            "apps.alpha.application.tasks._refresh_qlib_runtime_data_for_codes",
+            return_value={"status": "success", "stock_count": 2},
+        ) as refresh_mock,
         patch("apps.alpha.application.tasks.qlib_predict_scores.delay") as delay_mock,
     ):
         delay_mock.return_value = SimpleNamespace(id="task-1")
@@ -167,10 +171,14 @@ def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
         )
 
     assert result["status"] == "queued"
+    assert result["refresh_result"]["status"] == "success"
+    assert result["scoped_stock_count"] == 2
     assert result["queued_count"] == 1
     assert result["queued"][0]["scope_hash"] == scope.scope_hash
     list_refs_mock.assert_called_once_with(limit=10)
     resolve_mock.assert_called_once()
+    refresh_mock.assert_called_once()
+    assert refresh_mock.call_args.kwargs["stock_codes"] == {"000001.SZ", "600000.SH"}
     delay_mock.assert_called_once_with(
         scope.universe_id,
         date.today().isoformat(),

@@ -183,3 +183,23 @@ def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
     assert int(factor_raw[0]) == 0
     assert len(factor_raw) == 5
     assert len(close_raw) == 5
+
+
+def test_tushare_qlib_builder_writes_explicit_stock_scope(tmp_path: Path) -> None:
+    provider_uri = tmp_path / "cn_data"
+    builder = TushareQlibBuilder(str(provider_uri), pro_client=_MockTushareProClient())
+
+    summary = builder.build_recent_data_for_codes(
+        target_date=date(2026, 4, 6),
+        stock_codes=["600000.SH"],
+        universe_id="scoped_portfolios",
+        lookback_days=30,
+    )
+
+    assert summary.stock_count == 1
+    assert summary.universe_count == 1
+    assert summary.latest_local_date_after == date(2026, 4, 3)
+
+    scoped_txt = provider_uri / "instruments" / "scoped_portfolios.txt"
+    assert scoped_txt.exists()
+    assert "SH600000" in scoped_txt.read_text(encoding="utf-8")
