@@ -29,7 +29,7 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
     monkeypatch.setattr(
         views,
         "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None: {
+        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None: {
             "items": [
                 {
                     "code": "600519.SH",
@@ -85,7 +85,7 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
     monkeypatch.setattr(
         views,
         "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None: {
+        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None: {
             "items": [
                 {
                     "code": "600519.SH",

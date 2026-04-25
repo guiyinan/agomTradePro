@@ -812,7 +812,13 @@ until compose exec -T web python manage.py migrate --noinput; do
   sleep 5
 done
 
-if ! compose exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"; then
+BOOTSTRAP_ALPHA="${AGOMTRADEPRO_BOOTSTRAP_WITH_ALPHA:-0}"
+BOOTSTRAP_CMD="python manage.py bootstrap_cold_start"
+if [ "$BOOTSTRAP_ALPHA" = "1" ]; then
+  BOOTSTRAP_CMD="$BOOTSTRAP_CMD --with-alpha --alpha-universes ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
+fi
+
+if ! compose exec -T web sh -lc "$BOOTSTRAP_CMD"; then
   echo "[ERROR] cold-start bootstrap failed" >&2
   exit 1
 fi
