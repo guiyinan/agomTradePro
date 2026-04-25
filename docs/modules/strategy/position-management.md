@@ -30,6 +30,7 @@
 
 - `GET /api/strategy/position-rules/`
 - `POST /api/strategy/position-rules/`
+- `PATCH /api/strategy/position-rules/{id}/`
 - `POST /api/strategy/position-rules/{id}/evaluate/`
 - `GET /api/strategy/strategies/{id}/position_rule/`
 - `POST /api/strategy/strategies/{id}/evaluate_position_management/`
@@ -85,3 +86,34 @@ python manage.py init_position_rules --template atr_risk
 - 先由研究员在数据库配置模板规则，再按策略复制微调。
 - 用 `variables_schema` 固化变量命名，避免线上运行缺变量。
 - 上线前用 `evaluate` 接口批量回放历史样本，检查极端值和除零风险。
+
+## 前端、SDK 与 MCP
+
+前端入口：
+
+- `/strategy/create/`
+- `/strategy/{strategy_id}/edit/`
+- `/strategy/{strategy_id}/`
+
+创建/编辑策略页已经内置仓位规则编辑器，可直接选择模板并微调表达式。
+
+SDK：
+
+```python
+client.strategy.create_position_rule(...)
+client.strategy.update_position_rule(rule_id, is_active=False)
+client.strategy.evaluate_strategy_position_management(strategy_id, context)
+```
+
+MCP：
+
+- `list_position_rules`
+- `create_position_rule`
+- `update_position_rule`
+- `get_strategy_position_rule`
+- `evaluate_position_rule`
+- `evaluate_strategy_position_management`
+
+完整策略、AI 配置、模拟盘自动交易链路见：
+
+- [strategy-auto-trading-mcp.md](strategy-auto-trading-mcp.md)

@@ -66,3 +66,37 @@ class TestStrategyModule:
                 context={"current_price": 13.0},
             )
             assert result["should_sell"] is True
+
+    def test_create_ai_strategy_config(self, client):
+        mock_response = {"id": 8, "strategy": 10, "approval_mode": "conditional"}
+        with patch.object(client, "_request", return_value=mock_response) as request:
+            result = client.strategy.create_ai_strategy_config(
+                strategy_id=10,
+                ai_provider_id=3,
+                temperature=0.3,
+                max_tokens=1200,
+                approval_mode="conditional",
+                confidence_threshold=0.75,
+            )
+
+        assert result["id"] == 8
+        request.assert_called_once()
+        _, endpoint = request.call_args.args[:2]
+        assert endpoint == "/api/strategy/ai-configs/"
+        assert request.call_args.kwargs["json"]["ai_provider"] == 3
+        assert request.call_args.kwargs["json"]["confidence_threshold"] == 0.75
+
+    def test_get_strategy_ai_config_returns_first_config(self, client):
+        mock_response = {"results": [{"id": 8, "strategy": 10}]}
+        with patch.object(client, "_request", return_value=mock_response):
+            result = client.strategy.get_strategy_ai_config(strategy_id=10)
+            assert result["id"] == 8
+
+    def test_update_ai_strategy_config(self, client):
+        mock_response = {"id": 8, "temperature": 0.2}
+        with patch.object(client, "_request", return_value=mock_response) as request:
+            result = client.strategy.update_ai_strategy_config(8, temperature=0.2)
+
+        assert result["temperature"] == 0.2
+        _, endpoint = request.call_args.args[:2]
+        assert endpoint == "/api/strategy/ai-configs/8/"

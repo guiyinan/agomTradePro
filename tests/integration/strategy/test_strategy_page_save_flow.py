@@ -8,7 +8,13 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from apps.account.infrastructure.models import AccountProfileModel
-from apps.strategy.infrastructure.models import RuleConditionModel, ScriptConfigModel, StrategyModel
+from apps.strategy.infrastructure.models import (
+    AIStrategyConfigModel,
+    PositionManagementRuleModel,
+    RuleConditionModel,
+    ScriptConfigModel,
+    StrategyModel,
+)
 
 
 @pytest.mark.django_db
@@ -194,6 +200,55 @@ class TestStrategyPageSaveFlow(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(ScriptConfigModel.objects.filter(strategy=strategy).exists())
         self.assertEqual(strategy.version, 2)
+
+    def test_create_page_persists_ai_config_and_position_rule(self) -> None:
+        """AI-driven page submissions should save AI parameters and position expressions."""
+        response = self.client.post(
+            "/strategy/create/",
+            {
+                "name": "AI Managed Strategy",
+                "strategy_type": "ai_driven",
+                "description": "ai strategy with position rule",
+                "max_position_pct": "20",
+                "max_total_position_pct": "95",
+                "stop_loss_pct": "10",
+                "version": "1",
+                "ai_temperature": "0.3",
+                "ai_max_tokens": "1200",
+                "ai_approval_mode": "conditional",
+                "ai_confidence_threshold": "0.75",
+                "position_rule_is_active": "on",
+                "position_rule_name": "ATR Rule",
+                "position_rule_description": "ATR based rule",
+                "position_rule_price_precision": "3",
+                "position_rule_variables_schema": json.dumps(
+                    [{"name": "current_price", "type": "number", "required": True}]
+                ),
+                "position_rule_buy_condition_expr": "current_price > 0",
+                "position_rule_sell_condition_expr": "current_price < 0",
+                "position_rule_buy_price_expr": "current_price",
+                "position_rule_sell_price_expr": "current_price",
+                "position_rule_stop_loss_expr": "current_price * 0.95",
+                "position_rule_take_profit_expr": "current_price * 1.1",
+                "position_rule_position_size_expr": "100",
+                "position_rule_metadata": json.dumps({"template": "test"}),
+            },
+        )
+
+        payload = response.json()
+        strategy = StrategyModel.objects.get(id=payload["id"])
+        ai_config = AIStrategyConfigModel.objects.get(strategy=strategy)
+        position_rule = PositionManagementRuleModel.objects.get(strategy=strategy)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["success"])
+        self.assertEqual(ai_config.temperature, 0.3)
+        self.assertEqual(ai_config.max_tokens, 1200)
+        self.assertEqual(ai_config.approval_mode, "conditional")
+        self.assertEqual(ai_config.confidence_threshold, 0.75)
+        self.assertEqual(position_rule.name, "ATR Rule")
+        self.assertEqual(position_rule.price_precision, 3)
+        self.assertEqual(position_rule.position_size_expr, "100")
 
     def test_create_page_allows_duplicate_script_code_across_strategies(self) -> None:
         """Multiple strategies should be able to reuse the same script content."""

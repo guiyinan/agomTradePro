@@ -179,6 +179,11 @@ class _FakeClient:
                 "account_id": account_id,
                 "new_initial_capital": new_initial_capital,
             },
+            run_auto_trading=lambda trade_date=None, account_ids=None: {
+                "success": True,
+                "trade_date": trade_date,
+                "account_ids": account_ids,
+            },
             close_position=lambda account_id, asset_code: {
                 "account_id": account_id,
                 "asset_code": asset_code,
@@ -199,6 +204,21 @@ class _FakeClient:
                 "limit": limit,
                 "inspection_date": inspection_date,
             },
+        )
+        self.strategy = SimpleNamespace(
+            list_ai_strategy_configs=lambda strategy_id=None, approval_mode=None, ai_provider_id=None, limit=50: [
+                {
+                    "id": 8,
+                    "strategy": strategy_id,
+                    "approval_mode": approval_mode,
+                    "ai_provider": ai_provider_id,
+                    "limit": limit,
+                }
+            ],
+            get_strategy_ai_config=lambda strategy_id: {"id": 8, "strategy": strategy_id},
+            create_ai_strategy_config=lambda **payload: {"id": 9, **payload},
+            update_ai_strategy_config=lambda config_id, **updates: {"id": config_id, **updates},
+            update_position_rule=lambda rule_id, **updates: {"id": rule_id, **updates},
         )
         self.account = SimpleNamespace(
             get_trading_cost_configs=lambda limit=100: [{"id": 1, "portfolio": 1, "limit": limit}],
@@ -321,6 +341,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomtradepro_mcp.tools.alpha_trigger_tools",
         "agomtradepro_mcp.tools.dashboard_tools",
         "agomtradepro_mcp.tools.simulated_trading_tools",
+        "agomtradepro_mcp.tools.strategy_tools",
         "agomtradepro_mcp.tools.account_tools",
         "agomtradepro_mcp.tools.asset_analysis_tools",
         "agomtradepro_mcp.tools.sentiment_tools",
@@ -428,7 +449,26 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_simulated_positions", {"account_id": 7}),
         ("get_simulated_performance", {"account_id": 7}),
         ("reset_simulated_account", {"account_id": 7, "new_initial_capital": 200000.0}),
+        (
+            "run_simulated_auto_trading",
+            {"trade_date": "2026-03-21", "account_ids": [7]},
+        ),
         ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
+        ("list_ai_strategy_configs", {"strategy_id": 2, "approval_mode": "conditional", "limit": 5}),
+        ("get_strategy_ai_config", {"strategy_id": 2}),
+        (
+            "create_ai_strategy_config",
+            {
+                "strategy_id": 2,
+                "ai_provider_id": 3,
+                "temperature": 0.3,
+                "max_tokens": 1200,
+                "approval_mode": "conditional",
+                "confidence_threshold": 0.75,
+            },
+        ),
+        ("update_ai_strategy_config", {"config_id": 8, "updates": {"temperature": 0.2}}),
+        ("update_position_rule", {"rule_id": 5, "updates": {"is_active": False}}),
         (
             "run_simulated_daily_inspection",
             {

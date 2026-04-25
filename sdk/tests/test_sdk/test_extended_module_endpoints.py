@@ -333,6 +333,42 @@ def client():
             "/api/strategy/unbind-strategy/",
             {"json": {"portfolio_id": 1}},
         ),
+        (
+            lambda c: c.strategy.list_ai_strategy_configs(strategy_id=12, approval_mode="auto"),
+            "GET",
+            "/api/strategy/ai-configs/",
+            {"params": {"limit": 100, "strategy": 12, "approval_mode": "auto"}},
+        ),
+        (
+            lambda c: c.strategy.create_ai_strategy_config(
+                strategy_id=12,
+                ai_provider_id=3,
+                temperature=0.2,
+                max_tokens=1200,
+                approval_mode="conditional",
+                confidence_threshold=0.75,
+            ),
+            "POST",
+            "/api/strategy/ai-configs/",
+            {
+                "json": {
+                    "strategy": 12,
+                    "prompt_template": None,
+                    "chain_config": None,
+                    "ai_provider": 3,
+                    "temperature": 0.2,
+                    "max_tokens": 1200,
+                    "approval_mode": "conditional",
+                    "confidence_threshold": 0.75,
+                }
+            },
+        ),
+        (
+            lambda c: c.strategy.update_ai_strategy_config(8, temperature=0.4),
+            "PATCH",
+            "/api/strategy/ai-configs/8/",
+            {"json": {"temperature": 0.4}},
+        ),
         (lambda c: c.dashboard.summary_v1(), "GET", "/api/dashboard/v1/summary/"),
         (lambda c: c.dashboard.position_detail("AAPL"), "GET", "/api/dashboard/position/AAPL/"),
         (lambda c: c.dashboard.positions(), "GET", "/api/dashboard/positions/"),
@@ -564,6 +600,12 @@ def client():
             "POST",
             "/api/simulated-trading/accounts/5/inspections/run/",
             {"json": {"strategy_id": 12, "auto_create_proposal": True}},
+        ),
+        (
+            lambda c: c.simulated_trading.run_auto_trading(account_ids=[5, 6]),
+            "POST",
+            "/api/simulated-trading/auto-trading/run/",
+            {"json": {"account_ids": [5, 6]}},
         ),
     ],
 )

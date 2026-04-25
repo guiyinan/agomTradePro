@@ -1257,13 +1257,14 @@ class AutoTradingAPIView(APIView):
         data = serializer.validated_data
 
         trade_date = data.get('trade_date') or date.today()
+        account_ids = data.get('account_ids')
 
         # 2. 初始化引擎
         engine = simulated_interface_services.build_auto_trading_engine()
 
         # 3. 执行自动交易
         try:
-            results = engine.run_daily_trading(trade_date)
+            results = engine.run_daily_trading(trade_date, account_ids=account_ids)
 
             # 汇总统计
             total_buy_count = sum(r['buy_count'] for r in results.values())

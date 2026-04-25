@@ -8,15 +8,15 @@ Application层异步任务：
 """
 import logging
 from dataclasses import replace
-from datetime import date, datetime
-from typing import Any, Dict, Optional
+from datetime import date
+from typing import Any
 
 from celery import shared_task
-from celery.schedules import crontab
 from django.conf import settings
 from django.core.mail import send_mail
 
 from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
+from apps.data_center.application.price_service import UnifiedPriceService
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
@@ -27,7 +27,6 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
@@ -107,7 +106,7 @@ def daily_auto_trading_task(
         )
 
         # 4. 执行交易
-        results = engine.run_daily_trading(target_date)
+        results = engine.run_daily_trading(target_date, account_ids=account_ids)
 
         # 5. 汇总统计
         total_accounts = len(results)
@@ -139,7 +138,7 @@ def daily_auto_trading_task(
         if self.request.retries < self.max_retries:
             try:
                 raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
-            except Exception as retry_error:
+            except Exception:
                 logger.warning(f"任务将在 {2 ** self.request.retries} 分钟后重试")
 
         return {
@@ -943,7 +942,6 @@ def check_position_invalidation_task(self) -> dict[str, Any]:
     try:
         from apps.simulated_trading.application.position_invalidation_checker import (
             check_and_invalidate_positions,
-            get_invalidated_positions_summary,
         )
 
         # 检查并证伪满足条件的持仓
@@ -1137,7 +1135,7 @@ def update_all_prices_after_close(self, account_id: int | None = None) -> dict[s
         if self.request.retries < self.max_retries:
             try:
                 raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
-            except Exception as retry_error:
+            except Exception:
                 logger.warning(f"任务将在 {2 ** self.request.retries} 分钟后重试")
 
         return {

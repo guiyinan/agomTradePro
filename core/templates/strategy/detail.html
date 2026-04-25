@@ -40,6 +40,8 @@
 .rule-name { font-size: 15px; font-weight: 600; color: #334155; }
 .rule-badge { padding: 4px 10px; background: #e2e8f0; border-radius: 12px; font-size: 11px; }
 .rule-condition { font-size: 13px; color: #64748b; font-family: monospace; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; }
+.config-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.config-code { font-size: 12px; color: #334155; font-family: Consolas, monospace; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* 测试界面样式 */
 .test-panel { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
@@ -232,6 +234,111 @@
         </div>
         {% else %}
         <div class="empty-state">此策略类型不使用规则配置</div>
+        {% endif %}
+
+        {% if position_rule %}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🎯 仓位规则</h2>
+                <span class="badge badge-status {% if not position_rule.is_active %}inactive{% endif %}">
+                    {% if position_rule.is_active %}启用{% else %}停用{% endif %}
+                </span>
+            </div>
+            <div class="section-body">
+                <div style="margin-bottom: 16px; color: #64748b;">{{ position_rule.description|default:"暂无描述" }}</div>
+                <div class="info-grid" style="margin-bottom: 16px;">
+                    <div class="info-item">
+                        <div class="info-label">规则名称</div>
+                        <div class="info-value">{{ position_rule.name }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">价格精度</div>
+                        <div class="info-value">{{ position_rule.price_precision }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">更新时间</div>
+                        <div class="info-value">{{ position_rule.updated_at|date:"Y-m-d H:i" }}</div>
+                    </div>
+                </div>
+                <div class="config-grid">
+                    <div>
+                        <div class="info-label">买入条件</div>
+                        <div class="config-code">{{ position_rule.buy_condition_expr|default:"-" }}</div>
+                    </div>
+                    <div>
+                        <div class="info-label">卖出条件</div>
+                        <div class="config-code">{{ position_rule.sell_condition_expr|default:"-" }}</div>
+                    </div>
+                    <div>
+                        <div class="info-label">买入价</div>
+                        <div class="config-code">{{ position_rule.buy_price_expr }}</div>
+                    </div>
+                    <div>
+                        <div class="info-label">卖出价</div>
+                        <div class="config-code">{{ position_rule.sell_price_expr }}</div>
+                    </div>
+                    <div>
+                        <div class="info-label">止损价</div>
+                        <div class="config-code">{{ position_rule.stop_loss_expr }}</div>
+                    </div>
+                    <div>
+                        <div class="info-label">止盈价</div>
+                        <div class="config-code">{{ position_rule.take_profit_expr }}</div>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <div class="info-label">仓位计算</div>
+                        <div class="config-code">{{ position_rule.position_size_expr }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="section">
+            <div class="section-body">
+                <div class="empty-state">暂无仓位规则，编辑策略后可配置买卖价格、止损止盈和仓位表达式</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if strategy.strategy_type == 'ai_driven' %}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🤖 AI 配置</h2>
+                <button class="btn btn-secondary" onclick="location.href='{% url 'strategy:edit' strategy.id %}'">编辑配置</button>
+            </div>
+            <div class="section-body">
+                {% if ai_config %}
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Prompt 模板</div>
+                        <div class="info-value">{{ ai_config.prompt_template|default:"系统默认" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Chain 配置</div>
+                        <div class="info-value">{{ ai_config.chain_config|default:"未配置" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">AI 服务商</div>
+                        <div class="info-value">{{ ai_config.ai_provider|default:"系统路由" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">审核模式</div>
+                        <div class="info-value">{{ ai_config.get_approval_mode_display }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">温度 / Token</div>
+                        <div class="info-value">{{ ai_config.temperature }} / {{ ai_config.max_tokens }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">置信度阈值</div>
+                        <div class="info-value">{{ ai_config.confidence_threshold }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">暂无 AI 配置，编辑策略后可配置模型路由、审核模式和执行阈值</div>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
     </div>
 
@@ -635,7 +742,8 @@ async function executeStrategy(id) {
         const data = await res.json();
 
         if (data.success) {
-            showToast(`执行成功，生成 ${data.signals_count} 个信号`);
+            const signalsCount = data.signals_count ?? data.generated_signals ?? 0;
+            showToast(`执行成功，生成 ${signalsCount} 个信号`);
             setTimeout(() => location.reload(), 2000);
         } else {
             showToast('执行失败: ' + (data.error || '未知错误'), 'error');

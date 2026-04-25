@@ -2,6 +2,8 @@
 
 from apps.strategy.application.repository_provider import (
     build_strategy_executor as _build_strategy_executor,
+)
+from apps.strategy.application.repository_provider import (
     get_strategy_interface_repository,
 )
 
@@ -42,6 +44,18 @@ def delete_strategy_script_config(strategy_id: int) -> None:
 
 def get_strategy_ai_config(strategy_id: int):
     return _repo().get_strategy_ai_config(strategy_id)
+
+
+def list_active_prompt_templates():
+    return _repo().list_active_prompt_templates()
+
+
+def list_active_chain_configs():
+    return _repo().list_active_chain_configs()
+
+
+def list_active_ai_providers_for_user(user_id: int):
+    return _repo().list_active_ai_providers_for_user(user_id)
 
 
 def get_strategy_execution_logs_page(strategy_id: int, offset: int, limit: int):

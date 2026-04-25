@@ -1,0 +1,67 @@
+<div class="form-grid">
+    <div class="form-group">
+        <label class="form-label">Prompt 模板</label>
+        <select name="ai_prompt_template" class="form-select">
+            <option value="">使用系统默认</option>
+            {% for template in prompt_templates %}
+            <option value="{{ template.id }}" {% if ai_config_form.prompt_template_id == template.id %}selected{% endif %}>
+                {{ template.category }} / {{ template.name }} @ {{ template.version }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="form-hint">可在 Prompt 模块维护模板；未选择时由 AI 执行器使用默认上下文。</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Chain 配置</label>
+        <select name="ai_chain_config" class="form-select">
+            <option value="">不使用 Chain</option>
+            {% for chain in chain_configs %}
+            <option value="{{ chain.id }}" {% if ai_config_form.chain_config_id == chain.id %}selected{% endif %}>
+                {{ chain.category }} / {{ chain.name }} ({{ chain.execution_mode }})
+            </option>
+            {% endfor %}
+        </select>
+        <div class="form-hint">用于多步骤推理或工具调用编排。</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">AI 服务商</label>
+        <select name="ai_provider" class="form-select">
+            <option value="">使用系统路由</option>
+            {% for provider in ai_providers %}
+            <option value="{{ provider.id }}" {% if ai_config_form.ai_provider_id == provider.id %}selected{% endif %}>
+                {{ provider.name }} / {{ provider.provider_type }} / {{ provider.default_model }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="form-hint">留空时按 AI Provider 的全局路由与优先级选择。</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">审核模式</label>
+        <select name="ai_approval_mode" class="form-select">
+            <option value="always" {% if ai_config_form.approval_mode == 'always' %}selected{% endif %}>必须人工审核</option>
+            <option value="conditional" {% if ai_config_form.approval_mode == 'conditional' %}selected{% endif %}>条件审核</option>
+            <option value="auto" {% if ai_config_form.approval_mode == 'auto' %}selected{% endif %}>自动执行+监控</option>
+        </select>
+        <div class="form-hint">模拟盘自动交易仍会记录执行结果与信号。</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">温度参数</label>
+        <input type="number" name="ai_temperature" class="form-input" value="{{ ai_config_form.temperature }}" min="0" max="2" step="0.1">
+        <div class="form-hint">0 更稳定，2 更发散。</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">最大 Token</label>
+        <input type="number" name="ai_max_tokens" class="form-input" value="{{ ai_config_form.max_tokens }}" min="1" step="100">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">自动执行置信度阈值</label>
+        <input type="number" name="ai_confidence_threshold" class="form-input" value="{{ ai_config_form.confidence_threshold }}" min="0" max="1" step="0.05">
+        <div class="form-hint">AI 信号置信度低于该值时进入人工审核或不自动执行。</div>
+    </div>
+</div>

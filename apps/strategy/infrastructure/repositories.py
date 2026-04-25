@@ -7,14 +7,14 @@ Infrastructure层:
 - 提供ORM对象到Domain实体的转换
 """
 import logging
-from dataclasses import asdict
 from datetime import datetime
 from hashlib import sha256
-from typing import List, Optional
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Prefetch, Q
+from django.db.models import Count, Max, Prefetch, Q
 
+from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
 from apps.strategy.domain.entities import (
     ActionType,
     AIConfig,
@@ -39,15 +39,12 @@ from apps.strategy.domain.entities import (
 )
 from apps.strategy.domain.protocols import (
     OrderIntentRepositoryProtocol,
-    RuleConditionRepositoryProtocol,
-    StrategyExecutionLogRepositoryProtocol,
-    StrategyRepositoryProtocol,
 )
 from apps.strategy.infrastructure.models import (
     AIStrategyConfigModel,
     OrderIntentModel,
-    PositionManagementRuleModel,
     PortfolioStrategyAssignmentModel,
+    PositionManagementRuleModel,
     RuleConditionModel,
     ScriptConfigModel,
     StrategyExecutionLogModel,
@@ -607,7 +604,7 @@ class StrategyParamRepository:
         try:
             with transaction.atomic():
                 # 验证策略存在
-                strategy = StrategyModel._default_manager.get(id=strategy_id)
+                StrategyModel._default_manager.get(id=strategy_id)
 
                 # 如果设置为激活，先取消其他激活版本
                 if set_as_active:
@@ -1031,6 +1028,24 @@ class StrategyInterfaceRepository:
 
     def get_strategy_ai_config(self, strategy_id: int):
         return AIStrategyConfigModel._default_manager.filter(strategy_id=strategy_id).first()
+
+    def list_active_prompt_templates(self):
+        return list(
+            PromptTemplateORM._default_manager.filter(is_active=True).order_by("category", "name")
+        )
+
+    def list_active_chain_configs(self):
+        return list(
+            ChainConfigORM._default_manager.filter(is_active=True).order_by("category", "name")
+        )
+
+    def list_active_ai_providers_for_user(self, user_id: int):
+        return list(
+            AIProviderConfig._default_manager.filter(
+                Q(scope="system") | Q(scope="user", owner_user_id=user_id),
+                is_active=True,
+            ).order_by("priority", "name")
+        )
 
     def get_strategy_execution_logs_page(self, strategy_id: int, offset: int, limit: int):
         queryset = (

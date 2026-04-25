@@ -289,6 +289,63 @@ class StrategyModule(BaseModule):
 
         return self._put(f"strategies/{strategy_id}/", json=data)
 
+    def list_ai_strategy_configs(
+        self,
+        strategy_id: Optional[int] = None,
+        approval_mode: Optional[str] = None,
+        ai_provider_id: Optional[int] = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """获取 AI 策略配置列表。"""
+        params: dict[str, Any] = {"limit": limit}
+        if strategy_id is not None:
+            params["strategy"] = strategy_id
+        if approval_mode is not None:
+            params["approval_mode"] = approval_mode
+        if ai_provider_id is not None:
+            params["ai_provider"] = ai_provider_id
+        response = self._get("ai-configs/", params=params)
+        return response.get("results", response)
+
+    def get_strategy_ai_config(self, strategy_id: int) -> dict[str, Any]:
+        """获取指定策略的一条 AI 配置；不存在时返回空结果。"""
+        configs = self.list_ai_strategy_configs(strategy_id=strategy_id, limit=1)
+        if configs:
+            return configs[0]
+        return {"strategy": strategy_id, "exists": False}
+
+    def create_ai_strategy_config(
+        self,
+        strategy_id: int,
+        prompt_template_id: Optional[int] = None,
+        chain_config_id: Optional[int] = None,
+        ai_provider_id: Optional[int] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        approval_mode: str = "conditional",
+        confidence_threshold: float = 0.8,
+    ) -> dict[str, Any]:
+        """创建 AI 策略配置。"""
+        data: dict[str, Any] = {
+            "strategy": strategy_id,
+            "prompt_template": prompt_template_id,
+            "chain_config": chain_config_id,
+            "ai_provider": ai_provider_id,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "approval_mode": approval_mode,
+            "confidence_threshold": confidence_threshold,
+        }
+        return self._post("ai-configs/", json=data)
+
+    def update_ai_strategy_config(
+        self,
+        config_id: int,
+        **updates: Any,
+    ) -> dict[str, Any]:
+        """更新 AI 策略配置。"""
+        return self._patch(f"ai-configs/{config_id}/", json=updates)
+
     def delete_strategy(self, strategy_id: int) -> None:
         """
         删除策略

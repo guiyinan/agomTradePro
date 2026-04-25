@@ -162,7 +162,7 @@ Three methods (priority order):
 | `client.equity` | Stock analysis - scoring, recommendations, financials |
 | `client.fund` | Fund analysis - scoring, performance, holdings |
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
-| `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, DB-driven position rules |
+| `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, AI strategy config, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 | `client.rotation` | Rotation - recommendations, templates, per-account regime allocation configs |
 | `client.alpha` | Alpha scoring - scores, provider status, universes, health, factor exposure |
@@ -208,11 +208,11 @@ This keeps SDK/MCP behavior aligned with the dashboard UI: callers can explicitl
 
 ### Extended Tools
 - **Unified Accounts**: `list_accounts`, `get_account`, `create_account`, `get_account_positions`, `get_account_performance`
-- **Simulated Trading Compat**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
+- **Simulated Trading Compat**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_auto_trading`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
 - **Equity**: `get_stock_score`, `list_stocks`, `get_stock_recommendations`
 - **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`
-- **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`
+- **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`, `list_ai_strategy_configs`, `get_strategy_ai_config`, `create_ai_strategy_config`, `update_ai_strategy_config`, `list_position_rules`, `create_position_rule`, `update_position_rule`
 - **Rotation**: `list_rotation_regimes`, `list_rotation_templates`, `list_account_rotation_configs`, `get_account_rotation_config`, `create_account_rotation_config`, `update_account_rotation_config`, `apply_rotation_template_to_account_config`
 - **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
 - **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`

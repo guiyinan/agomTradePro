@@ -177,6 +177,16 @@
             </div>
         </div>
 
+        <!-- 仓位规则 -->
+        <div class="form-section">
+            <div class="section-header">
+                <h2 class="section-title">仓位规则</h2>
+            </div>
+            <div class="section-body">
+                {% include "strategy/components/position_rule_editor.html" %}
+            </div>
+        </div>
+
         <!-- 策略配置区域（根据类型动态显示） -->
         <div id="rulesEditor" class="form-section">
             <div class="section-header">
@@ -201,9 +211,7 @@
                 <h2 class="section-title">AI配置</h2>
             </div>
             <div class="section-body">
-                <div class="form-hint" style="margin-bottom: 16px;">
-                    AI配置编辑器将在下一步实现...
-                </div>
+                {% include "strategy/components/ai_config_editor.html" %}
             </div>
         </div>
 

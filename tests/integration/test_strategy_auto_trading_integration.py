@@ -8,8 +8,7 @@ Phase 5 端到端测试：
 """
 import uuid
 from datetime import date, datetime
-from decimal import Decimal
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth.models import User
@@ -22,29 +21,19 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
 )
-from apps.simulated_trading.domain.entities import SimulatedAccount
 from apps.simulated_trading.infrastructure.models import (
     FeeConfigModel,
-    PositionModel,
     SimulatedAccountModel,
-    SimulatedTradeModel,
 )
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
 )
-from apps.strategy.application.strategy_executor import StrategyExecutor
 from apps.strategy.domain.entities import (
-    ActionType,
-    RuleCondition,
-    SignalRecommendation,
-    Strategy,
     StrategyExecutionResult,
-    StrategyType,
 )
 from apps.strategy.infrastructure.models import (
-    AIStrategyConfigModel,
     PortfolioStrategyAssignmentModel,
     RuleConditionModel,
     StrategyModel,
@@ -241,7 +230,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
             price_provider=price_provider,
-            strategy_executor=Mock(),  # 需要非 None 以触发策略路径
+            strategy_executor=None,
         )
 
         # 6. 处理账户（Patch 网关 — 覆盖 facade + engine 两处调用）
@@ -359,7 +348,7 @@ class TestStrategyAutoTradingIntegration(TestCase):
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
             price_provider=price_provider,
-            strategy_executor=Mock(),  # 需要非 None 以触发策略路径
+            strategy_executor=None,
         )
 
         # 6. 处理账户（Patch 网关）
@@ -426,6 +415,34 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
         strategy_id_2 = engine._get_account_strategy_id(account2.account_id)
         self.assertEqual(strategy_id_2, strategy.id)
+
+    def test_run_daily_trading_filters_requested_accounts(self):
+        """指定 account_ids 时，定时自动交易只处理目标账户。"""
+        account1 = self.create_account_use_case.execute(
+            account_name='自动交易账户A',
+            initial_capital=100000.00,
+        )
+        account2 = self.create_account_use_case.execute(
+            account_name='自动交易账户B',
+            initial_capital=100000.00,
+        )
+        engine = AutoTradingEngine(
+            account_repo=self.account_repo,
+            position_repo=self.position_repo,
+            trade_repo=self.trade_repo,
+            buy_use_case=self.buy_use_case,
+            sell_use_case=self.sell_use_case,
+            performance_use_case=Mock(),
+        )
+
+        with patch.object(engine, '_process_account', return_value=(1, 0)) as process_account:
+            results = engine.run_daily_trading(date.today(), account_ids=[account2.account_id])
+
+        self.assertEqual(list(results.keys()), [account2.account_id])
+        process_account.assert_called_once()
+        processed_account = process_account.call_args.args[0]
+        self.assertEqual(processed_account.account_id, account2.account_id)
+        self.assertNotIn(account1.account_id, results)
 
     def test_strategy_executor_failure_handling(self):
         """

@@ -307,6 +307,33 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             }
 
     @server.tool()
+    def run_simulated_auto_trading(
+        trade_date: str | None = None,
+        account_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """
+        手动触发模拟盘自动交易。
+
+        Notes:
+            若账户已绑定激活策略，自动交易会走 StrategyExecutionGateway；
+            未绑定策略的账户继续使用兼容的旧自动交易逻辑。
+        """
+        client = AgomTradeProClient()
+        parsed_date = date.fromisoformat(trade_date) if trade_date else None
+        try:
+            return client.simulated_trading.run_auto_trading(
+                trade_date=parsed_date,
+                account_ids=account_ids,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "trade_date": trade_date,
+                "account_ids": account_ids,
+                "error": str(exc),
+            }
+
+    @server.tool()
     def close_simulated_position(
         account_id: int,
         asset_code: str,

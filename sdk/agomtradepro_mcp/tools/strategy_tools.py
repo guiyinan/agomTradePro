@@ -145,6 +145,73 @@ def register_strategy_tools(server: FastMCP) -> None:
         return client.strategy.unbind_portfolio_strategy(portfolio_id=portfolio_id)
 
     @server.tool()
+    def list_ai_strategy_configs(
+        strategy_id: int | None = None,
+        approval_mode: str | None = None,
+        ai_provider_id: int | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """获取 AI 策略配置列表。"""
+        client = AgomTradeProClient()
+        return client.strategy.list_ai_strategy_configs(
+            strategy_id=strategy_id,
+            approval_mode=approval_mode,
+            ai_provider_id=ai_provider_id,
+            limit=limit,
+        )
+
+    @server.tool()
+    def get_strategy_ai_config(strategy_id: int) -> dict[str, Any]:
+        """获取指定策略的 AI 执行参数配置。"""
+        client = AgomTradeProClient()
+        return client.strategy.get_strategy_ai_config(strategy_id=strategy_id)
+
+    @server.tool()
+    def create_ai_strategy_config(
+        strategy_id: int,
+        prompt_template_id: int | None = None,
+        chain_config_id: int | None = None,
+        ai_provider_id: int | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        approval_mode: str = "conditional",
+        confidence_threshold: float = 0.8,
+    ) -> dict[str, Any]:
+        """
+        创建 AI 策略配置。
+
+        approval_mode 支持 always、conditional、auto。
+        """
+        client = AgomTradeProClient()
+        payload = {
+            "strategy_id": strategy_id,
+            "prompt_template_id": prompt_template_id,
+            "chain_config_id": chain_config_id,
+            "ai_provider_id": ai_provider_id,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "approval_mode": approval_mode,
+            "confidence_threshold": confidence_threshold,
+        }
+        try:
+            return client.strategy.create_ai_strategy_config(**payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }
+
+    @server.tool()
+    def update_ai_strategy_config(
+        config_id: int,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        """更新 AI 策略配置。updates 使用 API 字段名。"""
+        client = AgomTradeProClient()
+        return client.strategy.update_ai_strategy_config(config_id=config_id, **updates)
+
+    @server.tool()
     def get_strategy_performance(
         strategy_id: int,
         start_date: str | None = None,
@@ -270,6 +337,15 @@ def register_strategy_tools(server: FastMCP) -> None:
                 "error": str(exc),
                 "payload": payload,
             }
+
+    @server.tool()
+    def update_position_rule(
+        rule_id: int,
+        updates: dict[str, Any],
+    ) -> dict[str, Any]:
+        """更新仓位管理规则。updates 使用 API 字段名。"""
+        client = AgomTradeProClient()
+        return client.strategy.update_position_rule(rule_id=rule_id, **updates)
 
     @server.tool()
     def evaluate_position_rule(

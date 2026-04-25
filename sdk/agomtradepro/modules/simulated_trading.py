@@ -346,6 +346,25 @@ class SimulatedTradingModule(BaseModule):
 
         return self._post(f"accounts/{account_id}/reset/", json=data)
 
+    def run_auto_trading(
+        self,
+        trade_date: Optional[date] = None,
+        account_ids: Optional[list[int]] = None,
+    ) -> dict[str, Any]:
+        """
+        手动触发模拟盘自动交易。
+
+        Args:
+            trade_date: 交易日期，None 表示今天
+            account_ids: 指定账户列表，None 表示全部活跃且启用自动交易账户
+        """
+        data: dict[str, Any] = {}
+        if trade_date is not None:
+            data["trade_date"] = trade_date.isoformat()
+        if account_ids is not None:
+            data["account_ids"] = account_ids
+        return self._post("auto-trading/run/", json=data)
+
     def run_daily_inspection(
         self,
         account_id: int,

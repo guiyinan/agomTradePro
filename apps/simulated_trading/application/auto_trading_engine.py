@@ -8,8 +8,8 @@ Application层核心组件：
 - 集成策略系统（Phase 5）
 """
 import logging
-from datetime import date, datetime
-from typing import List, Optional, Protocol
+from datetime import date
+from typing import TYPE_CHECKING, Optional, Protocol
 
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
@@ -20,6 +20,9 @@ from apps.simulated_trading.domain.entities import Position, SimulatedAccount
 from apps.simulated_trading.domain.rules import PositionSizingRule
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from apps.strategy.application.strategy_executor import StrategyExecutor
 
 
 # Protocol接口定义
@@ -88,7 +91,7 @@ class AutoTradingEngine:
         signal_service: SignalServiceProtocol | None = None,
         price_provider: PriceProviderProtocol | None = None,
         regime_service: RegimeServiceProtocol | None = None,
-        strategy_executor: Optional['StrategyExecutor'] = None
+        strategy_executor: Optional["StrategyExecutor"] = None,
     ):
         self.account_repo = account_repo
         self.position_repo = position_repo
@@ -102,12 +105,13 @@ class AutoTradingEngine:
         self.regime_service = regime_service
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
 
-    def run_daily_trading(self, trade_date: date) -> dict:
+    def run_daily_trading(self, trade_date: date, account_ids: list[int] | None = None) -> dict:
         """
         执行每日自动交易
 
         Args:
             trade_date: 交易日期
+            account_ids: 指定账户ID列表，None表示全部活跃账户
 
         Returns:
             {account_id: {buy_count: int, sell_count: int}}
@@ -118,6 +122,9 @@ class AutoTradingEngine:
 
         # 1. 获取所有活跃的模拟账户
         accounts = self.account_repo.get_active_accounts()
+        if account_ids is not None:
+            allowed_ids = {int(account_id) for account_id in account_ids}
+            accounts = [account for account in accounts if account.account_id in allowed_ids]
         logger.info(f"找到 {len(accounts)} 个活跃模拟账户")
 
         results = {}
@@ -156,11 +163,11 @@ class AutoTradingEngine:
         # Phase 5: 检查是否绑定了策略
         active_strategy_id = self._get_account_strategy_id(account.account_id)
 
-        if active_strategy_id and self.strategy_executor:
-            logger.info(f"  账户绑定策略ID: {active_strategy_id}, 使用策略执行引擎")
+        if active_strategy_id:
+            logger.info(f"  账户绑定策略ID: {active_strategy_id}, 使用策略执行网关")
             return self._execute_strategy_based_trading(account, active_strategy_id, trade_date)
         else:
-            logger.info("  账户未绑定策略或策略引擎未配置，使用原有逻辑")
+            logger.info("  账户未绑定策略，使用原有逻辑")
             return self._execute_legacy_trading(account, trade_date)
 
     def _get_account_strategy_id(self, account_id: int) -> int | None:
@@ -397,11 +404,8 @@ class AutoTradingEngine:
             return True
 
         # 2. 检查是否仍在可投池
-        regime_match = True
         if self.asset_pool_service:
             pool_type = self.asset_pool_service.get_asset_pool_type(position.asset_code)
-            # 不在可投池或候选池，则认为不匹配
-            regime_match = pool_type in ["investable", "candidate", None]  # None表示未分类，暂不处理
             if pool_type == "prohibited":
                 logger.info(f"    持仓 {position.asset_code} 进入禁投池,准备卖出")
                 return True

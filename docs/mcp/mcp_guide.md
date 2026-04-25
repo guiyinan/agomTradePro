@@ -162,7 +162,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-04-24`: `303` registered tools.
+You can validate tool registration locally. Current local snapshot on `2026-04-25`: `309` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
@@ -172,6 +172,10 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 
 - `run_simulated_daily_inspection(...)` now accepts `auto_create_proposal`; when enabled,
   the API response includes stable `proposal_created` / `proposal_id` fields.
+- Strategy / simulated trading tools now expose the full simulated auto-trading path:
+  `list_ai_strategy_configs`, `get_strategy_ai_config`, `create_ai_strategy_config`,
+  `update_ai_strategy_config`, `update_position_rule`, and `run_simulated_auto_trading`.
+  See [strategy-auto-trading-mcp.md](../modules/strategy/strategy-auto-trading-mcp.md).
 - Dashboard Alpha 工具现在统一支持 `pool_mode`：`strict_valuation`、`market`、`price_covered`
 - `get_dashboard_alpha_candidates(...)` / `trigger_dashboard_alpha_refresh(...)` 返回共享 `contract`，用于区分真实推荐、异步刷新和兜底结果
 - `decision_workflow_get_funnel_context(...)` 会附带顶层 `step3_status` / `step3_signal_date` 等摘要字段，便于 Agent 直接消费

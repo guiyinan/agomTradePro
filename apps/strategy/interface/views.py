@@ -13,19 +13,15 @@ from django.apps import apps as django_apps
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
-from rest_framework import filters, serializers as drf_serializers, status, viewsets
+from rest_framework import filters, status, viewsets
+from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.strategy.application.position_management_service import (
-    PositionManagementService,
-    PositionRuleError,
-)
 from apps.strategy.application.interface_services import (
     bind_strategy_assignment,
     build_strategy_executor,
@@ -43,7 +39,10 @@ from apps.strategy.application.interface_services import (
     get_strategy_queryset,
     get_strategy_queryset_for_owner,
     get_strategy_script_config,
+    list_active_ai_providers_for_user,
     list_active_assignments_for_strategy,
+    list_active_chain_configs,
+    list_active_prompt_templates,
     list_assignments_by_portfolio,
     list_execution_logs_by_portfolio,
     list_execution_logs_by_strategy,
@@ -52,6 +51,10 @@ from apps.strategy.application.interface_services import (
     set_rule_enabled,
     set_strategy_active,
     unbind_strategy_assignments,
+)
+from apps.strategy.application.position_management_service import (
+    PositionManagementService,
+    PositionRuleError,
 )
 from apps.strategy.domain.services import (
     DecisionPolicyEngine,
@@ -92,6 +95,32 @@ DEFAULT_SCRIPT_ALLOWED_MODULES = ['math', 'datetime', 'statistics', 'pandas', 'n
 DEFAULT_SCRIPT_SANDBOX_CONFIG = {'mode': 'relaxed'}
 VALID_STRATEGY_TYPES = {choice[0] for choice in StrategyModel._meta.get_field('strategy_type').choices}
 VALID_SCRIPT_LANGUAGES = {choice[0] for choice in ScriptConfigModel._meta.get_field('script_language').choices}
+VALID_AI_APPROVAL_MODES = {choice[0] for choice in AIStrategyConfigModel._meta.get_field('approval_mode').choices}
+DEFAULT_POSITION_RULE_VARIABLES = [
+    {"name": "current_price", "type": "number", "required": True},
+    {"name": "support_price", "type": "number", "required": True},
+    {"name": "resistance_price", "type": "number", "required": True},
+    {"name": "structure_low", "type": "number", "required": True},
+    {"name": "atr", "type": "number", "required": True},
+    {"name": "account_equity", "type": "number", "required": True},
+    {"name": "risk_per_trade_pct", "type": "number", "required": True},
+    {"name": "entry_buffer_pct", "type": "number", "required": False},
+]
+DEFAULT_POSITION_RULE_VALUES = {
+    "name": "ATR风险仓位规则",
+    "description": "基于支撑位、阻力位和ATR计算买卖价格、止损止盈与下单仓位。",
+    "is_active": True,
+    "price_precision": 2,
+    "variables_schema": DEFAULT_POSITION_RULE_VARIABLES,
+    "buy_condition_expr": "current_price <= support_price * (1 + (entry_buffer_pct if entry_buffer_pct else 0))",
+    "sell_condition_expr": "current_price >= resistance_price",
+    "buy_price_expr": "support_price * (1 + (entry_buffer_pct if entry_buffer_pct else 0))",
+    "sell_price_expr": "resistance_price",
+    "stop_loss_expr": "min(structure_low, buy_price - 2 * atr)",
+    "take_profit_expr": "buy_price + 2 * abs(buy_price - stop_loss_price)",
+    "position_size_expr": "(account_equity * risk_per_trade_pct) / abs(buy_price - stop_loss_price)",
+    "metadata": {"template": "atr_risk"},
+}
 
 
 def _json_error(message: str, status_code: int = status.HTTP_400_BAD_REQUEST) -> JsonResponse:
@@ -129,6 +158,91 @@ def _parse_script_payload(raw_value: str | None, preserve_existing: bool = False
     if raw_value is None:
         return _UNSET if preserve_existing else ''
     return raw_value
+
+
+def _parse_json_form_field(raw_value: str | None, field_label: str, default_value):
+    """Parse JSON textarea values submitted from strategy forms."""
+    if raw_value is None or not raw_value.strip():
+        return json.loads(json.dumps(default_value))
+    try:
+        return json.loads(raw_value)
+    except json.JSONDecodeError as exc:
+        raise InvalidInputError(f'{field_label} 必须是有效 JSON') from exc
+
+
+def _parse_optional_int(raw_value: str | None, field_label: str) -> int | None:
+    """Parse optional foreign-key ids from HTML form fields."""
+    if raw_value is None or raw_value == '':
+        return None
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise InvalidInputError(f'{field_label} 选择无效') from exc
+
+
+def _build_ai_config_form(ai_config=None) -> dict:
+    """Build template-friendly AI config defaults."""
+    return {
+        'prompt_template_id': ai_config.prompt_template_id if ai_config else None,
+        'chain_config_id': ai_config.chain_config_id if ai_config else None,
+        'ai_provider_id': ai_config.ai_provider_id if ai_config else None,
+        'temperature': ai_config.temperature if ai_config else 0.7,
+        'max_tokens': ai_config.max_tokens if ai_config else 2000,
+        'approval_mode': ai_config.approval_mode if ai_config else 'conditional',
+        'confidence_threshold': ai_config.confidence_threshold if ai_config else 0.8,
+    }
+
+
+def _build_position_rule_form(position_rule=None) -> dict:
+    """Build template-friendly position rule defaults."""
+    if position_rule is None:
+        values = json.loads(json.dumps(DEFAULT_POSITION_RULE_VALUES, ensure_ascii=False))
+    else:
+        values = {
+            'name': position_rule.name,
+            'description': position_rule.description,
+            'is_active': position_rule.is_active,
+            'price_precision': position_rule.price_precision,
+            'variables_schema': position_rule.variables_schema,
+            'buy_condition_expr': position_rule.buy_condition_expr,
+            'sell_condition_expr': position_rule.sell_condition_expr,
+            'buy_price_expr': position_rule.buy_price_expr,
+            'sell_price_expr': position_rule.sell_price_expr,
+            'stop_loss_expr': position_rule.stop_loss_expr,
+            'take_profit_expr': position_rule.take_profit_expr,
+            'position_size_expr': position_rule.position_size_expr,
+            'metadata': position_rule.metadata,
+        }
+
+    values['variables_schema_json'] = json.dumps(
+        values.get('variables_schema') or [],
+        ensure_ascii=False,
+        indent=2,
+    )
+    values['metadata_json'] = json.dumps(
+        values.get('metadata') or {},
+        ensure_ascii=False,
+        indent=2,
+    )
+    return values
+
+
+def _build_strategy_form_context(request, strategy: StrategyModel | None = None) -> dict:
+    """Build shared context for strategy create/edit/detail pages."""
+    ai_config = get_strategy_ai_config(strategy.id) if strategy is not None else None
+    position_rule = get_strategy_position_rule(strategy.id) if strategy is not None else None
+    context = {
+        'prompt_templates': list_active_prompt_templates(),
+        'chain_configs': list_active_chain_configs(),
+        'ai_providers': list_active_ai_providers_for_user(request.user.id),
+        'ai_config': ai_config,
+        'ai_config_form': _build_ai_config_form(ai_config),
+        'position_rule': position_rule,
+        'position_rule_form': _build_position_rule_form(position_rule),
+    }
+    if strategy is not None:
+        context['strategy'] = strategy
+    return context
 
 
 def _build_strategy_serializer(request, existing_strategy: StrategyModel | None = None) -> StrategySerializer:
@@ -240,6 +354,87 @@ def _save_script_config(
         serializer.is_valid(raise_exception=True)
     except drf_serializers.ValidationError as exc:
         raise InvalidInputError(f'脚本配置校验失败: {_format_validation_detail(exc.detail)}') from exc
+    serializer.save()
+
+
+def _save_ai_config(strategy: StrategyModel, post_data) -> None:
+    """Create or update AI strategy config for AI-driven strategies."""
+    if strategy.strategy_type != 'ai_driven':
+        return
+
+    approval_mode = (post_data.get('ai_approval_mode') or 'conditional').strip()
+    if approval_mode not in VALID_AI_APPROVAL_MODES:
+        raise InvalidInputError('AI 审核模式无效')
+
+    existing_config = get_strategy_ai_config(strategy.id)
+    serializer = AIStrategyConfigSerializer(
+        existing_config,
+        data={
+            'strategy': strategy.id,
+            'prompt_template': _parse_optional_int(post_data.get('ai_prompt_template'), 'Prompt 模板'),
+            'chain_config': _parse_optional_int(post_data.get('ai_chain_config'), 'Chain 配置'),
+            'ai_provider': _parse_optional_int(post_data.get('ai_provider'), 'AI 服务商'),
+            'temperature': post_data.get('ai_temperature') or 0.7,
+            'max_tokens': post_data.get('ai_max_tokens') or 2000,
+            'approval_mode': approval_mode,
+            'confidence_threshold': post_data.get('ai_confidence_threshold') or 0.8,
+        },
+    )
+    try:
+        serializer.is_valid(raise_exception=True)
+    except drf_serializers.ValidationError as exc:
+        raise InvalidInputError(f'AI 配置校验失败: {_format_validation_detail(exc.detail)}') from exc
+    serializer.save()
+
+
+def _save_position_rule(strategy: StrategyModel, post_data) -> None:
+    """Create or update the visual position-management rule submitted by the page."""
+    if 'position_rule_name' not in post_data:
+        return
+
+    rule_name = (post_data.get('position_rule_name') or '').strip()
+    if not rule_name:
+        return
+
+    variables_schema = _parse_json_form_field(
+        post_data.get('position_rule_variables_schema'),
+        '仓位规则变量定义',
+        DEFAULT_POSITION_RULE_VARIABLES,
+    )
+    metadata = _parse_json_form_field(
+        post_data.get('position_rule_metadata'),
+        '仓位规则元数据',
+        {},
+    )
+    if not isinstance(variables_schema, list):
+        raise InvalidInputError('仓位规则变量定义必须是数组 JSON')
+    if not isinstance(metadata, dict):
+        raise InvalidInputError('仓位规则元数据必须是对象 JSON')
+
+    existing_rule = get_strategy_position_rule(strategy.id)
+    serializer = PositionManagementRuleSerializer(
+        existing_rule,
+        data={
+            'strategy': strategy.id,
+            'name': rule_name,
+            'description': post_data.get('position_rule_description', ''),
+            'is_active': post_data.get('position_rule_is_active') == 'on',
+            'price_precision': post_data.get('position_rule_price_precision') or 2,
+            'variables_schema': variables_schema,
+            'buy_condition_expr': post_data.get('position_rule_buy_condition_expr', ''),
+            'sell_condition_expr': post_data.get('position_rule_sell_condition_expr', ''),
+            'buy_price_expr': post_data.get('position_rule_buy_price_expr', ''),
+            'sell_price_expr': post_data.get('position_rule_sell_price_expr', ''),
+            'stop_loss_expr': post_data.get('position_rule_stop_loss_expr', ''),
+            'take_profit_expr': post_data.get('position_rule_take_profit_expr', ''),
+            'position_size_expr': post_data.get('position_rule_position_size_expr', ''),
+            'metadata': metadata,
+        },
+    )
+    try:
+        serializer.is_valid(raise_exception=True)
+    except drf_serializers.ValidationError as exc:
+        raise InvalidInputError(f'仓位规则校验失败: {_format_validation_detail(exc.detail)}') from exc
     serializer.save()
 
 # ========================================================================
@@ -743,6 +938,8 @@ def strategy_create(request):
                 strategy = strategy_serializer.save(created_by=request.user.account_profile)
                 _replace_rule_conditions(strategy, rules_payload)
                 _save_script_config(strategy, script_code_payload, script_language)
+                _save_ai_config(strategy, request.POST)
+                _save_position_rule(strategy, request.POST)
 
             return JsonResponse({'success': True, 'id': strategy.id})
         except InvalidInputError as exc:
@@ -757,7 +954,7 @@ def strategy_create(request):
             logger.exception('Unexpected error while creating strategy')
             return _json_error('创建策略失败，请稍后重试', status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return render(request, 'strategy/create.html')
+    return render(request, 'strategy/create.html', _build_strategy_form_context(request))
 
 
 @login_required
@@ -766,12 +963,13 @@ def strategy_detail(request, strategy_id):
     strategy = get_object_or_404(StrategyModel, id=strategy_id, created_by=request.user.account_profile)
     rules = strategy.rules.all().order_by('-priority', '-created_at')
     execution_logs = strategy.execution_logs.all()[:20]
-
-    return render(request, 'strategy/detail.html', {
-        'strategy': strategy,
+    context = _build_strategy_form_context(request, strategy)
+    context.update({
         'rules': rules,
-        'execution_logs': execution_logs
+        'execution_logs': execution_logs,
     })
+
+    return render(request, 'strategy/detail.html', context)
 
 
 @login_required
@@ -796,6 +994,8 @@ def strategy_edit(request, strategy_id):
                 strategy = strategy_serializer.save()
                 _replace_rule_conditions(strategy, rules_payload)
                 _save_script_config(strategy, script_code_payload, script_language)
+                _save_ai_config(strategy, request.POST)
+                _save_position_rule(strategy, request.POST)
 
             return JsonResponse({'success': True, 'id': strategy.id})
         except InvalidInputError as exc:
@@ -811,7 +1011,7 @@ def strategy_edit(request, strategy_id):
             return _json_error('保存策略失败，请稍后重试', status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # GET 请求 - 渲染编辑页面
-    return render(request, 'strategy/edit.html', {'strategy': strategy})
+    return render(request, 'strategy/edit.html', _build_strategy_form_context(request, strategy))
 
 
 @login_required
@@ -904,6 +1104,7 @@ def strategy_execute(request, strategy_id):
             'success': all(r.is_success for r in results) if results else True,
             'execution_id': execution_ids[0] if len(execution_ids) == 1 else execution_ids,
             'generated_signals': total_signals,
+            'signals_count': total_signals,
             'failed_rules': failed_rules,
             'duration_ms': duration_ms,
             'executed_portfolios': len(results),
@@ -918,6 +1119,7 @@ def strategy_execute(request, strategy_id):
             'error': str(e),
             'execution_id': None,
             'generated_signals': 0,
+            'signals_count': 0,
             'failed_rules': [{'error': str(e)}],
             'duration_ms': 0
         })
@@ -1232,7 +1434,6 @@ def test_strategy(request, strategy_id):
     try:
         data = json.loads(request.body)
         portfolio_id = data.get('portfolio_id')
-        test_date = data.get('test_date')
 
         if not portfolio_id:
             return JsonResponse({'success': False, 'error': '缺少 portfolio_id 参数'})
@@ -1298,7 +1499,7 @@ def test_strategy(request, strategy_id):
                         script_api=script_api,
                         script_name=f'test_{strategy.id}'
                     )
-            except Exception as e:
+            except Exception:
                 mock_signals = []
 
         elif strategy.strategy_type == 'ai_driven':

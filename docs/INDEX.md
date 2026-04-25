@@ -204,6 +204,7 @@
 | [ai_capability/ai-capability-guide.md](modules/ai_capability/ai-capability-guide.md) | **AI Capability Catalog 模块指南** | ✅ 2026-03-19 新增 |
 | [simulated_trading/daily-inspection.md](modules/simulated_trading/daily-inspection.md) | 模拟盘日更巡检 | ✅ 新增 |
 | [strategy/position-management.md](modules/strategy/position-management.md) | 策略仓位管理 | ✅ 新增 |
+| [strategy/strategy-auto-trading-mcp.md](modules/strategy/strategy-auto-trading-mcp.md) | 策略配置、MCP 与模拟盘自动交易链路 | ✅ 2026-04-25 新增 |
 
 ### 11. 集成文档 (`integration/`)
 
@@ -246,13 +247,13 @@
 
 **业务模块**: 35个
 
-**MCP 工具**: 303个（本地注册快照）
+**MCP 工具**: 309个（本地注册快照）
 
 **REST API 路径**: 515个（OpenAPI 快照）
 
 **测试规模**: 5,212 个已收集测试项（`pytest --collect-only` 快照）
 
-**文档文件**: 272个（`docs/` 目录）
+**文档文件**: 273个（`docs/` 目录）
 
 **版本管理**: 参见 [VERSION.md](VERSION.md)
 

@@ -1,0 +1,150 @@
+<div class="form-grid">
+    <div class="form-group">
+        <label class="form-label">规则模板</label>
+        <select id="positionRuleTemplate" class="form-select" onchange="applyPositionRuleTemplate(this.value)">
+            <option value="">保留当前配置</option>
+            <option value="atr_risk">ATR 风险仓位</option>
+            <option value="breakout_trend">突破趋势仓位</option>
+        </select>
+        <div class="form-hint">选择模板会覆盖下方表达式，保存后写入仓位管理规则。</div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">启用规则</label>
+        <label style="display: flex; align-items: center; gap: 8px; height: 44px;">
+            <input type="checkbox" name="position_rule_is_active" {% if position_rule_form.is_active %}checked{% endif %}>
+            <span>用于执行评估和交易价格/仓位计算</span>
+        </label>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">规则名称</label>
+        <input type="text" name="position_rule_name" class="form-input" value="{{ position_rule_form.name }}" placeholder="例如：ATR风险仓位规则">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">价格精度</label>
+        <input type="number" name="position_rule_price_precision" class="form-input" value="{{ position_rule_form.price_precision }}" min="0" max="8" step="1">
+    </div>
+
+    <div class="form-group full">
+        <label class="form-label">规则描述</label>
+        <textarea name="position_rule_description" class="form-textarea">{{ position_rule_form.description }}</textarea>
+    </div>
+
+    <div class="form-group full">
+        <label class="form-label">变量定义 JSON</label>
+        <textarea name="position_rule_variables_schema" id="positionRuleVariables" class="form-textarea" style="min-height: 150px; font-family: Consolas, monospace;">{{ position_rule_form.variables_schema_json }}</textarea>
+        <div class="form-hint">变量会在执行评估上下文中读取，例如 current_price、atr、account_equity。</div>
+    </div>
+
+    <div class="form-group full">
+        <label class="form-label">买入触发条件</label>
+        <textarea name="position_rule_buy_condition_expr" id="positionRuleBuyCondition" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.buy_condition_expr }}</textarea>
+    </div>
+
+    <div class="form-group full">
+        <label class="form-label">卖出触发条件</label>
+        <textarea name="position_rule_sell_condition_expr" id="positionRuleSellCondition" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.sell_condition_expr }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">建议买入价表达式</label>
+        <textarea name="position_rule_buy_price_expr" id="positionRuleBuyPrice" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.buy_price_expr }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">建议卖出价表达式</label>
+        <textarea name="position_rule_sell_price_expr" id="positionRuleSellPrice" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.sell_price_expr }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">止损价表达式</label>
+        <textarea name="position_rule_stop_loss_expr" id="positionRuleStopLoss" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.stop_loss_expr }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">止盈价表达式</label>
+        <textarea name="position_rule_take_profit_expr" id="positionRuleTakeProfit" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.take_profit_expr }}</textarea>
+    </div>
+
+    <div class="form-group full">
+        <label class="form-label">仓位计算表达式</label>
+        <textarea name="position_rule_position_size_expr" id="positionRuleSize" class="form-textarea" style="font-family: Consolas, monospace;">{{ position_rule_form.position_size_expr }}</textarea>
+    </div>
+
+    <div class="form-group full">
+        <label class="form-label">元数据 JSON</label>
+        <textarea name="position_rule_metadata" id="positionRuleMetadata" class="form-textarea" style="min-height: 80px; font-family: Consolas, monospace;">{{ position_rule_form.metadata_json }}</textarea>
+    </div>
+</div>
+
+<script>
+const positionRuleTemplates = {
+    atr_risk: {
+        name: 'ATR风险仓位规则',
+        description: '基于支撑位、阻力位和ATR计算买卖价格、止损止盈与下单仓位。',
+        variables: [
+            {name: 'current_price', type: 'number', required: true},
+            {name: 'support_price', type: 'number', required: true},
+            {name: 'resistance_price', type: 'number', required: true},
+            {name: 'structure_low', type: 'number', required: true},
+            {name: 'atr', type: 'number', required: true},
+            {name: 'account_equity', type: 'number', required: true},
+            {name: 'risk_per_trade_pct', type: 'number', required: true},
+            {name: 'entry_buffer_pct', type: 'number', required: false}
+        ],
+        buyCondition: 'current_price <= support_price * (1 + (entry_buffer_pct if entry_buffer_pct else 0))',
+        sellCondition: 'current_price >= resistance_price',
+        buyPrice: 'support_price * (1 + (entry_buffer_pct if entry_buffer_pct else 0))',
+        sellPrice: 'resistance_price',
+        stopLoss: 'min(structure_low, buy_price - 2 * atr)',
+        takeProfit: 'buy_price + 2 * abs(buy_price - stop_loss_price)',
+        size: '(account_equity * risk_per_trade_pct) / abs(buy_price - stop_loss_price)',
+        metadata: {template: 'atr_risk'}
+    },
+    breakout_trend: {
+        name: '突破趋势仓位规则',
+        description: '突破买入、回落卖出，并用ATR控制止损、止盈与单笔风险。',
+        variables: [
+            {name: 'current_price', type: 'number', required: true},
+            {name: 'breakout_price', type: 'number', required: true},
+            {name: 'pullback_price', type: 'number', required: true},
+            {name: 'atr', type: 'number', required: true},
+            {name: 'account_equity', type: 'number', required: true},
+            {name: 'risk_per_trade_pct', type: 'number', required: true},
+            {name: 'slippage_pct', type: 'number', required: false}
+        ],
+        buyCondition: 'current_price >= breakout_price',
+        sellCondition: 'current_price <= pullback_price',
+        buyPrice: 'breakout_price * (1 + (slippage_pct if slippage_pct else 0))',
+        sellPrice: 'pullback_price',
+        stopLoss: 'buy_price - 2 * atr',
+        takeProfit: 'buy_price + 3 * atr',
+        size: '(account_equity * risk_per_trade_pct) / abs(buy_price - stop_loss_price)',
+        metadata: {template: 'breakout_trend'}
+    }
+};
+
+function setPositionRuleValue(name, value) {
+    const field = document.querySelector(`[name="${name}"]`);
+    if (field) field.value = value;
+}
+
+function applyPositionRuleTemplate(templateKey) {
+    const template = positionRuleTemplates[templateKey];
+    if (!template) return;
+
+    setPositionRuleValue('position_rule_name', template.name);
+    setPositionRuleValue('position_rule_description', template.description);
+    setPositionRuleValue('position_rule_variables_schema', JSON.stringify(template.variables, null, 2));
+    setPositionRuleValue('position_rule_buy_condition_expr', template.buyCondition);
+    setPositionRuleValue('position_rule_sell_condition_expr', template.sellCondition);
+    setPositionRuleValue('position_rule_buy_price_expr', template.buyPrice);
+    setPositionRuleValue('position_rule_sell_price_expr', template.sellPrice);
+    setPositionRuleValue('position_rule_stop_loss_expr', template.stopLoss);
+    setPositionRuleValue('position_rule_take_profit_expr', template.takeProfit);
+    setPositionRuleValue('position_rule_position_size_expr', template.size);
+    setPositionRuleValue('position_rule_metadata', JSON.stringify(template.metadata, null, 2));
+}
+</script>
