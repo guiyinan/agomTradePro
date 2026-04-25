@@ -111,6 +111,45 @@ def _safe_float(value: Any) -> float | None:
         return None
 
 
+def _safe_date(value: Any) -> date | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if hasattr(value, "date"):
+        try:
+            parsed = value.date()
+            return parsed if isinstance(parsed, date) else None
+        except (TypeError, ValueError):
+            return None
+    try:
+        return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_present(row: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in row:
+            return row[key]
+    return None
+
+
+def _valuation_period(start_date: date, end_date: date) -> str:
+    span_days = max((end_date - start_date).days, 0)
+    if span_days <= 366:
+        return "近一年"
+    if span_days <= 366 * 3:
+        return "近三年"
+    if span_days <= 366 * 5:
+        return "近五年"
+    if span_days <= 366 * 10:
+        return "近十年"
+    return "全部"
+
+
 class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
     """Base class for standardized data-center providers."""
 
@@ -581,26 +620,57 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[ValuationFact]:
-        from apps.equity.infrastructure.valuation_source_gateways import AKShareValuationGateway
+        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
-        gateway = AKShareValuationGateway()
-        batch = gateway.fetch(asset_code, start_date=start_date, end_date=end_date)
-        return [
-            ValuationFact(
-                asset_code=record.stock_code,
-                val_date=record.trade_date,
-                pe_ttm=float(record.pe) if record.pe is not None else None,
-                pb=float(record.pb) if record.pb is not None else None,
-                ps_ttm=float(record.ps) if record.ps is not None else None,
-                market_cap=float(record.total_mv) if record.total_mv is not None else None,
-                float_market_cap=float(record.circ_mv) if record.circ_mv is not None else None,
-                dv_ratio=(
-                    float(record.dividend_yield) if record.dividend_yield is not None else None
-                ),
-                source=self.provider_name(),
+        ak = get_akshare_module()
+        symbol = asset_code.strip().upper().split(".", 1)[0]
+        canonical_asset_code = normalize_asset_code(asset_code, "akshare")
+        period = _valuation_period(start_date, end_date)
+        indicator_fields = {
+            "市盈率(TTM)": "pe_ttm",
+            "市盈率(静)": "pe_static",
+            "市净率": "pb",
+            "总市值": "market_cap",
+        }
+
+        rows_by_date: dict[date, dict[str, float]] = {}
+        for indicator, field in indicator_fields.items():
+            df = ak.stock_zh_valuation_baidu(
+                symbol=symbol,
+                indicator=indicator,
+                period=period,
             )
-            for record in batch.records
-        ]
+            if df is None or df.empty:
+                continue
+
+            for row in df.to_dict("records"):
+                val_date = _safe_date(_first_present(row, "date", "日期"))
+                if val_date is None or val_date < start_date or val_date > end_date:
+                    continue
+                value = _safe_float(_first_present(row, "value", "数值"))
+                if value is None:
+                    continue
+                if field == "market_cap":
+                    value *= 100_000_000
+                rows_by_date.setdefault(val_date, {})[field] = value
+
+        facts: list[ValuationFact] = []
+        for val_date, values in sorted(rows_by_date.items()):
+            facts.append(
+                ValuationFact(
+                    asset_code=canonical_asset_code,
+                    val_date=val_date,
+                    pe_ttm=values.get("pe_ttm"),
+                    pe_static=values.get("pe_static"),
+                    pb=values.get("pb"),
+                    ps_ttm=None,
+                    market_cap=values.get("market_cap"),
+                    float_market_cap=None,
+                    dv_ratio=None,
+                    source=self.provider_name(),
+                )
+            )
+        return facts
 
     def fetch_sector_memberships(
         self,

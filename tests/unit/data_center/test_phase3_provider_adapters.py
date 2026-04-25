@@ -161,3 +161,43 @@ def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
     assert bars[0].asset_code == "000300.SH"
     assert bars[0].bar_date == date(2026, 4, 21)
     assert bars[0].source == "AKShare Public"
+
+
+def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
+    class _FakeAkshare:
+        def stock_zh_valuation_baidu(self, symbol, indicator, period):
+            assert symbol == "001979"
+            assert period == "近一年"
+            values = {
+                "市盈率(TTM)": 73.62,
+                "市盈率(静)": 73.62,
+                "市净率": 0.77,
+                "总市值": 753.74,
+            }
+            return pd.DataFrame(
+                [
+                    {"date": "2026-04-24", "value": values[indicator]},
+                    {"date": "2026-04-25", "value": values[indicator]},
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_valuations(
+        "001979.SZ",
+        date(2026, 4, 24),
+        date(2026, 4, 25),
+    )
+
+    assert len(facts) == 2
+    assert facts[0].asset_code == "001979.SZ"
+    assert facts[0].val_date == date(2026, 4, 24)
+    assert facts[0].pe_ttm == 73.62
+    assert facts[0].pe_static == 73.62
+    assert facts[0].pb == 0.77
+    assert facts[0].market_cap == 753.74 * 100_000_000
+    assert facts[0].source == "AKShare Public"
