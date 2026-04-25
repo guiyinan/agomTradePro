@@ -5,7 +5,6 @@
 - Interface 层只做输入验证和输出格式化
 - 禁止业务逻辑
 """
-from datetime import date
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -408,6 +407,7 @@ class DailyInspectionRunRequestSerializer(serializers.Serializer):
 
     strategy_id = serializers.IntegerField(required=False, allow_null=True)
     inspection_date = serializers.DateField(required=False)
+    auto_create_proposal = serializers.BooleanField(required=False, default=False)
 
 
 class DailyInspectionReportItemSerializer(serializers.Serializer):

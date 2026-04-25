@@ -295,8 +295,17 @@ def run_daily_inspection(
     account_id: int,
     inspection_date: date | None,
     strategy_id: int | None,
+    auto_create_proposal: bool = False,
 ) -> dict[str, Any]:
     """Run daily inspection for one account."""
+
+    if auto_create_proposal:
+        return DailyInspectionService.run_and_create_proposal(
+            account_id=account_id,
+            inspection_date=inspection_date,
+            strategy_id=strategy_id,
+            auto_create_proposal=True,
+        )
 
     return DailyInspectionService.run(
         account_id=account_id,

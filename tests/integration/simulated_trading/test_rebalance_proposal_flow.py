@@ -1,20 +1,20 @@
 """Integration tests for rebalance proposal flow."""
 
-from datetime import date, datetime
-from unittest.mock import Mock, patch
+from datetime import date
+from unittest.mock import patch
 
 import pytest
-from django.utils import timezone as django_timezone
+from rest_framework.test import APIClient
 
 from apps.simulated_trading.application.daily_inspection_service import (
     DailyInspectionService,
+    InspectionSelection,
 )
 from apps.simulated_trading.application.tasks import (
     daily_portfolio_inspection_task,
 )
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionReportModel,
-    NotificationHistoryModel,
     PositionModel,
     RebalanceProposalModel,
     SimulatedAccountModel,
@@ -235,6 +235,238 @@ class TestDailyInspectionTaskGuard:
         assert len(proposal["proposals"]) == 0
         assert proposal["summary"]["buy_count"] == 0
         assert proposal["summary"]["sell_count"] == 0
+
+
+@pytest.mark.django_db
+class TestRegimeAllocationDriftInspection:
+    """Regime allocation matrix integration for daily inspection."""
+
+    def _create_account_with_equity_position(self, username: str = "regimealloc"):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create_user(
+            username=username,
+            email=f"{username}@example.com",
+        )
+        account = SimulatedAccountModel.objects.create(
+            user=user,
+            account_name=f"{username} Account",
+            account_type="simulated",
+            initial_capital=100000,
+            current_cash=50000,
+            total_value=100000,
+            current_market_value=50000,
+        )
+        PositionModel.objects.create(
+            account=account,
+            asset_code="512880.SH",
+            asset_name="证券ETF",
+            asset_type="fund",
+            quantity=10000,
+            available_quantity=10000,
+            avg_cost=5,
+            total_cost=50000,
+            current_price=5,
+            market_value=50000,
+            unrealized_pnl=0,
+            unrealized_pnl_pct=0,
+            first_buy_date=date.today(),
+        )
+        return user, account
+
+    def test_regime_matrix_drives_asset_class_drift_checks(self):
+        _, account = self._create_account_with_equity_position("regimeclass")
+        metadata = {
+            "allocation": {
+                "risk_profile": "moderate",
+                "class_drift_threshold": 0.05,
+            }
+        }
+
+        with (
+            patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
+            patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
+            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=DailyInspectionService._empty_pulse_context()),
+            patch.object(
+                DailyInspectionService,
+                "_select_strategy_and_rule",
+                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+            ),
+        ):
+            result = DailyInspectionService.run(account_id=account.id, inspection_date=date.today())
+
+        class_checks = [check for check in result["checks"] if check["scope"] == "asset_class"]
+        equity_check = next(check for check in class_checks if check["asset_class"] == "equity")
+        fixed_income_check = next(check for check in class_checks if check["asset_class"] == "fixed_income")
+
+        assert result["status"] == "warning"
+        assert equity_check["target_weight"] == 0.55
+        assert fixed_income_check["target_weight"] == 0.25
+        assert result["summary"]["asset_class_rebalance_required_count"] > 0
+        assert result["summary"]["target_allocation"]["equity"] == 0.55
+        assert result["summary"]["risk_profile"] == "moderate"
+
+    def test_empty_target_weights_do_not_force_asset_zero_weight_sells(self):
+        _, account = self._create_account_with_equity_position("notargetweights")
+        metadata = {
+            "allocation": {
+                "risk_profile": "moderate",
+                "class_drift_threshold": 1.0,
+            },
+            "rebalance": {},
+        }
+
+        with (
+            patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
+            patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
+            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=DailyInspectionService._empty_pulse_context()),
+            patch.object(
+                DailyInspectionService,
+                "_select_strategy_and_rule",
+                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+            ),
+        ):
+            result = DailyInspectionService.run(account_id=account.id, inspection_date=date.today())
+
+        asset_checks = [check for check in result["checks"] if check["scope"] == "asset"]
+
+        assert len(asset_checks) == 1
+        assert asset_checks[0]["target_weight"] is None
+        assert asset_checks[0]["rebalance_action"] == "hold"
+        assert result["summary"]["asset_rebalance_required_count"] == 0
+
+    def test_asset_and_asset_class_drift_checks_can_run_together(self):
+        _, account = self._create_account_with_equity_position("twolayerdrift")
+        metadata = {
+            "allocation": {
+                "risk_profile": "moderate",
+                "class_drift_threshold": 0.05,
+            },
+            "rebalance": {
+                "target_weights": {"512880.SH": 0.30},
+                "drift_threshold": 0.05,
+            },
+        }
+
+        with (
+            patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
+            patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
+            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=DailyInspectionService._empty_pulse_context()),
+            patch.object(
+                DailyInspectionService,
+                "_select_strategy_and_rule",
+                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+            ),
+        ):
+            result = DailyInspectionService.run(account_id=account.id, inspection_date=date.today())
+
+        scopes = {check["scope"] for check in result["checks"]}
+        asset_check = next(check for check in result["checks"] if check["scope"] == "asset")
+
+        assert scopes == {"asset_class", "asset"}
+        assert asset_check["target_weight"] == 0.30
+        assert asset_check["rebalance_action"] == "sell"
+        assert result["summary"]["asset_rebalance_required_count"] == 1
+
+    def test_pulse_warning_tightens_asset_class_targets_and_proposal_metadata(self):
+        _, account = self._create_account_with_equity_position("pulseoverlay")
+        pulse_context = {
+            "available": True,
+            "observed_at": date.today().isoformat(),
+            "composite_score": -0.45,
+            "regime_strength": "weak",
+            "transition_warning": True,
+            "transition_direction": "Deflation",
+            "data_source": "calculated",
+            "stale_indicator_count": 0,
+        }
+        metadata = {
+            "allocation": {
+                "risk_profile": "moderate",
+                "class_drift_threshold": 0.05,
+            }
+        }
+
+        with (
+            patch.object(DailyInspectionService, "_latest_regime", return_value="Recovery"),
+            patch.object(DailyInspectionService, "_latest_policy_gear", return_value="P0"),
+            patch.object(DailyInspectionService, "_latest_pulse_context", return_value=pulse_context),
+            patch.object(
+                DailyInspectionService,
+                "_select_strategy_and_rule",
+                return_value=InspectionSelection(strategy_id=None, rule_id=None, rule_metadata=metadata),
+            ),
+        ):
+            result = DailyInspectionService.run_and_create_proposal(
+                account_id=account.id,
+                inspection_date=date.today(),
+                auto_create_proposal=True,
+            )
+
+        proposal = RebalanceProposalModel.objects.get(id=result["proposal_id"])
+
+        assert result["proposal_created"] is True
+        assert result["summary"]["target_allocation"]["equity"] < 0.55
+        assert result["summary"]["pulse"]["transition_warning"] is True
+        assert proposal.metadata["pulse"]["transition_direction"] == "Deflation"
+        assert "asset_class" in proposal.metadata["triggered_scopes"]
+
+
+@pytest.mark.django_db
+def test_daily_inspection_api_supports_auto_create_proposal_contract():
+    from django.contrib.auth import get_user_model
+
+    user = get_user_model().objects.create_user(
+        username="inspectionapi",
+        email="inspectionapi@example.com",
+    )
+    account = SimulatedAccountModel.objects.create(
+        user=user,
+        account_name="Inspection API Account",
+        account_type="simulated",
+        initial_capital=100000,
+        current_cash=100000,
+        total_value=100000,
+        current_market_value=0,
+    )
+    payload = {
+        "report_id": 10,
+        "account_id": account.id,
+        "inspection_date": date.today().isoformat(),
+        "status": "warning",
+        "macro_regime": "Recovery",
+        "policy_gear": "P0",
+        "strategy_id": None,
+        "position_rule_id": None,
+        "summary": {
+            "rebalance_required_count": 1,
+            "asset_class_rebalance_required_count": 1,
+            "asset_rebalance_required_count": 0,
+        },
+        "checks": [],
+        "proposal_id": 99,
+        "proposal_created": True,
+    }
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    with patch(
+        "apps.simulated_trading.interface.views.simulated_interface_services.run_daily_inspection",
+        return_value=payload,
+    ) as run_daily_inspection:
+        response = client.post(
+            f"/api/simulated-trading/accounts/{account.id}/inspections/run/",
+            {"auto_create_proposal": True},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["reports"][0]["proposal_created"] is True
+    assert data["reports"][0]["proposal_id"] == 99
+    run_daily_inspection.assert_called_once()
+    assert run_daily_inspection.call_args.kwargs["auto_create_proposal"] is True
 
 
 @pytest.mark.django_db

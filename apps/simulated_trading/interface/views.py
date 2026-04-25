@@ -42,18 +42,13 @@ from .serializers import (
     CreateAccountRequestSerializer,
     DailyInspectionReportListResponseSerializer,
     DailyInspectionRunRequestSerializer,
-    EquityCurveRequestSerializer,
     EquityCurveResponseSerializer,
     FeeConfigListResponseSerializer,
-    FeeConfigResponseSerializer,
     ManualTradeRequestSerializer,
     ManualTradeResponseSerializer,
     PerformanceResponseSerializer,
     PositionListResponseSerializer,
-    PositionResponseSerializer,
-    TradeListRequestSerializer,
     TradeListResponseSerializer,
-    TradeResponseSerializer,
 )
 
 
@@ -360,6 +355,7 @@ class AccountListAPIView(APIView):
         # 序列化账户
         account_list = []
         for account in accounts:
+            created_at = getattr(account, 'created_at', None)
             account_list.append({
                 'account_id': account.account_id,
                 'account_name': account.account_name,
@@ -384,8 +380,8 @@ class AccountListAPIView(APIView):
                 'start_date': account.start_date.isoformat(),
                 'last_trade_date': account.last_trade_date.isoformat() if account.last_trade_date else None,
                 'created_at': (
-                    getattr(account, 'created_at').isoformat()
-                    if getattr(account, 'created_at', None)
+                    created_at.isoformat()
+                    if created_at
                     else None
                 ),
             })
@@ -518,6 +514,7 @@ class AccountDetailAPIView(APIView):
                 'success': False,
                 'error': f'账户不存在: {account_id}'
             }, status=status.HTTP_404_NOT_FOUND)
+        created_at = getattr(account, 'created_at', None)
 
         response_data = {
             'account_id': account.account_id,
@@ -543,8 +540,8 @@ class AccountDetailAPIView(APIView):
             'start_date': account.start_date.isoformat(),
             'last_trade_date': account.last_trade_date.isoformat() if account.last_trade_date else None,
             'created_at': (
-                getattr(account, 'created_at').isoformat()
-                if getattr(account, 'created_at', None)
+                created_at.isoformat()
+                if created_at
                 else None
             ),
         }
@@ -885,6 +882,7 @@ class PerformanceAPIView(APIView):
 
         try:
             result = use_case.execute(account_id)
+            created_at = getattr(result['account'], 'created_at', None)
 
             # 序列化账户
             account_data = {
@@ -911,8 +909,8 @@ class PerformanceAPIView(APIView):
                 'start_date': result['account'].start_date.isoformat(),
                 'last_trade_date': result['account'].last_trade_date.isoformat() if result['account'].last_trade_date else None,
                 'created_at': (
-                    getattr(result['account'], 'created_at').isoformat()
-                    if getattr(result['account'], 'created_at', None)
+                    created_at.isoformat()
+                    if created_at
                     else None
                 ),
             }
@@ -1312,6 +1310,7 @@ class DailyInspectionRunAPIView(APIView):
                 account_id=account_id,
                 inspection_date=data.get("inspection_date") or date.today(),
                 strategy_id=data.get("strategy_id"),
+                auto_create_proposal=data.get("auto_create_proposal", False),
             )
             return Response({
                 "success": True,
