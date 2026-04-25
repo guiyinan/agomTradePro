@@ -320,6 +320,9 @@ def _build_alpha_status_reader(user):
             "scope_verification_status": meta.get("scope_verification_status"),
             "scope_hash": meta.get("scope_hash") or data.pool.get("scope_hash"),
             "freshness_status": meta.get("freshness_status"),
+            "latest_completed_session_result": bool(
+                meta.get("latest_completed_session_result", False)
+            ),
             "must_not_use_for_decision": bool(meta.get("must_not_use_for_decision", True)),
             "blocked_reason": meta.get("blocked_reason")
             or meta.get("no_recommendation_reason", ""),

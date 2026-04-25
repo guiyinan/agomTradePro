@@ -10,7 +10,7 @@ import json
 import logging
 import pickle
 from datetime import date, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from celery import shared_task
 from django.utils import timezone
@@ -21,7 +21,11 @@ from apps.alpha.application.repository_provider import (
     get_qlib_model_registry_repository,
 )
 from apps.alpha.domain.entities import normalize_stock_code
-from apps.alpha.infrastructure.qlib_builder import normalize_qlib_symbol, resolve_effective_trade_date
+from apps.alpha.infrastructure.qlib_builder import (
+    TushareQlibBuilder,
+    normalize_qlib_symbol,
+    resolve_effective_trade_date,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +92,9 @@ def _install_qlib_pandas_compat() -> None:
         return
 
     import pandas as pd
+    from qlib.config import C
+    import qlib.data as qlib_data
+    import qlib.data.data as qlib_data_module
     import qlib.data.dataset.processor as qlib_processor
     import qlib.data.dataset.utils as qlib_dataset_utils
     import qlib.utils.paral as qlib_paral
@@ -110,7 +117,7 @@ def _install_qlib_pandas_compat() -> None:
                 axis=axis,
                 level=level,
                 resample_rule=resample_rule,
-                n_jobs=n_jobs,
+                n_jobs=1,
             )
         except TypeError as exc:
             if "DatetimeIndex" not in str(exc):
@@ -140,10 +147,31 @@ def _install_qlib_pandas_compat() -> None:
                 return df[level_values.isin(list(selector))]
             return df[level_values == selector]
 
+    def safe_features(
+        instruments,
+        fields,
+        start_time=None,
+        end_time=None,
+        freq="day",
+        disk_cache=None,
+        inst_processors=None,
+    ):
+        return qlib_data_module.DatasetD.dataset(
+            instruments,
+            list(fields),
+            start_time,
+            end_time,
+            freq,
+            inst_processors=[] if inst_processors is None else inst_processors,
+        )
+
     qlib_paral.datetime_groupby_apply = safe_datetime_groupby_apply
     qlib_processor.datetime_groupby_apply = safe_datetime_groupby_apply
     qlib_dataset_utils.fetch_df_by_index = safe_fetch_df_by_index
     qlib_processor.fetch_df_by_index = safe_fetch_df_by_index
+    qlib_data.D.features = safe_features
+    C.kernels = 1
+    C.joblib_backend = "threading"
     _install_qlib_pandas_compat._installed = True
 
 
@@ -194,6 +222,89 @@ def _get_runtime_qlib_config() -> dict:
     """Return runtime qlib config through account-owned application service."""
 
     return get_account_config_summary_service().get_runtime_qlib_config()
+
+
+def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None) -> list[str]:
+    """Normalize scheduled universe configuration."""
+    if raw_universes is None:
+        return ["csi300"]
+    if isinstance(raw_universes, str):
+        return [item.strip().lower() for item in raw_universes.split(",") if item.strip()]
+    return [str(item).strip().lower() for item in raw_universes if str(item).strip()]
+
+
+def _refresh_qlib_runtime_data(
+    *,
+    target_date: date,
+    universes: str | list[str] | tuple[str, ...] | None = None,
+    lookback_days: int = 400,
+) -> dict:
+    """Refresh local qlib data before inference so scheduled runs do not rely on manual repair."""
+    qlib_config = _get_runtime_qlib_config()
+    if not qlib_config.get("enabled"):
+        return {
+            "status": "skipped",
+            "reason": "qlib_disabled",
+        }
+
+    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+    normalized_universes = _parse_universe_list(universes)
+    if not normalized_universes:
+        normalized_universes = ["csi300"]
+
+    summary = TushareQlibBuilder(provider_uri).build_recent_data(
+        target_date=target_date,
+        universes=normalized_universes,
+        lookback_days=lookback_days,
+    )
+    return {
+        "status": "success",
+        "provider_uri": provider_uri,
+        "universes": normalized_universes,
+        "requested_target_date": summary.requested_target_date.isoformat(),
+        "effective_target_date": (
+            summary.effective_target_date.isoformat()
+            if summary.effective_target_date
+            else None
+        ),
+        "latest_local_date_before": (
+            summary.latest_local_date_before.isoformat()
+            if summary.latest_local_date_before
+            else None
+        ),
+        "latest_local_date_after": (
+            summary.latest_local_date_after.isoformat()
+            if summary.latest_local_date_after
+            else None
+        ),
+        "calendar_days_written": summary.calendar_days_written,
+        "instrument_files_written": summary.instrument_files_written,
+        "feature_series_written": summary.feature_series_written,
+        "stock_count": summary.stock_count,
+        "warning_messages": list(summary.warning_messages),
+    }
+
+
+def _extract_model_filename(model_path: str) -> str:
+    """Extract a model filename from either Windows or POSIX persisted paths."""
+    return PureWindowsPath(model_path).name or Path(model_path).name
+
+
+def _resolve_qlib_model_path(active_model, qlib_config: dict) -> Path:
+    """Resolve persisted model paths across local and container deployments."""
+    raw_model_path = str(active_model.model_path)
+    model_path = Path(raw_model_path).expanduser()
+    if model_path.exists():
+        return model_path
+
+    model_name = _extract_model_filename(raw_model_path)
+    fallback_dir = qlib_config.get("model_path")
+    if fallback_dir and model_name:
+        fallback_path = Path(str(fallback_dir)).expanduser() / model_name
+        if fallback_path.exists():
+            return fallback_path
+
+    return model_path
 
 
 def _resolve_qlib_stock_list(
@@ -774,14 +885,33 @@ def qlib_refresh_cache(
 def qlib_daily_inference(
     self,
     universe_id: str = "csi300",
-    top_n: int = 30
+    top_n: int = 30,
+    refresh_data: bool = True,
+    refresh_universes: str | list[str] | tuple[str, ...] | None = None,
+    lookback_days: int = 400,
 ) -> dict:
     """
     每日触发 Qlib 推理任务。
 
-    用于 Celery Beat 无参调度入口，自动使用当天日期。
+    用于 Celery Beat 无参调度入口，自动使用当天日期，并先刷新本地 Qlib 日线。
     """
-    trade_date = date.today().isoformat()
+    trade_date_obj = timezone.localdate()
+    refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
+    if refresh_data:
+        try:
+            refresh_result = _refresh_qlib_runtime_data(
+                target_date=trade_date_obj,
+                universes=refresh_universes or universe_id,
+                lookback_days=lookback_days,
+            )
+        except Exception as exc:
+            logger.error("Qlib 每日数据刷新失败，继续尝试推理: %s", exc, exc_info=True)
+            refresh_result = {
+                "status": "failed",
+                "error": str(exc),
+            }
+
+    trade_date = trade_date_obj.isoformat()
     result = qlib_predict_scores.delay(universe_id, trade_date, top_n)
     return {
         "status": "queued",
@@ -789,6 +919,7 @@ def qlib_daily_inference(
         "universe_id": universe_id,
         "trade_date": trade_date,
         "top_n": top_n,
+        "refresh_result": refresh_result,
     }
 
 
@@ -796,9 +927,110 @@ def qlib_daily_inference(
 def qlib_daily_inference_alias(
     universe_id: str = "csi300",
     top_n: int = 30,
+    refresh_data: bool = True,
+    refresh_universes: str | list[str] | tuple[str, ...] | None = None,
+    lookback_days: int = 400,
 ) -> dict:
     """Backwards-compatible alias for database/beat task paths."""
-    return qlib_daily_inference.run(universe_id=universe_id, top_n=top_n)
+    return qlib_daily_inference.run(
+        universe_id=universe_id,
+        top_n=top_n,
+        refresh_data=refresh_data,
+        refresh_universes=refresh_universes,
+        lookback_days=lookback_days,
+    )
+
+
+@shared_task(
+    name="alpha.qlib_daily_scoped_inference",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=600,
+    time_limit=3600,
+    soft_time_limit=3300,
+)
+def qlib_daily_scoped_inference(
+    self,
+    top_n: int = 30,
+    portfolio_limit: int = 50,
+    pool_mode: str = "price_covered",
+) -> dict:
+    """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
+    from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
+    from apps.alpha.infrastructure.repositories import AlphaPoolDataRepository
+
+    trade_date = timezone.localdate()
+    portfolio_refs = AlphaPoolDataRepository().list_active_portfolio_refs(limit=portfolio_limit)
+    resolver = PortfolioAlphaPoolResolver()
+
+    queued: list[dict] = []
+    skipped: list[dict] = []
+    for ref in portfolio_refs:
+        try:
+            resolved = resolver.resolve(
+                user_id=int(ref["user_id"]),
+                portfolio_id=int(ref["portfolio_id"]),
+                trade_date=trade_date,
+                pool_mode=pool_mode,
+            )
+            if resolved.scope.pool_size == 0:
+                skipped.append({
+                    "portfolio_id": ref["portfolio_id"],
+                    "reason": "empty_scope",
+                })
+                continue
+            task = qlib_predict_scores.delay(
+                resolved.scope.universe_id,
+                trade_date.isoformat(),
+                top_n,
+                scope_payload=resolved.scope.to_dict(),
+            )
+            queued.append(
+                {
+                    "portfolio_id": ref["portfolio_id"],
+                    "user_id": ref["user_id"],
+                    "scope_hash": resolved.scope.scope_hash,
+                    "universe_id": resolved.scope.universe_id,
+                    "pool_size": resolved.scope.pool_size,
+                    "task_id": task.id,
+                }
+            )
+        except Exception as exc:
+            logger.error(
+                "Qlib scoped inference queue failed: portfolio_id=%s, error=%s",
+                ref.get("portfolio_id"),
+                exc,
+                exc_info=True,
+            )
+            skipped.append({
+                "portfolio_id": ref.get("portfolio_id"),
+                "reason": str(exc),
+            })
+
+    return {
+        "status": "queued",
+        "trade_date": trade_date.isoformat(),
+        "top_n": top_n,
+        "portfolio_count": len(portfolio_refs),
+        "queued_count": len(queued),
+        "skipped_count": len(skipped),
+        "queued": queued,
+        "skipped": skipped,
+    }
+
+
+@shared_task(name="apps.alpha.application.tasks.qlib_daily_scoped_inference")
+def qlib_daily_scoped_inference_alias(
+    top_n: int = 30,
+    portfolio_limit: int = 50,
+    pool_mode: str = "price_covered",
+) -> dict:
+    """Backwards-compatible alias for database/beat task paths."""
+    return qlib_daily_scoped_inference.run(
+        top_n=top_n,
+        portfolio_limit=portfolio_limit,
+        pool_mode=pool_mode,
+    )
 
 
 @shared_task(name="apps.alpha.application.tasks.qlib_refresh_cache")
@@ -1008,7 +1240,7 @@ def _execute_qlib_prediction(
             logger.info(f"Qlib 已初始化: provider={provider_uri}, region={region}")
 
         # 加载模型
-        model_path = Path(active_model.model_path)
+        model_path = _resolve_qlib_model_path(active_model, qlib_config)
         if not model_path.exists():
             logger.error(f"模型文件不存在: {model_path}")
             raise RuntimeError(f"模型文件不存在: {model_path}")

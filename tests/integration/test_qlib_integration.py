@@ -14,6 +14,7 @@ import pytest
 
 from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.application.tasks import qlib_predict_scores
+from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
@@ -33,6 +34,19 @@ class _PickleablePredictor:
 @pytest.mark.django_db
 class TestQlibAlphaProvider:
     """Qlib Alpha Provider 集成测试"""
+
+    def _small_pool_scope(self, trade_date: date) -> AlphaPoolScope:
+        return AlphaPoolScope(
+            pool_type="portfolio_market",
+            market="CN",
+            pool_mode="price_covered",
+            instrument_codes=("000001.SZ", "600000.SH"),
+            selection_reason="test",
+            trade_date=trade_date,
+            display_label="测试组合",
+            portfolio_id=1,
+            portfolio_name="测试组合",
+        )
 
     def test_provider_properties(self):
         """测试 Provider 属性"""
@@ -104,6 +118,102 @@ class TestQlibAlphaProvider:
 
         _, kwargs = mock_apply_async.call_args
         assert kwargs["queue"] == "celery"
+
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
+    @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
+    def test_get_stock_scores_runs_inline_inference_without_worker(
+        self,
+        mock_apply,
+        mock_current_app,
+    ):
+        """缓存未命中且没有 worker 时，应同步执行一次推理并回读缓存。"""
+        mock_current_app.control.inspect.return_value.active_queues.return_value = None
+        mock_task_result = Mock()
+        mock_task_result.get.return_value = {"status": "success", "cache_created": True}
+        mock_task_result.failed.return_value = False
+        mock_apply.return_value = mock_task_result
+
+        cached_result = AlphaResult(
+            success=True,
+            scores=[],
+            source="qlib",
+            timestamp="2026-02-05",
+            status="available",
+            metadata={"asof_date": "2026-02-05"},
+        )
+        provider = QlibAlphaProvider()
+        trade_date = date(2026, 2, 6)
+        pool_scope = self._small_pool_scope(trade_date)
+
+        with patch.object(
+            provider,
+            "_get_from_cache",
+            side_effect=[None, cached_result],
+        ):
+            result = provider.get_stock_scores(
+                pool_scope.universe_id,
+                trade_date,
+                10,
+                pool_scope=pool_scope,
+            )
+
+        assert result.success is True
+        assert result.source == "qlib"
+        assert result.metadata["inline_inference_executed"] is True
+        assert result.metadata["inline_inference_result"]["status"] == "completed"
+        mock_apply.assert_called_once()
+
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
+    @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
+    def test_get_stock_scores_returns_degraded_when_inline_inference_has_no_cache(
+        self,
+        mock_apply,
+        mock_current_app,
+    ):
+        """同步推理未写出缓存时，应返回降级结果并保留诊断元数据。"""
+        mock_current_app.control.inspect.return_value.active_queues.return_value = None
+        mock_task_result = Mock()
+        mock_task_result.get.return_value = {"status": "failed", "error": "empty"}
+        mock_task_result.failed.return_value = False
+        mock_apply.return_value = mock_task_result
+
+        provider = QlibAlphaProvider()
+        trade_date = date(2026, 2, 7)
+        pool_scope = self._small_pool_scope(trade_date)
+        with patch.object(provider, "_get_from_cache", return_value=None):
+            result = provider.get_stock_scores(
+                pool_scope.universe_id,
+                trade_date,
+                10,
+                pool_scope=pool_scope,
+            )
+
+        assert result.success is False
+        assert result.status == "degraded"
+        assert result.metadata["inference_trigger_status"] == "no_worker"
+        assert result.metadata["inline_inference_executed"] is True
+
+    @patch("apps.alpha.infrastructure.adapters.qlib_adapter.current_app")
+    @patch("apps.alpha.application.tasks.qlib_predict_scores.apply")
+    def test_get_stock_scores_skips_inline_inference_for_broad_universe(
+        self,
+        mock_apply,
+        mock_current_app,
+    ):
+        """全市场请求没有 worker 时不能卡住前台请求。"""
+        mock_current_app.control.inspect.return_value.active_queues.return_value = None
+        provider = QlibAlphaProvider()
+
+        with patch.object(provider, "_get_from_cache", return_value=None):
+            result = provider.get_stock_scores("csi300", date(2026, 2, 8), 10)
+
+        assert result.success is False
+        assert result.metadata["inline_inference_result"]["status"] == "skipped"
+        assert (
+            result.metadata["inline_inference_result"]["reason"]
+            == "inline_inference_requires_scoped_pool"
+        )
+        mock_apply.assert_not_called()
 
     def test_get_stock_scores_preserves_degraded_staleness_metadata(self):
         """测试命中前推缓存时不会把陈旧度误报为 0。"""

@@ -1054,9 +1054,17 @@ class RepairDecisionDataReliabilityUseCase:
         )
         verified_asof_date = str(status_payload.get("verified_asof_date") or "")
         scope_verified = status_payload.get("scope_verification_status") == "verified"
+        latest_completed_session_result = (
+            bool(status_payload.get("latest_completed_session_result", False))
+            or status_payload.get("freshness_status") == "latest_completed_session"
+        )
         if not recommendation_ready:
             blocked_reasons.append("Dashboard Alpha 尚未产出 actionable 推荐。")
-        if verified_asof_date and verified_asof_date != requested_trade_date:
+        if (
+            verified_asof_date
+            and verified_asof_date != requested_trade_date
+            and not latest_completed_session_result
+        ):
             blocked_reasons.append(
                 f"Alpha asof_date={verified_asof_date}，未达到请求交易日 {requested_trade_date}。"
             )

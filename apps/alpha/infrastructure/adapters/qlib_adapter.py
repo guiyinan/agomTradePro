@@ -48,7 +48,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
     工作流程：
     1. 快路径：从 AlphaScoreCache 读取缓存
     2. 慢路径：触发异步推理任务（Celery）
-    3. 立即返回 degraded，让 registry 去尝试下一个 provider
+    3. 本地无可用 worker 时同步执行一次推理并回读缓存
+    4. 推理不可用时返回 degraded，让 registry 去尝试下一个 provider
 
     Attributes:
         priority: 1（最高优先级）
@@ -60,6 +61,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
         >>> # 第一次可能返回 degraded（缓存未命中）
         >>> # 第二次命中缓存返回 available
     """
+
+    INLINE_INFERENCE_MAX_POOL_SIZE = 120
 
     def __init__(
         self,
@@ -169,7 +172,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
         1. 快路径：读缓存
         2. 如果缓存未命中，触发异步推理任务
-        3. 立即返回 degraded
+        3. 如果本地没有可用 worker，同步执行一次推理并回读缓存
+        4. 推理仍不可用时立即返回 degraded
 
         Args:
             universe_id: 股票池标识
@@ -198,25 +202,80 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
         # 2. 慢路径：触发异步推理任务
         logger.info(f"Qlib 缓存未命中，触发异步推理: {universe_id}@{intended_trade_date}")
-        self._trigger_infer_task(
+        trigger_status = self._trigger_infer_task(
             universe_id,
             intended_trade_date,
             top_n,
             pool_scope=pool_scope,
         )
+        inline_metadata: dict[str, object] = {}
+
+        if trigger_status == "no_worker" and self._can_run_inline_inference(pool_scope):
+            inline_metadata = self._run_inline_infer_task(
+                universe_id=universe_id,
+                intended_trade_date=intended_trade_date,
+                top_n=top_n,
+                pool_scope=pool_scope,
+            )
+            cached_after_inline = self._get_from_cache(
+                universe_id,
+                intended_trade_date,
+                top_n,
+                pool_scope=pool_scope,
+            )
+            if cached_after_inline:
+                latency_ms = int((time.time() - start_time) * 1000)
+                cached_after_inline.latency_ms = latency_ms
+                if (
+                    cached_after_inline.status == "available"
+                    and cached_after_inline.staleness_days is None
+                ):
+                    cached_after_inline.staleness_days = 0
+                cached_metadata = dict(cached_after_inline.metadata or {})
+                cached_metadata.update(
+                    {
+                        "inline_inference_executed": True,
+                        "inline_inference_result": inline_metadata,
+                    }
+                )
+                cached_after_inline.metadata = cached_metadata
+                logger.info(
+                    "Qlib 同步推理完成并命中缓存: universe=%s, date=%s",
+                    universe_id,
+                    intended_trade_date,
+                )
+                return cached_after_inline
+        elif trigger_status == "no_worker":
+            inline_metadata = self._build_inline_skip_metadata(pool_scope)
+            logger.warning(
+                "Qlib 同步推理跳过: universe=%s, date=%s, reason=%s",
+                universe_id,
+                intended_trade_date,
+                inline_metadata.get("reason"),
+            )
 
         # 3. 立即返回 degraded，让 registry 去走下一个 provider
+        if trigger_status == "queued":
+            error_message = "缓存缺失，已触发异步推理任务"
+        elif trigger_status == "failed":
+            error_message = "缓存缺失，推理任务投递失败"
+        else:
+            error_message = "缓存缺失，同步推理未生成可用结果"
+
         return AlphaResult(
             success=False,
             scores=[],
             source="qlib",
             timestamp=intended_trade_date.isoformat(),
             status="degraded",
-            error_message="缓存缺失，已触发异步推理任务",
+            error_message=error_message,
             metadata={
                 "universe_id": universe_id,
                 "intended_trade_date": intended_trade_date.isoformat(),
-                "async_task_triggered": True,
+                "async_task_triggered": trigger_status == "queued",
+                "inference_trigger_status": trigger_status,
+                "inline_inference_executed": trigger_status == "no_worker",
+                "inline_inference_result": inline_metadata or None,
                 "scope_hash": pool_scope.scope_hash if pool_scope else None,
                 "scope_label": pool_scope.display_label if pool_scope else None,
                 "scope_metadata": pool_scope.to_dict() if pool_scope else {},
@@ -453,7 +512,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         intended_trade_date: date,
         top_n: int,
         pool_scope: AlphaPoolScope | None = None,
-    ) -> None:
+    ) -> str:
         """
         触发异步推理任务
 
@@ -472,11 +531,20 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 intended_trade_date,
                 top_n,
             )
-            return
+            return "queued"
         try:
             from apps.alpha.application.tasks import qlib_predict_scores
 
-            queue_name = self._resolve_inference_queue()
+            queue_name = self._resolve_live_inference_queue()
+            if queue_name is None:
+                logger.warning(
+                    "未检测到可用 Celery worker，准备同步执行 Qlib 推理: "
+                    "universe=%s, date=%s, top_n=%s",
+                    universe_id,
+                    intended_trade_date,
+                    top_n,
+                )
+                return "no_worker"
 
             # 异步投递任务，不等待结果
             result = qlib_predict_scores.apply_async(
@@ -493,23 +561,31 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 f"queue={queue_name}, task_id={result.id}"
             )
             cache.set(throttle_key, result.id, timeout=180)
+            return "queued"
 
         except Exception as e:
             logger.error(f"触发推理任务失败: {e}", exc_info=True)
             # 发送告警通知
             self._send_inference_failure_alert(universe_id, intended_trade_date, str(e))
+            return "failed"
 
     def _resolve_inference_queue(self) -> str:
         """Pick a live inference queue, falling back to the default worker queue in dev."""
+        return self._resolve_live_inference_queue() or "qlib_infer"
+
+    def _resolve_live_inference_queue(self) -> str | None:
+        """Return a live queue name, or None when no worker can consume the task."""
         preferred_queue = "qlib_infer"
         fallback_queue = "celery"
 
         try:
             inspect = current_app.control.inspect(timeout=1)
             if inspect is None:
-                return preferred_queue
+                return None
 
-            active_queues = inspect.active_queues() or {}
+            active_queues = inspect.active_queues()
+            if not active_queues:
+                return None
             queue_names = {
                 queue_info.get("name")
                 for worker_queues in active_queues.values()
@@ -524,9 +600,104 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 )
                 return fallback_queue
         except Exception as exc:
-            logger.debug("检查 Celery 队列时出错，继续使用 qlib_infer: %s", exc)
+            logger.debug("检查 Celery 队列时出错: %s", exc)
 
-        return preferred_queue
+        return None
+
+    def _run_inline_infer_task(
+        self,
+        *,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int,
+        pool_scope: AlphaPoolScope | None = None,
+    ) -> dict[str, object]:
+        """Run one local inference when there is no Celery worker to consume the task."""
+        lock_key = (
+            "alpha:qlib_inline_infer_lock:"
+            f"{universe_id}:{intended_trade_date.isoformat()}:{top_n}"
+        )
+        if not cache.add(lock_key, "1", timeout=600):
+            logger.warning(
+                "Qlib 同步推理已在执行中，跳过重复执行: universe=%s, date=%s, top_n=%s",
+                universe_id,
+                intended_trade_date,
+                top_n,
+            )
+            return {
+                "status": "skipped",
+                "reason": "inline_inference_already_running",
+            }
+
+        try:
+            from apps.alpha.application.tasks import qlib_predict_scores
+
+            logger.info(
+                "开始 Qlib 同步推理: universe=%s, date=%s, top_n=%s",
+                universe_id,
+                intended_trade_date,
+                top_n,
+            )
+            task_result = qlib_predict_scores.apply(
+                args=[universe_id, intended_trade_date.isoformat(), top_n],
+                kwargs={
+                    "scope_payload": pool_scope.to_dict() if pool_scope else None,
+                },
+            )
+            payload = task_result.get(propagate=False)
+            failed = bool(getattr(task_result, "failed", lambda: False)())
+            if failed:
+                logger.warning(
+                    "Qlib 同步推理任务失败: universe=%s, date=%s, result=%s",
+                    universe_id,
+                    intended_trade_date,
+                    payload,
+                )
+                return {
+                    "status": "failed",
+                    "result": str(payload),
+                }
+            return {
+                "status": "completed",
+                "result": payload if isinstance(payload, dict) else str(payload),
+            }
+        except Exception as exc:
+            logger.error(
+                "Qlib 同步推理执行失败: universe=%s, date=%s, error=%s",
+                universe_id,
+                intended_trade_date,
+                exc,
+                exc_info=True,
+            )
+            return {
+                "status": "failed",
+                "error": str(exc),
+            }
+        finally:
+            cache.delete(lock_key)
+
+    def _can_run_inline_inference(self, pool_scope: AlphaPoolScope | None) -> bool:
+        """Only small scoped pools are safe to run inside the request process."""
+        if pool_scope is None:
+            return False
+        return pool_scope.pool_size <= self.INLINE_INFERENCE_MAX_POOL_SIZE
+
+    def _build_inline_skip_metadata(
+        self,
+        pool_scope: AlphaPoolScope | None,
+    ) -> dict[str, object]:
+        if pool_scope is None:
+            return {
+                "status": "skipped",
+                "reason": "inline_inference_requires_scoped_pool",
+                "max_pool_size": self.INLINE_INFERENCE_MAX_POOL_SIZE,
+            }
+        return {
+            "status": "skipped",
+            "reason": "inline_inference_pool_too_large",
+            "pool_size": pool_scope.pool_size,
+            "max_pool_size": self.INLINE_INFERENCE_MAX_POOL_SIZE,
+        }
 
     def _send_inference_failure_alert(
         self,

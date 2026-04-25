@@ -598,6 +598,46 @@ def test_alpha_homepage_meta_marks_trade_date_adjusted_cache_as_traceable_not_re
     assert meta["verified_asof_date"] == "2026-04-20"
 
 
+def test_alpha_homepage_meta_allows_weekend_request_latest_completed_session():
+    query = object.__new__(AlphaHomepageQuery)
+    scope = SimpleNamespace(
+        scope_hash="weekend-scope",
+        display_label="默认组合 · 价格覆盖池",
+        pool_mode="price_covered",
+        pool_size=42,
+        to_dict=lambda: {"scope_hash": "weekend-scope"},
+    )
+    result = SimpleNamespace(
+        success=True,
+        scores=[SimpleNamespace(code="000001.SZ")],
+        source="cache",
+        status="available",
+        staleness_days=None,
+        metadata={
+            "provider_source": "qlib",
+            "requested_trade_date": "2026-04-25",
+            "effective_asof_date": "2026-04-24",
+            "effective_trade_date": "2026-04-24",
+            "trade_date_adjusted": True,
+            "latest_available_qlib_result": True,
+            "reliability_notice": {
+                "message": "请求交易日 2026-04-25 尚无本地 Qlib 日线。",
+            },
+        },
+    )
+
+    meta = query._build_meta(alpha_result=result, scope=scope)
+
+    assert meta["recommendation_ready"] is True
+    assert meta["must_not_use_for_decision"] is False
+    assert meta["freshness_status"] == "latest_completed_session"
+    assert meta["readiness_status"] == "ready"
+    assert meta["result_age_days"] == 1
+    assert meta["is_stale"] is False
+    assert meta["latest_completed_session_result"] is True
+    assert meta["verified_asof_date"] == "2026-04-24"
+
+
 def test_alpha_homepage_candidate_is_not_actionable_when_readiness_is_blocked():
     query = object.__new__(AlphaHomepageQuery)
 

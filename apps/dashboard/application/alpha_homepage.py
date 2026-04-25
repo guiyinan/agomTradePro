@@ -571,6 +571,13 @@ class AlphaHomepageQuery:
         scope_fallback = bool(metadata.get("scope_fallback", False))
         trade_date_adjusted = bool(metadata.get("trade_date_adjusted", False))
         latest_available_qlib_result = bool(metadata.get("latest_available_qlib_result", False))
+        adjusted_to_latest_completed_session = (
+            trade_date_adjusted
+            and requested_trade_date is not None
+            and effective_asof_date is not None
+            and requested_trade_date.weekday() >= 5
+            and 0 <= (requested_trade_date - effective_asof_date).days <= 3
+        )
         hardcoded_fallback_used = bool(metadata.get("hardcoded_fallback_used", False))
         is_degraded = bool(metadata.get("is_degraded", False))
         research_only = bool(metadata.get("research_only", False)) or (
@@ -601,6 +608,8 @@ class AlphaHomepageQuery:
         freshness_status = "fresh"
         if not scores:
             freshness_status = "unavailable"
+        elif adjusted_to_latest_completed_session:
+            freshness_status = "latest_completed_session"
         elif trade_date_adjusted:
             freshness_status = "trade_date_adjusted"
         elif fallback_mode == "forward_fill_latest_qlib_cache":
@@ -640,7 +649,7 @@ class AlphaHomepageQuery:
                 or "当前 Alpha 股票池已扩大到回退范围，不能视为原始账户池推荐。"
             )
             recommendation_ready = False
-        elif trade_date_adjusted:
+        elif trade_date_adjusted and not adjusted_to_latest_completed_session:
             readiness_status = "blocked_trade_date_adjusted"
             blocked_reason = str(
                 ((metadata.get("reliability_notice") or {}).get("message"))
@@ -654,7 +663,7 @@ class AlphaHomepageQuery:
                 or "当前结果为前推缓存，尚未通过当期 Alpha 实时推理验证。"
             )
             recommendation_ready = False
-        elif result_age_days not in (None, 0):
+        elif result_age_days not in (None, 0) and not adjusted_to_latest_completed_session:
             readiness_status = "blocked_stale"
             blocked_reason = f"当前 Alpha 结果相对请求交易日已陈旧 {result_age_days} 天。"
             recommendation_ready = False
@@ -683,12 +692,14 @@ class AlphaHomepageQuery:
         return {
             "result_age_days": result_age_days,
             "freshness_status": freshness_status,
-            "is_stale": result_age_days not in (None, 0),
+            "is_stale": result_age_days not in (None, 0)
+            and not adjusted_to_latest_completed_session,
             "scope_verification_status": scope_verification_status,
             "is_scope_verified": scope_verification_status == "verified",
             "latest_available_qlib_result": latest_available_qlib_result,
             "derived_from_broader_cache": derived_from_broader_cache,
             "trade_date_adjusted": trade_date_adjusted,
+            "latest_completed_session_result": adjusted_to_latest_completed_session,
             "effective_trade_date": metadata.get("effective_trade_date"),
             "recommendation_ready": recommendation_ready,
             "must_not_use_for_decision": not recommendation_ready,

@@ -17,6 +17,23 @@ logger = logging.getLogger(__name__)
 class AlphaPoolDataRepository:
     """ORM-backed data access for portfolio-driven Alpha pool resolution."""
 
+    def list_active_portfolio_refs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Return active portfolio identifiers for scheduled scoped Alpha inference."""
+        rows = (
+            PortfolioModel._default_manager.filter(is_active=True)
+            .exclude(user_id=None)
+            .order_by("-updated_at", "-created_at")
+            .values("id", "user_id", "name")[:limit]
+        )
+        return [
+            {
+                "portfolio_id": row["id"],
+                "user_id": row["user_id"],
+                "name": row.get("name") or "",
+            }
+            for row in rows
+        ]
+
     def resolve_portfolio(self, *, user_id: int, portfolio_id: int | None) -> Any | None:
         queryset = PortfolioModel._default_manager.filter(user_id=user_id)
         if portfolio_id is not None:

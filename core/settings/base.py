@@ -628,6 +628,21 @@ CELERY_BEAT_SCHEDULE = {
         "kwargs": {
             "universe_id": "csi300",
             "top_n": 30,
+            "refresh_data": True,
+            "refresh_universes": "csi300,csi500,sse50,csi1000",
+            "lookback_days": 400,
+        },
+        "options": {
+            "expires": 7200,  # 2 小时超时
+        },
+    },
+    "qlib-daily-scoped-inference": {
+        "task": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
+        "schedule": crontab(hour=17, minute=40, day_of_week="mon-fri"),  # 每个交易日 17:40
+        "kwargs": {
+            "top_n": 30,
+            "portfolio_limit": 50,
+            "pool_mode": "price_covered",
         },
         "options": {
             "expires": 7200,  # 2 小时超时
@@ -758,7 +773,7 @@ CELERY_BEAT_SCHEDULE = {
 QLIB_SETTINGS = {
     "provider_uri": env("QLIB_PROVIDER_URI", default=str(BASE_DIR / "data" / "qlib" / "cn_data")),
     "region": env("QLIB_REGION", default="CN"),
-    "model_path": env("QLIB_MODEL_PATH", default=str(BASE_DIR / "models" / "qlib")),
+    "model_path": env("QLIB_MODEL_PATH", default=str(BASE_DIR / "data" / "qlib" / "models")),
 }
 
 # Celery 队列路由配置（Qlib 任务专用队列）

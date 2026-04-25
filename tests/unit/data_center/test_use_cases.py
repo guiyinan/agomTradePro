@@ -692,3 +692,41 @@ class TestRepairDecisionDataReliabilityUseCase:
         assert payload["alpha_status"]["status"] == "failed"
         assert payload["alpha_status"]["must_not_use_for_decision"] is True
         assert "redis unavailable" in payload["alpha_status"]["blocked_reasons"][0]
+
+    def test_alpha_latest_completed_session_is_decision_ready_on_weekend_request(self):
+        target_date = date(2026, 4, 25)
+
+        def alpha_refresher(target_date, portfolio_id):
+            return {"status": "completed"}
+
+        def alpha_status_reader(target_date, portfolio_id):
+            return {
+                "recommendation_ready": True,
+                "requested_trade_date": target_date.isoformat(),
+                "verified_asof_date": "2026-04-24",
+                "scope_verification_status": "verified",
+                "freshness_status": "latest_completed_session",
+                "latest_completed_session_result": True,
+            }
+
+        use_case = self._make_use_case(
+            target_date=target_date,
+            alpha_refresher=alpha_refresher,
+            alpha_status_reader=alpha_status_reader,
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=target_date,
+                portfolio_id=135,
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_PMI"],
+                repair_pulse=False,
+                repair_alpha=True,
+            )
+        )
+
+        payload = report.to_dict()
+        assert payload["alpha_status"]["status"] == "ready"
+        assert payload["alpha_status"]["must_not_use_for_decision"] is False
+        assert payload["alpha_status"]["blocked_reasons"] == []
