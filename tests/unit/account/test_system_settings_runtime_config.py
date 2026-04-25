@@ -1,4 +1,5 @@
 import pytest
+from django.conf import settings as django_settings
 
 from apps.account.infrastructure.models import SystemSettingsModel
 from apps.macro.application.indicator_service import IndicatorService, IndicatorUnitService
@@ -71,3 +72,39 @@ def test_system_settings_runtime_market_visual_tokens_support_us_convention():
     assert summary["market_color_convention"] == "us_market"
     assert summary["market_color_label"] == "美股绿涨红跌"
     assert context["convention"] == "us_market"
+
+
+@pytest.mark.django_db
+def test_qlib_runtime_paths_fall_back_when_persisted_path_is_not_local(tmp_path):
+    provider_dir = tmp_path / "qlib" / "cn_data"
+    model_dir = tmp_path / "qlib" / "models"
+    provider_dir.mkdir(parents=True)
+    model_dir.mkdir(parents=True)
+
+    original_qlib_settings = dict(django_settings.QLIB_SETTINGS)
+    django_settings.QLIB_SETTINGS = {
+        **original_qlib_settings,
+        "provider_uri": str(provider_dir),
+        "model_path": str(model_dir),
+    }
+    try:
+        settings = SystemSettingsModel.get_settings()
+        settings.qlib_enabled = True
+        settings.qlib_provider_uri = r"Z:\missing\qlib\cn_data"
+        settings.qlib_model_path = r"Z:\missing\qlib\models"
+        settings.save(
+            update_fields=[
+                "qlib_enabled",
+                "qlib_provider_uri",
+                "qlib_model_path",
+                "updated_at",
+            ]
+        )
+
+        runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+    finally:
+        django_settings.QLIB_SETTINGS = original_qlib_settings
+
+    assert runtime_config["provider_uri"] == str(provider_dir)
+    assert runtime_config["model_path"] == str(model_dir)
+    assert runtime_config["is_configured"] is True

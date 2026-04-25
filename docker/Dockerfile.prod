@@ -4,6 +4,7 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 ARG PIP_OFFLINE_ONLY=1
 ARG INSTALL_QLIB=1
+ARG PYQLIB_VERSION=0.9.7
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -44,14 +45,15 @@ RUN set -eu; \
     fi
 
 RUN if [ "$INSTALL_QLIB" = "1" ]; then \
-      echo "Installing qlib (requires Linux wheels)..."; \
+      echo "Installing Microsoft pyqlib (imports as qlib; requires Linux wheels)..."; \
       pip install --prefer-binary --retries 25 --timeout 300 \
         --index-url https://pypi.org/simple/ \
-        qlib>=0.9.0 || \
+        "pyqlib==${PYQLIB_VERSION}" || \
       pip install --prefer-binary --retries 25 --timeout 300 \
         --index-url http://mirrors.aliyun.com/pypi/simple/ \
         --trusted-host mirrors.aliyun.com \
-        qlib>=0.9.0; \
+        "pyqlib==${PYQLIB_VERSION}"; \
+      python -c "import importlib.metadata as metadata; import qlib; import qlib.data; dist = metadata.distribution('pyqlib'); print(f'Verified pyqlib {dist.version} at {qlib.__file__}')" ; \
     fi
 
 FROM python:3.11-slim
@@ -62,6 +64,7 @@ ARG BUILD_AGOMTRADEPRO_ENCRYPTION_KEY=QkZJTFQwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    libgomp1 \
     curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*

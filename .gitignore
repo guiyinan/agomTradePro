@@ -70,6 +70,11 @@ Thumbs.db
 
 # Build / download cache (local only)
 .cache/
+!.cache/
+!.cache/pip-wheels/
+.cache/pip-wheels/*
+!.cache/pip-wheels/linux-py311/
+!.cache/pip-wheels/linux-py311/.keep
 
 # Django
 media/

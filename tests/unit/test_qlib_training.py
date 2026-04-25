@@ -7,9 +7,11 @@ Unit Tests for Qlib Training
 import json
 import os
 import pickle
+import inspect
 from datetime import date, datetime
 from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -19,14 +21,51 @@ from django.test import override_settings
 from apps.alpha.application.tasks import (
     _calculate_artifact_hash,
     _execute_qlib_prediction,
+    _extract_model_filename,
+    _install_qlib_pandas_compat,
     _make_json_safe,
     _resolve_qlib_handler_class,
+    _resolve_qlib_model_path,
     _resolve_qlib_stock_list,
     _save_model_artifact,
     qlib_evaluate_model,
     qlib_train_model,
 )
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
+
+
+def test_resolve_qlib_model_path_falls_back_to_runtime_model_dir(tmp_path):
+    model_dir = tmp_path / "models"
+    model_dir.mkdir()
+    model_file = model_dir / "lgb_csi300.pkl"
+    model_file.write_bytes(b"model")
+
+    active_model = SimpleNamespace(model_path=r"Z:\missing\lgb_csi300.pkl")
+
+    resolved = _resolve_qlib_model_path(
+        active_model,
+        {"model_path": str(model_dir)},
+    )
+
+    assert resolved == model_file
+
+
+def test_extract_model_filename_handles_windows_paths_on_any_platform():
+    assert (
+        _extract_model_filename(r"D:\githv\agomSAAF\data\qlib\models\model.pkl")
+        == "model.pkl"
+    )
+
+
+def test_qlib_compat_patch_overrides_features_disk_cache_probe():
+    source = inspect.getsource(_install_qlib_pandas_compat)
+
+    assert "def safe_features" in source
+    assert "qlib_data.D.features = safe_features" in source
+    assert "DatasetD.dataset" in source
+    assert "n_jobs=1" in source
+    assert "C.kernels = 1" in source
+    assert 'C.joblib_backend = "threading"' in source
 
 
 @pytest.mark.django_db

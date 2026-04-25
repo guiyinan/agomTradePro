@@ -17,8 +17,9 @@ kombu
 # AI / ML
 openai>=1.0
 
-# Microsoft pyqlib (installed separately in Dockerfile for Linux compatibility)
-# pyqlib>=0.9.0  -- use the official pyqlib package, install during docker build
+# Microsoft Qlib is installed separately in Dockerfile for Linux compatibility.
+# Important: the PyPI distribution is `pyqlib`; `qlib` is a different package.
+# pyqlib==0.9.7
 
 # Data processing
 pandas>=2.0

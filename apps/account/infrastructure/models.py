@@ -1584,12 +1584,20 @@ class SystemSettingsModel(models.Model):
     # ========== Qlib 配置获取方法 ==========
     def get_qlib_provider_uri(self) -> str:
         """获取 Qlib 数据目录，如果数据库未配置则回退到 settings.QLIB_SETTINGS"""
-        if self.qlib_provider_uri:
-            return self.qlib_provider_uri
-        # 回退到 settings
         from django.conf import settings
+        from pathlib import Path
 
-        return settings.QLIB_SETTINGS.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+        default_uri = settings.QLIB_SETTINGS.get("provider_uri", "~/.qlib/qlib_data/cn_data")
+        if self.qlib_provider_uri:
+            configured_path = Path(self.qlib_provider_uri).expanduser()
+            if configured_path.exists():
+                return self.qlib_provider_uri
+            default_path = Path(default_uri).expanduser()
+            if default_path.exists():
+                return str(default_path)
+            return self.qlib_provider_uri
+
+        return default_uri
 
     def get_qlib_region(self) -> str:
         """获取 Qlib 区域配置"""
@@ -1601,11 +1609,20 @@ class SystemSettingsModel(models.Model):
 
     def get_qlib_model_path(self) -> str:
         """获取 Qlib 模型目录"""
-        if self.qlib_model_path:
-            return self.qlib_model_path
         from django.conf import settings
+        from pathlib import Path
 
-        return settings.QLIB_SETTINGS.get("model_path", "/models/qlib")
+        default_path = settings.QLIB_SETTINGS.get("model_path", "/models/qlib")
+        if self.qlib_model_path:
+            configured_path = Path(self.qlib_model_path).expanduser()
+            if configured_path.exists():
+                return self.qlib_model_path
+            fallback_path = Path(default_path).expanduser()
+            if fallback_path.exists():
+                return str(fallback_path)
+            return self.qlib_model_path
+
+        return default_path
 
     def is_qlib_configured(self) -> bool:
         """检查 Qlib 是否已配置且数据目录存在"""
