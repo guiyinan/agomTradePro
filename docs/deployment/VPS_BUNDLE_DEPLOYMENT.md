@@ -72,6 +72,7 @@ What this script does:
    - Do not install `qlib`; that is a different package and does not provide `qlib.data`.
    - The production Dockerfile verifies `metadata.distribution("pyqlib")` and `import qlib.data` during build.
    - Daily scoped Alpha inference refreshes Qlib data for the union of all active portfolio scopes before queueing per-portfolio predictions. Use `portfolio_limit=0` to cover every active portfolio.
+   - The production Celery worker must consume `celery,qlib_infer,qlib_train`; Qlib prediction tasks are routed to `qlib_infer`.
 3. Pulls dependency images (`redis`, `caddy`, `rsshub`).
 4. Saves images to tar files.
 5. Optionally copies local `db.sqlite3` to `backups/db.sqlite3` (default: No).

@@ -28,3 +28,10 @@ def test_mirror_dockerfile_installs_pyqlib_distribution() -> None:
 
 def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:
     assert (REPO_ROOT / ".cache" / "pip-wheels" / "linux-py311" / ".keep").exists()
+
+
+def test_vps_compose_worker_consumes_qlib_queues() -> None:
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+
+    assert "CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train" in compose
+    assert "healthcheck:\n      disable: true" in compose
