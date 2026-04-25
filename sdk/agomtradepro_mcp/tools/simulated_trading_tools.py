@@ -335,6 +335,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         account_id: int,
         strategy_id: int | None = None,
         inspection_date: str | None = None,
+        auto_create_proposal: bool = False,
     ) -> dict[str, Any]:
         """
         执行指定账户的日更巡检并落库。
@@ -346,6 +347,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
                 account_id=account_id,
                 strategy_id=strategy_id,
                 inspection_date=parsed_date,
+                auto_create_proposal=auto_create_proposal,
             )
         except Exception as exc:
             return {
@@ -353,6 +355,7 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
                 "account_id": account_id,
                 "strategy_id": strategy_id,
                 "inspection_date": inspection_date,
+                "auto_create_proposal": auto_create_proposal,
                 "error": str(exc),
             }
 

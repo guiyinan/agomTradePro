@@ -64,13 +64,13 @@
 ## SDK
 
 `sdk/agomtradepro/modules/simulated_trading.py` 新增：
-- `run_daily_inspection(account_id, strategy_id=None, inspection_date=None)`
+- `run_daily_inspection(account_id, strategy_id=None, inspection_date=None, auto_create_proposal=False)`
 - `list_daily_inspections(account_id, limit=20, inspection_date=None)`
 
 ## MCP Tools
 
 `sdk/agomtradepro_mcp/tools/simulated_trading_tools.py` 新增：
-- `run_simulated_daily_inspection(account_id, strategy_id=None, inspection_date=None)`
+- `run_simulated_daily_inspection(account_id, strategy_id=None, inspection_date=None, auto_create_proposal=False)`
 - `list_simulated_daily_inspections(account_id, limit=20, inspection_date=None)`
 
 ## 说明

@@ -183,11 +183,17 @@ class _FakeClient:
                 "account_id": account_id,
                 "asset_code": asset_code,
             },
-            run_daily_inspection=lambda account_id, strategy_id=None, inspection_date=None: {
-                "account_id": account_id,
-                "strategy_id": strategy_id,
-                "inspection_date": inspection_date,
-            },
+            run_daily_inspection=(
+                lambda account_id,
+                strategy_id=None,
+                inspection_date=None,
+                auto_create_proposal=False: {
+                    "account_id": account_id,
+                    "strategy_id": strategy_id,
+                    "inspection_date": inspection_date,
+                    "auto_create_proposal": auto_create_proposal,
+                }
+            ),
             list_daily_inspections=lambda account_id, limit=20, inspection_date=None: {
                 "account_id": account_id,
                 "limit": limit,
@@ -425,7 +431,12 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
         (
             "run_simulated_daily_inspection",
-            {"account_id": 7, "strategy_id": 2, "inspection_date": "2026-03-21"},
+            {
+                "account_id": 7,
+                "strategy_id": 2,
+                "inspection_date": "2026-03-21",
+                "auto_create_proposal": True,
+            },
         ),
         (
             "list_simulated_daily_inspections",

@@ -170,6 +170,8 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 
 ## Recent MCP-Facing Changes
 
+- `run_simulated_daily_inspection(...)` now accepts `auto_create_proposal`; when enabled,
+  the API response includes stable `proposal_created` / `proposal_id` fields.
 - Dashboard Alpha 工具现在统一支持 `pool_mode`：`strict_valuation`、`market`、`price_covered`
 - `get_dashboard_alpha_candidates(...)` / `trigger_dashboard_alpha_refresh(...)` 返回共享 `contract`，用于区分真实推荐、异步刷新和兜底结果
 - `decision_workflow_get_funnel_context(...)` 会附带顶层 `step3_status` / `step3_signal_date` 等摘要字段，便于 Agent 直接消费

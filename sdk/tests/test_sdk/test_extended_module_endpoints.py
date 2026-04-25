@@ -555,6 +555,16 @@ def client():
             "/api/simulated-trading/accounts/batch-delete/",
             {"json": {"account_ids": [5, 6]}},
         ),
+        (
+            lambda c: c.simulated_trading.run_daily_inspection(
+                5,
+                strategy_id=12,
+                auto_create_proposal=True,
+            ),
+            "POST",
+            "/api/simulated-trading/accounts/5/inspections/run/",
+            {"json": {"strategy_id": 12, "auto_create_proposal": True}},
+        ),
     ],
 )
 def test_extended_module_endpoint_contract(client, case):

@@ -351,6 +351,7 @@ class SimulatedTradingModule(BaseModule):
         account_id: int,
         strategy_id: Optional[int] = None,
         inspection_date: Optional[date] = None,
+        auto_create_proposal: bool = False,
     ) -> dict[str, Any]:
         """
         手动执行账户日更巡检并落库。
@@ -360,6 +361,8 @@ class SimulatedTradingModule(BaseModule):
             data["strategy_id"] = strategy_id
         if inspection_date is not None:
             data["inspection_date"] = inspection_date.isoformat()
+        if auto_create_proposal:
+            data["auto_create_proposal"] = auto_create_proposal
         return self._post(f"accounts/{account_id}/inspections/run/", json=data)
 
     def list_daily_inspections(
