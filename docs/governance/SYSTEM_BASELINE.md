@@ -26,7 +26,7 @@
 | **发布状态** | 生产就绪 | `docs/development/system-review-report.md` |
 | **最后更新** | 2026-04-21 | Git log |
 | **业务模块** | 35个 | `apps/` 目录扫描 |
-| **MCP 工具** | 303个 | `sdk/agomtradepro_mcp.server` 本地注册 |
+| **MCP 工具** | 309个 | `sdk/agomtradepro_mcp.server` 本地注册 |
 | **测试规模** | 5,212项 | `pytest --collect-only -q` |
 | **代码行数** | 50,000+ | 代码统计 |
 | **API 路径** | 515个 | `docs/testing/api/openapi.json` |

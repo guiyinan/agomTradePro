@@ -1,6 +1,6 @@
 {
   "version": "2026-04-24.v1",
-  "mcp_tool_count": 303,
+  "mcp_tool_count": 309,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
