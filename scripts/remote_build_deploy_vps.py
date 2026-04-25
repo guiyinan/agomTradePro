@@ -184,7 +184,16 @@ def _make_source_bundle(
         "ENV",
         "agomtradepro",
     }
-    skip_suffixes = {".pyc", ".pyo", ".tmp", ".temp", ".tar.gz"}
+    skip_suffixes = {
+        ".pyc",
+        ".pyo",
+        ".tmp",
+        ".temp",
+        ".tar.gz",
+        ".sqlite3-journal",
+        ".sqlite3-shm",
+        ".sqlite3-wal",
+    }
     wheelhouse_root = project_root / ".cache" / "pip-wheels" / "linux-py311"
 
     with tarfile.open(output_path, "w:gz") as tar:
@@ -213,7 +222,10 @@ def _make_source_bundle(
                 continue
 
             arcname = posixpath.join(top_name, rel.as_posix())
-            tar.add(path, arcname=arcname, recursive=False)
+            try:
+                tar.add(path, arcname=arcname, recursive=False)
+            except FileNotFoundError:
+                continue
 
         if include_sqlite and sqlite_file is not None:
             db_arcname = posixpath.join(top_name, "backups", "db.sqlite3")
