@@ -1,0 +1,8 @@
+interface:
+  display_name: "AgomTradePro VPS Deploy"
+  short_description: "Package and deploy AgomTradePro to the VPS"
+  brand_color: "#2563EB"
+  default_prompt: "Use $vps-deploy-agomtradepro to package and deploy the latest AgomTradePro Docker stack to the VPS."
+
+policy:
+  allow_implicit_invocation: true
