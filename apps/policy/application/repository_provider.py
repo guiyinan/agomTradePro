@@ -14,7 +14,7 @@ from apps.policy.infrastructure.interface_repositories import (
     PolicyWorkbenchInterfaceRepository,
 )
 from apps.policy.infrastructure.notification_service import NotificationServiceFactory
-from apps.policy.infrastructure.repositories import (
+from apps.policy.infrastructure.providers import (
     HedgePositionRepository,
     RSSRepository,
     WorkbenchRepository,

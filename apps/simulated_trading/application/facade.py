@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import List, Optional
 
-from apps.simulated_trading.infrastructure.repositories import (
+from apps.simulated_trading.infrastructure.providers import (
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
 )

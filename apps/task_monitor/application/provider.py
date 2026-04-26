@@ -8,7 +8,7 @@ from core.celery import app as celery_app
 def get_task_record_repository():
     """Return the default task record repository."""
 
-    from apps.task_monitor.infrastructure.repositories import DjangoTaskRecordRepository
+    from apps.task_monitor.infrastructure.providers import DjangoTaskRecordRepository
 
     return DjangoTaskRecordRepository()
 
@@ -16,6 +16,6 @@ def get_task_record_repository():
 def get_celery_health_checker():
     """Return the default Celery health checker."""
 
-    from apps.task_monitor.infrastructure.repositories import CeleryHealthChecker
+    from apps.task_monitor.infrastructure.providers import CeleryHealthChecker
 
     return CeleryHealthChecker(celery_app=celery_app)

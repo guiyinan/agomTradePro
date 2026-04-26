@@ -209,3 +209,78 @@ class ExchangeRateModel(models.Model):
 
     def __str__(self):
         return f"{self.from_currency}/{self.to_currency} = {self.rate} ({self.effective_date})"
+
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class IndicatorConfigModel(models.Model):
+    """宏观指标配置表"""
+
+    CATEGORY_CHOICES = [
+        ('growth', '增长指标'),
+        ('inflation', '通胀指标'),
+        ('monetary', '货币指标'),
+        ('interest', '利率指标'),
+        ('other', '其他'),
+    ]
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        primary_key=True,
+        verbose_name="指标代码"
+    )
+    name = models.CharField(max_length=100, verbose_name="指标名称")
+    name_en = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="英文名称"
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        verbose_name="指标分类"
+    )
+    unit = models.CharField(max_length=10, verbose_name="单位")
+
+    # 可配置的阈值
+    threshold_bullish = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="看涨阈值"
+    )
+    threshold_bearish = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="看跌阈值"
+    )
+
+    # 数据源配置
+    data_source = models.CharField(
+        max_length=20,
+        default='akshare',
+        verbose_name="数据源"
+    )
+    fetch_frequency = models.CharField(
+        max_length=10,
+        default='M',
+        verbose_name="采集频率",
+        help_text="D=日, W=周, M=月, Q=季, Y=年"
+    )
+    publication_lag_days = models.IntegerField(
+        default=0,
+        verbose_name="发布延迟天数"
+    )
+
+    description = models.TextField(blank=True, verbose_name="描述")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'indicator_config'
+        verbose_name = "宏观指标配置"
+        verbose_name_plural = "宏观指标配置"
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+

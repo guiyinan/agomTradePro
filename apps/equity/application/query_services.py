@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.equity.infrastructure.repositories import DjangoValuationRepairRepository
+from apps.equity.infrastructure.providers import DjangoValuationRepairRepository
 
 
 def get_valuation_repair_snapshot_map(stock_codes: list[str]) -> dict[str, dict[str, Any]]:

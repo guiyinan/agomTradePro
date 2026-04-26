@@ -27,7 +27,7 @@ from ..infrastructure.feature_providers import (
     create_signal_provider,
     create_valuation_provider,
 )
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     CooldownRepository,
     DecisionModelParamConfigRepository,
     ExecutionApprovalRequestRepository,
@@ -500,7 +500,7 @@ def _cancel_recommendation_sources(recommendation) -> None:
 
     try:
         from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.alpha_trigger.infrastructure.repositories import (
+        from apps.alpha_trigger.infrastructure.providers import (
             get_candidate_repository,
             get_trigger_repository,
         )

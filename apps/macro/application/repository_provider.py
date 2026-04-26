@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.macro.infrastructure.repositories import (
+from apps.macro.infrastructure.providers import (
     DjangoMacroRepository,
     MacroIndicatorReadRepository,
 )

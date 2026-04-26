@@ -11,7 +11,7 @@ from typing import Any, Optional
 
 import requests
 
-from apps.terminal.infrastructure.repositories import get_terminal_runtime_settings_repository
+from apps.terminal.infrastructure.providers import get_terminal_runtime_settings_repository
 from ..domain.entities import TerminalCommand
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class CommandExecutionService:
         from apps.prompt.application.trace_logging import AgentExecutionLogger
         from apps.prompt.infrastructure.adapters.macro_adapter import MacroDataAdapter
         from apps.prompt.infrastructure.adapters.regime_adapter import RegimeDataAdapter
-        from apps.prompt.infrastructure.repositories import DjangoExecutionLogRepository
+        from apps.prompt.infrastructure.providers import DjangoExecutionLogRepository
 
         macro_adapter = MacroDataAdapter()
         regime_adapter = RegimeDataAdapter()

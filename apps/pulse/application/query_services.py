@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from apps.pulse.infrastructure.repositories import get_navigator_asset_config_repository
+from apps.pulse.infrastructure.providers import get_navigator_asset_config_repository
 
 
 def list_active_navigator_asset_config_payloads() -> list[dict[str, Any]]:
@@ -13,7 +13,7 @@ def list_active_navigator_asset_config_payloads() -> list[dict[str, Any]]:
 def list_pulse_history_payloads(months: int = 6) -> list[dict[str, Any]]:
     """Return serialized pulse history payloads for interface consumers."""
 
-    from apps.pulse.infrastructure.repositories import PulseRepository
+    from apps.pulse.infrastructure.providers import PulseRepository
 
     logs = PulseRepository().get_history(months=months)
     return [

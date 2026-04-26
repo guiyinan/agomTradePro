@@ -1,6 +1,6 @@
 """Repository providers for agent runtime application services."""
 
-from apps.agent_runtime.infrastructure.repositories import (
+from apps.agent_runtime.infrastructure.providers import (
     AgentOperatorRepository,
     AgentRuntimeUserRepository,
     AgentTimelineRepository,

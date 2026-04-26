@@ -27,6 +27,12 @@ def get_portfolio_model():
     return PortfolioModel
 
 
+def get_account_portfolio_model():
+    """Return the legacy account portfolio model class."""
+
+    return get_portfolio_model()
+
+
 def get_account_position_model():
     """Return the legacy account position model class."""
 

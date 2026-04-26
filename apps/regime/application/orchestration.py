@@ -256,7 +256,7 @@ def calculate_regime_after_sync(
             CalculateRegimeV2UseCase,
         )
         from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+        from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
         # 检查前一步是否成功
         if sync_result and not sync_result.get('success', True):
@@ -343,7 +343,7 @@ def notify_regime_change_after_calculation(
         dict: 通知发送结果
     """
     try:
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+        from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
         if not regime_result or regime_result.get('status') != 'success':
             logger.info(

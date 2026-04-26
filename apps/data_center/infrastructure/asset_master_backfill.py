@@ -16,6 +16,10 @@ from apps.data_center.domain.entities import AssetAlias, AssetMaster
 from apps.data_center.domain.enums import AssetType, MarketExchange
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.repositories import AssetRepository
+from core.integration.data_center_business_sources import (
+    collect_asset_master_candidate_codes,
+    load_asset_master_local_rows,
+)
 
 
 @dataclass(frozen=True)
@@ -98,60 +102,22 @@ class AssetMasterBackfillService:
         return self.backfill_codes(self._collect_all_candidate_codes(), include_remote=include_remote)
 
     def _collect_all_candidate_codes(self) -> list[str]:
-        from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-        from apps.equity.infrastructure.models import StockInfoModel
-        from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
-        from apps.rotation.infrastructure.models import AssetClassModel
-
-        codes: list[str] = []
-        codes.extend(
-            StockInfoModel._default_manager.exclude(stock_code__isnull=True).values_list(
-                "stock_code", flat=True
-            )
-        )
-        codes.extend(
-            FundInfoModel._default_manager.exclude(fund_code__isnull=True).values_list(
-                "fund_code", flat=True
-            )
-        )
-        codes.extend(
-            FundHoldingModel._default_manager.exclude(stock_code__isnull=True).values_list(
-                "stock_code", flat=True
-            )
-        )
-        codes.extend(
-            AssetClassModel._default_manager.filter(is_active=True).exclude(code__isnull=True).values_list(
-                "code", flat=True
-            )
-        )
-        codes.extend(
-            AssetPoolEntry._default_manager.exclude(asset_code__isnull=True).values_list(
-                "asset_code", flat=True
-            )
-        )
-        return self._normalize_requested_codes(codes)
+        return self._normalize_requested_codes(collect_asset_master_candidate_codes())
 
     def _iter_local_records(self, requested_codes: list[str]) -> list[_AssetRecord]:
-        from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-        from apps.equity.infrastructure.models import StockInfoModel
-        from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
-        from apps.rotation.infrastructure.models import AssetClassModel
-
         code_aliases = self._build_code_aliases(requested_codes)
         lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
         base_codes = sorted({code.split(".", 1)[0] for code in lookup_codes})
+        source_rows = load_asset_master_local_rows(
+            lookup_codes=lookup_codes,
+            base_codes=base_codes,
+        )
 
         records: list[_AssetRecord] = []
         seen_holding_codes: set[str] = set()
         seen_pool_codes: set[str] = set()
 
-        stock_rows = StockInfoModel._default_manager.filter(stock_code__in=lookup_codes).values(
-            "stock_code",
-            "name",
-            "sector",
-            "market",
-        )
-        for row in stock_rows:
+        for row in source_rows["stock_rows"]:
             raw_code = str(row["stock_code"] or "").strip().upper()
             canonical_code = self._canonicalize_legacy_code(raw_code)
             name = str(row.get("name") or "").strip()
@@ -173,13 +139,7 @@ class AssetMasterBackfillService:
                 )
             )
 
-        fund_rows = FundInfoModel._default_manager.filter(fund_code__in=base_codes).values(
-            "fund_code",
-            "fund_name",
-            "fund_type",
-            "investment_style",
-        )
-        for row in fund_rows:
+        for row in source_rows["fund_rows"]:
             base_code = str(row["fund_code"] or "").strip().upper()
             name = str(row.get("fund_name") or "").strip()
             if not base_code or not name:
@@ -202,12 +162,7 @@ class AssetMasterBackfillService:
                 )
             )
 
-        holding_rows = (
-            FundHoldingModel._default_manager.filter(stock_code__in=lookup_codes)
-            .order_by("stock_code", "-report_date")
-            .values("stock_code", "stock_name")
-        )
-        for row in holding_rows:
+        for row in source_rows["holding_rows"]:
             candidate_code = str(row["stock_code"] or "").strip().upper()
             name = str(row.get("stock_name") or "").strip()
             if not candidate_code or not name or candidate_code in seen_holding_codes:
@@ -227,13 +182,7 @@ class AssetMasterBackfillService:
                 )
             )
 
-        rotation_rows = AssetClassModel._default_manager.filter(code__in=base_codes, is_active=True).values(
-            "code",
-            "name",
-            "category",
-            "currency",
-        )
-        for row in rotation_rows:
+        for row in source_rows["rotation_rows"]:
             base_code = str(row["code"] or "").strip().upper()
             name = str(row.get("name") or "").strip()
             if not base_code or not name:
@@ -254,12 +203,7 @@ class AssetMasterBackfillService:
                 )
             )
 
-        pool_rows = (
-            AssetPoolEntry._default_manager.filter(asset_code__in=lookup_codes)
-            .order_by("asset_code", "-entry_date")
-            .values("asset_code", "asset_name", "asset_category")
-        )
-        for row in pool_rows:
+        for row in source_rows["pool_rows"]:
             candidate_code = str(row["asset_code"] or "").strip().upper()
             if not candidate_code or candidate_code in seen_pool_codes:
                 continue

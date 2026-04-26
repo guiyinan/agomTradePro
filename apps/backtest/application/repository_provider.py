@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
+from apps.backtest.infrastructure.providers import DjangoBacktestRepository
 
 
 def get_backtest_repository() -> DjangoBacktestRepository:

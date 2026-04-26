@@ -4,11 +4,11 @@ from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.account.infrastructure.models import SystemSettingsModel
 from apps.alpha.infrastructure.qlib_builder import (
     TushareQlibBuilder,
     inspect_latest_trade_date,
 )
+from core.integration.runtime_settings import get_runtime_qlib_config
 
 
 def _build_qlib_blocker_message(
@@ -110,7 +110,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+        runtime_config = get_runtime_qlib_config()
         provider_uri = options["provider_uri"] or runtime_config.get(
             "provider_uri",
             "~/.qlib/qlib_data/cn_data",

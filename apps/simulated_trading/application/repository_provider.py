@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.simulated_trading.infrastructure.repositories import (
+from apps.simulated_trading.infrastructure.providers import (
     DjangoFeeConfigRepository,
     DjangoInspectionRepository,
     DjangoPositionRepository,

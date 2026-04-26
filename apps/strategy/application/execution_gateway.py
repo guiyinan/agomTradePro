@@ -177,7 +177,7 @@ class StrategyExecutionGateway:
                 DjangoRegimeProvider,
                 DjangoSignalProvider,
             )
-            from apps.strategy.infrastructure.repositories import (
+            from apps.strategy.infrastructure.providers import (
                 DjangoStrategyExecutionLogRepository,
                 DjangoStrategyRepository,
             )
@@ -194,7 +194,7 @@ class StrategyExecutionGateway:
 
     def _get_query_repository(self) -> StrategyGatewayQueryProtocol:
         if self._query_repository is None:
-            from apps.strategy.infrastructure.repositories import DjangoStrategyGatewayRepository
+            from apps.strategy.infrastructure.providers import DjangoStrategyGatewayRepository
 
             self._query_repository = DjangoStrategyGatewayRepository()
         return self._query_repository

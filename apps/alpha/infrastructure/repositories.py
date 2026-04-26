@@ -6,10 +6,14 @@ import logging
 from datetime import date
 from typing import Any
 
-from apps.account.infrastructure.models import PortfolioModel, PositionModel
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
 from apps.equity.infrastructure.models import StockInfoModel, ValuationModel
+from core.integration.account_ledger import (
+    get_account_portfolio_model,
+    get_account_position_model,
+)
+from core.integration.runtime_settings import get_runtime_alpha_pool_mode
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +23,9 @@ class AlphaPoolDataRepository:
 
     def list_active_portfolio_refs(self, *, limit: int | None = 50) -> list[dict[str, Any]]:
         """Return active portfolio identifiers for scheduled scoped Alpha inference."""
+        portfolio_model = get_account_portfolio_model()
         queryset = (
-            PortfolioModel._default_manager.filter(is_active=True)
+            portfolio_model._default_manager.filter(is_active=True)
             .exclude(user_id=None)
             .order_by("-updated_at", "-created_at")
             .values("id", "user_id", "name")
@@ -36,7 +41,8 @@ class AlphaPoolDataRepository:
         ]
 
     def resolve_portfolio(self, *, user_id: int, portfolio_id: int | None) -> Any | None:
-        queryset = PortfolioModel._default_manager.filter(user_id=user_id)
+        portfolio_model = get_account_portfolio_model()
+        queryset = portfolio_model._default_manager.filter(user_id=user_id)
         if portfolio_id is not None:
             return queryset.filter(id=portfolio_id).first()
         portfolio = queryset.filter(is_active=True).order_by("-updated_at", "-created_at").first()
@@ -48,8 +54,9 @@ class AlphaPoolDataRepository:
         if portfolio_id is None:
             return default_market
 
+        position_model = get_account_position_model()
         position_codes = list(
-            PositionModel._default_manager.filter(
+            position_model._default_manager.filter(
                 portfolio_id=portfolio_id, is_closed=False
             ).values_list("asset_code", flat=True)[:20]
         )
@@ -61,9 +68,7 @@ class AlphaPoolDataRepository:
 
     def resolve_pool_mode(self, *, default_mode: str) -> str:
         try:
-            from apps.account.infrastructure.models import SystemSettingsModel
-
-            return SystemSettingsModel.get_runtime_alpha_pool_mode() or default_mode
+            return get_runtime_alpha_pool_mode(default_mode) or default_mode
         except Exception as exc:
             logger.warning("AlphaPoolDataRepository: failed to resolve pool mode: %s", exc)
             return default_mode

@@ -368,3 +368,41 @@ class FundPerformanceModel(models.Model):
 
     def __str__(self):
         return f"{self.fund_code} - {self.start_date} ~ {self.end_date}"
+
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class FundTypePreferenceConfigModel(models.Model):
+    """基金类型偏好配置表"""
+
+    regime = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="Regime",
+        help_text="Recovery/Overheat/Stagflation/Deflation"
+    )
+    fund_type = models.CharField(max_length=50, verbose_name="基金类型")
+    style = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="基金风格",
+        help_text="如：成长、价值、平衡、商品等"
+    )
+
+    # 元数据
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    priority = models.IntegerField(default=0, verbose_name="优先级")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'config_fund_type_preference'
+        verbose_name = '基金类型偏好配置'
+        verbose_name_plural = '基金类型偏好配置'
+        unique_together = [['regime', 'fund_type', 'style']]
+        indexes = [
+            models.Index(fields=['regime', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.regime} - {self.fund_type} ({self.style})"
+

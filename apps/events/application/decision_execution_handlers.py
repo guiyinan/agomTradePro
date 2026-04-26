@@ -59,7 +59,7 @@ class DecisionApprovedHandler(EventHandler):
         self.event_bus = event_bus
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.repositories import get_alpha_candidate_repository
+            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._alpha_candidate_repo = alpha_candidate_repo
@@ -168,7 +168,7 @@ class DecisionRejectedHandler(EventHandler):
         self.event_bus = event_bus
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.repositories import get_alpha_candidate_repository
+            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._alpha_candidate_repo = alpha_candidate_repo
@@ -275,11 +275,11 @@ class DecisionExecutedHandler(EventHandler):
         self.event_bus = event_bus
 
         if decision_request_repo is None:
-            from ..infrastructure.repositories import get_decision_request_repository
+            from ..infrastructure.providers import get_decision_request_repository
             decision_request_repo = get_decision_request_repository()
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.repositories import get_alpha_candidate_repository
+            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._decision_request_repo = decision_request_repo
@@ -401,11 +401,11 @@ class DecisionExecutionFailedHandler(EventHandler):
         self.event_bus = event_bus
 
         if decision_request_repo is None:
-            from ..infrastructure.repositories import get_decision_request_repository
+            from ..infrastructure.providers import get_decision_request_repository
             decision_request_repo = get_decision_request_repository()
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.repositories import get_alpha_candidate_repository
+            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._decision_request_repo = decision_request_repo

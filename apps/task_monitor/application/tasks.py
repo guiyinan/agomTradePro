@@ -26,7 +26,7 @@ from apps.task_monitor.domain.entities import (
     TaskPriority,
     TaskStatus,
 )
-from apps.task_monitor.infrastructure.repositories import DjangoTaskRecordRepository
+from apps.task_monitor.infrastructure.providers import DjangoTaskRecordRepository
 from shared.config.secrets import get_secrets
 from shared.infrastructure.alert_service import create_default_alert_service
 

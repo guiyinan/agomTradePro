@@ -1,3 +1,3 @@
-from django.db import models
+"""Filter models re-export."""
 
-# Create your models here.
+from apps.filter.infrastructure.models import *  # noqa: F401,F403

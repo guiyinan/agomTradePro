@@ -103,7 +103,7 @@ class CalculatePulseUseCase:
             )
 
             # 5. 持久化
-            from apps.pulse.infrastructure.repositories import PulseRepository
+            from apps.pulse.infrastructure.providers import PulseRepository
 
             repo = PulseRepository()
             repo.save_snapshot(snapshot)
@@ -134,7 +134,7 @@ class GetLatestPulseUseCase:
         """获取最新快照，并在需要时触发按需重算。"""
         target_date = as_of_date or date.today()
         try:
-            from apps.pulse.infrastructure.repositories import PulseRepository
+            from apps.pulse.infrastructure.providers import PulseRepository
 
             repo = PulseRepository()
             snapshot = repo.get_latest_snapshot()

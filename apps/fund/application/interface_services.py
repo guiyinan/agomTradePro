@@ -16,11 +16,11 @@ from apps.fund.application.use_cases import (
     ScreenFundsRequest,
     ScreenFundsUseCase,
 )
-from apps.fund.infrastructure.repositories import DjangoFundAssetRepository, DjangoFundRepository
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from apps.fund.infrastructure.providers import DjangoFundAssetRepository, DjangoFundRepository
+from apps.policy.infrastructure.providers import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.sentiment.infrastructure.providers import SentimentIndexRepository
+from apps.signal.infrastructure.providers import DjangoSignalRepository
 
 
 def build_dashboard_context() -> dict[str, Any]:

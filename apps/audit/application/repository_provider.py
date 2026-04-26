@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
+from apps.audit.infrastructure.providers import DjangoAuditRepository
 
 
 def get_audit_repository() -> DjangoAuditRepository:

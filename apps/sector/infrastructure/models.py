@@ -238,3 +238,39 @@ class SectorRelativeStrengthModel(models.Model):
 
     def __str__(self):
         return f"{self.sector_code} - {self.trade_date}"
+
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class SectorPreferenceConfigModel(models.Model):
+    """板块偏好配置表"""
+
+    regime = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="Regime",
+        help_text="Recovery/Overheat/Stagflation/Deflation"
+    )
+    sector_name = models.CharField(max_length=50, verbose_name="板块名称")
+    weight = models.FloatField(
+        default=0.5,
+        verbose_name="权重（0.0-1.0）",
+        help_text="1.0 表示最强偏好，0.0 表示无偏好"
+    )
+
+    # 元数据
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'config_sector_preference'
+        verbose_name = '板块偏好配置'
+        verbose_name_plural = '板块偏好配置'
+        unique_together = [['regime', 'sector_name']]
+        indexes = [
+            models.Index(fields=['regime', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.regime} - {self.sector_name} (权重: {self.weight})"
+

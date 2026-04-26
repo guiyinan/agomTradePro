@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 
 from apps.simulated_trading.application.ports import DailyNetValueRepositoryProtocol
 from apps.simulated_trading.domain.entities import SimulatedAccount
-from apps.simulated_trading.infrastructure.repositories import (
+from apps.simulated_trading.infrastructure.providers import (
     DjangoDailyNetValueRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,

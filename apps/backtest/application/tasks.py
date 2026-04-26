@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig, PITDataConfig
 from ..domain.services import BacktestEngine, PITDataProcessor
-from ..infrastructure.repositories import DjangoBacktestRepository
+from ..infrastructure.providers import DjangoBacktestRepository
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ def run_backtest_task(
 
             实际应用中应该从数据库查询或调用 Regime 服务
             """
-            from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+            from apps.regime.infrastructure.providers import DjangoRegimeRepository
             regime_repo = DjangoRegimeRepository()
             snapshot = regime_repo.get_regime_by_date(as_of_date)
             if snapshot:

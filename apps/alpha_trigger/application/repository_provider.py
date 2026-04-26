@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.alpha_trigger.infrastructure.repositories import (
+from apps.alpha_trigger.infrastructure.providers import (
     AlphaCandidateRepository,
     AlphaTriggerRepository,
 )

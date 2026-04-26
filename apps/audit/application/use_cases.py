@@ -24,9 +24,9 @@ from apps.audit.domain.services import (
     ThresholdValidator,
     analyze_attribution,
 )
-from apps.audit.infrastructure.repositories import DjangoAuditRepository
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.audit.infrastructure.providers import DjangoAuditRepository
+from apps.backtest.infrastructure.providers import DjangoBacktestRepository
+from apps.regime.infrastructure.providers import DjangoRegimeRepository
 from core.exceptions import DataValidationError, InsufficientDataError
 
 logger = logging.getLogger(__name__)

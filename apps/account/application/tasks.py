@@ -28,7 +28,7 @@ from apps.account.infrastructure.backup_service import (
     generate_download_token,
     get_backup_email_connection,
 )
-from apps.account.infrastructure.repositories import (
+from apps.account.infrastructure.providers import (
     PortfolioRepository,
     PositionRepository,
     SystemSettingsRepository,

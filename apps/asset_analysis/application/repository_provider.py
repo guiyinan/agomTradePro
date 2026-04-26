@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.asset_analysis.infrastructure.repositories import (
+from apps.asset_analysis.infrastructure.providers import (
     AssetAnalysisLogRepository,
     DjangoAssetPoolQueryRepository,
 )

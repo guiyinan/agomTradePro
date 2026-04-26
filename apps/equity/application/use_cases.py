@@ -105,7 +105,7 @@ class ScreenStocksUseCase:
                 raise ValueError("没有找到股票数据，请先运行数据采集任务")
 
             # 4. 获取评分权重配置
-            from apps.equity.infrastructure.repositories import ScoringWeightConfigRepository
+            from apps.equity.infrastructure.providers import ScoringWeightConfigRepository
             config_repo = ScoringWeightConfigRepository()
             scoring_config = config_repo.get_active_config()
 

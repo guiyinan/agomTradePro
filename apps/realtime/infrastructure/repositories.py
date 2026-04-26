@@ -18,6 +18,7 @@ from django.core.cache import cache
 from django.db import models
 from django.utils import timezone
 
+from core.integration.watchlist_assets import get_active_watchlist_asset_codes
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
 )
@@ -599,14 +600,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
         pool_type='watch' 且 is_active=True 的资产。
         """
         try:
-            from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-
-            codes = AssetPoolEntry._default_manager.filter(
-                pool_type="watch",
-                is_active=True,
-            ).values_list("asset_code", flat=True).distinct()
-
-            result = list(codes)
+            result = get_active_watchlist_asset_codes()
             if result:
                 logger.info("Loaded %d watchlist assets from asset pool", len(result))
             return result

@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 
 from ..domain.entities import FundInfo, FundPerformance, FundScore, FundSectorAllocation
 from ..domain.services import FundPerformanceCalculator, FundScreener, FundStyleAnalyzer
-from ..infrastructure.repositories import DjangoFundRepository
+from ..infrastructure.providers import DjangoFundRepository
 
 
 @dataclass

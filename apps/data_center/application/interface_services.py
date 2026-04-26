@@ -41,7 +41,7 @@ from .use_cases import (
 )
 from ..infrastructure.connection_tester import run_connection_test
 from ..infrastructure.provider_factory import UnifiedProviderFactory
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     AssetRepository,
     CapitalFlowRepository,
     DataProviderSettingsRepository,

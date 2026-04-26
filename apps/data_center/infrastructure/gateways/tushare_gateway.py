@@ -18,6 +18,7 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
+from core.integration.data_center_business_sources import build_tushare_stock_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +76,7 @@ class TushareGateway(GatewayProviderProtocol):
     ) -> list[QuoteSnapshot]:
         """从 Tushare 获取最新日线数据作为"准实时"行情"""
         try:
-            from apps.equity.infrastructure.adapters import TushareStockAdapter
-
-            adapter = TushareStockAdapter()
+            adapter = build_tushare_stock_adapter()
             results: list[QuoteSnapshot] = []
 
             from django.utils import timezone

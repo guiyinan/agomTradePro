@@ -443,8 +443,9 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
 
         # 优先从数据库读取 Qlib 配置
         try:
-            from apps.account.infrastructure.models import SystemSettingsModel
-            qlib_runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+            from core.integration.runtime_settings import get_runtime_qlib_config
+
+            qlib_runtime_config = get_runtime_qlib_config()
             qlib_data_path = qlib_runtime_config.get('provider_uri', '')
             qlib_enabled = qlib_runtime_config.get('enabled', False)
         except Exception:

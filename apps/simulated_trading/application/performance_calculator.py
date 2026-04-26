@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Tuple
 
 from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
-from apps.simulated_trading.infrastructure.repositories import (
+from apps.simulated_trading.infrastructure.providers import (
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,

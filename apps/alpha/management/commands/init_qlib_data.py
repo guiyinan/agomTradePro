@@ -82,9 +82,9 @@ class Command(BaseCommand):
         region = options.get('region')
         provider_uri = options.get('provider_uri')
 
-        from apps.account.infrastructure.models import SystemSettingsModel
+        from core.integration.runtime_settings import get_runtime_qlib_config
 
-        runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+        runtime_config = get_runtime_qlib_config()
         region = region or runtime_config.get('region', 'CN')
         provider_uri = provider_uri or runtime_config.get(
             'provider_uri',

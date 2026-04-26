@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 from django.utils import timezone
 
-from apps.macro.infrastructure.repositories import MacroIndicatorReadRepository
+from apps.macro.infrastructure.providers import MacroIndicatorReadRepository
 from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
 

@@ -7,9 +7,9 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from apps.policy.infrastructure.providers import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.simulated_trading.infrastructure.repositories import (
+from apps.simulated_trading.infrastructure.providers import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,

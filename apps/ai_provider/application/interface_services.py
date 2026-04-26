@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from apps.ai_provider.infrastructure.providers import AIProviderRepository
 
 
 def get_masked_provider_api_key(provider) -> str:

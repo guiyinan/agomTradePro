@@ -89,7 +89,7 @@ class EventRetryManager:
         self.base_delay_minutes = base_delay_minutes
 
         if failed_event_repo is None:
-            from ..infrastructure.repositories import get_failed_event_repository
+            from ..infrastructure.providers import get_failed_event_repository
             failed_event_repo = get_failed_event_repository()
 
         self._repo = failed_event_repo

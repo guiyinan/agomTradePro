@@ -10,7 +10,9 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+from apps.signal.infrastructure.providers import UnifiedSignalRepository
+from core.integration.alpha_scores import fetch_stock_scores
+from core.integration.factor_runtime import build_factor_integration_service
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +24,7 @@ except ImportError:
     ROTATION_AVAILABLE = False
     RotationIntegrationService = None
 
-try:
-    from apps.factor.infrastructure.services import FactorIntegrationService
-    FACTOR_AVAILABLE = True
-except ImportError:
-    FACTOR_AVAILABLE = False
-    FactorIntegrationService = None
+FACTOR_AVAILABLE = True
 
 try:
     from apps.hedge.infrastructure.services import HedgeIntegrationService
@@ -47,7 +44,7 @@ class UnifiedSignalService:
     def __init__(self):
         self.unified_repo = UnifiedSignalRepository()
         self.rotation_service = RotationIntegrationService() if ROTATION_AVAILABLE else None
-        self.factor_service = FactorIntegrationService() if FACTOR_AVAILABLE else None
+        self.factor_service = build_factor_integration_service() if FACTOR_AVAILABLE else None
         self.hedge_service = HedgeIntegrationService() if HEDGE_AVAILABLE else None
         # Alpha service - 延迟导入避免循环依赖
         self._alpha_service = None
@@ -57,8 +54,7 @@ class UnifiedSignalService:
         """获取 Alpha 服务（延迟初始化）"""
         if self._alpha_service is None:
             try:
-                from apps.alpha.application.services import AlphaService
-                self._alpha_service = AlphaService()
+                self._alpha_service = fetch_stock_scores
             except ImportError:
                 logger.warning("Alpha 模块不可用")
                 self._alpha_service = False
@@ -358,10 +354,10 @@ class UnifiedSignalService:
                 return signals
 
             # 获取 Alpha 评分
-            alpha_result = self.alpha_service.get_stock_scores(
+            alpha_result = self.alpha_service(
                 universe_id="csi300",
                 intended_trade_date=calc_date,
-                top_n=10
+                top_n=10,
             )
 
             if not alpha_result.success or not alpha_result.scores:

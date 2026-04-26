@@ -23,7 +23,7 @@ from apps.prompt.application.use_cases import (
     ExecutePromptRequest,
     ExecutePromptUseCase,
 )
-from apps.prompt.infrastructure.repositories import (
+from apps.prompt.infrastructure.providers import (
     DjangoChainRepository,
     DjangoExecutionLogRepository,
     DjangoPromptRepository,

@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from apps.regime.domain.protocols import MacroDataProviderProtocol
-from apps.regime.infrastructure.repositories import get_regime_repository
+from apps.regime.infrastructure.providers import get_regime_repository
 
 
 @dataclass

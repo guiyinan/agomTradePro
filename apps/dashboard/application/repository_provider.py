@@ -1,13 +1,13 @@
 """Repository providers for dashboard application services."""
 
-from apps.account.infrastructure.repositories import (
+from apps.account.infrastructure.providers import (
     AccountRepository,
     PortfolioRepository,
     PositionRepository,
 )
-from apps.dashboard.infrastructure.repositories import DashboardOverviewRepository
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.dashboard.infrastructure.providers import DashboardOverviewRepository
+from apps.regime.infrastructure.providers import DjangoRegimeRepository
+from apps.signal.infrastructure.providers import DjangoSignalRepository
 
 
 def get_account_repository() -> AccountRepository:

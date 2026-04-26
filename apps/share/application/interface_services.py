@@ -9,7 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.share.application.use_cases import ShareSnapshotUseCases
-from apps.share.infrastructure.repositories import ShareInterfaceRepository
+from apps.share.infrastructure.providers import ShareInterfaceRepository
 
 _repo = ShareInterfaceRepository
 

@@ -45,7 +45,7 @@ from ..domain.rules import (
 )
 from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from ..infrastructure.adapters.content_extractor import ContentExtractorError
-from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository, WorkbenchRepository
+from ..infrastructure.providers import DjangoPolicyRepository, RSSRepository, WorkbenchRepository
 
 logger = logging.getLogger(__name__)
 

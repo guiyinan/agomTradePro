@@ -29,7 +29,7 @@ from .use_cases import (
 )
 from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
 from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     DjangoChainRepository,
     DjangoExecutionLogRepository,
     DjangoPromptRepository,

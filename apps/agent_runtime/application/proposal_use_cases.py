@@ -28,7 +28,7 @@ from apps.agent_runtime.domain.guardrails import (
     GuardrailEngine,
     get_guardrail_engine,
 )
-from apps.agent_runtime.infrastructure.repositories import (
+from apps.agent_runtime.infrastructure.providers import (
     AgentProposalRepository,
     AgentTaskRepository,
 )

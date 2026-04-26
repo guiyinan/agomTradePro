@@ -29,7 +29,7 @@ from ..infrastructure.adapters.function_registry import (
 )
 from ..infrastructure.adapters.macro_adapter import FunctionExecutor, MacroDataAdapter
 from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     DjangoChainRepository,
     DjangoExecutionLogRepository,
     DjangoPromptRepository,

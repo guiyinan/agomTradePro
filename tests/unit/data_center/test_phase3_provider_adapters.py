@@ -201,3 +201,45 @@ def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
     assert facts[0].pb == 0.77
     assert facts[0].market_cap == 753.74 * 100_000_000
     assert facts[0].source == "AKShare Public"
+
+
+def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
+    class _FakeAkshare:
+        def stock_financial_analysis_indicator_em(self, symbol, indicator):
+            assert symbol == "001979.SZ"
+            assert indicator == "按报告期"
+            return pd.DataFrame(
+                [
+                    {
+                        "REPORT_DATE": "2025-12-31 00:00:00",
+                        "TOTALOPERATEREVE": 154_728_000_000.0,
+                        "PARENTNETPROFIT": 1_023_784_000.0,
+                        "TOTALOPERATEREVETZ": -13.53,
+                        "PARENTNETPROFITTZ": -74.65,
+                        "ROEJQ": 0.73,
+                        "ZZCJLL": 0.083,
+                        "ZCFZL": 67.5,
+                        "LIABILITY": 564_032_300_000.0,
+                    }
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_financials("001979.SZ", periods=8)
+    by_metric = {fact.metric_code: fact for fact in facts}
+
+    assert by_metric["revenue"].value == 154_728_000_000.0
+    assert by_metric["net_profit"].value == 1_023_784_000.0
+    assert by_metric["revenue_growth"].value == -13.53
+    assert by_metric["net_profit_growth"].value == -74.65
+    assert by_metric["roe"].value == 0.73
+    assert by_metric["roa"].value == 0.083
+    assert by_metric["debt_ratio"].value == 67.5
+    assert by_metric["total_assets"].value == 564_032_300_000.0 / 0.675
+    assert by_metric["equity"].value == by_metric["total_assets"].value - 564_032_300_000.0
+    assert by_metric["revenue"].source == "AKShare Public"

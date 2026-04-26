@@ -14,6 +14,11 @@ from django.utils import timezone
 from core.integration.simulated_trading_facade import (
     get_simulated_trading_facade_bridge,
 )
+from apps.strategy.infrastructure.repositories import (
+    DjangoStrategyExecutionLogRepository,
+    DjangoStrategyRepository,
+    StrategyInterfaceRepository,
+)
 
 logger = logging.getLogger(__name__)
 

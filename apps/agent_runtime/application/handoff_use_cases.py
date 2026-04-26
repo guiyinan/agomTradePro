@@ -17,7 +17,7 @@ from apps.agent_runtime.domain.entities import (
     EventSource,
     TaskStatus,
 )
-from apps.agent_runtime.infrastructure.repositories import (
+from apps.agent_runtime.infrastructure.providers import (
     AgentContextRepository,
     AgentHandoffRepository,
     AgentProposalRepository,

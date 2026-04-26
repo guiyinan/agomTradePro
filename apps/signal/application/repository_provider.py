@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.signal.infrastructure.providers import DjangoSignalRepository
 
 
 def get_signal_repository() -> DjangoSignalRepository:

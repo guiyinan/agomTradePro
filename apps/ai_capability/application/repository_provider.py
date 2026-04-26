@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.ai_capability.infrastructure.repositories import (
+from apps.ai_capability.infrastructure.providers import (
     DjangoCapabilityRepository,
     DjangoSyncLogRepository,
 )

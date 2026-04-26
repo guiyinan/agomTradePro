@@ -18,9 +18,9 @@ from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from apps.policy.infrastructure.providers import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.terminal.infrastructure.repositories import get_terminal_runtime_settings_repository
+from apps.terminal.infrastructure.providers import get_terminal_runtime_settings_repository
 from core.health_checks import is_healthy, run_readiness_checks
 
 from ..application.dtos import (
@@ -46,7 +46,7 @@ from ..domain.services import (
     CapabilityFilter,
     CapabilityRetrievalScorer,
 )
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
     DjangoSyncLogRepository,
@@ -400,7 +400,7 @@ class CapabilityExecutionDispatcher:
     ) -> dict[str, Any]:
         from apps.terminal.application.services import CommandExecutionService
         from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
-        from apps.terminal.infrastructure.repositories import (
+        from apps.terminal.infrastructure.providers import (
             get_terminal_audit_repository,
             get_terminal_command_repository,
         )
@@ -1241,7 +1241,7 @@ class SyncCapabilitiesUseCase:
 
     def _sync_terminal_commands(self) -> list[CapabilityDefinition]:
         """Sync terminal commands."""
-        from apps.terminal.infrastructure.repositories import get_terminal_command_repository
+        from apps.terminal.infrastructure.providers import get_terminal_command_repository
 
         capabilities = []
         commands = get_terminal_command_repository().get_all_active()

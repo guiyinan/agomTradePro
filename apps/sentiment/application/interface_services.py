@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from apps.ai_provider.infrastructure.providers import AIProviderRepository
 from apps.sentiment.application.services import SentimentAnalyzer
-from apps.sentiment.infrastructure.repositories import (
+from apps.sentiment.infrastructure.providers import (
     SentimentAnalysisLogRepository,
     SentimentCacheRepository,
     SentimentIndexRepository,

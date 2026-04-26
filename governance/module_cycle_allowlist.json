@@ -1,9 +1,5 @@
 {
   "version": "2026-04-26.v1",
-  "description": "Accepted bidirectional app-import baseline before cycle remediation reaches zero.",
-  "allowed_bidirectional_pairs": [
-    ["data_center", "equity"],
-    ["data_center", "fund"],
-    ["data_center", "macro"]
-  ]
+  "description": "Accepted bidirectional app-import baseline after cycle remediation reached zero.",
+  "allowed_bidirectional_pairs": []
 }

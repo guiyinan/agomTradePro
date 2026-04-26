@@ -10,7 +10,10 @@ import time
 from datetime import date, timezone
 from typing import Any, Optional
 
-from apps.account.application.config_summary_service import get_account_config_summary_service
+from core.integration.runtime_settings import (
+    get_runtime_alpha_fixed_provider,
+    get_runtime_qlib_config,
+)
 
 from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
@@ -39,13 +42,13 @@ def get_alpha_metrics():
 def _get_runtime_qlib_config() -> dict[str, Any]:
     """Return runtime qlib config through account-owned application service."""
 
-    return get_account_config_summary_service().get_runtime_qlib_config()
+    return get_runtime_qlib_config()
 
 
 def _get_runtime_alpha_fixed_provider() -> str:
     """Return runtime fixed alpha provider through account-owned application service."""
 
-    return get_account_config_summary_service().get_runtime_alpha_fixed_provider()
+    return get_runtime_alpha_fixed_provider()
 
 
 def _derive_result_asof_date(result: AlphaResult) -> str | None:

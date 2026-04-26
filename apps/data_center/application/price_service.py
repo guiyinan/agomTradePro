@@ -6,17 +6,18 @@ This is the canonical price lookup entry for business modules.
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
-from apps.data_center.infrastructure.repositories import (
+from apps.data_center.infrastructure.providers import (
     FundNavRepository as DataCenterFundNavRepository,
 )
-from apps.data_center.infrastructure.repositories import (
+from apps.data_center.infrastructure.providers import (
     PriceBarRepository as DataCenterPriceBarRepository,
 )
-from apps.data_center.infrastructure.repositories import (
+from apps.data_center.infrastructure.providers import (
     QuoteSnapshotRepository as DataCenterQuoteSnapshotRepository,
 )
-from apps.fund.infrastructure.adapters.hybrid_fund_adapter import HybridFundAdapter
+from core.integration.data_center_business_sources import build_hybrid_fund_adapter
 from core.exceptions import DataFetchError
 
 
@@ -35,15 +36,15 @@ class UnifiedPriceService:
     """Unified price lookup over standardized data-center repositories."""
 
     def __init__(self) -> None:
-        self._fund_adapter: HybridFundAdapter | None = None
+        self._fund_adapter: Any | None = None
         self._dc_price_repo = DataCenterPriceBarRepository()
         self._dc_quote_repo = DataCenterQuoteSnapshotRepository()
         self._dc_fund_nav_repo = DataCenterFundNavRepository()
 
     @property
-    def fund_adapter(self) -> HybridFundAdapter:
+    def fund_adapter(self) -> Any:
         if self._fund_adapter is None:
-            self._fund_adapter = HybridFundAdapter()
+            self._fund_adapter = build_hybrid_fund_adapter()
         return self._fund_adapter
 
     def normalize_asset_code(
@@ -332,4 +333,3 @@ class UnifiedPriceService:
         if normalized_code.endswith((".SH", ".SZ", ".BJ")):
             return False
         return asset_type == "fund"
-

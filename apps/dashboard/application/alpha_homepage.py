@@ -11,14 +11,14 @@ from typing import Any
 from django.utils import timezone as django_timezone
 
 from apps.account.application.use_cases import GetSizingContextUseCase
-from apps.account.infrastructure.repositories import PortfolioRepository
+from apps.account.infrastructure.providers import PortfolioRepository
 from apps.alpha.application.pool_resolver import (
     ALPHA_POOL_MODE_PRICE_COVERED,
     PortfolioAlphaPoolResolver,
 )
 from apps.alpha.application.services import AlphaService
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
-from apps.dashboard.infrastructure.repositories import (
+from apps.dashboard.infrastructure.providers import (
     AlphaRecommendationHistoryRepository,
     DashboardAlphaContextRepository,
 )

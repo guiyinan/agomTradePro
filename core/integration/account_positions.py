@@ -28,3 +28,10 @@ def update_or_create_account_position(
         current_price=current_price,
         source=source,
     )
+
+
+def list_portfolio_position_weights(portfolio_id: int) -> list[dict[str, Any]]:
+    """Return portfolio position weights through the legacy account repository."""
+
+    position_repo = PositionRepository()
+    return position_repo.list_portfolio_position_weights(portfolio_id)

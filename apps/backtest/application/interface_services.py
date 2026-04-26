@@ -21,7 +21,7 @@ from .use_cases import (
 
 def _build_regime_reader():
     def get_regime(as_of_date: date):
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+        from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
         snapshot = DjangoRegimeRepository().get_regime_by_date(as_of_date)
         if snapshot:
@@ -86,7 +86,7 @@ def load_backtest_detail_context(backtest_id: int) -> dict[str, Any] | None:
 
 def load_backtest_create_context() -> dict[str, Any]:
     """Build the backtest create page context."""
-    from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+    from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
     regime_repo = DjangoRegimeRepository()
     return {

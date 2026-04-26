@@ -16,7 +16,7 @@ from ..domain.entities import (
     KalmanFilterParams,
     KalmanFilterState,
 )
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     DjangoFilterRepository,
     HPFilterAdapter,
     KalmanFilterAdapter,

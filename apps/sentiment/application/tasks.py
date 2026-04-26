@@ -33,10 +33,10 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
     Returns:
         执行结果字典
     """
-    from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.ai_provider.infrastructure.providers import AIProviderRepository
+    from apps.policy.infrastructure.providers import DjangoPolicyRepository
     from apps.sentiment.application.services import SentimentAnalyzer, SentimentIndexCalculator
-    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+    from apps.sentiment.infrastructure.providers import SentimentIndexRepository
 
     try:
         # 解析日期
@@ -121,8 +121,8 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
     Returns:
         分析结果字典
     """
-    from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.ai_provider.infrastructure.providers import AIProviderRepository
+    from apps.policy.infrastructure.providers import DjangoPolicyRepository
     from apps.sentiment.application.services import SentimentAnalyzer
 
     try:
@@ -177,7 +177,7 @@ def batch_analyze_texts(self, texts: list) -> list:
     Returns:
         分析结果列表
     """
-    from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+    from apps.ai_provider.infrastructure.providers import AIProviderRepository
     from apps.sentiment.application.services import SentimentAnalyzer
 
     ai_provider_repo = AIProviderRepository()
@@ -217,7 +217,7 @@ def check_sentiment_data_freshness(self) -> dict[str, Any]:
 
     检查最近的情绪指数数据是否存在，用于监控。
     """
-    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+    from apps.sentiment.infrastructure.providers import SentimentIndexRepository
 
     try:
         index_repo = SentimentIndexRepository()

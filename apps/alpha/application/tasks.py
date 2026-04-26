@@ -16,7 +16,6 @@ from typing import Any
 from celery import shared_task
 from django.utils import timezone
 
-from apps.account.application.config_summary_service import get_account_config_summary_service
 from apps.alpha.application.repository_provider import (
     get_alpha_score_cache_repository,
     get_qlib_model_registry_repository,
@@ -27,6 +26,8 @@ from apps.alpha.infrastructure.qlib_builder import (
     normalize_qlib_symbol,
     resolve_effective_trade_date,
 )
+from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas
+from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ def _install_qlib_pandas_compat() -> None:
     if getattr(_install_qlib_pandas_compat, "_installed", False):
         return
 
-    import pandas as pd
+    pd = get_pandas()
     from qlib.config import C
     import qlib.data as qlib_data
     import qlib.data.data as qlib_data_module
@@ -222,7 +223,7 @@ def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
 def _get_runtime_qlib_config() -> dict:
     """Return runtime qlib config through account-owned application service."""
 
-    return get_account_config_summary_service().get_runtime_qlib_config()
+    return get_runtime_qlib_config()
 
 
 def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None) -> list[str]:
@@ -821,7 +822,7 @@ def qlib_evaluate_model(
         from django.utils import timezone as tz
 
         from ..infrastructure.cache_evaluation import evaluate_model_from_cache
-        from ..infrastructure.repositories import QlibModelRegistryRepository
+        from ..infrastructure.providers import QlibModelRegistryRepository
 
         logger.info(f"开始评估模型: {model_artifact_hash}")
 
@@ -1023,7 +1024,7 @@ def qlib_daily_scoped_inference(
 ) -> dict:
     """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
-    from apps.alpha.infrastructure.repositories import AlphaPoolDataRepository
+    from apps.alpha.infrastructure.providers import AlphaPoolDataRepository
 
     trade_date = timezone.localdate()
     portfolio_refs = AlphaPoolDataRepository().list_active_portfolio_refs(limit=portfolio_limit)
@@ -1334,7 +1335,7 @@ def _execute_qlib_prediction(
 
     try:
         # 尝试导入 Qlib
-        import pandas as pd
+        pd = get_pandas()
         import qlib
         from qlib.data import D
         from qlib.data.dataset import DatasetH
@@ -1569,7 +1570,7 @@ def _train_qlib_model(
         训练好的模型
     """
     try:
-        import pandas as pd
+        pd = get_pandas()
         import qlib
         from qlib.contrib.data.handler import Alpha158, Alpha360
         from qlib.contrib.model.gbdt import LGBModel
@@ -1710,8 +1711,8 @@ def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> 
         指标字典，包含 ic, icir, rank_ic, rank_icir
     """
     try:
-        import numpy as np
-        import pandas as pd
+        np = get_numpy()
+        pd = get_pandas()
         from qlib.contrib.data.handler import Alpha158, Alpha360
         from qlib.data import D
         from qlib.data.dataset import DatasetH

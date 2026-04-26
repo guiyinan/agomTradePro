@@ -524,3 +524,71 @@ class HedgePerformanceModel(models.Model):
 
     def __str__(self):
         return f"{self.pair_name} - {self.period_start} to {self.period_end}"
+
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class HedgingInstrumentConfigModel(models.Model):
+    """
+    对冲工具配置表
+
+    存储可用于对冲的金融工具信息。
+    """
+
+    INSTRUMENT_TYPE_CHOICES = [
+        ('futures', '期货'),
+        ('options', '期权'),
+        ('inverse_etf', '反向ETF'),
+        ('cash', '现金'),
+    ]
+
+    instrument_code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="工具代码"
+    )
+
+    instrument_name = models.CharField(max_length=100, verbose_name="工具名称")
+
+    instrument_type = models.CharField(
+        max_length=20,
+        choices=INSTRUMENT_TYPE_CHOICES,
+        verbose_name="工具类型"
+    )
+
+    # 对冲参数
+    hedge_ratio = models.FloatField(
+        default=1.0,
+        verbose_name="对冲比例",
+        help_text="如 0.95 表示需要对冲95%的敞口"
+    )
+
+    underlying_index = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="标的指数",
+        help_text="如 000300.SH 表示沪深300"
+    )
+
+    # 成本参数
+    cost_bps = models.FloatField(
+        default=5.0,
+        verbose_name="对冲成本（基点）",
+        help_text="如 5 表示 0.05%"
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    notes = models.TextField(blank=True, verbose_name="备注")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'hedging_instrument_config'
+        verbose_name = '对冲工具配置'
+        verbose_name_plural = '对冲工具配置'
+        indexes = [
+            models.Index(fields=['instrument_type', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.instrument_name} ({self.instrument_code})"
+

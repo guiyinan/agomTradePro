@@ -11,9 +11,9 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from apps.account.application.repository_provider import get_account_position_repository
 from apps.policy.application.repository_provider import get_hedge_position_repository
 from apps.realtime.application.repository_provider import get_realtime_price_repository
+from core.integration.account_positions import list_portfolio_position_weights
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,6 @@ class HedgeEffectivenessAnalyzer:
 
     def __init__(self):
         self.hedge_repository = get_hedge_position_repository()
-        self.account_position_repository = get_account_position_repository()
 
     def analyze_hedge_effectiveness(
         self,
@@ -281,9 +280,7 @@ class HedgeEffectivenessAnalyzer:
         """
         try:
             # 获取持仓
-            positions = self.account_position_repository.list_portfolio_position_weights(
-                portfolio_id
-            )
+            positions = list_portfolio_position_weights(portfolio_id)
 
             if not positions:
                 return {'beta_before': 1.0, 'beta_after': 1.0}

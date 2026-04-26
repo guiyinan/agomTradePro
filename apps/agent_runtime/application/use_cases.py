@@ -29,7 +29,7 @@ from apps.agent_runtime.domain.services import (
     TaskStateMachine,
     get_task_state_machine,
 )
-from apps.agent_runtime.infrastructure.repositories import AgentTaskRepository
+from apps.agent_runtime.infrastructure.providers import AgentTaskRepository
 
 if TYPE_CHECKING:
     from apps.agent_runtime.application.services.audit_service import AgentRuntimeAuditService

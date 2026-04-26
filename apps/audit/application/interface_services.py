@@ -6,7 +6,7 @@ import json
 from datetime import date
 from typing import Any
 
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
+from apps.backtest.infrastructure.providers import DjangoBacktestRepository
 
 from .repository_provider import get_audit_repository
 from .use_cases import (

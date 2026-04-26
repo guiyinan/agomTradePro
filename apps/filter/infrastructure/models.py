@@ -211,3 +211,62 @@ class FilterConfig(models.Model):
 
     def __str__(self):
         return f"FilterConfig[{self.indicator_code}]"
+
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class FilterParameterConfigModel(models.Model):
+    """滤波参数配置表"""
+
+    FILTER_TYPE_CHOICES = [
+        ('hp', 'HP 滤波'),
+        ('kalman', 'Kalman 滤波'),
+        ('ma', '移动平均'),
+        ('other', '其他'),
+    ]
+
+    key = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="参数键",
+        help_text="如 hp_monthly, kalman_macro 等"
+    )
+    name = models.CharField(max_length=100, verbose_name="参数名称")
+    filter_type = models.CharField(
+        max_length=20,
+        choices=FILTER_TYPE_CHOICES,
+        verbose_name="滤波类型"
+    )
+
+    # 滤波参数
+    parameters = models.JSONField(
+        verbose_name="滤波参数",
+        help_text="如 {'lambda': 129600} 或 {'level_variance': 0.05}"
+    )
+
+    # 适用场景
+    data_frequency = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name="数据频率",
+        help_text="D/W/M/Q/Y，留空表示不限"
+    )
+    indicator_category = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="适用指标分类",
+        help_text="growth/inflation/等"
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    description = models.TextField(blank=True, verbose_name="描述")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'filter_parameter_config'
+        verbose_name = "滤波参数配置"
+        verbose_name_plural = "滤波参数配置"
+
+    def __str__(self):
+        return f"{self.name} ({self.filter_type})"
+

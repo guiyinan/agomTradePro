@@ -84,7 +84,7 @@ def check_single_signal_invalidation(self, signal_id: int):
     用于手动触发或信号状态变化时检查
     """
     from apps.signal.application.invalidation_checker import InvalidationCheckService
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
+    from apps.signal.infrastructure.providers import DjangoSignalRepository
 
     logger.info(f"检查信号 {signal_id} 的证伪状态...")
 
@@ -133,7 +133,7 @@ def cleanup_old_invalidated_signals(days: int = 90):
 
     默认清理 90 天前的证伪信号，可以归档或删除
     """
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
+    from apps.signal.infrastructure.providers import DjangoSignalRepository
 
     logger.info(f"清理 {days} 天前的已证伪信号...")
 
@@ -167,7 +167,7 @@ def send_daily_signal_summary():
     """
     from datetime import timedelta
 
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
+    from apps.signal.infrastructure.providers import DjangoSignalRepository
 
     repository = DjangoSignalRepository()
 
@@ -212,7 +212,7 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     Returns:
         bool: 是否发送成功
     """
-    from apps.signal.infrastructure.repositories import DjangoUserRepository
+    from apps.signal.infrastructure.providers import DjangoUserRepository
     from shared.infrastructure.notification_service import (
         NotificationPriority,
         get_notification_service,
@@ -379,7 +379,7 @@ def _get_signal_notification_recipients() -> list[str]:
     """
     from django.conf import settings
 
-    from apps.signal.infrastructure.repositories import DjangoUserRepository
+    from apps.signal.infrastructure.providers import DjangoUserRepository
 
     user_repo = DjangoUserRepository()
     recipients = []

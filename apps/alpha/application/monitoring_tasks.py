@@ -12,7 +12,7 @@ from celery import shared_task
 from django.db.models import Avg, Count, Max
 from django.utils import timezone
 
-from apps.alpha.infrastructure.repositories import (
+from apps.alpha.infrastructure.providers import (
     AlphaScoreCacheRepository,
     QlibModelRegistryRepository,
 )

@@ -1,5 +1,10 @@
 from django.conf import settings
 from celery import shared_task
+from apps.data_center.application.dtos import SyncFinancialRequest
+from apps.data_center.application.interface_services import (
+    get_active_provider_id_by_source,
+    make_sync_financial_use_case,
+)
 from apps.equity.application.use_cases_valuation_repair import (
     ScanValuationRepairsRequest,
     ScanValuationRepairsUseCase,
@@ -11,16 +16,11 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityUseCase,
 )
 from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
-from apps.equity.infrastructure.financial_source_gateway import (
-    AKShareFinancialGateway,
-    TushareFinancialGateway,
-)
-from apps.equity.infrastructure.repositories import (
+from apps.equity.infrastructure.providers import (
     DjangoStockRepository,
     DjangoValuationDataQualityRepository,
     DjangoValuationRepairRepository,
 )
-from shared.config.secrets import get_secrets
 
 
 @shared_task(
@@ -158,36 +158,37 @@ def sync_financial_data_task(
     stock_repo = DjangoStockRepository()
 
     # 获取要同步的股票列表
-    active_stock_codes = stock_repo.list_active_stock_codes(stock_codes=stock_codes)
+    if stock_codes:
+        active_stock_codes = []
+        for stock_code in stock_codes:
+            normalized = str(stock_code).strip().upper()
+            if normalized and normalized not in active_stock_codes:
+                active_stock_codes.append(normalized)
+    else:
+        active_stock_codes = stock_repo.list_active_stock_codes()
 
     if not active_stock_codes:
         return {"success": False, "error": "没有找到活跃股票"}
 
-    # 初始化网关
-    if source == "tushare":
-        try:
-            tushare_settings = get_secrets().data_sources
-        except OSError:
-            tushare_settings = None
-        if not tushare_settings or not tushare_settings.tushare_token:
-            return {"success": False, "error": "TUSHARE_TOKEN 未配置"}
-        gateway = TushareFinancialGateway(
-            token=tushare_settings.tushare_token,
-            http_url=tushare_settings.tushare_http_url,
-        )
-    else:
-        gateway = AKShareFinancialGateway()
+    provider_id = get_active_provider_id_by_source(source)
+    if provider_id is None:
+        return {"success": False, "error": f"未找到启用的数据源: {source}"}
 
+    sync_use_case = make_sync_financial_use_case()
     synced_count = 0
     error_count = 0
     errors = []
 
     for stock_code in active_stock_codes:
         try:
-            batch = gateway.fetch(stock_code, periods=periods)
-            for record in batch.records:
-                stock_repo.save_financial_data(record)
-            synced_count += len(batch.records)
+            result = sync_use_case.execute(
+                SyncFinancialRequest(
+                    provider_id=provider_id,
+                    asset_code=stock_code,
+                    periods=periods,
+                )
+            )
+            synced_count += result.stored_count
         except Exception as e:
             error_count += 1
             if len(errors) < 10:  # 只记录前 10 个错误

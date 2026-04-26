@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.account.infrastructure.repositories import AccountInterfaceRepository, PositionRepository
+from apps.account.infrastructure.providers import AccountInterfaceRepository, PositionRepository
 
 
 def get_account_interface_repository() -> AccountInterfaceRepository:

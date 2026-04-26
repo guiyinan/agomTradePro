@@ -485,9 +485,9 @@ class QlibAlphaProvider(BaseAlphaProvider):
             import qlib
             from qlib.data import D
 
-            from apps.account.infrastructure.models import SystemSettingsModel
+            from core.integration.runtime_settings import get_runtime_qlib_config
 
-            qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+            qlib_config = get_runtime_qlib_config()
             provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
             region = qlib_config.get("region", "CN")
 

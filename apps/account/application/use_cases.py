@@ -35,7 +35,7 @@ from apps.account.domain.services import (
     calculate_portfolio_drawdown,
 )
 from apps.account.infrastructure.market_price_service import MarketPriceService
-from apps.account.infrastructure.repositories import (
+from apps.account.infrastructure.providers import (
     AccountRepository,
     AssetMetadataRepository,
     MacroSizingConfigRepository,
@@ -45,10 +45,10 @@ from apps.account.infrastructure.repositories import (
     SystemSettingsRepository,
     TransactionRepository,
 )
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
+from apps.backtest.infrastructure.providers import DjangoBacktestRepository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.regime.infrastructure.providers import DjangoRegimeRepository
+from apps.signal.infrastructure.providers import DjangoSignalRepository
 
 
 @dataclass

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
-from apps.equity.infrastructure.repositories import (
+from apps.equity.infrastructure.providers import (
     build_quality_snapshot,
 )
 from apps.equity.infrastructure.valuation_source_gateways import (

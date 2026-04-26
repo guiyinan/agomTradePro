@@ -31,7 +31,7 @@ from apps.account.domain.services import (
 )
 from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.account.infrastructure.notification_service import InMemoryStopLossNotificationService
-from apps.account.infrastructure.repositories import (
+from apps.account.infrastructure.providers import (
     PositionRepository,
     StopLossRepository,
     TakeProfitRepository,

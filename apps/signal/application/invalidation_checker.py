@@ -57,7 +57,7 @@ class _DataCenterMacroRepository:
     """Minimal macro read facade for signal invalidation checks."""
 
     def __init__(self) -> None:
-        from apps.data_center.infrastructure.repositories import MacroFactRepository
+        from apps.data_center.infrastructure.providers import MacroFactRepository
 
         self._repository = MacroFactRepository()
 
@@ -108,7 +108,7 @@ class InvalidationCheckService:
             macro_repository: 宏观数据仓储实例（可选，延迟加载）
         """
         if signal_repository is None:
-            from apps.signal.infrastructure.repositories import DjangoSignalRepository
+            from apps.signal.infrastructure.providers import DjangoSignalRepository
             signal_repository = DjangoSignalRepository()
 
         self.signal_repository = signal_repository
@@ -472,7 +472,7 @@ class InvalidationCheckService:
             recipients.extend(staff_emails)
         else:
             # 延迟导入作为后备
-            from apps.signal.infrastructure.repositories import DjangoUserRepository
+            from apps.signal.infrastructure.providers import DjangoUserRepository
             user_repo = DjangoUserRepository()
             staff_emails = user_repo.get_staff_emails()
             recipients.extend(staff_emails)
@@ -551,7 +551,7 @@ def check_and_invalidate_signals() -> dict:
     Returns:
         Dict: 包含统计信息
     """
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
+    from apps.signal.infrastructure.providers import DjangoSignalRepository
 
     repository = DjangoSignalRepository()
     service = InvalidationCheckService(signal_repository=repository)

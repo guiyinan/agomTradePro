@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.decision_rhythm.infrastructure.repositories import (
+from apps.decision_rhythm.infrastructure.providers import (
     DecisionRequestRepository,
     get_request_repository,
 )

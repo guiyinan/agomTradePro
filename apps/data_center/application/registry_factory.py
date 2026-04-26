@@ -142,7 +142,7 @@ def reset_registry() -> None:
 def _build_registry() -> SourceRegistry:
     registry = SourceRegistry()
     try:
-        from apps.data_center.infrastructure.repositories import ProviderConfigRepository
+        from apps.data_center.infrastructure.providers import ProviderConfigRepository
 
         for config in ProviderConfigRepository().list_active():
             provider = _DbProvider(config.name, config.source_type)

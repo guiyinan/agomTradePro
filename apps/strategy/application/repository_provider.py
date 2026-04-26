@@ -7,7 +7,7 @@ from apps.strategy.infrastructure.providers import (
     DjangoRegimeProvider,
     DjangoSignalProvider,
 )
-from apps.strategy.infrastructure.repositories import (
+from apps.strategy.infrastructure.providers import (
     DjangoStrategyExecutionLogRepository,
     DjangoStrategyRepository,
     StrategyInterfaceRepository,

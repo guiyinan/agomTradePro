@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from apps.terminal.domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
-from apps.terminal.infrastructure.repositories import (
+from apps.terminal.infrastructure.providers import (
     get_terminal_audit_repository as _get_terminal_audit_repository,
     get_terminal_command_repository as _get_terminal_command_repository,
 )

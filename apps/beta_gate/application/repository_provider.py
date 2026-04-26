@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.beta_gate.infrastructure.repositories import (
+from apps.beta_gate.infrastructure.providers import (
     GateConfigRepository,
     GateDecisionRepository,
     VisibilityUniverseRepository,

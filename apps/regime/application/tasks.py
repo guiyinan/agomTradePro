@@ -11,7 +11,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
 logger = get_task_logger(__name__)
 

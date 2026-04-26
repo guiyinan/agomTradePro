@@ -17,7 +17,7 @@ from apps.signal.domain.invalidation import (
     evaluate_rule,
 )
 from apps.simulated_trading.domain.entities import Position
-from apps.simulated_trading.infrastructure.repositories import DjangoPositionRepository
+from apps.simulated_trading.infrastructure.providers import DjangoPositionRepository
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class _DataCenterMacroGateway:
     """Compatibility gateway that reads macro facts from data_center."""
 
     def __init__(self) -> None:
-        from apps.data_center.infrastructure.repositories import MacroFactRepository
+        from apps.data_center.infrastructure.providers import MacroFactRepository
 
         self._repo = MacroFactRepository()
 

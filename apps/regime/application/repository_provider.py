@@ -1,7 +1,7 @@
 """Regime application repository providers."""
 
 from apps.regime.domain.protocols import MacroSourceConfigGatewayProtocol
-from apps.regime.infrastructure.repositories import (
+from apps.regime.infrastructure.providers import (
     DjangoNavigatorRepository,
     DjangoRegimeRepository,
     get_navigator_repository as _get_navigator_repository,

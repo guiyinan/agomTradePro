@@ -22,7 +22,7 @@ from apps.macro.application.use_cases import (
     SyncMacroDataRequest,
     build_sync_macro_data_use_case,
 )
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.providers import DjangoMacroRepository
 
 logger = get_task_logger(__name__)
 

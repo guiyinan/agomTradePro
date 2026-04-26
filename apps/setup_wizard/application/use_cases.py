@@ -20,7 +20,7 @@ from apps.setup_wizard.domain.services import (
     SetupProgressCalculator,
     SetupValidator,
 )
-from apps.setup_wizard.infrastructure.repositories import (
+from apps.setup_wizard.infrastructure.providers import (
     AdminRepository,
     AIProviderRepository,
     DataSourceRepository,

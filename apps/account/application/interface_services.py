@@ -13,7 +13,7 @@ from apps.account.application.use_cases import (
     CreatePositionFromBacktestInput,
     CreatePositionFromBacktestUseCase,
 )
-from apps.account.infrastructure.repositories import (
+from apps.account.infrastructure.providers import (
     AccountClassificationRepository,
     AccountInterfaceRepository,
     AccountRepository,

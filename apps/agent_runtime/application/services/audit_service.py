@@ -267,7 +267,7 @@ class AgentRuntimeAuditService:
                 LogOperationRequest,
                 LogOperationUseCase,
             )
-            from apps.audit.infrastructure.repositories import DjangoAuditRepository
+            from apps.audit.infrastructure.providers import DjangoAuditRepository
             from apps.agent_runtime.application.repository_provider import (
                 get_runtime_user_repository,
             )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from apps.sector.infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
-from apps.sector.infrastructure.repositories import DjangoSectorRepository
+from apps.sector.infrastructure.providers import DjangoSectorRepository
 
 
 def get_sector_repository() -> DjangoSectorRepository:

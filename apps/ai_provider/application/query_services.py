@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from apps.ai_provider.infrastructure.providers import AIProviderRepository
 
 
 def list_active_provider_summaries() -> list[dict[str, Any]]:

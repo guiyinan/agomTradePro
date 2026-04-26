@@ -68,7 +68,7 @@ _SETTINGS_MAPPING = {
 def _get_config_from_db() -> ValuationRepairConfig | None:
     """从数据库获取激活的配置"""
     try:
-        from apps.equity.infrastructure.repositories import ValuationRepairConfigRepository
+        from apps.equity.infrastructure.providers import ValuationRepairConfigRepository
 
         db_config = ValuationRepairConfigRepository().get_active_domain_config()
         if db_config:
@@ -135,7 +135,7 @@ def get_valuation_repair_config_summary(use_cache: bool = True) -> dict[str, Any
     source = "settings"
 
     try:
-        from apps.equity.infrastructure.repositories import ValuationRepairConfigRepository
+        from apps.equity.infrastructure.providers import ValuationRepairConfigRepository
 
         active_version = ValuationRepairConfigRepository().get_active_version()
         if active_version:

@@ -848,3 +848,51 @@ class AssetPoolConfig(models.Model):
     def __str__(self):
         return f"{self.asset_category} - {self.get_pool_type_display()}"
 
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class AssetConfigModel(models.Model):
+    """资产类别配置表"""
+
+    CATEGORY_CHOICES = [
+        ('equity', '股票'),
+        ('bond', '债券'),
+        ('commodity', '商品'),
+        ('cash', '现金'),
+    ]
+
+    # 主键使用 asset_class 而不是自增 ID
+    asset_class = models.CharField(
+        max_length=50,
+        unique=True,
+        primary_key=True,
+        verbose_name="资产类别代码"
+    )
+    display_name = models.CharField(max_length=100, verbose_name="显示名称")
+    ticker_symbol = models.CharField(
+        max_length=20,
+        verbose_name="交易代码",
+        help_text="如 000300.SH"
+    )
+    data_source = models.CharField(
+        max_length=20,
+        default='tushare',
+        verbose_name="数据源"
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        verbose_name="资产分类"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    description = models.TextField(blank=True, verbose_name="描述")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'asset_config'
+        verbose_name = "资产类别配置"
+        verbose_name_plural = "资产类别配置"
+
+    def __str__(self):
+        return f"{self.display_name} ({self.asset_class})"
+

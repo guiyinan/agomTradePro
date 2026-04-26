@@ -369,7 +369,7 @@ def build_sync_macro_data_use_case(
         TushareAdapter,
         create_default_adapter,
     )
-    from apps.macro.infrastructure.repositories import DjangoMacroRepository
+    from apps.macro.infrastructure.providers import DjangoMacroRepository
 
     repository = DjangoMacroRepository()
 

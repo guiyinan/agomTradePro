@@ -33,6 +33,15 @@ from apps.data_center.domain.enums import (
 )
 from apps.data_center.domain.protocols import UnifiedDataProviderProtocol
 from apps.data_center.domain.rules import normalize_asset_code
+from core.integration.data_center_business_sources import (
+    build_akshare_fund_adapter,
+    build_akshare_macro_adapter,
+    build_akshare_sector_adapter,
+    build_tushare_financial_gateway,
+    build_tushare_fund_adapter,
+    build_tushare_macro_adapter,
+    build_tushare_valuation_gateway,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +107,14 @@ def _to_period_type(report_type: str) -> FinancialPeriodType:
         return FinancialPeriodType.QUARTERLY
     if normalized == "ttm":
         return FinancialPeriodType.TTM
+    return FinancialPeriodType.QUARTERLY
+
+
+def _period_type_from_period_end(period_end: date) -> FinancialPeriodType:
+    if period_end.month == 12:
+        return FinancialPeriodType.ANNUAL
+    if period_end.month == 6:
+        return FinancialPeriodType.SEMI_ANNUAL
     return FinancialPeriodType.QUARTERLY
 
 
@@ -240,9 +257,10 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[MacroFact]:
-        from apps.macro.infrastructure.adapters.tushare_adapter import TushareAdapter
-
-        adapter = TushareAdapter(token=self._config.api_key, http_url=self._config.http_url)
+        adapter = build_tushare_macro_adapter(
+            token=self._config.api_key,
+            http_url=self._config.http_url,
+        )
         fetch_code = "SHIBOR" if indicator_code == "CN_SHIBOR" else indicator_code
         points = adapter.fetch(fetch_code, start_date, end_date)
         results: list[MacroFact] = []
@@ -321,9 +339,10 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[FundNavFact]:
-        from apps.fund.infrastructure.adapters.tushare_fund_adapter import TushareFundAdapter
-
-        adapter = TushareFundAdapter(token=self._config.api_key, http_url=self._config.http_url)
+        adapter = build_tushare_fund_adapter(
+            token=self._config.api_key,
+            http_url=self._config.http_url,
+        )
         df = adapter.fetch_fund_daily(
             fund_code=fund_code,
             start_date=start_date.strftime("%Y%m%d"),
@@ -347,9 +366,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         return facts
 
     def fetch_financials(self, asset_code: str, periods: int = 8) -> list[FinancialFact]:
-        from apps.equity.infrastructure.financial_source_gateway import TushareFinancialGateway
-
-        gateway = TushareFinancialGateway(
+        gateway = build_tushare_financial_gateway(
             token=self._config.api_key,
             http_url=self._config.http_url,
         )
@@ -424,9 +441,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[ValuationFact]:
-        from apps.equity.infrastructure.valuation_source_gateways import TushareValuationGateway
-
-        gateway = TushareValuationGateway(
+        gateway = build_tushare_valuation_gateway(
             token=self._config.api_key,
             http_url=self._config.http_url,
         )
@@ -458,9 +473,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[MacroFact]:
-        from apps.macro.infrastructure.adapters import AKShareAdapter
-
-        adapter = AKShareAdapter()
+        adapter = build_akshare_macro_adapter()
         points = adapter.fetch(indicator_code, start_date, end_date)
         results: list[MacroFact] = []
         for point in points:
@@ -541,9 +554,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[FundNavFact]:
-        from apps.fund.infrastructure.adapters.akshare_fund_adapter import AkShareFundAdapter
-
-        adapter = AkShareFundAdapter()
+        adapter = build_akshare_fund_adapter()
         df = adapter.fetch_fund_nav_em(fund_code.split(".")[0])
         if df is None or df.empty:
             return []
@@ -568,50 +579,67 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         return facts
 
     def fetch_financials(self, asset_code: str, periods: int = 8) -> list[FinancialFact]:
-        from apps.equity.infrastructure.financial_source_gateway import AKShareFinancialGateway
+        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
-        gateway = AKShareFinancialGateway()
-        batch = gateway.fetch(asset_code, periods=periods)
+        ak = get_akshare_module()
+        canonical_asset_code = normalize_asset_code(asset_code, "akshare")
+        df = ak.stock_financial_analysis_indicator_em(
+            symbol=canonical_asset_code,
+            indicator="按报告期",
+        )
+        if df is None or df.empty:
+            return []
+
         facts: list[FinancialFact] = []
-        for record in batch.records:
+        for row in df.to_dict("records")[:periods]:
+            period_end = _safe_date(_first_present(row, "REPORT_DATE", "报告期"))
+            if period_end is None:
+                continue
+
+            revenue = _safe_float(_first_present(row, "TOTALOPERATEREVE", "营业总收入"))
+            net_profit = _safe_float(_first_present(row, "PARENTNETPROFIT", "归母净利润"))
+            roe = _safe_float(_first_present(row, "ROEJQ", "ROE_DILUTED", "净资产收益率"))
+            debt_ratio = _safe_float(_first_present(row, "ZCFZL", "资产负债率"))
+            total_liabilities = _safe_float(_first_present(row, "LIABILITY", "负债合计"))
+            total_assets = _safe_float(_first_present(row, "TOTAL_ASSETS", "总资产"))
+            if total_assets is None and total_liabilities is not None and debt_ratio:
+                total_assets = total_liabilities / (debt_ratio / 100)
+            equity = _safe_float(_first_present(row, "TOTAL_EQUITY", "股东权益合计"))
+            if equity is None and total_assets is not None and total_liabilities is not None:
+                equity = total_assets - total_liabilities
+
+            if revenue is None or net_profit is None or roe is None or debt_ratio is None:
+                continue
+
             common = dict(
-                asset_code=record.stock_code,
-                period_end=record.report_date,
-                period_type=_to_period_type(record.report_type),
+                asset_code=canonical_asset_code,
+                period_end=period_end,
+                period_type=_period_type_from_period_end(period_end),
                 source=self.provider_name(),
+                report_date=period_end,
             )
-            facts.extend(
-                [
-                    FinancialFact(
-                        metric_code="revenue", value=float(record.revenue), unit="元", **common
-                    ),
-                    FinancialFact(
-                        metric_code="net_profit",
-                        value=float(record.net_profit),
-                        unit="元",
-                        **common,
-                    ),
-                    FinancialFact(
-                        metric_code="total_assets",
-                        value=float(record.total_assets),
-                        unit="元",
-                        **common,
-                    ),
-                    FinancialFact(
-                        metric_code="total_liabilities",
-                        value=float(record.total_liabilities),
-                        unit="元",
-                        **common,
-                    ),
-                    FinancialFact(
-                        metric_code="equity", value=float(record.equity), unit="元", **common
-                    ),
-                    FinancialFact(metric_code="roe", value=float(record.roe), unit="%", **common),
-                    FinancialFact(
-                        metric_code="debt_ratio", value=float(record.debt_ratio), unit="%", **common
-                    ),
-                ]
-            )
+            metric_values = {
+                "revenue": (revenue, "元"),
+                "net_profit": (net_profit, "元"),
+                "revenue_growth": (
+                    _safe_float(_first_present(row, "TOTALOPERATEREVETZ", "营收同比")),
+                    "%",
+                ),
+                "net_profit_growth": (
+                    _safe_float(_first_present(row, "PARENTNETPROFITTZ", "归母净利润同比")),
+                    "%",
+                ),
+                "total_assets": (total_assets or 0.0, "元"),
+                "total_liabilities": (total_liabilities or 0.0, "元"),
+                "equity": (equity or 0.0, "元"),
+                "roe": (roe, "%"),
+                "roa": (_safe_float(_first_present(row, "JROA", "ZZCJLL", "总资产收益率")), "%"),
+                "debt_ratio": (debt_ratio, "%"),
+            }
+            for metric_code, (value, unit) in metric_values.items():
+                if value is None:
+                    continue
+                facts.append(FinancialFact(metric_code=metric_code, value=value, unit=unit, **common))
         return facts
 
     def fetch_valuations(
@@ -678,9 +706,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         sector_name: str = "",
         effective_date: date | None = None,
     ) -> list[SectorMembershipFact]:
-        from apps.sector.infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
-
-        adapter = AKShareSectorAdapter()
+        adapter = build_akshare_sector_adapter()
         resolved_name = sector_name
         resolved_code = sector_code
         if not resolved_name and resolved_code:

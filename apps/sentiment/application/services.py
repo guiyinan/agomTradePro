@@ -15,14 +15,14 @@ from django.utils import timezone
 
 from apps.ai_provider.domain.entities import AIChatRequest
 from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from apps.ai_provider.infrastructure.providers import AIProviderRepository
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
     SentimentCategory,
     SentimentIndex,
     SentimentSource,
 )
-from apps.sentiment.infrastructure.repositories import SentimentAlertRepository
+from apps.sentiment.infrastructure.providers import SentimentAlertRepository
 from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)

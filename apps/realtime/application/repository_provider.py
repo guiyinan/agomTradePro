@@ -5,7 +5,7 @@ from __future__ import annotations
 def get_realtime_price_repository():
     """Return the realtime price repository."""
 
-    from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
+    from apps.realtime.infrastructure.providers import RedisRealtimePriceRepository
 
     return RedisRealtimePriceRepository()
 
@@ -13,7 +13,7 @@ def get_realtime_price_repository():
 def get_realtime_price_provider():
     """Build the default chained realtime price provider."""
 
-    from apps.realtime.infrastructure.repositories import (
+    from apps.realtime.infrastructure.providers import (
         AKSharePriceDataProvider,
         CompositePriceDataProvider,
         DataCenterPriceDataProvider,
@@ -34,6 +34,6 @@ def get_realtime_price_provider():
 def get_watchlist_provider():
     """Return the default watchlist provider."""
 
-    from apps.realtime.infrastructure.repositories import DatabaseWatchlistProvider
+    from apps.realtime.infrastructure.providers import DatabaseWatchlistProvider
 
     return DatabaseWatchlistProvider()

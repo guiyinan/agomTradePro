@@ -8,6 +8,7 @@ from apps.equity.infrastructure.models import (
     FinancialDataModel,
     StockDailyModel,
     StockInfoModel,
+    StockScreeningRuleConfigModel,
     ValuationModel,
 )
 
@@ -16,4 +17,5 @@ __all__ = [
     'StockDailyModel',
     'FinancialDataModel',
     'ValuationModel',
+    'StockScreeningRuleConfigModel',
 ]

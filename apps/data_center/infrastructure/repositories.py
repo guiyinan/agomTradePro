@@ -39,6 +39,7 @@ from apps.data_center.domain.enums import (
     MarketExchange,
     PriceAdjustment,
 )
+from core.integration.data_center_business_sources import get_legacy_macro_series
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
@@ -421,9 +422,7 @@ class LegacyMacroSeriesRepository:
         end_date: date | None = None,
         source: str | None = None,
     ) -> list:
-        from apps.macro.infrastructure.repositories import DjangoMacroRepository
-
-        return DjangoMacroRepository().get_series(
+        return get_legacy_macro_series(
             code=code,
             start_date=start_date,
             end_date=end_date,

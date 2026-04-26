@@ -15,9 +15,9 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
-from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
+from apps.asset_analysis.infrastructure.providers import DjangoAssetPoolQueryRepository
 from apps.data_center.application.price_service import UnifiedPriceService
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.signal.infrastructure.providers import DjangoSignalRepository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
@@ -27,7 +27,7 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from apps.simulated_trading.infrastructure.repositories import (
+from apps.simulated_trading.infrastructure.providers import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.hedge.infrastructure.repositories import (
+from apps.hedge.infrastructure.providers import (
     CorrelationHistoryRepository,
     HedgeAlertRepository,
     HedgePairRepository,

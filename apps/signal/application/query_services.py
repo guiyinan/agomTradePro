@@ -7,7 +7,7 @@ from typing import Any
 from apps.macro.application.indicator_service import get_available_indicators_for_frontend
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.domain.rules import check_eligibility, get_eligibility_matrix
-from apps.signal.infrastructure.repositories import DjangoSignalRepository, UnifiedSignalRepository
+from apps.signal.infrastructure.providers import DjangoSignalRepository, UnifiedSignalRepository
 from core.integration.asset_names import resolve_asset_names_for_signals
 
 from .use_cases import (

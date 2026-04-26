@@ -6,7 +6,7 @@ from apps.equity.infrastructure.adapters import (
     RegimeRepositoryAdapter,
     StockPoolRepositoryAdapter,
 )
-from apps.equity.infrastructure.repositories import (
+from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
     DjangoStockRepository,
     DjangoValuationDataQualityRepository,
@@ -14,7 +14,7 @@ from apps.equity.infrastructure.repositories import (
     EquityBootstrapConfigRepository,
     ValuationRepairConfigRepository,
 )
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
 
 def get_equity_stock_repository() -> DjangoStockRepository:

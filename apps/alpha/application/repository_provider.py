@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.alpha.infrastructure.repositories import (
+from apps.alpha.infrastructure.providers import (
     AlphaAlertRepository,
     AlphaScoreCacheRepository,
     QlibModelRegistryRepository,

@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timezone
 from typing import Any, Optional
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+from apps.policy.infrastructure.providers import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
@@ -24,7 +24,7 @@ from ..domain.entities import (
     SourceType,
 )
 from ..domain.services import CapabilityFilter
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
 )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.factor.infrastructure.repositories import (
+from apps.factor.infrastructure.providers import (
     FactorDefinitionRepository,
     FactorPortfolioConfigRepository,
     FactorPortfolioHoldingRepository,

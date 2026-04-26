@@ -29,7 +29,7 @@ from apps.rotation.domain.services import (
     RotationContext,
     RotationService,
 )
-from apps.rotation.infrastructure.repositories import RotationInterfaceRepository
+from apps.rotation.infrastructure.providers import RotationInterfaceRepository
 
 
 @dataclass

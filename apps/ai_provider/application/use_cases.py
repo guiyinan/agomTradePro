@@ -8,7 +8,7 @@ from typing import Any
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
 from ..infrastructure.adapters import OpenAICompatibleAdapter
-from ..infrastructure.repositories import (
+from ..infrastructure.providers import (
     AIProviderRepository,
     AIUsageRepository,
     AIUserFallbackQuotaRepository,

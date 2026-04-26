@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.account.application.interface_services import find_user_by_id
 from apps.alpha.application.repository_provider import get_alpha_score_cache_repository
+from core.integration.user_lookup import find_user_by_id
 
 
 def resolve_requested_alpha_user(*, actor, requested_user_id: int | None):

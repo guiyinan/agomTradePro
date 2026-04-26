@@ -978,3 +978,74 @@ class ValuationRepairConfigModel(models.Model):
             repairing_threshold=self.repairing_threshold,
             eta_max_days=self.eta_max_days,
         )
+
+# Shared configuration models repatriated from shared.infrastructure.models
+
+class StockScreeningRuleConfigModel(models.Model):
+    """个股筛选规则配置表"""
+
+    regime = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="Regime",
+        help_text="Recovery/Overheat/Stagflation/Deflation"
+    )
+    rule_name = models.CharField(max_length=100, verbose_name="规则名称")
+
+    # 财务指标阈值
+    min_roe = models.FloatField(default=0.0, verbose_name="最低 ROE（%）")
+    min_revenue_growth = models.FloatField(
+        default=0.0,
+        verbose_name="最低营收增长率（%）"
+    )
+    min_profit_growth = models.FloatField(
+        default=0.0,
+        verbose_name="最低净利润增长率（%）"
+    )
+    max_debt_ratio = models.FloatField(
+        default=100.0,
+        verbose_name="最高资产负债率（%）"
+    )
+
+    # 估值指标阈值
+    max_pe = models.FloatField(default=999.0, verbose_name="最高 PE")
+    max_pb = models.FloatField(default=999.0, verbose_name="最高 PB")
+    min_market_cap = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=0,
+        verbose_name="最低市值（元）"
+    )
+
+    # 行业偏好（JSON 数组）
+    sector_preference = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="偏好行业列表"
+    )
+
+    # 筛选数量
+    max_count = models.IntegerField(default=50, verbose_name="最多返回个股数量")
+
+    # 元数据
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    priority = models.IntegerField(
+        default=0,
+        verbose_name="优先级（数字越大优先级越高）"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'config_stock_screening_rule'
+        verbose_name = '个股筛选规则配置'
+        verbose_name_plural = '个股筛选规则配置'
+        indexes = [
+            models.Index(fields=['regime', 'is_active']),
+            models.Index(fields=['regime', 'priority']),
+        ]
+        ordering = ['-priority', '-created_at']
+
+    def __str__(self):
+        return f"{self.regime} - {self.rule_name}"
+
