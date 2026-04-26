@@ -27,12 +27,12 @@ from .use_cases import (
     GenerateReportUseCase,
     GenerateSignalUseCase,
 )
-from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
-from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.providers import (
-    DjangoChainRepository,
-    DjangoExecutionLogRepository,
-    DjangoPromptRepository,
+from .repository_provider import (
+    build_macro_adapter,
+    build_regime_adapter,
+    get_chain_repository,
+    get_execution_log_repository,
+    get_prompt_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,13 +41,13 @@ logger = logging.getLogger(__name__)
 def get_prompt_template_queryset() -> Any:
     """Return the active prompt template queryset for interface consumers."""
 
-    return DjangoPromptRepository().get_active_template_queryset()
+    return get_prompt_repository().get_active_template_queryset()
 
 
 def get_chain_config_queryset() -> Any:
     """Return the active chain config queryset for interface consumers."""
 
-    return DjangoChainRepository().get_active_chain_queryset()
+    return get_chain_repository().get_active_chain_queryset()
 
 
 def get_execution_log_queryset(
@@ -59,7 +59,7 @@ def get_execution_log_queryset(
 ) -> Any:
     """Return the filtered execution log queryset for interface consumers."""
 
-    return DjangoExecutionLogRepository().get_filtered_queryset(
+    return get_execution_log_repository().get_filtered_queryset(
         template_id=template_id,
         chain_id=chain_id,
         execution_id=execution_id,
@@ -71,43 +71,43 @@ def build_execute_prompt_use_case() -> ExecutePromptUseCase:
     """Build the default prompt execution use case graph."""
 
     return ExecutePromptUseCase(
-        prompt_repository=DjangoPromptRepository(),
-        execution_log_repository=DjangoExecutionLogRepository(),
+        prompt_repository=get_prompt_repository(),
+        execution_log_repository=get_execution_log_repository(),
         ai_client_factory=get_ai_client_factory(),
-        macro_adapter=MacroDataAdapter(),
-        regime_adapter=RegimeDataAdapter(),
+        macro_adapter=build_macro_adapter(),
+        regime_adapter=build_regime_adapter(),
     )
 
 
 def create_prompt_template(template: Any) -> Any:
     """Persist a prompt template entity through the default repository."""
 
-    return DjangoPromptRepository().create_template(template)
+    return get_prompt_repository().create_template(template)
 
 
 def update_prompt_template(template_id: int, template: Any) -> Any | None:
     """Update a prompt template entity through the default repository."""
 
-    return DjangoPromptRepository().update_template(template_id, template)
+    return get_prompt_repository().update_template(template_id, template)
 
 
 def create_chain_config(chain_config: Any) -> Any:
     """Persist a chain config entity through the default repository."""
 
-    return DjangoChainRepository().create_chain(chain_config)
+    return get_chain_repository().create_chain(chain_config)
 
 
 def update_chain_config(chain_id: int, chain_config: Any) -> Any | None:
     """Update a chain config entity through the default repository."""
 
-    return DjangoChainRepository().update_chain(chain_id, chain_config)
+    return get_chain_repository().update_chain(chain_id, chain_config)
 
 
 def build_execute_chain_use_case() -> ExecuteChainUseCase:
     """Build the default chain execution use case graph."""
 
     return ExecuteChainUseCase(
-        chain_repository=DjangoChainRepository(),
+        chain_repository=get_chain_repository(),
         prompt_use_case=build_execute_prompt_use_case(),
     )
 
@@ -127,8 +127,8 @@ def build_generate_signal_use_case() -> GenerateSignalUseCase:
 def build_agent_runtime() -> AgentRuntime:
     """Build the default Agent Runtime with interface-safe dependencies."""
 
-    macro_adapter = MacroDataAdapter()
-    regime_adapter = RegimeDataAdapter()
+    macro_adapter = build_macro_adapter()
+    regime_adapter = build_regime_adapter()
 
     portfolio_provider = None
     signal_provider = None
@@ -162,9 +162,7 @@ def build_agent_runtime() -> AgentRuntime:
     if asset_pool_provider:
         context_builder.register_provider(AssetPoolContextProvider(asset_pool_provider))
 
-    execution_logger = AgentExecutionLogger(
-        execution_log_repository=DjangoExecutionLogRepository()
-    )
+    execution_logger = AgentExecutionLogger(execution_log_repository=get_execution_log_repository())
 
     return AgentRuntime(
         ai_client_factory=get_ai_client_factory(),

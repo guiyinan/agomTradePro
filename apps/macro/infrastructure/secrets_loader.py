@@ -6,6 +6,7 @@ Macro Data Source Secrets Loader
 
 from typing import Optional
 
+from apps.data_center.application.repository_provider import list_active_provider_configs
 from shared.domain.interfaces import DataSourceSecretsDTO
 
 
@@ -17,10 +18,7 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
         Optional[DataSourceSecretsDTO]: 如果数据库中有配置则返回，否则返回 None
     """
     try:
-        from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
-
-        # 只获取启用的配置（从 data_center 统一配置表读取）
-        configs = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
+        configs = list_active_provider_configs()
 
         tushare_token = None
         tushare_http_url = None
@@ -28,12 +26,12 @@ def load_secrets_from_database() -> DataSourceSecretsDTO | None:
         juhe_api_key = None
 
         for config in configs:
-            if config.source_type == 'tushare' and config.api_key:
+            if config.source_type == "tushare" and config.api_key:
                 tushare_token = config.api_key
                 tushare_http_url = config.http_url or None
-            elif config.source_type == 'fred' and config.api_key:
+            elif config.source_type == "fred" and config.api_key:
                 fred_api_key = config.api_key
-            elif config.source_type == 'juhe' and config.api_key:
+            elif config.source_type == "juhe" and config.api_key:
                 juhe_api_key = config.api_key
 
         if tushare_token:

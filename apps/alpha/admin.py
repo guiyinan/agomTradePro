@@ -15,7 +15,7 @@ from django.urls import path, reverse
 from django.utils import timezone
 
 from apps.alpha.application.tasks import _execute_qlib_prediction
-from apps.alpha.infrastructure.models import (
+from apps.alpha.models import (
     AlphaAlertModel,
     AlphaScoreCacheModel,
     QlibModelRegistryModel,
@@ -209,9 +209,21 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                 model_file_path = self._store_uploaded_model(uploaded, model_name, artifact_hash)
                 train_config = form.cleaned_data["train_config"]
                 metrics_payload = {
-                    "ic": float(form.cleaned_data["ic"]) if form.cleaned_data["ic"] is not None else None,
-                    "icir": float(form.cleaned_data["icir"]) if form.cleaned_data["icir"] is not None else None,
-                    "rank_ic": float(form.cleaned_data["rank_ic"]) if form.cleaned_data["rank_ic"] is not None else None,
+                    "ic": (
+                        float(form.cleaned_data["ic"])
+                        if form.cleaned_data["ic"] is not None
+                        else None
+                    ),
+                    "icir": (
+                        float(form.cleaned_data["icir"])
+                        if form.cleaned_data["icir"] is not None
+                        else None
+                    ),
+                    "rank_ic": (
+                        float(form.cleaned_data["rank_ic"])
+                        if form.cleaned_data["rank_ic"] is not None
+                        else None
+                    ),
                 }
                 self._write_metadata_files(
                     model_file_path=model_file_path,
@@ -446,10 +458,12 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
             from core.integration.runtime_settings import get_runtime_qlib_config
 
             qlib_runtime_config = get_runtime_qlib_config()
-            qlib_data_path = qlib_runtime_config.get('provider_uri', '')
-            qlib_enabled = qlib_runtime_config.get('enabled', False)
+            qlib_data_path = qlib_runtime_config.get("provider_uri", "")
+            qlib_enabled = qlib_runtime_config.get("enabled", False)
         except Exception:
-            qlib_data_path = str(Path(qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")).expanduser())
+            qlib_data_path = str(
+                Path(qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")).expanduser()
+            )
             qlib_enabled = False
 
         if qlib_data_path:
@@ -463,7 +477,11 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
             {
                 "label": "Qlib 数据目录",
                 "ok": qlib_data_ok,
-                "detail": f"{qlib_data_path} ({status_text})" if qlib_data_ok else f"目录不存在: {qlib_data_path} ({status_text})",
+                "detail": (
+                    f"{qlib_data_path} ({status_text})"
+                    if qlib_data_ok
+                    else f"目录不存在: {qlib_data_path} ({status_text})"
+                ),
             }
         )
         passed = passed and qlib_data_ok and qlib_enabled
@@ -481,7 +499,9 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                     {
                         "label": "真实推理 smoke test",
                         "ok": bool(scores),
-                        "detail": f"返回 {len(scores)} 条评分" if scores else "推理成功但返回空结果",
+                        "detail": (
+                            f"返回 {len(scores)} 条评分" if scores else "推理成功但返回空结果"
+                        ),
                     }
                 )
                 passed = passed and bool(scores)

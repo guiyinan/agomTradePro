@@ -11,7 +11,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from apps.account.infrastructure.providers import PositionRepository
+from apps.account.application.repository_provider import PositionRepository
 
 logger = logging.getLogger(__name__)
 

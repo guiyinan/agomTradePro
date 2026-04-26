@@ -144,6 +144,47 @@ def test_verify_architecture_tracks_literal_dynamic_imports():
     )
 
 
+def test_verify_architecture_same_app_infrastructure_rule_excludes_repository_provider():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_same_app_allow",
+    )
+    rule = {
+        "id": "apps_application_no_same_app_infrastructure_imports_except_repository_provider",
+        "description": "Application layers should route same-app concrete access through repository_provider.py.",
+        "source_roots": ["apps"],
+        "source_layers": ["application"],
+        "exclude_path_patterns": [r"^apps/[^/]+/application/repository_provider\.py$"],
+        "forbid_same_app_infrastructure_imports": True,
+    }
+    records = [
+        module.ImportRecord(
+            source_path="apps/prompt/application/repository_provider.py",
+            source_root="apps",
+            source_module="prompt",
+            source_layer="application",
+            import_path="apps.prompt.infrastructure.repositories",
+            target_module="prompt",
+            lineno=1,
+        ),
+        module.ImportRecord(
+            source_path="apps/prompt/application/use_cases.py",
+            source_root="apps",
+            source_module="prompt",
+            source_layer="application",
+            import_path="apps.prompt.infrastructure.repositories",
+            target_module="prompt",
+            lineno=2,
+        ),
+    ]
+
+    violations = module.find_import_violations(records, [rule])
+
+    assert len(violations) == 1
+    assert violations[0]["source_path"] == "apps/prompt/application/use_cases.py"
+    assert violations[0]["matched_pattern"] == "apps.<same>.infrastructure"
+
+
 def test_scaffold_application_providers_renders_grouped_imports():
     module = _load_script_module(
         "scaffold_application_providers.py",

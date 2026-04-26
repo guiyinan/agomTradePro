@@ -17,6 +17,7 @@ from typing import Dict, List, Optional
 
 from ..domain.entities import EventType
 from ..domain.services import InMemoryEventBus, get_event_bus
+from .repository_provider import get_event_store
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class HealthCheckResult:
         details: 详细信息
         checked_at: 检查时间
     """
+
     component: str
     status: str  # OK, WARNING, ERROR
     message: str
@@ -65,6 +67,7 @@ class EventBusHealthReport:
         metrics: 事件总线指标
         generated_at: 生成时间
     """
+
     overall_status: str  # OK, WARNING, ERROR
     checks: list[HealthCheckResult]
     metrics: dict[str, any]
@@ -255,8 +258,6 @@ class EventBusHealthChecker:
             检查结果
         """
         try:
-            from ..infrastructure.event_store import get_event_store
-
             event_store = get_event_store()
 
             # 尝试获取指标
@@ -321,9 +322,7 @@ class EventBusHealthChecker:
                     registered_handlers.add(sub.handler.get_handler_id())
 
             # 检查关键处理器
-            missing_handlers = [
-                h for h in critical_handlers if h not in registered_handlers
-            ]
+            missing_handlers = [h for h in critical_handlers if h not in registered_handlers]
 
             if missing_handlers:
                 return HealthCheckResult(
@@ -399,8 +398,7 @@ class EventBusHealthChecker:
                 "total_subscribers": metrics.total_subscribers,
                 "avg_processing_time_ms": metrics.avg_processing_time_ms,
                 "last_event_at": (
-                    metrics.last_event_at.isoformat()
-                    if metrics.last_event_at else None
+                    metrics.last_event_at.isoformat() if metrics.last_event_at else None
                 ),
             }
 

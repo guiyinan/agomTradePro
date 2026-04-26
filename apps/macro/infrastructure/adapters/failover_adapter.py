@@ -31,7 +31,7 @@ class FailoverAdapter(MacroAdapterProtocol):
         self,
         adapters: list[MacroAdapterProtocol],
         validate_consistency: bool = True,
-        tolerance: float = 0.01
+        tolerance: float = 0.01,
     ):
         """
         Args:
@@ -50,12 +50,7 @@ class FailoverAdapter(MacroAdapterProtocol):
         """检查是否支持指定指标（任一适配器支持即可）"""
         return any(adapter.supports(indicator_code) for adapter in self.adapters)
 
-    def fetch(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """
         获取指定指标的数据（带容错切换）
 
@@ -128,9 +123,7 @@ class FailoverAdapter(MacroAdapterProtocol):
         raise DataSourceUnavailableError(error_msg)
 
     def _validate_consistency(
-        self,
-        primary_data: list[MacroDataPoint],
-        backup_data: list[MacroDataPoint]
+        self, primary_data: list[MacroDataPoint], backup_data: list[MacroDataPoint]
     ) -> bool:
         """
         校验主备数据源的一致性
@@ -201,12 +194,7 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         """检查是否支持指定指标（任一适配器支持即可）"""
         return any(adapter.supports(indicator_code) for adapter in self.adapters)
 
-    def fetch(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """
         从所有支持的适配器获取数据并合并
 
@@ -272,10 +260,14 @@ def create_default_adapter(
     try:
         import django
         from django.conf import settings
+
         if settings.configured:
             django.setup()
-            from apps.data_center.infrastructure.models import DataProviderSettingsModel
-            settings_obj = DataProviderSettingsModel.load()
+            from apps.data_center.application.repository_provider import (
+                load_data_provider_settings,
+            )
+
+            settings_obj = load_data_provider_settings()
 
             default_source = settings_obj.default_source
             enable_failover = settings_obj.enable_failover
@@ -287,13 +279,13 @@ def create_default_adapter(
             )
         else:
             # Django 未配置，使用默认值
-            default_source = 'akshare'
+            default_source = "akshare"
             enable_failover = True
             tolerance = 0.01
             logger.warning("Django 未配置，使用默认数据源设置")
     except Exception as e:
         # 数据库未初始化或其他错误，使用默认值
-        default_source = 'akshare'
+        default_source = "akshare"
         enable_failover = True
         tolerance = 0.01
         logger.warning(f"无法从数据库读取设置，使用默认值: {e}")
@@ -318,10 +310,10 @@ def create_default_adapter(
         logger.warning(f"Tushare 适配器初始化失败: {e}")
 
     # 根据设置返回适配器
-    if default_source == 'akshare':
+    if default_source == "akshare":
         primary, backup = akshare_adapter, tushare_adapter
         primary_name = "AKShare"
-    elif default_source == 'tushare':
+    elif default_source == "tushare":
         primary, backup = tushare_adapter, akshare_adapter
         primary_name = "Tushare"
     else:  # failover 模式，默认 AKShare 优先
@@ -340,11 +332,5 @@ def create_default_adapter(
     if not adapters:
         raise DataSourceUnavailableError("无法初始化任何数据源适配器")
 
-    logger.info(
-        f"创建容错适配器: 优先级={' → '.join([a.source_name for a in adapters])}"
-    )
-    return FailoverAdapter(
-        adapters=adapters,
-        validate_consistency=True,
-        tolerance=tolerance
-    )
+    logger.info(f"创建容错适配器: 优先级={' → '.join([a.source_name for a in adapters])}")
+    return FailoverAdapter(adapters=adapters, validate_consistency=True, tolerance=tolerance)

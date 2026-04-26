@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.signal.infrastructure.providers import UnifiedSignalRepository
+from apps.signal.application.repository_provider import UnifiedSignalRepository
 from core.integration.alpha_scores import fetch_stock_scores
 from core.integration.factor_runtime import build_factor_integration_service
 

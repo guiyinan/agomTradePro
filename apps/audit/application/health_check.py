@@ -15,8 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from typing import Dict, List, Optional
 
-from ..infrastructure.failure_counter import get_audit_failure_counter
-from ..infrastructure.providers import DjangoAuditRepository
+from .repository_provider import DjangoAuditRepository, get_audit_failure_counter
 
 logger = logging.getLogger(__name__)
 

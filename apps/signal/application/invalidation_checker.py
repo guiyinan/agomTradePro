@@ -18,6 +18,10 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+from apps.signal.application.repository_provider import (
+    get_signal_repository,
+    get_user_repository,
+)
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
 from apps.signal.domain.interfaces import (
     InvestmentSignalRepositoryProtocol,
@@ -109,9 +113,7 @@ class InvalidationCheckService:
             macro_repository: 宏观数据仓储实例（可选，延迟加载）
         """
         if signal_repository is None:
-            from apps.signal.infrastructure.providers import DjangoSignalRepository
-
-            signal_repository = DjangoSignalRepository()
+            signal_repository = get_signal_repository()
 
         self.signal_repository = signal_repository
         self.user_repository = user_repository
@@ -473,9 +475,7 @@ class InvalidationCheckService:
             recipients.extend(staff_emails)
         else:
             # 延迟导入作为后备
-            from apps.signal.infrastructure.providers import DjangoUserRepository
-
-            user_repo = DjangoUserRepository()
+            user_repo = get_user_repository()
             staff_emails = user_repo.get_staff_emails()
             recipients.extend(staff_emails)
 
@@ -554,9 +554,7 @@ def check_and_invalidate_signals() -> dict:
     Returns:
         Dict: 包含统计信息
     """
-    from apps.signal.infrastructure.providers import DjangoSignalRepository
-
-    repository = DjangoSignalRepository()
+    repository = get_signal_repository()
     service = InvalidationCheckService(signal_repository=repository)
 
     # 检查已批准信号

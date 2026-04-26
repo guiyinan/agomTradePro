@@ -14,7 +14,7 @@ from typing import List
 
 import pandas as pd
 
-from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+from shared.infrastructure.sdk_bridge import get_akshare_module
 
 from .base import (
     BaseMacroAdapter,
@@ -68,34 +68,27 @@ class AKShareAdapter(BaseMacroAdapter):
         "CN_VALUE_ADDED": "工业增加值",
         "CN_RETAIL_SALES": "社会消费品零售总额",
         "CN_GDP": "GDP",
-
         # 贸易数据
         "CN_EXPORTS": "出口同比增长",
         "CN_IMPORTS": "进口同比增长",
         "CN_TRADE_BALANCE": "贸易差额",
-
         # 房产数据
         "CN_NEW_HOUSE_PRICE": "新房价格指数",
-
         # 价格数据
         "CN_OIL_PRICE": "成品油价格",
-
         # 就业数据
         "CN_UNEMPLOYMENT": "城镇调查失业率",
-
         # 金融数据
         "CN_FX_RESERVES": "外汇储备",
         "CN_LPR": "LPR",
         "CN_SHIBOR": "SHIBOR",
         "CN_RRR": "存款准备金率",
-
         # 信贷数据
         "CN_NEW_CREDIT": "新增信贷",
         "CN_RMB_DEPOSIT": "人民币存款",
         "CN_RMB_LOAN": "人民币贷款",
         "CN_DR007": "存款类机构7天期回购加权平均利率",
         "CN_PBOC_NET_INJECTION": "央行公开市场净投放",
-
         # ============ 高频指标（Regime 滞后性改进 Phase 1）============
         "CN_BOND_10Y": "10年期国债收益率",
         "CN_BOND_5Y": "5年期国债收益率",
@@ -111,13 +104,11 @@ class AKShareAdapter(BaseMacroAdapter):
         "US_BOND_10Y": "美国10年期国债",
         "USD_INDEX": "美元指数",
         "VIX_INDEX": "VIX波动率指数",
-
         # ============ 周度指标（Regime 滞后性改进 Phase 2）============
         "CN_POWER_GEN": "发电量",
         "CN_BLAST_FURNACE": "高炉开工率",
         "CN_CCFI": "集装箱运价指数(CCFI)",
         "CN_SCFI": "上海出口运价指数(SCFI)",
-
         # ============ PMI 分项指标（Regime 滞后性改进 Phase 3）============
         "CN_PMI_NEW_ORDER": "PMI新订单指数",
         "CN_PMI_INVENTORY": "PMI产成品库存指数",
@@ -228,12 +219,7 @@ class AKShareAdapter(BaseMacroAdapter):
         """检查是否支持指定指标"""
         return indicator_code in self.SUPPORTED_INDICATORS
 
-    def fetch(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
-    ) -> list[MacroDataPoint]:
+    def fetch(self, indicator_code: str, start_date: date, end_date: date) -> list[MacroDataPoint]:
         """
         获取指定指标的数据
 
@@ -259,9 +245,14 @@ class AKShareAdapter(BaseMacroAdapter):
                 return self.base_fetcher.fetch_non_man_pmi(start_date, end_date)
             elif indicator_code == "CN_CPI":
                 return self.base_fetcher.fetch_cpi(start_date, end_date)
-            elif indicator_code in ["CN_CPI_NATIONAL_YOY", "CN_CPI_NATIONAL_MOM",
-                                   "CN_CPI_URBAN_YOY", "CN_CPI_URBAN_MOM",
-                                   "CN_CPI_RURAL_YOY", "CN_CPI_RURAL_MOM"]:
+            elif indicator_code in [
+                "CN_CPI_NATIONAL_YOY",
+                "CN_CPI_NATIONAL_MOM",
+                "CN_CPI_URBAN_YOY",
+                "CN_CPI_URBAN_MOM",
+                "CN_CPI_RURAL_YOY",
+                "CN_CPI_RURAL_MOM",
+            ]:
                 return self.base_fetcher.fetch_cpi_detailed(start_date, end_date, indicator_code)
             elif indicator_code == "CN_PPI":
                 return self.base_fetcher.fetch_ppi(start_date, end_date)
@@ -317,12 +308,18 @@ class AKShareAdapter(BaseMacroAdapter):
                 term = indicator_code.split("_")[-1]  # 10Y, 5Y, 2Y, 1Y
                 return self.high_frequency_fetcher.fetch_bond_yield(term, start_date, end_date)
             elif indicator_code == "CN_TERM_SPREAD_10Y1Y":
-                return self.high_frequency_fetcher.fetch_term_spread("10Y", "1Y", start_date, end_date)
+                return self.high_frequency_fetcher.fetch_term_spread(
+                    "10Y", "1Y", start_date, end_date
+                )
             elif indicator_code == "CN_TERM_SPREAD_10Y2Y":
-                return self.high_frequency_fetcher.fetch_term_spread("10Y", "2Y", start_date, end_date)
+                return self.high_frequency_fetcher.fetch_term_spread(
+                    "10Y", "2Y", start_date, end_date
+                )
             elif indicator_code in ["CN_CORP_YIELD_AAA", "CN_CORP_YIELD_AA"]:
                 rating = indicator_code.split("_")[-1]  # AAA, AA
-                return self.high_frequency_fetcher.fetch_corp_bond_yield(rating, start_date, end_date)
+                return self.high_frequency_fetcher.fetch_corp_bond_yield(
+                    rating, start_date, end_date
+                )
             elif indicator_code == "CN_CREDIT_SPREAD":
                 return self.high_frequency_fetcher.fetch_credit_spread(start_date, end_date)
             elif indicator_code == "CN_NHCI":

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.pulse.infrastructure.models import (
+from apps.pulse.models import (
     NavigatorAssetConfigModel,
     PulseIndicatorConfigModel,
     PulseLog,

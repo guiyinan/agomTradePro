@@ -14,9 +14,13 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Optional
 
+from apps.regime.application.repository_provider import (
+    build_macro_repository_adapter,
+    get_default_macro_data_provider,
+    get_regime_repository,
+)
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from apps.regime.domain.protocols import MacroDataProviderProtocol
-from apps.regime.infrastructure.providers import get_regime_repository
 
 
 @dataclass
@@ -66,10 +70,6 @@ def get_macro_data_provider() -> MacroDataProviderProtocol:
     """
     global _macro_data_provider
     if _macro_data_provider is None:
-        # 延迟导入避免循环依赖，使用 Infrastructure 层的实现
-        from apps.regime.infrastructure.macro_data_provider import (
-            get_default_macro_data_provider,
-        )
         _macro_data_provider = get_default_macro_data_provider()
 
     return _macro_data_provider
@@ -102,8 +102,7 @@ def resolve_current_regime(
     provider = get_macro_data_provider()
 
     # 创建适配器，将 Provider 接口适配为 Repository 接口
-    from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-    macro_repo = MacroRepositoryAdapter(provider)
+    macro_repo = build_macro_repository_adapter(provider)
 
     # 使用默认数据源
     source = data_source or "akshare"

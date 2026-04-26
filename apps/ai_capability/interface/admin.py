@@ -5,7 +5,7 @@ AI Capability Catalog Admin Configuration.
 from django.contrib import admin
 from django.utils.html import format_html
 
-from ..infrastructure.models import (
+from apps.ai_capability.models import (
     CapabilityCatalogModel,
     CapabilityRoutingLogModel,
     CapabilitySyncLogModel,

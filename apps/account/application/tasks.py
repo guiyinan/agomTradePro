@@ -18,20 +18,18 @@ from apps.account.application.stop_loss_use_cases import (
     AutoStopLossUseCase,
     AutoTakeProfitUseCase,
 )
-from apps.account.application.volatility_use_cases import (
-    VolatilityAdjustmentUseCase,
-    VolatilityAnalysisUseCase,
-)
-from apps.account.infrastructure.backup_service import (
+from apps.account.application.repository_provider import (
+    PortfolioRepository,
+    PositionRepository,
+    SystemSettingsRepository,
     build_backup_download_url,
     describe_backup_package,
     generate_download_token,
     get_backup_email_connection,
 )
-from apps.account.infrastructure.providers import (
-    PortfolioRepository,
-    PositionRepository,
-    SystemSettingsRepository,
+from apps.account.application.volatility_use_cases import (
+    VolatilityAdjustmentUseCase,
+    VolatilityAnalysisUseCase,
 )
 from core.exceptions import BusinessLogicError, DataFetchError, ExternalServiceError
 from core.metrics import record_exception

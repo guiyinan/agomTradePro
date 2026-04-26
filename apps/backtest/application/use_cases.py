@@ -20,7 +20,7 @@ from ..domain.entities import (
     PITDataConfig,
 )
 from ..domain.services import BacktestEngine, PITDataProcessor
-from ..infrastructure.providers import DjangoBacktestRepository
+from .repository_provider import DjangoBacktestRepository
 
 logger = logging.getLogger(__name__)
 

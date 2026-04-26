@@ -24,7 +24,12 @@ from apps.audit.domain.services import (
     ThresholdValidator,
     analyze_attribution,
 )
-from apps.audit.infrastructure.providers import DjangoAuditRepository
+from apps.audit.application.repository_provider import (
+    DjangoAuditRepository,
+    record_audit_failure,
+    record_audit_write_failure,
+    record_audit_write_success,
+)
 from apps.backtest.application.repository_provider import (
     create_default_price_adapter,
     get_backtest_repository,
@@ -1237,8 +1242,6 @@ class LogOperationUseCase:
             # 计算延迟并记录 Prometheus 指标
             latency_seconds = time.time() - start_time
             try:
-                from apps.audit.infrastructure.metrics import record_audit_write_success
-
                 record_audit_write_success(
                     module=request.module or "unknown",
                     action=request.action or "unknown",
@@ -1268,8 +1271,6 @@ class LogOperationUseCase:
 
             # 增强可观测性：记录到失败计数器
             try:
-                from apps.audit.infrastructure.failure_counter import record_audit_failure
-
                 # 判断失败组件类型
                 component = "repository"
                 if "database" in str(e).lower() or "connection" in str(e).lower():
@@ -1290,8 +1291,6 @@ class LogOperationUseCase:
 
             # 记录 Prometheus 失败指标
             try:
-                from apps.audit.infrastructure.metrics import record_audit_write_failure
-
                 record_audit_write_failure(
                     module=request.module or "unknown",
                     error_type=component if "component" in locals() else "unknown",

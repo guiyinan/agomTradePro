@@ -24,17 +24,16 @@ from ..domain.entities import (
 )
 from ..domain.rules import validate_chain_steps, validate_template_content
 from ..domain.services import ChainExecutor, OutputParser, TemplateRenderer
-from ..infrastructure.adapters.function_registry import (
-    FunctionRegistry,
-    ToolDefinition,
-    create_builtin_tools,
-)
-from ..infrastructure.adapters.macro_adapter import FunctionExecutor, MacroDataAdapter
-from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-from ..infrastructure.providers import (
+from .repository_provider import (
     DjangoChainRepository,
     DjangoExecutionLogRepository,
     DjangoPromptRepository,
+    FunctionExecutor,
+    FunctionRegistry,
+    MacroDataAdapter,
+    RegimeDataAdapter,
+    ToolDefinition,
+    create_builtin_tools,
 )
 from .dtos import (
     ExecuteChainRequest,

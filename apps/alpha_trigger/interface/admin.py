@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from ..infrastructure.models import (
+from apps.alpha_trigger.models import (
     AlphaCandidateModel,
     AlphaTriggerModel,
 )
@@ -59,51 +59,69 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
     ]
 
     fieldsets = (
-        ("基本信息", {
-            "fields": (
-                "trigger_id",
-                "trigger_type",
-                "asset_code",
-                "asset_class",
-                "direction",
-                "status",
-                "created_at",
-            )
-        }),
-        ("条件配置", {
-            "fields": (
-                "trigger_condition",
-                "invalidation_conditions",
-                "invalidation_conditions_display",
-            ),
-            "classes": ("collapse",),
-        }),
-        ("信号配置", {
-            "fields": (
-                "strength",
-                "confidence",
-                "thesis",
-            )
-        }),
-        ("时间配置", {
-            "fields": (
-                "triggered_at",
-                "invalidated_at",
-                "expires_at",
-            )
-        }),
-        ("关联信息", {
-            "fields": (
-                "source_signal_id",
-                "related_regime",
-                "related_policy_level",
-            ),
-            "classes": ("collapse",),
-        }),
-        ("自定义数据", {
-            "fields": ("custom_data",),
-            "classes": ("collapse",),
-        }),
+        (
+            "基本信息",
+            {
+                "fields": (
+                    "trigger_id",
+                    "trigger_type",
+                    "asset_code",
+                    "asset_class",
+                    "direction",
+                    "status",
+                    "created_at",
+                )
+            },
+        ),
+        (
+            "条件配置",
+            {
+                "fields": (
+                    "trigger_condition",
+                    "invalidation_conditions",
+                    "invalidation_conditions_display",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "信号配置",
+            {
+                "fields": (
+                    "strength",
+                    "confidence",
+                    "thesis",
+                )
+            },
+        ),
+        (
+            "时间配置",
+            {
+                "fields": (
+                    "triggered_at",
+                    "invalidated_at",
+                    "expires_at",
+                )
+            },
+        ),
+        (
+            "关联信息",
+            {
+                "fields": (
+                    "source_signal_id",
+                    "related_regime",
+                    "related_policy_level",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "自定义数据",
+            {
+                "fields": ("custom_data",),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
     def strength_display(self, obj):
@@ -119,8 +137,9 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
         return format_html(
             '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.get_strength_display()
+            obj.get_strength_display(),
         )
+
     strength_display.short_description = "强度"
 
     def status_display(self, obj):
@@ -134,27 +153,25 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
         }
         color = status_colors.get(obj.status, "#666")
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
-            obj.get_status_display()
+            '<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display()
         )
+
     status_display.short_description = "状态"
 
     def invalidation_conditions_display(self, obj):
         """显示证伪条件"""
         if obj.invalidation_conditions:
             import json
+
             conditions = []
             for cond in obj.invalidation_conditions:
                 condition_type = cond.get("condition_type", "UNKNOWN")
                 indicator = cond.get("indicator_code", "")
                 threshold = cond.get("threshold", "")
                 conditions.append(f"{condition_type}: {indicator} {threshold}")
-            return format_html(
-                '<ul>{}</ul>',
-                ''.join(f'<li>{c}</li>' for c in conditions)
-            )
+            return format_html("<ul>{}</ul>", "".join(f"<li>{c}</li>" for c in conditions))
         return "-"
+
     invalidation_conditions_display.short_description = "证伪条件"
 
     def get_readonly_fields(self, request, obj=None):
@@ -210,55 +227,74 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
     ]
 
     fieldsets = (
-        ("基本信息", {
-            "fields": (
-                "candidate_id",
-                "trigger_id",
-                "asset_code",
-                "asset_class",
-                "direction",
-                "status",
-                "created_at",
-            )
-        }),
-        ("信号配置", {
-            "fields": (
-                "strength",
-                "confidence",
-                "thesis",
-            )
-        }),
-        ("交易配置", {
-            "fields": (
-                "entry_zone",
-                "entry_zone_display",
-                "exit_zone",
-                "exit_zone_display",
-                "time_horizon",
-                "expected_return",
-                "risk_level",
-            ),
-            "classes": ("collapse",),
-        }),
-        ("时间配置", {
-            "fields": (
-                "updated_at",
-                "status_changed_at",
-                "promoted_to_signal_at",
-            )
-        }),
-        ("自定义数据", {
-            "fields": ("custom_data",),
-            "classes": ("collapse",),
-        }),
+        (
+            "基本信息",
+            {
+                "fields": (
+                    "candidate_id",
+                    "trigger_id",
+                    "asset_code",
+                    "asset_class",
+                    "direction",
+                    "status",
+                    "created_at",
+                )
+            },
+        ),
+        (
+            "信号配置",
+            {
+                "fields": (
+                    "strength",
+                    "confidence",
+                    "thesis",
+                )
+            },
+        ),
+        (
+            "交易配置",
+            {
+                "fields": (
+                    "entry_zone",
+                    "entry_zone_display",
+                    "exit_zone",
+                    "exit_zone_display",
+                    "time_horizon",
+                    "expected_return",
+                    "risk_level",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "时间配置",
+            {
+                "fields": (
+                    "updated_at",
+                    "status_changed_at",
+                    "promoted_to_signal_at",
+                )
+            },
+        ),
+        (
+            "自定义数据",
+            {
+                "fields": ("custom_data",),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
     def trigger_id_link(self, obj):
         """触发器链接"""
         if obj.trigger_id:
-            url = reverse(f"admin:{self.model._meta.app_label}_alphatriggermodel_change", args=[obj.trigger_id])
+            url = reverse(
+                f"admin:{self.model._meta.app_label}_alphatriggermodel_change",
+                args=[obj.trigger_id],
+            )
             return format_html('<a href="{}">{}</a>', url, obj.trigger_id)
         return "-"
+
     trigger_id_link.short_description = "触发器"
 
     def strength_display(self, obj):
@@ -274,8 +310,9 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
         return format_html(
             '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.get_strength_display()
+            obj.get_strength_display(),
         )
+
     strength_display.short_description = "强度"
 
     def status_display(self, obj):
@@ -289,32 +326,33 @@ class AlphaCandidateAdmin(admin.ModelAdmin):
         }
         color = status_colors.get(obj.status, "#666")
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
-            obj.get_status_display()
+            '<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_status_display()
         )
+
     status_display.short_description = "状态"
 
     def entry_zone_display(self, obj):
         """显示入场区域"""
         if obj.entry_zone:
             import json
+
             return format_html(
-                '<pre>{}</pre>',
-                json.dumps(obj.entry_zone, indent=2, ensure_ascii=False)
+                "<pre>{}</pre>", json.dumps(obj.entry_zone, indent=2, ensure_ascii=False)
             )
         return "-"
+
     entry_zone_display.short_description = "入场区域"
 
     def exit_zone_display(self, obj):
         """显示出场区域"""
         if obj.exit_zone:
             import json
+
             return format_html(
-                '<pre>{}</pre>',
-                json.dumps(obj.exit_zone, indent=2, ensure_ascii=False)
+                "<pre>{}</pre>", json.dumps(obj.exit_zone, indent=2, ensure_ascii=False)
             )
         return "-"
+
     exit_zone_display.short_description = "出场区域"
 
     def has_add_permission(self, request):

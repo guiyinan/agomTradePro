@@ -4,7 +4,7 @@ Data Center — Django Admin Registration
 
 from django.contrib import admin
 
-from apps.data_center.infrastructure.models import (
+from apps.data_center.models import (
     DataProviderSettingsModel,
     ProviderConfigModel,
 )
@@ -20,14 +20,20 @@ class ProviderConfigAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("Identity", {"fields": ("name", "source_type", "is_active", "priority")}),
-        ("Credentials", {
-            "fields": ("api_key", "api_secret", "http_url", "api_endpoint"),
-            "classes": ("collapse",),
-        }),
-        ("Advanced", {
-            "fields": ("extra_config", "description"),
-            "classes": ("collapse",),
-        }),
+        (
+            "Credentials",
+            {
+                "fields": ("api_key", "api_secret", "http_url", "api_endpoint"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Advanced",
+            {
+                "fields": ("extra_config", "description"),
+                "classes": ("collapse",),
+            },
+        ),
         ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 

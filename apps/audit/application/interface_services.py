@@ -8,7 +8,12 @@ from typing import Any
 
 from apps.backtest.application.repository_provider import get_backtest_repository
 
-from .repository_provider import get_audit_repository
+from .repository_provider import (
+    export_audit_metrics,
+    get_audit_failure_counter,
+    get_audit_metrics_summary,
+    get_audit_repository,
+)
 from .use_cases import (
     ExportOperationLogsRequest,
     ExportOperationLogsUseCase,
@@ -542,27 +547,19 @@ def get_decision_trace_payload(
 
 def get_audit_failure_stats() -> dict[str, Any]:
     """Return the current audit failure counter snapshot."""
-    from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
-
     return get_audit_failure_counter().get_failure_stats().to_dict()
 
 
 def reset_audit_failure_counter() -> None:
     """Reset the audit failure counter."""
-    from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
-
     get_audit_failure_counter().reset()
 
 
 def get_audit_metrics_summary_payload() -> dict[str, Any]:
     """Return the JSON-friendly audit metrics summary."""
-    from apps.audit.infrastructure.metrics import get_audit_metrics_summary
-
     return get_audit_metrics_summary()
 
 
 def export_audit_metrics_payload() -> str:
     """Return Prometheus text output for audit metrics."""
-    from apps.audit.infrastructure.metrics import export_metrics
-
-    return export_metrics()
+    return export_audit_metrics()

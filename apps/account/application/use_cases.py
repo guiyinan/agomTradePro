@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
@@ -34,10 +34,10 @@ from apps.account.domain.services import (
     calculate_macro_multiplier,
     calculate_portfolio_drawdown,
 )
-from apps.account.infrastructure.market_price_service import MarketPriceService
-from apps.account.infrastructure.providers import (
+from apps.account.application.repository_provider import (
     AccountRepository,
     AssetMetadataRepository,
+    build_market_price_service,
     MacroSizingConfigRepository,
     PortfolioRepository,
     PortfolioSnapshotRepository,
@@ -89,12 +89,12 @@ class CreatePositionUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
-        market_price_service: MarketPriceService = None,
+        market_price_service: Any | None = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
-        self.market_price_service = market_price_service or MarketPriceService()
+        self.market_price_service = market_price_service or build_market_price_service()
 
     def execute(self, input: CreatePositionInput) -> CreatePositionOutput:
         """
@@ -189,12 +189,12 @@ class CreatePositionFromSignalUseCase:
         self,
         position_repo: PositionRepository,
         account_repo: AccountRepository,
-        market_price_service: MarketPriceService = None,
+        market_price_service: Any | None = None,
         signal_repo: object = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
-        self.market_price_service = market_price_service or MarketPriceService()
+        self.market_price_service = market_price_service or build_market_price_service()
         self.signal_repo = signal_repo or get_signal_repository()
 
     def execute(
@@ -416,14 +416,14 @@ class CreatePositionFromBacktestUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
-        market_price_service: MarketPriceService = None,
+        market_price_service: Any | None = None,
         backtest_repo: object = None,
         settings_repo: SystemSettingsRepository = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
-        self.market_price_service = market_price_service or MarketPriceService()
+        self.market_price_service = market_price_service or build_market_price_service()
         self.backtest_repo = backtest_repo or get_backtest_repository()
         self.settings_repo = settings_repo or SystemSettingsRepository()
 

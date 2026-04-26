@@ -13,9 +13,9 @@ from django.utils import timezone
 
 from apps.regime.application.repository_provider import get_regime_repository
 
+from .repository_provider import DjangoBacktestRepository, create_default_price_adapter
 from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig, PITDataConfig
 from ..domain.services import BacktestEngine, PITDataProcessor
-from ..infrastructure.providers import DjangoBacktestRepository
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +92,6 @@ def run_backtest_task(
             实际应用中应该从数据库查询或调用外部数据源
             """
             from shared.config.secrets import get_secrets
-
-            from ..infrastructure.adapters import create_default_price_adapter
 
             try:
                 tushare_settings = get_secrets().data_sources

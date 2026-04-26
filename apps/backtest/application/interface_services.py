@@ -7,7 +7,7 @@ from typing import Any
 
 from apps.regime.application.repository_provider import get_regime_repository
 
-from .repository_provider import get_backtest_repository
+from .repository_provider import create_default_price_adapter, get_backtest_repository
 from .use_cases import (
     DeleteBacktestRequest,
     DeleteBacktestUseCase,
@@ -40,8 +40,6 @@ def _build_regime_reader():
 def _build_price_reader():
     def get_asset_price(asset_class: str, as_of_date: date):
         from shared.config.secrets import get_secrets
-
-        from ..infrastructure.adapters import create_default_price_adapter
 
         try:
             tushare_settings = get_secrets().data_sources

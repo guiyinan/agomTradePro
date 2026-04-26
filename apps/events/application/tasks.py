@@ -18,7 +18,7 @@ from ..domain.entities import (
     create_event,
 )
 from ..domain.services import get_event_bus
-from ..infrastructure.event_store import (
+from .repository_provider import (
     get_event_store,
     get_replay_handler,
     get_snapshot_store,
@@ -69,7 +69,7 @@ def publish_event_async(
         occurred_dt = None
         if occurred_at:
             try:
-                occurred_dt = datetime.fromisoformat(occurred_at.replace('Z', '+00:00'))
+                occurred_dt = datetime.fromisoformat(occurred_at.replace("Z", "+00:00"))
             except ValueError:
                 logger.warning(f"Invalid occurred_at format: {occurred_at}")
 
@@ -174,10 +174,12 @@ def publish_batch_events_async(
 
         except Exception as exc:
             failed_count += 1
-            errors.append({
-                "event_data": event_data,
-                "error": str(exc),
-            })
+            errors.append(
+                {
+                    "event_data": event_data,
+                    "error": str(exc),
+                }
+            )
             logger.error(f"Failed to publish event in batch: {exc}")
 
     return {
@@ -228,12 +230,12 @@ def replay_events_async(
         until_dt = None
         if since:
             try:
-                since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
             except ValueError:
                 logger.warning(f"Invalid since format: {since}")
         if until:
             try:
-                until_dt = datetime.fromisoformat(until.replace('Z', '+00:00'))
+                until_dt = datetime.fromisoformat(until.replace("Z", "+00:00"))
             except ValueError:
                 logger.warning(f"Invalid until format: {until}")
 
@@ -246,6 +248,7 @@ def replay_events_async(
             # 动态导入处理器类
             module_path, class_name = target_handler_class.rsplit(".", 1)
             from importlib import import_module
+
             module = import_module(module_path)
             target_handler = getattr(module, class_name)()
 
@@ -428,7 +431,11 @@ def collect_event_metrics(self) -> dict[str, Any]:
                 "total_failed": memory_metrics.total_failed,
                 "total_subscribers": memory_metrics.total_subscribers,
                 "avg_processing_time_ms": memory_metrics.avg_processing_time_ms,
-                "last_event_at": memory_metrics.last_event_at.isoformat() if memory_metrics.last_event_at else None,
+                "last_event_at": (
+                    memory_metrics.last_event_at.isoformat()
+                    if memory_metrics.last_event_at
+                    else None
+                ),
                 "success_rate": success_rate,
             },
             "stored": {
@@ -438,7 +445,9 @@ def collect_event_metrics(self) -> dict[str, Any]:
             "collected_at": timezone.now().isoformat(),
         }
 
-        logger.info(f"Event metrics collected: {memory_metrics.total_published} published, {memory_metrics.total_processed} processed")
+        logger.info(
+            f"Event metrics collected: {memory_metrics.total_published} published, {memory_metrics.total_processed} processed"
+        )
 
         return {
             "success": True,
@@ -503,4 +512,3 @@ def event_bus_health_check(self) -> dict[str, Any]:
             "error": str(exc),
             "checked_at": timezone.now().isoformat(),
         }
-

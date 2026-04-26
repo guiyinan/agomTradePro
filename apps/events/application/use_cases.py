@@ -20,8 +20,9 @@ from ..domain.entities import (
     create_subscription,
 )
 from ..domain.services import InMemoryEventBus, get_event_bus
-from ..infrastructure.event_store import (
+from .repository_provider import (
     DatabaseEventStore,
+    EventReplayHandler,
     SnapshotStore,
     get_event_store,
     get_snapshot_store,
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PublishEventRequest:
     """发布事件请求"""
+
     event_type: EventType
     payload: dict[str, Any]
     metadata: dict[str, Any] | None = None
@@ -48,6 +50,7 @@ class PublishEventRequest:
 @dataclass
 class PublishEventResponse:
     """发布事件响应"""
+
     success: bool
     event_id: str
     published_at: datetime
@@ -58,6 +61,7 @@ class PublishEventResponse:
 @dataclass
 class SubscribeToEventRequest:
     """订阅事件请求"""
+
     event_type: EventType
     handler: EventHandler
     filter_criteria: dict[str, Any] | None = None
@@ -67,6 +71,7 @@ class SubscribeToEventRequest:
 @dataclass
 class SubscribeToEventResponse:
     """订阅事件响应"""
+
     success: bool
     subscription_id: str
     subscribed_at: datetime
@@ -76,6 +81,7 @@ class SubscribeToEventResponse:
 @dataclass
 class QueryEventsRequest:
     """查询事件请求"""
+
     event_type: EventType | None = None
     event_types: list[EventType] | None = None
     correlation_id: str | None = None
@@ -87,6 +93,7 @@ class QueryEventsRequest:
 @dataclass
 class EventDTO:
     """事件传输对象"""
+
     event_id: str
     event_type: str
     occurred_at: datetime
@@ -100,6 +107,7 @@ class EventDTO:
 @dataclass
 class QueryEventsResponse:
     """查询事件响应"""
+
     success: bool
     events: list[EventDTO]
     total_count: int
@@ -110,6 +118,7 @@ class QueryEventsResponse:
 @dataclass
 class ReplayEventsRequest:
     """重放事件请求"""
+
     event_type: EventType | None = None
     since: datetime | None = None
     until: datetime | None = None
@@ -120,6 +129,7 @@ class ReplayEventsRequest:
 @dataclass
 class ReplayEventsResponse:
     """重放事件响应"""
+
     success: bool
     events_replayed: int
     replayed_at: datetime
@@ -129,6 +139,7 @@ class ReplayEventsResponse:
 @dataclass
 class GetEventMetricsResponse:
     """获取事件指标响应"""
+
     total_published: int
     total_processed: int
     total_failed: int
@@ -389,7 +400,6 @@ class ReplayEventsUseCase:
         Args:
             event_store: 事件存储（可选，默认使用默认实例）
         """
-        from ..infrastructure.event_store import EventReplayHandler
         self.event_store = event_store or get_event_store()
         self.replay_handler = EventReplayHandler(self.event_store)
 

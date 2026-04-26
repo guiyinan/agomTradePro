@@ -5,12 +5,15 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+from apps.ai_provider.application.repository_provider import (
+    AIClientFactory,
+    get_ai_client_factory,
+)
 
 
 def _resolve_ai_client(
     *,
-    factory: AIClientFactory,
+    factory: Any,
     provider_ref: Any | None,
     user: Any | None,
 ) -> Any:
@@ -40,11 +43,11 @@ def generate_chat_completion(
     max_tokens: int = 500,
     user: Any | None = None,
     provider_ref: Any | None = None,
-    factory_class: type[AIClientFactory] = AIClientFactory,
+    factory_builder=get_ai_client_factory,
 ) -> dict[str, Any]:
     """Generate a chat completion through the configured AI provider."""
     ai_client = _resolve_ai_client(
-        factory=factory_class(),
+        factory=factory_builder(),
         provider_ref=provider_ref,
         user=user,
     )

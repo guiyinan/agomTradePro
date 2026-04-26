@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional
 
 from ..domain.entities import DomainEvent, EventType
 from ..domain.interfaces import FailedEventRepositoryProtocol
+from .repository_provider import get_failed_event_repository
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class FailedEventDTO:
         next_retry_at: 下次重试时间
         status: 状态
     """
+
     id: int
     event_id: str
     event_type: str
@@ -89,7 +91,6 @@ class EventRetryManager:
         self.base_delay_minutes = base_delay_minutes
 
         if failed_event_repo is None:
-            from ..infrastructure.providers import get_failed_event_repository
             failed_event_repo = get_failed_event_repository()
 
         self._repo = failed_event_repo
@@ -125,8 +126,7 @@ class EventRetryManager:
             )
 
             logger.info(
-                f"Recorded failed event: {event.event_id} "
-                f"(handler={handler_id}, error={error})"
+                f"Recorded failed event: {event.event_id} " f"(handler={handler_id}, error={error})"
             )
 
             # 获取保存的事件并转换为 DTO

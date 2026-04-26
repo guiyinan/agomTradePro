@@ -80,6 +80,10 @@ def test_guardrail_architecture_audit_report_can_be_generated(tmp_path):
     assert "shared_no_apps_dependencies" in audit_rule_ids
     assert "apps_application_no_pandas_numpy_imports" in audit_rule_ids
     assert "apps_no_misplaced_app_config" in audit_rule_ids
+    assert (
+        "apps_application_no_same_app_infrastructure_imports_except_repository_provider"
+        in audit_rule_ids
+    )
 
 
 @pytest.mark.guardrail

@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-26.v2",
+  "version": "2026-04-26.v3",
   "source_roots": [
     "apps",
     "core",
@@ -255,6 +255,21 @@
         "(^|\\.)infrastructure\\.repositories(?:\\.|$)"
       ],
       "rationale": "Keep application orchestration independent from concrete repository module imports."
+    },
+    {
+      "id": "apps_application_no_same_app_infrastructure_imports_except_repository_provider",
+      "description": "Application layers should route same-app concrete infrastructure access through repository_provider.py or other application facades.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "exclude_path_patterns": [
+        "^apps/[^/]+/application/repository_provider\\.py$"
+      ],
+      "forbid_same_app_infrastructure_imports": true,
+      "rationale": "Keep use_cases/tasks/services focused on orchestration while composition stays in repository_provider.py."
     },
     {
       "id": "macro_no_account_dependency",

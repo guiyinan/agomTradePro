@@ -25,6 +25,10 @@ from ..domain.interfaces import (
     AlphaCandidateRepositoryProtocol,
     DecisionRequestRepositoryProtocol,
 )
+from .repository_provider import (
+    get_alpha_candidate_repository,
+    get_decision_request_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +63,6 @@ class DecisionApprovedHandler(EventHandler):
         self.event_bus = event_bus
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._alpha_candidate_repo = alpha_candidate_repo
@@ -85,9 +88,7 @@ class DecisionApprovedHandler(EventHandler):
             request_id = event.get_payload_value("request_id")
 
             if not request_id:
-                logger.debug(
-                    f"Event {event.event_id} missing request_id, skipping"
-                )
+                logger.debug(f"Event {event.event_id} missing request_id, skipping")
                 return
 
             # 合并 candidate_id 和 candidate_ids
@@ -96,9 +97,7 @@ class DecisionApprovedHandler(EventHandler):
                 all_candidate_ids.add(candidate_id)
 
             if not all_candidate_ids:
-                logger.debug(
-                    f"Event {event.event_id} has no candidate_ids, skipping"
-                )
+                logger.debug(f"Event {event.event_id} has no candidate_ids, skipping")
                 return
 
             # 回写所有关联的 AlphaCandidate
@@ -168,7 +167,6 @@ class DecisionRejectedHandler(EventHandler):
         self.event_bus = event_bus
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._alpha_candidate_repo = alpha_candidate_repo
@@ -275,11 +273,9 @@ class DecisionExecutedHandler(EventHandler):
         self.event_bus = event_bus
 
         if decision_request_repo is None:
-            from ..infrastructure.providers import get_decision_request_repository
             decision_request_repo = get_decision_request_repository()
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._decision_request_repo = decision_request_repo
@@ -401,11 +397,9 @@ class DecisionExecutionFailedHandler(EventHandler):
         self.event_bus = event_bus
 
         if decision_request_repo is None:
-            from ..infrastructure.providers import get_decision_request_repository
             decision_request_repo = get_decision_request_repository()
 
         if alpha_candidate_repo is None:
-            from ..infrastructure.providers import get_alpha_candidate_repository
             alpha_candidate_repo = get_alpha_candidate_repository()
 
         self._decision_request_repo = decision_request_repo
@@ -431,9 +425,7 @@ class DecisionExecutionFailedHandler(EventHandler):
             error_message = event.get_payload_value("error_message")
 
             if not request_id:
-                logger.warning(
-                    f"Event {event.event_id} missing request_id, skipping"
-                )
+                logger.warning(f"Event {event.event_id} missing request_id, skipping")
                 return
 
             # 使用事务确保一致性
@@ -457,9 +449,7 @@ class DecisionExecutionFailedHandler(EventHandler):
             )
             # 主事务成功优先，事件处理失败只记录日志
 
-    def _update_decision_request_failed(
-        self, request_id: str, error_message: str | None
-    ) -> None:
+    def _update_decision_request_failed(self, request_id: str, error_message: str | None) -> None:
         """
         更新 DecisionRequest 的执行失败状态
 
@@ -467,18 +457,14 @@ class DecisionExecutionFailedHandler(EventHandler):
             request_id: 决策请求 ID
             error_message: 错误信息
         """
-        success = self._decision_request_repo.update_execution_status_to_failed(
-            request_id
-        )
+        success = self._decision_request_repo.update_execution_status_to_failed(request_id)
 
         if not success:
             logger.warning(f"Failed to update DecisionRequest: {request_id}")
         else:
             # 错误信息记录到日志
             if error_message:
-                logger.warning(
-                    f"DecisionRequest {request_id} execution failed: {error_message}"
-                )
+                logger.warning(f"DecisionRequest {request_id} execution failed: {error_message}")
 
     def _update_alpha_candidate_failed(self, candidate_id: str) -> None:
         """
@@ -489,9 +475,7 @@ class DecisionExecutionFailedHandler(EventHandler):
         Args:
             candidate_id: 候选 ID
         """
-        success = self._alpha_candidate_repo.update_execution_status_to_failed(
-            candidate_id
-        )
+        success = self._alpha_candidate_repo.update_execution_status_to_failed(candidate_id)
 
         if not success:
             logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")

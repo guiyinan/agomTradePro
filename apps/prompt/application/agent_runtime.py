@@ -22,7 +22,7 @@ from ..domain.agent_entities import (
     ToolCallRecord,
 )
 from ..domain.context_entities import ContextBundle
-from ..infrastructure.adapters.function_registry import FunctionRegistry
+from .repository_provider import FunctionRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -118,20 +118,28 @@ class AgentRuntime:
                 # 检查 AI 调用是否成功
                 if ai_response.get("status") != "success":
                     error_msg = ai_response.get("error_message", "AI provider call failed")
-                    all_turns.append(AgentTurnResult(
-                        turn_number=turn_number,
-                        has_tool_calls=False,
-                        tool_calls=[],
-                        content=None,
-                        prompt_tokens=turn_prompt_tokens,
-                        completion_tokens=turn_completion_tokens,
-                        finish_reason="error",
-                    ))
+                    all_turns.append(
+                        AgentTurnResult(
+                            turn_number=turn_number,
+                            has_tool_calls=False,
+                            tool_calls=[],
+                            content=None,
+                            prompt_tokens=turn_prompt_tokens,
+                            completion_tokens=turn_completion_tokens,
+                            finish_reason="error",
+                        )
+                    )
                     return self._build_error_response(
-                        error_msg, execution_id, start_time,
-                        all_tool_calls, all_turns,
-                        total_prompt_tokens, total_completion_tokens,
-                        provider_used, model_used, used_context,
+                        error_msg,
+                        execution_id,
+                        start_time,
+                        all_tool_calls,
+                        all_turns,
+                        total_prompt_tokens,
+                        total_completion_tokens,
+                        provider_used,
+                        model_used,
+                        used_context,
                     )
 
                 # 检查是否有 tool_calls
@@ -144,33 +152,40 @@ class AgentRuntime:
                     turn_tool_records = self._execute_tool_calls(tool_calls_data)
                     all_tool_calls.extend(turn_tool_records)
 
-                    all_turns.append(AgentTurnResult(
-                        turn_number=turn_number,
-                        has_tool_calls=True,
-                        tool_calls=turn_tool_records,
-                        content=content,
-                        prompt_tokens=turn_prompt_tokens,
-                        completion_tokens=turn_completion_tokens,
-                        finish_reason=finish_reason,
-                    ))
+                    all_turns.append(
+                        AgentTurnResult(
+                            turn_number=turn_number,
+                            has_tool_calls=True,
+                            tool_calls=turn_tool_records,
+                            content=content,
+                            prompt_tokens=turn_prompt_tokens,
+                            completion_tokens=turn_completion_tokens,
+                            finish_reason=finish_reason,
+                        )
+                    )
 
                     # 将工具结果回灌到 messages
                     messages = self._append_tool_results(
-                        messages, content, tool_calls_data, turn_tool_records,
+                        messages,
+                        content,
+                        tool_calls_data,
+                        turn_tool_records,
                     )
                     # 继续下一轮
                     continue
 
                 # 没有 tool_calls，得到最终答案
-                all_turns.append(AgentTurnResult(
-                    turn_number=turn_number,
-                    has_tool_calls=False,
-                    tool_calls=[],
-                    content=content,
-                    prompt_tokens=turn_prompt_tokens,
-                    completion_tokens=turn_completion_tokens,
-                    finish_reason=finish_reason,
-                ))
+                all_turns.append(
+                    AgentTurnResult(
+                        turn_number=turn_number,
+                        has_tool_calls=False,
+                        tool_calls=[],
+                        content=content,
+                        prompt_tokens=turn_prompt_tokens,
+                        completion_tokens=turn_completion_tokens,
+                        finish_reason=finish_reason,
+                    )
+                )
                 break
 
             # 构建最终响应
@@ -180,23 +195,25 @@ class AgentRuntime:
 
             # 检查是否因 max_rounds 耗尽而退出（最后一轮仍有 tool_calls）
             max_rounds_exhausted = (
-                all_turns
-                and all_turns[-1].has_tool_calls
-                and len(all_turns) >= request.max_rounds
+                all_turns and all_turns[-1].has_tool_calls and len(all_turns) >= request.max_rounds
             )
 
             if max_rounds_exhausted:
                 logger.warning(
-                    "AgentRuntime max_rounds (%d) exhausted, "
-                    "last turn still has tool_calls",
+                    "AgentRuntime max_rounds (%d) exhausted, " "last turn still has tool_calls",
                     request.max_rounds,
                 )
                 return self._build_error_response(
                     f"Max rounds ({request.max_rounds}) exhausted without final answer",
-                    execution_id, start_time,
-                    all_tool_calls, all_turns,
-                    total_prompt_tokens, total_completion_tokens,
-                    provider_used, model_used, used_context,
+                    execution_id,
+                    start_time,
+                    all_tool_calls,
+                    all_turns,
+                    total_prompt_tokens,
+                    total_completion_tokens,
+                    provider_used,
+                    model_used,
+                    used_context,
                 )
 
             # 尝试解析结构化输出
@@ -230,10 +247,16 @@ class AgentRuntime:
         except Exception as exc:
             logger.error("AgentRuntime execution failed: %s", exc, exc_info=True)
             return self._build_error_response(
-                str(exc), execution_id, start_time,
-                all_tool_calls, all_turns,
-                total_prompt_tokens, total_completion_tokens,
-                None, None, [],
+                str(exc),
+                execution_id,
+                start_time,
+                all_tool_calls,
+                all_turns,
+                total_prompt_tokens,
+                total_completion_tokens,
+                None,
+                None,
+                [],
             )
 
     def _build_context(self, request: AgentExecutionRequest) -> ContextBundle | None:
@@ -265,8 +288,7 @@ class AgentRuntime:
             summary_text = context_bundle.build_summary_text()
             if summary_text:
                 system_parts.append(
-                    "以下是系统实时数据摘要，你可以使用工具查询更多详细数据：\n\n"
-                    + summary_text
+                    "以下是系统实时数据摘要，你可以使用工具查询更多详细数据：\n\n" + summary_text
                 )
 
         if system_parts:
@@ -277,9 +299,7 @@ class AgentRuntime:
 
         return messages
 
-    def _get_tools_schema(
-        self, tool_names: list[str] | None
-    ) -> list[dict[str, Any]] | None:
+    def _get_tools_schema(self, tool_names: list[str] | None) -> list[dict[str, Any]] | None:
         """获取指定工具的 OpenAI Function Calling schema。"""
         if not tool_names:
             return None
@@ -292,14 +312,13 @@ class AgentRuntime:
         available_names = set(self.tool_registry.get_tool_names())
         requested = set(tool_names)
         filtered = [
-            t for t in all_tools
+            t
+            for t in all_tools
             if t.get("function", {}).get("name") in (requested & available_names)
         ]
         return filtered if filtered else None
 
-    def _execute_tool_calls(
-        self, tool_calls_data: list[dict[str, Any]]
-    ) -> list[ToolCallRecord]:
+    def _execute_tool_calls(self, tool_calls_data: list[dict[str, Any]]) -> list[ToolCallRecord]:
         """执行一组工具调用，返回记录列表。"""
         records: list[ToolCallRecord] = []
 
@@ -315,27 +334,31 @@ class AgentRuntime:
                 else:
                     arguments = arguments_raw
             except json.JSONDecodeError:
-                records.append(ToolCallRecord(
-                    tool_name=tool_name,
-                    arguments={"raw": arguments_raw},
-                    success=False,
-                    result=None,
-                    error_message=f"Invalid JSON arguments: {arguments_raw}",
-                    duration_ms=int((time.time() - call_start) * 1000),
-                ))
+                records.append(
+                    ToolCallRecord(
+                        tool_name=tool_name,
+                        arguments={"raw": arguments_raw},
+                        success=False,
+                        result=None,
+                        error_message=f"Invalid JSON arguments: {arguments_raw}",
+                        duration_ms=int((time.time() - call_start) * 1000),
+                    )
+                )
                 continue
 
             # 校验工具是否存在
             tool = self.tool_registry.get_tool(tool_name)
             if not tool:
-                records.append(ToolCallRecord(
-                    tool_name=tool_name,
-                    arguments=arguments,
-                    success=False,
-                    result=None,
-                    error_message=f"Tool not found: {tool_name}",
-                    duration_ms=int((time.time() - call_start) * 1000),
-                ))
+                records.append(
+                    ToolCallRecord(
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        success=False,
+                        result=None,
+                        error_message=f"Tool not found: {tool_name}",
+                        duration_ms=int((time.time() - call_start) * 1000),
+                    )
+                )
                 continue
 
             # 执行工具
@@ -345,31 +368,37 @@ class AgentRuntime:
 
                 # 检查是否返回了错误 dict
                 if isinstance(result, dict) and "error" in result:
-                    records.append(ToolCallRecord(
+                    records.append(
+                        ToolCallRecord(
+                            tool_name=tool_name,
+                            arguments=arguments,
+                            success=False,
+                            result=result,
+                            error_message=result["error"],
+                            duration_ms=duration_ms,
+                        )
+                    )
+                else:
+                    records.append(
+                        ToolCallRecord(
+                            tool_name=tool_name,
+                            arguments=arguments,
+                            success=True,
+                            result=result,
+                            duration_ms=duration_ms,
+                        )
+                    )
+            except Exception as exc:
+                records.append(
+                    ToolCallRecord(
                         tool_name=tool_name,
                         arguments=arguments,
                         success=False,
-                        result=result,
-                        error_message=result["error"],
-                        duration_ms=duration_ms,
-                    ))
-                else:
-                    records.append(ToolCallRecord(
-                        tool_name=tool_name,
-                        arguments=arguments,
-                        success=True,
-                        result=result,
-                        duration_ms=duration_ms,
-                    ))
-            except Exception as exc:
-                records.append(ToolCallRecord(
-                    tool_name=tool_name,
-                    arguments=arguments,
-                    success=False,
-                    result=None,
-                    error_message=str(exc),
-                    duration_ms=int((time.time() - call_start) * 1000),
-                ))
+                        result=None,
+                        error_message=str(exc),
+                        duration_ms=int((time.time() - call_start) * 1000),
+                    )
+                )
 
         return records
 
@@ -393,14 +422,16 @@ class AgentRuntime:
         # 构建 tool_calls 引用
         tc_list = []
         for tc in tool_calls_data:
-            tc_list.append({
-                "id": tc.get("id", ""),
-                "type": "function",
-                "function": {
-                    "name": tc.get("tool_name", ""),
-                    "arguments": tc.get("arguments", "{}"),
-                },
-            })
+            tc_list.append(
+                {
+                    "id": tc.get("id", ""),
+                    "type": "function",
+                    "function": {
+                        "name": tc.get("tool_name", ""),
+                        "arguments": tc.get("arguments", "{}"),
+                    },
+                }
+            )
         if tc_list:
             assistant_msg["tool_calls"] = tc_list
         new_messages.append(assistant_msg)
@@ -408,11 +439,13 @@ class AgentRuntime:
         # 添加每个工具的结果
         for tc, record in zip(tool_calls_data, tool_records):
             result_content = self._serialize_tool_result(record)
-            new_messages.append({
-                "role": "tool",
-                "tool_call_id": tc.get("id", ""),
-                "content": result_content,
-            })
+            new_messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.get("id", ""),
+                    "content": result_content,
+                }
+            )
 
         return new_messages
 
@@ -442,6 +475,7 @@ class AgentRuntime:
             pass
         # 尝试提取 ```json ... ``` 代码块
         import re
+
         match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", content, re.DOTALL)
         if match:
             try:

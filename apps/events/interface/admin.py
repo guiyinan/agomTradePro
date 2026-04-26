@@ -8,7 +8,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from apps.events.infrastructure.event_store import (
+from apps.events.event_store import (
     EventSnapshotModel,
     EventSubscriptionModel,
     StoredEventModel,
@@ -40,47 +40,45 @@ class StoredEventAdmin(admin.ModelAdmin):
     ]
 
     fieldsets = (
-        ("基本信息", {
-            "fields": ("event_id", "event_type", "version")
-        }),
-        ("事件数据", {
-            "fields": ("payload_display", "metadata_display")
-        }),
-        ("追踪信息", {
-            "fields": ("correlation_id", "causation_id")
-        }),
-        ("时间", {
-            "fields": ("occurred_at", "created_at")
-        }),
+        ("基本信息", {"fields": ("event_id", "event_type", "version")}),
+        ("事件数据", {"fields": ("payload_display", "metadata_display")}),
+        ("追踪信息", {"fields": ("correlation_id", "causation_id")}),
+        ("时间", {"fields": ("occurred_at", "created_at")}),
     )
 
     def payload_preview(self, obj):
         """显示 payload 预览"""
         import json
+
         payload_str = json.dumps(obj.payload, ensure_ascii=False)
         if len(payload_str) > 50:
             return payload_str[:50] + "..."
         return payload_str
+
     payload_preview.short_description = "Payload"
 
     def payload_display(self, obj):
         """格式化显示 payload"""
         import json
+
         return format_html(
             '<pre style="white-space: pre-wrap; word-break: break-all;">{}</pre>',
-            json.dumps(obj.payload, indent=2, ensure_ascii=False)
+            json.dumps(obj.payload, indent=2, ensure_ascii=False),
         )
+
     payload_display.short_description = "Payload"
 
     def metadata_display(self, obj):
         """格式化显示 metadata"""
         import json
+
         if not obj.metadata:
             return "-"
         return format_html(
             '<pre style="white-space: pre-wrap; word-break: break-all;">{}</pre>',
-            json.dumps(obj.metadata, indent=2, ensure_ascii=False)
+            json.dumps(obj.metadata, indent=2, ensure_ascii=False),
         )
+
     metadata_display.short_description = "Metadata"
 
     def has_add_permission(self, request):
@@ -116,20 +114,15 @@ class EventSnapshotAdmin(admin.ModelAdmin):
     ]
 
     fieldsets = (
-        ("基本信息", {
-            "fields": ("snapshot_id", "aggregate_type", "aggregate_id", "version")
-        }),
-        ("快照数据", {
-            "fields": ("state_display",)
-        }),
-        ("时间", {
-            "fields": ("created_at",)
-        }),
+        ("基本信息", {"fields": ("snapshot_id", "aggregate_type", "aggregate_id", "version")}),
+        ("快照数据", {"fields": ("state_display",)}),
+        ("时间", {"fields": ("created_at",)}),
     )
 
     def state_size(self, obj):
         """显示快照大小"""
         import json
+
         size = len(json.dumps(obj.state))
         if size < 1024:
             return f"{size} B"
@@ -137,15 +130,18 @@ class EventSnapshotAdmin(admin.ModelAdmin):
             return f"{size / 1024:.1f} KB"
         else:
             return f"{size / (1024 * 1024):.1f} MB"
+
     state_size.short_description = "大小"
 
     def state_display(self, obj):
         """格式化显示 state"""
         import json
+
         return format_html(
             '<pre style="white-space: pre-wrap; word-break: break-all;">{}</pre>',
-            json.dumps(obj.state, indent=2, ensure_ascii=False)
+            json.dumps(obj.state, indent=2, ensure_ascii=False),
         )
+
     state_display.short_description = "State"
 
     def has_add_permission(self, request):
@@ -174,16 +170,9 @@ class EventSubscriptionAdmin(admin.ModelAdmin):
     readonly_fields = ["created_at", "updated_at"]
 
     fieldsets = (
-        ("基本信息", {
-            "fields": ("subscription_id", "handler_id", "is_active")
-        }),
-        ("订阅配置", {
-            "fields": ("event_types",)
-        }),
-        ("元数据", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",)
-        }),
+        ("基本信息", {"fields": ("subscription_id", "handler_id", "is_active")}),
+        ("订阅配置", {"fields": ("event_types",)}),
+        ("元数据", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
     )
 
     def event_types_display(self, obj):
@@ -191,6 +180,7 @@ class EventSubscriptionAdmin(admin.ModelAdmin):
         if not obj.event_types:
             return "-"
         return ", ".join(obj.event_types)
+
     event_types_display.short_description = "事件类型"
 
 
@@ -210,9 +200,7 @@ class StoredEventActionsAdmin(StoredEventAdmin):
         显示与选中事件具有相同 correlation_id 的事件。
         """
         correlation_ids = set(
-            queryset.filter(correlation_id__isnull=False).values_list(
-                "correlation_id", flat=True
-            )
+            queryset.filter(correlation_id__isnull=False).values_list("correlation_id", flat=True)
         )
 
         if not correlation_ids:
@@ -226,12 +214,12 @@ class StoredEventActionsAdmin(StoredEventAdmin):
 
         # 显示结果
         self.message_user(
-            request,
-            f"找到 {related_events.count()} 个相关事件（{len(correlation_ids)} 个关联链）"
+            request, f"找到 {related_events.count()} 个相关事件（{len(correlation_ids)} 个关联链）"
         )
 
         # 这里可以重定向到自定义视图或直接显示
         # 简化处理：只显示消息
+
     view_correlation_chain.short_description = "查看关联事件链"
 
     def cleanup_old_events(self, request, queryset):
@@ -243,6 +231,7 @@ class StoredEventActionsAdmin(StoredEventAdmin):
         count = queryset.count()
         queryset.delete()
         self.message_user(request, f"已删除 {count} 个旧事件")
+
     cleanup_old_events.short_description = "删除选中的事件"
 
 
@@ -260,4 +249,3 @@ def customize_event_admin_site(admin_site):
     admin_site.site_header = "AgomTradePro 事件管理"
     admin_site.site_title = "事件管理"
     admin_site.index_title = "欢迎使用 AgomTradePro 事件管理系统"
-

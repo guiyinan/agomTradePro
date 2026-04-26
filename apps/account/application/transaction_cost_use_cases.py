@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from apps.account.infrastructure.providers import (
+from apps.account.application.repository_provider import (
     AssetMetadataRepository,
     TransactionCostConfigRepository,
     TransactionRepository,

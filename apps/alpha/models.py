@@ -1,16 +1,3 @@
-"""
-Alpha Models - Django ORM Models
+"""Alpha models re-export."""
 
-This module imports and re-exports the Alpha ORM models from the infrastructure layer.
-Django requires models.py at the app level for auto-discovery.
-"""
-
-from apps.alpha.infrastructure.models import (
-    AlphaScoreCacheModel,
-    QlibModelRegistryModel,
-)
-
-__all__ = [
-    "AlphaScoreCacheModel",
-    "QlibModelRegistryModel",
-]
+from apps.alpha.infrastructure.models import *  # noqa: F401,F403

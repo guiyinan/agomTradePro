@@ -11,6 +11,13 @@ from datetime import UTC, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from apps.account.application.repository_provider import (
+    PositionRepository,
+    StopLossRepository,
+    TakeProfitRepository,
+    build_in_memory_stop_loss_notification_service,
+    build_market_price_service,
+)
 from apps.account.domain.entities import (
     Position,
     StopLossConfig,
@@ -28,13 +35,6 @@ from apps.account.domain.services import (
     StopLossService,
     TakeProfitCheckResult,
     TakeProfitService,
-)
-from apps.account.infrastructure.market_price_service import MarketPriceService
-from apps.account.infrastructure.notification_service import InMemoryStopLossNotificationService
-from apps.account.infrastructure.providers import (
-    PositionRepository,
-    StopLossRepository,
-    TakeProfitRepository,
 )
 from core.exceptions import DataFetchError
 
@@ -88,7 +88,9 @@ class AutoStopLossUseCase:
             notification_service: 通知服务（默认使用内存通知服务）
         """
         self.market_data_service = market_data_service or _MarketDataAdapter()
-        self.notification_service = notification_service or InMemoryStopLossNotificationService()
+        self.notification_service = (
+            notification_service or build_in_memory_stop_loss_notification_service()
+        )
         self.stop_loss_repo = stop_loss_repo or StopLossRepository()
         self.position_repo = position_repo or PositionRepository()
 
@@ -323,7 +325,9 @@ class AutoTakeProfitUseCase:
             notification_service: 通知服务（默认使用内存通知服务）
         """
         self.market_data_service = market_data_service or _MarketDataAdapter()
-        self.notification_service = notification_service or InMemoryStopLossNotificationService()
+        self.notification_service = (
+            notification_service or build_in_memory_stop_loss_notification_service()
+        )
         self.take_profit_repo = take_profit_repo or TakeProfitRepository()
         self.position_repo = position_repo or PositionRepository()
 
@@ -619,7 +623,7 @@ class _MarketDataAdapter(MarketDataPort):
     """
 
     def __init__(self):
-        self._service = MarketPriceService()
+        self._service = build_market_price_service()
 
     def get_current_price(self, asset_code: str) -> Decimal | None:
         """获取当前价格"""

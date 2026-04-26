@@ -9,16 +9,16 @@ from typing import Any, Mapping
 from django.utils import timezone
 
 from apps.account.application.rbac import ROLE_CHOICES
-from apps.account.application.use_cases import (
-    CreatePositionFromBacktestInput,
-    CreatePositionFromBacktestUseCase,
-)
-from apps.account.infrastructure.providers import (
+from apps.account.application.repository_provider import (
     AccountClassificationRepository,
     AccountInterfaceRepository,
     AccountRepository,
     AssetMetadataRepository,
     PositionRepository,
+)
+from apps.account.application.use_cases import (
+    CreatePositionFromBacktestInput,
+    CreatePositionFromBacktestUseCase,
 )
 
 

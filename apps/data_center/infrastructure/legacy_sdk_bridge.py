@@ -1,9 +1,5 @@
-"""Bridges legacy modules to external SDK imports within data_center only."""
+"""Compatibility wrapper around the shared SDK bridge."""
 
 from __future__ import annotations
 
-
-def get_akshare_module():
-    import akshare as ak
-
-    return ak
+from shared.infrastructure.sdk_bridge import get_akshare_module

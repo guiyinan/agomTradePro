@@ -20,27 +20,27 @@ from celery.signals import (
 )
 from django.utils import timezone
 
+from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
 from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
     TaskPriority,
     TaskStatus,
 )
-from apps.task_monitor.infrastructure.providers import DjangoTaskRecordRepository
 from shared.config.secrets import get_secrets
 from shared.infrastructure.alert_service import create_default_alert_service
 
 logger = logging.getLogger(__name__)
 
 # 全局仓储实例
-_repository: DjangoTaskRecordRepository | None = None
+_repository = None
 
 
-def get_repository() -> DjangoTaskRecordRepository:
+def get_repository():
     """获取仓储实例（延迟初始化）"""
     global _repository
     if _repository is None:
-        _repository = DjangoTaskRecordRepository()
+        _repository = get_task_record_repository()
     return _repository
 
 

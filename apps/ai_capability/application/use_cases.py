@@ -17,10 +17,17 @@ from typing import Any, Optional
 from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.ai_provider.application.repository_provider import AIClientFactory
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.prompt.application.runtime_provider import execute_builtin_tool
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.ai_capability.application.repository_provider import (
+    DjangoCapabilityRepository,
+    DjangoRoutingLogRepository,
+    DjangoSyncLogRepository,
+    build_api_capability_collector,
+    get_capability_execution_support_repository,
+)
 from apps.terminal.application.repository_provider import (
     get_terminal_audit_repository,
     get_terminal_command_repository,
@@ -50,12 +57,6 @@ from ..domain.services import (
     BuiltinCapabilityRegistry,
     CapabilityFilter,
     CapabilityRetrievalScorer,
-)
-from ..infrastructure.providers import (
-    DjangoCapabilityRepository,
-    DjangoRoutingLogRepository,
-    DjangoSyncLogRepository,
-    get_capability_execution_support_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -912,7 +913,7 @@ class RouteMessageUseCase:
     ) -> str:
         """Execute general chat using AI provider."""
         try:
-            ai_factory = get_ai_client_factory()
+            ai_factory = AIClientFactory()
             ai_client = ai_factory.get_client(
                 request.provider_name,
                 user=context.user_id,
@@ -1349,9 +1350,7 @@ class SyncCapabilitiesUseCase:
 
     def _sync_apis(self) -> list[CapabilityDefinition]:
         """Sync internal APIs."""
-        from ..infrastructure.collectors.api_collector import ApiCapabilityCollector
-
-        collector = ApiCapabilityCollector()
+        collector = build_api_capability_collector()
         return collector.collect()
 
 

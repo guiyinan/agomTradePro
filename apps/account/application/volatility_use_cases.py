@@ -15,7 +15,7 @@ from apps.account.domain.services import (
     VolatilityMetrics,
     VolatilityTargetService,
 )
-from apps.account.infrastructure.providers import (
+from apps.account.application.repository_provider import (
     AccountRepository,
     PortfolioRepository,
     PortfolioSnapshotRepository,

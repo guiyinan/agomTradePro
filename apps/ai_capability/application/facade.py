@@ -15,6 +15,10 @@ from apps.policy.application.repository_provider import get_current_policy_repos
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
+from ..application.repository_provider import (
+    DjangoCapabilityRepository,
+    DjangoRoutingLogRepository,
+)
 from ..application.dtos import RouteRequestDTO
 from ..application.use_cases import RouteMessageUseCase
 from ..domain.entities import (
@@ -24,10 +28,6 @@ from ..domain.entities import (
     SourceType,
 )
 from ..domain.services import CapabilityFilter
-from ..infrastructure.providers import (
-    DjangoCapabilityRepository,
-    DjangoRoutingLogRepository,
-)
 
 logger = logging.getLogger(__name__)
 

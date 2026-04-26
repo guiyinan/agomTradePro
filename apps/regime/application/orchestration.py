@@ -23,6 +23,13 @@ from typing import Any, Dict, List, Optional
 from celery import chain, shared_task
 from celery.utils.log import get_task_logger
 
+from apps.regime.application.repository_provider import (
+    build_macro_data_provider,
+    build_macro_repository_adapter,
+    build_macro_sync_task_gateway,
+    get_regime_repository,
+)
+
 logger = get_task_logger(__name__)
 
 
@@ -77,15 +84,12 @@ def generate_daily_regime_signal(
             HighFrequencySignalRequest,
             HighFrequencySignalUseCase,
         )
-        from apps.regime.infrastructure.macro_data_provider import (
-            DjangoMacroDataProvider,
-        )
 
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
         logger.info(f"Generating daily regime signal for {target_date}")
 
         # 使用新的提供者接口
-        provider = DjangoMacroDataProvider()
+        provider = build_macro_data_provider()
         macro_repo = provider._get_repository()
 
         use_case = HighFrequencySignalUseCase(macro_repo)
@@ -153,15 +157,12 @@ def recalculate_regime_with_daily_signal(
             ResolveSignalConflictRequest,
             ResolveSignalConflictUseCase,
         )
-        from apps.regime.infrastructure.macro_data_provider import (
-            DjangoMacroDataProvider,
-        )
 
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
         logger.info(f"Recalculating regime with daily signal for {target_date}")
 
         # 使用新的提供者接口
-        provider = DjangoMacroDataProvider()
+        provider = build_macro_data_provider()
         macro_repo = provider._get_repository()
 
         # 1. 获取月度 regime
@@ -255,8 +256,6 @@ def calculate_regime_after_sync(
             CalculateRegimeV2Request,
             CalculateRegimeV2UseCase,
         )
-        from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
-        from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
         # 检查前一步是否成功
         if sync_result and not sync_result.get('success', True):
@@ -273,7 +272,7 @@ def calculate_regime_after_sync(
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
         logger.info(f"Starting regime calculation for date={as_of_date}, use_pit={use_pit}")
 
-        macro_repo = MacroRepositoryAdapter()
+        macro_repo = build_macro_repository_adapter()
         use_case = CalculateRegimeV2UseCase(macro_repo)
         response = use_case.execute(
             CalculateRegimeV2Request(
@@ -291,7 +290,7 @@ def calculate_regime_after_sync(
                 calculation_result=response.result,
                 observed_at=target_date,
             )
-            DjangoRegimeRepository().save_snapshot(snapshot)
+            get_regime_repository().save_snapshot(snapshot)
             logger.info(f"Regime calculation completed and persisted: {snapshot.dominant_regime}")
 
             return {
@@ -343,8 +342,6 @@ def notify_regime_change_after_calculation(
         dict: 通知发送结果
     """
     try:
-        from apps.regime.infrastructure.providers import DjangoRegimeRepository
-
         if not regime_result or regime_result.get('status') != 'success':
             logger.info(
                 f"Regime calculation not successful, skipping notification: "
@@ -360,7 +357,7 @@ def notify_regime_change_after_calculation(
             f"{regime_result.get('dominant_regime')}"
         )
 
-        regime_repo = DjangoRegimeRepository()
+        regime_repo = get_regime_repository()
         current_date = date.fromisoformat(
             regime_result.get('observed_at', regime_result['as_of_date'])
         )
@@ -526,11 +523,7 @@ def sync_macro_then_refresh_regime(
 
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
 
-        from apps.regime.infrastructure.macro_sync_gateway import (
-            DjangoMacroSyncTaskGateway,
-        )
-
-        gateway = DjangoMacroSyncTaskGateway()
+        gateway = build_macro_sync_task_gateway()
 
         # 创建任务链
         workflow = chain(

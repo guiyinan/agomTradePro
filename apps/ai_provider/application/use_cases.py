@@ -7,11 +7,11 @@ from typing import Any
 
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
-from ..infrastructure.adapters import OpenAICompatibleAdapter
-from ..infrastructure.providers import (
-    AIProviderRepository,
-    AIUsageRepository,
-    AIUserFallbackQuotaRepository,
+from .repository_provider import (
+    OpenAICompatibleAdapter,
+    get_ai_provider_repository,
+    get_ai_usage_repository,
+    get_ai_user_fallback_quota_repository,
 )
 from .dtos import (
     BatchQuotaApplyResultDTO,
@@ -29,11 +29,11 @@ class ListProvidersUseCase:
 
     def __init__(
         self,
-        provider_repo: AIProviderRepository | None = None,
-        usage_repo: AIUsageRepository | None = None,
+        provider_repo: Any | None = None,
+        usage_repo: Any | None = None,
     ) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
-        self._usage_repo = usage_repo or AIUsageRepository()
+        self._provider_repo = provider_repo or get_ai_provider_repository()
+        self._usage_repo = usage_repo or get_ai_usage_repository()
 
     def execute(
         self,
@@ -104,8 +104,8 @@ class CreateProviderUseCase:
 
     VALID_API_MODES = {"dual", "responses_only", "chat_only"}
 
-    def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
+    def __init__(self, provider_repo: Any | None = None) -> None:
+        self._provider_repo = provider_repo or get_ai_provider_repository()
 
     def execute(
         self,
@@ -186,8 +186,8 @@ class UpdateProviderUseCase:
 
     VALID_API_MODES = {"dual", "responses_only", "chat_only"}
 
-    def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
+    def __init__(self, provider_repo: Any | None = None) -> None:
+        self._provider_repo = provider_repo or get_ai_provider_repository()
 
     def execute(self, pk: int, *, actor_user=None, **kwargs) -> Any:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
@@ -231,8 +231,8 @@ class UpdateProviderUseCase:
 class DeleteProviderUseCase:
     """删除 provider。"""
 
-    def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
+    def __init__(self, provider_repo: Any | None = None) -> None:
+        self._provider_repo = provider_repo or get_ai_provider_repository()
 
     def execute(self, pk: int, *, actor_user=None) -> bool:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
@@ -247,8 +247,8 @@ class DeleteProviderUseCase:
 class ToggleProviderUseCase:
     """切换 provider 启用状态。"""
 
-    def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
+    def __init__(self, provider_repo: Any | None = None) -> None:
+        self._provider_repo = provider_repo or get_ai_provider_repository()
 
     def execute(self, pk: int, *, actor_user=None) -> Any:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
@@ -266,11 +266,11 @@ class GetProviderStatsUseCase:
 
     def __init__(
         self,
-        provider_repo: AIProviderRepository | None = None,
-        usage_repo: AIUsageRepository | None = None,
+        provider_repo: Any | None = None,
+        usage_repo: Any | None = None,
     ) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
-        self._usage_repo = usage_repo or AIUsageRepository()
+        self._provider_repo = provider_repo or get_ai_provider_repository()
+        self._usage_repo = usage_repo or get_ai_usage_repository()
 
     def execute(self, pk: int, days: int = 30, *, actor_user=None) -> ProviderStatsDTO:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
@@ -299,11 +299,11 @@ class GetOverallStatsUseCase:
 
     def __init__(
         self,
-        provider_repo: AIProviderRepository | None = None,
-        usage_repo: AIUsageRepository | None = None,
+        provider_repo: Any | None = None,
+        usage_repo: Any | None = None,
     ) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
-        self._usage_repo = usage_repo or AIUsageRepository()
+        self._provider_repo = provider_repo or get_ai_provider_repository()
+        self._usage_repo = usage_repo or get_ai_usage_repository()
 
     def execute(self) -> OverallStatsDTO:
         providers = self._provider_repo.get_system_providers(include_inactive=True)
@@ -327,11 +327,11 @@ class ListUsageLogsUseCase:
 
     def __init__(
         self,
-        usage_repo: AIUsageRepository | None = None,
-        provider_repo: AIProviderRepository | None = None,
+        usage_repo: Any | None = None,
+        provider_repo: Any | None = None,
     ) -> None:
-        self._usage_repo = usage_repo or AIUsageRepository()
-        self._provider_repo = provider_repo or AIProviderRepository()
+        self._usage_repo = usage_repo or get_ai_usage_repository()
+        self._provider_repo = provider_repo or get_ai_provider_repository()
 
     def execute(
         self,
@@ -381,11 +381,11 @@ class CheckBudgetUseCase:
 
     def __init__(
         self,
-        provider_repo: AIProviderRepository | None = None,
-        usage_repo: AIUsageRepository | None = None,
+        provider_repo: Any | None = None,
+        usage_repo: Any | None = None,
     ) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
-        self._usage_repo = usage_repo or AIUsageRepository()
+        self._provider_repo = provider_repo or get_ai_provider_repository()
+        self._usage_repo = usage_repo or get_ai_usage_repository()
 
     def execute(self, pk: int, *, actor_user=None) -> BudgetCheckResultDTO:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)
@@ -422,9 +422,9 @@ class GetUserFallbackQuotaUseCase:
 
     def __init__(
         self,
-        quota_repo: AIUserFallbackQuotaRepository | None = None,
+        quota_repo: Any | None = None,
     ) -> None:
-        self._quota_repo = quota_repo or AIUserFallbackQuotaRepository()
+        self._quota_repo = quota_repo or get_ai_user_fallback_quota_repository()
 
     def execute(self, *, user) -> UserFallbackQuotaDTO:
         quota, daily_spent, monthly_spent = self._quota_repo.get_with_usage(user)
@@ -458,9 +458,9 @@ class UpdateUserFallbackQuotaUseCase:
 
     def __init__(
         self,
-        quota_repo: AIUserFallbackQuotaRepository | None = None,
+        quota_repo: Any | None = None,
     ) -> None:
-        self._quota_repo = quota_repo or AIUserFallbackQuotaRepository()
+        self._quota_repo = quota_repo or get_ai_user_fallback_quota_repository()
 
     def execute(
         self,
@@ -487,9 +487,9 @@ class BatchApplyUserFallbackQuotaUseCase:
 
     def __init__(
         self,
-        quota_repo: AIUserFallbackQuotaRepository | None = None,
+        quota_repo: Any | None = None,
     ) -> None:
-        self._quota_repo = quota_repo or AIUserFallbackQuotaRepository()
+        self._quota_repo = quota_repo or get_ai_user_fallback_quota_repository()
 
     def execute(
         self,
@@ -515,9 +515,9 @@ class ListUserFallbackQuotasUseCase:
 
     def __init__(
         self,
-        quota_repo: AIUserFallbackQuotaRepository | None = None,
+        quota_repo: Any | None = None,
     ) -> None:
-        self._quota_repo = quota_repo or AIUserFallbackQuotaRepository()
+        self._quota_repo = quota_repo or get_ai_user_fallback_quota_repository()
 
     def execute(self) -> list[UserFallbackQuotaDTO]:
         users = self._quota_repo.list_active_users()
@@ -528,8 +528,8 @@ class ListUserFallbackQuotasUseCase:
 class TestProviderConnectionUseCase:
     """测试单个 provider 的连通性。"""
 
-    def __init__(self, provider_repo: AIProviderRepository | None = None) -> None:
-        self._provider_repo = provider_repo or AIProviderRepository()
+    def __init__(self, provider_repo: Any | None = None) -> None:
+        self._provider_repo = provider_repo or get_ai_provider_repository()
 
     def execute(self, pk: int, *, actor_user=None) -> dict[str, Any]:
         provider = self._provider_repo.get_by_id(pk, user=actor_user)

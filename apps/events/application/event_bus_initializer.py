@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from ..domain.entities import EventType
 from ..domain.services import EventBus, EventHandler, InMemoryEventBus
-from ..infrastructure.event_store import InMemoryEventStore
+from .repository_provider import CeleryEventBus, InMemoryEventStore, is_celery_available
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +62,10 @@ class EventBusInitializer:
         """
         # 创建事件总线（Celery 可用时使用 CeleryEventBus）
         from ..domain.entities import EventBusConfig
+
         config = EventBusConfig()
 
         try:
-            from ..infrastructure.celery_event_bus import CeleryEventBus, is_celery_available
             if is_celery_available():
                 self.event_bus = CeleryEventBus(config)
                 logger.debug("Using CeleryEventBus for async event publishing")
@@ -122,7 +122,7 @@ class EventBusInitializer:
                     handler = subscriber_info.handler_factory()
 
                     # 注入事件总线（如果处理器需要）
-                    if hasattr(handler, 'event_bus'):
+                    if hasattr(handler, "event_bus"):
                         handler.event_bus = self.event_bus
 
                     # 创建订阅
@@ -142,9 +142,7 @@ class EventBusInitializer:
                     )
 
                 except Exception as e:
-                    logger.error(
-                        f"Failed to create handler for {subscriber_info.module_name}: {e}"
-                    )
+                    logger.error(f"Failed to create handler for {subscriber_info.module_name}: {e}")
 
             logger.debug(f"Loaded {len(all_subscribers)} subscribers from registry")
 
@@ -184,18 +182,12 @@ class EventBusInitializer:
             )
 
             # 创建处理器
-            decision_approved_handler = DecisionApprovedHandler(
-                event_bus=self.event_bus
-            )
-            decision_executed_handler = DecisionExecutedHandler(
-                event_bus=self.event_bus
-            )
+            decision_approved_handler = DecisionApprovedHandler(event_bus=self.event_bus)
+            decision_executed_handler = DecisionExecutedHandler(event_bus=self.event_bus)
             decision_execution_failed_handler = DecisionExecutionFailedHandler(
                 event_bus=self.event_bus
             )
-            decision_rejected_handler = DecisionRejectedHandler(
-                event_bus=self.event_bus
-            )
+            decision_rejected_handler = DecisionRejectedHandler(event_bus=self.event_bus)
 
             # 修复：使用 EventSubscription 包装 handler
             approved_subscription = EventSubscription(
@@ -225,12 +217,14 @@ class EventBusInitializer:
             self.event_bus.subscribe(failed_subscription)
             self.event_bus.subscribe(rejected_subscription)
 
-            self.handlers.extend([
-                decision_approved_handler,
-                decision_executed_handler,
-                decision_execution_failed_handler,
-                decision_rejected_handler,
-            ])
+            self.handlers.extend(
+                [
+                    decision_approved_handler,
+                    decision_executed_handler,
+                    decision_execution_failed_handler,
+                    decision_rejected_handler,
+                ]
+            )
 
             logger.debug("Decision execution handlers registered")
 
@@ -295,7 +289,7 @@ class LoggingEventHandler(EventHandler):
             self.level,
             f"Event: {event.event_type.value} | "
             f"ID: {event.event_id} | "
-            f"Payload: {event.payload}"
+            f"Payload: {event.payload}",
         )
 
     def get_handler_id(self) -> str:

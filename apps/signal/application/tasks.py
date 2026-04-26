@@ -13,6 +13,10 @@ from django.conf import settings
 from django.db import DatabaseError
 from django.utils import timezone
 
+from apps.signal.application.repository_provider import (
+    get_signal_repository,
+    get_user_repository,
+)
 from core.exceptions import BusinessLogicError, DataFetchError
 from core.metrics import record_exception
 
@@ -84,12 +88,11 @@ def check_single_signal_invalidation(self, signal_id: int):
     用于手动触发或信号状态变化时检查
     """
     from apps.signal.application.invalidation_checker import InvalidationCheckService
-    from apps.signal.infrastructure.providers import DjangoSignalRepository
 
     logger.info(f"检查信号 {signal_id} 的证伪状态...")
 
     try:
-        repository = DjangoSignalRepository()
+        repository = get_signal_repository()
         service = InvalidationCheckService(signal_repository=repository)
         result = service.check_signal(signal_id)
 
@@ -133,12 +136,10 @@ def cleanup_old_invalidated_signals(days: int = 90):
 
     默认清理 90 天前的证伪信号，可以归档或删除
     """
-    from apps.signal.infrastructure.providers import DjangoSignalRepository
-
     logger.info(f"清理 {days} 天前的已证伪信号...")
 
     try:
-        repository = DjangoSignalRepository()
+        repository = get_signal_repository()
         old_ids = repository.get_old_invalidated_signals(days)
 
         count = len(old_ids)
@@ -166,10 +167,7 @@ def send_daily_signal_summary():
     每天早上发送前一天的状态变化报告
     """
     from datetime import timedelta
-
-    from apps.signal.infrastructure.providers import DjangoSignalRepository
-
-    repository = DjangoSignalRepository()
+    repository = get_signal_repository()
 
     yesterday = timezone.now() - timedelta(days=1)
     today = timezone.now()
@@ -212,7 +210,6 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     Returns:
         bool: 是否发送成功
     """
-    from apps.signal.infrastructure.providers import DjangoUserRepository
     from shared.infrastructure.notification_service import (
         NotificationPriority,
         get_notification_service,
@@ -379,9 +376,7 @@ def _get_signal_notification_recipients() -> list[str]:
     """
     from django.conf import settings
 
-    from apps.signal.infrastructure.providers import DjangoUserRepository
-
-    user_repo = DjangoUserRepository()
+    user_repo = get_user_repository()
     recipients = []
 
     # 从配置获取

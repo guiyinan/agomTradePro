@@ -292,7 +292,13 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
         prefixes = rule.get("forbidden_import_prefixes", [])
         patterns = rule.get("forbidden_import_patterns", [])
         forbid_cross_app_infra = bool(rule.get("forbid_cross_app_infrastructure_imports"))
-        if not prefixes and not patterns and not forbid_cross_app_infra:
+        forbid_same_app_infra = bool(rule.get("forbid_same_app_infrastructure_imports"))
+        if (
+            not prefixes
+            and not patterns
+            and not forbid_cross_app_infra
+            and not forbid_same_app_infra
+        ):
             continue
         for record in records:
             if not rule_matches_record(record, rule):
@@ -312,6 +318,11 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
                 match = re.match(r"^apps\.([^.]+)\.infrastructure(?:\.|$)", record.import_path)
                 if match and match.group(1) != record.source_module:
                     matched = "apps.<other>.infrastructure"
+
+            if not matched and forbid_same_app_infra:
+                match = re.match(r"^apps\.([^.]+)\.infrastructure(?:\.|$)", record.import_path)
+                if match and match.group(1) == record.source_module:
+                    matched = "apps.<same>.infrastructure"
 
             if not matched:
                 continue
