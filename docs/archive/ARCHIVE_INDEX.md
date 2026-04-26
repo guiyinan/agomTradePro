@@ -108,7 +108,15 @@
 |--------|------|----------|
 | module-dependency-graph.md | 模块依赖关系图（已被 `architecture/MODULE_DEPENDENCIES.md` 取代） | 2026-03-18 |
 
+### 9. 架构计划文档归档 (plans/)
+
+| 原文件 | 说明 | 归档日期 |
+|--------|------|----------|
+| architecture-audit-report-2026-04-22.md | 2026-04-22 架构审计与整改计划，已被 `docs/architecture/architecture-remediation-result-2026-04-26.md` 取代 | 2026-04-26 |
+| architecture-audit-backlog-2026-04-22.md | 2026-04-22/24 架构审计积压快照，当前架构审计已清零 | 2026-04-26 |
+| architecture-debt-remediation-260422.md | 指向旧审计报告的兼容跳转，随旧报告一起归档 | 2026-04-26 |
+
 ---
 
 **归档维护**: AgomTradePro Team
-**最后更新**: 2026-03-18
+**最后更新**: 2026-04-26

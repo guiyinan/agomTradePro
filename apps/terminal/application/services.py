@@ -9,9 +9,12 @@ import logging
 import re
 from typing import Any, Optional
 
-import requests
+from apps.terminal.infrastructure.providers import (
+    TerminalApiRequestError,
+    get_terminal_command_http_client,
+    get_terminal_runtime_settings_repository,
+)
 
-from apps.terminal.infrastructure.providers import get_terminal_runtime_settings_repository
 from ..domain.entities import TerminalCommand
 
 logger = logging.getLogger(__name__)
@@ -39,6 +42,7 @@ class CommandExecutionService:
         """延迟加载AI客户端工厂"""
         if self._ai_client_factory is None:
             from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+
             self._ai_client_factory = AIClientFactory()
         return self._ai_client_factory
 
@@ -133,15 +137,15 @@ class CommandExecutionService:
         trace_summary["turn_count"] = response.turn_count
 
         return {
-            'output': response.final_answer or response.error_message or '',
-            'metadata': {
-                'provider': response.provider_used or provider_name or 'default',
-                'model': response.model_used or model_name or 'default',
-                'tokens': response.total_tokens,
-                'session_id': session_id,
-                'execution_id': response.execution_id,
-                'trace': trace_summary,
-            }
+            "output": response.final_answer or response.error_message or "",
+            "metadata": {
+                "provider": response.provider_used or provider_name or "default",
+                "model": response.model_used or model_name or "default",
+                "tokens": response.total_tokens,
+                "session_id": session_id,
+                "execution_id": response.execution_id,
+                "trace": trace_summary,
+            },
         }
 
     def execute_api_command(
@@ -151,7 +155,7 @@ class CommandExecutionService:
     ) -> dict[str, Any]:
         """
         执行API类型命令
-        
+
         Returns:
             dict with 'output' and 'metadata' keys
         """
@@ -167,27 +171,16 @@ class CommandExecutionService:
             if f"{{{key}}}" not in command.api_endpoint:
                 request_params[key] = value
 
-        # 发送请求
         try:
-            if command.api_method.upper() == 'GET':
-                response = requests.get(url, params=request_params, timeout=command.timeout)
-            else:
-                response = requests.request(
-                    method=command.api_method.upper(),
-                    url=url,
-                    json=request_params,
-                    timeout=command.timeout
-                )
-
-            response.raise_for_status()
-            data = response.json()
-
-        except requests.RequestException as e:
+            status_code, data = get_terminal_command_http_client().request_json(
+                method=command.api_method,
+                url=url,
+                params=request_params,
+                timeout=command.timeout,
+            )
+        except TerminalApiRequestError as e:
             logger.error(f"API request failed: {e}")
-            return {
-                'output': f"API request failed: {e}",
-                'metadata': {'error': str(e)}
-            }
+            return {"output": f"API request failed: {e}", "metadata": {"error": str(e)}}
 
         # 应用JQ过滤
         output = data
@@ -204,25 +197,25 @@ class CommandExecutionService:
             output_str = str(output)
 
         return {
-            'output': output_str,
-            'metadata': {
-                'api_endpoint': command.api_endpoint,
-                'api_method': command.api_method,
-                'status_code': response.status_code,
-            }
+            "output": output_str,
+            "metadata": {
+                "api_endpoint": command.api_endpoint,
+                "api_method": command.api_method,
+                "status_code": status_code,
+            },
         }
 
     def _apply_jq_filter(self, data: Any, filter_expr: str) -> Any:
         """
         应用简单的JQ-like过滤器
-        
+
         支持基本的路径访问: .key, .key[0], .key.subkey
         """
         # 简化实现，支持基本的点语法路径
-        if not filter_expr.startswith('.'):
+        if not filter_expr.startswith("."):
             return data
 
-        path = filter_expr[1:].split('.')
+        path = filter_expr[1:].split(".")
         result = data
 
         for part in path:
@@ -230,7 +223,7 @@ class CommandExecutionService:
                 continue
 
             # 处理数组索引: key[0]
-            match = re.match(r'(\w+)\[(\d+)\]', part)
+            match = re.match(r"(\w+)\[(\d+)\]", part)
             if match:
                 key, index = match.groups()
                 result = result[key][int(index)]

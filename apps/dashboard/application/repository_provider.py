@@ -5,7 +5,10 @@ from apps.account.infrastructure.providers import (
     PortfolioRepository,
     PositionRepository,
 )
-from apps.dashboard.infrastructure.providers import DashboardOverviewRepository
+from apps.dashboard.infrastructure.providers import (
+    DashboardAIInsightClient,
+    DashboardOverviewRepository,
+)
 from apps.regime.infrastructure.providers import DjangoRegimeRepository
 from apps.signal.infrastructure.providers import DjangoSignalRepository
 
@@ -38,3 +41,10 @@ def get_signal_repository() -> DjangoSignalRepository:
 def get_dashboard_overview_repository() -> DashboardOverviewRepository:
     """Return the dashboard overview read model repository."""
     return DashboardOverviewRepository()
+
+
+def get_dashboard_ai_insight_client() -> DashboardAIInsightClient:
+    """Return the dashboard AI insight client."""
+    from apps.dashboard.infrastructure.providers import get_dashboard_ai_insight_client as factory
+
+    return factory()

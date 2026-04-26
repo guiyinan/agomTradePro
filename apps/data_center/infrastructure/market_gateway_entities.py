@@ -5,7 +5,7 @@ Data Center 网关层标准实体
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional
 
@@ -30,7 +30,7 @@ class QuoteSnapshot:
     open: Decimal | None = None
     pre_close: Decimal | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now())
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -74,7 +74,7 @@ class CapitalFlowSnapshot:
     medium_net_inflow: float = 0.0
     small_net_inflow: float = 0.0
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now())
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -107,10 +107,10 @@ class StockNewsItem:
     news_id: str
     title: str
     content: str = ""
-    published_at: datetime = field(default_factory=lambda: datetime.now())
+    published_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     url: str | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now())
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -255,16 +255,10 @@ class ProviderStatus:
             "provider_name": self.provider_name,
             "capability": self.capability,
             "is_healthy": self.is_healthy,
-            "last_success_at": (
-                self.last_success_at.isoformat()
-                if self.last_success_at
-                else None
-            ),
+            "last_success_at": (self.last_success_at.isoformat() if self.last_success_at else None),
             "consecutive_failures": self.consecutive_failures,
             "circuit_open_until": (
-                self.circuit_open_until.isoformat()
-                if self.circuit_open_until
-                else None
+                self.circuit_open_until.isoformat() if self.circuit_open_until else None
             ),
             "avg_latency_ms": self.avg_latency_ms,
         }
@@ -283,4 +277,4 @@ class RawPayload:
     payload: dict
     parse_status: str = "success"
     error_message: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now())
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

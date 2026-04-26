@@ -16,6 +16,7 @@ from apps.account.domain.entities import (
 )
 from apps.dashboard.application.repository_provider import (
     get_account_repository,
+    get_dashboard_ai_insight_client,
     get_dashboard_overview_repository,
     get_portfolio_repository,
     get_position_repository,
@@ -41,14 +42,6 @@ def _display_risk_tolerance(risk_tolerance) -> str:
 def _risk_tolerance_value(risk_tolerance) -> str:
     """Normalize risk tolerance enum/value to the string expected by strategy layer."""
     return str(getattr(risk_tolerance, "value", risk_tolerance))
-
-
-def _build_ai_api_url(base_url: str) -> str:
-    """Build a chat completion endpoint URL from a provider base URL."""
-    normalized = (base_url or "").rstrip("/")
-    if normalized.endswith("/chat/completions") or normalized.endswith("/responses"):
-        return normalized
-    return f"{normalized}/chat/completions"
 
 
 def _normalize_regime_distribution(
@@ -516,9 +509,9 @@ class GetDashboardDataUseCase:
                 "asset_name": asset_name_map.get(s.asset_code, s.asset_code),
                 "direction": s.direction,
                 "status": s.status,
-                "logic_desc": s.logic_desc[:100] + "..."
-                if len(s.logic_desc) > 100
-                else s.logic_desc,
+                "logic_desc": (
+                    s.logic_desc[:100] + "..." if len(s.logic_desc) > 100 else s.logic_desc
+                ),
                 "created_at": s.created_at.strftime("%Y-%m-%d"),
             }
             for s in signal_list
@@ -573,7 +566,9 @@ class GetDashboardDataUseCase:
                 "market_value": bucket["market_value"],
                 "percentage": round(bucket["market_value"] / total_market_value * 100, 1),
             }
-            for key, bucket in sorted(grouped.items(), key=lambda item: item[1]["market_value"], reverse=True)
+            for key, bucket in sorted(
+                grouped.items(), key=lambda item: item[1]["market_value"], reverse=True
+            )
         ]
 
     def _generate_ai_insights(
@@ -638,8 +633,6 @@ class GetDashboardDataUseCase:
 
         # 3. 调用 AI API
         try:
-            import requests
-
             provider = self.overview_repo.get_primary_system_ai_provider_payload()
 
             if not provider:
@@ -648,82 +641,12 @@ class GetDashboardDataUseCase:
                     current_regime, snapshot, match_analysis, active_signals, policy_level
                 )
 
-            # 构建 API 请求
-            api_url = _build_ai_api_url(str(provider["base_url"]))
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {provider['api_key']}",
-            }
-
-            # 根据不同的提供商调整请求格式
-            if provider["provider_type"] == "openai":
-                payload = {
-                    "model": provider["default_model"],
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 500,
-                }
-            elif provider["provider_type"] == "deepseek":
-                payload = {
-                    "model": provider["default_model"],
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 500,
-                }
-            else:  # 通用格式
-                payload = {
-                    "model": provider["default_model"],
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 500,
-                }
-
-            # 发送请求
-            response = requests.post(api_url, headers=headers, json=payload, timeout=10)
-
-            if response.status_code == 200:
-                data = response.json()
-
-                # 解析响应
-                if provider["provider_type"] in ["openai", "deepseek", "qwen"]:
-                    content = data["choices"][0]["message"]["content"]
-                else:
-                    content = str(data)
-
-                # 分割建议（按行）
-                lines = [line.strip() for line in content.split("\n") if line.strip()]
-
-                # 清理和限制建议数量
-                insights = []
-                for line in lines:
-                    # 移除序号、符号等
-                    line = line.lstrip("0123456789.-*•、 ")
-                    line = line.lstrip("【").rstrip("】")
-                    if len(line) > 5 and len(line) < 100:  # 过滤太短或太长的
-                        insights.append(line)
-                    if len(insights) >= 5:  # 最多 5 条
-                        break
-
-                if insights:
-                    return insights
+            insights = get_dashboard_ai_insight_client().generate_insights(
+                provider=provider,
+                prompt=prompt,
+            )
+            if insights:
+                return insights
 
         except Exception as e:
             # AI 调用失败，使用增强后备方案
@@ -823,9 +746,9 @@ class GetDashboardDataUseCase:
                     advice = str(rule.get("advice_template") or "").format(
                         regime=current_regime,
                         growth_direction="↑" if current_regime in ["Recovery", "Overheat"] else "↓",
-                        inflation_direction="↑"
-                        if current_regime in ["Overheat", "Stagflation"]
-                        else "↓",
+                        inflation_direction=(
+                            "↑" if current_regime in ["Overheat", "Stagflation"] else "↓"
+                        ),
                     )
                     insights.append(advice)
                     break
