@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-26.v3",
+  "version": "2026-04-26.v4",
   "source_roots": [
     "apps",
     "core",
@@ -310,6 +310,25 @@
         "^apps\\.(alpha|asset_analysis|dashboard|equity|fund|macro|pulse|realtime|rotation|sector)\\.infrastructure(?:\\.|$)"
       ],
       "rationale": "Owning apps should register providers; data_center must not reverse-import their implementation packages."
+    },
+    {
+      "id": "apps_domain_no_application_or_infrastructure_imports",
+      "description": "Domain layers must not import application or infrastructure packages, including dynamic import escapes.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "domain"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\..*\\.application(?:\\.|$)",
+        "^apps\\..*\\.infrastructure(?:\\.|$)"
+      ],
+      "forbidden_line_patterns": [
+        "importlib\\.import_module\\([\"']apps\\.[^\"']*\\.(application|infrastructure)\\.[^\"']+[\"']\\)",
+        "__import__\\([\"']apps\\.[^\"']*\\.(application|infrastructure)\\.[^\"']+[\"']\\)"
+      ],
+      "rationale": "Domain code must stay pure and depend only on domain abstractions and standard-library constructs."
     }
   ],
   "module_metadata": {

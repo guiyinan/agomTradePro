@@ -185,6 +185,48 @@ def test_verify_architecture_same_app_infrastructure_rule_excludes_repository_pr
     assert violations[0]["matched_pattern"] == "apps.<same>.infrastructure"
 
 
+def test_verify_architecture_domain_rule_blocks_application_and_infrastructure_imports():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_domain_layers",
+    )
+    rule = {
+        "id": "apps_domain_no_application_or_infrastructure_imports",
+        "description": "Domain layers must not import application or infrastructure packages.",
+        "source_roots": ["apps"],
+        "source_layers": ["domain"],
+        "forbidden_import_patterns": [
+            r"^apps\..*\.application(?:\.|$)",
+            r"^apps\..*\.infrastructure(?:\.|$)",
+        ],
+    }
+    records = [
+        module.ImportRecord(
+            source_path="apps/backtest/domain/alpha_backtest.py",
+            source_root="apps",
+            source_module="backtest",
+            source_layer="domain",
+            import_path="apps.alpha.application.services",
+            target_module="alpha",
+            lineno=1,
+        ),
+        module.ImportRecord(
+            source_path="apps/simulated_trading/domain/__init__.py",
+            source_root="apps",
+            source_module="simulated_trading",
+            source_layer="domain",
+            import_path="apps.equity.infrastructure.adapters",
+            target_module="equity",
+            lineno=2,
+        ),
+    ]
+
+    violations = module.find_import_violations(records, [rule])
+
+    assert len(violations) == 2
+    assert violations[0]["rule_id"] == "apps_domain_no_application_or_infrastructure_imports"
+
+
 def test_scaffold_application_providers_renders_grouped_imports():
     module = _load_script_module(
         "scaffold_application_providers.py",

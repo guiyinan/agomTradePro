@@ -1,6 +1,6 @@
 # AgomTradePro 系统模块拓扑图与数据流
 
-> 生成日期: 2026-04-26
+> 生成日期: 2026-04-27（加购审计更新）
 > 系统版本: 0.7.0
 > 模块总数: 35
 > 架构状态: app 级循环依赖 `0`，架构审计债 `0`
@@ -37,17 +37,17 @@ graph TB
         SAN["sanitization"]
     end
 
-    subgraph L0["Tier 0 — 基础设施层（无跨模块依赖）"]
+    subgraph L0["Tier 0 — 基础设施层（无/低跨模块依赖）"]
         EVENTS["📦 events<br/>事件总线"]
         PULSE["💓 pulse<br/>脉搏层"]
         AI_PROV["🤖 ai_provider<br/>AI 服务商"]
         TASK_MON["📋 task_monitor<br/>任务监控"]
         SETUP["⚙️ setup_wizard<br/>初始化向导"]
         AGENT_RT["🧠 agent_runtime<br/>Agent 运行时"]
+        DC["🗄️ data_center<br/>数据中台"]
     end
 
     subgraph L1["Tier 1 — 数据采集与核心引擎"]
-        DC["🗄️ data_center<br/>数据中台"]
         MACRO["📊 macro<br/>宏观数据"]
         EQUITY["📈 equity<br/>个股分析"]
         FUND["💰 fund<br/>基金分析"]
@@ -115,23 +115,23 @@ graph TB
     SAN -.-> AGENT_RT
 
     %% ===== Tier 0 内部 =====
-    PULSE --> REGIME
+    PULSE --> DC
+    SETUP --> DC
+    SETUP --> AI_PROV
+    AGENT_RT --> DC
 
     %% ===== Tier 0 → Tier 1 =====
-    EVENTS --> A_TRIG
-    EVENTS --> B_GATE
-    AI_PROV --> SENTIMENT
-
-    %% ===== Tier 1 内部 =====
     DC --> MACRO
     DC --> EQUITY
     DC --> FUND
     DC --> SECTOR
-    DC --> ALPHA
     DC --> HEDGE
     DC --> FACTOR
-    DC --> REALTIME
+    EVENTS --> A_TRIG
+    EVENTS --> B_GATE
+    AI_PROV --> SENTIMENT
     REGIME --> EQUITY
+    REGIME -.-> PULSE
     SIGNAL -.-> EQUITY
 
     %% ===== Tier 1 → Tier 2 =====
@@ -217,8 +217,8 @@ graph TB
 
     class TS,AK,EM,TF,QL,LLM,REDIS,QMT external
     class SEC,TSC,CACHE,CRYPT,KALMAN,ALERT,SAN shared
-    class EVENTS,PULSE,AI_PROV,TASK_MON,SETUP,AGENT_RT l0
-    class DC,MACRO,EQUITY,FUND,SECTOR,REGIME,SENTIMENT,FILTER,HEDGE,FACTOR,A_TRIG,B_GATE l1
+    class EVENTS,PULSE,AI_PROV,TASK_MON,SETUP,AGENT_RT,DC l0
+    class MACRO,EQUITY,FUND,SECTOR,REGIME,SENTIMENT,FILTER,HEDGE,FACTOR,A_TRIG,B_GATE l1
     class SIGNAL,ASSET_A,POLICY,PROMPT,BACKTEST,ALPHA,REALTIME,ROTATION,STRATEGY l2
     class SIM_TRADE,ACCOUNT,DECISION,AUDIT,SHARE,TERMINAL,AI_CAP,DASHBOARD l3
 ```
@@ -313,58 +313,65 @@ flowchart TD
 
 | 项目 | 状态 |
 |---|---|
-| app 级双向依赖 | `0` |
+| app 级双向依赖（代码级） | `0` |
 | app 级 cycle component | `0` |
 | `Application -> infrastructure.repositories` | `0` |
 | `shared/` 中业务 Django Model | `0` |
+| `shared/` → `apps/` import | `0` |
+| `Interface -> infrastructure` | `0` |
+| `Domain -> application/infrastructure` | `0` |
 | MCP 外部契约变更 | 无 |
 
 当前真实治理边界:
 
-1. `shared/` 只保留技术组件、算法、密钥和兼容解析。
+1. `shared/` 只保留技术组件、算法、密钥和兼容解析；无任何 `from apps.*` import。
 2. 业务配置 ORM 已回到 owning app，不再定义在 `shared/`。
 3. application 层不得直接 import `infrastructure.repositories`，统一走 `infrastructure/providers.py` 或 `core/integration/*`。
 4. `data_center` 不再反向 import 业务模块 concrete 实现；业务模块通过 provider / integration bridge 接入。
+5. `Interface → infrastructure` 跨层违规已清零。
+6. Domain 层不得 import `application` / `infrastructure`，该规则已纳入架构审计并清零。
 
 ### 依赖深度排行（从高到低）
 
-| # | 模块 | 跨模块依赖数 | 层级 | 角色 |
-|---|------|-------------|------|------|
-| 1 | **account** | 14+ | L3 | 重度集成器 — 账户/持仓/RBAC/风控 |
-| 2 | **dashboard** | 7+ | L3 | 顶层聚合器 — 可视化展示 |
-| 3 | **simulated_trading** | 7 | L3 | 交易引擎 — 自动执行 |
-| 4 | **decision_rhythm** | 8 | L3 | 决策中枢 — 工作台+AI辅助 |
-| 5 | **terminal** | 5 | L3 | AI 交互界面 |
-| 6 | **asset_analysis** | 6 | L2 | 统一评分中心 |
-| 7 | **signal** | 5 | L2 | 信号管理+证伪 |
-| 8 | **fund** | 6 | L1 | 基金分析 |
-| 9 | **ai_capability** | 5 | L3 | AI 能力路由 |
-| 10 | **equity** | 4 | L1 | 个股分析 |
-| 11 | **strategy** | 3 | L2 | 策略+仓位+风控 |
-| 12 | **policy** | 3 | L2 | 政策事件管理 |
-| 13 | **alpha** | 3 | L2 | AI 选股 |
-| 14 | **realtime** | 3 | L2 | 实时行情 |
-| 15 | **audit** | 3 | L2 | 事后审计 |
-| 16 | **share** | 2 | L3 | 分享功能 |
-| 17 | **prompt** | 2 | L2 | Prompt 模板 |
-| 18 | **macro** | 2 | L1 | 宏观数据 |
-| 19 | **data_center** | 3 | L1 | 数据中台 |
-| 20 | **backtest** | 1 | L2 | 回测引擎 |
-| 21 | **regime** | 1 | L1 | Regime 引擎 |
-| 22 | **rotation** | 1 | L2 | 板块轮动 |
-| 23 | **alpha_trigger** | 1 | L1 | Alpha 触发 |
-| 24 | **beta_gate** | 1 | L1 | Beta 闸门 |
-| 25 | **hedge** | 1 | L1 | 对冲策略 |
-| 26 | **factor** | 1 | L1 | 因子管理 |
-| 27 | **sector** | 1 | L1 | 板块分析 |
-| 28 | **filter** | 1 | L1 | 筛选器 |
-| 29 | **sentiment** | 1 | L1 | 舆情分析 |
-| 30 | **events** | 0 | L0 | 事件总线 |
-| 31 | **pulse** | 0 | L0 | 脉搏层 |
-| 32 | **ai_provider** | 0 | L0 | AI 服务商 |
-| 33 | **task_monitor** | 0 | L0 | 任务监控 |
-| 34 | **setup_wizard** | 0 | L0 | 初始化向导 |
-| 35 | **agent_runtime** | 0 | L0 | Agent 运行时 |
+> 跨模块依赖数 = 该模块 import 了几个其他 apps 模块（出度）
+
+| # | 模块 | 跨模块依赖数 | 被依赖数 | 层级 | 角色 |
+|---|------|-------------|---------|------|------|
+| 1 | **dashboard** | 18 | 0 | L3 | 顶层聚合器 — 可视化展示 |
+| 2 | **account** | 15 | 4 | L3 | 重度集成器 — 账户/持仓/RBAC/风控 |
+| 3 | **decision_rhythm** | 14 | 3 | L3 | 决策中枢 — 工作台+AI辅助 |
+| 4 | **agent_runtime** | 13 | 0 | L0 | Agent 运行时 — 上下文快照聚合 |
+| 5 | **simulated_trading** | 9 | 5 | L3 | 交易引擎 — 自动执行 |
+| 6 | **strategy** | 8 | 0 | L2 | 策略+仓位+风控 |
+| 7 | **signal** | 7 | 8 | L2 | 信号管理+证伪 |
+| 8 | **equity** | 6 | 7 | L1 | 个股分析 |
+| 9 | **fund** | 6 | 3 | L1 | 基金分析 |
+| 10 | **ai_capability** | 6 | 0 | L3 | AI 能力路由 |
+| 11 | **asset_analysis** | 5 | 8 | L2 | 统一评分中心 |
+| 12 | **beta_gate** | 5 | 2 | L1 | Beta 闸门 |
+| 13 | **alpha_trigger** | 5 | 2 | L1 | Alpha 触发 |
+| 14 | **terminal** | 5 | 0 | L3 | AI 交互界面 |
+| 15 | **backtest** | 4 | 2 | L2 | 回测引擎 |
+| 16 | **alpha** | 3 | 3 | L2 | AI 选股 |
+| 17 | **audit** | 3 | 1 | L2 | 事后审计 |
+| 18 | **factor** | 3 | 0 | L1 | 因子管理 |
+| 19 | **policy** | 3 | 11 | L2 | 政策事件管理 |
+| 20 | **regime** | 3 | 20 | L1 | Regime 引擎（核心枢纽） |
+| 21 | **hedge** | 2 | 1 | L1 | 对冲策略 |
+| 22 | **macro** | 2 | 6 | L1 | 宏观数据 |
+| 23 | **prompt** | 2 | 4 | L2 | Prompt 模板 |
+| 24 | **pulse** | 2 | 4 | L0 | 脉搏层 |
+| 25 | **realtime** | 2 | 3 | L2 | 实时行情 |
+| 26 | **sentiment** | 2 | 3 | L1 | 舆情分析 |
+| 27 | **setup_wizard** | 2 | 0 | L0 | 初始化向导 |
+| 28 | **share** | 2 | 0 | L3 | 分享功能 |
+| 29 | **filter** | 1 | 0 | L1 | 筛选器 |
+| 30 | **rotation** | 1 | 3 | L2 | 板块轮动 |
+| 31 | **sector** | 1 | 1 | L1 | 板块分析 |
+| 32 | **ai_provider** | 0 | 10 | L0 | AI 服务商（纯提供者） |
+| 33 | **data_center** | 0 | 14 | L0 | 数据中台（纯提供者） |
+| 34 | **events** | 0 | 5 | L0 | 事件总线（纯提供者） |
+| 35 | **task_monitor** | 0 | 0 | L0 | 任务监控（完全独立） |
 
 ---
 
@@ -372,17 +379,17 @@ flowchart TD
 
 ```mermaid
 graph LR
-    subgraph L0_MODULES["Tier 0 — 基础（零依赖）"]
+    subgraph L0_MODULES["Tier 0 — 基础（零/低依赖）"]
+        data_center["data_center"]
         events["events"]
-        pulse["pulse"]
         ai_provider["ai_provider"]
         task_monitor["task_monitor"]
+        pulse["pulse"]
         setup_wizard["setup_wizard"]
         agent_runtime["agent_runtime"]
     end
 
     subgraph L1_MODULES["Tier 1 — 采集+引擎"]
-        data_center["data_center"]
         macro["macro"]
         equity["equity"]
         fund["fund"]
@@ -420,12 +427,13 @@ graph LR
     end
 
     %% Tier 0 → Tier 1
-    pulse --> regime
+    pulse --> data_center
+    pulse --> macro
     events --> alpha_trigger
     events --> beta_gate
     ai_provider --> sentiment
 
-    %% Tier 1 内部
+    %% Tier 0 → Tier 1
     data_center --> macro
     data_center --> equity
     data_center --> fund
@@ -519,8 +527,8 @@ graph LR
     classDef l2 fill:#e1bee7,stroke:#6a1b9a
     classDef l3 fill:#ffcdd2,stroke:#b71c1c
 
-    class events,pulse,ai_provider,task_monitor,setup_wizard,agent_runtime l0
-    class data_center,macro,equity,fund,sector,regime,sentiment,filter,hedge,factor,alpha_trigger,beta_gate l1
+    class data_center,events,ai_provider,task_monitor,pulse,setup_wizard,agent_runtime l0
+    class macro,equity,fund,sector,regime,sentiment,filter,hedge,factor,alpha_trigger,beta_gate l1
     class signal,asset_analysis,policy,prompt,backtest,alpha,realtime,rotation,strategy l2
     class simulated_trading,account,decision_rhythm,audit,share,terminal,ai_capability,dashboard l3
 ```
@@ -641,15 +649,15 @@ Tier 0 (基础) → Tier 1 (采集) → Tier 2 (分析) → Tier 3 (执行)
 
 ### 2. 核心引擎：Regime（居中枢纽）
 
-Regime 是系统最核心的模块，被 **16 个模块** 直接依赖：
+Regime 是系统最核心的模块，被 **20 个模块** 直接依赖：
 - `signal`, `asset_analysis`, `policy`, `strategy`, `terminal`
 - `simulated_trading`, `account`, `decision_rhythm`, `dashboard`
 - `equity`, `fund`, `realtime`, `ai_capability`, `prompt`
-- `audit`, `rotation`
+- `audit`, `rotation`, `sector`, `backtest`, `beta_gate`, `alpha_trigger`
 
-### 3. 数据中台：data_center（统一数据入口）
+### 3. 数据中台：data_center（统一数据入口，零出向依赖）
 
-所有外部数据通过 `data_center` 统一接入，提供：
+所有外部数据通过 `data_center` 统一接入，被 **14 个模块** 直接依赖。提供：
 - `PriceBar` / `QuoteSnapshot` — 行情数据
 - `FinancialFact` / `ValuationFact` — 财务/估值
 - `AssetMaster` — 资产主数据
@@ -691,3 +699,26 @@ ai_provider (基础)
 | **AI 服务** | ai_provider, prompt, ai_capability, agent_runtime | AI 能力管理与路由 |
 | **用户界面** | terminal, dashboard, setup_wizard | 终端/仪表盘/向导 |
 | **基础设施** | task_monitor, filter | 任务监控与数据筛选 |
+
+---
+
+## 九、审计统计（2026-04-27 加购审计）
+
+### 审计方法
+
+对 `apps/` 下全部 35 个模块的 `.py` 文件做 `from apps\.` 正则扫描，统计跨模块 import。
+
+### 关键数字
+
+| 指标 | 数值 |
+|------|------|
+| 跨模块 import 总行数 | 420 |
+| 涉及文件数 | 132 |
+| 有向模块边 (A→B) | 159 |
+| 纯提供者模块（零出度） | 4 (`data_center`, `events`, `ai_provider`, `task_monitor`) |
+| 出度最高模块 | `dashboard` (18), `account` (15), `decision_rhythm` (14) |
+| 入度最高模块 | `regime` (20), `data_center` (14), `policy` (11) |
+| Domain 层跨模块违规 | 4 (lazy import 技术债) |
+| Application → Infrastructure 违规 | 0 |
+| Interface → Infrastructure 违规 | 0 |
+| shared/ → apps/ 违规 | 0 |

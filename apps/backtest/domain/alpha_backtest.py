@@ -20,10 +20,7 @@ from .stock_selection_backtest import (
     StockSelectionBacktestResult,
 )
 
-try:
-    from apps.alpha.application.services import AlphaService  # backward-compatible patch target
-except Exception:
-    AlphaService = None
+AlphaService = None
 
 
 logger = logging.getLogger(__name__)
@@ -436,6 +433,7 @@ class RunAlphaBacktestUseCase:
         get_regime_func: Callable[[date], str | None],
         get_price_func: Callable[[str, date], Decimal | None],
         get_benchmark_price_func: Callable[[date], float | None],
+        alpha_service_factory: Callable[[], Any] | None = None,
     ):
         """
         Args:
@@ -448,6 +446,7 @@ class RunAlphaBacktestUseCase:
         self.get_regime = get_regime_func
         self.get_price = get_price_func
         self.get_benchmark_price = get_benchmark_price_func
+        self._alpha_service_factory = alpha_service_factory
 
         # 延迟初始化 Alpha 服务
         self._alpha_service = None
@@ -457,11 +456,13 @@ class RunAlphaBacktestUseCase:
         """获取 Alpha 服务（延迟初始化）"""
         if self._alpha_service is None:
             try:
-                global AlphaService
-                if AlphaService is None:
-                    from apps.alpha.application.services import AlphaService as _AlphaService
-                    AlphaService = _AlphaService
-                self._alpha_service = AlphaService()
+                if self._alpha_service_factory is not None:
+                    self._alpha_service = self._alpha_service_factory()
+                elif AlphaService is not None:
+                    self._alpha_service = AlphaService()
+                else:
+                    logger.warning("Alpha service factory not configured")
+                    self._alpha_service = False
             except ImportError:
                 logger.warning("Alpha 模块不可用")
                 self._alpha_service = False
