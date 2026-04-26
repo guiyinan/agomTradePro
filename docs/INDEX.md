@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 个人投研平台
-> **最后更新**: 2026-04-24
+> **最后更新**: 2026-04-26
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -42,6 +42,8 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [MODULE_DEPENDENCIES.md](architecture/MODULE_DEPENDENCIES.md) | **模块依赖关系文档（拓扑图+改进建议）** | ✅ 2026-03-18 新增 |
+| [SYSTEM_TOPOLOGY.md](architecture/SYSTEM_TOPOLOGY.md) | **系统模块拓扑图与数据流（已同步 2026-04-26 架构治理结果）** | ✅ 2026-04-26 更新 |
+| [architecture-remediation-result-2026-04-26.md](architecture/architecture-remediation-result-2026-04-26.md) | **架构整改结果（cycle=0 / audit=0 / MCP 契约未变）** | ✅ 2026-04-26 新增 |
 | [asset_analysis_framework.md](architecture/asset_analysis_framework.md) | 资产分析框架设计 | 完整 |
 | [project_structure.md](architecture/project_structure.md) | 项目结构说明 | 完整 |
 | [ai_module_boundaries.md](architecture/ai_module_boundaries.md) | AI 模块边界与依赖 | ✅ 2026-03-18 新增 |
@@ -106,7 +108,7 @@
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
 | [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 待开发 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
-| [architecture-cycle-remediation-2026-04-26.md](plans/architecture-cycle-remediation-2026-04-26.md) | **循环依赖与架构债全量整改方案（CI + AGENTS + 模块归属）** | 🟡 待执行 |
+| [architecture-cycle-remediation-2026-04-26.md](plans/architecture-cycle-remediation-2026-04-26.md) | **循环依赖与架构债全量整改方案（CI + AGENTS + 模块归属）** | ✅ 已完成 |
 | [architecture-audit-report-2026-04-22.md](plans/architecture-audit-report-2026-04-22.md) | **修订版架构审计与整改总计划** | ✅ 2026-04-22 修订 |
 | [architecture-debt-remediation-260422.md](plans/architecture-debt-remediation-260422.md) | 已并入修订版架构审计报告（兼容跳转） | ✅ 2026-04-22 |
 | [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |

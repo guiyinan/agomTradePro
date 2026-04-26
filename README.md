@@ -26,6 +26,13 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-04-26
+
+- 架构治理主线已收口：`apps/` 静态导入图中的 app 级循环依赖已清零，`scripts/check_module_cycles.py` 现在以 `0 cycle components / 0 bidirectional pairs` 作为 CI 硬基线
+- 全仓架构审计债已清零：`Application -> infrastructure.repositories`、`shared/` 中业务 Django Model、以及 `alpha` application 层的 `pandas/numpy` 越层依赖已全部清理
+- 这轮整改没有变更 MCP 外部契约：MCP 工具名、参数 schema、canonical API 路径与 RBAC 语义保持不变；同步更新的是模块归属、拓扑和治理文档口径
+- `shared/` 现在只保留技术组件与兼容解析；业务配置 ORM 已回到 owning app，跨模块装配统一经 `infrastructure/providers.py` 和 `core/integration/*` 收口
+
 ### 2026-04-24
 
 - 全仓治理检查已落地：新增 `governance/governance_baseline.json`、`scripts/check_governance_consistency.py` 和 CI 挂钩，用 baseline 锁住历史债务，阻止模块形态、MCP 计数、文档链接、AppConfig 位置和 Application 层 pandas/numpy 导入继续倒退
@@ -529,6 +536,9 @@ AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投
 
 - **增量门禁**：`Architecture Layer Guard` 扫描本次变更，新增 Domain / Application / Interface 越层依赖会直接失败
 - **全仓治理检查**：`scripts/check_governance_consistency.py` 对 MCP 工具数、关键文档计数、`docs/INDEX.md` 链接、模块 11 项形态、错位 `AppConfig`、单数 `dto.py` 和 Application 层 pandas/numpy 导入做全量扫描
+- **循环依赖门禁**：`scripts/check_module_cycles.py` 现在以全仓 `0` 个 app 级循环组件为硬基线，新增双向依赖或完整 cycle 会直接失败
+- **Application 装配规则**：application 层统一经 `infrastructure/providers.py` 或 `core/integration/*` 取 concrete 实现，不再直接 import `infrastructure.repositories`
+- **shared 边界**：`shared/` 只保留技术组件、算法、密钥和兼容解析，不再定义业务 Django Model
 - **历史债务 baseline**：`governance/governance_baseline.json` 记录当前可接受状态；清债前不让历史问题阻断所有开发，但任何新增或倒退都会被 CI 拦住
 
 细节见 [架构与治理 CI 护栏说明](docs/governance/ARCHITECTURE_GUARDRAILS.md)。

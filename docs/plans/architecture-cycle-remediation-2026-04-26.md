@@ -1,7 +1,7 @@
 # AgomTradePro 循环依赖与架构债全量整改方案
 
 > 日期: 2026-04-26  
-> 状态: 待执行  
+> 状态: 已完成  
 > 适用范围: `apps/`, `core/`, `shared/`, `governance/`, `.github/workflows/`, `AGENTS.md`  
 > 执行策略: 全量重构、一次迁完、CI 防回流
 
@@ -17,6 +17,12 @@
 4. `account`、`shared`、`data_center`、`macro -> account` 是本轮整改的关键根因区域。
 
 本轮不再只做局部 import 修补，而是按模块所有权重划、依赖方向重建、CI hard fail 三条线并行推进。
+
+> 执行结果（2026-04-26）:
+> 1. app 级循环依赖已清零。
+> 2. `Application -> infrastructure.repositories` 已清零。
+> 3. `shared/` 中业务 Django Model 已归位，审计债已清零。
+> 4. MCP 外部契约未变，已同步更新拓扑与治理文档口径。
 
 ---
 
@@ -571,4 +577,3 @@ pytest tests/integration -q
 8. CI 对循环依赖和新增越层违规 hard fail。
 9. 关键业务回归测试通过。
 10. `AGENTS.md`、架构文档、模块账本、治理 baseline 同步更新。
-
