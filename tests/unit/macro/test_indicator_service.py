@@ -8,14 +8,6 @@ from apps.macro.application.indicator_service import (
 )
 
 
-class _FakeAccountConfigSummaryService:
-    def __init__(self, metadata_map: dict[str, dict]):
-        self._metadata_map = metadata_map
-
-    def get_runtime_macro_index_metadata_map(self) -> dict[str, dict]:
-        return self._metadata_map
-
-
 class _FakeIndicatorReadRepository:
     def list_distinct_codes(self) -> list[str]:
         return ["CN_GDP_YOY"]
@@ -75,10 +67,10 @@ class _FakeIndicatorReadRepository:
         return None
 
 
-def test_indicator_unit_service_uses_account_application_service(monkeypatch):
+def test_indicator_unit_service_uses_runtime_settings_accessor(monkeypatch):
     monkeypatch.setattr(
-        "apps.macro.application.indicator_service.get_account_config_summary_service",
-        lambda: _FakeAccountConfigSummaryService({"RUNTIME_CODE": {"unit": "亿元"}}),
+        "apps.macro.application.indicator_service.get_runtime_macro_index_metadata_map",
+        lambda: {"RUNTIME_CODE": {"unit": "亿元"}},
     )
 
     assert IndicatorUnitService.get_unit_for_indicator("RUNTIME_CODE") == "亿元"

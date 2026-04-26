@@ -10,6 +10,11 @@ import logging
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.integration.account_ledger import (
+    get_capital_flow_model,
+    get_portfolio_observer_grant_model,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +44,7 @@ class DjangoObserverGrantRepository:
     """ObserverGrantRepositoryProtocol 实现。"""
 
     def has_valid_grant(self, owner_user_id: int, observer_user_id: int) -> bool:
-        from apps.account.infrastructure.models import PortfolioObserverGrantModel
+        PortfolioObserverGrantModel = get_portfolio_observer_grant_model()
 
         try:
             grant = PortfolioObserverGrantModel._default_manager.get(
@@ -409,7 +414,7 @@ class DjangoCapitalFlowRepository:
             return []
 
         try:
-            from apps.account.infrastructure.models import CapitalFlowModel
+            CapitalFlowModel = get_capital_flow_model()
 
             qs = CapitalFlowModel.objects.filter(
                 portfolio_id__in=portfolio_ids

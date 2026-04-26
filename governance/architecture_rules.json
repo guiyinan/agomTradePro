@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-24.v1",
+  "version": "2026-04-26.v1",
   "source_roots": [
     "apps",
     "core",
@@ -218,6 +218,71 @@
         "importlib\\.import_module\\([\"']apps\\.[^\"']+[\"']\\)"
       ],
       "rationale": "shared/ must remain a pure technical component layer."
+    },
+    {
+      "id": "shared_no_django_models",
+      "description": "Shared must not define Django ORM models.",
+      "source_roots": [
+        "shared"
+      ],
+      "forbidden_line_patterns": [
+        "class\\s+\\w+\\(models\\.Model\\)"
+      ],
+      "rationale": "Business models belong to their owning app, not shared/."
+    },
+    {
+      "id": "apps_application_no_infrastructure_repository_imports",
+      "description": "Application layers should depend on injected protocols or facades, not concrete infrastructure repository modules.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbidden_import_patterns": [
+        "(^|\\.)infrastructure\\.repositories(?:\\.|$)"
+      ],
+      "rationale": "Keep application orchestration independent from concrete repository module imports."
+    },
+    {
+      "id": "macro_no_account_dependency",
+      "description": "Macro should not depend on account module runtime configuration or ORM.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_modules": [
+        "macro"
+      ],
+      "source_layers": [
+        "application",
+        "infrastructure",
+        "interface",
+        "management"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\.account(?:\\.|$)"
+      ],
+      "rationale": "Global runtime settings should move behind config_center, not account."
+    },
+    {
+      "id": "data_center_no_business_infrastructure_imports",
+      "description": "Data center should use provider registries and protocols instead of importing business app infrastructure implementations.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_modules": [
+        "data_center"
+      ],
+      "source_layers": [
+        "application",
+        "infrastructure",
+        "interface",
+        "management"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\.(alpha|asset_analysis|dashboard|equity|fund|macro|pulse|realtime|rotation|sector)\\.infrastructure(?:\\.|$)"
+      ],
+      "rationale": "Owning apps should register providers; data_center must not reverse-import their implementation packages."
     }
   ],
   "module_metadata": {

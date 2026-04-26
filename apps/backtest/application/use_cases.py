@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
+from core.integration.audit_reports import generate_audit_report_for_backtest
+
 from ..domain.entities import (
     DEFAULT_PUBLICATION_LAGS,
     BacktestConfig,
@@ -135,22 +137,12 @@ class RunBacktestUseCase:
             audit_report_id = None
 
             try:
-                from apps.audit.application.use_cases import (
-                    GenerateAttributionReportRequest,
-                    GenerateAttributionReportUseCase,
-                )
-                from apps.audit.infrastructure.repositories import DjangoAuditRepository
-
                 logger.info(f"Backtest {backtest_id} 完成，触发审计分析...")
                 audit_status = "pending"
 
-                audit_use_case = GenerateAttributionReportUseCase(
-                    audit_repository=DjangoAuditRepository(),
+                audit_response = generate_audit_report_for_backtest(
+                    backtest_id=backtest_id,
                     backtest_repository=self.repository,
-                )
-
-                audit_response = audit_use_case.execute(
-                    GenerateAttributionReportRequest(backtest_id=backtest_id)
                 )
 
                 if audit_response.success:

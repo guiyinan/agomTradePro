@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from apps.alpha_trigger.domain.entities import CandidateStatus
 from apps.events.domain.entities import DomainEvent, EventType, create_event
+from core.integration.account_positions import update_or_create_account_position
 
 from ..domain.entities import (
     CooldownPeriod,
@@ -1342,11 +1343,7 @@ class UpdateQuotaConfigUseCase:
         # P2-11: 使用仓储而非直接操作 ORM
         from decimal import Decimal
 
-        from apps.account.infrastructure.repositories import PositionRepository
-
-        position_repo = PositionRepository()
-
-        position = position_repo.update_or_create_position(
+        position = update_or_create_account_position(
             portfolio_id=request.portfolio_id,
             asset_code=request.asset_code,
             shares=request.shares,

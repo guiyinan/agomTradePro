@@ -8,10 +8,6 @@ from typing import Any
 
 from apps.asset_analysis.application.dtos import ScreenRequest, ScreenResponse
 from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
-from apps.equity.application.services import EquityMultiDimScorer
-from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
-from apps.fund.application.services import FundMultiDimScorer
-from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
 from apps.asset_analysis.infrastructure.repositories import (
     DjangoAssetRepository,
     DjangoWeightConfigRepository,
@@ -22,6 +18,10 @@ from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 from apps.asset_analysis.domain.value_objects import ScoreContext
+from core.integration.asset_analysis_market_sources import (
+    screen_equity_assets_for_pool,
+    screen_fund_assets_for_pool,
+)
 
 from .repository_provider import get_asset_pool_query_repository
 
@@ -120,40 +120,12 @@ def get_current_weight_config(
 
 def screen_equity_assets(context: ScoreContext, filters: dict[str, Any]) -> list[Any]:
     """Screen and score equity assets for pool classification."""
-
-    repo = DjangoEquityAssetRepository()
-    scorer = EquityMultiDimScorer(repo)
-
-    filter_dict: dict[str, Any] = {}
-    if filters.get("sector"):
-        filter_dict["sector"] = filters["sector"]
-    if filters.get("market"):
-        filter_dict["market"] = filters["market"]
-    if filters.get("min_market_cap") is not None:
-        filter_dict["min_market_cap"] = filters["min_market_cap"]
-    if filters.get("max_pe") is not None:
-        filter_dict["max_pe"] = filters["max_pe"]
-
-    assets = repo.get_assets_by_filter(asset_type="equity", filters=filter_dict)
-    return scorer.score_batch(assets, context)
+    return screen_equity_assets_for_pool(context, filters)
 
 
 def screen_fund_assets(context: ScoreContext, filters: dict[str, Any]) -> list[Any]:
     """Screen and score fund assets for pool classification."""
-
-    repo = DjangoFundAssetRepository()
-    scorer = FundMultiDimScorer(repo)
-
-    filter_dict: dict[str, Any] = {}
-    if filters.get("fund_type"):
-        filter_dict["fund_type"] = filters["fund_type"]
-    if filters.get("investment_style"):
-        filter_dict["investment_style"] = filters["investment_style"]
-    if filters.get("min_scale") is not None:
-        filter_dict["min_scale"] = filters["min_scale"]
-
-    assets = repo.get_assets_by_filter(asset_type="fund", filters=filter_dict)
-    return scorer.score_batch(assets, context)
+    return screen_fund_assets_for_pool(context, filters)
 
 
 def summarize_asset_pool_counts(asset_type: str | None = None) -> dict[str, int]:

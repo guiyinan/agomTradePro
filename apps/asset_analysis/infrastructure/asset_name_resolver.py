@@ -12,6 +12,11 @@ import json
 import logging
 
 from django.core.cache import cache
+from core.integration.asset_analysis_market_sources import (
+    resolve_equity_names,
+    resolve_fund_holding_names,
+    resolve_fund_names,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +76,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            from apps.equity.infrastructure.models import StockInfoModel
-
-            rows = StockInfoModel._default_manager.filter(stock_code__in=list(codes)).values(
-                "stock_code", "name"
-            )
-            for row in rows:
-                if row["name"]:
-                    resolved[row["stock_code"]] = row["name"]
+            resolved.update(resolve_equity_names(codes))
         except Exception as exc:
             logger.warning("Failed to resolve stock names: %s", exc)
 
@@ -91,16 +89,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            from apps.fund.infrastructure.models import FundInfoModel
-
-            code_to_fund_code = {code: code.split(".")[0] for code in codes}
-            rows = FundInfoModel._default_manager.filter(
-                fund_code__in=list(set(code_to_fund_code.values()))
-            ).values("fund_code", "fund_name")
-            fund_name_map = {row["fund_code"]: row["fund_name"] for row in rows}
-            for code, fund_code in code_to_fund_code.items():
-                if fund_code in fund_name_map and fund_name_map[fund_code]:
-                    resolved[code] = fund_name_map[fund_code]
+            resolved.update(resolve_fund_names(codes))
         except Exception as exc:
             logger.warning("Failed to resolve fund names: %s", exc)
 
@@ -136,38 +125,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            from apps.fund.infrastructure.models import FundHoldingModel
-
-            code_to_base = {code: code.split(".")[0] for code in codes}
-            rows = (
-                FundHoldingModel.objects.filter(stock_code__in=list(codes))
-                .order_by("stock_code", "-report_date")
-                .values("stock_code", "stock_name")
-            )
-            seen_codes: set[str] = set()
-            for row in rows:
-                stock_code = row["stock_code"]
-                stock_name = row["stock_name"]
-                if not stock_code or not stock_name or stock_code in seen_codes:
-                    continue
-                seen_codes.add(stock_code)
-                resolved[stock_code] = stock_name
-
-            if len(resolved) < len(codes):
-                base_rows = (
-                    FundHoldingModel.objects.filter(stock_code__in=list(code_to_base.values()))
-                    .order_by("stock_code", "-report_date")
-                    .values("stock_code", "stock_name")
-                )
-                base_name_map: dict[str, str] = {}
-                for row in base_rows:
-                    stock_code = row["stock_code"]
-                    stock_name = row["stock_name"]
-                    if stock_code and stock_name and stock_code not in base_name_map:
-                        base_name_map[stock_code] = stock_name
-                for code, base_code in code_to_base.items():
-                    if code not in resolved and base_code in base_name_map:
-                        resolved[code] = base_name_map[base_code]
+            resolved.update(resolve_fund_holding_names(codes))
         except Exception as exc:
             logger.warning("Failed to resolve stock names from fund holdings: %s", exc)
 

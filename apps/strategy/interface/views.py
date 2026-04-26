@@ -21,6 +21,9 @@ from rest_framework import filters, status, viewsets
 from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from core.integration.simulated_trading_facade import (
+    get_simulated_trading_facade_bridge,
+)
 
 from apps.strategy.application.interface_services import (
     bind_strategy_assignment,
@@ -1253,9 +1256,10 @@ def bind_strategy(request):
             id=strategy_id,
             created_by=request.user.account_profile,
         )
-        from apps.simulated_trading.application.facade import get_simulated_trading_facade
-
-        if not get_simulated_trading_facade().user_owns_account(portfolio_id, request.user.id):
+        if not get_simulated_trading_facade_bridge().user_owns_account(
+            portfolio_id,
+            request.user.id,
+        ):
             return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
         with transaction.atomic():
@@ -1290,9 +1294,10 @@ def unbind_strategy(request):
         if not portfolio_id:
             raise InvalidInputError('缺少必要参数')
         portfolio_id = int(portfolio_id)
-        from apps.simulated_trading.application.facade import get_simulated_trading_facade
-
-        if not get_simulated_trading_facade().user_owns_account(portfolio_id, request.user.id):
+        if not get_simulated_trading_facade_bridge().user_owns_account(
+            portfolio_id,
+            request.user.id,
+        ):
             return _json_error('账户不存在或无权限访问', status.HTTP_404_NOT_FOUND)
 
         unbind_strategy_assignments(portfolio_id)

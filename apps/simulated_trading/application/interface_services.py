@@ -9,7 +9,6 @@ from typing import Any
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
-from apps.share.application.query_services import list_share_links_for_account_owner
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
@@ -28,6 +27,7 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
+from core.integration.share_context import get_account_owner_share_links
 
 
 @dataclass(frozen=True)
@@ -168,7 +168,7 @@ def build_my_account_detail_context(user: Any, account_id: int) -> dict[str, Any
             account.id,
             limit=20,
         ),
-        "share_links": list_share_links_for_account_owner(
+        "share_links": get_account_owner_share_links(
             owner_id=user.id,
             account_id=account.id,
         ),

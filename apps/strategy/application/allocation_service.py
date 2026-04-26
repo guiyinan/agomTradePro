@@ -12,13 +12,12 @@ from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 
-from apps.account.domain.entities import Position
 from apps.strategy.domain.allocation_matrix import (
     AllocationTarget,
     AssetAllocation,
     get_allocation_target,
 )
-from apps.strategy.domain.protocols import AssetNameResolverProtocol
+from apps.strategy.domain.protocols import AssetNameResolverProtocol, PositionLikeProtocol
 
 
 @dataclass
@@ -77,7 +76,7 @@ class AllocationService:
         risk_profile: str,
         policy_level: str | None,
         total_assets: float,
-        current_positions: list[Position],
+        current_positions: list[PositionLikeProtocol],
         asset_name_resolver: AssetNameResolverProtocol | None = None,
     ) -> AllocationAdvice:
         """
@@ -139,7 +138,7 @@ class AllocationService:
     @classmethod
     def _calculate_current_allocation(
         cls,
-        positions: list[Position],
+        positions: list[PositionLikeProtocol],
         total_assets: float,
     ) -> dict[str, float]:
         """计算当前资产配置"""
@@ -191,7 +190,7 @@ class AllocationService:
     @classmethod
     def _generate_trade_actions(
         cls,
-        positions: list[Position],
+        positions: list[PositionLikeProtocol],
         current_allocation: dict[str, float],
         target_allocation: AssetAllocation,
         total_assets: float,

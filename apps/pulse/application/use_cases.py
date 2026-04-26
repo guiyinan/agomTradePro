@@ -5,6 +5,7 @@ from datetime import date
 
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
+from core.integration.current_regime import resolve_current_regime_for_pulse
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8
@@ -71,9 +72,7 @@ class CalculatePulseUseCase:
 
         try:
             # 1. 获取当前 regime
-            from apps.regime.application.current_regime import resolve_current_regime
-
-            regime_result = resolve_current_regime(as_of_date=target_date)
+            regime_result = resolve_current_regime_for_pulse(as_of_date=target_date)
             regime_context = regime_result.dominant_regime
 
             if not regime_context or regime_context == "Unknown":

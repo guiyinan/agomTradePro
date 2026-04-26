@@ -323,7 +323,7 @@ class TestRouteContracts:
 
     def test_terminal_chat(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
+        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
             mock_route.return_value = {
                 'decision': 'chat',
                 'reply': 'ok',
@@ -346,7 +346,7 @@ class TestTerminalChatRouting:
 
     def test_terminal_chat_routes_system_status(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
+        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
             mock_route.return_value = {
                 'decision': 'capability',
                 'selected_capability_key': 'builtin.system_status',
@@ -370,7 +370,7 @@ class TestTerminalChatRouting:
 
     def test_terminal_chat_routes_regular_chat(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
+        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
             mock_route.return_value = {
                 'decision': 'chat',
                 'reply': 'general answer',
@@ -393,7 +393,7 @@ class TestTerminalChatRouting:
 
     def test_terminal_chat_returns_route_confirmation_payload(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
+        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
             mock_route.return_value = {
                 'decision': 'ask_confirmation',
                 'selected_capability_key': 'builtin.system_status',

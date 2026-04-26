@@ -9,10 +9,8 @@ from typing import Dict, List, Optional, Tuple
 
 from django.utils import timezone
 
-from apps.account.application.config_summary_service import (
-    get_account_config_summary_service,
-)
 from apps.macro.infrastructure.repositories import MacroIndicatorReadRepository
+from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
 
 class UnitDisplayService:
@@ -236,10 +234,7 @@ class IndicatorUnitService:
         if indicator_code in cls.INDICATOR_UNITS:
             return cls.INDICATOR_UNITS[indicator_code]
 
-        metadata = get_account_config_summary_service().get_runtime_macro_index_metadata_map().get(
-            indicator_code,
-            {},
-        )
+        metadata = get_runtime_macro_index_metadata_map().get(indicator_code, {})
         return metadata.get("unit", "")
 
     @classmethod
@@ -499,7 +494,7 @@ class IndicatorService:
     @classmethod
     def get_indicator_metadata_map(cls) -> dict[str, dict]:
         metadata = dict(cls.INDICATOR_METADATA)
-        metadata.update(get_account_config_summary_service().get_runtime_macro_index_metadata_map())
+        metadata.update(get_runtime_macro_index_metadata_map())
         return metadata
 
     @classmethod

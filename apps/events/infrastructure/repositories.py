@@ -11,10 +11,16 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from django.core.exceptions import ObjectDoesNotExist
+from core.integration.alpha_candidates import (
+    AlphaCandidateRepositoryWrapper,
+    get_alpha_candidate_repository,
+)
+from core.integration.decision_requests import (
+    DecisionRequestRepositoryWrapper,
+    get_decision_request_repository,
+)
 
 from ..domain.interfaces import (
-    AlphaCandidateRepositoryProtocol,
-    DecisionRequestRepositoryProtocol,
     FailedEventRepositoryProtocol,
 )
 from .models import FailedEventModel
@@ -253,145 +259,6 @@ class FailedEventRepository:
         }
 
 
-class AlphaCandidateRepositoryWrapper:
-    """
-    Alpha 候选仓储包装器
-
-    包装 alpha_trigger.AlphaCandidateRepository，实现 AlphaCandidateRepositoryProtocol。
-    用于 events 模块访问 alpha_trigger 模块的数据。
-
-    Example:
-        >>> repo = AlphaCandidateRepositoryWrapper()
-        >>> repo.update_last_decision_request_id("candidate_001", "request_001")
-    """
-
-    def __init__(self):
-        """初始化仓储包装器"""
-        from apps.alpha_trigger.infrastructure.repositories import (
-            AlphaCandidateRepository as ActualRepository,
-        )
-
-        self._actual_repo = ActualRepository()
-
-    def update_last_decision_request_id(
-        self,
-        candidate_id: str,
-        request_id: str,
-    ) -> bool:
-        """
-        更新候选的最后决策请求 ID
-
-        Args:
-            candidate_id: 候选 ID
-            request_id: 决策请求 ID
-
-        Returns:
-            是否更新成功
-        """
-        return self._actual_repo.update_last_decision_request_id(candidate_id, request_id)
-
-    def update_status_to_rejected(
-        self,
-        candidate_id: str,
-    ) -> bool:
-        """
-        更新候选状态为已拒绝
-
-        Args:
-            candidate_id: 候选 ID
-
-        Returns:
-            是否更新成功
-        """
-        return self._actual_repo.update_status_to_rejected(candidate_id)
-
-    def update_status_to_executed(
-        self,
-        candidate_id: str,
-    ) -> bool:
-        """
-        更新候选状态为已执行
-
-        Args:
-            candidate_id: 候选 ID
-
-        Returns:
-            是否更新成功
-        """
-        return self._actual_repo.update_status_to_executed(candidate_id)
-
-    def update_execution_status_to_failed(
-        self,
-        candidate_id: str,
-    ) -> bool:
-        """
-        更新候选执行状态为失败（保留 ACTIONABLE 状态）
-
-        Args:
-            candidate_id: 候选 ID
-
-        Returns:
-            是否更新成功
-        """
-        return self._actual_repo.update_execution_status_to_failed(candidate_id)
-
-
-class DecisionRequestRepositoryWrapper:
-    """
-    决策请求仓储包装器
-
-    包装 decision_rhythm.DecisionRequestRepository，实现 DecisionRequestRepositoryProtocol。
-    用于 events 模块访问 decision_rhythm 模块的数据。
-
-    Example:
-        >>> repo = DecisionRequestRepositoryWrapper()
-        >>> repo.update_execution_status_to_executed("request_001", {"trade_id": "T001"})
-    """
-
-    def __init__(self):
-        """初始化仓储包装器"""
-        from apps.decision_rhythm.infrastructure.repositories import (
-            DecisionRequestRepository as ActualRepository,
-        )
-
-        self._actual_repo = ActualRepository()
-
-    def update_execution_status_to_executed(
-        self,
-        request_id: str,
-        execution_ref: dict[str, Any] | None,
-    ) -> bool:
-        """
-        更新请求执行状态为已执行
-
-        Args:
-            request_id: 请求 ID
-            execution_ref: 执行引用
-
-        Returns:
-            是否更新成功
-        """
-        return self._actual_repo.update_execution_status_to_executed(
-            request_id,
-            execution_ref,
-        )
-
-    def update_execution_status_to_failed(
-        self,
-        request_id: str,
-    ) -> bool:
-        """
-        更新请求执行状态为失败
-
-        Args:
-            request_id: 请求 ID
-
-        Returns:
-            是否更新成功
-        """
-        return self._actual_repo.update_execution_status_to_failed(request_id)
-
-
 # 便捷函数
 
 def get_failed_event_repository() -> FailedEventRepository:
@@ -402,8 +269,3 @@ def get_failed_event_repository() -> FailedEventRepository:
 def get_alpha_candidate_repository() -> AlphaCandidateRepositoryWrapper:
     """获取 Alpha 候选仓储包装器实例"""
     return AlphaCandidateRepositoryWrapper()
-
-
-def get_decision_request_repository() -> DecisionRequestRepositoryWrapper:
-    """获取决策请求仓储包装器实例"""
-    return DecisionRequestRepositoryWrapper()

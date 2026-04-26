@@ -15,6 +15,7 @@ from apps.asset_analysis.domain.interfaces import (
 )
 from apps.asset_analysis.domain.pool import PoolType
 from apps.asset_analysis.domain.value_objects import WeightConfig
+from core.integration.asset_analysis_market_sources import get_market_asset_repository
 from apps.asset_analysis.infrastructure.models import (
     AssetAnalysisAlert,
     AssetPoolEntry,
@@ -58,12 +59,8 @@ class AssetRepositoryFactory:
 
         # 延迟加载仓储实例
         if cls._repositories[asset_type] is None:
-            if asset_type == "fund":
-                from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
-                cls._repositories[asset_type] = DjangoFundAssetRepository()
-            elif asset_type == "equity":
-                from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
-                cls._repositories[asset_type] = DjangoEquityAssetRepository()
+            if asset_type in ("fund", "equity"):
+                cls._repositories[asset_type] = get_market_asset_repository(asset_type)
             elif asset_type in ("bond", "commodity", "index", "sector"):
                 # 对于尚未实现的资产类型，使用空仓储
                 cls._repositories[asset_type] = EmptyAssetRepository()

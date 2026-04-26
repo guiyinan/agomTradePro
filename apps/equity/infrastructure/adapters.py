@@ -14,6 +14,7 @@ import pandas as pd
 from apps.data_center.domain.entities import PriceBar as DataCenterPriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.infrastructure.repositories import PriceBarRepository
+from core.integration.runtime_benchmarks import get_runtime_benchmark_code
 
 from ..domain.ports import MarketDataPort, RegimeDataPort, StockPoolPort
 from .models import StockDailyModel, StockInfoModel
@@ -208,14 +209,10 @@ class MarketDataRepositoryAdapter(MarketDataPort):
     """
 
     def __init__(self):
-        # 延迟导入，避免循环依赖
-        from apps.account.infrastructure.models import SystemSettingsModel
         from apps.macro.infrastructure.models import MacroIndicator
         self._model = MacroIndicator
         self._bar_repo = PriceBarRepository()
-        self._default_index_code = SystemSettingsModel.get_runtime_benchmark_code(
-            "equity_default_index"
-        )
+        self._default_index_code = get_runtime_benchmark_code("equity_default_index")
 
     def _load_local_index_points(
         self,

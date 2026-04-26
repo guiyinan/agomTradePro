@@ -9,6 +9,7 @@ import logging
 from datetime import date
 
 from apps.data_center.infrastructure.models import FinancialFactModel, ValuationFactModel
+from core.integration.runtime_benchmarks import get_runtime_benchmark_code
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +111,6 @@ class CachedFactorAdapter(FactorDataSource):
     ) -> float | None:
         """Calculate factor from price data"""
         try:
-            from apps.account.infrastructure.models import SystemSettingsModel
-
             # Determine period from factor code
             if "1m" in factor_code:
                 days = 20
@@ -134,9 +133,7 @@ class CachedFactorAdapter(FactorDataSource):
             elif factor_code.startswith("volatility_"):
                 return self._calculate_volatility(prices, days)
             elif factor_code == "beta":
-                benchmark_code = SystemSettingsModel.get_runtime_benchmark_code(
-                    "factor_beta_benchmark"
-                )
+                benchmark_code = get_runtime_benchmark_code("factor_beta_benchmark")
                 if not benchmark_code:
                     return None
                 benchmark_prices = self.price_service.get_prices(benchmark_code, trade_date, days)

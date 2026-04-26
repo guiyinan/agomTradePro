@@ -29,6 +29,13 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from core.integration.account_ledger import (
+    get_account_position_model,
+    get_account_transaction_model,
+    get_capital_flow_model,
+    get_portfolio_model,
+)
+
 
 class Command(BaseCommand):
     help = "将 apps/account 账本数据迁移至 simulated_trading 统一账本（幂等）"
@@ -81,12 +88,13 @@ class Command(BaseCommand):
     # ── Step 1: PortfolioModel → SimulatedAccountModel ──────────────────
 
     def _migrate_portfolios(self, user_id, dry_run, stats):
-        from apps.account.infrastructure.models import CapitalFlowModel, PortfolioModel
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
             SimulatedAccountModel,
         )
 
+        CapitalFlowModel = get_capital_flow_model()
+        PortfolioModel = get_portfolio_model()
         qs = PortfolioModel._default_manager.select_related("user")
         if user_id:
             qs = qs.filter(user_id=user_id)
@@ -159,13 +167,13 @@ class Command(BaseCommand):
     # ── Step 2: account.PositionModel → simulated_trading.PositionModel ─
 
     def _migrate_positions(self, user_id, dry_run, stats):
-        from apps.account.infrastructure.models import PositionModel as AccountPositionModel
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
             PositionModel as SimPositionModel,
         )
         from shared.domain.position_calculations import recalculate_derived_fields
 
+        AccountPositionModel = get_account_position_model()
         qs = AccountPositionModel._default_manager.select_related("portfolio__user")
         if user_id:
             qs = qs.filter(portfolio__user_id=user_id)
@@ -280,12 +288,12 @@ class Command(BaseCommand):
     # ── Step 3: TransactionModel → SimulatedTradeModel ───────────────────
 
     def _migrate_transactions(self, user_id, dry_run, stats):
-        from apps.account.infrastructure.models import TransactionModel
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
             SimulatedTradeModel,
         )
 
+        TransactionModel = get_account_transaction_model()
         qs = TransactionModel._default_manager.select_related("portfolio__user")
         if user_id:
             qs = qs.filter(portfolio__user_id=user_id)

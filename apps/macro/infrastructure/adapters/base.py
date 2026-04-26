@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Protocol
 
+from core.integration.runtime_settings import get_runtime_macro_publication_lags
+
 
 class DataSourceUnavailableError(Exception):
     """数据源不可用异常"""
@@ -85,9 +87,7 @@ def get_publication_lags() -> dict[str, PublicationLag]:
     lags = dict(BASE_PUBLICATION_LAGS)
 
     try:
-        from apps.account.infrastructure.models import SystemSettingsModel
-
-        dynamic_lags = SystemSettingsModel.get_runtime_macro_publication_lags()
+        dynamic_lags = get_runtime_macro_publication_lags()
         for code, item in dynamic_lags.items():
             lags[code] = PublicationLag(
                 days=int(item.get("days", 0) or 0),

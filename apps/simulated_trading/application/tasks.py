@@ -34,6 +34,7 @@ from apps.simulated_trading.infrastructure.repositories import (
     DjangoTradeRepository,
 )
 from core.exceptions import DataFetchError
+from core.integration.realtime_polling import execute_realtime_price_polling
 
 logger = logging.getLogger(__name__)
 
@@ -1107,13 +1108,7 @@ def update_all_prices_after_close(self, account_id: int | None = None) -> dict[s
     logger.info("=" * 60)
 
     try:
-        from apps.realtime.application.price_polling_service import PricePollingUseCase
-
-        # 创建价格轮询用例
-        use_case = PricePollingUseCase()
-
-        # 执行价格轮询
-        snapshot = use_case.execute_price_polling()
+        snapshot = execute_realtime_price_polling()
 
         logger.info("=" * 60)
         logger.info("收盘后批量价格更新完成")

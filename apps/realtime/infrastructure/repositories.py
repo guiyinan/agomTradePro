@@ -36,7 +36,7 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
-from apps.simulated_trading.infrastructure.models import PositionModel
+from core.integration.simulated_positions import list_held_simulated_asset_codes
 
 logger = logging.getLogger(__name__)
 
@@ -590,12 +590,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
 
     def get_held_assets(self) -> list[str]:
         """获取所有持仓资产代码"""
-        # 查询所有非零持仓
-        positions = PositionModel._default_manager.filter(
-            quantity__gt=0
-        ).values_list("asset_code", flat=True).distinct()
-
-        return list(positions)
+        return list_held_simulated_asset_codes()
 
     def get_watchlist_assets(self, user_id: str | None = None) -> list[str]:
         """获取关注池资产代码

@@ -7,6 +7,13 @@ from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
+from core.integration.alpha_runtime import (
+    queue_alpha_score_prediction,
+    resolve_portfolio_alpha_scope,
+    run_alpha_score_prediction_now,
+)
+from core.integration.alpha_homepage import load_alpha_homepage_data
+from core.integration.pulse_refresh import refresh_pulse_snapshot
 
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest
 from apps.data_center.application.dtos import SyncQuoteRequest
@@ -119,9 +126,7 @@ class Command(BaseCommand):
     @staticmethod
     def _build_pulse_refresher():
         def _refresh(target_date: date):
-            from apps.pulse.application.use_cases import CalculatePulseUseCase
-
-            return CalculatePulseUseCase().execute(as_of_date=target_date)
+            return refresh_pulse_snapshot(target_date=target_date)
 
         return _refresh
 
@@ -132,9 +137,6 @@ class Command(BaseCommand):
                 return {"status": "skipped", "message": "No admin user is available."}
             if portfolio_id is None:
                 return {"status": "skipped", "message": "portfolio_id is required."}
-
-            from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
-            from apps.alpha.application.tasks import qlib_predict_scores
 
             try:
                 call_command(
@@ -151,30 +153,31 @@ class Command(BaseCommand):
                     lookback_days=400,
                     verbosity=0,
                 )
-            resolved = PortfolioAlphaPoolResolver().resolve(
+            resolved = resolve_portfolio_alpha_scope(
                 user_id=user.id,
                 portfolio_id=portfolio_id,
                 trade_date=target_date,
-                pool_mode="price_covered",
             )
             quote_sync_result = Command._sync_scope_quotes(
                 list(getattr(resolved.scope, "instrument_codes", ()) or ())
             )
             task_kwargs = {"scope_payload": resolved.scope.to_dict()}
             if sync_alpha:
-                result = qlib_predict_scores.apply(
-                    args=[resolved.scope.universe_id, target_date.isoformat(), 30],
-                    kwargs=task_kwargs,
-                ).get()
+                result = run_alpha_score_prediction_now(
+                    universe_id=resolved.scope.universe_id,
+                    trade_date=target_date,
+                    scope_payload=task_kwargs["scope_payload"],
+                )
                 status = "completed"
                 task_id = ""
             else:
                 from kombu.exceptions import OperationalError as KombuOperationalError
 
                 try:
-                    task = qlib_predict_scores.apply_async(
-                        args=[resolved.scope.universe_id, target_date.isoformat(), 30],
-                        kwargs=task_kwargs,
+                    task = queue_alpha_score_prediction(
+                        universe_id=resolved.scope.universe_id,
+                        trade_date=target_date,
+                        scope_payload=task_kwargs["scope_payload"],
                     )
                 except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
                     return {
@@ -245,9 +248,7 @@ class Command(BaseCommand):
             if user is None or portfolio_id is None:
                 return {"status": "blocked", "recommendation_ready": False}
 
-            from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
-
-            data = AlphaHomepageQuery().execute(
+            data = load_alpha_homepage_data(
                 user=user,
                 top_n=10,
                 portfolio_id=portfolio_id,

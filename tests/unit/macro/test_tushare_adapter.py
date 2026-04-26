@@ -42,3 +42,15 @@ def test_fetch_shibor_raises_when_one_week_column_missing():
 
     with pytest.raises(DataSourceUnavailableError, match="缺少 1 周期限字段"):
         adapter.fetch("SHIBOR", date(2026, 4, 1), date(2026, 4, 5))
+
+
+def test_supported_indicators_include_runtime_macro_index_codes(monkeypatch):
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.tushare_adapter.get_runtime_macro_index_codes",
+        lambda: ["000300.SH", "000905.SH"],
+    )
+
+    adapter = TushareAdapter(token="test-token")
+
+    assert adapter.supports("000300.SH") is True
+    assert adapter.supports("000905.SH") is True

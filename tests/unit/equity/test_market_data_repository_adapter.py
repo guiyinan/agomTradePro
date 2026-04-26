@@ -6,7 +6,7 @@ from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
 
 def test_market_data_repository_adapter_falls_back_to_akshare_index_history(mocker) -> None:
     mocker.patch(
-        "apps.account.infrastructure.models.SystemSettingsModel.get_runtime_benchmark_code",
+        "apps.equity.infrastructure.adapters.get_runtime_benchmark_code",
         return_value="000300.SH",
     )
     adapter = MarketDataRepositoryAdapter()
@@ -37,7 +37,7 @@ def test_market_data_repository_adapter_falls_back_to_akshare_index_history(mock
 
 def test_market_data_repository_adapter_persists_secondary_remote_source(mocker) -> None:
     mocker.patch(
-        "apps.account.infrastructure.models.SystemSettingsModel.get_runtime_benchmark_code",
+        "apps.equity.infrastructure.adapters.get_runtime_benchmark_code",
         return_value="000300.SH",
     )
     adapter = MarketDataRepositoryAdapter()

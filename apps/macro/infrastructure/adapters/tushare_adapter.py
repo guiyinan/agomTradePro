@@ -10,6 +10,7 @@ from typing import List, Optional
 
 import pandas as pd
 
+from core.integration.runtime_settings import get_runtime_macro_index_codes
 from shared.config.secrets import get_secrets
 from shared.infrastructure.tushare_client import create_tushare_pro_client
 
@@ -81,9 +82,7 @@ class TushareAdapter(BaseMacroAdapter):
         """从数据库配置读取支持的指数指标。"""
         supported = {"SHIBOR"}
         try:
-            from apps.account.infrastructure.models import SystemSettingsModel
-
-            supported.update(SystemSettingsModel.get_settings().get_macro_index_codes())
+            supported.update(get_runtime_macro_index_codes())
         except Exception:
             pass
         return supported

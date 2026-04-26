@@ -4,8 +4,8 @@ from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from core.integration.alpha_cache import get_alpha_cache_earliest_trade_date
 
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.data_center.infrastructure.alpha_price_coverage_sync import (
     AlphaPriceCoverageSyncService,
 )
@@ -57,10 +57,7 @@ class Command(BaseCommand):
     def _parse_start_date(raw_value: str):
         if raw_value:
             return date.fromisoformat(raw_value)
-        earliest = AlphaScoreCacheModel.objects.order_by("intended_trade_date").values_list(
-            "intended_trade_date",
-            flat=True,
-        ).first()
+        earliest = get_alpha_cache_earliest_trade_date()
         if earliest is not None:
             return earliest
         return timezone.now().date() - timedelta(days=30)

@@ -78,6 +78,13 @@ jobs:
             --rules-file governance/architecture_rules.json \
             --format text
 
+      - name: Enforce module cycle baseline
+        run: |
+          python scripts/check_module_cycles.py \
+            --allowlist-file governance/module_cycle_allowlist.json \
+            --fail-on-cycles \
+            --format text
+
   structure-audit-report:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -99,6 +106,13 @@ jobs:
             --include-audit \
             --write-report reports/architecture/architecture-audit.json \
             --write-ledger reports/architecture/module-ledger.md
+
+      - name: Generate module cycle report
+        run: |
+          python scripts/check_module_cycles.py \
+            --allowlist-file governance/module_cycle_allowlist.json \
+            --format text \
+            --write-report reports/architecture/module-cycles.json
 
       - name: Upload architecture audit artifact
         uses: actions/upload-artifact@v4

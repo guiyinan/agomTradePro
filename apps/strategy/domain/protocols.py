@@ -394,6 +394,20 @@ class AssetNameResolverProtocol(Protocol):
         ...
 
 
+class AssetClassValueProtocol(Protocol):
+    """Minimal asset-class value interface for allocation services."""
+
+    value: str
+
+
+class PositionLikeProtocol(Protocol):
+    """Minimal position interface required by allocation advice generation."""
+
+    asset_code: str
+    market_value: Any
+    asset_class: AssetClassValueProtocol
+
+
 # ========================================================================
 # M3: 执行适配器协议
 # ========================================================================

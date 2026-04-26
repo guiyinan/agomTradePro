@@ -34,7 +34,7 @@ def test_terminal_chat_returns_502_when_router_raises(api_client, staff_user):
     api_client.force_authenticate(user=staff_user)
 
     with patch(
-        "apps.terminal.interface.api_views.CapabilityRoutingFacade.route",
+        "apps.terminal.interface.api_views.route_terminal_message",
         side_effect=RuntimeError("router exploded"),
     ):
         response = api_client.post(

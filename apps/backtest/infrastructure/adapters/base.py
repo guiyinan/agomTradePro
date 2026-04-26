@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Protocol
 
+from core.integration.asset_proxy_map import get_runtime_asset_proxy_map
+
 
 class AssetPriceUnavailableError(Exception):
     """资产价格不可用异常"""
@@ -40,9 +42,7 @@ class AssetPricePoint:
 
 def get_asset_class_tickers() -> dict[str, str]:
     """从系统配置读取资产类别代理代码。"""
-    from apps.account.infrastructure.models import SystemSettingsModel
-
-    return SystemSettingsModel.get_runtime_asset_proxy_map()
+    return get_runtime_asset_proxy_map()
 
 
 class AssetPriceAdapterProtocol(Protocol):

@@ -18,6 +18,7 @@ from core.exceptions import (
     DataFetchError,
     ExternalServiceError,
 )
+from core.integration.signal_reevaluation import reevaluate_signals_for_policy_change
 from core.metrics import record_exception
 
 from ..domain.entities import PolicyEvent, PolicyLevel
@@ -498,11 +499,6 @@ def trigger_signal_reevaluation(
     """
     try:
         from apps.regime.application.current_regime import resolve_current_regime
-        from apps.signal.application.use_cases import (
-            ReevaluateSignalsRequest,
-            ReevaluateSignalsUseCase,
-        )
-        from apps.signal.application.repository_provider import get_signal_repository
 
         logger.info(
             f"Starting signal reevaluation for policy level P{new_level}, "
@@ -514,18 +510,11 @@ def trigger_signal_reevaluation(
         current_regime = latest_regime.dominant_regime
         regime_confidence = latest_regime.confidence
 
-        # 创建仓储和用例
-        signal_repo = get_signal_repository()
-        use_case = ReevaluateSignalsUseCase(signal_repository=signal_repo)
-
-        # 执行重评
-        request = ReevaluateSignalsRequest(
+        result = reevaluate_signals_for_policy_change(
             policy_level=new_level,
             current_regime=current_regime,
-            regime_confidence=regime_confidence
+            regime_confidence=regime_confidence,
         )
-
-        result = use_case.execute(request)
 
         logger.info(
             f"Signal reevaluation completed: {result.rejected_count}/{result.total_count} "

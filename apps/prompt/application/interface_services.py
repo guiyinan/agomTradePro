@@ -6,6 +6,9 @@ import logging
 from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
+from core.integration.strategy_prompt_providers import (
+    build_prompt_strategy_providers,
+)
 
 from .agent_runtime import AgentRuntime
 from .context_builders import (
@@ -131,15 +134,11 @@ def build_agent_runtime() -> AgentRuntime:
     signal_provider = None
     asset_pool_provider = None
     try:
-        from apps.strategy.infrastructure.providers import (
-            DjangoAssetPoolProvider,
-            DjangoPortfolioDataProvider,
-            DjangoSignalProvider,
-        )
-
-        portfolio_provider = DjangoPortfolioDataProvider()
-        signal_provider = DjangoSignalProvider()
-        asset_pool_provider = DjangoAssetPoolProvider()
+        (
+            portfolio_provider,
+            signal_provider,
+            asset_pool_provider,
+        ) = build_prompt_strategy_providers()
     except ImportError:
         logger.warning(
             "Strategy providers not available, portfolio/signal/asset_pool context disabled"

@@ -129,6 +129,16 @@ class DjangoAccountConfigSummaryRepository:
 
         return SystemSettingsModel.get_runtime_macro_index_metadata_map()
 
+    def get_runtime_macro_index_codes(self) -> list[str]:
+        """Return runtime macro indicator codes."""
+
+        return SystemSettingsModel.get_settings().get_macro_index_codes()
+
+    def get_runtime_macro_publication_lags(self) -> dict[str, dict[str, Any]]:
+        """Return runtime macro publication lag settings."""
+
+        return SystemSettingsModel.get_runtime_macro_publication_lags()
+
     def get_runtime_qlib_config(self) -> dict[str, Any]:
         """Return runtime qlib config."""
 

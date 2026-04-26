@@ -7,12 +7,12 @@ import logging
 
 import pandas as pd
 
-from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.sector.infrastructure.models import (
     SectorConstituentModel,
     SectorIndexModel,
     SectorInfoModel,
 )
+from core.integration.akshare_sdk import get_akshare_module
 
 logger = logging.getLogger(__name__)
 

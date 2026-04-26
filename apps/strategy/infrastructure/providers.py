@@ -11,6 +11,9 @@ from typing import Any, Dict, List, Optional
 
 from django.db.models import F, Q
 from django.utils import timezone
+from core.integration.simulated_trading_facade import (
+    get_simulated_trading_facade_bridge,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -267,8 +270,7 @@ class DjangoPortfolioDataProvider:
     def _get_facade(self):
         """延迟获取 Facade 实例"""
         if self._facade is None:
-            from apps.simulated_trading.application.facade import get_simulated_trading_facade
-            self._facade = get_simulated_trading_facade()
+            self._facade = get_simulated_trading_facade_bridge()
         return self._facade
 
     def get_positions(self, portfolio_id: int) -> list[dict[str, Any]]:

@@ -32,7 +32,7 @@ from apps.realtime.application.repository_provider import (
     get_realtime_price_repository,
     get_watchlist_provider,
 )
-from apps.simulated_trading.application.repository_provider import get_simulated_position_repository
+from core.integration.simulated_positions import get_simulated_position_price_updater
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class PricePollingService:
         self.price_provider = price_provider
         self.watchlist_provider = watchlist_provider
         self.config = config or PricePollingConfig()
-        self.position_repository = position_repository or get_simulated_position_repository()
+        self.position_repository = position_repository or get_simulated_position_price_updater()
 
     def poll_and_update_prices(self) -> PriceSnapshot:
         """执行一次价格轮询和更新

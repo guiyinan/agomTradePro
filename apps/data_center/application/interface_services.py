@@ -5,10 +5,15 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.realtime.application.price_polling_service import PricePollingUseCase
-
 from apps.data_center.application.dtos import SyncQuoteRequest
 from apps.data_center.domain.entities import DataProviderSettings
+from core.integration.alpha_runtime import (
+    queue_alpha_score_prediction,
+    resolve_portfolio_alpha_scope,
+)
+from core.integration.alpha_homepage import load_alpha_homepage_data
+from core.integration.pulse_refresh import refresh_pulse_snapshot
+from core.integration.realtime_prices import fetch_latest_prices
 
 from .use_cases import (
     ManageProviderConfigUseCase,
@@ -147,7 +152,7 @@ def make_query_latest_quote_use_case() -> QueryLatestQuoteUseCase:
 def fetch_latest_realtime_prices(asset_codes: list[str]) -> list[dict[str, Any]]:
     """Fetch real-time prices from the realtime app fallback service."""
 
-    return PricePollingUseCase().get_latest_prices(asset_codes)
+    return fetch_latest_prices(asset_codes)
 
 
 def make_query_fund_nav_use_case() -> QueryFundNavUseCase:
@@ -188,9 +193,7 @@ def make_query_capital_flows_use_case() -> QueryCapitalFlowsUseCase:
 
 def _build_pulse_refresher():
     def _refresh(target_date: date):
-        from apps.pulse.application.use_cases import CalculatePulseUseCase
-
-        return CalculatePulseUseCase().execute(as_of_date=target_date)
+        return refresh_pulse_snapshot(target_date=target_date)
 
     return _refresh
 
@@ -201,9 +204,6 @@ def _build_alpha_refresher(user):
             return {"status": "skipped", "message": "portfolio_id is required"}
 
         from django.core.management import CommandError, call_command
-
-        from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
-        from apps.alpha.application.tasks import qlib_predict_scores
 
         try:
             call_command(
@@ -220,11 +220,10 @@ def _build_alpha_refresher(user):
                 lookback_days=400,
                 verbosity=0,
             )
-        resolved = PortfolioAlphaPoolResolver().resolve(
+        resolved = resolve_portfolio_alpha_scope(
             user_id=user.id,
             portfolio_id=portfolio_id,
             trade_date=target_date,
-            pool_mode="price_covered",
         )
         quote_sync_result = _sync_scope_quotes(
             list(getattr(resolved.scope, "instrument_codes", ()) or ())
@@ -232,9 +231,10 @@ def _build_alpha_refresher(user):
         from kombu.exceptions import OperationalError as KombuOperationalError
 
         try:
-            task = qlib_predict_scores.apply_async(
-                args=[resolved.scope.universe_id, target_date.isoformat(), 30],
-                kwargs={"scope_payload": resolved.scope.to_dict()},
+            task = queue_alpha_score_prediction(
+                universe_id=resolved.scope.universe_id,
+                trade_date=target_date,
+                scope_payload=resolved.scope.to_dict(),
             )
         except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
             return {
@@ -302,9 +302,7 @@ def _build_alpha_status_reader(user):
         if portfolio_id is None:
             return {"status": "blocked", "recommendation_ready": False}
 
-        from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
-
-        data = AlphaHomepageQuery().execute(
+        data = load_alpha_homepage_data(
             user=user,
             top_n=10,
             portfolio_id=portfolio_id,
@@ -402,6 +400,15 @@ def make_sync_financial_use_case() -> SyncFinancialUseCase:
         fact_repo=FinancialFactRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
+
+
+def get_active_provider_id_by_source(source_type: str) -> int | None:
+    """Return the highest-priority active provider id for a source type."""
+
+    providers = _make_provider_repo().get_active_by_type(source_type)
+    if not providers:
+        return None
+    return providers[0].id
 
 
 def make_sync_valuation_use_case() -> SyncValuationUseCase:

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.macro.application.indicator_service import get_available_indicators_for_frontend
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.domain.rules import check_eligibility, get_eligibility_matrix
 from apps.signal.infrastructure.repositories import DjangoSignalRepository, UnifiedSignalRepository
+from core.integration.asset_names import resolve_asset_names_for_signals
 
 from .use_cases import (
     GetRecommendedAssetsRequest,
@@ -78,7 +78,7 @@ def build_signal_management_context(
     )
 
     asset_codes = [signal.asset_code for signal in signals if signal.asset_code]
-    asset_name_map = resolve_asset_names(asset_codes)
+    asset_name_map = resolve_asset_names_for_signals(asset_codes)
     for signal in signals:
         signal.asset_name = asset_name_map.get(signal.asset_code, signal.asset_code)
 

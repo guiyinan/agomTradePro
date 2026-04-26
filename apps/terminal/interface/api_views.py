@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.account.application.rbac import get_user_role
-from apps.ai_capability.application.facade import CapabilityRoutingFacade
+from core.integration.capability_routing import route_terminal_message
 
 from ..application.repository_provider import (
     get_terminal_audit_repository,
@@ -486,13 +486,12 @@ class TerminalChatView(APIView):
 
         data = serializer.validated_data
         provider_ref = data.get('provider_ref', data.get('provider_name'))
-        router = CapabilityRoutingFacade()
         user_role = get_user_role(request.user)
         mcp_enabled = _get_mcp_enabled(request.user)
 
         try:
             answer_chain_config = _get_answer_chain_config(request.user)
-            routed = router.route(
+            routed = route_terminal_message(
                 message=data['message'],
                 entrypoint='terminal',
                 session_id=data.get('session_id'),

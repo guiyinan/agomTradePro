@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
 
 from django.utils import timezone
+from core.integration.price_history import fetch_close_prices_from_data_center
 
 logger = logging.getLogger(__name__)
 
@@ -123,19 +124,15 @@ class RotationPriceDataService:
     ) -> list[float] | None:
         """从 data_center 事实表读取历史价格"""
         try:
-            from apps.data_center.infrastructure.repositories import PriceBarRepository
-
-            repo = PriceBarRepository()
-            # 加缓冲天数，应对非交易日
-            start_date = end_date - timedelta(days=days_back + 30)
-            bars = repo.get_bars(asset_code, start=start_date, end=end_date)
-
-            if not bars:
+            prices = fetch_close_prices_from_data_center(
+                asset_code=asset_code,
+                end_date=end_date,
+                days_back=days_back,
+            )
+            if not prices:
                 logger.warning("data_center 无法获取 %s 的历史价格", asset_code)
                 return None
-
-            prices = [float(bar.close) for bar in bars]
-            return prices[-days_back:] if len(prices) > days_back else prices
+            return prices
 
         except Exception:
             logger.exception("从 data_center 获取 %s 历史价格失败", asset_code)
