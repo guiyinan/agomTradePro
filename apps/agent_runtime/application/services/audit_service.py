@@ -263,26 +263,24 @@ class AgentRuntimeAuditService:
             return None
 
         try:
+            from apps.agent_runtime.application.repository_provider import (
+                get_runtime_user_repository,
+            )
+            from apps.audit.application.repository_provider import get_audit_repository
             from apps.audit.application.use_cases import (
                 LogOperationRequest,
                 LogOperationUseCase,
-            )
-            from apps.audit.infrastructure.providers import DjangoAuditRepository
-            from apps.agent_runtime.application.repository_provider import (
-                get_runtime_user_repository,
             )
 
             # Get username if user_id is provided
             username = "anonymous"
             if user_id:
                 username = (
-                    get_runtime_user_repository().get_username_by_id(user_id)
-                    or f"user_{user_id}"
+                    get_runtime_user_repository().get_username_by_id(user_id) or f"user_{user_id}"
                 )
 
             # Create the use case and request
-            audit_repo = DjangoAuditRepository()
-            use_case = LogOperationUseCase(audit_repo)
+            use_case = LogOperationUseCase(get_audit_repository())
 
             request = LogOperationRequest(
                 request_id=request_id,

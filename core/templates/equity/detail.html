@@ -1526,8 +1526,8 @@ async function refreshStockData() {
             throw new Error(syncResult.error || '同步失败');
         }
         
-        // 2. 同步财务数据（后台任务，不等待）
-        fetch('/api/equity/financial-data/sync/', {
+        // 2. 同步财务数据
+        await fetchJsonOrThrowCompat('/api/equity/financial-data/sync/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1535,7 +1535,7 @@ async function refreshStockData() {
                 periods: 8,
                 source: 'akshare'
             })
-        }).catch(e => console.warn('财务数据同步请求发送失败:', e));
+        });
         
         // 3. 重新加载数据
         await loadStockDetail();

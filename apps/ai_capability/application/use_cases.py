@@ -17,10 +17,15 @@ from typing import Any, Optional
 from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-from apps.policy.infrastructure.providers import DjangoPolicyRepository
+from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.policy.application.repository_provider import get_current_policy_repository
+from apps.prompt.application.runtime_provider import execute_builtin_tool
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.terminal.infrastructure.providers import get_terminal_runtime_settings_repository
+from apps.terminal.application.repository_provider import (
+    get_terminal_audit_repository,
+    get_terminal_command_repository,
+    get_terminal_runtime_settings_repository,
+)
 from core.health_checks import is_healthy, run_readiness_checks
 
 from ..application.dtos import (
@@ -375,7 +380,7 @@ class CapabilityExecutionDispatcher:
 
         if handler == "market_regime":
             regime = resolve_current_regime()
-            policy_repo = DjangoPolicyRepository()
+            policy_repo = get_current_policy_repository()
             policy = policy_repo.get_current_policy_level()
             return {
                 "reply": "\n".join(
@@ -400,10 +405,6 @@ class CapabilityExecutionDispatcher:
     ) -> dict[str, Any]:
         from apps.terminal.application.services import CommandExecutionService
         from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
-        from apps.terminal.infrastructure.providers import (
-            get_terminal_audit_repository,
-            get_terminal_command_repository,
-        )
 
         command_name = capability.capability_key.split(".", 1)[-1]
         use_case = ExecuteCommandUseCase(
@@ -453,14 +454,16 @@ class CapabilityExecutionDispatcher:
         try:
             result = _call_sdk_mcp_tool(tool_name, params)
         except Exception:
-            logger.exception("SDK MCP tool execution failed for %s; falling back to builtin registry", tool_name)
-            from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
-            from apps.prompt.infrastructure.adapters.function_registry import create_builtin_tools
+            logger.exception(
+                "SDK MCP tool execution failed for %s; falling back to builtin registry", tool_name
+            )
+            result = execute_builtin_tool(tool_name, params)
 
-            registry = create_builtin_tools(AKShareAdapter(), _CapabilityRegimeAdapter())
-            result = registry.execute(tool_name, params)
-
-        reply = json.dumps(result, indent=2, ensure_ascii=False) if isinstance(result, (dict, list)) else str(result)
+        reply = (
+            json.dumps(result, indent=2, ensure_ascii=False)
+            if isinstance(result, (dict, list))
+            else str(result)
+        )
         return {"reply": reply}
 
     def _execute_api(
@@ -510,10 +513,7 @@ class CapabilityExecutionDispatcher:
             match = resolve(f"/{path}")
         except Resolver404:
             return {
-                "reply": (
-                    f"无法执行该能力，请检查参数是否有效。"
-                    f"当前路径: /{path}"
-                ),
+                "reply": (f"无法执行该能力，请检查参数是否有效。" f"当前路径: /{path}"),
                 "missing_params": [],
                 "metadata": {"path": f"/{path}", "status_code": 404},
             }
@@ -533,7 +533,11 @@ class CapabilityExecutionDispatcher:
         payload = getattr(response, "data", None)
         if payload is None:
             payload = response.content.decode("utf-8")
-        reply = json.dumps(payload, indent=2, ensure_ascii=False) if isinstance(payload, (dict, list)) else str(payload)
+        reply = (
+            json.dumps(payload, indent=2, ensure_ascii=False)
+            if isinstance(payload, (dict, list))
+            else str(payload)
+        )
         return {
             "reply": reply,
             "metadata": {"status_code": getattr(response, "status_code", 200)},
@@ -612,7 +616,10 @@ class RouteMessageUseCase:
                 reason=reason,
                 rejected_candidates=rejected_candidates,
             )
-        elif decision_payload["decision"] == CapabilityDecision.ASK_CONFIRMATION and selected_capability:
+        elif (
+            decision_payload["decision"] == CapabilityDecision.ASK_CONFIRMATION
+            and selected_capability
+        ):
             decision = self._build_suggestion_decision(
                 selected_capability,
                 candidates,
@@ -858,7 +865,7 @@ class RouteMessageUseCase:
     def _execute_market_regime(self) -> dict[str, Any]:
         """Execute market regime check."""
         regime = resolve_current_regime()
-        policy_repo = DjangoPolicyRepository()
+        policy_repo = get_current_policy_repository()
         policy = policy_repo.get_current_policy_level()
 
         reply = "\n".join(
@@ -905,17 +912,19 @@ class RouteMessageUseCase:
     ) -> str:
         """Execute general chat using AI provider."""
         try:
-            ai_factory = AIClientFactory()
+            ai_factory = get_ai_client_factory()
             ai_client = ai_factory.get_client(
                 request.provider_name,
                 user=context.user_id,
             )
 
             history = request.context.get("history", []) or []
-            messages = [{
-                "role": "system",
-                "content": _get_fallback_chat_system_prompt(),
-            }]
+            messages = [
+                {
+                    "role": "system",
+                    "content": _get_fallback_chat_system_prompt(),
+                }
+            ]
             messages.extend(history)
             messages.append({"role": "user", "content": request.message})
 
@@ -1026,9 +1035,9 @@ class RouteMessageUseCase:
             selected_capability_key=decision.selected_capability_key,
             confidence=decision.confidence,
             decision=decision.decision,
-            fallback_reason=""
-            if decision.decision == CapabilityDecision.CAPABILITY
-            else "low_confidence",
+            fallback_reason=(
+                "" if decision.decision == CapabilityDecision.CAPABILITY else "low_confidence"
+            ),
             execution_result=decision.reply[:500] if decision.reply else "",
         )
 
@@ -1241,8 +1250,6 @@ class SyncCapabilitiesUseCase:
 
     def _sync_terminal_commands(self) -> list[CapabilityDefinition]:
         """Sync terminal commands."""
-        from apps.terminal.infrastructure.providers import get_terminal_command_repository
-
         capabilities = []
         commands = get_terminal_command_repository().get_all_active()
 

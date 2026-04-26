@@ -17,19 +17,19 @@ from apps.fund.application.use_cases import (
     ScreenFundsUseCase,
 )
 from apps.fund.infrastructure.providers import DjangoFundAssetRepository, DjangoFundRepository
-from apps.policy.infrastructure.providers import DjangoPolicyRepository
+from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.sentiment.infrastructure.providers import SentimentIndexRepository
-from apps.signal.infrastructure.providers import DjangoSignalRepository
+from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+from apps.signal.application.repository_provider import get_signal_repository
 
 
 def build_dashboard_context() -> dict[str, Any]:
     """Build the fund dashboard HTML context."""
 
     latest_regime = resolve_current_regime(as_of_date=date.today())
-    latest_policy = DjangoPolicyRepository().get_current_policy_level()
-    latest_sentiment = SentimentIndexRepository().get_latest()
-    active_signals = DjangoSignalRepository().get_active_signals()
+    latest_policy = get_current_policy_repository().get_current_policy_level()
+    latest_sentiment = get_sentiment_index_repository().get_latest()
+    active_signals = get_signal_repository().get_active_signals()
 
     regime_display = {
         "Recovery": "复苏",
@@ -58,13 +58,21 @@ def build_dashboard_context() -> dict[str, Any]:
 
     return {
         "current_regime": latest_regime.dominant_regime if latest_regime else "Unknown",
-        "regime_display": regime_display.get(latest_regime.dominant_regime) if latest_regime else "未知",
+        "regime_display": (
+            regime_display.get(latest_regime.dominant_regime) if latest_regime else "未知"
+        ),
         "regime_confidence": f"{latest_regime.confidence:.1%}" if latest_regime else "N/A",
         "current_policy": latest_policy.value if latest_policy else "P1",
-        "policy_display": policy_display.get(latest_policy.value) if latest_policy else "P1（宽松）",
-        "sentiment_index": f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00",
+        "policy_display": (
+            policy_display.get(latest_policy.value) if latest_policy else "P1（宽松）"
+        ),
+        "sentiment_index": (
+            f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00"
+        ),
         "sentiment_level": sentiment_level,
-        "sentiment_date": latest_sentiment.index_date.strftime("%Y-%m-%d") if latest_sentiment else "-",
+        "sentiment_date": (
+            latest_sentiment.index_date.strftime("%Y-%m-%d") if latest_sentiment else "-"
+        ),
         "active_signals_count": len(active_signals),
     }
 

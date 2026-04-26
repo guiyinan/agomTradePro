@@ -41,6 +41,7 @@ def test_guardrail_architecture_boundaries_have_no_violations():
     assert "regime_runtime_no_macro_impl_imports" in rule_ids
     assert "events_no_direct_downstream_models_or_handlers" in rule_ids
     assert "account_interface_no_simulated_trading_orm_imports" in rule_ids
+    assert "apps_application_no_cross_app_infrastructure_imports" in rule_ids
 
 
 @pytest.mark.guardrail

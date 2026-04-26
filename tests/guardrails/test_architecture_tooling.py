@@ -2,7 +2,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -65,6 +64,84 @@ def test_check_architecture_delta_filters_violations_to_added_lines():
     assert filtered == [
         {"source_path": "apps/prompt/interface/views.py", "lineno": 11, "rule_id": "a"},
     ]
+
+
+def test_verify_architecture_cross_app_infrastructure_rule_allows_owning_app_provider():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_cross_app_allow",
+    )
+    rule = {
+        "id": "apps_application_no_cross_app_infrastructure_imports",
+        "description": "Application layers must use other apps' application facades.",
+        "source_roots": ["apps"],
+        "source_layers": ["application"],
+        "forbid_cross_app_infrastructure_imports": True,
+    }
+    records = [
+        module.ImportRecord(
+            source_path="apps/prompt/application/runtime_provider.py",
+            source_root="apps",
+            source_module="prompt",
+            source_layer="application",
+            import_path="apps.prompt.infrastructure.repositories",
+            target_module="prompt",
+            lineno=1,
+        ),
+        module.ImportRecord(
+            source_path="apps/terminal/application/services.py",
+            source_root="apps",
+            source_module="terminal",
+            source_layer="application",
+            import_path="apps.prompt.infrastructure.repositories",
+            target_module="prompt",
+            lineno=2,
+        ),
+    ]
+
+    violations = module.find_import_violations(records, [rule])
+
+    assert len(violations) == 1
+    assert violations[0]["source_path"] == "apps/terminal/application/services.py"
+    assert violations[0]["matched_pattern"] == "apps.<other>.infrastructure"
+
+
+def test_verify_architecture_tracks_literal_dynamic_imports():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_dynamic_imports",
+    )
+    source_file = module.SourceFile(
+        path=REPO_ROOT / "apps" / "terminal" / "application" / "services.py",
+        source_path="apps/terminal/application/services.py",
+        source_root="apps",
+        source_module="terminal",
+        source_layer="application",
+        module_path="apps.terminal.application.services",
+        package="apps.terminal.application",
+        text=(
+            "import importlib\n"
+            "def load_provider():\n"
+            "    return importlib.import_module("
+            "'apps.prompt.infrastructure.repositories'"
+            ")\n"
+        ),
+    )
+    rule = {
+        "id": "apps_application_no_cross_app_infrastructure_imports",
+        "description": "Application layers must use other apps' application facades.",
+        "source_roots": ["apps"],
+        "source_layers": ["application"],
+        "forbid_cross_app_infrastructure_imports": True,
+    }
+
+    records = module.extract_import_records(source_file)
+    violations = module.find_import_violations(records, [rule])
+
+    assert any(
+        violation["import_path"] == "apps.prompt.infrastructure.repositories"
+        for violation in violations
+    )
 
 
 def test_scaffold_application_providers_renders_grouped_imports():

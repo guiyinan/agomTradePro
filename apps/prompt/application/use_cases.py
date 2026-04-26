@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional
 
+from apps.ai_provider.application.client_provider import get_ai_client_factory
+
 from ..domain.entities import (
     ChainConfig,
     ChainExecutionMode,
@@ -59,7 +61,7 @@ class ExecutePromptUseCase:
         execution_log_repository: DjangoExecutionLogRepository,
         ai_client_factory,
         macro_adapter: MacroDataAdapter,
-        regime_adapter: RegimeDataAdapter
+        regime_adapter: RegimeDataAdapter,
     ):
         self.prompt_repository = prompt_repository
         self.execution_log_repository = execution_log_repository
@@ -91,17 +93,13 @@ class ExecutePromptUseCase:
 
             # 2. 解析占位符
             resolved_values = self._resolve_placeholders(
-                template.placeholders,
-                request.placeholder_values
+                template.placeholders, request.placeholder_values
             )
 
             # 3. 渲染模板
             # 合并用户提供的值和解析的值
             all_values = {**request.placeholder_values, **resolved_values}
-            rendered_prompt = self.renderer.render_simple(
-                template.template_content,
-                all_values
-            )
+            rendered_prompt = self.renderer.render_simple(template.template_content, all_values)
 
             # 4. 调用AI
             ai_client = self.ai_client_factory.get_client(
@@ -111,11 +109,11 @@ class ExecutePromptUseCase:
             ai_response = ai_client.chat_completion(
                 messages=[
                     {"role": "system", "content": template.system_prompt or ""},
-                    {"role": "user", "content": rendered_prompt}
+                    {"role": "user", "content": rendered_prompt},
                 ],
                 model=request.model or "gpt-4",
                 temperature=request.temperature or template.temperature,
-                max_tokens=request.max_tokens or template.max_tokens
+                max_tokens=request.max_tokens or template.max_tokens,
             )
 
             # 计算执行时间
@@ -132,15 +130,13 @@ class ExecutePromptUseCase:
                 total_tokens=ai_response.get("total_tokens", 0),
                 estimated_cost=ai_response.get("estimated_cost", 0.0),
                 response_time_ms=response_time_ms,
-                error_message=ai_response.get("error_message")
+                error_message=ai_response.get("error_message"),
             )
 
             # 解析结构化输出
             if result.success:
                 parsed = OutputParser.extract_json(result.content)
-                result = PromptExecutionResult(
-                    **{**result.__dict__, "parsed_output": parsed}
-                )
+                result = PromptExecutionResult(**{**result.__dict__, "parsed_output": parsed})
 
             # 5. 记录日志
             self._log_execution(
@@ -148,7 +144,7 @@ class ExecutePromptUseCase:
                 template_id=request.template_id,
                 placeholder_values=all_values,
                 rendered_prompt=rendered_prompt,
-                result=result
+                result=result,
             )
 
             # 6. 更新模板最后使用时间
@@ -166,7 +162,7 @@ class ExecutePromptUseCase:
                 response_time_ms=result.response_time_ms,
                 error_message=result.error_message,
                 parsed_output=result.parsed_output,
-                template_name=template.name
+                template_name=template.name,
             )
 
         except Exception as e:
@@ -190,9 +186,7 @@ class ExecutePromptUseCase:
         return getattr(request, "user_id", None)
 
     def _resolve_placeholders(
-        self,
-        placeholders: list[PlaceholderDef],
-        user_values: dict[str, Any]
+        self, placeholders: list[PlaceholderDef], user_values: dict[str, Any]
     ) -> dict[str, Any]:
         """解析占位符"""
         resolved = {}
@@ -234,8 +228,7 @@ class ExecutePromptUseCase:
         # 使用FunctionExecutor
         executor = FunctionExecutor(self.macro_adapter)
         return executor.execute_function(
-            placeholder.function_name,
-            placeholder.function_params or {}
+            placeholder.function_name, placeholder.function_params or {}
         )
 
     def _log_execution(
@@ -244,7 +237,7 @@ class ExecutePromptUseCase:
         template_id: int,
         placeholder_values: dict[str, Any],
         rendered_prompt: str,
-        result: PromptExecutionResult
+        result: PromptExecutionResult,
     ):
         """记录执行日志"""
         log_data = {
@@ -262,7 +255,7 @@ class ExecutePromptUseCase:
             "provider_used": result.provider_used,
             "model_used": result.model_used,
             "status": "success" if result.success else "error",
-            "error_message": result.error_message
+            "error_message": result.error_message,
         }
         self.execution_log_repository.create_log(log_data)
 
@@ -280,7 +273,7 @@ class ExecutePromptUseCase:
             "total_tokens": 0,
             "estimated_cost": 0,
             "status": "error",
-            "error_message": error
+            "error_message": error,
         }
         self.execution_log_repository.create_log(log_data)
 
@@ -293,9 +286,7 @@ class ExecuteChainUseCase:
     """
 
     def __init__(
-        self,
-        chain_repository: DjangoChainRepository,
-        prompt_use_case: ExecutePromptUseCase
+        self, chain_repository: DjangoChainRepository, prompt_use_case: ExecutePromptUseCase
     ):
         self.chain_repository = chain_repository
         self.prompt_use_case = prompt_use_case
@@ -331,8 +322,7 @@ class ExecuteChainUseCase:
             # 计算总时间
             total_time_ms = int((time.time() - start_time) * 1000)
             chain_result = ChainExecutionResult(
-                **chain_result.__dict__,
-                total_time_ms=total_time_ms
+                **chain_result.__dict__, total_time_ms=total_time_ms
             )
 
             return ExecuteChainResponse(
@@ -344,7 +334,7 @@ class ExecuteChainUseCase:
                 total_tokens=chain_result.total_tokens,
                 total_cost=chain_result.total_cost,
                 total_time_ms=chain_result.total_time_ms,
-                error_message=chain_result.error_message
+                error_message=chain_result.error_message,
             )
 
         except Exception as e:
@@ -357,13 +347,11 @@ class ExecuteChainUseCase:
                 total_tokens=0,
                 total_cost=0.0,
                 total_time_ms=int((time.time() - start_time) * 1000),
-                error_message=str(e)
+                error_message=str(e),
             )
 
     def _execute_serial(
-        self,
-        chain: ChainConfig,
-        request: ExecuteChainRequest
+        self, chain: ChainConfig, request: ExecuteChainRequest
     ) -> ChainExecutionResult:
         """串行执行"""
         step_results = {}
@@ -397,16 +385,16 @@ class ExecuteChainUseCase:
             chain_name=chain.name,
             execution_mode=chain.execution_mode,
             step_results=step_results,
-            final_output=list(accumulated_output.values())[-1]["content"] if accumulated_output else None,
+            final_output=(
+                list(accumulated_output.values())[-1]["content"] if accumulated_output else None
+            ),
             total_tokens=sum(r.total_tokens for r in step_results.values()),
             total_cost=sum(r.estimated_cost for r in step_results.values()),
-            total_time_ms=sum(r.response_time_ms for r in step_results.values())
+            total_time_ms=sum(r.response_time_ms for r in step_results.values()),
         )
 
     def _execute_parallel(
-        self,
-        chain: ChainConfig,
-        request: ExecuteChainRequest
+        self, chain: ChainConfig, request: ExecuteChainRequest
     ) -> ChainExecutionResult:
         """并行执行 - 按 parallel_group 分组，组内并行（concurrent.futures），组间串行。"""
         from collections import defaultdict
@@ -474,28 +462,15 @@ class ExecuteChainUseCase:
             final_output=self._resolve_final_output(chain, accumulated_output),
             total_tokens=sum(r.total_tokens for r in step_results.values()),
             total_cost=sum(r.estimated_cost for r in step_results.values()),
-            total_time_ms=sum(r.response_time_ms for r in step_results.values())
+            total_time_ms=sum(r.response_time_ms for r in step_results.values()),
         )
 
     def _execute_tool_calling(
-        self,
-        chain: ChainConfig,
-        request: ExecuteChainRequest
+        self, chain: ChainConfig, request: ExecuteChainRequest
     ) -> ChainExecutionResult:
         """工具调用模式 - 使用 AgentRuntime 执行真正的 tool calling。"""
-        from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-
         from ..domain.agent_entities import AgentExecutionRequest
-        from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
-        from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
-        from .agent_runtime import AgentRuntime
-        from .context_builders import (
-            ContextBundleBuilder,
-            MacroContextProvider,
-            RegimeContextProvider,
-        )
-        from .tool_execution import create_agent_tool_registry
-        from .trace_logging import AgentExecutionLogger
+        from .runtime_provider import build_terminal_agent_runtime
 
         step_results = {}
         accumulated_output = {}
@@ -516,32 +491,15 @@ class ExecuteChainUseCase:
                 except Exception:
                     pass
 
-                ai_factory = AIClientFactory()
-                macro_adapter = MacroDataAdapter()
-                regime_adapter = RegimeDataAdapter()
-
-                tool_registry = create_agent_tool_registry(
-                    macro_adapter=macro_adapter,
-                    regime_adapter=regime_adapter,
-                )
-                context_builder = ContextBundleBuilder()
-                context_builder.register_provider(MacroContextProvider(macro_adapter))
-                context_builder.register_provider(RegimeContextProvider(regime_adapter))
-
-                runtime = AgentRuntime(
-                    ai_client_factory=ai_factory,
-                    tool_registry=tool_registry,
-                    context_builder=context_builder,
-                )
+                runtime = build_terminal_agent_runtime(get_ai_client_factory())
 
                 # 构建用户输入
                 user_input = step_context.get("user_input", "")
                 if not user_input and template:
                     from ..domain.services import TemplateRenderer
+
                     renderer = TemplateRenderer()
-                    user_input = renderer.render_simple(
-                        template.template_content, step_context
-                    )
+                    user_input = renderer.render_simple(template.template_content, step_context)
 
                 agent_request = AgentExecutionRequest(
                     task_type="tool_calling",
@@ -556,6 +514,7 @@ class ExecuteChainUseCase:
 
                 # 转为 ExecutePromptResponse 兼容格式
                 from .dtos import ExecutePromptResponse
+
                 step_response = ExecutePromptResponse(
                     success=agent_response.success,
                     content=agent_response.final_answer or "",
@@ -597,13 +556,11 @@ class ExecuteChainUseCase:
             final_output=self._resolve_final_output(chain, accumulated_output),
             total_tokens=sum(r.total_tokens for r in step_results.values()),
             total_cost=sum(r.estimated_cost for r in step_results.values()),
-            total_time_ms=sum(r.response_time_ms for r in step_results.values())
+            total_time_ms=sum(r.response_time_ms for r in step_results.values()),
         )
 
     def _execute_hybrid(
-        self,
-        chain: ChainConfig,
-        request: ExecuteChainRequest
+        self, chain: ChainConfig, request: ExecuteChainRequest
     ) -> ChainExecutionResult:
         """混合模式 - 按步骤配置决定是否走工具调用。
 
@@ -639,10 +596,7 @@ class ExecuteChainUseCase:
         return None
 
     def _build_step_context(
-        self,
-        step,
-        base_values: dict[str, Any],
-        accumulated_output: dict[str, Any]
+        self, step, base_values: dict[str, Any], accumulated_output: dict[str, Any]
     ) -> dict[str, Any]:
         """构建步骤上下文"""
         context = base_values.copy()
@@ -658,7 +612,9 @@ class ExecuteChainUseCase:
 
         return context
 
-    def _serialize_step_results(self, step_results: dict[str, PromptExecutionResult]) -> dict[str, dict]:
+    def _serialize_step_results(
+        self, step_results: dict[str, PromptExecutionResult]
+    ) -> dict[str, dict]:
         """序列化步骤结果"""
         return {
             step_id: {
@@ -666,7 +622,7 @@ class ExecuteChainUseCase:
                 "content": r.content,
                 "total_tokens": r.total_tokens,
                 "estimated_cost": r.estimated_cost,
-                "response_time_ms": r.response_time_ms
+                "response_time_ms": r.response_time_ms,
             }
             for step_id, r in step_results.items()
         }
@@ -677,10 +633,7 @@ class GenerateReportUseCase:
     生成投资分析报告的用例
     """
 
-    def __init__(
-        self,
-        chain_use_case: ExecuteChainUseCase
-    ):
+    def __init__(self, chain_use_case: ExecuteChainUseCase):
         self.chain_use_case = chain_use_case
 
     def execute(self, request: GenerateReportRequest) -> GenerateReportResponse:
@@ -720,8 +673,8 @@ class GenerateReportUseCase:
                 "generated_at": date.today().isoformat(),
                 "tokens_used": chain_result.total_tokens,
                 "cost": chain_result.total_cost,
-                "time_ms": chain_result.total_time_ms
-            }
+                "time_ms": chain_result.total_time_ms,
+            },
         )
 
 
@@ -730,10 +683,7 @@ class GenerateSignalUseCase:
     生成投资信号的用例（AI分析+证伪逻辑）
     """
 
-    def __init__(
-        self,
-        chain_use_case: ExecuteChainUseCase
-    ):
+    def __init__(self, chain_use_case: ExecuteChainUseCase):
         self.chain_use_case = chain_use_case
 
     def execute(self, request: GenerateSignalRequest) -> GenerateSignalResponse:
@@ -745,10 +695,7 @@ class GenerateSignalUseCase:
         2. 解析AI输出
         3. 返回信号数据
         """
-        placeholder_values = {
-            "asset_code": request.asset_code,
-            **request.analysis_context
-        }
+        placeholder_values = {"asset_code": request.asset_code, **request.analysis_context}
 
         chain_request = ExecuteChainRequest(
             chain_id=2,  # 预定义的信号生成链ID
@@ -770,5 +717,5 @@ class GenerateSignalUseCase:
             invalidation_logic="待完善",
             invalidation_threshold=None,
             target_regime="MD",
-            confidence=0.5
+            confidence=0.5,
         )

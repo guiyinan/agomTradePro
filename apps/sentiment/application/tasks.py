@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(
-    name='sentiment.calculate_daily_sentiment_index',
+    name="sentiment.calculate_daily_sentiment_index",
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5 分钟后重试
@@ -33,10 +33,10 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
     Returns:
         执行结果字典
     """
-    from apps.ai_provider.infrastructure.providers import AIProviderRepository
-    from apps.policy.infrastructure.providers import DjangoPolicyRepository
+    from apps.ai_provider.application.client_provider import get_ai_provider_repository
+    from apps.policy.application.repository_provider import get_current_policy_repository
+    from apps.sentiment.application.repository_provider import get_sentiment_index_repository
     from apps.sentiment.application.services import SentimentAnalyzer, SentimentIndexCalculator
-    from apps.sentiment.infrastructure.providers import SentimentIndexRepository
 
     try:
         # 解析日期
@@ -48,13 +48,13 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
         logger.info(f"开始计算 {target_date_obj} 的情绪指数")
 
         # 1. 获取当日政策事件
-        policy_repo = DjangoPolicyRepository()
+        policy_repo = get_current_policy_repository()
         policy_events = policy_repo.get_events_in_range(target_date_obj, target_date_obj)
 
         logger.info(f"找到 {len(policy_events)} 个政策事件")
 
         # 2. 初始化服务
-        ai_provider_repo = AIProviderRepository()
+        ai_provider_repo = get_ai_provider_repository()
         analyzer = SentimentAnalyzer(ai_provider_repo)
 
         # 3. 分析政策情感
@@ -82,7 +82,7 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
         )
 
         # 6. 保存到数据库
-        index_repo = SentimentIndexRepository()
+        index_repo = get_sentiment_index_repository()
         index_repo.save(sentiment_index)
 
         logger.info(f"情绪指数计算完成: {sentiment_index.composite_index:.2f}")
@@ -104,7 +104,7 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
 
 
 @shared_task(
-    name='sentiment.analyze_policy_event',
+    name="sentiment.analyze_policy_event",
     bind=True,
     max_retries=2,
     default_retry_delay=60,
@@ -121,20 +121,20 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
     Returns:
         分析结果字典
     """
-    from apps.ai_provider.infrastructure.providers import AIProviderRepository
-    from apps.policy.infrastructure.providers import DjangoPolicyRepository
+    from apps.ai_provider.application.client_provider import get_ai_provider_repository
+    from apps.policy.application.repository_provider import get_current_policy_repository
     from apps.sentiment.application.services import SentimentAnalyzer
 
     try:
         # 获取政策事件
-        policy_repo = DjangoPolicyRepository()
+        policy_repo = get_current_policy_repository()
         event = policy_repo.get_by_id(event_id)
 
         if not event:
             return {"status": "error", "message": f"政策事件 {event_id} 不存在"}
 
         # 分析情感
-        ai_provider_repo = AIProviderRepository()
+        ai_provider_repo = get_ai_provider_repository()
         analyzer = SentimentAnalyzer(ai_provider_repo)
 
         text = f"{event.title}\n{event.description or ''}"
@@ -157,7 +157,7 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
 
 
 @shared_task(
-    name='sentiment.batch_analyze_texts',
+    name="sentiment.batch_analyze_texts",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -177,34 +177,38 @@ def batch_analyze_texts(self, texts: list) -> list:
     Returns:
         分析结果列表
     """
-    from apps.ai_provider.infrastructure.providers import AIProviderRepository
+    from apps.ai_provider.application.client_provider import get_ai_provider_repository
     from apps.sentiment.application.services import SentimentAnalyzer
 
-    ai_provider_repo = AIProviderRepository()
+    ai_provider_repo = get_ai_provider_repository()
     analyzer = SentimentAnalyzer(ai_provider_repo)
 
     results = []
     for text in texts:
         try:
             result = analyzer.analyze_text(text)
-            results.append({
-                "text": text[:100] + "..." if len(text) > 100 else text,
-                "score": result.sentiment_score,
-                "category": result.category.value,
-                "confidence": result.confidence,
-            })
+            results.append(
+                {
+                    "text": text[:100] + "..." if len(text) > 100 else text,
+                    "score": result.sentiment_score,
+                    "category": result.category.value,
+                    "confidence": result.confidence,
+                }
+            )
         except Exception as e:
             logger.error(f"分析文本失败: {e}")
-            results.append({
-                "text": text[:100] + "..." if len(text) > 100 else text,
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "text": text[:100] + "..." if len(text) > 100 else text,
+                    "error": str(e),
+                }
+            )
 
     return results
 
 
 @shared_task(
-    name='sentiment.check_data_freshness',
+    name="sentiment.check_data_freshness",
     bind=True,
     max_retries=2,
     default_retry_delay=60,
@@ -217,10 +221,10 @@ def check_sentiment_data_freshness(self) -> dict[str, Any]:
 
     检查最近的情绪指数数据是否存在，用于监控。
     """
-    from apps.sentiment.infrastructure.providers import SentimentIndexRepository
+    from apps.sentiment.application.repository_provider import get_sentiment_index_repository
 
     try:
-        index_repo = SentimentIndexRepository()
+        index_repo = get_sentiment_index_repository()
         latest = index_repo.get_latest()
 
         if not latest:
@@ -231,7 +235,9 @@ def check_sentiment_data_freshness(self) -> dict[str, Any]:
 
         # 检查数据是否是最新的
         today = date.today()
-        latest_date = latest.index_date.date() if hasattr(latest.index_date, 'date') else latest.index_date
+        latest_date = (
+            latest.index_date.date() if hasattr(latest.index_date, "date") else latest.index_date
+        )
 
         if latest_date == today:
             return {

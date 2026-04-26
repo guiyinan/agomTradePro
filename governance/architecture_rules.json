@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-26.v1",
+  "version": "2026-04-26.v2",
   "source_roots": [
     "apps",
     "core",
@@ -83,6 +83,18 @@
         "apps.simulated_trading.management.commands.migrate_account_ledger"
       ],
       "rationale": "Route cross-module reads through account-owned repositories or gateways."
+    },
+    {
+      "id": "apps_application_no_cross_app_infrastructure_imports",
+      "description": "Application layers must use other apps' application facades instead of importing their infrastructure packages.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbid_cross_app_infrastructure_imports": true,
+      "rationale": "Cross-app concrete dependencies create hidden coupling; expose application-level facades/providers from the owning app."
     }
   ],
   "audit_rules": [

@@ -10,8 +10,8 @@ from dataclasses import replace
 from datetime import UTC, datetime, timezone
 from typing import Any, Optional
 
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-from apps.policy.infrastructure.providers import DjangoPolicyRepository
+from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
@@ -133,7 +133,9 @@ class CapabilityRoutingFacade:
 
         allowed = CapabilityFilter().filter_by_context([capability], routing_context)
         if not allowed:
-            raise PermissionError(f"Capability is not available in {entrypoint} for this user: {capability_key}")
+            raise PermissionError(
+                f"Capability is not available in {entrypoint} for this user: {capability_key}"
+            )
 
         # The user has already confirmed the suggestion in the web UI.
         confirmed_capability = replace(capability, requires_confirmation=False)
@@ -339,7 +341,7 @@ class CapabilityRoutingFacade:
     def _execute_market_regime(self) -> dict[str, Any]:
         """Execute market regime check."""
         regime = resolve_current_regime()
-        policy_repo = DjangoPolicyRepository()
+        policy_repo = get_current_policy_repository()
         policy = policy_repo.get_current_policy_level()
 
         reply = "\n".join(
@@ -386,7 +388,7 @@ class CapabilityRoutingFacade:
     ) -> str:
         """Execute general chat using AI provider."""
         try:
-            ai_factory = AIClientFactory()
+            ai_factory = get_ai_client_factory()
             ai_client = ai_factory.get_client(
                 context.provider_name,
                 user=context.user_id,
@@ -483,9 +485,9 @@ class CapabilityRoutingFacade:
             selected_capability_key=decision.selected_capability_key,
             confidence=decision.confidence,
             decision=decision.decision,
-            fallback_reason=""
-            if decision.decision == CapabilityDecision.CAPABILITY
-            else "low_confidence",
+            fallback_reason=(
+                "" if decision.decision == CapabilityDecision.CAPABILITY else "low_confidence"
+            ),
             execution_result=decision.reply[:500] if decision.reply else "",
         )
 

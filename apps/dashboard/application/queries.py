@@ -23,9 +23,11 @@ logger = logging.getLogger(__name__)
 # Alpha Visualization Query Service
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class AlphaVisualizationData:
     """Alpha 可视化数据"""
+
     stock_scores: list[dict[str, Any]]
     stock_scores_meta: dict[str, Any]
     provider_status: dict[str, Any]
@@ -117,7 +119,9 @@ class AlphaVisualizationQuery:
                     break
 
             if result and result.success and result.scores:
-                code_to_name = self._resolve_security_names([score.code for score in result.scores[:top_n]])
+                code_to_name = self._resolve_security_names(
+                    [score.code for score in result.scores[:top_n]]
+                )
                 return {
                     "items": [
                         {
@@ -136,13 +140,17 @@ class AlphaVisualizationQuery:
                 }
             return {
                 "items": [],
-                "meta": self._build_stock_scores_meta(result) if result else {
-                    "status": "error",
-                    "source": "none",
-                    "warning_message": "alpha_stock_scores_unavailable",
-                    "is_degraded": True,
-                    "uses_cached_data": False,
-                },
+                "meta": (
+                    self._build_stock_scores_meta(result)
+                    if result
+                    else {
+                        "status": "error",
+                        "source": "none",
+                        "warning_message": "alpha_stock_scores_unavailable",
+                        "is_degraded": True,
+                        "uses_cached_data": False,
+                    }
+                ),
             }
         except Exception as e:
             logger.warning(f"Failed to get alpha stock scores: {e}")
@@ -166,7 +174,9 @@ class AlphaVisualizationQuery:
     ):
         """Attach dashboard-specific freshness hints when the page falls back from realtime qlib."""
         metadata = dict(getattr(result, "metadata", {}) or {})
-        qlib_attempt = next((candidate for provider, candidate in attempts if provider == "qlib"), None)
+        qlib_attempt = next(
+            (candidate for provider, candidate in attempts if provider == "qlib"), None
+        )
         if (
             selected_provider != "qlib"
             and qlib_attempt is not None
@@ -197,7 +207,9 @@ class AlphaVisualizationQuery:
                 and metadata.get("uses_cached_data")
                 and not metadata.get("reliability_notice")
             ):
-                message = f"当前展示的是 {asof_date or '未知日期'} 的缓存评分。原因：{fallback_reason}"
+                message = (
+                    f"当前展示的是 {asof_date or '未知日期'} 的缓存评分。原因：{fallback_reason}"
+                )
                 if refresh_triggered:
                     message += " 系统已自动触发实时刷新任务，可稍后重试。"
                 metadata["reliability_notice"] = {
@@ -218,7 +230,9 @@ class AlphaVisualizationQuery:
             "status": getattr(result, "status", "available"),
             "source": getattr(result, "source", "none"),
             "staleness_days": getattr(result, "staleness_days", None),
-            "is_degraded": bool(metadata.get("is_degraded", getattr(result, "status", "") == "degraded")),
+            "is_degraded": bool(
+                metadata.get("is_degraded", getattr(result, "status", "") == "degraded")
+            ),
             "uses_cached_data": bool(metadata.get("uses_cached_data", False)),
             "effective_asof_date": metadata.get("effective_asof_date"),
             "requested_trade_date": metadata.get("requested_trade_date"),
@@ -314,12 +328,10 @@ class AlphaVisualizationQuery:
             provider_metrics = {}
             for provider_name in provider_status.keys():
                 success_rate = metrics.registry.get_metric(
-                    "alpha_provider_success_rate",
-                    {"provider": provider_name}
+                    "alpha_provider_success_rate", {"provider": provider_name}
                 )
                 latency = metrics.registry.get_metric(
-                    "alpha_provider_latency_ms",
-                    {"provider": provider_name}
+                    "alpha_provider_latency_ms", {"provider": provider_name}
                 )
 
                 provider_metrics[provider_name] = {
@@ -362,12 +374,10 @@ class AlphaVisualizationQuery:
             provider_metrics = {}
             for provider_name in provider_status.keys():
                 success_rate = metrics.registry.get_metric(
-                    "alpha_provider_success_rate",
-                    {"provider": provider_name}
+                    "alpha_provider_success_rate", {"provider": provider_name}
                 )
                 latency = metrics.registry.get_metric(
-                    "alpha_provider_latency_ms",
-                    {"provider": provider_name}
+                    "alpha_provider_latency_ms", {"provider": provider_name}
                 )
 
                 provider_metrics[provider_name] = {
@@ -447,18 +457,22 @@ class AlphaVisualizationQuery:
 
         for i in range(days):
             check_date = base_date - timedelta(days=days - i)
-            trends.append({
-                "date": check_date.isoformat(),
-                "ic": None,
-                "icir": None,
-                "rank_ic": None,
-            })
+            trends.append(
+                {
+                    "date": check_date.isoformat(),
+                    "ic": None,
+                    "icir": None,
+                    "rank_ic": None,
+                }
+            )
 
         return trends
 
     def _build_ic_trends_meta(self, trends: list[dict[str, Any]]) -> dict[str, Any]:
         has_live_data = any(
-            row.get("ic") is not None or row.get("icir") is not None or row.get("rank_ic") is not None
+            row.get("ic") is not None
+            or row.get("icir") is not None
+            or row.get("rank_ic") is not None
             for row in trends
         )
         if has_live_data:
@@ -478,9 +492,11 @@ class AlphaVisualizationQuery:
 # Decision Plane Query Service
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class DecisionPlaneData:
     """决策平面数据"""
+
     beta_gate_visible_classes: str
     alpha_watch_count: int
     alpha_candidate_count: int
@@ -496,6 +512,7 @@ class DecisionPlaneData:
 @dataclass(frozen=True)
 class AlphaDecisionChainData:
     """Alpha 决策链聚合数据。"""
+
     overview: dict[str, Any]
     top_stocks: list[dict[str, Any]]
     actionable_candidates: list[dict[str, Any]]
@@ -527,7 +544,9 @@ class DecisionPlaneQuery:
         """
         all_actionable_candidates = self._get_actionable_candidates(max_count=None)
         listed_actionable_candidates = (
-            all_actionable_candidates[:max_candidates] if max_candidates > 0 else all_actionable_candidates
+            all_actionable_candidates[:max_candidates]
+            if max_candidates > 0
+            else all_actionable_candidates
         )
 
         return DecisionPlaneData(
@@ -540,7 +559,7 @@ class DecisionPlaneQuery:
             quota_remaining=self._get_quota_remaining(),
             quota_usage_percent=self._get_quota_usage_percent(),
             actionable_candidates=listed_actionable_candidates,
-            pending_requests=self._get_pending_requests(max_pending)
+            pending_requests=self._get_pending_requests(max_pending),
         )
 
     def _get_beta_gate_visible_classes(self) -> str:
@@ -550,9 +569,7 @@ class DecisionPlaneQuery:
                 get_beta_gate_config_summary_service,
             )
 
-            beta_gate_context = (
-                get_beta_gate_config_summary_service().get_active_config_context()
-            )
+            beta_gate_context = get_beta_gate_config_summary_service().get_active_config_context()
             allowed_classes = beta_gate_context.get("allowed_asset_classes", [])
             if allowed_classes:
                 return ", ".join(allowed_classes[:3])
@@ -689,9 +706,7 @@ class DecisionPlaneQuery:
                 get_decision_rhythm_global_alert_service,
             )
 
-            requests = (
-                get_decision_rhythm_global_alert_service().list_pending_execution_requests()
-            )
+            requests = get_decision_rhythm_global_alert_service().list_pending_execution_requests()
 
             deduped = []
             seen_codes = set()
@@ -802,8 +817,12 @@ class AlphaDecisionChainQuery:
                     "workflow_stage_label": workflow_stage_label,
                     "is_actionable": bool(actionable_match),
                     "is_pending": bool(pending_match),
-                    "candidate_id": actionable_match.get("candidate_id") if actionable_match else None,
-                    "pending_request_id": pending_match.get("request_id") if pending_match else None,
+                    "candidate_id": (
+                        actionable_match.get("candidate_id") if actionable_match else None
+                    ),
+                    "pending_request_id": (
+                        pending_match.get("request_id") if pending_match else None
+                    ),
                     "pending_execution_status": (
                         pending_match.get("execution_status") if pending_match else None
                     ),
@@ -823,9 +842,7 @@ class AlphaDecisionChainQuery:
         actionable_outside_top10_count = sum(
             1 for item in actionable_candidates if not item["is_in_top10"]
         )
-        pending_outside_top10_count = sum(
-            1 for item in pending_requests if not item["is_in_top10"]
-        )
+        pending_outside_top10_count = sum(1 for item in pending_requests if not item["is_in_top10"])
 
         overview = {
             "top_ranked_count": len(enriched_top_stocks),
@@ -837,14 +854,22 @@ class AlphaDecisionChainQuery:
             "top10_rank_only_count": top_rank_only_count,
             "actionable_outside_top10_count": actionable_outside_top10_count,
             "pending_outside_top10_count": pending_outside_top10_count,
-            "actionable_conversion_pct": round(
-                (top10_actionable_count / len(enriched_top_stocks) * 100), 1
-            ) if enriched_top_stocks else 0.0,
-            "pending_conversion_pct": round(
-                (top10_pending_count / len(enriched_top_stocks) * 100), 1
-            ) if enriched_top_stocks else 0.0,
-            "requested_trade_date": alpha_visualization_data.stock_scores_meta.get("requested_trade_date"),
-            "effective_asof_date": alpha_visualization_data.stock_scores_meta.get("effective_asof_date"),
+            "actionable_conversion_pct": (
+                round((top10_actionable_count / len(enriched_top_stocks) * 100), 1)
+                if enriched_top_stocks
+                else 0.0
+            ),
+            "pending_conversion_pct": (
+                round((top10_pending_count / len(enriched_top_stocks) * 100), 1)
+                if enriched_top_stocks
+                else 0.0
+            ),
+            "requested_trade_date": alpha_visualization_data.stock_scores_meta.get(
+                "requested_trade_date"
+            ),
+            "effective_asof_date": alpha_visualization_data.stock_scores_meta.get(
+                "effective_asof_date"
+            ),
         }
 
         return AlphaDecisionChainData(
@@ -1005,9 +1030,11 @@ class AlphaDecisionChainQuery:
 # Regime Summary Query Service
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class RegimeSummaryData:
     """Regime 摘要数据"""
+
     current_regime: str
     regime_date: date | None
     regime_confidence: float
@@ -1043,9 +1070,9 @@ class RegimeSummaryQuery:
             RegimeSummaryData
         """
         try:
-            from apps.regime.infrastructure.providers import DjangoRegimeRepository
+            from apps.regime.application.repository_provider import get_regime_repository
 
-            regime_repo = DjangoRegimeRepository()
+            regime_repo = get_regime_repository()
             current_state = regime_repo.get_current_regime()
 
             if current_state:
@@ -1059,7 +1086,7 @@ class RegimeSummaryQuery:
                     cpi_value=self._get_latest_macro_value("CPI"),
                     regime_distribution={},
                     regime_data_health=True,
-                    regime_warnings=[]
+                    regime_warnings=[],
                 )
 
             # 返回默认值
@@ -1073,7 +1100,7 @@ class RegimeSummaryQuery:
                 cpi_value=None,
                 regime_distribution={},
                 regime_data_health=False,
-                regime_warnings=["No regime data available"]
+                regime_warnings=["No regime data available"],
             )
 
         except Exception as e:
@@ -1088,7 +1115,7 @@ class RegimeSummaryQuery:
                 cpi_value=None,
                 regime_distribution={},
                 regime_data_health=False,
-                regime_warnings=[str(e)]
+                regime_warnings=[str(e)],
             )
 
     def _get_latest_macro_value(self, indicator_code: str) -> float | None:
@@ -1121,7 +1148,7 @@ class DashboardDetailQuery:
                     "position": None,
                     "related_signals": [],
                     "asset_code": asset_code,
-                    "error": f'未找到持仓 {asset_code}',
+                    "error": f"未找到持仓 {asset_code}",
                 }
             logger.warning(f"Failed to get position detail for {asset_code}: {e}")
             return {
@@ -1133,23 +1160,21 @@ class DashboardDetailQuery:
 
     def generate_alpha_candidates(self) -> dict[str, int]:
         """批量生成 Alpha 候选并返回统计结果。"""
+        from apps.alpha_trigger.application.repository_provider import (
+            get_alpha_candidate_repository,
+            get_alpha_trigger_repository,
+        )
         from apps.alpha_trigger.application.use_cases import (
             GenerateCandidateRequest,
             GenerateCandidateUseCase,
         )
         from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.alpha_trigger.infrastructure.providers import (
-            get_candidate_repository,
-            get_trigger_repository,
-        )
         from apps.dashboard.infrastructure.providers import DashboardQueryRepository
 
-        trigger_repo = get_trigger_repository()
-        candidate_repo = get_candidate_repository()
+        trigger_repo = get_alpha_trigger_repository()
+        candidate_repo = get_alpha_candidate_repository()
         use_case = GenerateCandidateUseCase(trigger_repo, candidate_repo)
-        generation_context = (
-            DashboardQueryRepository().load_alpha_candidate_generation_context()
-        )
+        generation_context = DashboardQueryRepository().load_alpha_candidate_generation_context()
         active_triggers = generation_context["active_triggers"]
         existing_trigger_ids = generation_context["existing_trigger_ids"]
 
@@ -1176,7 +1201,9 @@ class DashboardDetailQuery:
             generated += 1
             if float(resp.candidate.confidence or 0) >= 0.70:
                 try:
-                    candidate_repo.update_status(resp.candidate.candidate_id, CandidateStatus.ACTIONABLE)
+                    candidate_repo.update_status(
+                        resp.candidate.candidate_id, CandidateStatus.ACTIONABLE
+                    )
                     promoted += 1
                 except Exception:
                     pass

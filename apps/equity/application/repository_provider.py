@@ -5,6 +5,7 @@ from __future__ import annotations
 from apps.equity.infrastructure.adapters import (
     RegimeRepositoryAdapter,
     StockPoolRepositoryAdapter,
+    TushareStockAdapter,
 )
 from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
@@ -14,7 +15,7 @@ from apps.equity.infrastructure.providers import (
     EquityBootstrapConfigRepository,
     ValuationRepairConfigRepository,
 )
-from apps.regime.infrastructure.providers import DjangoRegimeRepository
+from apps.regime.application.repository_provider import get_regime_repository
 
 
 def get_equity_stock_repository() -> DjangoStockRepository:
@@ -41,16 +42,22 @@ def get_equity_regime_repository() -> RegimeRepositoryAdapter:
     return RegimeRepositoryAdapter()
 
 
-def get_equity_regime_history_repository() -> DjangoRegimeRepository:
+def get_equity_regime_history_repository():
     """Return the concrete regime history repository for correlation analysis."""
 
-    return DjangoRegimeRepository()
+    return get_regime_repository()
 
 
 def get_equity_stock_pool_repository() -> StockPoolRepositoryAdapter:
     """Return the default stock pool repository."""
 
     return StockPoolRepositoryAdapter()
+
+
+def get_tushare_stock_adapter() -> TushareStockAdapter:
+    """Return the default Tushare stock adapter."""
+
+    return TushareStockAdapter()
 
 
 def get_equity_asset_repository() -> DjangoEquityAssetRepository:

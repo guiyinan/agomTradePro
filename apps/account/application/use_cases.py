@@ -45,15 +45,15 @@ from apps.account.infrastructure.providers import (
     SystemSettingsRepository,
     TransactionRepository,
 )
-from apps.backtest.infrastructure.providers import DjangoBacktestRepository
+from apps.backtest.application.repository_provider import get_backtest_repository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.regime.infrastructure.providers import DjangoRegimeRepository
-from apps.signal.infrastructure.providers import DjangoSignalRepository
+from apps.signal.application.repository_provider import get_signal_repository
 
 
 @dataclass
 class CreatePositionInput:
     """创建持仓输入"""
+
     user_id: int
     asset_code: str
     shares: float | None = None  # 不指定则自动计算
@@ -63,6 +63,7 @@ class CreatePositionInput:
 @dataclass
 class CreatePositionOutput:
     """创建持仓输出"""
+
     position: Position
     shares: float
     notional: Decimal
@@ -72,6 +73,7 @@ class CreatePositionOutput:
 @dataclass
 class RegimeAnalysisOutput:
     """Regime分析输出"""
+
     current_regime: str
     regime_date: date
     match_analysis: RegimeMatchAnalysis
@@ -126,8 +128,7 @@ class CreatePositionUseCase:
             price = self._get_market_price(input.asset_code)
             if price is None:
                 raise ValueError(
-                    f"无法获取资产 {input.asset_code} 的价格，"
-                    f"请检查资产代码或手动指定价格"
+                    f"无法获取资产 {input.asset_code} 的价格，" f"请检查资产代码或手动指定价格"
                 )
 
         # 5. 计算仓位（如果未指定）
@@ -189,12 +190,12 @@ class CreatePositionFromSignalUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         market_price_service: MarketPriceService = None,
-        signal_repo: DjangoSignalRepository = None,
+        signal_repo: object = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.market_price_service = market_price_service or MarketPriceService()
-        self.signal_repo = signal_repo or DjangoSignalRepository()
+        self.signal_repo = signal_repo or get_signal_repository()
 
     def execute(
         self,
@@ -234,8 +235,7 @@ class CreatePositionFromSignalUseCase:
                 )
             else:
                 raise ValueError(
-                    f"无法获取资产 {asset_code} 的价格，"
-                    f"请检查资产代码或手动指定价格"
+                    f"无法获取资产 {asset_code} 的价格，" f"请检查资产代码或手动指定价格"
                 )
 
         # 创建持仓（会自动记录信号关联）
@@ -294,7 +294,7 @@ class AnalyzePortfolioUseCase:
     def __init__(
         self,
         portfolio_repo: PortfolioRepository,
-        regime_repo: DjangoRegimeRepository,
+        regime_repo: object,
     ):
         self.portfolio_repo = portfolio_repo
         self.regime_repo = regime_repo
@@ -392,6 +392,7 @@ class UpdatePositionPricesUseCase:
 @dataclass
 class CreatePositionFromBacktestInput:
     """从回测创建持仓输入"""
+
     user_id: int
     backtest_id: int
     scale_factor: float = 1.0  # 缩放因子，用于按比例调整仓位
@@ -400,6 +401,7 @@ class CreatePositionFromBacktestInput:
 @dataclass
 class CreatePositionFromBacktestOutput:
     """从回测创建持仓输出"""
+
     positions_created: list[Position]
     total_positions: int
     total_value: float
@@ -415,14 +417,14 @@ class CreatePositionFromBacktestUseCase:
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
         market_price_service: MarketPriceService = None,
-        backtest_repo: DjangoBacktestRepository = None,
+        backtest_repo: object = None,
         settings_repo: SystemSettingsRepository = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
         self.market_price_service = market_price_service or MarketPriceService()
-        self.backtest_repo = backtest_repo or DjangoBacktestRepository()
+        self.backtest_repo = backtest_repo or get_backtest_repository()
         self.settings_repo = settings_repo or SystemSettingsRepository()
 
     def execute(self, input: CreatePositionFromBacktestInput) -> CreatePositionFromBacktestOutput:
@@ -444,13 +446,12 @@ class CreatePositionFromBacktestUseCase:
         if backtest_model.user_id != input.user_id:
             raise ValueError("无权限访问此回测结果")
 
-        if backtest_model.status != 'completed':
+        if backtest_model.status != "completed":
             raise ValueError(f"回测状态为 {backtest_model.status}，无法应用")
 
         # 2. 从trades中提取最终持仓
         final_holdings = self._extract_final_holdings_from_trades(
-            backtest_model.trades,
-            input.scale_factor
+            backtest_model.trades, input.scale_factor
         )
 
         if not final_holdings:
@@ -464,7 +465,7 @@ class CreatePositionFromBacktestUseCase:
         total_value = 0.0
 
         for holding in final_holdings:
-            asset_class = holding['asset_class']
+            asset_class = holding["asset_class"]
 
             # 映射 asset_class 到 asset_code（回测中使用的是大类名称）
             asset_code = self._map_asset_class_to_code(asset_class)
@@ -487,18 +488,16 @@ class CreatePositionFromBacktestUseCase:
                 )
             else:
                 # 如果行情接口失败，使用回测中的价格作为后备
-                price = Decimal(str(holding.get('price', 100.0)))
-                logger.warning(
-                    f"无法从行情接口获取价格，使用回测价格: {asset_code} = {price}"
-                )
+                price = Decimal(str(holding.get("price", 100.0)))
+                logger.warning(f"无法从行情接口获取价格，使用回测价格: {asset_code} = {price}")
 
             # 创建持仓
             position = self.position_repo.create_position_legacy(
                 portfolio_id=portfolio_id,
                 asset_code=asset_code,
-                shares=holding['shares'],
+                shares=holding["shares"],
                 price=price,
-                source='backtest',
+                source="backtest",
                 source_id=input.backtest_id,
             )
 
@@ -513,9 +512,7 @@ class CreatePositionFromBacktestUseCase:
         )
 
     def _extract_final_holdings_from_trades(
-        self,
-        trades: list[dict],
-        scale_factor: float = 1.0
+        self, trades: list[dict], scale_factor: float = 1.0
     ) -> list[dict]:
         """
         从交易记录中提取最终持仓
@@ -528,42 +525,43 @@ class CreatePositionFromBacktestUseCase:
         holdings: dict[str, dict] = {}  # asset_class -> {shares, last_price}
 
         for trade in trades:
-            asset_class = trade.get('asset_class')
-            action = trade.get('action')
-            shares = trade.get('shares', 0)
-            price = trade.get('price', 100)
+            asset_class = trade.get("asset_class")
+            action = trade.get("action")
+            shares = trade.get("shares", 0)
+            price = trade.get("price", 100)
 
             if asset_class not in holdings:
-                holdings[asset_class] = {'shares': 0.0, 'price': price}
+                holdings[asset_class] = {"shares": 0.0, "price": price}
 
-            if action == 'buy':
-                holdings[asset_class]['shares'] += shares
+            if action == "buy":
+                holdings[asset_class]["shares"] += shares
                 # 更新加权平均价格
-                old_shares = holdings[asset_class]['shares'] - shares
-                old_price = holdings[asset_class]['price']
+                old_shares = holdings[asset_class]["shares"] - shares
+                old_price = holdings[asset_class]["price"]
                 if old_shares > 0:
-                    holdings[asset_class]['price'] = (
-                        (old_shares * old_price + shares * price) /
-                        holdings[asset_class]['shares']
-                    )
+                    holdings[asset_class]["price"] = (
+                        old_shares * old_price + shares * price
+                    ) / holdings[asset_class]["shares"]
                 else:
-                    holdings[asset_class]['price'] = price
-            elif action == 'sell':
-                holdings[asset_class]['shares'] -= shares
+                    holdings[asset_class]["price"] = price
+            elif action == "sell":
+                holdings[asset_class]["shares"] -= shares
                 # 清零持仓时重置价格
-                if holdings[asset_class]['shares'] <= 0:
-                    holdings[asset_class]['shares'] = 0
-                    holdings[asset_class]['price'] = price
+                if holdings[asset_class]["shares"] <= 0:
+                    holdings[asset_class]["shares"] = 0
+                    holdings[asset_class]["price"] = price
 
         # 过滤掉零持仓，应用缩放因子
         final_holdings = []
         for asset_class, data in holdings.items():
-            if data['shares'] > 0:
-                final_holdings.append({
-                    'asset_class': asset_class,
-                    'shares': data['shares'] * scale_factor,
-                    'price': data['price'],
-                })
+            if data["shares"] > 0:
+                final_holdings.append(
+                    {
+                        "asset_class": asset_class,
+                        "shares": data["shares"] * scale_factor,
+                        "price": data["price"],
+                    }
+                )
 
         return final_holdings
 
@@ -582,13 +580,17 @@ class CreatePositionFromBacktestUseCase:
         """从资产大类推断资产类型"""
         asset_class_lower = asset_class.lower()
 
-        if 'growth' in asset_class_lower or 'share' in asset_class_lower or 'equity' in asset_class_lower:
+        if (
+            "growth" in asset_class_lower
+            or "share" in asset_class_lower
+            or "equity" in asset_class_lower
+        ):
             return AssetClassType.EQUITY
-        elif 'bond' in asset_class_lower or 'fixed' in asset_class_lower:
+        elif "bond" in asset_class_lower or "fixed" in asset_class_lower:
             return AssetClassType.FIXED_INCOME
-        elif 'gold' in asset_class_lower or 'commodity' in asset_class_lower:
+        elif "gold" in asset_class_lower or "commodity" in asset_class_lower:
             return AssetClassType.COMMODITY
-        elif 'cash' in asset_class_lower or 'money' in asset_class_lower:
+        elif "cash" in asset_class_lower or "money" in asset_class_lower:
             return AssetClassType.CASH
         else:
             return AssetClassType.OTHER
@@ -597,11 +599,15 @@ class CreatePositionFromBacktestUseCase:
         """从资产大类推断地区"""
         asset_class_lower = asset_class.lower()
 
-        if 'china' in asset_class_lower or 'a_share' in asset_class_lower or 'sh' in asset_class_lower:
+        if (
+            "china" in asset_class_lower
+            or "a_share" in asset_class_lower
+            or "sh" in asset_class_lower
+        ):
             return Region.CN
-        elif 'us' in asset_class_lower:
+        elif "us" in asset_class_lower:
             return Region.US
-        elif 'global' in asset_class_lower:
+        elif "global" in asset_class_lower:
             return Region.GLOBAL
         else:
             return Region.CN  # 默认中国

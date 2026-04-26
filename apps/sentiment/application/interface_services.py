@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.ai_provider.infrastructure.providers import AIProviderRepository
+from apps.ai_provider.application.client_provider import get_ai_provider_repository
 from apps.sentiment.application.services import SentimentAnalyzer
 from apps.sentiment.infrastructure.providers import (
     SentimentAnalysisLogRepository,
@@ -23,7 +23,7 @@ def analyze_sentiment_text(*, text: str, use_cache: bool = True) -> dict[str, An
         if cached_result is not None:
             return cached_result.to_dict()
 
-    analyzer = SentimentAnalyzer(provider_repository=AIProviderRepository())
+    analyzer = SentimentAnalyzer(provider_repository=get_ai_provider_repository())
     result = analyzer.analyze_text(text)
 
     if use_cache:
@@ -52,7 +52,9 @@ def get_sentiment_index_payload(target_date: date | None = None) -> dict[str, An
     """Return one sentiment index payload by date or the latest available."""
 
     repository = SentimentIndexRepository()
-    index = repository.get_by_date(target_date) if target_date is not None else repository.get_latest()
+    index = (
+        repository.get_by_date(target_date) if target_date is not None else repository.get_latest()
+    )
     if index is None:
         return None
     return index.to_dict()

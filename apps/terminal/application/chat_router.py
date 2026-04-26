@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from typing import Any, Optional
 
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-from apps.policy.infrastructure.providers import DjangoPolicyRepository
+from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
@@ -77,8 +77,7 @@ class TerminalChatRouterService:
             suggested_label = "系统状态" if decision.intent == "system_status" else "市场 regime"
             return {
                 "reply": (
-                    f"检测到你可能想查看{suggested_label}。"
-                    f"建议执行 `{suggested_command}`。"
+                    f"检测到你可能想查看{suggested_label}。" f"建议执行 `{suggested_command}`。"
                 ),
                 "session_id": resolved_session_id,
                 "metadata": {
@@ -126,7 +125,7 @@ class TerminalChatRouterService:
         model: str | None,
         user: Any | None = None,
     ) -> TerminalIntentDecision:
-        ai_factory = AIClientFactory()
+        ai_factory = get_ai_client_factory()
         ai_client = ai_factory.get_client(provider_ref, user=user)
         classifier_messages = [
             {
@@ -182,7 +181,7 @@ class TerminalChatRouterService:
             start = candidate.find("{")
             end = candidate.rfind("}")
             if start != -1 and end != -1 and end > start:
-                candidate = candidate[start:end + 1]
+                candidate = candidate[start : end + 1]
 
         try:
             data = json.loads(candidate)
@@ -208,19 +207,25 @@ class TerminalChatRouterService:
                 result.get("error")
                 or result.get("reason")
                 or (f"{result.get('workers')} workers" if result.get("workers") else "")
-                or (f"empty: {', '.join(result.get('empty_tables', []))}" if result.get("empty_tables") else "")
+                or (
+                    f"empty: {', '.join(result.get('empty_tables', []))}"
+                    if result.get("empty_tables")
+                    else ""
+                )
             )
             suffix = f" ({detail})" if detail else ""
             return f"- **{label}**: `{status}`{suffix}"
 
-        reply = "\n".join([
-            f"## System Readiness: `{overall}`",
-            _line("Database", checks.get("database", {})),
-            _line("Redis", checks.get("redis", {})),
-            _line("Celery", checks.get("celery", {})),
-            _line("Critical Data", checks.get("critical_data", {})),
-            f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
-        ])
+        reply = "\n".join(
+            [
+                f"## System Readiness: `{overall}`",
+                _line("Database", checks.get("database", {})),
+                _line("Redis", checks.get("redis", {})),
+                _line("Celery", checks.get("celery", {})),
+                _line("Critical Data", checks.get("critical_data", {})),
+                f"- **Timestamp**: `{datetime.now(UTC).isoformat()}`",
+            ]
+        )
 
         return {
             "reply": reply,
@@ -251,17 +256,19 @@ class TerminalChatRouterService:
         user_is_admin: bool,
     ) -> dict[str, Any]:
         regime = resolve_current_regime()
-        policy_repo = DjangoPolicyRepository()
+        policy_repo = get_current_policy_repository()
         policy = policy_repo.get_current_policy_level()
 
-        reply = "\n".join([
-            "## Current Market Regime",
-            f"- **Regime**: `{getattr(regime, 'dominant_regime', 'Unknown')}`",
-            f"- **Confidence**: `{(getattr(regime, 'confidence', 0) or 0) * 100:.1f}%`",
-            f"- **Source**: `{getattr(regime, 'source', 'N/A')}`",
-            f"- **Observed At**: `{getattr(regime, 'observed_at', 'N/A')}`",
-            f"- **Policy Level**: `{getattr(policy, 'value', 'N/A')}`",
-        ])
+        reply = "\n".join(
+            [
+                "## Current Market Regime",
+                f"- **Regime**: `{getattr(regime, 'dominant_regime', 'Unknown')}`",
+                f"- **Confidence**: `{(getattr(regime, 'confidence', 0) or 0) * 100:.1f}%`",
+                f"- **Source**: `{getattr(regime, 'source', 'N/A')}`",
+                f"- **Observed At**: `{getattr(regime, 'observed_at', 'N/A')}`",
+                f"- **Policy Level**: `{getattr(policy, 'value', 'N/A')}`",
+            ]
+        )
 
         return {
             "reply": reply,
@@ -299,7 +306,7 @@ class TerminalChatRouterService:
         messages = context.get("history", [])
         messages.append({"role": "user", "content": message})
 
-        ai_factory = AIClientFactory()
+        ai_factory = get_ai_client_factory()
         ai_client = ai_factory.get_client(provider_ref, user=user)
         ai_response = ai_client.chat_completion(
             messages=messages,
@@ -365,7 +372,11 @@ class TerminalChatRouterService:
                 f"confidence={decision.confidence:.2f}",
                 f"route={route}",
             ]
-        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+        return {
+            "label": "Answer chain",
+            "visibility": "technical" if user_is_admin else "masked",
+            "steps": steps,
+        }
 
     def _build_system_status_chain(self, decision, checks, user_is_admin: bool) -> dict[str, Any]:
         steps = [
@@ -392,7 +403,11 @@ class TerminalChatRouterService:
                 f"checks.celery.status={checks.get('celery', {}).get('status', 'unknown')}",
                 f"checks.critical_data.status={checks.get('critical_data', {}).get('status', 'unknown')}",
             ]
-        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+        return {
+            "label": "Answer chain",
+            "visibility": "technical" if user_is_admin else "masked",
+            "steps": steps,
+        }
 
     def _build_regime_chain(self, decision, regime, policy, user_is_admin: bool) -> dict[str, Any]:
         steps = [
@@ -419,9 +434,15 @@ class TerminalChatRouterService:
                 f"RegimeSnapshot.source={getattr(regime, 'source', 'N/A')}",
                 f"PolicyLevel.value={getattr(policy, 'value', 'N/A')}",
             ]
-        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+        return {
+            "label": "Answer chain",
+            "visibility": "technical" if user_is_admin else "masked",
+            "steps": steps,
+        }
 
-    def _build_chat_chain(self, *, decision, provider: str, model: str, user_is_admin: bool) -> dict[str, Any]:
+    def _build_chat_chain(
+        self, *, decision, provider: str, model: str, user_is_admin: bool
+    ) -> dict[str, Any]:
         steps = [
             {
                 "title": "Intent classification",
@@ -439,4 +460,8 @@ class TerminalChatRouterService:
                 f"provider={provider or 'unknown'}",
                 f"model={model or 'unknown'}",
             ]
-        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+        return {
+            "label": "Answer chain",
+            "visibility": "technical" if user_is_admin else "masked",
+            "steps": steps,
+        }

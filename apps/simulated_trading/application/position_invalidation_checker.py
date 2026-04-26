@@ -31,9 +31,9 @@ class _DataCenterMacroGateway:
     """Compatibility gateway that reads macro facts from data_center."""
 
     def __init__(self) -> None:
-        from apps.data_center.infrastructure.providers import MacroFactRepository
+        from apps.data_center.application.repository_provider import get_macro_fact_repository
 
-        self._repo = MacroFactRepository()
+        self._repo = get_macro_fact_repository()
 
     def get_latest_by_code(self, code: str) -> _MacroObservation | None:
         fact = self._repo.get_latest(code)
@@ -85,13 +85,15 @@ class PositionInvalidationChecker:
             if result and result.is_invalidated:
                 # 更新持仓的证伪状态
                 self._mark_position_invalidated(position, result)
-                invalidated.append({
-                    'position_id': None,
-                    'account_id': position.account_id,
-                    'asset_code': position.asset_code,
-                    'asset_name': position.asset_name,
-                    'reason': result.reason,
-                })
+                invalidated.append(
+                    {
+                        "position_id": None,
+                        "account_id": position.account_id,
+                        "asset_code": position.asset_code,
+                        "asset_name": position.asset_name,
+                        "reason": result.reason,
+                    }
+                )
 
         return invalidated
 
@@ -213,10 +215,9 @@ class PositionInvalidationChecker:
 
         # 记录日志
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.warning(
-            f"持仓证伪: {position.account_id} - {position.asset_code} - {result.reason}"
-        )
+        logger.warning(f"持仓证伪: {position.account_id} - {position.asset_code} - {result.reason}")
 
     def get_positions_to_close(self) -> list[dict]:
         """
@@ -229,6 +230,7 @@ class PositionInvalidationChecker:
 
 
 # ==================== 导出函数，供 Celery 任务使用 ====================
+
 
 def check_and_invalidate_positions() -> dict:
     """
@@ -243,9 +245,9 @@ def check_and_invalidate_positions() -> dict:
     invalidated = checker.check_all_positions()
 
     return {
-        'checked': checker.position_repo.count_positions_with_invalidation_rules(),
-        'invalidated': len(invalidated),
-        'positions': invalidated
+        "checked": checker.position_repo.count_positions_with_invalidation_rules(),
+        "invalidated": len(invalidated),
+        "positions": invalidated,
     }
 
 
@@ -260,4 +262,3 @@ def get_invalidated_positions_summary() -> list[dict]:
     positions = checker.get_positions_to_close()
 
     return positions
-

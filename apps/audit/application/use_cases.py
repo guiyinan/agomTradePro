@@ -25,8 +25,11 @@ from apps.audit.domain.services import (
     analyze_attribution,
 )
 from apps.audit.infrastructure.providers import DjangoAuditRepository
-from apps.backtest.infrastructure.providers import DjangoBacktestRepository
-from apps.regime.infrastructure.providers import DjangoRegimeRepository
+from apps.backtest.application.repository_provider import (
+    create_default_price_adapter,
+    get_backtest_repository,
+)
+from apps.regime.application.repository_provider import get_regime_repository
 from core.exceptions import DataValidationError, InsufficientDataError
 
 logger = logging.getLogger(__name__)
@@ -35,12 +38,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GenerateAttributionReportRequest:
     """生成归因报告请求"""
+
     backtest_id: int
 
 
 @dataclass
 class GenerateAttributionReportResponse:
     """生成归因报告响应"""
+
     success: bool
     report_id: int | None = None
     error: str | None = None
@@ -57,15 +62,14 @@ class GenerateAttributionReportUseCase:
     def __init__(
         self,
         audit_repository: DjangoAuditRepository,
-        backtest_repository: DjangoBacktestRepository,
+        backtest_repository: object,
     ):
         self.audit_repo = audit_repository
         self.backtest_repo = backtest_repository
-        self.regime_repo = DjangoRegimeRepository()
+        self.regime_repo = get_regime_repository()
 
     def execute(
-        self,
-        request: GenerateAttributionReportRequest
+        self, request: GenerateAttributionReportRequest
     ) -> GenerateAttributionReportResponse:
         """执行归因分析"""
         try:
@@ -73,8 +77,7 @@ class GenerateAttributionReportUseCase:
             backtest_model = self.backtest_repo.get_backtest_by_id(request.backtest_id)
             if not backtest_model:
                 return GenerateAttributionReportResponse(
-                    success=False,
-                    error=f"回测 {request.backtest_id} 不存在"
+                    success=False, error=f"回测 {request.backtest_id} 不存在"
                 )
 
             # 2. 将 ORM 对象转换为字典
@@ -82,7 +85,8 @@ class GenerateAttributionReportUseCase:
 
             # 3. 解析 Regime 历史（兼容 list/dict 与 JSON 字符串）
             import json
-            regime_history_raw = backtest_dict.get('regime_history')
+
+            regime_history_raw = backtest_dict.get("regime_history")
             regime_history = []
             if isinstance(regime_history_raw, list):
                 regime_history = regime_history_raw
@@ -115,39 +119,43 @@ class GenerateAttributionReportUseCase:
                 if not isinstance(entry, dict):
                     continue
                 normalized_entry = dict(entry)
-                normalized_entry['date'] = self._to_date(entry.get('date'))
+                normalized_entry["date"] = self._to_date(entry.get("date"))
                 normalized_regime_history.append(normalized_entry)
 
             # Ensure the last regime period covers the full backtest window.
             if normalized_regime_history:
                 last_entry = normalized_regime_history[-1]
-                end_date = backtest_dict.get('end_date')
+                end_date = backtest_dict.get("end_date")
                 if (
                     isinstance(end_date, date)
-                    and isinstance(last_entry.get('date'), date)
-                    and last_entry['date'] < end_date
+                    and isinstance(last_entry.get("date"), date)
+                    and last_entry["date"] < end_date
                 ):
-                    normalized_regime_history.append({
-                        'date': end_date,
-                        'regime': last_entry.get('regime') or last_entry.get('dominant_regime'),
-                        'dominant_regime': last_entry.get('dominant_regime') or last_entry.get('regime'),
-                        'confidence': last_entry.get('confidence', 0.0),
-                    })
+                    normalized_regime_history.append(
+                        {
+                            "date": end_date,
+                            "regime": last_entry.get("regime") or last_entry.get("dominant_regime"),
+                            "dominant_regime": last_entry.get("dominant_regime")
+                            or last_entry.get("regime"),
+                            "confidence": last_entry.get("confidence", 0.0),
+                        }
+                    )
 
             simple_result = SimpleBacktestResult(
                 equity_curve=[
-                    (self._to_date(d), v) for d, v in backtest_dict.get('equity_curve', [])
+                    (self._to_date(d), v)
+                    for d, v in backtest_dict.get("equity_curve", [])
                     if self._to_date(d) is not None
                 ],
                 trades=[],  # 简化：不使用 trades（避免 Domain 层依赖 Trade 对象）
-                total_return=backtest_dict.get('total_return', 0.0)
+                total_return=backtest_dict.get("total_return", 0.0),
             )
 
             attribution = analyze_attribution(
                 backtest_result=simple_result,
                 regime_history=normalized_regime_history,
                 asset_returns=asset_returns,
-                config=config
+                config=config,
             )
 
             # 5. 分析 Regime 准确性
@@ -155,36 +163,37 @@ class GenerateAttributionReportUseCase:
 
             # 计算 Regime 准确率（基于回测中的 Regime 预测与实际收益的一致性）
             regime_accuracy = self._calculate_regime_accuracy(
-                normalized_regime_history,
-                backtest_dict.get('equity_curve', [])
+                normalized_regime_history, backtest_dict.get("equity_curve", [])
             )
 
             dominant_regime = (
-                normalized_regime_history[-1].get('dominant_regime')
-                or normalized_regime_history[-1].get('regime')
-                or 'UNKNOWN'
-            ) if normalized_regime_history else 'UNKNOWN'
+                (
+                    normalized_regime_history[-1].get("dominant_regime")
+                    or normalized_regime_history[-1].get("regime")
+                    or "UNKNOWN"
+                )
+                if normalized_regime_history
+                else "UNKNOWN"
+            )
 
             # 5.5 计算 regime_actual（从 RegimeLog 获取实际数据）
             try:
                 regime_actual = self._calculate_regime_actual(
-                    backtest_dict['start_date'],
-                    backtest_dict['end_date']
+                    backtest_dict["start_date"], backtest_dict["end_date"]
                 )
             except Exception as regime_error:
                 # In non-DB unit tests or degraded runtime, regime actual should not
                 # block attribution report generation.
                 logger.warning(
-                    "Regime actual calculation degraded, fallback to error code: %s",
-                    regime_error
+                    "Regime actual calculation degraded, fallback to error code: %s", regime_error
                 )
                 regime_actual = self.ERROR_NO_REGIME_DATA
 
             # 6. 保存归因报告
             report_id = self.audit_repo.save_attribution_report(
                 backtest_id=request.backtest_id,
-                period_start=backtest_dict['start_date'],
-                period_end=backtest_dict['end_date'],
+                period_start=backtest_dict["start_date"],
+                period_end=backtest_dict["end_date"],
                 regime_timing_pnl=attribution.regime_timing_pnl,
                 asset_selection_pnl=attribution.asset_selection_pnl,
                 interaction_pnl=attribution.interaction_pnl,
@@ -206,7 +215,11 @@ class GenerateAttributionReportUseCase:
                     report_id=report_id,
                     loss_source=loss_source,
                     impact=loss_amount,
-                    impact_percentage=abs(loss_amount / attribution.total_return * 100) if attribution.total_return != 0 else 0,
+                    impact_percentage=(
+                        abs(loss_amount / attribution.total_return * 100)
+                        if attribution.total_return != 0
+                        else 0
+                    ),
                     description=f"损失来源: {loss_source}",
                     improvement_suggestion="; ".join(attribution.improvement_suggestions[:3]),
                 )
@@ -216,28 +229,18 @@ class GenerateAttributionReportUseCase:
                 report_id=report_id,
                 lesson=attribution.lesson_learned,
                 recommendation="; ".join(attribution.improvement_suggestions),
-                priority='HIGH' if attribution.loss_amount < -0.05 else 'MEDIUM',
+                priority="HIGH" if attribution.loss_amount < -0.05 else "MEDIUM",
             )
 
             logger.info(f"归因报告生成成功: report_id={report_id}")
 
-            return GenerateAttributionReportResponse(
-                success=True,
-                report_id=report_id
-            )
+            return GenerateAttributionReportResponse(success=True, report_id=report_id)
 
         except Exception as e:
             logger.error(f"归因分析失败: {e}", exc_info=True)
-            return GenerateAttributionReportResponse(
-                success=False,
-                error=str(e)
-            )
+            return GenerateAttributionReportResponse(success=False, error=str(e))
 
-    def _calculate_regime_actual(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> str:
+    def _calculate_regime_actual(self, start_date: date, end_date: date) -> str:
         """
         计算回测期间的实际 Regime
 
@@ -320,11 +323,7 @@ class GenerateAttributionReportUseCase:
 
         return dominant_regime
 
-    def _calculate_regime_accuracy(
-        self,
-        regime_history: list,
-        equity_curve: list
-    ) -> float:
+    def _calculate_regime_accuracy(self, regime_history: list, equity_curve: list) -> float:
         """
         计算 Regime 预测准确率
 
@@ -351,16 +350,16 @@ class GenerateAttributionReportUseCase:
             prev = equity_curve[i - 1]
             curr = equity_curve[i]
             if isinstance(prev, dict) and isinstance(curr, dict):
-                date = curr.get('date')
-                prev_value = prev.get('value', 0)
-                curr_value = curr.get('value', 0)
+                date = curr.get("date")
+                prev_value = prev.get("value", 0)
+                curr_value = curr.get("value", 0)
                 if date and prev_value > 0:
                     returns_by_date[date] = (curr_value - prev_value) / prev_value
 
         # 检查每个 Regime 预测
         for regime_record in regime_history:
-            regime = regime_record.get('regime', '').upper()
-            date = regime_record.get('date')
+            regime = regime_record.get("regime", "").upper()
+            date = regime_record.get("date")
 
             if not regime or not date:
                 continue
@@ -374,10 +373,10 @@ class GenerateAttributionReportUseCase:
             # 判断预测是否正确
             # Recovery/Overheat (增长环境) 预期正收益
             # Stagflation/Deflation (衰退环境) 预期负收益
-            if regime in ('Recovery', 'Overheat'):
+            if regime in ("Recovery", "Overheat"):
                 if actual_return > 0:
                     correct_predictions += 1
-            elif regime in ('Stagflation', 'Deflation'):
+            elif regime in ("Stagflation", "Deflation"):
                 if actual_return < 0:
                     correct_predictions += 1
             else:
@@ -404,22 +403,19 @@ class GenerateAttributionReportUseCase:
         """
         from datetime import timedelta
 
-        from apps.backtest.infrastructure.adapters.composite_price_adapter import (
-            create_default_price_adapter,
-        )
         from shared.config.secrets import get_secrets
 
-        start_date = backtest['start_date']
-        end_date = backtest['end_date']
+        start_date = backtest["start_date"]
+        end_date = backtest["end_date"]
 
         # 资产类别映射（与 backtest 模块保持一致）
         asset_classes = {
-            'a_share_growth': 'equity',   # 沪深300
-            'a_share_value': 'equity',    # 中证500
-            'china_bond': 'bond',         # 债券
-            'gold': 'commodity',          # 黄金
-            'commodity': 'commodity',     # 商品
-            'cash': 'cash',               # 现金
+            "a_share_growth": "equity",  # 沪深300
+            "a_share_value": "equity",  # 中证500
+            "china_bond": "bond",  # 债券
+            "gold": "commodity",  # 黄金
+            "commodity": "commodity",  # 商品
+            "cash": "cash",  # 现金
         }
 
         # 创建价格适配器（使用 Tushare 作为数据源）
@@ -444,9 +440,7 @@ class GenerateAttributionReportUseCase:
             try:
                 # 获取价格序列
                 price_points = price_adapter.get_prices(
-                    asset_class=asset_class,
-                    start_date=start_date,
-                    end_date=end_date
+                    asset_class=asset_class, start_date=start_date, end_date=end_date
                 )
 
                 if not price_points:
@@ -478,7 +472,7 @@ class GenerateAttributionReportUseCase:
                 logger.warning(f"获取 {asset_class} 数据失败: {e}")
 
         # 至少需要一种非现金资产数据
-        non_cash_assets = [k for k in asset_returns.keys() if k != 'cash']
+        non_cash_assets = [k for k in asset_returns.keys() if k != "cash"]
         if not non_cash_assets:
             error_msg = (
                 f"无法获取任何有效的资产价格数据用于归因分析。\n"
@@ -533,19 +527,19 @@ class GenerateAttributionReportUseCase:
                 return default
 
         return {
-            'id': model.id,
-            'name': model.name,
-            'start_date': model.start_date,
-            'end_date': model.end_date,
-            'initial_capital': _safe_float(getattr(model, 'initial_capital', 0.0)),
-            'total_return': _safe_float(getattr(model, 'total_return', 0.0)),
-            'sharpe_ratio': _safe_float(getattr(model, 'sharpe_ratio', 0.0)),
-            'max_drawdown': _safe_float(getattr(model, 'max_drawdown', 0.0)),
-            'annualized_return': _safe_float(getattr(model, 'annualized_return', 0.0)),
-            'equity_curve': equity_curve,
-            'trades': trades,
-            'regime_history': regime_history if regime_history else [],
-            'status': model.status,
+            "id": model.id,
+            "name": model.name,
+            "start_date": model.start_date,
+            "end_date": model.end_date,
+            "initial_capital": _safe_float(getattr(model, "initial_capital", 0.0)),
+            "total_return": _safe_float(getattr(model, "total_return", 0.0)),
+            "sharpe_ratio": _safe_float(getattr(model, "sharpe_ratio", 0.0)),
+            "max_drawdown": _safe_float(getattr(model, "max_drawdown", 0.0)),
+            "annualized_return": _safe_float(getattr(model, "annualized_return", 0.0)),
+            "equity_curve": equity_curve,
+            "trades": trades,
+            "regime_history": regime_history if regime_history else [],
+            "status": model.status,
         }
 
     @staticmethod
@@ -566,18 +560,19 @@ class GenerateAttributionReportUseCase:
     def _map_loss_source_to_model_choice(loss_source: str) -> str:
         """Map domain loss source values to LossAnalysis model choices."""
         mapping = {
-            'regime_timing': 'REGIME_ERROR',
-            'asset_selection': 'ASSET_SELECTION_ERROR',
-            'transaction_cost': 'TRANSACTION_COST',
-            'market_volatility': 'TIMING_ERROR',
-            'unknown': 'TIMING_ERROR',
+            "regime_timing": "REGIME_ERROR",
+            "asset_selection": "ASSET_SELECTION_ERROR",
+            "transaction_cost": "TRANSACTION_COST",
+            "market_volatility": "TIMING_ERROR",
+            "unknown": "TIMING_ERROR",
         }
-        return mapping.get(loss_source, 'TIMING_ERROR')
+        return mapping.get(loss_source, "TIMING_ERROR")
 
 
 @dataclass
 class GetAuditSummaryRequest:
     """获取审计摘要请求"""
+
     start_date: date | None = None
     end_date: date | None = None
     backtest_id: int | None = None
@@ -586,6 +581,7 @@ class GetAuditSummaryRequest:
 @dataclass
 class GetAuditSummaryResponse:
     """获取审计摘要响应"""
+
     success: bool
     reports: list[dict] = None
     error: str | None = None
@@ -597,54 +593,41 @@ class GetAuditSummaryUseCase:
     def __init__(self, audit_repository: DjangoAuditRepository):
         self.audit_repo = audit_repository
 
-    def execute(
-        self,
-        request: GetAuditSummaryRequest
-    ) -> GetAuditSummaryResponse:
+    def execute(self, request: GetAuditSummaryRequest) -> GetAuditSummaryResponse:
         """获取审计摘要"""
         try:
             if request.backtest_id:
-                reports = self.audit_repo.get_reports_by_backtest(
-                    request.backtest_id
-                )
+                reports = self.audit_repo.get_reports_by_backtest(request.backtest_id)
             elif request.start_date and request.end_date:
                 reports = self.audit_repo.get_reports_by_date_range(
-                    request.start_date,
-                    request.end_date
+                    request.start_date, request.end_date
                 )
             else:
                 return GetAuditSummaryResponse(
-                    success=False,
-                    error="必须提供 backtest_id 或 start_date + end_date"
+                    success=False, error="必须提供 backtest_id 或 start_date + end_date"
                 )
 
             # 补充损失分析和经验总结
             for report in reports:
-                report['loss_analyses'] = self.audit_repo.get_loss_analyses(
-                    report['id']
-                )
-                report['experience_summaries'] = self.audit_repo.get_experience_summaries(
-                    report['id']
+                report["loss_analyses"] = self.audit_repo.get_loss_analyses(report["id"])
+                report["experience_summaries"] = self.audit_repo.get_experience_summaries(
+                    report["id"]
                 )
 
-            return GetAuditSummaryResponse(
-                success=True,
-                reports=reports
-            )
+            return GetAuditSummaryResponse(success=True, reports=reports)
 
         except Exception as e:
             logger.error(f"获取审计摘要失败: {e}", exc_info=True)
-            return GetAuditSummaryResponse(
-                success=False,
-                error=str(e)
-            )
+            return GetAuditSummaryResponse(success=False, error=str(e))
 
 
 # ============ 指标表现评估用例 ============
 
+
 @dataclass
 class EvaluateIndicatorPerformanceRequest:
     """评估指标表现请求"""
+
     indicator_code: str
     start_date: date
     end_date: date
@@ -654,6 +637,7 @@ class EvaluateIndicatorPerformanceRequest:
 @dataclass
 class EvaluateIndicatorPerformanceResponse:
     """评估指标表现响应"""
+
     success: bool
     report: IndicatorPerformanceReport | None = None
     report_id: int | None = None
@@ -688,26 +672,25 @@ class EvaluateIndicatorPerformanceUseCase:
 
             if not threshold_dict:
                 return EvaluateIndicatorPerformanceResponse(
-                    success=False,
-                    error=f"指标 {request.indicator_code} 的阈值配置不存在"
+                    success=False, error=f"指标 {request.indicator_code} 的阈值配置不存在"
                 )
 
             # 转换为 Domain 层实体
             threshold_config = IndicatorThresholdConfig(
-                indicator_code=threshold_dict['indicator_code'],
-                indicator_name=threshold_dict['indicator_name'],
-                level_low=threshold_dict['level_low'],
-                level_high=threshold_dict['level_high'],
-                base_weight=threshold_dict['base_weight'],
-                min_weight=threshold_dict['min_weight'],
-                max_weight=threshold_dict['max_weight'],
-                decay_threshold=threshold_dict['decay_threshold'],
-                decay_penalty=threshold_dict['decay_penalty'],
-                improvement_threshold=threshold_dict['improvement_threshold'],
-                improvement_bonus=threshold_dict['improvement_bonus'],
-                keep_min_f1=threshold_dict['action_thresholds'].get('keep_min_f1', 0.6),
-                reduce_min_f1=threshold_dict['action_thresholds'].get('reduce_min_f1', 0.4),
-                remove_max_f1=threshold_dict['action_thresholds'].get('remove_max_f1', 0.3),
+                indicator_code=threshold_dict["indicator_code"],
+                indicator_name=threshold_dict["indicator_name"],
+                level_low=threshold_dict["level_low"],
+                level_high=threshold_dict["level_high"],
+                base_weight=threshold_dict["base_weight"],
+                min_weight=threshold_dict["min_weight"],
+                max_weight=threshold_dict["max_weight"],
+                decay_threshold=threshold_dict["decay_threshold"],
+                decay_penalty=threshold_dict["decay_penalty"],
+                improvement_threshold=threshold_dict["improvement_threshold"],
+                improvement_bonus=threshold_dict["improvement_bonus"],
+                keep_min_f1=threshold_dict["action_thresholds"].get("keep_min_f1", 0.6),
+                reduce_min_f1=threshold_dict["action_thresholds"].get("reduce_min_f1", 0.4),
+                remove_max_f1=threshold_dict["action_thresholds"].get("remove_max_f1", 0.3),
             )
 
             # 2. 获取指标历史值 (通过 Repository)
@@ -720,24 +703,23 @@ class EvaluateIndicatorPerformanceUseCase:
             if not indicator_values:
                 return EvaluateIndicatorPerformanceResponse(
                     success=False,
-                    error=f"指标 {request.indicator_code} 在 {request.start_date} 到 {request.end_date} 期间无数据"
+                    error=f"指标 {request.indicator_code} 在 {request.start_date} 到 {request.end_date} 期间无数据",
                 )
 
             # 3. 获取 Regime 判定历史 (通过 Repository)
             regime_log_dicts = self.audit_repo.get_regime_log_values(
-                start_date=request.start_date,
-                end_date=request.end_date
+                start_date=request.start_date, end_date=request.end_date
             )
 
             # 转换为 RegimeSnapshot (从字典列表)
             regime_snapshots = [
                 RegimeSnapshot(
-                    observed_at=log_dict['observed_at'],
-                    dominant_regime=log_dict['dominant_regime'],
-                    confidence=log_dict['confidence'],
-                    growth_momentum_z=log_dict['growth_momentum_z'],
-                    inflation_momentum_z=log_dict['inflation_momentum_z'],
-                    distribution=log_dict['distribution'],
+                    observed_at=log_dict["observed_at"],
+                    dominant_regime=log_dict["dominant_regime"],
+                    confidence=log_dict["confidence"],
+                    growth_momentum_z=log_dict["growth_momentum_z"],
+                    inflation_momentum_z=log_dict["inflation_momentum_z"],
+                    distribution=log_dict["distribution"],
                 )
                 for log_dict in regime_log_dicts
             ]
@@ -768,17 +750,17 @@ class EvaluateIndicatorPerformanceUseCase:
                         recommended_weight=report.recommended_weight,
                         confidence_level=report.confidence_level,
                         analysis_details={
-                            'true_positive_count': report.true_positive_count,
-                            'false_positive_count': report.false_positive_count,
-                            'true_negative_count': report.true_negative_count,
-                            'false_negative_count': report.false_negative_count,
-                            'accuracy': report.accuracy,
-                            'lead_time_mean': report.lead_time_mean,
-                            'lead_time_std': report.lead_time_std,
-                            'pre_2015_correlation': report.pre_2015_correlation,
-                            'post_2015_correlation': report.post_2015_correlation,
-                            'decay_rate': report.decay_rate,
-                            'signal_strength': report.signal_strength,
+                            "true_positive_count": report.true_positive_count,
+                            "false_positive_count": report.false_positive_count,
+                            "true_negative_count": report.true_negative_count,
+                            "false_negative_count": report.false_negative_count,
+                            "accuracy": report.accuracy,
+                            "lead_time_mean": report.lead_time_mean,
+                            "lead_time_std": report.lead_time_std,
+                            "pre_2015_correlation": report.pre_2015_correlation,
+                            "post_2015_correlation": report.post_2015_correlation,
+                            "decay_rate": report.decay_rate,
+                            "signal_strength": report.signal_strength,
                         },
                     )
                 except Exception as save_error:
@@ -804,15 +786,13 @@ class EvaluateIndicatorPerformanceUseCase:
 
         except Exception as e:
             logger.error(f"评估指标 {request.indicator_code} 失败: {e}", exc_info=True)
-            return EvaluateIndicatorPerformanceResponse(
-                success=False,
-                error=str(e)
-            )
+            return EvaluateIndicatorPerformanceResponse(success=False, error=str(e))
 
 
 @dataclass
 class ValidateThresholdsRequest:
     """验证阈值请求"""
+
     start_date: date
     end_date: date
     indicator_codes: list[str] | None = None  # None 表示验证所有指标
@@ -822,6 +802,7 @@ class ValidateThresholdsRequest:
 @dataclass
 class ValidateThresholdsResponse:
     """验证阈值响应"""
+
     success: bool
     validation_report: ThresholdValidationReport | None = None
     validation_run_id: str | None = None
@@ -858,10 +839,7 @@ class ValidateThresholdsUseCase:
 
             total_indicators = len(threshold_configs)
             if total_indicators == 0:
-                return ValidateThresholdsResponse(
-                    success=False,
-                    error="没有找到待验证的指标"
-                )
+                return ValidateThresholdsResponse(success=False, error="没有找到待验证的指标")
 
             # 2. 创建验证摘要记录 (通过 Repository)
             if not request.use_shadow_mode:
@@ -870,7 +848,7 @@ class ValidateThresholdsUseCase:
                     evaluation_period_start=request.start_date,
                     evaluation_period_end=request.end_date,
                     total_indicators=total_indicators,
-                    status='in_progress',
+                    status="in_progress",
                     is_shadow_mode=request.use_shadow_mode,
                     run_date=run_date,
                 )
@@ -886,7 +864,7 @@ class ValidateThresholdsUseCase:
             for threshold_config in threshold_configs:
                 response = evaluate_use_case.execute(
                     EvaluateIndicatorPerformanceRequest(
-                        indicator_code=threshold_config['indicator_code'],
+                        indicator_code=threshold_config["indicator_code"],
                         start_date=request.start_date,
                         end_date=request.end_date,
                         use_shadow_mode=request.use_shadow_mode,
@@ -897,9 +875,12 @@ class ValidateThresholdsUseCase:
                     indicator_reports.append(response.report)
 
                     # 统计
-                    if response.report.recommended_action == 'KEEP' or response.report.recommended_action == 'INCREASE':
+                    if (
+                        response.report.recommended_action == "KEEP"
+                        or response.report.recommended_action == "INCREASE"
+                    ):
                         approved_count += 1
-                    elif response.report.recommended_action == 'REMOVE':
+                    elif response.report.recommended_action == "REMOVE":
                         rejected_count += 1
                     else:
                         pending_count += 1
@@ -907,7 +888,9 @@ class ValidateThresholdsUseCase:
             # 4. 计算总体统计
             if indicator_reports:
                 avg_f1 = sum(r.f1_score for r in indicator_reports) / len(indicator_reports)
-                avg_stability = sum(r.stability_score for r in indicator_reports) / len(indicator_reports)
+                avg_stability = sum(r.stability_score for r in indicator_reports) / len(
+                    indicator_reports
+                )
             else:
                 avg_f1 = 0.0
                 avg_stability = 0.0
@@ -933,14 +916,18 @@ class ValidateThresholdsUseCase:
                 pending_indicators=pending_count,
                 indicator_reports=indicator_reports,
                 overall_recommendation=overall_recommendation,
-                status=ValidationStatus.PASSED if not request.use_shadow_mode else ValidationStatus.SHADOW_RUN,
+                status=(
+                    ValidationStatus.PASSED
+                    if not request.use_shadow_mode
+                    else ValidationStatus.SHADOW_RUN
+                ),
             )
 
             # 7. 更新验证摘要 (通过 Repository)
             if not request.use_shadow_mode:
                 self.audit_repo.update_validation_summary_status(
                     validation_run_id=validation_run_id,
-                    status='completed',
+                    status="completed",
                     approved_indicators=approved_count,
                     rejected_indicators=rejected_count,
                     pending_indicators=pending_count,
@@ -950,8 +937,7 @@ class ValidateThresholdsUseCase:
                 )
 
             logger.info(
-                f"阈值验证完成: {validation_run_id}, "
-                f"{approved_count}/{total_indicators} 通过"
+                f"阈值验证完成: {validation_run_id}, " f"{approved_count}/{total_indicators} 通过"
             )
 
             return ValidateThresholdsResponse(
@@ -967,14 +953,11 @@ class ValidateThresholdsUseCase:
             if not request.use_shadow_mode:
                 self.audit_repo.update_validation_summary_status(
                     validation_run_id=validation_run_id,
-                    status='failed',
+                    status="failed",
                     error_message=str(e),
                 )
 
-            return ValidateThresholdsResponse(
-                success=False,
-                error=str(e)
-            )
+            return ValidateThresholdsResponse(success=False, error=str(e))
 
     def _generate_overall_recommendation(
         self,
@@ -999,8 +982,7 @@ class ValidateThresholdsUseCase:
             )
         elif approval_rate >= 0.5 and avg_f1 >= 0.5:
             return (
-                f"整体表现良好，{approved}/{total} 个指标通过验证。"
-                f"建议优化部分指标的阈值配置。"
+                f"整体表现良好，{approved}/{total} 个指标通过验证。" f"建议优化部分指标的阈值配置。"
             )
         elif approval_rate >= 0.3:
             return (
@@ -1017,6 +999,7 @@ class ValidateThresholdsUseCase:
 @dataclass
 class AdjustIndicatorWeightsRequest:
     """调整指标权重请求"""
+
     validation_run_id: str
     auto_apply: bool = False  # 是否自动应用权重调整
 
@@ -1024,6 +1007,7 @@ class AdjustIndicatorWeightsRequest:
 @dataclass
 class AdjustIndicatorWeightsResponse:
     """调整指标权重响应"""
+
     success: bool
     adjusted_weights: list[DynamicWeightConfig] = None
     error: str | None = None
@@ -1055,14 +1039,13 @@ class AdjustIndicatorWeightsUseCase:
 
             if not summary:
                 return AdjustIndicatorWeightsResponse(
-                    success=False,
-                    error=f"验证记录 {request.validation_run_id} 不存在"
+                    success=False, error=f"验证记录 {request.validation_run_id} 不存在"
                 )
 
             # 2. 获取本次验证的所有指标表现报告 (通过 Repository)
             performance_reports = self.audit_repo.get_indicator_performance_by_date_range(
-                start_date=summary['evaluation_period_start'],
-                end_date=summary['evaluation_period_end'],
+                start_date=summary["evaluation_period_start"],
+                end_date=summary["evaluation_period_end"],
             )
 
             adjusted_weights = []
@@ -1070,14 +1053,14 @@ class AdjustIndicatorWeightsUseCase:
             for report in performance_reports:
                 # 获取对应的阈值配置 (通过 Repository)
                 threshold_config = self.audit_repo.get_threshold_config_by_indicator(
-                    indicator_code=report['indicator_code']
+                    indicator_code=report["indicator_code"]
                 )
 
                 if not threshold_config:
                     continue
 
-                original_weight = threshold_config['base_weight']
-                current_weight = report['recommended_weight']
+                original_weight = threshold_config["base_weight"]
+                current_weight = report["recommended_weight"]
 
                 # 计算调整系数
                 if original_weight > 0:
@@ -1087,21 +1070,21 @@ class AdjustIndicatorWeightsUseCase:
 
                 # 生成调整原因
                 reason = self._generate_adjustment_reason(
-                    report['recommended_action'],
-                    report['f1_score'],
-                    report['stability_score'],
+                    report["recommended_action"],
+                    report["f1_score"],
+                    report["stability_score"],
                 )
 
                 # 置信度
-                confidence = report['confidence_level']
+                confidence = report["confidence_level"]
 
                 weight_config = DynamicWeightConfig(
-                    indicator_code=report['indicator_code'],
+                    indicator_code=report["indicator_code"],
                     current_weight=current_weight,
                     original_weight=original_weight,
-                    f1_score=report['f1_score'],
-                    stability_score=report['stability_score'],
-                    decay_rate=report.get('decay_rate'),
+                    f1_score=report["f1_score"],
+                    stability_score=report["stability_score"],
+                    decay_rate=report.get("decay_rate"),
                     adjustment_factor=adjustment_factor,
                     new_weight=current_weight,
                     reason=reason,
@@ -1113,13 +1096,12 @@ class AdjustIndicatorWeightsUseCase:
                 # 自动应用权重调整 (通过 Repository)
                 if request.auto_apply:
                     self.audit_repo.update_threshold_config_weight(
-                        indicator_code=report['indicator_code'],
+                        indicator_code=report["indicator_code"],
                         new_weight=current_weight,
                     )
 
             logger.info(
-                f"权重调整完成: {len(adjusted_weights)} 个指标, "
-                f"auto_apply={request.auto_apply}"
+                f"权重调整完成: {len(adjusted_weights)} 个指标, " f"auto_apply={request.auto_apply}"
             )
 
             return AdjustIndicatorWeightsResponse(
@@ -1129,10 +1111,7 @@ class AdjustIndicatorWeightsUseCase:
 
         except Exception as e:
             logger.error(f"权重调整失败: {e}", exc_info=True)
-            return AdjustIndicatorWeightsResponse(
-                success=False,
-                error=str(e)
-            )
+            return AdjustIndicatorWeightsResponse(success=False, error=str(e))
 
     def _generate_adjustment_reason(
         self,
@@ -1141,13 +1120,13 @@ class AdjustIndicatorWeightsUseCase:
         stability_score: float,
     ) -> str:
         """生成调整原因"""
-        if action == 'INCREASE':
+        if action == "INCREASE":
             return f"F1分数({f1_score:.2f})和稳定性({stability_score:.2f})优秀，建议增加权重"
-        elif action == 'KEEP':
+        elif action == "KEEP":
             return f"F1分数({f1_score:.2f})和稳定性({stability_score:.2f})良好，保持当前权重"
-        elif action == 'DECREASE':
+        elif action == "DECREASE":
             return f"F1分数({f1_score:.2f})或稳定性({stability_score:.2f})一般，降低权重"
-        elif action == 'REMOVE':
+        elif action == "REMOVE":
             return f"F1分数({f1_score:.2f})过低，建议移除或大幅降低权重"
         else:
             return "未知原因"
@@ -1155,9 +1134,11 @@ class AdjustIndicatorWeightsUseCase:
 
 # ============ MCP/SDK 操作审计日志用例 ============
 
+
 @dataclass
 class LogOperationRequest:
     """记录操作日志请求"""
+
     request_id: str
     user_id: int | None = None
     username: str = "anonymous"
@@ -1189,6 +1170,7 @@ class LogOperationRequest:
 @dataclass
 class LogOperationResponse:
     """记录操作日志响应"""
+
     success: bool
     log_id: str | None = None
     error: str | None = None
@@ -1197,7 +1179,7 @@ class LogOperationResponse:
 class LogOperationUseCase:
     """记录操作日志用例"""
 
-    def __init__(self, audit_repository: 'DjangoAuditRepository'):
+    def __init__(self, audit_repository: "DjangoAuditRepository"):
         self.audit_repo = audit_repository
 
     def execute(self, request: LogOperationRequest) -> LogOperationResponse:
@@ -1213,6 +1195,7 @@ class LogOperationUseCase:
         - 不影响主流程执行
         """
         import time
+
         start_time = time.time()
 
         try:
@@ -1259,7 +1242,11 @@ class LogOperationUseCase:
                 record_audit_write_success(
                     module=request.module or "unknown",
                     action=request.action or "unknown",
-                    source=request.source.value if hasattr(request.source, 'value') else str(request.source),
+                    source=(
+                        request.source.value
+                        if hasattr(request.source, "value")
+                        else str(request.source)
+                    ),
                     latency_seconds=latency_seconds,
                 )
             except ImportError:
@@ -1307,8 +1294,12 @@ class LogOperationUseCase:
 
                 record_audit_write_failure(
                     module=request.module or "unknown",
-                    error_type=component if 'component' in locals() else "unknown",
-                    source=request.source.value if hasattr(request.source, 'value') else str(request.source),
+                    error_type=component if "component" in locals() else "unknown",
+                    source=(
+                        request.source.value
+                        if hasattr(request.source, "value")
+                        else str(request.source)
+                    ),
                     latency_seconds=latency_seconds,
                 )
             except ImportError:
@@ -1325,6 +1316,7 @@ class LogOperationUseCase:
 @dataclass
 class QueryOperationLogsRequest:
     """查询操作日志请求"""
+
     user_id: int | None = None
     username: str | None = None
     operation_type: str | None = None
@@ -1349,6 +1341,7 @@ class QueryOperationLogsRequest:
 @dataclass
 class QueryOperationLogsResponse:
     """查询操作日志响应"""
+
     success: bool
     logs: list[dict] | None = None
     total_count: int = 0
@@ -1360,7 +1353,7 @@ class QueryOperationLogsResponse:
 class QueryOperationLogsUseCase:
     """查询操作日志用例"""
 
-    def __init__(self, audit_repository: 'DjangoAuditRepository'):
+    def __init__(self, audit_repository: "DjangoAuditRepository"):
         self.audit_repo = audit_repository
 
     def execute(self, request: QueryOperationLogsRequest) -> QueryOperationLogsResponse:
@@ -1418,6 +1411,7 @@ class QueryOperationLogsUseCase:
 @dataclass
 class GetOperationLogDetailRequest:
     """获取操作日志详情请求"""
+
     log_id: str
     current_user_id: int | None = None
     is_admin: bool = False
@@ -1426,6 +1420,7 @@ class GetOperationLogDetailRequest:
 @dataclass
 class GetOperationLogDetailResponse:
     """获取操作日志详情响应"""
+
     success: bool
     log: dict | None = None
     error: str | None = None
@@ -1434,7 +1429,7 @@ class GetOperationLogDetailResponse:
 class GetOperationLogDetailUseCase:
     """获取操作日志详情用例"""
 
-    def __init__(self, audit_repository: 'DjangoAuditRepository'):
+    def __init__(self, audit_repository: "DjangoAuditRepository"):
         self.audit_repo = audit_repository
 
     def execute(self, request: GetOperationLogDetailRequest) -> GetOperationLogDetailResponse:
@@ -1456,7 +1451,7 @@ class GetOperationLogDetailUseCase:
 
             # 权限检查
             if not request.is_admin:
-                if log.get('user_id') != request.current_user_id:
+                if log.get("user_id") != request.current_user_id:
                     return GetOperationLogDetailResponse(
                         success=False,
                         error="无权查看此日志",
@@ -1478,6 +1473,7 @@ class GetOperationLogDetailUseCase:
 @dataclass
 class ExportOperationLogsRequest:
     """导出操作日志请求"""
+
     user_id: int | None = None
     username: str | None = None
     operation_type: str | None = None
@@ -1499,6 +1495,7 @@ class ExportOperationLogsRequest:
 @dataclass
 class ExportOperationLogsResponse:
     """导出操作日志响应"""
+
     success: bool
     data: str | None = None  # CSV 或 JSON 字符串
     filename: str | None = None
@@ -1509,7 +1506,7 @@ class ExportOperationLogsResponse:
 class ExportOperationLogsUseCase:
     """导出操作日志用例（仅管理员可用）"""
 
-    def __init__(self, audit_repository: 'DjangoAuditRepository'):
+    def __init__(self, audit_repository: "DjangoAuditRepository"):
         self.audit_repo = audit_repository
 
     def execute(self, request: ExportOperationLogsRequest) -> ExportOperationLogsResponse:
@@ -1527,8 +1524,8 @@ class ExportOperationLogsUseCase:
             from django.conf import settings
 
             # 从 settings 读取配置
-            max_rows = getattr(settings, 'AUDIT_EXPORT_MAX_ROWS', 10000)
-            max_days = getattr(settings, 'AUDIT_EXPORT_MAX_DAYS', 90)
+            max_rows = getattr(settings, "AUDIT_EXPORT_MAX_ROWS", 10000)
+            max_days = getattr(settings, "AUDIT_EXPORT_MAX_DAYS", 90)
 
             # 使用请求中的值或配置默认值
             effective_max_rows = min(request.max_rows, max_rows) if request.max_rows else max_rows
@@ -1601,6 +1598,7 @@ class ExportOperationLogsUseCase:
 @dataclass
 class GetOperationStatsRequest:
     """获取操作统计请求"""
+
     start_date: date | None = None
     end_date: date | None = None
     group_by: str = "module"  # module/tool/user/status
@@ -1609,6 +1607,7 @@ class GetOperationStatsRequest:
 @dataclass
 class GetOperationStatsResponse:
     """获取操作统计响应"""
+
     success: bool
     stats: dict | None = None
     error: str | None = None
@@ -1617,7 +1616,7 @@ class GetOperationStatsResponse:
 class GetOperationStatsUseCase:
     """获取操作统计用例（仅管理员可用）"""
 
-    def __init__(self, audit_repository: 'DjangoAuditRepository'):
+    def __init__(self, audit_repository: "DjangoAuditRepository"):
         self.audit_repo = audit_repository
 
     def execute(self, request: GetOperationStatsRequest) -> GetOperationStatsResponse:
@@ -1648,4 +1647,3 @@ class GetOperationStatsUseCase:
                 success=False,
                 error=str(e),
             )
-

@@ -20,12 +20,14 @@ logger = logging.getLogger(__name__)
 
 class DataSourceType(Enum):
     """数据源类型"""
+
     AKSHARE = "akshare"
     TUSHARE = "tushare"
 
 
 class TaskStatus(Enum):
     """任务状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -35,6 +37,7 @@ class TaskStatus(Enum):
 @dataclass
 class FetchDataRequest:
     """数据获取请求"""
+
     indicators: list[str] | None = None
     start_date: date | None = None
     end_date: date | None = None
@@ -44,6 +47,7 @@ class FetchDataRequest:
 @dataclass
 class FetchDataResponse:
     """数据获取响应"""
+
     success: bool
     message: str
     synced_count: int = 0
@@ -57,6 +61,7 @@ class FetchDataResponse:
 @dataclass
 class DeleteDataRequest:
     """数据删除请求"""
+
     indicator_code: str | None = None
     source: str | None = None
     start_date: date | None = None
@@ -66,6 +71,7 @@ class DeleteDataRequest:
 @dataclass
 class DeleteDataResponse:
     """数据删除响应"""
+
     success: bool
     message: str
     deleted_count: int = 0
@@ -86,14 +92,17 @@ class RunDataSourceConnectionTestUseCase:
 
     @staticmethod
     def _default_probe_runner(config: Any) -> dict[str, Any]:
-        from apps.data_center.infrastructure.connection_tester import run_connection_test
+        from apps.data_center.application.repository_provider import (
+            run_data_center_connection_test,
+        )
 
-        return run_connection_test(config.to_domain()).to_dict()
+        return run_data_center_connection_test(config.to_domain()).to_dict()
 
 
 @dataclass
 class DataSourceStatus:
     """数据源状态"""
+
     name: str
     source_type: str
     priority: int
@@ -105,6 +114,7 @@ class DataSourceStatus:
 @dataclass
 class DataManagementSummary:
     """数据管理概览"""
+
     total_indicators: int
     total_records: int
     data_sources: list[DataSourceStatus]
@@ -147,21 +157,17 @@ class FetchDataUseCase:
                 return FetchDataResponse(
                     success=True,
                     message=f"成功同步 {sync_response.synced_count} 条数据",
-                    synced_count=sync_response.synced_count
+                    synced_count=sync_response.synced_count,
                 )
             else:
                 return FetchDataResponse(
-                    success=False,
-                    message="数据同步过程中出现错误",
-                    errors=sync_response.errors
+                    success=False, message="数据同步过程中出现错误", errors=sync_response.errors
                 )
 
         except Exception as e:
             logger.exception("数据获取失败")
             return FetchDataResponse(
-                success=False,
-                message=f"数据获取失败: {str(e)}",
-                errors=[str(e)]
+                success=False, message=f"数据获取失败: {str(e)}", errors=[str(e)]
             )
 
     def _build_sync_request(self, request: FetchDataRequest):
@@ -175,12 +181,13 @@ class FetchDataUseCase:
             start_date=start_date,
             end_date=end_date,
             indicators=request.indicators,
-            force_refresh=True
+            force_refresh=True,
         )
 
     def _get_default_start_date(self) -> date:
         """获取默认起始日期（最近3个月）"""
         from datetime import timedelta
+
         return date.today() - timedelta(days=90)
 
 
@@ -212,21 +219,19 @@ class DeleteDataUseCase:
                 indicator_code=request.indicator_code,
                 source=request.source,
                 start_date=request.start_date,
-                end_date=request.end_date
+                end_date=request.end_date,
             )
 
             return DeleteDataResponse(
                 success=True,
                 message=f"成功删除 {deleted_count} 条数据",
-                deleted_count=deleted_count
+                deleted_count=deleted_count,
             )
 
         except Exception as e:
             logger.exception("数据删除失败")
             return DeleteDataResponse(
-                success=False,
-                message=f"数据删除失败: {str(e)}",
-                deleted_count=0
+                success=False, message=f"数据删除失败: {str(e)}", deleted_count=0
             )
 
 
@@ -259,25 +264,27 @@ class GetDataManagementSummaryUseCase:
         recent_syncs = self.repository.get_recent_syncs(limit=10)
 
         return DataManagementSummary(
-            total_indicators=stats['total_indicators'],
-            total_records=stats['total_records'],
+            total_indicators=stats["total_indicators"],
+            total_records=stats["total_records"],
             data_sources=data_sources,
-            recent_syncs=recent_syncs
+            recent_syncs=recent_syncs,
         )
 
     def _build_data_source_status(self, stats: dict) -> list[DataSourceStatus]:
         """构建数据源状态列表"""
         sources = []
 
-        for source_info in stats.get('sources', []):
-            sources.append(DataSourceStatus(
-                name=source_info['name'],
-                source_type=source_info.get('type', 'unknown'),
-                priority=source_info.get('priority', 0),
-                is_active=source_info.get('is_active', True),
-                last_sync=source_info.get('last_sync'),
-                record_count=source_info.get('record_count', 0)
-            ))
+        for source_info in stats.get("sources", []):
+            sources.append(
+                DataSourceStatus(
+                    name=source_info["name"],
+                    source_type=source_info.get("type", "unknown"),
+                    priority=source_info.get("priority", 0),
+                    is_active=source_info.get("is_active", True),
+                    last_sync=source_info.get("last_sync"),
+                    record_count=source_info.get("record_count", 0),
+                )
+            )
 
         return sources
 
@@ -391,6 +398,7 @@ class ScheduleDataFetchUseCase:
 
         # 检查本月是否已有数据
         from datetime import timedelta
+
         month_start = check_date.replace(day=1)
         latest = self.repository.get_latest_observation_date(indicator, check_date)
 

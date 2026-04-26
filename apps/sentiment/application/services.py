@@ -13,9 +13,8 @@ from typing import List, Optional
 
 from django.utils import timezone
 
+from apps.ai_provider.application.client_provider import build_openai_compatible_adapter
 from apps.ai_provider.domain.entities import AIChatRequest
-from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter
-from apps.ai_provider.infrastructure.providers import AIProviderRepository
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
     SentimentCategory,
@@ -39,7 +38,7 @@ class SentimentAnalyzer:
     使用系统 AI API（apps/ai_provider）进行金融舆情情感分析。
     """
 
-    def __init__(self, provider_repository: AIProviderRepository):
+    def __init__(self, provider_repository):
         """
         初始化情感分析器
 
@@ -69,10 +68,10 @@ class SentimentAnalyzer:
         response = adapter.chat_completion(
             messages=[
                 {"role": "system", "content": "你是一个专业的金融舆情情感分析专家。"},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             temperature=0.3,  # 降低随机性，提高一致性
-            max_tokens=500
+            max_tokens=500,
         )
 
         # 4. 解析结果
@@ -131,7 +130,7 @@ class SentimentAnalyzer:
         # 将来源信息添加到结果中（通过自定义字段）
         return result
 
-    def _get_ai_adapter(self) -> OpenAICompatibleAdapter:
+    def _get_ai_adapter(self):
         """获取 AI 适配器（带缓存）"""
         if not self._adapter_cache:
             # 获取激活的提供商
@@ -146,7 +145,7 @@ class SentimentAnalyzer:
             # 创建适配器 - 使用 repository 的 get_api_key 方法解密
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
             api_key = self.provider_repo.get_api_key(provider)
-            self._adapter_cache = OpenAICompatibleAdapter(
+            self._adapter_cache = build_openai_compatible_adapter(
                 base_url=provider.base_url,
                 api_key=api_key,
                 default_model=provider.default_model,
@@ -200,7 +199,7 @@ class SentimentAnalyzer:
         # 尝试解析 JSON 格式
         try:
             # 提取 JSON 部分
-            json_match = re.search(r'\{[^}]+\}', ai_response, re.DOTALL)
+            json_match = re.search(r"\{[^}]+\}", ai_response, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
                 score = float(data.get("score", 0))
@@ -209,7 +208,7 @@ class SentimentAnalyzer:
             pass
 
         # 降级：直接提取数字
-        number_match = re.search(r'-?\d+\.?\d*', ai_response)
+        number_match = re.search(r"-?\d+\.?\d*", ai_response)
         if number_match:
             score = float(number_match.group())
             return max(-3.0, min(3.0, score))
@@ -278,7 +277,7 @@ class SentimentAnalyzer:
 
         # 尝试从 AI 响应中提取
         try:
-            json_match = re.search(r'\{[^}]+\}', ai_response, re.DOTALL)
+            json_match = re.search(r"\{[^}]+\}", ai_response, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
                 keywords = data.get("keywords", [])
@@ -289,10 +288,23 @@ class SentimentAnalyzer:
 
         # 降级：简单的关键词提取（金融相关词汇）
         financial_keywords = [
-            "加息", "降息", "降准", "宽松", "紧缩",
-            "上涨", "下跌", "大涨", "暴跌",
-            "利好", "利空", "复苏", "衰退",
-            "通胀", "通缩", "PMI", "GDP",
+            "加息",
+            "降息",
+            "降准",
+            "宽松",
+            "紧缩",
+            "上涨",
+            "下跌",
+            "大涨",
+            "暴跌",
+            "利好",
+            "利空",
+            "复苏",
+            "衰退",
+            "通胀",
+            "通缩",
+            "PMI",
+            "GDP",
         ]
 
         for keyword in financial_keywords:
@@ -321,7 +333,7 @@ class SentimentAnalyzer:
                 metadata={
                     "text_preview": text[:200] if text else "",
                     "error": error_message,
-                }
+                },
             )
         except Exception as e:
             # 告警失败不应影响主流程
@@ -357,13 +369,11 @@ class SentimentIndexCalculator:
         # 从配置读取权重（如果未指定）
         if news_weight is None:
             news_weight = ConfigHelper.get_float(
-                ConfigKeys.SENTIMENT_NEWS_WEIGHT,
-                DEFAULT_NEWS_WEIGHT
+                ConfigKeys.SENTIMENT_NEWS_WEIGHT, DEFAULT_NEWS_WEIGHT
             )
         if policy_weight is None:
             policy_weight = ConfigHelper.get_float(
-                ConfigKeys.SENTIMENT_POLICY_WEIGHT,
-                DEFAULT_POLICY_WEIGHT
+                ConfigKeys.SENTIMENT_POLICY_WEIGHT, DEFAULT_POLICY_WEIGHT
             )
         # 计算新闻情绪
         news_sentiment = self._weighted_average(news_scores) if news_scores else 0.0

@@ -30,6 +30,7 @@ from apps.signal.domain.invalidation import (
     evaluate_rule,
 )
 
+
 class NotificationServiceProtocol(Protocol):
     """Protocol for notification service"""
 
@@ -57,9 +58,9 @@ class _DataCenterMacroRepository:
     """Minimal macro read facade for signal invalidation checks."""
 
     def __init__(self) -> None:
-        from apps.data_center.infrastructure.providers import MacroFactRepository
+        from apps.data_center.application.repository_provider import get_macro_fact_repository
 
-        self._repository = MacroFactRepository()
+        self._repository = get_macro_fact_repository()
 
     def get_latest_by_code(self, code: str) -> _MacroObservation | None:
         fact = self._repository.get_latest(code)
@@ -109,6 +110,7 @@ class InvalidationCheckService:
         """
         if signal_repository is None:
             from apps.signal.infrastructure.providers import DjangoSignalRepository
+
             signal_repository = DjangoSignalRepository()
 
         self.signal_repository = signal_repository
@@ -173,7 +175,7 @@ class InvalidationCheckService:
         # 对于非批准状态，也需要检查证伪条件
         # 如果 pending 信号的证伪条件已满足，应该标记为 rejected
         # rejected 或 expired 状态的信号不需要检查
-        if signal.status.value in ('rejected', 'expired'):
+        if signal.status.value in ("rejected", "expired"):
             return None
 
         # 获取指标值
@@ -255,13 +257,13 @@ class InvalidationCheckService:
         if hasattr(signal, "save") and not isinstance(signal, InvestmentSignal):
             status = current_status or getattr(signal, "status", "")
             details = {
-                'reason': result.reason,
-                'checked_conditions': result.checked_conditions,
+                "reason": result.reason,
+                "checked_conditions": result.checked_conditions,
             }
-            if status == 'pending':
-                signal.status = 'rejected'
+            if status == "pending":
+                signal.status = "rejected"
             else:
-                signal.status = 'invalidated'
+                signal.status = "invalidated"
                 signal.invalidated_at = timezone.now()
             signal.invalidation_details = details
             signal.rejection_reason = result.reason
@@ -269,8 +271,8 @@ class InvalidationCheckService:
             return
 
         details = {
-            'reason': result.reason,
-            'checked_conditions': result.checked_conditions,
+            "reason": result.reason,
+            "checked_conditions": result.checked_conditions,
         }
 
         # pending 状态的信号证伪条件满足时，应标记为 rejected
@@ -291,17 +293,14 @@ class InvalidationCheckService:
                 details=details,
             )
             logger.info(
-                f"Approved 信号 #{signal.id} ({signal.asset_code}) "
-                f"已被证伪: {result.reason}"
+                f"Approved 信号 #{signal.id} ({signal.asset_code}) " f"已被证伪: {result.reason}"
             )
 
             # 发送证伪通知（仅对已批准的信号）
             self._send_invalidation_notification(signal, result)
 
     def _send_invalidation_notification(
-        self,
-        signal: InvestmentSignal,
-        result: InvalidationCheckResult
+        self, signal: InvestmentSignal, result: InvalidationCheckResult
     ):
         """
         发送信号证伪通知
@@ -355,14 +354,16 @@ class InvalidationCheckService:
                 "## 条件详情",
             ]
             body_lines.extend(condition_details)
-            body_lines.extend([
-                "",
-                "## 原始投资逻辑",
-                f"{signal.invalidation_description or 'N/A'}",
-                "",
-                "---",
-                "请登录系统查看详情并处理相关持仓。",
-            ])
+            body_lines.extend(
+                [
+                    "",
+                    "## 原始投资逻辑",
+                    f"{signal.invalidation_description or 'N/A'}",
+                    "",
+                    "---",
+                    "请登录系统查看详情并处理相关持仓。",
+                ]
+            )
 
             body = "\n".join(body_lines)
 
@@ -463,7 +464,7 @@ class InvalidationCheckService:
         recipients = []
 
         # 1. 从配置获取管理员列表
-        admin_emails = getattr(settings, 'SIGNAL_NOTIFICATION_EMAILS', [])
+        admin_emails = getattr(settings, "SIGNAL_NOTIFICATION_EMAILS", [])
         recipients.extend(admin_emails)
 
         # 2. 获取所有 staff 用户的邮箱
@@ -473,12 +474,13 @@ class InvalidationCheckService:
         else:
             # 延迟导入作为后备
             from apps.signal.infrastructure.providers import DjangoUserRepository
+
             user_repo = DjangoUserRepository()
             staff_emails = user_repo.get_staff_emails()
             recipients.extend(staff_emails)
 
         # 去重并过滤空值
-        recipients = list(set(r for r in recipients if r and '@' in r))
+        recipients = list(set(r for r in recipients if r and "@" in r))
 
         return recipients
 
@@ -539,6 +541,7 @@ class InvalidationCheckService:
 
 # ==================== 导出函数，供 Celery 任务使用 ====================
 
+
 def check_and_invalidate_signals() -> dict:
     """检查并证伪满足条件的信号
 
@@ -563,14 +566,14 @@ def check_and_invalidate_signals() -> dict:
     rejected_ids = service.check_pending_signals()
 
     # 统计数量
-    approved_count = repository.count_by_status('approved')
-    pending_count = repository.count_by_status('pending')
+    approved_count = repository.count_by_status("approved")
+    pending_count = repository.count_by_status("pending")
 
     return {
-        'checked': approved_count + pending_count,
-        'invalidated': len(invalidated_ids),
-        'rejected': len(rejected_ids),
-        'invalidated_ids': [int(id) for id in invalidated_ids],
-        'rejected_ids': [int(id) for id in rejected_ids],
-        'signal_ids': [int(id) for id in invalidated_ids],  # backward compatible
+        "checked": approved_count + pending_count,
+        "invalidated": len(invalidated_ids),
+        "rejected": len(rejected_ids),
+        "invalidated_ids": [int(id) for id in invalidated_ids],
+        "rejected_ids": [int(id) for id in rejected_ids],
+        "signal_ids": [int(id) for id in invalidated_ids],  # backward compatible
     }

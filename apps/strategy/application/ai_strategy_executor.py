@@ -6,6 +6,7 @@ AI 策略执行器 - Application 层
 - 支持三种审核模式（always/conditional/auto）
 - 解析 AI 响应为信号列表
 """
+
 import json
 import logging
 import time
@@ -14,19 +15,20 @@ from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
-from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+from apps.ai_provider.application.client_provider import get_ai_client_factory
 
 # 复用系统内置的 AI 中台
+from apps.prompt.application.runtime_provider import (
+    build_strategy_agent_runtime,
+    get_chain_repository,
+    get_execution_log_repository,
+    get_prompt_repository,
+)
 from apps.prompt.application.use_cases import (
     ExecuteChainRequest,
     ExecuteChainUseCase,
     ExecutePromptRequest,
     ExecutePromptUseCase,
-)
-from apps.prompt.infrastructure.providers import (
-    DjangoChainRepository,
-    DjangoExecutionLogRepository,
-    DjangoPromptRepository,
 )
 from apps.strategy.domain.entities import ActionType, AIConfig, SignalRecommendation, Strategy
 from apps.strategy.domain.protocols import (
@@ -44,6 +46,7 @@ logger = logging.getLogger(__name__)
 # AI 响应解析器
 # ========================================================================
 
+
 class AIResponseParser:
     """
     AI 响应解析器
@@ -58,8 +61,7 @@ class AIResponseParser:
 
     @staticmethod
     def parse_signals(
-        ai_content: str,
-        default_confidence: float = 0.5
+        ai_content: str, default_confidence: float = 0.5
     ) -> list[SignalRecommendation]:
         """
         解析 AI 响应为信号列表
@@ -86,8 +88,8 @@ class AIResponseParser:
 
             elif isinstance(data, dict):
                 # JSON 对象格式
-                if 'signals' in data and isinstance(data['signals'], list):
-                    for item in data['signals']:
+                if "signals" in data and isinstance(data["signals"], list):
+                    for item in data["signals"]:
                         signal = AIResponseParser._parse_signal_item(item, default_confidence)
                         if signal:
                             signals.append(signal)
@@ -105,8 +107,7 @@ class AIResponseParser:
 
     @staticmethod
     def _parse_signal_item(
-        item: dict[str, Any],
-        default_confidence: float
+        item: dict[str, Any], default_confidence: float
     ) -> SignalRecommendation | None:
         """
         解析单个信号项
@@ -120,8 +121,8 @@ class AIResponseParser:
         """
         try:
             # 必填字段
-            asset_code = item.get('asset_code')
-            action_str = item.get('action', 'hold')
+            asset_code = item.get("asset_code")
+            action_str = item.get("action", "hold")
 
             if not asset_code:
                 logger.warning(f"Signal missing asset_code: {item}")
@@ -129,22 +130,22 @@ class AIResponseParser:
 
             # 转换 action
             action_map = {
-                'buy': ActionType.BUY,
-                'sell': ActionType.SELL,
-                'hold': ActionType.HOLD,
-                'weight': ActionType.WEIGHT
+                "buy": ActionType.BUY,
+                "sell": ActionType.SELL,
+                "hold": ActionType.HOLD,
+                "weight": ActionType.WEIGHT,
             }
             action = action_map.get(action_str.lower(), ActionType.HOLD)
 
             # 解析权重
-            weight = item.get('weight')
+            weight = item.get("weight")
             if weight is not None:
                 weight = float(weight)
                 if not (0 <= weight <= 1):
                     weight = None
 
             # 解析置信度
-            confidence = item.get('confidence', default_confidence)
+            confidence = item.get("confidence", default_confidence)
             try:
                 confidence = float(confidence)
                 if not (0 <= confidence <= 1):
@@ -154,16 +155,13 @@ class AIResponseParser:
 
             return SignalRecommendation(
                 asset_code=asset_code,
-                asset_name=item.get('asset_name', asset_code),
+                asset_name=item.get("asset_name", asset_code),
                 action=action,
                 weight=weight,
-                quantity=item.get('quantity'),
-                reason=item.get('reason', ''),
+                quantity=item.get("quantity"),
+                reason=item.get("reason", ""),
                 confidence=confidence,
-                metadata={
-                    'source': 'ai_strategy',
-                    'raw_data': item
-                }
+                metadata={"source": "ai_strategy", "raw_data": item},
             )
 
         except Exception as e:
@@ -171,10 +169,7 @@ class AIResponseParser:
             return None
 
     @staticmethod
-    def _parse_text_format(
-        text: str,
-        default_confidence: float
-    ) -> list[SignalRecommendation]:
+    def _parse_text_format(text: str, default_confidence: float) -> list[SignalRecommendation]:
         """
         解析纯文本格式
 
@@ -189,36 +184,38 @@ class AIResponseParser:
         """
         signals = []
 
-        for line in text.strip().split('\n'):
+        for line in text.strip().split("\n"):
             line = line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
 
             # 解析 CSV 格式
-            parts = line.split(',')
+            parts = line.split(",")
             if len(parts) >= 2:
                 asset_code = parts[0].strip()
                 action_str = parts[1].strip().lower()
                 weight = float(parts[2].strip()) if len(parts) > 2 else None
-                reason = ','.join(parts[3:]).strip() if len(parts) > 3 else ''
+                reason = ",".join(parts[3:]).strip() if len(parts) > 3 else ""
 
                 action_map = {
-                    'buy': ActionType.BUY,
-                    'sell': ActionType.SELL,
-                    'hold': ActionType.HOLD,
-                    'weight': ActionType.WEIGHT
+                    "buy": ActionType.BUY,
+                    "sell": ActionType.SELL,
+                    "hold": ActionType.HOLD,
+                    "weight": ActionType.WEIGHT,
                 }
                 action = action_map.get(action_str, ActionType.HOLD)
 
-                signals.append(SignalRecommendation(
-                    asset_code=asset_code,
-                    asset_name=asset_code,
-                    action=action,
-                    weight=weight,
-                    reason=reason,
-                    confidence=default_confidence,
-                    metadata={'source': 'ai_strategy'}
-                ))
+                signals.append(
+                    SignalRecommendation(
+                        asset_code=asset_code,
+                        asset_name=asset_code,
+                        action=action,
+                        weight=weight,
+                        reason=reason,
+                        confidence=default_confidence,
+                        metadata={"source": "ai_strategy"},
+                    )
+                )
 
         return signals
 
@@ -226,6 +223,7 @@ class AIResponseParser:
 # ========================================================================
 # AI 策略执行器
 # ========================================================================
+
 
 class AIStrategyExecutor:
     """
@@ -244,7 +242,7 @@ class AIStrategyExecutor:
         regime_provider: RegimeProviderProtocol,
         asset_pool_provider: AssetPoolProviderProtocol,
         signal_provider: SignalProviderProtocol,
-        portfolio_provider: PortfolioDataProviderProtocol
+        portfolio_provider: PortfolioDataProviderProtocol,
     ):
         """
         初始化 AI 策略执行器
@@ -263,12 +261,12 @@ class AIStrategyExecutor:
         self.portfolio_provider = portfolio_provider
 
         # 初始化 AI 中台组件
-        self.ai_client_factory = AIClientFactory()
+        self.ai_client_factory = get_ai_client_factory()
 
         # 初始化 Prompt 系统组件
-        self.prompt_repository = DjangoPromptRepository()
-        self.chain_repository = DjangoChainRepository()
-        self.execution_log_repository = DjangoExecutionLogRepository()
+        self.prompt_repository = get_prompt_repository()
+        self.chain_repository = get_chain_repository()
+        self.execution_log_repository = get_execution_log_repository()
 
         # 初始化用例
         self.execute_prompt_use_case = ExecutePromptUseCase(
@@ -276,19 +274,14 @@ class AIStrategyExecutor:
             execution_log_repository=self.execution_log_repository,
             ai_client_factory=self.ai_client_factory,
             macro_adapter=None,  # 暂不使用
-            regime_adapter=None   # 暂不使用
+            regime_adapter=None,  # 暂不使用
         )
 
         self.execute_chain_use_case = ExecuteChainUseCase(
-            chain_repository=self.chain_repository,
-            prompt_use_case=self.execute_prompt_use_case
+            chain_repository=self.chain_repository, prompt_use_case=self.execute_prompt_use_case
         )
 
-    def execute(
-        self,
-        strategy: Strategy,
-        portfolio_id: int
-    ) -> list[SignalRecommendation]:
+    def execute(self, strategy: Strategy, portfolio_id: int) -> list[SignalRecommendation]:
         """
         执行 AI 驱动策略
 
@@ -321,19 +314,18 @@ class AIStrategyExecutor:
                 elif ai_config.prompt_template_id:
                     ai_response = self._execute_prompt_strategy(ai_config, context)
                 else:
-                    raise ValueError("AI strategy must have either prompt_template_id or chain_config_id")
+                    raise ValueError(
+                        "AI strategy must have either prompt_template_id or chain_config_id"
+                    )
 
             # 3. 解析 AI 响应为信号
             signals = AIResponseParser.parse_signals(
-                ai_response,
-                default_confidence=ai_config.confidence_threshold
+                ai_response, default_confidence=ai_config.confidence_threshold
             )
 
             # 4. 根据审核模式过滤信号
             filtered_signals = self._apply_approval_mode(
-                signals,
-                ai_config.approval_mode,
-                ai_config.confidence_threshold
+                signals, ai_config.approval_mode, ai_config.confidence_threshold
             )
 
             logger.info(
@@ -358,43 +350,14 @@ class AIStrategyExecutor:
         返回 AI 文本响应，如果 Runtime 不可用则返回 None 以回退到旧路径。
         """
         try:
-            from apps.prompt.application.agent_runtime import AgentRuntime
-            from apps.prompt.application.context_builders import (
-                AssetPoolContextProvider,
-                ContextBundleBuilder,
-                MacroContextProvider,
-                PortfolioContextProvider,
-                RegimeContextProvider,
-                SignalContextProvider,
-            )
-            from apps.prompt.application.tool_execution import create_agent_tool_registry
             from apps.prompt.domain.agent_entities import AgentExecutionRequest
             from apps.prompt.domain.services import TemplateRenderer
-            from apps.prompt.infrastructure.adapters.macro_adapter import MacroDataAdapter
-            from apps.prompt.infrastructure.adapters.regime_adapter import RegimeDataAdapter
 
-            macro_adapter = MacroDataAdapter()
-            regime_adapter = RegimeDataAdapter()
-
-            tool_registry = create_agent_tool_registry(
-                macro_adapter=macro_adapter,
-                regime_adapter=regime_adapter,
+            runtime = build_strategy_agent_runtime(
+                ai_client_factory=self.ai_client_factory,
                 portfolio_provider=self.portfolio_provider,
                 signal_provider=self.signal_provider,
                 asset_pool_provider=self.asset_pool_provider,
-            )
-
-            context_builder = ContextBundleBuilder()
-            context_builder.register_provider(MacroContextProvider(macro_adapter))
-            context_builder.register_provider(RegimeContextProvider(regime_adapter))
-            context_builder.register_provider(PortfolioContextProvider(self.portfolio_provider))
-            context_builder.register_provider(SignalContextProvider(self.signal_provider))
-            context_builder.register_provider(AssetPoolContextProvider(self.asset_pool_provider))
-
-            runtime = AgentRuntime(
-                ai_client_factory=self.ai_client_factory,
-                tool_registry=tool_registry,
-                context_builder=context_builder,
             )
 
             # 加载模板获取 system_prompt 和 user_input
@@ -407,9 +370,7 @@ class AIStrategyExecutor:
                 return None
 
             if ai_config.prompt_template_id:
-                template = self.prompt_repository.get_template_by_id(
-                    ai_config.prompt_template_id
-                )
+                template = self.prompt_repository.get_template_by_id(ai_config.prompt_template_id)
                 if template:
                     # Preserve legacy prompt semantics by rendering the template
                     # against the same prepared strategy context before handing it
@@ -441,10 +402,15 @@ class AIStrategyExecutor:
                 context_scope=["macro", "regime", "portfolio", "signals", "asset_pool"],
                 context_params={"portfolio_id": portfolio_id},
                 tool_names=[
-                    "get_macro_summary", "get_macro_indicator", "get_regime_status",
-                    "get_regime_distribution", "get_portfolio_snapshot",
-                    "get_portfolio_positions", "get_portfolio_cash",
-                    "get_valid_signals", "get_asset_pool",
+                    "get_macro_summary",
+                    "get_macro_indicator",
+                    "get_regime_status",
+                    "get_regime_distribution",
+                    "get_portfolio_snapshot",
+                    "get_portfolio_positions",
+                    "get_portfolio_cash",
+                    "get_valid_signals",
+                    "get_asset_pool",
                 ],
                 system_prompt=system_prompt,
                 max_rounds=4,
@@ -455,7 +421,8 @@ class AIStrategyExecutor:
             if response.success and response.final_answer:
                 logger.info(
                     "Strategy executed via AgentRuntime: turns=%d, tokens=%d",
-                    response.turn_count, response.total_tokens,
+                    response.turn_count,
+                    response.total_tokens,
                 )
                 return response.final_answer
 
@@ -483,27 +450,24 @@ class AIStrategyExecutor:
         Returns:
             上下文字典
         """
-        context = {
-            'portfolio_id': portfolio_id,
-            'timestamp': timezone.now().isoformat()
-        }
+        context = {"portfolio_id": portfolio_id, "timestamp": timezone.now().isoformat()}
 
         # 获取宏观数据
         try:
-            if hasattr(self.macro_provider, 'get_all_indicators'):
-                context['macro'] = self.macro_provider.get_all_indicators()
+            if hasattr(self.macro_provider, "get_all_indicators"):
+                context["macro"] = self.macro_provider.get_all_indicators()
         except Exception as e:
             logger.warning(f"Failed to get macro data: {e}")
 
         # 获取 Regime
         try:
-            context['regime'] = self.regime_provider.get_current_regime()
+            context["regime"] = self.regime_provider.get_current_regime()
         except Exception as e:
             logger.warning(f"Failed to get regime data: {e}")
 
         # 获取资产池
         try:
-            context['asset_pool'] = self.asset_pool_provider.get_investable_assets()
+            context["asset_pool"] = self.asset_pool_provider.get_investable_assets()
         except Exception as e:
             logger.warning(f"Failed to get asset pool: {e}")
 
@@ -511,26 +475,19 @@ class AIStrategyExecutor:
         try:
             positions = self.portfolio_provider.get_positions(portfolio_id)
             cash = self.portfolio_provider.get_cash(portfolio_id)
-            context['portfolio'] = {
-                'positions': positions,
-                'cash': cash
-            }
+            context["portfolio"] = {"positions": positions, "cash": cash}
         except Exception as e:
             logger.warning(f"Failed to get portfolio data: {e}")
 
         # 获取有效信号
         try:
-            context['signals'] = self.signal_provider.get_valid_signals()
+            context["signals"] = self.signal_provider.get_valid_signals()
         except Exception as e:
             logger.warning(f"Failed to get signals: {e}")
 
         return context
 
-    def _execute_prompt_strategy(
-        self,
-        ai_config: AIConfig,
-        context: dict[str, Any]
-    ) -> str:
+    def _execute_prompt_strategy(self, ai_config: AIConfig, context: dict[str, Any]) -> str:
         """
         执行单个 Prompt 策略
 
@@ -548,7 +505,7 @@ class AIStrategyExecutor:
             provider_ref=ai_config.ai_provider_id or 1,  # 默认使用第一个服务商
             model=None,  # 使用服务商默认模型
             temperature=ai_config.temperature,
-            max_tokens=ai_config.max_tokens
+            max_tokens=ai_config.max_tokens,
         )
 
         # 执行 Prompt
@@ -559,11 +516,7 @@ class AIStrategyExecutor:
 
         return response.content
 
-    def _execute_chain_strategy(
-        self,
-        ai_config: AIConfig,
-        context: dict[str, Any]
-    ) -> str:
+    def _execute_chain_strategy(self, ai_config: AIConfig, context: dict[str, Any]) -> str:
         """
         执行链式策略
 
@@ -578,7 +531,7 @@ class AIStrategyExecutor:
         request = ExecuteChainRequest(
             chain_id=ai_config.chain_config_id,
             placeholder_values=context,
-            provider_ref=ai_config.ai_provider_id or 1
+            provider_ref=ai_config.ai_provider_id or 1,
         )
 
         # 执行 Chain
@@ -590,10 +543,7 @@ class AIStrategyExecutor:
         return response.final_output or ""
 
     def _apply_approval_mode(
-        self,
-        signals: list[SignalRecommendation],
-        approval_mode: str,
-        confidence_threshold: float
+        self, signals: list[SignalRecommendation], approval_mode: str, confidence_threshold: float
     ) -> list[SignalRecommendation]:
         """
         根据审核模式过滤信号
@@ -606,19 +556,19 @@ class AIStrategyExecutor:
         Returns:
             过滤后的信号列表
         """
-        if approval_mode == 'auto':
+        if approval_mode == "auto":
             # 自动执行模式：返回所有信号
             return signals
 
-        elif approval_mode == 'always':
+        elif approval_mode == "always":
             # 必须人工审核模式：标记所有信号为待审核
             # 在实际系统中，这些信号会被保存到待审核队列
             for signal in signals:
-                signal.metadata['requires_approval'] = True
-                signal.metadata['approval_status'] = 'pending'
+                signal.metadata["requires_approval"] = True
+                signal.metadata["approval_status"] = "pending"
             return signals
 
-        elif approval_mode == 'conditional':
+        elif approval_mode == "conditional":
             # 条件审核模式：置信度高于阈值自动执行
             approved_signals = []
             pending_signals = []
@@ -626,13 +576,13 @@ class AIStrategyExecutor:
             for signal in signals:
                 if signal.confidence >= confidence_threshold:
                     # 高置信度：自动执行
-                    signal.metadata['requires_approval'] = False
-                    signal.metadata['approval_status'] = 'auto_approved'
+                    signal.metadata["requires_approval"] = False
+                    signal.metadata["approval_status"] = "auto_approved"
                     approved_signals.append(signal)
                 else:
                     # 低置信度：需要人工审核
-                    signal.metadata['requires_approval'] = True
-                    signal.metadata['approval_status'] = 'pending'
+                    signal.metadata["requires_approval"] = True
+                    signal.metadata["approval_status"] = "pending"
                     pending_signals.append(signal)
 
             # 记录待审核信号数量
@@ -653,6 +603,7 @@ class AIStrategyExecutor:
 # 待审核信号管理（辅助类）
 # ========================================================================
 
+
 class PendingApprovalQueue:
     """
     待审核信号队列管理
@@ -664,10 +615,7 @@ class PendingApprovalQueue:
         self._queue = {}  # {strategy_id: [signals]}
 
     def add_pending_signals(
-        self,
-        strategy_id: int,
-        portfolio_id: int,
-        signals: list[SignalRecommendation]
+        self, strategy_id: int, portfolio_id: int, signals: list[SignalRecommendation]
     ) -> None:
         """
         添加待审核信号到队列
@@ -685,9 +633,7 @@ class PendingApprovalQueue:
         self._queue[key].extend(signals)
 
     def get_pending_signals(
-        self,
-        strategy_id: int,
-        portfolio_id: int
+        self, strategy_id: int, portfolio_id: int
     ) -> list[SignalRecommendation]:
         """
         获取待审核信号
@@ -702,12 +648,7 @@ class PendingApprovalQueue:
         key = f"{strategy_id}:{portfolio_id}"
         return self._queue.get(key, [])
 
-    def approve_signal(
-        self,
-        strategy_id: int,
-        portfolio_id: int,
-        asset_code: str
-    ) -> bool:
+    def approve_signal(self, strategy_id: int, portfolio_id: int, asset_code: str) -> bool:
         """
         审核通过信号
 
@@ -724,18 +665,13 @@ class PendingApprovalQueue:
 
         for signal in signals:
             if signal.asset_code == asset_code:
-                signal.metadata['approval_status'] = 'approved'
-                signal.metadata['requires_approval'] = False
+                signal.metadata["approval_status"] = "approved"
+                signal.metadata["requires_approval"] = False
                 return True
 
         return False
 
-    def reject_signal(
-        self,
-        strategy_id: int,
-        portfolio_id: int,
-        asset_code: str
-    ) -> bool:
+    def reject_signal(self, strategy_id: int, portfolio_id: int, asset_code: str) -> bool:
         """
         审核拒绝信号
 
@@ -752,7 +688,7 @@ class PendingApprovalQueue:
 
         for signal in signals:
             if signal.asset_code == asset_code:
-                signal.metadata['approval_status'] = 'rejected'
+                signal.metadata["approval_status"] = "rejected"
                 return True
 
         return False

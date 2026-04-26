@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Optional imports for rotation, factor, hedge modules
 try:
-    from apps.rotation.infrastructure.services import RotationIntegrationService
+    from apps.rotation.application.integration_service import RotationIntegrationService
     ROTATION_AVAILABLE = True
 except ImportError:
     ROTATION_AVAILABLE = False
@@ -27,7 +27,7 @@ except ImportError:
 FACTOR_AVAILABLE = True
 
 try:
-    from apps.hedge.infrastructure.services import HedgeIntegrationService
+    from apps.hedge.application.integration_service import HedgeIntegrationService
     HEDGE_AVAILABLE = True
 except ImportError:
     HEDGE_AVAILABLE = False

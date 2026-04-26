@@ -9,6 +9,8 @@ import logging
 import re
 from typing import Any, Optional
 
+from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.prompt.application.runtime_provider import build_terminal_agent_runtime
 from apps.terminal.infrastructure.providers import (
     TerminalApiRequestError,
     get_terminal_command_http_client,
@@ -41,9 +43,7 @@ class CommandExecutionService:
     def ai_client_factory(self):
         """延迟加载AI客户端工厂"""
         if self._ai_client_factory is None:
-            from apps.ai_provider.infrastructure.client_factory import AIClientFactory
-
-            self._ai_client_factory = AIClientFactory()
+            self._ai_client_factory = get_ai_client_factory()
         return self._ai_client_factory
 
     def _get_agent_runtime(self):
@@ -51,40 +51,7 @@ class CommandExecutionService:
         if self._agent_runtime is not None:
             return self._agent_runtime
 
-        from apps.prompt.application.agent_runtime import AgentRuntime
-        from apps.prompt.application.context_builders import (
-            ContextBundleBuilder,
-            MacroContextProvider,
-            RegimeContextProvider,
-        )
-        from apps.prompt.application.tool_execution import create_agent_tool_registry
-        from apps.prompt.application.trace_logging import AgentExecutionLogger
-        from apps.prompt.infrastructure.adapters.macro_adapter import MacroDataAdapter
-        from apps.prompt.infrastructure.adapters.regime_adapter import RegimeDataAdapter
-        from apps.prompt.infrastructure.providers import DjangoExecutionLogRepository
-
-        macro_adapter = MacroDataAdapter()
-        regime_adapter = RegimeDataAdapter()
-
-        tool_registry = create_agent_tool_registry(
-            macro_adapter=macro_adapter,
-            regime_adapter=regime_adapter,
-        )
-
-        context_builder = ContextBundleBuilder()
-        context_builder.register_provider(MacroContextProvider(macro_adapter))
-        context_builder.register_provider(RegimeContextProvider(regime_adapter))
-
-        execution_logger = AgentExecutionLogger(
-            execution_log_repository=DjangoExecutionLogRepository()
-        )
-
-        self._agent_runtime = AgentRuntime(
-            ai_client_factory=self.ai_client_factory,
-            tool_registry=tool_registry,
-            context_builder=context_builder,
-            execution_logger=execution_logger,
-        )
+        self._agent_runtime = build_terminal_agent_runtime(self.ai_client_factory)
         return self._agent_runtime
 
     def execute_prompt_command(

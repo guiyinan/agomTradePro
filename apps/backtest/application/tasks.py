@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 from celery import shared_task
 from django.utils import timezone
 
+from apps.regime.application.repository_provider import get_regime_repository
+
 from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig, PITDataConfig
 from ..domain.services import BacktestEngine, PITDataProcessor
 from ..infrastructure.providers import DjangoBacktestRepository
@@ -52,16 +54,16 @@ def run_backtest_task(
 
         # 2. 创建配置
         config = BacktestConfig(
-            start_date=date.fromisoformat(config_dict['start_date']),
-            end_date=date.fromisoformat(config_dict['end_date']),
-            initial_capital=config_dict['initial_capital'],
-            rebalance_frequency=config_dict['rebalance_frequency'],
-            use_pit_data=config_dict.get('use_pit_data', False),
-            transaction_cost_bps=config_dict.get('transaction_cost_bps', 10.0),
+            start_date=date.fromisoformat(config_dict["start_date"]),
+            end_date=date.fromisoformat(config_dict["end_date"]),
+            initial_capital=config_dict["initial_capital"],
+            rebalance_frequency=config_dict["rebalance_frequency"],
+            use_pit_data=config_dict.get("use_pit_data", False),
+            transaction_cost_bps=config_dict.get("transaction_cost_bps", 10.0),
         )
 
         # 3. 标记为运行中
-        repository.update_status(backtest_id, 'running')
+        repository.update_status(backtest_id, "running")
 
         # 4. 获取数据获取函数（需要在实际使用时注入）
         # 这里使用模拟数据，实际应用中需要从外部传入
@@ -71,16 +73,15 @@ def run_backtest_task(
 
             实际应用中应该从数据库查询或调用 Regime 服务
             """
-            from apps.regime.infrastructure.providers import DjangoRegimeRepository
-            regime_repo = DjangoRegimeRepository()
+            regime_repo = get_regime_repository()
             snapshot = regime_repo.get_regime_by_date(as_of_date)
             if snapshot:
                 return {
-                    'dominant_regime': snapshot.dominant_regime,
-                    'confidence': snapshot.confidence,
-                    'growth_momentum_z': snapshot.growth_momentum_z,
-                    'inflation_momentum_z': snapshot.inflation_momentum_z,
-                    'distribution': snapshot.distribution,
+                    "dominant_regime": snapshot.dominant_regime,
+                    "confidence": snapshot.confidence,
+                    "growth_momentum_z": snapshot.growth_momentum_z,
+                    "inflation_momentum_z": snapshot.inflation_momentum_z,
+                    "distribution": snapshot.distribution,
                 }
             return None
 
@@ -100,12 +101,8 @@ def run_backtest_task(
                 tushare_settings = None
 
             adapter = create_default_price_adapter(
-                tushare_token=(
-                    tushare_settings.tushare_token if tushare_settings else None
-                ),
-                tushare_http_url=(
-                    tushare_settings.tushare_http_url if tushare_settings else None
-                ),
+                tushare_token=(tushare_settings.tushare_token if tushare_settings else None),
+                tushare_http_url=(tushare_settings.tushare_http_url if tushare_settings else None),
             )
             return adapter.get_price(asset_class, as_of_date)
 
@@ -131,36 +128,38 @@ def run_backtest_task(
         logger.info(f"Backtest {backtest_id} completed successfully via Celery")
 
         return {
-            'backtest_id': backtest_id,
-            'status': 'completed',
-            'total_return': result.total_return,
-            'annualized_return': result.annualized_return,
-            'max_drawdown': result.max_drawdown,
-            'sharpe_ratio': result.sharpe_ratio,
+            "backtest_id": backtest_id,
+            "status": "completed",
+            "total_return": result.total_return,
+            "annualized_return": result.annualized_return,
+            "max_drawdown": result.max_drawdown,
+            "sharpe_ratio": result.sharpe_ratio,
         }
 
     except Exception as e:
         logger.exception(f"Backtest task {backtest_id} failed: {e}")
 
         # 标记为失败
-        repository.update_status(backtest_id, 'failed', str(e))
+        repository.update_status(backtest_id, "failed", str(e))
 
         # 重试逻辑
         if self.request.retries < self.max_retries:
             try:
-                raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+                raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
             except Exception as retry_error:
-                logger.warning(f"Retry {self.request.retries + 1} scheduled for backtest {backtest_id}")
+                logger.warning(
+                    f"Retry {self.request.retries + 1} scheduled for backtest {backtest_id}"
+                )
 
         return {
-            'backtest_id': backtest_id,
-            'status': 'failed',
-            'error': str(e),
+            "backtest_id": backtest_id,
+            "status": "failed",
+            "error": str(e),
         }
 
 
 @shared_task(
-    name='backtest.cleanup_old_backtests',
+    name="backtest.cleanup_old_backtests",
     bind=True,
     max_retries=2,
     default_retry_delay=60,
@@ -190,7 +189,7 @@ def cleanup_old_backtests(self, days_old: int = 90) -> int:
     deleted_count = 0
     for backtest in backtests:
         # 只删除已完成的旧回测
-        if backtest.status == 'completed' and backtest.created_at < cutoff_date:
+        if backtest.status == "completed" and backtest.created_at < cutoff_date:
             if repository.delete_backtest(backtest.id):
                 deleted_count += 1
                 logger.info(f"Deleted old backtest {backtest.id}")
@@ -200,7 +199,7 @@ def cleanup_old_backtests(self, days_old: int = 90) -> int:
 
 
 @shared_task(
-    name='backtest.generate_backtest_report',
+    name="backtest.generate_backtest_report",
     bind=True,
     max_retries=2,
     default_retry_delay=60,
@@ -221,22 +220,22 @@ def generate_backtest_report(self, backtest_id: int) -> dict[str, Any]:
     backtest = repository.get_backtest_by_id(backtest_id)
 
     if not backtest:
-        return {'error': f'Backtest {backtest_id} not found'}
+        return {"error": f"Backtest {backtest_id} not found"}
 
-    if backtest.status != 'completed':
-        return {'error': f'Backtest {backtest_id} is not completed'}
+    if backtest.status != "completed":
+        return {"error": f"Backtest {backtest_id} is not completed"}
 
     # 转换为 Domain 实体
     domain_result = DjangoBacktestRepository.to_domain_entity(backtest)
 
     # 生成报告
     report = {
-        'summary': domain_result.to_summary_dict(),
-        'regime_analysis': _analyze_regime_performance(domain_result.regime_history),
-        'trade_analysis': _analyze_trades(domain_result.trades),
-        'risk_metrics': {
-            'max_drawdown': domain_result.max_drawdown,
-            'sharpe_ratio': domain_result.sharpe_ratio,
+        "summary": domain_result.to_summary_dict(),
+        "regime_analysis": _analyze_regime_performance(domain_result.regime_history),
+        "trade_analysis": _analyze_trades(domain_result.trades),
+        "risk_metrics": {
+            "max_drawdown": domain_result.max_drawdown,
+            "sharpe_ratio": domain_result.sharpe_ratio,
         },
     }
 
@@ -250,8 +249,8 @@ def _analyze_regime_performance(regime_history: list) -> dict[str, Any]:
 
     regime_returns = {}
     for entry in regime_history:
-        regime = entry.get('regime', 'Unknown')
-        value = entry.get('portfolio_value', 0)
+        regime = entry.get("regime", "Unknown")
+        value = entry.get("portfolio_value", 0)
         if regime not in regime_returns:
             regime_returns[regime] = []
         regime_returns[regime].append(value)
@@ -261,9 +260,9 @@ def _analyze_regime_performance(regime_history: list) -> dict[str, Any]:
         if len(values) >= 2:
             total_return = (values[-1] - values[0]) / values[0] if values[0] > 0 else 0
             analysis[regime] = {
-                'count': len(values),
-                'total_return': total_return,
-                'avg_value': sum(values) / len(values),
+                "count": len(values),
+                "total_return": total_return,
+                "avg_value": sum(values) / len(values),
             }
 
     return analysis
@@ -274,17 +273,17 @@ def _analyze_trades(trades: list) -> dict[str, Any]:
     if not trades:
         return {}
 
-    buy_trades = [t for t in trades if t.action == 'buy']
-    sell_trades = [t for t in trades if t.action == 'sell']
+    buy_trades = [t for t in trades if t.action == "buy"]
+    sell_trades = [t for t in trades if t.action == "sell"]
 
     total_cost = sum(t.cost for t in trades)
     total_notional = sum(t.notional for t in trades)
 
     return {
-        'total_trades': len(trades),
-        'buy_trades': len(buy_trades),
-        'sell_trades': len(sell_trades),
-        'total_cost': total_cost,
-        'total_notional': total_notional,
-        'cost_ratio': total_cost / total_notional if total_notional > 0 else 0,
+        "total_trades": len(trades),
+        "buy_trades": len(buy_trades),
+        "sell_trades": len(sell_trades),
+        "total_cost": total_cost,
+        "total_notional": total_notional,
+        "cost_ratio": total_cost / total_notional if total_notional > 0 else 0,
     }

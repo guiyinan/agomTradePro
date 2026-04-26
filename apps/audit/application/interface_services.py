@@ -6,7 +6,7 @@ import json
 from datetime import date
 from typing import Any
 
-from apps.backtest.infrastructure.providers import DjangoBacktestRepository
+from apps.backtest.application.repository_provider import get_backtest_repository
 
 from .repository_provider import get_audit_repository
 from .use_cases import (
@@ -29,8 +29,8 @@ from .use_cases import (
 )
 
 
-def _get_backtest_repository() -> DjangoBacktestRepository:
-    return DjangoBacktestRepository()
+def _get_backtest_repository():
+    return get_backtest_repository()
 
 
 def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:
@@ -116,18 +116,20 @@ def get_indicator_performance_chart_payload(validation_id: int) -> dict[str, Any
         "rejected_indicators": summary.rejected_indicators,
         "pending_indicators": summary.pending_indicators,
         "avg_f1_score": float(summary.avg_f1_score) if summary.avg_f1_score is not None else None,
-        "avg_stability_score": float(summary.avg_stability_score)
-        if summary.avg_stability_score is not None
-        else None,
+        "avg_stability_score": (
+            float(summary.avg_stability_score) if summary.avg_stability_score is not None else None
+        ),
         "indicators": [
             {
                 "indicator_code": performance.indicator_code,
-                "f1_score": float(performance.f1_score)
-                if performance.f1_score is not None
-                else None,
-                "stability_score": float(performance.stability_score)
-                if performance.stability_score is not None
-                else None,
+                "f1_score": (
+                    float(performance.f1_score) if performance.f1_score is not None else None
+                ),
+                "stability_score": (
+                    float(performance.stability_score)
+                    if performance.stability_score is not None
+                    else None
+                ),
                 "recommended_action": performance.recommended_action,
             }
             for performance in performances
@@ -156,34 +158,46 @@ def get_threshold_validation_data_payload(summary_id: int) -> dict[str, Any] | N
             "approved_indicators": summary.approved_indicators,
             "rejected_indicators": summary.rejected_indicators,
             "pending_indicators": summary.pending_indicators,
-            "avg_f1_score": float(summary.avg_f1_score) if summary.avg_f1_score is not None else None,
-            "avg_stability_score": float(summary.avg_stability_score)
-            if summary.avg_stability_score is not None
-            else None,
+            "avg_f1_score": (
+                float(summary.avg_f1_score) if summary.avg_f1_score is not None else None
+            ),
+            "avg_stability_score": (
+                float(summary.avg_stability_score)
+                if summary.avg_stability_score is not None
+                else None
+            ),
             "overall_recommendation": summary.overall_recommendation,
             "status": summary.status,
         },
         "indicator_reports": [
             {
                 "indicator_code": performance.indicator_code,
-                "f1_score": float(performance.f1_score) if performance.f1_score is not None else None,
-                "precision": float(performance.precision)
-                if performance.precision is not None
-                else None,
+                "f1_score": (
+                    float(performance.f1_score) if performance.f1_score is not None else None
+                ),
+                "precision": (
+                    float(performance.precision) if performance.precision is not None else None
+                ),
                 "recall": float(performance.recall) if performance.recall is not None else None,
-                "stability_score": float(performance.stability_score)
-                if performance.stability_score is not None
-                else None,
-                "decay_rate": float(performance.decay_rate)
-                if performance.decay_rate is not None
-                else None,
-                "signal_strength": float(performance.signal_strength)
-                if performance.signal_strength is not None
-                else None,
+                "stability_score": (
+                    float(performance.stability_score)
+                    if performance.stability_score is not None
+                    else None
+                ),
+                "decay_rate": (
+                    float(performance.decay_rate) if performance.decay_rate is not None else None
+                ),
+                "signal_strength": (
+                    float(performance.signal_strength)
+                    if performance.signal_strength is not None
+                    else None
+                ),
                 "recommended_action": performance.recommended_action,
-                "recommended_weight": float(performance.recommended_weight)
-                if performance.recommended_weight is not None
-                else None,
+                "recommended_weight": (
+                    float(performance.recommended_weight)
+                    if performance.recommended_weight is not None
+                    else None
+                ),
             }
             for performance in performances
         ],
@@ -315,17 +329,25 @@ def build_indicator_performance_page_context() -> dict[str, Any]:
                 "indicator_code": performance.indicator_code,
                 "indicator_name": config.get("indicator_name", performance.indicator_code),
                 "category": config.get("category", ""),
-                "f1_score": float(performance.f1_score) if performance.f1_score is not None else None,
-                "stability_score": float(performance.stability_score)
-                if performance.stability_score is not None
-                else None,
-                "lead_time_mean": float(performance.lead_time_mean)
-                if performance.lead_time_mean is not None
-                else None,
+                "f1_score": (
+                    float(performance.f1_score) if performance.f1_score is not None else None
+                ),
+                "stability_score": (
+                    float(performance.stability_score)
+                    if performance.stability_score is not None
+                    else None
+                ),
+                "lead_time_mean": (
+                    float(performance.lead_time_mean)
+                    if performance.lead_time_mean is not None
+                    else None
+                ),
                 "recommended_action": performance.recommended_action,
-                "recommended_weight": float(performance.recommended_weight)
-                if performance.recommended_weight is not None
-                else None,
+                "recommended_weight": (
+                    float(performance.recommended_weight)
+                    if performance.recommended_weight is not None
+                    else None
+                ),
                 "true_positive_count": performance.true_positive_count,
                 "false_positive_count": performance.false_positive_count,
                 "true_negative_count": performance.true_negative_count,
@@ -338,12 +360,14 @@ def build_indicator_performance_page_context() -> dict[str, Any]:
         "approved_indicators": latest_summary.approved_indicators,
         "pending_indicators": latest_summary.pending_indicators,
         "rejected_indicators": latest_summary.rejected_indicators,
-        "avg_f1_score": float(latest_summary.avg_f1_score)
-        if latest_summary.avg_f1_score is not None
-        else 0,
-        "avg_stability_score": float(latest_summary.avg_stability_score)
-        if latest_summary.avg_stability_score is not None
-        else 0,
+        "avg_f1_score": (
+            float(latest_summary.avg_f1_score) if latest_summary.avg_f1_score is not None else 0
+        ),
+        "avg_stability_score": (
+            float(latest_summary.avg_stability_score)
+            if latest_summary.avg_stability_score is not None
+            else 0
+        ),
         "indicator_reports": indicator_reports,
         "indicator_data": json.dumps(indicator_reports, ensure_ascii=False),
     }
@@ -364,9 +388,9 @@ def build_threshold_validation_page_context() -> dict[str, Any]:
             {
                 "validation_date": record.evaluation_period_end,
                 "f1_score": float(record.f1_score) if record.f1_score is not None else None,
-                "stability_score": float(record.stability_score)
-                if record.stability_score is not None
-                else None,
+                "stability_score": (
+                    float(record.stability_score) if record.stability_score is not None else None
+                ),
             }
             for record in history_records
         ]
@@ -380,9 +404,7 @@ def build_threshold_validation_page_context() -> dict[str, Any]:
     else:
         validation_status = latest_validation.status
         validation_status_label = latest_validation.get_status_display()
-        validation_message = (
-            f"验证于 {latest_validation.run_date.strftime('%Y-%m-%d %H:%M')} 运行"
-        )
+        validation_message = f"验证于 {latest_validation.run_date.strftime('%Y-%m-%d %H:%M')} 运行"
 
     return {
         "threshold_configs": configs_with_history,

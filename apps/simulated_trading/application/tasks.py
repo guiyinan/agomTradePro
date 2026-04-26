@@ -6,6 +6,7 @@ Application层异步任务：
 - 持仓价格更新
 - 绩效定期重算
 """
+
 import logging
 from dataclasses import replace
 from datetime import date
@@ -15,9 +16,9 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
-from apps.asset_analysis.infrastructure.providers import DjangoAssetPoolQueryRepository
+from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
-from apps.signal.infrastructure.providers import DjangoSignalRepository
+from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # 核心定时任务
 # ============================================================================
+
 
 @shared_task(
     bind=True,
@@ -81,15 +83,17 @@ def daily_auto_trading_task(
         account_repo = DjangoSimulatedAccountRepository()
         position_repo = DjangoPositionRepository()
         trade_repo = DjangoTradeRepository()
-        signal_repo = DjangoSignalRepository()
+        signal_repo = get_signal_repository()
 
-        buy_use_case = ExecuteBuyOrderUseCase(account_repo, position_repo, trade_repo, signal_repo=signal_repo)
+        buy_use_case = ExecuteBuyOrderUseCase(
+            account_repo, position_repo, trade_repo, signal_repo=signal_repo
+        )
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
         price_provider = UnifiedPriceService()
         asset_pool_service = AssetPoolQueryService(
-            asset_pool_repo=DjangoAssetPoolQueryRepository(),
+            asset_pool_repo=get_asset_pool_query_repository(),
             signal_repo=signal_repo,
         )
 
@@ -111,8 +115,8 @@ def daily_auto_trading_task(
 
         # 5. 汇总统计
         total_accounts = len(results)
-        total_buy_count = sum(r['buy_count'] for r in results.values())
-        total_sell_count = sum(r['sell_count'] for r in results.values())
+        total_buy_count = sum(r["buy_count"] for r in results.values())
+        total_sell_count = sum(r["sell_count"] for r in results.values())
 
         logger.info("=" * 60)
         logger.info("模拟盘自动交易任务完成")
@@ -122,14 +126,14 @@ def daily_auto_trading_task(
         logger.info("=" * 60)
 
         return {
-            'success': True,
-            'trade_date': target_date.isoformat(),
-            'total_accounts': total_accounts,
-            'results': results,
-            'summary': {
-                'total_buy_count': total_buy_count,
-                'total_sell_count': total_sell_count,
-            }
+            "success": True,
+            "trade_date": target_date.isoformat(),
+            "total_accounts": total_accounts,
+            "results": results,
+            "summary": {
+                "total_buy_count": total_buy_count,
+                "total_sell_count": total_sell_count,
+            },
         }
 
     except Exception as e:
@@ -138,19 +142,19 @@ def daily_auto_trading_task(
         # 重试逻辑
         if self.request.retries < self.max_retries:
             try:
-                raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+                raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
             except Exception:
                 logger.warning(f"任务将在 {2 ** self.request.retries} 分钟后重试")
 
         return {
-            'success': False,
-            'trade_date': target_date.isoformat(),
-            'error': str(e),
+            "success": False,
+            "trade_date": target_date.isoformat(),
+            "error": str(e),
         }
 
 
 @shared_task(
-    name='simulated.update_position_prices',
+    name="simulated.update_position_prices",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -185,7 +189,7 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
         if account_id:
             accounts = [account_repo.get_by_id(account_id)]
             if not accounts[0]:
-                return {'success': False, 'error': f'账户不存在: {account_id}'}
+                return {"success": False, "error": f"账户不存在: {account_id}"}
         else:
             accounts = account_repo.get_active_accounts()
 
@@ -213,8 +217,11 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
                         current_price=current_price,
                         market_value=position.quantity * current_price,
                         unrealized_pnl=(current_price - position.avg_cost) * position.quantity,
-                        unrealized_pnl_pct=((current_price - position.avg_cost) / position.avg_cost) * 100
-                        if position.avg_cost > 0 else 0.0,
+                        unrealized_pnl_pct=(
+                            ((current_price - position.avg_cost) / position.avg_cost) * 100
+                            if position.avg_cost > 0
+                            else 0.0
+                        ),
                         last_update_date=date.today(),
                     )
                     position_repo.save(updated_position)
@@ -274,31 +281,31 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
             updated_account = replace(
                 account,
                 current_market_value=total_market_value,
-                total_value=account.current_cash + total_market_value
+                total_value=account.current_cash + total_market_value,
             )
             account_repo.save(updated_account)
 
         logger.info(f"持仓价格更新完成: {updated_count} 个成功, {error_count} 个失败")
 
         return {
-            'success': error_count == 0,
-            'updated_count': updated_count,
-            'warning_count': warning_count,
-            'warnings': warnings,
-            'error_count': error_count,
-            'errors': errors,
+            "success": error_count == 0,
+            "updated_count": updated_count,
+            "warning_count": warning_count,
+            "warnings": warnings,
+            "error_count": error_count,
+            "errors": errors,
         }
 
     except Exception as e:
         logger.exception(f"更新持仓价格任务失败: {e}")
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 
 @shared_task(
-    name='simulated.calculate_all_performance',
+    name="simulated.calculate_all_performance",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -335,34 +342,35 @@ def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[
         for account in accounts:
             try:
                 metrics = calculator.calculate_and_update_performance(
-                    account_id=account.account_id,
-                    trade_date=target_date
+                    account_id=account.account_id, trade_date=target_date
                 )
-                results.append({
-                    'account_id': account.account_id,
-                    'account_name': account.account_name,
-                    'total_return': metrics.get('total_return', 0.0),
-                    'sharpe_ratio': metrics.get('sharpe_ratio', 0.0),
-                    'max_drawdown': metrics.get('max_drawdown', 0.0),
-                    'win_rate': metrics.get('win_rate', 0.0),
-                })
+                results.append(
+                    {
+                        "account_id": account.account_id,
+                        "account_name": account.account_name,
+                        "total_return": metrics.get("total_return", 0.0),
+                        "sharpe_ratio": metrics.get("sharpe_ratio", 0.0),
+                        "max_drawdown": metrics.get("max_drawdown", 0.0),
+                        "win_rate": metrics.get("win_rate", 0.0),
+                    }
+                )
             except Exception as e:
                 logger.error(f"计算账户 {account.account_id} 绩效失败: {e}")
 
         logger.info(f"全量绩效计算完成: {len(results)} 个账户")
 
         return {
-            'success': True,
-            'trade_date': target_date.isoformat(),
-            'account_count': len(results),
-            'results': results,
+            "success": True,
+            "trade_date": target_date.isoformat(),
+            "account_count": len(results),
+            "results": results,
         }
 
     except Exception as e:
         logger.exception(f"全量绩效计算任务失败: {e}")
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 
@@ -370,8 +378,9 @@ def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[
 # 维护任务
 # ============================================================================
 
+
 @shared_task(
-    name='simulated.cleanup_inactive_accounts',
+    name="simulated.cleanup_inactive_accounts",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -410,32 +419,30 @@ def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> dict[str, 
             # 检查最后交易日期
             if account.last_trade_date and account.last_trade_date < cutoff_date:
                 # 停用账户
-                updated_account = replace(
-                    account,
-                    is_active=False,
-                    auto_trading_enabled=False
-                )
+                updated_account = replace(account, is_active=False, auto_trading_enabled=False)
                 account_repo.save(updated_account)
                 deactivated_count += 1
-                logger.info(f"停用不活跃账户: {account.account_name} (最后交易: {account.last_trade_date})")
+                logger.info(
+                    f"停用不活跃账户: {account.account_name} (最后交易: {account.last_trade_date})"
+                )
 
         logger.info(f"清理完成: {deactivated_count} 个账户被停用")
 
         return {
-            'success': True,
-            'deactivated_count': deactivated_count,
+            "success": True,
+            "deactivated_count": deactivated_count,
         }
 
     except Exception as e:
         logger.exception(f"清理不活跃账户任务失败: {e}")
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 
 @shared_task(
-    name='simulated.send_performance_summary',
+    name="simulated.send_performance_summary",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -482,17 +489,19 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
 
         for account in accounts:
             result = use_case.execute(account.account_id)
-            summaries.append({
-                'account_id': account.account_id,
-                'account_name': account.account_name,
-                'total_value': float(account.total_value),
-                'total_return': result['performance'].get('total_return', 0.0),
-                'max_drawdown': result['performance'].get('max_drawdown', 0.0),
-                'sharpe_ratio': result['performance'].get('sharpe_ratio', 0.0),
-                'win_rate': result['performance'].get('win_rate', 0.0),
-                'total_trades': result['total_trades'],
-                'total_positions': result['total_positions'],
-            })
+            summaries.append(
+                {
+                    "account_id": account.account_id,
+                    "account_name": account.account_name,
+                    "total_value": float(account.total_value),
+                    "total_return": result["performance"].get("total_return", 0.0),
+                    "max_drawdown": result["performance"].get("max_drawdown", 0.0),
+                    "sharpe_ratio": result["performance"].get("sharpe_ratio", 0.0),
+                    "win_rate": result["performance"].get("win_rate", 0.0),
+                    "total_trades": result["total_trades"],
+                    "total_positions": result["total_positions"],
+                }
+            )
 
         logger.info(f"绩效摘要生成完成: {len(summaries)} 个账户")
 
@@ -503,6 +512,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
                 NotificationPriority,
                 get_notification_service,
             )
+
             notification_service = get_notification_service()
 
             # 构建摘要文本
@@ -521,9 +531,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
             body = "\n".join(lines)
 
             # 从 settings 获取收件人列表
-            recipients = getattr(
-                settings, 'PERFORMANCE_SUMMARY_RECIPIENTS', []
-            )
+            recipients = getattr(settings, "PERFORMANCE_SUMMARY_RECIPIENTS", [])
             if recipients:
                 results = notification_service.send_email(
                     subject=f"模拟盘绩效日报 - {date.today().isoformat()}",
@@ -532,8 +540,7 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
                     priority=NotificationPriority.NORMAL,
                 )
                 notification_results = [
-                    {'email': r.recipient.email, 'success': r.success}
-                    for r in results
+                    {"email": r.recipient.email, "success": r.success} for r in results
                 ]
                 logger.info(
                     f"绩效摘要邮件发送完成: "
@@ -546,16 +553,16 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
             logger.warning(f"绩效摘要邮件推送失败（不影响主流程）: {notify_err}")
 
         return {
-            'success': True,
-            'summaries': summaries,
-            'notifications': notification_results,
+            "success": True,
+            "summaries": summaries,
+            "notifications": notification_results,
         }
 
     except Exception as e:
         logger.exception(f"发送绩效摘要任务失败: {e}")
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 
@@ -693,7 +700,9 @@ def _send_daily_inspection_email(result: dict[str, Any]) -> None:
     if config["include_owner_email"] and context.get("user_email"):
         recipients.append(context["user_email"])
 
-    recipients.extend([str(x).strip() for x in (config["recipient_emails"] or []) if str(x).strip()])
+    recipients.extend(
+        [str(x).strip() for x in (config["recipient_emails"] or []) if str(x).strip()]
+    )
 
     recipients = sorted(set(recipients))
     if not recipients:
@@ -770,7 +779,9 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
     if config["include_owner_email"] and context.get("user_email"):
         recipients.append(context["user_email"])
 
-    recipients.extend([str(x).strip() for x in (config["recipient_emails"] or []) if str(x).strip()])
+    recipients.extend(
+        [str(x).strip() for x in (config["recipient_emails"] or []) if str(x).strip()]
+    )
     recipients = sorted(set(recipients))
 
     # 发送邮件通知
@@ -806,13 +817,15 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
         if len(proposal["proposals"]) > 10:
             lines.append(f"... 还有 {len(proposal['proposals']) - 10} 个资产")
 
-        lines.extend([
-            "",
-            f"原因: {proposal['source_description']}",
-            "",
-            "请登录系统审核并执行此再平衡建议。",
-            "-" * 50,
-        ])
+        lines.extend(
+            [
+                "",
+                f"原因: {proposal['source_description']}",
+                "",
+                "请登录系统审核并执行此再平衡建议。",
+                "-" * 50,
+            ]
+        )
 
         send_mail(
             subject=subject,
@@ -850,7 +863,9 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
             result_notify = channel.send(message, recipient, NotificationConfig())
 
             if result_notify.success:
-                logger.info("站内通知已发送: user_id=%s proposal_id=%s", context["user_id"], proposal_id)
+                logger.info(
+                    "站内通知已发送: user_id=%s proposal_id=%s", context["user_id"], proposal_id
+                )
             else:
                 logger.warning("站内通知发送失败: %s", result_notify.error_message)
 
@@ -900,6 +915,7 @@ def _record_notification_history(
 
 class NotificationConfig:
     """通知配置（用于 notification_service）"""
+
     max_retries = 3
     initial_retry_delay = 1.0
     retry_backoff_factor = 2.0
@@ -914,8 +930,9 @@ class NotificationConfig:
 # 持仓证伪检查任务
 # ============================================================================
 
+
 @shared_task(
-    name='simulated.check_position_invalidation',
+    name="simulated.check_position_invalidation",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -953,9 +970,9 @@ def check_position_invalidation_task(self) -> dict[str, Any]:
         logger.info(f"  证伪数量: {result['invalidated']} 个")
 
         # 如果有新的证伪持仓，记录详细信息
-        if result['invalidated'] > 0:
+        if result["invalidated"] > 0:
             logger.warning("新证伪持仓列表:")
-            for pos in result['positions']:
+            for pos in result["positions"]:
                 logger.warning(
                     f"  - 账户 {pos['account_id']}: {pos['asset_code']} ({pos['asset_name']})"
                     f" | 原因: {pos['reason']}"
@@ -964,22 +981,22 @@ def check_position_invalidation_task(self) -> dict[str, Any]:
         logger.info("=" * 60)
 
         return {
-            'success': True,
-            'checked': result['checked'],
-            'invalidated': result['invalidated'],
-            'positions': result['positions'],
+            "success": True,
+            "checked": result["checked"],
+            "invalidated": result["invalidated"],
+            "positions": result["positions"],
         }
 
     except Exception as e:
         logger.exception(f"持仓证伪检查任务失败: {e}")
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 
 @shared_task(
-    name='simulated.notify_invalidated_positions',
+    name="simulated.notify_invalidated_positions",
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -1026,6 +1043,7 @@ def notify_invalidated_positions_task(self) -> dict[str, Any]:
                     NotificationPriority,
                     get_notification_service,
                 )
+
                 notification_service = get_notification_service()
 
                 lines = [f"证伪持仓通知 ({date.today().isoformat()})"]
@@ -1040,8 +1058,9 @@ def notify_invalidated_positions_task(self) -> dict[str, Any]:
                 body = "\n".join(lines)
 
                 recipients = getattr(
-                    settings, 'INVALIDATION_ALERT_RECIPIENTS',
-                    getattr(settings, 'PERFORMANCE_SUMMARY_RECIPIENTS', []),
+                    settings,
+                    "INVALIDATION_ALERT_RECIPIENTS",
+                    getattr(settings, "PERFORMANCE_SUMMARY_RECIPIENTS", []),
                 )
                 if recipients:
                     results = notification_service.send_email(
@@ -1051,8 +1070,7 @@ def notify_invalidated_positions_task(self) -> dict[str, Any]:
                         priority=NotificationPriority.HIGH,
                     )
                     notification_results = [
-                        {'email': r.recipient.email, 'success': r.success}
-                        for r in results
+                        {"email": r.recipient.email, "success": r.success} for r in results
                     ]
                     logger.info(
                         f"证伪持仓邮件发送完成: "
@@ -1065,23 +1083,24 @@ def notify_invalidated_positions_task(self) -> dict[str, Any]:
                 logger.warning(f"证伪持仓邮件推送失败（不影响主流程）: {notify_err}")
 
         return {
-            'success': True,
-            'count': len(positions),
-            'positions': positions,
-            'notifications': notification_results,
+            "success": True,
+            "count": len(positions),
+            "positions": positions,
+            "notifications": notification_results,
         }
 
     except Exception as e:
         logger.exception(f"获取证伪持仓摘要失败: {e}")
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 
 # ============================================================================
 # 实时价格监控任务（集成 realtime 模块）
 # ============================================================================
+
 
 @shared_task(
     bind=True,
@@ -1118,10 +1137,7 @@ def update_all_prices_after_close(self, account_id: int | None = None) -> dict[s
         logger.info(f"  成功率: {snapshot.get('success_rate', 0) * 100:.2f}%")
         logger.info("=" * 60)
 
-        return {
-            'success': True,
-            'snapshot': snapshot
-        }
+        return {"success": True, "snapshot": snapshot}
 
     except Exception as e:
         logger.exception(f"收盘后价格更新任务失败: {e}")
@@ -1129,13 +1145,13 @@ def update_all_prices_after_close(self, account_id: int | None = None) -> dict[s
         # 重试逻辑
         if self.request.retries < self.max_retries:
             try:
-                raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+                raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
             except Exception:
                 logger.warning(f"任务将在 {2 ** self.request.retries} 分钟后重试")
 
         return {
-            'success': False,
-            'error': str(e),
+            "success": False,
+            "error": str(e),
         }
 
 

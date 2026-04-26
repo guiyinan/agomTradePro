@@ -17,7 +17,6 @@ from importlib.util import resolve_name
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "apps"
 DEFAULT_SCAN_ROOTS = ("apps", "core", "shared")
@@ -64,9 +63,7 @@ def load_rules(rules_path: Path) -> dict:
 
 def iter_module_dirs(apps_root: Path) -> List[Path]:
     return sorted(
-        path
-        for path in apps_root.iterdir()
-        if path.is_dir() and not path.name.startswith("__")
+        path for path in apps_root.iterdir() if path.is_dir() and not path.name.startswith("__")
     )
 
 
@@ -123,7 +120,9 @@ def iter_source_files(source_roots: Sequence[str]) -> Iterable[SourceFile]:
             yield build_source_file(path)
 
 
-def resolve_import_path(source_file: SourceFile, module: Optional[str], level: int) -> Optional[str]:
+def resolve_import_path(
+    source_file: SourceFile, module: Optional[str], level: int
+) -> Optional[str]:
     if level == 0:
         return module
     if not source_file.package:
@@ -146,6 +145,37 @@ def build_target_module(import_path: str) -> Optional[str]:
     return parts[1] if len(parts) > 1 else None
 
 
+def is_dynamic_import_call(node: ast.Call) -> bool:
+    """Return True when a call imports a module by string literal."""
+
+    if isinstance(node.func, ast.Attribute):
+        return (
+            isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "importlib"
+            and node.func.attr == "import_module"
+        )
+    if isinstance(node.func, ast.Name):
+        return node.func.id == "__import__"
+    return False
+
+
+def resolve_dynamic_import_path(source_file: SourceFile, node: ast.Call) -> Optional[str]:
+    """Resolve importlib.import_module/__import__ string-literal module names."""
+
+    if not node.args:
+        return None
+    first_arg = node.args[0]
+    if not isinstance(first_arg, ast.Constant) or not isinstance(first_arg.value, str):
+        return None
+
+    module_name = first_arg.value
+    if module_name.startswith("."):
+        level = len(module_name) - len(module_name.lstrip("."))
+        relative_module = module_name[level:] or None
+        return resolve_import_path(source_file, relative_module, level)
+    return module_name
+
+
 def extract_import_records(source_file: SourceFile) -> List[ImportRecord]:
     records: List[ImportRecord] = []
     tree = ast.parse(source_file.text, filename=source_file.source_path)
@@ -166,6 +196,21 @@ def extract_import_records(source_file: SourceFile) -> List[ImportRecord]:
                 )
         elif isinstance(node, ast.ImportFrom):
             import_path = resolve_import_path(source_file, node.module, node.level)
+            if not import_path:
+                continue
+            records.append(
+                ImportRecord(
+                    source_path=source_file.source_path,
+                    source_root=source_file.source_root,
+                    source_module=source_file.source_module,
+                    source_layer=source_file.source_layer,
+                    import_path=import_path,
+                    target_module=build_target_module(import_path),
+                    lineno=node.lineno,
+                )
+            )
+        elif isinstance(node, ast.Call) and is_dynamic_import_call(node):
+            import_path = resolve_dynamic_import_path(source_file, node)
             if not import_path:
                 continue
             records.append(
@@ -227,11 +272,15 @@ def rule_matches_record(record: ImportRecord | LineRecord, rule: dict) -> bool:
         return False
 
     path_patterns = rule.get("path_patterns", [])
-    if path_patterns and not any(re.search(pattern, record.source_path) for pattern in path_patterns):
+    if path_patterns and not any(
+        re.search(pattern, record.source_path) for pattern in path_patterns
+    ):
         return False
 
     exclude_path_patterns = rule.get("exclude_path_patterns", [])
-    if exclude_path_patterns and any(re.search(pattern, record.source_path) for pattern in exclude_path_patterns):
+    if exclude_path_patterns and any(
+        re.search(pattern, record.source_path) for pattern in exclude_path_patterns
+    ):
         return False
 
     return True
@@ -242,7 +291,8 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
     for rule in rules:
         prefixes = rule.get("forbidden_import_prefixes", [])
         patterns = rule.get("forbidden_import_patterns", [])
-        if not prefixes and not patterns:
+        forbid_cross_app_infra = bool(rule.get("forbid_cross_app_infrastructure_imports"))
+        if not prefixes and not patterns and not forbid_cross_app_infra:
             continue
         for record in records:
             if not rule_matches_record(record, rule):
@@ -257,6 +307,11 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
                     (pattern for pattern in patterns if re.search(pattern, record.import_path)),
                     None,
                 )
+
+            if not matched and forbid_cross_app_infra:
+                match = re.match(r"^apps\.([^.]+)\.infrastructure(?:\.|$)", record.import_path)
+                if match and match.group(1) != record.source_module:
+                    matched = "apps.<other>.infrastructure"
 
             if not matched:
                 continue
@@ -277,7 +332,9 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
                 }
             )
 
-    return sorted(violations, key=lambda item: (item["source_path"], item["lineno"], item["rule_id"]))
+    return sorted(
+        violations, key=lambda item: (item["source_path"], item["lineno"], item["rule_id"])
+    )
 
 
 def find_line_violations(records: Sequence[LineRecord], rules: Sequence[dict]) -> List[dict]:
@@ -313,10 +370,14 @@ def find_line_violations(records: Sequence[LineRecord], rules: Sequence[dict]) -
                 }
             )
 
-    return sorted(violations, key=lambda item: (item["source_path"], item["lineno"], item["rule_id"]))
+    return sorted(
+        violations, key=lambda item: (item["source_path"], item["lineno"], item["rule_id"])
+    )
 
 
-def build_module_summary(records: List[ImportRecord], module_metadata: Dict[str, dict]) -> List[dict]:
+def build_module_summary(
+    records: List[ImportRecord], module_metadata: Dict[str, dict]
+) -> List[dict]:
     module_names = [path.name for path in iter_module_dirs(APPS_ROOT)]
     outbound: Dict[str, set] = {name: set() for name in module_names}
     inbound: Dict[str, set] = {name: set() for name in module_names}
@@ -382,9 +443,7 @@ def render_ledger_markdown(
         forbidden = ", ".join(rule.get("forbidden_import_prefixes", []))
         rationale = rule.get("rationale", "")
         source = ", ".join(rule.get("source_modules", []) or [rule.get("source_module", "*")])
-        lines.append(
-            f"| `{rule['id']}` | `{source}` | `{layers}` | `{forbidden}` | {rationale} |"
-        )
+        lines.append(f"| `{rule['id']}` | `{source}` | `{layers}` | `{forbidden}` | {rationale} |")
 
     lines.extend(
         [
@@ -405,7 +464,11 @@ def render_ledger_markdown(
             outbound = f"{outbound}, ..."
         if len(summary["inbound_modules"]) > 8:
             inbound = f"{inbound}, ..."
-        note_parts = [part for part in [outbound and f"out: {outbound}", inbound and f"in: {inbound}", note] if part]
+        note_parts = [
+            part
+            for part in [outbound and f"out: {outbound}", inbound and f"in: {inbound}", note]
+            if part
+        ]
         lines.append(
             f"| `{summary['module']}` | {summary['role']} | {summary['outbound_count']} | {summary['inbound_count']} | {patterns} | {'; '.join(note_parts)} |"
         )
@@ -480,12 +543,16 @@ def build_report(
     return report
 
 
-def print_violations(title: str, violations: Sequence[dict], limit: int = MAX_TEXT_VIOLATIONS) -> None:
+def print_violations(
+    title: str, violations: Sequence[dict], limit: int = MAX_TEXT_VIOLATIONS
+) -> None:
     print("")
     print(f"{title}:")
     for violation in list(violations)[:limit]:
         detail = violation.get("import_path") or violation.get("line_text", "")
-        print(f"- {violation['rule_id']}: {violation['source_path']}:{violation['lineno']} -> {detail}")
+        print(
+            f"- {violation['rule_id']}: {violation['source_path']}:{violation['lineno']} -> {detail}"
+        )
     remaining = len(violations) - min(len(violations), limit)
     if remaining > 0:
         print(f"... truncated {remaining} additional violations")
@@ -567,7 +634,9 @@ def main() -> int:
             key=lambda item: (item["source_path"], item["lineno"], item["rule_id"], item["kind"]),
         )
 
-    report = build_report(ruleset, source_files, import_records, boundary_violations, audit_violations)
+    report = build_report(
+        ruleset, source_files, import_records, boundary_violations, audit_violations
+    )
 
     if args.write_report:
         report_path = (REPO_ROOT / args.write_report).resolve()

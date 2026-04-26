@@ -7,10 +7,10 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import Any
 
+from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 from apps.signal.application.query_services import get_signal_invalidation_payloads
 from apps.simulated_trading.application.query_services import get_position_snapshots
-from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
 from ..domain.entities import (
     ApprovalStatus,
@@ -56,13 +56,17 @@ logger = logging.getLogger(__name__)
 
 def _resolve_security_name_map(security_codes: list[str]) -> dict[str, str]:
     """Resolve display names for workspace security codes."""
-    normalized_codes = [str(code or "").upper() for code in security_codes if str(code or "").strip()]
+    normalized_codes = [
+        str(code or "").upper() for code in security_codes if str(code or "").strip()
+    ]
     if not normalized_codes:
         return {}
     return resolve_asset_names(normalized_codes)
 
 
-def _attach_security_name(dto: UnifiedRecommendationDTO, security_name_map: dict[str, str]) -> UnifiedRecommendationDTO:
+def _attach_security_name(
+    dto: UnifiedRecommendationDTO, security_name_map: dict[str, str]
+) -> UnifiedRecommendationDTO:
     """Populate DTO display name without mutating domain entities."""
     security_code = str(dto.security_code or "").upper()
     dto.security_name = security_name_map.get(security_code, dto.security_code)
@@ -80,7 +84,9 @@ def get_signal_payloads(signal_ids: list[str]) -> dict[str, dict[str, Any]]:
     return get_signal_invalidation_payloads(normalized_ids)
 
 
-def build_recommendation_risk_checks(recommendation, market_price: Decimal | None) -> dict[str, Any]:
+def build_recommendation_risk_checks(
+    recommendation, market_price: Decimal | None
+) -> dict[str, Any]:
     """Build risk checks for a legacy or unified recommendation."""
     result: dict[str, Any] = {}
     side = getattr(recommendation, "side", "")
@@ -93,13 +99,21 @@ def build_recommendation_risk_checks(recommendation, market_price: Decimal | Non
         passed = market_price <= recommendation.entry_price_high
         result["price_validation"] = {
             "passed": passed,
-            "reason": "" if passed else f"市场价格 {market_price} 高于入场上限 {recommendation.entry_price_high}",
+            "reason": (
+                ""
+                if passed
+                else f"市场价格 {market_price} 高于入场上限 {recommendation.entry_price_high}"
+            ),
         }
     elif is_sell:
         passed = market_price >= recommendation.target_price_low
         result["price_validation"] = {
             "passed": passed,
-            "reason": "" if passed else f"市场价格 {market_price} 低于目标下限 {recommendation.target_price_low}",
+            "reason": (
+                ""
+                if passed
+                else f"市场价格 {market_price} 低于目标下限 {recommendation.target_price_low}"
+            ),
         }
     else:
         result["price_validation"] = {"passed": True, "reason": "HOLD 无价格限制"}
@@ -127,7 +141,9 @@ def build_recommendation_risk_checks(recommendation, market_price: Decimal | Non
         result["cooldown"] = {
             "passed": cooldown_ok,
             "hours_remaining": cooldown.decision_ready_in_hours if cooldown else 0,
-            "reason": "" if cooldown_ok else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
+            "reason": (
+                "" if cooldown_ok else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时"
+            ),
         }
     except Exception as exc:
         result["cooldown"] = {"passed": True, "reason": f"cooldown check skipped: {exc}"}
@@ -252,7 +268,9 @@ def serialize_transition_plan_payload(plan: PortfolioTransitionPlan) -> dict[str
         if not position.get("asset_name") and asset_code:
             position["asset_name"] = security_name_map.get(asset_code, asset_code)
         if asset_code:
-            position["security_name"] = position.get("asset_name") or security_name_map.get(asset_code, asset_code)
+            position["security_name"] = position.get("asset_name") or security_name_map.get(
+                asset_code, asset_code
+            )
 
     for position in payload.get("target_positions", []):
         security_code = str(position.get("security_code") or "").upper()
@@ -443,7 +461,7 @@ def list_workspace_recommendations(
     recommendation_id: str | None,
     page: int,
     page_size: int,
-    ) -> tuple[list[UnifiedRecommendationDTO], int]:
+) -> tuple[list[UnifiedRecommendationDTO], int]:
     """Return DTOs for workspace recommendations and the total count."""
     recommendations, total_count = UnifiedRecommendationRepository().list_for_workspace(
         account_id=account_id,
@@ -461,7 +479,9 @@ def list_workspace_recommendations(
     for recommendation in recommendations:
         dto = UnifiedRecommendationDTO.from_domain(recommendation)
         _attach_security_name(dto, security_name_map)
-        dto.valuation_repair = valuation_repair_map.get((recommendation.security_code or "").upper())
+        dto.valuation_repair = valuation_repair_map.get(
+            (recommendation.security_code or "").upper()
+        )
         dtos.append(dto)
     return dtos, total_count
 
@@ -499,16 +519,18 @@ def _cancel_recommendation_sources(recommendation) -> None:
         return
 
     try:
-        from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.alpha_trigger.infrastructure.providers import (
-            get_candidate_repository,
-            get_trigger_repository,
+        from apps.alpha_trigger.application.repository_provider import (
+            get_alpha_candidate_repository,
+            get_alpha_trigger_repository,
         )
+        from apps.alpha_trigger.domain.entities import CandidateStatus
 
-        candidate_repo = get_candidate_repository()
-        trigger_repo = get_trigger_repository()
+        candidate_repo = get_alpha_candidate_repository()
+        trigger_repo = get_alpha_trigger_repository()
     except Exception as exc:
-        logger.warning("Failed to prepare alpha-trigger suppression for ignored recommendation: %s", exc)
+        logger.warning(
+            "Failed to prepare alpha-trigger suppression for ignored recommendation: %s", exc
+        )
         return
 
     for candidate_id in candidate_ids:
@@ -532,7 +554,9 @@ def _cancel_recommendation_sources(recommendation) -> None:
             )
 
 
-def refresh_workspace_recommendations(dto: RefreshRecommendationsRequestDTO) -> RefreshRecommendationsResponseDTO:
+def refresh_workspace_recommendations(
+    dto: RefreshRecommendationsRequestDTO,
+) -> RefreshRecommendationsResponseDTO:
     """Trigger workspace recommendation refresh."""
     import uuid
 

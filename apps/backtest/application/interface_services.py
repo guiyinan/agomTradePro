@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from apps.regime.application.repository_provider import get_regime_repository
+
 from .repository_provider import get_backtest_repository
 from .use_cases import (
     DeleteBacktestRequest,
@@ -21,9 +23,7 @@ from .use_cases import (
 
 def _build_regime_reader():
     def get_regime(as_of_date: date):
-        from apps.regime.infrastructure.providers import DjangoRegimeRepository
-
-        snapshot = DjangoRegimeRepository().get_regime_by_date(as_of_date)
+        snapshot = get_regime_repository().get_regime_by_date(as_of_date)
         if snapshot:
             return {
                 "dominant_regime": snapshot.dominant_regime,
@@ -86,9 +86,8 @@ def load_backtest_detail_context(backtest_id: int) -> dict[str, Any] | None:
 
 def load_backtest_create_context() -> dict[str, Any]:
     """Build the backtest create page context."""
-    from apps.regime.infrastructure.providers import DjangoRegimeRepository
 
-    regime_repo = DjangoRegimeRepository()
+    regime_repo = get_regime_repository()
     return {
         "earliest_date": regime_repo.get_earliest_date(),
         "latest_date": regime_repo.get_latest_date(),

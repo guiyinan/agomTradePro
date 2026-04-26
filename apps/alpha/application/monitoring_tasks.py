@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from celery import shared_task
-from django.db.models import Avg, Count, Max
 from django.utils import timezone
 
 from apps.alpha.infrastructure.providers import (
@@ -56,14 +55,10 @@ def evaluate_alerts():
                 "status": "alert",
                 "count": len(alerts),
                 "alerts": alerts,
-                "timestamp": timezone.now().isoformat()
+                "timestamp": timezone.now().isoformat(),
             }
 
-        return {
-            "status": "ok",
-            "count": 0,
-            "timestamp": timezone.now().isoformat()
-        }
+        return {"status": "ok", "count": 0, "timestamp": timezone.now().isoformat()}
 
     except Exception as e:
         logger.error(f"告警评估失败: {e}", exc_info=True)
@@ -99,9 +94,7 @@ def update_provider_metrics():
                 available = sum(1 for cache in recent_caches if cache.status == "available")
                 success_rate = available / total
                 metrics.registry.set_gauge(
-                    "alpha_provider_success_rate",
-                    success_rate,
-                    labels={"provider": provider}
+                    "alpha_provider_success_rate", success_rate, labels={"provider": provider}
                 )
 
                 # 平均陈旧度
@@ -112,9 +105,7 @@ def update_provider_metrics():
                 avg_staleness /= total
 
                 metrics.registry.set_gauge(
-                    "alpha_provider_staleness_days",
-                    avg_staleness,
-                    labels={"provider": provider}
+                    "alpha_provider_staleness_days", avg_staleness, labels={"provider": provider}
                 )
 
                 logger.debug(
@@ -140,10 +131,7 @@ def update_provider_metrics():
         # 3. 记录指标到日志
         metrics.log_metrics()
 
-        return {
-            "status": "success",
-            "timestamp": timezone.now().isoformat()
-        }
+        return {"status": "success", "timestamp": timezone.now().isoformat()}
 
     except Exception as e:
         logger.error(f"更新 Provider 指标失败: {e}", exc_info=True)
@@ -205,17 +193,14 @@ def calculate_ic_drift():
         metrics.record_ic_metrics(current_ic, historical_ics, window=20)
 
         hist_mean = sum(historical_ics[-20:]) / len(historical_ics[-20:])
-        logger.info(
-            f"IC 漂移计算完成: 当前 IC={current_ic:.4f}, "
-            f"历史均值={hist_mean:.4f}"
-        )
+        logger.info(f"IC 漂移计算完成: 当前 IC={current_ic:.4f}, " f"历史均值={hist_mean:.4f}")
 
         return {
             "status": "success",
             "current_ic": current_ic,
             "historical_mean": hist_mean,
             "drift": current_ic - hist_mean,
-            "timestamp": timezone.now().isoformat()
+            "timestamp": timezone.now().isoformat(),
         }
 
     except Exception as e:
@@ -263,7 +248,7 @@ def check_queue_lag():
                 return {
                     "status": "success",
                     "queues": queue_tasks,
-                    "timestamp": timezone.now().isoformat()
+                    "timestamp": timezone.now().isoformat(),
                 }
 
         except Exception as e:
@@ -273,10 +258,7 @@ def check_queue_lag():
         metrics.record_queue_lag("qlib_infer", 0)
         metrics.record_queue_lag("qlib_train", 0)
 
-        return {
-            "status": "fallback",
-            "timestamp": timezone.now().isoformat()
-        }
+        return {"status": "fallback", "timestamp": timezone.now().isoformat()}
 
     except Exception as e:
         logger.error(f"检查队列积压失败: {e}", exc_info=True)
@@ -319,7 +301,7 @@ def generate_daily_report():
             "cache_records": len(today_caches),
             "provider_stats": provider_stats,
             "model_activations": model_activations,
-            "metrics_snapshot": metrics.get_metrics_json()
+            "metrics_snapshot": metrics.get_metrics_json(),
         }
 
         logger.info("=== Alpha 每日监控报告 ===")
@@ -328,10 +310,7 @@ def generate_daily_report():
 
         for provider, stats in provider_stats.items():
             success_rate = stats["available"] / stats["count"] if stats["count"] > 0 else 0
-            logger.info(
-                f"  {provider}: {stats['count']} 条, "
-                f"成功率 {success_rate:.2%}"
-            )
+            logger.info(f"  {provider}: {stats['count']} 条, " f"成功率 {success_rate:.2%}")
 
         logger.info(f"模型激活: {model_activations} 次")
 
@@ -364,7 +343,7 @@ def cleanup_old_metrics(days: int = 30):
         return {
             "status": "success",
             "deleted_count": deleted_count,
-            "cutoff_date": cutoff_date.isoformat()
+            "cutoff_date": cutoff_date.isoformat(),
         }
 
     except Exception as e:
@@ -375,6 +354,7 @@ def cleanup_old_metrics(days: int = 30):
 # ============================================================================
 # 向后兼容：旧任务名别名
 # ============================================================================
+
 
 @shared_task(name="apps.alpha.application.monitoring_tasks.evaluate_alerts")
 def evaluate_alerts_legacy():
@@ -416,6 +396,7 @@ def cleanup_old_metrics_legacy(days: int = 30):
 # 辅助函数：手动触发指标更新
 # ============================================================================
 
+
 def update_metrics_from_alpha_result(result, provider_name: str):
     """
     从 AlphaResult 更新指标
@@ -429,7 +410,7 @@ def update_metrics_from_alpha_result(result, provider_name: str):
         provider_name=provider_name,
         success=result.success,
         latency_ms=result.latency_ms or 0,
-        staleness_days=result.staleness_days
+        staleness_days=result.staleness_days,
     )
 
     # 记录覆盖率
@@ -449,10 +430,7 @@ def log_metrics_summary():
 
     # Provider 成功率
     for provider in ["qlib", "cache", "simple", "etf"]:
-        metric = metrics.registry.get_metric(
-            "alpha_provider_success_rate",
-            {"provider": provider}
-        )
+        metric = metrics.registry.get_metric("alpha_provider_success_rate", {"provider": provider})
         if metric:
             logger.info(f"{provider} 成功率: {metric.value:.2%}")
 
@@ -468,4 +446,3 @@ def log_metrics_summary():
             logger.info(f"{queue} 队列积压: {metric.value:.0f}")
 
     logger.info("========================")
-

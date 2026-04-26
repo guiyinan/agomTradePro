@@ -10,8 +10,8 @@ from typing import Any
 
 from django.utils import timezone as django_timezone
 
+from apps.account.application.repository_provider import get_portfolio_repository
 from apps.account.application.use_cases import GetSizingContextUseCase
-from apps.account.infrastructure.providers import PortfolioRepository
 from apps.alpha.application.pool_resolver import (
     ALPHA_POOL_MODE_PRICE_COVERED,
     PortfolioAlphaPoolResolver,
@@ -63,7 +63,7 @@ class AlphaHomepageQuery:
     ) -> None:
         self.history_repo = history_repo or AlphaRecommendationHistoryRepository()
         self.context_repo = context_repo or DashboardAlphaContextRepository()
-        self.portfolio_repo = PortfolioRepository()
+        self.portfolio_repo = get_portfolio_repository()
         self.alpha_service = AlphaService()
         self.decision_engine = DecisionPolicyEngine()
         self.sizing_engine = SizingEngine()
@@ -276,7 +276,9 @@ class AlphaHomepageQuery:
         run = self.history_repo.get_run_detail(user_id=user_id, run_id=run_id)
         if run is None:
             return None
-        snapshot_codes = [str(snapshot.stock_code or "").strip().upper() for snapshot in run.snapshots.all()]
+        snapshot_codes = [
+            str(snapshot.stock_code or "").strip().upper() for snapshot in run.snapshots.all()
+        ]
         stock_context = self.context_repo.load_stock_context(snapshot_codes)
         snapshots = []
         for snapshot in run.snapshots.all():
@@ -357,7 +359,8 @@ class AlphaHomepageQuery:
                 "research_only": True,
                 "must_not_use_for_decision": True,
                 "recommendation_ready": False,
-                "requested_trade_date": metadata.get("requested_trade_date") or trade_date.isoformat(),
+                "requested_trade_date": metadata.get("requested_trade_date")
+                or trade_date.isoformat(),
                 "reliability_notice": {
                     "level": "info",
                     "code": "general_alpha_research_only",
@@ -560,7 +563,9 @@ class AlphaHomepageQuery:
         except ValueError:
             return None
 
-    def _build_readiness_fields(self, *, alpha_result, scope, metadata: dict[str, Any]) -> dict[str, Any]:
+    def _build_readiness_fields(
+        self, *, alpha_result, scope, metadata: dict[str, Any]
+    ) -> dict[str, Any]:
         requested_trade_date = self._parse_meta_date(metadata.get("requested_trade_date"))
         effective_asof_date = self._parse_meta_date(metadata.get("effective_asof_date"))
         result_age_days = getattr(alpha_result, "staleness_days", None)
@@ -586,9 +591,11 @@ class AlphaHomepageQuery:
         no_recommendation_reason = str(metadata.get("no_recommendation_reason") or "")
         fallback_mode = str(metadata.get("fallback_mode") or "")
         scores = list(getattr(alpha_result, "scores", []) or [])
-        provider_source = str(
-            metadata.get("provider_source") or getattr(alpha_result, "source", "")
-        ).strip().lower()
+        provider_source = (
+            str(metadata.get("provider_source") or getattr(alpha_result, "source", ""))
+            .strip()
+            .lower()
+        )
         data_driven_simple_result = (
             provider_source == "simple"
             and str(metadata.get("factor_basis") or "") in {"quote_momentum", ""}
@@ -676,9 +683,7 @@ class AlphaHomepageQuery:
             recommendation_ready = False
         elif not latest_available_qlib_result and not data_driven_simple_result:
             readiness_status = "blocked_unverified_delivery"
-            blocked_reason = (
-                "当前 Alpha 输出尚未验证为请求交易日的最新 scoped Qlib 结果。"
-            )
+            blocked_reason = "当前 Alpha 输出尚未验证为请求交易日的最新 scoped Qlib 结果。"
             recommendation_ready = False
 
         verified_scope_hash = ""
@@ -755,8 +760,10 @@ class AlphaHomepageQuery:
             "refresh_triggered": bool(metadata.get("refresh_triggered", False)),
             "requested_pool_mode": requested_pool_mode,
             "requested_pool_size": requested_pool_size,
-            "effective_pool_mode": metadata.get("effective_pool_mode") or getattr(scope, "pool_mode", ""),
-            "effective_pool_size": metadata.get("effective_pool_size") or getattr(scope, "pool_size", 0),
+            "effective_pool_mode": metadata.get("effective_pool_mode")
+            or getattr(scope, "pool_mode", ""),
+            "effective_pool_size": metadata.get("effective_pool_size")
+            or getattr(scope, "pool_size", 0),
             "scope_hash": getattr(scope, "scope_hash", ""),
             "scope_label": getattr(scope, "display_label", ""),
             "scope_metadata": scope_metadata,
@@ -796,18 +803,21 @@ class AlphaHomepageQuery:
         if portfolio_snapshot is not None:
             for position in portfolio_snapshot.positions:
                 position_map[str(position.asset_code).upper()] = float(position.market_value)
-        if portfolio_snapshot is None or float(getattr(portfolio_snapshot, "total_value", 0.0) or 0.0) <= 0:
+        if (
+            portfolio_snapshot is None
+            or float(getattr(portfolio_snapshot, "total_value", 0.0) or 0.0) <= 0
+        ):
             context_repo = getattr(self, "context_repo", None)
             account_totals = (
-                context_repo.load_user_account_totals(user_id)
-                if context_repo is not None
-                else None
+                context_repo.load_user_account_totals(user_id) if context_repo is not None else None
             )
             total_assets = float((account_totals or {}).get("total_assets") or 0.0)
             if total_assets > 0:
                 portfolio_snapshot = SimpleNamespace(
                     total_value=total_assets,
-                    positions=getattr(portfolio_snapshot, "positions", []) if portfolio_snapshot else [],
+                    positions=(
+                        getattr(portfolio_snapshot, "positions", []) if portfolio_snapshot else []
+                    ),
                 )
         try:
             sizing_context = GetSizingContextUseCase().execute(
@@ -898,7 +908,9 @@ class AlphaHomepageQuery:
         if pending_request is not None:
             stage = "pending"
             gate_status = "warn"
-        elif not reliability_blocked and passed and action == "allow" and suggested_position_pct > 0:
+        elif (
+            not reliability_blocked and passed and action == "allow" and suggested_position_pct > 0
+        ):
             stage = "actionable"
             gate_status = "passed"
         elif passed and action == "watch":
@@ -1046,7 +1058,9 @@ class AlphaHomepageQuery:
                 "result_age_days": meta.get("result_age_days"),
                 "verified_scope_hash": meta.get("verified_scope_hash"),
                 "verified_asof_date": meta.get("verified_asof_date"),
-                "latest_available_qlib_result": bool(meta.get("latest_available_qlib_result", False)),
+                "latest_available_qlib_result": bool(
+                    meta.get("latest_available_qlib_result", False)
+                ),
                 "derived_from_broader_cache": bool(meta.get("derived_from_broader_cache", False)),
                 "trade_date_adjusted": bool(meta.get("trade_date_adjusted", False)),
                 "research_only": bool(meta.get("research_only", False)),

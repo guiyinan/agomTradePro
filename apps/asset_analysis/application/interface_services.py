@@ -8,16 +8,15 @@ from typing import Any
 
 from apps.asset_analysis.application.dtos import ScreenRequest, ScreenResponse
 from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
+from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.asset_analysis.infrastructure.providers import (
     DjangoAssetRepository,
     DjangoWeightConfigRepository,
 )
-from apps.policy.infrastructure.providers import DjangoPolicyRepository
+from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.sentiment.infrastructure.providers import SentimentIndexRepository
-from apps.signal.infrastructure.providers import DjangoSignalRepository
-
-from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+from apps.signal.application.repository_provider import get_signal_repository
 from core.integration.asset_analysis_market_sources import (
     screen_equity_assets_for_pool,
     screen_fund_assets_for_pool,
@@ -54,19 +53,19 @@ def build_asset_pool_context(
     if policy_level_override:
         policy_level = policy_level_override
     else:
-        latest_policy = DjangoPolicyRepository().get_current_policy_level()
+        latest_policy = get_current_policy_repository().get_current_policy_level()
         policy_level = latest_policy.value if latest_policy else "P1"
 
     if sentiment_index_override is not None:
         sentiment_index = sentiment_index_override
     else:
-        latest_sentiment = SentimentIndexRepository().get_latest()
+        latest_sentiment = get_sentiment_index_repository().get_latest()
         sentiment_index = latest_sentiment.composite_index * 3 if latest_sentiment else 0.0
 
     if active_signals_override is not None:
         active_signals = active_signals_override
     else:
-        active_signals = DjangoSignalRepository().get_active_signals()
+        active_signals = get_signal_repository().get_active_signals()
 
     return AssetPoolContextPayload(
         score_context=ScoreContext(

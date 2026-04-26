@@ -247,8 +247,9 @@ class StressTestingUseCase:
     ) -> list[float]:
         """模拟组合在历史场景中的收益率序列"""
         try:
-            from apps.equity.infrastructure.adapters import TushareStockAdapter
-            adapter = TushareStockAdapter()
+            from apps.equity.application.repository_provider import get_tushare_stock_adapter
+
+            adapter = get_tushare_stock_adapter()
         except Exception as e:
             logger.warning(f"无法初始化 TushareStockAdapter: {e}")
             return []

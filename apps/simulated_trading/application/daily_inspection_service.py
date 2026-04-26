@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from apps.policy.infrastructure.providers import DjangoPolicyRepository
+from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.simulated_trading.infrastructure.providers import (
     DjangoInspectionRepository,
@@ -51,7 +51,7 @@ class DailyInspectionService:
     account_repo = DjangoSimulatedAccountRepository()
     position_repo = DjangoPositionRepository()
     inspection_repo = DjangoInspectionRepository()
-    policy_repo = DjangoPolicyRepository()
+    policy_repo = get_current_policy_repository()
 
     @classmethod
     def run(
@@ -178,7 +178,11 @@ class DailyInspectionService:
             market_value = float(pos.market_value)
             weight = (market_value / total_value) if total_value > 0 else 0.0
             has_asset_target = bool(target_weights)
-            target_weight = cls._float_value(target_weights.get(pos.asset_code), 0.0) if has_asset_target else None
+            target_weight = (
+                cls._float_value(target_weights.get(pos.asset_code), 0.0)
+                if has_asset_target
+                else None
+            )
             drift = weight - target_weight if target_weight is not None else 0.0
             rebalance_action = "hold"
             if target_weight is not None and abs(drift) > drift_threshold:
@@ -188,7 +192,9 @@ class DailyInspectionService:
                 if target_weight is not None
                 else 0
             )
-            suggested_amount = abs((target_weight - weight) * total_value) if target_weight is not None else 0.0
+            suggested_amount = (
+                abs((target_weight - weight) * total_value) if target_weight is not None else 0.0
+            )
 
             rule_eval = None
             if selection.rule_id:
@@ -360,12 +366,14 @@ class DailyInspectionService:
         class_rebalance_required = [c for c in class_checks if c["rebalance_action"] != "hold"]
         asset_rebalance_required = [c for c in asset_checks if c["rebalance_action"] != "hold"]
         target_allocation = {
-            c["asset_class"]: c["target_weight"]
-            for c in class_checks
-            if c.get("asset_class")
+            c["asset_class"]: c["target_weight"] for c in class_checks if c.get("asset_class")
         }
-        max_abs_drift = max((abs(float(c.get("drift") or 0)) for c in rebalance_required), default=0.0)
-        risk_profile = next((c.get("risk_profile") for c in class_checks if c.get("risk_profile")), None)
+        max_abs_drift = max(
+            (abs(float(c.get("drift") or 0)) for c in rebalance_required), default=0.0
+        )
+        risk_profile = next(
+            (c.get("risk_profile") for c in class_checks if c.get("risk_profile")), None
+        )
         pulse_context = next((c.get("pulse") for c in class_checks if c.get("pulse")), None)
         return {
             "positions_count": len(asset_checks),
@@ -473,7 +481,10 @@ class DailyInspectionService:
             return drift_threshold
         if not pulse_context.get("available"):
             return drift_threshold
-        if not pulse_context.get("transition_warning") and pulse_context.get("regime_strength") != "weak":
+        if (
+            not pulse_context.get("transition_warning")
+            and pulse_context.get("regime_strength") != "weak"
+        ):
             return drift_threshold
 
         multiplier = cls._float_value(
@@ -668,32 +679,32 @@ class DailyInspectionService:
         priority = cls._determine_priority(summary)
 
         # 创建再平衡建议
-        proposal = cls.inspection_repo.create_rebalance_proposal({
-            "account_id": account_id,
-            "inspection_report_id": inspection_result.get("report_id"),
-            "strategy_id": inspection_result.get("strategy_id"),
-            "source": "daily_inspection",
-            "source_description": cls._build_source_description(inspection_result),
-            "status": "pending",
-            "priority": priority,
-            "proposals": proposals,
-            "summary": proposal_summary,
-            "proposed_by": "daily_inspection",
-            "metadata": {
-                "inspection_date": inspection_result.get("inspection_date"),
-                "macro_regime": inspection_result.get("macro_regime"),
-                "policy_gear": inspection_result.get("policy_gear"),
-                "position_rule_id": inspection_result.get("position_rule_id"),
-                "risk_profile": summary.get("risk_profile"),
-                "target_allocation": summary.get("target_allocation", {}),
-                "pulse": summary.get("pulse", cls._empty_pulse_context()),
-                "triggered_scopes": sorted({
-                    p.get("scope", "asset")
-                    for p in proposals
-                    if p.get("scope")
-                }),
-            },
-        })
+        proposal = cls.inspection_repo.create_rebalance_proposal(
+            {
+                "account_id": account_id,
+                "inspection_report_id": inspection_result.get("report_id"),
+                "strategy_id": inspection_result.get("strategy_id"),
+                "source": "daily_inspection",
+                "source_description": cls._build_source_description(inspection_result),
+                "status": "pending",
+                "priority": priority,
+                "proposals": proposals,
+                "summary": proposal_summary,
+                "proposed_by": "daily_inspection",
+                "metadata": {
+                    "inspection_date": inspection_result.get("inspection_date"),
+                    "macro_regime": inspection_result.get("macro_regime"),
+                    "policy_gear": inspection_result.get("policy_gear"),
+                    "position_rule_id": inspection_result.get("position_rule_id"),
+                    "risk_profile": summary.get("risk_profile"),
+                    "target_allocation": summary.get("target_allocation", {}),
+                    "pulse": summary.get("pulse", cls._empty_pulse_context()),
+                    "triggered_scopes": sorted(
+                        {p.get("scope", "asset") for p in proposals if p.get("scope")}
+                    ),
+                },
+            }
+        )
 
         return proposal
 
@@ -708,9 +719,13 @@ class DailyInspectionService:
             asset_name = f"{asset_name}大类"
 
         if drift > 0:
-            return f"{asset_name} 当前权重 {current_weight:.2%} 超过目标 {target_weight:.2%}，需要减持"
+            return (
+                f"{asset_name} 当前权重 {current_weight:.2%} 超过目标 {target_weight:.2%}，需要减持"
+            )
         else:
-            return f"{asset_name} 当前权重 {current_weight:.2%} 低于目标 {target_weight:.2%}，需要增持"
+            return (
+                f"{asset_name} 当前权重 {current_weight:.2%} 低于目标 {target_weight:.2%}，需要增持"
+            )
 
     @classmethod
     def _build_source_description(cls, inspection_result: dict[str, Any]) -> str:
