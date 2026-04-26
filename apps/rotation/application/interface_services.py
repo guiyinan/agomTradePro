@@ -10,24 +10,28 @@ from apps.rotation.application.dtos import (
     RotationConfigsViewRequest,
     RotationSignalsViewRequest,
 )
+from apps.rotation.application.repository_provider import (
+    RotationIntegrationService,
+    RotationInterfaceRepository,
+    get_rotation_integration_service,
+    get_rotation_interface_repository,
+)
 from apps.rotation.application.use_cases import (
     GetAssetsForViewUseCase,
     GetRotationConfigsForViewUseCase,
     GetRotationSignalsForViewUseCase,
 )
-from apps.rotation.infrastructure.providers import RotationInterfaceRepository
-from apps.rotation.infrastructure.services import RotationIntegrationService
 from core.integration.rotation_accounts import list_rotation_user_accounts
 
 
 def _query_repo() -> RotationInterfaceRepository:
     """Return the default query repository for interface services."""
-    return RotationInterfaceRepository()
+    return get_rotation_interface_repository()
 
 
 def _integration_service() -> RotationIntegrationService:
     """Return the default rotation integration service."""
-    return RotationIntegrationService()
+    return get_rotation_integration_service()
 
 
 def get_asset_queryset():

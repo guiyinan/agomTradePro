@@ -12,9 +12,9 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 
+from .repository_provider import DjangoFundRepository
 from ..domain.entities import FundInfo, FundPerformance, FundScore, FundSectorAllocation
 from ..domain.services import FundPerformanceCalculator, FundScreener, FundStyleAnalyzer
-from ..infrastructure.providers import DjangoFundRepository
 
 
 @dataclass

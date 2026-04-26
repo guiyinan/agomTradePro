@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from apps.simulated_trading.infrastructure.providers import (
+    DjangoDailyNetValueRepository,
     DjangoFeeConfigRepository,
     DjangoInspectionRepository,
     DjangoPositionRepository,
@@ -27,6 +28,12 @@ def get_simulated_trade_repository() -> DjangoTradeRepository:
     """Return the default simulated trade repository."""
 
     return DjangoTradeRepository()
+
+
+def get_simulated_daily_net_value_repository() -> DjangoDailyNetValueRepository:
+    """Return the default daily net value repository."""
+
+    return DjangoDailyNetValueRepository()
 
 
 def get_simulated_fee_config_repository() -> DjangoFeeConfigRepository:

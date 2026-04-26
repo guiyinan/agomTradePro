@@ -17,7 +17,7 @@ from apps.asset_analysis.domain.services import (
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.fund.domain.entities import FundAssetScore, FundInfo
-from apps.fund.infrastructure.providers import DjangoFundAssetRepository
+from apps.fund.application.repository_provider import DjangoFundAssetRepository
 
 
 class FundMultiDimScorer:

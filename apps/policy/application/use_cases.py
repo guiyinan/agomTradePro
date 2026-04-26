@@ -43,9 +43,14 @@ from ..domain.rules import (
     should_trigger_alert,
     validate_policy_event,
 )
-from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
-from ..infrastructure.adapters.content_extractor import ContentExtractorError
-from ..infrastructure.providers import DjangoPolicyRepository, RSSRepository, WorkbenchRepository
+from .repository_provider import (
+    ContentExtractorError,
+    DjangoPolicyRepository,
+    FeedparserAdapter,
+    RSSRepository,
+    WorkbenchRepository,
+    create_content_extractor,
+)
 
 logger = logging.getLogger(__name__)
 

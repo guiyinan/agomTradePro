@@ -9,14 +9,7 @@ from typing import Any, List, Optional
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from apps.share.domain.entities import (
-    AccessResultStatus,
-    ShareLevel,
-    ShareLinkEntity,
-    ShareStatus,
-    ShareTheme,
-)
-from apps.share.infrastructure.orm_handles import (
+from apps.share.application.repository_provider import (
     ShareLinkDoesNotExist,
     ShareSnapshotDoesNotExist,
     SimulatedAccountDoesNotExist,
@@ -26,6 +19,13 @@ from apps.share.infrastructure.orm_handles import (
     share_snapshot_manager,
     simulated_account_manager,
     user_manager,
+)
+from apps.share.domain.entities import (
+    AccessResultStatus,
+    ShareLevel,
+    ShareLinkEntity,
+    ShareStatus,
+    ShareTheme,
 )
 
 

@@ -10,8 +10,7 @@ from datetime import date, timedelta
 
 from celery import shared_task
 
-from ..infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
-from ..infrastructure.providers import DjangoSectorRepository
+from .repository_provider import AKShareSectorAdapter, DjangoSectorRepository
 from .use_cases import AnalyzeSectorRotationUseCase, UpdateSectorDataUseCase
 
 

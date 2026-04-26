@@ -21,13 +21,11 @@ from ..domain.entities import (
     create_portfolio_transition_plan,
 )
 from ..domain.services import RecommendationConsolidationService, ValuationSnapshotService
-from ..infrastructure.feature_providers import (
+from .repository_provider import (
     create_candidate_provider,
     create_feature_provider,
     create_signal_provider,
     create_valuation_provider,
-)
-from ..infrastructure.providers import (
     CooldownRepository,
     DecisionModelParamConfigRepository,
     ExecutionApprovalRequestRepository,

@@ -6,7 +6,7 @@ def test_build_sync_macro_data_use_case_uses_default_adapter(monkeypatch):
     fake_adapter = object()
 
     monkeypatch.setattr(
-        "apps.macro.infrastructure.repositories.DjangoMacroRepository",
+        "apps.macro.infrastructure.providers.DjangoMacroRepository",
         lambda: fake_repository,
     )
     monkeypatch.setattr(
@@ -25,7 +25,7 @@ def test_build_sync_macro_data_use_case_uses_explicit_akshare_adapter(monkeypatc
     fake_adapter = object()
 
     monkeypatch.setattr(
-        "apps.macro.infrastructure.repositories.DjangoMacroRepository",
+        "apps.macro.infrastructure.providers.DjangoMacroRepository",
         lambda: fake_repository,
     )
     monkeypatch.setattr(

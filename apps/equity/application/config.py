@@ -19,6 +19,9 @@ from django.conf import settings
 from django.core.cache import cache
 
 from apps.equity.domain.entities_valuation_repair import ValuationRepairConfig
+from apps.equity.application.repository_provider import (
+    get_equity_valuation_repair_config_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +71,7 @@ _SETTINGS_MAPPING = {
 def _get_config_from_db() -> ValuationRepairConfig | None:
     """从数据库获取激活的配置"""
     try:
-        from apps.equity.infrastructure.providers import ValuationRepairConfigRepository
-
-        db_config = ValuationRepairConfigRepository().get_active_domain_config()
+        db_config = get_equity_valuation_repair_config_repository().get_active_domain_config()
         if db_config:
             logger.debug("Using active DB valuation repair config")
             return db_config
@@ -135,9 +136,7 @@ def get_valuation_repair_config_summary(use_cache: bool = True) -> dict[str, Any
     source = "settings"
 
     try:
-        from apps.equity.infrastructure.providers import ValuationRepairConfigRepository
-
-        active_version = ValuationRepairConfigRepository().get_active_version()
+        active_version = get_equity_valuation_repair_config_repository().get_active_version()
         if active_version:
             source = "database"
     except Exception as e:

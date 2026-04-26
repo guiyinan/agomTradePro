@@ -7,6 +7,13 @@ Application Use Cases for Setup Wizard.
 from dataclasses import dataclass
 from typing import Optional
 
+from apps.setup_wizard.application.repository_provider import (
+    get_setup_admin_repository,
+    get_setup_ai_provider_repository,
+    get_setup_data_source_repository,
+    get_setup_state_repository,
+    ensure_setup_security_keys,
+)
 from apps.setup_wizard.domain.entities import (
     AdminConfig,
     AIProviderConfigDTO,
@@ -19,12 +26,6 @@ from apps.setup_wizard.domain.services import (
     PasswordStrengthChecker,
     SetupProgressCalculator,
     SetupValidator,
-)
-from apps.setup_wizard.infrastructure.providers import (
-    AdminRepository,
-    AIProviderRepository,
-    DataSourceRepository,
-    SetupStateRepository,
 )
 
 
@@ -59,8 +60,8 @@ class CheckSetupStatusUseCase:
     """检查安装状态用例"""
 
     def __init__(self):
-        self.state_repo = SetupStateRepository()
-        self.admin_repo = AdminRepository()
+        self.state_repo = get_setup_state_repository()
+        self.admin_repo = get_setup_admin_repository()
 
     def execute(self) -> CheckSetupStatusResult:
         """
@@ -89,8 +90,8 @@ class SetupAdminUseCase:
     """设置管理员用例"""
 
     def __init__(self):
-        self.admin_repo = AdminRepository()
-        self.state_repo = SetupStateRepository()
+        self.admin_repo = get_setup_admin_repository()
+        self.state_repo = get_setup_state_repository()
         self.validator = SetupValidator()
 
     def execute(self, config: AdminConfig) -> SetupAdminResult:
@@ -151,8 +152,8 @@ class SetupAIProviderUseCase:
     """设置 AI Provider 用例"""
 
     def __init__(self):
-        self.ai_provider_repo = AIProviderRepository()
-        self.state_repo = SetupStateRepository()
+        self.ai_provider_repo = get_setup_ai_provider_repository()
+        self.state_repo = get_setup_state_repository()
         self.validator = SetupValidator()
 
     def execute(self, config: AIProviderConfigDTO | None) -> SetupAIProviderResult:
@@ -195,8 +196,8 @@ class SetupDataSourceUseCase:
     """设置数据源用例"""
 
     def __init__(self):
-        self.data_source_repo = DataSourceRepository()
-        self.state_repo = SetupStateRepository()
+        self.data_source_repo = get_setup_data_source_repository()
+        self.state_repo = get_setup_state_repository()
 
     def execute(self, config: DataSourceConfigDTO | None) -> SetupAIProviderResult:
         """
@@ -249,9 +250,7 @@ class EnsureSecurityKeysUseCase:
         Returns:
             Dict with generation flags
         """
-        from apps.setup_wizard.infrastructure.encryption_setup import ensure_all_keys
-
-        return ensure_all_keys(
+        return ensure_setup_security_keys(
             generate_secret_key=generate_secret_key,
             generate_encryption_key=generate_encryption_key,
         )
@@ -261,7 +260,7 @@ class CompleteSetupUseCase:
     """完成安装用例"""
 
     def __init__(self):
-        self.state_repo = SetupStateRepository()
+        self.state_repo = get_setup_state_repository()
 
     def execute(self) -> None:
         """执行完成安装"""
@@ -272,7 +271,7 @@ class VerifyAdminAuthUseCase:
     """验证管理员认证用例"""
 
     def __init__(self):
-        self.admin_repo = AdminRepository()
+        self.admin_repo = get_setup_admin_repository()
 
     def execute(self, password: str) -> bool:
         """

@@ -9,12 +9,10 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Dict, List, Optional
 
-from apps.equity.infrastructure.providers import (
+from apps.equity.application.repository_provider import (
+    build_akshare_valuation_gateway,
     build_quality_snapshot,
-)
-from apps.equity.infrastructure.valuation_source_gateways import (
-    AKShareValuationGateway,
-    TushareValuationGateway,
+    build_tushare_valuation_gateway,
 )
 from shared.config.secrets import get_secrets
 
@@ -111,7 +109,7 @@ class SyncEquityValuationUseCase:
 
     def __init__(self, stock_repository):
         self.stock_repo = stock_repository
-        self.akshare_gateway = AKShareValuationGateway()
+        self.akshare_gateway = build_akshare_valuation_gateway()
         self.tushare_gateway = None
 
     def execute(self, request: SyncEquityValuationRequest) -> SyncEquityValuationResponse:
@@ -126,7 +124,7 @@ class SyncEquityValuationUseCase:
                 try:
                     tushare_settings = get_secrets().data_sources
                     if tushare_settings.tushare_token:
-                        self.tushare_gateway = TushareValuationGateway(
+                        self.tushare_gateway = build_tushare_valuation_gateway(
                             token=tushare_settings.tushare_token,
                             http_url=tushare_settings.tushare_http_url,
                         )

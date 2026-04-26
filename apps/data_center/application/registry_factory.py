@@ -19,7 +19,10 @@ import logging
 from typing import TYPE_CHECKING
 
 from apps.data_center.domain.enums import DataCapability
-from apps.data_center.infrastructure.registries.source_registry import SourceRegistry
+from apps.data_center.application.repository_provider import (
+    SourceRegistry,
+    get_provider_config_repository,
+)
 
 if TYPE_CHECKING:
     pass
@@ -142,9 +145,7 @@ def reset_registry() -> None:
 def _build_registry() -> SourceRegistry:
     registry = SourceRegistry()
     try:
-        from apps.data_center.infrastructure.providers import ProviderConfigRepository
-
-        for config in ProviderConfigRepository().list_active():
+        for config in get_provider_config_repository().list_active():
             provider = _DbProvider(config.name, config.source_type)
             if not provider._caps:
                 logger.warning(

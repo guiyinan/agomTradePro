@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from apps.hedge.application.repository_provider import (
+    HedgeIntegrationService,
     get_hedge_alert_repository,
     get_hedge_correlation_repository,
+    get_hedge_integration_service,
     get_hedge_pair_repository,
     get_hedge_portfolio_repository,
 )
@@ -27,7 +29,6 @@ from apps.hedge.application.use_cases import (
     ResolveHedgeAlertResponse,
     ResolveHedgeAlertUseCase,
 )
-from apps.hedge.infrastructure.services import HedgeIntegrationService
 
 HEDGE_METHOD_CHOICES = [
     ("beta", "Beta对冲"),
@@ -41,7 +42,7 @@ HEDGE_METHOD_CHOICES = [
 def _get_integration_service() -> HedgeIntegrationService:
     """Return the hedge integration service."""
 
-    return HedgeIntegrationService()
+    return get_hedge_integration_service()
 
 
 def get_hedge_pair_queryset():

@@ -17,16 +17,17 @@ from celery import shared_task
 from django.utils import timezone
 
 from apps.alpha.application.repository_provider import (
-    get_alpha_score_cache_repository,
-    get_qlib_model_registry_repository,
-)
-from apps.alpha.domain.entities import normalize_stock_code
-from apps.alpha.infrastructure.qlib_builder import (
     TushareQlibBuilder,
+    evaluate_model_from_cache,
+    get_alpha_score_cache_repository,
+    get_alpha_pool_data_repository,
+    get_numpy,
+    get_pandas,
     normalize_qlib_symbol,
+    get_qlib_model_registry_repository,
     resolve_effective_trade_date,
 )
-from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas
+from apps.alpha.domain.entities import normalize_stock_code
 from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
@@ -821,12 +822,9 @@ def qlib_evaluate_model(
 
         from django.utils import timezone as tz
 
-        from ..infrastructure.cache_evaluation import evaluate_model_from_cache
-        from ..infrastructure.providers import QlibModelRegistryRepository
-
         logger.info(f"开始评估模型: {model_artifact_hash}")
 
-        registry_repo = QlibModelRegistryRepository()
+        registry_repo = get_qlib_model_registry_repository()
         model = registry_repo.get_by_artifact_hash(model_artifact_hash)
 
         # 计算 IC/ICIR：取最近 60 天缓存数据评估
@@ -1024,10 +1022,11 @@ def qlib_daily_scoped_inference(
 ) -> dict:
     """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
-    from apps.alpha.infrastructure.providers import AlphaPoolDataRepository
 
     trade_date = timezone.localdate()
-    portfolio_refs = AlphaPoolDataRepository().list_active_portfolio_refs(limit=portfolio_limit)
+    portfolio_refs = get_alpha_pool_data_repository().list_active_portfolio_refs(
+        limit=portfolio_limit
+    )
     resolver = PortfolioAlphaPoolResolver()
 
     resolved_scopes: list[tuple[dict, Any]] = []

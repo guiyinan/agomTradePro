@@ -15,6 +15,10 @@ from datetime import date, timedelta
 from typing import Any
 
 from django.utils import timezone as django_timezone
+from apps.dashboard.application.repository_provider import (
+    get_dashboard_alpha_context_repository,
+    get_dashboard_query_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -439,9 +443,7 @@ class AlphaVisualizationQuery:
     def _get_ic_trends(self, days: int) -> list[dict[str, Any]]:
         """获取 Alpha IC/ICIR 趋势数据"""
         try:
-            from apps.dashboard.infrastructure.providers import DashboardQueryRepository
-
-            trends = DashboardQueryRepository().get_alpha_ic_trends(days)
+            trends = get_dashboard_query_repository().get_alpha_ic_trends(days)
             if trends:
                 return trends
             return self._empty_ic_data(days)
@@ -690,9 +692,7 @@ class DecisionPlaneQuery:
     def _get_actionable_candidates(self, max_count: int | None) -> list[Any]:
         """获取可操作候选列表"""
         try:
-            from apps.dashboard.infrastructure.providers import DashboardAlphaContextRepository
-
-            context_repo = DashboardAlphaContextRepository()
+            context_repo = get_dashboard_alpha_context_repository()
             candidates = context_repo.load_actionable_candidates(max_count=max_count)
             return self._attach_asset_names(candidates)
         except Exception as e:
@@ -1121,9 +1121,9 @@ class RegimeSummaryQuery:
     def _get_latest_macro_value(self, indicator_code: str) -> float | None:
         """获取最新宏观指标值"""
         try:
-            from apps.dashboard.infrastructure.providers import DashboardQueryRepository
-
-            return DashboardQueryRepository().get_latest_macro_indicator_value(indicator_code)
+            return get_dashboard_query_repository().get_latest_macro_indicator_value(
+                indicator_code
+            )
         except Exception as e:
             logger.debug(f"Failed to get macro value for {indicator_code}: {e}")
             return None
@@ -1135,9 +1135,7 @@ class DashboardDetailQuery:
     def get_position_detail(self, user_id: int, asset_code: str) -> dict[str, Any]:
         """获取持仓详情和相关信号。"""
         try:
-            from apps.dashboard.infrastructure.providers import DashboardQueryRepository
-
-            return DashboardQueryRepository().get_position_detail(
+            return get_dashboard_query_repository().get_position_detail(
                 user_id=user_id,
                 asset_code=asset_code,
             )
@@ -1169,12 +1167,11 @@ class DashboardDetailQuery:
             GenerateCandidateUseCase,
         )
         from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.dashboard.infrastructure.providers import DashboardQueryRepository
 
         trigger_repo = get_alpha_trigger_repository()
         candidate_repo = get_alpha_candidate_repository()
         use_case = GenerateCandidateUseCase(trigger_repo, candidate_repo)
-        generation_context = DashboardQueryRepository().load_alpha_candidate_generation_context()
+        generation_context = get_dashboard_query_repository().load_alpha_candidate_generation_context()
         active_triggers = generation_context["active_triggers"]
         existing_trigger_ids = generation_context["existing_trigger_ids"]
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.rotation.infrastructure.services import (
+from apps.rotation.application.repository_provider import (
     RotationIntegrationService as _RotationIntegrationService,
 )
 

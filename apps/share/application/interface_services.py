@@ -8,10 +8,10 @@ from typing import Any
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
+from apps.share.application.repository_provider import get_share_interface_repository
 from apps.share.application.use_cases import ShareSnapshotUseCases
-from apps.share.infrastructure.providers import ShareInterfaceRepository
 
-_repo = ShareInterfaceRepository
+_repo = get_share_interface_repository
 
 DECISION_STATUS_DISPLAY = {
     "pending": "待处理",

@@ -546,9 +546,11 @@ class CalculateScoresUseCase:
     def __init__(self, integration_service, portfolio_repo=None):
         self.integration_service = integration_service
         if portfolio_repo is None:
-            from apps.factor.infrastructure.providers import FactorPortfolioConfigRepository
+            from apps.factor.application.repository_provider import (
+                get_factor_portfolio_config_repository,
+            )
 
-            portfolio_repo = FactorPortfolioConfigRepository()
+            portfolio_repo = get_factor_portfolio_config_repository()
         self.portfolio_repo = portfolio_repo
 
     def execute(self, request: CalculateScoresRequest) -> CalculateScoresResponse:

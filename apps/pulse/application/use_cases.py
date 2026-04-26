@@ -3,6 +3,10 @@
 import logging
 from datetime import date
 
+from apps.pulse.application.repository_provider import (
+    get_pulse_data_provider,
+    get_pulse_repository,
+)
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
 from core.integration.current_regime import resolve_current_regime_for_pulse
@@ -86,9 +90,7 @@ class CalculatePulseUseCase:
             _refresh_macro_inputs_for_pulse(target_date)
 
             # 3. 获取所有指标读数
-            from apps.pulse.infrastructure.data_provider import DjangoPulseDataProvider
-
-            provider = DjangoPulseDataProvider()
+            provider = get_pulse_data_provider()
             readings = provider.get_all_readings(target_date)
 
             if not readings:
@@ -103,9 +105,7 @@ class CalculatePulseUseCase:
             )
 
             # 5. 持久化
-            from apps.pulse.infrastructure.providers import PulseRepository
-
-            repo = PulseRepository()
+            repo = get_pulse_repository()
             repo.save_snapshot(snapshot)
 
             logger.info(
@@ -134,9 +134,7 @@ class GetLatestPulseUseCase:
         """获取最新快照，并在需要时触发按需重算。"""
         target_date = as_of_date or date.today()
         try:
-            from apps.pulse.infrastructure.providers import PulseRepository
-
-            repo = PulseRepository()
+            repo = get_pulse_repository()
             snapshot = repo.get_latest_snapshot()
 
             if snapshot and _is_snapshot_usable(

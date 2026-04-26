@@ -18,9 +18,11 @@ from apps.alpha.application.pool_resolver import (
 )
 from apps.alpha.application.services import AlphaService
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
-from apps.dashboard.infrastructure.providers import (
+from apps.dashboard.application.repository_provider import (
     AlphaRecommendationHistoryRepository,
     DashboardAlphaContextRepository,
+    get_alpha_recommendation_history_repository,
+    get_dashboard_alpha_context_repository,
 )
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 
@@ -61,8 +63,8 @@ class AlphaHomepageQuery:
         history_repo: AlphaRecommendationHistoryRepository | None = None,
         context_repo: DashboardAlphaContextRepository | None = None,
     ) -> None:
-        self.history_repo = history_repo or AlphaRecommendationHistoryRepository()
-        self.context_repo = context_repo or DashboardAlphaContextRepository()
+        self.history_repo = history_repo or get_alpha_recommendation_history_repository()
+        self.context_repo = context_repo or get_dashboard_alpha_context_repository()
         self.portfolio_repo = get_portfolio_repository()
         self.alpha_service = AlphaService()
         self.decision_engine = DecisionPolicyEngine()

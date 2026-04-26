@@ -78,11 +78,11 @@ class BaseContextFacade:
 
     def __init__(self, context_repository=None):
         if context_repository is None:
-            from apps.agent_runtime.infrastructure.context_snapshot_repository import (
-                DjangoContextSnapshotRepository,
+            from apps.agent_runtime.application.repository_provider import (
+                get_context_snapshot_repository,
             )
 
-            context_repository = DjangoContextSnapshotRepository()
+            context_repository = get_context_snapshot_repository()
         self.context_repository = context_repository
 
     # ------------------------------------------------------------------

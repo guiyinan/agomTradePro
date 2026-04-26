@@ -18,6 +18,19 @@ from core.integration.account_positions import list_portfolio_position_weights
 logger = logging.getLogger(__name__)
 
 
+class _AccountPositionRepository:
+    """Lightweight adapter for account position reads."""
+
+    def list_portfolio_position_weights(self, portfolio_id: int):
+        return list_portfolio_position_weights(portfolio_id)
+
+
+def get_account_position_repository():
+    """Return the default account position repository adapter."""
+
+    return _AccountPositionRepository()
+
+
 @dataclass
 class HedgeCalculationResult:
     """对冲计算结果"""
@@ -280,7 +293,9 @@ class HedgeEffectivenessAnalyzer:
         """
         try:
             # 获取持仓
-            positions = list_portfolio_position_weights(portfolio_id)
+            positions = get_account_position_repository().list_portfolio_position_weights(
+                portfolio_id
+            )
 
             if not positions:
                 return {'beta_before': 1.0, 'beta_after': 1.0}

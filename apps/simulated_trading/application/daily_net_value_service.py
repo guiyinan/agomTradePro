@@ -13,13 +13,17 @@ from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
 from apps.simulated_trading.application.ports import DailyNetValueRepositoryProtocol
-from apps.simulated_trading.domain.entities import SimulatedAccount
-from apps.simulated_trading.infrastructure.providers import (
+from apps.simulated_trading.application.repository_provider import (
     DjangoDailyNetValueRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
+    get_simulated_account_repository,
+    get_simulated_daily_net_value_repository,
+    get_simulated_position_repository,
+    get_simulated_trade_repository,
 )
+from apps.simulated_trading.domain.entities import SimulatedAccount
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +46,12 @@ class DailyNetValueService:
         trade_repo: DjangoTradeRepository | None = None,
         daily_net_value_repo: DailyNetValueRepositoryProtocol | None = None,
     ):
-        self.account_repo = account_repo or DjangoSimulatedAccountRepository()
-        self.position_repo = position_repo or DjangoPositionRepository()
-        self.trade_repo = trade_repo or DjangoTradeRepository()
-        self.daily_net_value_repo = daily_net_value_repo or DjangoDailyNetValueRepository()
+        self.account_repo = account_repo or get_simulated_account_repository()
+        self.position_repo = position_repo or get_simulated_position_repository()
+        self.trade_repo = trade_repo or get_simulated_trade_repository()
+        self.daily_net_value_repo = (
+            daily_net_value_repo or get_simulated_daily_net_value_repository()
+        )
 
     def record_and_update_performance(
         self,

@@ -16,9 +16,9 @@ from typing import Dict, List, Optional
 from shared.infrastructure.config_loader import get_sector_weights
 from core.integration.market_index_returns import fetch_index_daily_returns
 
+from .repository_provider import DjangoSectorRepository
 from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
 from ..domain.services import SectorRotationAnalyzer
-from ..infrastructure.providers import DjangoSectorRepository
 
 logger = logging.getLogger(__name__)
 
@@ -282,18 +282,21 @@ class AnalyzeSectorRotationUseCase:
                 return None
 
         try:
-            if callable(self.market_adapter):
+            if hasattr(self.market_adapter, "get_index_daily_returns"):
+                returns_dict = self.market_adapter.get_index_daily_returns(
+                    index_code='000300.SH',
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            elif callable(self.market_adapter):
                 returns_dict = self.market_adapter(
                     index_code='000300.SH',
                     start_date=start_date,
                     end_date=end_date,
                 )
             else:
-                returns_dict = self.market_adapter.get_index_daily_returns(
-                    index_code='000300.SH',
-                    start_date=start_date,
-                    end_date=end_date,
-                )
+                logger.warning("市场数据适配器不支持 index returns，大盘收益率 unavailable")
+                return None
             if not returns_dict:
                 logger.warning("沪深300 收益率数据为空，大盘收益率 unavailable")
                 return None

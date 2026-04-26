@@ -7,7 +7,7 @@ shared or asset_analysis infrastructure modules directly.
 
 from __future__ import annotations
 
-from apps.asset_analysis.infrastructure.asset_name_resolver import (
+from apps.asset_analysis.application.repository_provider import (
     AssetNameResolver,
     enrich_with_asset_names,
     resolve_asset_name,

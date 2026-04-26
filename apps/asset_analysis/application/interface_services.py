@@ -7,12 +7,13 @@ from datetime import date
 from typing import Any
 
 from apps.asset_analysis.application.dtos import ScreenRequest, ScreenResponse
+from apps.asset_analysis.application.repository_provider import (
+    get_asset_pool_query_repository,
+    get_asset_repository,
+    get_weight_config_repository,
+)
 from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.asset_analysis.infrastructure.providers import (
-    DjangoAssetRepository,
-    DjangoWeightConfigRepository,
-)
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.sentiment.application.repository_provider import get_sentiment_index_repository
@@ -21,9 +22,6 @@ from core.integration.asset_analysis_market_sources import (
     screen_equity_assets_for_pool,
     screen_fund_assets_for_pool,
 )
-
-from .repository_provider import get_asset_pool_query_repository
-
 
 @dataclass(frozen=True)
 class AssetPoolContextPayload:
@@ -86,8 +84,8 @@ def execute_multidim_screen(request: ScreenRequest, context: ScoreContext) -> Sc
     """Execute multi-dimensional screening with default repositories."""
 
     use_case = MultiDimScreenUseCase(
-        DjangoWeightConfigRepository(),
-        DjangoAssetRepository(),
+        get_weight_config_repository(),
+        get_asset_repository(),
     )
     return use_case.execute(request, context)
 
@@ -95,7 +93,7 @@ def execute_multidim_screen(request: ScreenRequest, context: ScoreContext) -> Sc
 def get_weight_configs() -> dict[str, Any]:
     """Return all weight configs for interface serialization."""
 
-    return GetWeightConfigsUseCase(DjangoWeightConfigRepository()).execute()
+    return GetWeightConfigsUseCase(get_weight_config_repository()).execute()
 
 
 def get_current_weight_config(
@@ -105,7 +103,7 @@ def get_current_weight_config(
 ) -> dict[str, Any]:
     """Return the active weight config for one asset/market context."""
 
-    weights = DjangoWeightConfigRepository().get_active_weights(
+    weights = get_weight_config_repository().get_active_weights(
         asset_type=asset_type,
         market_condition=market_condition,
     )

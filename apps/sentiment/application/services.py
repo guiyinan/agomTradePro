@@ -14,6 +14,7 @@ from typing import List, Optional
 from django.utils import timezone
 
 from apps.ai_provider.application.client_provider import build_openai_compatible_adapter
+from apps.sentiment.application.repository_provider import get_sentiment_alert_repository
 from apps.ai_provider.domain.entities import AIChatRequest
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
@@ -21,7 +22,6 @@ from apps.sentiment.domain.entities import (
     SentimentIndex,
     SentimentSource,
 )
-from apps.sentiment.infrastructure.providers import SentimentAlertRepository
 from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)
@@ -325,7 +325,7 @@ class SentimentAnalyzer:
 
         try:
             # 创建告警记录到数据库
-            SentimentAlertRepository().create_alert(
+            get_sentiment_alert_repository().create_alert(
                 alert_type="ai_failure",
                 severity="warning",
                 title="Sentiment AI 调用失败",

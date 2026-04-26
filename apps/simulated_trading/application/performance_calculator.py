@@ -15,12 +15,15 @@ from statistics import mean, pstdev
 from typing import Dict, List, Optional, Tuple
 
 from apps.data_center.application.price_service import UnifiedPriceService
-from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
-from apps.simulated_trading.infrastructure.providers import (
+from apps.simulated_trading.application.repository_provider import (
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
+    get_simulated_account_repository,
+    get_simulated_position_repository,
+    get_simulated_trade_repository,
 )
+from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
 from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
@@ -39,9 +42,9 @@ class PerformanceCalculator:
     """
 
     def __init__(self):
-        self.account_repo = DjangoSimulatedAccountRepository()
-        self.trade_repo = DjangoTradeRepository()
-        self.position_repo = DjangoPositionRepository()
+        self.account_repo = get_simulated_account_repository()
+        self.trade_repo = get_simulated_trade_repository()
+        self.position_repo = get_simulated_position_repository()
         self.price_provider = UnifiedPriceService()
 
     def _require_market_price(self, asset_code: str, trade_date: date) -> float:

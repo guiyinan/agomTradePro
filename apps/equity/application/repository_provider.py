@@ -3,17 +3,25 @@
 from __future__ import annotations
 
 from apps.equity.infrastructure.adapters import (
+    MarketDataRepositoryAdapter,
     RegimeRepositoryAdapter,
     StockPoolRepositoryAdapter,
     TushareStockAdapter,
 )
+from apps.equity.infrastructure.config_loader import get_stock_screening_rule
 from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
     DjangoStockRepository,
     DjangoValuationDataQualityRepository,
     DjangoValuationRepairRepository,
     EquityBootstrapConfigRepository,
+    ScoringWeightConfigRepository,
     ValuationRepairConfigRepository,
+    build_quality_snapshot,
+)
+from apps.equity.infrastructure.valuation_source_gateways import (
+    AKShareValuationGateway,
+    TushareValuationGateway,
 )
 from apps.regime.application.repository_provider import get_regime_repository
 
@@ -54,6 +62,12 @@ def get_equity_stock_pool_repository() -> StockPoolRepositoryAdapter:
     return StockPoolRepositoryAdapter()
 
 
+def get_equity_market_data_repository() -> MarketDataRepositoryAdapter:
+    """Return the default market data adapter used by equity workflows."""
+
+    return MarketDataRepositoryAdapter()
+
+
 def get_tushare_stock_adapter() -> TushareStockAdapter:
     """Return the default Tushare stock adapter."""
 
@@ -76,3 +90,27 @@ def get_equity_bootstrap_config_repository() -> EquityBootstrapConfigRepository:
     """Return the bootstrap config repository used by init commands."""
 
     return EquityBootstrapConfigRepository()
+
+
+def get_equity_scoring_weight_config_repository() -> ScoringWeightConfigRepository:
+    """Return the scoring weight config repository."""
+
+    return ScoringWeightConfigRepository()
+
+
+def get_equity_valuation_repair_config_repository() -> ValuationRepairConfigRepository:
+    """Return the valuation repair config repository."""
+
+    return ValuationRepairConfigRepository()
+
+
+def build_akshare_valuation_gateway() -> AKShareValuationGateway:
+    """Build the AKShare valuation gateway."""
+
+    return AKShareValuationGateway()
+
+
+def build_tushare_valuation_gateway(*, token: str, http_url: str | None = None) -> TushareValuationGateway:
+    """Build the Tushare valuation gateway."""
+
+    return TushareValuationGateway(token=token, http_url=http_url)

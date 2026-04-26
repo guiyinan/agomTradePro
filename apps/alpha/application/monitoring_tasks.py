@@ -11,9 +11,10 @@ from typing import Dict, List, Optional
 from celery import shared_task
 from django.utils import timezone
 
-from apps.alpha.infrastructure.providers import (
+from apps.alpha.application.repository_provider import (
     AlphaScoreCacheRepository,
     QlibModelRegistryRepository,
+    calculate_rolling_metrics,
 )
 from shared.infrastructure.metrics import AlertManager, MetricType, get_alpha_metrics
 from shared.infrastructure.model_evaluation import (
@@ -169,8 +170,6 @@ def calculate_ic_drift():
             return {"status": "skipped", "reason": "insufficient_data"}
 
         # 使用 cache_evaluation 计算滚动 IC
-        from apps.alpha.infrastructure.cache_evaluation import calculate_rolling_metrics
-
         first_cache = caches[0]
         last_cache = caches[-1]
 

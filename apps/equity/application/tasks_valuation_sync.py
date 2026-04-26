@@ -15,11 +15,11 @@ from apps.equity.application.use_cases_valuation_sync import (
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
 )
-from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
-from apps.equity.infrastructure.providers import (
+from apps.equity.application.repository_provider import (
     DjangoStockRepository,
     DjangoValuationDataQualityRepository,
     DjangoValuationRepairRepository,
+    StockPoolRepositoryAdapter,
 )
 
 

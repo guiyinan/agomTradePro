@@ -22,9 +22,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import List, Optional
 
-from apps.simulated_trading.infrastructure.providers import (
+from apps.simulated_trading.application.repository_provider import (
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
+    get_simulated_account_repository,
+    get_simulated_position_repository,
 )
 
 logger = __import__('logging').getLogger(__name__)
@@ -108,8 +110,8 @@ class SimulatedTradingFacade:
         account_repo: DjangoSimulatedAccountRepository | None = None,
         position_repo: DjangoPositionRepository | None = None,
     ) -> None:
-        self.account_repo = account_repo or DjangoSimulatedAccountRepository()
-        self.position_repo = position_repo or DjangoPositionRepository()
+        self.account_repo = account_repo or get_simulated_account_repository()
+        self.position_repo = position_repo or get_simulated_position_repository()
 
     def _get_active_strategy_binding(self, account_id: int) -> StrategyBindingSummary | None:
         """通过 strategy gateway 获取账户当前激活的策略绑定。"""

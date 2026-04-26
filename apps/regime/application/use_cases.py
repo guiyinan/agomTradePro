@@ -1169,7 +1169,7 @@ class CalculateRegimeV2UseCase:
         from ..domain.services_v2 import ThresholdConfig
 
         try:
-            from ..infrastructure.providers import get_regime_repository
+            from .repository_provider import get_regime_repository
 
             values = get_regime_repository().get_active_threshold_config_values()
             if values:

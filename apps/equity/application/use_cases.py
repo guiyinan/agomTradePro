@@ -11,6 +11,12 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
+from apps.equity.application.repository_provider import (
+    get_equity_market_data_repository,
+    get_equity_regime_repository,
+    get_equity_scoring_weight_config_repository,
+    get_stock_screening_rule,
+)
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
 from apps.equity.domain.services_technical import TechnicalChartService
@@ -69,7 +75,6 @@ class ScreenStocksUseCase:
                 regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
             # 2. 获取筛选规则（从数据库配置加载）
-            from apps.equity.infrastructure.config_loader import get_stock_screening_rule
             rule = get_stock_screening_rule(regime)
 
             if not rule:
@@ -105,8 +110,7 @@ class ScreenStocksUseCase:
                 raise ValueError("没有找到股票数据，请先运行数据采集任务")
 
             # 4. 获取评分权重配置
-            from apps.equity.infrastructure.providers import ScoringWeightConfigRepository
-            config_repo = ScoringWeightConfigRepository()
+            config_repo = get_equity_scoring_weight_config_repository()
             scoring_config = config_repo.get_active_config()
 
             # 5. 筛选（调用 Domain 服务，传入评分配置）
@@ -855,10 +859,8 @@ class AnalyzeRegimeCorrelationUseCase:
         Returns:
             {日期: Regime 名称}
         """
-        from apps.equity.infrastructure.adapters import RegimeRepositoryAdapter
-
         try:
-            regime_adapter = RegimeRepositoryAdapter()
+            regime_adapter = get_equity_regime_repository()
             snapshots = regime_adapter.get_snapshots_in_range(start_date, end_date)
 
             # 将快照列表转换为日期字典
@@ -887,11 +889,10 @@ class AnalyzeRegimeCorrelationUseCase:
         Returns:
             {日期: 收益率}
         """
-        from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
         from core.integration.runtime_benchmarks import get_runtime_benchmark_code
 
         try:
-            market_adapter = MarketDataRepositoryAdapter()
+            market_adapter = get_equity_market_data_repository()
             benchmark_code = get_runtime_benchmark_code("equity_market_benchmark")
             if not benchmark_code:
                 return {}

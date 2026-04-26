@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
-from apps.ai_provider.application.client_provider import get_ai_client_factory
+from apps.ai_provider.application.repository_provider import AIClientFactory
 
 # 复用系统内置的 AI 中台
 from apps.prompt.application.runtime_provider import (
@@ -261,7 +261,7 @@ class AIStrategyExecutor:
         self.portfolio_provider = portfolio_provider
 
         # 初始化 AI 中台组件
-        self.ai_client_factory = get_ai_client_factory()
+        self.ai_client_factory = AIClientFactory()
 
         # 初始化 Prompt 系统组件
         self.prompt_repository = get_prompt_repository()

@@ -39,9 +39,7 @@ from .use_cases import (
     SyncSectorMembershipUseCase,
     SyncValuationUseCase,
 )
-from ..infrastructure.connection_tester import run_connection_test
-from ..infrastructure.provider_factory import UnifiedProviderFactory
-from ..infrastructure.providers import (
+from .repository_provider import (
     AssetRepository,
     CapitalFlowRepository,
     DataProviderSettingsRepository,
@@ -57,6 +55,8 @@ from ..infrastructure.providers import (
     RawAuditRepository,
     SectorMembershipRepository,
     ValuationFactRepository,
+    build_unified_provider_factory,
+    run_data_center_connection_test,
 )
 
 
@@ -64,8 +64,8 @@ def _make_provider_repo() -> ProviderConfigRepository:
     return ProviderConfigRepository()
 
 
-def _make_provider_factory() -> UnifiedProviderFactory:
-    return UnifiedProviderFactory(_make_provider_repo())
+def _make_provider_factory():
+    return build_unified_provider_factory()
 
 
 def _make_raw_audit_repo() -> RawAuditRepository:
@@ -83,7 +83,7 @@ def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUse
 
     class _Tester:
         def test(self, config):
-            return run_connection_test(config)
+            return run_data_center_connection_test(config)
 
     return RunProviderConnectionTestUseCase(_make_provider_repo(), _Tester())
 

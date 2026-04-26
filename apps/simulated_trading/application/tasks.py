@@ -23,16 +23,20 @@ from apps.simulated_trading.application.asset_pool_query_service import AssetPoo
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
-from apps.simulated_trading.application.use_cases import (
-    ExecuteBuyOrderUseCase,
-    ExecuteSellOrderUseCase,
-    GetAccountPerformanceUseCase,
-)
-from apps.simulated_trading.infrastructure.providers import (
+from apps.simulated_trading.application.repository_provider import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
+    get_simulated_account_repository,
+    get_simulated_inspection_repository,
+    get_simulated_position_repository,
+    get_simulated_trade_repository,
+)
+from apps.simulated_trading.application.use_cases import (
+    ExecuteBuyOrderUseCase,
+    ExecuteSellOrderUseCase,
+    GetAccountPerformanceUseCase,
 )
 from core.exceptions import DataFetchError
 from core.integration.realtime_polling import execute_realtime_price_polling
@@ -80,9 +84,9 @@ def daily_auto_trading_task(
 
     try:
         # 2. 初始化依赖
-        account_repo = DjangoSimulatedAccountRepository()
-        position_repo = DjangoPositionRepository()
-        trade_repo = DjangoTradeRepository()
+        account_repo = get_simulated_account_repository()
+        position_repo = get_simulated_position_repository()
+        trade_repo = get_simulated_trade_repository()
         signal_repo = get_signal_repository()
 
         buy_use_case = ExecuteBuyOrderUseCase(
@@ -181,8 +185,8 @@ def update_position_prices_task(self, account_id: int | None = None) -> dict[str
     logger.info(f"开始更新持仓价格: account_id={account_id}")
 
     try:
-        account_repo = DjangoSimulatedAccountRepository()
-        position_repo = DjangoPositionRepository()
+        account_repo = get_simulated_account_repository()
+        position_repo = get_simulated_position_repository()
         price_provider = UnifiedPriceService()
 
         # 获取账户列表
@@ -335,7 +339,7 @@ def calculate_all_performance_task(self, trade_date: str | None = None) -> dict[
 
     try:
         calculator = PerformanceCalculator()
-        account_repo = DjangoSimulatedAccountRepository()
+        account_repo = get_simulated_account_repository()
         accounts = account_repo.get_active_accounts()
 
         results = []
@@ -409,7 +413,7 @@ def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> dict[str, 
     logger.info(f"开始清理不活跃账户: {inactive_days} 天无交易")
 
     try:
-        account_repo = DjangoSimulatedAccountRepository()
+        account_repo = get_simulated_account_repository()
         cutoff_date = date.today() - timedelta(days=inactive_days)
 
         accounts = account_repo.get_active_accounts()
@@ -469,9 +473,9 @@ def send_performance_summary_task(self, account_ids: list | None = None) -> dict
     logger.info("开始生成绩效摘要")
 
     try:
-        account_repo = DjangoSimulatedAccountRepository()
-        position_repo = DjangoPositionRepository()
-        trade_repo = DjangoTradeRepository()
+        account_repo = get_simulated_account_repository()
+        position_repo = get_simulated_position_repository()
+        trade_repo = get_simulated_trade_repository()
 
         # 获取账户列表
         if account_ids:
@@ -682,7 +686,7 @@ def _send_daily_inspection_email(result: dict[str, Any]) -> None:
     if not getattr(settings, "DAILY_INSPECTION_EMAIL_ENABLED", True):
         return
 
-    inspection_repo = DjangoInspectionRepository()
+    inspection_repo = get_simulated_inspection_repository()
     context = inspection_repo.get_account_notification_context(result["account_id"])
     if not context:
         return
@@ -759,7 +763,7 @@ def _send_rebalance_proposal_notification(result: dict[str, Any]) -> None:
     proposal_id = result["proposal_id"]
     summary = result.get("summary", {})
 
-    inspection_repo = DjangoInspectionRepository()
+    inspection_repo = get_simulated_inspection_repository()
     context = inspection_repo.get_account_notification_context(account_id)
     if not context:
         logger.warning("无法发送再平衡建议通知：账户不存在 account_id=%s", account_id)
@@ -895,7 +899,7 @@ def _record_notification_history(
 ) -> None:
     """记录通知历史"""
     try:
-        inspection_repo = DjangoInspectionRepository()
+        inspection_repo = get_simulated_inspection_repository()
         inspection_repo.record_notification_history(
             account_id=account_id,
             proposal_id=proposal.get("proposal_id"),

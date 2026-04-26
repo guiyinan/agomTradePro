@@ -5,16 +5,15 @@ from __future__ import annotations
 from apps.policy.infrastructure.adapters.ai_policy_classifier import (
     create_ai_policy_classifier,
 )
-from apps.policy.application.interface_services import (
-    PolicyAdminInterfaceService,
-    PolicyWorkbenchInterfaceService,
-)
+from apps.policy.infrastructure.adapters import FeedparserAdapter, create_content_extractor
+from apps.policy.infrastructure.adapters.content_extractor import ContentExtractorError
 from apps.policy.infrastructure.interface_repositories import (
     PolicyAdminInterfaceRepository,
     PolicyWorkbenchInterfaceRepository,
 )
 from apps.policy.infrastructure.notification_service import NotificationServiceFactory
 from apps.policy.infrastructure.providers import (
+    DjangoPolicyRepository,
     HedgePositionRepository,
     RSSRepository,
     WorkbenchRepository,
@@ -40,14 +39,38 @@ def get_workbench_repository() -> WorkbenchRepository:
     return WorkbenchRepository()
 
 
-def get_policy_admin_interface_service() -> PolicyAdminInterfaceService:
+__all__ = [
+    "ContentExtractorError",
+    "DjangoPolicyRepository",
+    "FeedparserAdapter",
+    "HedgePositionRepository",
+    "NotificationServiceFactory",
+    "PolicyAdminInterfaceRepository",
+    "PolicyAdminInterfaceService",
+    "PolicyWorkbenchInterfaceRepository",
+    "PolicyWorkbenchInterfaceService",
+    "RSSRepository",
+    "WorkbenchRepository",
+    "create_ai_policy_classifier",
+    "create_content_extractor",
+    "get_current_policy_repository",
+    "get_rss_repository",
+    "get_workbench_repository",
+]
+
+
+def get_policy_admin_interface_service():
     """Return the policy admin interface service."""
+
+    from apps.policy.application.interface_services import PolicyAdminInterfaceService
 
     return PolicyAdminInterfaceService(admin_repo=PolicyAdminInterfaceRepository())
 
 
-def get_policy_workbench_interface_service() -> PolicyWorkbenchInterfaceService:
+def get_policy_workbench_interface_service():
     """Return the policy workbench interface service."""
+
+    from apps.policy.application.interface_services import PolicyWorkbenchInterfaceService
 
     return PolicyWorkbenchInterfaceService(
         workbench_repo=get_workbench_repository(),

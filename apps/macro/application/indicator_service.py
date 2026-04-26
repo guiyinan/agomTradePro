@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 from django.utils import timezone
 
-from apps.macro.infrastructure.providers import MacroIndicatorReadRepository
+from apps.macro.application.repository_provider import get_macro_read_repository
 from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
 
@@ -19,7 +19,7 @@ class UnitDisplayService:
     负责将存储值（统一为"元"）转换回展示值（原始单位）
     """
 
-    read_repository = MacroIndicatorReadRepository()
+    read_repository = get_macro_read_repository()
 
     @staticmethod
     def convert_for_display(
@@ -266,7 +266,7 @@ class IndicatorUnitService:
 class IndicatorService:
     """宏观经济指标服务"""
 
-    read_repository = MacroIndicatorReadRepository()
+    read_repository = get_macro_read_repository()
 
     CODE_ALIASES: dict[str, list[str]] = {
         'CN_PMI_MANUFACTURING': ['CN_PMI_MANUFACTURING', 'CN_PMI'],

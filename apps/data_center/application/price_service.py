@@ -8,13 +8,13 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from apps.data_center.infrastructure.providers import (
+from apps.data_center.application.repository_provider import (
     FundNavRepository as DataCenterFundNavRepository,
 )
-from apps.data_center.infrastructure.providers import (
+from apps.data_center.application.repository_provider import (
     PriceBarRepository as DataCenterPriceBarRepository,
 )
-from apps.data_center.infrastructure.providers import (
+from apps.data_center.application.repository_provider import (
     QuoteSnapshotRepository as DataCenterQuoteSnapshotRepository,
 )
 from core.integration.data_center_business_sources import build_hybrid_fund_adapter

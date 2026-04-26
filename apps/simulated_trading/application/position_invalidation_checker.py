@@ -16,8 +16,11 @@ from apps.signal.domain.invalidation import (
     InvalidationRule,
     evaluate_rule,
 )
+from apps.simulated_trading.application.repository_provider import (
+    DjangoPositionRepository,
+    get_simulated_position_repository,
+)
 from apps.simulated_trading.domain.entities import Position
-from apps.simulated_trading.infrastructure.providers import DjangoPositionRepository
 
 
 @dataclass(frozen=True)
@@ -66,7 +69,7 @@ class PositionInvalidationChecker:
     def __init__(self):
         """初始化检查器"""
         self.macro_repo = _DataCenterMacroGateway()
-        self.position_repo = DjangoPositionRepository()
+        self.position_repo = get_simulated_position_repository()
 
     def check_all_positions(self) -> list[dict]:
         """

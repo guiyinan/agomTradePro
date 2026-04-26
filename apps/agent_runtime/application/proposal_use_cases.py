@@ -12,6 +12,10 @@ from uuid import uuid4
 
 from django.utils import timezone
 
+from apps.agent_runtime.application.repository_provider import (
+    AgentProposalRepository,
+    AgentTaskRepository,
+)
 from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
     TERMINAL_PROPOSAL_STATUSES,
@@ -27,10 +31,6 @@ from apps.agent_runtime.domain.guardrails import (
     GuardrailCheckOutput,
     GuardrailEngine,
     get_guardrail_engine,
-)
-from apps.agent_runtime.infrastructure.providers import (
-    AgentProposalRepository,
-    AgentTaskRepository,
 )
 
 logger = logging.getLogger(__name__)

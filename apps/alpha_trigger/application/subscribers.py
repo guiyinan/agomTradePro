@@ -100,9 +100,11 @@ def _create_candidate_promotion_handler():
     try:
         # 延迟导入避免循环依赖
         from apps.alpha_trigger.application.handlers import CandidatePromotionHandler
-        from apps.alpha_trigger.infrastructure.providers import AlphaCandidateRepository
+        from apps.alpha_trigger.application.repository_provider import (
+            get_alpha_candidate_repository,
+        )
 
-        candidate_repository = AlphaCandidateRepository()
+        candidate_repository = get_alpha_candidate_repository()
 
         return CandidatePromotionHandler(
             candidate_repository=candidate_repository,

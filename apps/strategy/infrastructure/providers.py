@@ -15,6 +15,7 @@ from core.integration.simulated_trading_facade import (
     get_simulated_trading_facade_bridge,
 )
 from apps.strategy.infrastructure.repositories import (
+    DjangoStrategyGatewayRepository,
     DjangoStrategyExecutionLogRepository,
     DjangoStrategyRepository,
     StrategyInterfaceRepository,

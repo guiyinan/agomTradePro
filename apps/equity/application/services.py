@@ -17,7 +17,7 @@ from apps.asset_analysis.domain.services import (
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.equity.domain.entities import EquityAssetScore, StockInfo
-from apps.equity.infrastructure.providers import DjangoEquityAssetRepository
+from apps.equity.application.repository_provider import DjangoEquityAssetRepository
 
 
 class EquityMultiDimScorer:

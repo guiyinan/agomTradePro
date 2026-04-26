@@ -8,7 +8,7 @@ from datetime import date
 from typing import Any
 
 from apps.alpha.domain.entities import AlphaPoolScope
-from apps.alpha.infrastructure.providers import AlphaPoolDataRepository
+from apps.alpha.application.repository_provider import AlphaPoolDataRepository
 
 logger = logging.getLogger(__name__)
 

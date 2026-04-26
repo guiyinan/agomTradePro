@@ -9,10 +9,13 @@ from typing import Any
 
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.simulated_trading.infrastructure.providers import (
+from apps.simulated_trading.application.repository_provider import (
     DjangoInspectionRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
+    get_simulated_account_repository,
+    get_simulated_inspection_repository,
+    get_simulated_position_repository,
 )
 from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 from apps.strategy.domain.allocation_matrix import get_allocation_target
@@ -48,9 +51,9 @@ class DailyInspectionService:
         "commodity": "commodity",
         "cash": "cash",
     }
-    account_repo = DjangoSimulatedAccountRepository()
-    position_repo = DjangoPositionRepository()
-    inspection_repo = DjangoInspectionRepository()
+    account_repo = get_simulated_account_repository()
+    position_repo = get_simulated_position_repository()
+    inspection_repo = get_simulated_inspection_repository()
     policy_repo = get_current_policy_repository()
 
     @classmethod

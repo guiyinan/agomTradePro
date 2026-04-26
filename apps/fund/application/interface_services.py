@@ -16,7 +16,10 @@ from apps.fund.application.use_cases import (
     ScreenFundsRequest,
     ScreenFundsUseCase,
 )
-from apps.fund.infrastructure.providers import DjangoFundAssetRepository, DjangoFundRepository
+from apps.fund.application.repository_provider import (
+    DjangoFundAssetRepository,
+    DjangoFundRepository,
+)
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.sentiment.application.repository_provider import get_sentiment_index_repository

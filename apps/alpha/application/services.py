@@ -17,11 +17,14 @@ from core.integration.runtime_settings import (
 
 from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
-from .repository_provider import get_alpha_alert_repository
+from .repository_provider import (
+    CacheAlphaProvider,
+    ETFFallbackProvider,
+    SimpleAlphaProvider,
+    build_qlib_alpha_provider,
+    get_alpha_alert_repository,
+)
 from .pool_resolver import PortfolioAlphaPoolResolver
-from ..infrastructure.adapters.cache_adapter import CacheAlphaProvider
-from ..infrastructure.adapters.etf_adapter import ETFFallbackProvider
-from ..infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 
 logger = logging.getLogger(__name__)
 
@@ -789,11 +792,9 @@ class AlphaService:
         """
         # 1. Qlib Provider（最高优先级，但可能不可用）
         try:
-            from ..infrastructure.adapters.qlib_adapter import QlibAlphaProvider
-
             qlib_config = _get_runtime_qlib_config()
             if qlib_config.get("enabled"):
-                qlib_provider = QlibAlphaProvider(
+                qlib_provider = build_qlib_alpha_provider(
                     provider_uri=qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data"),
                     model_path=qlib_config.get("model_path", "/models/qlib"),
                     region=qlib_config.get("region", "CN"),

@@ -24,12 +24,15 @@ from apps.rotation.application.dtos import (
     RotationSignalsViewRequest,
     RotationSignalsViewResponse,
 )
+from apps.rotation.application.repository_provider import (
+    RotationInterfaceRepository,
+    get_rotation_interface_repository,
+)
 from apps.rotation.domain.entities import RotationConfig, RotationSignal
 from apps.rotation.domain.services import (
     RotationContext,
     RotationService,
 )
-from apps.rotation.infrastructure.providers import RotationInterfaceRepository
 
 
 @dataclass
@@ -157,7 +160,7 @@ class GetAssetsForViewUseCase:
             integration_service: RotationIntegrationService instance
         """
         self.service = integration_service
-        self.view_repo = view_repo or RotationInterfaceRepository()
+        self.view_repo = view_repo or get_rotation_interface_repository()
 
     def execute(self, request: AssetsViewRequest) -> AssetsViewResponse:
         """
@@ -235,7 +238,7 @@ class GetRotationConfigsForViewUseCase:
             integration_service: RotationIntegrationService instance
         """
         self.service = integration_service
-        self.view_repo = view_repo or RotationInterfaceRepository()
+        self.view_repo = view_repo or get_rotation_interface_repository()
 
     def execute(self, request: RotationConfigsViewRequest) -> RotationConfigsViewResponse:
         """
@@ -290,7 +293,7 @@ class GetRotationSignalsForViewUseCase:
             integration_service: RotationIntegrationService instance
         """
         self.service = integration_service
-        self.view_repo = view_repo or RotationInterfaceRepository()
+        self.view_repo = view_repo or get_rotation_interface_repository()
 
     def execute(self, request: RotationSignalsViewRequest) -> RotationSignalsViewResponse:
         """

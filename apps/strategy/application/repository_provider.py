@@ -2,13 +2,12 @@
 
 from apps.strategy.infrastructure.providers import (
     DjangoAssetPoolProvider,
+    DjangoStrategyExecutionLogRepository,
+    DjangoStrategyGatewayRepository,
     DjangoMacroDataProvider,
     DjangoPortfolioDataProvider,
     DjangoRegimeProvider,
     DjangoSignalProvider,
-)
-from apps.strategy.infrastructure.providers import (
-    DjangoStrategyExecutionLogRepository,
     DjangoStrategyRepository,
     StrategyInterfaceRepository,
 )
@@ -18,6 +17,12 @@ def get_strategy_interface_repository() -> StrategyInterfaceRepository:
     """Return the strategy interface repository."""
 
     return StrategyInterfaceRepository()
+
+
+def get_strategy_gateway_repository() -> DjangoStrategyGatewayRepository:
+    """Return the strategy gateway query repository."""
+
+    return DjangoStrategyGatewayRepository()
 
 
 def build_strategy_executor():

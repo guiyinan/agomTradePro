@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from django.utils import timezone
 
+from apps.agent_runtime.application.repository_provider import AgentTaskRepository
 from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
     AgentTask,
@@ -29,7 +30,6 @@ from apps.agent_runtime.domain.services import (
     TaskStateMachine,
     get_task_state_machine,
 )
-from apps.agent_runtime.infrastructure.providers import AgentTaskRepository
 
 if TYPE_CHECKING:
     from apps.agent_runtime.application.services.audit_service import AgentRuntimeAuditService

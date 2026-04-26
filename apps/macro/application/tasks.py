@@ -18,11 +18,11 @@ from typing import Optional
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
+from apps.macro.application.repository_provider import get_macro_repository
 from apps.macro.application.use_cases import (
     SyncMacroDataRequest,
     build_sync_macro_data_use_case,
 )
-from apps.macro.infrastructure.providers import DjangoMacroRepository
 
 logger = get_task_logger(__name__)
 
@@ -109,7 +109,7 @@ def check_data_freshness() -> dict:
     try:
         logger.info("Checking data freshness")
 
-        repository = DjangoMacroRepository()
+        repository = get_macro_repository()
 
         # 检查关键指标
         indicators = ['PMI', 'CPI', 'M2', 'PPI']
@@ -207,7 +207,7 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
         # 统计即将删除的数据
-        count = DjangoMacroRepository().count_records_before_date(cutoff_date)
+        count = get_macro_repository().count_records_before_date(cutoff_date)
 
         if count > 0:
             logger.warning(f"Cleanup would delete {count} records (cutoff={cutoff_date})")

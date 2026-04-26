@@ -24,6 +24,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Protocol
 
+from apps.strategy.application.repository_provider import (
+    build_strategy_executor,
+    get_strategy_gateway_repository,
+)
+
 logger = __import__('logging').getLogger(__name__)
 
 
@@ -168,35 +173,12 @@ class StrategyExecutionGateway:
             StrategyExecutor 实例
         """
         if self._executor is None:
-            # 延迟导入避免循环依赖
-            from apps.strategy.application.strategy_executor import StrategyExecutor
-            from apps.strategy.infrastructure.providers import (
-                DjangoAssetPoolProvider,
-                DjangoMacroDataProvider,
-                DjangoPortfolioDataProvider,
-                DjangoRegimeProvider,
-                DjangoSignalProvider,
-            )
-            from apps.strategy.infrastructure.providers import (
-                DjangoStrategyExecutionLogRepository,
-                DjangoStrategyRepository,
-            )
-            self._executor = StrategyExecutor(
-                strategy_repository=DjangoStrategyRepository(),
-                execution_log_repository=DjangoStrategyExecutionLogRepository(),
-                macro_provider=DjangoMacroDataProvider(),
-                regime_provider=DjangoRegimeProvider(),
-                asset_pool_provider=DjangoAssetPoolProvider(),
-                signal_provider=DjangoSignalProvider(),
-                portfolio_provider=DjangoPortfolioDataProvider(),
-            )
+            self._executor = build_strategy_executor()
         return self._executor
 
     def _get_query_repository(self) -> StrategyGatewayQueryProtocol:
         if self._query_repository is None:
-            from apps.strategy.infrastructure.providers import DjangoStrategyGatewayRepository
-
-            self._query_repository = DjangoStrategyGatewayRepository()
+            self._query_repository = get_strategy_gateway_repository()
         return self._query_repository
 
     def execute_for_account(
