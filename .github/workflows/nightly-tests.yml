@@ -61,14 +61,19 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Integration Tests (core)
-        timeout-minutes: 30
+        timeout-minutes: 45
+        env:
+          PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/integration/ -v \
+            -o faulthandler_timeout=900 \
+            --timeout=600 \
+            --timeout-method=thread \
+            --durations=30 \
             --cov=apps \
             --cov-append \
             --cov-report=xml:coverage-integration.xml \
-            --cov-report=term-missing \
-            -n auto
+            --cov-report=term-missing
 
       - name: Run App-Local Module Tests
         timeout-minutes: 25
