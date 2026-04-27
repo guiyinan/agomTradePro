@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from apps.signal.infrastructure.repositories import (
+    DjangoSignalRepository,
+    DjangoUserRepository,
+    UnifiedSignalRepository,
+)
+
 
 def get_signal_repository():
     """Return the default signal repository."""
