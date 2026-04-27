@@ -17,6 +17,7 @@ from apps.asset_analysis.domain.pool import PoolType
 from apps.asset_analysis.domain.value_objects import WeightConfig
 from apps.asset_analysis.infrastructure.models import (
     AssetAnalysisAlert,
+    AssetScoreCache,
     AssetPoolEntry,
     AssetScoringLog,
     WeightConfigModel,
@@ -278,6 +279,51 @@ class DjangoAssetPoolQueryRepository:
                     "entry_date": entry.entry_date,
                     "entry_reason": entry.entry_reason,
                     "risk_level": entry.risk_level,
+                }
+            )
+        return candidates
+
+    def list_latest_scored_assets(
+        self,
+        asset_type: str,
+        min_score: float,
+        limit: int,
+    ) -> list[dict]:
+        """Return latest scored assets as a legacy fallback when pool data is absent."""
+
+        rows = (
+            AssetScoreCache._default_manager.filter(
+                asset_type=asset_type,
+                total_score__gte=min_score,
+            )
+            .order_by("-score_date", "-total_score", "asset_code")
+        )
+
+        latest_by_code: dict[str, AssetScoreCache] = {}
+        for row in rows:
+            if row.asset_code not in latest_by_code:
+                latest_by_code[row.asset_code] = row
+
+        ranked_rows = sorted(
+            latest_by_code.values(),
+            key=lambda item: (item.total_score, item.score_date),
+            reverse=True,
+        )[:limit]
+
+        candidates: list[dict] = []
+        for row in ranked_rows:
+            candidates.append(
+                {
+                    "asset_code": row.asset_code,
+                    "asset_name": row.asset_name,
+                    "asset_type": asset_type,
+                    "score": row.total_score,
+                    "regime_score": row.regime_score,
+                    "policy_score": row.policy_score,
+                    "sentiment_score": row.sentiment_score,
+                    "signal_score": row.signal_score,
+                    "score_date": row.score_date,
+                    "risk_level": row.risk_level,
                 }
             )
         return candidates

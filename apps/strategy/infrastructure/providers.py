@@ -181,6 +181,7 @@ class DjangoAssetPoolProvider:
         try:
             from apps.asset_analysis.application.repository_provider import (
                 get_asset_pool_query_repository,
+                list_latest_scored_assets,
                 list_investable_asset_categories,
             )
 
@@ -194,6 +195,16 @@ class DjangoAssetPoolProvider:
                         limit=limit,
                     )
                 )
+
+            if not assets:
+                for asset_type in list_investable_asset_categories():
+                    assets.extend(
+                        list_latest_scored_assets(
+                            asset_type,
+                            min_score=min_score,
+                            limit=limit,
+                        )
+                    )
 
             ranked_assets = sorted(
                 assets,

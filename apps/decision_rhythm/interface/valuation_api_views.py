@@ -156,7 +156,7 @@ class InvalidationAIDraftView(APIView):
             messages=messages,
             temperature=0.2,
             max_tokens=500,
-            factory_class=AIClientFactory,
+            factory_builder=AIClientFactory,
         )
         if ai_response.get("status") != "success":
             return Response(

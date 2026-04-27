@@ -41,6 +41,21 @@ def resolve_index_asset_names(codes: list[str]) -> dict[str, str]:
     return get_asset_pool_query_repository().resolve_asset_names(codes)
 
 
+def list_latest_scored_assets(
+    asset_type: str,
+    *,
+    min_score: float,
+    limit: int,
+) -> list[dict]:
+    """Return latest score-cache assets for consumers that need a legacy fallback."""
+
+    return get_asset_pool_query_repository().list_latest_scored_assets(
+        asset_type=asset_type,
+        min_score=min_score,
+        limit=limit,
+    )
+
+
 def get_asset_repository() -> DjangoAssetRepository:
     """Return the default asset repository."""
 

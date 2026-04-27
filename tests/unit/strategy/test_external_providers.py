@@ -117,6 +117,95 @@ def test_asset_pool_provider_aggregates_application_repository(monkeypatch):
     ]
 
 
+def test_asset_pool_provider_falls_back_to_latest_score_cache(monkeypatch):
+    calls: list[tuple[str, float, int, str]] = []
+    asset_types = ("equity", "fund")
+
+    class StubAssetPoolRepository:
+        def list_investable_assets(
+            self,
+            *,
+            asset_type: str,
+            min_score: float,
+            limit: int,
+        ) -> list[dict]:
+            calls.append((asset_type, min_score, limit, "pool"))
+            return []
+
+    def fake_list_investable_asset_categories() -> tuple[str, ...]:
+        return asset_types
+
+    def fake_list_latest_scored_assets(
+        asset_type: str,
+        *,
+        min_score: float,
+        limit: int,
+    ) -> list[dict]:
+        calls.append((asset_type, min_score, limit, "score"))
+        if asset_type == "equity":
+            return [
+                {
+                    "asset_code": "000001.SH",
+                    "asset_name": "上证指数",
+                    "score": 75.0,
+                    "regime_score": 80.0,
+                    "policy_score": 70.0,
+                    "asset_type": "equity",
+                }
+            ]
+        return [
+            {
+                "asset_code": "510300.OF",
+                "asset_name": "沪深300ETF",
+                "score": 68.0,
+                "regime_score": 72.0,
+                "policy_score": 65.0,
+                "asset_type": "fund",
+            }
+        ]
+
+    monkeypatch.setattr(
+        "apps.asset_analysis.application.repository_provider.get_asset_pool_query_repository",
+        lambda: StubAssetPoolRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.asset_analysis.application.repository_provider.list_investable_asset_categories",
+        fake_list_investable_asset_categories,
+    )
+    monkeypatch.setattr(
+        "apps.asset_analysis.application.repository_provider.list_latest_scored_assets",
+        fake_list_latest_scored_assets,
+    )
+
+    provider = DjangoAssetPoolProvider()
+    result = provider.get_investable_assets(min_score=60.0, limit=5)
+
+    assert calls == [
+        ("equity", 60.0, 5, "pool"),
+        ("fund", 60.0, 5, "pool"),
+        ("equity", 60.0, 5, "score"),
+        ("fund", 60.0, 5, "score"),
+    ]
+    assert result == [
+        {
+            "asset_code": "000001.SH",
+            "asset_name": "上证指数",
+            "total_score": 75.0,
+            "regime_score": 80.0,
+            "policy_score": 70.0,
+            "asset_type": "equity",
+        },
+        {
+            "asset_code": "510300.OF",
+            "asset_name": "沪深300ETF",
+            "total_score": 68.0,
+            "regime_score": 72.0,
+            "policy_score": 65.0,
+            "asset_type": "fund",
+        },
+    ]
+
+
 def test_signal_provider_uses_signal_query_service(monkeypatch):
     created_at = datetime(2026, 4, 27, 1, 2, 3, tzinfo=timezone.utc)
 
