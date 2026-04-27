@@ -10,7 +10,7 @@ from apps.pulse.infrastructure.providers import get_navigator_asset_config_repos
 def get_pulse_repository():
     """Return the default pulse repository."""
 
-    from apps.pulse.infrastructure.providers import PulseRepository
+    from apps.pulse.infrastructure.repositories import PulseRepository
 
     return PulseRepository()
 

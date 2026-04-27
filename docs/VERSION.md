@@ -52,6 +52,7 @@ Build: 2026-03-23
 - Asset pool screening 桥接已改为调用 equity / fund 各自 application facade，`core/integration` 不再自行组装 scorer + repository
 - asset_analysis 跨 App 市场协作已升级为 shared technical registry；equity / fund / rotation 在启动时注册 repository / screener / name-resolver，旧 `core/integration/asset_analysis_market_sources.py` 已移除且未引入新循环依赖
 - `tests/unit` 缺失的测试包入口已补齐，Nightly 全量 pytest 收集不再因重复测试文件名触发 `import file mismatch`
+- 多个 Application provider 入口已改回按调用时解析 concrete implementation，并补回 Alpha / StopLoss 旧测试契约兼容层，Nightly 可继续暴露真实单测失败而不是被 patch 断点卡住
 - 统一账户 API、SDK 与 MCP 契约进一步收口，统一到账户绩效、估值与 canonical 路径
 - Equity Detail 补齐技术图表、分时数据 fallback 与更完整的市场上下文展示
 - Equity Detail 在本地股票主数据或估值缓存缺失时，支持基础信息回退与部分加载，避免详情页整体阻塞

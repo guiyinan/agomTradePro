@@ -41,6 +41,12 @@ from core.exceptions import DataFetchError
 logger = logging.getLogger(__name__)
 
 
+def MarketPriceService():
+    """Backward-compatible market price service factory for legacy tests/callers."""
+
+    return build_market_price_service()
+
+
 @dataclass
 class StopLossCheckOutput:
     """止损检查输出"""
@@ -623,7 +629,7 @@ class _MarketDataAdapter(MarketDataPort):
     """
 
     def __init__(self):
-        self._service = build_market_price_service()
+        self._service = MarketPriceService()
 
     def get_current_price(self, asset_code: str) -> Decimal | None:
         """获取当前价格"""
