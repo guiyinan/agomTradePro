@@ -18,10 +18,10 @@ from apps.policy.application.repository_provider import get_current_policy_repos
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.sentiment.application.repository_provider import get_sentiment_index_repository
 from apps.signal.application.repository_provider import get_signal_repository
-from core.integration.asset_analysis_market_sources import (
-    screen_equity_assets_for_pool,
-    screen_fund_assets_for_pool,
+from shared.infrastructure.asset_analysis_registry import (
+    get_asset_analysis_market_registry,
 )
+
 
 @dataclass(frozen=True)
 class AssetPoolContextPayload:
@@ -117,12 +117,18 @@ def get_current_weight_config(
 
 def screen_equity_assets(context: ScoreContext, filters: dict[str, Any]) -> list[Any]:
     """Screen and score equity assets for pool classification."""
-    return screen_equity_assets_for_pool(context, filters)
+    return get_asset_analysis_market_registry().get_pool_screener("equity")(
+        context,
+        filters,
+    )
 
 
 def screen_fund_assets(context: ScoreContext, filters: dict[str, Any]) -> list[Any]:
     """Screen and score fund assets for pool classification."""
-    return screen_fund_assets_for_pool(context, filters)
+    return get_asset_analysis_market_registry().get_pool_screener("fund")(
+        context,
+        filters,
+    )
 
 
 def summarize_asset_pool_counts(asset_type: str | None = None) -> dict[str, int]:

@@ -41,14 +41,16 @@ class MockAlphaProvider(AlphaProvider):
     def health_check(self) -> AlphaProviderStatus:
         return self._health_status
 
-    def get_stock_scores(self, universe_id: str, intended_trade_date: date, top_n: int = 30) -> AlphaResult:
+    def get_stock_scores(
+        self, universe_id: str, intended_trade_date: date, top_n: int = 30
+    ) -> AlphaResult:
         if self._should_fail:
             return AlphaResult(
                 success=False,
                 scores=[],
                 source=self._name,
                 timestamp=intended_trade_date.isoformat(),
-                error_message="Mock failure"
+                error_message="Mock failure",
             )
 
         if self._result:
@@ -63,12 +65,12 @@ class MockAlphaProvider(AlphaProvider):
                     rank=i + 1,
                     factors={},
                     source=self._name,
-                    confidence=0.8
+                    confidence=0.8,
                 )
                 for i in range(top_n)
             ],
             source=self._name,
-            timestamp=intended_trade_date.isoformat()
+            timestamp=intended_trade_date.isoformat(),
         )
 
     def get_factor_exposure(self, stock_code: str, trade_date: date) -> dict:
@@ -171,6 +173,21 @@ class TestAlphaProviderRegistry:
 
         assert result.success is False
         assert result.status == "unavailable"
+
+    @patch(
+        "apps.alpha.application.services.get_alpha_metrics",
+        side_effect=RuntimeError("metrics down"),
+    )
+    def test_metrics_failure_does_not_break_successful_provider(self, _mock_metrics):
+        """指标记录失败时，不应中断成功 Provider 的返回。"""
+        registry = AlphaProviderRegistry()
+        provider = MockAlphaProvider("available", 10, AlphaProviderStatus.AVAILABLE)
+
+        registry.register(provider)
+        result = registry.get_scores_with_fallback("csi300", date.today())
+
+        assert result.success is True
+        assert result.source == "available"
 
 
 class TestCacheAlphaProvider:
@@ -292,7 +309,9 @@ class TestSimpleAlphaProvider:
 
         assert provider._factor_weights == custom_weights
 
-    @patch("apps.alpha.infrastructure.adapters.simple_adapter.SimpleAlphaProvider._get_universe_stocks")
+    @patch(
+        "apps.alpha.infrastructure.adapters.simple_adapter.SimpleAlphaProvider._get_universe_stocks"
+    )
     def test_compute_scores(self, mock_universe):
         """测试计算评分"""
         mock_universe.return_value = ["000001.SH", "000002.SH"]
@@ -499,7 +518,7 @@ class TestStockScore:
             source="test",
             confidence=0.9,
             asof_date=date.today(),
-            universe_id="csi300"
+            universe_id="csi300",
         )
 
         assert score.code == "000001.SH"
@@ -509,12 +528,7 @@ class TestStockScore:
     def test_to_dict(self):
         """测试转换为字典"""
         score = StockScore(
-            code="000001.SH",
-            score=0.8,
-            rank=1,
-            factors={},
-            source="test",
-            confidence=0.9
+            code="000001.SH", score=0.8, rank=1, factors={}, source="test", confidence=0.9
         )
 
         data = score.to_dict()
@@ -531,7 +545,7 @@ class TestStockScore:
             "rank": 1,
             "factors": {},
             "source": "test",
-            "confidence": 0.9
+            "confidence": 0.9,
         }
 
         score = StockScore.from_dict(data)
@@ -547,20 +561,12 @@ class TestAlphaResult:
         """测试创建成功结果"""
         scores = [
             StockScore(
-                code="000001.SH",
-                score=0.8,
-                rank=1,
-                factors={},
-                source="test",
-                confidence=0.9
+                code="000001.SH", score=0.8, rank=1, factors={}, source="test", confidence=0.9
             )
         ]
 
         result = AlphaResult(
-            success=True,
-            scores=scores,
-            source="test",
-            timestamp=date.today().isoformat()
+            success=True, scores=scores, source="test", timestamp=date.today().isoformat()
         )
 
         assert result.success is True
@@ -573,7 +579,7 @@ class TestAlphaResult:
             scores=[],
             source="none",
             timestamp=date.today().isoformat(),
-            error_message="Test error"
+            error_message="Test error",
         )
 
         assert result.success is False

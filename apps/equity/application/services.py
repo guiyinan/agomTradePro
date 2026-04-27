@@ -65,13 +65,13 @@ class EquityMultiDimScorer:
 
             # 计算综合得分（使用个股专用权重）
             total_score = (
-                regime_score * 0.30 +  # equity 专用权重
-                policy_score * 0.20 +
-                sentiment_score * 0.20 +
-                signal_score * 0.10 +
-                stock.technical_score * 0.10 +  # 技术面
-                stock.fundamental_score * 0.10 +  # 基本面
-                stock.valuation_score * 0.10  # 估值
+                regime_score * 0.30  # equity 专用权重
+                + policy_score * 0.20
+                + sentiment_score * 0.20
+                + signal_score * 0.10
+                + stock.technical_score * 0.10  # 技术面
+                + stock.fundamental_score * 0.10  # 基本面
+                + stock.valuation_score * 0.10  # 估值
             )
 
             # 更新个股得分
@@ -232,3 +232,22 @@ class EquityMultiDimScorer:
                 base_risk = "中高风险"
 
         return base_risk
+
+
+def screen_equity_assets_for_pool(context, filters: dict) -> list[EquityAssetScore]:
+    """Screen and score equity assets for the shared asset-pool workflow."""
+    repo = DjangoEquityAssetRepository()
+    scorer = EquityMultiDimScorer(repo)
+
+    filter_dict: dict = {}
+    if filters.get("sector"):
+        filter_dict["sector"] = filters["sector"]
+    if filters.get("market"):
+        filter_dict["market"] = filters["market"]
+    if filters.get("min_market_cap") is not None:
+        filter_dict["min_market_cap"] = filters["min_market_cap"]
+    if filters.get("max_pe") is not None:
+        filter_dict["max_pe"] = filters["max_pe"]
+
+    assets = repo.get_assets_by_filter(asset_type="equity", filters=filter_dict)
+    return scorer.score_batch(assets, context)

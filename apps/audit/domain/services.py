@@ -5,6 +5,7 @@ Pure business logic for analyzing backtest results and attributing PnL.
 Only uses Python standard library (no pandas/numpy).
 """
 
+import logging
 import math
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,6 +26,8 @@ from .entities import (
     RegimeTransition,
     SignalEvent,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def analyze_attribution(
@@ -594,9 +597,13 @@ def _generate_brinson_period_breakdown(
                     "interaction_effect": period_result.interaction_effect,
                 }
             )
-        except Exception:
-            # 如果计算失败，跳过该期间
-            pass
+        except Exception as exc:
+            logger.debug(
+                "Skipping Brinson period %s -> %s due to attribution error: %s",
+                current_date,
+                period_end,
+                exc,
+            )
 
         # 移动到下个月
         if current_date.month == 12:

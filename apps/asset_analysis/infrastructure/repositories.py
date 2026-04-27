@@ -15,12 +15,14 @@ from apps.asset_analysis.domain.interfaces import (
 )
 from apps.asset_analysis.domain.pool import PoolType
 from apps.asset_analysis.domain.value_objects import WeightConfig
-from core.integration.asset_analysis_market_sources import get_market_asset_repository
 from apps.asset_analysis.infrastructure.models import (
     AssetAnalysisAlert,
     AssetPoolEntry,
     AssetScoringLog,
     WeightConfigModel,
+)
+from shared.infrastructure.asset_analysis_registry import (
+    get_asset_analysis_market_registry,
 )
 
 
@@ -60,7 +62,9 @@ class AssetRepositoryFactory:
         # 延迟加载仓储实例
         if cls._repositories[asset_type] is None:
             if asset_type in ("fund", "equity"):
-                cls._repositories[asset_type] = get_market_asset_repository(asset_type)
+                cls._repositories[asset_type] = (
+                    get_asset_analysis_market_registry().get_asset_repository(asset_type)
+                )
             elif asset_type in ("bond", "commodity", "index", "sector"):
                 # 对于尚未实现的资产类型，使用空仓储
                 cls._repositories[asset_type] = EmptyAssetRepository()
@@ -75,12 +79,7 @@ class EmptyAssetRepository(AssetRepositoryProtocol):
     空资产仓储（用于未实现的资产类型）
     """
 
-    def get_assets_by_filter(
-        self,
-        asset_type: str,
-        filters: dict,
-        max_count: int = 100
-    ) -> list:
+    def get_assets_by_filter(self, asset_type: str, filters: dict, max_count: int = 100) -> list:
         """返回空列表"""
         return []
 
@@ -97,9 +96,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
     """
 
     def get_active_weights(
-        self,
-        asset_type: str | None = None,
-        market_condition: str | None = None
+        self, asset_type: str | None = None, market_condition: str | None = None
     ) -> WeightConfig:
         """
         获取当前生效的权重配置
@@ -114,25 +111,22 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
 
         # 1. 优先匹配特定条件
         if asset_type and market_condition:
-            specific = query.filter(
-                asset_type=asset_type,
-                market_condition=market_condition
-            ).order_by("-priority").first()
+            specific = (
+                query.filter(asset_type=asset_type, market_condition=market_condition)
+                .order_by("-priority")
+                .first()
+            )
             if specific:
                 return self._to_entity(specific)
 
         # 2. 其次匹配资产类型
         if asset_type:
-            type_specific = query.filter(
-                asset_type=asset_type
-            ).order_by("-priority").first()
+            type_specific = query.filter(asset_type=asset_type).order_by("-priority").first()
             if type_specific:
                 return self._to_entity(type_specific)
 
         # 3. 最后使用通用配置
-        general = query.filter(
-            asset_type__isnull=True
-        ).order_by("-priority").first()
+        general = query.filter(asset_type__isnull=True).order_by("-priority").first()
         if general:
             return self._to_entity(general)
 
@@ -174,7 +168,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
         asset_type: str | None = None,
         market_condition: str | None = None,
         is_active: bool = True,
-        priority: int = 0
+        priority: int = 0,
     ) -> None:
         """
         保存权重配置
@@ -193,7 +187,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
                 "market_condition": market_condition,
                 "is_active": is_active,
                 "priority": priority,
-            }
+            },
         )
 
         if not created:
@@ -234,12 +228,7 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
     这是一个适配器仓储，根据资产类型委托给具体的资产仓储。
     """
 
-    def get_assets_by_filter(
-        self,
-        asset_type: str,
-        filters: dict,
-        max_count: int = 100
-    ) -> list:
+    def get_assets_by_filter(self, asset_type: str, filters: dict, max_count: int = 100) -> list:
         """
         根据过滤条件获取资产列表
 
@@ -276,27 +265,53 @@ class DjangoAssetPoolQueryRepository:
 
         candidates = []
         for entry in pool_entries:
-            candidates.append({
-                "asset_code": entry.asset_code,
-                "asset_name": entry.asset_name,
-                "asset_type": asset_type,
-                "score": entry.total_score,
-                "regime_score": entry.regime_score,
-                "policy_score": entry.policy_score,
-                "sentiment_score": entry.sentiment_score,
-                "signal_score": entry.signal_score,
-                "entry_date": entry.entry_date,
-                "entry_reason": entry.entry_reason,
-                "risk_level": entry.risk_level,
-            })
+            candidates.append(
+                {
+                    "asset_code": entry.asset_code,
+                    "asset_name": entry.asset_name,
+                    "asset_type": asset_type,
+                    "score": entry.total_score,
+                    "regime_score": entry.regime_score,
+                    "policy_score": entry.policy_score,
+                    "sentiment_score": entry.sentiment_score,
+                    "signal_score": entry.signal_score,
+                    "entry_date": entry.entry_date,
+                    "entry_reason": entry.entry_reason,
+                    "risk_level": entry.risk_level,
+                }
+            )
         return candidates
 
     def get_latest_pool_type(self, asset_code: str) -> str | None:
-        entry = AssetPoolEntry._default_manager.filter(
-            asset_code=asset_code,
-            is_active=True,
-        ).order_by("-entry_date").first()
+        entry = (
+            AssetPoolEntry._default_manager.filter(
+                asset_code=asset_code,
+                is_active=True,
+            )
+            .order_by("-entry_date")
+            .first()
+        )
         return entry.pool_type if entry else None
+
+    def resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
+        """Resolve asset names from active asset-pool entries."""
+        normalized_codes = [str(code).upper() for code in codes if code]
+        if not normalized_codes:
+            return {}
+
+        rows = (
+            AssetPoolEntry._default_manager.filter(
+                asset_code__in=normalized_codes,
+                is_active=True,
+            )
+            .values("asset_code", "asset_name")
+            .distinct()
+        )
+        return {
+            str(row["asset_code"]).upper(): row["asset_name"]
+            for row in rows
+            if row.get("asset_code") and row.get("asset_name")
+        }
 
     def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]:
         queryset = AssetPoolEntry._default_manager.filter(is_active=True)
@@ -356,4 +371,3 @@ class AssetAnalysisLogRepository:
             resolution_notes=resolution_notes,
         )
         return updated > 0
-

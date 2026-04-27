@@ -6,6 +6,7 @@ This is the canonical price lookup entry for business modules.
 
 from dataclasses import dataclass
 from datetime import date
+import logging
 from typing import Any
 
 from apps.data_center.application.repository_provider import (
@@ -19,6 +20,8 @@ from apps.data_center.application.repository_provider import (
 )
 from core.integration.data_center_business_sources import build_hybrid_fund_adapter
 from core.exceptions import DataFetchError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -130,9 +133,7 @@ class UnifiedPriceService:
             return result
 
         when_label = (
-            f"在 {trade_date.isoformat()} 的历史价格"
-            if trade_date is not None
-            else "的最新价格"
+            f"在 {trade_date.isoformat()} 的历史价格" if trade_date is not None else "的最新价格"
         )
         raise DataFetchError(
             message=f"无法获取 {asset_code} {when_label}",
@@ -230,7 +231,8 @@ class UnifiedPriceService:
     def _get_realtime_quote(self, normalized_code: str):
         try:
             return self._dc_quote_repo.get_latest(normalized_code)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Realtime quote lookup failed for %s: %s", normalized_code, exc)
             return None
 
     def _get_historical_price(self, normalized_code: str, trade_date: date):
@@ -242,13 +244,20 @@ class UnifiedPriceService:
                 limit=1,
             )
             return bars[0] if bars else None
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "Historical price lookup failed for %s on %s: %s",
+                normalized_code,
+                trade_date,
+                exc,
+            )
             return None
 
     def _get_recent_close(self, normalized_code: str):
         try:
             return self._dc_price_repo.get_latest(normalized_code)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Recent close lookup failed for %s: %s", normalized_code, exc)
             return None
 
     def _get_fund_nav_price(
@@ -279,12 +288,13 @@ class UnifiedPriceService:
                         "as_of": latest_fact.nav_date,
                         "source": latest_fact.source,
                     }
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Fund NAV repository lookup failed for %s: %s", bare_code, exc)
 
         try:
             df = self.fund_adapter.fetch_fund_nav_em(bare_code)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Fund adapter lookup failed for %s: %s", bare_code, exc)
             return None
         if df is None or df.empty:
             return None
@@ -314,7 +324,8 @@ class UnifiedPriceService:
 
         try:
             price = float(row[nav_col])
-        except Exception:
+        except Exception as exc:
+            logger.debug("Fund NAV price parse failed for %s: %s", bare_code, exc)
             return None
 
         return {

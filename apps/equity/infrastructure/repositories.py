@@ -72,10 +72,7 @@ class DjangoEquityAssetRepository:
         self._stock_repo = DjangoStockRepository()
 
     def get_assets_by_filter(
-        self,
-        asset_type: str,
-        filters: dict,
-        max_count: int = 100
+        self, asset_type: str, filters: dict, max_count: int = 100
     ) -> list[EquityAssetScore]:
         """
         根据过滤条件获取资产列表
@@ -125,9 +122,11 @@ class DjangoEquityAssetRepository:
             stock_code = stock_model.stock_code
 
             # 获取最新估值数据
-            valuation = ValuationModel._default_manager.filter(
-                stock_code=stock_code
-            ).order_by('-trade_date').first()
+            valuation = (
+                ValuationModel._default_manager.filter(stock_code=stock_code)
+                .order_by("-trade_date")
+                .first()
+            )
 
             if not valuation:
                 continue
@@ -149,14 +148,18 @@ class DjangoEquityAssetRepository:
                 continue
 
             # 获取最新财务数据
-            financial = FinancialDataModel._default_manager.filter(
-                stock_code=stock_code
-            ).order_by('-report_date').first()
+            financial = (
+                FinancialDataModel._default_manager.filter(stock_code=stock_code)
+                .order_by("-report_date")
+                .first()
+            )
 
             # 获取最新技术指标（从日线数据）
-            daily = StockDailyModel._default_manager.filter(
-                stock_code=stock_code
-            ).order_by('-trade_date').first()
+            daily = (
+                StockDailyModel._default_manager.filter(stock_code=stock_code)
+                .order_by("-trade_date")
+                .first()
+            )
 
             # 构建 EquityAssetScore
             stock_info = StockInfo(
@@ -164,61 +167,70 @@ class DjangoEquityAssetRepository:
                 name=stock_model.name,
                 sector=stock_model.sector,
                 market=stock_model.market,
-                list_date=stock_model.list_date
+                list_date=stock_model.list_date,
             )
 
-            valuation_entity = ValuationMetrics(
-                stock_code=valuation.stock_code,
-                trade_date=valuation.trade_date,
-                pe=valuation.pe or 0.0,
-                pb=valuation.pb or 0.0,
-                ps=valuation.ps or 0.0,
-                total_mv=valuation.total_mv,
-                circ_mv=valuation.circ_mv,
-                dividend_yield=valuation.dividend_yield or 0.0,
-                source_provider=valuation.source_provider,
-                source_updated_at=valuation.source_updated_at,
-                fetched_at=valuation.fetched_at,
-                pe_type=valuation.pe_type,
-                is_valid=valuation.is_valid,
-                quality_flag=valuation.quality_flag,
-                quality_notes=valuation.quality_notes,
-                raw_payload_hash=valuation.raw_payload_hash,
-            ) if valuation else None
+            valuation_entity = (
+                ValuationMetrics(
+                    stock_code=valuation.stock_code,
+                    trade_date=valuation.trade_date,
+                    pe=valuation.pe or 0.0,
+                    pb=valuation.pb or 0.0,
+                    ps=valuation.ps or 0.0,
+                    total_mv=valuation.total_mv,
+                    circ_mv=valuation.circ_mv,
+                    dividend_yield=valuation.dividend_yield or 0.0,
+                    source_provider=valuation.source_provider,
+                    source_updated_at=valuation.source_updated_at,
+                    fetched_at=valuation.fetched_at,
+                    pe_type=valuation.pe_type,
+                    is_valid=valuation.is_valid,
+                    quality_flag=valuation.quality_flag,
+                    quality_notes=valuation.quality_notes,
+                    raw_payload_hash=valuation.raw_payload_hash,
+                )
+                if valuation
+                else None
+            )
 
-            financial_entity = FinancialData(
-                stock_code=financial.stock_code,
-                report_date=financial.report_date,
-                revenue=financial.revenue,
-                net_profit=financial.net_profit,
-                revenue_growth=financial.revenue_growth or 0.0,
-                net_profit_growth=financial.net_profit_growth or 0.0,
-                total_assets=financial.total_assets,
-                total_liabilities=financial.total_liabilities,
-                equity=financial.equity,
-                roe=financial.roe,
-                roa=financial.roa or 0.0,
-                debt_ratio=financial.debt_ratio
-            ) if financial else None
+            financial_entity = (
+                FinancialData(
+                    stock_code=financial.stock_code,
+                    report_date=financial.report_date,
+                    revenue=financial.revenue,
+                    net_profit=financial.net_profit,
+                    revenue_growth=financial.revenue_growth or 0.0,
+                    net_profit_growth=financial.net_profit_growth or 0.0,
+                    total_assets=financial.total_assets,
+                    total_liabilities=financial.total_liabilities,
+                    equity=financial.equity,
+                    roe=financial.roe,
+                    roa=financial.roa or 0.0,
+                    debt_ratio=financial.debt_ratio,
+                )
+                if financial
+                else None
+            )
 
-            technical_entity = TechnicalIndicators(
-                stock_code=daily.stock_code,
-                trade_date=daily.trade_date,
-                close=daily.close,
-                ma5=daily.ma5,
-                ma20=daily.ma20,
-                ma60=daily.ma60,
-                macd=daily.macd,
-                macd_signal=daily.macd_signal,
-                macd_hist=daily.macd_hist,
-                rsi=daily.rsi
-            ) if daily else None
+            technical_entity = (
+                TechnicalIndicators(
+                    stock_code=daily.stock_code,
+                    trade_date=daily.trade_date,
+                    close=daily.close,
+                    ma5=daily.ma5,
+                    ma20=daily.ma20,
+                    ma60=daily.ma60,
+                    macd=daily.macd,
+                    macd_signal=daily.macd_signal,
+                    macd_hist=daily.macd_hist,
+                    rsi=daily.rsi,
+                )
+                if daily
+                else None
+            )
 
             asset_score = EquityAssetScore.from_stock_info(
-                stock_info,
-                valuation_entity,
-                financial_entity,
-                technical_entity
+                stock_info, valuation_entity, financial_entity, technical_entity
             )
 
             stocks_data.append(asset_score)
@@ -243,17 +255,14 @@ class DjangoEquityAssetRepository:
             return None
 
         try:
-            stock_model = StockInfoModel._default_manager.get(
-                stock_code=asset_code,
-                is_active=True
-            )
+            stock_model = StockInfoModel._default_manager.get(stock_code=asset_code, is_active=True)
 
             stock_info = StockInfo(
                 stock_code=stock_model.stock_code,
                 name=stock_model.name,
                 sector=stock_model.sector,
                 market=stock_model.market,
-                list_date=stock_model.list_date
+                list_date=stock_model.list_date,
             )
 
             # 获取最新估值数据
@@ -263,29 +272,30 @@ class DjangoEquityAssetRepository:
             financial = self._get_latest_financial(asset_code)
 
             # 获取最新技术指标
-            daily_model = StockDailyModel._default_manager.filter(
-                stock_code=asset_code
-            ).order_by('-trade_date').first()
-
-            technical = TechnicalIndicators(
-                stock_code=daily_model.stock_code,
-                trade_date=daily_model.trade_date,
-                close=daily_model.close,
-                ma5=daily_model.ma5,
-                ma20=daily_model.ma20,
-                ma60=daily_model.ma60,
-                macd=daily_model.macd,
-                macd_signal=daily_model.macd_signal,
-                macd_hist=daily_model.macd_hist,
-                rsi=daily_model.rsi
-            ) if daily_model else None
-
-            return EquityAssetScore.from_stock_info(
-                stock_info,
-                valuation,
-                financial,
-                technical
+            daily_model = (
+                StockDailyModel._default_manager.filter(stock_code=asset_code)
+                .order_by("-trade_date")
+                .first()
             )
+
+            technical = (
+                TechnicalIndicators(
+                    stock_code=daily_model.stock_code,
+                    trade_date=daily_model.trade_date,
+                    close=daily_model.close,
+                    ma5=daily_model.ma5,
+                    ma20=daily_model.ma20,
+                    ma60=daily_model.ma60,
+                    macd=daily_model.macd,
+                    macd_signal=daily_model.macd_signal,
+                    macd_hist=daily_model.macd_hist,
+                    rsi=daily_model.rsi,
+                )
+                if daily_model
+                else None
+            )
+
+            return EquityAssetScore.from_stock_info(stock_info, valuation, financial, technical)
 
         except StockInfoModel.DoesNotExist:
             return None
@@ -313,8 +323,7 @@ class DjangoStockRepository:
         self._dc_valuation_repo = DataCenterValuationFactRepository()
 
     def get_all_stocks_with_fundamentals(
-        self,
-        as_of_date: date | None = None
+        self, as_of_date: date | None = None
     ) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]:
         """
         获取所有股票的基本面数据（最新财务数据 + 最新估值数据）
@@ -339,7 +348,7 @@ class DjangoStockRepository:
                 name=stock_info_model.name,
                 sector=stock_info_model.sector,
                 market=stock_info_model.market,
-                list_date=stock_info_model.list_date
+                list_date=stock_info_model.list_date,
             )
 
             # 获取最新财务数据
@@ -387,11 +396,31 @@ class DjangoStockRepository:
             return fallback_info
         return None
 
-    def get_financial_data(
-        self,
-        stock_code: str,
-        limit: int = 4
-    ) -> list[FinancialData]:
+    def resolve_stock_names(self, stock_codes: list[str]) -> dict[str, str]:
+        """批量解析股票名称。"""
+        normalized_codes = [str(code).upper() for code in stock_codes if code]
+        if not normalized_codes:
+            return {}
+
+        requested_codes = list(dict.fromkeys(normalized_codes))
+        candidate_codes = {
+            candidate
+            for code in requested_codes
+            for candidate in self._build_stock_code_candidates(code)
+        }
+        models = StockInfoModel._default_manager.filter(stock_code__in=list(candidate_codes))
+        model_map = {model.stock_code.upper(): model for model in models}
+
+        resolved: dict[str, str] = {}
+        for requested_code in requested_codes:
+            for candidate in self._build_stock_code_candidates(requested_code):
+                model = model_map.get(candidate.upper())
+                if model is not None and model.name:
+                    resolved[requested_code] = model.name
+                    break
+        return resolved
+
+    def get_financial_data(self, stock_code: str, limit: int = 4) -> list[FinancialData]:
         """
         获取股票的财务数据
 
@@ -407,9 +436,9 @@ class DjangoStockRepository:
             return dc_financials
 
         for candidate in self._build_stock_code_candidates(stock_code):
-            models = FinancialDataModel._default_manager.filter(
-                stock_code=candidate
-            ).order_by('-report_date')[:limit]
+            models = FinancialDataModel._default_manager.filter(stock_code=candidate).order_by(
+                "-report_date"
+            )[:limit]
             if not models:
                 continue
             return [
@@ -432,10 +461,7 @@ class DjangoStockRepository:
         return []
 
     def get_valuation_history(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date
+        self, stock_code: str, start_date: date, end_date: date
     ) -> list[ValuationMetrics]:
         """
         获取股票的估值历史数据
@@ -457,7 +483,7 @@ class DjangoStockRepository:
                 stock_code=candidate,
                 trade_date__gte=start_date,
                 trade_date__lte=end_date,
-            ).order_by('trade_date')
+            ).order_by("trade_date")
             if not models:
                 continue
             return [
@@ -501,11 +527,11 @@ class DjangoStockRepository:
         StockInfoModel._default_manager.update_or_create(
             stock_code=stock_info.stock_code,
             defaults={
-                'name': stock_info.name,
-                'sector': stock_info.sector,
-                'market': stock_info.market,
-                'list_date': stock_info.list_date
-            }
+                "name": stock_info.name,
+                "sector": stock_info.sector,
+                "market": stock_info.market,
+                "list_date": stock_info.list_date,
+            },
         )
 
     def save_financial_data(self, financial: FinancialData) -> None:
@@ -518,30 +544,30 @@ class DjangoStockRepository:
         # 确定报告类型
         month = financial.report_date.month
         if month == 3:
-            report_type = '1Q'
+            report_type = "1Q"
         elif month == 6:
-            report_type = '2Q'
+            report_type = "2Q"
         elif month == 9:
-            report_type = '3Q'
+            report_type = "3Q"
         else:
-            report_type = '4Q'
+            report_type = "4Q"
 
         FinancialDataModel._default_manager.update_or_create(
             stock_code=financial.stock_code,
             report_date=financial.report_date,
             report_type=report_type,
             defaults={
-                'revenue': financial.revenue,
-                'net_profit': financial.net_profit,
-                'revenue_growth': financial.revenue_growth,
-                'net_profit_growth': financial.net_profit_growth,
-                'total_assets': financial.total_assets,
-                'total_liabilities': financial.total_liabilities,
-                'equity': financial.equity,
-                'roe': financial.roe,
-                'roa': financial.roa,
-                'debt_ratio': financial.debt_ratio
-            }
+                "revenue": financial.revenue,
+                "net_profit": financial.net_profit,
+                "revenue_growth": financial.revenue_growth,
+                "net_profit_growth": financial.net_profit_growth,
+                "total_assets": financial.total_assets,
+                "total_liabilities": financial.total_liabilities,
+                "equity": financial.equity,
+                "roe": financial.roe,
+                "roa": financial.roa,
+                "debt_ratio": financial.debt_ratio,
+            },
         )
         self._dc_financial_repo.bulk_upsert(
             self._financial_entity_to_dc_facts(financial, report_type)
@@ -558,21 +584,21 @@ class DjangoStockRepository:
             stock_code=valuation.stock_code,
             trade_date=valuation.trade_date,
             defaults={
-                'pe': valuation.pe,
-                'pb': valuation.pb,
-                'ps': valuation.ps,
-                'total_mv': valuation.total_mv,
-                'circ_mv': valuation.circ_mv,
-                'dividend_yield': valuation.dividend_yield,
-                'source_provider': valuation.source_provider,
-                'source_updated_at': valuation.source_updated_at,
-                'fetched_at': valuation.fetched_at or timezone.now(),
-                'pe_type': valuation.pe_type,
-                'is_valid': valuation.is_valid,
-                'quality_flag': valuation.quality_flag,
-                'quality_notes': valuation.quality_notes,
-                'raw_payload_hash': valuation.raw_payload_hash,
-            }
+                "pe": valuation.pe,
+                "pb": valuation.pb,
+                "ps": valuation.ps,
+                "total_mv": valuation.total_mv,
+                "circ_mv": valuation.circ_mv,
+                "dividend_yield": valuation.dividend_yield,
+                "source_provider": valuation.source_provider,
+                "source_updated_at": valuation.source_updated_at,
+                "fetched_at": valuation.fetched_at or timezone.now(),
+                "pe_type": valuation.pe_type,
+                "is_valid": valuation.is_valid,
+                "quality_flag": valuation.quality_flag,
+                "quality_notes": valuation.quality_notes,
+                "raw_payload_hash": valuation.raw_payload_hash,
+            },
         )
         self._dc_valuation_repo.bulk_upsert([self._valuation_entity_to_dc_fact(valuation)])
 
@@ -582,9 +608,11 @@ class DjangoStockRepository:
             return dc_items[0]
 
         for candidate in self._build_stock_code_candidates(stock_code):
-            financial_model = FinancialDataModel._default_manager.filter(
-                stock_code=candidate
-            ).order_by('-report_date').first()
+            financial_model = (
+                FinancialDataModel._default_manager.filter(stock_code=candidate)
+                .order_by("-report_date")
+                .first()
+            )
             if financial_model is None:
                 continue
             return FinancialData(
@@ -609,9 +637,11 @@ class DjangoStockRepository:
             return self._dc_fact_to_valuation(dc_item)
 
         for candidate in self._build_stock_code_candidates(stock_code):
-            valuation_model = ValuationModel._default_manager.filter(
-                stock_code=candidate
-            ).order_by('-trade_date').first()
+            valuation_model = (
+                ValuationModel._default_manager.filter(stock_code=candidate)
+                .order_by("-trade_date")
+                .first()
+            )
             if valuation_model is None:
                 continue
             return ValuationMetrics(
@@ -670,7 +700,11 @@ class DjangoStockRepository:
                     report_date=report_dates.get(period_end) or period_end,
                     revenue=Decimal(str(metric_map["revenue"].value)),
                     net_profit=Decimal(str(metric_map["net_profit"].value)),
-                    revenue_growth=float(metric_map.get("revenue_growth").value) if metric_map.get("revenue_growth") else 0.0,
+                    revenue_growth=(
+                        float(metric_map.get("revenue_growth").value)
+                        if metric_map.get("revenue_growth")
+                        else 0.0
+                    ),
                     net_profit_growth=(
                         float(metric_map.get("net_profit_growth").value)
                         if metric_map.get("net_profit_growth")
@@ -723,10 +757,10 @@ class DjangoStockRepository:
         report_type: str,
     ) -> list[FinancialFact]:
         period_type_map = {
-            '1Q': FinancialPeriodType.QUARTERLY,
-            '2Q': FinancialPeriodType.SEMI_ANNUAL,
-            '3Q': FinancialPeriodType.QUARTERLY,
-            '4Q': FinancialPeriodType.ANNUAL,
+            "1Q": FinancialPeriodType.QUARTERLY,
+            "2Q": FinancialPeriodType.SEMI_ANNUAL,
+            "3Q": FinancialPeriodType.QUARTERLY,
+            "4Q": FinancialPeriodType.ANNUAL,
         }
         common = {
             "asset_code": financial.stock_code,
@@ -736,16 +770,39 @@ class DjangoStockRepository:
             "report_date": financial.report_date,
         }
         return [
-            FinancialFact(metric_code="revenue", value=float(financial.revenue), unit="元", **common),
-            FinancialFact(metric_code="net_profit", value=float(financial.net_profit), unit="元", **common),
-            FinancialFact(metric_code="revenue_growth", value=float(financial.revenue_growth), unit="%", **common),
-            FinancialFact(metric_code="net_profit_growth", value=float(financial.net_profit_growth), unit="%", **common),
-            FinancialFact(metric_code="total_assets", value=float(financial.total_assets), unit="元", **common),
-            FinancialFact(metric_code="total_liabilities", value=float(financial.total_liabilities), unit="元", **common),
+            FinancialFact(
+                metric_code="revenue", value=float(financial.revenue), unit="元", **common
+            ),
+            FinancialFact(
+                metric_code="net_profit", value=float(financial.net_profit), unit="元", **common
+            ),
+            FinancialFact(
+                metric_code="revenue_growth",
+                value=float(financial.revenue_growth),
+                unit="%",
+                **common,
+            ),
+            FinancialFact(
+                metric_code="net_profit_growth",
+                value=float(financial.net_profit_growth),
+                unit="%",
+                **common,
+            ),
+            FinancialFact(
+                metric_code="total_assets", value=float(financial.total_assets), unit="元", **common
+            ),
+            FinancialFact(
+                metric_code="total_liabilities",
+                value=float(financial.total_liabilities),
+                unit="元",
+                **common,
+            ),
             FinancialFact(metric_code="equity", value=float(financial.equity), unit="元", **common),
             FinancialFact(metric_code="roe", value=float(financial.roe), unit="%", **common),
             FinancialFact(metric_code="roa", value=float(financial.roa), unit="%", **common),
-            FinancialFact(metric_code="debt_ratio", value=float(financial.debt_ratio), unit="%", **common),
+            FinancialFact(
+                metric_code="debt_ratio", value=float(financial.debt_ratio), unit="%", **common
+            ),
         ]
 
     def _valuation_entity_to_dc_fact(self, valuation: ValuationMetrics) -> ValuationFact:
@@ -763,10 +820,7 @@ class DjangoStockRepository:
         )
 
     def get_daily_prices(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date
+        self, stock_code: str, start_date: date, end_date: date
     ) -> list[tuple[date, Decimal]]:
         """
         获取股票的日线收盘价数据
@@ -849,26 +903,28 @@ class DjangoStockRepository:
 
         remote_bars = self._get_remote_historical_bars(stock_code, start_date, end_date)
         self._cache_remote_historical_bars(stock_code, remote_bars)
-        return self._recalculate_technical_bars([
-            TechnicalBar(
-                stock_code=stock_code,
-                trade_date=bar.trade_date,
-                open=Decimal(str(bar.open)),
-                high=Decimal(str(bar.high)),
-                low=Decimal(str(bar.low)),
-                close=Decimal(str(bar.close)),
-                volume=bar.volume or 0,
-                amount=self._safe_decimal(getattr(bar, "amount", None)) or Decimal("0"),
-                ma5=None,
-                ma20=None,
-                ma60=None,
-                macd=None,
-                macd_signal=None,
-                macd_hist=None,
-                rsi=None,
-            )
-            for bar in remote_bars
-        ])
+        return self._recalculate_technical_bars(
+            [
+                TechnicalBar(
+                    stock_code=stock_code,
+                    trade_date=bar.trade_date,
+                    open=Decimal(str(bar.open)),
+                    high=Decimal(str(bar.high)),
+                    low=Decimal(str(bar.low)),
+                    close=Decimal(str(bar.close)),
+                    volume=bar.volume or 0,
+                    amount=self._safe_decimal(getattr(bar, "amount", None)) or Decimal("0"),
+                    ma5=None,
+                    ma20=None,
+                    ma60=None,
+                    macd=None,
+                    macd_signal=None,
+                    macd_hist=None,
+                    rsi=None,
+                )
+                for bar in remote_bars
+            ]
+        )
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
@@ -982,10 +1038,7 @@ class DjangoStockRepository:
         return self._last_intraday_source
 
     def calculate_daily_returns(
-        self,
-        stock_code: str,
-        start_date: date,
-        end_date: date
+        self, stock_code: str, start_date: date, end_date: date
     ) -> dict[date, float]:
         """
         计算股票的日收益率
@@ -1101,9 +1154,7 @@ class DjangoStockRepository:
                 total_shares = int(shares.sum()) if not shares.empty else 0
                 weighted_amount = float((bucket["成交价"] * shares).sum()) if total_shares else 0.0
                 avg_price = (
-                    self._safe_decimal(weighted_amount / total_shares)
-                    if total_shares > 0
-                    else None
+                    self._safe_decimal(weighted_amount / total_shares) if total_shares > 0 else None
                 )
                 price = self._safe_decimal(last_row.get("成交价"))
                 if price is None or price <= 0:
@@ -1408,10 +1459,14 @@ class DjangoStockRepository:
 
                 if (
                     not isinstance(trade_date, date)
-                    or open_price is None or open_price <= 0
-                    or high_price is None or high_price <= 0
-                    or low_price is None or low_price <= 0
-                    or close_price is None or close_price <= 0
+                    or open_price is None
+                    or open_price <= 0
+                    or high_price is None
+                    or high_price <= 0
+                    or low_price is None
+                    or low_price <= 0
+                    or close_price is None
+                    or close_price <= 0
                 ):
                     continue
 
@@ -1577,7 +1632,9 @@ class DjangoStockRepository:
             "SZSE": "SZ",
             "BSE": "BJ",
         }
-        market = market_map.get(asset.exchange.value, self._infer_market_from_stock_code(asset.code))
+        market = market_map.get(
+            asset.exchange.value, self._infer_market_from_stock_code(asset.code)
+        )
         return StockInfo(
             stock_code=asset.code,
             name=asset.short_name or asset.name,
@@ -1694,10 +1751,7 @@ class DjangoStockRepository:
         except (ValueError, TypeError):
             return None
 
-    def get_latest_financial_data(
-        self,
-        stock_code: str
-    ) -> FinancialData | None:
+    def get_latest_financial_data(self, stock_code: str) -> FinancialData | None:
         """
         获取股票最新的财务数据
 
@@ -1719,10 +1773,7 @@ class DjangoStockRepository:
         Returns:
             股票数量
         """
-        return StockInfoModel._default_manager.filter(
-            sector=sector,
-            is_active=True
-        ).count()
+        return StockInfoModel._default_manager.filter(sector=sector, is_active=True).count()
 
     def get_all_sectors(self) -> list[str]:
         """
@@ -1731,9 +1782,11 @@ class DjangoStockRepository:
         Returns:
             行业名称列表
         """
-        sectors = StockInfoModel._default_manager.filter(
-            is_active=True
-        ).values_list('sector', flat=True).distinct()
+        sectors = (
+            StockInfoModel._default_manager.filter(is_active=True)
+            .values_list("sector", flat=True)
+            .distinct()
+        )
 
         return list(sectors)
 
@@ -1754,15 +1807,13 @@ class DjangoStockRepository:
         Returns:
             股票代码列表
         """
-        queryset = StockInfoModel._default_manager.filter(
-            is_active=True
-        )
+        queryset = StockInfoModel._default_manager.filter(is_active=True)
 
         if stock_codes:
             normalized_codes = [str(code).strip().upper() for code in stock_codes if code]
             queryset = queryset.filter(stock_code__in=normalized_codes)
 
-        queryset = queryset.values_list('stock_code', flat=True).order_by('stock_code')
+        queryset = queryset.values_list("stock_code", flat=True).order_by("stock_code")
 
         if limit:
             queryset = queryset[:limit]
@@ -1771,7 +1822,11 @@ class DjangoStockRepository:
 
     def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""
-        latest = ValuationModel._default_manager.order_by("-trade_date").values_list("trade_date", flat=True).first()
+        latest = (
+            ValuationModel._default_manager.order_by("-trade_date")
+            .values_list("trade_date", flat=True)
+            .first()
+        )
         return latest
 
     def get_valuation_models_by_date(self, as_of_date: date) -> list[ValuationModel]:
@@ -1794,9 +1849,7 @@ class ScoringWeightConfigRepository:
         from .models import ScoringWeightConfigModel
 
         try:
-            model = ScoringWeightConfigModel._default_manager.filter(
-                is_active=True
-            ).first()
+            model = ScoringWeightConfigModel._default_manager.filter(is_active=True).first()
 
             if model:
                 return model.to_domain_entity()
@@ -1821,9 +1874,7 @@ class ScoringWeightConfigRepository:
         from .models import ScoringWeightConfigModel
 
         try:
-            model = ScoringWeightConfigModel._default_manager.filter(
-                name=name
-            ).first()
+            model = ScoringWeightConfigModel._default_manager.filter(name=name).first()
 
             if model:
                 return model.to_domain_entity()
@@ -1843,7 +1894,9 @@ class ScoringWeightConfigRepository:
         from .models import ScoringWeightConfigModel
 
         try:
-            models = ScoringWeightConfigModel._default_manager.all().order_by('-is_active', '-created_at')
+            models = ScoringWeightConfigModel._default_manager.all().order_by(
+                "-is_active", "-created_at"
+            )
             return [m.to_domain_entity() for m in models]
         except Exception:
             return []
@@ -1860,14 +1913,14 @@ class ScoringWeightConfigRepository:
         ScoringWeightConfigModel._default_manager.update_or_create(
             name=config_entity.name,
             defaults={
-                'description': config_entity.description,
-                'is_active': config_entity.is_active,
-                'growth_weight': config_entity.growth_weight,
-                'profitability_weight': config_entity.profitability_weight,
-                'valuation_weight': config_entity.valuation_weight,
-                'revenue_growth_weight': config_entity.revenue_growth_weight,
-                'profit_growth_weight': config_entity.profit_growth_weight,
-            }
+                "description": config_entity.description,
+                "is_active": config_entity.is_active,
+                "growth_weight": config_entity.growth_weight,
+                "profitability_weight": config_entity.profitability_weight,
+                "valuation_weight": config_entity.valuation_weight,
+                "revenue_growth_weight": config_entity.revenue_growth_weight,
+                "profit_growth_weight": config_entity.profit_growth_weight,
+            },
         )
 
     def _get_default_config(self):
@@ -1886,18 +1939,14 @@ class ScoringWeightConfigRepository:
             profitability_weight=0.4,
             valuation_weight=0.2,
             revenue_growth_weight=0.5,
-            profit_growth_weight=0.5
+            profit_growth_weight=0.5,
         )
 
 
 class DjangoValuationRepairRepository:
     """Django ORM 估值修复仓储"""
 
-    def upsert_snapshot(
-        self,
-        status,
-        source_universe: str = "all_active"
-    ) -> None:
+    def upsert_snapshot(self, status, source_universe: str = "all_active") -> None:
         """
         保存或更新估值修复快照
 
@@ -1933,14 +1982,10 @@ class DjangoValuationRepairRepository:
                 "composite_method": status.composite_method,
                 "confidence": status.confidence,
                 "is_active": True,
-            }
+            },
         )
 
-    def deactivate_snapshot(
-        self,
-        stock_code: str,
-        source_universe: str = "all_active"
-    ) -> None:
+    def deactivate_snapshot(self, stock_code: str, source_universe: str = "all_active") -> None:
         """
         停用估值修复快照
 
@@ -1951,15 +1996,11 @@ class DjangoValuationRepairRepository:
         from .models import ValuationRepairTrackingModel
 
         ValuationRepairTrackingModel._default_manager.filter(
-            stock_code=stock_code,
-            source_universe=source_universe
+            stock_code=stock_code, source_universe=source_universe
         ).update(is_active=False)
 
     def list_active_snapshots(
-        self,
-        source_universe: str = "all_active",
-        phase: str | None = None,
-        limit: int = 50
+        self, source_universe: str = "all_active", phase: str | None = None, limit: int = 50
     ) -> list:
         """
         列出活跃的估值修复快照
@@ -1975,8 +2016,7 @@ class DjangoValuationRepairRepository:
         from .models import ValuationRepairTrackingModel
 
         queryset = ValuationRepairTrackingModel._default_manager.filter(
-            source_universe=source_universe,
-            is_active=True
+            source_universe=source_universe, is_active=True
         )
 
         if phase:
@@ -1984,11 +2024,7 @@ class DjangoValuationRepairRepository:
 
         return list(queryset.order_by("-composite_percentile")[:limit])
 
-    def get_snapshot(
-        self,
-        stock_code: str,
-        source_universe: str = "all_active"
-    ) -> object | None:
+    def get_snapshot(self, stock_code: str, source_universe: str = "all_active") -> object | None:
         """
         获取单只股票的估值修复快照
 
@@ -2003,9 +2039,7 @@ class DjangoValuationRepairRepository:
 
         try:
             return ValuationRepairTrackingModel._default_manager.get(
-                stock_code=stock_code,
-                source_universe=source_universe,
-                is_active=True
+                stock_code=stock_code, source_universe=source_universe, is_active=True
             )
         except ValuationRepairTrackingModel.DoesNotExist:
             return None
@@ -2069,8 +2103,7 @@ class DjangoValuationDataQualityRepository:
 
     def get_latest_gate_passed_snapshot(self) -> ValuationDataQualitySnapshotModel | None:
         return (
-            ValuationDataQualitySnapshotModel._default_manager
-            .filter(is_gate_passed=True)
+            ValuationDataQualitySnapshotModel._default_manager.filter(is_gate_passed=True)
             .order_by("-as_of_date")
             .first()
         )
@@ -2240,7 +2273,9 @@ def build_quality_snapshot(
     invalid_pb_count = sum(1 for item in valuations if item.quality_flag == "invalid_pb")
     missing_pe_count = sum(1 for item in valuations if item.quality_flag == "missing_pe")
     jump_alert_count = sum(1 for item in valuations if item.quality_flag == "jump_alert")
-    source_deviation_count = sum(1 for item in valuations if item.quality_flag == "source_deviation")
+    source_deviation_count = sum(
+        1 for item in valuations if item.quality_flag == "source_deviation"
+    )
     fallback_used_count = sum(1 for item in valuations if item.source_provider != primary_source)
 
     coverage_ratio = (synced_stock_count / expected_stock_count) if expected_stock_count else 0.0
@@ -2276,4 +2311,3 @@ def build_quality_snapshot(
         "is_gate_passed": not gate_reasons,
         "gate_reason": ", ".join(gate_reasons),
     }
-

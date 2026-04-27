@@ -43,6 +43,17 @@ def _generate_proposal_request_id() -> str:
     return f"apr_{date_part}_{random_part}"
 
 
+def _resolve_optional_audit_service() -> Any | None:
+    """Load the optional proposal audit service without swallowing runtime defects."""
+
+    try:
+        from apps.agent_runtime.application.services.audit_service import get_audit_service
+    except ImportError as exc:
+        logger.debug("Agent runtime proposal audit service import skipped: %s", exc)
+        return None
+    return get_audit_service()
+
+
 # ── Proposal state transitions ──────────────────────────────
 
 _PROPOSAL_TRANSITIONS: dict[str, list[str]] = {
@@ -106,6 +117,7 @@ def _validate_proposal_transition(current: str, target: str) -> None:
 
 # ── DTOs ─────────────────────────────────────────────────────
 
+
 @dataclass
 class CreateProposalInput:
     task_id: int | None = None
@@ -152,6 +164,7 @@ class ExecuteProposalOutput:
 
 # ── Use Cases ────────────────────────────────────────────────
 
+
 class CreateProposalUseCase:
     """Create a new proposal, optionally linked to a task."""
 
@@ -167,11 +180,7 @@ class CreateProposalUseCase:
         self.proposal_repo = proposal_repo or AgentProposalRepository()
         self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
-            try:
-                from apps.agent_runtime.application.services.audit_service import get_audit_service
-                self.audit_service = get_audit_service()
-            except Exception:
-                self.audit_service = None
+            self.audit_service = _resolve_optional_audit_service()
 
     def execute(self, inp: CreateProposalInput) -> CreateProposalOutput:
         request_id = _generate_proposal_request_id()
@@ -202,7 +211,11 @@ class CreateProposalUseCase:
             status=initial_status.value,
             risk_level=risk.value,
             approval_required=approval_required,
-            approval_status=ApprovalStatus.PENDING.value if approval_required else ApprovalStatus.NOT_REQUIRED.value,
+            approval_status=(
+                ApprovalStatus.PENDING.value
+                if approval_required
+                else ApprovalStatus.NOT_REQUIRED.value
+            ),
             proposal_payload=inp.proposal_payload or {},
             approval_reason=inp.approval_reason,
             created_by=inp.created_by,
@@ -431,11 +444,7 @@ class ExecuteProposalUseCase:
         self.audit_service = audit_service
         self.proposal_repo = proposal_repo or AgentProposalRepository()
         if self.audit_service is None:
-            try:
-                from apps.agent_runtime.application.services.audit_service import get_audit_service
-                self.audit_service = get_audit_service()
-            except Exception:
-                self.audit_service = None
+            self.audit_service = _resolve_optional_audit_service()
 
     def execute(
         self,

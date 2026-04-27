@@ -203,8 +203,7 @@ class InMemoryEventBus(EventBus):
 
             for event_type, subscriptions in list(self._subscriptions.items()):
                 new_subscriptions = [
-                    sub for sub in subscriptions
-                    if sub.handler.get_handler_id() != handler_id
+                    sub for sub in subscriptions if sub.handler.get_handler_id() != handler_id
                 ]
                 removed = len(subscriptions) - len(new_subscriptions)
 
@@ -316,9 +315,16 @@ class InMemoryEventBus(EventBus):
                         success = True
                         self._metrics.total_failed -= 1
                         self._metrics.total_processed += 1
-                        logger.info(f"Retry {retry_count} succeeded for {subscription.subscription_id}")
-                    except Exception:
-                        pass
+                        logger.info(
+                            f"Retry {retry_count} succeeded for {subscription.subscription_id}"
+                        )
+                    except Exception as exc:
+                        logger.debug(
+                            "Retry %s failed for %s: %s",
+                            retry_count,
+                            subscription.subscription_id,
+                            exc,
+                        )
 
             finally:
                 # 计算处理时间
@@ -349,8 +355,8 @@ class InMemoryEventBus(EventBus):
             if total > 0:
                 current_avg = self._metrics.avg_processing_time_ms
                 self._metrics.avg_processing_time_ms = (
-                    (current_avg * (total - 1) + new_time_ms) / total
-                )
+                    current_avg * (total - 1) + new_time_ms
+                ) / total
 
     def get_metrics(self) -> EventMetrics:
         """
@@ -486,7 +492,9 @@ def reset_event_bus() -> None:
 # ========== 装饰器 ==========
 
 
-def event_handler(event_type: EventType, filter_criteria: dict[str, Any] | None = None, priority: int = 100):
+def event_handler(
+    event_type: EventType, filter_criteria: dict[str, Any] | None = None, priority: int = 100
+):
     """
     事件处理器装饰器
 
@@ -502,6 +510,7 @@ def event_handler(event_type: EventType, filter_criteria: dict[str, Any] | None 
         ... def handle_regime_change(event: DomainEvent):
         ...     print(f"Regime changed to {event.payload['new_regime']}")
     """
+
     def decorator(func: Callable[[DomainEvent], None]):
         class FunctionHandler(EventHandler):
             def can_handle(self, et: EventType) -> bool:

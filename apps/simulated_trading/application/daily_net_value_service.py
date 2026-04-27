@@ -6,6 +6,7 @@ Application层:
 - 计算并更新绩效指标
 - 支持净值曲线查询和最大回撤计算
 """
+
 import logging
 from dataclasses import replace
 from datetime import date
@@ -53,11 +54,7 @@ class DailyNetValueService:
             daily_net_value_repo or get_simulated_daily_net_value_repository()
         )
 
-    def record_and_update_performance(
-        self,
-        account_id: int,
-        record_date: date
-    ) -> dict[str, float]:
+    def record_and_update_performance(self, account_id: int, record_date: date) -> dict[str, float]:
         """
         记录当日净值并更新绩效指标
 
@@ -93,8 +90,10 @@ class DailyNetValueService:
             daily_return = 0.0
 
         # 5. 计算累计收益率
-        cumulative_return = ((float(account.total_value) - float(account.initial_capital)) /
-                            float(account.initial_capital)) * 100
+        cumulative_return = (
+            (float(account.total_value) - float(account.initial_capital))
+            / float(account.initial_capital)
+        ) * 100
 
         # 6. 计算回撤
         # 回撤 = (历史最高点 - 当前值) / 历史最高点 * 100
@@ -125,7 +124,7 @@ class DailyNetValueService:
                 "drawdown": drawdown,
                 "total_trades": daily_trades_count,
                 "positions_count": len(positions),
-            }
+            },
         )
 
         # 9. 重新计算并更新账户绩效指标
@@ -134,22 +133,19 @@ class DailyNetValueService:
         # 10. 更新账户实体
         updated_account = replace(
             account,
-            total_return=metrics.get('total_return', cumulative_return),
-            annual_return=metrics.get('annual_return', 0.0),
-            max_drawdown=metrics.get('max_drawdown', drawdown),
-            sharpe_ratio=metrics.get('sharpe_ratio', 0.0),
-            win_rate=metrics.get('win_rate', 0.0),
-            winning_trades=metrics.get('winning_trades', 0)
+            total_return=metrics.get("total_return", cumulative_return),
+            annual_return=metrics.get("annual_return", 0.0),
+            max_drawdown=metrics.get("max_drawdown", drawdown),
+            sharpe_ratio=metrics.get("sharpe_ratio", 0.0),
+            win_rate=metrics.get("win_rate", 0.0),
+            winning_trades=metrics.get("winning_trades", 0),
         )
         self.account_repo.save(updated_account)
 
         return metrics
 
     def get_equity_curve(
-        self,
-        account_id: int,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, account_id: int, start_date: date | None = None, end_date: date | None = None
     ) -> list[dict]:
         """
         获取净值曲线数据
@@ -186,37 +182,63 @@ class DailyNetValueService:
     def _get_previous_net_value(self, account_id: int, current_date: date) -> float | None:
         """获取上一交易日的净值"""
         try:
-            prev_record = self.daily_net_value_repo.get_latest_record_before(account_id, current_date)
+            prev_record = self.daily_net_value_repo.get_latest_record_before(
+                account_id, current_date
+            )
             return float(prev_record["net_value"]) if prev_record else None
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "Failed to read previous net value for account=%s date=%s: %s",
+                account_id,
+                current_date,
+                exc,
+            )
             return None
 
     def _get_previous_cumulative_return(self, account_id: int, current_date: date) -> float:
         """获取上一交易日的累计收益率"""
         try:
-            prev_record = self.daily_net_value_repo.get_latest_record_before(account_id, current_date)
+            prev_record = self.daily_net_value_repo.get_latest_record_before(
+                account_id, current_date
+            )
             return float(prev_record["cumulative_return"]) if prev_record else 0.0
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "Failed to read previous cumulative return for account=%s date=%s: %s",
+                account_id,
+                current_date,
+                exc,
+            )
             return 0.0
 
     def _get_max_net_value_before_date(self, account_id: int, before_date: date) -> float | None:
         """获取指定日期之前的最大净值"""
         try:
             return self.daily_net_value_repo.get_max_net_value_before(account_id, before_date)
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "Failed to read max net value for account=%s before=%s: %s",
+                account_id,
+                before_date,
+                exc,
+            )
             return None
 
     def _get_daily_trades_count(self, account_id: int, trade_date: date) -> int:
         """获取当日交易次数"""
         try:
             return self.trade_repo.count_by_execution_date(account_id, trade_date)
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "Failed to count daily trades for account=%s date=%s: %s",
+                account_id,
+                trade_date,
+                exc,
+            )
             return 0
 
     def _recalculate_performance_metrics(
-        self,
-        account_id: int,
-        as_of_date: date
+        self, account_id: int, as_of_date: date
     ) -> dict[str, float]:
         """
         重新计算绩效指标（基于净值曲线）
@@ -254,8 +276,10 @@ class DailyNetValueService:
         # 1. 总收益率
         initial_value = float(account.initial_capital)
         final_value = float(net_value_records[-1]["net_value"])
-        total_return = ((final_value - initial_value) / initial_value * 100) if initial_value > 0 else 0.0
-        metrics['total_return'] = total_return
+        total_return = (
+            ((final_value - initial_value) / initial_value * 100) if initial_value > 0 else 0.0
+        )
+        metrics["total_return"] = total_return
 
         # 2. 年化收益率
         days = (net_value_records[-1]["record_date"] - account.start_date).days
@@ -263,20 +287,20 @@ class DailyNetValueService:
             annual_return = ((1 + total_return / 100) ** (365.0 / days) - 1) * 100
         else:
             annual_return = 0.0
-        metrics['annual_return'] = annual_return
+        metrics["annual_return"] = annual_return
 
         # 3. 最大回撤（基于净值曲线）
         max_drawdown = self._calculate_max_drawdown_from_records(net_value_records)
-        metrics['max_drawdown'] = max_drawdown
+        metrics["max_drawdown"] = max_drawdown
 
         # 4. 夏普比率
         sharpe_ratio = self._calculate_sharpe_ratio_from_records(net_value_records)
-        metrics['sharpe_ratio'] = sharpe_ratio
+        metrics["sharpe_ratio"] = sharpe_ratio
 
         # 5. 胜率和盈利交易数
         win_rate, winning_trades = self._calculate_win_rate(account_id)
-        metrics['win_rate'] = win_rate
-        metrics['winning_trades'] = winning_trades
+        metrics["win_rate"] = win_rate
+        metrics["winning_trades"] = winning_trades
 
         return metrics
 
@@ -342,6 +366,7 @@ class DailyNetValueService:
 
         # 计算均值和标准差
         import statistics
+
         mean_return = statistics.mean(daily_returns)
         std_return = statistics.stdev(daily_returns) if len(daily_returns) > 1 else 0.0
 
@@ -351,7 +376,7 @@ class DailyNetValueService:
         # 年化
         risk_free_rate = 0.03  # 假设无风险利率3%
         annual_return = mean_return * 252
-        annual_volatility = std_return * (252 ** 0.5)
+        annual_volatility = std_return * (252**0.5)
 
         if annual_volatility == 0:
             return 0.0
@@ -373,7 +398,7 @@ class DailyNetValueService:
             trades = [
                 trade
                 for trade in self.trade_repo.get_by_account(account_id)
-                if trade.action.value == 'sell'
+                if trade.action.value == "sell"
             ]
 
             if not trades:

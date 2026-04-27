@@ -2,6 +2,8 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+
 from apps.data_center.application.price_service import UnifiedPriceService
 from core.exceptions import DataFetchError
 
@@ -143,3 +145,15 @@ def test_fund_price_can_read_from_data_center_nav():
     assert result.price == 1.2345
     assert result.source == "dc_tushare"
     assert result.freshness == "close_fallback"
+
+
+def test_realtime_quote_failure_returns_none_and_logs_debug(caplog):
+    service = UnifiedPriceService()
+    service._dc_quote_repo = Mock()
+    service._dc_quote_repo.get_latest.side_effect = RuntimeError("quote backend offline")
+
+    with caplog.at_level("DEBUG"):
+        result = service._get_realtime_quote("159915.SZ")
+
+    assert result is None
+    assert "Realtime quote lookup failed" in caplog.text

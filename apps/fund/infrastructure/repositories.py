@@ -56,10 +56,7 @@ class DjangoFundAssetRepository:
         self.fund_repo = DjangoFundRepository()
 
     def get_assets_by_filter(
-        self,
-        asset_type: str,
-        filters: dict,
-        max_count: int = 100
+        self, asset_type: str, filters: dict, max_count: int = 100
     ) -> list[FundAssetScore]:
         """
         根据过滤条件获取资产列表
@@ -109,8 +106,7 @@ class DjangoFundAssetRepository:
 
         # 转换为 FundAssetScore 实体
         return [
-            FundAssetScore.from_fund_info(self.fund_repo._model_to_entity_info(m))
-            for m in models
+            FundAssetScore.from_fund_info(self.fund_repo._model_to_entity_info(m)) for m in models
         ]
 
     def get_asset_by_code(self, asset_type: str, asset_code: str) -> FundAssetScore | None:
@@ -128,10 +124,7 @@ class DjangoFundAssetRepository:
             return None
 
         try:
-            model = FundInfoModel._default_manager.get(
-                fund_code=asset_code,
-                is_active=True
-            )
+            model = FundInfoModel._default_manager.get(fund_code=asset_code, is_active=True)
             fund_info = self.fund_repo._model_to_entity_info(model)
             return FundAssetScore.from_fund_info(fund_info)
         except FundInfoModel.DoesNotExist:
@@ -176,6 +169,24 @@ class DjangoFundRepository:
         except FundInfoModel.DoesNotExist:
             return None
 
+    def resolve_fund_names(self, codes: list[str]) -> dict[str, str]:
+        """批量解析基金名称。"""
+        normalized_codes = [str(code).upper() for code in codes if code]
+        if not normalized_codes:
+            return {}
+
+        code_to_fund_code = {code: code.split(".")[0] for code in normalized_codes}
+        models = FundInfoModel._default_manager.filter(
+            fund_code__in=list(set(code_to_fund_code.values())),
+            is_active=True,
+        )
+        name_map = {model.fund_code: model.fund_name for model in models if model.fund_name}
+        return {
+            code: name_map[fund_code]
+            for code, fund_code in code_to_fund_code.items()
+            if fund_code in name_map
+        }
+
     def get_all_funds(self, fund_type: str | None = None) -> list[FundInfo]:
         """获取所有基金信息
 
@@ -202,24 +213,21 @@ class DjangoFundRepository:
         FundInfoModel._default_manager.update_or_create(
             fund_code=fund_info.fund_code,
             defaults={
-                'fund_name': fund_info.fund_name,
-                'fund_type': fund_info.fund_type,
-                'investment_style': fund_info.investment_style,
-                'setup_date': fund_info.setup_date,
-                'management_company': fund_info.management_company,
-                'custodian': fund_info.custodian,
-                'fund_scale': fund_info.fund_scale,
-                'is_active': True
-            }
+                "fund_name": fund_info.fund_name,
+                "fund_type": fund_info.fund_type,
+                "investment_style": fund_info.investment_style,
+                "setup_date": fund_info.setup_date,
+                "management_company": fund_info.management_company,
+                "custodian": fund_info.custodian,
+                "fund_scale": fund_info.fund_scale,
+                "is_active": True,
+            },
         )
 
     # ==================== 基金净值 ====================
 
     def get_fund_nav(
-        self,
-        fund_code: str,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, fund_code: str, start_date: date | None = None, end_date: date | None = None
     ) -> list[FundNetValue]:
         """获取基金净值数据
 
@@ -246,7 +254,7 @@ class DjangoFundRepository:
         if end_date:
             queryset = queryset.filter(nav_date__lte=end_date)
 
-        queryset = queryset.order_by('nav_date')
+        queryset = queryset.order_by("nav_date")
 
         models = queryset.all()
         return [self._model_to_entity_nav(m) for m in models]
@@ -265,9 +273,11 @@ class DjangoFundRepository:
             return self._dc_fact_to_entity_nav(latest_fact)
 
         try:
-            model = FundNetValueModel._default_manager.filter(
-                fund_code=fund_code
-            ).order_by('-nav_date').first()
+            model = (
+                FundNetValueModel._default_manager.filter(fund_code=fund_code)
+                .order_by("-nav_date")
+                .first()
+            )
 
             if model:
                 return self._model_to_entity_nav(model)
@@ -285,10 +295,10 @@ class DjangoFundRepository:
             fund_code=nav.fund_code,
             nav_date=nav.nav_date,
             defaults={
-                'unit_nav': nav.unit_nav,
-                'accum_nav': nav.accum_nav,
-                'daily_return': nav.daily_return
-            }
+                "unit_nav": nav.unit_nav,
+                "accum_nav": nav.accum_nav,
+                "daily_return": nav.daily_return,
+            },
         )
         self._dc_fund_nav_repo.bulk_upsert([self._entity_nav_to_dc_fact(nav)])
 
@@ -304,9 +314,7 @@ class DjangoFundRepository:
     # ==================== 基金持仓 ====================
 
     def get_fund_holdings(
-        self,
-        fund_code: str,
-        report_date: date | None = None
+        self, fund_code: str, report_date: date | None = None
     ) -> list[FundHolding]:
         """获取基金持仓数据
 
@@ -323,14 +331,60 @@ class DjangoFundRepository:
             queryset = queryset.filter(report_date=report_date)
         else:
             # 获取最新报告期
-            latest_date = queryset.aggregate(Max('report_date'))['report_date__max']
+            latest_date = queryset.aggregate(Max("report_date"))["report_date__max"]
             if latest_date:
                 queryset = queryset.filter(report_date=latest_date)
 
-        queryset = queryset.order_by('-holding_ratio')
+        queryset = queryset.order_by("-holding_ratio")
 
         models = queryset.all()
         return [self._model_to_entity_holding(m) for m in models]
+
+    def resolve_stock_names_from_holdings(self, codes: list[str]) -> dict[str, str]:
+        """从基金持仓回填股票名称。"""
+        normalized_codes = [str(code).upper() for code in codes if code]
+        if not normalized_codes:
+            return {}
+
+        code_to_base = {code: code.split(".")[0] for code in normalized_codes}
+        resolved: dict[str, str] = {}
+
+        rows = (
+            FundHoldingModel._default_manager.filter(stock_code__in=normalized_codes)
+            .order_by("stock_code", "-report_date")
+            .values("stock_code", "stock_name")
+        )
+        seen_codes: set[str] = set()
+        for row in rows:
+            stock_code = row["stock_code"]
+            stock_name = row["stock_name"]
+            if not stock_code or not stock_name or stock_code in seen_codes:
+                continue
+            seen_codes.add(stock_code)
+            resolved[str(stock_code).upper()] = stock_name
+
+        if len(resolved) == len(normalized_codes):
+            return resolved
+
+        base_rows = (
+            FundHoldingModel._default_manager.filter(
+                stock_code__in=list(set(code_to_base.values()))
+            )
+            .order_by("stock_code", "-report_date")
+            .values("stock_code", "stock_name")
+        )
+        base_name_map: dict[str, str] = {}
+        for row in base_rows:
+            stock_code = row["stock_code"]
+            stock_name = row["stock_name"]
+            if stock_code and stock_name and stock_code not in base_name_map:
+                base_name_map[str(stock_code).upper()] = stock_name
+
+        for code, base_code in code_to_base.items():
+            if code not in resolved and base_code.upper() in base_name_map:
+                resolved[code] = base_name_map[base_code.upper()]
+
+        return resolved
 
     def save_fund_holding(self, holding: FundHolding) -> None:
         """保存或更新基金持仓
@@ -343,19 +397,17 @@ class DjangoFundRepository:
             report_date=holding.report_date,
             stock_code=holding.stock_code,
             defaults={
-                'stock_name': holding.stock_name,
-                'holding_amount': holding.holding_amount,
-                'holding_value': holding.holding_value,
-                'holding_ratio': holding.holding_ratio
-            }
+                "stock_name": holding.stock_name,
+                "holding_amount": holding.holding_amount,
+                "holding_value": holding.holding_value,
+                "holding_ratio": holding.holding_ratio,
+            },
         )
 
     # ==================== 行业配置 ====================
 
     def get_fund_sector_allocation(
-        self,
-        fund_code: str,
-        report_date: date | None = None
+        self, fund_code: str, report_date: date | None = None
     ) -> list[FundSectorAllocation]:
         """获取基金行业配置
 
@@ -372,11 +424,11 @@ class DjangoFundRepository:
             queryset = queryset.filter(report_date=report_date)
         else:
             # 获取最新报告期
-            latest_date = queryset.aggregate(Max('report_date'))['report_date__max']
+            latest_date = queryset.aggregate(Max("report_date"))["report_date__max"]
             if latest_date:
                 queryset = queryset.filter(report_date=latest_date)
 
-        queryset = queryset.order_by('-allocation_ratio')
+        queryset = queryset.order_by("-allocation_ratio")
 
         models = queryset.all()
         return [self._model_to_entity_sector_alloc(m) for m in models]
@@ -391,18 +443,13 @@ class DjangoFundRepository:
             fund_code=allocation.fund_code,
             report_date=allocation.report_date,
             sector_name=allocation.sector_name,
-            defaults={
-                'allocation_ratio': allocation.allocation_ratio
-            }
+            defaults={"allocation_ratio": allocation.allocation_ratio},
         )
 
     # ==================== 基金业绩 ====================
 
     def get_fund_performance(
-        self,
-        fund_code: str,
-        start_date: date,
-        end_date: date
+        self, fund_code: str, start_date: date, end_date: date
     ) -> FundPerformance | None:
         """获取基金业绩指标
 
@@ -416,9 +463,7 @@ class DjangoFundRepository:
         """
         try:
             model = FundPerformanceModel._default_manager.get(
-                fund_code=fund_code,
-                start_date=start_date,
-                end_date=end_date
+                fund_code=fund_code, start_date=start_date, end_date=end_date
             )
             return self._model_to_entity_performance(model)
         except FundPerformanceModel.DoesNotExist:
@@ -435,22 +480,20 @@ class DjangoFundRepository:
             start_date=performance.start_date,
             end_date=performance.end_date,
             defaults={
-                'total_return': performance.total_return,
-                'annualized_return': performance.annualized_return,
-                'volatility': performance.volatility,
-                'sharpe_ratio': performance.sharpe_ratio,
-                'max_drawdown': performance.max_drawdown,
-                'beta': performance.beta,
-                'alpha': performance.alpha
-            }
+                "total_return": performance.total_return,
+                "annualized_return": performance.annualized_return,
+                "volatility": performance.volatility,
+                "sharpe_ratio": performance.sharpe_ratio,
+                "max_drawdown": performance.max_drawdown,
+                "beta": performance.beta,
+                "alpha": performance.alpha,
+            },
         )
 
     # ==================== 综合查询 ====================
 
     def get_funds_with_performance(
-        self,
-        start_date: date,
-        end_date: date
+        self, start_date: date, end_date: date
     ) -> list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]]:
         """获取基金及其业绩和行业配置
 
@@ -488,7 +531,7 @@ class DjangoFundRepository:
         Returns:
             同步的基金数量
         """
-        df = self.tushare_adapter.fetch_fund_list(market='O')
+        df = self.tushare_adapter.fetch_fund_list(market="O")
 
         if df is None or df.empty:
             return 0
@@ -497,24 +540,28 @@ class DjangoFundRepository:
         for _, row in df.iterrows():
             # 映射基金类型
             fund_type_map = {
-                '开放式': '混合型',
-                '封闭式': '混合型',
-                'ETF型': '指数型',
-                'LOF型': '指数型',
+                "开放式": "混合型",
+                "封闭式": "混合型",
+                "ETF型": "指数型",
+                "LOF型": "指数型",
             }
-            fund_type = fund_type_map.get(row.get('fund_type', ''), '混合型')
+            fund_type = fund_type_map.get(row.get("fund_type", ""), "混合型")
 
             # 去除基金代码中的 .OF 后缀
-            fund_code = row['ts_code'].replace('.OF', '')
+            fund_code = row["ts_code"].replace(".OF", "")
 
             fund_info = FundInfo(
                 fund_code=fund_code,
-                fund_name=row.get('name', ''),
+                fund_name=row.get("name", ""),
                 fund_type=fund_type,
-                setup_date=row.get('setup_date'),
-                management_company=row.get('management'),
-                custodian=row.get('custodian'),
-                fund_scale=Decimal(str(row.get('issue_amount', 0))) * 100000000 if row.get('issue_amount') else None
+                setup_date=row.get("setup_date"),
+                management_company=row.get("management"),
+                custodian=row.get("custodian"),
+                fund_scale=(
+                    Decimal(str(row.get("issue_amount", 0))) * 100000000
+                    if row.get("issue_amount")
+                    else None
+                ),
             )
 
             self.save_fund_info(fund_info)
@@ -522,12 +569,7 @@ class DjangoFundRepository:
 
         return count
 
-    def sync_fund_nav_from_tushare(
-        self,
-        fund_code: str,
-        start_date: str,
-        end_date: str
-    ) -> int:
+    def sync_fund_nav_from_tushare(self, fund_code: str, start_date: str, end_date: str) -> int:
         """从 Tushare 同步基金净值
 
         Args:
@@ -576,9 +618,9 @@ class DjangoFundRepository:
         for _, row in df.iterrows():
             nav = FundNetValue(
                 fund_code=fund_code,
-                nav_date=row['trade_date'].date(),
-                unit_nav=Decimal(str(row['unit_nav'])),
-                accum_nav=Decimal(str(row['accum_nav']))
+                nav_date=row["trade_date"].date(),
+                unit_nav=Decimal(str(row["unit_nav"])),
+                accum_nav=Decimal(str(row["accum_nav"])),
             )
 
             self.save_fund_nav(nav)
@@ -616,9 +658,9 @@ class DjangoFundRepository:
             fund_code=fact.fund_code,
             nav_date=fact.nav_date,
             defaults={
-                'unit_nav': Decimal(str(fact.nav)),
-                'accum_nav': Decimal(str(accum_nav)),
-                'daily_return': fact.daily_return,
+                "unit_nav": Decimal(str(fact.nav)),
+                "accum_nav": Decimal(str(accum_nav)),
+                "daily_return": fact.daily_return,
             },
         )
 
@@ -632,7 +674,7 @@ class DjangoFundRepository:
             setup_date=model.setup_date,
             management_company=model.management_company,
             custodian=model.custodian,
-            fund_scale=model.fund_scale
+            fund_scale=model.fund_scale,
         )
 
     def _model_to_entity_nav(self, model: FundNetValueModel) -> FundNetValue:
@@ -642,7 +684,7 @@ class DjangoFundRepository:
             nav_date=model.nav_date,
             unit_nav=model.unit_nav,
             accum_nav=model.accum_nav,
-            daily_return=model.daily_return
+            daily_return=model.daily_return,
         )
 
     def _model_to_entity_holding(self, model: FundHoldingModel) -> FundHolding:
@@ -654,16 +696,18 @@ class DjangoFundRepository:
             stock_name=model.stock_name,
             holding_amount=model.holding_amount,
             holding_value=model.holding_value,
-            holding_ratio=model.holding_ratio
+            holding_ratio=model.holding_ratio,
         )
 
-    def _model_to_entity_sector_alloc(self, model: FundSectorAllocationModel) -> FundSectorAllocation:
+    def _model_to_entity_sector_alloc(
+        self, model: FundSectorAllocationModel
+    ) -> FundSectorAllocation:
         """ORM 模型转换为实体（行业配置）"""
         return FundSectorAllocation(
             fund_code=model.fund_code,
             report_date=model.report_date,
             sector_name=model.sector_name,
-            allocation_ratio=model.allocation_ratio
+            allocation_ratio=model.allocation_ratio,
         )
 
     def _model_to_entity_performance(self, model: FundPerformanceModel) -> FundPerformance:
@@ -678,6 +722,5 @@ class DjangoFundRepository:
             sharpe_ratio=model.sharpe_ratio,
             max_drawdown=model.max_drawdown,
             beta=model.beta,
-            alpha=model.alpha
+            alpha=model.alpha,
         )
-

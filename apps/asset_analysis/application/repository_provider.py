@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from apps.asset_analysis.domain.pool import PoolCategory
 from apps.asset_analysis.infrastructure.asset_name_resolver import (
     AssetNameResolver,
     enrich_with_asset_names,
@@ -26,6 +27,18 @@ def get_asset_pool_query_repository() -> DjangoAssetPoolQueryRepository:
     """Return the default asset-pool query repository."""
 
     return DjangoAssetPoolQueryRepository()
+
+
+def list_investable_asset_categories() -> tuple[str, ...]:
+    """Return asset categories managed by the investable asset pool."""
+
+    return tuple(category.value for category in PoolCategory)
+
+
+def resolve_index_asset_names(codes: list[str]) -> dict[str, str]:
+    """Resolve asset names from asset-pool entries for index-like assets."""
+
+    return get_asset_pool_query_repository().resolve_asset_names(codes)
 
 
 def get_asset_repository() -> DjangoAssetRepository:

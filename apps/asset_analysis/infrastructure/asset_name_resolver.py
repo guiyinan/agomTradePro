@@ -12,16 +12,21 @@ import json
 import logging
 
 from django.core.cache import cache
-from core.integration.asset_analysis_market_sources import (
-    resolve_equity_names,
-    resolve_fund_holding_names,
-    resolve_fund_names,
+from shared.infrastructure.asset_analysis_registry import (
+    get_asset_analysis_market_registry,
 )
 
 logger = logging.getLogger(__name__)
 
 CACHE_PREFIX = "asset_names:v3"
 CACHE_TTL = 3600
+
+
+def _resolve_names(source_name: str, codes: set[str]) -> dict[str, str]:
+    if not codes:
+        return {}
+    resolver = get_asset_analysis_market_registry().get_name_resolver(source_name)
+    return resolver(list(codes))
 
 
 class AssetNameResolver:
@@ -76,7 +81,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            resolved.update(resolve_equity_names(codes))
+            resolved.update(_resolve_names("equity", codes))
         except Exception as exc:
             logger.warning("Failed to resolve stock names: %s", exc)
 
@@ -89,7 +94,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            resolved.update(resolve_fund_names(codes))
+            resolved.update(_resolve_names("fund", codes))
         except Exception as exc:
             logger.warning("Failed to resolve fund names: %s", exc)
 
@@ -102,17 +107,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            from apps.rotation.infrastructure.models import AssetClassModel
-
-            code_to_base = {code: code.split(".")[0] for code in codes}
-            rows = AssetClassModel.objects.filter(
-                code__in=list(set(code_to_base.values())),
-                is_active=True,
-            ).values("code", "name")
-            name_map = {row["code"]: row["name"] for row in rows}
-            for code, base_code in code_to_base.items():
-                if base_code in name_map and name_map[base_code]:
-                    resolved[code] = name_map[base_code]
+            resolved.update(_resolve_names("rotation", codes))
         except Exception as exc:
             logger.warning("Failed to resolve rotation asset names: %s", exc)
 
@@ -125,7 +120,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            resolved.update(resolve_fund_holding_names(codes))
+            resolved.update(_resolve_names("fund_holding", codes))
         except Exception as exc:
             logger.warning("Failed to resolve stock names from fund holdings: %s", exc)
 
@@ -138,16 +133,7 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
         try:
-            from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-
-            rows = (
-                AssetPoolEntry._default_manager.filter(asset_code__in=list(codes))
-                .values("asset_code", "asset_name")
-                .distinct()
-            )
-            for row in rows:
-                if row["asset_name"]:
-                    resolved[row["asset_code"]] = row["asset_name"]
+            resolved.update(_resolve_names("index", codes))
         except Exception as exc:
             logger.debug("Failed to resolve index names from AssetPoolEntry: %s", exc)
 

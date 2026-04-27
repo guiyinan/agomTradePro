@@ -46,6 +46,11 @@ Build: 2026-03-23
 - Alpha 账户驱动股票池补齐价格覆盖同步与资产主数据回填，账户池稳定性、可解释性和跨入口一致性进一步提升
 - Pulse 重算前会先刷新上游宏观输入；当当前 Regime 只能解析到 `Unknown` 时，系统会保留最近有效的 Pulse 快照而不是覆盖成未知状态
 - Alpha cache 读取已回收至 repository 边界，Architecture Layer Guard 与整条 Nightly 主回归重新恢复绿色
+- Domain / Application 层一批静默 `except Exception:` 已改成显式日志分支，架构治理时可以保留降级行为，同时不再无痕吞错
+- Strategy 外部 provider 已移除对 macro / asset_analysis / signal / equity / fund ORM model 的跨 App 直连，统一改走 Application Service / Repository Provider / Facade 边界
+- Asset name resolution 桥接已回收到 equity / fund / rotation / asset_analysis 各自应用层公开入口，`asset_analysis` 与 `core/integration` 不再跨过去直接访问这些模块的 ORM
+- Asset pool screening 桥接已改为调用 equity / fund 各自 application facade，`core/integration` 不再自行组装 scorer + repository
+- asset_analysis 跨 App 市场协作已升级为 shared technical registry；equity / fund / rotation 在启动时注册 repository / screener / name-resolver，旧 `core/integration/asset_analysis_market_sources.py` 已移除且未引入新循环依赖
 - 统一账户 API、SDK 与 MCP 契约进一步收口，统一到账户绩效、估值与 canonical 路径
 - Equity Detail 补齐技术图表、分时数据 fallback 与更完整的市场上下文展示
 - Equity Detail 在本地股票主数据或估值缓存缺失时，支持基础信息回退与部分加载，避免详情页整体阻塞

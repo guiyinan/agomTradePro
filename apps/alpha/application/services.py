@@ -7,6 +7,7 @@ Alpha 服务层，实现 Provider 注册中心和 AlphaService。
 import logging
 import inspect
 import time
+from collections.abc import Callable
 from datetime import date, timezone
 from typing import Any, Optional
 
@@ -40,6 +41,19 @@ def get_alpha_metrics():
 
         _alpha_metrics_instance = _get_metrics()
     return _alpha_metrics_instance
+
+
+def _record_metrics(
+    callback: Callable[[Any], None],
+    *,
+    context: str,
+) -> None:
+    """Execute non-blocking Alpha metric recording with explicit diagnostics."""
+
+    try:
+        callback(get_alpha_metrics())
+    except Exception as exc:
+        logger.debug("Alpha metrics skipped during %s: %s", context, exc)
 
 
 def _get_runtime_qlib_config() -> dict[str, Any]:
@@ -195,13 +209,10 @@ def _enrich_result_metadata(result: AlphaResult, intended_trade_date: date) -> A
     asof_date = _derive_result_asof_date(result)
     notice = _build_reliability_notice(result, intended_trade_date)
     latest_available_qlib = _is_latest_available_qlib_result(result, intended_trade_date)
-    uses_cached_data = (
-        not latest_available_qlib
-        and (
-            result.source == "cache"
-            or metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache"
-            or metadata.get("provider_source") == "cache"
-        )
+    uses_cached_data = not latest_available_qlib and (
+        result.source == "cache"
+        or metadata.get("fallback_mode") == "forward_fill_latest_qlib_cache"
+        or metadata.get("provider_source") == "cache"
     )
     metadata.update(
         {
@@ -419,11 +430,14 @@ class AlphaProviderRegistry:
             logger.warning("[AlphaRequest] 没有可用的 Provider")
 
             # 记录失败指标
-            try:
-                metrics = get_alpha_metrics()
-                metrics.record_provider_call("none", success=False, latency_ms=0)
-            except Exception:
-                pass  # 指标记录失败不影响主流程
+            _record_metrics(
+                lambda metrics: metrics.record_provider_call(
+                    "none",
+                    success=False,
+                    latency_ms=0,
+                ),
+                context="no_active_providers",
+            )
 
             return AlphaResult(
                 success=False,
@@ -481,13 +495,14 @@ class AlphaProviderRegistry:
                     )
 
                     # 记录失败指标
-                    try:
-                        metrics = get_alpha_metrics()
-                        metrics.record_provider_call(
-                            provider.name, success=False, latency_ms=latency_ms
-                        )
-                    except Exception:
-                        pass
+                    _record_metrics(
+                        lambda metrics: metrics.record_provider_call(
+                            provider.name,
+                            success=False,
+                            latency_ms=latency_ms,
+                        ),
+                        context=f"{provider.name}_failed_result",
+                    )
 
                     continue
 
@@ -520,18 +535,22 @@ class AlphaProviderRegistry:
                         )
 
                         # 记录指标
-                        try:
-                            metrics = get_alpha_metrics()
-                            metrics.record_provider_call(
-                                provider.name,
-                                success=True,
-                                latency_ms=latency_ms,
-                                staleness_days=result.staleness_days,
-                            )
-                            if result.scores:
-                                metrics.record_coverage(len(result.scores), 300)
-                        except Exception:
-                            pass
+                        _record_metrics(
+                            lambda metrics: (
+                                metrics.record_provider_call(
+                                    provider.name,
+                                    success=True,
+                                    latency_ms=latency_ms,
+                                    staleness_days=result.staleness_days,
+                                ),
+                                (
+                                    metrics.record_coverage(len(result.scores), 300)
+                                    if result.scores
+                                    else None
+                                ),
+                            ),
+                            context=f"{provider.name}_degraded_result",
+                        )
 
                         return result
 
@@ -584,13 +603,14 @@ class AlphaProviderRegistry:
                 )
 
                 # 记录异常指标
-                try:
-                    metrics = get_alpha_metrics()
-                    metrics.record_provider_call(
-                        provider.name, success=False, latency_ms=latency_ms
-                    )
-                except Exception:
-                    pass
+                _record_metrics(
+                    lambda metrics: metrics.record_provider_call(
+                        provider.name,
+                        success=False,
+                        latency_ms=latency_ms,
+                    ),
+                    context=f"{provider.name}_provider_exception",
+                )
 
                 continue
 
@@ -608,18 +628,22 @@ class AlphaProviderRegistry:
                 ),
             )
 
-            try:
-                metrics = get_alpha_metrics()
-                metrics.record_provider_call(
-                    best_degraded_provider_name,
-                    success=True,
-                    latency_ms=best_degraded_result.latency_ms or 0,
-                    staleness_days=best_degraded_result.staleness_days,
-                )
-                if best_degraded_result.scores:
-                    metrics.record_coverage(len(best_degraded_result.scores), 300)
-            except Exception:
-                pass
+            _record_metrics(
+                lambda metrics: (
+                    metrics.record_provider_call(
+                        best_degraded_provider_name,
+                        success=True,
+                        latency_ms=best_degraded_result.latency_ms or 0,
+                        staleness_days=best_degraded_result.staleness_days,
+                    ),
+                    (
+                        metrics.record_coverage(len(best_degraded_result.scores), 300)
+                        if best_degraded_result.scores
+                        else None
+                    ),
+                ),
+                context=f"{best_degraded_provider_name}_stale_fallback",
+            )
 
             return best_degraded_result
 

@@ -65,10 +65,10 @@ class FundMultiDimScorer:
 
             # 计算综合得分（使用基金默认权重）
             total_score = (
-                regime_score * 0.35 +  # fund 专用权重
-                policy_score * 0.25 +
-                sentiment_score * 0.25 +
-                signal_score * 0.15
+                regime_score * 0.35  # fund 专用权重
+                + policy_score * 0.25
+                + sentiment_score * 0.25
+                + signal_score * 0.15
             )
 
             # 更新基金得分
@@ -215,3 +215,20 @@ class FundMultiDimScorer:
                 base_risk = "中低风险"
 
         return base_risk
+
+
+def screen_fund_assets_for_pool(context, filters: dict) -> list[FundAssetScore]:
+    """Screen and score fund assets for the shared asset-pool workflow."""
+    repo = DjangoFundAssetRepository()
+    scorer = FundMultiDimScorer(repo)
+
+    filter_dict: dict = {}
+    if filters.get("fund_type"):
+        filter_dict["fund_type"] = filters["fund_type"]
+    if filters.get("investment_style"):
+        filter_dict["investment_style"] = filters["investment_style"]
+    if filters.get("min_scale") is not None:
+        filter_dict["min_scale"] = filters["min_scale"]
+
+    assets = repo.get_assets_by_filter(asset_type="fund", filters=filter_dict)
+    return scorer.score_batch(assets, context)

@@ -7,6 +7,9 @@ selection helpers. It intentionally contains only standard-library code.
 
 from collections.abc import Callable
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Eligibility(Enum):
@@ -59,7 +62,9 @@ DEFAULT_ELIGIBILITY_MATRIX: dict[str, dict[str, Eligibility]] = {
 _eligibility_matrix_provider: Callable[[], dict[str, dict[str, Eligibility]]] | None = None
 
 
-def set_eligibility_matrix_provider(provider: Callable[[], dict[str, dict[str, Eligibility]]]) -> None:
+def set_eligibility_matrix_provider(
+    provider: Callable[[], dict[str, dict[str, Eligibility]]],
+) -> None:
     """设置准入矩阵提供者（依赖注入）"""
 
     global _eligibility_matrix_provider
@@ -73,8 +78,8 @@ def get_eligibility_matrix() -> dict[str, dict[str, Eligibility]]:
     if provider is not None:
         try:
             return provider()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Eligibility matrix provider failed, using default matrix: %s", exc)
     return DEFAULT_ELIGIBILITY_MATRIX
 
 

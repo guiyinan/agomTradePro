@@ -32,6 +32,12 @@ def get_equity_stock_repository() -> DjangoStockRepository:
     return DjangoStockRepository()
 
 
+def resolve_equity_names(codes: list[str]) -> dict[str, str]:
+    """Resolve equity display names through the equity stock repository."""
+
+    return get_equity_stock_repository().resolve_stock_names(codes)
+
+
 def get_equity_valuation_repair_repository() -> DjangoValuationRepairRepository:
     """Return the default equity valuation repair repository."""
 
@@ -110,7 +116,9 @@ def build_akshare_valuation_gateway() -> AKShareValuationGateway:
     return AKShareValuationGateway()
 
 
-def build_tushare_valuation_gateway(*, token: str, http_url: str | None = None) -> TushareValuationGateway:
+def build_tushare_valuation_gateway(
+    *, token: str, http_url: str | None = None
+) -> TushareValuationGateway:
     """Build the Tushare valuation gateway."""
 
     return TushareValuationGateway(token=token, http_url=http_url)

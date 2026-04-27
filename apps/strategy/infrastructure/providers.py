@@ -6,6 +6,7 @@ Infrastructure层:
 - 通过适配器模式集成现有系统
 - 提供策略执行所需的外部数据
 """
+
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -27,10 +28,10 @@ logger = logging.getLogger(__name__)
 def _to_legacy_regime_code(regime_name: str) -> str:
     """Regime 英文全称 -> 历史四象限简码。"""
     mapping = {
-        'Overheat': 'HG',
-        'Recovery': 'HD',
-        'Stagflation': 'LG',
-        'Deflation': 'LD',
+        "Overheat": "HG",
+        "Recovery": "HD",
+        "Stagflation": "LG",
+        "Deflation": "LD",
     }
     return mapping.get(regime_name, regime_name)
 
@@ -38,6 +39,7 @@ def _to_legacy_regime_code(regime_name: str) -> str:
 # ========================================================================
 # Macro Data Provider
 # ========================================================================
+
 
 class DjangoMacroDataProvider:
     """
@@ -57,14 +59,11 @@ class DjangoMacroDataProvider:
             指标值，如果不存在返回 None
         """
         try:
-            from apps.macro.infrastructure.models import MacroIndicator
+            from apps.macro.application.indicator_service import IndicatorService
 
-            indicator = MacroIndicator.objects.filter(
-                code=indicator_code
-            ).order_by('-reporting_period').first()
-
-            if indicator:
-                return float(indicator.value)
+            indicator = IndicatorService.get_indicator_by_code(indicator_code)
+            if indicator and indicator.get("latest_value") is not None:
+                return float(indicator["latest_value"])
 
             return None
 
@@ -80,23 +79,14 @@ class DjangoMacroDataProvider:
             指标代码到值的映射
         """
         try:
-            from apps.macro.infrastructure.models import MacroIndicator
+            from apps.macro.application.indicator_service import IndicatorService
 
-            # 获取每个指标的最新值
-            indicators = MacroIndicator.objects.all().values(
-                'code'
-            ).distinct()
-
-            result = {}
-            for ind in indicators:
-                code = ind['code']
-                latest = MacroIndicator.objects.filter(
-                    code=code
-                ).order_by('-reporting_period').first()
-                if latest:
-                    result[code] = float(latest.value)
-
-            return result
+            indicators = IndicatorService.get_available_indicators(include_stats=False)
+            return {
+                indicator["code"]: float(indicator["latest_value"])
+                for indicator in indicators
+                if indicator.get("latest_value") is not None
+            }
 
         except Exception as e:
             logger.error(f"Error getting all macro indicators: {e}")
@@ -106,6 +96,7 @@ class DjangoMacroDataProvider:
 # ========================================================================
 # Regime Provider
 # ========================================================================
+
 
 class DjangoRegimeProvider:
     """
@@ -123,43 +114,49 @@ class DjangoRegimeProvider:
         """
         try:
             from apps.regime.application.current_regime import resolve_current_regime
+
             latest_state = resolve_current_regime()
             if latest_state:
                 dominant_regime = latest_state.dominant_regime
                 return {
-                    'dominant_regime': dominant_regime,
-                    'dominant_regime_code': _to_legacy_regime_code(dominant_regime),
-                    'confidence': float(latest_state.confidence) if latest_state.confidence else 0.0,
-                    'growth_momentum_z': 0.0,
-                    'inflation_momentum_z': 0.0,
-                    'date': latest_state.observed_at.isoformat() if latest_state.observed_at else None,
+                    "dominant_regime": dominant_regime,
+                    "dominant_regime_code": _to_legacy_regime_code(dominant_regime),
+                    "confidence": (
+                        float(latest_state.confidence) if latest_state.confidence else 0.0
+                    ),
+                    "growth_momentum_z": 0.0,
+                    "inflation_momentum_z": 0.0,
+                    "date": (
+                        latest_state.observed_at.isoformat() if latest_state.observed_at else None
+                    ),
                 }
 
             # 返回默认值
             return {
-                'dominant_regime': 'Recovery',
-                'dominant_regime_code': 'HD',
-                'confidence': 0.5,
-                'growth_momentum_z': 0.0,
-                'inflation_momentum_z': 0.0,
-                'date': None
+                "dominant_regime": "Recovery",
+                "dominant_regime_code": "HD",
+                "confidence": 0.5,
+                "growth_momentum_z": 0.0,
+                "inflation_momentum_z": 0.0,
+                "date": None,
             }
 
         except Exception as e:
             logger.error(f"Error getting current regime: {e}")
             return {
-                'dominant_regime': 'Recovery',
-                'dominant_regime_code': 'HD',
-                'confidence': 0.5,
-                'growth_momentum_z': 0.0,
-                'inflation_momentum_z': 0.0,
-                'date': None
+                "dominant_regime": "Recovery",
+                "dominant_regime_code": "HD",
+                "confidence": 0.5,
+                "growth_momentum_z": 0.0,
+                "inflation_momentum_z": 0.0,
+                "date": None,
             }
 
 
 # ========================================================================
 # Asset Pool Provider
 # ========================================================================
+
 
 class DjangoAssetPoolProvider:
     """
@@ -169,9 +166,7 @@ class DjangoAssetPoolProvider:
     """
 
     def get_investable_assets(
-        self,
-        min_score: float = 60.0,
-        limit: int = 50
+        self, min_score: float = 60.0, limit: int = 50
     ) -> list[dict[str, Any]]:
         """
         获取可投资产列表
@@ -184,23 +179,40 @@ class DjangoAssetPoolProvider:
             资产列表
         """
         try:
-            from apps.asset_analysis.infrastructure.models import AssetScoreCache
+            from apps.asset_analysis.application.repository_provider import (
+                get_asset_pool_query_repository,
+                list_investable_asset_categories,
+            )
 
-            # 获取评分高于阈值的资产
-            assets = AssetScoreCache.objects.filter(
-                total_score__gte=min_score
-            ).order_by('-total_score')[:limit]
+            query_repository = get_asset_pool_query_repository()
+            assets: list[dict[str, Any]] = []
+            for asset_type in list_investable_asset_categories():
+                assets.extend(
+                    query_repository.list_investable_assets(
+                        asset_type=asset_type,
+                        min_score=min_score,
+                        limit=limit,
+                    )
+                )
+
+            ranked_assets = sorted(
+                assets,
+                key=lambda item: float(item.get("score") or 0.0),
+                reverse=True,
+            )[:limit]
 
             result = []
-            for asset in assets:
-                result.append({
-                    'asset_code': asset.asset_code,
-                    'asset_name': asset.asset_name or asset.asset_code,
-                    'total_score': float(asset.total_score) if asset.total_score else 0.0,
-                    'regime_score': float(asset.regime_score) if asset.regime_score else 0.0,
-                    'policy_score': float(asset.policy_score) if asset.policy_score else 0.0,
-                    'asset_type': asset.asset_type or 'equity'
-                })
+            for asset in ranked_assets:
+                result.append(
+                    {
+                        "asset_code": asset.get("asset_code"),
+                        "asset_name": asset.get("asset_name") or asset.get("asset_code"),
+                        "total_score": float(asset.get("score") or 0.0),
+                        "regime_score": float(asset.get("regime_score") or 0.0),
+                        "policy_score": float(asset.get("policy_score") or 0.0),
+                        "asset_type": asset.get("asset_type") or "equity",
+                    }
+                )
 
             return result
 
@@ -212,6 +224,7 @@ class DjangoAssetPoolProvider:
 # ========================================================================
 # Signal Provider
 # ========================================================================
+
 
 class DjangoSignalProvider:
     """
@@ -228,24 +241,29 @@ class DjangoSignalProvider:
             信号列表
         """
         try:
-            from apps.signal.infrastructure.models import InvestmentSignalModel
+            from apps.signal.application.query_services import (
+                list_investment_signal_payloads,
+            )
 
-            # 获取有效的投资信号
-            signals = InvestmentSignalModel.objects.filter(
-                is_valid=True
-            ).order_by('-created_at')[:100]
+            signals = list_investment_signal_payloads(
+                status_filter="approved",
+                limit=100,
+            )
 
             result = []
             for signal in signals:
-                result.append({
-                    'signal_id': signal.id,
-                    'asset_code': signal.asset_code,
-                    'direction': signal.direction,
-                    'logic_desc': signal.logic_desc or '',
-                    'target_regime': signal.target_regime or '',
-                    'invalidation_logic': signal.invalidation_logic or '',
-                    'created_at': signal.created_at.isoformat() if signal.created_at else None
-                })
+                created_at = signal.get("created_at")
+                result.append(
+                    {
+                        "signal_id": signal.get("id"),
+                        "asset_code": signal.get("asset_code"),
+                        "direction": signal.get("direction"),
+                        "logic_desc": signal.get("logic_desc") or "",
+                        "target_regime": signal.get("target_regime") or "",
+                        "invalidation_logic": signal.get("invalidation_description") or "",
+                        "created_at": created_at.isoformat() if created_at else None,
+                    }
+                )
 
             return result
 
@@ -257,6 +275,7 @@ class DjangoSignalProvider:
 # ========================================================================
 # Portfolio Data Provider
 # ========================================================================
+
 
 class DjangoPortfolioDataProvider:
     """
@@ -295,15 +314,17 @@ class DjangoPortfolioDataProvider:
 
             result = []
             for pos in position_summaries:
-                result.append({
-                    'asset_code': pos.asset_code,
-                    'asset_name': pos.asset_name,
-                    'quantity': pos.quantity,
-                    'avg_cost': float(pos.avg_cost),
-                    'current_price': float(pos.current_price),
-                    'market_value': float(pos.market_value),
-                    'asset_type': pos.asset_type
-                })
+                result.append(
+                    {
+                        "asset_code": pos.asset_code,
+                        "asset_name": pos.asset_name,
+                        "quantity": pos.quantity,
+                        "avg_cost": float(pos.avg_cost),
+                        "current_price": float(pos.current_price),
+                        "market_value": float(pos.market_value),
+                        "asset_type": pos.asset_type,
+                    }
+                )
 
             return result
 
@@ -339,43 +360,21 @@ class DjangoAssetNameResolver:
         if not code_set:
             return {}
 
-        resolved: dict[str, str] = {}
-
         try:
-            from apps.equity.infrastructure.models import StockInfoModel
+            from apps.asset_analysis.application.asset_name_service import (
+                resolve_asset_names,
+            )
 
-            stock_rows = StockInfoModel._default_manager.filter(
-                stock_code__in=list(code_set)
-            ).values("stock_code", "name")
-            for row in stock_rows:
-                resolved[row["stock_code"]] = row["name"]
+            return resolve_asset_names(list(code_set))
         except Exception as e:
-            logger.warning("Failed to resolve stock names: %s", e)
-
-        unresolved = [code for code in code_set if code not in resolved]
-        if not unresolved:
-            return resolved
-
-        try:
-            from apps.fund.infrastructure.models import FundInfoModel
-
-            code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
-            fund_rows = FundInfoModel._default_manager.filter(
-                fund_code__in=list(set(code_to_fund_code.values()))
-            ).values("fund_code", "fund_name")
-            fund_name_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
-            for code, fund_code in code_to_fund_code.items():
-                if fund_code in fund_name_map:
-                    resolved[code] = fund_name_map[fund_code]
-        except Exception as e:
-            logger.warning("Failed to resolve fund names: %s", e)
-
-        return resolved
+            logger.warning("Failed to resolve asset names: %s", e)
+            return {}
 
 
 # ========================================================================
 # M3: 执行适配器实现
 # ========================================================================
+
 
 class PaperExecutionAdapter:
     """
@@ -414,16 +413,16 @@ class PaperExecutionAdapter:
 
         # 模拟订单状态
         self._orders[paper_order_id] = {
-            'intent_id': intent.intent_id,
-            'symbol': intent.symbol,
-            'side': intent.side.value,
-            'qty': intent.qty,
-            'limit_price': intent.limit_price,
-            'status': OrderStatus.SENT.value,
-            'filled_qty': 0,
-            'filled_price': None,
-            'created_at': timezone.now().isoformat(),
-            'updated_at': timezone.now().isoformat(),
+            "intent_id": intent.intent_id,
+            "symbol": intent.symbol,
+            "side": intent.side.value,
+            "qty": intent.qty,
+            "limit_price": intent.limit_price,
+            "status": OrderStatus.SENT.value,
+            "filled_qty": 0,
+            "filled_price": None,
+            "created_at": timezone.now().isoformat(),
+            "updated_at": timezone.now().isoformat(),
         }
 
         logger.info(
@@ -451,27 +450,27 @@ class PaperExecutionAdapter:
             order = self._orders[broker_order_id]
 
             # 模拟部分成交或全部成交
-            if order['status'] == OrderStatus.SENT.value:
+            if order["status"] == OrderStatus.SENT.value:
                 # 模拟立即全部成交
-                order['status'] = OrderStatus.FILLED.value
-                order['filled_qty'] = order['qty']
-                order['filled_price'] = order['limit_price'] or 100.0  # 默认价格
-                order['updated_at'] = timezone.now().isoformat()
+                order["status"] = OrderStatus.FILLED.value
+                order["filled_qty"] = order["qty"]
+                order["filled_price"] = order["limit_price"] or 100.0  # 默认价格
+                order["updated_at"] = timezone.now().isoformat()
 
             return {
-                'status': order['status'],
-                'filled_qty': order['filled_qty'],
-                'filled_price': order['filled_price'],
-                'remaining_qty': order['qty'] - order['filled_qty'],
-                'error_message': None,
+                "status": order["status"],
+                "filled_qty": order["filled_qty"],
+                "filled_price": order["filled_price"],
+                "remaining_qty": order["qty"] - order["filled_qty"],
+                "error_message": None,
             }
 
         return {
-            'status': 'not_found',
-            'filled_qty': 0,
-            'filled_price': None,
-            'remaining_qty': 0,
-            'error_message': f'Order not found: {broker_order_id}',
+            "status": "not_found",
+            "filled_qty": 0,
+            "filled_price": None,
+            "remaining_qty": 0,
+            "error_message": f"Order not found: {broker_order_id}",
         }
 
     def cancel_order(self, broker_order_id: str) -> bool:
@@ -490,15 +489,13 @@ class PaperExecutionAdapter:
 
         if broker_order_id in self._orders:
             order = self._orders[broker_order_id]
-            if order['status'] == OrderStatus.SENT.value:
-                order['status'] = OrderStatus.CANCELED.value
-                order['updated_at'] = timezone.now().isoformat()
+            if order["status"] == OrderStatus.SENT.value:
+                order["status"] = OrderStatus.CANCELED.value
+                order["updated_at"] = timezone.now().isoformat()
                 logger.info(f"[PaperAdapter] Order canceled: {broker_order_id}")
                 return True
             else:
-                logger.warning(
-                    f"[PaperAdapter] Cannot cancel order in status: {order['status']}"
-                )
+                logger.warning(f"[PaperAdapter] Cannot cancel order in status: {order['status']}")
                 return False
 
         return False
@@ -532,7 +529,7 @@ class BrokerExecutionAdapter:
             - sandbox: 是否沙箱模式
         """
         self.broker_config = broker_config
-        self._is_sandbox = broker_config.get('sandbox', True)
+        self._is_sandbox = broker_config.get("sandbox", True)
 
     def submit_order(self, intent) -> str:
         """
@@ -600,11 +597,7 @@ class ExecutionAdapterFactory:
     """执行适配器工厂"""
 
     @staticmethod
-    def create_adapter(
-        mode: str,
-        portfolio_id: int,
-        broker_config: dict[str, Any] = None
-    ):
+    def create_adapter(mode: str, portfolio_id: int, broker_config: dict[str, Any] = None):
         """
         创建执行适配器
 

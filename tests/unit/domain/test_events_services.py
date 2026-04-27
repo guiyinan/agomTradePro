@@ -129,12 +129,8 @@ class TestSubscribeUnsubscribe:
     def test_subscribe_priority_ordering(self) -> None:
         """Subscriptions are sorted by priority (lower number = higher priority)."""
         bus = InMemoryEventBus()
-        bus.subscribe(
-            _make_subscription(subscription_id="low-priority", priority=200)
-        )
-        bus.subscribe(
-            _make_subscription(subscription_id="high-priority", priority=10)
-        )
+        bus.subscribe(_make_subscription(subscription_id="low-priority", priority=200))
+        bus.subscribe(_make_subscription(subscription_id="high-priority", priority=10))
 
         subs = bus.get_subscriptions(EventType.REGIME_CHANGED)
         assert subs[0].subscription_id == "high-priority"
@@ -195,14 +191,26 @@ class TestPublish:
     def test_publish_failing_handler_increments_failed(self) -> None:
         """A failing handler increments total_failed."""
         bus = InMemoryEventBus(EventBusConfig(retry_failed_events=False))
-        bus.subscribe(
-            _make_subscription(handler=_FailingHandler(), subscription_id="fail-sub")
-        )
+        bus.subscribe(_make_subscription(handler=_FailingHandler(), subscription_id="fail-sub"))
 
         bus.publish(make_domain_event())
 
         metrics = bus.get_metrics()
         assert metrics.total_failed >= 1
+
+    def test_publish_retry_failure_logs_debug_context(self, caplog) -> None:
+        """Retry failures should be visible in logs without interrupting publish."""
+        bus = InMemoryEventBus(EventBusConfig(retry_failed_events=True, max_retry_attempts=1))
+        bus.subscribe(
+            _make_subscription(handler=_FailingHandler(), subscription_id="retry-fail-sub")
+        )
+
+        with caplog.at_level("DEBUG"):
+            bus.publish(make_domain_event())
+
+        metrics = bus.get_metrics()
+        assert metrics.total_failed >= 1
+        assert "Retry 1 failed for retry-fail-sub" in caplog.text
 
     def test_publish_with_filter_criteria(self) -> None:
         """Handler with filter_criteria only receives matching events."""
@@ -407,9 +415,7 @@ class TestFactoryFunctions:
 
     def test_create_event_custom_id(self) -> None:
         """create_event respects a custom event_id."""
-        event = create_event(
-            EventType.REGIME_CHANGED, {"key": "val"}, event_id="custom-id"
-        )
+        event = create_event(EventType.REGIME_CHANGED, {"key": "val"}, event_id="custom-id")
         assert event.event_id == "custom-id"
 
     def test_create_event_timezone_aware(self) -> None:
@@ -450,9 +456,7 @@ class TestEventHandlerDecorator:
             received_events.append(event)
 
         bus = get_event_bus()
-        bus.publish(
-            create_event(EventType.POLICY_LEVEL_CHANGED, {"level": "high"})
-        )
+        bus.publish(create_event(EventType.POLICY_LEVEL_CHANGED, {"level": "high"}))
 
         assert len(received_events) == 1
         assert received_events[0].payload["level"] == "high"

@@ -51,6 +51,17 @@ def generate_request_id() -> str:
     return f"atr_{date_part}_{random_part}"
 
 
+def _resolve_optional_audit_service() -> "AgentRuntimeAuditService | None":
+    """Load the optional audit service without hiding non-import failures."""
+
+    try:
+        from apps.agent_runtime.application.services.audit_service import get_audit_service
+    except ImportError as exc:
+        logger.debug("Agent runtime audit service import skipped: %s", exc)
+        return None
+    return get_audit_service()
+
+
 @dataclass
 class CreateTaskInput:
     """Input DTO for creating a task."""
@@ -156,12 +167,7 @@ class CreateTaskUseCase:
         self.audit_service = audit_service
         self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
-            try:
-                from apps.agent_runtime.application.services.audit_service import get_audit_service
-
-                self.audit_service = get_audit_service()
-            except Exception:
-                self.audit_service = None
+            self.audit_service = _resolve_optional_audit_service()
 
     def execute(self, input_dto: CreateTaskInput) -> CreateTaskOutput:
         """
@@ -321,12 +327,7 @@ class ResumeTaskUseCase:
         self.audit_service = audit_service
         self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
-            try:
-                from apps.agent_runtime.application.services.audit_service import get_audit_service
-
-                self.audit_service = get_audit_service()
-            except Exception:
-                self.audit_service = None
+            self.audit_service = _resolve_optional_audit_service()
 
     def execute(self, input_dto: ResumeTaskInput) -> ResumeTaskOutput:
         """
@@ -451,12 +452,7 @@ class CancelTaskUseCase:
         self.audit_service = audit_service
         self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
-            try:
-                from apps.agent_runtime.application.services.audit_service import get_audit_service
-
-                self.audit_service = get_audit_service()
-            except Exception:
-                self.audit_service = None
+            self.audit_service = _resolve_optional_audit_service()
 
     def execute(self, input_dto: CancelTaskInput) -> CancelTaskOutput:
         """
