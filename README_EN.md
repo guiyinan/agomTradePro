@@ -26,6 +26,13 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-04-27
+
+- The final cross-app cleanup around `strategy` and `asset_analysis` is now closed out: asset-pool lookup, name resolution, and screening assembly now flow through application facades and the shared registry instead of a bridge module plus cross-app ORM reach-through
+- A batch of silent Domain / Application fallback branches now emits explicit logs, so the system can keep its degraded-path behavior without hiding operational failures
+- GitHub Actions Nightly is green again; this pass fixed the duplicate `tests/unit` collection conflict, Strategy execution behavior when the investable pool has not been prewarmed yet, and the outdated parameter signature used by the Decision Workspace AI invalidation-draft endpoint
+- `main` and `dev/next-development` are aligned again to the same commit, so the public branch and active development branch now reflect the same state
+
 ### 2026-04-24
 
 - Repository-wide governance checks are now in place: `governance/governance_baseline.json`, `scripts/check_governance_consistency.py`, and the CI workflow now lock historical debt while blocking regressions in module shape, MCP counts, docs links, AppConfig placement, and Application-layer pandas/numpy imports
@@ -73,7 +80,7 @@
 
 - Only record changes that matter to users, integrators, or fork maintainers
 - Keep the same-day updates under the same date instead of creating noise
-- Anything important beyond one week should be moved into `CHANGELOG.md`
+- Anything important beyond one week should be moved into [`CHANGELOG.md`](CHANGELOG.md)
 
 ---
 

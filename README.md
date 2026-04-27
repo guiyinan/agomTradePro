@@ -26,6 +26,13 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-04-27
+
+- `strategy` 与 `asset_analysis` 这条跨 App 协作链已完成最后一轮收口：跨模块资产池、名称解析和筛选装配统一经 application facade / shared registry 暴露，不再靠 bridge 文件和跨 App ORM 直连维持
+- 一批 Domain / Application 静默降级分支已补齐显式日志，上层仍可保留 fallback 行为，但问题不再无痕吞掉
+- GitHub Actions Nightly 主回归重新恢复绿色；本轮修复同时清掉了 `tests/unit` 重名收集冲突、Strategy 执行对未预热 investable pool 的兼容问题，以及 Decision Workspace AI 证伪草稿接口的旧参数签名
+- `main` 与 `dev/next-development` 已再次拉齐到同一提交，当前对外主线与开发主线一致
+
 ### 2026-04-26
 
 - 架构治理主线已收口：`apps/` 静态导入图中的 app 级循环依赖已清零，`scripts/check_module_cycles.py` 现在以 `0 cycle components / 0 bidirectional pairs` 作为 CI 硬基线
@@ -120,7 +127,7 @@
 
 - 只写对用户、集成方、Fork 开发者真正有感知的变化
 - 同一天优先追加到当日条目，不重复刷屏
-- 超过一周的重要变化应沉淀到 `CHANGELOG.md`
+- 超过一周的重要变化应沉淀到 [`CHANGELOG.md`](CHANGELOG.md)
 
 ---
 

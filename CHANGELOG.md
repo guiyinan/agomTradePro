@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 统一数据源中心补入跨系统 provider inventory 展示，集中展示 public / licensed / local-terminal / pending-config provider
 - Dashboard Alpha 首页新增账户驱动候选运行快照与历史回溯模型，可按组合、日期、股票、阶段、来源查询每次候选评估记录与逐票理由
 - Dashboard 新增 Alpha 推荐历史页与历史 JSON 接口，支持查看 run 详情、逐票买入理由、不买理由、证伪条件与建议仓位
+- 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
 - GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
@@ -63,12 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard 首页 Alpha 不再固定查询 `csi300`，改为按当前激活组合解析账户驱动池，并允许随组合切换刷新候选
 - Dashboard Alpha 首页文案与布局已改为三层视图：`Alpha Top 候选/排名`、`可行动候选`、`待执行队列`，不再把研究排序直接表述为“推荐股票”
 - Alpha provider / cache / simple / Qlib 链路统一接收 `AlphaPoolScope`，缓存键扩展为 `scope_hash + trade_date + model`，避免不同账户池子共用同一份指数缓存
+- `strategy` 与 `asset_analysis` 的跨 App 协作链进一步收口：资产池读取、名称解析与筛选组装统一改经 application facade、repository provider 与 shared registry，不再依赖 bridge 文件和跨 App ORM 直连
 
 ### Deprecated
 - (TBD)
 
 ### Removed
-- (TBD)
+- 已移除旧的 `core/integration/asset_analysis_market_sources.py` bridge，跨模块市场协作改由 app-owned provider + shared registry 暴露
 
 ### Fixed
 - 修复 `docs/INDEX.md` 中 Regime Navigator 计划文档、Qlib 本地上传方案和 Alpha 快速开始等链接漂移
@@ -131,6 +133,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Qlib 运行时不可用时，Alpha 现在会自动复用最近有效缓存而不是直接失去结果
 - `macro` 数据源配置相关 interface 越层导入已移回 application 边界，修复 2026-04-05 CI 中的架构门禁失败
 - 统一数据源中心发布后的 `Architecture Layer Guard` / `Logic Guardrails` 已在后续修复提交中恢复为绿色
+- 修复 `tests/unit` 下重复文件名在全量收集时触发 `import file mismatch` 的问题；相关测试目录现已补齐包入口，Nightly 全量 pytest 收集重新稳定
+- 修复 Strategy 执行在 investable pool 尚未预热时的兼容性问题，现会回退读取 `asset_analysis` 最新评分缓存而不是直接中断主链
+- 修复 Decision Workspace AI 证伪草稿接口使用旧 `generate_chat_completion()` 参数签名的问题，Nightly 主链已恢复绿色
+- 一批 Domain / Application 的静默降级分支现已补齐显式日志，fallback 仍保留，但运行时故障不再被无痕吞掉
 
 ### Security
 - (TBD)
@@ -262,4 +268,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Maintained by**: AgomTradePro Team
-**Last Updated**: 2026-04-24
+**Last Updated**: 2026-04-27
