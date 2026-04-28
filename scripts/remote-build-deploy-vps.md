@@ -26,7 +26,7 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
   -User root `
   -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -Action upgrade `
-  -HttpPort 8000
+  -Domain your-domain.com
 ```
 
 Default wrapper behavior:
@@ -48,7 +48,7 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
   -Action fresh `
   -IncludeSqlite `
   -WipeDocker `
-  -HttpPort 8000
+  -Domain your-domain.com
 ```
 
 Build and download only, do not deploy:
@@ -68,7 +68,7 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
 - `-User`: SSH username
 - `-PasswordFile`: text file containing SSH password
 - `-Action`: `fresh` or `upgrade`
-- `-HttpPort`: public HTTP port on VPS, default `8000`
+- `-HttpPort`: optional public HTTP port override. Leave unset to preserve the existing remote port, use `80` for a normal domain deployment, or fall back to `8000` for temporary IP-only access.
 - `-IncludeSqlite`: include local `db.sqlite3` in upload bundle
 - `-WipeDocker`: remove existing Docker containers/images/volumes before deploy
 - `-Domain`: optional domain for Caddy
@@ -85,3 +85,4 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
 - `-Host` is supported as an alias. Internally the PowerShell script avoids direct use of the built-in `$Host` variable.
 - If you omit key arguments, the underlying Python script may prompt interactively.
 - The actual remote build/deploy logic lives in `remote_build_deploy_vps.py`.
+- Remote deploy now preserves the existing VPS `DOMAIN`, `ALLOWED_HOSTS`, and Caddy port mapping unless you explicitly override them.

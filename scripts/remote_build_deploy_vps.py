@@ -53,6 +53,16 @@ def _prompt_bool(prompt: str, default: bool) -> bool:
     return raw in {"y", "yes", "1", "true"}
 
 
+def _optional_env_int(name: str) -> int | None:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError as exc:
+        _die(f"{name} must be an integer, got {raw!r}. Error: {exc}")
+
+
 def _latest_sqlite(project_root: Path) -> Path:
     db = project_root / "db.sqlite3"
     if not db.exists():
@@ -243,6 +253,10 @@ def _render_local_env(env_example_text: str, image_tag: str) -> str:
             lines.append("CORS_ALLOWED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000")
         elif line.startswith("CSRF_TRUSTED_ORIGINS="):
             lines.append("CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000")
+        elif line.startswith("CADDY_HTTP_PORT="):
+            lines.append("CADDY_HTTP_PORT=8000")
+        elif line.startswith("CADDY_HTTPS_PORT="):
+            lines.append("CADDY_HTTPS_PORT=8443")
         elif line.startswith("ENABLE_RSSHUB="):
             lines.append("ENABLE_RSSHUB=false")
         elif line.startswith("ENABLE_CELERY="):
@@ -691,7 +705,7 @@ def _build_remote_deploy_script() -> str:
     return r"""set -eu
 
 HOST="${HOST:-}"
-PORT="${PORT:-8000}"
+PORT="${PORT:-}"
 TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
 RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
 ACTION="${ACTION:-fresh}"
@@ -717,12 +731,78 @@ RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 [ -d "$RELEASE_DIR" ] || { echo "[ERROR] release dir not found: $RELEASE_DIR" >&2; exit 1; }
 cd "$RELEASE_DIR"
 
+get_env_kv() {
+  key="$1"
+  file="$2"
+  [ -f "$file" ] || return 0
+  grep "^${key}=" "$file" | tail -n 1 | cut -d '=' -f2- || true
+}
+
+remove_env_kv() {
+  key="$1"
+  if [ -f deploy/.env ]; then
+    sed -i "/^${key}=.*/d" deploy/.env
+  fi
+}
+
+csv_merge_unique() {
+  python3 - "$@" <<'PY'
+import sys
+
+seen = []
+for value in sys.argv[1:]:
+    for raw_item in value.split(","):
+        item = raw_item.strip()
+        if not item or "your-vps-ip" in item:
+            continue
+        if item not in seen:
+            seen.append(item)
+print(",".join(seen))
+PY
+}
+
+origin_list_is_stale() {
+  value="$1"
+  python3 - "$value" "$HOST" <<'PY'
+import sys
+
+value = (sys.argv[1] or "").strip()
+host = (sys.argv[2] or "").strip()
+items = [item.strip() for item in value.split(",") if item.strip()]
+if not items:
+    raise SystemExit(0)
+if any("your-vps-ip" in item for item in items):
+    raise SystemExit(0)
+baseline = {
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+}
+if host:
+    baseline.add(f"http://{host}:8000")
+if set(items).issubset(baseline):
+    raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+
 # Preserve keys from previous deployment before wiping
 OLD_SECRET_KEY=""
 OLD_ENCRYPTION_KEY=""
+OLD_DOMAIN=""
+OLD_ALLOWED_HOSTS=""
+OLD_CORS_ALLOWED_ORIGINS=""
+OLD_CSRF_TRUSTED_ORIGINS=""
+OLD_CADDY_HTTP_PORT=""
+OLD_CADDY_HTTPS_PORT=""
 if [ -f "$TARGET_DIR/current/deploy/.env" ]; then
-  OLD_SECRET_KEY="$(grep '^SECRET_KEY=' "$TARGET_DIR/current/deploy/.env" | cut -d '=' -f2- || true)"
-  OLD_ENCRYPTION_KEY="$(grep '^AGOMTRADEPRO_ENCRYPTION_KEY=' "$TARGET_DIR/current/deploy/.env" | cut -d '=' -f2- || true)"
+  OLD_SECRET_KEY="$(get_env_kv SECRET_KEY "$TARGET_DIR/current/deploy/.env")"
+  OLD_ENCRYPTION_KEY="$(get_env_kv AGOMTRADEPRO_ENCRYPTION_KEY "$TARGET_DIR/current/deploy/.env")"
+  OLD_DOMAIN="$(get_env_kv DOMAIN "$TARGET_DIR/current/deploy/.env")"
+  OLD_ALLOWED_HOSTS="$(get_env_kv ALLOWED_HOSTS "$TARGET_DIR/current/deploy/.env")"
+  OLD_CORS_ALLOWED_ORIGINS="$(get_env_kv CORS_ALLOWED_ORIGINS "$TARGET_DIR/current/deploy/.env")"
+  OLD_CSRF_TRUSTED_ORIGINS="$(get_env_kv CSRF_TRUSTED_ORIGINS "$TARGET_DIR/current/deploy/.env")"
+  OLD_CADDY_HTTP_PORT="$(get_env_kv CADDY_HTTP_PORT "$TARGET_DIR/current/deploy/.env")"
+  OLD_CADDY_HTTPS_PORT="$(get_env_kv CADDY_HTTPS_PORT "$TARGET_DIR/current/deploy/.env")"
   if [ -n "$OLD_ENCRYPTION_KEY" ]; then
     echo "[INFO] Found existing AGOMTRADEPRO_ENCRYPTION_KEY from previous deployment, will reuse"
   fi
@@ -793,17 +873,6 @@ else
   printf '\nAGOMTRADEPRO_ENCRYPTION_KEY=%s\n' "$AGOM_KEY" >> deploy/.env
 fi
 
-if [ -n "$DOMAIN" ]; then
-  if grep -q '^DOMAIN=' deploy/.env; then
-    sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|" deploy/.env
-  else
-    printf '\nDOMAIN=%s\n' "$DOMAIN" >> deploy/.env
-  fi
-  SITE_ADDR="$DOMAIN"
-else
-  SITE_ADDR=":80"
-fi
-
 set_env_kv() {
   key="$1"
   value="$2"
@@ -814,13 +883,27 @@ set_env_kv() {
   fi
 }
 
-if [ -n "$DOMAIN" ]; then
+EFFECTIVE_DOMAIN="$DOMAIN"
+if [ -z "$EFFECTIVE_DOMAIN" ] && [ -n "$OLD_DOMAIN" ]; then
+  EFFECTIVE_DOMAIN="$OLD_DOMAIN"
+fi
+
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
+  set_env_kv "DOMAIN" "$EFFECTIVE_DOMAIN"
+  SITE_ADDR="$EFFECTIVE_DOMAIN"
+else
+  remove_env_kv "DOMAIN"
+  SITE_ADDR=":80"
+fi
+
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
   set_env_kv "SECURE_SSL_REDIRECT" "True"
   set_env_kv "SESSION_COOKIE_SECURE" "True"
   set_env_kv "CSRF_COOKIE_SECURE" "True"
   set_env_kv "SECURE_HSTS_SECONDS" "31536000"
   set_env_kv "SECURE_HSTS_INCLUDE_SUBDOMAINS" "True"
   set_env_kv "SECURE_HSTS_PRELOAD" "True"
+  set_env_kv "CORS_ALLOW_ALL_ORIGINS" "False"
 else
   set_env_kv "SECURE_SSL_REDIRECT" "False"
   set_env_kv "SESSION_COOKIE_SECURE" "False"
@@ -830,19 +913,21 @@ else
   set_env_kv "SECURE_HSTS_PRELOAD" "False"
 fi
 
-if [ -z "$ALLOWED_HOSTS_INPUT" ]; then
-  if [ -n "$DOMAIN" ]; then
-    ALLOWED_HOSTS_INPUT="$DOMAIN,127.0.0.1,localhost,$HOST"
-  else
-    ALLOWED_HOSTS_INPUT="127.0.0.1,localhost,$HOST"
-  fi
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
+  AUTO_ALLOWED_HOSTS="$EFFECTIVE_DOMAIN,127.0.0.1,localhost,$HOST"
+else
+  AUTO_ALLOWED_HOSTS="127.0.0.1,localhost,$HOST"
 fi
 
-if grep -q '^ALLOWED_HOSTS=' deploy/.env; then
-  sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$ALLOWED_HOSTS_INPUT|" deploy/.env
+if [ -n "$ALLOWED_HOSTS_INPUT" ]; then
+  EFFECTIVE_ALLOWED_HOSTS="$(csv_merge_unique "$ALLOWED_HOSTS_INPUT" "$AUTO_ALLOWED_HOSTS")"
+elif [ -n "$OLD_ALLOWED_HOSTS" ]; then
+  EFFECTIVE_ALLOWED_HOSTS="$(csv_merge_unique "$OLD_ALLOWED_HOSTS" "$AUTO_ALLOWED_HOSTS")"
 else
-  printf '\nALLOWED_HOSTS=%s\n' "$ALLOWED_HOSTS_INPUT" >> deploy/.env
+  EFFECTIVE_ALLOWED_HOSTS="$AUTO_ALLOWED_HOSTS"
 fi
+
+set_env_kv "ALLOWED_HOSTS" "$EFFECTIVE_ALLOWED_HOSTS"
 
 if grep -q '^WEB_IMAGE=' deploy/.env; then
   sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=agomtradepro-web:$RELEASE_TAG|" deploy/.env
@@ -862,34 +947,54 @@ else
   printf '\nENABLE_CELERY=%s\n' "$ENABLE_CELERY" >> deploy/.env
 fi
 
-if grep -q '^CADDY_HTTP_PORT=' deploy/.env; then
-  sed -i "s|^CADDY_HTTP_PORT=.*|CADDY_HTTP_PORT=$PORT|" deploy/.env
+if [ -n "$PORT" ]; then
+  EFFECTIVE_HTTP_PORT="$PORT"
+elif [ -n "$EFFECTIVE_DOMAIN" ]; then
+  EFFECTIVE_HTTP_PORT="80"
+elif [ -n "$OLD_CADDY_HTTP_PORT" ]; then
+  EFFECTIVE_HTTP_PORT="$OLD_CADDY_HTTP_PORT"
 else
-  printf '\nCADDY_HTTP_PORT=%s\n' "$PORT" >> deploy/.env
+  EFFECTIVE_HTTP_PORT="8000"
 fi
 
-CADDY_HTTPS_PORT="$(grep '^CADDY_HTTPS_PORT=' deploy/.env | cut -d '=' -f2- || true)"
-if [ -z "$CADDY_HTTPS_PORT" ]; then
-  CADDY_HTTPS_PORT="443"
+set_env_kv "CADDY_HTTP_PORT" "$EFFECTIVE_HTTP_PORT"
+
+if [ -n "$OLD_CADDY_HTTPS_PORT" ]; then
+  EFFECTIVE_HTTPS_PORT="$OLD_CADDY_HTTPS_PORT"
+else
+  EFFECTIVE_HTTPS_PORT="443"
 fi
 
-port_in_use() {
-  port="$1"
-  if command -v ss >/dev/null 2>&1; then
-    ss -ltnH 2>/dev/null | awk '{print $4}' | grep -Eq "(:|\\])${port}$"
-    return $?
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
+  EFFECTIVE_HTTPS_PORT="443"
+fi
+
+set_env_kv "CADDY_HTTPS_PORT" "$EFFECTIVE_HTTPS_PORT"
+
+CURRENT_CORS_ALLOWED_ORIGINS="$(get_env_kv CORS_ALLOWED_ORIGINS deploy/.env)"
+if origin_list_is_stale "$CURRENT_CORS_ALLOWED_ORIGINS"; then
+  remove_env_kv "CORS_ALLOWED_ORIGINS"
+fi
+
+CURRENT_CSRF_TRUSTED_ORIGINS="$(get_env_kv CSRF_TRUSTED_ORIGINS deploy/.env)"
+if origin_list_is_stale "$CURRENT_CSRF_TRUSTED_ORIGINS"; then
+  remove_env_kv "CSRF_TRUSTED_ORIGINS"
+fi
+
+if [ -n "$EFFECTIVE_DOMAIN" ]; then
+  EFFECTIVE_CORS_ALLOWED_ORIGINS="https://$EFFECTIVE_DOMAIN"
+  EFFECTIVE_CSRF_TRUSTED_ORIGINS="https://$EFFECTIVE_DOMAIN"
+  if [ -n "$OLD_CORS_ALLOWED_ORIGINS" ] && ! origin_list_is_stale "$OLD_CORS_ALLOWED_ORIGINS"; then
+    EFFECTIVE_CORS_ALLOWED_ORIGINS="$(csv_merge_unique "$OLD_CORS_ALLOWED_ORIGINS" "$EFFECTIVE_CORS_ALLOWED_ORIGINS")"
   fi
-  return 1
-}
-
-if port_in_use "$CADDY_HTTPS_PORT"; then
-  CADDY_HTTPS_PORT="8443"
-fi
-
-if grep -q '^CADDY_HTTPS_PORT=' deploy/.env; then
-  sed -i "s|^CADDY_HTTPS_PORT=.*|CADDY_HTTPS_PORT=$CADDY_HTTPS_PORT|" deploy/.env
+  if [ -n "$OLD_CSRF_TRUSTED_ORIGINS" ] && ! origin_list_is_stale "$OLD_CSRF_TRUSTED_ORIGINS"; then
+    EFFECTIVE_CSRF_TRUSTED_ORIGINS="$(csv_merge_unique "$OLD_CSRF_TRUSTED_ORIGINS" "$EFFECTIVE_CSRF_TRUSTED_ORIGINS")"
+  fi
+  set_env_kv "CORS_ALLOWED_ORIGINS" "$EFFECTIVE_CORS_ALLOWED_ORIGINS"
+  set_env_kv "CSRF_TRUSTED_ORIGINS" "$EFFECTIVE_CSRF_TRUSTED_ORIGINS"
 else
-  printf '\nCADDY_HTTPS_PORT=%s\n' "$CADDY_HTTPS_PORT" >> deploy/.env
+  remove_env_kv "CORS_ALLOWED_ORIGINS"
+  remove_env_kv "CSRF_TRUSTED_ORIGINS"
 fi
 
 sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template > docker/Caddyfile
@@ -998,9 +1103,7 @@ def main() -> int:
         "--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomtradepro-source-upload")
     )
     ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomtradepro"))
-    ap.add_argument(
-        "--http-port", type=int, default=int(os.environ.get("AGOM_VPS_HTTP_PORT", "8000"))
-    )
+    ap.add_argument("--http-port", type=int, default=None)
     ap.add_argument("--domain", default=os.environ.get("AGOM_VPS_DOMAIN", "").strip())
     ap.add_argument("--allowed-hosts", default=os.environ.get("AGOM_VPS_ALLOWED_HOSTS", "").strip())
     ap.add_argument(
@@ -1029,6 +1132,8 @@ def main() -> int:
     ap.add_argument("--git-repo", default=os.environ.get("AGOM_VPS_GIT_REPO", "https://github.com/guiyinan/agomTradePro.git"), help="Git repo URL for --git-clone mode")
     ap.add_argument("--git-branch", default=os.environ.get("AGOM_VPS_GIT_BRANCH", "main"), help="Git branch/tag for --git-clone mode")
     args = ap.parse_args()
+    if args.http_port is None:
+        args.http_port = _optional_env_int("AGOM_VPS_HTTP_PORT")
 
     project_root = Path(__file__).resolve().parents[1]
     host = args.host or _prompt("VPS host/IP")
@@ -1081,7 +1186,12 @@ def main() -> int:
                 action = "fresh"
             else:
                 action = action_input
-            http_port = int(_prompt("Public HTTP port", str(args.http_port)))
+            default_http_port = str(args.http_port) if args.http_port is not None else ""
+            http_port_input = _prompt(
+                "Public HTTP port (blank = keep existing/auto)",
+                default_http_port,
+            )
+            http_port = int(http_port_input) if http_port_input else None
             domain = _prompt("Domain (blank for HTTP-only)", args.domain)
             allowed_hosts = _prompt("ALLOWED_HOSTS (blank for auto)", args.allowed_hosts)
             # Encryption key for AI provider API keys
@@ -1247,7 +1357,7 @@ def main() -> int:
             remote_deploy_script = _build_remote_deploy_script()
             deploy_env = {
                 "HOST": host,
-                "PORT": str(http_port),
+                "PORT": "" if http_port is None else str(http_port),
                 "TARGET_DIR": args.target_dir,
                 "RELEASE_TAG": tag,
                 "ACTION": action,

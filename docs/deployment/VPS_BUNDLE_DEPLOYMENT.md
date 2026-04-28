@@ -33,7 +33,7 @@ Target scripts:
 2. Docker Compose plugin available (`docker compose`).
 3. SSH access with permissions to manage Docker.
 4. Open ports (host side):
-   - `CADDY_HTTP_PORT` (default `8000`)
+   - `CADDY_HTTP_PORT` (default `80` for domain deployments, `8000` only for temporary IP access)
    - `CADDY_HTTPS_PORT` (default `443`, optional if you do not configure a domain)
 
 ---
@@ -148,8 +148,9 @@ pwsh ./scripts/deploy-on-vps.ps1 -Bundle /tmp/agomtradepro-vps-bundle-2026020815
 
 ## 7. Domain and HTTPS
 
-1. If `DOMAIN` is set in `deploy/.env`, Caddy uses domain mode and can issue HTTPS certs.
-2. If `DOMAIN` is empty, Caddy uses HTTP on container `:80`, and the **host port** is controlled by `CADDY_HTTP_PORT` in `deploy/.env` (default `8000`).
+1. If `DOMAIN` is set in `deploy/.env`, Caddy uses domain mode and should be exposed on host `80/443` so it can issue HTTPS certs normally.
+2. If `DOMAIN` is empty, Caddy uses HTTP on container `:80`, and the **host port** is controlled by `CADDY_HTTP_PORT` in `deploy/.env` (typically `8000` for temporary IP-only access).
+3. `scripts/remote_build_deploy_vps.py` now preserves the existing remote `DOMAIN`, `ALLOWED_HOSTS`, and Caddy port mapping unless you explicitly override them on the next deploy.
 
 Template source:
 
@@ -226,6 +227,9 @@ Critical values to set:
 6. Service toggles:
    - `ENABLE_RSSHUB=true|false`
    - `ENABLE_CELERY=true|false`
+7. For standard public domain access, keep:
+   - `CADDY_HTTP_PORT=80`
+   - `CADDY_HTTPS_PORT=443`
 
 ---
 
