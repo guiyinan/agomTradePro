@@ -13,8 +13,10 @@ import logging
 from datetime import date
 from types import SimpleNamespace
 
+from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone as django_timezone
@@ -46,6 +48,7 @@ from apps.dashboard.application import interface_services as dashboard_interface
 from core.cache_utils import CACHE_TTL, cached_api
 
 logger = logging.getLogger(__name__)
+_ALPHA_REFRESH_LOCK_TTL_SECONDS = 600
 
 
 def _get_request_user_id(user) -> int | None:
@@ -57,6 +60,94 @@ def _get_request_user_id(user) -> int | None:
         return int(user_id) if user_id not in (None, "") else None
     except (TypeError, ValueError):
         return None
+
+
+def _build_alpha_refresh_lock_key(
+    *,
+    alpha_scope: str,
+    target_date: date,
+    top_n: int,
+    raw_universe_id: str,
+    resolved_pool=None,
+) -> str:
+    """Build a stable lock key for one dashboard alpha refresh scope."""
+    scope_key = raw_universe_id
+    if resolved_pool is not None:
+        scope_key = resolved_pool.scope.scope_hash
+    return (
+        "dashboard:alpha_refresh_lock:"
+        f"{alpha_scope}:{scope_key}:{target_date.isoformat()}:{top_n}"
+    )
+
+
+def _resolve_existing_alpha_refresh_lock(lock_key: str) -> dict[str, object] | None:
+    """Return active lock metadata, clearing stale async locks automatically."""
+    existing_lock = cache.get(lock_key)
+    if not existing_lock:
+        return None
+
+    if existing_lock == "__sync__":
+        return {
+            "status": "running",
+            "mode": "sync",
+            "task_id": None,
+            "task_state": "RUNNING",
+        }
+    if existing_lock == "__pending__":
+        return {
+            "status": "running",
+            "mode": "async",
+            "task_id": None,
+            "task_state": "PENDING",
+        }
+
+    task_id = str(existing_lock)
+    task_result = AsyncResult(task_id)
+    if task_result.ready():
+        cache.delete(lock_key)
+        return None
+
+    return {
+        "status": "running",
+        "mode": "async",
+        "task_id": task_id,
+        "task_state": str(task_result.state or "PENDING"),
+    }
+
+
+def _build_alpha_refresh_conflict_response(
+    *,
+    alpha_scope: str,
+    target_date: date,
+    top_n: int,
+    universe_id: str,
+    portfolio_id: int | None,
+    pool_mode: str,
+    lock_meta: dict[str, object],
+):
+    """Return a consistent conflict response for duplicate dashboard alpha refresh requests."""
+    task_id = lock_meta.get("task_id")
+    task_state = lock_meta.get("task_state")
+    mode = lock_meta.get("mode")
+    return JsonResponse(
+        {
+            "success": False,
+            "error": "当前 Alpha 推理仍在进行中，请等待完成后再重试。",
+            "alpha_scope": alpha_scope,
+            "task_id": task_id,
+            "task_state": task_state,
+            "universe_id": universe_id,
+            "portfolio_id": portfolio_id,
+            "pool_mode": pool_mode,
+            "requested_trade_date": target_date.isoformat(),
+            "top_n": top_n,
+            "refresh_status": "running",
+            "sync": mode == "sync",
+            "must_not_use_for_decision": True,
+            "poll_after_ms": 3000,
+        },
+        status=409,
+    )
 
 
 def _build_alpha_decision_chain_overview(
@@ -1550,9 +1641,29 @@ def alpha_refresh_htmx(request):
             )
 
         use_sync = request.POST.get("sync") in ("1", "true")
+        universe_id = resolved_pool.scope.universe_id if resolved_pool is not None else raw_universe_id
+        lock_key = _build_alpha_refresh_lock_key(
+            alpha_scope=alpha_scope,
+            target_date=target_date,
+            top_n=top_n,
+            raw_universe_id=raw_universe_id,
+            resolved_pool=resolved_pool,
+        )
+        lock_meta = _resolve_existing_alpha_refresh_lock(lock_key)
+        if lock_meta is not None:
+            return _build_alpha_refresh_conflict_response(
+                alpha_scope=alpha_scope,
+                target_date=target_date,
+                top_n=top_n,
+                universe_id=universe_id,
+                portfolio_id=portfolio_id,
+                pool_mode=pool_mode,
+                lock_meta=lock_meta,
+            )
 
         if use_sync:
             return _alpha_refresh_sync(
+                lock_key=lock_key,
                 target_date=target_date,
                 top_n=top_n,
                 raw_universe_id=raw_universe_id,
@@ -1565,7 +1676,24 @@ def alpha_refresh_htmx(request):
         from apps.alpha.application.tasks import qlib_predict_scores
 
         if resolved_pool is None:
+            if not cache.add(lock_key, "__pending__", timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS):
+                lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
+                    "status": "running",
+                    "mode": "async",
+                    "task_id": None,
+                    "task_state": "PENDING",
+                }
+                return _build_alpha_refresh_conflict_response(
+                    alpha_scope=alpha_scope,
+                    target_date=target_date,
+                    top_n=top_n,
+                    universe_id=universe_id,
+                    portfolio_id=portfolio_id,
+                    pool_mode=pool_mode,
+                    lock_meta=lock_meta,
+                )
             task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
+            cache.set(lock_key, task.id, timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS)
             message = (
                 "已触发通用 Alpha 刷新任务；结果仅用于研究排名，不作为账户专属建议。"
                 if alpha_scope == ALPHA_SCOPE_GENERAL
@@ -1585,12 +1713,29 @@ def alpha_refresh_htmx(request):
                 "must_not_use_for_decision": True,
             }
         else:
+            if not cache.add(lock_key, "__pending__", timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS):
+                lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
+                    "status": "running",
+                    "mode": "async",
+                    "task_id": None,
+                    "task_state": "PENDING",
+                }
+                return _build_alpha_refresh_conflict_response(
+                    alpha_scope=alpha_scope,
+                    target_date=target_date,
+                    top_n=top_n,
+                    universe_id=universe_id,
+                    portfolio_id=portfolio_id,
+                    pool_mode=pool_mode,
+                    lock_meta=lock_meta,
+                )
             task = qlib_predict_scores.delay(
                 resolved_pool.scope.universe_id,
                 target_date.isoformat(),
                 top_n,
                 scope_payload=resolved_pool.scope.to_dict(),
             )
+            cache.set(lock_key, task.id, timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS)
             response_payload = {
                 "success": True,
                 "alpha_scope": ALPHA_SCOPE_PORTFOLIO,
@@ -1608,6 +1753,8 @@ def alpha_refresh_htmx(request):
     except ValueError as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
     except Exception as exc:
+        if "lock_key" in locals():
+            cache.delete(lock_key)
         logger.error("Failed to trigger alpha realtime refresh: %s", exc, exc_info=True)
         return JsonResponse(
             {"success": False, "error": f"触发 Alpha 实时刷新失败: {exc}"},
@@ -1617,6 +1764,7 @@ def alpha_refresh_htmx(request):
 
 def _alpha_refresh_sync(
     *,
+    lock_key: str,
     target_date,
     top_n,
     raw_universe_id,
@@ -1636,53 +1784,73 @@ def _alpha_refresh_sync(
         scope_hash = resolved_pool.scope.scope_hash
         scope_payload = resolved_pool.scope.to_dict()
 
-    task_result = qlib_predict_scores.apply(
-        args=[universe_id, target_date.isoformat(), top_n],
-        kwargs={
-            "scope_payload": scope_payload,
-        },
-    )
-    result_payload = task_result.get(propagate=False)
-    failed = bool(getattr(task_result, "failed", lambda: False)())
-
-    if failed:
-        logger.warning(
-            "Sync alpha inference failed: universe=%s, trade_date=%s, result=%s",
-            universe_id,
-            target_date.isoformat(),
-            result_payload,
-        )
-        return JsonResponse(
-            {"success": False, "error": "同步推理失败，请检查 Qlib 运行状态。"},
-            status=500,
+    if not cache.add(lock_key, "__sync__", timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS):
+        lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
+            "status": "running",
+            "mode": "sync",
+            "task_id": None,
+            "task_state": "RUNNING",
+        }
+        return _build_alpha_refresh_conflict_response(
+            alpha_scope=alpha_scope,
+            target_date=target_date,
+            top_n=top_n,
+            universe_id=universe_id,
+            portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
+            lock_meta=lock_meta,
         )
 
-    if not isinstance(result_payload, dict) or result_payload.get("status") != "success":
-        return JsonResponse(
-            {
-                "success": False,
-                "error": "推理完成但无新结果（可能数据不足、数据未更新或非交易日）。",
-                "alpha_scope": alpha_scope,
-                "universe_id": universe_id,
-                "requested_trade_date": target_date.isoformat(),
+    try:
+        task_result = qlib_predict_scores.apply(
+            args=[universe_id, target_date.isoformat(), top_n],
+            kwargs={
+                "scope_payload": scope_payload,
             },
-            status=200,
         )
+        result_payload = task_result.get(propagate=False)
+        failed = bool(getattr(task_result, "failed", lambda: False)())
 
-    return JsonResponse({
-        "success": True,
-        "alpha_scope": alpha_scope,
-        "task_id": None,
-        "universe_id": universe_id,
-        "portfolio_id": portfolio_id,
-        "scope_hash": result_payload.get("scope_hash") or scope_hash,
-        "requested_trade_date": target_date.isoformat(),
-        "pool_mode": pool_mode,
-        "message": "同步推理完成，已更新评分。",
-        "poll_after_ms": 1000,
-        "sync": True,
-        "must_not_use_for_decision": True,
-    })
+        if failed:
+            logger.warning(
+                "Sync alpha inference failed: universe=%s, trade_date=%s, result=%s",
+                universe_id,
+                target_date.isoformat(),
+                result_payload,
+            )
+            return JsonResponse(
+                {"success": False, "error": "同步推理失败，请检查 Qlib 运行状态。"},
+                status=500,
+            )
+
+        if not isinstance(result_payload, dict) or result_payload.get("status") != "success":
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "推理完成但无新结果（可能数据不足、数据未更新或非交易日）。",
+                    "alpha_scope": alpha_scope,
+                    "universe_id": universe_id,
+                    "requested_trade_date": target_date.isoformat(),
+                },
+                status=200,
+            )
+
+        return JsonResponse({
+            "success": True,
+            "alpha_scope": alpha_scope,
+            "task_id": None,
+            "universe_id": universe_id,
+            "portfolio_id": portfolio_id,
+            "scope_hash": result_payload.get("scope_hash") or scope_hash,
+            "requested_trade_date": target_date.isoformat(),
+            "pool_mode": pool_mode,
+            "message": "同步推理完成，已更新评分。",
+            "poll_after_ms": 1000,
+            "sync": True,
+            "must_not_use_for_decision": True,
+        })
+    finally:
+        cache.delete(lock_key)
 
 
 @login_required(login_url="/account/login/")

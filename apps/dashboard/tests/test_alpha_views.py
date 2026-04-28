@@ -2,6 +2,7 @@ import json
 from datetime import date
 from types import SimpleNamespace
 
+from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
@@ -33,6 +34,15 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
 
     response = views.alpha_refresh_htmx(request)
     payload = json.loads(response.content)
+    cache.delete(
+        views._build_alpha_refresh_lock_key(
+            alpha_scope="portfolio",
+            target_date=date.today(),
+            top_n=12,
+            raw_universe_id="csi300",
+            resolved_pool=None,
+        )
+    )
 
     assert response.status_code == 200
     assert payload["success"] is True
@@ -78,6 +88,15 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
 
     response = views.alpha_refresh_htmx(request)
     payload = json.loads(response.content)
+    cache.delete(
+        views._build_alpha_refresh_lock_key(
+            alpha_scope="portfolio",
+            target_date=date.today(),
+            top_n=10,
+            raw_universe_id="csi300",
+            resolved_pool=SimpleNamespace(scope=SimpleNamespace(scope_hash="scope-9")),
+        )
+    )
 
     assert response.status_code == 200
     assert payload["success"] is True
@@ -137,6 +156,15 @@ def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
 
     response = views.alpha_refresh_htmx(request)
     payload = json.loads(response.content)
+    cache.delete(
+        views._build_alpha_refresh_lock_key(
+            alpha_scope="portfolio",
+            target_date=date.today(),
+            top_n=10,
+            raw_universe_id="csi300",
+            resolved_pool=SimpleNamespace(scope=SimpleNamespace(scope_hash="scope-9")),
+        )
+    )
 
     assert response.status_code == 200
     assert payload["success"] is True
@@ -146,6 +174,86 @@ def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
     assert captured["kwargs"]["scope_payload"]["portfolio_id"] == 9
     assert captured["kwargs"]["scope_payload"]["pool_mode"] == "price_covered"
     assert captured["propagate"] is False
+
+
+def test_alpha_refresh_htmx_rejects_duplicate_async_request(monkeypatch):
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 12, "universe_id": "csi300"},
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    lock_key = views._build_alpha_refresh_lock_key(
+        alpha_scope="portfolio",
+        target_date=date.today(),
+        top_n=12,
+        raw_universe_id="csi300",
+        resolved_pool=None,
+    )
+    cache.set(lock_key, "task-duplicate", timeout=60)
+
+    class FakeAsyncResult:
+        state = "PENDING"
+
+        def ready(self):
+            return False
+
+    monkeypatch.setattr(views, "AsyncResult", lambda task_id: FakeAsyncResult())
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+
+    cache.delete(lock_key)
+
+    assert response.status_code == 409
+    assert payload["success"] is False
+    assert payload["task_id"] == "task-duplicate"
+    assert payload["refresh_status"] == "running"
+
+
+def test_alpha_refresh_htmx_rejects_duplicate_sync_request(monkeypatch):
+    class FakeResolver:
+        def resolve(self, *, user_id: int, portfolio_id=None, trade_date=None, pool_mode=None):
+            return SimpleNamespace(
+                portfolio_id=portfolio_id,
+                scope=SimpleNamespace(
+                    universe_id="portfolio-9-scope",
+                    scope_hash="scope-9",
+                    pool_mode=pool_mode,
+                    to_dict=lambda: {
+                        "pool_mode": pool_mode,
+                        "portfolio_id": portfolio_id,
+                        "instrument_codes": ["000001.SZ"],
+                        "trade_date": trade_date.isoformat(),
+                    },
+                ),
+            )
+
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 10, "portfolio_id": 9, "pool_mode": "price_covered", "sync": "1"},
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    lock_key = views._build_alpha_refresh_lock_key(
+        alpha_scope="portfolio",
+        target_date=date.today(),
+        top_n=10,
+        raw_universe_id="csi300",
+        resolved_pool=SimpleNamespace(scope=SimpleNamespace(scope_hash="scope-9")),
+    )
+    cache.set(lock_key, "__sync__", timeout=60)
+    monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+
+    cache.delete(lock_key)
+
+    assert response.status_code == 409
+    assert payload["success"] is False
+    assert payload["sync"] is True
+    assert payload["task_state"] == "RUNNING"
 
 
 def test_alpha_refresh_portfolio_scope_requires_portfolio_id():

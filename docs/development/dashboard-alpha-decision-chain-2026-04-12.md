@@ -134,6 +134,7 @@ Dashboard 现在按同一链路展示：
   - `alpha_scope=general`：只触发通用研究池刷新
   - `alpha_scope=portfolio`：只触发账户专属 scoped Qlib 推理，必须带 `portfolio_id`
   - 当显式传 `sync=1` 时，只允许在账户专属 scope 下执行一次 inline inference，并且必须继续透传完整 `scope_payload`；不得退化为只按 `universe_id` 生成 broad cache
+  - 同一 `scope/date/top_n` 存在未完成刷新任务时，接口返回 `409`，避免重复投递或重复 inline inference
 - `/api/dashboard/alpha/factor-panel/`
   - 右侧解释面板入口
   - 必须透传与左侧列表一致的 `alpha_scope / portfolio_id / pool_mode / code`
