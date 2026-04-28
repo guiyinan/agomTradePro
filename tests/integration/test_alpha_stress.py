@@ -34,6 +34,13 @@ _FAKE_ETF_CONSTITUENTS = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _mock_etf_constituents_offline():
+    """Keep stress tests fully offline even when fallback reaches the ETF provider."""
+    with patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS):
+        yield
+
+
 def _reset_alpha_service():
     """Reset AlphaService singleton so providers are re-initialised."""
     AlphaService._instance = None
