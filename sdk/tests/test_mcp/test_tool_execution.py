@@ -313,6 +313,52 @@ class _FakeClient:
                 "id": 99,
                 "created": True,
             },
+            get_ops_inference_overview=lambda: {
+                "active_model": {"model_name": "alpha-v1"},
+                "recent_tasks": [{"task_id": "task-1", "status": "SUCCESS"}],
+                "dashboard_refresh_locks": [],
+            },
+            trigger_ops_inference=(
+                lambda mode,
+                trade_date=None,
+                top_n=30,
+                universe_id=None,
+                portfolio_id=None,
+                pool_mode=None: {
+                    "success": True,
+                    "mode": mode,
+                    "trade_date": trade_date,
+                    "top_n": top_n,
+                    "universe_id": universe_id,
+                    "portfolio_id": portfolio_id,
+                    "pool_mode": pool_mode,
+                    "task_id": "alpha-ops-task-1",
+                }
+            ),
+            get_ops_qlib_data_overview=lambda: {
+                "qlib_runtime": {"enabled": True},
+                "local_data_status": {"latest_trade_date": "2026-04-28"},
+                "recent_tasks": [{"task_id": "task-2", "status": "SUCCESS"}],
+            },
+            refresh_ops_qlib_data=(
+                lambda mode,
+                target_date,
+                lookback_days=400,
+                universes=None,
+                portfolio_ids=None,
+                all_active_portfolios=False,
+                pool_mode=None: {
+                    "success": True,
+                    "mode": mode,
+                    "target_date": target_date,
+                    "lookback_days": lookback_days,
+                    "universes": universes,
+                    "portfolio_ids": portfolio_ids,
+                    "all_active_portfolios": all_active_portfolios,
+                    "pool_mode": pool_mode,
+                    "task_id": "qlib-ops-task-1",
+                }
+            ),
         )
 
     def get(self, path, params=None):
@@ -548,6 +594,28 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
                 "scope": "user",
             },
         ),
+        ("get_alpha_ops_inference_overview", {}),
+        (
+            "trigger_alpha_ops_inference",
+            {
+                "mode": "portfolio_scoped",
+                "trade_date": "2026-04-28",
+                "top_n": 10,
+                "portfolio_id": 135,
+                "pool_mode": "market",
+            },
+        ),
+        ("get_alpha_ops_qlib_data_overview", {}),
+        (
+            "refresh_alpha_qlib_data",
+            {
+                "mode": "scoped_codes",
+                "target_date": "2026-04-28",
+                "lookback_days": 120,
+                "portfolio_ids": [135],
+                "pool_mode": "price_covered",
+            },
+        ),
         ("get_pulse_current", {}),
         ("get_pulse_history", {"limit": 5}),
         ("get_regime_navigator", {}),
@@ -677,3 +745,57 @@ def test_dashboard_alpha_tools_accept_alpha_scope(monkeypatch: pytest.MonkeyPatc
     )
     portfolio_rendered = str(portfolio_result)
     assert "portfolio" in portfolio_rendered
+
+
+def test_alpha_ops_tools_expose_management_payloads(monkeypatch: pytest.MonkeyPatch):
+    try:
+        from agomtradepro_mcp.server import server
+    except ModuleNotFoundError as exc:
+        if "mcp" in str(exc):
+            pytest.skip("mcp package not installed in current test environment")
+        raise
+
+    _patch_extended_tool_modules(monkeypatch)
+
+    overview_result = asyncio.run(server.call_tool("get_alpha_ops_inference_overview", {}))
+    overview_rendered = str(overview_result)
+    assert "alpha-v1" in overview_rendered
+    assert "recent_tasks" in overview_rendered
+
+    trigger_result = asyncio.run(
+        server.call_tool(
+            "trigger_alpha_ops_inference",
+            {
+                "mode": "portfolio_scoped",
+                "trade_date": "2026-04-28",
+                "top_n": 10,
+                "portfolio_id": 135,
+                "pool_mode": "market",
+            },
+        )
+    )
+    trigger_rendered = str(trigger_result)
+    assert "alpha-ops-task-1" in trigger_rendered
+    assert "portfolio_scoped" in trigger_rendered
+    assert "market" in trigger_rendered
+
+    qlib_overview_result = asyncio.run(server.call_tool("get_alpha_ops_qlib_data_overview", {}))
+    qlib_overview_rendered = str(qlib_overview_result)
+    assert "latest_trade_date" in qlib_overview_rendered
+    assert "2026-04-28" in qlib_overview_rendered
+
+    qlib_refresh_result = asyncio.run(
+        server.call_tool(
+            "refresh_alpha_qlib_data",
+            {
+                "mode": "scoped_codes",
+                "target_date": "2026-04-28",
+                "lookback_days": 120,
+                "portfolio_ids": [135],
+                "pool_mode": "price_covered",
+            },
+        )
+    )
+    qlib_refresh_rendered = str(qlib_refresh_result)
+    assert "qlib-ops-task-1" in qlib_refresh_rendered
+    assert "scoped_codes" in qlib_refresh_rendered

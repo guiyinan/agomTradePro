@@ -26,6 +26,9 @@ from agomtradepro_mcp import rbac
         ("investment_manager", "submit_decision_request", True),
         ("owner", "toggle_ai_provider", True),
         ("risk", "submit_decision_request", False),
+        ("read_only", "trigger_alpha_ops_inference", False),
+        ("read_only", "refresh_alpha_qlib_data", False),
+        ("analyst", "get_alpha_ops_inference_overview", True),
     ],
 )
 def test_role_tool_matrix_enforcement(

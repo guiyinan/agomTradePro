@@ -277,6 +277,45 @@ def client():
         (lambda c: c.alpha.get_provider_status(), "GET", "/api/alpha/providers/status/"),
         (lambda c: c.alpha.get_available_universes(), "GET", "/api/alpha/universes/"),
         (lambda c: c.alpha.check_health(), "GET", "/api/alpha/health/"),
+        (lambda c: c.alpha.get_ops_inference_overview(), "GET", "/api/alpha/ops/inference/overview/"),
+        (lambda c: c.alpha.get_ops_qlib_data_overview(), "GET", "/api/alpha/ops/qlib-data/overview/"),
+        (
+            lambda c: c.alpha.trigger_ops_inference(
+                mode="general",
+                trade_date="2026-04-28",
+                top_n=10,
+                universe_id="csi300",
+            ),
+            "POST",
+            "/api/alpha/ops/inference/trigger/",
+            {
+                "json": {
+                    "mode": "general",
+                    "trade_date": "2026-04-28",
+                    "top_n": 10,
+                    "universe_id": "csi300",
+                }
+            },
+        ),
+        (
+            lambda c: c.alpha.refresh_ops_qlib_data(
+                mode="universes",
+                target_date="2026-04-28",
+                lookback_days=400,
+                universes=["csi300"],
+            ),
+            "POST",
+            "/api/alpha/ops/qlib-data/refresh/",
+            {
+                "json": {
+                    "mode": "universes",
+                    "target_date": "2026-04-28",
+                    "lookback_days": 400,
+                    "all_active_portfolios": False,
+                    "universes": ["csi300"],
+                }
+            },
+        ),
         (lambda c: c.alpha_trigger.list_triggers(), "GET", "/api/alpha-triggers/triggers/"),
         (lambda c: c.alpha_trigger.get_trigger("t1"), "GET", "/api/alpha-triggers/triggers/t1/"),
         (

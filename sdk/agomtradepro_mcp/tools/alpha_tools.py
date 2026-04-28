@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import AgomTradeProAPIError
 
 
 logger = logging.getLogger(__name__)
@@ -193,6 +194,115 @@ def register_alpha_tools(server) -> None:
             return {
                 "error": str(e)
             }
+
+    @server.tool()
+    def get_alpha_ops_inference_overview() -> dict[str, Any]:
+        """
+        获取 Alpha 推理运维概览。
+
+        返回运维台中的激活模型、Celery 状态、最近推理任务、缓存和告警摘要。
+        """
+        try:
+            client = AgomTradeProClient()
+            return client.alpha.get_ops_inference_overview()
+        except Exception as e:
+            logger.error(f"获取 Alpha 推理运维概览失败: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
+
+    @server.tool()
+    def trigger_alpha_ops_inference(
+        mode: str,
+        trade_date: str | None = None,
+        top_n: int = 30,
+        universe_id: str | None = None,
+        portfolio_id: int | None = None,
+        pool_mode: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        触发 Alpha 运维推理任务。
+
+        Args:
+            mode: `general` / `portfolio_scoped` / `daily_scoped_batch`
+            trade_date: 目标交易日（general / portfolio_scoped 必填）
+            top_n: 返回前 N 只股票
+            universe_id: general 模式的股票池标识
+            portfolio_id: portfolio_scoped 模式的组合 ID
+            pool_mode: scoped 模式账户池选择
+        """
+        try:
+            client = AgomTradeProClient()
+            return client.alpha.trigger_ops_inference(
+                mode=mode,
+                trade_date=trade_date,
+                top_n=top_n,
+                universe_id=universe_id,
+                portfolio_id=portfolio_id,
+                pool_mode=pool_mode,
+            )
+        except AgomTradeProAPIError as e:
+            logger.warning(f"触发 Alpha 运维推理返回 API 错误: {e}")
+            if isinstance(e.response, dict):
+                return e.response
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.warning(f"触发 Alpha 运维推理失败: {e}")
+            return {"success": False, "error": str(e)}
+
+    @server.tool()
+    def get_alpha_ops_qlib_data_overview() -> dict[str, Any]:
+        """
+        获取 Qlib 基础数据运维概览。
+
+        返回本地 Qlib runtime 配置、最新交易日和最近刷新任务摘要。
+        """
+        try:
+            client = AgomTradeProClient()
+            return client.alpha.get_ops_qlib_data_overview()
+        except Exception as e:
+            logger.error(f"获取 Qlib 基础数据运维概览失败: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
+
+    @server.tool()
+    def refresh_alpha_qlib_data(
+        mode: str,
+        target_date: str,
+        lookback_days: int = 400,
+        universes: list[str] | None = None,
+        portfolio_ids: list[int] | None = None,
+        all_active_portfolios: bool = False,
+        pool_mode: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        触发 Qlib 基础数据运维刷新任务。
+
+        Args:
+            mode: `universes` / `scoped_codes`
+            target_date: 目标日期（YYYY-MM-DD）
+            lookback_days: 回看天数
+            universes: universe 模式刷新目标
+            portfolio_ids: scoped_codes 模式下的组合 ID 列表
+            all_active_portfolios: 是否刷新全部启用组合
+            pool_mode: scoped_codes 模式下的账户池选择
+        """
+        try:
+            client = AgomTradeProClient()
+            return client.alpha.refresh_ops_qlib_data(
+                mode=mode,
+                target_date=target_date,
+                lookback_days=lookback_days,
+                universes=universes,
+                portfolio_ids=portfolio_ids,
+                all_active_portfolios=all_active_portfolios,
+                pool_mode=pool_mode,
+            )
+        except AgomTradeProAPIError as e:
+            logger.warning(f"触发 Qlib 基础数据刷新返回 API 错误: {e}")
+            if isinstance(e.response, dict):
+                return e.response
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.warning(f"触发 Qlib 基础数据刷新失败: {e}")
+            return {"success": False, "error": str(e)}
 
     @server.tool()
     def get_alpha_available_universes() -> dict[str, Any]:

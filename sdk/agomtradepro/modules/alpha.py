@@ -7,6 +7,7 @@ Alpha SDK Module
 import os
 from typing import Any, Dict, List, Optional
 
+from ..exceptions import ConflictError
 from .base import BaseModule
 
 
@@ -143,6 +144,114 @@ class AlphaModule(BaseModule):
             ...     print(f"{name}: {info['status']}")
         """
         return self._get("providers/status/")
+
+    def get_ops_inference_overview(self) -> Dict[str, Any]:
+        """
+        获取 Alpha 推理运维概览。
+
+        Returns:
+            Alpha 推理管理页的聚合概览数据。
+        """
+        return self._get("ops/inference/overview/")
+
+    def trigger_ops_inference(
+        self,
+        *,
+        mode: str,
+        trade_date: Optional[str] = None,
+        top_n: int = 30,
+        universe_id: Optional[str] = None,
+        portfolio_id: Optional[int] = None,
+        pool_mode: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        触发 Alpha 运维推理任务。
+
+        Args:
+            mode: `general` / `portfolio_scoped` / `daily_scoped_batch`
+            trade_date: 目标交易日（general / portfolio_scoped 必填）
+            top_n: 返回前 N 只股票
+            universe_id: general 模式下的股票池标识
+            portfolio_id: portfolio_scoped 模式下的组合 ID
+            pool_mode: scoped 模式的账户池选择
+
+        Returns:
+            成功时返回任务投递结果；若命中后端 409 防重复，则返回后端冲突载荷。
+        """
+        payload: dict[str, Any] = {
+            "mode": mode,
+            "top_n": top_n,
+        }
+        if trade_date is not None:
+            payload["trade_date"] = trade_date
+        if universe_id is not None:
+            payload["universe_id"] = universe_id
+        if portfolio_id is not None:
+            payload["portfolio_id"] = portfolio_id
+        if pool_mode:
+            payload["pool_mode"] = pool_mode
+
+        try:
+            return self._post("ops/inference/trigger/", json=payload)
+        except ConflictError as exc:
+            if isinstance(exc.response, dict):
+                return exc.response
+            raise
+
+    def get_ops_qlib_data_overview(self) -> Dict[str, Any]:
+        """
+        获取 Qlib 基础数据运维概览。
+
+        Returns:
+            Qlib 基础数据管理页的聚合概览数据。
+        """
+        return self._get("ops/qlib-data/overview/")
+
+    def refresh_ops_qlib_data(
+        self,
+        *,
+        mode: str,
+        target_date: str,
+        lookback_days: int = 400,
+        universes: Optional[list[str]] = None,
+        portfolio_ids: Optional[list[int]] = None,
+        all_active_portfolios: bool = False,
+        pool_mode: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        触发 Qlib 基础数据运维刷新任务。
+
+        Args:
+            mode: `universes` / `scoped_codes`
+            target_date: 目标日期（ISO 格式）
+            lookback_days: 回看天数
+            universes: universe 刷新模式下的 universe 列表
+            portfolio_ids: scoped_codes 模式下的组合 ID 列表
+            all_active_portfolios: 是否刷新所有启用组合
+            pool_mode: scoped_codes 模式下的账户池选择
+
+        Returns:
+            成功时返回任务投递结果；若命中后端 409 防重复，则返回后端冲突载荷。
+        """
+        payload: dict[str, Any] = {
+            "mode": mode,
+            "target_date": target_date,
+            "lookback_days": lookback_days,
+            "all_active_portfolios": all_active_portfolios,
+        }
+        if universes is not None:
+            payload["universes"] = universes
+        if portfolio_ids is not None:
+            payload["portfolio_ids"] = portfolio_ids
+        if pool_mode:
+            payload["pool_mode"] = pool_mode
+
+        try:
+            return self._post("ops/qlib-data/refresh/", json=payload)
+        except ConflictError as exc:
+            if isinstance(exc.response, dict):
+                return exc.response
+            raise
 
     def get_available_universes(self) -> Dict[str, Any]:
         """

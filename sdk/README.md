@@ -165,7 +165,7 @@ Three methods (priority order):
 | `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, AI strategy config, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 | `client.rotation` | Rotation - recommendations, templates, per-account regime allocation configs |
-| `client.alpha` | Alpha scoring - scores, provider status, universes, health, factor exposure |
+| `client.alpha` | Alpha scoring + ops console bridges - scores, provider status, universes, health, factor exposure, inference/data ops |
 | `client.dashboard` | Dashboard account view - Alpha candidates, history, async refresh status, and recommendation contract |
 | `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, workspace recommendation bridge, funnel context |
 | `client.pulse` | **Pulse + Navigator** - pulse snapshot/history, regime navigator, action recommendation |
@@ -200,6 +200,25 @@ Dashboard Alpha caller-controlled pool selection:
 - MCP `trigger_dashboard_alpha_refresh(..., pool_mode=...)`
 
 This keeps SDK/MCP behavior aligned with the dashboard UI: callers can explicitly choose the Alpha screening universe instead of relying only on the backend default.
+
+### Alpha Ops Console
+
+The Alpha ops console is also exposed through SDK/MCP for operator workflows:
+
+- `client.alpha.get_ops_inference_overview()`
+- `client.alpha.trigger_ops_inference(...)`
+- `client.alpha.get_ops_qlib_data_overview()`
+- `client.alpha.refresh_ops_qlib_data(...)`
+- MCP `get_alpha_ops_inference_overview`
+- MCP `trigger_alpha_ops_inference`
+- MCP `get_alpha_ops_qlib_data_overview`
+- MCP `refresh_alpha_qlib_data`
+
+These calls mirror the staff/superuser web console:
+
+- overview calls are read-only operational snapshots
+- trigger / refresh calls only queue backend jobs
+- duplicate in-flight work may return the backend conflict payload instead of a fresh task
 
 ### Workbench Tools (New)
 - **Workbench**: `get_workbench_summary`, `get_workbench_items`

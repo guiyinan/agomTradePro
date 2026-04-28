@@ -9,7 +9,7 @@
 > **系统版本**: AgomTradePro 0.7.0
 > **项目状态**: 生产就绪
 > **业务模块**: 35个
-> **MCP 工具**: 309个（本地注册快照）
+> **MCP 工具**: 313个（本地注册快照）
 > **测试规模**: 5,212 个已收集测试用例
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。

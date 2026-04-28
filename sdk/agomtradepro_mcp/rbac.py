@@ -115,6 +115,8 @@ def _classify_tool_level(tool_name: str) -> str:
         "bind_",
         "unbind_",
         "toggle_",
+        "trigger_",
+        "refresh_",
         "publish_",
         "submit_",
         "replay_",

@@ -74,6 +74,25 @@
 - MCP 对应工具：`get_dashboard_alpha_decision_chain_v1`
 - MCP 标签页接口：`get_dashboard_alpha_candidates(alpha_scope=...)`、`trigger_dashboard_alpha_refresh(alpha_scope=...)`
 
+### Alpha / Qlib 运维台（2026-04-28）
+
+- Alpha 运维台的 canonical API 路径为：
+  - `/api/alpha/ops/inference/overview/`
+  - `/api/alpha/ops/inference/trigger/`
+  - `/api/alpha/ops/qlib-data/overview/`
+  - `/api/alpha/ops/qlib-data/refresh/`
+- SDK 对应方法：
+  - `alpha.get_ops_inference_overview()`
+  - `alpha.trigger_ops_inference(...)`
+  - `alpha.get_ops_qlib_data_overview()`
+  - `alpha.refresh_ops_qlib_data(...)`
+- MCP 对应工具：
+  - `get_alpha_ops_inference_overview`
+  - `trigger_alpha_ops_inference`
+  - `get_alpha_ops_qlib_data_overview`
+  - `refresh_alpha_qlib_data`
+- 这组接口只暴露 Alpha / Qlib 运维动作，不改变现有 Dashboard Alpha recommendation contract，也不改动既有 MCP tool 的 schema。
+
 ## 统一账户口径（2026-04-01）
 
 - canonical 用户账户接口为 `/api/account/accounts/`
