@@ -717,6 +717,17 @@ RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 [ -d "$RELEASE_DIR" ] || { echo "[ERROR] release dir not found: $RELEASE_DIR" >&2; exit 1; }
 cd "$RELEASE_DIR"
 
+# Preserve keys from previous deployment before wiping
+OLD_SECRET_KEY=""
+OLD_ENCRYPTION_KEY=""
+if [ -f "$TARGET_DIR/current/deploy/.env" ]; then
+  OLD_SECRET_KEY="$(grep '^SECRET_KEY=' "$TARGET_DIR/current/deploy/.env" | cut -d '=' -f2- || true)"
+  OLD_ENCRYPTION_KEY="$(grep '^AGOMTRADEPRO_ENCRYPTION_KEY=' "$TARGET_DIR/current/deploy/.env" | cut -d '=' -f2- || true)"
+  if [ -n "$OLD_ENCRYPTION_KEY" ]; then
+    echo "[INFO] Found existing AGOMTRADEPRO_ENCRYPTION_KEY from previous deployment, will reuse"
+  fi
+fi
+
 if [ "$WIPE_DOCKER" = "1" ]; then
   SAVED_IMAGE=""
   if docker image inspect "agomtradepro-web:$RELEASE_TAG" >/dev/null 2>&1; then
@@ -740,11 +751,15 @@ fi
 
 SECRET_KEY="$(grep '^SECRET_KEY=' deploy/.env | cut -d '=' -f2- || true)"
 if [ -z "$SECRET_KEY" ] || [ "$SECRET_KEY" = "change-this-to-a-strong-secret" ] || printf '%s' "$SECRET_KEY" | grep -qi 'django-insecure'; then
-  SECRET_KEY="$(python3 - <<'PY'
+  if [ -n "$OLD_SECRET_KEY" ]; then
+    SECRET_KEY="$OLD_SECRET_KEY"
+  else
+    SECRET_KEY="$(python3 - <<'PY'
 import secrets
 print(secrets.token_urlsafe(50))
 PY
 )"
+  fi
 fi
 
 if grep -q '^SECRET_KEY=' deploy/.env; then
@@ -757,13 +772,17 @@ if [ -n "$PRESET_ENCRYPTION_KEY" ]; then
   AGOM_KEY="$PRESET_ENCRYPTION_KEY"
 else
   AGOM_KEY="$(grep '^AGOMTRADEPRO_ENCRYPTION_KEY=' deploy/.env | cut -d '=' -f2- || true)"
+  if [ -z "$AGOM_KEY" ] && [ -n "$OLD_ENCRYPTION_KEY" ]; then
+    AGOM_KEY="$OLD_ENCRYPTION_KEY"
+    echo "[INFO] Reused AGOMTRADEPRO_ENCRYPTION_KEY from previous deployment"
+  fi
   if [ -z "$AGOM_KEY" ]; then
     AGOM_KEY="$(python3 - <<'PY'
 from cryptography.fernet import Fernet
 print(Fernet.generate_key().decode())
 PY
 )"
-    echo "[INFO] Auto-generated AGOMTRADEPRO_ENCRYPTION_KEY=$AGOM_KEY"
+    echo "[INFO] Auto-generated new AGOMTRADEPRO_ENCRYPTION_KEY (no previous key found)"
     echo "[WARN] Save this key! You will need it to decrypt existing API keys."
   fi
 fi
