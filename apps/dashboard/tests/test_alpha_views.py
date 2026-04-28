@@ -87,6 +87,67 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     assert payload["must_not_use_for_decision"] is True
 
 
+def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeTaskResult:
+        def get(self, propagate=False):
+            captured["propagate"] = propagate
+            return {
+                "status": "success",
+                "scope_hash": "scope-9",
+                "stock_count": 12,
+            }
+
+        def failed(self):
+            return False
+
+    class FakeTask:
+        @staticmethod
+        def apply(args=None, kwargs=None):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return FakeTaskResult()
+
+    class FakeResolver:
+        def resolve(self, *, user_id: int, portfolio_id=None, trade_date=None, pool_mode=None):
+            return SimpleNamespace(
+                portfolio_id=portfolio_id,
+                scope=SimpleNamespace(
+                    universe_id="portfolio-9-scope",
+                    scope_hash="scope-9",
+                    pool_mode=pool_mode,
+                    to_dict=lambda: {
+                        "pool_mode": pool_mode,
+                        "portfolio_id": portfolio_id,
+                        "instrument_codes": ["000001.SZ"],
+                        "trade_date": trade_date.isoformat(),
+                    },
+                ),
+            )
+
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 10, "portfolio_id": 9, "pool_mode": "price_covered", "sync": "1"},
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeTask)
+    monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert payload["sync"] is True
+    assert payload["scope_hash"] == "scope-9"
+    assert captured["args"][0] == "portfolio-9-scope"
+    assert captured["kwargs"]["scope_payload"]["portfolio_id"] == 9
+    assert captured["kwargs"]["scope_payload"]["pool_mode"] == "price_covered"
+    assert captured["propagate"] is False
+
+
 def test_alpha_refresh_portfolio_scope_requires_portfolio_id():
     request = RequestFactory().post(
         "/api/dashboard/alpha/refresh/",
@@ -460,7 +521,7 @@ def test_alpha_stocks_empty_state_renders_refresh_cta():
     )
 
     assert "暂无可信 Alpha 候选数据" in content
-    assert "触发账户专属推理" in content
+    assert "立即推理刷新" in content
 
 
 def test_action_recommendation_partial_blocks_unreliable_pulse(monkeypatch):

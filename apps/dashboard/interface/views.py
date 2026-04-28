@@ -1538,8 +1538,6 @@ def alpha_refresh_htmx(request):
         if alpha_scope == ALPHA_SCOPE_PORTFOLIO and raw_alpha_scope not in (None, "") and portfolio_id is None:
             raise ValueError("账户专属 Alpha 推理必须提供 portfolio_id")
 
-        from apps.alpha.application.tasks import qlib_predict_scores
-
         user_id = _get_request_user_id(request.user)
         raw_universe_id = str(request.POST.get("universe_id") or "").strip() or "csi300"
         resolved_pool = None
@@ -1550,6 +1548,21 @@ def alpha_refresh_htmx(request):
                 trade_date=target_date,
                 pool_mode=pool_mode,
             )
+
+        use_sync = request.POST.get("sync") in ("1", "true")
+
+        if use_sync:
+            return _alpha_refresh_sync(
+                target_date=target_date,
+                top_n=top_n,
+                raw_universe_id=raw_universe_id,
+                alpha_scope=alpha_scope,
+                portfolio_id=portfolio_id,
+                pool_mode=pool_mode,
+                resolved_pool=resolved_pool,
+            )
+
+        from apps.alpha.application.tasks import qlib_predict_scores
 
         if resolved_pool is None:
             task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
@@ -1600,6 +1613,76 @@ def alpha_refresh_htmx(request):
             {"success": False, "error": f"触发 Alpha 实时刷新失败: {exc}"},
             status=500,
         )
+
+
+def _alpha_refresh_sync(
+    *,
+    target_date,
+    top_n,
+    raw_universe_id,
+    alpha_scope,
+    portfolio_id,
+    pool_mode,
+    resolved_pool,
+):
+    """Run one scoped Qlib inference inline for dashboard manual refresh."""
+    from apps.alpha.application.tasks import qlib_predict_scores
+
+    universe_id = raw_universe_id
+    scope_hash = None
+    scope_payload = None
+    if resolved_pool is not None:
+        universe_id = resolved_pool.scope.universe_id
+        scope_hash = resolved_pool.scope.scope_hash
+        scope_payload = resolved_pool.scope.to_dict()
+
+    task_result = qlib_predict_scores.apply(
+        args=[universe_id, target_date.isoformat(), top_n],
+        kwargs={
+            "scope_payload": scope_payload,
+        },
+    )
+    result_payload = task_result.get(propagate=False)
+    failed = bool(getattr(task_result, "failed", lambda: False)())
+
+    if failed:
+        logger.warning(
+            "Sync alpha inference failed: universe=%s, trade_date=%s, result=%s",
+            universe_id,
+            target_date.isoformat(),
+            result_payload,
+        )
+        return JsonResponse(
+            {"success": False, "error": "同步推理失败，请检查 Qlib 运行状态。"},
+            status=500,
+        )
+
+    if not isinstance(result_payload, dict) or result_payload.get("status") != "success":
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "推理完成但无新结果（可能数据不足、数据未更新或非交易日）。",
+                "alpha_scope": alpha_scope,
+                "universe_id": universe_id,
+                "requested_trade_date": target_date.isoformat(),
+            },
+            status=200,
+        )
+
+    return JsonResponse({
+        "success": True,
+        "alpha_scope": alpha_scope,
+        "task_id": None,
+        "universe_id": universe_id,
+        "portfolio_id": portfolio_id,
+        "scope_hash": result_payload.get("scope_hash") or scope_hash,
+        "requested_trade_date": target_date.isoformat(),
+        "pool_mode": pool_mode,
+        "message": "同步推理完成，已更新评分。",
+        "poll_after_ms": 1000,
+        "sync": True,
+        "must_not_use_for_decision": True,
+    })
 
 
 @login_required(login_url="/account/login/")

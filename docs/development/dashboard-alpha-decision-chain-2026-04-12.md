@@ -133,6 +133,7 @@ Dashboard 现在按同一链路展示：
 - `/api/dashboard/alpha/refresh/`
   - `alpha_scope=general`：只触发通用研究池刷新
   - `alpha_scope=portfolio`：只触发账户专属 scoped Qlib 推理，必须带 `portfolio_id`
+  - 当显式传 `sync=1` 时，只允许在账户专属 scope 下执行一次 inline inference，并且必须继续透传完整 `scope_payload`；不得退化为只按 `universe_id` 生成 broad cache
 - `/api/dashboard/alpha/factor-panel/`
   - 右侧解释面板入口
   - 必须透传与左侧列表一致的 `alpha_scope / portfolio_id / pool_mode / code`
@@ -181,6 +182,7 @@ Dashboard 现在按同一链路展示：
 - Dashboard Alpha metrics 使用 Provider 注册状态，不在首屏执行深度 `health_check()`。
 - AI 建议默认使用本地规则，不在首屏等待外部 AI API；需要同步外部 AI 时显式开启 `DASHBOARD_SYNC_AI_INSIGHTS_ENABLED=True`。
 - 手动实时推理只通过页面刷新按钮、`/api/dashboard/alpha/refresh/` 或 MCP `trigger_dashboard_alpha_refresh(...)` 进入 Celery 异步链路。
+- 本地开发为了覆盖“无 worker”场景，页面按钮在 `alpha_scope=portfolio` 下可显式请求一次同步推理；该同步路径仍必须复用 `qlib_predict_scores.apply(...)` 与 scoped payload，不得绕过到 management command 冷启动。
 - 前端只显示轻状态和轮询刷新；后台任务完成前，推荐区保持“暂无可信 Alpha 推荐资产”。
 
 ## 约束

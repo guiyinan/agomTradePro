@@ -389,7 +389,7 @@
                         class="refresh-btn refresh-btn-realtime"
                         onclick="triggerAlphaRealtimeRefresh(10)"
                     >
-                        <span>⚡ 触发专属推理</span>
+                        <span>⚡ 立即推理</span>
                     </button>
                     <span id="alphaRefreshStatus" class="alpha-refresh-status" aria-live="polite"></span>
                 </div>
@@ -1125,20 +1125,22 @@ async function triggerAlphaRealtimeRefresh(topN = 10) {
     const refreshBtn = document.getElementById('alphaRealtimeRefreshBtn');
     const statusNode = document.getElementById('alphaRefreshStatus');
     const originalLabel = refreshBtn ? refreshBtn.innerHTML : '';
+    const alphaScope = getAlphaScopeMode();
 
     if (refreshBtn) {
         refreshBtn.disabled = true;
         refreshBtn.innerHTML = '<span>⏳ 刷新中</span>';
     }
     if (statusNode) {
-        statusNode.textContent = '正在触发实时 Alpha 刷新...';
+        statusNode.textContent = alphaScope === 'portfolio'
+            ? '正在触发 Alpha 同步推理，请稍候...'
+            : '正在触发 Alpha 刷新任务，请稍候...';
         statusNode.classList.remove('is-error');
     }
 
     try {
         const portfolioSelect = document.getElementById('alphaPortfolioSelect');
         const poolModeSelect = document.getElementById('alphaPoolModeSelect');
-        const alphaScope = getAlphaScopeMode();
         const portfolioId = portfolioSelect ? portfolioSelect.value : '';
         const poolMode = poolModeSelect ? poolModeSelect.value : '';
         if (alphaScope === 'portfolio' && !portfolioId) {
@@ -1149,6 +1151,7 @@ async function triggerAlphaRealtimeRefresh(topN = 10) {
             alpha_scope: alphaScope,
         });
         if (alphaScope === 'portfolio') {
+            body.set('sync', '1');
             body.set('portfolio_id', portfolioId);
             body.set('pool_mode', poolMode);
         }
@@ -1166,10 +1169,12 @@ async function triggerAlphaRealtimeRefresh(topN = 10) {
         }
 
         if (statusNode) {
-            statusNode.textContent = data.message || '已触发实时刷新任务，请稍后重试。';
+            statusNode.textContent = data.message || 'Alpha 刷新完成。';
         }
         reloadAlphaStocksTable(topN);
-        window.setTimeout(() => reloadAlphaStocksTable(topN), data.poll_after_ms || 5000);
+        if (!data.sync) {
+            window.setTimeout(() => reloadAlphaStocksTable(topN), data.poll_after_ms || 5000);
+        }
     } catch (error) {
         if (statusNode) {
             statusNode.textContent = error.message;

@@ -86,6 +86,7 @@
         {% if alpha_meta.cache_created_at %}<span>缓存写入 {{ alpha_meta.cache_created_at }}</span>{% endif %}
         {% if alpha_meta.cache_reason %}<span>调用缓存原因：{{ alpha_meta.cache_reason }}</span>{% endif %}
         {% if alpha_meta.refresh_triggered %}<span>系统已自动触发实时刷新任务。</span>{% endif %}
+        <button type="button" class="btn btn-primary btn-sm" style="margin-left: 12px;" onclick="triggerAlphaRealtimeRefresh(10)">⚡ 立即推理刷新</button>
     </div>
     {% else %}
     {% if alpha_meta.no_recommendation_reason %}
@@ -104,7 +105,7 @@
     </div>
     <div style="margin-top: 12px;">
         <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
-            {% if alpha_scope == "general" %}刷新通用排名{% else %}触发账户专属推理{% endif %}
+            ⚡ 立即推理刷新
         </button>
     </div>
     {% else %}
@@ -221,7 +222,7 @@
                 {% endif %}
             </p>
             <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
-                {% if alpha_scope == "general" %}刷新通用排名{% else %}触发账户专属推理{% endif %}
+                ⚡ 立即推理刷新
             </button>
         </div>
         {% endif %}
