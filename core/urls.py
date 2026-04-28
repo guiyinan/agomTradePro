@@ -273,6 +273,7 @@ module_patterns = [
         "sentiment/", include(("apps.sentiment.interface.urls", "sentiment"), namespace="sentiment")
     ),
     # Alpha signal abstraction.
+    path("alpha/", include(("apps.alpha.interface.urls", "alpha"), namespace="alpha")),
     path("api/alpha/", include("apps.alpha.interface.api_urls")),
     # ========== 统一 API 路由挂载（新规范） ==========
     # 这些路由提供 /api/{module}/ 模式的 API 端点

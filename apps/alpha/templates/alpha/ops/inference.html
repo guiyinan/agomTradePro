@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
+{% block content %}
+{% now "Y-m-d" as today_iso %}
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">{{ page_title }}</h1>
+            <p class="admin-shell__subtitle">{{ page_subtitle }}</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="/admin/alpha/qlibmodelregistrymodel/" class="btn btn-secondary admin-shell__action-link">Qlib Model Registry</a>
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+        </div>
+    </div>
+
+    {% include "alpha/ops/_tabs.html" %}
+
+    <div class="admin-shell__banner">
+        <strong>职责边界：</strong>
+        当前页只负责 Qlib 推理观测与手动触发，不负责模型训练、导入和激活。
+        模型管理继续走 Django Admin 的 <code>QlibModelRegistry</code>。
+    </div>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">当前状态</h2>
+            <span class="admin-shell__meta">激活模型 / Celery / Dashboard Lock</span>
+        </div>
+        <div class="admin-shell__stats-grid">
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">当前激活模型</h3>
+                {% if overview.active_model %}
+                <dl class="admin-shell__kv">
+                    <div><dt>model_name</dt><dd>{{ overview.active_model.model_name }}</dd></div>
+                    <div><dt>artifact_hash</dt><dd>{{ overview.active_model.artifact_hash|slice:":16" }}</dd></div>
+                    <div><dt>universe</dt><dd>{{ overview.active_model.universe }}</dd></div>
+                    <div><dt>data_version</dt><dd>{{ overview.active_model.data_version }}</dd></div>
+                    <div><dt>IC / ICIR</dt><dd>{{ overview.active_model.ic|default:"-" }} / {{ overview.active_model.icir|default:"-" }}</dd></div>
+                    <div><dt>Rank IC</dt><dd>{{ overview.active_model.rank_ic|default:"-" }}</dd></div>
+                    <div><dt>activated_at</dt><dd>{{ overview.active_model.activated_at|default:"-" }}</dd></div>
+                    <div><dt>activated_by</dt><dd>{{ overview.active_model.activated_by|default:"-" }}</dd></div>
+                </dl>
+                {% else %}
+                <p class="admin-shell__muted">当前没有激活模型。</p>
+                {% endif %}
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">Qlib / Celery 运行态</h3>
+                <dl class="admin-shell__kv">
+                    <div><dt>enabled</dt><dd>{{ overview.qlib_runtime.enabled|yesno:"true,false" }}</dd></div>
+                    <div><dt>provider_uri</dt><dd>{{ overview.qlib_runtime.provider_uri|default:"-" }}</dd></div>
+                    <div><dt>region</dt><dd>{{ overview.qlib_runtime.region|default:"-" }}</dd></div>
+                    <div><dt>configured</dt><dd>{{ overview.qlib_runtime.is_configured|yesno:"true,false" }}</dd></div>
+                    <div><dt>workers</dt><dd>{{ overview.celery_health.active_workers|length }}</dd></div>
+                    <div><dt>broker</dt><dd>{{ overview.celery_health.broker_reachable|yesno:"ok,down" }}</dd></div>
+                    <div><dt>backend</dt><dd>{{ overview.celery_health.backend_reachable|yesno:"ok,down" }}</dd></div>
+                    <div><dt>active_tasks</dt><dd>{{ overview.celery_health.active_tasks_count }}</dd></div>
+                </dl>
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">当前 Dashboard Alpha Lock</h3>
+                {% if overview.dashboard_refresh_locks %}
+                <ul class="admin-shell__list">
+                    {% for item in overview.dashboard_refresh_locks %}
+                    <li>
+                        <strong>{{ item.alpha_scope }}</strong>
+                        {{ item.universe_id }}
+                        {% if item.scope_hash %}<span class="admin-shell__muted">({{ item.scope_hash|slice:":12" }})</span>{% endif %}
+                        <span class="admin-shell__status-pill">{{ item.task_state }}</span>
+                        <div class="admin-shell__muted">{{ item.requested_trade_date }} · top {{ item.top_n }} · {{ item.pool_mode|default:"-" }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="admin-shell__muted">当前没有进行中的 Dashboard Alpha refresh lock。</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">手动触发</h2>
+            <span class="admin-shell__meta">superuser 可写，staff 只读</span>
+        </div>
+        <div class="admin-shell__two-col">
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">触发通用推理</h3>
+                <form id="general-inference-form" class="admin-shell__form-grid">
+                    <input type="hidden" name="mode" value="general">
+                    <label><span>trade_date</span><input type="date" name="trade_date" value="{{ today_iso }}"></label>
+                    <label><span>top_n</span><input type="number" name="top_n" value="30" min="1" max="500"></label>
+                    <label><span>universe_id</span><input type="text" name="universe_id" value="csi300"></label>
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>投递任务</button>
+                </form>
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">触发单组合 Scoped 推理</h3>
+                <form id="scoped-inference-form" class="admin-shell__form-grid">
+                    <input type="hidden" name="mode" value="portfolio_scoped">
+                    <label><span>trade_date</span><input type="date" name="trade_date" value="{{ today_iso }}"></label>
+                    <label><span>top_n</span><input type="number" name="top_n" value="30" min="1" max="500"></label>
+                    <label><span>portfolio_id</span><input type="number" name="portfolio_id" min="1" placeholder="例如 12"></label>
+                    <label><span>pool_mode</span><input type="text" name="pool_mode" value="price_covered"></label>
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>投递 Scoped 任务</button>
+                </form>
+            </article>
+        </div>
+
+        <div class="admin-shell__two-col">
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">触发 Active Portfolios 批量推理</h3>
+                <form id="batch-inference-form" class="admin-shell__form-grid">
+                    <input type="hidden" name="mode" value="daily_scoped_batch">
+                    <label><span>top_n</span><input type="number" name="top_n" value="30" min="1" max="500"></label>
+                    <label><span>pool_mode</span><input type="text" name="pool_mode" value="price_covered"></label>
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>投递批量任务</button>
+                </form>
+            </article>
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">运维提示</h3>
+                <ul class="admin-shell__list">
+                    <li>当前运维页所有触发动作都只走异步 Celery，不走同步 inline inference。</li>
+                    <li>如果命中同一 scope/date/top_n 的进行中任务，接口会返回 <code>409</code>。</li>
+                    <li>当前页面不做模型训练和激活，请直接跳转 Django Admin。</li>
+                </ul>
+                <p id="ops-action-feedback" class="admin-shell__muted"></p>
+            </article>
+        </div>
+    </section>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">最近推理任务</h2>
+            <span class="admin-shell__meta">{{ overview.recent_tasks|length }} 条</span>
+        </div>
+        <div class="admin-shell__surface admin-shell__surface--compact">
+            {% if overview.recent_tasks %}
+            <div class="admin-shell__table-wrap">
+                <table class="admin-shell__table">
+                    <thead>
+                        <tr>
+                            <th>task</th>
+                            <th>status</th>
+                            <th>started</th>
+                            <th>runtime</th>
+                            <th>queue</th>
+                            <th>worker</th>
+                            <th>exception</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in overview.recent_tasks %}
+                        <tr>
+                            <td>{{ item.task_name }}</td>
+                            <td><span class="admin-shell__status-pill">{{ item.status }}</span></td>
+                            <td>{{ item.started_at|default:"-" }}</td>
+                            <td>{{ item.runtime_seconds|default:"-" }}</td>
+                            <td>{{ item.queue|default:"-" }}</td>
+                            <td>{{ item.worker|default:"-" }}</td>
+                            <td>{{ item.exception|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="admin-shell__muted">暂无推理任务记录。</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">最近缓存与告警</h2>
+            <span class="admin-shell__meta">Cache / Alerts</span>
+        </div>
+        <div class="admin-shell__two-col">
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">最近缓存结果</h3>
+                {% if overview.recent_caches %}
+                <ul class="admin-shell__list">
+                    {% for item in overview.recent_caches %}
+                    <li>
+                        <strong>{{ item.universe_id }}</strong>
+                        <span class="admin-shell__status-pill">{{ item.status }}</span>
+                        <div class="admin-shell__muted">
+                            {{ item.intended_trade_date }} / asof {{ item.asof_date }}
+                            {% if item.scope_hash %} / scope {{ item.scope_hash|slice:":12" }}{% endif %}
+                            / {{ item.score_count }} scores
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="admin-shell__muted">暂无缓存记录。</p>
+                {% endif %}
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">最近 Alpha 告警</h3>
+                {% if overview.recent_alerts %}
+                <ul class="admin-shell__list">
+                    {% for item in overview.recent_alerts %}
+                    <li>
+                        <strong>{{ item.title }}</strong>
+                        <span class="admin-shell__status-pill">{{ item.severity }}</span>
+                        <div class="admin-shell__muted">{{ item.alert_type }} · {{ item.created_at }}</div>
+                        <div>{{ item.message }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="admin-shell__muted">暂无告警记录。</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function submitAlphaOpsForm(formId) {
+    const form = document.getElementById(formId);
+    const feedback = document.getElementById('ops-action-feedback');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        if (payload.top_n) payload.top_n = Number(payload.top_n);
+        if (payload.portfolio_id) payload.portfolio_id = Number(payload.portfolio_id);
+        try {
+            const response = await fetch('/api/alpha/ops/inference/trigger/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '触发失败');
+            }
+            feedback.textContent = `${data.message} task_id=${data.task_id}`;
+            showToast(data.message, 'success');
+            window.setTimeout(() => window.location.reload(), 800);
+        } catch (error) {
+            feedback.textContent = String(error.message || error);
+            showToast(String(error.message || error), 'error');
+        }
+    });
+}
+
+submitAlphaOpsForm('general-inference-form');
+submitAlphaOpsForm('scoped-inference-form');
+submitAlphaOpsForm('batch-inference-form');
+</script>
+{% endblock %}

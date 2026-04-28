@@ -16,7 +16,6 @@ from types import SimpleNamespace
 from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone as django_timezone
@@ -26,6 +25,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.account.interface.authentication import MultiTokenAuthentication
+from apps.alpha.application.ops_locks import (
+    ALPHA_REFRESH_LOCK_TTL_SECONDS,
+    acquire_dashboard_alpha_refresh_pending_lock,
+    build_dashboard_alpha_refresh_lock_key as _shared_build_alpha_refresh_lock_key,
+    build_dashboard_alpha_refresh_metadata,
+    promote_dashboard_alpha_refresh_task_lock,
+    release_dashboard_alpha_refresh_lock,
+    resolve_dashboard_alpha_refresh_lock,
+)
 from apps.alpha.application.pool_resolver import (
     ALPHA_POOL_MODE_PRICE_COVERED,
     PortfolioAlphaPoolResolver,
@@ -48,7 +56,7 @@ from apps.dashboard.application import interface_services as dashboard_interface
 from core.cache_utils import CACHE_TTL, cached_api
 
 logger = logging.getLogger(__name__)
-_ALPHA_REFRESH_LOCK_TTL_SECONDS = 600
+_ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
 
 
 def _get_request_user_id(user) -> int | None:
@@ -71,48 +79,18 @@ def _build_alpha_refresh_lock_key(
     resolved_pool=None,
 ) -> str:
     """Build a stable lock key for one dashboard alpha refresh scope."""
-    scope_key = raw_universe_id
-    if resolved_pool is not None:
-        scope_key = resolved_pool.scope.scope_hash
-    return (
-        "dashboard:alpha_refresh_lock:"
-        f"{alpha_scope}:{scope_key}:{target_date.isoformat()}:{top_n}"
+    return _shared_build_alpha_refresh_lock_key(
+        alpha_scope=alpha_scope,
+        target_date=target_date,
+        top_n=top_n,
+        raw_universe_id=raw_universe_id,
+        resolved_pool=resolved_pool,
     )
 
 
 def _resolve_existing_alpha_refresh_lock(lock_key: str) -> dict[str, object] | None:
     """Return active lock metadata, clearing stale async locks automatically."""
-    existing_lock = cache.get(lock_key)
-    if not existing_lock:
-        return None
-
-    if existing_lock == "__sync__":
-        return {
-            "status": "running",
-            "mode": "sync",
-            "task_id": None,
-            "task_state": "RUNNING",
-        }
-    if existing_lock == "__pending__":
-        return {
-            "status": "running",
-            "mode": "async",
-            "task_id": None,
-            "task_state": "PENDING",
-        }
-
-    task_id = str(existing_lock)
-    task_result = AsyncResult(task_id)
-    if task_result.ready():
-        cache.delete(lock_key)
-        return None
-
-    return {
-        "status": "running",
-        "mode": "async",
-        "task_id": task_id,
-        "task_state": str(task_result.state or "PENDING"),
-    }
+    return resolve_dashboard_alpha_refresh_lock(lock_key, async_result_cls=AsyncResult)
 
 
 def _build_alpha_refresh_conflict_response(
@@ -1642,6 +1620,16 @@ def alpha_refresh_htmx(request):
 
         use_sync = request.POST.get("sync") in ("1", "true")
         universe_id = resolved_pool.scope.universe_id if resolved_pool is not None else raw_universe_id
+        scope_hash = resolved_pool.scope.scope_hash if resolved_pool is not None else None
+        lock_meta_payload = build_dashboard_alpha_refresh_metadata(
+            alpha_scope=alpha_scope,
+            target_date=target_date,
+            top_n=top_n,
+            universe_id=universe_id,
+            portfolio_id=portfolio_id,
+            pool_mode=resolved_pool.scope.pool_mode if resolved_pool is not None else pool_mode,
+            scope_hash=scope_hash,
+        )
         lock_key = _build_alpha_refresh_lock_key(
             alpha_scope=alpha_scope,
             target_date=target_date,
@@ -1676,7 +1664,11 @@ def alpha_refresh_htmx(request):
         from apps.alpha.application.tasks import qlib_predict_scores
 
         if resolved_pool is None:
-            if not cache.add(lock_key, "__pending__", timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS):
+            if not acquire_dashboard_alpha_refresh_pending_lock(
+                lock_key,
+                meta=lock_meta_payload,
+                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            ):
                 lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
                     "status": "running",
                     "mode": "async",
@@ -1693,7 +1685,11 @@ def alpha_refresh_htmx(request):
                     lock_meta=lock_meta,
                 )
             task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
-            cache.set(lock_key, task.id, timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS)
+            promote_dashboard_alpha_refresh_task_lock(
+                lock_key,
+                task_id=task.id,
+                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            )
             message = (
                 "已触发通用 Alpha 刷新任务；结果仅用于研究排名，不作为账户专属建议。"
                 if alpha_scope == ALPHA_SCOPE_GENERAL
@@ -1713,7 +1709,11 @@ def alpha_refresh_htmx(request):
                 "must_not_use_for_decision": True,
             }
         else:
-            if not cache.add(lock_key, "__pending__", timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS):
+            if not acquire_dashboard_alpha_refresh_pending_lock(
+                lock_key,
+                meta=lock_meta_payload,
+                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            ):
                 lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
                     "status": "running",
                     "mode": "async",
@@ -1735,7 +1735,11 @@ def alpha_refresh_htmx(request):
                 top_n,
                 scope_payload=resolved_pool.scope.to_dict(),
             )
-            cache.set(lock_key, task.id, timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS)
+            promote_dashboard_alpha_refresh_task_lock(
+                lock_key,
+                task_id=task.id,
+                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            )
             response_payload = {
                 "success": True,
                 "alpha_scope": ALPHA_SCOPE_PORTFOLIO,
@@ -1754,7 +1758,7 @@ def alpha_refresh_htmx(request):
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
     except Exception as exc:
         if "lock_key" in locals():
-            cache.delete(lock_key)
+            release_dashboard_alpha_refresh_lock(lock_key)
         logger.error("Failed to trigger alpha realtime refresh: %s", exc, exc_info=True)
         return JsonResponse(
             {"success": False, "error": f"触发 Alpha 实时刷新失败: {exc}"},
@@ -1784,7 +1788,20 @@ def _alpha_refresh_sync(
         scope_hash = resolved_pool.scope.scope_hash
         scope_payload = resolved_pool.scope.to_dict()
 
-    if not cache.add(lock_key, "__sync__", timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS):
+    sync_lock_meta = build_dashboard_alpha_refresh_metadata(
+        alpha_scope=alpha_scope,
+        target_date=target_date,
+        top_n=top_n,
+        universe_id=universe_id,
+        portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
+        scope_hash=scope_hash,
+    )
+    if not acquire_dashboard_alpha_refresh_pending_lock(
+        lock_key,
+        meta=sync_lock_meta,
+        timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
+    ):
         lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
             "status": "running",
             "mode": "sync",
@@ -1802,6 +1819,12 @@ def _alpha_refresh_sync(
         )
 
     try:
+        promote_dashboard_alpha_refresh_task_lock(
+            lock_key,
+            task_id="__sync__",
+            timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
+            meta_updates=sync_lock_meta,
+        )
         task_result = qlib_predict_scores.apply(
             args=[universe_id, target_date.isoformat(), top_n],
             kwargs={
@@ -1850,7 +1873,7 @@ def _alpha_refresh_sync(
             "must_not_use_for_decision": True,
         })
     finally:
-        cache.delete(lock_key)
+        release_dashboard_alpha_refresh_lock(lock_key)
 
 
 @login_required(login_url="/account/login/")

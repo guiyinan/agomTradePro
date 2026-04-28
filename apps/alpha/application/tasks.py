@@ -16,6 +16,8 @@ from typing import Any
 from celery import shared_task
 from django.utils import timezone
 
+from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
+from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
 from apps.alpha.application.repository_provider import (
     TushareQlibBuilder,
     evaluate_model_from_cache,
@@ -243,49 +245,11 @@ def _refresh_qlib_runtime_data(
     lookback_days: int = 400,
 ) -> dict:
     """Refresh local qlib data before inference so scheduled runs do not rely on manual repair."""
-    qlib_config = _get_runtime_qlib_config()
-    if not qlib_config.get("enabled"):
-        return {
-            "status": "skipped",
-            "reason": "qlib_disabled",
-        }
-
-    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
-    normalized_universes = _parse_universe_list(universes)
-    if not normalized_universes:
-        normalized_universes = ["csi300"]
-
-    summary = TushareQlibBuilder(provider_uri).build_recent_data(
+    return QlibRuntimeDataRefreshService().refresh_universes(
         target_date=target_date,
-        universes=normalized_universes,
+        universes=universes,
         lookback_days=lookback_days,
     )
-    return {
-        "status": "success",
-        "provider_uri": provider_uri,
-        "universes": normalized_universes,
-        "requested_target_date": summary.requested_target_date.isoformat(),
-        "effective_target_date": (
-            summary.effective_target_date.isoformat()
-            if summary.effective_target_date
-            else None
-        ),
-        "latest_local_date_before": (
-            summary.latest_local_date_before.isoformat()
-            if summary.latest_local_date_before
-            else None
-        ),
-        "latest_local_date_after": (
-            summary.latest_local_date_after.isoformat()
-            if summary.latest_local_date_after
-            else None
-        ),
-        "calendar_days_written": summary.calendar_days_written,
-        "instrument_files_written": summary.instrument_files_written,
-        "feature_series_written": summary.feature_series_written,
-        "stock_count": summary.stock_count,
-        "warning_messages": list(summary.warning_messages),
-    }
 
 
 def _refresh_qlib_runtime_data_for_codes(
@@ -296,59 +260,12 @@ def _refresh_qlib_runtime_data_for_codes(
     lookback_days: int = 120,
 ) -> dict:
     """Refresh qlib data for explicit account/portfolio stock scopes."""
-    qlib_config = _get_runtime_qlib_config()
-    if not qlib_config.get("enabled"):
-        return {
-            "status": "skipped",
-            "reason": "qlib_disabled",
-        }
-
-    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
-    normalized_code_set: set[str] = set()
-    for code in stock_codes:
-        normalized_code = normalize_stock_code(code)
-        if normalized_code:
-            normalized_code_set.add(normalized_code)
-    normalized_codes = sorted(normalized_code_set)
-    if not normalized_codes:
-        return {
-            "status": "skipped",
-            "reason": "empty_stock_scope",
-            "stock_count": 0,
-        }
-
-    summary = TushareQlibBuilder(provider_uri).build_recent_data_for_codes(
+    return QlibRuntimeDataRefreshService().refresh_codes(
         target_date=target_date,
-        stock_codes=normalized_codes,
+        stock_codes=stock_codes,
         universe_id=universe_id,
         lookback_days=lookback_days,
     )
-    return {
-        "status": "success",
-        "provider_uri": provider_uri,
-        "universe_id": universe_id,
-        "requested_target_date": summary.requested_target_date.isoformat(),
-        "effective_target_date": (
-            summary.effective_target_date.isoformat()
-            if summary.effective_target_date
-            else None
-        ),
-        "latest_local_date_before": (
-            summary.latest_local_date_before.isoformat()
-            if summary.latest_local_date_before
-            else None
-        ),
-        "latest_local_date_after": (
-            summary.latest_local_date_after.isoformat()
-            if summary.latest_local_date_after
-            else None
-        ),
-        "calendar_days_written": summary.calendar_days_written,
-        "instrument_files_written": summary.instrument_files_written,
-        "feature_series_written": summary.feature_series_written,
-        "stock_count": summary.stock_count,
-        "warning_messages": list(summary.warning_messages),
-    }
 
 
 def _extract_model_filename(model_path: str) -> str:
@@ -1149,6 +1066,112 @@ def qlib_daily_scoped_inference_alias(
         refresh_data=refresh_data,
         lookback_days=lookback_days,
     )
+
+
+@shared_task(name="apps.alpha.application.tasks.qlib_refresh_runtime_data_task")
+def qlib_refresh_runtime_data_task(
+    *,
+    target_date: str,
+    universes: list[str] | tuple[str, ...] | str | None = None,
+    lookback_days: int = 400,
+) -> dict:
+    """Refresh local qlib data for named universes from the ops page."""
+    trade_date = date.fromisoformat(target_date)
+    summary = _refresh_qlib_runtime_data(
+        target_date=trade_date,
+        universes=universes,
+        lookback_days=lookback_days,
+    )
+    return {
+        "status": "success" if summary.get("status") == "success" else summary.get("status"),
+        "mode": "universes",
+        "summary": summary,
+    }
+
+
+@shared_task(name="apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task")
+def qlib_refresh_runtime_data_for_codes_task(
+    *,
+    target_date: str,
+    portfolio_ids: list[int] | tuple[int, ...] | None = None,
+    all_active_portfolios: bool = False,
+    pool_mode: str = "price_covered",
+    lookback_days: int = 120,
+) -> dict:
+    """Refresh qlib data for active or selected portfolio-driven stock scopes."""
+    from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
+
+    trade_date = date.fromisoformat(target_date)
+    resolver = PortfolioAlphaPoolResolver()
+    requested_portfolio_ids = [int(item) for item in portfolio_ids or []]
+    portfolio_refs = collect_portfolio_refs_for_refresh(
+        portfolio_ids=requested_portfolio_ids,
+        all_active_portfolios=all_active_portfolios,
+    )
+
+    scoped_codes: set[str] = set()
+    resolved_scopes: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    requested_portfolio_set = set(requested_portfolio_ids)
+    seen_portfolio_ids: set[int] = set()
+
+    for ref in portfolio_refs:
+        portfolio_id = int(ref["portfolio_id"])
+        seen_portfolio_ids.add(portfolio_id)
+        try:
+            resolved = resolver.resolve(
+                user_id=int(ref["user_id"]),
+                portfolio_id=portfolio_id,
+                trade_date=trade_date,
+                pool_mode=pool_mode,
+            )
+            scope_codes = list(getattr(resolved.scope, "instrument_codes", ()) or ())
+            if not scope_codes:
+                skipped.append({"portfolio_id": portfolio_id, "reason": "empty_scope"})
+                continue
+            scoped_codes.update(scope_codes)
+            resolved_scopes.append(
+                {
+                    "portfolio_id": resolved.portfolio_id,
+                    "portfolio_name": resolved.portfolio_name,
+                    "scope_hash": resolved.scope.scope_hash,
+                    "scope_label": resolved.scope.display_label,
+                    "pool_size": resolved.scope.pool_size,
+                    "pool_mode": resolved.scope.pool_mode,
+                }
+            )
+        except Exception as exc:
+            skipped.append({"portfolio_id": portfolio_id, "reason": str(exc)})
+
+    if not all_active_portfolios:
+        missing_portfolio_ids = sorted(requested_portfolio_set - seen_portfolio_ids)
+        skipped.extend(
+            {
+                "portfolio_id": portfolio_id,
+                "reason": "portfolio_not_active_or_not_found",
+            }
+            for portfolio_id in missing_portfolio_ids
+        )
+
+    summary = _refresh_qlib_runtime_data_for_codes(
+        target_date=trade_date,
+        stock_codes=scoped_codes,
+        universe_id="scoped_portfolios",
+        lookback_days=lookback_days,
+    )
+    return {
+        "status": "success" if summary.get("status") == "success" else summary.get("status"),
+        "mode": "scoped_codes",
+        "portfolio_count": len(resolved_scopes),
+        "pool_mode": pool_mode,
+        "summary": {
+            **summary,
+            "requested_portfolio_ids": requested_portfolio_ids,
+            "all_active_portfolios": all_active_portfolios,
+            "resolved_scopes": resolved_scopes,
+            "skipped": skipped,
+        },
+    }
 
 
 @shared_task(name="apps.alpha.application.tasks.qlib_refresh_cache")

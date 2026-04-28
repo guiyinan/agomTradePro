@@ -9,7 +9,10 @@ from typing import Any, Dict
 
 from rest_framework import serializers
 
+from ..application.pool_resolver import get_alpha_pool_mode_choices
 from ..domain.entities import AlphaResult, StockScore
+
+_ALPHA_POOL_MODE_VALUES = [item["value"] for item in get_alpha_pool_mode_choices()]
 
 
 class StockScoreSerializer(serializers.Serializer):
@@ -130,3 +133,94 @@ class UploadScoresSerializer(serializers.Serializer):
         help_text="写入范围：user=个人，system=全局（仅 admin）",
     )
     scores = UploadScoreItemSerializer(many=True, help_text="评分列表")
+
+
+class AlphaOpsInferenceTriggerSerializer(serializers.Serializer):
+    """Trigger serializer for Alpha inference ops actions."""
+
+    MODE_GENERAL = "general"
+    MODE_PORTFOLIO_SCOPED = "portfolio_scoped"
+    MODE_DAILY_SCOPED_BATCH = "daily_scoped_batch"
+
+    mode = serializers.ChoiceField(
+        choices=[MODE_GENERAL, MODE_PORTFOLIO_SCOPED, MODE_DAILY_SCOPED_BATCH]
+    )
+    trade_date = serializers.DateField(required=False, help_text="目标交易日")
+    top_n = serializers.IntegerField(default=30, min_value=1, max_value=500)
+    universe_id = serializers.CharField(required=False, allow_blank=False)
+    portfolio_id = serializers.IntegerField(required=False, min_value=1)
+    pool_mode = serializers.ChoiceField(
+        required=False,
+        choices=_ALPHA_POOL_MODE_VALUES,
+        default="price_covered",
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        mode = attrs["mode"]
+        if mode in {self.MODE_GENERAL, self.MODE_PORTFOLIO_SCOPED} and "trade_date" not in attrs:
+            raise serializers.ValidationError({"trade_date": "该模式必须提供 trade_date"})
+        if mode == self.MODE_GENERAL and not attrs.get("universe_id"):
+            raise serializers.ValidationError({"universe_id": "general 模式必须提供 universe_id"})
+        if mode == self.MODE_PORTFOLIO_SCOPED and not attrs.get("portfolio_id"):
+            raise serializers.ValidationError(
+                {"portfolio_id": "portfolio_scoped 模式必须提供 portfolio_id"}
+            )
+        return attrs
+
+
+class QlibDataRefreshTriggerSerializer(serializers.Serializer):
+    """Trigger serializer for Qlib runtime data refresh actions."""
+
+    MODE_UNIVERSES = "universes"
+    MODE_SCOPED_CODES = "scoped_codes"
+
+    mode = serializers.ChoiceField(choices=[MODE_UNIVERSES, MODE_SCOPED_CODES])
+    target_date = serializers.DateField(help_text="目标日期")
+    lookback_days = serializers.IntegerField(default=400, min_value=1, max_value=2000)
+    universes = serializers.JSONField(required=False)
+    portfolio_ids = serializers.JSONField(required=False)
+    all_active_portfolios = serializers.BooleanField(required=False, default=False)
+    pool_mode = serializers.ChoiceField(
+        required=False,
+        choices=_ALPHA_POOL_MODE_VALUES,
+        default="price_covered",
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        mode = attrs["mode"]
+
+        raw_universes = attrs.get("universes")
+        if isinstance(raw_universes, str):
+            attrs["universes"] = [item.strip() for item in raw_universes.split(",") if item.strip()]
+        elif isinstance(raw_universes, list):
+            attrs["universes"] = [str(item).strip() for item in raw_universes if str(item).strip()]
+        elif raw_universes is None:
+            attrs["universes"] = []
+        else:
+            raise serializers.ValidationError({"universes": "universes 必须是数组或逗号分隔字符串"})
+
+        raw_portfolio_ids = attrs.get("portfolio_ids")
+        if isinstance(raw_portfolio_ids, str):
+            attrs["portfolio_ids"] = [
+                int(item.strip()) for item in raw_portfolio_ids.split(",") if item.strip()
+            ]
+        elif isinstance(raw_portfolio_ids, list):
+            attrs["portfolio_ids"] = [int(item) for item in raw_portfolio_ids]
+        elif raw_portfolio_ids in (None, ""):
+            attrs["portfolio_ids"] = []
+        else:
+            raise serializers.ValidationError(
+                {"portfolio_ids": "portfolio_ids 必须是数组或逗号分隔字符串"}
+            )
+
+        if mode == self.MODE_UNIVERSES and not attrs["universes"]:
+            raise serializers.ValidationError({"universes": "universes 模式必须提供 universes"})
+        if mode == self.MODE_SCOPED_CODES and not (
+            attrs.get("all_active_portfolios") or attrs["portfolio_ids"]
+        ):
+            raise serializers.ValidationError(
+                {
+                    "portfolio_ids": "scoped_codes 模式必须提供 portfolio_ids 或 all_active_portfolios=1"
+                }
+            )
+        return attrs

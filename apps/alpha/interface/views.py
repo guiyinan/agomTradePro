@@ -7,6 +7,9 @@ Django REST Framework 视图定义。
 import logging
 from datetime import date
 
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
+from django.shortcuts import render
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -21,15 +24,102 @@ from ..application.interface_services import (
     resolve_requested_alpha_user,
     upload_alpha_scores,
 )
+from ..application.ops_use_cases import (
+    GetAlphaInferenceOpsOverviewUseCase,
+    GetQlibDataOpsOverviewUseCase,
+    TriggerGeneralInferenceUseCase,
+    TriggerQlibScopedCodesRefreshUseCase,
+    TriggerQlibUniverseRefreshUseCase,
+    TriggerScopedBatchInferenceUseCase,
+    TriggerScopedInferenceUseCase,
+)
 from ..application.services import AlphaService
 from .serializers import (
+    AlphaOpsInferenceTriggerSerializer,
     AlphaResultSerializer,
     GetStockScoresRequestSerializer,
     ProviderStatusSerializer,
+    QlibDataRefreshTriggerSerializer,
     UploadScoresSerializer,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_staff_page_access(request: HttpRequest) -> HttpResponse | None:
+    """Return a 403 response when the current user is not staff."""
+    if request.user.is_staff:
+        return None
+    return HttpResponseForbidden("需要 staff 权限")
+
+
+def _alpha_ops_tabs(active_tab: str) -> list[dict[str, str | bool]]:
+    """Return page tabs for the Alpha ops console."""
+    return [
+        {
+            "key": "inference",
+            "label": "Alpha 推理管理",
+            "url": "/alpha/ops/inference/",
+            "active": active_tab == "inference",
+        },
+        {
+            "key": "qlib-data",
+            "label": "Qlib 基础数据管理",
+            "url": "/alpha/ops/qlib-data/",
+            "active": active_tab == "qlib-data",
+        },
+    ]
+
+
+@login_required(login_url="/account/login/")
+def alpha_ops_inference_page(request: HttpRequest) -> HttpResponse:
+    """Render the Alpha inference ops page for staff users."""
+    denied = _ensure_staff_page_access(request)
+    if denied is not None:
+        return denied
+
+    return render(
+        request,
+        "alpha/ops/inference.html",
+        {
+            "page_title": "Alpha 推理管理",
+            "page_subtitle": "查看当前激活模型、推理任务、缓存与告警，并手动触发通用或 scoped Alpha 推理。",
+            "ops_tabs": _alpha_ops_tabs("inference"),
+            "can_write": request.user.is_superuser,
+            "overview": GetAlphaInferenceOpsOverviewUseCase().execute(),
+        },
+    )
+
+
+@login_required(login_url="/account/login/")
+def alpha_ops_qlib_data_page(request: HttpRequest) -> HttpResponse:
+    """Render the Qlib data ops page for staff users."""
+    denied = _ensure_staff_page_access(request)
+    if denied is not None:
+        return denied
+
+    return render(
+        request,
+        "alpha/ops/qlib_data.html",
+        {
+            "page_title": "Qlib 基础数据管理",
+            "page_subtitle": "检查本地 Qlib 数据目录的新鲜度，并手动触发 universe 或 scoped portfolio 数据刷新。",
+            "ops_tabs": _alpha_ops_tabs("qlib-data"),
+            "can_write": request.user.is_superuser,
+            "overview": GetQlibDataOpsOverviewUseCase().execute(),
+        },
+    )
+
+
+def _staff_api_denied() -> Response:
+    return Response({"success": False, "error": "需要 staff 权限"}, status=status.HTTP_403_FORBIDDEN)
+
+
+def _superuser_api_denied() -> Response:
+    return Response(
+        {"success": False, "error": "需要 superuser 权限"},
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 
 @api_view(["GET"])
@@ -334,3 +424,98 @@ def upload_scores(request: Request) -> Response:
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def alpha_inference_ops_overview(request: Request) -> Response:
+    """Return the Alpha inference ops overview payload."""
+    if not request.user.is_staff:
+        return _staff_api_denied()
+    return Response(
+        {"success": True, "data": GetAlphaInferenceOpsOverviewUseCase().execute()},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def alpha_inference_ops_trigger(request: Request) -> Response:
+    """Queue Alpha inference work from the ops page."""
+    if not request.user.is_staff:
+        return _staff_api_denied()
+    if not request.user.is_superuser:
+        return _superuser_api_denied()
+
+    serializer = AlphaOpsInferenceTriggerSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    mode = data["mode"]
+
+    if mode == AlphaOpsInferenceTriggerSerializer.MODE_GENERAL:
+        payload = TriggerGeneralInferenceUseCase().execute(
+            trade_date=data["trade_date"],
+            top_n=data.get("top_n", 30),
+            universe_id=data["universe_id"],
+        )
+    elif mode == AlphaOpsInferenceTriggerSerializer.MODE_PORTFOLIO_SCOPED:
+        payload = TriggerScopedInferenceUseCase().execute(
+            actor_user_id=int(request.user.id),
+            trade_date=data["trade_date"],
+            top_n=data.get("top_n", 30),
+            portfolio_id=int(data["portfolio_id"]),
+            pool_mode=data.get("pool_mode", "price_covered"),
+        )
+    else:
+        payload = TriggerScopedBatchInferenceUseCase().execute(
+            top_n=data.get("top_n", 30),
+            pool_mode=data.get("pool_mode", "price_covered"),
+        )
+
+    response_status = status.HTTP_202_ACCEPTED if payload.get("success") else status.HTTP_409_CONFLICT
+    return Response(payload, status=response_status)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def qlib_data_ops_overview(request: Request) -> Response:
+    """Return the Qlib data ops overview payload."""
+    if not request.user.is_staff:
+        return _staff_api_denied()
+    return Response(
+        {"success": True, "data": GetQlibDataOpsOverviewUseCase().execute()},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def qlib_data_ops_refresh(request: Request) -> Response:
+    """Queue one Qlib runtime data refresh from the ops page."""
+    if not request.user.is_staff:
+        return _staff_api_denied()
+    if not request.user.is_superuser:
+        return _superuser_api_denied()
+
+    serializer = QlibDataRefreshTriggerSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    mode = data["mode"]
+
+    if mode == QlibDataRefreshTriggerSerializer.MODE_UNIVERSES:
+        payload = TriggerQlibUniverseRefreshUseCase().execute(
+            target_date=data["target_date"],
+            lookback_days=data.get("lookback_days", 400),
+            universes=data["universes"],
+        )
+    else:
+        payload = TriggerQlibScopedCodesRefreshUseCase().execute(
+            target_date=data["target_date"],
+            lookback_days=data.get("lookback_days", 400),
+            portfolio_ids=data.get("portfolio_ids", []),
+            all_active_portfolios=data.get("all_active_portfolios", False),
+            pool_mode=data.get("pool_mode", "price_covered"),
+        )
+
+    response_status = status.HTTP_202_ACCEPTED if payload.get("success") else status.HTTP_409_CONFLICT
+    return Response(payload, status=response_status)

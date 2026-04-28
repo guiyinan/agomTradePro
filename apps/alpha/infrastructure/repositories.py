@@ -291,6 +291,18 @@ class AlphaScoreCacheRepository:
             ).values("provider_source", "status")
         )
 
+    def list_recent_qlib_caches(self, *, limit: int = 20) -> list[Any]:
+        """Return recent qlib cache rows for operational inspection."""
+
+        from .models import AlphaScoreCacheModel
+
+        return list(
+            AlphaScoreCacheModel._default_manager.filter(
+                provider_source=AlphaScoreCacheModel.PROVIDER_QLIB
+            )
+            .order_by("-created_at")[:limit]
+        )
+
     def cleanup_before(self, cutoff_date: date) -> int:
         """Delete cache rows older than the cutoff trade date."""
 
@@ -434,6 +446,12 @@ class AlphaAlertRepository:
             alert_type=alert_type,
             is_resolved=False,
         ).first()
+
+    def list_recent_alerts(self, *, limit: int = 20) -> list[Any]:
+        """Return recent alpha alerts for operational pages."""
+        from .models import AlphaAlertModel
+
+        return list(AlphaAlertModel._default_manager.order_by("-created_at")[:limit])
 
     def create_alert(
         self,

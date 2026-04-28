@@ -507,6 +507,18 @@ def admin_console_view(request):
             "title": "运维与内容",
             "items": [
                 {
+                    "name": "Alpha 推理管理",
+                    "description": "查看激活模型、推理任务、缓存与告警，并手动触发 Alpha 推理。",
+                    "summary": "Qlib 推理观测与手动触发",
+                    "url": "/alpha/ops/inference/",
+                },
+                {
+                    "name": "Qlib 基础数据管理",
+                    "description": "检查本地 Qlib 数据目录状态，并手动投递 universe 或 scoped codes 刷新。",
+                    "summary": "Qlib runtime data 运维入口",
+                    "url": "/alpha/ops/qlib-data/",
+                },
+                {
                     "name": "服务器日志",
                     "description": "查看实时日志流并导出当前缓冲日志。",
                     "summary": "排障与值守入口",

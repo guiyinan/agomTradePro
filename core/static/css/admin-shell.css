@@ -70,6 +70,30 @@
     margin-bottom: 28px;
 }
 
+.admin-shell__tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.admin-shell__tab {
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-shell__tab--active {
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.3);
+    color: var(--color-text-primary);
+}
+
 .admin-shell__section-head {
     display: flex;
     justify-content: space-between;
@@ -100,6 +124,42 @@
 
 .admin-shell__surface--compact {
     padding: 18px;
+}
+
+.admin-shell__two-col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.admin-shell__stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.admin-shell__kv {
+    margin: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.admin-shell__kv div {
+    display: grid;
+    gap: 4px;
+}
+
+.admin-shell__kv dt {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.admin-shell__kv dd {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-text-primary);
+    word-break: break-word;
 }
 
 .admin-shell__grid {
@@ -167,6 +227,86 @@
     font-weight: 600;
     color: var(--color-text-primary);
     word-break: break-word;
+}
+
+.admin-shell__muted {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.admin-shell__list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 10px;
+}
+
+.admin-shell__status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.admin-shell__form-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-shell__form-grid label {
+    display: grid;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.admin-shell__form-grid input,
+.admin-shell__form-grid select,
+.admin-shell__form-grid textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--color-text-primary);
+}
+
+.admin-shell__checkbox {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-shell__checkbox input {
+    width: auto;
+}
+
+.admin-shell__table-wrap {
+    overflow-x: auto;
+}
+
+.admin-shell__table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-shell__table th,
+.admin-shell__table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    text-align: left;
+    vertical-align: top;
+    font-size: 13px;
+}
+
+.admin-shell__table th {
+    color: var(--color-text-secondary);
+    font-weight: 600;
 }
 
 @media (max-width: 768px) {

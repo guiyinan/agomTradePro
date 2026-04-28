@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+{% endblock %}
+
+{% block content %}
+{% now "Y-m-d" as today_iso %}
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">{{ page_title }}</h1>
+            <p class="admin-shell__subtitle">{{ page_subtitle }}</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="/admin/alpha/qlibmodelregistrymodel/" class="btn btn-secondary admin-shell__action-link">Qlib Model Registry</a>
+            <a href="{% url 'admin-console' %}" class="btn btn-secondary admin-shell__action-link">返回管理控制台</a>
+        </div>
+    </div>
+
+    {% include "alpha/ops/_tabs.html" %}
+
+    <div class="admin-shell__banner">
+        <strong>职责边界：</strong>
+        当前页只负责本地 Qlib runtime data 的观测与刷新，不负责系统配置编辑，也不提供删除目录或手改 provider 路径能力。
+    </div>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">运行时与本地数据状态</h2>
+            <span class="admin-shell__meta">Qlib Runtime / Local Dataset</span>
+        </div>
+        <div class="admin-shell__stats-grid">
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">Qlib Runtime Config</h3>
+                <dl class="admin-shell__kv">
+                    <div><dt>enabled</dt><dd>{{ overview.qlib_runtime.enabled|yesno:"true,false" }}</dd></div>
+                    <div><dt>provider_uri</dt><dd>{{ overview.qlib_runtime.provider_uri|default:"-" }}</dd></div>
+                    <div><dt>region</dt><dd>{{ overview.qlib_runtime.region|default:"-" }}</dd></div>
+                    <div><dt>model_path</dt><dd>{{ overview.qlib_runtime.model_path|default:"-" }}</dd></div>
+                    <div><dt>configured</dt><dd>{{ overview.qlib_runtime.is_configured|yesno:"true,false" }}</dd></div>
+                </dl>
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">本地数据状态</h3>
+                <dl class="admin-shell__kv">
+                    <div><dt>latest_trade_date</dt><dd>{{ overview.local_data_status.latest_trade_date|default:"-" }}</dd></div>
+                    <div><dt>lag_days</dt><dd>{{ overview.local_data_status.lag_days|default:"-" }}</dd></div>
+                    <div><dt>supported_universes</dt><dd>{{ overview.local_data_status.supported_universes|join:", " }}</dd></div>
+                    <div><dt>inspect_error</dt><dd>{{ overview.local_data_status.local_data_error|default:"-" }}</dd></div>
+                </dl>
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">最近 Build Summary</h3>
+                {% if overview.latest_build_summary %}
+                <dl class="admin-shell__kv">
+                    <div><dt>requested_target_date</dt><dd>{{ overview.latest_build_summary.requested_target_date|default:"-" }}</dd></div>
+                    <div><dt>effective_target_date</dt><dd>{{ overview.latest_build_summary.effective_target_date|default:"-" }}</dd></div>
+                    <div><dt>calendar_days_written</dt><dd>{{ overview.latest_build_summary.calendar_days_written|default:"-" }}</dd></div>
+                    <div><dt>instrument_files_written</dt><dd>{{ overview.latest_build_summary.instrument_files_written|default:"-" }}</dd></div>
+                    <div><dt>feature_series_written</dt><dd>{{ overview.latest_build_summary.feature_series_written|default:"-" }}</dd></div>
+                    <div><dt>stock_count</dt><dd>{{ overview.latest_build_summary.stock_count|default:"-" }}</dd></div>
+                </dl>
+                {% else %}
+                <p class="admin-shell__muted">暂无可展示的 build summary。</p>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">手动刷新</h2>
+            <span class="admin-shell__meta">superuser 可写，staff 只读</span>
+        </div>
+        <div class="admin-shell__two-col">
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">刷新 Universe 数据</h3>
+                <form id="universe-refresh-form" class="admin-shell__form-grid">
+                    <input type="hidden" name="mode" value="universes">
+                    <label><span>target_date</span><input type="date" name="target_date" value="{{ today_iso }}"></label>
+                    <label><span>lookback_days</span><input type="number" name="lookback_days" value="400" min="1" max="2000"></label>
+                    <label><span>universes</span><input type="text" name="universes" value="csi300,csi500"></label>
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>投递刷新任务</button>
+                </form>
+            </article>
+
+            <article class="admin-shell__surface admin-shell__surface--compact">
+                <h3 class="admin-shell__card-title">刷新 Scoped Portfolio Codes</h3>
+                <form id="scoped-refresh-form" class="admin-shell__form-grid">
+                    <input type="hidden" name="mode" value="scoped_codes">
+                    <label><span>target_date</span><input type="date" name="target_date" value="{{ today_iso }}"></label>
+                    <label><span>lookback_days</span><input type="number" name="lookback_days" value="120" min="1" max="2000"></label>
+                    <label><span>portfolio_ids</span><input type="text" name="portfolio_ids" placeholder="例如 12,18,26"></label>
+                    <label><span>pool_mode</span><input type="text" name="pool_mode" value="price_covered"></label>
+                    <label class="admin-shell__checkbox"><input type="checkbox" name="all_active_portfolios" value="1"> 全部 active portfolios</label>
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>投递 Scoped Refresh</button>
+                </form>
+            </article>
+        </div>
+
+        <article class="admin-shell__surface admin-shell__surface--compact">
+            <h3 class="admin-shell__card-title">运维提示</h3>
+            <ul class="admin-shell__list">
+                <li>当前页面不会直接调用 management command，所有动作都异步投递 Celery 任务。</li>
+                <li>同一 target_date + lookback + scope 的刷新任务正在运行时，接口会返回 <code>409</code>。</li>
+                <li>第一版不提供删除数据、修改 provider_uri 或手工清锁能力。</li>
+            </ul>
+            <p id="qlib-action-feedback" class="admin-shell__muted"></p>
+        </article>
+    </section>
+
+    <section class="admin-shell__section">
+        <div class="admin-shell__section-head">
+            <h2 class="admin-shell__section-title">最近刷新任务</h2>
+            <span class="admin-shell__meta">{{ overview.recent_tasks|length }} 条</span>
+        </div>
+        <div class="admin-shell__surface admin-shell__surface--compact">
+            {% if overview.recent_tasks %}
+            <div class="admin-shell__table-wrap">
+                <table class="admin-shell__table">
+                    <thead>
+                        <tr>
+                            <th>task</th>
+                            <th>status</th>
+                            <th>started</th>
+                            <th>runtime</th>
+                            <th>queue</th>
+                            <th>worker</th>
+                            <th>summary</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in overview.recent_tasks %}
+                        <tr>
+                            <td>{{ item.task_name }}</td>
+                            <td><span class="admin-shell__status-pill">{{ item.status }}</span></td>
+                            <td>{{ item.started_at|default:"-" }}</td>
+                            <td>{{ item.runtime_seconds|default:"-" }}</td>
+                            <td>{{ item.queue|default:"-" }}</td>
+                            <td>{{ item.worker|default:"-" }}</td>
+                            <td>{{ item.result }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="admin-shell__muted">暂无 Qlib 数据刷新任务记录。</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function submitQlibOpsForm(formId) {
+    const form = document.getElementById(formId);
+    const feedback = document.getElementById('qlib-action-feedback');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const payload = Object.fromEntries(new FormData(form).entries());
+        if (payload.lookback_days) payload.lookback_days = Number(payload.lookback_days);
+        if (payload.all_active_portfolios) {
+            payload.all_active_portfolios = true;
+        }
+        try {
+            const response = await fetch('/api/alpha/ops/qlib-data/refresh/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '触发失败');
+            }
+            feedback.textContent = `${data.message} task_id=${data.task_id}`;
+            showToast(data.message, 'success');
+            window.setTimeout(() => window.location.reload(), 800);
+        } catch (error) {
+            feedback.textContent = String(error.message || error);
+            showToast(String(error.message || error), 'error');
+        }
+    });
+}
+
+submitQlibOpsForm('universe-refresh-form');
+submitQlibOpsForm('scoped-refresh-form');
+</script>
+{% endblock %}

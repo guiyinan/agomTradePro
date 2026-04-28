@@ -263,6 +263,9 @@
                     <div class="dropdown-menu">
                         <a href="{% url 'account:profile' %}" class="dropdown-item">我的账户</a>
                         <a href="{% url 'settings-center' %}" class="dropdown-item">设置中心</a>
+                        {% if user.is_staff %}
+                        <a href="{% url 'alpha:ops-inference' %}" class="dropdown-item">Alpha 运维</a>
+                        {% endif %}
                         <div class="dropdown-divider"></div>
                         <a href="{% url 'account:logout' %}" class="dropdown-item">登出</a>
                     </div>

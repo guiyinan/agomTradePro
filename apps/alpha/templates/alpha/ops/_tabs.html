@@ -1,0 +1,10 @@
+<nav class="admin-shell__tabs" aria-label="Alpha Ops Tabs">
+    {% for tab in ops_tabs %}
+    <a
+        href="{{ tab.url }}"
+        class="admin-shell__tab{% if tab.active %} admin-shell__tab--active{% endif %}"
+    >
+        {{ tab.label }}
+    </a>
+    {% endfor %}
+</nav>

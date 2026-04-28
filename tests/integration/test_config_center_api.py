@@ -225,6 +225,8 @@ def test_admin_console_page_renders_key_admin_entries(superuser_client):
         "管理控制台",
         "用户管理",
         "Token 管理",
+        "Alpha 推理管理",
+        "Qlib 基础数据管理",
         "服务器日志",
         "Django Admin",
     )
@@ -247,6 +249,31 @@ def test_base_navigation_uses_platform_help_and_ops_grouping_for_superuser(super
     assert "运维" in content
     assert "MCP 工具" in content
     assert "AI服务" not in content
+
+
+@pytest.mark.django_db
+def test_base_navigation_exposes_alpha_ops_for_staff(staff_client):
+    response = staff_client.get("/settings/")
+
+    _assert_html_contract(response, "设置中心 - AgomTradePro", "Alpha 运维")
+
+
+@pytest.mark.django_db
+def test_alpha_ops_pages_require_staff(normal_client):
+    response = normal_client.get("/alpha/ops/inference/")
+    assert response.status_code == 403
+
+    response = normal_client.get("/alpha/ops/qlib-data/")
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_alpha_ops_pages_render_for_staff(staff_client):
+    response = staff_client.get("/alpha/ops/inference/")
+    _assert_html_contract(response, "Alpha 推理管理", "Qlib Model Registry", "当前激活模型")
+
+    response = staff_client.get("/alpha/ops/qlib-data/")
+    _assert_html_contract(response, "Qlib 基础数据管理", "本地数据状态", "刷新 Universe 数据")
 
 
 @pytest.mark.django_db
