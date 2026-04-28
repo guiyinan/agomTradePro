@@ -29,28 +29,90 @@ Never write the VPS password, API tokens, encryption keys, or temporary password
 - Qlib package rule: the Python distribution is `pyqlib`, the imported module is `qlib`. Do not add or install a package named `qlib`.
 - After every deploy, verify HTTP health, container state, database freshness, and Qlib package identity inside the running `web` container.
 
-## Preferred Path: Remote Source Build
+## Preferred Path: Git Clone on VPS (Fastest)
 
-Use this first for normal production rollout. It uploads source, builds the Docker image on the VPS, deploys it, downloads a deployment report, and cleans remote temp files by default.
+Use this as the **default** deployment method. The VPS clones from GitHub directly, skipping local source upload entirely. This is much faster because GitHub's bandwidth far exceeds local upload speed.
+
+**Prerequisite**: The latest code must be pushed to GitHub before deploying.
 
 Code-only fresh deploy that removes old containers/images but preserves data volumes:
 
 ```powershell
 $passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
 Set-Content -Path $passFile -Value '<PASSWORD_FROM_USER>' -NoNewline
-$host = $env:AGOM_VPS_HOST
-if (-not $host) { throw 'AGOM_VPS_HOST is required' }
-$user = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
-$httpPort = if ($env:AGOM_VPS_HTTP_PORT) { $env:AGOM_VPS_HTTP_PORT } else { '8000' }
+$vpsHost = $env:AGOM_VPS_HOST
+if (-not $vpsHost) { throw 'AGOM_VPS_HOST is required' }
+$vpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
+$vpsHttpPort = if ($env:AGOM_VPS_HTTP_PORT) { $env:AGOM_VPS_HTTP_PORT } else { '8000' }
 
 python .\scripts\remote_build_deploy_vps.py `
-  --host $host `
-  --user $user `
+  --host $vpsHost `
+  --user $vpsUser `
   --password-file $passFile `
   --action fresh `
   --wipe-docker `
-  --http-port $httpPort `
-  --allowed-hosts "$host,localhost,127.0.0.1" `
+  --git-clone `
+  --http-port $vpsHttpPort `
+  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
+  --timeout 1800
+
+$code = $LASTEXITCODE
+Remove-Item $passFile -Force -ErrorAction SilentlyContinue
+exit $code
+```
+
+With specific branch or repo override:
+
+```powershell
+python .\scripts\remote_build_deploy_vps.py `
+  --host $vpsHost `
+  --user $vpsUser `
+  --password-file $passFile `
+  --action fresh `
+  --wipe-docker `
+  --git-clone `
+  --git-branch dev/feat-xxx `
+  --http-port $vpsHttpPort `
+  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
+  --timeout 1800
+```
+
+Enable Celery:
+
+```powershell
+python .\scripts\remote_build_deploy_vps.py `
+  --host $vpsHost `
+  --user $vpsUser `
+  --password-file $passFile `
+  --action fresh `
+  --wipe-docker `
+  --git-clone `
+  --enable-celery `
+  --timeout 1800
+```
+
+## Alternative Path: Remote Source Upload Build
+
+Use this when the VPS cannot reach GitHub (firewall, private repo without deploy key, etc). It uploads source from local, builds the Docker image on the VPS, deploys it, downloads a deployment report, and cleans remote temp files by default.
+
+Code-only fresh deploy that removes old containers/images but preserves data volumes:
+
+```powershell
+$passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
+Set-Content -Path $passFile -Value '<PASSWORD_FROM_USER>' -NoNewline
+$vpsHost = $env:AGOM_VPS_HOST
+if (-not $vpsHost) { throw 'AGOM_VPS_HOST is required' }
+$vpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
+$vpsHttpPort = if ($env:AGOM_VPS_HTTP_PORT) { $env:AGOM_VPS_HTTP_PORT } else { '8000' }
+
+python .\scripts\remote_build_deploy_vps.py `
+  --host $vpsHost `
+  --user $vpsUser `
+  --password-file $passFile `
+  --action fresh `
+  --wipe-docker `
+  --http-port $vpsHttpPort `
+  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
   --timeout 1800
 
 $code = $LASTEXITCODE
@@ -62,14 +124,14 @@ Deploy and restore local SQLite:
 
 ```powershell
 python .\scripts\remote_build_deploy_vps.py `
-  --host $host `
-  --user $user `
+  --host $vpsHost `
+  --user $vpsUser `
   --password-file $passFile `
   --action fresh `
   --wipe-docker `
   --include-sqlite `
-  --http-port $httpPort `
-  --allowed-hosts "$host,localhost,127.0.0.1" `
+  --http-port $vpsHttpPort `
+  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
   --timeout 1800
 ```
 
@@ -77,8 +139,8 @@ Enable Celery only when background scheduled jobs must run immediately after dep
 
 ```powershell
 python .\scripts\remote_build_deploy_vps.py `
-  --host $host `
-  --user $user `
+  --host $vpsHost `
+  --user $vpsUser `
   --password-file $passFile `
   --action fresh `
   --wipe-docker `
@@ -106,13 +168,13 @@ Deploy the bundle:
 ```powershell
 $passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
 Set-Content -Path $passFile -Value '<PASSWORD_FROM_USER>' -NoNewline
-$host = $env:AGOM_VPS_HOST
-if (-not $host) { throw 'AGOM_VPS_HOST is required' }
-$user = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
+$vpsHost = $env:AGOM_VPS_HOST
+if (-not $vpsHost) { throw 'AGOM_VPS_HOST is required' }
+$vpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
 
 python .\scripts\deploy-bundle-to-vps.py `
-  --host $host `
-  --user $user `
+  --host $vpsHost `
+  --user $vpsUser `
   --action fresh `
   --bundle ".\dist\agomtradepro-vps-bundle-$tag.tar.gz" `
   --password-file $passFile `

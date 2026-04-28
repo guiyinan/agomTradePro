@@ -604,6 +604,89 @@ def _cleanup_remote_build_artifacts(
     _run(ssh, "bash -lc " + shlex.quote("\n".join(cleanup_lines)), timeout=timeout)
 
 
+def _build_remote_git_clone_build_script() -> str:
+    return r"""set -eu
+
+TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
+RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
+GIT_REPO="${GIT_REPO:?missing GIT_REPO}"
+GIT_BRANCH="${GIT_BRANCH:-main}"
+KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
+EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
+REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
+DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
+
+command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
+command -v git >/dev/null 2>&1 || { echo "[ERROR] git is required" >&2; exit 1; }
+
+RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
+rm -rf "$RELEASE_DIR"
+mkdir -p "$(dirname "$RELEASE_DIR")"
+
+echo "[INFO] Cloning $GIT_REPO branch=$GIT_BRANCH into $RELEASE_DIR"
+git clone --depth 1 --branch "$GIT_BRANCH" "$GIT_REPO" "$RELEASE_DIR"
+cd "$RELEASE_DIR"
+
+if [ -f docker/entrypoint.prod.sh ]; then sed -i 's/\r$//' docker/entrypoint.prod.sh || true; fi
+if [ -f deploy/.env.vps.example ]; then sed -i 's/\r$//' deploy/.env.vps.example || true; fi
+
+if [ ! -f deploy/.env ]; then
+  cp deploy/.env.vps.example deploy/.env
+fi
+
+AVAILABLE_CPUS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)"
+case "$AVAILABLE_CPUS" in
+  ''|*[!0-9]*)
+    AVAILABLE_CPUS=1
+    ;;
+esac
+if [ "$AVAILABLE_CPUS" -le 1 ]; then
+  sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
+fi
+
+echo "[INFO] Building Docker image agomtradepro-web:$RELEASE_TAG"
+if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
+  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
+fi
+
+if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
+  IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
+  AVAIL_BYTES="$(df -Pk "$(dirname "$REMOTE_IMAGE_TAR")" | awk 'NR==2 {print $4 * 1024}')"
+  HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
+  REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
+  if [ "$AVAIL_BYTES" -lt "$REQUIRED_BYTES" ]; then
+    echo "[ERROR] insufficient disk space for docker save. available=${AVAIL_BYTES} required=${REQUIRED_BYTES}" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
+  rm -f "$REMOTE_IMAGE_TAR"
+  docker save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
+fi
+
+python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+report = {
+    "release_tag": os.environ["RELEASE_TAG"],
+    "release_dir": str(Path(".").resolve()),
+    "target_dir": Path(".").resolve().parents[1].as_posix(),
+    "image_tag": f"agomtradepro-web:{os.environ['RELEASE_TAG']}",
+    "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
+    "deployed": False,
+    "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
+    "source_mode": "git-clone",
+    "git_repo": os.environ.get("GIT_REPO", ""),
+    "git_branch": os.environ.get("GIT_BRANCH", "main"),
+}
+Path("/tmp/agomtradepro-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+PY
+
+echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
+echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
+"""
+
+
 def _build_remote_deploy_script() -> str:
     return r"""set -eu
 
@@ -923,6 +1006,9 @@ def main() -> int:
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
     ap.add_argument("--enable-celery", action="store_true", default=False)
     ap.add_argument("--encryption-key", default="", help="AGOMTRADEPRO_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
+    ap.add_argument("--git-clone", action="store_true", default=False, help="Clone from GitHub on VPS instead of uploading local source (much faster)")
+    ap.add_argument("--git-repo", default=os.environ.get("AGOM_VPS_GIT_REPO", "https://github.com/guiyinan/agomTradePro.git"), help="Git repo URL for --git-clone mode")
+    ap.add_argument("--git-branch", default=os.environ.get("AGOM_VPS_GIT_BRANCH", "main"), help="Git branch/tag for --git-clone mode")
     args = ap.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
@@ -1015,18 +1101,23 @@ def main() -> int:
     tag = time.strftime("%Y%m%d%H%M%S")
     bundle_name = f"agomtradepro-source-deploy-{tag}.tar.gz"
     local_bundle = project_root / "dist" / bundle_name
-    local_bundle.parent.mkdir(parents=True, exist_ok=True)
     local_image_path = (project_root / args.built_image_dir / f"agomtradepro-web-{tag}.tar").resolve()
-    remote_image_tar = posixpath.join(args.remote_dir.rstrip("/"), f"agomtradepro-web-{tag}.tar")
+    remote_dir = args.remote_dir.rstrip("/")
+    remote_image_tar = posixpath.join(remote_dir, f"agomtradepro-web-{tag}.tar")
     sqlite_file = _latest_sqlite(project_root) if include_sqlite else None
 
-    _info(f"Creating source bundle: {local_bundle}")
-    _make_source_bundle(
-        project_root=project_root,
-        output_path=local_bundle,
-        include_sqlite=include_sqlite,
-        sqlite_file=sqlite_file,
-    )
+    if not args.git_clone:
+        _info(f"Creating source bundle: {local_bundle}")
+        local_bundle.parent.mkdir(parents=True, exist_ok=True)
+        _make_source_bundle(
+            project_root=project_root,
+            output_path=local_bundle,
+            include_sqlite=include_sqlite,
+            sqlite_file=sqlite_file,
+        )
+    else:
+        _info("Skipping local source bundle (git-clone mode)")
+        local_bundle.parent.mkdir(parents=True, exist_ok=True)
 
     _info(f"Connecting to {user}@{host}:{args.port}")
     ssh = _ssh_connect(
@@ -1034,47 +1125,71 @@ def main() -> int:
     )
     try:
         remote_dir = args.remote_dir.rstrip("/")
-        remote_bundle = posixpath.join(remote_dir, bundle_name)
-        _info(f"Ensuring remote upload dir: {remote_dir}")
-        code, _out, err = _run(ssh, f"mkdir -p {shlex.quote(remote_dir)}", timeout=args.timeout)
-        if code != 0:
-            _die(f"Failed to create remote dir. Stderr={err.strip()}")
-
-        _info(f"Uploading source bundle: {remote_bundle}")
-        sftp = ssh.open_sftp()
-        try:
-            tmp_remote = remote_bundle + f".uploading.{int(time.time())}"
-            sftp.put(str(local_bundle), tmp_remote)
-            try:
-                sftp.remove(remote_bundle)
-            except OSError:
-                pass
-            sftp.rename(tmp_remote, remote_bundle)
-        finally:
-            sftp.close()
-
-        remote_build_script = _build_remote_build_script()
-        build_env = {
-            "TARGET_DIR": args.target_dir,
-            "REMOTE_TARBALL": remote_bundle,
-            "RELEASE_TAG": tag,
-            "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
-            "EXPORT_IMAGE_TAR": _bool_env(True),
-            "REMOTE_IMAGE_TAR": remote_image_tar,
-            "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
-        }
-
-        exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
-        remote_cmd = f"{exports} bash -lc {shlex.quote(remote_build_script)}"
-
-        _info("Running remote build")
-        code, out, err = _run(ssh, remote_cmd, timeout=args.timeout)
-        if code != 0:
-            _warn(out.strip())
-            _die(f"Remote build failed. Exit={code}. Stderr={err.strip()}")
-
+        remote_image_tar = posixpath.join(remote_dir, f"agomtradepro-web-{tag}.tar")
         build_report_path = None
         report_path = None
+
+        if args.git_clone:
+            _info(f"Using git-clone mode: repo={args.git_repo} branch={args.git_branch}")
+            remote_build_script = _build_remote_git_clone_build_script()
+            build_env = {
+                "TARGET_DIR": args.target_dir,
+                "RELEASE_TAG": tag,
+                "GIT_REPO": args.git_repo,
+                "GIT_BRANCH": args.git_branch,
+                "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
+                "EXPORT_IMAGE_TAR": _bool_env(False),
+                "REMOTE_IMAGE_TAR": remote_image_tar,
+                "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
+            }
+            exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
+            remote_cmd = f"{exports} bash -lc {shlex.quote(remote_build_script)}"
+
+            _info("Running remote git-clone + build")
+            code, out, err = _run(ssh, remote_cmd, timeout=args.timeout)
+            if code != 0:
+                _warn(out.strip())
+                _die(f"Remote git-clone build failed. Exit={code}. Stderr={err.strip()}")
+        else:
+            remote_bundle = posixpath.join(remote_dir, bundle_name)
+            _info(f"Ensuring remote upload dir: {remote_dir}")
+            code, _out, err = _run(ssh, f"mkdir -p {shlex.quote(remote_dir)}", timeout=args.timeout)
+            if code != 0:
+                _die(f"Failed to create remote dir. Stderr={err.strip()}")
+
+            _info(f"Uploading source bundle: {remote_bundle}")
+            sftp = ssh.open_sftp()
+            try:
+                tmp_remote = remote_bundle + f".uploading.{int(time.time())}"
+                sftp.put(str(local_bundle), tmp_remote)
+                try:
+                    sftp.remove(remote_bundle)
+                except OSError:
+                    pass
+                sftp.rename(tmp_remote, remote_bundle)
+            finally:
+                sftp.close()
+
+            remote_build_script = _build_remote_build_script()
+            build_env = {
+                "TARGET_DIR": args.target_dir,
+                "REMOTE_TARBALL": remote_bundle,
+                "RELEASE_TAG": tag,
+                "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
+                "EXPORT_IMAGE_TAR": _bool_env(True),
+                "REMOTE_IMAGE_TAR": remote_image_tar,
+                "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
+            }
+
+            exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
+            remote_cmd = f"{exports} bash -lc {shlex.quote(remote_build_script)}"
+
+            _info("Running remote build")
+            code, out, err = _run(ssh, remote_cmd, timeout=args.timeout)
+            if code != 0:
+                _warn(out.strip())
+                _die(f"Remote build failed. Exit={code}. Stderr={err.strip()}")
+
         for line in out.splitlines():
             if line.startswith("BUILD_REPORT_PATH="):
                 build_report_path = line.split("=", 1)[1].strip()
