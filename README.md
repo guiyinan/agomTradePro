@@ -26,6 +26,12 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-04-28
+
+- Alpha / Qlib 运维台 V1 已落地：新增独立的 Alpha 推理管理页和 Qlib 基础数据管理页，staff 可查看运行态、缓存、告警和任务，superuser 可手动触发推理与数据刷新
+- 这轮运维台与 CI 稳定性修复没有改动 MCP 外部契约：SDK / MCP 的工具名、参数 schema、canonical API 路径与 RBAC 语义保持不变
+- `tests/integration/test_alpha_stress.py` 已改为默认离线运行，避免 ETF fallback 偶发走到 `akshare` 远端请求；最新 push CI 与 Nightly 已重新全绿
+
 ### 2026-04-27
 
 - `strategy` 与 `asset_analysis` 这条跨 App 协作链已完成最后一轮收口：跨模块资产池、名称解析和筛选装配统一经 application facade / shared registry 暴露，不再靠 bridge 文件和跨 App ORM 直连维持

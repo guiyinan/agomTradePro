@@ -26,6 +26,12 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-04-28
+
+- Alpha / Qlib Ops Console V1 is now in place: there are dedicated inference-management and Qlib runtime-data pages, with read access for staff and manual actions reserved for superusers
+- This ops-console pass and the CI-stability fixes did not change the external MCP contract: SDK / MCP tool names, parameter schemas, canonical API paths, and RBAC semantics remain unchanged
+- `tests/integration/test_alpha_stress.py` now runs offline by default so ETF fallback no longer drifts into live `akshare` requests on GitHub Actions; the latest push CI and Nightly are green again
+
 ### 2026-04-27
 
 - The final cross-app cleanup around `strategy` and `asset_analysis` is now closed out: asset-pool lookup, name resolution, and screening assembly now flow through application facades and the shared registry instead of a bridge module plus cross-app ORM reach-through
