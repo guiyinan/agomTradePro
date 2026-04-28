@@ -13,6 +13,7 @@ from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
 from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 from apps.alpha.infrastructure.cache_evaluation import calculate_rolling_metrics
 from apps.alpha.infrastructure.qlib_builder import (
+    inspect_latest_trade_date,
     TushareQlibBuilder,
     normalize_qlib_symbol,
     resolve_effective_trade_date,
