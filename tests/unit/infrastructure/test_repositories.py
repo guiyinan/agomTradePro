@@ -15,9 +15,13 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from apps.backtest.domain.entities import BacktestConfig, BacktestStatus
+from apps.data_center.infrastructure.models import (
+    IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
+    MacroFactModel,
+)
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.models import MacroIndicator as MacroIndicatorORM
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
@@ -26,12 +30,58 @@ from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
+def _seed_indicator_rule(
+    *,
+    code: str,
+    original_unit: str,
+    source_type: str = "test",
+    storage_unit: str | None = None,
+    display_unit: str | None = None,
+    multiplier_to_storage: float = 1.0,
+    default_period_type: str = "D",
+) -> None:
+    resolved_storage_unit = storage_unit or original_unit
+    resolved_display_unit = display_unit or original_unit
+    IndicatorCatalogModel.objects.update_or_create(
+        code=code,
+        defaults={
+            "name_cn": code,
+            "name_en": code,
+            "description": "",
+            "category": "测试",
+            "default_period_type": default_period_type,
+            "default_unit": resolved_storage_unit,
+            "is_active": True,
+            "extra": {},
+        },
+    )
+    IndicatorUnitRuleModel.objects.update_or_create(
+        indicator_code=code,
+        source_type=source_type,
+        original_unit=original_unit,
+        defaults={
+            "dimension_key": "test",
+            "storage_unit": resolved_storage_unit,
+            "display_unit": resolved_display_unit,
+            "multiplier_to_storage": multiplier_to_storage,
+            "is_active": True,
+            "priority": 10,
+            "description": "test rule",
+        },
+    )
+
+
 @pytest.mark.django_db
 class TestDjangoMacroRepository:
     """测试 DjangoMacroRepository"""
 
     def test_save_and_retrieve_indicator(self):
         """测试保存和检索宏观指标"""
+        _seed_indicator_rule(
+            code="CN_PMI",
+            original_unit="指数",
+            default_period_type="M",
+        )
         repository = DjangoMacroRepository()
         indicator = MacroIndicator(
             code="CN_PMI",
@@ -49,10 +99,12 @@ class TestDjangoMacroRepository:
         assert saved.code == "CN_PMI"
         assert saved.value == 50.5
 
-        # 检查 ORM 对象有 ID
-        orm_obj = MacroIndicatorORM.objects.filter(code="CN_PMI", reporting_period=date(2024, 1, 1)).first()
-        assert orm_obj is not None
-        assert orm_obj.id is not None
+        fact = MacroFactModel.objects.filter(
+            indicator_code="CN_PMI",
+            reporting_period=date(2024, 1, 1),
+        ).first()
+        assert fact is not None
+        assert fact.id is not None
 
         # 通过代码和日期检索
         retrieved = repository.get_by_code_and_date("CN_PMI", date(2024, 1, 1))
@@ -63,6 +115,11 @@ class TestDjangoMacroRepository:
     def test_save_indicators_batch(self):
         """测试批量保存指标"""
         repository = DjangoMacroRepository()
+        for i in range(5):
+            _seed_indicator_rule(
+                code=f"TEST_IND_{i}",
+                original_unit="指数",
+            )
         indicators = [
             MacroIndicator(
                 code=f"TEST_IND_{i}",
@@ -84,6 +141,7 @@ class TestDjangoMacroRepository:
     def test_get_series_with_filters(self):
         """测试带过滤条件的时序查询"""
         repository = DjangoMacroRepository()
+        _seed_indicator_rule(code="TEST_SERIES", original_unit="指数")
 
         # 创建测试数据
         for i in range(10):
@@ -119,6 +177,7 @@ class TestDjangoMacroRepository:
         """测试获取最新观测值"""
         repository = DjangoMacroRepository()
         test_code = "TEST_LATEST_OBS"
+        _seed_indicator_rule(code=test_code, original_unit="指数", default_period_type="M")
 
         # 创建多个时期的指标
         for i in range(5):
@@ -146,13 +205,22 @@ class TestDjangoMacroRepository:
 
     def test_entity_to_model_mapping(self):
         """测试 Entity 到 Model 的映射"""
+        _seed_indicator_rule(
+            code="TEST_INDICATOR",
+            original_unit="万亿元",
+            source_type="test_source",
+            storage_unit="元",
+            display_unit="万亿元",
+            multiplier_to_storage=1000000000000.0,
+            default_period_type="M",
+        )
         repository = DjangoMacroRepository()
         indicator = MacroIndicator(
             code="TEST_INDICATOR",
             value=123.45,
             reporting_period=date(2024, 6, 15),
             period_type=PeriodType.MONTH,
-            unit="亿元",
+            unit="万亿元",
             original_unit="万亿元",
             published_at=date(2024, 6, 16),
             source="test_source"
@@ -162,8 +230,8 @@ class TestDjangoMacroRepository:
 
         # 验证字段映射
         assert saved.code == "TEST_INDICATOR"
-        assert saved.value == 123.45
-        assert saved.unit == "亿元"
+        assert saved.value == 123.45 * 1000000000000.0
+        assert saved.unit == "元"
         assert saved.original_unit == "万亿元"
         assert saved.source == "test_source"
         # period_type 在返回时应该是枚举类型
@@ -172,6 +240,7 @@ class TestDjangoMacroRepository:
     def test_get_growth_and_inflation_series(self):
         """测试获取增长和通胀指标序列"""
         repository = DjangoMacroRepository()
+        _seed_indicator_rule(code="CN_PMI", original_unit="指数", default_period_type="M")
 
         # 创建 PMI 数据
         for i in range(12):
@@ -199,6 +268,7 @@ class TestDjangoMacroRepository:
     def test_delete_operations(self):
         """测试删除操作"""
         repository = DjangoMacroRepository()
+        _seed_indicator_rule(code="TO_DELETE", original_unit="指数")
 
         indicator = MacroIndicator(
             code="TO_DELETE",
@@ -227,6 +297,7 @@ class TestDjangoMacroRepository:
 
         # 创建不同指标的数据
         for code in ["TEST_STAT_A", "TEST_STAT_B", "TEST_STAT_C"]:
+            _seed_indicator_rule(code=code, original_unit="指数", source_type="test_source")
             for i in range(5):
                 indicator = MacroIndicator(
                     code=code,

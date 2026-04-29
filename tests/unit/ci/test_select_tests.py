@@ -173,7 +173,7 @@ class TestSelectTests(unittest.TestCase):
     def test_select_tests_with_macro_changes_include_api_tests(self):
         """macro 变更必须带上 API 测试。"""
         tests = select_tests_func({"macro"}, ["apps/macro/interface/views/fetch_api.py"])
-        self.assertIn("tests/api/test_macro_api_edges.py", tests)
+        self.assertIn("tests/api/test_data_center_route_cleanup.py", tests)
 
     def test_select_tests_with_account_changes_include_api_tests(self):
         """account 变更必须带上 API 测试。"""

@@ -14,6 +14,7 @@ from apps.data_center.application.use_cases import (
     SyncNewsUseCase,
 )
 from apps.data_center.domain.entities import MacroFact, NewsFact, ProviderConfig, RawAudit
+from apps.data_center.domain.entities import IndicatorCatalog, IndicatorUnitRule
 
 
 def _provider_config() -> ProviderConfig:
@@ -70,6 +71,42 @@ class _MacroFactRepo:
         return len(facts)
 
 
+class _IndicatorCatalogRepo:
+    def __init__(self, items: list[IndicatorCatalog] | None = None):
+        self._items = {item.code: item for item in (items or [])}
+
+    def get_by_code(self, code: str):
+        return self._items.get(code)
+
+
+class _IndicatorUnitRuleRepo:
+    def __init__(self, rules: list[IndicatorUnitRule] | None = None):
+        self._rules = rules or []
+
+    def resolve_active_rule(
+        self,
+        indicator_code: str,
+        *,
+        source_type: str = "",
+        original_unit: str | None = None,
+    ):
+        candidates = [
+            rule
+            for rule in self._rules
+            if rule.indicator_code == indicator_code and rule.is_active
+        ]
+        if original_unit is not None:
+            candidates = [rule for rule in candidates if rule.original_unit == original_unit]
+        if source_type:
+            scoped = [rule for rule in candidates if rule.source_type == source_type]
+            if scoped:
+                return sorted(scoped, key=lambda item: (-item.priority, item.id or 0))[0]
+        defaults = [rule for rule in candidates if rule.source_type == ""]
+        if defaults:
+            return sorted(defaults, key=lambda item: (-item.priority, item.id or 0))[0]
+        return None
+
+
 class _NewsRepo:
     def __init__(self):
         self.saved: list[NewsFact] = []
@@ -112,10 +149,44 @@ def test_sync_macro_use_case_stores_facts_and_audit():
     provider_repo = _ProviderRepo()
     raw_repo = _RawAuditRepo()
     fact_repo = _MacroFactRepo()
+    catalog_repo = _IndicatorCatalogRepo(
+        [
+            IndicatorCatalog(
+                code="CN_PMI",
+                name_cn="采购经理指数",
+                name_en="PMI",
+                description="",
+                category="growth",
+                default_period_type="M",
+                default_unit="%",
+                is_active=True,
+                extra={},
+            )
+        ]
+    )
+    unit_rule_repo = _IndicatorUnitRuleRepo(
+        [
+            IndicatorUnitRule(
+                id=1,
+                indicator_code="CN_PMI",
+                source_type="tushare",
+                dimension_key="rate",
+                original_unit="%",
+                storage_unit="%",
+                display_unit="%",
+                multiplier_to_storage=1.0,
+                is_active=True,
+                priority=10,
+                description="",
+            )
+        ]
+    )
     use_case = SyncMacroUseCase(
         provider_repo=provider_repo,
         provider_factory=_ProviderFactory(provider),
         fact_repo=fact_repo,
+        catalog_repo=catalog_repo,
+        unit_rule_repo=unit_rule_repo,
         raw_audit_repo=raw_repo,
     )
 

@@ -3,7 +3,6 @@ from datetime import date, timedelta
 import pytest
 
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
-from apps.macro.infrastructure.models import MacroIndicator as LegacyMacroIndicatorModel
 from apps.regime.application.use_cases import (
     CalculateRegimeRequest,
     CalculateRegimeUseCase,
@@ -123,22 +122,9 @@ def test_macro_repository_adapter_and_regime_use_case_run_on_data_center() -> No
 
 
 @pytest.mark.django_db
-def test_data_center_macro_repository_falls_back_to_legacy_macro_table() -> None:
-    LegacyMacroIndicatorModel.objects.create(
-        code="CN_PMI",
-        value=51.6,
-        unit="指数",
-        original_unit="指数",
-        reporting_period=date(2025, 3, 1),
-        period_type="M",
-        published_at=date(2025, 3, 2),
-        source="akshare",
-    )
-
+def test_data_center_macro_repository_does_not_fallback_to_legacy_macro_table() -> None:
     repository = MacroRepositoryAdapter()
 
     observation = repository.get_latest_observation("CN_PMI")
 
-    assert observation is not None
-    assert observation.value == 51.6
-    assert observation.reporting_period == date(2025, 3, 1)
+    assert observation is None

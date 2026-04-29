@@ -37,7 +37,7 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
 
     # 宏观相关
     "macro": [
-        "tests/api/test_macro_api_edges.py",
+        "tests/api/test_data_center_route_cleanup.py",
         "tests/integration/macro/",
         "tests/unit/domain/test_macro_entities.py",
     ],

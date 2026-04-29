@@ -217,12 +217,7 @@ class DataCenterMacroRepositoryAdapter:
     ) -> list:
         queryset = self._build_queryset(code=indicator_code)
         observations = self._dedupe_latest_by_period(queryset, descending=True)[:limit]
-        if observations:
-            return observations
-        return self._get_legacy_repository().get_recent_observations(
-            indicator_code=indicator_code,
-            limit=limit,
-        )
+        return observations
 
     def get_latest_observation_date(
         self,
@@ -233,12 +228,7 @@ class DataCenterMacroRepositoryAdapter:
         if as_of_date:
             queryset = queryset.filter(reporting_period__lte=as_of_date)
         observations = self._dedupe_latest_by_period(queryset, descending=True)
-        if observations:
-            return observations[0].reporting_period
-        return self._get_legacy_repository().get_latest_observation_date(
-            code=code,
-            as_of_date=as_of_date,
-        )
+        return observations[0].reporting_period if observations else None
 
     def get_latest_observation(
         self,
@@ -249,12 +239,7 @@ class DataCenterMacroRepositoryAdapter:
         if before_date:
             queryset = queryset.filter(reporting_period__lt=before_date)
         observations = self._dedupe_latest_by_period(queryset, descending=True)
-        if observations:
-            return observations[0]
-        return self._get_legacy_repository().get_latest_observation(
-            code=code,
-            before_date=before_date,
-        )
+        return observations[0] if observations else None
 
     def get_by_code_and_date(self, code: str, observed_at: date):
         queryset = self._build_queryset(
@@ -263,12 +248,7 @@ class DataCenterMacroRepositoryAdapter:
             end_date=observed_at,
         )
         observations = self._dedupe_latest_by_period(queryset, descending=True)
-        if observations:
-            return observations[0]
-        return self._get_legacy_repository().get_by_code_and_date(
-            code=code,
-            observed_at=observed_at,
-        )
+        return observations[0] if observations else None
 
     def get_growth_series(
         self,
@@ -393,13 +373,7 @@ class DataCenterMacroRepositoryAdapter:
             .distinct()
             .order_by("reporting_period")
         )
-        if dates:
-            return dates
-        return self._get_legacy_repository().get_available_dates(
-            codes=codes,
-            start_date=start_date,
-            end_date=end_date,
-        )
+        return dates
 
 
 class DjangoMacroDataProvider(MacroDataProviderProtocol):

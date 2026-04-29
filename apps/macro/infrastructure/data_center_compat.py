@@ -273,6 +273,18 @@ def _sort_rows(rows: list[dict[str, Any]], sort_field: str) -> list[dict[str, An
 class DjangoMacroRepository:
     """Compatibility write repository backed by data_center macro facts."""
 
+    GROWTH_INDICATORS = {
+        "PMI": "CN_PMI",
+        "工业增加值": "CN_VALUE_ADDED",
+        "社会消费品零售": "CN_RETAIL_SALES",
+    }
+
+    INFLATION_INDICATORS = {
+        "CPI": "CN_CPI_NATIONAL_YOY",
+        "PPI": "CN_PPI",
+        "GDP平减指数": "CN_GDP_DEFLATOR",
+    }
+
     @transaction.atomic
     def save_indicator(
         self,
@@ -376,6 +388,115 @@ class DjangoMacroRepository:
                 rows.append(_fact_to_entity(fact))
             return list(reversed(rows))
         return [_fact_to_entity(fact) for fact in queryset.order_by("reporting_period", "revision_number")]
+
+    @staticmethod
+    def _normalize_cpi_value(code: str, value: float) -> float:
+        if code == "CN_CPI":
+            return float(value) - 100.0
+        normalized = float(value)
+        if code == "CN_CPI_NATIONAL_YOY" and -0.2 < normalized < 0.2:
+            return normalized * 100.0
+        return normalized
+
+    def get_growth_series(
+        self,
+        indicator_code: str = "PMI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list[float]:
+        return [
+            indicator.value
+            for indicator in self.get_growth_series_full(
+                indicator_code=indicator_code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
+            )
+        ]
+
+    def get_growth_series_full(
+        self,
+        indicator_code: str = "PMI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list[MacroIndicator]:
+        code = self.GROWTH_INDICATORS.get(indicator_code, indicator_code)
+        return self.get_series(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            use_pit=use_pit,
+            source=source,
+        )
+
+    def get_inflation_series(
+        self,
+        indicator_code: str = "CPI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list[float]:
+        return [
+            indicator.value
+            for indicator in self.get_inflation_series_full(
+                indicator_code=indicator_code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
+            )
+        ]
+
+    def get_inflation_series_full(
+        self,
+        indicator_code: str = "CPI",
+        start_date: date | None = None,
+        end_date: date | None = None,
+        use_pit: bool = False,
+        source: str | None = None,
+    ) -> list[MacroIndicator]:
+        code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
+        indicators = self.get_series(
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            use_pit=use_pit,
+            source=source,
+        )
+        if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
+            code = "CN_CPI"
+            indicators = self.get_series(
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                use_pit=use_pit,
+                source=source,
+            )
+
+        if indicator_code != "CPI":
+            return indicators
+
+        normalized: list[MacroIndicator] = []
+        for indicator in indicators:
+            normalized.append(
+                MacroIndicator(
+                    code=indicator.code,
+                    value=self._normalize_cpi_value(code, indicator.value),
+                    reporting_period=indicator.reporting_period,
+                    period_type=indicator.period_type,
+                    unit="%",
+                    original_unit=indicator.original_unit,
+                    published_at=indicator.published_at,
+                    source=indicator.source,
+                )
+            )
+        return normalized
 
     def get_latest_observation_date(
         self,

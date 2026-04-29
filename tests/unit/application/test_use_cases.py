@@ -245,10 +245,9 @@ class TestSyncMacroDataUseCase:
         saved_indicators = repository.save_indicators_batch.call_args[0][0]
         saved = saved_indicators[0]
 
-        # 货币类数据应转换为"元"
-        # 3.5 万亿 = 3.5 * 10000 * 100000000 = 3500000000000
-        assert saved.unit == "元"
-        assert saved.value == 3500000000000.0  # 3.5 万亿 -> 元
+        # macro 应用层现在只保留原始值/原始单位，canonical 转换在 data_center 入库阶段完成
+        assert saved.unit == "万亿元"
+        assert saved.value == 3.5
         assert saved.original_unit == "万亿元"
 
 
