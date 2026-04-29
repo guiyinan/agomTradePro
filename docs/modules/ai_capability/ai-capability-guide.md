@@ -40,7 +40,7 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 |------|------|------|
 | `builtin` | 内置能力 | system_status, market_regime |
 | `terminal_command` | Terminal 命令配置 | 来自 TerminalCommandORM |
-| `mcp_tool` | MCP 工具 | get_macro_indicator, get_regime_status |
+| `mcp_tool` | MCP 工具 | data_center_get_macro_series, get_current_regime |
 | `api` | 内部 API 端点 | GET /api/regime/, POST /api/signal/ |
 
 ### 2.2 路由分组 (Route Group)

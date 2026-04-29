@@ -49,19 +49,20 @@ for signal in signals:
     print(f"{signal.asset_code}: {signal.logic_desc}")
 print()
 
-# Example 5: Get macro indicators
-print("=== Macro Indicators ===")
-indicators = client.macro.list_indicators(limit=5)
+# Example 5: Get data center macro indicator catalog
+print("=== Data Center Indicators ===")
+indicators = client.data_center.list_indicators(active_only=True)[:5]
 for indicator in indicators:
-    print(f"{indicator.code}: {indicator.name}")
+    print(f"{indicator['code']}: {indicator['name_cn']}")
 print()
 
 # Example 6: Get latest PMI data
 print("=== Latest PMI ===")
-latest_pmi = client.macro.get_latest_data("PMI")
+pmi_series = client.data_center.get_macro_series("CN_PMI", limit=1)
+latest_pmi = (pmi_series.get("data") or [None])[0]
 if latest_pmi:
-    print(f"Date: {latest_pmi.date}")
-    print(f"Value: {latest_pmi.value} {latest_pmi.unit}")
+    print(f"Date: {latest_pmi['observed_at']}")
+    print(f"Value: {latest_pmi['display_value']} {latest_pmi['display_unit']}")
 print()
 
 # Example 7: Get policy status

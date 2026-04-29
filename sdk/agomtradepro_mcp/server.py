@@ -31,7 +31,6 @@ from agomtradepro_mcp.tools.factor_tools import register_factor_tools
 from agomtradepro_mcp.tools.filter_tools import register_filter_tools
 from agomtradepro_mcp.tools.fund_tools import register_fund_tools
 from agomtradepro_mcp.tools.hedge_tools import register_hedge_tools
-from agomtradepro_mcp.tools.macro_tools import register_macro_tools
 from agomtradepro_mcp.tools.policy_tools import register_policy_tools
 from agomtradepro_mcp.tools.prompt_tools import register_prompt_tools
 from agomtradepro_mcp.tools.pulse_tools import register_pulse_tools
@@ -55,7 +54,6 @@ def register_all_tools() -> None:
     # Core modules
     register_regime_tools(server)
     register_signal_tools(server)
-    register_macro_tools(server)
     register_policy_tools(server)
     register_backtest_tools(server)
     register_account_tools(server)

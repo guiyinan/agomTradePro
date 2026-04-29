@@ -63,6 +63,79 @@ def client():
             [],
         ),
         (
+            lambda c: c.data_center.list_indicators(active_only=True),
+            "GET",
+            "/api/data-center/indicators/",
+            {"params": {"active_only": "true"}},
+            [],
+        ),
+        (
+            lambda c: c.data_center.get_indicator("CN_PMI"),
+            "GET",
+            "/api/data-center/indicators/CN_PMI/",
+            {"params": None},
+            {"code": "CN_PMI"},
+        ),
+        (
+            lambda c: c.data_center.create_indicator({"code": "CN_PMI", "name_cn": "制造业PMI"}),
+            "POST",
+            "/api/data-center/indicators/",
+            {"data": None, "json": {"code": "CN_PMI", "name_cn": "制造业PMI"}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.update_indicator("CN_PMI", {"category": "growth"}),
+            "PATCH",
+            "/api/data-center/indicators/CN_PMI/",
+            {"data": None, "json": {"category": "growth"}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.delete_indicator("CN_PMI"),
+            "DELETE",
+            "/api/data-center/indicators/CN_PMI/",
+            {"params": None},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.list_indicator_unit_rules("CN_PMI"),
+            "GET",
+            "/api/data-center/indicators/CN_PMI/unit-rules/",
+            {"params": None},
+            [],
+        ),
+        (
+            lambda c: c.data_center.get_indicator_unit_rule("CN_PMI", 7),
+            "GET",
+            "/api/data-center/indicators/CN_PMI/unit-rules/7/",
+            {"params": None},
+            {"id": 7},
+        ),
+        (
+            lambda c: c.data_center.create_indicator_unit_rule(
+                "CN_PMI",
+                {"dimension_key": "index_level", "storage_unit": "指数"},
+            ),
+            "POST",
+            "/api/data-center/indicators/CN_PMI/unit-rules/",
+            {"data": None, "json": {"dimension_key": "index_level", "storage_unit": "指数"}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.update_indicator_unit_rule("CN_PMI", 7, {"priority": 10}),
+            "PATCH",
+            "/api/data-center/indicators/CN_PMI/unit-rules/7/",
+            {"data": None, "json": {"priority": 10}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.delete_indicator_unit_rule("CN_PMI", 7),
+            "DELETE",
+            "/api/data-center/indicators/CN_PMI/unit-rules/7/",
+            {"params": None},
+            {"ok": True},
+        ),
+        (
             lambda c: c.data_center.get_macro_series(
                 "CN_PMI", start="2026-01-01", end="2026-03-31", limit=12
             ),
@@ -79,19 +152,24 @@ def client():
             {"ok": True},
         ),
         (
-            lambda c: c.data_center.get_macro_series(
-                "CN_PMI",
-                limit=12,
-                allow_legacy_fallback=True,
-            ),
-            "GET",
-            "/api/data-center/macro/series/",
-            {
-                "params": {
+            lambda c: c.data_center.sync_macro(
+                {
+                    "provider_id": 3,
                     "indicator_code": "CN_PMI",
-                    "limit": 12,
-                    "allow_legacy_fallback": "true",
+                    "start": "2026-01-01",
+                    "end": "2026-03-31",
                 }
+            ),
+            "POST",
+            "/api/data-center/sync/macro/",
+            {
+                "data": None,
+                "json": {
+                    "provider_id": 3,
+                    "indicator_code": "CN_PMI",
+                    "start": "2026-01-01",
+                    "end": "2026-03-31",
+                },
             },
             {"ok": True},
         ),

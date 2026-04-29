@@ -26,8 +26,8 @@ Choose direct REST only when:
 
 ### Read market or system state
 
-- MCP: `get_current_regime`, `get_policy_status`, `list_macro_indicators`, `get_macro_data`, `get_market_summary`
-- SDK: `client.regime.get_current()`, `client.policy.get_status()`, `client.macro.list_indicators()`, `client.realtime.get_market_summary()`
+- MCP: `get_current_regime`, `get_policy_status`, `data_center_list_indicators`, `data_center_get_macro_series`, `get_market_summary`
+- SDK: `client.regime.get_current()`, `client.policy.get_status()`, `client.data_center.list_indicators()`, `client.realtime.get_market_summary()`
 
 ### Work with signals
 

@@ -51,17 +51,19 @@ print()
 
 # Example 2: Analyze Macro Data
 print("=== Macro Data Analysis ===")
-pmi_data = client.macro.get_indicator_data(
-    indicator_code="PMI",
-    start_date=date(2023, 1, 1),
-    end_date=date(2024, 12, 31),
-    limit=100
+pmi_series = client.data_center.get_macro_series(
+    indicator_code="CN_PMI",
+    start="2023-01-01",
+    end="2024-12-31",
+    limit=100,
 )
 
-pmi_df = pd.DataFrame([
-    {"date": d.date, "value": d.value}
-    for d in pmi_data
-])
+pmi_df = pd.DataFrame(
+    [
+        {"date": item["observed_at"], "value": item["display_value"]}
+        for item in pmi_series.get("data", [])
+    ]
+)
 pmi_df["date"] = pd.to_datetime(pmi_df["date"])
 pmi_df = pmi_df.sort_values("date")
 

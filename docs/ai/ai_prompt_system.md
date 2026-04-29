@@ -218,8 +218,8 @@ AI可以主动调用预定义的工具函数获取数据。
       "template_id": "signal_generation",
       "enable_tool_calling": true,
       "available_tools": [
-        "get_macro_indicator",
-        "get_regime_status",
+        "data_center_get_macro_series",
+        "get_current_regime",
         "calculate_trend"
       ]
     }

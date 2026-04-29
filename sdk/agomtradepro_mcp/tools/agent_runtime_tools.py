@@ -42,8 +42,8 @@ def register_agent_runtime_tools(server: FastMCP) -> None:
             context_scope: Context domains to include in the conversation.
                           Options: macro, regime, portfolio, signals, asset_pool
             tool_names: Tools the AI can use to query data.
-                       Options: get_macro_summary, get_macro_indicator,
-                       get_regime_status, get_regime_distribution,
+                       Options: data_center_get_macro_series, get_current_regime,
+                       get_regime_distribution,
                        get_portfolio_snapshot, get_portfolio_positions,
                        get_valid_signals, get_asset_pool
             provider_ref: AI provider name or ID (optional)
@@ -57,7 +57,7 @@ def register_agent_runtime_tools(server: FastMCP) -> None:
             >>> result = agent_chat(
             ...     message="当前宏观环境如何？Regime是什么状态？",
             ...     context_scope=["macro", "regime"],
-            ...     tool_names=["get_macro_summary", "get_regime_status"]
+            ...     tool_names=["data_center_get_macro_series", "get_current_regime"]
             ... )
         """
         client = AgomTradeProClient()

@@ -27,7 +27,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
 
     assert result.returncode == 0, result.stdout or result.stderr
     report = json.loads(result.stdout)
-    assert report["baseline_version"] == "2026-04-24.v1"
+    assert report["baseline_version"] == "2026-04-29.v1"
     assert report["violation_count"] == 0
 
     section_names = {section["name"] for section in report["sections"]}

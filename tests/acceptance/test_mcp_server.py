@@ -101,7 +101,7 @@ def test_list_tools() -> None:
         print_info("The server provides tools for:")
         print_info("  - Regime: get_current_regime, calculate_regime, explain_regime")
         print_info("  - Signal: list_signals, check_signal_eligibility, create_signal")
-        print_info("  - Macro: list_macro_indicators, get_indicator_data")
+        print_info("  - Data Center Macro: data_center_list_indicators, data_center_get_macro_series")
         print_info("  - Policy: get_policy_status, list_policy_events")
         print_info("  - Backtest: list_backtests, get_backtest_result")
         print_info("  - And more...")
@@ -199,7 +199,7 @@ def test_tool_imports() -> None:
             events_tools,
             filter_tools,
             fund_tools,
-            macro_tools,
+            data_center_tools,
             policy_tools,
             prompt_tools,
             realtime_tools,
@@ -216,7 +216,7 @@ def test_tool_imports() -> None:
         print_info("Available tool categories:")
         print_info("  - regime_tools")
         print_info("  - signal_tools")
-        print_info("  - macro_tools")
+        print_info("  - data_center_tools")
         print_info("  - policy_tools")
         print_info("  - backtest_tools")
         print_info("  - account_tools")

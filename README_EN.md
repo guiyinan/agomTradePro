@@ -12,7 +12,7 @@
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#testing)
 [![Modules](https://img.shields.io/badge/business_modules-35-purple.svg)](#architecture)
-[![MCP Tools](https://img.shields.io/badge/MCP_tools-313-orange.svg)](#ai-native-integration)
+[![MCP Tools](https://img.shields.io/badge/MCP_tools-318-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -25,6 +25,11 @@
 ## What's New
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-04-29
+
+- Macro MCP/SDK access is now officially consolidated under `data_center`: the public macro tool family is `data_center_*`, and indicator/unit-rule governance is directly exposed through MCP/HTTP
+- Macro-governance and MCP docs are now aligned with the current local snapshot of `318` registered MCP tools
 
 ### 2026-04-28
 
@@ -223,7 +228,7 @@ Your Idea → Regime Gate → Policy Gate → Signal Validation → Approval →
 Not just an API wrapper. AgomTradePro is built for the AI agent era:
 
 - **Python SDK** — full programmatic access across the system's business modules
-- **MCP Server (313 registered tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
+- **MCP Server (318 registered tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
 - **Terminal CLI** — AI-interactive command interface
 - **Agent Runtime** — task orchestration with proposal → approval → execution lifecycle
 
@@ -445,7 +450,7 @@ Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
          look at hedge positions instead."
 ```
 
-**313 MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
+**318 MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
 
 ### Decision Workflow via AI
 
@@ -617,7 +622,7 @@ pytest tests/ -v --cov=apps
 
 ```
 35    business modules (apps/, excluding __pycache__)
-313   MCP tools (current local registration snapshot)
+318   MCP tools (current local registration snapshot)
 515   REST API paths (OpenAPI snapshot)
 5,212 automated test items (pytest --collect-only snapshot)
 271   documentation files (docs/ directory)

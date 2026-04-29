@@ -349,7 +349,7 @@ regime = get_regime()
 print(f"当前Regime: {regime.dominant_regime}")
 
 # 获取PMI数据
-pmi = get_macro_indicator("CN_PMI_MANUFACTURING")
+pmi = data_center_get_macro_series("CN_PMI_MANUFACTURING", limit=1)
 print(f"PMI: {pmi}")
 
 # 获取可投池资产
@@ -635,7 +635,7 @@ apps/strategy/
   - 安全的命名空间构建
   - 沙箱配置管理
 - [ ] 实现脚本API:
-  - get_macro_indicator()
+  - data_center_get_macro_series()
   - get_regime()
   - get_asset_pool()
   - calculate_signal()

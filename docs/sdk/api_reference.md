@@ -75,25 +75,31 @@ client.signal.check_eligibility(asset_code, logic_desc, target_regime) -> dict
 | `invalidation_logic` | `str | None` | Invalidation logic |
 | `invalidation_threshold` | `float | None` | Invalidation threshold |
 
-## Macro Module
+## Data Center Module
 
 ```python
-client.macro.list_indicators(data_source, frequency, limit) -> list[MacroIndicator]
-client.macro.get_indicator(indicator_code) -> MacroIndicator
-client.macro.get_indicator_data(indicator_code, start_date, end_date, limit) -> list[MacroDataPoint]
-client.macro.get_latest_data(indicator_code) -> MacroDataPoint | None
-client.macro.sync_indicator(indicator_code, force) -> dict
+client.data_center.list_indicators(active_only=False) -> list[dict]
+client.data_center.get_indicator(indicator_code) -> dict
+client.data_center.create_indicator(payload) -> dict
+client.data_center.update_indicator(indicator_code, payload) -> dict
+client.data_center.delete_indicator(indicator_code) -> dict
+client.data_center.list_indicator_unit_rules(indicator_code) -> list[dict]
+client.data_center.get_indicator_unit_rule(indicator_code, rule_id) -> dict
+client.data_center.create_indicator_unit_rule(indicator_code, payload) -> dict
+client.data_center.update_indicator_unit_rule(indicator_code, rule_id, payload) -> dict
+client.data_center.delete_indicator_unit_rule(indicator_code, rule_id) -> dict
+client.data_center.get_macro_series(indicator_code, start, end, limit, source) -> dict
+client.data_center.sync_macro(payload) -> dict
 ```
 
-### MacroIndicator
+### Indicator Governance Payload
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `code` | `str` | Indicator code |
-| `name` | `str` | Indicator name |
-| `unit` | `str` | Unit |
-| `frequency` | `str` | Frequency |
-| `data_source` | `str` | Data source |
+| `name_cn` | `str` | Chinese display name |
+| `default_period_type` | `str` | Canonical period code |
+| `default_rule` | `dict \| None` | Default active unit-rule summary |
 
 ## Backtest Module
 

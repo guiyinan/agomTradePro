@@ -247,7 +247,7 @@ Notes:
 |--------|-------------|
 | `client.regime` | Macro regime determination |
 | `client.signal` | Investment signal management |
-| `client.macro` | Macro economic data |
+| `client.data_center` | Unified data center, including macro indicator governance and macro series |
 | `client.policy` | Policy event management |
 | `client.backtest` | Backtesting engine |
 | `client.account` | Account and portfolio management |

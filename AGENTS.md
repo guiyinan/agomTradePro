@@ -9,7 +9,7 @@
 > **系统版本**: AgomTradePro 0.7.0
 > **项目状态**: 生产就绪
 > **业务模块**: 35个
-> **MCP 工具**: 313个（本地注册快照）
+> **MCP 工具**: 318个（本地注册快照）
 > **测试规模**: 5,212 个已收集测试用例
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
@@ -297,8 +297,10 @@ InvestmentSignal(
 
 ### 6. 宏观数据单位规范
 - 所有宏观数据必须包含单位信息（`unit` 字段）
-- 货币类数据必须统一转换为"元"层级存储
-- 单位信息存储在数据库 `macro_indicator.unit` 字段中
+- 货币类数据必须统一转换为 canonical storage unit 后再入库，货币类默认是"元"层级
+- 运行时真源固定为 `IndicatorCatalog`、`IndicatorUnitRule`、`data_center_macro_fact`
+- `data_center_macro_fact.value/unit` 存 canonical 值与单位，`extra.original_unit` 持久化原始单位供审计使用
+- 禁止在业务代码里新增单位映射硬编码；新增指标或量纲规则必须走 `data_center` Admin 或 `/api/data-center/indicators/*`
 
 ```python
 # 单位转换示例（Domain 层提供）

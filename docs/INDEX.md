@@ -26,6 +26,11 @@
 
 ---
 
+## 当前收口说明
+
+- 宏观运行时入口已统一收口到 `data_center`：HTTP 走 `/api/data-center/*`，MCP 走 `data_center_*` 工具族。
+- 指标目录与量纲规则真源见 [development/macro-data-center-cutover.md](development/macro-data-center-cutover.md)。
+
 ## 文档目录
 
 ### 0. 治理文档 (`governance/`) - 新增
@@ -250,7 +255,7 @@
 
 **业务模块**: 35个
 
-**MCP 工具**: 313个（本地注册快照）
+**MCP 工具**: 318个（本地注册快照）
 
 **REST API 路径**: 515个（OpenAPI 快照）
 

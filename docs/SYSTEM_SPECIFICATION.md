@@ -37,7 +37,7 @@
 | 指标 | 数值 |
 |------|------|
 | 业务模块 | 35个 |
-| MCP 工具 | 313个 |
+| MCP 工具 | 318个 |
 | 测试用例 | 5,212 项（`pytest --collect-only` 快照） |
 | 代码行数 | 50,000+ |
 | API 路径 | 515个（OpenAPI 快照） |
@@ -182,7 +182,7 @@ AgomTradePro/
 │   └── exceptions.py             # 统一异常类
 │
 ├── apps/                          # 业务模块 (33个)
-│   ├── macro/                    # 宏观数据采集
+│   ├── macro/                    # 宏观采集编排与兼容实体
 │   │   ├── domain/
 │   │   │   ├── entities.py       # 数据实体
 │   │   │   ├── protocols.py      # Protocol 接口
@@ -213,7 +213,7 @@ AgomTradePro/
 │   ├── account/                  # 账户管理
 │   ├── simulated_trading/        # 模拟交易
 │   ├── realtime/                 # 实时监控
-│   ├── data_center/              # 数据中台
+│   ├── data_center/              # 数据中台（宏观事实与指标治理真源）
 │   ├── strategy/                 # 策略系统
 │   ├── backtest/                 # 回测引擎
 │   ├── audit/                    # 事后审计
@@ -313,9 +313,9 @@ AgomTradePro/
 
 ### 3.2 核心引擎模块
 
-#### 3.2.1 Macro 模块 - 宏观数据采集
+#### 3.2.1 Macro 模块 - 宏观采集编排与兼容层
 
-**功能**：采集和管理宏观经济指标数据
+**功能**：承载宏观领域实体、采集编排和兼容接口，运行时事实读写已收口到 `apps/data_center`
 
 **数据源**：
 - Tushare Pro（金融数据）
@@ -341,11 +341,17 @@ class MacroDataPoint:
     source: str
 ```
 
+**运行时真源**：
+- `IndicatorCatalog`：指标目录与语义定义
+- `IndicatorUnitRule`：原始/存储/展示单位与换算倍率
+- `data_center_macro_fact`：标准化宏观事实表
+
 **主要功能**：
 - 多数据源采集（带 Failover）
-- 单位自动转换（货币统一为"元"）
+- 采集后按 `IndicatorUnitRule` 统一换算到 canonical storage unit
 - 数据一致性校验（容差 1%）
 - 定时同步任务
+- 为 `regime`、`pulse`、`dashboard` 等消费者提供兼容领域实体
 
 #### 3.2.2 Regime 模块 - 宏观象限判定
 

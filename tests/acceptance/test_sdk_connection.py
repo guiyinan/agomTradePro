@@ -146,20 +146,21 @@ def test_get_policy_status() -> None:
         _assert_or_skip_endpoint_error("get_policy_status", e)
 
 
-def test_list_macro_indicators() -> None:
-    """Test 5: List Macro Indicators"""
-    print_test("Test 5: List Macro Indicators")
+def test_list_data_center_indicators() -> None:
+    """Test 5: List Data Center Indicators"""
+    print_test("Test 5: List Data Center Indicators")
     try:
         from sdk.agomtradepro import AgomTradeProClient
 
         client = AgomTradeProClient()
-        indicators = client.macro.list_indicators()
+        indicators = client.data_center.list_indicators()
 
-        print_success(f"Found {len(indicators)} macro indicators")
+        print_success(f"Found {len(indicators)} data center indicators")
         if indicators:
-            print_info(f"First indicator: {indicators[0].code} - {indicators[0].name}")
+            first = indicators[0]
+            print_info(f"First indicator: {first.get('code')} - {first.get('name_cn')}")
     except Exception as e:
-        _assert_or_skip_endpoint_error("list_macro_indicators", e)
+        _assert_or_skip_endpoint_error("list_data_center_indicators", e)
 
 
 def test_list_signals() -> None:
@@ -265,7 +266,7 @@ def main() -> int:
         ("Create Client", test_create_client),
         ("Get Current Regime", test_get_current_regime),
         ("Get Policy Status", test_get_policy_status),
-        ("List Macro Indicators", test_list_macro_indicators),
+        ("List Data Center Indicators", test_list_data_center_indicators),
         ("List Signals", test_list_signals),
         ("Check Signal Eligibility", test_check_signal_eligibility),
         ("Get Regime History", test_regime_history),

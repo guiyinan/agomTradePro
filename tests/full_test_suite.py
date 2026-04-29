@@ -596,7 +596,7 @@ def test_mcp_server():
         from agomtradepro_mcp.tools import (
             regime_tools,
             signal_tools,
-            macro_tools,
+            data_center_tools,
             policy_tools,
             backtest_tools,
             account_tools,
@@ -641,10 +641,10 @@ def test_sdk_client():
         return
 
     try:
-        indicators = client.macro.list_indicators()
+        indicators = client.data_center.list_indicators()
         record(
             "SDK macro indicators",
-            "PASS" if indicators else "FAIL",
+            "PASS" if isinstance(indicators, list) else "FAIL",
             f"{len(indicators)} indicators",
         )
     except Exception as e:

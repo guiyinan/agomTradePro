@@ -198,8 +198,8 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 
 - `get_current_regime`
 - `get_policy_status`
-- `list_macro_indicators`
-- `sync_macro_indicator`
+- `data_center_list_indicators`
+- `data_center_sync_macro`
 - `list_hedge_pairs`
 - `list_rotation_assets`
 - `list_backtests`

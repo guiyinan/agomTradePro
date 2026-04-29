@@ -162,7 +162,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-04-28`: `313` registered tools.
+You can validate tool registration locally. Current local snapshot on `2026-04-29`: `318` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
@@ -340,15 +340,14 @@ reject_signal(signal_id, reason)
 invalidate_signal(signal_id, reason)
 ```
 
-### Macro Data Tools
+### Data Center Macro Tools
 
 ```
-list_macro_indicators(data_source, frequency)
-get_macro_indicator(indicator_code)
-get_macro_data(indicator_code, start_date, end_date)
-get_latest_macro_data(indicator_code)
-sync_macro_indicator(indicator_code, force)
-explain_macro_indicator(indicator_code)
+data_center_list_indicators(active_only)
+data_center_get_indicator(indicator_code)
+data_center_list_indicator_unit_rules(indicator_code)
+data_center_get_macro_series(indicator_code, start, end, limit)
+data_center_sync_macro(provider_id, indicator_code, start, end)
 ```
 
 ### Backtest Tools

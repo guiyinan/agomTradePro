@@ -330,7 +330,7 @@ python test_sdk_connection.py
 | Regime | `client.regime.history(limit=10)` | 返回历史记录 | ☐ |
 | Signal | `client.signal.list()` | 返回信号列表 | ☐ |
 | Signal | `client.signal.check_eligibility()` | 返回准入结果 | ☐ |
-| Macro | `client.macro.list_indicators()` | 返回指标列表 | ☐ |
+| Data Center Macro | `client.data_center.list_indicators()` | 返回指标目录列表 | ☐ |
 | Policy | `client.policy.get_status()` | 返回政策状态 | ☐ |
 | Backtest | `client.backtest.list()` | 返回回测列表 | ☐ |
 | Account | `client.account.get_portfolios()` | 返回投资组合 | ☐ |
@@ -412,7 +412,7 @@ python -m agomtradepro_mcp.server
 | Regime | `explain_regime` | "解释Recovery象限" | 返回解释文本 | ☐ |
 | Signal | `check_signal_eligibility` | "检查000001.SH的准入" | 返回准入结果 | ☐ |
 | Signal | `list_signals` | "列出所有信号" | 返回信号列表 | ☐ |
-| Macro | `list_macro_indicators` | "列出宏观指标" | 返回指标列表 | ☐ |
+| Data Center Macro | `data_center_list_indicators` | "列出 data_center 宏观指标目录" | 返回指标目录列表 | ☐ |
 | Policy | `get_policy_status` | "获取政策状态" | 返回政策档位 | ☐ |
 | Backtest | `list_backtests` | "列出回测" | 返回回测列表 | ☐ |
 | DecisionWorkflow | `decision_workflow_get_funnel_context` | "获取 trade-001 的决策漏斗上下文" | 返回 step1-step6 上下文 | ☐ |

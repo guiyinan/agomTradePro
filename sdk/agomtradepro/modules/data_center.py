@@ -58,6 +58,52 @@ class DataCenterModule(BaseModule):
             return self._patch("settings/", json=payload)
         return self._put("settings/", json=payload)
 
+    def list_indicators(self, *, active_only: bool = False) -> list[dict[str, Any]]:
+        params = {"active_only": str(active_only).lower()} if active_only else None
+        response = self._get("indicators/", params=params)
+        if isinstance(response, dict):
+            return response.get("results", response.get("data", []))
+        return response
+
+    def get_indicator(self, indicator_code: str) -> dict[str, Any]:
+        return self._get(f"indicators/{indicator_code}/")
+
+    def create_indicator(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._post("indicators/", json=payload)
+
+    def update_indicator(self, indicator_code: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._patch(f"indicators/{indicator_code}/", json=payload)
+
+    def delete_indicator(self, indicator_code: str) -> dict[str, Any]:
+        return self._delete(f"indicators/{indicator_code}/")
+
+    def list_indicator_unit_rules(self, indicator_code: str) -> list[dict[str, Any]]:
+        response = self._get(f"indicators/{indicator_code}/unit-rules/")
+        if isinstance(response, dict):
+            return response.get("results", response.get("data", []))
+        return response
+
+    def get_indicator_unit_rule(self, indicator_code: str, rule_id: int) -> dict[str, Any]:
+        return self._get(f"indicators/{indicator_code}/unit-rules/{rule_id}/")
+
+    def create_indicator_unit_rule(
+        self,
+        indicator_code: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._post(f"indicators/{indicator_code}/unit-rules/", json=payload)
+
+    def update_indicator_unit_rule(
+        self,
+        indicator_code: str,
+        rule_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._patch(f"indicators/{indicator_code}/unit-rules/{rule_id}/", json=payload)
+
+    def delete_indicator_unit_rule(self, indicator_code: str, rule_id: int) -> dict[str, Any]:
+        return self._delete(f"indicators/{indicator_code}/unit-rules/{rule_id}/")
+
     def resolve_asset(self, code: str, source_type: Optional[str] = None) -> dict[str, Any]:
         params = {"code": code}
         if source_type:
@@ -71,7 +117,6 @@ class DataCenterModule(BaseModule):
         end: Optional[str] = None,
         limit: Optional[int] = None,
         source: Optional[str] = None,
-        allow_legacy_fallback: Optional[bool] = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"indicator_code": indicator_code}
         if start:
@@ -82,8 +127,6 @@ class DataCenterModule(BaseModule):
             params["limit"] = limit
         if source:
             params["source"] = source
-        if allow_legacy_fallback is not None:
-            params["allow_legacy_fallback"] = str(allow_legacy_fallback).lower()
         return self._get("macro/series/", params=params)
 
     def sync_macro(self, payload: dict[str, Any]) -> dict[str, Any]:

@@ -9,6 +9,171 @@ from agomtradepro import AgomTradeProClient
 
 def register_data_center_tools(server: FastMCP) -> None:
     @server.tool()
+    def data_center_list_indicators(active_only: bool = False) -> list[dict[str, Any]]:
+        """列出 data_center 指标目录及默认量纲规则摘要。"""
+        client = AgomTradeProClient()
+        return client.data_center.list_indicators(active_only=active_only)
+
+    @server.tool()
+    def data_center_get_indicator(indicator_code: str) -> dict[str, Any]:
+        """读取单个指标目录定义。"""
+        client = AgomTradeProClient()
+        return client.data_center.get_indicator(indicator_code)
+
+    @server.tool()
+    def data_center_create_indicator(
+        code: str,
+        name_cn: str,
+        default_period_type: str = "M",
+        name_en: str = "",
+        description: str = "",
+        category: str = "",
+        is_active: bool = True,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """创建 data_center 指标目录项。"""
+        client = AgomTradeProClient()
+        return client.data_center.create_indicator(
+            {
+                "code": code,
+                "name_cn": name_cn,
+                "name_en": name_en,
+                "description": description,
+                "category": category,
+                "default_period_type": default_period_type,
+                "is_active": is_active,
+                "extra": extra or {},
+            }
+        )
+
+    @server.tool()
+    def data_center_update_indicator(
+        indicator_code: str,
+        name_cn: str | None = None,
+        name_en: str | None = None,
+        description: str | None = None,
+        category: str | None = None,
+        default_period_type: str | None = None,
+        is_active: bool | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """更新 data_center 指标目录项。"""
+        client = AgomTradeProClient()
+        payload: dict[str, Any] = {}
+        if name_cn is not None:
+            payload["name_cn"] = name_cn
+        if name_en is not None:
+            payload["name_en"] = name_en
+        if description is not None:
+            payload["description"] = description
+        if category is not None:
+            payload["category"] = category
+        if default_period_type is not None:
+            payload["default_period_type"] = default_period_type
+        if is_active is not None:
+            payload["is_active"] = is_active
+        if extra is not None:
+            payload["extra"] = extra
+        return client.data_center.update_indicator(indicator_code, payload)
+
+    @server.tool()
+    def data_center_delete_indicator(indicator_code: str) -> dict[str, Any]:
+        """删除 data_center 指标目录项。"""
+        client = AgomTradeProClient()
+        return client.data_center.delete_indicator(indicator_code)
+
+    @server.tool()
+    def data_center_list_indicator_unit_rules(indicator_code: str) -> list[dict[str, Any]]:
+        """列出指定指标的量纲/单位规则。"""
+        client = AgomTradeProClient()
+        return client.data_center.list_indicator_unit_rules(indicator_code)
+
+    @server.tool()
+    def data_center_get_indicator_unit_rule(
+        indicator_code: str,
+        rule_id: int,
+    ) -> dict[str, Any]:
+        """读取指定指标的单条量纲规则。"""
+        client = AgomTradeProClient()
+        return client.data_center.get_indicator_unit_rule(indicator_code, rule_id)
+
+    @server.tool()
+    def data_center_create_indicator_unit_rule(
+        indicator_code: str,
+        dimension_key: str,
+        storage_unit: str,
+        display_unit: str,
+        multiplier_to_storage: float,
+        source_type: str = "",
+        original_unit: str = "",
+        is_active: bool = True,
+        priority: int = 0,
+        description: str = "",
+    ) -> dict[str, Any]:
+        """为指标创建量纲/单位规则。"""
+        client = AgomTradeProClient()
+        return client.data_center.create_indicator_unit_rule(
+            indicator_code,
+            {
+                "source_type": source_type,
+                "dimension_key": dimension_key,
+                "original_unit": original_unit,
+                "storage_unit": storage_unit,
+                "display_unit": display_unit,
+                "multiplier_to_storage": multiplier_to_storage,
+                "is_active": is_active,
+                "priority": priority,
+                "description": description,
+            },
+        )
+
+    @server.tool()
+    def data_center_update_indicator_unit_rule(
+        indicator_code: str,
+        rule_id: int,
+        source_type: str | None = None,
+        dimension_key: str | None = None,
+        original_unit: str | None = None,
+        storage_unit: str | None = None,
+        display_unit: str | None = None,
+        multiplier_to_storage: float | None = None,
+        is_active: bool | None = None,
+        priority: int | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """更新指标量纲/单位规则。"""
+        client = AgomTradeProClient()
+        payload: dict[str, Any] = {}
+        if source_type is not None:
+            payload["source_type"] = source_type
+        if dimension_key is not None:
+            payload["dimension_key"] = dimension_key
+        if original_unit is not None:
+            payload["original_unit"] = original_unit
+        if storage_unit is not None:
+            payload["storage_unit"] = storage_unit
+        if display_unit is not None:
+            payload["display_unit"] = display_unit
+        if multiplier_to_storage is not None:
+            payload["multiplier_to_storage"] = multiplier_to_storage
+        if is_active is not None:
+            payload["is_active"] = is_active
+        if priority is not None:
+            payload["priority"] = priority
+        if description is not None:
+            payload["description"] = description
+        return client.data_center.update_indicator_unit_rule(indicator_code, rule_id, payload)
+
+    @server.tool()
+    def data_center_delete_indicator_unit_rule(
+        indicator_code: str,
+        rule_id: int,
+    ) -> dict[str, Any]:
+        """删除指标量纲/单位规则。"""
+        client = AgomTradeProClient()
+        return client.data_center.delete_indicator_unit_rule(indicator_code, rule_id)
+
+    @server.tool()
     def data_center_get_quotes(
         asset_code: str,
         strict_freshness: bool | None = None,
@@ -39,16 +204,27 @@ def register_data_center_tools(server: FastMCP) -> None:
         start: str | None = None,
         end: str | None = None,
         limit: int | None = None,
-        allow_legacy_fallback: bool | None = None,
     ) -> dict[str, Any]:
-        """读取指定宏观指标的标准化时序，可选显式启用 legacy fallback。"""
+        """读取指定宏观指标的标准化时序。"""
         client = AgomTradeProClient()
-        return client.data_center.get_macro_series(
-            indicator_code,
-            start=start,
-            end=end,
-            limit=limit,
-            allow_legacy_fallback=allow_legacy_fallback,
+        return client.data_center.get_macro_series(indicator_code, start=start, end=end, limit=limit)
+
+    @server.tool()
+    def data_center_sync_macro(
+        provider_id: int,
+        indicator_code: str,
+        start: str,
+        end: str,
+    ) -> dict[str, Any]:
+        """同步指定宏观指标到 data_center 宏观事实表。"""
+        client = AgomTradeProClient()
+        return client.data_center.sync_macro(
+            {
+                "provider_id": provider_id,
+                "indicator_code": indicator_code,
+                "start": start,
+                "end": end,
+            }
         )
 
     @server.tool()

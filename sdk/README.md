@@ -154,7 +154,7 @@ Three methods (priority order):
 |--------|-------------|
 | `client.regime` | Regime determination - get current regime, calculate regime, history |
 | `client.signal` | Investment signals - create, approve, check eligibility |
-| `client.macro` | Macro data - indicators, data points, sync |
+| `client.data_center` | Unified data center - provider status, indicator governance, macro/price/fund/news facts |
 | `client.policy` | Policy events - status, event management, **workbench operations** |
 | `client.backtest` | Backtesting - run, get results, equity curve |
 | `client.account` | Unified account management - accounts, positions, performance; old portfolio APIs remain compatibility-only |
@@ -181,7 +181,7 @@ Canonical API routing for SDK/MCP is documented in:
 ### Core Tools
 - **Regime**: `get_current_regime`, `calculate_regime`, `get_regime_history`, `explain_regime`
 - **Signal**: `list_signals`, `create_signal`, `check_signal_eligibility`, `approve_signal`
-- **Macro**: `list_macro_indicators`, `get_macro_data`, `sync_macro_indicator`
+- **Data Center Macro**: `data_center_list_indicators`, `data_center_get_macro_series`, `data_center_sync_macro`
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
 - **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
 - **Alpha Trigger**: `list_alpha_candidates`, `get_alpha_candidate`, `update_alpha_candidate_status`
@@ -302,12 +302,12 @@ The SDK automatically uses the new routes while maintaining backward compatibili
 | `/regime/api/current/` | `/api/regime/current/` |
 | `/signal/api/` | `/api/signal/` |
 | `/account/api/portfolios/` | `/api/account/portfolios/` |
-| `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` |
+| `/macro/api/supported-indicators/` | `/api/data-center/indicators/` |
 | `/filter/api/` | `/api/filter/` |
 | `/backtest/api/backtests/` | `/api/backtest/backtests/` |
 | `/ai/api/providers/` | `/api/ai/providers/` |
 | `/prompt/api/templates/` | `/api/prompt/templates/` |
-| `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` |
+| `/macro/api/indicator-data/` | `/api/data-center/macro/series/` |
 | `/policy/api/events/` | `/api/policy/events/` |
 | `/factor/api/` | `/api/factor/` |
 
