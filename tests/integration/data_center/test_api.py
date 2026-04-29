@@ -103,7 +103,7 @@ class _StubProvider:
                 indicator_code=indicator_code,
                 reporting_period=date(2025, 3, 1),
                 value=51.2,
-                unit="%",
+                unit="指数",
                 source="stub-provider",
             )
         ]

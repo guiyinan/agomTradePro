@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from django.test import TestCase
+from apps.data_center.infrastructure.models import MacroFactModel
 
 from apps.macro.application.use_cases import (
     MacroDataPoint,
@@ -22,6 +23,7 @@ from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError, MacroDataPoint
 from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from tests.integration.support.macro_rules import seed_indicator_rule
 
 
 @pytest.mark.django_db
@@ -54,7 +56,7 @@ class TestMacroDataSyncWorkflow:
                 original_unit="指数"
             ),
             MacroDataPoint(
-                code="CN_CPI",
+                code="CN_CPI_NATIONAL_YOY",
                 value=2.1,
                 observed_at=date(2024, 1, 1),
                 published_at=date(2024, 1, 10),
@@ -76,7 +78,7 @@ class TestMacroDataSyncWorkflow:
         request = SyncMacroDataRequest(
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 31),
-            indicators=["CN_PMI", "CN_CPI"]
+            indicators=["CN_PMI", "CN_CPI_NATIONAL_YOY"]
         )
         response = use_case.execute(request)
 
@@ -95,7 +97,7 @@ class TestMacroDataSyncWorkflow:
         assert pmi_indicator.source == "test", "数据源不正确"
 
         cpi_indicator = repository.get_by_code_and_date(
-            code="CN_CPI",
+            code="CN_CPI_NATIONAL_YOY",
             observed_at=date(2024, 1, 1)
         )
         assert cpi_indicator is not None, "CPI 数据未保存"
@@ -124,6 +126,13 @@ class TestMacroDataSyncWorkflow:
             ),
         ]
         mock_adapter.fetch = Mock(return_value=test_data_points)
+        seed_indicator_rule(
+            code="CN_NEW_CREDIT",
+            original_unit="万亿元",
+            storage_unit="元",
+            display_unit="万亿元",
+            multiplier_to_storage=1000000000000,
+        )
 
         repository = DjangoMacroRepository()
         use_case = SyncMacroDataUseCase(
@@ -263,8 +272,8 @@ class TestMacroDataSyncWorkflow:
         assert response2.skipped_count == 1, "应有 1 条数据被跳过"
 
         # 验证目标日期不会产生重复记录
-        same_day_count = repository._model.objects.filter(
-            code="CN_PMI",
+        same_day_count = MacroFactModel.objects.filter(
+            indicator_code="CN_PMI",
             reporting_period=date(2024, 1, 1)
         ).count()
         assert same_day_count == 1, f"目标日期应仅有 1 条记录，实际: {same_day_count}"
@@ -448,6 +457,7 @@ class TestPitDataHandling:
         """
         repository = DjangoMacroRepository()
         test_code = "CN_PMI_PIT_TEST"
+        seed_indicator_rule(code=test_code, original_unit="指数")
 
         # 保存数据（带发布延迟）
         # 1 月份数据在 2 月发布
@@ -509,7 +519,7 @@ class TestPitDataHandling:
         # 第一次发布（修订版 1）
         repository.save_indicator(
             MacroIndicator(
-                code="CN_GDP",
+                code="CN_GDP_YOY",
                 value=5.2,
                 reporting_period=date(2024, 1, 1),
                 published_at=date(2024, 1, 20),
@@ -524,7 +534,7 @@ class TestPitDataHandling:
         # 第二次发布（修订版 2 - 初步核实）
         repository.save_indicator(
             MacroIndicator(
-                code="CN_GDP",
+                code="CN_GDP_YOY",
                 value=5.3,  # 上修 0.1
                 reporting_period=date(2024, 1, 1),
                 published_at=date(2024, 2, 20),
@@ -539,7 +549,7 @@ class TestPitDataHandling:
         # 第三次发布（修订版 3 - 最终核实）
         repository.save_indicator(
             MacroIndicator(
-                code="CN_GDP",
+                code="CN_GDP_YOY",
                 value=5.25,  # 微调
                 reporting_period=date(2024, 1, 1),
                 published_at=date(2024, 3, 20),
@@ -553,7 +563,7 @@ class TestPitDataHandling:
 
         # 验证：获取最新修订版本
         latest = repository.get_by_code_and_date(
-            code="CN_GDP",
+            code="CN_GDP_YOY",
             observed_at=date(2024, 1, 1),
             revision_number=None  # None 表示获取最新版本
         )
@@ -562,7 +572,7 @@ class TestPitDataHandling:
 
         # 验证：获取特定修订版本
         rev1 = repository.get_by_code_and_date(
-            code="CN_GDP",
+            code="CN_GDP_YOY",
             observed_at=date(2024, 1, 1),
             revision_number=1
         )
@@ -570,7 +580,7 @@ class TestPitDataHandling:
         assert rev1.value == 5.2, "修订版 1 的值应为 5.2"
 
         rev2 = repository.get_by_code_and_date(
-            code="CN_GDP",
+            code="CN_GDP_YOY",
             observed_at=date(2024, 1, 1),
             revision_number=2
         )
@@ -585,7 +595,7 @@ class TestPitDataHandling:
         # 1 月数据
         repository.save_indicator(
             MacroIndicator(
-                code="CN_CPI",
+                code="CN_CPI_NATIONAL_YOY",
                 value=2.0,
                 reporting_period=date(2024, 1, 1),
                 published_at=date(2024, 2, 15),
@@ -598,7 +608,7 @@ class TestPitDataHandling:
         )
         repository.save_indicator(
             MacroIndicator(
-                code="CN_CPI",
+                code="CN_CPI_NATIONAL_YOY",
                 value=2.1,  # 修订
                 reporting_period=date(2024, 1, 1),
                 published_at=date(2024, 3, 15),
@@ -613,7 +623,7 @@ class TestPitDataHandling:
         # 2 月数据
         repository.save_indicator(
             MacroIndicator(
-                code="CN_CPI",
+                code="CN_CPI_NATIONAL_YOY",
                 value=2.3,
                 reporting_period=date(2024, 2, 1),
                 published_at=date(2024, 3, 15),
@@ -627,7 +637,7 @@ class TestPitDataHandling:
 
         # 验证：PIT 模式查询
         series = repository.get_series(
-            code="CN_CPI",
+            code="CN_CPI_NATIONAL_YOY",
             start_date=date(2024, 1, 1),
             end_date=date(2024, 2, 28),
             use_pit=True  # 启用 PIT 模式

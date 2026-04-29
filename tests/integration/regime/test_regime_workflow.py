@@ -65,7 +65,7 @@ class TestRegimeCalculationWorkflow:
 
             macro_repo.save_indicator(
                 MacroIndicator(
-                    code="CN_CPI",
+                    code="CN_CPI_NATIONAL_YOY",
                     value=cpi_value,
                     reporting_period=observed_date,
                     period_type=PeriodType.MONTH,
@@ -161,7 +161,7 @@ class TestRegimeCalculationWorkflow:
             # CPI: 2.5-3.5
             macro_repo.save_indicator(
                 MacroIndicator(
-                    code="CN_CPI",
+                    code="CN_CPI_NATIONAL_YOY",
                     value=2.5 + (i / 30) * 1.0,
                     reporting_period=observed_date,
                     period_type=PeriodType.MONTH,
@@ -265,7 +265,7 @@ class TestRegimeCalculationWorkflow:
             # CPI: 高通胀 (>3)
             macro_repo.save_indicator(
                 MacroIndicator(
-                    code="CN_CPI",
+                    code="CN_CPI_NATIONAL_YOY",
                     value=3.0 + (i / 30) * 1.0,  # 3.0 -> 4.0
                     reporting_period=observed_date,
                     period_type=PeriodType.MONTH,
@@ -357,7 +357,7 @@ class TestRegimeCalculationWorkflow:
 
             macro_repo.save_indicator(
                 MacroIndicator(
-                    code="CN_CPI",
+                    code="CN_CPI_NATIONAL_YOY",
                     value=2.0 + i * 0.05,
                     reporting_period=observed_date,
                     period_type=PeriodType.MONTH,
@@ -437,7 +437,7 @@ class TestRegimeCalculationWorkflow:
 
             macro_repo.save_indicator(
                 MacroIndicator(
-                    code="CN_CPI",
+                    code="CN_CPI_NATIONAL_YOY",
                     value=2.0 + i * 0.05,
                     reporting_period=observed_date,
                     period_type=PeriodType.MONTH,
@@ -502,7 +502,7 @@ class TestRegimeCalculationWorkflow:
 
             macro_repo.save_indicator(
                 MacroIndicator(
-                    code="CN_CPI",
+                    code="CN_CPI_NATIONAL_YOY",
                     value=1.5 + (i / 36) * 2,  # 1.5 -> 3.5
                     reporting_period=observed_date,
                     period_type=PeriodType.MONTH,

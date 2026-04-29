@@ -9,16 +9,16 @@ Integration Tests for Strategy Execute Flow
 """
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
-from django.utils import timezone
 
 from apps.account.infrastructure.models import AccountProfileModel
 from apps.asset_analysis.infrastructure.models import AssetScoreCache
-from apps.macro.infrastructure.models import MacroIndicator
+from apps.macro.domain.entities import MacroIndicator, PeriodType
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.infrastructure.models import RegimeLog
 from apps.simulated_trading.infrastructure.models import (
     FeeConfigModel,
@@ -30,6 +30,7 @@ from apps.strategy.infrastructure.models import (
     StrategyExecutionLogModel,
     StrategyModel,
 )
+from tests.integration.support.macro_rules import seed_indicator_rule
 
 
 @pytest.mark.django_db
@@ -71,13 +72,22 @@ class TestStrategyExecuteFlow(TestCase):
     def _setup_test_data(self):
         """设置测试数据（宏观、Regime、资产评分）"""
         # 创建宏观数据
-        MacroIndicator.objects.create(
-            code='CN_PMI_MANUFACTURING',
-            value=50.8,
-            unit='指数',
-            reporting_period='2024-01-31',
-            period_type='M',
-            source='test'
+        seed_indicator_rule(
+            code="CN_PMI_MANUFACTURING",
+            original_unit="指数",
+            default_period_type="M",
+            category="growth",
+        )
+        DjangoMacroRepository().save_indicator(
+            MacroIndicator(
+                code="CN_PMI_MANUFACTURING",
+                value=50.8,
+                unit="指数",
+                original_unit="指数",
+                reporting_period=date(2024, 1, 31),
+                period_type=PeriodType.MONTH,
+                source="test",
+            )
         )
 
         # 创建 Regime 状态
