@@ -6,6 +6,8 @@ from django.contrib import admin
 
 from apps.data_center.models import (
     DataProviderSettingsModel,
+    IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
     ProviderConfigModel,
 )
 
@@ -49,3 +51,30 @@ class DataProviderSettingsAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None) -> bool:  # type: ignore[override]
         return False
+
+
+@admin.register(IndicatorCatalogModel)
+class IndicatorCatalogAdmin(admin.ModelAdmin):
+    list_display = ("code", "name_cn", "category", "default_period_type", "is_active")
+    list_filter = ("category", "default_period_type", "is_active")
+    search_fields = ("code", "name_cn", "name_en", "description")
+    ordering = ("code",)
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(IndicatorUnitRuleModel)
+class IndicatorUnitRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "indicator_code",
+        "source_type",
+        "original_unit",
+        "storage_unit",
+        "display_unit",
+        "dimension_key",
+        "priority",
+        "is_active",
+    )
+    list_filter = ("source_type", "dimension_key", "is_active")
+    search_fields = ("indicator_code", "original_unit", "storage_unit", "display_unit")
+    ordering = ("indicator_code", "-priority", "source_type", "original_unit")
+    readonly_fields = ("created_at", "updated_at")

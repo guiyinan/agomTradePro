@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Protocol
 from django.db import transaction
 from django.db.models import Q
 
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.filter.domain.entities import (
     FilterResult,
     FilterSeries,
@@ -19,7 +20,6 @@ from apps.filter.domain.entities import (
     KalmanFilterParams,
     KalmanFilterState,
 )
-from apps.macro.infrastructure.models import MacroIndicator
 
 from .models import FilterConfig, FilterResultModel, KalmanStateModel
 
@@ -189,7 +189,7 @@ class DjangoFilterRepository:
         Returns:
             List[Dict]: 日期和值的字典列表
         """
-        queryset = MacroIndicator._default_manager.filter(code=indicator_code)
+        queryset = MacroFactModel._default_manager.filter(indicator_code=indicator_code)
 
         if start_date:
             queryset = queryset.filter(reporting_period__gte=start_date)
@@ -208,40 +208,21 @@ class DjangoFilterRepository:
 
     def get_available_indicators(self) -> list[dict]:
         """获取可用的指标列表（包含代码和名称）"""
-        # 常见指标名称映射
-        INDICATOR_NAMES = {
-            'CN_PMI': 'PMI (制造业采购经理指数)',
-            'CN_NON_MAN_PMI': '非制造业PMI',
-            'CN_CPI': 'CPI (居民消费价格指数)',
-            'CN_CPI_NATIONAL_YOY': 'CPI同比',
-            'CN_CPI_NATIONAL_MOM': 'CPI环比',
-            'CN_PPI': 'PPI (工业生产者出厂价格指数)',
-            'CN_PPI_YOY': 'PPI同比',
-            'CN_M2': 'M2 (广义货币供应量)',
-            'CN_SHIBOR': 'SHIBOR (上海银行间同业拆放利率)',
-            'CN_LPR': 'LPR (贷款市场报价利率)',
-            'CN_RRR': 'RRR (存款准备金率)',
-            'CN_GDP': 'GDP (国内生产总值)',
-            'CN_VALUE_ADDED': '工业增加值',
-            'CN_RETAIL_SALES': '社会消费品零售总额',
-            'CN_NEW_CREDIT': '新增人民币贷款',
-            'CN_RMB_LOAN': '人民币贷款',
-            'CN_RMB_DEPOSIT': '人民币存款',
-            'CN_EXPORTS': '出口额',
-            'CN_IMPORTS': '进口额',
-            'CN_TRADE_BALANCE': '贸易差额',
-            'CN_FX_RESERVES': '外汇储备',
-            'CN_NEW_HOUSE_PRICE': '新建住宅价格指数',
-            'CN_OIL_PRICE': '原油价格',
+        codes = (
+            MacroFactModel._default_manager.values_list('indicator_code', flat=True)
+            .distinct()
+            .order_by('indicator_code')
+        )
+        catalog_map = {
+            item.code: item.name_cn
+            for item in IndicatorCatalogModel.objects.filter(code__in=list(codes))
         }
-
-        codes = MacroIndicator._default_manager.values_list('code', flat=True).distinct().order_by('code')
 
         indicators = []
         for code in codes:
             indicators.append({
                 'code': code,
-                'name': INDICATOR_NAMES.get(code, code)  # 如果没有映射，使用代码本身
+                'name': catalog_map.get(code, code)
             })
         return indicators
 

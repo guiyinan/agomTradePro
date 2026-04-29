@@ -16,6 +16,10 @@ from apps.data_center.interface.api_views import (
     capital_flows,
     financials,
     fund_nav_series,
+    indicator_detail,
+    indicator_list_create,
+    indicator_unit_rule_detail,
+    indicator_unit_rule_list_create,
     macro_series,
     news,
     price_history,
@@ -50,6 +54,7 @@ class DataCenterApiRootView(APIView):
                     "providers": "/api/data-center/providers/",
                     "provider_status": "/api/data-center/providers/status/",
                     "provider_settings": "/api/data-center/settings/",
+                    "indicators": "/api/data-center/indicators/",
                     "asset_resolve": "/api/data-center/assets/resolve/",
                     "macro_series": "/api/data-center/macro/series/",
                     "price_history": "/api/data-center/prices/history/",
@@ -80,6 +85,19 @@ urlpatterns = [
     path("providers/status/", provider_status, name="dc-provider-status"),
     # Global settings
     path("settings/", provider_settings, name="dc-settings"),
+    # Indicator governance
+    path("indicators/", indicator_list_create, name="dc-indicator-list"),
+    path("indicators/<str:indicator_code>/", indicator_detail, name="dc-indicator-detail"),
+    path(
+        "indicators/<str:indicator_code>/unit-rules/",
+        indicator_unit_rule_list_create,
+        name="dc-indicator-unit-rule-list",
+    ),
+    path(
+        "indicators/<str:indicator_code>/unit-rules/<int:rule_id>/",
+        indicator_unit_rule_detail,
+        name="dc-indicator-unit-rule-detail",
+    ),
     # --- Phase 2: data query endpoints ---
     path("assets/resolve/", asset_resolve, name="dc-asset-resolve"),
     path("macro/series/", macro_series, name="dc-macro-series"),

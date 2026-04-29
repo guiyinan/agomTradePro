@@ -17,10 +17,14 @@ from typing import TYPE_CHECKING, Any
 
 from apps.data_center.application.dtos import (
     AssetResponse,
+    CreateIndicatorCatalogRequest,
+    CreateIndicatorUnitRuleRequest,
     CreateProviderRequest,
     DecisionReliabilityRepairReport,
     DecisionReliabilityRepairRequest,
     DecisionReliabilitySection,
+    IndicatorCatalogResponse,
+    IndicatorUnitRuleResponse,
     LatestQuoteRequest,
     MacroDataPoint,
     MacroSeriesRequest,
@@ -40,9 +44,17 @@ from apps.data_center.application.dtos import (
     SyncResult,
     SyncSectorMembershipRequest,
     SyncValuationRequest,
+    UpdateIndicatorCatalogRequest,
+    UpdateIndicatorUnitRuleRequest,
     UpdateProviderRequest,
 )
-from apps.data_center.domain.entities import ConnectionTestResult, ProviderConfig, RawAudit
+from apps.data_center.domain.entities import (
+    ConnectionTestResult,
+    IndicatorCatalog,
+    IndicatorUnitRule,
+    ProviderConfig,
+    RawAudit,
+)
 from apps.data_center.domain.enums import DataCapability, FinancialPeriodType
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
@@ -51,7 +63,7 @@ from apps.data_center.domain.protocols import (
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
-    LegacyMacroSeriesRepositoryProtocol,
+    IndicatorUnitRuleRepositoryProtocol,
     MacroFactRepositoryProtocol,
     NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
@@ -147,6 +159,50 @@ def _config_to_response(config: ProviderConfig) -> ProviderResponse:
     )
 
 
+def _catalog_to_response(
+    catalog: IndicatorCatalog,
+    *,
+    default_rule: IndicatorUnitRule | None = None,
+) -> IndicatorCatalogResponse:
+    return IndicatorCatalogResponse(
+        code=catalog.code,
+        name_cn=catalog.name_cn,
+        name_en=catalog.name_en,
+        description=catalog.description,
+        category=catalog.category,
+        default_period_type=catalog.default_period_type,
+        is_active=catalog.is_active,
+        extra=catalog.extra,
+        default_rule=default_rule.to_dict() if default_rule else None,
+    )
+
+
+def _unit_rule_to_response(rule: IndicatorUnitRule) -> IndicatorUnitRuleResponse:
+    return IndicatorUnitRuleResponse(
+        id=rule.id,
+        indicator_code=rule.indicator_code,
+        source_type=rule.source_type,
+        dimension_key=rule.dimension_key,
+        original_unit=rule.original_unit,
+        storage_unit=rule.storage_unit,
+        display_unit=rule.display_unit,
+        multiplier_to_storage=rule.multiplier_to_storage,
+        is_active=rule.is_active,
+        priority=rule.priority,
+        description=rule.description,
+    )
+
+
+def _storage_value_to_display_value(
+    value: float,
+    *,
+    multiplier_to_storage: float,
+) -> float:
+    if multiplier_to_storage == 0:
+        return value
+    return value / multiplier_to_storage
+
+
 class ManageProviderConfigUseCase:
     """CRUD operations for provider configurations.
 
@@ -220,6 +276,165 @@ class ManageProviderConfigUseCase:
             return False
         self._repo.delete(provider_id)
         logger.info("Deleted provider config id=%s", provider_id)
+        return True
+
+
+class ManageIndicatorCatalogUseCase:
+    """CRUD operations for indicator catalog definitions."""
+
+    def __init__(
+        self,
+        repo: IndicatorCatalogRepositoryProtocol,
+        unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
+    ) -> None:
+        self._repo = repo
+        self._unit_rules = unit_rule_repo
+
+    def list_all(self, *, active_only: bool = False) -> list[IndicatorCatalogResponse]:
+        catalogs = self._repo.list_active() if active_only else self._repo.list_all()
+        return [
+            _catalog_to_response(
+                catalog,
+                default_rule=self._unit_rules.resolve_active_rule(catalog.code),
+            )
+            for catalog in catalogs
+        ]
+
+    def get(self, code: str) -> IndicatorCatalogResponse | None:
+        catalog = self._repo.get_by_code(code)
+        if catalog is None:
+            return None
+        return _catalog_to_response(
+            catalog,
+            default_rule=self._unit_rules.resolve_active_rule(code),
+        )
+
+    def create(self, request: CreateIndicatorCatalogRequest) -> IndicatorCatalogResponse:
+        catalog = IndicatorCatalog(
+            code=request.code,
+            name_cn=request.name_cn,
+            name_en=request.name_en,
+            description=request.description,
+            default_period_type=request.default_period_type,
+            category=request.category,
+            is_active=request.is_active,
+            extra=request.extra,
+        )
+        saved = self._repo.upsert(catalog)
+        return _catalog_to_response(saved)
+
+    def update(self, request: UpdateIndicatorCatalogRequest) -> IndicatorCatalogResponse | None:
+        existing = self._repo.get_by_code(request.code)
+        if existing is None:
+            return None
+
+        updated = IndicatorCatalog(
+            code=existing.code,
+            name_cn=request.name_cn if request.name_cn is not None else existing.name_cn,
+            name_en=request.name_en if request.name_en is not None else existing.name_en,
+            description=(
+                request.description if request.description is not None else existing.description
+            ),
+            default_period_type=(
+                request.default_period_type
+                if request.default_period_type is not None
+                else existing.default_period_type
+            ),
+            category=request.category if request.category is not None else existing.category,
+            is_active=request.is_active if request.is_active is not None else existing.is_active,
+            extra=request.extra if request.extra is not None else existing.extra,
+        )
+        saved = self._repo.upsert(updated)
+        return _catalog_to_response(
+            saved,
+            default_rule=self._unit_rules.resolve_active_rule(saved.code),
+        )
+
+    def delete(self, code: str) -> bool:
+        if self._repo.get_by_code(code) is None:
+            return False
+        self._repo.delete(code)
+        return True
+
+
+class ManageIndicatorUnitRuleUseCase:
+    """CRUD operations for indicator unit-governance rules."""
+
+    def __init__(
+        self,
+        catalog_repo: IndicatorCatalogRepositoryProtocol,
+        repo: IndicatorUnitRuleRepositoryProtocol,
+    ) -> None:
+        self._catalog = catalog_repo
+        self._repo = repo
+
+    def list_by_indicator(self, indicator_code: str) -> list[IndicatorUnitRuleResponse]:
+        return [_unit_rule_to_response(rule) for rule in self._repo.list_by_indicator(indicator_code)]
+
+    def get(self, rule_id: int) -> IndicatorUnitRuleResponse | None:
+        rule = self._repo.get_by_id(rule_id)
+        return _unit_rule_to_response(rule) if rule else None
+
+    def create(self, request: CreateIndicatorUnitRuleRequest) -> IndicatorUnitRuleResponse:
+        if self._catalog.get_by_code(request.indicator_code) is None:
+            raise ValueError(f"Unknown indicator code: {request.indicator_code}")
+        rule = IndicatorUnitRule(
+            id=None,
+            indicator_code=request.indicator_code,
+            source_type=request.source_type,
+            dimension_key=request.dimension_key,
+            original_unit=request.original_unit,
+            storage_unit=request.storage_unit,
+            display_unit=request.display_unit,
+            multiplier_to_storage=request.multiplier_to_storage,
+            is_active=request.is_active,
+            priority=request.priority,
+            description=request.description,
+        )
+        saved = self._repo.upsert(rule)
+        return _unit_rule_to_response(saved)
+
+    def update(self, request: UpdateIndicatorUnitRuleRequest) -> IndicatorUnitRuleResponse | None:
+        existing = self._repo.get_by_id(request.rule_id)
+        if existing is None:
+            return None
+
+        next_indicator_code = request.indicator_code or existing.indicator_code
+        if self._catalog.get_by_code(next_indicator_code) is None:
+            raise ValueError(f"Unknown indicator code: {next_indicator_code}")
+
+        updated = IndicatorUnitRule(
+            id=existing.id,
+            indicator_code=next_indicator_code,
+            source_type=request.source_type if request.source_type is not None else existing.source_type,
+            dimension_key=(
+                request.dimension_key if request.dimension_key is not None else existing.dimension_key
+            ),
+            original_unit=(
+                request.original_unit if request.original_unit is not None else existing.original_unit
+            ),
+            storage_unit=(
+                request.storage_unit if request.storage_unit is not None else existing.storage_unit
+            ),
+            display_unit=(
+                request.display_unit if request.display_unit is not None else existing.display_unit
+            ),
+            multiplier_to_storage=(
+                request.multiplier_to_storage
+                if request.multiplier_to_storage is not None
+                else existing.multiplier_to_storage
+            ),
+            is_active=request.is_active if request.is_active is not None else existing.is_active,
+            priority=request.priority if request.priority is not None else existing.priority,
+            description=request.description if request.description is not None else existing.description,
+        )
+        saved = self._repo.upsert(updated)
+        return _unit_rule_to_response(saved)
+
+    def delete(self, rule_id: int) -> bool:
+        if self._repo.get_by_id(rule_id) is None:
+            return False
+        self._repo.delete(rule_id)
         return True
 
 
@@ -346,11 +561,11 @@ class QueryMacroSeriesUseCase:
         self,
         fact_repo: MacroFactRepositoryProtocol,
         catalog_repo: IndicatorCatalogRepositoryProtocol,
-        legacy_repo: LegacyMacroSeriesRepositoryProtocol | None = None,
+        unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
     ) -> None:
         self._facts = fact_repo
         self._catalog = catalog_repo
-        self._legacy = legacy_repo
+        self._unit_rules = unit_rule_repo
 
     def execute(self, request: MacroSeriesRequest) -> MacroSeriesResponse:
         facts = self._facts.get_series(
@@ -367,8 +582,6 @@ class QueryMacroSeriesUseCase:
         period_type = catalog.default_period_type if catalog else "M"
 
         data_points: list[MacroDataPoint]
-        legacy_available = False
-        legacy_used = False
         data_source = "none"
         freshness_status = "missing"
         decision_grade = "blocked"
@@ -376,64 +589,26 @@ class QueryMacroSeriesUseCase:
         blocked_reason = "当前无可用宏观数据。"
         if facts:
             data_source = "data_center_fact"
+            as_of_date = request.end
             data_points = [
                 self._build_macro_data_point(
                     indicator_code=f.indicator_code,
                     reporting_period=f.reporting_period,
                     value=f.value,
                     unit=f.unit,
+                    extra=f.extra or {},
                     source=f.source,
                     quality=f.quality.value,
                     published_at=f.published_at,
                     period_type=period_type,
+                    as_of_date=as_of_date,
                 )
                 for f in facts
             ]
-        elif self._legacy is not None:
-            legacy_facts = self._legacy.get_series(
-                code=request.indicator_code,
-                start_date=request.start,
-                end_date=request.end,
-                source=request.source,
-            )
-            legacy_available = len(legacy_facts) > 0
-            if request.allow_legacy_fallback:
-                legacy_used = legacy_available
-                data_source = "legacy"
-                data_points = [
-                    self._build_macro_data_point(
-                        indicator_code=getattr(f, "code"),
-                        reporting_period=getattr(f, "reporting_period"),
-                        value=float(getattr(f, "value")),
-                        unit=getattr(f, "unit"),
-                        source=getattr(f, "source"),
-                        quality="legacy",
-                        published_at=getattr(f, "published_at"),
-                        period_type=period_type,
-                    )
-                    for f in legacy_facts[: request.limit]
-                ]
-                if legacy_used:
-                    freshness_status = "legacy_fallback"
-                    decision_grade = "degraded"
-                    blocked_reason = (
-                        "当前标准事实表无数据；已按显式请求回退到 legacy 宏观数据。"
-                        "该结果仅可用于研究，不可直接用于决策。"
-                    )
-            else:
-                data_points = []
-                if legacy_available:
-                    freshness_status = "legacy_blocked"
-                    blocked_reason = (
-                        "标准事实表当前无数据，且默认决策安全口径已阻断 legacy fallback。"
-                        "如需研究旧链路数据，请显式传入 allow_legacy_fallback=true。"
-                    )
-                else:
-                    blocked_reason = "当前无可用宏观数据。"
         else:
             data_points = []
 
-        if data_points and not legacy_used:
+        if data_points:
             latest = data_points[0]
             if latest.is_stale:
                 freshness_status = "stale"
@@ -446,8 +621,6 @@ class QueryMacroSeriesUseCase:
                 decision_grade = "decision_safe"
                 must_not_use_for_decision = False
                 blocked_reason = ""
-        elif data_points and legacy_used:
-            must_not_use_for_decision = True
 
         latest_reporting_period = data_points[0].reporting_period if data_points else None
         latest_published_at = data_points[0].published_at if data_points else None
@@ -467,8 +640,6 @@ class QueryMacroSeriesUseCase:
             latest_reporting_period=latest_reporting_period,
             latest_published_at=latest_published_at,
             latest_quality=latest_quality,
-            legacy_fallback_available=legacy_available,
-            legacy_fallback_used=legacy_used,
         )
 
     def _build_macro_data_point(
@@ -478,28 +649,55 @@ class QueryMacroSeriesUseCase:
         reporting_period: date,
         value: float,
         unit: str,
+        extra: dict[str, Any],
         source: str,
         quality: str,
         published_at: date | None,
         period_type: str,
+        as_of_date: date | None = None,
     ) -> MacroDataPoint:
-        age_days = get_macro_age_days(reporting_period, published_at)
+        age_days = get_macro_age_days(reporting_period, published_at, as_of_date=as_of_date)
         point_is_stale = is_macro_observation_stale(
             reporting_period,
             published_at,
             period_type=period_type,
+            as_of_date=as_of_date,
         )
         decision_grade = "decision_safe"
-        if quality == "legacy":
+        if point_is_stale:
             decision_grade = "degraded"
-        elif point_is_stale:
-            decision_grade = "degraded"
+
+        original_unit = str(extra.get("original_unit") or "")
+        display_unit = str(extra.get("display_unit") or original_unit or unit)
+        try:
+            multiplier_to_storage = float(extra.get("multiplier_to_storage") or 1.0)
+        except (TypeError, ValueError):
+            multiplier_to_storage = 1.0
+
+        if not display_unit or not original_unit:
+            matched_rule = self._unit_rules.resolve_active_rule(
+                indicator_code,
+                source_type=str(extra.get("source_type") or ""),
+                original_unit=original_unit or None,
+            )
+            if matched_rule is not None:
+                original_unit = original_unit or matched_rule.original_unit
+                display_unit = display_unit or matched_rule.display_unit or original_unit or unit
+                multiplier_to_storage = matched_rule.multiplier_to_storage
+
+        display_value = _storage_value_to_display_value(
+            value,
+            multiplier_to_storage=multiplier_to_storage,
+        )
 
         return MacroDataPoint(
             indicator_code=indicator_code,
             reporting_period=reporting_period,
             value=value,
             unit=unit,
+            display_value=display_value,
+            display_unit=display_unit or unit,
+            original_unit=original_unit or display_unit or unit,
             source=source,
             quality=quality,
             published_at=published_at,
@@ -632,10 +830,10 @@ class RepairDecisionDataReliabilityUseCase:
         provider_factory,
         macro_fact_repo: MacroFactRepositoryProtocol,
         indicator_catalog_repo: IndicatorCatalogRepositoryProtocol,
+        indicator_unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
         price_bar_repo: PriceBarRepositoryProtocol,
         quote_snapshot_repo: QuoteSnapshotRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
-        legacy_macro_repo: LegacyMacroSeriesRepositoryProtocol | None = None,
         pulse_refresher: Callable[[date], Any] | None = None,
         alpha_refresher: Callable[[date, int | None], dict[str, Any]] | None = None,
         alpha_status_reader: Callable[[date, int | None], dict[str, Any]] | None = None,
@@ -644,10 +842,10 @@ class RepairDecisionDataReliabilityUseCase:
         self._provider_factory = provider_factory
         self._macro_fact_repo = macro_fact_repo
         self._indicator_catalog_repo = indicator_catalog_repo
+        self._indicator_unit_rule_repo = indicator_unit_rule_repo
         self._price_bar_repo = price_bar_repo
         self._quote_snapshot_repo = quote_snapshot_repo
         self._raw_audit_repo = raw_audit_repo
-        self._legacy_macro_repo = legacy_macro_repo
         self._pulse_refresher = pulse_refresher
         self._alpha_refresher = alpha_refresher
         self._alpha_status_reader = alpha_status_reader
@@ -752,6 +950,8 @@ class RepairDecisionDataReliabilityUseCase:
                     provider_repo=self._provider_repo,
                     provider_factory=self._provider_factory,
                     fact_repo=self._macro_fact_repo,
+                    catalog_repo=self._indicator_catalog_repo,
+                    unit_rule_repo=self._indicator_unit_rule_repo,
                     raw_audit_repo=self._raw_audit_repo,
                 ).execute(
                     SyncMacroRequest(
@@ -773,13 +973,12 @@ class RepairDecisionDataReliabilityUseCase:
             query = QueryMacroSeriesUseCase(
                 self._macro_fact_repo,
                 self._indicator_catalog_repo,
-                self._legacy_macro_repo,
+                self._indicator_unit_rule_repo,
             ).execute(
                 MacroSeriesRequest(
                     indicator_code=indicator_code,
                     end=target_date,
                     limit=1,
-                    allow_legacy_fallback=False,
                 )
             )
             query_dict = query.to_dict()
@@ -1335,17 +1534,69 @@ class SyncMacroUseCase(_BaseSyncUseCase):
         provider_repo: ProviderConfigRepositoryProtocol,
         provider_factory,
         fact_repo: MacroFactRepositoryProtocol,
+        catalog_repo: IndicatorCatalogRepositoryProtocol,
+        unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
         super().__init__(provider_repo, provider_factory, raw_audit_repo)
         self._facts = fact_repo
+        self._catalog = catalog_repo
+        self._unit_rules = unit_rule_repo
+
+    def _normalize_macro_facts(
+        self,
+        *,
+        indicator_code: str,
+        source_type: str,
+        facts: list,
+    ) -> list:
+        if self._catalog.get_by_code(indicator_code) is None:
+            raise ValueError(f"Indicator catalog missing for {indicator_code}")
+
+        normalized = []
+        for fact in facts:
+            extra = dict(getattr(fact, "extra", {}) or {})
+            original_unit = str(extra.get("original_unit") or fact.unit or "")
+            rule = self._unit_rules.resolve_active_rule(
+                indicator_code,
+                source_type=source_type,
+                original_unit=original_unit,
+            )
+            if rule is None:
+                raise ValueError(
+                    f"Indicator unit rule missing for {indicator_code}@{source_type} unit={original_unit!r}"
+                )
+
+            extra.update(
+                {
+                    "source_type": source_type,
+                    "original_unit": original_unit,
+                    "display_unit": rule.display_unit,
+                    "dimension_key": rule.dimension_key,
+                    "multiplier_to_storage": rule.multiplier_to_storage,
+                }
+            )
+            normalized.append(
+                dataclasses.replace(
+                    fact,
+                    value=float(fact.value) * float(rule.multiplier_to_storage),
+                    unit=rule.storage_unit,
+                    extra=extra,
+                )
+            )
+        return normalized
 
     def execute(self, request: SyncMacroRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         try:
             facts = provider.fetch_macro_series(request.indicator_code, request.start, request.end)
-            stored_count = self._facts.bulk_upsert(facts)
+            normalized = self._normalize_macro_facts(
+                indicator_code=request.indicator_code,
+                source_type=config.source_type,
+                facts=facts,
+            )
+            stored_count = self._facts.bulk_upsert(normalized)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,

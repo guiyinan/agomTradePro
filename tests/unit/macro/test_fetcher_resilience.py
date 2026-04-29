@@ -2,6 +2,7 @@ from datetime import date
 
 import pandas as pd
 
+from apps.macro.infrastructure.adapters.fetchers.base_fetchers import BaseIndicatorFetcher
 from apps.macro.infrastructure.adapters.fetchers.economic_fetchers import (
     EconomicIndicatorFetcher,
     parse_chinese_quarter,
@@ -17,6 +18,15 @@ class _NoOpAK:
                 "季度": ["2025年第1-4季度"],
                 "国内生产总值-绝对值": [1349084.0],
                 "国内生产总值-同比增长": [5.0],
+            }
+        )
+
+    def macro_china_money_supply(self):
+        return pd.DataFrame(
+            {
+                "月份": ["2025年03月份"],
+                "货币和准货币(M2)-数量(亿元)": [3261300.0],
+                "货币和准货币(M2)-同比增长": [7.0],
             }
         )
 
@@ -59,6 +69,30 @@ def test_fetch_gdp_uses_named_absolute_value_column() -> None:
     assert points[0].code == "CN_GDP"
     assert points[0].value == 1349084.0
     assert points[0].observed_at == date(2025, 12, 1)
+
+
+def test_fetch_gdp_yoy_uses_named_growth_column() -> None:
+    fetcher = EconomicIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_gdp_yoy(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_GDP_YOY"
+    assert points[0].value == 5.0
+    assert points[0].unit == "%"
+    assert points[0].observed_at == date(2025, 12, 1)
+
+
+def test_fetch_m2_yoy_uses_named_growth_column() -> None:
+    fetcher = BaseIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_m2_yoy(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_M2_YOY"
+    assert points[0].value == 7.0
+    assert points[0].unit == "%"
+    assert points[0].observed_at == date(2025, 3, 31)
 
 
 def test_fetch_exports_accepts_current_value_column() -> None:

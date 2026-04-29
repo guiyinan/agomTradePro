@@ -44,7 +44,9 @@ BASE_PUBLICATION_LAGS: dict[str, PublicationLag] = {
     "CN_PPI": PublicationLag(days=10, description="PPI 月后10日左右发布"),
     "CN_PPI_YOY": PublicationLag(days=10, description="PPI同比 月后10日左右发布"),
     "CN_M2": PublicationLag(days=15, description="M2 月后10-15日发布"),
+    "CN_M2_YOY": PublicationLag(days=15, description="M2同比 月后10-15日发布"),
     "CN_GDP": PublicationLag(days=20, description="GDP 季后20日左右发布"),
+    "CN_GDP_YOY": PublicationLag(days=20, description="GDP同比 季后20日左右发布"),
     "CN_VALUE_ADDED": PublicationLag(days=10, description="工业增加值 月后10日左右"),
     "CN_RETAIL_SALES": PublicationLag(days=10, description="社零 月后10日左右"),
 

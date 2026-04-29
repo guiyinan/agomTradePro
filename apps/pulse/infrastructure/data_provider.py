@@ -207,8 +207,6 @@ class DjangoPulseDataProvider:
         try:
             series = self._load_data_center_series(ind_def.code, as_of_date)
             if not series:
-                series = self._load_legacy_macro_series(ind_def.code, as_of_date)
-            if not series:
                 return None
 
             observed_date, current_value, published_at = series[-1]
@@ -277,31 +275,6 @@ class DjangoPulseDataProvider:
                 reporting_period__lte=as_of_date,
             )
             .order_by("reporting_period", "revision_number")
-            .values_list("reporting_period", "value", "published_at")
-        )
-        return [
-            (reporting_period, float(value), published_at)
-            for reporting_period, value, published_at in rows
-        ]
-
-    def _load_legacy_macro_series(
-        self,
-        code: str,
-        as_of_date: date,
-    ) -> list[tuple[date, float, date | None]]:
-        if self._is_asset_code(code):
-            return []
-
-        lookback = as_of_date - timedelta(days=365)
-        from apps.macro.infrastructure.models import MacroIndicator
-
-        rows = (
-            MacroIndicator.objects.filter(
-                code=code,
-                reporting_period__gte=lookback,
-                reporting_period__lte=as_of_date,
-            )
-            .order_by("reporting_period")
             .values_list("reporting_period", "value", "published_at")
         )
         return [

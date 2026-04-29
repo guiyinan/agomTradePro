@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand
 
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.providers import DjangoMacroRepository
 
 # 高频指标映射到对应的 period_type
 # 注意：ORM 支持扩展类型（10Y, 5Y 等），但 Domain 层 PeriodType 枚举不支持

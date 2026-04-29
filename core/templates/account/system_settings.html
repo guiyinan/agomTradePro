@@ -154,9 +154,11 @@
                 <p class="help-text">用于资产大类到价格/交易代理标的的数据库配置映射</p>
             </div>
             <div class="form-group">
-                <label for="macro_index_catalog">宏观指数目录（JSON）:</label>
-                <textarea id="macro_index_catalog" name="macro_index_catalog" class="form-control code-editor" rows="16">{{ macro_index_catalog_json }}</textarea>
-                <p class="help-text">每项至少包含 code、name、unit、publication_lag_days，可选 name_en、description</p>
+                <label>宏观指标治理入口:</label>
+                <div class="form-control-static">
+                    宏观指标目录、量纲与发布时间治理已统一迁移到 Data Center。
+                    请通过 <a href="/data-center/providers/">数据中台</a> 与 `/api/data-center/indicators/*` 管理，不再在系统设置页维护 JSON 目录。
+                </div>
             </div>
         </div>
 

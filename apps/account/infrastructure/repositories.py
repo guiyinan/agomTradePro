@@ -2433,11 +2433,6 @@ class AccountInterfaceRepository:
                 ensure_ascii=False,
                 indent=2,
             ),
-            "macro_index_catalog_json": json.dumps(
-                system_settings.macro_index_catalog or [],
-                ensure_ascii=False,
-                indent=2,
-            ),
         }
 
     def update_system_settings_from_mapping(self, data: Mapping[str, Any]) -> None:
@@ -2449,7 +2444,6 @@ class AccountInterfaceRepository:
 
         benchmark_code_map = json.loads(data.get("benchmark_code_map", "{}") or "{}")
         asset_proxy_code_map = json.loads(data.get("asset_proxy_code_map", "{}") or "{}")
-        macro_index_catalog = json.loads(data.get("macro_index_catalog", "[]") or "[]")
         market_color_convention = data.get(
             "market_color_convention",
             system_settings.market_color_convention,
@@ -2460,8 +2454,6 @@ class AccountInterfaceRepository:
             raise ValueError("基准代码映射必须是 JSON 对象")
         if not isinstance(asset_proxy_code_map, dict):
             raise ValueError("资产代理代码映射必须是 JSON 对象")
-        if not isinstance(macro_index_catalog, list):
-            raise ValueError("宏观指数目录必须是 JSON 数组")
         if market_color_convention not in market_color_choices:
             raise ValueError("市场颜色约定不合法")
         if alpha_pool_mode not in alpha_pool_mode_choices:
@@ -2478,7 +2470,6 @@ class AccountInterfaceRepository:
         system_settings.notes = data.get("notes", "")
         system_settings.benchmark_code_map = benchmark_code_map
         system_settings.asset_proxy_code_map = asset_proxy_code_map
-        system_settings.macro_index_catalog = macro_index_catalog
         system_settings.save()
 
     def build_backup_download_payload(self, token: str) -> dict[str, Any]:

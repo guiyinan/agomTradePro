@@ -9,7 +9,6 @@ from datetime import date, timedelta
 from typing import Dict, List, Optional
 
 from ..domain.entities import MacroIndicator
-from .indicator_service import IndicatorUnitService
 
 
 @dataclass
@@ -99,32 +98,16 @@ class SyncMacroDataUseCase:
                 # 2. 映射 MacroDataPoint 到 Domain 实体（用于保存/去重）
                 candidate_indicators = []
                 for dp in data_points:
-                    # 确定原始单位（优先使用适配器提供的，否则从配置获取）
-                    original_unit_to_use = dp.original_unit if dp.original_unit else (
-                        dp.unit if dp.unit else IndicatorUnitService.get_unit_for_indicator(dp.code)
-                    )
-
-                    # 获取标准化后的单位和值（货币类自动转换为元）
-                    normalized_value, normalized_unit = IndicatorUnitService.get_normalized_unit_and_value(
-                        dp.code, dp.value
-                    )
-
-                    # 存储单位：如果是货币类且成功转换，使用"元"；否则使用原始单位
-                    if normalized_unit == "元":
-                        unit_to_save = "元"
-                        value_to_save = normalized_value
-                    else:
-                        unit_to_save = original_unit_to_use
-                        value_to_save = dp.value
+                    original_unit_to_use = dp.original_unit if dp.original_unit else dp.unit
 
                     candidate_indicators.append(
                         MacroIndicator(
                             code=dp.code,
-                            value=value_to_save,
+                            value=dp.value,
                             reporting_period=dp.observed_at,  # MacroDataPoint.observed_at -> MacroIndicator.reporting_period
                             published_at=dp.published_at,
                             source=dp.source,
-                            unit=unit_to_save,  # 存储单位（货币类为"元"）
+                            unit=original_unit_to_use,
                             original_unit=original_unit_to_use,  # 原始单位（用于展示）
                             period_type='M'  # 默认月度，可以根据指标代码优化
                         )
@@ -262,9 +245,11 @@ class SyncMacroDataUseCase:
             "CN_PPI",               # PPI (工业生产者出厂价格指数)
             "CN_PPI_YOY",           # PPI同比
             "CN_M2",                # M2 (货币供应量)
+            "CN_M2_YOY",            # M2同比
             "CN_VALUE_ADDED",       # 工业增加值
             "CN_RETAIL_SALES",      # 社会消费品零售总额
             "CN_GDP",               # GDP (国内生产总值)
+            "CN_GDP_YOY",           # GDP同比
 
             # 贸易数据
             "CN_EXPORTS",           # 出口同比增长

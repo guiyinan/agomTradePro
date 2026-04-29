@@ -84,7 +84,6 @@ def api_root_view(request):
                 "filter": "/api/filter/",
                 "fund": "/api/fund/",
                 "hedge": "/api/hedge/",
-                "macro": "/api/macro/",
                 "policy": "/api/policy/",
                 "prompt": "/api/prompt/",
                 "pulse": "/api/pulse/",
@@ -312,8 +311,6 @@ module_patterns = [
     path(
         "api/signal/", include(("apps.signal.interface.api_urls", "signal"), namespace="api_signal")
     ),
-    # P2: Macro 模块
-    path("api/macro/", include(("apps.macro.interface.api_urls", "macro"), namespace="api_macro")),
     # P2: Filter 模块
     path(
         "api/filter/",

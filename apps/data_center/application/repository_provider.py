@@ -11,7 +11,7 @@ from apps.data_center.infrastructure.providers import (
     FinancialFactRepository,
     FundNavRepository,
     IndicatorCatalogRepository,
-    LegacyMacroSeriesRepository,
+    IndicatorUnitRuleRepository,
     MacroFactRepository,
     NewsRepository,
     ProviderConfigRepository,
@@ -62,8 +62,8 @@ def get_indicator_catalog_repository() -> IndicatorCatalogRepository:
     return IndicatorCatalogRepository()
 
 
-def get_legacy_macro_series_repository() -> LegacyMacroSeriesRepository:
-    return LegacyMacroSeriesRepository()
+def get_indicator_unit_rule_repository() -> IndicatorUnitRuleRepository:
+    return IndicatorUnitRuleRepository()
 
 
 def get_price_bar_repository() -> PriceBarRepository:

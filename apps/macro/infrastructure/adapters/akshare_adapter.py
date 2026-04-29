@@ -55,19 +55,21 @@ class AKShareAdapter(BaseMacroAdapter):
         # 基础指标
         "CN_PMI": "PMI",
         "CN_NON_MAN_PMI": "非制造业PMI",
-        "CN_CPI": "CPI",
+        "CN_CPI": "CPI 居民消费价格指数",
         "CN_CPI_NATIONAL_YOY": "全国CPI同比",
         "CN_CPI_NATIONAL_MOM": "全国CPI环比",
         "CN_CPI_URBAN_YOY": "城市CPI同比",
         "CN_CPI_URBAN_MOM": "城市CPI环比",
         "CN_CPI_RURAL_YOY": "农村CPI同比",
         "CN_CPI_RURAL_MOM": "农村CPI环比",
-        "CN_PPI": "PPI",
+        "CN_PPI": "PPI 工业生产者出厂价格指数",
         "CN_PPI_YOY": "PPI同比",
-        "CN_M2": "M2",
+        "CN_M2": "M2 广义货币供应量余额",
+        "CN_M2_YOY": "M2同比增速",
         "CN_VALUE_ADDED": "工业增加值",
         "CN_RETAIL_SALES": "社会消费品零售总额",
-        "CN_GDP": "GDP",
+        "CN_GDP": "GDP 国内生产总值累计值",
+        "CN_GDP_YOY": "GDP同比增速",
         # 贸易数据
         "CN_EXPORTS": "出口同比增长",
         "CN_IMPORTS": "进口同比增长",
@@ -260,6 +262,8 @@ class AKShareAdapter(BaseMacroAdapter):
                 return self.base_fetcher.fetch_ppi_yoy(start_date, end_date)
             elif indicator_code == "CN_M2":
                 return self.base_fetcher.fetch_m2(start_date, end_date)
+            elif indicator_code == "CN_M2_YOY":
+                return self.base_fetcher.fetch_m2_yoy(start_date, end_date)
 
             # 经济活动指标
             elif indicator_code == "CN_VALUE_ADDED":
@@ -268,6 +272,8 @@ class AKShareAdapter(BaseMacroAdapter):
                 return self.economic_fetcher.fetch_retail_sales(start_date, end_date)
             elif indicator_code == "CN_GDP":
                 return self.economic_fetcher.fetch_gdp(start_date, end_date)
+            elif indicator_code == "CN_GDP_YOY":
+                return self.economic_fetcher.fetch_gdp_yoy(start_date, end_date)
 
             # 贸易指标
             elif indicator_code == "CN_EXPORTS":

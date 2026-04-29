@@ -9,7 +9,7 @@ from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
     ScheduleDataFetchUseCase,
 )
-from apps.macro.application.indicator_service import IndicatorService, UnitDisplayService
+from apps.macro.application.indicator_service import IndicatorService
 from apps.macro.application.repository_provider import (
     get_macro_read_repository,
     get_macro_repository,
@@ -40,11 +40,15 @@ def get_supported_macro_indicators(*, source: str = "akshare") -> list[dict[str,
     """Return the supported macro indicator definitions for the requested source."""
 
     sync_use_case = build_sync_macro_data_use_case(source=source)
+    metadata_map = IndicatorService.get_indicator_metadata_map()
     for adapter in sync_use_case.adapters.values():
         supported_indicators = getattr(adapter, "SUPPORTED_INDICATORS", None)
         if isinstance(supported_indicators, dict):
             indicators = [
-                {"code": code, "name": name}
+                {
+                    "code": code,
+                    "name": metadata_map.get(code, {}).get("name", name),
+                }
                 for code, name in supported_indicators.items()
             ]
             indicators.sort(key=lambda item: item["code"])
@@ -58,11 +62,8 @@ def _format_indicator_row_for_display(row: dict[str, Any]) -> dict[str, Any]:
     storage_value = float(row["value"])
     storage_unit = str(row.get("unit") or "")
     original_unit = str(row.get("original_unit") or storage_unit)
-    display_value, display_unit = UnitDisplayService.convert_for_display(
-        storage_value,
-        storage_unit,
-        original_unit,
-    )
+    display_value = float(row.get("display_value", storage_value))
+    display_unit = str(row.get("display_unit") or original_unit or storage_unit)
     reporting_period = row["reporting_period"]
     observed_at = row.get("observed_at") or reporting_period
     published_at = row.get("published_at")
@@ -98,6 +99,7 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         item["code"]: {
             "code": item["code"],
             "name": item["name"],
+            "description": item["description"],
             "latest_value": item["latest_value"],
             "latest_period": item["latest_date"][:7],
             "unit": item["unit"] or "-",

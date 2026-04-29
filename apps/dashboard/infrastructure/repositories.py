@@ -833,10 +833,10 @@ class DashboardQueryRepository:
     def get_latest_macro_indicator_value(self, indicator_code: str) -> float | None:
         """Return the latest macro indicator value for one code."""
 
-        from apps.macro.infrastructure.models import MacroIndicator
+        from apps.data_center.infrastructure.models import MacroFactModel
 
         latest = (
-            MacroIndicator._default_manager.filter(code=indicator_code)
+            MacroFactModel._default_manager.filter(indicator_code=indicator_code)
             .order_by("-reporting_period")
             .first()
         )

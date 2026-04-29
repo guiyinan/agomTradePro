@@ -19,6 +19,7 @@ from apps.data_center.domain.entities import (
     FinancialFact,
     FundNavFact,
     IndicatorCatalog,
+    IndicatorUnitRule,
     MacroFact,
     NewsFact,
     PriceBar,
@@ -181,8 +182,27 @@ class IndicatorCatalogRepositoryProtocol(Protocol):
     """Persistence contract for IndicatorCatalog definitions."""
 
     def get_by_code(self, code: str) -> IndicatorCatalog | None: ...
+    def list_all(self) -> list[IndicatorCatalog]: ...
     def list_active(self) -> list[IndicatorCatalog]: ...
     def upsert(self, catalog: IndicatorCatalog) -> IndicatorCatalog: ...
+    def delete(self, code: str) -> None: ...
+
+
+@runtime_checkable
+class IndicatorUnitRuleRepositoryProtocol(Protocol):
+    """Persistence contract for macro indicator unit-governance rules."""
+
+    def get_by_id(self, rule_id: int) -> IndicatorUnitRule | None: ...
+    def list_by_indicator(self, indicator_code: str) -> list[IndicatorUnitRule]: ...
+    def upsert(self, rule: IndicatorUnitRule) -> IndicatorUnitRule: ...
+    def delete(self, rule_id: int) -> None: ...
+    def resolve_active_rule(
+        self,
+        indicator_code: str,
+        *,
+        source_type: str = "",
+        original_unit: str | None = None,
+    ) -> IndicatorUnitRule | None: ...
 
 
 @runtime_checkable
@@ -199,19 +219,6 @@ class MacroFactRepositoryProtocol(Protocol):
 
     def get_latest(self, indicator_code: str) -> MacroFact | None: ...
     def bulk_upsert(self, facts: list[MacroFact]) -> int: ...
-
-
-@runtime_checkable
-class LegacyMacroSeriesRepositoryProtocol(Protocol):
-    """Read-only contract for fallback access to legacy macro storage."""
-
-    def get_series(
-        self,
-        code: str,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        source: str | None = None,
-    ) -> list[Any]: ...
 
 
 @runtime_checkable

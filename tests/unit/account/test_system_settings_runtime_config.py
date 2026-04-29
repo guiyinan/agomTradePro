@@ -2,8 +2,10 @@ import pytest
 from django.conf import settings as django_settings
 
 from apps.account.infrastructure.models import SystemSettingsModel
-from apps.macro.application.indicator_service import IndicatorService, IndicatorUnitService
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
+from apps.macro.application.indicator_service import IndicatorService, IndicatorUnitRuleService
 from core.application.config_center import get_system_settings_summary
+from core.integration.runtime_settings import get_runtime_macro_publication_lags
 from core.context_processors import get_market_visuals
 
 
@@ -13,31 +15,45 @@ def test_system_settings_runtime_market_config_defaults():
 
     assert settings.get_benchmark_code("equity_default_index") == "000300.SH"
     assert settings.get_asset_proxy_code("a_share_growth") == "000300.SH"
-    assert "000300.SH" in settings.get_macro_index_codes()
 
 
 @pytest.mark.django_db
 def test_macro_indicator_metadata_is_loaded_from_system_settings():
-    settings = SystemSettingsModel.get_settings()
-    settings.macro_index_catalog = [
-        {
-            "code": "TEST.INDEX",
-            "name": "测试指数",
+    IndicatorCatalogModel.objects.update_or_create(
+        code="TEST.INDEX",
+        defaults={
+            "name_cn": "测试指数",
             "name_en": "Test Index",
             "category": "股票",
-            "unit": "点",
             "description": "用于测试的指数配置",
-            "publication_lag_days": 2,
-            "publication_lag_description": "T+2",
-        }
-    ]
-    settings.save(update_fields=["macro_index_catalog", "updated_at"])
+            "default_period_type": "D",
+            "is_active": True,
+            "extra": {
+                "publication_lag_days": 2,
+                "publication_lag_description": "T+2",
+            },
+        },
+    )
+    IndicatorUnitRuleModel.objects.update_or_create(
+        indicator_code="TEST.INDEX",
+        source_type="",
+        original_unit="点",
+        defaults={
+            "dimension_key": "index",
+            "storage_unit": "点",
+            "display_unit": "点",
+            "multiplier_to_storage": 1.0,
+            "is_active": True,
+            "priority": 10,
+            "description": "测试指数单位规则",
+        },
+    )
 
     metadata = IndicatorService.get_indicator_metadata_map()
 
     assert metadata["TEST.INDEX"]["name"] == "测试指数"
-    assert IndicatorUnitService.get_unit_for_indicator("TEST.INDEX") == "点"
-    assert SystemSettingsModel.get_runtime_macro_publication_lags()["TEST.INDEX"]["days"] == 2
+    assert IndicatorUnitRuleService.get_unit_for_indicator("TEST.INDEX") == "点"
+    assert get_runtime_macro_publication_lags()["TEST.INDEX"]["days"] == 2
 
 
 @pytest.mark.django_db

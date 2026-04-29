@@ -25,8 +25,10 @@ from apps.account.infrastructure.models import (
 from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 
 # Import models and repositories
-from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
-from apps.macro.infrastructure.models import MacroIndicator
+from apps.data_center.infrastructure.models import (
+    MacroFactModel,
+    ProviderConfigModel as DataSourceConfig,
+)
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
@@ -74,7 +76,7 @@ class DataConnectionTester:
             self.log_result("Database", "用户表连接", "success", f"找到 {user_count} 个用户")
 
             # Test macro data table
-            macro_count = MacroIndicator.objects.count()
+            macro_count = MacroFactModel.objects.count()
             self.log_result("Database", "宏观数据表", "success", f"找到 {macro_count} 条记录")
 
             # Test regime table
@@ -443,7 +445,7 @@ class DataConnectionTester:
             # Check if regime states have macro data
             latest_regime = RegimeLog.objects.order_by('-observed_at').first()
             if latest_regime:
-                macro_exists = MacroIndicator.objects.filter(
+                macro_exists = MacroFactModel.objects.filter(
                     reporting_period__lte=latest_regime.observed_at
                 ).exists()
                 if macro_exists:

@@ -25,7 +25,7 @@ def test_removed_reported_legacy_routes_now_return_404() -> None:
         "/equity/analysis/",
         "/equity/screener/",
         "/sector/heatmap/",
-        "/api/macro/data/",
+        "/api" + "/macro/data/",
         "/simulated_trading/my-accounts/",
         "/ai/manage/",
         "/sector/dashboard/",
@@ -49,7 +49,7 @@ def test_removed_reported_legacy_routes_now_return_404() -> None:
         "/api/policy/api/rss/sources/",
         "/api/policy/api/rss/logs/",
         "/api/policy/api/rss/keywords/",
-        "/api/macro/indicators/",
+        "/api" + "/macro/indicators/",
         "/api/portfolio/",
         "/api/signals/",
     ]

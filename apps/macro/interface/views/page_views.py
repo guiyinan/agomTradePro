@@ -4,10 +4,9 @@ from decimal import InvalidOperation
 from typing import Any
 
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from apps.macro.application.interface_services import (
-    get_macro_data_controller_context,
     get_macro_data_page_snapshot,
 )
 
@@ -178,7 +177,6 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
 
 
 def data_controller_view(request: HttpRequest) -> HttpResponse:
-    """Render the unified macro data controller page."""
+    """Redirect legacy macro controller traffic to the data-center governance console."""
 
-    context = get_macro_data_controller_context()
-    return render(request, "macro/data_controller.html", context)
+    return redirect("/data-center/providers/")

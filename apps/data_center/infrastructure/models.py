@@ -309,6 +309,71 @@ class IndicatorCatalogModel(models.Model):
         return f"{self.code} — {self.name_cn}"
 
 
+class IndicatorUnitRuleModel(models.Model):
+    """Canonical unit-governance rules for macro indicators.
+
+    Rules are matched by indicator_code plus optional provider source_type.
+    A blank source_type acts as the default fallback rule for the indicator.
+    """
+
+    indicator_code = models.CharField(
+        max_length=50,
+        db_index=True,
+        help_text="Matches IndicatorCatalogModel.code",
+    )
+    source_type = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Logical provider source type (e.g. akshare, tushare); blank = default rule",
+    )
+    dimension_key = models.CharField(
+        max_length=30,
+        help_text="Dimension classification such as currency, rate, index, price",
+    )
+    original_unit = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Provider raw unit before normalization",
+    )
+    storage_unit = models.CharField(
+        max_length=20,
+        help_text="Canonical storage unit persisted in MacroFactModel.unit",
+    )
+    display_unit = models.CharField(
+        max_length=20,
+        help_text="Frontend display unit returned by macro query APIs",
+    )
+    multiplier_to_storage = models.DecimalField(
+        max_digits=24,
+        decimal_places=8,
+        default=1,
+        help_text="Multiply the raw value by this factor to get canonical storage value",
+    )
+    is_active = models.BooleanField(default=True)
+    priority = models.IntegerField(default=0)
+    description = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_indicator_unit_rule"
+        ordering = ["indicator_code", "-priority", "source_type", "original_unit"]
+        verbose_name = "Indicator Unit Rule"
+        verbose_name_plural = "Indicator Unit Rules"
+        unique_together = [("indicator_code", "source_type", "original_unit")]
+        indexes = [
+            models.Index(fields=["indicator_code", "is_active"]),
+            models.Index(fields=["indicator_code", "source_type", "is_active"]),
+        ]
+
+    def __str__(self) -> str:
+        scope = self.source_type or "default"
+        original_unit = self.original_unit or "(blank)"
+        return f"{self.indicator_code}@{scope} {original_unit} -> {self.storage_unit}"
+
+
 # ---------------------------------------------------------------------------
 # Phase 2 — Fact tables
 # ---------------------------------------------------------------------------

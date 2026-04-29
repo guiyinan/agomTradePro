@@ -239,23 +239,18 @@ def test_core_business():
     ok, data = api_get("/api/pulse/history/")
     record("Pulse history", "PASS" if ok else "FAIL", str(data)[:150] if ok else str(data)[:100])
 
-    ok, data = api_get("/api/macro/supported-indicators/")
+    ok, data = api_get("/api/data-center/")
     record(
-        "Macro supported indicators",
-        "PASS" if ok and data.get("count", 0) > 0 else "FAIL",
-        f"count={data.get('count', 'N/A')}" if ok else str(data)[:100],
-    )
-
-    ok, data = api_get("/api/macro/indicator-data/?indicator_code=CN_PMI")
-    record(
-        "Macro indicator data (PMI)",
-        "PASS" if ok else "FAIL",
+        "Data center API root",
+        "PASS" if ok and "macro_series" in data.get("endpoints", {}) else "FAIL",
         str(data)[:150] if ok else str(data)[:100],
     )
 
-    ok, data = api_get("/api/macro/due-indicators/")
+    ok, data = api_get("/api/data-center/macro/series/?indicator_code=CN_PMI")
     record(
-        "Macro due indicators", "PASS" if ok else "FAIL", str(data)[:150] if ok else str(data)[:100]
+        "Data center macro series (PMI)",
+        "PASS" if ok and "data" in data else "FAIL",
+        str(data)[:150] if ok else str(data)[:100],
     )
 
 

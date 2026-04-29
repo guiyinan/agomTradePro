@@ -16,6 +16,8 @@ from core.integration.pulse_refresh import refresh_pulse_snapshot
 from core.integration.realtime_prices import fetch_latest_prices
 
 from .use_cases import (
+    ManageIndicatorCatalogUseCase,
+    ManageIndicatorUnitRuleUseCase,
     ManageProviderConfigUseCase,
     QueryCapitalFlowsUseCase,
     QueryFinancialsUseCase,
@@ -46,7 +48,7 @@ from .repository_provider import (
     FinancialFactRepository,
     FundNavRepository,
     IndicatorCatalogRepository,
-    LegacyMacroSeriesRepository,
+    IndicatorUnitRuleRepository,
     MacroFactRepository,
     NewsRepository,
     PriceBarRepository,
@@ -72,10 +74,36 @@ def _make_raw_audit_repo() -> RawAuditRepository:
     return RawAuditRepository()
 
 
+def _make_indicator_catalog_repo() -> IndicatorCatalogRepository:
+    return IndicatorCatalogRepository()
+
+
+def _make_indicator_unit_rule_repo() -> IndicatorUnitRuleRepository:
+    return IndicatorUnitRuleRepository()
+
+
 def make_manage_provider_config_use_case() -> ManageProviderConfigUseCase:
     """Build the provider configuration management use case."""
 
     return ManageProviderConfigUseCase(_make_provider_repo())
+
+
+def make_manage_indicator_catalog_use_case() -> ManageIndicatorCatalogUseCase:
+    """Build the indicator catalog management use case."""
+
+    return ManageIndicatorCatalogUseCase(
+        _make_indicator_catalog_repo(),
+        _make_indicator_unit_rule_repo(),
+    )
+
+
+def make_manage_indicator_unit_rule_use_case() -> ManageIndicatorUnitRuleUseCase:
+    """Build the indicator unit-rule management use case."""
+
+    return ManageIndicatorUnitRuleUseCase(
+        _make_indicator_catalog_repo(),
+        _make_indicator_unit_rule_repo(),
+    )
 
 
 def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUseCase:
@@ -132,8 +160,8 @@ def make_query_macro_series_use_case() -> QueryMacroSeriesUseCase:
 
     return QueryMacroSeriesUseCase(
         MacroFactRepository(),
-        IndicatorCatalogRepository(),
-        LegacyMacroSeriesRepository(),
+        _make_indicator_catalog_repo(),
+        _make_indicator_unit_rule_repo(),
     )
 
 
@@ -336,11 +364,11 @@ def make_decision_repair_use_case(user) -> RepairDecisionDataReliabilityUseCase:
         provider_repo=_make_provider_repo(),
         provider_factory=_make_provider_factory(),
         macro_fact_repo=MacroFactRepository(),
-        indicator_catalog_repo=IndicatorCatalogRepository(),
+        indicator_catalog_repo=_make_indicator_catalog_repo(),
+        indicator_unit_rule_repo=_make_indicator_unit_rule_repo(),
         price_bar_repo=PriceBarRepository(),
         quote_snapshot_repo=QuoteSnapshotRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
-        legacy_macro_repo=LegacyMacroSeriesRepository(),
         pulse_refresher=_build_pulse_refresher(),
         alpha_refresher=_build_alpha_refresher(user),
         alpha_status_reader=_build_alpha_status_reader(user),
@@ -354,6 +382,8 @@ def make_sync_macro_use_case() -> SyncMacroUseCase:
         provider_repo=_make_provider_repo(),
         provider_factory=_make_provider_factory(),
         fact_repo=MacroFactRepository(),
+        catalog_repo=_make_indicator_catalog_repo(),
+        unit_rule_repo=_make_indicator_unit_rule_repo(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
 

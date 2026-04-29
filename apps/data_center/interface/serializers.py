@@ -98,6 +98,38 @@ class ProviderHealthSnapshotSerializer(serializers.Serializer):
     avg_latency_ms = serializers.FloatField(allow_null=True)
 
 
+class IndicatorCatalogSerializer(serializers.Serializer):
+    """Serializer for macro indicator catalog CRUD."""
+
+    PERIOD_TYPE_CHOICES = ["D", "W", "M", "Q", "H", "Y"]
+
+    code = serializers.CharField(max_length=50)
+    name_cn = serializers.CharField(max_length=100)
+    name_en = serializers.CharField(max_length=100, allow_blank=True, default="")
+    description = serializers.CharField(allow_blank=True, default="")
+    category = serializers.CharField(max_length=30, allow_blank=True, default="")
+    default_period_type = serializers.ChoiceField(choices=PERIOD_TYPE_CHOICES, default="M")
+    is_active = serializers.BooleanField(default=True)
+    extra = serializers.DictField(child=serializers.JSONField(), default=dict)
+    default_rule = serializers.DictField(read_only=True)
+
+
+class IndicatorUnitRuleSerializer(serializers.Serializer):
+    """Serializer for indicator unit-rule CRUD."""
+
+    id = serializers.IntegerField(read_only=True)
+    indicator_code = serializers.CharField(max_length=50, required=False)
+    source_type = serializers.CharField(max_length=20, allow_blank=True, default="")
+    dimension_key = serializers.CharField(max_length=30)
+    original_unit = serializers.CharField(max_length=20, allow_blank=True, default="")
+    storage_unit = serializers.CharField(max_length=20)
+    display_unit = serializers.CharField(max_length=20)
+    multiplier_to_storage = serializers.FloatField(min_value=0.00000001)
+    is_active = serializers.BooleanField(default=True)
+    priority = serializers.IntegerField(default=0)
+    description = serializers.CharField(max_length=200, allow_blank=True, default="")
+
+
 class SyncMacroRequestSerializer(serializers.Serializer):
     provider_id = serializers.IntegerField()
     indicator_code = serializers.CharField(max_length=50)

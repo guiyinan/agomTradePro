@@ -4707,6 +4707,54 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/alpha/ops/inference/overview/:
+    get:
+      operationId: api_alpha_ops_inference_overview_get
+      description: Return the Alpha inference ops overview payload.
+      tags:
+      - alpha
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/alpha/ops/inference/trigger/:
+    post:
+      operationId: api_alpha_ops_inference_trigger_post
+      description: Queue Alpha inference work from the ops page.
+      tags:
+      - alpha
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/alpha/ops/qlib-data/overview/:
+    get:
+      operationId: api_alpha_ops_qlib_data_overview_get
+      description: Return the Qlib data ops overview payload.
+      tags:
+      - alpha
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/alpha/ops/qlib-data/refresh/:
+    post:
+      operationId: api_alpha_ops_qlib_data_refresh_post
+      description: Queue one Qlib runtime data refresh from the ops page.
+      tags:
+      - alpha
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/alpha/providers/status/:
     get:
       operationId: api_alpha_providers_status_get
@@ -5855,6 +5903,18 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/dashboard/v1/alpha-decision-chain/:
+    get:
+      operationId: api_dashboard_v1_alpha_decision_chain_get
+      description: Unified Alpha ranking -> actionable -> pending chain for dashboard/MCP/SDK.
+      tags:
+      - dashboard
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/dashboard/v1/equity-curve/:
     get:
       operationId: api_dashboard_v1_equity_curve_get
@@ -5945,6 +6005,18 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/data-center/decision-reliability/repair/:
+    post:
+      operationId: api_data_center_decision_reliability_repair_post
+      description: Repair macro/quote/Pulse/Alpha inputs and return readiness status.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/data-center/financials/:
     get:
       operationId: api_data_center_financials_get
@@ -5966,6 +6038,183 @@ paths:
       - tokenAuth: []
       responses:
         '200':
+          description: No response body
+  /api/data-center/indicators/:
+    get:
+      operationId: api_data_center_indicators_get
+      description: GET/POST /api/data-center/indicators/.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_data_center_indicators_post
+      description: GET/POST /api/data-center/indicators/.
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/indicators/{indicator_code}/:
+    get:
+      operationId: api_data_center_indicators_by_indicator_code_get
+      description: GET/PATCH/DELETE /api/data-center/indicators/{code}/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_data_center_indicators_by_indicator_code_patch
+      description: GET/PATCH/DELETE /api/data-center/indicators/{code}/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_data_center_indicators_by_indicator_code_delete
+      description: GET/PATCH/DELETE /api/data-center/indicators/{code}/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/data-center/indicators/{indicator_code}/unit-rules/:
+    get:
+      operationId: api_data_center_indicators_by_indicator_code_unit_rules_get
+      description: GET/POST /api/data-center/indicators/{code}/unit-rules/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_data_center_indicators_by_indicator_code_unit_rules_post
+      description: GET/POST /api/data-center/indicators/{code}/unit-rules/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/data-center/indicators/{indicator_code}/unit-rules/{rule_id}/:
+    get:
+      operationId: api_data_center_indicators_by_indicator_code_unit_rules_by_rule_id_get
+      description: GET/PATCH/DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_data_center_indicators_by_indicator_code_unit_rules_by_rule_id_patch
+      description: GET/PATCH/DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_data_center_indicators_by_indicator_code_unit_rules_by_rule_id_delete
+      description: GET/PATCH/DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/.
+      parameters:
+      - in: path
+        name: indicator_code
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - data-center
+      security:
+      - cookieAuth: []
+      - tokenAuth: []
+      responses:
+        '204':
           description: No response body
   /api/data-center/macro/series/:
     get:
@@ -6033,6 +6282,8 @@ paths:
 
         Query params:
           asset_code — required canonical ticker
+          strict_freshness — optional bool, when true stale quotes return 409
+          max_age_hours — optional float freshness threshold, default 4h
       tags:
       - data-center
       security:
@@ -7089,24 +7340,7 @@ paths:
   /api/equity/config/valuation-repair/:
     get:
       operationId: api_equity_config_valuation_repair_get
-      description: |-
-        估值修复策略参数配置管理
-
-        支持在线调参，包含版本控制、生效时间和审计。
-
-        API 端点：
-        - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
-        - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
-        - POST /api/equity/config/valuation-repair/ - 创建新配置
-        - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
-        - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: 分页结果集中的页码。
-        schema:
-          type: integer
+      description: GET /api/equity/config/valuation-repair/
       tags:
       - equity
       security:
@@ -7114,61 +7348,22 @@ paths:
       - tokenAuth: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedValuationRepairConfigList'
-          description: ''
+          description: No response body
     post:
       operationId: api_equity_config_valuation_repair_post
-      description: |-
-        估值修复策略参数配置管理
-
-        支持在线调参，包含版本控制、生效时间和审计。
-
-        API 端点：
-        - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
-        - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
-        - POST /api/equity/config/valuation-repair/ - 创建新配置
-        - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
-        - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
+      description: POST /api/equity/config/valuation-repair/
       tags:
       - equity
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigCreateRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
       responses:
         '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValuationRepairConfigCreate'
-          description: ''
+          description: No response body
   /api/equity/config/valuation-repair/{id}/:
     get:
       operationId: api_equity_config_valuation_repair_by_id_get
-      description: |-
-        估值修复策略参数配置管理
-
-        支持在线调参，包含版本控制、生效时间和审计。
-
-        API 端点：
-        - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
-        - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
-        - POST /api/equity/config/valuation-repair/ - 创建新配置
-        - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
-        - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
+      description: GET /api/equity/config/valuation-repair/{id}/
       parameters:
       - in: path
         name: id
@@ -7182,24 +7377,10 @@ paths:
       - tokenAuth: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValuationRepairConfig'
-          description: ''
+          description: No response body
     put:
       operationId: api_equity_config_valuation_repair_by_id_put
-      description: |-
-        估值修复策略参数配置管理
-
-        支持在线调参，包含版本控制、生效时间和审计。
-
-        API 端点：
-        - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
-        - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
-        - POST /api/equity/config/valuation-repair/ - 创建新配置
-        - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
-        - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
+      description: PUT /api/equity/config/valuation-repair/{id}/
       parameters:
       - in: path
         name: id
@@ -7208,40 +7389,15 @@ paths:
         required: true
       tags:
       - equity
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigCreateRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValuationRepairConfigCreate'
-          description: ''
+          description: No response body
     patch:
       operationId: api_equity_config_valuation_repair_by_id_patch
-      description: |-
-        估值修复策略参数配置管理
-
-        支持在线调参，包含版本控制、生效时间和审计。
-
-        API 端点：
-        - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
-        - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
-        - POST /api/equity/config/valuation-repair/ - 创建新配置
-        - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
-        - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
+      description: PATCH /api/equity/config/valuation-repair/{id}/
       parameters:
       - in: path
         name: id
@@ -7250,40 +7406,15 @@ paths:
         required: true
       tags:
       - equity
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedValuationRepairConfigCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedValuationRepairConfigCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedValuationRepairConfigCreateRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValuationRepairConfigCreate'
-          description: ''
+          description: No response body
     delete:
       operationId: api_equity_config_valuation_repair_by_id_delete
-      description: |-
-        估值修复策略参数配置管理
-
-        支持在线调参，包含版本控制、生效时间和审计。
-
-        API 端点：
-        - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
-        - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
-        - POST /api/equity/config/valuation-repair/ - 创建新配置
-        - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
-        - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
+      description: DELETE /api/equity/config/valuation-repair/{id}/
       parameters:
       - in: path
         name: id
@@ -7311,17 +7442,6 @@ paths:
         required: true
       tags:
       - equity
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -7345,17 +7465,6 @@ paths:
         required: true
       tags:
       - equity
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -7390,17 +7499,6 @@ paths:
       summary: 清除配置缓存
       tags:
       - equity
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ValuationRepairConfigRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -7957,7 +8055,7 @@ paths:
   /api/factor/all-configs/:
     get:
       operationId: api_factor_all_configs_get
-      description: Get all portfolio configurations
+      description: Get all portfolio configuration payloads.
       tags:
       - factor
       security:
@@ -7969,7 +8067,7 @@ paths:
   /api/factor/all-factors/:
     get:
       operationId: api_factor_all_factors_get
-      description: Get all factor definitions
+      description: Get all active factor definition payloads.
       tags:
       - factor
       security:
@@ -7981,7 +8079,7 @@ paths:
   /api/factor/configs/:
     get:
       operationId: api_factor_configs_get
-      description: ViewSet for FactorPortfolioConfig model
+      description: List portfolio configurations.
       parameters:
       - name: page
         required: false
@@ -8003,7 +8101,7 @@ paths:
           description: ''
     post:
       operationId: api_factor_configs_post
-      description: ViewSet for FactorPortfolioConfig model
+      description: Create one portfolio configuration.
       tags:
       - factor
       requestBody:
@@ -8031,7 +8129,7 @@ paths:
   /api/factor/configs/{id}/:
     get:
       operationId: api_factor_configs_by_id_get
-      description: ViewSet for FactorPortfolioConfig model
+      description: Retrieve one portfolio configuration.
       parameters:
       - in: path
         name: id
@@ -8052,7 +8150,7 @@ paths:
           description: ''
     put:
       operationId: api_factor_configs_by_id_put
-      description: ViewSet for FactorPortfolioConfig model
+      description: Update one portfolio configuration.
       parameters:
       - in: path
         name: id
@@ -8085,7 +8183,7 @@ paths:
           description: ''
     patch:
       operationId: api_factor_configs_by_id_patch
-      description: ViewSet for FactorPortfolioConfig model
+      description: Partially update one portfolio configuration.
       parameters:
       - in: path
         name: id
@@ -8117,7 +8215,7 @@ paths:
           description: ''
     delete:
       operationId: api_factor_configs_by_id_delete
-      description: ViewSet for FactorPortfolioConfig model
+      description: Delete one portfolio configuration.
       parameters:
       - in: path
         name: id
@@ -8135,7 +8233,7 @@ paths:
   /api/factor/configs/{id}/activate/:
     post:
       operationId: api_factor_configs_by_id_activate_post
-      description: Activate this configuration
+      description: Activate one portfolio configuration.
       parameters:
       - in: path
         name: id
@@ -8169,7 +8267,7 @@ paths:
   /api/factor/configs/{id}/deactivate/:
     post:
       operationId: api_factor_configs_by_id_deactivate_post
-      description: Deactivate this configuration
+      description: Deactivate one portfolio configuration.
       parameters:
       - in: path
         name: id
@@ -8203,7 +8301,7 @@ paths:
   /api/factor/configs/{id}/generate_portfolio/:
     post:
       operationId: api_factor_configs_by_id_generate_portfolio_post
-      description: Generate factor portfolio for this configuration
+      description: Generate a portfolio for one configuration.
       parameters:
       - in: path
         name: id
@@ -8237,14 +8335,7 @@ paths:
   /api/factor/create-portfolio/:
     post:
       operationId: api_factor_create_portfolio_post
-      description: |-
-        Create factor portfolio
-
-        Request body:
-        {
-            "config_name": "价值成长平衡组合",
-            "trade_date": "2024-01-15"  // optional
-        }
+      description: Create a factor portfolio from a config name.
       tags:
       - factor
       security:
@@ -8256,7 +8347,7 @@ paths:
   /api/factor/definitions/:
     get:
       operationId: api_factor_definitions_get
-      description: ViewSet for FactorDefinition model
+      description: List factor definitions.
       parameters:
       - name: page
         required: false
@@ -8278,7 +8369,7 @@ paths:
           description: ''
     post:
       operationId: api_factor_definitions_post
-      description: ViewSet for FactorDefinition model
+      description: Create one factor definition.
       tags:
       - factor
       requestBody:
@@ -8306,7 +8397,7 @@ paths:
   /api/factor/definitions/{id}/:
     get:
       operationId: api_factor_definitions_by_id_get
-      description: ViewSet for FactorDefinition model
+      description: Retrieve one factor definition.
       parameters:
       - in: path
         name: id
@@ -8327,7 +8418,7 @@ paths:
           description: ''
     put:
       operationId: api_factor_definitions_by_id_put
-      description: ViewSet for FactorDefinition model
+      description: Update one factor definition.
       parameters:
       - in: path
         name: id
@@ -8360,7 +8451,7 @@ paths:
           description: ''
     patch:
       operationId: api_factor_definitions_by_id_patch
-      description: ViewSet for FactorDefinition model
+      description: Partially update one factor definition.
       parameters:
       - in: path
         name: id
@@ -8392,7 +8483,7 @@ paths:
           description: ''
     delete:
       operationId: api_factor_definitions_by_id_delete
-      description: ViewSet for FactorDefinition model
+      description: Delete one factor definition.
       parameters:
       - in: path
         name: id
@@ -8410,7 +8501,7 @@ paths:
   /api/factor/definitions/{id}/toggle-active/:
     post:
       operationId: api_factor_definitions_by_id_toggle_active_post
-      description: Toggle active status for a factor definition
+      description: Toggle one factor definition activation state.
       parameters:
       - in: path
         name: id
@@ -8444,7 +8535,7 @@ paths:
   /api/factor/definitions/all_active/:
     get:
       operationId: api_factor_definitions_all_active_get
-      description: Get all active factor definitions
+      description: Get active factor definition payloads.
       tags:
       - factor
       security:
@@ -8460,18 +8551,7 @@ paths:
   /api/factor/explain-stock/:
     post:
       operationId: api_factor_explain_stock_post
-      description: |-
-        Explain stock factor score breakdown
-
-        Request body:
-        {
-            "stock_code": "ASSET_CODE",
-            "factor_weights": {
-                "pe_ttm": -0.3,
-                "roe": 0.4,
-                "revenue_growth": 0.3
-            }
-        }
+      description: Explain one stock factor score breakdown.
       tags:
       - factor
       security:
@@ -8494,19 +8574,7 @@ paths:
   /api/factor/top-stocks/:
     post:
       operationId: api_factor_top_stocks_post
-      description: |-
-        Get top stocks by factor preferences
-
-        Request body:
-        {
-            "factor_preferences": {
-                "value": "high|medium|low",
-                "quality": "high|medium|low",
-                "growth": "high|medium|low",
-                "momentum": "high|medium|low"
-            },
-            "top_n": 30
-        }
+      description: Get top stocks by factor preferences.
       tags:
       - factor
       security:
@@ -9439,18 +9507,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HedgePortfolioSnapshot'
           description: ''
-  /api/macro/:
-    get:
-      operationId: api_macro_get
-      description: Return discoverable macro API endpoints.
-      tags:
-      - macro
-      security:
-      - cookieAuth: []
-      - tokenAuth: []
-      responses:
-        '200':
-          description: No response body
   /api/policy/audit/auto_assign/:
     post:
       operationId: api_policy_audit_auto_assign_post
@@ -13208,17 +13264,7 @@ paths:
   /api/signal/:
     get:
       operationId: api_signal_get
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
+      description: List signals via application query services.
       parameters:
       - name: page
         required: false
@@ -13268,17 +13314,7 @@ paths:
   /api/signal/{id}/:
     get:
       operationId: api_signal_by_id_get
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
+      description: Retrieve one signal payload.
       parameters:
       - in: path
         name: id
@@ -13299,17 +13335,7 @@ paths:
           description: ''
     put:
       operationId: api_signal_by_id_put
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
+      description: Update one signal via application query services.
       parameters:
       - in: path
         name: id
@@ -13322,14 +13348,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
+              $ref: '#/components/schemas/InvestmentSignalUpdateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
+              $ref: '#/components/schemas/InvestmentSignalUpdateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
+              $ref: '#/components/schemas/InvestmentSignalUpdateRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -13338,21 +13363,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InvestmentSignal'
+                $ref: '#/components/schemas/InvestmentSignalUpdate'
           description: ''
     patch:
       operationId: api_signal_by_id_patch
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
+      description: Treat PATCH as the same partial-field update path.
       parameters:
       - in: path
         name: id
@@ -13365,13 +13380,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedInvestmentSignalRequest'
+              $ref: '#/components/schemas/PatchedInvestmentSignalUpdateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedInvestmentSignalRequest'
+              $ref: '#/components/schemas/PatchedInvestmentSignalUpdateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedInvestmentSignalRequest'
+              $ref: '#/components/schemas/PatchedInvestmentSignalUpdateRequest'
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -13380,21 +13395,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InvestmentSignal'
+                $ref: '#/components/schemas/InvestmentSignalUpdate'
           description: ''
     delete:
       operationId: api_signal_by_id_delete
-      description: |-
-        Signal API ViewSet
-
-        提供以下接口:
-        - GET /api/signal/ - 获取信号列表
-        - POST /api/signal/ - 创建信号
-        - GET /api/signal/{id}/ - 获取信号详情
-        - PUT /api/signal/{id}/ - 更新信号
-        - DELETE /api/signal/{id}/ - 删除信号
-        - POST /api/signal/{id}/validate/ - 验证信号准入
-        - POST /api/signal/check_eligibility/ - 检查信号准入
+      description: Delete one signal via application query services.
       parameters:
       - in: path
         name: id
@@ -13421,18 +13426,6 @@ paths:
         required: true
       tags:
       - signal
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -13455,18 +13448,6 @@ paths:
         required: true
       tags:
       - signal
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -13489,18 +13470,6 @@ paths:
         required: true
       tags:
       - signal
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -13526,18 +13495,6 @@ paths:
         required: true
       tags:
       - signal
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -13563,18 +13520,6 @@ paths:
         }
       tags:
       - signal
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/InvestmentSignalRequest'
-        required: true
       security:
       - cookieAuth: []
       - tokenAuth: []
@@ -16281,23 +16226,7 @@ paths:
   /api/terminal/commands/:
     get:
       operationId: api_terminal_commands_get
-      description: |-
-        终端命令管理 API
-
-        list: 获取所有命令
-        retrieve: 获取单个命令详情
-        create: 创建新命令
-        update: 更新命令
-        destroy: 删除命令
-        execute: 执行命令
-        available: 获取可用命令列表（简化版）
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: 分页结果集中的页码。
-        schema:
-          type: integer
+      description: 获取所有命令（包含非激活命令）。
       tags:
       - terminal
       security:
@@ -16308,20 +16237,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedTerminalCommandList'
+                type: array
+                items:
+                  $ref: '#/components/schemas/TerminalCommand'
           description: ''
     post:
       operationId: api_terminal_commands_post
-      description: |-
-        终端命令管理 API
-
-        list: 获取所有命令
-        retrieve: 获取单个命令详情
-        create: 创建新命令
-        update: 更新命令
-        destroy: 删除命令
-        execute: 执行命令
-        available: 获取可用命令列表（简化版）
+      description: 创建新命令。
       tags:
       - terminal
       requestBody:
@@ -16349,16 +16271,7 @@ paths:
   /api/terminal/commands/{id}/:
     get:
       operationId: api_terminal_commands_by_id_get
-      description: |-
-        终端命令管理 API
-
-        list: 获取所有命令
-        retrieve: 获取单个命令详情
-        create: 创建新命令
-        update: 更新命令
-        destroy: 删除命令
-        execute: 执行命令
-        available: 获取可用命令列表（简化版）
+      description: 获取单个命令详情。
       parameters:
       - in: path
         name: id
@@ -16379,16 +16292,7 @@ paths:
           description: ''
     put:
       operationId: api_terminal_commands_by_id_put
-      description: |-
-        终端命令管理 API
-
-        list: 获取所有命令
-        retrieve: 获取单个命令详情
-        create: 创建新命令
-        update: 更新命令
-        destroy: 删除命令
-        execute: 执行命令
-        available: 获取可用命令列表（简化版）
+      description: 全量更新命令。
       parameters:
       - in: path
         name: id
@@ -16420,16 +16324,7 @@ paths:
           description: ''
     patch:
       operationId: api_terminal_commands_by_id_patch
-      description: |-
-        终端命令管理 API
-
-        list: 获取所有命令
-        retrieve: 获取单个命令详情
-        create: 创建新命令
-        update: 更新命令
-        destroy: 删除命令
-        execute: 执行命令
-        available: 获取可用命令列表（简化版）
+      description: 部分更新命令。
       parameters:
       - in: path
         name: id
@@ -16461,16 +16356,7 @@ paths:
           description: ''
     delete:
       operationId: api_terminal_commands_by_id_delete
-      description: |-
-        终端命令管理 API
-
-        list: 获取所有命令
-        retrieve: 获取单个命令详情
-        create: 创建新命令
-        update: 更新命令
-        destroy: 删除命令
-        execute: 执行命令
-        available: 获取可用命令列表（简化版）
+      description: 删除命令。
       parameters:
       - in: path
         name: id
@@ -18703,116 +18589,100 @@ components:
       - flow_date
       - flow_type
       - portfolio
+    Category001Enum:
+      enum:
+      - report
+      - signal
+      - analysis
+      - chat
+      type: string
+      description: |-
+        * `report` - report
+        * `signal` - signal
+        * `analysis` - analysis
+        * `chat` - chat
     ChainConfig:
       type: object
       description: 链配置序列化器
       properties:
         id:
-          type: integer
+          type: string
           readOnly: true
         name:
           type: string
-          description: 链名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         description:
           type: string
-          description: 描述
+          default: ''
         steps:
-          description: 步骤定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainStep'
         execution_mode:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionModeEnum'
-          description: |-
-            执行模式
-
-            * `serial` - Serial
-            * `parallel` - Parallel
-            * `tool` - Tool Calling
-            * `hybrid` - Hybrid
+          $ref: '#/components/schemas/ExecutionModeEnum'
         aggregate_step:
+          allOf:
+          - $ref: '#/components/schemas/ChainStep'
           nullable: true
-          description: 汇总步骤配置
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          description: 创建时间
         updated_at:
           type: string
           format: date-time
           readOnly: true
-          description: 更新时间
       required:
       - category
+      - execution_mode
       - name
+      - steps
     ChainConfigCreate:
       type: object
       description: 链配置创建序列化器
       properties:
         id:
-          type: integer
+          type: string
           readOnly: true
         name:
           type: string
-          description: 链名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         description:
           type: string
-          description: 描述
+          default: ''
         steps:
-          description: 步骤定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainStep'
         execution_mode:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionModeEnum'
-          description: |-
-            执行模式
-
-            * `serial` - Serial
-            * `parallel` - Parallel
-            * `tool` - Tool Calling
-            * `hybrid` - Hybrid
+          $ref: '#/components/schemas/ExecutionModeEnum'
         aggregate_step:
+          allOf:
+          - $ref: '#/components/schemas/ChainStep'
           nullable: true
-          description: 汇总步骤配置
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          description: 创建时间
         updated_at:
           type: string
           format: date-time
           readOnly: true
-          description: 更新时间
       required:
       - category
+      - execution_mode
       - name
+      - steps
     ChainConfigCreateRequest:
       type: object
       description: 链配置创建序列化器
@@ -18820,42 +18690,30 @@ components:
         name:
           type: string
           minLength: 1
-          description: 链名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         description:
           type: string
-          description: 描述
+          default: ''
         steps:
-          description: 步骤定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainStepRequest'
         execution_mode:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionModeEnum'
-          description: |-
-            执行模式
-
-            * `serial` - Serial
-            * `parallel` - Parallel
-            * `tool` - Tool Calling
-            * `hybrid` - Hybrid
+          $ref: '#/components/schemas/ExecutionModeEnum'
         aggregate_step:
+          allOf:
+          - $ref: '#/components/schemas/ChainStepRequest'
           nullable: true
-          description: 汇总步骤配置
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
       required:
       - category
+      - execution_mode
       - name
+      - steps
     ChainConfigRequest:
       type: object
       description: 链配置序列化器
@@ -18863,42 +18721,100 @@ components:
         name:
           type: string
           minLength: 1
-          description: 链名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         description:
           type: string
-          description: 描述
+          default: ''
         steps:
-          description: 步骤定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainStepRequest'
         execution_mode:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionModeEnum'
-          description: |-
-            执行模式
-
-            * `serial` - Serial
-            * `parallel` - Parallel
-            * `tool` - Tool Calling
-            * `hybrid` - Hybrid
+          $ref: '#/components/schemas/ExecutionModeEnum'
         aggregate_step:
+          allOf:
+          - $ref: '#/components/schemas/ChainStepRequest'
           nullable: true
-          description: 汇总步骤配置
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
       required:
       - category
+      - execution_mode
       - name
+      - steps
+    ChainStep:
+      type: object
+      description: 链步骤序列化器
+      properties:
+        step_id:
+          type: string
+          maxLength: 50
+        template_id:
+          type: string
+        step_name:
+          type: string
+          maxLength: 100
+        order:
+          type: integer
+        input_mapping: {}
+        output_parser:
+          type: string
+        parallel_group:
+          type: string
+        enable_tool_calling:
+          type: boolean
+          default: false
+        available_tools:
+          type: array
+          items:
+            type: string
+          nullable: true
+      required:
+      - input_mapping
+      - order
+      - step_id
+      - step_name
+      - template_id
+    ChainStepRequest:
+      type: object
+      description: 链步骤序列化器
+      properties:
+        step_id:
+          type: string
+          minLength: 1
+          maxLength: 50
+        template_id:
+          type: string
+          minLength: 1
+        step_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        order:
+          type: integer
+        input_mapping: {}
+        output_parser:
+          type: string
+        parallel_group:
+          type: string
+        enable_tool_calling:
+          type: boolean
+          default: false
+        available_tools:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          nullable: true
+      required:
+      - input_mapping
+      - order
+      - step_id
+      - step_name
+      - template_id
     CheckInvalidationRequestRequest:
       type: object
       description: 检查证伪请求序列化器
@@ -18928,7 +18844,7 @@ components:
           maxLength: 50
         type:
           allOf:
-          - $ref: '#/components/schemas/TypeEnum'
+          - $ref: '#/components/schemas/CommandParameterTypeEnum'
           default: text
         description:
           type: string
@@ -18955,7 +18871,7 @@ components:
           maxLength: 50
         type:
           allOf:
-          - $ref: '#/components/schemas/TypeEnum'
+          - $ref: '#/components/schemas/CommandParameterTypeEnum'
           default: text
         description:
           type: string
@@ -18973,14 +18889,28 @@ components:
           type: string
       required:
       - name
+    CommandParameterTypeEnum:
+      enum:
+      - text
+      - number
+      - select
+      - date
+      - boolean
+      type: string
+      description: |-
+        * `text` - text
+        * `number` - number
+        * `select` - select
+        * `date` - date
+        * `boolean` - boolean
     CommandTypeEnum:
       enum:
       - prompt
       - api
       type: string
       description: |-
-        * `prompt` - Prompt模板调用
-        * `api` - API端点调用
+        * `prompt` - prompt
+        * `api` - api
     ComprehensiveValuationRequestRequest:
       type: object
       description: 综合估值分析请求序列化器
@@ -19476,6 +19406,9 @@ components:
         inspection_date:
           type: string
           format: date
+        auto_create_proposal:
+          type: boolean
+          default: false
     DecisionFunnelContextData:
       type: object
       properties:
@@ -20160,78 +20093,46 @@ components:
           readOnly: true
         execution_id:
           type: string
-          description: 执行ID
-          maxLength: 100
+          readOnly: true
         template_id:
           type: integer
-          nullable: true
-          description: 关联的模板
           readOnly: true
+          nullable: true
         chain_id:
           type: integer
-          nullable: true
-          description: 关联的链
           readOnly: true
+          nullable: true
         step_id:
           type: string
+          readOnly: true
           nullable: true
-          description: 步骤ID
-          maxLength: 50
         status:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionLogStatusEnum'
-          description: |-
-            执行状态
-
-            * `success` - Success
-            * `error` - Error
-            * `timeout` - Timeout
+          type: string
+          readOnly: true
         provider_used:
           type: string
-          description: 使用的提供商
-          maxLength: 50
+          readOnly: true
         model_used:
           type: string
-          description: 使用的模型
-          maxLength: 50
+          readOnly: true
         total_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 总token数
+          readOnly: true
         estimated_cost:
           type: string
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,6})?$
-          description: 预估成本
+          readOnly: true
         response_time_ms:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 响应时间（毫秒）
+          readOnly: true
         error_message:
           type: string
-          description: 错误信息
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          description: 执行时间
-      required:
-      - execution_id
-      - response_time_ms
-    ExecutionLogStatusEnum:
-      enum:
-      - success
-      - error
-      - timeout
-      type: string
-      description: |-
-        * `success` - Success
-        * `error` - Error
-        * `timeout` - Timeout
     ExecutionModeEnum:
       enum:
       - serial
@@ -20240,10 +20141,10 @@ components:
       - hybrid
       type: string
       description: |-
-        * `serial` - Serial
-        * `parallel` - Parallel
-        * `tool` - Tool Calling
-        * `hybrid` - Hybrid
+        * `serial` - serial
+        * `parallel` - parallel
+        * `tool` - tool
+        * `hybrid` - hybrid
     ExperienceSummary:
       type: object
       description: 经验总结序列化器
@@ -20270,54 +20171,45 @@ components:
       - recommendation
     FactorDefinition:
       type: object
-      description: Serializer for FactorDefinition
+      description: Serializer for factor definition payloads.
       properties:
         id:
           type: integer
           readOnly: true
         code:
           type: string
-          title: 因子代码
           maxLength: 50
         name:
           type: string
-          title: 因子名称
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/FactorDefinitionCategoryEnum'
-          title: 因子类别
+          type: string
+          maxLength: 20
         description:
           type: string
-          title: 因子描述
         data_source:
           type: string
-          title: 数据来源
           maxLength: 50
         data_field:
           type: string
-          title: 数据字段
           maxLength: 100
         direction:
-          allOf:
-          - $ref: '#/components/schemas/FactorDefinitionDirectionEnum'
-          title: 因子方向
+          type: string
+          default: positive
+          maxLength: 20
         update_frequency:
           type: string
-          title: 更新频率
+          default: daily
           maxLength: 20
         is_active:
           type: boolean
-          title: 是否启用
+          default: true
         min_data_points:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小数据点
+          default: 20
         allow_missing:
           type: boolean
-          title: 允许缺失
+          default: false
         category_display:
           type: string
           readOnly: true
@@ -20338,86 +20230,51 @@ components:
       - data_field
       - data_source
       - name
-    FactorDefinitionCategoryEnum:
-      enum:
-      - value
-      - quality
-      - growth
-      - momentum
-      - volatility
-      - liquidity
-      - technical
-      type: string
-      description: |-
-        * `value` - 价值
-        * `quality` - 质量
-        * `growth` - 成长
-        * `momentum` - 动量
-        * `volatility` - 波动
-        * `liquidity` - 流动性
-        * `technical` - 技术
-    FactorDefinitionDirectionEnum:
-      enum:
-      - positive
-      - negative
-      - neutral
-      type: string
-      description: |-
-        * `positive` - 正向
-        * `negative` - 反向
-        * `neutral` - 中性
     FactorDefinitionRequest:
       type: object
-      description: Serializer for FactorDefinition
+      description: Serializer for factor definition payloads.
       properties:
         code:
           type: string
           minLength: 1
-          title: 因子代码
           maxLength: 50
         name:
           type: string
           minLength: 1
-          title: 因子名称
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/FactorDefinitionCategoryEnum'
-          title: 因子类别
+          type: string
+          minLength: 1
+          maxLength: 20
         description:
           type: string
-          title: 因子描述
         data_source:
           type: string
           minLength: 1
-          title: 数据来源
           maxLength: 50
         data_field:
           type: string
           minLength: 1
-          title: 数据字段
           maxLength: 100
         direction:
-          allOf:
-          - $ref: '#/components/schemas/FactorDefinitionDirectionEnum'
-          title: 因子方向
+          type: string
+          minLength: 1
+          default: positive
+          maxLength: 20
         update_frequency:
           type: string
           minLength: 1
-          title: 更新频率
+          default: daily
           maxLength: 20
         is_active:
           type: boolean
-          title: 是否启用
+          default: true
         min_data_points:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小数据点
+          default: 20
         allow_missing:
           type: boolean
-          title: 允许缺失
+          default: false
       required:
       - category
       - code
@@ -20426,84 +20283,76 @@ components:
       - name
     FactorPortfolioConfig:
       type: object
-      description: Serializer for FactorPortfolioConfig
+      description: Serializer for factor portfolio configuration payloads.
       properties:
         id:
           type: integer
           readOnly: true
         name:
           type: string
-          title: 配置名称
           maxLength: 100
         description:
           type: string
-          title: 配置描述
         factor_weights:
-          title: 因子权重
+          type: object
+          additionalProperties:
+            type: number
+            format: double
         universe:
           type: string
-          title: 股票池
+          default: all_a
           maxLength: 20
         min_market_cap:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
           nullable: true
-          title: 最小市值（亿）
         max_market_cap:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
           nullable: true
-          title: 最大市值（亿）
         max_pe:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最大PE
         min_pe:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最小PE
         max_pb:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最大PB
         max_debt_ratio:
           type: number
           format: double
           nullable: true
-          title: 最大资产负债率（%）
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 选股数量
+          default: 30
         rebalance_frequency:
           type: string
-          title: 调仓频率
+          default: monthly
           maxLength: 20
         weight_method:
           type: string
-          title: 权重方式
+          default: equal_weight
           maxLength: 50
         max_sector_weight:
           type: number
           format: double
-          title: 最大行业权重
+          default: 0.4
         max_single_stock_weight:
           type: number
           format: double
-          title: 最大单股权重
+          default: 0.05
         is_active:
           type: boolean
-          title: 是否启用
+          default: true
         created_at:
           type: string
           format: date-time
@@ -20516,85 +20365,77 @@ components:
       - name
     FactorPortfolioConfigRequest:
       type: object
-      description: Serializer for FactorPortfolioConfig
+      description: Serializer for factor portfolio configuration payloads.
       properties:
         name:
           type: string
           minLength: 1
-          title: 配置名称
           maxLength: 100
         description:
           type: string
-          title: 配置描述
         factor_weights:
-          title: 因子权重
+          type: object
+          additionalProperties:
+            type: number
+            format: double
         universe:
           type: string
           minLength: 1
-          title: 股票池
+          default: all_a
           maxLength: 20
         min_market_cap:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
           nullable: true
-          title: 最小市值（亿）
         max_market_cap:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
           nullable: true
-          title: 最大市值（亿）
         max_pe:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最大PE
         min_pe:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最小PE
         max_pb:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最大PB
         max_debt_ratio:
           type: number
           format: double
           nullable: true
-          title: 最大资产负债率（%）
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 选股数量
+          default: 30
         rebalance_frequency:
           type: string
           minLength: 1
-          title: 调仓频率
+          default: monthly
           maxLength: 20
         weight_method:
           type: string
           minLength: 1
-          title: 权重方式
+          default: equal_weight
           maxLength: 50
         max_sector_weight:
           type: number
           format: double
-          title: 最大行业权重
+          default: 0.4
         max_single_stock_weight:
           type: number
           format: double
-          title: 最大单股权重
+          default: 0.05
         is_active:
           type: boolean
-          title: 是否启用
+          default: true
       required:
       - name
     FeeConfigListResponse:
@@ -21381,35 +21222,38 @@ components:
       - condition_type
     InvestmentSignal:
       type: object
-      description: Serializer for InvestmentSignalModel
+      description: Read serializer for investment signal payloads.
       properties:
         id:
           type: integer
           readOnly: true
         asset_code:
           type: string
-          maxLength: 20
+          readOnly: true
         asset_class:
           type: string
-          maxLength: 50
+          readOnly: true
         direction:
-          $ref: '#/components/schemas/SignalDirectionEnum'
+          type: string
+          readOnly: true
         status:
-          $ref: '#/components/schemas/InvestmentSignalStatusEnum'
+          type: string
+          readOnly: true
         logic_desc:
           type: string
+          readOnly: true
         invalidation_description:
           type: string
-          description: 证伪逻辑的人类可读描述
+          readOnly: true
         invalidation_rule:
           readOnly: true
         human_readable_invalidation:
           type: string
-          description: 获取人类可读的证伪描述
+          description: Return the human-readable invalidation description.
           readOnly: true
         target_regime:
           type: string
-          maxLength: 20
+          readOnly: true
         rejection_reason:
           type: string
           readOnly: true
@@ -21417,10 +21261,12 @@ components:
           type: string
           format: date-time
           readOnly: true
+          nullable: true
         updated_at:
           type: string
           format: date-time
           readOnly: true
+          nullable: true
         invalidated_at:
           type: string
           format: date-time
@@ -21431,38 +21277,25 @@ components:
           format: double
           readOnly: true
           nullable: true
-          title: 回测表现评分
-          description: 基于历史回测的信号表现评分 (0-100)
         avg_backtest_return:
           type: number
           format: double
           readOnly: true
           nullable: true
-          title: 平均回测收益率
-          description: 该信号在所有回测中的平均收益率
-      required:
-      - asset_class
-      - asset_code
-      - direction
-      - logic_desc
-      - target_regime
     InvestmentSignalCreate:
       type: object
-      description: Serializer for creating InvestmentSignal
+      description: Write serializer for creating investment signals.
       properties:
         asset_code:
           type: string
-          maxLength: 20
         asset_class:
           type: string
-          maxLength: 50
         direction:
-          $ref: '#/components/schemas/SignalDirectionEnum'
+          type: string
         logic_desc:
           type: string
         target_regime:
           type: string
-          maxLength: 20
       required:
       - asset_class
       - asset_code
@@ -21471,18 +21304,17 @@ components:
       - target_regime
     InvestmentSignalCreateRequest:
       type: object
-      description: Serializer for creating InvestmentSignal
+      description: Write serializer for creating investment signals.
       properties:
         asset_code:
           type: string
           minLength: 1
-          maxLength: 20
         asset_class:
           type: string
           minLength: 1
-          maxLength: 50
         direction:
-          $ref: '#/components/schemas/SignalDirectionEnum'
+          type: string
+          minLength: 1
         logic_desc:
           type: string
           minLength: 1
@@ -21494,7 +21326,6 @@ components:
         target_regime:
           type: string
           minLength: 1
-          maxLength: 20
       required:
       - asset_class
       - asset_code
@@ -21502,52 +21333,44 @@ components:
       - invalidation_logic
       - logic_desc
       - target_regime
-    InvestmentSignalRequest:
+    InvestmentSignalUpdate:
       type: object
-      description: Serializer for InvestmentSignalModel
+      description: Write serializer for updating investment signals.
+      properties:
+        asset_code:
+          type: string
+        asset_class:
+          type: string
+        direction:
+          type: string
+        logic_desc:
+          type: string
+        invalidation_logic:
+          type: string
+        target_regime:
+          type: string
+    InvestmentSignalUpdateRequest:
+      type: object
+      description: Write serializer for updating investment signals.
       properties:
         asset_code:
           type: string
           minLength: 1
-          maxLength: 20
         asset_class:
           type: string
           minLength: 1
-          maxLength: 50
         direction:
-          $ref: '#/components/schemas/SignalDirectionEnum'
-        status:
-          $ref: '#/components/schemas/InvestmentSignalStatusEnum'
+          type: string
+          minLength: 1
         logic_desc:
           type: string
           minLength: 1
-        invalidation_description:
+        invalidation_logic:
           type: string
-          description: 证伪逻辑的人类可读描述
+          minLength: 1
         target_regime:
           type: string
           minLength: 1
-          maxLength: 20
-      required:
-      - asset_class
-      - asset_code
-      - direction
-      - logic_desc
-      - target_regime
-    InvestmentSignalStatusEnum:
-      enum:
-      - pending
-      - approved
-      - rejected
-      - invalidated
-      - expired
-      type: string
-      description: |-
-        * `pending` - Pending
-        * `approved` - Approved
-        * `rejected` - Rejected
-        * `invalidated` - Invalidated
-        * `expired` - Expired
     LatestValuation:
       type: object
       description: 最新估值数据序列化器
@@ -23047,29 +22870,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Strategy'
-    PaginatedTerminalCommandList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/TerminalCommand'
     PaginatedTradingCostConfigList:
       type: object
       required:
@@ -23139,29 +22939,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserFallbackQuota'
-    PaginatedValuationRepairConfigList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValuationRepairConfig'
     ParserTypeEnum:
       enum:
       - feedparser
@@ -23404,39 +23181,25 @@ components:
         name:
           type: string
           minLength: 1
-          description: 链名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         description:
           type: string
-          description: 描述
+          default: ''
         steps:
-          description: 步骤定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/ChainStepRequest'
         execution_mode:
-          allOf:
-          - $ref: '#/components/schemas/ExecutionModeEnum'
-          description: |-
-            执行模式
-
-            * `serial` - Serial
-            * `parallel` - Parallel
-            * `tool` - Tool Calling
-            * `hybrid` - Hybrid
+          $ref: '#/components/schemas/ExecutionModeEnum'
         aggregate_step:
+          allOf:
+          - $ref: '#/components/schemas/ChainStepRequest'
           nullable: true
-          description: 汇总步骤配置
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
     PatchedExchangeRateRequest:
       type: object
       description: 汇率序列化器
@@ -23458,137 +23221,122 @@ components:
           title: 生效日期
     PatchedFactorDefinitionRequest:
       type: object
-      description: Serializer for FactorDefinition
+      description: Serializer for factor definition payloads.
       properties:
         code:
           type: string
           minLength: 1
-          title: 因子代码
           maxLength: 50
         name:
           type: string
           minLength: 1
-          title: 因子名称
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/FactorDefinitionCategoryEnum'
-          title: 因子类别
+          type: string
+          minLength: 1
+          maxLength: 20
         description:
           type: string
-          title: 因子描述
         data_source:
           type: string
           minLength: 1
-          title: 数据来源
           maxLength: 50
         data_field:
           type: string
           minLength: 1
-          title: 数据字段
           maxLength: 100
         direction:
-          allOf:
-          - $ref: '#/components/schemas/FactorDefinitionDirectionEnum'
-          title: 因子方向
+          type: string
+          minLength: 1
+          default: positive
+          maxLength: 20
         update_frequency:
           type: string
           minLength: 1
-          title: 更新频率
+          default: daily
           maxLength: 20
         is_active:
           type: boolean
-          title: 是否启用
+          default: true
         min_data_points:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小数据点
+          default: 20
         allow_missing:
           type: boolean
-          title: 允许缺失
+          default: false
     PatchedFactorPortfolioConfigRequest:
       type: object
-      description: Serializer for FactorPortfolioConfig
+      description: Serializer for factor portfolio configuration payloads.
       properties:
         name:
           type: string
           minLength: 1
-          title: 配置名称
           maxLength: 100
         description:
           type: string
-          title: 配置描述
         factor_weights:
-          title: 因子权重
+          type: object
+          additionalProperties:
+            type: number
+            format: double
         universe:
           type: string
           minLength: 1
-          title: 股票池
+          default: all_a
           maxLength: 20
         min_market_cap:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
           nullable: true
-          title: 最小市值（亿）
         max_market_cap:
           type: string
           format: decimal
           pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
           nullable: true
-          title: 最大市值（亿）
         max_pe:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最大PE
         min_pe:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最小PE
         max_pb:
           type: string
           format: decimal
           pattern: ^-?\d{0,6}(?:\.\d{0,4})?$
           nullable: true
-          title: 最大PB
         max_debt_ratio:
           type: number
           format: double
           nullable: true
-          title: 最大资产负债率（%）
         top_n:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 选股数量
+          default: 30
         rebalance_frequency:
           type: string
           minLength: 1
-          title: 调仓频率
+          default: monthly
           maxLength: 20
         weight_method:
           type: string
           minLength: 1
-          title: 权重方式
+          default: equal_weight
           maxLength: 50
         max_sector_weight:
           type: number
           format: double
-          title: 最大行业权重
+          default: 0.4
         max_single_stock_weight:
           type: number
           format: double
-          title: 最大单股权重
+          default: 0.05
         is_active:
           type: boolean
-          title: 是否启用
+          default: true
     PatchedHedgePairRequest:
       type: object
       description: Serializer for HedgePair
@@ -23654,32 +23402,28 @@ components:
         is_active:
           type: boolean
           title: 是否启用
-    PatchedInvestmentSignalRequest:
+    PatchedInvestmentSignalUpdateRequest:
       type: object
-      description: Serializer for InvestmentSignalModel
+      description: Write serializer for updating investment signals.
       properties:
         asset_code:
           type: string
           minLength: 1
-          maxLength: 20
         asset_class:
           type: string
           minLength: 1
-          maxLength: 50
         direction:
-          $ref: '#/components/schemas/SignalDirectionEnum'
-        status:
-          $ref: '#/components/schemas/InvestmentSignalStatusEnum'
+          type: string
+          minLength: 1
         logic_desc:
           type: string
           minLength: 1
-        invalidation_description:
+        invalidation_logic:
           type: string
-          description: 证伪逻辑的人类可读描述
+          minLength: 1
         target_regime:
           type: string
           minLength: 1
-          maxLength: 20
     PatchedObserverGrantUpdateRequest:
       type: object
       description: 观察员授权更新序列化器（仅支持更新过期时间）
@@ -23909,49 +23653,37 @@ components:
         name:
           type: string
           minLength: 1
-          description: 模板名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         version:
           type: string
           minLength: 1
-          description: 版本号
+          default: '1.0'
           maxLength: 20
         template_content:
           type: string
           minLength: 1
-          description: 模板内容（支持Jinja2语法）
         system_prompt:
           type: string
-          description: 系统提示词
+          nullable: true
         placeholders:
-          description: 占位符定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceholderRequest'
         temperature:
           type: number
           format: double
-          description: 温度参数（0.0-2.0）
+          default: 0.7
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
           nullable: true
-          description: 最大token数
         description:
           type: string
-          description: 描述
+          default: ''
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
     PatchedRSSSourceConfigRequest:
       type: object
       description: RSS源配置序列化器
@@ -24313,81 +24045,50 @@ components:
         name:
           type: string
           minLength: 1
-          description: 命令名称（如：analyze, report）
           maxLength: 50
         description:
           type: string
-          description: 命令描述
         command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
+          $ref: '#/components/schemas/CommandTypeEnum'
         prompt_template:
           type: integer
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
         system_prompt:
           type: string
-          description: 系统提示词（可选）
+          nullable: true
         user_prompt_template:
           type: string
-          description: 用户Prompt模板
         api_endpoint:
           type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
+          nullable: true
         api_method:
           type: string
           minLength: 1
-          description: HTTP方法（GET/POST）
-          maxLength: 10
         response_jq_filter:
           type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
+          nullable: true
         parameters:
           type: array
           items:
             $ref: '#/components/schemas/CommandParameterRequest'
         timeout:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
+          minimum: 1
         provider_name:
           type: string
-          description: 默认AI提供商名称
-          maxLength: 100
+          nullable: true
         model_name:
           type: string
-          description: 默认模型名称
-          maxLength: 100
+          nullable: true
         risk_level:
-          allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
+          $ref: '#/components/schemas/RiskLevel3a1Enum'
         requires_mcp:
           type: boolean
-          description: 是否需要 MCP 权限
         enabled_in_terminal:
           type: boolean
-          description: 是否在终端中显示
         category:
           type: string
           minLength: 1
-          description: 命令分类
-          maxLength: 50
         tags:
           type: array
           items:
@@ -24395,7 +24096,6 @@ components:
             minLength: 1
         is_active:
           type: boolean
-          description: 是否启用
     PatchedTradingCostConfigCreateRequest:
       type: object
       description: 交易费率配置创建/更新序列化器
@@ -24467,105 +24167,6 @@ components:
           type: string
           format: date-time
           title: 交易时间
-    PatchedValuationRepairConfigCreateRequest:
-      type: object
-      description: 估值修复配置序列化器（创建/更新）
-      properties:
-        min_history_points:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小历史样本数
-        default_lookback_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 默认回看交易日数
-        confirm_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 修复确认窗口（交易日）
-        min_rebound:
-          type: number
-          format: double
-          title: 最小反弹幅度（百分位）
-        stall_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 停滞检测窗口（交易日）
-        stall_min_progress:
-          type: number
-          format: double
-          title: 停滞最小进展阈值
-        target_percentile:
-          type: number
-          format: double
-          title: 目标百分位
-        undervalued_threshold:
-          type: number
-          format: double
-          title: 低估阈值
-        near_target_threshold:
-          type: number
-          format: double
-          title: 接近目标阈值
-        overvalued_threshold:
-          type: number
-          format: double
-          title: 高估阈值
-        pe_weight:
-          type: number
-          format: double
-          title: PE 权重
-        pb_weight:
-          type: number
-          format: double
-          title: PB 权重
-        confidence_base:
-          type: number
-          format: double
-          title: 置信度基础值
-        confidence_sample_threshold:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 置信度样本数阈值
-        confidence_sample_bonus:
-          type: number
-          format: double
-          title: 置信度样本数奖励
-        confidence_blend_bonus:
-          type: number
-          format: double
-          title: 置信度 pe_pb_blend 奖励
-        confidence_repair_start_bonus:
-          type: number
-          format: double
-          title: 置信度修复起点奖励
-        confidence_not_stalled_bonus:
-          type: number
-          format: double
-          title: 置信度非停滞奖励
-        repairing_threshold:
-          type: number
-          format: double
-          title: REPAIRING 阶段阈值
-        eta_max_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: ETA 最大天数
-        change_reason:
-          type: string
-          title: 变更原因
     PerformancePeriod:
       type: object
       properties:
@@ -24801,6 +24402,65 @@ components:
       - base_url
       - name
       - provider_type
+    Placeholder:
+      type: object
+      description: 占位符序列化器
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        type:
+          $ref: '#/components/schemas/PlaceholderTypeEnum'
+        description:
+          type: string
+        default_value:
+          nullable: true
+        required:
+          type: boolean
+          default: true
+        function_name:
+          type: string
+        function_params:
+          nullable: true
+      required:
+      - name
+      - type
+    PlaceholderRequest:
+      type: object
+      description: 占位符序列化器
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        type:
+          $ref: '#/components/schemas/PlaceholderTypeEnum'
+        description:
+          type: string
+        default_value:
+          nullable: true
+        required:
+          type: boolean
+          default: true
+        function_name:
+          type: string
+        function_params:
+          nullable: true
+      required:
+      - name
+      - type
+    PlaceholderTypeEnum:
+      enum:
+      - simple
+      - structured
+      - function
+      - conditional
+      type: string
+      description: |-
+        * `simple` - simple
+        * `structured` - structured
+        * `function` - function
+        * `conditional` - conditional
     PolicyCreateResponse:
       type: object
       description: 创建政策事件响应序列化器
@@ -25971,84 +25631,57 @@ components:
           description: 候选 ID
       required:
       - candidate_id
-    PromptCategoryEnum:
-      enum:
-      - report
-      - signal
-      - analysis
-      - chat
-      type: string
-      description: |-
-        * `report` - Report Analysis
-        * `signal` - Signal Generation
-        * `analysis` - Data Analysis
-        * `chat` - Chat
     PromptTemplate:
       type: object
       description: Prompt模板序列化器
       properties:
         id:
-          type: integer
+          type: string
           readOnly: true
         name:
           type: string
-          description: 模板名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         version:
           type: string
-          description: 版本号
+          default: '1.0'
           maxLength: 20
         template_content:
           type: string
-          description: 模板内容（支持Jinja2语法）
         system_prompt:
           type: string
-          description: 系统提示词
+          nullable: true
         placeholders:
-          description: 占位符定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/Placeholder'
         temperature:
           type: number
           format: double
-          description: 温度参数（0.0-2.0）
+          default: 0.7
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
           nullable: true
-          description: 最大token数
         description:
           type: string
-          description: 描述
+          default: ''
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          description: 创建时间
         updated_at:
           type: string
           format: date-time
           readOnly: true
-          description: 更新时间
         last_used_at:
           type: string
           format: date-time
           readOnly: true
           nullable: true
-          description: 最后使用时间
       required:
       - category
       - name
@@ -26058,67 +25691,52 @@ components:
       description: Prompt模板创建序列化器
       properties:
         id:
-          type: integer
+          type: string
           readOnly: true
         name:
           type: string
-          description: 模板名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         version:
           type: string
-          description: 版本号
+          default: '1.0'
           maxLength: 20
         template_content:
           type: string
-          description: 模板内容（支持Jinja2语法）
         system_prompt:
           type: string
-          description: 系统提示词
+          nullable: true
         placeholders:
-          description: 占位符定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/Placeholder'
         temperature:
           type: number
           format: double
-          description: 温度参数（0.0-2.0）
+          default: 0.7
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
           nullable: true
-          description: 最大token数
         description:
           type: string
-          description: 描述
+          default: ''
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          description: 创建时间
         updated_at:
           type: string
           format: date-time
           readOnly: true
-          description: 更新时间
         last_used_at:
           type: string
           format: date-time
           readOnly: true
           nullable: true
-          description: 最后使用时间
       required:
       - category
       - name
@@ -26130,49 +25748,37 @@ components:
         name:
           type: string
           minLength: 1
-          description: 模板名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         version:
           type: string
           minLength: 1
-          description: 版本号
+          default: '1.0'
           maxLength: 20
         template_content:
           type: string
           minLength: 1
-          description: 模板内容（支持Jinja2语法）
         system_prompt:
           type: string
-          description: 系统提示词
+          nullable: true
         placeholders:
-          description: 占位符定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceholderRequest'
         temperature:
           type: number
           format: double
-          description: 温度参数（0.0-2.0）
+          default: 0.7
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
           nullable: true
-          description: 最大token数
         description:
           type: string
-          description: 描述
+          default: ''
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
       required:
       - category
       - name
@@ -26184,49 +25790,37 @@ components:
         name:
           type: string
           minLength: 1
-          description: 模板名称（唯一标识）
           maxLength: 100
         category:
-          allOf:
-          - $ref: '#/components/schemas/PromptCategoryEnum'
-          description: |-
-            分类
-
-            * `report` - Report Analysis
-            * `signal` - Signal Generation
-            * `analysis` - Data Analysis
-            * `chat` - Chat
+          $ref: '#/components/schemas/Category001Enum'
         version:
           type: string
           minLength: 1
-          description: 版本号
+          default: '1.0'
           maxLength: 20
         template_content:
           type: string
           minLength: 1
-          description: 模板内容（支持Jinja2语法）
         system_prompt:
           type: string
-          description: 系统提示词
+          nullable: true
         placeholders:
-          description: 占位符定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceholderRequest'
         temperature:
           type: number
           format: double
-          description: 温度参数（0.0-2.0）
+          default: 0.7
         max_tokens:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
           nullable: true
-          description: 最大token数
         description:
           type: string
-          description: 描述
+          default: ''
         is_active:
           type: boolean
-          description: 是否激活
+          default: true
       required:
       - category
       - name
@@ -26801,6 +26395,18 @@ components:
           oneOf:
           - $ref: '#/components/schemas/PeriodEnum'
           - $ref: '#/components/schemas/NullEnum'
+    RiskLevel3a1Enum:
+      enum:
+      - read
+      - write_low
+      - write_high
+      - admin
+      type: string
+      description: |-
+        * `read` - read
+        * `write_low` - write_low
+        * `write_high` - write_high
+        * `admin` - admin
     RiskToleranceEnum:
       enum:
       - conservative
@@ -27849,16 +27455,6 @@ components:
         * `revoked` - 已撤销
         * `expired` - 已过期
         * `disabled` - 已禁用
-    SignalDirectionEnum:
-      enum:
-      - LONG
-      - SHORT
-      - NEUTRAL
-      type: string
-      description: |-
-        * `LONG` - Long
-        * `SHORT` - Short
-        * `NEUTRAL` - Neutral
     SignalEnum:
       enum:
       - undervalued
@@ -28495,194 +28091,149 @@ components:
       - timeframe
     TerminalCommand:
       type: object
-      description: 终端命令序列化器
+      description: 终端命令响应序列化器
       properties:
         id:
-          type: integer
-          readOnly: true
+          type: string
         name:
           type: string
-          description: 命令名称（如：analyze, report）
           maxLength: 50
         description:
           type: string
-          description: 命令描述
         type:
-          type: string
-          readOnly: true
+          $ref: '#/components/schemas/TypeFb5Enum'
         command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
+          $ref: '#/components/schemas/CommandTypeEnum'
         prompt_template:
-          type: integer
+          type: string
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
         system_prompt:
           type: string
-          description: 系统提示词（可选）
-        user_prompt_template:
-          type: string
-          description: 用户Prompt模板
-        api_endpoint:
-          type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
-        api_method:
-          type: string
-          description: HTTP方法（GET/POST）
-          maxLength: 10
-        response_jq_filter:
-          type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
-        parameters:
-          description: 参数定义列表
-        param_count:
-          type: integer
-          readOnly: true
-        timeout:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
-        provider_name:
-          type: string
-          description: 默认AI提供商名称
-          maxLength: 100
-        model_name:
-          type: string
-          description: 默认模型名称
-          maxLength: 100
-        risk_level:
-          allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
-        requires_mcp:
-          type: boolean
-          description: 是否需要 MCP 权限
-        enabled_in_terminal:
-          type: boolean
-          description: 是否在终端中显示
-        category:
-          type: string
-          description: 命令分类
-          maxLength: 50
-        tags:
-          description: 标签列表
-        is_active:
-          type: boolean
-          description: 是否启用
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: 创建时间
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: 更新时间
-      required:
-      - name
-    TerminalCommandCreate:
-      type: object
-      description: 终端命令创建序列化器
-      properties:
-        name:
-          type: string
-          description: 命令名称（如：analyze, report）
-          maxLength: 50
-        description:
-          type: string
-          description: 命令描述
-        command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
-        prompt_template:
-          type: integer
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
-        system_prompt:
-          type: string
-          description: 系统提示词（可选）
         user_prompt_template:
           type: string
-          description: 用户Prompt模板
         api_endpoint:
           type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
+          nullable: true
         api_method:
           type: string
-          description: HTTP方法（GET/POST）
-          maxLength: 10
         response_jq_filter:
           type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
+          nullable: true
         parameters:
           type: array
           items:
             $ref: '#/components/schemas/CommandParameter'
+        param_count:
+          type: integer
         timeout:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
         provider_name:
           type: string
-          description: 默认AI提供商名称
-          maxLength: 100
+          nullable: true
         model_name:
           type: string
-          description: 默认模型名称
-          maxLength: 100
+          nullable: true
         risk_level:
-          allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
+          $ref: '#/components/schemas/RiskLevel3a1Enum'
         requires_mcp:
           type: boolean
-          description: 是否需要 MCP 权限
         enabled_in_terminal:
           type: boolean
-          description: 是否在终端中显示
         category:
           type: string
-          description: 命令分类
-          maxLength: 50
         tags:
           type: array
           items:
             type: string
         is_active:
           type: boolean
-          description: 是否启用
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
+      - category
+      - command_type
+      - description
+      - enabled_in_terminal
+      - id
+      - is_active
+      - name
+      - requires_mcp
+      - risk_level
+      - timeout
+      - type
+    TerminalCommandCreate:
+      type: object
+      description: 终端命令创建序列化器
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        description:
+          type: string
+          default: ''
+        command_type:
+          $ref: '#/components/schemas/CommandTypeEnum'
+        prompt_template:
+          type: integer
+          nullable: true
+        system_prompt:
+          type: string
+          nullable: true
+        user_prompt_template:
+          type: string
+          default: ''
+        api_endpoint:
+          type: string
+          nullable: true
+        api_method:
+          type: string
+          default: GET
+        response_jq_filter:
+          type: string
+          nullable: true
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandParameter'
+        timeout:
+          type: integer
+          minimum: 1
+          default: 60
+        provider_name:
+          type: string
+          nullable: true
+        model_name:
+          type: string
+          nullable: true
+        risk_level:
+          allOf:
+          - $ref: '#/components/schemas/RiskLevel3a1Enum'
+          default: read
+        requires_mcp:
+          type: boolean
+          default: true
+        enabled_in_terminal:
+          type: boolean
+          default: true
+        category:
+          type: string
+          default: general
+        tags:
+          type: array
+          items:
+            type: string
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - command_type
       - name
     TerminalCommandCreateRequest:
       type: object
@@ -28691,81 +28242,59 @@ components:
         name:
           type: string
           minLength: 1
-          description: 命令名称（如：analyze, report）
           maxLength: 50
         description:
           type: string
-          description: 命令描述
+          default: ''
         command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
+          $ref: '#/components/schemas/CommandTypeEnum'
         prompt_template:
           type: integer
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
         system_prompt:
           type: string
-          description: 系统提示词（可选）
+          nullable: true
         user_prompt_template:
           type: string
-          description: 用户Prompt模板
+          default: ''
         api_endpoint:
           type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
+          nullable: true
         api_method:
           type: string
           minLength: 1
-          description: HTTP方法（GET/POST）
-          maxLength: 10
+          default: GET
         response_jq_filter:
           type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
+          nullable: true
         parameters:
           type: array
           items:
             $ref: '#/components/schemas/CommandParameterRequest'
         timeout:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
+          minimum: 1
+          default: 60
         provider_name:
           type: string
-          description: 默认AI提供商名称
-          maxLength: 100
+          nullable: true
         model_name:
           type: string
-          description: 默认模型名称
-          maxLength: 100
+          nullable: true
         risk_level:
           allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
+          - $ref: '#/components/schemas/RiskLevel3a1Enum'
+          default: read
         requires_mcp:
           type: boolean
-          description: 是否需要 MCP 权限
+          default: true
         enabled_in_terminal:
           type: boolean
-          description: 是否在终端中显示
+          default: true
         category:
           type: string
           minLength: 1
-          description: 命令分类
-          maxLength: 50
+          default: general
         tags:
           type: array
           items:
@@ -28773,194 +28302,148 @@ components:
             minLength: 1
         is_active:
           type: boolean
-          description: 是否启用
+          default: true
       required:
+      - command_type
       - name
     TerminalCommandRequest:
       type: object
-      description: 终端命令序列化器
+      description: 终端命令响应序列化器
       properties:
+        id:
+          type: string
+          minLength: 1
         name:
           type: string
           minLength: 1
-          description: 命令名称（如：analyze, report）
           maxLength: 50
         description:
           type: string
-          description: 命令描述
+        type:
+          $ref: '#/components/schemas/TypeFb5Enum'
         command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
+          $ref: '#/components/schemas/CommandTypeEnum'
         prompt_template:
-          type: integer
+          type: string
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
+          minLength: 1
         system_prompt:
           type: string
-          description: 系统提示词（可选）
+          nullable: true
         user_prompt_template:
           type: string
-          description: 用户Prompt模板
         api_endpoint:
           type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
+          nullable: true
         api_method:
           type: string
-          minLength: 1
-          description: HTTP方法（GET/POST）
-          maxLength: 10
         response_jq_filter:
           type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
+          nullable: true
         parameters:
-          description: 参数定义列表
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandParameterRequest'
+        param_count:
+          type: integer
         timeout:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
         provider_name:
           type: string
-          description: 默认AI提供商名称
-          maxLength: 100
+          nullable: true
         model_name:
           type: string
-          description: 默认模型名称
-          maxLength: 100
+          nullable: true
         risk_level:
-          allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
+          $ref: '#/components/schemas/RiskLevel3a1Enum'
         requires_mcp:
           type: boolean
-          description: 是否需要 MCP 权限
         enabled_in_terminal:
           type: boolean
-          description: 是否在终端中显示
         category:
           type: string
           minLength: 1
-          description: 命令分类
-          maxLength: 50
         tags:
-          description: 标签列表
+          type: array
+          items:
+            type: string
+            minLength: 1
         is_active:
           type: boolean
-          description: 是否启用
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
+      - category
+      - command_type
+      - description
+      - enabled_in_terminal
+      - id
+      - is_active
       - name
-    TerminalCommandRiskLevelEnum:
-      enum:
-      - read
-      - write_low
-      - write_high
-      - admin
-      type: string
-      description: |-
-        * `read` - 只读
-        * `write_low` - 低风险写入
-        * `write_high` - 高风险写入
-        * `admin` - 管理员
+      - requires_mcp
+      - risk_level
+      - timeout
+      - type
     TerminalCommandUpdate:
       type: object
       description: 终端命令更新序列化器
       properties:
         name:
           type: string
-          description: 命令名称（如：analyze, report）
           maxLength: 50
         description:
           type: string
-          description: 命令描述
         command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
+          $ref: '#/components/schemas/CommandTypeEnum'
         prompt_template:
           type: integer
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
         system_prompt:
           type: string
-          description: 系统提示词（可选）
+          nullable: true
         user_prompt_template:
           type: string
-          description: 用户Prompt模板
         api_endpoint:
           type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
+          nullable: true
         api_method:
           type: string
-          description: HTTP方法（GET/POST）
-          maxLength: 10
         response_jq_filter:
           type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
+          nullable: true
         parameters:
           type: array
           items:
             $ref: '#/components/schemas/CommandParameter'
         timeout:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
+          minimum: 1
         provider_name:
           type: string
-          description: 默认AI提供商名称
-          maxLength: 100
+          nullable: true
         model_name:
           type: string
-          description: 默认模型名称
-          maxLength: 100
+          nullable: true
         risk_level:
-          allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
+          $ref: '#/components/schemas/RiskLevel3a1Enum'
         requires_mcp:
           type: boolean
-          description: 是否需要 MCP 权限
         enabled_in_terminal:
           type: boolean
-          description: 是否在终端中显示
         category:
           type: string
-          description: 命令分类
-          maxLength: 50
         tags:
           type: array
           items:
             type: string
         is_active:
           type: boolean
-          description: 是否启用
     TerminalCommandUpdateRequest:
       type: object
       description: 终端命令更新序列化器
@@ -28968,81 +28451,50 @@ components:
         name:
           type: string
           minLength: 1
-          description: 命令名称（如：analyze, report）
           maxLength: 50
         description:
           type: string
-          description: 命令描述
         command_type:
-          allOf:
-          - $ref: '#/components/schemas/CommandTypeEnum'
-          description: |-
-            命令类型
-
-            * `prompt` - Prompt模板调用
-            * `api` - API端点调用
+          $ref: '#/components/schemas/CommandTypeEnum'
         prompt_template:
           type: integer
           nullable: true
-          description: 关联的Prompt模板（command_type=prompt时使用）
         system_prompt:
           type: string
-          description: 系统提示词（可选）
+          nullable: true
         user_prompt_template:
           type: string
-          description: 用户Prompt模板
         api_endpoint:
           type: string
-          description: API端点路径（command_type=api时使用）
-          maxLength: 255
+          nullable: true
         api_method:
           type: string
           minLength: 1
-          description: HTTP方法（GET/POST）
-          maxLength: 10
         response_jq_filter:
           type: string
-          description: JQ过滤器，从API响应中提取数据
-          maxLength: 255
+          nullable: true
         parameters:
           type: array
           items:
             $ref: '#/components/schemas/CommandParameterRequest'
         timeout:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          description: 超时时间（秒）
+          minimum: 1
         provider_name:
           type: string
-          description: 默认AI提供商名称
-          maxLength: 100
+          nullable: true
         model_name:
           type: string
-          description: 默认模型名称
-          maxLength: 100
+          nullable: true
         risk_level:
-          allOf:
-          - $ref: '#/components/schemas/TerminalCommandRiskLevelEnum'
-          description: |-
-            风险等级
-
-            * `read` - 只读
-            * `write_low` - 低风险写入
-            * `write_high` - 高风险写入
-            * `admin` - 管理员
+          $ref: '#/components/schemas/RiskLevel3a1Enum'
         requires_mcp:
           type: boolean
-          description: 是否需要 MCP 权限
         enabled_in_terminal:
           type: boolean
-          description: 是否在终端中显示
         category:
           type: string
           minLength: 1
-          description: 命令分类
-          maxLength: 50
         tags:
           type: array
           items:
@@ -29050,7 +28502,6 @@ components:
             minLength: 1
         is_active:
           type: boolean
-          description: 是否启用
     ThemeEnum:
       enum:
       - bloomberg
@@ -29578,20 +29029,14 @@ components:
         * `structural_misalignment` - structural_misalignment
         * `supply_shock` - supply_shock
         * `credit_spread` - credit_spread
-    TypeEnum:
+    TypeFb5Enum:
       enum:
-      - text
-      - number
-      - select
-      - date
-      - boolean
+      - prompt
+      - api
       type: string
       description: |-
-        * `text` - text
-        * `number` - number
-        * `select` - select
-        * `date` - date
-        * `boolean` - boolean
+        * `prompt` - prompt
+        * `api` - api
     UniverseEnum:
       enum:
       - all_active
@@ -29801,433 +29246,102 @@ components:
         version:
           type: integer
           readOnly: true
-          title: 版本号
         is_active:
           type: boolean
-          title: 是否激活（生效中）
+          readOnly: true
         effective_from:
           type: string
           format: date-time
+          readOnly: true
           nullable: true
-          title: 生效时间
         min_history_points:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小历史样本数
+          readOnly: true
         default_lookback_days:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 默认回看交易日数
+          readOnly: true
         confirm_window:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 修复确认窗口（交易日）
+          readOnly: true
         min_rebound:
           type: number
           format: double
-          title: 最小反弹幅度（百分位）
+          readOnly: true
         stall_window:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 停滞检测窗口（交易日）
+          readOnly: true
         stall_min_progress:
           type: number
           format: double
-          title: 停滞最小进展阈值
+          readOnly: true
         target_percentile:
           type: number
           format: double
-          title: 目标百分位
+          readOnly: true
         undervalued_threshold:
           type: number
           format: double
-          title: 低估阈值
+          readOnly: true
         near_target_threshold:
           type: number
           format: double
-          title: 接近目标阈值
+          readOnly: true
         overvalued_threshold:
           type: number
           format: double
-          title: 高估阈值
+          readOnly: true
         pe_weight:
           type: number
           format: double
-          title: PE 权重
+          readOnly: true
         pb_weight:
           type: number
           format: double
-          title: PB 权重
+          readOnly: true
         confidence_base:
           type: number
           format: double
-          title: 置信度基础值
+          readOnly: true
         confidence_sample_threshold:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 置信度样本数阈值
+          readOnly: true
         confidence_sample_bonus:
           type: number
           format: double
-          title: 置信度样本数奖励
+          readOnly: true
         confidence_blend_bonus:
           type: number
           format: double
-          title: 置信度 pe_pb_blend 奖励
+          readOnly: true
         confidence_repair_start_bonus:
           type: number
           format: double
-          title: 置信度修复起点奖励
+          readOnly: true
         confidence_not_stalled_bonus:
           type: number
           format: double
-          title: 置信度非停滞奖励
+          readOnly: true
         repairing_threshold:
           type: number
           format: double
-          title: REPAIRING 阶段阈值
+          readOnly: true
         eta_max_days:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: ETA 最大天数
+          readOnly: true
         change_reason:
           type: string
-          title: 变更原因
+          readOnly: true
         created_by:
           type: string
-          title: 创建人
-          maxLength: 64
+          readOnly: true
         created_at:
           type: string
           format: date-time
           readOnly: true
-          title: 创建时间
         updated_at:
           type: string
           format: date-time
           readOnly: true
-          title: 更新时间
-    ValuationRepairConfigCreate:
-      type: object
-      description: 估值修复配置序列化器（创建/更新）
-      properties:
-        min_history_points:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小历史样本数
-        default_lookback_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 默认回看交易日数
-        confirm_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 修复确认窗口（交易日）
-        min_rebound:
-          type: number
-          format: double
-          title: 最小反弹幅度（百分位）
-        stall_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 停滞检测窗口（交易日）
-        stall_min_progress:
-          type: number
-          format: double
-          title: 停滞最小进展阈值
-        target_percentile:
-          type: number
-          format: double
-          title: 目标百分位
-        undervalued_threshold:
-          type: number
-          format: double
-          title: 低估阈值
-        near_target_threshold:
-          type: number
-          format: double
-          title: 接近目标阈值
-        overvalued_threshold:
-          type: number
-          format: double
-          title: 高估阈值
-        pe_weight:
-          type: number
-          format: double
-          title: PE 权重
-        pb_weight:
-          type: number
-          format: double
-          title: PB 权重
-        confidence_base:
-          type: number
-          format: double
-          title: 置信度基础值
-        confidence_sample_threshold:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 置信度样本数阈值
-        confidence_sample_bonus:
-          type: number
-          format: double
-          title: 置信度样本数奖励
-        confidence_blend_bonus:
-          type: number
-          format: double
-          title: 置信度 pe_pb_blend 奖励
-        confidence_repair_start_bonus:
-          type: number
-          format: double
-          title: 置信度修复起点奖励
-        confidence_not_stalled_bonus:
-          type: number
-          format: double
-          title: 置信度非停滞奖励
-        repairing_threshold:
-          type: number
-          format: double
-          title: REPAIRING 阶段阈值
-        eta_max_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: ETA 最大天数
-        change_reason:
-          type: string
-          title: 变更原因
-    ValuationRepairConfigCreateRequest:
-      type: object
-      description: 估值修复配置序列化器（创建/更新）
-      properties:
-        min_history_points:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小历史样本数
-        default_lookback_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 默认回看交易日数
-        confirm_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 修复确认窗口（交易日）
-        min_rebound:
-          type: number
-          format: double
-          title: 最小反弹幅度（百分位）
-        stall_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 停滞检测窗口（交易日）
-        stall_min_progress:
-          type: number
-          format: double
-          title: 停滞最小进展阈值
-        target_percentile:
-          type: number
-          format: double
-          title: 目标百分位
-        undervalued_threshold:
-          type: number
-          format: double
-          title: 低估阈值
-        near_target_threshold:
-          type: number
-          format: double
-          title: 接近目标阈值
-        overvalued_threshold:
-          type: number
-          format: double
-          title: 高估阈值
-        pe_weight:
-          type: number
-          format: double
-          title: PE 权重
-        pb_weight:
-          type: number
-          format: double
-          title: PB 权重
-        confidence_base:
-          type: number
-          format: double
-          title: 置信度基础值
-        confidence_sample_threshold:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 置信度样本数阈值
-        confidence_sample_bonus:
-          type: number
-          format: double
-          title: 置信度样本数奖励
-        confidence_blend_bonus:
-          type: number
-          format: double
-          title: 置信度 pe_pb_blend 奖励
-        confidence_repair_start_bonus:
-          type: number
-          format: double
-          title: 置信度修复起点奖励
-        confidence_not_stalled_bonus:
-          type: number
-          format: double
-          title: 置信度非停滞奖励
-        repairing_threshold:
-          type: number
-          format: double
-          title: REPAIRING 阶段阈值
-        eta_max_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: ETA 最大天数
-        change_reason:
-          type: string
-          title: 变更原因
-    ValuationRepairConfigRequest:
-      type: object
-      description: 估值修复配置序列化器（读取）
-      properties:
-        is_active:
-          type: boolean
-          title: 是否激活（生效中）
-        effective_from:
-          type: string
-          format: date-time
-          nullable: true
-          title: 生效时间
-        min_history_points:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 最小历史样本数
-        default_lookback_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 默认回看交易日数
-        confirm_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 修复确认窗口（交易日）
-        min_rebound:
-          type: number
-          format: double
-          title: 最小反弹幅度（百分位）
-        stall_window:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 停滞检测窗口（交易日）
-        stall_min_progress:
-          type: number
-          format: double
-          title: 停滞最小进展阈值
-        target_percentile:
-          type: number
-          format: double
-          title: 目标百分位
-        undervalued_threshold:
-          type: number
-          format: double
-          title: 低估阈值
-        near_target_threshold:
-          type: number
-          format: double
-          title: 接近目标阈值
-        overvalued_threshold:
-          type: number
-          format: double
-          title: 高估阈值
-        pe_weight:
-          type: number
-          format: double
-          title: PE 权重
-        pb_weight:
-          type: number
-          format: double
-          title: PB 权重
-        confidence_base:
-          type: number
-          format: double
-          title: 置信度基础值
-        confidence_sample_threshold:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: 置信度样本数阈值
-        confidence_sample_bonus:
-          type: number
-          format: double
-          title: 置信度样本数奖励
-        confidence_blend_bonus:
-          type: number
-          format: double
-          title: 置信度 pe_pb_blend 奖励
-        confidence_repair_start_bonus:
-          type: number
-          format: double
-          title: 置信度修复起点奖励
-        confidence_not_stalled_bonus:
-          type: number
-          format: double
-          title: 置信度非停滞奖励
-        repairing_threshold:
-          type: number
-          format: double
-          title: REPAIRING 阶段阈值
-        eta_max_days:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
-          title: ETA 最大天数
-        change_reason:
-          type: string
-          title: 变更原因
-        created_by:
-          type: string
-          title: 创建人
-          maxLength: 64
     ValuationRepairHistoryResponse:
       type: object
       description: 估值修复历史响应序列化器

@@ -24,7 +24,7 @@
 | regime | `/api/regime/` | SDK/MCP 使用 V2 current/history/distribution |
 | pulse | `/api/pulse/current/` | Pulse canonical 读入口；历史与计算分别使用 `/api/pulse/history/`、`/api/pulse/calculate/` |
 | policy | `/api/policy/` | SDK/MCP 不再走 `/policy/...` |
-| macro | `/api/macro/` | 历史 module-first 前缀已废弃 |
+| macro | `/api/data-center/macro/series/` | 宏观事实正式收口到 data_center，旧 macro API 已移除 |
 | account | `/api/account/` | 旧 module-first 前缀已移除 |
 | filter | `/api/filter/` | 旧 module-first 前缀已移除 |
 | backtest | `/api/backtest/` | 页面旧别名如 `/backtest/list/` 已移除 |
@@ -103,7 +103,7 @@
 
 ## 已修复的典型错配
 
-- macro SDK: 历史 module-first 前缀已清理，只保留 `/api/macro/*`
+- macro SDK: 宏观查询与治理已切到 `/api/data-center/*`
 - account SDK: 历史 module-first 前缀已清理，只保留 `/api/account/*`
 - filter SDK: 历史 module-first 前缀已清理，只保留 `/api/filter/*`
 - backtest SDK: 历史页面/API 别名已清理，只保留 `/api/backtest/*`

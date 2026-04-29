@@ -381,7 +381,6 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
                 'alpha_pool_mode',
                 'benchmark_code_map',
                 'asset_proxy_code_map',
-                'macro_index_catalog',
             )
         }),
         ('时间戳', {

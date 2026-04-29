@@ -23,6 +23,7 @@ from apps.data_center.domain.entities import (
     FinancialFact,
     FundNavFact,
     IndicatorCatalog,
+    IndicatorUnitRule,
     MacroFact,
     NewsFact,
     PriceBar,
@@ -39,7 +40,6 @@ from apps.data_center.domain.enums import (
     MarketExchange,
     PriceAdjustment,
 )
-from core.integration.data_center_business_sources import get_legacy_macro_series
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
@@ -48,6 +48,7 @@ from apps.data_center.infrastructure.models import (
     FinancialFactModel,
     FundNavFactModel,
     IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
     MacroFactModel,
     NewsFactModel,
     PriceBarModel,
@@ -327,6 +328,9 @@ class IndicatorCatalogRepository:
         except IndicatorCatalogModel.DoesNotExist:
             return None
 
+    def list_all(self) -> list[IndicatorCatalog]:
+        return [self._from_model(m) for m in IndicatorCatalogModel.objects.all()]
+
     def list_active(self) -> list[IndicatorCatalog]:
         return [self._from_model(m) for m in IndicatorCatalogModel.objects.filter(is_active=True)]
 
@@ -345,6 +349,86 @@ class IndicatorCatalogRepository:
             ),
         )
         return self._from_model(m)
+
+    def delete(self, code: str) -> None:
+        IndicatorCatalogModel.objects.filter(code=code).delete()
+
+
+class IndicatorUnitRuleRepository:
+    """ORM-backed repository for IndicatorUnitRule definitions."""
+
+    @staticmethod
+    def _from_model(m: IndicatorUnitRuleModel) -> IndicatorUnitRule:
+        return IndicatorUnitRule(
+            id=m.id,
+            indicator_code=m.indicator_code,
+            source_type=m.source_type,
+            dimension_key=m.dimension_key,
+            original_unit=m.original_unit,
+            storage_unit=m.storage_unit,
+            display_unit=m.display_unit,
+            multiplier_to_storage=float(m.multiplier_to_storage),
+            is_active=m.is_active,
+            priority=m.priority,
+            description=m.description,
+        )
+
+    def get_by_id(self, rule_id: int) -> IndicatorUnitRule | None:
+        try:
+            return self._from_model(IndicatorUnitRuleModel.objects.get(id=rule_id))
+        except IndicatorUnitRuleModel.DoesNotExist:
+            return None
+
+    def list_by_indicator(self, indicator_code: str) -> list[IndicatorUnitRule]:
+        return [
+            self._from_model(m)
+            for m in IndicatorUnitRuleModel.objects.filter(indicator_code=indicator_code).order_by(
+                "-priority", "source_type", "original_unit", "id"
+            )
+        ]
+
+    def upsert(self, rule: IndicatorUnitRule) -> IndicatorUnitRule:
+        m, _ = IndicatorUnitRuleModel.objects.update_or_create(
+            indicator_code=rule.indicator_code,
+            source_type=rule.source_type,
+            original_unit=rule.original_unit,
+            defaults=dict(
+                dimension_key=rule.dimension_key,
+                storage_unit=rule.storage_unit,
+                display_unit=rule.display_unit,
+                multiplier_to_storage=rule.multiplier_to_storage,
+                is_active=rule.is_active,
+                priority=rule.priority,
+                description=rule.description,
+            ),
+        )
+        return self._from_model(m)
+
+    def delete(self, rule_id: int) -> None:
+        IndicatorUnitRuleModel.objects.filter(id=rule_id).delete()
+
+    def resolve_active_rule(
+        self,
+        indicator_code: str,
+        *,
+        source_type: str = "",
+        original_unit: str | None = None,
+    ) -> IndicatorUnitRule | None:
+        queryset = IndicatorUnitRuleModel.objects.filter(
+            indicator_code=indicator_code,
+            is_active=True,
+        )
+        if original_unit is not None:
+            queryset = queryset.filter(original_unit=original_unit)
+
+        scoped = list(
+            queryset.filter(source_type=source_type).order_by("-priority", "id")[:1]
+        ) if source_type else []
+        if scoped:
+            return self._from_model(scoped[0])
+
+        fallback = queryset.filter(source_type="").order_by("-priority", "id").first()
+        return self._from_model(fallback) if fallback else None
 
 
 # ---------------------------------------------------------------------------
@@ -410,24 +494,6 @@ class MacroFactRepository:
             )
             count += 1
         return count
-
-
-class LegacyMacroSeriesRepository:
-    """Fallback reader for the pre-data-center macro storage."""
-
-    def get_series(
-        self,
-        code: str,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        source: str | None = None,
-    ) -> list:
-        return get_legacy_macro_series(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            source=source,
-        )
 
 
 class PriceBarRepository:

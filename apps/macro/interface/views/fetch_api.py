@@ -320,7 +320,8 @@ def api_quick_sync(request):
     """
     API: 快速同步宏观数据（用于 Dashboard 一键同步）
 
-    POST /api/macro/quick-sync/
+    Legacy macro quick sync endpoint has been retired in favor of
+    data-center sync endpoints.
     Body: {
         "source": "akshare"
     }

@@ -684,10 +684,10 @@ class DjangoAuditRepository:
         Returns:
             List[tuple]: (reporting_period, value) 元组列表
         """
-        from apps.macro.infrastructure.models import MacroIndicator
+        from apps.data_center.infrastructure.models import MacroFactModel
 
-        queryset = MacroIndicator._default_manager.filter(
-            code=indicator_code,
+        queryset = MacroFactModel._default_manager.filter(
+            indicator_code=indicator_code,
             reporting_period__gte=start_date,
             reporting_period__lte=end_date,
         ).order_by('reporting_period')

@@ -10,11 +10,13 @@ from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
     CapitalFlowFactModel,
+    IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
+    MacroFactModel,
     PriceBarModel,
     ProviderConfigModel,
     QuoteSnapshotModel,
 )
-from apps.macro.infrastructure.models import MacroIndicator as LegacyMacroIndicatorModel
 
 
 @pytest.fixture
@@ -37,6 +39,15 @@ def authenticated_client(api_client, auth_user):
     return api_client
 
 
+@pytest.fixture
+def admin_client(api_client, auth_user):
+    auth_user.is_staff = True
+    auth_user.is_superuser = True
+    auth_user.save(update_fields=["is_staff", "is_superuser"])
+    api_client.force_authenticate(user=auth_user)
+    return api_client
+
+
 @pytest.mark.django_db
 def test_data_center_api_root_contract(authenticated_client):
     response = authenticated_client.get("/api/data-center/")
@@ -45,6 +56,7 @@ def test_data_center_api_root_contract(authenticated_client):
     assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["endpoints"]["providers"] == "/api/data-center/providers/"
+    assert payload["endpoints"]["indicators"] == "/api/data-center/indicators/"
     assert payload["endpoints"]["price_quotes"] == "/api/data-center/prices/quotes/"
 
 
@@ -72,53 +84,173 @@ def test_legacy_market_data_api_routes_are_removed(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_data_center_macro_series_blocks_legacy_fallback_by_default(authenticated_client):
-    LegacyMacroIndicatorModel.objects.create(
+def test_data_center_macro_series_reads_from_fact_table(authenticated_client):
+    current_period = timezone.localdate().replace(day=1)
+    IndicatorCatalogModel.objects.update_or_create(
         code="CN_PMI",
-        value=50.9,
-        unit="指数",
+        defaults={
+            "name_cn": "制造业PMI",
+            "default_period_type": "M",
+            "category": "growth",
+            "is_active": True,
+        },
+    )
+    IndicatorUnitRuleModel.objects.update_or_create(
+        indicator_code="CN_PMI",
+        source_type="",
         original_unit="指数",
-        reporting_period=date(2025, 3, 1),
-        period_type="M",
-        published_at=date(2025, 3, 2),
+        defaults={
+            "dimension_key": "index",
+            "storage_unit": "指数",
+            "display_unit": "指数",
+            "multiplier_to_storage": 1.0,
+            "is_active": True,
+            "priority": 10,
+        },
+    )
+    MacroFactModel.objects.create(
+        indicator_code="CN_PMI",
+        value="50.900000",
+        unit="指数",
+        reporting_period=current_period,
+        published_at=current_period + timedelta(days=1),
         source="akshare",
+        revision_number=1,
+        quality="valid",
+        extra={"original_unit": "指数", "period_type": "M"},
     )
 
     response = authenticated_client.get("/api/data-center/macro/series/?indicator_code=CN_PMI")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["total"] == 0
-    assert payload["legacy_fallback_available"] is True
-    assert payload["legacy_fallback_used"] is False
-    assert payload["must_not_use_for_decision"] is True
-    assert payload["freshness_status"] == "legacy_blocked"
+    assert payload["indicator_code"] == "CN_PMI"
+    assert payload["name_cn"] == "制造业PMI"
+    assert payload["total"] == 1
+    assert payload["data_source"] == "data_center_fact"
+    assert payload["data"][0]["value"] == 50.9
+    assert payload["data"][0]["display_value"] == 50.9
+    assert payload["data"][0]["display_unit"] == "指数"
+    assert payload["data"][0]["original_unit"] == "指数"
+    assert payload["data"][0]["quality"] == "valid"
+    assert payload["must_not_use_for_decision"] is False
 
 
 @pytest.mark.django_db
-def test_data_center_macro_series_can_explicitly_enable_legacy_fallback(authenticated_client):
-    LegacyMacroIndicatorModel.objects.create(
-        code="CN_PMI",
-        value=50.9,
-        unit="指数",
-        original_unit="指数",
-        reporting_period=date(2025, 3, 1),
-        period_type="M",
-        published_at=date(2025, 3, 2),
-        source="akshare",
+def test_legacy_macro_api_routes_are_removed(authenticated_client):
+    legacy_path = "/api" + "/macro/"
+    response = authenticated_client.get(legacy_path)
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_indicator_catalog_crud_contract(admin_client):
+    create_response = admin_client.post(
+        "/api/data-center/indicators/",
+        data={
+            "code": "CN_TEST_LEVEL",
+            "name_cn": "测试总量指标",
+            "name_en": "Test Level Indicator",
+            "description": "用于 CRUD 契约测试",
+            "category": "growth",
+            "default_period_type": "M",
+            "is_active": True,
+            "extra": {"publication_lag_days": 7},
+        },
+        format="json",
     )
 
-    response = authenticated_client.get(
-        "/api/data-center/macro/series/?indicator_code=CN_PMI&allow_legacy_fallback=true"
+    assert create_response.status_code == 201
+    payload = create_response.json()
+    assert payload["code"] == "CN_TEST_LEVEL"
+    assert payload["extra"]["publication_lag_days"] == 7
+
+    list_response = admin_client.get("/api/data-center/indicators/")
+    assert list_response.status_code == 200
+    assert any(item["code"] == "CN_TEST_LEVEL" for item in list_response.json()["results"])
+
+    patch_response = admin_client.patch(
+        "/api/data-center/indicators/CN_TEST_LEVEL/",
+        data={"description": "已更新说明文案"},
+        format="json",
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.json()["description"] == "已更新说明文案"
+
+    delete_response = admin_client.delete("/api/data-center/indicators/CN_TEST_LEVEL/")
+    assert delete_response.status_code == 204
+    assert IndicatorCatalogModel.objects.filter(code="CN_TEST_LEVEL").exists() is False
+
+
+@pytest.mark.django_db
+def test_indicator_unit_rule_crud_contract(admin_client):
+    IndicatorCatalogModel.objects.create(
+        code="CN_TEST_GDP",
+        name_cn="测试 GDP",
+        default_period_type="Q",
+        category="growth",
+        is_active=True,
     )
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["total"] == 1
-    assert payload["data"][0]["value"] == 50.9
-    assert payload["data"][0]["quality"] == "legacy"
-    assert payload["legacy_fallback_used"] is True
-    assert payload["must_not_use_for_decision"] is True
+    create_response = admin_client.post(
+        "/api/data-center/indicators/CN_TEST_GDP/unit-rules/",
+        data={
+            "source_type": "akshare",
+            "dimension_key": "currency",
+            "original_unit": "亿元",
+            "storage_unit": "元",
+            "display_unit": "亿元",
+            "multiplier_to_storage": 100000000.0,
+            "is_active": True,
+            "priority": 20,
+            "description": "GDP 亿元转元",
+        },
+        format="json",
+    )
+
+    assert create_response.status_code == 201
+    payload = create_response.json()
+    rule_id = payload["id"]
+    assert payload["indicator_code"] == "CN_TEST_GDP"
+    assert payload["display_unit"] == "亿元"
+
+    list_response = admin_client.get("/api/data-center/indicators/CN_TEST_GDP/unit-rules/")
+    assert list_response.status_code == 200
+    assert list_response.json()["results"][0]["id"] == rule_id
+
+    patch_response = admin_client.patch(
+        f"/api/data-center/indicators/CN_TEST_GDP/unit-rules/{rule_id}/",
+        data={"description": "GDP 默认展示单位规则"},
+        format="json",
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.json()["description"] == "GDP 默认展示单位规则"
+
+    delete_response = admin_client.delete(
+        f"/api/data-center/indicators/CN_TEST_GDP/unit-rules/{rule_id}/"
+    )
+    assert delete_response.status_code == 204
+    assert IndicatorUnitRuleModel.objects.filter(id=rule_id).exists() is False
+
+
+@pytest.mark.django_db
+def test_indicator_unit_rule_rejects_unknown_indicator(admin_client):
+    response = admin_client.post(
+        "/api/data-center/indicators/CN_UNKNOWN/unit-rules/",
+        data={
+            "source_type": "",
+            "dimension_key": "index",
+            "original_unit": "指数",
+            "storage_unit": "指数",
+            "display_unit": "指数",
+            "multiplier_to_storage": 1.0,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "Unknown indicator code" in response.json()["detail"]
 
 
 @pytest.mark.django_db

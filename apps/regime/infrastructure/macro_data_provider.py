@@ -95,7 +95,6 @@ class DataCenterMacroRepositoryAdapter:
 
     def __init__(self) -> None:
         self._period_type_cache: dict[str, str] = {}
-        self._legacy_repository = None
 
     def _get_models(self):
         from apps.data_center.infrastructure.models import (
@@ -113,13 +112,6 @@ class DataCenterMacroRepositoryAdapter:
                 catalog.default_period_type if catalog else "D"
             )
         return self._period_type_cache[indicator_code]
-
-    def _get_legacy_repository(self):
-        if self._legacy_repository is None:
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-
-            self._legacy_repository = DjangoMacroRepository()
-        return self._legacy_repository
 
     def _to_macro_indicator(self, fact) -> "MacroIndicator":
         from apps.macro.domain.entities import MacroIndicator, PeriodType
@@ -204,15 +196,7 @@ class DataCenterMacroRepositoryAdapter:
             use_pit=use_pit,
         )
         observations = self._dedupe_latest_by_period(queryset, descending=False)
-        if observations:
-            return observations
-        return self._get_legacy_repository().get_series(
-            code=code,
-            start_date=start_date,
-            end_date=end_date,
-            use_pit=use_pit,
-            source=source,
-        )
+        return observations
 
     def get_observations_for_period(
         self,

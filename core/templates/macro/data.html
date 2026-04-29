@@ -13,7 +13,7 @@
         <div>
             <h1>宏观数据中心</h1>
             <p class="subtitle">中国宏观经济指标全景展示</p>
-            <p class="description">PMI、CPI、M2 等核心指标的历史数据与趋势分析</p>
+            <p class="description">指标名称、展示单位与说明统一来自 Data Center 指标目录与量纲规则。</p>
         </div>
         <div class="header-controls">
             <button class="control-btn" onclick="window.location.href='/macro/controller/'">
@@ -26,9 +26,11 @@
 <script>
 // 从服务器端数据构建指标名称映射
 const indicatorNamesMap = {};
+const indicatorDescriptionsMap = {};
 {% for category in indicator_categories %}
     {% for ind in category.indicators %}
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
+        indicatorDescriptionsMap['{{ ind.code }}'] = '{{ ind.description|default:""|escapejs }}';
     {% endfor %}
 {% endfor %}
 
@@ -52,8 +54,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // 显示指标信息栏并渲染图表
         showIndicatorInfoBar();
-        renderMainChart(initialIndicator, initialChartData.dates, initialChartData.values);
         updateIndicatorInfoFromServer();
+        renderMainChart(
+            initialIndicator,
+            initialChartData.dates,
+            initialChartData.values,
+            '{{ selected_indicator_data.unit|default:""|escapejs }}',
+        );
     }
 });
 
@@ -72,6 +79,7 @@ function updateIndicatorInfoFromServer() {
     document.getElementById('currentIndicatorUnit').textContent = '{{ selected_indicator_data.unit|escapejs }}';
     document.getElementById('currentIndicatorPeriod').textContent = '{{ selected_indicator_data.latest_period }}';
     document.getElementById('currentIndicatorRecords').textContent = {{ chart_values|length }} + ' 条';
+    document.getElementById('currentIndicatorDescription').textContent = '{{ selected_indicator_data.description|default:""|escapejs }}';
     {% endif %}
 }
 
@@ -105,20 +113,21 @@ async function selectIndicator(code) {
     showIndicatorInfoBar();
 
     // 获取数据并渲染图表
-    const response = await fetch(`{% url "api_macro:get_indicator_data" %}?code=${code}`);
+    const response = await fetch(`{% url "api_data_center:dc-macro-series" %}?indicator_code=${encodeURIComponent(code)}&limit=500`);
     const result = await response.json();
 
-    if (result.success && result.data) {
-        const dates = result.data.map(d => d.observed_at);
-        const values = result.data.map(d => d.value);
-        renderMainChart(code, dates, values);
+    if (response.ok && Array.isArray(result.data)) {
+        const dates = result.data.map(d => d.reporting_period);
+        const values = result.data.map(d => Number(d.display_value ?? d.value));
         updateIndicatorInfo(code, result.data);
+        renderMainChart(code, dates, values, latestUnitFromData(result.data));
     }
 }
 
 // 渲染主图表
-function renderMainChart(code, dates, values) {
+function renderMainChart(code, dates, values, unit = '') {
     const chartDom = document.getElementById('mainChart');
+    const displayUnit = unit || '';
     if (currentChart) {
         currentChart.dispose();
     }
@@ -134,7 +143,9 @@ function renderMainChart(code, dates, values) {
         tooltip: {
             trigger: 'axis',
             formatter: function(params) {
-                return `${params[0].axisValue}<br/>数值: ${params[0].value.toFixed(2)}`;
+                const value = Number(params[0].value);
+                const suffix = displayUnit && displayUnit !== '-' ? ` ${displayUnit}` : '';
+                return `${params[0].axisValue}<br/>数值: ${value.toFixed(2)}${suffix}`;
             }
         },
         grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
@@ -166,16 +177,24 @@ function renderMainChart(code, dates, values) {
     window.addEventListener('resize', () => currentChart.resize());
 }
 
+function latestUnitFromData(data) {
+    if (!Array.isArray(data) || data.length === 0) {
+        return '';
+    }
+    return data[data.length - 1].display_unit || data[data.length - 1].unit || '';
+}
+
 // 更新指标信息
 function updateIndicatorInfo(code, data) {
     const latest = data[data.length - 1];
     document.getElementById('currentIndicatorCode').textContent = code;
     document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
-    document.getElementById('currentIndicatorValue').textContent = latest.value.toFixed(2);
-    document.getElementById('currentIndicatorUnit').textContent = latest.unit || '-';
+    document.getElementById('currentIndicatorValue').textContent = Number(latest.display_value ?? latest.value).toFixed(2);
+    document.getElementById('currentIndicatorUnit').textContent = latest.display_unit || latest.unit || '-';
     document.getElementById('currentIndicatorSource').textContent = latest.source || '-';
-    document.getElementById('currentIndicatorPeriod').textContent = latest.observed_at;
+    document.getElementById('currentIndicatorPeriod').textContent = latest.reporting_period;
     document.getElementById('currentIndicatorRecords').textContent = data.length + ' 条';
+    document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
 }
 
 // 折叠/展开分类
@@ -415,6 +434,7 @@ function getCookie(name) {
                 <span class="info-value" id="currentIndicatorRecords">-</span>
             </div>
         </div>
+        <div class="indicator-description" id="currentIndicatorDescription"></div>
 
         <!-- 主图表 -->
         <div class="main-chart-container">
@@ -740,6 +760,13 @@ function getCookie(name) {
     border-radius: var(--radius-md);
     padding: 20px;
     min-height: 500px;
+}
+
+.indicator-description {
+    margin: 10px 0 14px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .main-chart {

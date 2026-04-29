@@ -224,6 +224,46 @@ class IndicatorCatalog:
         }
 
 
+@dataclass(frozen=True)
+class IndicatorUnitRule:
+    """Canonical unit-governance rule for one macro indicator."""
+
+    id: int | None
+    indicator_code: str
+    source_type: str = ""
+    dimension_key: str = "other"
+    original_unit: str = ""
+    storage_unit: str = ""
+    display_unit: str = ""
+    multiplier_to_storage: float = 1.0
+    is_active: bool = True
+    priority: int = 0
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.indicator_code:
+            raise ValueError("IndicatorUnitRule.indicator_code cannot be empty")
+        if not self.dimension_key:
+            raise ValueError("IndicatorUnitRule.dimension_key cannot be empty")
+        if self.multiplier_to_storage <= 0:
+            raise ValueError("IndicatorUnitRule.multiplier_to_storage must be positive")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "indicator_code": self.indicator_code,
+            "source_type": self.source_type,
+            "dimension_key": self.dimension_key,
+            "original_unit": self.original_unit,
+            "storage_unit": self.storage_unit,
+            "display_unit": self.display_unit,
+            "multiplier_to_storage": self.multiplier_to_storage,
+            "is_active": self.is_active,
+            "priority": self.priority,
+            "description": self.description,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Fact table value objects
 # ---------------------------------------------------------------------------

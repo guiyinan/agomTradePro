@@ -213,7 +213,6 @@ def test_system_settings_page_saves_market_color_convention(admin_client):
             "notes": settings.notes,
             "benchmark_code_map": "{}" if not settings.benchmark_code_map else json.dumps(settings.benchmark_code_map, ensure_ascii=False),
             "asset_proxy_code_map": "{}" if not settings.asset_proxy_code_map else json.dumps(settings.asset_proxy_code_map, ensure_ascii=False),
-            "macro_index_catalog": "[]" if not settings.macro_index_catalog else json.dumps(settings.macro_index_catalog, ensure_ascii=False),
         },
     )
 

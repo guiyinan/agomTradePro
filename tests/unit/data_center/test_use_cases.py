@@ -25,6 +25,7 @@ from apps.data_center.application.use_cases import (
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
     IndicatorCatalog,
+    IndicatorUnitRule,
     MacroFact,
     PriceBar,
     ProviderConfig,
@@ -137,6 +138,49 @@ class _IndicatorCatalogRepo:
         return None
 
 
+class _IndicatorUnitRuleRepo:
+    def __init__(self, rules: list[IndicatorUnitRule] | None = None) -> None:
+        self._rules = rules or []
+
+    def get_by_id(self, rule_id: int) -> IndicatorUnitRule | None:
+        for rule in self._rules:
+            if rule.id == rule_id:
+                return rule
+        return None
+
+    def list_by_indicator(self, indicator_code: str) -> list[IndicatorUnitRule]:
+        return [rule for rule in self._rules if rule.indicator_code == indicator_code]
+
+    def upsert(self, rule: IndicatorUnitRule) -> IndicatorUnitRule:
+        return rule
+
+    def delete(self, rule_id: int) -> None:
+        self._rules = [rule for rule in self._rules if rule.id != rule_id]
+
+    def resolve_active_rule(
+        self,
+        indicator_code: str,
+        *,
+        source_type: str = "",
+        original_unit: str | None = None,
+    ) -> IndicatorUnitRule | None:
+        candidates = [
+            rule
+            for rule in self._rules
+            if rule.indicator_code == indicator_code and rule.is_active
+        ]
+        if original_unit is not None:
+            candidates = [rule for rule in candidates if rule.original_unit == original_unit]
+        if source_type:
+            scoped = [rule for rule in candidates if rule.source_type == source_type]
+            if scoped:
+                return sorted(scoped, key=lambda item: (-item.priority, item.id or 0))[0]
+        defaults = [rule for rule in candidates if rule.source_type == ""]
+        if defaults:
+            return sorted(defaults, key=lambda item: (-item.priority, item.id or 0))[0]
+        return None
+
+
 class _QuoteSnapshotRepo:
     def __init__(self, quote: QuoteSnapshot | None = None) -> None:
         self._quotes = [quote] if quote else []
@@ -239,45 +283,6 @@ class _DecisionRepairProvider:
                 source="akshare",
             )
         ]
-
-
-class _LegacyMacroFact:
-    def __init__(
-        self,
-        code: str,
-        reporting_period: date,
-        value: float,
-        unit: str,
-        source: str,
-        published_at: date | None,
-    ) -> None:
-        self.code = code
-        self.reporting_period = reporting_period
-        self.value = value
-        self.unit = unit
-        self.source = source
-        self.published_at = published_at
-
-
-class _LegacyMacroSeriesRepo:
-    def __init__(self, facts: list[_LegacyMacroFact] | None = None) -> None:
-        self._facts = facts or []
-
-    def get_series(
-        self,
-        code: str,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        source: str | None = None,
-    ) -> list[_LegacyMacroFact]:
-        facts = [f for f in self._facts if f.code == code]
-        if start_date is not None:
-            facts = [f for f in facts if f.reporting_period >= start_date]
-        if end_date is not None:
-            facts = [f for f in facts if f.reporting_period <= end_date]
-        if source is not None:
-            facts = [f for f in facts if f.source == source]
-        return facts
 
 
 # ---------------------------------------------------------------------------
@@ -415,22 +420,23 @@ class TestQueryMacroSeriesUseCase:
             default_unit="指数",
             default_period_type="M",
         )
+        unit_rules = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_PMI",
+                    original_unit="指数",
+                    storage_unit="指数",
+                    display_unit="指数",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
 
         uc = QueryMacroSeriesUseCase(
             _MacroFactRepo([fact]),
             _IndicatorCatalogRepo(catalog),
-            _LegacyMacroSeriesRepo(
-                [
-                    _LegacyMacroFact(
-                        code="CN_PMI",
-                        reporting_period=date(2025, 2, 1),
-                        value=50.1,
-                        unit="指数",
-                        source="legacy",
-                        published_at=date(2025, 2, 2),
-                    )
-                ]
-            ),
+            unit_rules,
         )
 
         result = uc.execute(MacroSeriesRequest(indicator_code="CN_PMI"))
@@ -440,64 +446,19 @@ class TestQueryMacroSeriesUseCase:
         assert result.data[0].value == 50.9
         assert result.data[0].quality == "valid"
 
-    def test_blocks_legacy_repo_by_default_when_data_center_is_empty(self):
+    def test_returns_missing_when_data_center_is_empty(self):
         uc = QueryMacroSeriesUseCase(
             _MacroFactRepo(),
             _IndicatorCatalogRepo(),
-            _LegacyMacroSeriesRepo(
-                [
-                    _LegacyMacroFact(
-                        code="CN_PMI",
-                        reporting_period=date(2025, 3, 1),
-                        value=50.9,
-                        unit="指数",
-                        source="akshare",
-                        published_at=date(2025, 3, 2),
-                    )
-                ]
-            ),
+            _IndicatorUnitRuleRepo(),
         )
 
         result = uc.execute(MacroSeriesRequest(indicator_code="CN_PMI"))
 
         assert result.total == 0
         assert result.name_cn == "CN_PMI"
-        assert result.legacy_fallback_available is True
-        assert result.legacy_fallback_used is False
         assert result.must_not_use_for_decision is True
-        assert result.freshness_status == "legacy_blocked"
-
-    def test_can_explicitly_enable_legacy_fallback_for_macro_series(self):
-        uc = QueryMacroSeriesUseCase(
-            _MacroFactRepo(),
-            _IndicatorCatalogRepo(),
-            _LegacyMacroSeriesRepo(
-                [
-                    _LegacyMacroFact(
-                        code="CN_PMI",
-                        reporting_period=date(2025, 3, 1),
-                        value=50.9,
-                        unit="指数",
-                        source="akshare",
-                        published_at=date(2025, 3, 2),
-                    )
-                ]
-            ),
-        )
-
-        result = uc.execute(
-            MacroSeriesRequest(
-                indicator_code="CN_PMI",
-                allow_legacy_fallback=True,
-            )
-        )
-
-        assert result.total == 1
-        assert result.data[0].value == 50.9
-        assert result.data[0].quality == "legacy"
-        assert result.legacy_fallback_used is True
-        assert result.must_not_use_for_decision is True
-        assert result.decision_grade == "degraded"
+        assert result.freshness_status == "missing"
 
 
 class TestQueryLatestQuoteUseCase:
@@ -564,10 +525,22 @@ class TestRepairDecisionDataReliabilityUseCase:
                     default_period_type="D",
                 )
             ),
+            indicator_unit_rule_repo=_IndicatorUnitRuleRepo(
+                [
+                    IndicatorUnitRule(
+                        id=1,
+                        indicator_code="CN_PMI",
+                        source_type="akshare",
+                        original_unit="指数",
+                        storage_unit="指数",
+                        display_unit="指数",
+                        multiplier_to_storage=1.0,
+                    )
+                ]
+            ),
             price_bar_repo=_PriceBarRepo(),
             quote_snapshot_repo=_QuoteSnapshotRepo(),
             raw_audit_repo=_RawAuditRepo(),
-            legacy_macro_repo=_LegacyMacroSeriesRepo(),
             alpha_refresher=alpha_refresher,
             alpha_status_reader=alpha_status_reader,
         )

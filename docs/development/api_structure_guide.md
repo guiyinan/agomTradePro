@@ -1,443 +1,170 @@
-# AgomTradePro API 数据结构与适配器映射指南
+# AgomTradePro 宏观 API 与 Data Center 结构指南
 
-## 1. 当前 API 数据结构
+## 1. 当前唯一口径
 
-### 1.1 统一的响应格式
+自 2026-04 宏观链路收口后，系统的宏观数据只保留两类真源：
 
-所有 API 返回统一的 JSON 格式：
+1. `IndicatorCatalog`：指标目录真源，管理代码、名称、分类、说明、默认周期等语义字段。
+2. `IndicatorUnitRule`：量纲规则真源，管理 `source_type`、`original_unit`、`storage_unit`、`display_unit`、`multiplier_to_storage` 等规则。
+
+宏观事实数据只存 `data_center_macro_fact`，外部读入口统一为：
+
+- `GET /api/data-center/macro/series/`
+- `POST /api/data-center/sync/macro/`
+- `GET/POST /api/data-center/indicators/`
+- `GET/PATCH/DELETE /api/data-center/indicators/{code}/`
+- `GET/POST /api/data-center/indicators/{code}/unit-rules/`
+- `GET/PATCH/DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/`
+
+旧 macro API 前缀、旧单位配置模型、硬编码单位映射与 legacy fallback 已退出运行时。
+
+## 2. 宏观时序响应结构
+
+`GET /api/data-center/macro/series/` 返回 canonical storage pair 与 display pair：
 
 ```json
 {
-  "success": true/false,
-  "message": "操作结果描述",
-  "data": { ... },
-  "error": "错误信息（可选）"
-}
-```
-
-### 1.2 核心数据结构
-
-#### MacroIndicator 数据结构（数据库记录）
-
-```python
-{
-    "id": 123,
-    "code": "CN_GDP",              # 指标代码
-    "value": 1500.0,               # 展示值（原始单位）
-    "unit": "亿元",                # 展示单位（原始单位）
-    "storage_value": 150000000000.0,  # 存储值（元）
-    "storage_unit": "元",          # 存储单位（元）
-    "reporting_period": "2024-01-01",  # 报告期
-    "period_type": "Q",            # 期间类型（D/W/M/Q/H/Y）
-    "period_type_display": "季",   # 期间类型显示
-    "observed_at": "2024-01-01",   # 观测日（兼容旧API）
-    "published_at": "2024-01-20",  # 发布日
-    "source": "akshare",           # 数据源
-    "revision_number": 1,          # 修订版本号
-    "publication_lag_days": 20     # 发布延迟天数
-}
-```
-
-#### 指标列表数据结构
-
-```python
-{
-    "code": "CN_GDP",
-    "name": "GDP",
-    "name_en": "GDP",
-    "category": "增长",
-    "unit": "亿元",          # 展示单位（原始单位）
-    "description": "国内生产总值",
-    "latest_value": 1500.0,  # 最新展示值
-    "latest_date": "2024-01-01",
-    "period_type": "Q",
-    "threshold_bullish": 6.0,
-    "threshold_bearish": 5.0,
-    "avg_value": 120000000000.0,  # 平均值（存储值，用于趋势分析）
-    "max_value": 150000000000.0,
-    "min_value": 100000000000.0
-}
-```
-
-### 1.3 主要 API 接口
-
-| API | 方法 | 功能 | 数据结构 |
-|-----|------|------|---------|
-| `/api/macro/table/` | GET | 获取表格数据（分页） | `MacroIndicator[]` |
-| `/api/macro/indicator-data/` | GET | 获取单个指标数据 | `MacroIndicator[]` |
-| `/api/macro/record/<id>/` | GET/PUT/DELETE | 单条记录 CRUD | `MacroIndicator` |
-| `/api/macro/records/batch-delete/` | POST | 批量删除 | `{success, message, deleted_count}` |
-| `/api/macro/supported-indicators/` | GET | 获取支持的指标列表 | `{code, name, unit}[]` |
-| `/api/macro/fetch/` | POST | 手动触发数据抓取 | `{success, message, synced_count}` |
-| `/api/macro/quick-sync/` | POST | 快速同步 | `{success, message, results}` |
-
-## 2. 适配器映射机制
-
-### 2.1 映射流程图
-
-```
-┌─────────────────┐
-│  API 请求       │
-│  indicator_code │  "CN_GDP"
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ FailoverAdapter │  主适配器（容错切换）
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  遍历子适配器列表                  │
-│  1. AKShareAdapter                  │
-│  2. TushareAdapter                  │
-│  ...                                │
-└────────┬────────────────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ supports()?     │  检查是否支持该指标
-└────────┬────────┘
-         │
-    Yes  │  No
-    ┌────┴────┐
-    │         ▼
-    │   ┌─────────────────┐
-    │   │ 下一个适配器     │
-    │   └─────────────────┘
-    ▼
-┌─────────────────┐
-│ fetch()         │  调用具体 fetcher
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  AKShareAdapter.fetch()            │
-│  - 判断 indicator_code              │
-│  - 路由到对应的 fetcher            │
-│  - 返回 List[MacroDataPoint]        │
-└────────┬────────────────────────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  Fetcher (如 EconomicFetcher)       │
-│  - 调用数据源 API (akshare)         │
-│  - 解析返回的 DataFrame             │
-│  - 转换为 MacroDataPoint 列表       │
-└────────┬────────────────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ MacroDataPoint  │
-│ - code          │  "CN_GDP"
-│ - value         │  1500 (原始值)
-│ - observed_at   │  2024-01-01
-│ - source        │  "akshare"
-│ - original_unit │  "亿元" (原始单位)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  单位转换 (Application Layer)       │
-│  - 货币类转换为"元"                 │
-│  - 记录 original_unit               │
-└────────┬────────────────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│ MacroIndicator  │  数据库存储
-│ - value         │  150000000000 (元)
-│ - unit          │  "元"
-│ - original_unit │  "亿元"
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────┐
-│  API 响应 (Interface Layer)        │
-│  - 转换回展示值（原始单位）         │
-│  - 返回统一格式的 JSON              │
-└─────────────────────────────────────┘
-```
-
-### 2.2 适配器结构
-
-#### AKShareAdapter (主要适配器)
-
-```python
-class AKShareAdapter(BaseMacroAdapter):
-    source_name = "akshare"
-
-    # 支持的指标代码映射
-    SUPPORTED_INDICATORS = {
-        "CN_PMI": "PMI",
-        "CN_CPI": "CPI",
-        "CN_GDP": "GDP",
-        # ... 更多指标
-    }
-
-    def fetch(self, indicator_code, start_date, end_date):
-        # 根据指标代码路由到对应的 fetcher
-        if indicator_code == "CN_GDP":
-            return self.economic_fetcher.fetch_gdp(start_date, end_date)
-        elif indicator_code == "CN_PMI":
-            return self.base_fetcher.fetch_pmi(start_date, end_date)
-        # ... 更多路由逻辑
-```
-
-#### Fetcher 分类
-
-| Fetcher | 职责 | 指标示例 |
-|---------|------|---------|
-| `BaseIndicatorFetcher` | 基础指标 | PMI, CPI, PPI, M2 |
-| `EconomicIndicatorFetcher` | 经济活动 | GDP, 工业增加值, 社零 |
-| `TradeIndicatorFetcher` | 贸易数据 | 进口, 出口, 贸易差额 |
-| `FinancialIndicatorFetcher` | 金融数据 | SHIBOR, LPR, 新增信贷, 外汇储备 |
-| `OtherIndicatorFetcher` | 其他指标 | 失业率, 房价, 油价 |
-
-#### FailoverAdapter (容错适配器)
-
-```python
-class FailoverAdapter(MacroAdapterProtocol):
-    """
-    按优先级尝试多个数据源
-    主数据源失败时自动切换备用源
-    """
-    def __init__(self, adapters, validate_consistency=True, tolerance=0.01):
-        self.adapters = adapters  # [AKShareAdapter, TushareAdapter, ...]
-
-    def fetch(self, indicator_code, start_date, end_date):
-        # 逐个尝试适配器
-        for adapter in self.adapters:
-            if adapter.supports(indicator_code):
-                try:
-                    data = adapter.fetch(indicator_code, start_date, end_date)
-                    if data:
-                        return data  # 成功则返回
-                except Exception as e:
-                    continue  # 失败则尝试下一个
-        raise DataSourceUnavailableError("所有数据源都失败")
-```
-
-## 3. 当前存在的问题与改进建议
-
-### 3.1 当前问题
-
-1. **硬编码路由逻辑**：`fetch()` 方法中使用大量 `if-elif` 判断
-2. **可扩展性差**：添加新指标需要修改多处代码
-3. **缺乏配置化**：指标与 fetcher 的映射关系硬编码在代码中
-4. **返回数据结构不统一**：不同 API 可能有细微差异
-
-### 3.2 改进建议
-
-#### 建议 1：配置化指标映射
-
-创建指标配置表，替代硬编码：
-
-```python
-# apps/macro/infrastructure/models.py
-
-class IndicatorMappingConfig(models.Model):
-    """指标映射配置"""
-    indicator_code = models.CharField(max_length=50)  # CN_GDP
-    data_source = models.CharField(max_length=20)     # akshare
-    fetcher_type = models.CharField(max_length=50)    # economic
-    fetch_method = models.CharField(max_length=50)    # fetch_gdp
-    original_unit = models.CharField(max_length=50)    # 亿元
-    is_currency = models.BooleanField(default=False)
-    priority = models.IntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-```
-
-#### 建议 2：动态路由
-
-使用配置表动态路由：
-
-```python
-class AKShareAdapter(BaseMacroAdapter):
-    def fetch(self, indicator_code, start_date, end_date):
-        # 从数据库获取配置
-        config = IndicatorMappingConfig.objects.filter(
-            indicator_code=indicator_code,
-            data_source=self.source_name,
-            is_active=True
-        ).order_by('-priority').first()
-
-        if not config:
-            raise DataSourceUnavailableError(f"未配置指标: {indicator_code}")
-
-        # 动态调用 fetcher 方法
-        fetcher = self._get_fetcher(config.fetcher_type)
-        method = getattr(fetcher, config.fetch_method)
-        return method(start_date, end_date)
-```
-
-#### 建议 3：统一的 API 响应格式
-
-创建统一的响应封装：
-
-```python
-# apps/macro/interface/dto.py
-
-@dataclass
-class ApiResponse:
-    """统一 API 响应格式"""
-    success: bool
-    message: str = ""
-    data: Any = None
-    error: Optional[str] = None
-
-    def to_dict(self):
-        return asdict(self)
-
-    @classmethod
-    def success_response(cls, data=None, message="操作成功"):
-        return cls(success=True, message=message, data=data)
-
-    @classmethod
-    def error_response(cls, message, error=None):
-        return cls(success=False, message=message, error=error)
-```
-
-#### 建议 4：API 版本控制
-
-支持多版本 API：
-
-```
-/api/v1/macro/indicator/{code}/
-/api/v2/macro/indicator/{code}/  # 支持更多参数，返回更多字段
-```
-
-## 4. 添加新指标的完整流程
-
-### 4.1 当前方式（硬编码）
-
-```python
-# 1. 在 AKShareAdapter.SUPPORTED_INDICATORS 添加映射
-SUPPORTED_INDICATORS = {
-    ...
-    "CN_NEW_INDICATOR": "新指标名称",
-}
-
-# 2. 在 fetch() 方法添加路由
-def fetch(self, indicator_code, start_date, end_date):
-    ...
-    elif indicator_code == "CN_NEW_INDICATOR":
-        return self.xxx_fetcher.fetch_new_indicator(start_date, end_date)
-
-# 3. 创建 fetcher 方法
-def fetch_new_indicator(self, start_date, end_date):
-    df = self.ak.macro_china_xxx()
-    # 解析并返回 MacroDataPoint 列表
-```
-
-### 4.2 推荐方式（配置化）
-
-```python
-# 1. 通过 Django Admin 或 API 添加配置
-IndicatorMappingConfig.objects.create(
-    indicator_code="CN_NEW_INDICATOR",
-    data_source="akshare",
-    fetcher_type="economic",
-    fetch_method="fetch_new_indicator",
-    original_unit="亿元",
-    is_currency=True,
-    priority=10
-)
-
-# 2. 在对应的 fetcher 中实现方法（只需一次）
-class EconomicIndicatorFetcher(BaseFetcher):
-    def fetch_new_indicator(self, start_date, end_date):
-        df = self.ak.macro_china_xxx()
-        # 解析并返回 MacroDataPoint 列表
-```
-
-## 5. API 调用示例
-
-### 5.1 获取指标数据
-
-```bash
-# 获取 GDP 数据（返回展示值：亿元）
-GET /api/macro/indicator-data/?code=CN_GDP&limit=10
-
-# 响应
-{
-  "success": true,
-  "data": [
+  "indicator_code": "CN_GDP",
+  "series": [
     {
-      "id": 123,
-      "code": "CN_GDP",
-      "value": 1500.0,        # 展示值（亿元）
-      "unit": "亿元",         # 展示单位
-      "storage_value": 150000000000.0,  # 存储值（元）
-      "storage_unit": "元",
-      "reporting_period": "2024-01-01",
+      "value": 134908400000000.0,
+      "unit": "元",
+      "display_value": 1349084.0,
+      "display_unit": "亿元",
+      "original_unit": "亿元",
+      "reporting_period": "2025-12-31",
       "period_type": "Q",
-      ...
+      "published_at": "2026-01-17",
+      "source": "akshare",
+      "quality": "official"
     }
-  ],
-  "count": 10
+  ]
 }
 ```
 
-### 5.2 手动触发数据抓取
+字段约定：
 
-```bash
-# 抓取 GDP 数据
-POST /api/macro/fetch/
-Content-Type: application/json
+- `value` + `unit`：系统内部计算口径，只表示 canonical storage value/unit。
+- `display_value` + `display_unit`：页面、图表、表格统一展示口径。
+- `original_unit`：数据源原始单位，供审计和巡检使用。
 
+## 3. 单位治理规则
+
+规则匹配顺序固定为：
+
+1. `indicator_code + source_type`
+2. `indicator_code + source_type=""`
+
+若仍匹配不到规则：
+
+- 同步失败
+- 写入审计
+- 不允许回退到硬编码单位或 legacy 单位字典
+
+示例：
+
+```json
 {
-  "indicators": ["CN_GDP"],
-  "start_date": "2024-01-01",
-  "end_date": "2024-12-31"
-}
-
-# 响应
-{
-  "success": true,
-  "synced_count": 4,
-  "skipped_count": 0,
-  "errors": []
-}
-```
-
-### 5.3 获取支持的指标列表
-
-```bash
-GET /api/macro/supported-indicators/
-
-# 响应
-{
-  "success": true,
-  "data": [
-    {
-      "code": "CN_GDP",
-      "name": "GDP",
-      "category": "增长",
-      "unit": "亿元",
-      "latest_value": 1500.0,
-      "latest_date": "2024-01-01"
-    },
-    ...
-  ],
-  "count": 50
+  "indicator_code": "CN_M2",
+  "source_type": "akshare",
+  "dimension_key": "money",
+  "original_unit": "万亿元",
+  "storage_unit": "元",
+  "display_unit": "万亿元",
+  "multiplier_to_storage": 1000000000000.0,
+  "priority": 50,
+  "is_active": true
 }
 ```
 
-## 6. 总结
+## 4. 采集与入库流程
 
-### 当前状态
+1. Provider 只负责抓取原始值与来源。
+2. `SyncMacroUseCase` 在入库前查询 `IndicatorUnitRule`。
+3. 以 `multiplier_to_storage` 计算 canonical storage value。
+4. `data_center_macro_fact.value` 存 canonical value。
+5. `data_center_macro_fact.unit` 存 canonical storage unit。
+6. `extra.original_unit` 持久化原始单位。
 
-| 方面 | 状态 |
-|-----|------|
-| 数据结构统一 | ✅ 已实现（通过 `_format_indicator_for_display`） |
-| 单位转换 | ✅ 已实现（存储元，展示原始单位） |
-| 适配器映射 | ⚠️ 硬编码，扩展性较差 |
-| 配置化 | ⚠️ 部分实现（IndicatorUnitConfig） |
-| API 响应格式 | ⚠️ 基本统一，但有改进空间 |
+因此：
 
-### 下一步优化建议
+- 页面展示永远使用 `display_*`
+- 内部计算永远使用 `value/unit`
+- 新增指标不再通过改代码补单位映射
 
-1. **短期**：完善 IndicatorUnitConfig，支持单位配置覆盖
-2. **中期**：实现 IndicatorMappingConfig，配置化指标映射
-3. **长期**：API 版本控制，支持向后兼容的升级
+## 5. 指标治理 API
+
+### 5.1 指标 CRUD
+
+```http
+GET  /api/data-center/indicators/
+POST /api/data-center/indicators/
+GET  /api/data-center/indicators/{code}/
+PATCH /api/data-center/indicators/{code}/
+DELETE /api/data-center/indicators/{code}/
+```
+
+指标字段：
+
+- `code`
+- `name_cn`
+- `name_en`
+- `description`
+- `category`
+- `default_period_type`
+- `is_active`
+- `extra`
+
+### 5.2 量纲规则 CRUD
+
+```http
+GET  /api/data-center/indicators/{code}/unit-rules/
+POST /api/data-center/indicators/{code}/unit-rules/
+GET  /api/data-center/indicators/{code}/unit-rules/{rule_id}/
+PATCH /api/data-center/indicators/{code}/unit-rules/{rule_id}/
+DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/
+```
+
+规则字段：
+
+- `source_type`
+- `dimension_key`
+- `original_unit`
+- `storage_unit`
+- `display_unit`
+- `multiplier_to_storage`
+- `is_active`
+- `priority`
+- `description`
+
+## 6. 页面与前端约束
+
+所有页面、图表、表格统一遵循：
+
+1. 只从 `/api/data-center/macro/series/` 读取宏观数据。
+2. 标题和说明文案使用 `IndicatorCatalog` 语义字段。
+3. 数值显示使用 `display_value + display_unit`。
+4. 不再展示或拼接旧 macro API 路径。
+
+## 7. 新增指标的正确流程
+
+新增一个宏观指标时，只允许做以下动作：
+
+1. 在 `IndicatorCatalog` 新建指标。
+2. 在 `IndicatorUnitRule` 新建默认规则，必要时补 provider 覆盖规则。
+3. 在对应 provider/fetcher 增加原始抓取逻辑。
+4. 跑同步。
+5. 用 `/api/data-center/macro/series/` 验证 canonical/storage/display 三套字段是否正确。
+
+禁止再做：
+
+- 在代码里新增单位硬编码字典
+- 在 `macro_indicator` 写入运行时事实
+- 增加旧 macro API 兼容接口
+
+## 8. 验收清单
+
+- 运行时宏观事实只从 `data_center` 读取
+- 页面不再展示错误标题、错误单位或错误说明
+- 新指标可只通过 Admin/API 完成目录与量纲治理
+- 除迁移与归档文档外，不再新增旧宏观 API 或旧单位模型引用

@@ -374,7 +374,7 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 
 - 页面根路径快捷入口：`/account/ -> /account/login/`、`/equity/ -> /equity/screen/`、`/fund/ -> /fund/dashboard/`、`/prompt/ -> /prompt/manage/`
 - `GET /api/filter/` 返回可发现的 API 根信息；真正执行滤波仍使用 `POST /api/filter/`
-- `/api/macro/indicator-data/` 同时接受 `code` 与 `indicator_code` 查询参数
+- 宏观数据统一使用 `/api/data-center/macro/series/`，查询参数使用 `indicator_code`
 - `/api/pulse/current/` 在无历史快照或最新快照已过期/不可靠时，会尝试按需重算当前 Pulse；若当前 Regime 只能解析为 `Unknown`，则保留已有 Pulse 快照，不用未知 Regime 覆盖接口输出
 - Setup Wizard 密码强度检查同时支持 `/setup/api/password-strength/` 与 `/api/setup/password-strength/`
 

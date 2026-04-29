@@ -252,7 +252,9 @@ class Command(BaseCommand):
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()
-        macro_ready = self._macro_indicator_model()._default_manager.filter(code="MCP_TEST_IND").exists()
+        macro_ready = self._macro_indicator_model()._default_manager.filter(
+            indicator_code="MCP_TEST_IND"
+        ).exists()
         stock_ready = StockInfoModel._default_manager.exists()
         factor_seed_ready = FactorPortfolioConfigModel._default_manager.filter(name="MCP冷启动动量组合").exists()
         factor_ready = True
@@ -268,6 +270,6 @@ class Command(BaseCommand):
 
     @staticmethod
     def _macro_indicator_model():
-        from apps.macro.infrastructure.models import MacroIndicator
+        from apps.data_center.infrastructure.models import MacroFactModel
 
-        return MacroIndicator
+        return MacroFactModel

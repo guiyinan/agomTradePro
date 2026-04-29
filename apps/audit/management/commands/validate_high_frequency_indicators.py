@@ -25,7 +25,7 @@ from apps.audit.infrastructure.models import (
     IndicatorThresholdConfigModel,
     ValidationSummaryModel,
 )
-from apps.macro.infrastructure.models import MacroIndicator
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.regime.infrastructure.models import RegimeLog
 
 logger = logging.getLogger(__name__)
@@ -71,8 +71,8 @@ class IndicatorValidator:
         for indicator_code in self.HIGH_FREQ_INDICATORS:
             try:
                 # 检查数据库中的数据
-                queryset = MacroIndicator._default_manager.filter(
-                    code=indicator_code,
+                queryset = MacroFactModel._default_manager.filter(
+                    indicator_code=indicator_code,
                     reporting_period__gte=self.start_date,
                     reporting_period__lte=self.end_date
                 ).order_by('reporting_period')
@@ -158,8 +158,8 @@ class IndicatorValidator:
 
             try:
                 # 获取指标数据
-                indicator_query = MacroIndicator._default_manager.filter(
-                    code=indicator_code,
+                indicator_query = MacroFactModel._default_manager.filter(
+                    indicator_code=indicator_code,
                     reporting_period__gte=self.start_date,
                     reporting_period__lte=self.end_date
                 ).order_by('reporting_period')
@@ -218,8 +218,8 @@ class IndicatorValidator:
 
         try:
             # 获取期限利差数据
-            spread_query = MacroIndicator._default_manager.filter(
-                code=indicator_code,
+            spread_query = MacroFactModel._default_manager.filter(
+                indicator_code=indicator_code,
                 reporting_period__gte=self.start_date,
                 reporting_period__lte=self.end_date
             ).order_by('reporting_period')

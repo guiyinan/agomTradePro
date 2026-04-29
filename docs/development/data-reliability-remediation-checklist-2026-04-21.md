@@ -38,15 +38,11 @@
 - `strict_freshness=true` 且最新行情超过 freshness 阈值时，接口现返回 `409`
 - SDK / MCP 已支持透传 `strict_freshness` 与 `max_age_hours`
 
-### REL-003 已落地（第一阶段）
+### REL-003 已落地（最终状态）
 
-- `/api/data-center/macro/series/` 默认已改为非静默 legacy fallback
-- 只有显式传入 `allow_legacy_fallback=true` 时，才会返回 legacy 宏观序列
-- 默认链路在标准事实表为空且仅有 legacy 数据时，会返回：
-  - `legacy_fallback_available=true`
-  - `legacy_fallback_used=false`
-  - `must_not_use_for_decision=true`
-  - `freshness_status="legacy_blocked"`
+- `/api/data-center/macro/series/` 已彻底移除 legacy fallback
+- 运行时只读取 Data Center 宏观事实表
+- 当标准事实缺失或规则缺失时，接口直接返回 blocked / degraded contract，不再拼接 legacy 宏观序列
 - 宏观返回已补充 freshness / decision contract：
   - `data_source`
   - `freshness_status`
@@ -119,7 +115,7 @@
 - `sdk_current_regime` 返回 `observed_at=2026-04-21`，但 `growth_value=null`、`inflation_value=null`，`confidence=0.3741750180670613`
 - `sdk_pulse_current` 返回 `data_source="stale"`、`is_reliable=false`，且 `CN_PMI`、`000300.SH` 已进入 stale 状态
 - 上一轮 live SDK 检查中，`510300.SH` 的“最新行情”时间戳仍停留在 `2026-04-06T08:06:25+00:00`
-- 上一轮 live SDK 检查中，`CN_PMI` 默认宏观序列读取仍可退化到 2016 年 legacy 数据
+- 历史问题曾出现 `CN_PMI` 回退到 legacy 老数据；当前运行时已禁止该行为
 - 上一轮 live SDK 检查中，Data Center provider 连接测试成功，但 `last_success_at`、`avg_latency_ms` 仍为空
 - 最新 live API / SDK / MCP 检查中，Dashboard Alpha 对 `portfolio_id=366` 返回：
   - `recommendation_ready=false`
@@ -236,38 +232,33 @@
 
 ### 当前缺口
 
-- `apps/data_center/application/use_cases.py` 中 `QueryMacroSeriesUseCase` 在 facts 缺失时，会静默回退到 `LegacyMacroSeriesRepository`
-- 返回值虽然标了 `quality="legacy"`，但默认读取路径仍可能把旧数据当成“可用数据”
-- `apps/data_center/interface/api_views.py` 当前默认 wiring 里直接注入了 `LegacyMacroSeriesRepository()`
+- 默认运行时已不再回退到旧 legacy 宏观仓储
+- 现阶段剩余重点是继续完善指标级 freshness policy、同步 telemetry 与下游决策提示
 - provider status 接口在 provider 未被 registry 真实调用时，会返回 `last_success_at=None`、`avg_latency_ms=None`
 - live 验证里，Regime 的 `observed_at` 是今天，但关键底层值仍是 `null`
 
 ### 可执行项
 
-1. 明确区分两类读取模式
-   - `research_fallback_allowed`
-   - `decision_safe_default`
-2. 决策默认链路禁止静默使用 legacy 宏观数据
-   - facts 不足时直接返回 degraded / blocked
-   - 不允许“2016 legacy 数据 + 今天 observed_at”这种伪当前态
-3. 建立指标级 freshness policy
+1. 维持“事实不足即 blocked”的默认策略
+   - 不允许“老数据 + 今天 observed_at”这种伪当前态
+2. 建立指标级 freshness policy
    - 每个宏观指标配置 `expected_frequency`
    - 配置 `max_reporting_lag_days`
    - 配置 `decision_critical=true/false`
-4. 扩展 macro API / SDK / MCP 响应
+3. 扩展 macro API / SDK / MCP 响应
    - `quality`
    - `published_at`
    - `age_days`
    - `is_stale`
    - `freshness_status`
    - `decision_grade`
-5. Regime / Pulse 上游改成消费 freshness-aware 宏观数据
+4. Regime / Pulse 上游改成消费 freshness-aware 宏观数据
    - 缺关键指标时，返回“不可判定”或“低可信”
    - 不再只给一个当前 observed date 掩盖底层空值
-6. 把 provider 成功拉取的时间、延迟、失败次数落到持久化状态
+5. 把 provider 成功拉取的时间、延迟、失败次数落到持久化状态
    - 让 Data Center status 真正反映“最新成功取数时间”
-7. 为宏观同步增加门禁测试
-   - 决策默认路径不得回退到 legacy
+6. 为宏观同步增加门禁测试
+   - 决策默认路径不得回退到任何 legacy 数据
    - stale / missing 必须可见
 
 ### 建议落地文件

@@ -135,6 +135,7 @@ async function syncData() {
     const progress = document.getElementById('syncProgress');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
+    const providerId = Number('{{ current_source_provider_id|default:"0" }}');
 
     syncBtn.disabled = true;
     progress.style.display = 'block';
@@ -142,38 +143,44 @@ async function syncData() {
     progressText.textContent = '正在同步数据...';
 
     try {
-        const formData = new FormData();
-        formData.append('source', '{{ current_source|default:"akshare" }}');
-
-        const response = await fetch('{% url "api_macro:quick_sync" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': window.csrfToken
-            },
-            body: formData
-        });
-
-        let data = {};
-        const text = await response.text();
-        try {
-            data = JSON.parse(text);
-        } catch (_) {
-            data = { success: false, message: text || '返回内容不是合法 JSON' };
+        if (!providerId) {
+            throw new Error('当前数据源未配置可用的 Data Center provider');
         }
 
-        if (response.ok && data.success) {
-            progressFill.style.width = '100%';
-            progressText.textContent = '同步完成！';
-            showToast(data.message || '数据同步成功', 'success');
+        const today = document.getElementById('dateSelect').value || '{{ as_of_date|date:"Y-m-d" }}';
+        const indicators = ['CN_PMI', 'CN_CPI_NATIONAL_YOY'];
+        let successCount = 0;
 
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        } else {
-            progressText.textContent = '同步失败: ' + (data.message || data.error || `HTTP ${response.status}`);
-            showToast('数据同步失败', 'error');
-            syncBtn.disabled = false;
+        for (const indicatorCode of indicators) {
+            const response = await fetch('{% url "api_data_center:dc-sync-macro" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken
+                },
+                body: JSON.stringify({
+                    provider_id: providerId,
+                    indicator_code: indicatorCode,
+                    start: today,
+                    end: today
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || data.status === 'error' || data.error_message) {
+                throw new Error(data.detail || data.error_message || `同步 ${indicatorCode} 失败`);
+            }
+            successCount += 1;
+            progressFill.style.width = `${Math.round((successCount / indicators.length) * 100)}%`;
+            progressText.textContent = `已同步 ${successCount}/${indicators.length} 个指标...`;
         }
+
+        progressFill.style.width = '100%';
+        progressText.textContent = '同步完成！';
+        showToast('数据同步成功', 'success');
+
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
     } catch (error) {
         progressText.textContent = '同步失败: ' + error.message;
         showToast('数据同步失败', 'error');

@@ -31,6 +31,7 @@ INDICATOR_UNITS = {
     "CN_PPI": ("指数", "指数"),
     "CN_PPI_YOY": ("%", "%"),
     "CN_M2": ("万亿元", "万亿元"),
+    "CN_M2_YOY": ("%", "%"),
 }
 
 
@@ -348,6 +349,60 @@ class BaseIndicatorFetcher:
 
         except Exception as e:
             logger.error(f"获取 M2 数据失败: {e}")
+            raise
+
+    def fetch_m2_yoy(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> list[MacroDataPoint]:
+        """获取中国 M2 同比数据"""
+        try:
+            df = self.ak.macro_china_money_supply()
+            if df.empty:
+                logger.warning("M2同比数据为空")
+                return []
+
+            date_col = '月份' if '月份' in df.columns else df.columns[0]
+            value_col = (
+                '货币和准货币(M2)-同比增长'
+                if '货币和准货币(M2)-同比增长' in df.columns
+                else df.columns[2]
+            )
+
+            df['date'] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_date),
+                format='mixed',
+                errors='coerce',
+            )
+            df = df[['date', value_col]].dropna()
+            df.columns = ['observed_at', 'value']
+            df = df[
+                (df['observed_at'].dt.date >= start_date) &
+                (df['observed_at'].dt.date <= end_date)
+            ]
+
+            data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_M2_YOY", ("%", "%"))
+            for _, row in df.iterrows():
+                try:
+                    point = MacroDataPoint(
+                        code="CN_M2_YOY",
+                        value=float(row['value']),
+                        observed_at=row['observed_at'].date(),
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
+                    )
+                    self._validate(point)
+                    data_points.append(point)
+                except (ValueError, DataValidationError) as e:
+                    logger.warning(f"跳过无效 M2同比数据: {row}, 错误: {e}")
+
+            return self._sort_and_deduplicate(data_points)
+
+        except Exception as e:
+            logger.error(f"获取 M2同比数据失败: {e}")
             raise
 
     def fetch_non_man_pmi(

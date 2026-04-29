@@ -14,14 +14,14 @@
 本次迁移旨在：
 1. 统一 API 路由结构，提升 RESTful 规范性
 2. 简化路由层级，便于理解和维护
-3. 保持向后兼容，平滑过渡
+3. 宏观链路统一并入 data_center，避免双入口漂移
 
 ### 迁移原则
 
-- **双轨运行**: 新旧路由同时提供服务
-- **渐进式迁移**: 分阶段引导客户端迁移
+- **单一真源**: 宏观正式入口只保留 data_center
+- **渐进式迁移**: 非宏观模块按 canonical 路径迁移
 - **充分通知**: 提前公告，明确时间表
-- **向后兼容**: 保留旧路由直到迁移完成
+- **有界兼容**: 宏观旧路由已删除，其他模块按需保留短期兼容
 
 ---
 
@@ -37,8 +37,7 @@
 | **regime** | `/api/regime/api/current/` | `/api/regime/current/` | 已废弃 |
 | **signal** | `/api/signal/api/` | `/api/signal/` | 双轨 |
 | **signal** | `/api/signal/api/health/` | `/api/signal/health/` | 双轨 |
-| **macro** | `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` | 兼容别名 |
-| **macro** | `/macro/api/indicator-data/` | `/api/macro/indicator-data/` | 兼容别名 |
+| **macro** | `/macro/api/*` | `/api/data-center/macro/series/` | 已移除，统一改走 data_center |
 | **policy** | `/policy/api/events/` | `/api/policy/events/` | 双轨 |
 | **realtime** | `/api/realtime/api/prices/` | `/api/realtime/prices/` | 双轨 |
 

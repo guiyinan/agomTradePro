@@ -1,3 +1,5 @@
-"""Repository provider re-exports for application composition roots."""
+"""Repository provider exports backed by the data_center macro fact store."""
 
-from .repositories import *  # noqa: F401,F403
+from .data_center_compat import DjangoMacroRepository, MacroIndicatorReadRepository
+
+__all__ = ["DjangoMacroRepository", "MacroIndicatorReadRepository"]

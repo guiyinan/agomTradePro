@@ -150,7 +150,7 @@
 | 模块 | 页面路由 | API路由 | 符合规范 | 备注 |
 |------|----------|---------|----------|------|
 | account | /account/* | /api/account/* | {STATUS} | {NOTES} |
-| macro | /macro/* | /api/macro/* | {STATUS} | {NOTES} |
+| macro | /macro/* | /api/data-center/macro/series/ | {STATUS} | {NOTES} |
 | regime | /regime/* | /api/regime/* | {STATUS} | {NOTES} |
 | signal | /signal/* | /api/signal/* | {STATUS} | {NOTES} |
 | policy | /policy/* | /api/policy/* | {STATUS} | {NOTES} |

@@ -277,6 +277,9 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     source=self.provider_name(),
                     published_at=getattr(point, "published_at", None),
                     quality=DataQualityStatus.VALID,
+                    extra={
+                        "original_unit": getattr(point, "original_unit", "") or getattr(point, "unit", "") or "",
+                    },
                 )
             )
         return results
@@ -489,6 +492,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     source=self.provider_name(),
                     published_at=getattr(point, "published_at", None),
                     quality=DataQualityStatus.VALID,
+                    extra={
+                        "original_unit": getattr(point, "original_unit", "") or getattr(point, "unit", "") or "",
+                    },
                 )
             )
         return results
@@ -883,6 +889,7 @@ class FredUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     source=self.provider_name(),
                     published_at=date.fromisoformat(row["date"]),
                     quality=DataQualityStatus.VALID,
+                    extra={"original_unit": unit},
                 )
             )
         return facts

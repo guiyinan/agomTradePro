@@ -209,8 +209,9 @@ class MarketDataRepositoryAdapter(MarketDataPort):
     """
 
     def __init__(self):
-        from apps.macro.infrastructure.models import MacroIndicator
-        self._model = MacroIndicator
+        from apps.data_center.infrastructure.models import MacroFactModel
+
+        self._model = MacroFactModel
         self._bar_repo = PriceBarRepository()
         self._default_index_code = get_runtime_benchmark_code("equity_default_index")
 
@@ -229,7 +230,7 @@ class MarketDataRepositoryAdapter(MarketDataPort):
             ]
 
         queryset = self._model.objects.filter(
-            code=index_code,
+            indicator_code=index_code,
             reporting_period__gte=start_date,
             reporting_period__lte=end_date,
         ).order_by("reporting_period")

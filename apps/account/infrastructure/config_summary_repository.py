@@ -6,6 +6,8 @@ from typing import Any
 
 from django.contrib.auth.models import User
 
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
+
 from .models import (
     AccountProfileModel,
     PortfolioModel,
@@ -17,6 +19,34 @@ from .models import (
 
 class DjangoAccountConfigSummaryRepository:
     """ORM-backed account config-summary repository."""
+
+    @staticmethod
+    def _build_runtime_macro_metadata_map() -> dict[str, dict[str, Any]]:
+        metadata: dict[str, dict[str, Any]] = {}
+        catalogs = IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
+        rules: dict[str, IndicatorUnitRuleModel] = {}
+        for rule in (
+            IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="")
+            .order_by("indicator_code", "-priority", "id")
+        ):
+            rules.setdefault(rule.indicator_code, rule)
+
+        for catalog in catalogs:
+            rule = rules.get(catalog.code)
+            unit = ""
+            if rule is not None:
+                unit = rule.display_unit or rule.original_unit or rule.storage_unit
+            extra = catalog.extra or {}
+            metadata[catalog.code] = {
+                "name": catalog.name_cn,
+                "name_en": catalog.name_en or catalog.code,
+                "category": catalog.category or "其他",
+                "unit": unit,
+                "description": catalog.description or "",
+                "publication_lag_days": int(extra.get("publication_lag_days", 0) or 0),
+                "publication_lag_description": extra.get("publication_lag_description", "实时"),
+            }
+        return metadata
 
     def get_account_settings_summary(self, user: Any) -> dict[str, Any]:
         """Return account profile and access-token summary for one user."""
@@ -57,7 +87,9 @@ class DjangoAccountConfigSummaryRepository:
                 "market_color_convention": settings_obj.market_color_convention,
                 "market_color_label": settings_obj.get_market_visual_tokens()["label"],
                 "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
-                "macro_index_catalog_size": len(settings_obj.macro_index_catalog or []),
+                "data_center_indicator_catalog_size": IndicatorCatalogModel.objects.filter(
+                    is_active=True
+                ).count(),
                 "updated_at": (
                     settings_obj.updated_at.isoformat()
                     if getattr(settings_obj, "updated_at", None)
@@ -127,17 +159,23 @@ class DjangoAccountConfigSummaryRepository:
     def get_runtime_macro_index_metadata_map(self) -> dict[str, dict[str, Any]]:
         """Return runtime macro indicator metadata map."""
 
-        return SystemSettingsModel.get_runtime_macro_index_metadata_map()
+        return self._build_runtime_macro_metadata_map()
 
     def get_runtime_macro_index_codes(self) -> list[str]:
         """Return runtime macro indicator codes."""
 
-        return SystemSettingsModel.get_settings().get_macro_index_codes()
+        return list(self._build_runtime_macro_metadata_map().keys())
 
     def get_runtime_macro_publication_lags(self) -> dict[str, dict[str, Any]]:
         """Return runtime macro publication lag settings."""
 
-        return SystemSettingsModel.get_runtime_macro_publication_lags()
+        return {
+            code: {
+                "days": item.get("publication_lag_days", 0),
+                "description": item.get("publication_lag_description", "实时"),
+            }
+            for code, item in self._build_runtime_macro_metadata_map().items()
+        }
 
     def get_runtime_qlib_config(self) -> dict[str, Any]:
         """Return runtime qlib config."""

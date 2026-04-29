@@ -7,9 +7,9 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.equity.infrastructure.models import StockInfoModel
 from apps.factor.infrastructure.models import FactorPortfolioConfigModel
-from apps.macro.infrastructure.models import MacroIndicator
 from apps.rotation.infrastructure.models import RotationConfigModel
 
 
@@ -158,11 +158,11 @@ class Command(BaseCommand):
         return created
 
     def _ensure_macro_smoke_indicator(self) -> int:
-        if MacroIndicator._default_manager.filter(code="MCP_TEST_IND").exists():
+        if MacroFactModel._default_manager.filter(indicator_code="MCP_TEST_IND").exists():
             return 0
 
         source_rows = list(
-            MacroIndicator._default_manager.filter(code="CN_PMI").order_by("-reporting_period")[:24]
+            MacroFactModel._default_manager.filter(indicator_code="CN_PMI").order_by("-reporting_period")[:24]
         )
         if not source_rows:
             self.stdout.write(self.style.WARNING("[macro] source missing: CN_PMI"))
@@ -170,18 +170,20 @@ class Command(BaseCommand):
 
         created = 0
         for row in source_rows:
-            MacroIndicator._default_manager.get_or_create(
-                code="MCP_TEST_IND",
+            MacroFactModel._default_manager.get_or_create(
+                indicator_code="MCP_TEST_IND",
                 reporting_period=row.reporting_period,
+                source="bootstrap_mcp_cold_start",
                 revision_number=row.revision_number,
                 defaults={
                     "value": row.value,
                     "unit": row.unit,
-                    "original_unit": row.original_unit,
-                    "period_type": row.period_type,
                     "published_at": row.published_at or (row.reporting_period + timedelta(days=1)),
-                    "publication_lag_days": row.publication_lag_days,
-                    "source": "bootstrap_mcp_cold_start",
+                    "quality": row.quality,
+                    "extra": {
+                        **(row.extra or {}),
+                        "source_type": "manual",
+                    },
                 },
             )
             created += 1

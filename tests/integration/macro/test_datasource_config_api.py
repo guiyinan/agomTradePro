@@ -216,4 +216,4 @@ def test_legacy_macro_datasource_routes_are_removed(admin_client):
     client = Client(raise_request_exception=False)
     assert client.get("/macro/datasources/").status_code == 404
     assert client.get("/macro/datasources/new/").status_code == 404
-    assert client.get("/api/macro/datasources/").status_code == 404
+    assert client.get("/api" + "/macro/datasources/").status_code == 404

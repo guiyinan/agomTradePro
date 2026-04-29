@@ -77,6 +77,127 @@ class ProviderResponse:
         }
 
 
+@dataclass
+class CreateIndicatorCatalogRequest:
+    """Input DTO for creating a macro indicator definition."""
+
+    code: str
+    name_cn: str
+    name_en: str = ""
+    description: str = ""
+    category: str = ""
+    default_period_type: str = "M"
+    is_active: bool = True
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class UpdateIndicatorCatalogRequest:
+    """Input DTO for updating one macro indicator definition."""
+
+    code: str
+    name_cn: str | None = None
+    name_en: str | None = None
+    description: str | None = None
+    category: str | None = None
+    default_period_type: str | None = None
+    is_active: bool | None = None
+    extra: dict[str, Any] | None = None
+
+
+@dataclass
+class IndicatorCatalogResponse:
+    """Output DTO for one macro indicator definition."""
+
+    code: str
+    name_cn: str
+    name_en: str
+    description: str
+    category: str
+    default_period_type: str
+    is_active: bool
+    extra: dict[str, Any]
+    default_rule: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "name_cn": self.name_cn,
+            "name_en": self.name_en,
+            "description": self.description,
+            "category": self.category,
+            "default_period_type": self.default_period_type,
+            "is_active": self.is_active,
+            "extra": self.extra,
+            "default_rule": self.default_rule,
+        }
+
+
+@dataclass
+class CreateIndicatorUnitRuleRequest:
+    """Input DTO for creating one indicator unit rule."""
+
+    indicator_code: str
+    source_type: str = ""
+    dimension_key: str = "other"
+    original_unit: str = ""
+    storage_unit: str = ""
+    display_unit: str = ""
+    multiplier_to_storage: float = 1.0
+    is_active: bool = True
+    priority: int = 0
+    description: str = ""
+
+
+@dataclass
+class UpdateIndicatorUnitRuleRequest:
+    """Input DTO for updating one indicator unit rule."""
+
+    rule_id: int
+    indicator_code: str
+    source_type: str | None = None
+    dimension_key: str | None = None
+    original_unit: str | None = None
+    storage_unit: str | None = None
+    display_unit: str | None = None
+    multiplier_to_storage: float | None = None
+    is_active: bool | None = None
+    priority: int | None = None
+    description: str | None = None
+
+
+@dataclass
+class IndicatorUnitRuleResponse:
+    """Output DTO for one indicator unit rule."""
+
+    id: int | None
+    indicator_code: str
+    source_type: str
+    dimension_key: str
+    original_unit: str
+    storage_unit: str
+    display_unit: str
+    multiplier_to_storage: float
+    is_active: bool
+    priority: int
+    description: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "indicator_code": self.indicator_code,
+            "source_type": self.source_type,
+            "dimension_key": self.dimension_key,
+            "original_unit": self.original_unit,
+            "storage_unit": self.storage_unit,
+            "display_unit": self.display_unit,
+            "multiplier_to_storage": self.multiplier_to_storage,
+            "is_active": self.is_active,
+            "priority": self.priority,
+            "description": self.description,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Phase 2 — Query DTOs
 # ---------------------------------------------------------------------------
@@ -129,7 +250,6 @@ class MacroSeriesRequest:
     end: date | None = None
     limit: int = 500
     source: str | None = None  # if None, return all sources
-    allow_legacy_fallback: bool = False
 
 
 @dataclass
@@ -140,6 +260,9 @@ class MacroDataPoint:
     reporting_period: date
     value: float
     unit: str
+    display_value: float
+    display_unit: str
+    original_unit: str
     source: str
     quality: str
     published_at: date | None
@@ -154,6 +277,9 @@ class MacroDataPoint:
             "reporting_period": self.reporting_period.isoformat(),
             "value": self.value,
             "unit": self.unit,
+            "display_value": self.display_value,
+            "display_unit": self.display_unit,
+            "original_unit": self.original_unit,
             "source": self.source,
             "quality": self.quality,
             "published_at": self.published_at.isoformat() if self.published_at else None,
@@ -181,8 +307,6 @@ class MacroSeriesResponse:
     latest_reporting_period: date | None = None
     latest_published_at: date | None = None
     latest_quality: str = ""
-    legacy_fallback_available: bool = False
-    legacy_fallback_used: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         contract = {
@@ -198,8 +322,6 @@ class MacroSeriesResponse:
                 self.latest_published_at.isoformat() if self.latest_published_at else None
             ),
             "latest_quality": self.latest_quality,
-            "legacy_fallback_available": self.legacy_fallback_available,
-            "legacy_fallback_used": self.legacy_fallback_used,
         }
         return {
             "indicator_code": self.indicator_code,
@@ -219,8 +341,6 @@ class MacroSeriesResponse:
                 self.latest_published_at.isoformat() if self.latest_published_at else None
             ),
             "latest_quality": self.latest_quality,
-            "legacy_fallback_available": self.legacy_fallback_available,
-            "legacy_fallback_used": self.legacy_fallback_used,
             "contract": contract,
         }
 

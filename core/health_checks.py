@@ -122,8 +122,8 @@ def check_critical_data() -> dict[str, Any]:
 
         # Check macro indicators
         try:
-            MacroIndicator = apps.get_model('macro', 'MacroIndicator')
-            checks['macro_indicator'] = MacroIndicator.objects.exists()
+            MacroFact = apps.get_model('data_center', 'MacroFactModel')
+            checks['macro_indicator'] = MacroFact.objects.exists()
         except Exception:
             checks['macro_indicator'] = False
 

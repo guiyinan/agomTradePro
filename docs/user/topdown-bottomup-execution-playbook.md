@@ -41,7 +41,7 @@
 
 ### 3.2 API 入口
 
-1. `GET /api/macro/...`
+1. `GET /api/data-center/macro/series/...`
 2. `GET /api/regime/current/`
 3. `GET /api/regime/history/`
 4. `GET /api/policy/...`

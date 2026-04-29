@@ -155,6 +155,67 @@ class TestMacroDataSyncWorkflow:
         assert credit_indicator.original_unit == "万亿元", \
             f"原始单位应保留: 实际 '{credit_indicator.original_unit}'"
 
+    def test_sync_normalizes_gdp_and_m2_storage_units(self):
+        """测试 GDP 和 M2 在同步时会统一转换为元存储。"""
+        mock_adapter = Mock()
+        mock_adapter.source_name = "test_adapter"
+        mock_adapter.supports = Mock(return_value=True)
+
+        test_data_points = [
+            MacroDataPoint(
+                code="CN_GDP",
+                value=1349084.0,
+                observed_at=date(2025, 12, 1),
+                published_at=date(2025, 12, 21),
+                source="test",
+                unit="亿元",
+                original_unit="亿元"
+            ),
+            MacroDataPoint(
+                code="CN_M2",
+                value=353.863653,
+                observed_at=date(2026, 3, 31),
+                published_at=date(2026, 4, 15),
+                source="test",
+                unit="万亿元",
+                original_unit="万亿元"
+            ),
+        ]
+        mock_adapter.fetch = Mock(side_effect=[test_data_points[:1], test_data_points[1:]])
+
+        repository = DjangoMacroRepository()
+        use_case = SyncMacroDataUseCase(
+            repository=repository,
+            adapters={"test": mock_adapter}
+        )
+
+        request = SyncMacroDataRequest(
+            start_date=date(2025, 1, 1),
+            end_date=date(2026, 12, 31),
+            indicators=["CN_GDP", "CN_M2"]
+        )
+        response = use_case.execute(request)
+
+        assert response.success
+
+        gdp_indicator = repository.get_by_code_and_date(
+            code="CN_GDP",
+            observed_at=date(2025, 12, 1)
+        )
+        assert gdp_indicator is not None
+        assert gdp_indicator.value == 1349084.0 * 100000000
+        assert gdp_indicator.unit == "元"
+        assert gdp_indicator.original_unit == "亿元"
+
+        m2_indicator = repository.get_by_code_and_date(
+            code="CN_M2",
+            observed_at=date(2026, 3, 31)
+        )
+        assert m2_indicator is not None
+        assert m2_indicator.value == 353.863653 * 1000000000000
+        assert m2_indicator.unit == "元"
+        assert m2_indicator.original_unit == "万亿元"
+
     def test_sync_deduplication(self):
         """测试去重处理
 

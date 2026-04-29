@@ -49,18 +49,18 @@ class TestHealthEndpointLatency:
 
 @pytest.mark.django_db
 class TestMacroAPILatency:
-    """Macro data API endpoints latency baseline."""
+    """Data-center macro API endpoints latency baseline."""
 
     def test_macro_indicators_list_latency(self, client, large_macro_dataset, admin_client):
-        """GET /api/macro/supported-indicators/ P95 < 1000ms with 1000+ data points."""
-        stats = measure_latency(admin_client, "/api/macro/supported-indicators/", n=10)
+        """GET /api/data-center/macro/series/ P95 < 1000ms with 1000+ data points."""
+        stats = measure_latency(admin_client, "/api/data-center/macro/series/?indicator_code=CN_PMI", n=10)
         print(
-            f"\n  /api/macro/supported-indicators/ - median: {stats['median']:.1f}ms, "
+            f"\n  /api/data-center/macro/series/?indicator_code=CN_PMI - median: {stats['median']:.1f}ms, "
             f"p95: {stats['p95']:.1f}ms"
         )
         # Baseline: should respond within 2 seconds
         assert stats["p95"] < 2000, (
-            f"Macro indicators P95 {stats['p95']:.1f}ms exceeds 2000ms"
+            f"Macro series P95 {stats['p95']:.1f}ms exceeds 2000ms"
         )
 
 

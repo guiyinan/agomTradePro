@@ -26,7 +26,6 @@ from apps.data_center.application.use_cases import (
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
-    LegacyMacroSeriesRepository,
     MacroFactRepository,
     PriceBarRepository,
     ProviderConfigRepository,
@@ -86,7 +85,6 @@ class Command(BaseCommand):
             price_bar_repo=PriceBarRepository(),
             quote_snapshot_repo=QuoteSnapshotRepository(),
             raw_audit_repo=RawAuditRepository(),
-            legacy_macro_repo=LegacyMacroSeriesRepository(),
             pulse_refresher=self._build_pulse_refresher(),
             alpha_refresher=self._build_alpha_refresher(
                 user,

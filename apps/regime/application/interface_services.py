@@ -16,6 +16,7 @@ from apps.regime.application.repository_provider import (
     get_macro_source_config_gateway,
     get_regime_repository,
 )
+from apps.data_center.application.interface_services import get_active_provider_id_by_source
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from shared.infrastructure.cache_service import CacheService
 
@@ -220,6 +221,7 @@ def get_regime_dashboard_payload(
         "raw_data": response.raw_data if response and response.success else None,
         "raw_data_json": raw_data_json,
         "current_source": data_source,
+        "current_source_provider_id": get_active_provider_id_by_source(data_source) if data_source else None,
         "available_sources": available_sources,
     }
 

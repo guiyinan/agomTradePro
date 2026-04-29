@@ -30,6 +30,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.data_center.application.dtos import (
+    CreateIndicatorCatalogRequest,
+    CreateIndicatorUnitRuleRequest,
     CreateProviderRequest,
     DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
@@ -45,11 +47,15 @@ from apps.data_center.application.dtos import (
     SyncQuoteRequest,
     SyncSectorMembershipRequest,
     SyncValuationRequest,
+    UpdateIndicatorCatalogRequest,
+    UpdateIndicatorUnitRuleRequest,
     UpdateProviderRequest,
 )
 from apps.data_center.application.interface_services import (
     fetch_latest_realtime_prices,
     load_provider_settings_payload,
+    make_manage_indicator_catalog_use_case,
+    make_manage_indicator_unit_rule_use_case,
     make_decision_repair_use_case,
     make_manage_provider_config_use_case,
     make_query_capital_flows_use_case,
@@ -83,6 +89,8 @@ from apps.data_center.interface.serializers import (
     ConnectionTestResultSerializer,
     DataProviderSettingsSerializer,
     DecisionReliabilityRepairRequestSerializer,
+    IndicatorCatalogSerializer,
+    IndicatorUnitRuleSerializer,
     ProviderConfigListSerializer,
     ProviderConfigSerializer,
     ProviderHealthSnapshotSerializer,
@@ -256,6 +264,157 @@ def provider_detail(request: Request, provider_id: int) -> Response:
 
 
 # ---------------------------------------------------------------------------
+# Indicator catalog / unit-rule management
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def indicator_list_create(request: Request) -> Response:
+    """GET/POST /api/data-center/indicators/."""
+    use_case = make_manage_indicator_catalog_use_case()
+
+    if request.method == "GET":
+        active_only = _parse_bool_param(request.query_params.get("active_only"), default=False)
+        results = use_case.list_all(active_only=active_only)
+        serializer = IndicatorCatalogSerializer([item.to_dict() for item in results], many=True)
+        return Response({"results": serializer.data})
+
+    serializer = IndicatorCatalogSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+    created = use_case.create(
+        CreateIndicatorCatalogRequest(
+            code=d["code"],
+            name_cn=d["name_cn"],
+            name_en=d.get("name_en", ""),
+            description=d.get("description", ""),
+            category=d.get("category", ""),
+            default_period_type=d.get("default_period_type", "M"),
+            is_active=d.get("is_active", True),
+            extra=d.get("extra", {}),
+        )
+    )
+    return Response(created.to_dict(), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAdminUser])
+def indicator_detail(request: Request, indicator_code: str) -> Response:
+    """GET/PATCH/DELETE /api/data-center/indicators/{code}/."""
+    use_case = make_manage_indicator_catalog_use_case()
+
+    if request.method == "GET":
+        result = use_case.get(indicator_code)
+        if result is None:
+            return Response({"detail": "Indicator not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(result.to_dict())
+
+    if request.method == "PATCH":
+        serializer = IndicatorCatalogSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+        updated = use_case.update(
+            UpdateIndicatorCatalogRequest(
+                code=indicator_code,
+                name_cn=d.get("name_cn"),
+                name_en=d.get("name_en"),
+                description=d.get("description"),
+                category=d.get("category"),
+                default_period_type=d.get("default_period_type"),
+                is_active=d.get("is_active"),
+                extra=d.get("extra"),
+            )
+        )
+        if updated is None:
+            return Response({"detail": "Indicator not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(updated.to_dict())
+
+    if not use_case.delete(indicator_code):
+        return Response({"detail": "Indicator not found."}, status=status.HTTP_404_NOT_FOUND)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def indicator_unit_rule_list_create(request: Request, indicator_code: str) -> Response:
+    """GET/POST /api/data-center/indicators/{code}/unit-rules/."""
+    use_case = make_manage_indicator_unit_rule_use_case()
+
+    if request.method == "GET":
+        results = use_case.list_by_indicator(indicator_code)
+        serializer = IndicatorUnitRuleSerializer([item.to_dict() for item in results], many=True)
+        return Response({"results": serializer.data})
+
+    serializer = IndicatorUnitRuleSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+    try:
+        created = use_case.create(
+            CreateIndicatorUnitRuleRequest(
+                indicator_code=indicator_code,
+                source_type=d.get("source_type", ""),
+                dimension_key=d["dimension_key"],
+                original_unit=d.get("original_unit", ""),
+                storage_unit=d["storage_unit"],
+                display_unit=d["display_unit"],
+                multiplier_to_storage=d["multiplier_to_storage"],
+                is_active=d.get("is_active", True),
+                priority=d.get("priority", 0),
+                description=d.get("description", ""),
+            )
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(created.to_dict(), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAdminUser])
+def indicator_unit_rule_detail(request: Request, indicator_code: str, rule_id: int) -> Response:
+    """GET/PATCH/DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/."""
+    use_case = make_manage_indicator_unit_rule_use_case()
+    existing = use_case.get(rule_id)
+    if existing is None or existing.indicator_code != indicator_code:
+        return Response({"detail": "Indicator unit rule not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "GET":
+        return Response(existing.to_dict())
+
+    if request.method == "PATCH":
+        serializer = IndicatorUnitRuleSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+        try:
+            updated = use_case.update(
+                UpdateIndicatorUnitRuleRequest(
+                    rule_id=rule_id,
+                    indicator_code=indicator_code,
+                    source_type=d.get("source_type"),
+                    dimension_key=d.get("dimension_key"),
+                    original_unit=d.get("original_unit"),
+                    storage_unit=d.get("storage_unit"),
+                    display_unit=d.get("display_unit"),
+                    multiplier_to_storage=d.get("multiplier_to_storage"),
+                    is_active=d.get("is_active"),
+                    priority=d.get("priority"),
+                    description=d.get("description"),
+                )
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if updated is None:
+            return Response(
+                {"detail": "Indicator unit rule not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(updated.to_dict())
+
+    use_case.delete(rule_id)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
 # Connection test
 # ---------------------------------------------------------------------------
 
@@ -395,7 +554,6 @@ def macro_series(request: Request) -> Response:
       end            — optional ISO date
       limit          — optional int, default 500
       source         — optional provider filter (e.g. tushare, akshare)
-      allow_legacy_fallback — optional bool, default false
     """
     from datetime import date as date_cls
 
@@ -419,10 +577,6 @@ def macro_series(request: Request) -> Response:
             end=_parse_date(request.query_params.get("end", "")),
             limit=int(request.query_params.get("limit", 500)),
             source=request.query_params.get("source") or None,
-            allow_legacy_fallback=_parse_bool_param(
-                request.query_params.get("allow_legacy_fallback"),
-                default=False,
-            ),
         )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

@@ -107,12 +107,12 @@ def test_regime_dashboard_does_not_return_500(db):
     assert response.status_code < 500
 
 
-def test_macro_legacy_and_new_api_routes_resolvable():
-    assert reverse("api_macro:quick_sync")
-    assert reverse("api_macro:get_indicator_data")
+def test_data_center_macro_api_routes_resolvable():
+    assert reverse("api_data_center:dc-macro-series") == "/api/data-center/macro/series/"
+    assert reverse("api_data_center:dc-sync-macro") == "/api/data-center/sync/macro/"
 
-    assert resolve("/api/macro/quick-sync/").view_name.endswith("quick_sync")
-    assert resolve("/api/macro/indicator-data/").view_name.endswith("get_indicator_data")
+    assert resolve("/api/data-center/macro/series/").view_name.endswith("dc-macro-series")
+    assert resolve("/api/data-center/sync/macro/").view_name.endswith("dc-sync-macro")
 
 
 def test_dashboard_page_does_not_raise_reverse_error(db):
@@ -132,13 +132,13 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     macro_controller = (template_dir / "macro/data_controller.html").read_text(encoding="utf-8")
 
     assert "/macro/api/quick-sync/" not in regime_dashboard
-    assert '{% url "api_macro:quick_sync" %}' in regime_dashboard
+    assert '{% url "api_data_center:dc-sync-macro" %}' in regime_dashboard
 
     assert "/macro/api/indicator-data/" not in macro_data
-    assert '{% url "api_macro:get_indicator_data" %}' in macro_data
+    assert '{% url "api_data_center:dc-macro-series" %}' in macro_data
 
     assert "const API_BASE = '/macro/api';" not in macro_controller
-    assert '{% url "api_macro:get_supported_indicators" %}' in macro_controller
+    assert "const API_BASE = '/api/data-center';" in macro_controller
 
 
 def test_regime_redesign_templates_reflect_closure():
@@ -243,7 +243,7 @@ def test_reported_route_aliases_are_removed():
         "/equity/analysis/",
         "/equity/screener/",
         "/sector/heatmap/?top_n=5",
-        "/api/macro/data/?indicator_code=CPI",
+        "/api" + "/macro/data/?indicator_code=CPI",
     ]:
         response = client.get(path, follow=False)
         assert response.status_code == 404

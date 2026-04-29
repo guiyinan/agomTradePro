@@ -16,7 +16,7 @@
 | Regime 当前状态 | `/api/regime/api/current/` | `/api/regime/current/` |
 | Signal 列表 | `/api/signal/api/` | `/api/signal/` |
 | Signal 检查资格 | `/api/signal/api/check-eligibility/` | `/api/signal/check-eligibility/` |
-| 宏观指标 | `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` |
+| 宏观指标 | `/macro/api/*` | `/api/data-center/macro/series/` 与 `/api/data-center/indicators/*` |
 | 政策事件 | `/policy/api/events/` | `/api/policy/events/` |
 | 实时价格 | `/api/realtime/api/prices/` | `/api/realtime/prices/` |
 | 账户组合 | `/account/api/portfolios/` | `/api/account/portfolios/` |

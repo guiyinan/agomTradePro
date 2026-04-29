@@ -82,19 +82,19 @@ class Command(BaseCommand):
             # Cache latest value per indicator code
             from django.db.models import Max
 
-            from apps.macro.infrastructure.models import MacroIndicator
+            from apps.data_center.infrastructure.models import MacroFactModel
 
             latest_dates = (
-                MacroIndicator.objects
-                .values("code")
+                MacroFactModel.objects
+                .values("indicator_code")
                 .annotate(latest=Max("reporting_period"))
             )
             count = 0
             for entry in latest_dates[:50]:  # Top 50 indicators
-                code = entry["code"]
+                code = entry["indicator_code"]
                 record = (
-                    MacroIndicator.objects
-                    .filter(code=code, reporting_period=entry["latest"])
+                    MacroFactModel.objects
+                    .filter(indicator_code=code, reporting_period=entry["latest"])
                     .first()
                 )
                 if record:

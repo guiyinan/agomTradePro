@@ -21,6 +21,7 @@ INDICATOR_UNITS = {
     "CN_VALUE_ADDED": ("%", "%"),
     "CN_RETAIL_SALES": ("%", "%"),
     "CN_GDP": ("亿元", "亿元"),
+    "CN_GDP_YOY": ("%", "%"),
 }
 
 
@@ -213,4 +214,54 @@ class EconomicIndicatorFetcher:
 
         except Exception as e:
             logger.error(f"获取 GDP 数据失败: {e}")
+            raise
+
+    def fetch_gdp_yoy(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> list[MacroDataPoint]:
+        """获取中国 GDP 同比数据"""
+        try:
+            df = self.ak.macro_china_gdp()
+            if df.empty:
+                logger.warning("GDP同比数据为空")
+                return []
+
+            df = df.copy()
+            date_col = pick_column(df, ["季度"], 0)
+            value_col = pick_column(df, ["国内生产总值-同比增长"], 2)
+            df['observed_at'] = pd.to_datetime(
+                df[date_col].apply(parse_chinese_quarter),
+                format='mixed',
+                errors='coerce',
+            )
+            df['value'] = pd.to_numeric(df[value_col], errors='coerce')
+            df = df[['observed_at', 'value']].dropna()
+            df = df[
+                (df['observed_at'].dt.date >= start_date) &
+                (df['observed_at'].dt.date <= end_date)
+            ]
+
+            data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_GDP_YOY", ("%", "%"))
+            for _, row in df.iterrows():
+                try:
+                    point = MacroDataPoint(
+                        code="CN_GDP_YOY",
+                        value=safe_float(row['value']),
+                        observed_at=row['observed_at'].date(),
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
+                    )
+                    self._validate(point)
+                    data_points.append(point)
+                except (ValueError, DataValidationError) as e:
+                    logger.warning(f"跳过无效 GDP同比数据: {row}, 错误: {e}")
+
+            return self._sort_and_deduplicate(data_points)
+
+        except Exception as e:
+            logger.error(f"获取 GDP同比数据失败: {e}")
             raise

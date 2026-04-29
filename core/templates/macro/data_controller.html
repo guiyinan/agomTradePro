@@ -171,10 +171,11 @@
                     <select id="form-code-suggestions" class="form-input" style="display:none;">
                         <option value="">-- 选择常用指标 --</option>
                         <option value="CN_PMI">CN_PMI - PMI (月度)</option>
-                        <option value="CN_CPI">CN_CPI - CPI (月度)</option>
-                        <option value="CN_PPI">CN_PPI - PPI (月度)</option>
+                        <option value="CN_CPI">CN_CPI - CPI 居民消费价格指数 (月度指数)</option>
+                        <option value="CN_PPI">CN_PPI - PPI 工业生产者出厂价格指数 (月度指数)</option>
+                        <option value="CN_M2">CN_M2 - M2 广义货币供应量余额 (月度总量)</option>
+                        <option value="CN_GDP">CN_GDP - GDP 国内生产总值累计值 (季度总量)</option>
                         <option value="SHIBOR">SHIBOR - SHIBOR利率 (日度)</option>
-                        <option value="M2">M2 - M2货币供应 (月度)</option>
                     </select>
                 </div>
 
@@ -971,7 +972,7 @@ let selectedIds = new Set();
 let allData = [];
 
 // API 基础路径（通过反向路由获取，避免硬编码导致 404）
-const API_BASE = '{% url "api_macro:get_supported_indicators" %}'.replace(/supported-indicators\/$/, '').replace(/\/$/, '');
+const API_BASE = '/api/data-center';
 
 // 期间类型显示映射
 const PERIOD_TYPE_LABELS = {
