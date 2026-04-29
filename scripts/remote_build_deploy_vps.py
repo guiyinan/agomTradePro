@@ -794,18 +794,23 @@ OLD_CORS_ALLOWED_ORIGINS=""
 OLD_CSRF_TRUSTED_ORIGINS=""
 OLD_CADDY_HTTP_PORT=""
 OLD_CADDY_HTTPS_PORT=""
-if [ -f "$TARGET_DIR/current/deploy/.env" ]; then
-  OLD_SECRET_KEY="$(get_env_kv SECRET_KEY "$TARGET_DIR/current/deploy/.env")"
-  OLD_ENCRYPTION_KEY="$(get_env_kv AGOMTRADEPRO_ENCRYPTION_KEY "$TARGET_DIR/current/deploy/.env")"
-  OLD_DOMAIN="$(get_env_kv DOMAIN "$TARGET_DIR/current/deploy/.env")"
-  OLD_ALLOWED_HOSTS="$(get_env_kv ALLOWED_HOSTS "$TARGET_DIR/current/deploy/.env")"
-  OLD_CORS_ALLOWED_ORIGINS="$(get_env_kv CORS_ALLOWED_ORIGINS "$TARGET_DIR/current/deploy/.env")"
-  OLD_CSRF_TRUSTED_ORIGINS="$(get_env_kv CSRF_TRUSTED_ORIGINS "$TARGET_DIR/current/deploy/.env")"
-  OLD_CADDY_HTTP_PORT="$(get_env_kv CADDY_HTTP_PORT "$TARGET_DIR/current/deploy/.env")"
-  OLD_CADDY_HTTPS_PORT="$(get_env_kv CADDY_HTTPS_PORT "$TARGET_DIR/current/deploy/.env")"
-  if [ -n "$OLD_ENCRYPTION_KEY" ]; then
-    echo "[INFO] Found existing AGOMTRADEPRO_ENCRYPTION_KEY from previous deployment, will reuse"
-  fi
+SECRETS_FILE="$TARGET_DIR/secrets.env"
+_read_old_keys() {
+  _src="$1"
+  if [ ! -f "$_src" ]; then return; fi
+  [ -z "$OLD_SECRET_KEY" ] && OLD_SECRET_KEY="$(get_env_kv SECRET_KEY "$_src")"
+  [ -z "$OLD_ENCRYPTION_KEY" ] && OLD_ENCRYPTION_KEY="$(get_env_kv AGOMTRADEPRO_ENCRYPTION_KEY "$_src")"
+  [ -z "$OLD_DOMAIN" ] && OLD_DOMAIN="$(get_env_kv DOMAIN "$_src")"
+  [ -z "$OLD_ALLOWED_HOSTS" ] && OLD_ALLOWED_HOSTS="$(get_env_kv ALLOWED_HOSTS "$_src")"
+  [ -z "$OLD_CORS_ALLOWED_ORIGINS" ] && OLD_CORS_ALLOWED_ORIGINS="$(get_env_kv CORS_ALLOWED_ORIGINS "$_src")"
+  [ -z "$OLD_CSRF_TRUSTED_ORIGINS" ] && OLD_CSRF_TRUSTED_ORIGINS="$(get_env_kv CSRF_TRUSTED_ORIGINS "$_src")"
+  [ -z "$OLD_CADDY_HTTP_PORT" ] && OLD_CADDY_HTTP_PORT="$(get_env_kv CADDY_HTTP_PORT "$_src")"
+  [ -z "$OLD_CADDY_HTTPS_PORT" ] && OLD_CADDY_HTTPS_PORT="$(get_env_kv CADDY_HTTPS_PORT "$_src")"
+}
+_read_old_keys "$SECRETS_FILE"
+_read_old_keys "$TARGET_DIR/current/deploy/.env"
+if [ -n "$OLD_ENCRYPTION_KEY" ]; then
+  echo "[INFO] Found existing AGOMTRADEPRO_ENCRYPTION_KEY, will reuse"
 fi
 
 if [ "$WIPE_DOCKER" = "1" ]; then
@@ -872,6 +877,18 @@ if grep -q '^AGOMTRADEPRO_ENCRYPTION_KEY=' deploy/.env; then
 else
   printf '\nAGOMTRADEPRO_ENCRYPTION_KEY=%s\n' "$AGOM_KEY" >> deploy/.env
 fi
+
+_persist_secrets_env() {
+  key="$1"
+  value="$2"
+  if grep -q "^${key}=" "$SECRETS_FILE" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$SECRETS_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$SECRETS_FILE"
+  fi
+}
+_persist_secrets_env "SECRET_KEY" "$SECRET_KEY"
+_persist_secrets_env "AGOMTRADEPRO_ENCRYPTION_KEY" "$AGOM_KEY"
 
 set_env_kv() {
   key="$1"
