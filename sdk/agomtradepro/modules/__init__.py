@@ -26,7 +26,6 @@ from .factor import FactorModule
 from .filter import FilterModule
 from .fund import FundModule
 from .hedge import HedgeModule
-from .macro import MacroModule
 from .policy import PolicyModule
 from .prompt import PromptModule
 from .pulse import PulseModule
@@ -47,7 +46,6 @@ __all__ = [
     "AgentProposalModule",
     "RegimeModule",
     "SignalModule",
-    "MacroModule",
     "PolicyModule",
     "BacktestModule",
     "AccountModule",

@@ -49,7 +49,6 @@ from .modules.factor import FactorModule
 from .modules.filter import FilterModule
 from .modules.fund import FundModule
 from .modules.hedge import HedgeModule
-from .modules.macro import MacroModule
 from .modules.policy import PolicyModule
 from .modules.prompt import PromptModule
 from .modules.pulse import PulseModule
@@ -82,7 +81,6 @@ class AgomTradeProClient:
     # 模块实例（延迟初始化）
     _regime: Optional[RegimeModule] = None
     _signal: Optional[SignalModule] = None
-    _macro: Optional[MacroModule] = None
     _policy: Optional[PolicyModule] = None
     _backtest: Optional[BacktestModule] = None
     _account: Optional[AccountModule] = None
@@ -448,13 +446,6 @@ class AgomTradeProClient:
         if self._signal is None:
             self._signal = SignalModule(self)
         return self._signal
-
-    @property
-    def macro(self) -> MacroModule:
-        """宏观数据模块"""
-        if self._macro is None:
-            self._macro = MacroModule(self)
-        return self._macro
 
     @property
     def policy(self) -> PolicyModule:

@@ -99,14 +99,6 @@ class TestAgomTradeProClient:
         )
         assert client.signal is not None
 
-    def test_macro_module_property(self):
-        """测试 macro 模块属性"""
-        client = AgomTradeProClient(
-            base_url="http://test.com",
-            api_token="test_token",
-        )
-        assert client.macro is not None
-
     def test_policy_module_property(self):
         """测试 policy 模块属性"""
         client = AgomTradeProClient(
