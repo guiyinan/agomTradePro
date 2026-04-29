@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
+from apps.data_center.application.interface_services import get_active_provider_id_by_source
 from apps.data_center.application.repository_provider import get_indicator_catalog_repository
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
@@ -35,6 +36,49 @@ TABLE_SORT_FIELDS = {
 }
 
 _UNSET = object()
+
+
+def _resolve_manual_refresh_provider_id() -> int | None:
+    """Return the preferred Data Center provider id for page-level manual refresh."""
+
+    for source_type in ("akshare", "tushare"):
+        provider_id = get_active_provider_id_by_source(source_type)
+        if provider_id is not None:
+            return provider_id
+    return None
+
+
+def _default_refresh_start(period_type: str, *, today: date) -> date:
+    """Return a pragmatic default backfill window for page-triggered refreshes."""
+
+    normalized_period_type = (period_type or "").upper()
+    if normalized_period_type == "D":
+        return today - timedelta(days=365 * 2)
+    if normalized_period_type == "W":
+        return today - timedelta(days=365 * 5)
+    return date(2010, 1, 1)
+
+
+def _suggest_refresh_start(
+    *,
+    period_type: str,
+    latest_reporting_period: date | None,
+    today: date,
+) -> date:
+    """Return the refresh start date used by the macro data page manual sync button."""
+
+    if latest_reporting_period is None:
+        return _default_refresh_start(period_type, today=today)
+
+    normalized_period_type = (period_type or "").upper()
+    if normalized_period_type == "D":
+        overlap_days = 30
+    elif normalized_period_type == "W":
+        overlap_days = 90
+    else:
+        overlap_days = 365
+    suggested = latest_reporting_period - timedelta(days=overlap_days)
+    return max(suggested, _default_refresh_start(period_type, today=today))
 
 
 def get_supported_macro_indicators(*, source: str = "akshare") -> list[dict[str, Any]]:
@@ -95,6 +139,8 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
     metadata_map = IndicatorService.get_indicator_metadata_map()
     active_catalogs = sorted(catalog_repository.list_active(), key=lambda item: item.code)
     synced_codes = set(read_repository.list_distinct_codes())
+    refresh_provider_id = _resolve_manual_refresh_provider_id()
+    refresh_end_date = date.today()
     latest_by_code = {
         code: read_repository.get_latest_indicator(code) for code in sorted(synced_codes)
     }
@@ -125,6 +171,16 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
                 (latest_by_code[catalog.code].get("display_unit") or "")
                 if latest_by_code.get(catalog.code)
                 else (metadata_map.get(catalog.code, {}).get("unit") or catalog.default_unit or "-")
+            ),
+            "period_type": getattr(catalog, "default_period_type", "") or "",
+            "refresh_start": _suggest_refresh_start(
+                period_type=getattr(catalog, "default_period_type", "") or "",
+                latest_reporting_period=(
+                    latest_by_code[catalog.code]["reporting_period"]
+                    if latest_by_code.get(catalog.code)
+                    else None
+                ),
+                today=refresh_end_date,
             ),
             "has_data": catalog.code in synced_codes,
         }
@@ -160,6 +216,8 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         },
         "min_date": summary["min_date"],
         "max_date": summary["max_date"],
+        "refresh_provider_id": refresh_provider_id,
+        "refresh_end_date": refresh_end_date,
     }
 
 

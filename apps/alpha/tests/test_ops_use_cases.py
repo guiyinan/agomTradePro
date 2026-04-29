@@ -18,6 +18,8 @@ from apps.alpha.application.ops_use_cases import (
     TriggerScopedBatchInferenceUseCase,
     TriggerScopedInferenceUseCase,
 )
+from apps.task_monitor.application.repository_provider import get_task_record_repository
+from apps.task_monitor.domain.entities import TaskStatus
 
 
 @pytest.mark.django_db
@@ -184,6 +186,13 @@ def test_trigger_qlib_universe_refresh_use_case_queues_refresh_task(monkeypatch)
     assert captured["target_date"] == "2026-04-28"
     assert captured["lookback_days"] == 420
     assert captured["universes"] == ["csi300", "csi500"]
+    record = get_task_record_repository().get_by_task_id("task-refresh-1")
+    assert record is not None
+    assert record.task_name == "apps.alpha.application.tasks.qlib_refresh_runtime_data_task"
+    assert record.status == TaskStatus.PENDING
+    assert record.kwargs["target_date"] == "2026-04-28"
+    assert record.kwargs["universes"] == ["csi300", "csi500"]
+    assert record.kwargs["lookback_days"] == 420
 
 
 @pytest.mark.django_db
@@ -226,3 +235,11 @@ def test_trigger_qlib_scoped_codes_refresh_use_case_queues_refresh_task(monkeypa
     assert captured["portfolio_ids"] == [12, 18]
     assert captured["all_active_portfolios"] is False
     assert captured["pool_mode"] == "price_covered"
+    record = get_task_record_repository().get_by_task_id("task-refresh-codes-1")
+    assert record is not None
+    assert record.task_name == "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task"
+    assert record.status == TaskStatus.PENDING
+    assert record.kwargs["target_date"] == "2026-04-28"
+    assert record.kwargs["portfolio_ids"] == [12, 18]
+    assert record.kwargs["all_active_portfolios"] is False
+    assert record.kwargs["pool_mode"] == "price_covered"

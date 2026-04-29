@@ -45,6 +45,11 @@
 - `core/templates/macro/data.html` 已改为直接读取 `/api/data-center/macro/series/`
 - 宏观页面左侧指标列表改为读取 `IndicatorCatalog` 全量 active 目录，不再按 `MacroFact` distinct code 截断
 - 对于目录中已治理但当前环境尚未同步事实数据的指标，页面显示“暂无同步数据”空态，而不是直接消失
+- `/macro/data/` 现已支持“当前指标手动刷新抓取”：
+  - 页面按钮直接调用 `POST /api/data-center/sync/macro/`
+  - provider 仅从 Data Center active provider 解析，不再回落到旧 `macro` 同步链路
+  - 页面会按指标周期给出建议抓取窗口：日频默认近 2 年，周频默认近 5 年，月/季/年频默认回溯到 `2010-01-01`
+- `/macro/data/` 左栏滚动已收为单层：外层 sticky 容器不再滚动，指标列表成为唯一滚动区，分类展开区不再叠加内层滚动条
 - `core/templates/regime/dashboard.html` 的手动同步已改走 `/api/data-center/sync/macro/`
 - 旧宏观数据管理页 `/macro/controller/` 已重定向到 `/data-center/providers/`
 

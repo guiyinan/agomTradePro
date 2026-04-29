@@ -28,6 +28,10 @@
 const indicatorNamesMap = {};
 const indicatorDescriptionsMap = {};
 const indicatorUnitsMap = {};
+const macroSeriesUrl = '{% url "api_data_center:dc-macro-series" %}';
+const macroSyncUrl = '{% url "api_data_center:dc-sync-macro" %}';
+const manualRefreshProviderId = Number('{{ refresh_provider_id|default:"0" }}');
+const manualRefreshEndDate = '{{ refresh_end_date|date:"Y-m-d"|default:"" }}';
 {% for category in indicator_categories %}
     {% for ind in category.indicators %}
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
@@ -45,6 +49,7 @@ const initialChartData = {
 
 let currentIndicatorCode = initialIndicator;
 let currentChart = null;
+let refreshStatusTimer = null;
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -54,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             initialItem.classList.add('active');
         }
         showIndicatorInfoBar();
+        updateRefreshButtonState(initialIndicator);
         updateIndicatorInfoFromServer();
         if (initialChartData.dates.length > 0) {
             renderMainChart(
@@ -83,7 +89,63 @@ function showChartPlaceholder(title, description) {
     clearChart();
     document.getElementById('chartPlaceholderTitle').textContent = title;
     document.getElementById('chartPlaceholderDesc').textContent = description;
+    document.getElementById('chartPlaceholderAction').innerHTML = '';
     document.getElementById('chartPlaceholder').style.display = 'block';
+}
+
+function setRefreshStatus(message, tone = 'muted') {
+    const statusEl = document.getElementById('refreshIndicatorStatus');
+    if (!statusEl) {
+        return;
+    }
+    statusEl.textContent = message || '';
+    statusEl.className = `refresh-status ${tone}`;
+    if (refreshStatusTimer) {
+        window.clearTimeout(refreshStatusTimer);
+        refreshStatusTimer = null;
+    }
+    if (message && (tone === 'success' || tone === 'warning')) {
+        refreshStatusTimer = window.setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.className = 'refresh-status muted';
+            refreshStatusTimer = null;
+        }, 5000);
+    }
+}
+
+function getIndicatorItem(code) {
+    return document.querySelector(`.ind-item[data-code="${code}"]`);
+}
+
+function getManualRefreshStart(code) {
+    const item = getIndicatorItem(code);
+    return item?.dataset.refreshStart || '2010-01-01';
+}
+
+function updateRefreshButtonState(code, isLoading = false) {
+    const button = document.getElementById('refreshIndicatorBtn');
+    if (!button) {
+        return;
+    }
+    const hasProvider = manualRefreshProviderId > 0;
+    const hasIndicator = Boolean(code);
+    button.disabled = !hasProvider || !hasIndicator || isLoading;
+    button.textContent = isLoading ? '抓取中...' : '手动刷新抓取';
+    button.title = hasProvider && hasIndicator
+        ? `抓取区间：${getManualRefreshStart(code)} ~ ${manualRefreshEndDate || '今天'}`
+        : '当前未配置可用的 Data Center 宏观 provider';
+}
+
+function markIndicatorAsSynced(code) {
+    const item = getIndicatorItem(code);
+    if (!item) {
+        return;
+    }
+    item.dataset.hasData = 'true';
+    const badge = item.querySelector('.ind-status-badge');
+    if (badge) {
+        badge.remove();
+    }
 }
 
 // 从服务器数据更新指标信息
@@ -101,8 +163,13 @@ function updateIndicatorInfoFromServer() {
 }
 
 // 选择指标
-async function selectIndicator(code) {
+async function selectIndicator(code, options = {}) {
+    const { keepRefreshStatus = false } = options;
     currentIndicatorCode = code;
+    updateRefreshButtonState(code);
+    if (!keepRefreshStatus) {
+        setRefreshStatus('', 'muted');
+    }
 
     // 更新 UI 选中状态
     document.querySelectorAll('.ind-item').forEach(el => {
@@ -128,22 +195,77 @@ async function selectIndicator(code) {
 
     showIndicatorInfoBar();
 
-    const response = await fetch(`{% url "api_data_center:dc-macro-series" %}?indicator_code=${encodeURIComponent(code)}&limit=500`);
-    const result = await response.json();
+    try {
+        const response = await fetch(`${macroSeriesUrl}?indicator_code=${encodeURIComponent(code)}&limit=500`);
+        const result = await response.json().catch(() => ({}));
 
-    if (response.ok && Array.isArray(result.data)) {
-        if (result.data.length === 0) {
-            renderNoDataState(code);
-            return;
+        if (response.ok && Array.isArray(result.data)) {
+            if (result.data.length === 0) {
+                renderNoDataState(code);
+                return 0;
+            }
+            const dates = result.data.map(d => d.reporting_period);
+            const values = result.data.map(d => Number(d.display_value ?? d.value));
+            updateIndicatorInfo(code, result.data);
+            renderMainChart(code, dates, values, latestUnitFromData(result.data));
+            return result.data.length;
         }
-        const dates = result.data.map(d => d.reporting_period);
-        const values = result.data.map(d => Number(d.display_value ?? d.value));
-        updateIndicatorInfo(code, result.data);
-        renderMainChart(code, dates, values, latestUnitFromData(result.data));
-        return;
+    } catch (error) {
+        // 空态由下方统一处理
     }
 
     renderNoDataState(code);
+    return 0;
+}
+
+async function refreshIndicator(code = currentIndicatorCode) {
+    if (!code) {
+        return;
+    }
+
+    if (!manualRefreshProviderId) {
+        setRefreshStatus('当前未配置可用的 Data Center 宏观 provider', 'error');
+        updateRefreshButtonState(code);
+        return;
+    }
+
+    updateRefreshButtonState(code, true);
+    setRefreshStatus('正在抓取当前指标...', 'muted');
+
+    try {
+        const response = await fetch(macroSyncUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                provider_id: manualRefreshProviderId,
+                indicator_code: code,
+                start: getManualRefreshStart(code),
+                end: manualRefreshEndDate
+            })
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok || payload.status !== 'success') {
+            throw new Error(payload.detail || payload.error_message || `抓取 ${code} 失败`);
+        }
+
+        markIndicatorAsSynced(code);
+        const rowCount = await selectIndicator(code, { keepRefreshStatus: true });
+        if (rowCount > 0) {
+            setRefreshStatus(`抓取完成，已更新 ${rowCount} 条展示数据`, 'success');
+        } else if (Number(payload.stored_count || 0) > 0) {
+            setRefreshStatus(`抓取完成，已写入 ${payload.stored_count} 条记录`, 'warning');
+        } else {
+            setRefreshStatus('抓取完成，但当前数据源未返回可入库记录', 'warning');
+        }
+    } catch (error) {
+        setRefreshStatus(error.message || '抓取失败，请稍后重试', 'error');
+    } finally {
+        updateRefreshButtonState(code, false);
+    }
 }
 
 // 渲染主图表
@@ -220,9 +342,11 @@ function updateIndicatorInfo(code, data) {
     document.getElementById('currentIndicatorPeriod').textContent = latest.reporting_period;
     document.getElementById('currentIndicatorRecords').textContent = data.length + ' 条';
     document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
+    updateRefreshButtonState(code);
 }
 
 function renderNoDataState(code) {
+    const canRefresh = manualRefreshProviderId > 0;
     showIndicatorInfoBar();
     document.getElementById('currentIndicatorCode').textContent = code;
     document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
@@ -233,6 +357,11 @@ function renderNoDataState(code) {
     document.getElementById('currentIndicatorRecords').textContent = '0 条';
     document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
     showChartPlaceholder('该指标暂无同步数据', '指标目录已收口到 Data Center，但当前环境还没有该指标的宏观事实记录。');
+    document.getElementById('chartPlaceholderAction').innerHTML =
+        canRefresh
+            ? `<button type="button" class="placeholder-refresh-btn" onclick="refreshIndicator('${code}')">立即抓取当前指标</button>`
+            : '<div class="placeholder-note">当前未配置可用的 Data Center 宏观 provider</div>';
+    updateRefreshButtonState(code);
 }
 
 // 折叠/展开分类
@@ -412,7 +541,7 @@ function getCookie(name) {
             </div>
         </div>
 
-        <div class="sidebar-card">
+        <div class="sidebar-card sidebar-card-list">
             <div class="sidebar-header">
                 <h3>指标列表</h3>
             </div>
@@ -431,9 +560,14 @@ function getCookie(name) {
                              data-code="{{ ind.code }}"
                              data-name="{{ ind.name }}"
                              data-unit="{{ ind.unit|default:'-' }}"
+                             data-has-data="{{ ind.has_data|yesno:'true,false' }}"
+                             data-refresh-start="{{ ind.refresh_start|date:'Y-m-d' }}"
                              onclick="selectIndicator('{{ ind.code }}')">
                             <span class="ind-code">{{ ind.code }}</span>
                             <span class="ind-name">{{ ind.name }}</span>
+                            {% if not ind.has_data %}
+                            <span class="ind-status-badge">未同步</span>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -472,6 +606,12 @@ function getCookie(name) {
                 <span class="info-label">记录数:</span>
                 <span class="info-value" id="currentIndicatorRecords">-</span>
             </div>
+            <div class="info-bar-actions">
+                <button id="refreshIndicatorBtn" type="button" class="refresh-indicator-btn" onclick="refreshIndicator()">
+                    手动刷新抓取
+                </button>
+                <span id="refreshIndicatorStatus" class="refresh-status muted" aria-live="polite"></span>
+            </div>
         </div>
         <div class="indicator-description" id="currentIndicatorDescription"></div>
 
@@ -485,6 +625,7 @@ function getCookie(name) {
             <div class="placeholder-icon">📈</div>
             <div class="placeholder-title" id="chartPlaceholderTitle">选择一个指标查看趋势</div>
             <div class="placeholder-desc" id="chartPlaceholderDesc">从左侧列表点击指标名称</div>
+            <div id="chartPlaceholderAction" class="placeholder-action"></div>
         </div>
     </div>
 
@@ -618,8 +759,10 @@ function getCookie(name) {
     gap: 16px;
     position: sticky;
     top: 20px;
+    height: calc(100vh - 140px);
     max-height: calc(100vh - 140px);
-    overflow-y: auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .sidebar-card {
@@ -627,6 +770,13 @@ function getCookie(name) {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     overflow: hidden;
+}
+
+.sidebar-card-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 .search-section {
@@ -662,7 +812,8 @@ function getCookie(name) {
 }
 
 .categories-container {
-    max-height: 500px;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 
@@ -711,8 +862,6 @@ function getCookie(name) {
 }
 
 .cat-content {
-    max-height: 300px;
-    overflow-y: auto;
     background: #fafafa;
 }
 
@@ -752,6 +901,16 @@ function getCookie(name) {
     text-overflow: ellipsis;
 }
 
+.ind-status-badge {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-size: 10px;
+    font-weight: 600;
+}
+
 /* 中间面板 */
 .main-panel {
     display: flex;
@@ -763,6 +922,7 @@ function getCookie(name) {
     display: flex;
     flex-wrap: wrap;
     gap: 16px 24px;
+    align-items: flex-end;
     padding: 16px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
@@ -791,6 +951,59 @@ function getCookie(name) {
     font-size: 18px;
     font-weight: 700;
     color: #2563EB;
+}
+
+.info-bar-actions {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.refresh-indicator-btn,
+.placeholder-refresh-btn {
+    padding: 9px 14px;
+    border: 1px solid #2563EB;
+    border-radius: var(--radius-sm);
+    background: white;
+    color: #2563EB;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.refresh-indicator-btn:hover,
+.placeholder-refresh-btn:hover {
+    background: #EFF6FF;
+}
+
+.refresh-indicator-btn:disabled,
+.placeholder-refresh-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.refresh-status {
+    min-height: 18px;
+    font-size: 12px;
+}
+
+.refresh-status.muted {
+    color: var(--color-text-muted);
+}
+
+.refresh-status.success {
+    color: #166534;
+}
+
+.refresh-status.warning {
+    color: #92400E;
+}
+
+.refresh-status.error {
+    color: #B91C1C;
 }
 
 .main-chart-container {
@@ -841,6 +1054,15 @@ function getCookie(name) {
 
 .placeholder-desc {
     font-size: 14px;
+    color: var(--color-text-muted);
+}
+
+.placeholder-action {
+    margin-top: 18px;
+}
+
+.placeholder-note {
+    font-size: 12px;
     color: var(--color-text-muted);
 }
 
@@ -1010,6 +1232,11 @@ function getCookie(name) {
 
     .left-sidebar, .right-sidebar {
         position: static;
+        height: auto;
+        max-height: none;
+    }
+
+    .categories-container {
         max-height: none;
     }
 
@@ -1022,6 +1249,12 @@ function getCookie(name) {
     .indicator-info-bar {
         flex-direction: column;
         gap: 12px;
+    }
+
+    .info-bar-actions {
+        margin-left: 0;
+        align-items: stretch;
+        width: 100%;
     }
 
     .main-chart {

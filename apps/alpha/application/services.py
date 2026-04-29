@@ -652,6 +652,22 @@ class AlphaProviderRegistry:
         # 所有 provider 都失败
         logger.error(f"[AlphaFailed] 所有 Provider 失败，尝试顺序: {attempted_providers}")
 
+        if provider_filter:
+            return AlphaResult(
+                success=False,
+                scores=[],
+                source=provider_filter,
+                timestamp=date.today().isoformat(),
+                status="unavailable",
+                error_message=f"指定的 Provider '{provider_filter}' 失败或数据过期",
+                metadata={
+                    "universe_id": universe_id,
+                    "intended_trade_date": intended_trade_date.isoformat(),
+                    "attempted_providers": attempted_providers,
+                    "provider_probe_only": True,
+                },
+            )
+
         # 创建严重告警
         try:
             get_alpha_alert_repository().create_alert(

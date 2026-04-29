@@ -19,18 +19,26 @@ class _FakeSyncUseCase:
 
 
 class _FakeCatalog:
-    def __init__(self, code: str, name_cn: str, default_unit: str, description: str = ""):
+    def __init__(
+        self,
+        code: str,
+        name_cn: str,
+        default_unit: str,
+        description: str = "",
+        default_period_type: str = "M",
+    ):
         self.code = code
         self.name_cn = name_cn
         self.default_unit = default_unit
         self.description = description
+        self.default_period_type = default_period_type
 
 
 class _FakeCatalogRepository:
     def list_active(self):
         return [
-            _FakeCatalog("CN_GDP", "GDP", "亿元", "GDP总量"),
-            _FakeCatalog("CN_M2", "M2", "万亿元", "广义货币"),
+            _FakeCatalog("CN_GDP", "GDP", "亿元", "GDP总量", "Q"),
+            _FakeCatalog("CN_M2", "M2", "万亿元", "广义货币", "M"),
         ]
 
 
@@ -132,14 +140,21 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
             }
         ),
     )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_active_provider_id_by_source",
+        lambda source_type: 7 if source_type == "akshare" else None,
+    )
 
     snapshot = get_macro_data_page_snapshot()
 
     assert snapshot["selected_indicator"] == "CN_M2"
     assert snapshot["stats"]["total_indicators"] == 2
     assert snapshot["stats"]["synced_indicators"] == 1
+    assert snapshot["refresh_provider_id"] == 7
     assert snapshot["indicator_map"]["CN_GDP"]["has_data"] is False
     assert snapshot["indicator_map"]["CN_GDP"]["unit"] == "亿元"
+    assert snapshot["indicator_map"]["CN_GDP"]["refresh_start"].isoformat() == "2010-01-01"
     assert snapshot["indicator_map"]["CN_M2"]["has_data"] is True
     assert snapshot["indicator_map"]["CN_M2"]["latest_value"] == 325.4
+    assert snapshot["indicator_map"]["CN_M2"]["refresh_start"] == date(2025, 4, 1)
     assert len(snapshot["history"]) == 1

@@ -98,6 +98,7 @@ class TestNavigationNo404:
                 'class="stat-card"',
                 'id="indicatorInfoBar"',
                 'id="mainChart"',
+                'id="refreshIndicatorBtn"',
             ),
             css_assets=("/static/css/macro.css",),
         )

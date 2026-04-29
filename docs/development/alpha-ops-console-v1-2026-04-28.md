@@ -74,6 +74,18 @@
 
 ## 实现说明
 
+### 0. 告警语义修正（2026-04-30）
+
+`/dashboard/` 与部分查询服务会按 `qlib -> cache -> simple -> etf` 逐个传 `provider_filter`
+做单点探测。
+
+从 `2026-04-30` 起：
+
+- 这类“单 provider 探测失败”不再写入 `provider_unavailable`
+- `provider_unavailable` 只表示完整自动降级链已经全部失败
+- 因此运维页里的“所有 Alpha Provider 不可用”不再出现 `尝试顺序: simple`
+  这类误导性单点失败告警
+
 ### 1. Qlib 数据刷新逻辑抽取
 
 原先 `apps.alpha.application.tasks` 中的：
@@ -96,6 +108,14 @@
 - `apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task`
 
 任务返回标准化 summary dict，供 `task_monitor` 保存和页面展示。
+
+从 `2026-04-30` 起，Ops 页在 `delay()` 成功后会立刻写入一条 `pending` 的 `task_monitor` 记录。
+
+效果：
+
+- `/alpha/ops/qlib-data/` 底部“最近刷新任务”不再需要等 worker 真正 `prerun` 后才出现
+- 刷新后页面可以立即看到刚投递的任务 ID 和 `pending` 状态
+- worker 开始执行后，`task_monitor` 的 `task_prerun/task_postrun` 信号会继续把同一条记录更新为 `started/success/failure`
 
 ### 3. 防重复语义
 
