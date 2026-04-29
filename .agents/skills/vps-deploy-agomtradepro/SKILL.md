@@ -11,6 +11,7 @@ Deploy the current AgomTradePro workspace to the production VPS using the reposi
 
 - host: `$env:AGOM_VPS_HOST` / `AGOM_VPS_HOST`
 - ssh user: `$env:AGOM_VPS_USER` / `AGOM_VPS_USER`, default `root`
+- ssh password: `$env:AGOM_VPS_PASS` / `AGOM_VPS_PASS`
 - ssh port: `$env:AGOM_VPS_PORT` / `AGOM_VPS_PORT`, default `22`
 - app port: `$env:AGOM_VPS_HTTP_PORT` / `AGOM_VPS_HTTP_PORT`, default `8000`
 - compose project: `agomtradepro`
@@ -23,15 +24,40 @@ Never write the VPS password, API tokens, encryption keys, or temporary password
 - Work from the project root before running scripts.
 - Run `git status --short` first and do not revert unrelated user changes.
 - Require `AGOM_VPS_HOST` to be set before deploying. If it is missing, ask for the target host or stop and instruct the user to set it.
-- Use a temporary password file or environment variable for SSH password input, then delete it.
+- Require `AGOM_VPS_PASS` to be set for SSH authentication. If it is missing, ask for the password or stop.
+- Use a temporary password file for SSH password input, then delete it. The one-click script `deploy-vps.ps1` handles this automatically.
 - If the user says "delete old one" or "把旧的删掉", use `fresh` plus `--wipe-docker`; do not use `--wipe-volumes` unless the user explicitly says to delete the database/data.
 - Default to code-only deployment. Use `--include-sqlite` only when the user explicitly wants the local `db.sqlite3` restored to the VPS.
 - Qlib package rule: the Python distribution is `pyqlib`, the imported module is `qlib`. Do not add or install a package named `qlib`.
-- After every deploy, verify HTTP health, container state, database freshness, and Qlib package identity inside the running `web` container.
+- After every deploy, verify HTTPS health (if DOMAIN is configured) or HTTP health, container state, database freshness, and Qlib package identity inside the running `web` container.
+- The deploy script persists `SECRET_KEY`, `AGOMTRADEPRO_ENCRYPTION_KEY`, and `DOMAIN` to `$TARGET_DIR/secrets.env` on the VPS. This file survives `--wipe-docker` and failed deploys. Never regenerate the encryption key unless the user explicitly requests it.
 
-## Preferred Path: Git Clone on VPS (Fastest)
+## Preferred Path: One-Click Script (Recommended)
 
-Use this as the **default** deployment method. The VPS clones from GitHub directly, skipping local source upload entirely. This is much faster because GitHub's bandwidth far exceeds local upload speed.
+Use `scripts/deploy-vps.ps1` as the **default** method. It reads all config from environment variables (`AGOM_VPS_HOST`, `AGOM_VPS_PASS`, `AGOM_VPS_USER`, etc.), checks for uncommitted/unpushed changes, pushes if needed, and runs the deploy via git-clone.
+
+**Prerequisite**: The latest code must be pushed to GitHub before deploying (the script prompts to push automatically).
+
+```powershell
+# Default: fresh deploy, git-clone current branch, preserve remote data
+.\scripts\deploy-vps.ps1
+
+# Enable Celery for background scheduled jobs
+.\scripts\deploy-vps.ps1 -EnableCelery
+
+# Restore local SQLite to VPS (overwrites remote DB)
+.\scripts\deploy-vps.ps1 -IncludeSqlite
+
+# Upgrade mode (don't remove old containers)
+.\scripts\deploy-vps.ps1 -Upgrade
+
+# Specify branch explicitly
+.\scripts\deploy-vps.ps1 -GitBranch main
+```
+
+## Alternative Path: Git Clone via Python Script
+
+Use this when the one-click script is not available or when you need fine-grained control. The VPS clones from GitHub directly, skipping local source upload entirely.
 
 **Prerequisite**: The latest code must be pushed to GitHub before deploying.
 
@@ -39,7 +65,7 @@ Code-only fresh deploy that removes old containers/images but preserves data vol
 
 ```powershell
 $passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
-Set-Content -Path $passFile -Value '<PASSWORD_FROM_USER>' -NoNewline
+Set-Content -Path $passFile -Value $env:AGOM_VPS_PASS -NoNewline
 $vpsHost = $env:AGOM_VPS_HOST
 if (-not $vpsHost) { throw 'AGOM_VPS_HOST is required' }
 $vpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
@@ -53,7 +79,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --wipe-docker `
   --git-clone `
   --http-port $vpsHttpPort `
-  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
+  --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
   --timeout 1800
 
 $code = $LASTEXITCODE
@@ -73,7 +99,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --git-clone `
   --git-branch dev/feat-xxx `
   --http-port $vpsHttpPort `
-  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
+  --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
   --timeout 1800
 ```
 
@@ -93,13 +119,13 @@ python .\scripts\remote_build_deploy_vps.py `
 
 ## Alternative Path: Remote Source Upload Build
 
-Use this when the VPS cannot reach GitHub (firewall, private repo without deploy key, etc). It uploads source from local, builds the Docker image on the VPS, deploys it, downloads a deployment report, and cleans remote temp files by default.
+Use this when the VPS cannot reach GitHub (firewall, private repo without deploy key, etc).
 
 Code-only fresh deploy that removes old containers/images but preserves data volumes:
 
 ```powershell
 $passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
-Set-Content -Path $passFile -Value '<PASSWORD_FROM_USER>' -NoNewline
+Set-Content -Path $passFile -Value $env:AGOM_VPS_PASS -NoNewline
 $vpsHost = $env:AGOM_VPS_HOST
 if (-not $vpsHost) { throw 'AGOM_VPS_HOST is required' }
 $vpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
@@ -112,7 +138,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --action fresh `
   --wipe-docker `
   --http-port $vpsHttpPort `
-  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
+  --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
   --timeout 1800
 
 $code = $LASTEXITCODE
@@ -131,7 +157,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --wipe-docker `
   --include-sqlite `
   --http-port $vpsHttpPort `
-  --allowed-hosts "$vpsHost,localhost,127.0.0.1" `
+  --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
   --timeout 1800
 ```
 
@@ -167,7 +193,7 @@ Deploy the bundle:
 
 ```powershell
 $passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
-Set-Content -Path $passFile -Value '<PASSWORD_FROM_USER>' -NoNewline
+Set-Content -Path $passFile -Value $env:AGOM_VPS_PASS -NoNewline
 $vpsHost = $env:AGOM_VPS_HOST
 if (-not $vpsHost) { throw 'AGOM_VPS_HOST is required' }
 $vpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
@@ -215,7 +241,23 @@ Run these on the VPS after deploy:
 cd /opt/agomtradepro/current
 docker compose -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env ps
 curl -fsS http://127.0.0.1:8000/api/health/
-curl -fsS "http://${AGOM_VPS_HOST:-<host>}:${AGOM_VPS_HTTP_PORT:-8000}/api/health/"
+```
+
+If DOMAIN is configured (e.g. `demo.agomtrade.pro`), verify Caddy HTTPS:
+
+```bash
+curl -fsSk https://demo.agomtrade.pro/api/health/
+# Check Caddy has TLS certificate
+docker logs agomtradepro-caddy-1 --tail 10 2>&1 | grep -E "tls|certificate|auto_https"
+# Verify Caddyfile has domain (not :80)
+head -1 /opt/agomtradepro/current/docker/Caddyfile
+```
+
+If Caddy is listening on `:80` instead of the domain, the DOMAIN was lost. Check `secrets.env`:
+
+```bash
+cat /opt/agomtradepro/secrets.env
+# Should contain: DOMAIN=demo.agomtrade.pro
 ```
 
 Verify Python package identity inside the `web` container:
@@ -260,7 +302,9 @@ PY
 
 ## Troubleshooting Playbook
 
-- External access URL: `http://$AGOM_VPS_HOST:$AGOM_VPS_HTTP_PORT/`; health URL: `http://$AGOM_VPS_HOST:$AGOM_VPS_HTTP_PORT/api/health/`.
+- External access URL: `https://demo.agomtrade.pro` (if DOMAIN configured) or `http://$AGOM_VPS_HOST:$AGOM_VPS_HTTP_PORT/`.
+- **PR_END_OF_FILE_ERROR on HTTPS**: Caddy is listening on `:80` (HTTP only) instead of the domain. The DOMAIN was lost from `secrets.env`. Fix: add `DOMAIN=demo.agomtrade.pro` to `/opt/agomtradepro/secrets.env`, update the Caddyfile, and restart Caddy. Then redeploy to make it permanent.
+- **Encryption key regenerated unexpectedly**: The `AGOMTRADEPRO_ENCRYPTION_KEY` was lost from `secrets.env` (e.g. after a failed deploy wiped `current/` before keys were preserved). Check `/opt/agomtradepro/secrets.env` — it should always contain `SECRET_KEY`, `AGOMTRADEPRO_ENCRYPTION_KEY`, and `DOMAIN`.
 - If `web` is healthy locally but not from the internet, check VPS firewall/security group and whether Caddy or the Django port is exposed.
 - If the UI still shows old inference data, compare the local and remote SQLite files first. Code-only deploy preserves the VPS database volume.
 - If Qlib is wrong, rebuild the image after fixing dependencies; do not repair by `pip install qlib` inside a running container.
@@ -275,7 +319,8 @@ When reporting back to the user, include:
 
 - deployed mode: `code-only` or `with-local-sqlite`
 - cleanup mode: `--wipe-docker` and whether volumes were preserved
-- public URL and health result
+- public URL and health result (use HTTPS URL if DOMAIN is configured)
+- Caddy HTTPS status: verify Caddyfile has domain (not `:80`) and TLS certificate is obtained
 - running container state
 - Qlib check result: `pyqlib` version, imported `qlib` module path, and absence of the wrong `qlib` distribution
 - whether Celery was enabled
