@@ -907,6 +907,7 @@ fi
 
 if [ -n "$EFFECTIVE_DOMAIN" ]; then
   set_env_kv "DOMAIN" "$EFFECTIVE_DOMAIN"
+  _persist_secrets_env "DOMAIN" "$EFFECTIVE_DOMAIN"
   SITE_ADDR="$EFFECTIVE_DOMAIN"
 else
   remove_env_kv "DOMAIN"
