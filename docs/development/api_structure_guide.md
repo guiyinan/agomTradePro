@@ -144,7 +144,9 @@ DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/
 1. 只从 `/api/data-center/macro/series/` 读取宏观数据。
 2. 标题和说明文案使用 `IndicatorCatalog` 语义字段。
 3. 数值显示使用 `display_value + display_unit`。
-4. 不再展示或拼接旧 macro API 路径。
+4. 宏观指标选择器优先读取 `IndicatorCatalog` active 目录，而不是按事实表已落库 code 裁剪。
+5. 对于目录已存在但事实表暂未同步的指标，前端必须展示明确空态，不得隐藏或报错。
+6. 不再展示或拼接旧 macro API 路径。
 
 ## 7. 新增指标的正确流程
 

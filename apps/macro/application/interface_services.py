@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from apps.data_center.application.repository_provider import get_indicator_catalog_repository
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
     ScheduleDataFetchUseCase,
@@ -90,29 +91,57 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
     """Return view-model data for the macro data management page."""
 
     read_repository = get_macro_read_repository()
-    indicators = sorted(
-        IndicatorService.get_available_indicators(include_stats=False),
-        key=lambda item: item["code"],
-    )
+    catalog_repository = get_indicator_catalog_repository()
+    metadata_map = IndicatorService.get_indicator_metadata_map()
+    active_catalogs = sorted(catalog_repository.list_active(), key=lambda item: item.code)
+    synced_codes = set(read_repository.list_distinct_codes())
+    latest_by_code = {
+        code: read_repository.get_latest_indicator(code) for code in sorted(synced_codes)
+    }
 
     indicator_map = {
-        item["code"]: {
-            "code": item["code"],
-            "name": item["name"],
-            "description": item["description"],
-            "latest_value": item["latest_value"],
-            "latest_period": item["latest_date"][:7],
-            "unit": item["unit"] or "-",
+        catalog.code: {
+            "code": catalog.code,
+            "name": metadata_map.get(catalog.code, {}).get("name", catalog.name_cn or catalog.code),
+            "description": metadata_map.get(catalog.code, {}).get(
+                "description",
+                catalog.description or "",
+            ),
+            "latest_value": (
+                float(
+                    latest_by_code[catalog.code].get(
+                        "display_value", latest_by_code[catalog.code]["value"]
+                    )
+                )
+                if latest_by_code.get(catalog.code)
+                else None
+            ),
+            "latest_period": (
+                latest_by_code[catalog.code]["reporting_period"].isoformat()[:7]
+                if latest_by_code.get(catalog.code)
+                else ""
+            ),
+            "unit": (
+                (latest_by_code[catalog.code].get("display_unit") or "")
+                if latest_by_code.get(catalog.code)
+                else (metadata_map.get(catalog.code, {}).get("unit") or catalog.default_unit or "-")
+            ),
+            "has_data": catalog.code in synced_codes,
         }
-        for item in indicators
+        for catalog in active_catalogs
     }
 
     resolved_selected_indicator = selected_indicator
     if resolved_selected_indicator not in indicator_map:
-        resolved_selected_indicator = next(iter(indicator_map), "")
+        resolved_selected_indicator = next(
+            (code for code, indicator in indicator_map.items() if indicator["has_data"]),
+            next(iter(indicator_map), ""),
+        )
 
     history_rows: list[dict[str, Any]] = []
-    if resolved_selected_indicator:
+    if resolved_selected_indicator and indicator_map.get(resolved_selected_indicator, {}).get(
+        "has_data"
+    ):
         history_rows = read_repository.get_indicator_rows(
             code=resolved_selected_indicator,
             ascending=True,
@@ -124,7 +153,8 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         "selected_indicator": resolved_selected_indicator,
         "history": [_format_indicator_row_for_display(row) for row in history_rows],
         "stats": {
-            "total_indicators": summary["total_indicators"],
+            "total_indicators": len(indicator_map),
+            "synced_indicators": len(synced_codes),
             "total_records": summary["total_records"],
             "latest_date": summary["latest_date"],
         },

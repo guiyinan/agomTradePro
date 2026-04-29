@@ -133,6 +133,7 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
     snapshot = get_macro_data_page_snapshot(selected_indicator=selected_indicator)
 
     indicator_map = snapshot["indicator_map"]
+    resolved_selected_indicator = snapshot["selected_indicator"]
     indicator_categories = []
     for category_definition in CATEGORY_DEFINITIONS:
         category_indicators = [
@@ -147,20 +148,17 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
                     "id": category_definition["id"],
                     "icon": category_definition["icon"],
                     "name": category_definition["name"],
+                    "is_selected_category": any(
+                        indicator["code"] == resolved_selected_indicator
+                        for indicator in category_indicators
+                    ),
                     "indicators": category_indicators,
                 }
             )
 
-    resolved_selected_indicator = snapshot["selected_indicator"]
     selected_indicator_data = indicator_map.get(resolved_selected_indicator)
-    chart_dates = [
-        row["reporting_period"][:7]
-        for row in snapshot["history"]
-    ]
-    chart_values = [
-        safe_float(row["value"])
-        for row in snapshot["history"]
-    ]
+    chart_dates = [row["reporting_period"][:7] for row in snapshot["history"]]
+    chart_values = [safe_float(row["value"]) for row in snapshot["history"]]
 
     context = {
         "indicator_categories": indicator_categories,

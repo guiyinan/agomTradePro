@@ -35,6 +35,8 @@
 
 - `/api/macro/*` 已从 `core/urls.py` 卸载
 - `core/templates/macro/data.html` 已改为直接读取 `/api/data-center/macro/series/`
+- 宏观页面左侧指标列表改为读取 `IndicatorCatalog` 全量 active 目录，不再按 `MacroFact` distinct code 截断
+- 对于目录中已治理但当前环境尚未同步事实数据的指标，页面显示“暂无同步数据”空态，而不是直接消失
 - `core/templates/regime/dashboard.html` 的手动同步已改走 `/api/data-center/sync/macro/`
 - 旧宏观数据管理页 `/macro/controller/` 已重定向到 `/data-center/providers/`
 

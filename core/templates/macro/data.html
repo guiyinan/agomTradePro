@@ -27,10 +27,12 @@
 // 从服务器端数据构建指标名称映射
 const indicatorNamesMap = {};
 const indicatorDescriptionsMap = {};
+const indicatorUnitsMap = {};
 {% for category in indicator_categories %}
     {% for ind in category.indicators %}
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
         indicatorDescriptionsMap['{{ ind.code }}'] = '{{ ind.description|default:""|escapejs }}';
+        indicatorUnitsMap['{{ ind.code }}'] = '{{ ind.unit|default:"-"|escapejs }}';
     {% endfor %}
 {% endfor %}
 
@@ -46,28 +48,42 @@ let currentChart = null;
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
-    if (initialIndicator && initialChartData.dates.length > 0) {
-        // 设置初始选中状态
+    if (initialIndicator) {
         const initialItem = document.querySelector(`.ind-item[data-code="${initialIndicator}"]`);
         if (initialItem) {
             initialItem.classList.add('active');
         }
-        // 显示指标信息栏并渲染图表
         showIndicatorInfoBar();
         updateIndicatorInfoFromServer();
-        renderMainChart(
-            initialIndicator,
-            initialChartData.dates,
-            initialChartData.values,
-            '{{ selected_indicator_data.unit|default:""|escapejs }}',
-        );
+        if (initialChartData.dates.length > 0) {
+            renderMainChart(
+                initialIndicator,
+                initialChartData.dates,
+                initialChartData.values,
+                '{{ selected_indicator_data.unit|default:""|escapejs }}',
+            );
+        } else {
+            renderNoDataState(initialIndicator);
+        }
     }
 });
 
-// 显示指标信息栏
 function showIndicatorInfoBar() {
     document.getElementById('indicatorInfoBar').style.display = 'flex';
-    document.getElementById('chartPlaceholder').style.display = 'none';
+}
+
+function clearChart() {
+    if (currentChart) {
+        currentChart.dispose();
+        currentChart = null;
+    }
+}
+
+function showChartPlaceholder(title, description) {
+    clearChart();
+    document.getElementById('chartPlaceholderTitle').textContent = title;
+    document.getElementById('chartPlaceholderDesc').textContent = description;
+    document.getElementById('chartPlaceholder').style.display = 'block';
 }
 
 // 从服务器数据更新指标信息
@@ -75,9 +91,10 @@ function updateIndicatorInfoFromServer() {
     {% if selected_indicator_data %}
     document.getElementById('currentIndicatorCode').textContent = '{{ selected_indicator }}';
     document.getElementById('currentIndicatorName').textContent = '{{ selected_indicator_data.name|escapejs }}';
-    document.getElementById('currentIndicatorValue').textContent = '{{ selected_indicator_data.latest_value }}';
+    document.getElementById('currentIndicatorValue').textContent = '{{ selected_indicator_data.latest_value|default:"-" }}';
     document.getElementById('currentIndicatorUnit').textContent = '{{ selected_indicator_data.unit|escapejs }}';
-    document.getElementById('currentIndicatorPeriod').textContent = '{{ selected_indicator_data.latest_period }}';
+    document.getElementById('currentIndicatorPeriod').textContent = '{{ selected_indicator_data.latest_period|default:"-" }}';
+    document.getElementById('currentIndicatorSource').textContent = '{{ selected_indicator_data.has_data|yesno:"data_center_fact,-" }}';
     document.getElementById('currentIndicatorRecords').textContent = {{ chart_values|length }} + ' 条';
     document.getElementById('currentIndicatorDescription').textContent = '{{ selected_indicator_data.description|default:""|escapejs }}';
     {% endif %}
@@ -109,28 +126,32 @@ async function selectIndicator(code) {
         }
     }
 
-    // 显示信息栏
     showIndicatorInfoBar();
 
-    // 获取数据并渲染图表
     const response = await fetch(`{% url "api_data_center:dc-macro-series" %}?indicator_code=${encodeURIComponent(code)}&limit=500`);
     const result = await response.json();
 
     if (response.ok && Array.isArray(result.data)) {
+        if (result.data.length === 0) {
+            renderNoDataState(code);
+            return;
+        }
         const dates = result.data.map(d => d.reporting_period);
         const values = result.data.map(d => Number(d.display_value ?? d.value));
         updateIndicatorInfo(code, result.data);
         renderMainChart(code, dates, values, latestUnitFromData(result.data));
+        return;
     }
+
+    renderNoDataState(code);
 }
 
 // 渲染主图表
 function renderMainChart(code, dates, values, unit = '') {
     const chartDom = document.getElementById('mainChart');
     const displayUnit = unit || '';
-    if (currentChart) {
-        currentChart.dispose();
-    }
+    clearChart();
+    document.getElementById('chartPlaceholder').style.display = 'none';
 
     currentChart = echarts.init(chartDom);
 
@@ -186,6 +207,10 @@ function latestUnitFromData(data) {
 
 // 更新指标信息
 function updateIndicatorInfo(code, data) {
+    if (!Array.isArray(data) || data.length === 0) {
+        renderNoDataState(code);
+        return;
+    }
     const latest = data[data.length - 1];
     document.getElementById('currentIndicatorCode').textContent = code;
     document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
@@ -195,6 +220,19 @@ function updateIndicatorInfo(code, data) {
     document.getElementById('currentIndicatorPeriod').textContent = latest.reporting_period;
     document.getElementById('currentIndicatorRecords').textContent = data.length + ' 条';
     document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
+}
+
+function renderNoDataState(code) {
+    showIndicatorInfoBar();
+    document.getElementById('currentIndicatorCode').textContent = code;
+    document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
+    document.getElementById('currentIndicatorValue').textContent = '-';
+    document.getElementById('currentIndicatorUnit').textContent = indicatorUnitsMap[code] || '-';
+    document.getElementById('currentIndicatorSource').textContent = '-';
+    document.getElementById('currentIndicatorPeriod').textContent = '-';
+    document.getElementById('currentIndicatorRecords').textContent = '0 条';
+    document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
+    showChartPlaceholder('该指标暂无同步数据', '指标目录已收口到 Data Center，但当前环境还没有该指标的宏观事实记录。');
 }
 
 // 折叠/展开分类
@@ -382,16 +420,17 @@ function getCookie(name) {
                 {% for category in indicator_categories %}
                 <div class="category-block">
                     <div class="category-header" onclick="toggleCategory('{{ category.id }}')">
-                        <span class="cat-toggle-icon" id="cat-icon-{{ category.id }}">▶</span>
+                        <span class="cat-toggle-icon" id="cat-icon-{{ category.id }}">{% if category.is_selected_category %}▼{% else %}▶{% endif %}</span>
                         <span class="cat-icon">{{ category.icon }}</span>
                         <span class="cat-name">{{ category.name }}</span>
                         <span class="cat-count">({{ category.indicators|length }})</span>
                     </div>
-                    <div class="cat-content" id="cat-content-{{ category.id }}" {% if forloop.first %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+                    <div class="cat-content" id="cat-content-{{ category.id }}" {% if category.is_selected_category %}style="display:block;"{% else %}style="display:none;"{% endif %}>
                         {% for ind in category.indicators %}
-                        <div class="ind-item {% if forloop.first and forloop.first and forloop.parentloop.first %}active{% endif %}"
+                        <div class="ind-item {% if selected_indicator == ind.code %}active{% endif %}"
                              data-code="{{ ind.code }}"
                              data-name="{{ ind.name }}"
+                             data-unit="{{ ind.unit|default:'-' }}"
                              onclick="selectIndicator('{{ ind.code }}')">
                             <span class="ind-code">{{ ind.code }}</span>
                             <span class="ind-name">{{ ind.name }}</span>
@@ -444,8 +483,8 @@ function getCookie(name) {
         <!-- 数据提示 -->
         <div id="chartPlaceholder" class="chart-placeholder">
             <div class="placeholder-icon">📈</div>
-            <div class="placeholder-title">选择一个指标查看趋势</div>
-            <div class="placeholder-desc">从左侧列表点击指标名称</div>
+            <div class="placeholder-title" id="chartPlaceholderTitle">选择一个指标查看趋势</div>
+            <div class="placeholder-desc" id="chartPlaceholderDesc">从左侧列表点击指标名称</div>
         </div>
     </div>
 
