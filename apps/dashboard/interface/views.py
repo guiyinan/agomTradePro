@@ -70,6 +70,28 @@ def _get_request_user_id(user) -> int | None:
         return None
 
 
+def _get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
+    """Return whether dashboard Alpha async refresh currently has a live Celery worker."""
+    try:
+        from apps.task_monitor.application.repository_provider import get_celery_health_checker
+
+        health = get_celery_health_checker().check_health()
+        active_workers = list(getattr(health, "active_workers", []) or [])
+        if active_workers and bool(getattr(health, "is_healthy", False)):
+            return {"available": True, "active_workers": active_workers, "reason": "healthy"}
+        if not active_workers:
+            return {"available": False, "active_workers": [], "reason": "no_active_workers"}
+        return {"available": False, "active_workers": active_workers, "reason": "unhealthy"}
+    except Exception as exc:
+        logger.warning("Failed to inspect Celery health for dashboard alpha refresh: %s", exc)
+        return {
+            "available": False,
+            "active_workers": [],
+            "reason": "health_check_failed",
+            "error": str(exc),
+        }
+
+
 def _build_alpha_refresh_lock_key(
     *,
     alpha_scope: str,
@@ -1619,6 +1641,7 @@ def alpha_refresh_htmx(request):
             )
 
         use_sync = request.POST.get("sync") in ("1", "true")
+        sync_reason = None
         universe_id = resolved_pool.scope.universe_id if resolved_pool is not None else raw_universe_id
         scope_hash = resolved_pool.scope.scope_hash if resolved_pool is not None else None
         lock_meta_payload = build_dashboard_alpha_refresh_metadata(
@@ -1649,6 +1672,12 @@ def alpha_refresh_htmx(request):
                 lock_meta=lock_meta,
             )
 
+        if not use_sync:
+            celery_health = _get_dashboard_alpha_refresh_celery_health()
+            if not bool(celery_health.get("available")):
+                use_sync = True
+                sync_reason = str(celery_health.get("reason") or "celery_unavailable")
+
         if use_sync:
             return _alpha_refresh_sync(
                 lock_key=lock_key,
@@ -1659,6 +1688,7 @@ def alpha_refresh_htmx(request):
                 portfolio_id=portfolio_id,
                 pool_mode=pool_mode,
                 resolved_pool=resolved_pool,
+                sync_reason=sync_reason,
             )
 
         from apps.alpha.application.tasks import qlib_predict_scores
@@ -1776,6 +1806,7 @@ def _alpha_refresh_sync(
     portfolio_id,
     pool_mode,
     resolved_pool,
+    sync_reason: str | None = None,
 ):
     """Run one scoped Qlib inference inline for dashboard manual refresh."""
     from apps.alpha.application.tasks import qlib_predict_scores
@@ -1858,6 +1889,22 @@ def _alpha_refresh_sync(
                 status=200,
             )
 
+        if result_payload.get("fallback_used"):
+            message = "同步推理完成，但当前仍使用最近可用 Alpha cache；请先补齐 Qlib 基础数据。"
+        elif result_payload.get("trade_date_adjusted"):
+            effective_trade_date = result_payload.get("effective_trade_date") or result_payload.get(
+                "qlib_data_latest_date"
+            )
+            message = f"同步推理完成，当前基于最近可用交易日 {effective_trade_date} 更新评分。"
+        elif sync_reason == "no_active_workers":
+            message = "未检测到 Celery worker，已改为同步推理并完成评分更新。"
+        elif sync_reason == "unhealthy":
+            message = "Celery 当前异常，已改为同步推理并完成评分更新。"
+        elif sync_reason == "health_check_failed":
+            message = "Celery 健康检查失败，已改为同步推理并完成评分更新。"
+        else:
+            message = "同步推理完成，已更新评分。"
+
         return JsonResponse({
             "success": True,
             "alpha_scope": alpha_scope,
@@ -1867,9 +1914,10 @@ def _alpha_refresh_sync(
             "scope_hash": result_payload.get("scope_hash") or scope_hash,
             "requested_trade_date": target_date.isoformat(),
             "pool_mode": pool_mode,
-            "message": "同步推理完成，已更新评分。",
+            "message": message,
             "poll_after_ms": 1000,
             "sync": True,
+            "sync_reason": sync_reason,
             "must_not_use_for_decision": True,
         })
     finally:

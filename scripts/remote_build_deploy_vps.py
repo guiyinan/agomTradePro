@@ -260,7 +260,7 @@ def _render_local_env(env_example_text: str, image_tag: str) -> str:
         elif line.startswith("ENABLE_RSSHUB="):
             lines.append("ENABLE_RSSHUB=false")
         elif line.startswith("ENABLE_CELERY="):
-            lines.append("ENABLE_CELERY=false")
+            lines.append("ENABLE_CELERY=true")
         else:
             lines.append(line)
     return "\n".join(lines) + "\n"
@@ -1145,6 +1145,7 @@ def main() -> int:
     ap.add_argument("--enable-rsshub", action="store_true", default=True)
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
     ap.add_argument("--enable-celery", action="store_true", default=False)
+    ap.add_argument("--disable-celery", action="store_true", default=False)
     ap.add_argument("--encryption-key", default="", help="AGOMTRADEPRO_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
     ap.add_argument("--git-clone", action="store_true", default=False, help="Clone from GitHub on VPS instead of uploading local source (much faster)")
     ap.add_argument("--git-repo", default=os.environ.get("AGOM_VPS_GIT_REPO", "https://github.com/guiyinan/agomTradePro.git"), help="Git repo URL for --git-clone mode")
@@ -1243,7 +1244,7 @@ def main() -> int:
         encryption_key = getattr(args, "encryption_key", "") or ""
 
     enable_rsshub = False if args.disable_rsshub else True
-    enable_celery = args.enable_celery
+    enable_celery = False if args.disable_celery else True
 
     tag = time.strftime("%Y%m%d%H%M%S")
     bundle_name = f"agomtradepro-source-deploy-{tag}.tar.gz"

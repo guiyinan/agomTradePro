@@ -39,11 +39,11 @@ Use `scripts/deploy-vps.ps1` as the **default** method. It reads all config from
 **Prerequisite**: The latest code must be pushed to GitHub before deploying (the script prompts to push automatically).
 
 ```powershell
-# Default: fresh deploy, git-clone current branch, preserve remote data
+# Default: fresh deploy, git-clone current branch, preserve remote data, and start Celery
 .\scripts\deploy-vps.ps1
 
-# Enable Celery for background scheduled jobs
-.\scripts\deploy-vps.ps1 -EnableCelery
+# Disable Celery explicitly when you only want web/redis/caddy
+.\scripts\deploy-vps.ps1 -DisableCelery
 
 # Restore local SQLite to VPS (overwrites remote DB)
 .\scripts\deploy-vps.ps1 -IncludeSqlite
@@ -103,7 +103,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --timeout 1800
 ```
 
-Enable Celery:
+Celery is enabled by default. Disable it only when background jobs must stay off:
 
 ```powershell
 python .\scripts\remote_build_deploy_vps.py `
@@ -113,7 +113,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --action fresh `
   --wipe-docker `
   --git-clone `
-  --enable-celery `
+  --disable-celery `
   --timeout 1800
 ```
 
@@ -161,7 +161,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --timeout 1800
 ```
 
-Enable Celery only when background scheduled jobs must run immediately after deploy:
+Celery is enabled by default. Disable it only when background scheduled jobs must stay off:
 
 ```powershell
 python .\scripts\remote_build_deploy_vps.py `
@@ -170,7 +170,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --password-file $passFile `
   --action fresh `
   --wipe-docker `
-  --enable-celery `
+  --disable-celery `
   --timeout 1800
 ```
 
@@ -231,7 +231,7 @@ If inference results on the VPS look several days old, decide whether this is a 
 
 - code/image issue: remote container image was not rebuilt or compose is still running an old tag.
 - data issue: VPS SQLite volume differs from local `db.sqlite3`; use `--include-sqlite` only if the VPS should be overwritten by local data.
-- scheduler issue: Celery is disabled by default, so periodic inference jobs will not run unless deployed with `--enable-celery` or started separately.
+- scheduler issue: if Celery was explicitly disabled, periodic inference jobs will not run until `celery_worker` and `celery_beat` are started again.
 
 ## Post-Deploy Verification
 
@@ -309,7 +309,7 @@ PY
 - If the UI still shows old inference data, compare the local and remote SQLite files first. Code-only deploy preserves the VPS database volume.
 - If Qlib is wrong, rebuild the image after fixing dependencies; do not repair by `pip install qlib` inside a running container.
 - If `web` logs show stale Qlib paths from Windows or old cache directories, clear or migrate the persisted Qlib runtime configuration under `/app/data`, then restart `web`.
-- If deployment succeeds but scheduled inference does not advance, check whether `celery_worker` and `celery_beat` are running. The remote deploy script defaults to `ENABLE_CELERY=false`.
+- If deployment succeeds but scheduled inference does not advance, check whether `celery_worker` and `celery_beat` are running. The deploy flow now defaults to `ENABLE_CELERY=true`, so a missing worker usually means failed startup or a manual disable.
 - If a failed build left remote temp files, remove `/tmp/agomtradepro-source-upload` and prune Docker builder cache on the VPS.
 - If a healthcheck references `/health/`, update it to `/api/health/` in the deployed compose file and recreate affected services.
 

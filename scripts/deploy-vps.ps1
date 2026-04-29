@@ -4,16 +4,18 @@
 .DESCRIPTION
     Reads all config from environment variables, creates a temp password file,
     calls the remote build/deploy script, and cleans up.
-    Supports optional flags: -IncludeSqlite, -EnableCelery, -Upgrade.
+    Celery is enabled by default. Use -DisableCelery to opt out.
+    Supports optional flags: -IncludeSqlite, -DisableCelery, -Upgrade.
 .EXAMPLE
     .\scripts\deploy-vps.ps1
-    .\scripts\deploy-vps.ps1 -EnableCelery
+    .\scripts\deploy-vps.ps1 -DisableCelery
     .\scripts\deploy-vps.ps1 -IncludeSqlite
     .\scripts\deploy-vps.ps1 -Upgrade
 #>
 param(
     [switch]$IncludeSqlite,
     [switch]$EnableCelery,
+    [switch]$DisableCelery,
     [switch]$Upgrade,
     [string]$GitBranch
 )
@@ -41,6 +43,13 @@ if (-not $VpsPass) {
 }
 
 $Action = if ($Upgrade) { 'upgrade' } else { 'fresh' }
+$UseCelery = $true
+if ($DisableCelery) {
+    $UseCelery = $false
+}
+elseif ($EnableCelery) {
+    $UseCelery = $true
+}
 
 if (-not $GitBranch) {
     $GitBranch = git rev-parse --abbrev-ref HEAD 2>$null
@@ -58,7 +67,7 @@ Write-Info "Action:     $Action"
 Write-Info "Branch:     $GitBranch"
 Write-Info "HTTP Port:  $HttpPort"
 Write-Info "SQLite:     $(if ($IncludeSqlite) { 'YES (will overwrite remote DB)' } else { 'No (preserve remote data)' })"
-Write-Info "Celery:     $(if ($EnableCelery) { 'Enabled' } else { 'Disabled' })"
+Write-Info "Celery:     $(if ($UseCelery) { 'Enabled (default)' } else { 'Disabled' })"
 Write-Info "================================"
 
 $uncommitted = git status --porcelain 2>$null
@@ -105,7 +114,7 @@ try {
     )
 
     if ($IncludeSqlite) { $pyArgs += '--include-sqlite' }
-    if ($EnableCelery)  { $pyArgs += '--enable-celery' }
+    if ($UseCelery)  { $pyArgs += '--enable-celery' } else { $pyArgs += '--disable-celery' }
 
     $ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
     $PythonExe = if (Test-Path $ProjectPython) { $ProjectPython } else { 'python' }

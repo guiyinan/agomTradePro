@@ -366,6 +366,56 @@ def _make_json_safe(value):
     return str(value)
 
 
+def _maybe_refresh_qlib_runtime_data_for_prediction(
+    *,
+    trade_date: date,
+    universe_id: str,
+    pool_scope=None,
+    latest_qlib_data_date: date | None,
+) -> tuple[date | None, dict[str, Any]]:
+    """Try refreshing local qlib data inline before prediction when the request is newer."""
+    metadata: dict[str, Any] = {}
+    if latest_qlib_data_date is not None:
+        metadata["qlib_data_latest_date_before_refresh"] = latest_qlib_data_date.isoformat()
+
+    if latest_qlib_data_date is not None and latest_qlib_data_date >= trade_date:
+        metadata["qlib_runtime_refresh_status"] = "skipped"
+        metadata["qlib_runtime_refresh_reason"] = "already_up_to_date"
+        return latest_qlib_data_date, metadata
+
+    try:
+        if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
+            refresh_summary = _refresh_qlib_runtime_data_for_codes(
+                target_date=trade_date,
+                stock_codes=list(getattr(pool_scope, "instrument_codes", ()) or ()),
+                universe_id=getattr(pool_scope, "universe_id", None) or universe_id,
+                lookback_days=120,
+            )
+        else:
+            refresh_summary = _refresh_qlib_runtime_data(
+                target_date=trade_date,
+                universes=[universe_id],
+                lookback_days=400,
+            )
+    except Exception as exc:
+        metadata["qlib_runtime_refresh_status"] = "failed"
+        metadata["qlib_runtime_refresh_error"] = str(exc)
+        return latest_qlib_data_date, metadata
+
+    metadata["qlib_runtime_refresh_status"] = str(refresh_summary.get("status") or "unknown")
+    metadata["qlib_runtime_refresh_summary"] = _make_json_safe(refresh_summary)
+
+    try:
+        latest_after_refresh = _get_qlib_data_latest_date()
+    except Exception as exc:
+        metadata["qlib_runtime_refresh_post_check_error"] = str(exc)
+        return latest_qlib_data_date, metadata
+
+    if latest_after_refresh is not None:
+        metadata["qlib_data_latest_date_after_refresh"] = latest_after_refresh.isoformat()
+    return latest_after_refresh, metadata
+
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -418,6 +468,7 @@ def qlib_predict_scores(
         # 2. 准备数据
         trade_date = date.fromisoformat(intended_trade_date)
         asof_date = trade_date  # 信号日期等于交易日期（实际中可能需要调整）
+        refresh_metadata: dict[str, Any] = {}
 
         latest_qlib_data_date = None
         try:
@@ -446,6 +497,14 @@ def qlib_predict_scores(
                 return fallback_result
             raise RuntimeError(runtime_failure_reason) from exc
 
+        if latest_qlib_data_date is None or latest_qlib_data_date < trade_date:
+            latest_qlib_data_date, refresh_metadata = _maybe_refresh_qlib_runtime_data_for_prediction(
+                trade_date=trade_date,
+                universe_id=pool_scope.universe_id if pool_scope else universe_id,
+                pool_scope=pool_scope,
+                latest_qlib_data_date=latest_qlib_data_date,
+            )
+
         outdated_reason = None
         if latest_qlib_data_date is None:
             outdated_reason = "本地 Qlib 数据目录为空，无法执行实时推理"
@@ -463,6 +522,7 @@ def qlib_predict_scores(
                 failure_reason=outdated_reason,
                 pool_scope=pool_scope,
                 extra_metadata={
+                    **refresh_metadata,
                     "qlib_data_latest_date": latest_qlib_data_date.isoformat()
                     if latest_qlib_data_date
                     else None,
@@ -476,13 +536,14 @@ def qlib_predict_scores(
                     outdated_reason,
                 )
                 return fallback_result
-                raise RuntimeError(outdated_reason)
 
         execution_trade_date = trade_date
         execution_metadata: dict[str, object] = {
             "requested_trade_date": trade_date.isoformat(),
+            **refresh_metadata,
         }
         if latest_qlib_data_date is not None:
+            execution_metadata["qlib_data_latest_date"] = latest_qlib_data_date.isoformat()
             execution_trade_date, resolved_metadata = resolve_effective_trade_date(
                 trade_date,
                 latest_qlib_data_date,

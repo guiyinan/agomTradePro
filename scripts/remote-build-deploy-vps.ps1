@@ -23,6 +23,7 @@ param(
     [switch]$EnableRsshub,
     [switch]$DisableRsshub,
     [switch]$EnableCelery,
+    [switch]$DisableCelery,
     [string]$EncryptionKey,
     [switch]$PromptBeforeDeploy,
     [switch]$NoPromptBeforeDeploy,
@@ -107,6 +108,7 @@ else {
     if ($EnableRsshub) { $pyArgs.Add("--enable-rsshub") }
     if ($DisableRsshub) { $pyArgs.Add("--disable-rsshub") }
     if ($EnableCelery) { $pyArgs.Add("--enable-celery") }
+    if ($DisableCelery) { $pyArgs.Add("--disable-celery") }
     Add-Arg -ArgsList $pyArgs -Name "--encryption-key" -Value $EncryptionKey
     $shouldPromptBeforeDeploy = $false
     if ($NoPromptBeforeDeploy) { $shouldPromptBeforeDeploy = $false }

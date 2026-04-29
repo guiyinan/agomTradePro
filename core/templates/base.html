@@ -234,6 +234,10 @@
                         <div class="dropdown-section-title">管理入口</div>
                         <a href="{% url 'admin-console' %}" class="dropdown-item">管理控制台</a>
                         <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">Alpha 与 Qlib</div>
+                        <a href="{% url 'alpha:ops-inference' %}" class="dropdown-item">Alpha 推理管理</a>
+                        <a href="{% url 'alpha:ops-qlib-data' %}" class="dropdown-item">Qlib 基础数据管理</a>
+                        <div class="dropdown-divider"></div>
                         <div class="dropdown-section-title">管理员与访问控制</div>
                         <a href="{% url 'account:user_management' %}" class="dropdown-item">用户管理</a>
                         <a href="{% url 'account:token_management' %}" class="dropdown-item">Token管理</a>
@@ -264,7 +268,8 @@
                         <a href="{% url 'account:profile' %}" class="dropdown-item">我的账户</a>
                         <a href="{% url 'settings-center' %}" class="dropdown-item">设置中心</a>
                         {% if user.is_staff %}
-                        <a href="{% url 'alpha:ops-inference' %}" class="dropdown-item">Alpha 运维</a>
+                        <a href="{% url 'alpha:ops-inference' %}" class="dropdown-item">Alpha 推理管理</a>
+                        <a href="{% url 'alpha:ops-qlib-data' %}" class="dropdown-item">Qlib 基础数据管理</a>
                         {% endif %}
                         <div class="dropdown-divider"></div>
                         <a href="{% url 'account:logout' %}" class="dropdown-item">登出</a>

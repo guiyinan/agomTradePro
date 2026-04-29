@@ -31,6 +31,11 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     request.user = SimpleNamespace(is_authenticated=True, username="admin")
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_alpha_refresh_celery_health",
+        lambda: {"available": True, "active_workers": ["worker@local"], "reason": "healthy"},
+    )
 
     response = views.alpha_refresh_htmx(request)
     payload = json.loads(response.content)
@@ -85,6 +90,11 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeApplyAsyncWrapper)
     monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_alpha_refresh_celery_health",
+        lambda: {"available": True, "active_workers": ["worker@local"], "reason": "healthy"},
+    )
 
     response = views.alpha_refresh_htmx(request)
     payload = json.loads(response.content)
@@ -173,6 +183,61 @@ def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
     assert captured["args"][0] == "portfolio-9-scope"
     assert captured["kwargs"]["scope_payload"]["portfolio_id"] == 9
     assert captured["kwargs"]["scope_payload"]["pool_mode"] == "price_covered"
+    assert captured["propagate"] is False
+
+
+def test_alpha_refresh_htmx_falls_back_to_sync_when_no_celery_worker(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeTaskResult:
+        def get(self, propagate=False):
+            captured["propagate"] = propagate
+            return {
+                "status": "success",
+                "stock_count": 12,
+            }
+
+        def failed(self):
+            return False
+
+    class FakeTask:
+        @staticmethod
+        def apply(args=None, kwargs=None):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return FakeTaskResult()
+
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 10, "universe_id": "csi300", "alpha_scope": "general"},
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeTask)
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_alpha_refresh_celery_health",
+        lambda: {"available": False, "active_workers": [], "reason": "no_active_workers"},
+    )
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+    cache.delete(
+        views._build_alpha_refresh_lock_key(
+            alpha_scope="portfolio",
+            target_date=date.today(),
+            top_n=10,
+            raw_universe_id="csi300",
+            resolved_pool=None,
+        )
+    )
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert payload["sync"] is True
+    assert payload["sync_reason"] == "no_active_workers"
+    assert "Celery worker" in payload["message"]
+    assert captured["args"][0] == "csi300"
     assert captured["propagate"] is False
 
 
