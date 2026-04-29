@@ -61,6 +61,11 @@ def _safe_float(value, default=0.0):
         return default
 
 
+def _safe_percent_point(value, default=0.0):
+    """Return rate-like values in percentage points when the unit is '%'."""
+    return _safe_float(value, default=default)
+
+
 class FinancialIndicatorFetcher:
     """金融指标获取器"""
 
@@ -146,7 +151,7 @@ class FinancialIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_LPR", ("%", "%"))
             for _, row in df.iterrows():
                 try:
-                    value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
+                    value_decimal = _safe_percent_point(row['value'])
                     point = MacroDataPoint(
                         code="CN_LPR",
                         value=value_decimal,
@@ -193,7 +198,7 @@ class FinancialIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_SHIBOR", ("%", "%"))
             for _, row in df.iterrows():
                 try:
-                    value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
+                    value_decimal = _safe_percent_point(row['value'])
                     point = MacroDataPoint(
                         code="CN_SHIBOR",
                         value=value_decimal,
@@ -241,7 +246,7 @@ class FinancialIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_RRR", ("%", "%"))
             for _, row in df.iterrows():
                 try:
-                    value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
+                    value_decimal = _safe_percent_point(row['value'])
                     point = MacroDataPoint(
                         code="CN_RRR",
                         value=value_decimal,
@@ -445,7 +450,7 @@ class FinancialIndicatorFetcher:
             for _, row in df.iterrows():
                 try:
                     value = _safe_float(row['value'])
-                    value_decimal = value / 100 if value > 1 else value
+                    value_decimal = _safe_percent_point(value)
                     point = MacroDataPoint(
                         code="CN_DR007",
                         value=value_decimal,

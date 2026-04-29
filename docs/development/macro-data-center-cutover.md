@@ -21,6 +21,14 @@
 - `apps/data_center/migrations/0008_indicator_unit_rules.py` / `0009_rename_indicator_unit_rule_indexes.py` 已落地量纲规则表和索引修正
 - `apps/macro/migrations/0018_drop_indicator_unit_config.py` 已删除旧 `IndicatorUnitConfig` 表
 
+## 2026-04-30 量纲修复补充
+
+- 利率/百分比类指标在 source payload 为 `3.0`、`1.243` 这类百分点时，系统统一按百分点存储和展示，`unit='%'` 不再隐式缩放为 `0.03`、`0.01243`
+- 本轮已覆盖并验证 `CN_LPR`、`CN_SHIBOR`、`CN_RRR`、`CN_DR007`、`CN_UNEMPLOYMENT`、`CN_NEW_HOUSE_PRICE`
+- 货币量纲已支持 `元/千元/万元/亿元/万亿元` 双向换算；canonical storage 继续统一到 `元`
+- `normalize_macro_fact_units` 不只修数值和单位，也会回填 `matched_rule_id`、`display_unit`、`dimension_key`、`publication_lag_days` 等治理元信息
+- 脏数据修复流程固定为：先修 fetcher / 规则，再走 `SyncMacroUseCase` 重刷事实，最后执行 `python manage.py normalize_macro_fact_units` 并要求 dry-run 为 `updated=0`
+
 ## 当前治理入口
 
 - `GET/POST /api/data-center/indicators/`

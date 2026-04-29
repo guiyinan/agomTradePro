@@ -9,6 +9,7 @@ from typing import Any
 from django.db import transaction
 from django.db.models import Avg, Count, Max, Min
 
+from apps.data_center.domain.rules import convert_currency_value
 from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
@@ -63,7 +64,29 @@ def _get_indicator_unit_rule(
         queryset = queryset.filter(original_unit=original_unit)
 
     if source_type:
-        config = queryset.filter(source_type=source_type).values(
+        config = (
+            queryset.filter(source_type=source_type)
+            .values(
+                "id",
+                "indicator_code",
+                "source_type",
+                "dimension_key",
+                "original_unit",
+                "storage_unit",
+                "display_unit",
+                "multiplier_to_storage",
+                "priority",
+                "description",
+            )
+            .first()
+        )
+        if config:
+            return config
+
+    config = (
+        queryset.filter(source_type="")
+        .values(
+            "id",
             "indicator_code",
             "source_type",
             "dimension_key",
@@ -73,21 +96,9 @@ def _get_indicator_unit_rule(
             "multiplier_to_storage",
             "priority",
             "description",
-        ).first()
-        if config:
-            return config
-
-    config = queryset.filter(source_type="").values(
-        "indicator_code",
-        "source_type",
-        "dimension_key",
-        "original_unit",
-        "storage_unit",
-        "display_unit",
-        "multiplier_to_storage",
-        "priority",
-        "description",
-    ).first()
+        )
+        .first()
+    )
     return config
 
 
@@ -185,7 +196,14 @@ def _resolve_display_fields(
                 multiplier_to_storage = 1.0
 
     display_value = _safe_float(fact.value)
-    if multiplier_to_storage:
+    converted_value, converted_unit = convert_currency_value(
+        display_value,
+        fact.unit or "",
+        display_unit or "",
+    )
+    if converted_unit == display_unit:
+        display_value = converted_value
+    elif multiplier_to_storage:
         display_value = display_value / multiplier_to_storage
     return display_value, display_unit or fact.unit or "", original_unit, multiplier_to_storage
 
@@ -320,6 +338,7 @@ class DjangoMacroRepository:
                 "display_unit": rule["display_unit"],
                 "dimension_key": rule["dimension_key"],
                 "multiplier_to_storage": float(rule["multiplier_to_storage"]),
+                "matched_rule_id": rule.get("id"),
                 "source_type": indicator.source,
                 "period_type": period_type,
                 "publication_lag_days": lag_days,
@@ -387,7 +406,10 @@ class DjangoMacroRepository:
                 seen_periods.add(fact.reporting_period)
                 rows.append(_fact_to_entity(fact))
             return list(reversed(rows))
-        return [_fact_to_entity(fact) for fact in queryset.order_by("reporting_period", "revision_number")]
+        return [
+            _fact_to_entity(fact)
+            for fact in queryset.order_by("reporting_period", "revision_number")
+        ]
 
     @staticmethod
     def _normalize_cpi_value(code: str, value: float) -> float:
@@ -534,7 +556,9 @@ class DjangoMacroRepository:
         if end_date:
             queryset = queryset.filter(reporting_period__lte=end_date)
         return list(
-            queryset.values_list("reporting_period", flat=True).distinct().order_by("reporting_period")
+            queryset.values_list("reporting_period", flat=True)
+            .distinct()
+            .order_by("reporting_period")
         )
 
     def delete_indicator(
@@ -613,6 +637,7 @@ class DjangoMacroRepository:
                 "display_unit": rule["display_unit"],
                 "dimension_key": rule["dimension_key"],
                 "multiplier_to_storage": float(rule["multiplier_to_storage"]),
+                "matched_rule_id": rule.get("id"),
                 "source_type": source,
                 "period_type": period_type,
                 "publication_lag_days": lag_days,
@@ -653,10 +678,16 @@ class DjangoMacroRepository:
             extra["display_unit"] = rule["display_unit"]
             extra["dimension_key"] = rule["dimension_key"]
             extra["multiplier_to_storage"] = float(rule["multiplier_to_storage"])
+            extra["matched_rule_id"] = rule.get("id")
             extra["source_type"] = next_source
             extra["period_type"] = next_period_type
             extra["publication_lag_days"] = (
-                max((next_published_at - updates.get("reporting_period", fact.reporting_period)).days, 0)
+                max(
+                    (
+                        next_published_at - updates.get("reporting_period", fact.reporting_period)
+                    ).days,
+                    0,
+                )
                 if next_published_at
                 else 0
             )
@@ -676,9 +707,7 @@ class DjangoMacroRepository:
             extra = dict(fact.extra or {})
             extra["period_type"] = next_period_type
             extra["publication_lag_days"] = (
-                max((fact.published_at - fact.reporting_period).days, 0)
-                if fact.published_at
-                else 0
+                max((fact.published_at - fact.reporting_period).days, 0) if fact.published_at else 0
             )
             fact.extra = extra
 
@@ -836,8 +865,7 @@ class MacroIndicatorReadRepository:
 
         code_set = list(queryset.values_list("indicator_code", flat=True).distinct())
         catalogs = {
-            item.code: item
-            for item in IndicatorCatalogModel.objects.filter(code__in=code_set)
+            item.code: item for item in IndicatorCatalogModel.objects.filter(code__in=code_set)
         }
         return [_serialize_fact_row(fact, catalogs.get(fact.indicator_code)) for fact in queryset]
 
@@ -918,15 +946,13 @@ class MacroIndicatorReadRepository:
         return _serialize_fact_row(fact)
 
     def get_indicator_stats(self, code: str, start_date: date) -> dict[str, float | None]:
-        stats = (
-            MacroFactModel._default_manager.filter(
-                indicator_code=code,
-                reporting_period__gte=start_date,
-            ).aggregate(
-                avg_value=Avg("value"),
-                max_value=Max("value"),
-                min_value=Min("value"),
-            )
+        stats = MacroFactModel._default_manager.filter(
+            indicator_code=code,
+            reporting_period__gte=start_date,
+        ).aggregate(
+            avg_value=Avg("value"),
+            max_value=Max("value"),
+            min_value=Min("value"),
         )
         return {
             "avg_value": float(stats["avg_value"]) if stats["avg_value"] is not None else None,

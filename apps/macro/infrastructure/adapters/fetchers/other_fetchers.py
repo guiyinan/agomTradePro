@@ -24,6 +24,14 @@ INDICATOR_UNITS = {
 }
 
 
+def _safe_percent_point(value, default=0.0):
+    """Return percentage-style source values in percentage points."""
+    try:
+        return safe_float(value)
+    except ValueError:
+        return default
+
+
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式"""
     if '年' in str(date_str) and '月' in str(date_str):
@@ -74,8 +82,7 @@ class OtherIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_UNEMPLOYMENT", ("%", "%"))
             for _, row in df.iterrows():
                 try:
-                    raw_value = safe_float(row['value'])
-                    value_decimal = raw_value / 100 if raw_value > 1 else raw_value
+                    value_decimal = _safe_percent_point(row['value'])
                     point = MacroDataPoint(
                         code="CN_UNEMPLOYMENT",
                         value=value_decimal,
@@ -128,7 +135,7 @@ class OtherIndicatorFetcher:
             unit, original_unit = INDICATOR_UNITS.get("CN_NEW_HOUSE_PRICE", ("%", "%"))
             for _, row in df_filtered.iterrows():
                 try:
-                    value_yoy = (float(row['value']) - 100) / 100
+                    value_yoy = safe_float(row['value']) - 100.0
                     point = MacroDataPoint(
                         code="CN_NEW_HOUSE_PRICE",
                         value=value_yoy,

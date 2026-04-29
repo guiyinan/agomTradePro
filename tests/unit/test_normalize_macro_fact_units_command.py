@@ -22,7 +22,7 @@ def test_normalize_macro_fact_units_repairs_legacy_currency_row():
             "is_active": True,
         },
     )
-    IndicatorUnitRuleModel.objects.update_or_create(
+    rule, _ = IndicatorUnitRuleModel.objects.update_or_create(
         indicator_code="CN_NEW_CREDIT",
         source_type="",
         dimension_key="currency",
@@ -57,5 +57,6 @@ def test_normalize_macro_fact_units_repairs_legacy_currency_row():
     assert fact.extra["display_unit"] == "亿元"
     assert fact.extra["dimension_key"] == "currency"
     assert fact.extra["multiplier_to_storage"] == 100000000.0
+    assert fact.extra["matched_rule_id"] == rule.id
     assert fact.extra["publication_lag_days"] == 15
     assert "updated=1" in stdout.getvalue()

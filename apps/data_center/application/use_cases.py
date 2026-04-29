@@ -76,6 +76,7 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 from apps.data_center.domain.rules import (
+    convert_currency_value,
     get_macro_age_days,
     is_macro_observation_stale,
     is_stale,
@@ -196,8 +197,17 @@ def _unit_rule_to_response(rule: IndicatorUnitRule) -> IndicatorUnitRuleResponse
 def _storage_value_to_display_value(
     value: float,
     *,
+    storage_unit: str,
+    display_unit: str,
     multiplier_to_storage: float,
 ) -> float:
+    converted_value, converted_unit = convert_currency_value(
+        value,
+        storage_unit,
+        display_unit,
+    )
+    if converted_unit == display_unit:
+        return converted_value
     if multiplier_to_storage == 0:
         return value
     return value / multiplier_to_storage
@@ -369,7 +379,9 @@ class ManageIndicatorUnitRuleUseCase:
         self._repo = repo
 
     def list_by_indicator(self, indicator_code: str) -> list[IndicatorUnitRuleResponse]:
-        return [_unit_rule_to_response(rule) for rule in self._repo.list_by_indicator(indicator_code)]
+        return [
+            _unit_rule_to_response(rule) for rule in self._repo.list_by_indicator(indicator_code)
+        ]
 
     def get(self, rule_id: int) -> IndicatorUnitRuleResponse | None:
         rule = self._repo.get_by_id(rule_id)
@@ -406,12 +418,18 @@ class ManageIndicatorUnitRuleUseCase:
         updated = IndicatorUnitRule(
             id=existing.id,
             indicator_code=next_indicator_code,
-            source_type=request.source_type if request.source_type is not None else existing.source_type,
+            source_type=(
+                request.source_type if request.source_type is not None else existing.source_type
+            ),
             dimension_key=(
-                request.dimension_key if request.dimension_key is not None else existing.dimension_key
+                request.dimension_key
+                if request.dimension_key is not None
+                else existing.dimension_key
             ),
             original_unit=(
-                request.original_unit if request.original_unit is not None else existing.original_unit
+                request.original_unit
+                if request.original_unit is not None
+                else existing.original_unit
             ),
             storage_unit=(
                 request.storage_unit if request.storage_unit is not None else existing.storage_unit
@@ -426,7 +444,9 @@ class ManageIndicatorUnitRuleUseCase:
             ),
             is_active=request.is_active if request.is_active is not None else existing.is_active,
             priority=request.priority if request.priority is not None else existing.priority,
-            description=request.description if request.description is not None else existing.description,
+            description=(
+                request.description if request.description is not None else existing.description
+            ),
         )
         saved = self._repo.upsert(updated)
         return _unit_rule_to_response(saved)
@@ -687,6 +707,8 @@ class QueryMacroSeriesUseCase:
 
         display_value = _storage_value_to_display_value(
             value,
+            storage_unit=unit,
+            display_unit=display_unit or unit,
             multiplier_to_storage=multiplier_to_storage,
         )
 
@@ -1574,6 +1596,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                     "display_unit": rule.display_unit,
                     "dimension_key": rule.dimension_key,
                     "multiplier_to_storage": rule.multiplier_to_storage,
+                    "matched_rule_id": rule.id,
                 }
             )
             normalized.append(

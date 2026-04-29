@@ -6,7 +6,11 @@ Unit tests for Currency Unit Conversion
 
 import pytest
 
-from apps.macro.domain.entities import UNIT_CONVERSION_FACTORS, normalize_currency_unit
+from apps.macro.domain.entities import (
+    UNIT_CONVERSION_FACTORS,
+    convert_currency_value,
+    normalize_currency_unit,
+)
 
 
 class TestNormalizeCurrencyUnit:
@@ -22,6 +26,12 @@ class TestNormalizeCurrencyUnit:
         """测试：万元转元"""
         value, unit = normalize_currency_unit(1.5, "万元")
         assert value == 15000
+        assert unit == "元"
+
+    def test_cny_qian_to_yuan(self):
+        """测试：千元转元"""
+        value, unit = normalize_currency_unit(2, "千元")
+        assert value == 2000
         assert unit == "元"
 
     def test_cny_yi_to_yuan(self):
@@ -67,14 +77,16 @@ class TestConversionFactors:
     def test_conversion_factors_completeness(self):
         """测试：转换因子表完整性"""
         expected_factors = {
-            '元': 1,
-            '万元': 10000,
-            '亿元': 100000000,
-            '万亿元': 1000000000000,
-            '万美元': 10000,
-            '百万美元': 1000000,
-            '亿美元': 100000000,
-            '十亿美元': 1000000000,
+            "元": 1,
+            "千元": 1000,
+            "万元": 10000,
+            "亿元": 100000000,
+            "万亿元": 1000000000000,
+            "万美元": 10000,
+            "百万美元": 1000000,
+            "亿美元": 100000000,
+            "十亿美元": 1000000000,
+            "万亿美元": 10000000000000,
         }
 
         for unit, factor in expected_factors.items():
@@ -84,6 +96,12 @@ class TestConversionFactors:
 
 class TestRealWorldScenarios:
     """真实场景测试"""
+
+    def test_convert_currency_value_from_yuan_to_yi(self):
+        """测试：元与亿元之间可双向转换"""
+        value, unit = convert_currency_value(3152200000000, "元", "亿元")
+        assert value == 31522
+        assert unit == "亿元"
 
     def test_china_forex_reserves(self):
         """测试：中国外汇储备（真实场景）"""

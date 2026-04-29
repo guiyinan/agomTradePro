@@ -17,6 +17,7 @@ from datetime import date, datetime, timezone
 # Conversion factors relative to "元" (CNY base unit)
 UNIT_CONVERSION_FACTORS: dict[str, float] = {
     "元": 1,
+    "千元": 1e3,
     "万元": 1e4,
     "亿元": 1e8,
     "万亿元": 1e12,
@@ -24,7 +25,38 @@ UNIT_CONVERSION_FACTORS: dict[str, float] = {
     "百万美元": 1e6,
     "亿美元": 1e8,
     "十亿美元": 1e9,
+    "万亿美元": 1e13,
 }
+USD_UNIT_LABELS = frozenset({"万美元", "百万美元", "亿美元", "十亿美元", "万亿美元"})
+
+
+def convert_currency_value(
+    value: float,
+    from_unit: str,
+    to_unit: str,
+    exchange_rate: float = 1.0,
+) -> tuple[float, str]:
+    """Convert between supported currency units.
+
+    Returns the converted numeric value and the target unit when both units are
+    recognised. If either unit is unknown, the original pair is returned
+    unchanged so callers can fall back safely.
+    """
+    if from_unit == to_unit:
+        return (value, to_unit)
+    if from_unit not in UNIT_CONVERSION_FACTORS or to_unit not in UNIT_CONVERSION_FACTORS:
+        return (value, from_unit)
+
+    from_factor = UNIT_CONVERSION_FACTORS[from_unit]
+    to_factor = UNIT_CONVERSION_FACTORS[to_unit]
+
+    value_in_yuan = value * from_factor
+    if from_unit in USD_UNIT_LABELS:
+        value_in_yuan *= exchange_rate
+
+    if to_unit in USD_UNIT_LABELS:
+        return (value_in_yuan / (to_factor * exchange_rate), to_unit)
+    return (value_in_yuan / to_factor, to_unit)
 
 
 def normalize_currency_unit(
@@ -52,13 +84,7 @@ def normalize_currency_unit(
         >>> normalize_currency_unit(1.0, "亿美元", exchange_rate=7.2)
         (720000000.0, '元')
     """
-    if unit not in UNIT_CONVERSION_FACTORS:
-        return (value, unit)
-
-    factor = UNIT_CONVERSION_FACTORS[unit]
-    if "美元" in unit or "USD" in unit.upper():
-        return (value * factor * exchange_rate, "元")
-    return (value * factor, "元")
+    return convert_currency_value(value, unit, "元", exchange_rate)
 
 
 # ---------------------------------------------------------------------------

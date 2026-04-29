@@ -12,21 +12,43 @@ from typing import Dict, Optional, Tuple
 
 # 单位转换因子（相对于"元"的倍数）
 UNIT_CONVERSION_FACTORS: dict[str, float] = {
-    '元': 1,
-    '万元': 10000,
-    '亿元': 100000000,
-    '万亿元': 1000000000000,
-    '万美元': 10000,
-    '百万美元': 1000000,
-    '亿美元': 100000000,
-    '十亿美元': 1000000000,
+    "元": 1,
+    "千元": 1000,
+    "万元": 10000,
+    "亿元": 100000000,
+    "万亿元": 1000000000000,
+    "万美元": 10000,
+    "百万美元": 1000000,
+    "亿美元": 100000000,
+    "十亿美元": 1000000000,
+    "万亿美元": 10000000000000,
 }
+USD_UNIT_LABELS = frozenset({"万美元", "百万美元", "亿美元", "十亿美元", "万亿美元"})
+
+
+def convert_currency_value(
+    value: float, from_unit: str, to_unit: str, exchange_rate: float = 1.0
+) -> tuple[float, str]:
+    """在已知货币单位之间做双向转换。"""
+    if from_unit == to_unit:
+        return (value, to_unit)
+    if from_unit not in UNIT_CONVERSION_FACTORS or to_unit not in UNIT_CONVERSION_FACTORS:
+        return (value, from_unit)
+
+    from_factor = UNIT_CONVERSION_FACTORS[from_unit]
+    to_factor = UNIT_CONVERSION_FACTORS[to_unit]
+
+    value_in_yuan = value * from_factor
+    if from_unit in USD_UNIT_LABELS:
+        value_in_yuan *= exchange_rate
+
+    if to_unit in USD_UNIT_LABELS:
+        return (value_in_yuan / (to_factor * exchange_rate), to_unit)
+    return (value_in_yuan / to_factor, to_unit)
 
 
 def normalize_currency_unit(
-    value: float,
-    unit: str,
-    exchange_rate: float = 1.0
+    value: float, unit: str, exchange_rate: float = 1.0
 ) -> tuple[float, str]:
     """
     将货币类数据统一转换为"元"层级
@@ -51,43 +73,34 @@ def normalize_currency_unit(
         exchange_rate: USD/CNY 汇率，表示 1 美元兑换多少人民币
                      如 7.2 表示 1 美元 = 7.2 人民币
     """
-    if unit in UNIT_CONVERSION_FACTORS:
-        factor = UNIT_CONVERSION_FACTORS[unit]
-
-        # 🔧 修复：美元单位需要额外乘汇率
-        if "美元" in unit or "USD" in unit.upper():
-            converted_value = value * factor * exchange_rate
-            return (converted_value, "元")
-
-        # 人民币单位直接转换
-        return (value * factor, "元")
-
-    # 未知单位，保持原值
-    return (value, unit)
+    return convert_currency_value(value, unit, "元", exchange_rate)
 
 
 class PeriodType(Enum):
     """期间类型"""
-    DAY = 'D'      # 时点数据：某日收盘价、SHIBOR日利率
-    WEEK = 'W'     # 周度数据
-    MONTH = 'M'    # 月度数据：PMI、CPI、M2
-    QUARTER = 'Q'  # 季度数据：GDP
-    HALF_YEAR = 'H' # 半年度数据：半年度财报
-    YEAR = 'Y'     # 年度数据
+
+    DAY = "D"  # 时点数据：某日收盘价、SHIBOR日利率
+    WEEK = "W"  # 周度数据
+    MONTH = "M"  # 月度数据：PMI、CPI、M2
+    QUARTER = "Q"  # 季度数据：GDP
+    HALF_YEAR = "H"  # 半年度数据：半年度财报
+    YEAR = "Y"  # 年度数据
 
 
 class RegimeSensitivity(Enum):
     """指标对Regime变化的敏感度"""
-    HIGH = 'HIGH'      # 高敏感：期限利差、信用利差等
-    MEDIUM = 'MEDIUM'  # 中敏感：国债收益率、商品指数
-    LOW = 'LOW'        # 低敏感：辅助指标
+
+    HIGH = "HIGH"  # 高敏感：期限利差、信用利差等
+    MEDIUM = "MEDIUM"  # 中敏感：国债收益率、商品指数
+    LOW = "LOW"  # 低敏感：辅助指标
 
 
 class SignalDirection(Enum):
     """信号方向"""
-    BULLISH = 'BULLISH'      # 看多：增长预期上升
-    BEARISH = 'BEARISH'      # 看空：衰退预期上升
-    NEUTRAL = 'NEUTRAL'      # 中性：无明确信号
+
+    BULLISH = "BULLISH"  # 看多：增长预期上升
+    BEARISH = "BEARISH"  # 看空：衰退预期上升
+    NEUTRAL = "NEUTRAL"  # 中性：无明确信号
 
 
 @dataclass(frozen=True)
@@ -104,6 +117,7 @@ class MacroIndicator:
         published_at: 实际发布日期
         source: 数据源
     """
+
     code: str
     value: float
     reporting_period: date
@@ -126,13 +140,19 @@ class MacroIndicator:
     @property
     def is_period_data(self) -> bool:
         """是否为期间数据"""
-        return self.period_type in [PeriodType.WEEK, PeriodType.MONTH, PeriodType.QUARTER, PeriodType.HALF_YEAR, PeriodType.YEAR]
+        return self.period_type in [
+            PeriodType.WEEK,
+            PeriodType.MONTH,
+            PeriodType.QUARTER,
+            PeriodType.HALF_YEAR,
+            PeriodType.YEAR,
+        ]
 
     def __post_init__(self):
         """验证数据一致性"""
         if isinstance(self.period_type, str):
             # 如果传入的是字符串，转换为枚举
-            object.__setattr__(self, 'period_type', PeriodType(self.period_type))
+            object.__setattr__(self, "period_type", PeriodType(self.period_type))
 
 
 @dataclass(frozen=True)
@@ -154,6 +174,7 @@ class HighFrequencyIndicator:
         lead_time_months: 领先月数（如：6表示领先6个月）
         source: 数据源（akshare, wind, etc.）
     """
+
     code: str
     name: str
     value: float
@@ -175,7 +196,7 @@ class HighFrequencyIndicator:
             unit=self.unit,
             original_unit=self.unit,
             published_at=self.date,
-            source=self.source
+            source=self.source,
         )
 
 
@@ -195,6 +216,7 @@ class RegimeSignal:
         lead_time_months: 领先月数
         source: 信号来源（DAILY_HIGH_FREQ, WEEKLY, MONTHLY）
     """
+
     indicator_code: str
     direction: SignalDirection
     strength: float
@@ -247,6 +269,7 @@ class BondYieldCurve:
         is_inverted: 曲线是否倒挂
         inversion_severity: 倒挂严重程度（BP，0表示未倒挂）
     """
+
     date: date
     bond_10y: float
     bond_5y: float
@@ -285,6 +308,7 @@ class CreditSpreadIndicator:
         warning_level: 预警等级（NORMAL/WARNING/DANGER）
         spread_percentile: 历史分位数（0-100）
     """
+
     date: date
     spread_10y: float
     aaa_yield: float

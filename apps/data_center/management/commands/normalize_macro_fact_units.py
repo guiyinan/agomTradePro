@@ -129,6 +129,7 @@ class Command(BaseCommand):
             "display_unit": rule.display_unit,
             "dimension_key": rule.dimension_key,
             "multiplier_to_storage": float(rule.multiplier_to_storage),
+            "matched_rule_id": rule.id,
             "source_type": source_type,
         }
         if publication_lag_days is not None:
@@ -142,6 +143,7 @@ class Command(BaseCommand):
         if not changed:
             return "unchanged"
 
+        previous_unit = fact.unit or ""
         if not dry_run:
             fact.value = normalized_value
             fact.unit = normalized_unit
@@ -150,6 +152,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             f"{'plan' if dry_run else 'fix'} {fact.indicator_code} {fact.reporting_period}: "
-            f"{current_value} {fact.unit or '-'} -> {normalized_value} {normalized_unit or '-'}"
+            f"{current_value} {previous_unit or '-'} -> {normalized_value} {normalized_unit or '-'}"
         )
         return "updated"

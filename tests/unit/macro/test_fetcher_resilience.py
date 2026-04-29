@@ -1,6 +1,7 @@
 from datetime import date
 
 import pandas as pd
+import pytest
 
 from apps.macro.infrastructure.adapters.fetchers.base_fetchers import BaseIndicatorFetcher
 from apps.macro.infrastructure.adapters.fetchers.economic_fetchers import (
@@ -45,6 +46,23 @@ class _NoOpAK:
 class _BrokenUnemploymentAK:
     def macro_china_urban_unemployment(self):
         raise ValueError("JSON decode failed")
+
+
+class _RateLikeOtherAK:
+    def macro_china_urban_unemployment(self):
+        return pd.DataFrame(
+            {
+                "月份": ["2025年03月"],
+                "城镇调查失业率": [5.2],
+            }
+        )
+
+    def macro_china_new_house_price(self):
+        return pd.DataFrame(
+            [
+                ["2025-03-01", "北京", 101.4],
+            ]
+        )
 
 
 def _validate(point):
@@ -112,3 +130,25 @@ def test_fetch_unemployment_gracefully_skips_upstream_parse_failure() -> None:
     points = fetcher.fetch_unemployment(date(2025, 1, 1), date(2025, 12, 31))
 
     assert points == []
+
+
+def test_fetch_unemployment_keeps_percent_point_values() -> None:
+    fetcher = OtherIndicatorFetcher(_RateLikeOtherAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_unemployment(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_UNEMPLOYMENT"
+    assert points[0].value == 5.2
+    assert points[0].unit == "%"
+
+
+def test_fetch_new_house_price_returns_percent_point_change() -> None:
+    fetcher = OtherIndicatorFetcher(_RateLikeOtherAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_new_house_price(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert len(points) == 1
+    assert points[0].code == "CN_NEW_HOUSE_PRICE"
+    assert points[0].value == pytest.approx(1.4)
+    assert points[0].unit == "%"

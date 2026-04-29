@@ -11,15 +11,16 @@ import pytest
 from datetime import datetime, timedelta, timezone
 
 from apps.data_center.domain.rules import (
+    convert_currency_value,
     is_stale,
     normalize_asset_code,
     normalize_currency_unit,
 )
 
-
 # ---------------------------------------------------------------------------
 # normalize_currency_unit
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeCurrencyUnit:
     def test_yi_yuan_to_yuan(self):
@@ -30,6 +31,11 @@ class TestNormalizeCurrencyUnit:
     def test_wan_yuan_to_yuan(self):
         value, unit = normalize_currency_unit(2.0, "万元")
         assert value == pytest.approx(2.0e4)
+        assert unit == "元"
+
+    def test_qian_yuan_to_yuan(self):
+        value, unit = normalize_currency_unit(3.0, "千元")
+        assert value == pytest.approx(3.0e3)
         assert unit == "元"
 
     def test_wan_yi_yuan(self):
@@ -62,10 +68,16 @@ class TestNormalizeCurrencyUnit:
         assert value == pytest.approx(7.0e6)
         assert unit == "元"
 
+    def test_convert_currency_value_between_cny_units(self):
+        value, unit = convert_currency_value(3152200000000.0, "元", "亿元")
+        assert value == pytest.approx(31522.0)
+        assert unit == "亿元"
+
 
 # ---------------------------------------------------------------------------
 # normalize_asset_code
 # ---------------------------------------------------------------------------
+
 
 class TestNormalizeAssetCode:
     def test_already_canonical_sh(self):
@@ -117,6 +129,7 @@ class TestNormalizeAssetCode:
 # ---------------------------------------------------------------------------
 # is_stale
 # ---------------------------------------------------------------------------
+
 
 class TestIsStale:
     def test_fresh_data_not_stale(self):

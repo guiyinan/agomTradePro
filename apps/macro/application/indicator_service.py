@@ -15,7 +15,7 @@ from apps.data_center.application.repository_provider import (
     get_indicator_unit_rule_repository,
 )
 from apps.macro.application.repository_provider import get_macro_read_repository
-from apps.macro.domain.entities import UNIT_CONVERSION_FACTORS
+from apps.macro.domain.entities import convert_currency_value
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +35,13 @@ class UnitDisplayService:
             return stored_value, storage_unit
         if storage_unit == original_unit:
             return stored_value, original_unit
-        factor = UNIT_CONVERSION_FACTORS.get(original_unit)
-        if factor and storage_unit == "元":
-            return stored_value / factor, original_unit
+        converted_value, converted_unit = convert_currency_value(
+            stored_value,
+            storage_unit,
+            original_unit,
+        )
+        if converted_unit == original_unit:
+            return converted_value, converted_unit
         return stored_value, original_unit or storage_unit
 
     @classmethod
@@ -80,7 +84,12 @@ class IndicatorUnitRuleService:
     def get_unit_for_indicator(cls, indicator_code: str) -> str:
         rule = cls._get_default_rule(indicator_code)
         if rule:
-            return str(rule.get("display_unit") or rule.get("original_unit") or rule.get("storage_unit") or "")
+            return str(
+                rule.get("display_unit")
+                or rule.get("original_unit")
+                or rule.get("storage_unit")
+                or ""
+            )
         return ""
 
     @classmethod
@@ -166,7 +175,11 @@ class IndicatorService:
             return True
         requested_kind = cls._classify_measure_kind(requested_code)
         candidate_kind = cls._classify_measure_kind(candidate_code)
-        if requested_kind != "other" and candidate_kind != "other" and requested_kind != candidate_kind:
+        if (
+            requested_kind != "other"
+            and candidate_kind != "other"
+            and requested_kind != candidate_kind
+        ):
             return False
         return True
 
