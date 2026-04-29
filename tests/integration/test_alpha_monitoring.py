@@ -360,8 +360,17 @@ class TestMonitoringTasks:
 class TestAlphaServiceMetricsIntegration:
     """测试 AlphaService 与监控指标的集成"""
 
-    def test_get_stock_scores_records_metrics(self):
+    @patch(
+        "apps.alpha.infrastructure.adapters.etf_adapter."
+        "ETFFallbackProvider._get_remote_etf_constituents"
+    )
+    def test_get_stock_scores_records_metrics(self, mock_remote_constituents):
         """测试 get_stock_scores 记录指标"""
+        mock_remote_constituents.return_value = (
+            [("600000.SH", 8.5), ("000001.SZ", 7.2)],
+            None,
+            {"holdings_source": "mock", "report_date": "2025-03-31"},
+        )
         service = AlphaService()
         metrics = get_alpha_metrics()
 
