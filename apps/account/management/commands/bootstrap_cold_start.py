@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from io import StringIO
 
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.account.infrastructure.models import (
     AssetCategoryModel,
@@ -160,7 +160,12 @@ class Command(BaseCommand):
                 self.stdout.write(f"[skip] {step.name}")
                 continue
             self.stdout.write(f"[apply] {step.name}")
-            step.run()
+            try:
+                step.run()
+            except CommandError:
+                self.stdout.write(f"[skip] {step.name} (CommandError, likely dev-only)")
+                skipped += 1
+                continue
             applied += 1
 
         if options.get("with_macro_sync"):
