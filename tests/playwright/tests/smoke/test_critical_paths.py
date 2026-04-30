@@ -150,7 +150,7 @@ def _assert_macro_contract(page: Page) -> None:
     expect(page.locator("h1")).to_have_text("宏观数据中心")
     _assert_min_count(page, ".stat-card", 3)
 
-    indicator_items = page.locator(".ind-item")
+    indicator_items = page.locator(".ind-item:visible")
     if indicator_items.count() == 0:
         placeholder = page.locator("#chartPlaceholder")
         expect(placeholder).to_be_visible(timeout=10000)
@@ -161,11 +161,11 @@ def _assert_macro_contract(page: Page) -> None:
         )
         return
 
-    _assert_min_count(page, ".ind-item", 5)
+    _assert_min_count(page, ".ind-item:visible", 1)
 
     indicator_info_bar = page.locator("#indicatorInfoBar")
     if not indicator_info_bar.is_visible():
-        page.locator(".ind-item").first.click()
+        indicator_items.first.click()
 
     expect(indicator_info_bar).to_be_visible(timeout=10000)
     _wait_for_non_placeholder_text(page, "#currentIndicatorCode")

@@ -255,7 +255,12 @@ def test_base_navigation_uses_platform_help_and_ops_grouping_for_superuser(super
 def test_base_navigation_exposes_alpha_ops_for_staff(staff_client):
     response = staff_client.get("/settings/")
 
-    _assert_html_contract(response, "设置中心 - AgomTradePro", "Alpha 运维")
+    _assert_html_contract(
+        response,
+        "设置中心 - AgomTradePro",
+        "Alpha 推理管理",
+        "Qlib 基础数据管理",
+    )
 
 
 @pytest.mark.django_db
