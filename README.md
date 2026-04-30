@@ -31,6 +31,7 @@
 - `main` 已拉齐到最新通过 CI 的开发主线，当前公开主线包含 Alpha / Dashboard / Policy / Data Center 这轮异步任务可见性修复
 - 现在凡是“接口已返回 `task_id`”的关键异步入口，都会在 worker 真正 pickup 前先写入 `task_monitor`，避免页面或排障时出现“任务已经投递但暂时查不到”的盲区
 - 已新增聚焦回归脚本 `python scripts/run_alpha_ops_regression.py`，覆盖 Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 的任务可见性与 provider 告警语义
+- Nightly / 默认集成回归现在显式排除了 `live_required`、`optional_runtime` 和 `diagnostic` 套件；默认自动化回归不会再误带本地 live server、Qlib/worker 或脚本式诊断测试
 
 ### 2026-04-29
 

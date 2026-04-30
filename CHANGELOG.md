@@ -36,10 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `main` 已拉齐到最新通过 CI 的 `dev/next-development`，公开主线现在包含 2026-04-29 宏观量纲治理与 2026-04-30 异步任务可见性修复
+- Nightly、`scripts/run_full_regression.py` 与 README 中的默认 integration 口径现统一排除 `live_required`、`optional_runtime` 与 `diagnostic` 套件；需要 live server、可选运行时或脚本式诊断的测试改为显式单独执行
 - GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
 - 架构审计规则版本更新为 `2026-04-24.v1`，新增 Application 层 pandas/numpy 导入审计和错位 `AppConfig` 审计规则
 - `pulse`、`realtime`、`alpha`、`sentiment`、`strategy` 的四层规范文件形态已补齐到当前治理基线；`strategy/application/dto.py` 已统一为 `dtos.py`
-- MCP 工具数文档口径从 302 同步为 303，系统模块覆盖口径同步为 35/35
+- MCP 工具数文档口径已同步到当前 `318` 个本地注册快照，系统模块覆盖口径同步为 `35/35`
 - 本轮架构债治理将多个 Interface / Application 热路径收口到 application interface service、repository provider 与 infrastructure repository 边界，减少直接 ORM / Infrastructure 耦合
 - `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 与 Nightly 主链重新保持绿色
 - Pulse 按需重算现在会在重建前刷新上游宏观输入，减少 stale / degraded 快照反复重算后继续输出低质量上下文的情况
@@ -273,4 +274,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 **Maintained by**: AgomTradePro Team
-**Last Updated**: 2026-04-27
+**Last Updated**: 2026-04-30

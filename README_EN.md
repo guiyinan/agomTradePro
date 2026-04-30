@@ -26,6 +26,13 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-04-30
+
+- `main` is aligned again with the latest CI-green development line, so the public branch now includes the async task-visibility fixes across Alpha, Dashboard, Policy, and Data Center flows
+- Key async entrypoints that already return a `task_id` now write an early `task_monitor` record before the worker actually picks the task up, removing the "task was queued but temporarily invisible" blind spot
+- A focused regression entrypoint, `python scripts/run_alpha_ops_regression.py`, now covers Alpha ops, Dashboard Alpha refresh, Policy RSS fetch, and Data Center decision reliability repair for task visibility and provider-alert semantics
+- Nightly/default integration regression is now explicitly split from `live_required`, `optional_runtime`, and `diagnostic` suites, so contributors can run the default automated path without accidentally pulling in live-server, worker, or script-style diagnostics
+
 ### 2026-04-29
 
 - Macro MCP/SDK access is now officially consolidated under `data_center`: the public macro tool family is `data_center_*`, and indicator/unit-rule governance is directly exposed through MCP/HTTP
@@ -128,20 +135,72 @@ If what you want is not “another dashboard” but “a base for building your 
 
 ## Quick Start
 
-For now, the **simplest installation path** is:
+### Windows One-Click Start
 
-1. Clone this repository locally
-2. On Windows, run `install.bat` from the repository root to create the local virtual environment and install dependencies
-3. Then run `start.bat` and choose `Quick Start`
-4. Or let **OpenClaw** or **Claude Code** read the repo and handle dependency install, environment setup, migrations, and startup for you
-5. If you prefer a manual path, continue with `deploy/README_DEPLOY.md` and the docs under `docs/deployment/`
+1. Run `install.bat` from the repository root
+2. Run `start.bat` and choose `Quick Start`
+3. Open `http://localhost:8000/setup/` and finish the setup wizard
 
-### Notes
+> The local virtual environment is expected at `agomtradepro/`. It is local-only, ignored by git, and not committed to the repository.
+>
+> If you are contributing rather than just evaluating the repo, use `install.bat --dev` to install pytest, Playwright, mypy, and other development tools.
 
-- The local virtual environment is expected at `agomtradepro/`. It is a **local-only development environment**, is ignored by git, and is **not** stored in the repository
-- If you are on **Windows** and your local Python environment and project dependencies are already prepared, you can usually clone the repo, run `start.bat` from the repository root, and choose `Quick Start`
-- The public install flow is still being simplified, so the easiest option today is to let OpenClaw or Claude Code install it for you
-- A more direct **Docker package / deployment bundle** will be provided later by the author
+### Manual Setup
+
+#### Prerequisites
+
+- Python 3.11+
+
+#### Install
+
+```bash
+# Clone
+git clone https://github.com/guiyinan/agomTradePro.git
+cd agomTradePro
+
+# Virtual environment
+python -m venv agomtradepro
+source agomtradepro/bin/activate  # Linux/Mac
+# or: agomtradepro\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Generate local .env and security keys
+python manage.py bootstrap_local_env
+
+# Database setup
+python manage.py migrate
+
+# Start development server
+python manage.py runserver
+
+# Visit http://localhost:8000/setup/ to complete the setup wizard
+```
+
+The setup wizard will guide you through:
+1. **Auto-generate security keys** — `SECRET_KEY` and `AGOMTRADEPRO_ENCRYPTION_KEY` are generated automatically and written to `.env` when missing
+2. Create an admin account
+3. Configure AI providers (optional) — API keys are encrypted at rest with Fernet
+4. Configure data sources (optional)
+
+> A first local run defaults to `SQLite + synchronous tasks`. You do not need PostgreSQL, Redis, or Docker just to get the system running.
+
+### Optional System Initialization
+
+If you want to seed built-in configuration and template data, run:
+
+```bash
+python manage.py init_all -y
+python manage.py init_all --skip-macro -y
+```
+
+### Tests
+
+```bash
+pytest tests/ -v --cov=apps
+pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
+```
 
 ---
 
@@ -470,12 +529,11 @@ AI speed for analysis. Human judgment for execution. Full traceability for revie
 
 ---
 
-## Quick Start
+## Manual Setup Details
 
 ### Prerequisites
 
 - Python 3.11+
-- Redis (for Celery task queue)
 
 ### Setup
 
@@ -484,10 +542,6 @@ AI speed for analysis. Human judgment for execution. Full traceability for revie
 git clone https://github.com/guiyinan/agomTradePro.git
 cd agomTradePro
 
-# Copy env template
-copy .env.example .env   # Windows
-# cp .env.example .env   # Linux/Mac
-
 # Virtual environment
 python -m venv agomtradepro
 source agomtradepro/bin/activate  # Linux/Mac
@@ -495,6 +549,9 @@ source agomtradepro/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Generate local .env and security keys
+python manage.py bootstrap_local_env
 
 # Database setup
 python manage.py migrate
@@ -511,7 +568,7 @@ The setup wizard will guide you through:
 3. Configure AI provider (optional) — API keys are encrypted at rest with Fernet
 4. Configure data sources (optional)
 
-> **No manual key setup required.** When you click “Start” on the welcome page, the wizard checks for missing keys and generates them automatically. If you prefer to set them manually in `.env` beforehand, the wizard will skip already-configured keys.
+> **No manual key setup required.** `python manage.py bootstrap_local_env` prepares the local `.env`, and the setup wizard will still generate any missing keys when you click “Start”.
 
 ### Docker Deployment
 
@@ -558,8 +615,7 @@ AGOMTRADEPRO_ENCRYPTION_KEY=your-generated-fernet-key
 
 #### 2. `DATABASE_URL`
 
-`.env.example` includes a PostgreSQL example connection string.
-If you just want a quick local run, you can **remove or leave `DATABASE_URL` empty**, and the project will fall back to local SQLite.
+If you just want a quick local run, you can leave `DATABASE_URL` unset and the project will fall back to local SQLite.
 
 #### 3. `REDIS_URL` / Celery
 
@@ -570,10 +626,10 @@ Redis is not required for a first local run.
 
 #### 4. Minimal config for “just get it running”
 
-After copying `.env.example`, you don't even need to change any keys — the setup wizard handles it:
+After running `python manage.py bootstrap_local_env`, you usually do not need to change any keys manually:
 
 ```bash
-copy .env.example .env
+python manage.py bootstrap_local_env
 python manage.py migrate
 python manage.py runserver
 # Visit http://localhost:8000/setup/ → click “Start”
@@ -599,6 +655,7 @@ pip install -e ".[dev]"
 
 ```bash
 pytest tests/ -v --cov=apps
+pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
 ```
 
 ---
@@ -664,6 +721,7 @@ mypy apps/ --strict
 
 # Test (domain layer coverage ≥ 90%)
 pytest tests/ -v --cov=apps
+pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
 ```
 
 ---
