@@ -16,6 +16,7 @@ from apps.task_monitor.application.use_cases import (
     ListTasksUseCase,
     RecordTaskExecutionUseCase,
 )
+from apps.task_monitor.application.tracking import record_pending_task
 
 __all__ = [
     "TaskStatusResponse",
@@ -28,4 +29,5 @@ __all__ = [
     "GetTaskStatisticsUseCase",
     "CheckCeleryHealthUseCase",
     "CleanupOldRecordsUseCase",
+    "record_pending_task",
 ]

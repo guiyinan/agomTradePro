@@ -6,6 +6,7 @@ from django.apps import apps as django_apps
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from apps.task_monitor.application.tracking import record_pending_task
 
 from .serializers import (
     PolicyLevelKeywordSerializer,
@@ -73,6 +74,11 @@ class RSSSourceConfigViewSet(viewsets.ModelViewSet):
                 # 异步执行模式（需要 Celery worker）
                 try:
                     task = fetch_rss_sources.delay(source_id=source.id)
+                    record_pending_task(
+                        task_id=task.id,
+                        task_name="apps.policy.application.tasks.fetch_rss_sources",
+                        kwargs={"source_id": source.id},
+                    )
                     logger.info(f"Task {task.id} queued successfully")
                     return Response({
                         'status': 'triggered',
@@ -103,6 +109,11 @@ class RSSSourceConfigViewSet(viewsets.ModelViewSet):
 
         task = fetch_rss_sources.delay(
             source_id=serializer.validated_data.get('source_id'),
+        )
+        record_pending_task(
+            task_id=task.id,
+            task_name="apps.policy.application.tasks.fetch_rss_sources",
+            kwargs={"source_id": serializer.validated_data.get("source_id")},
         )
 
         return Response({

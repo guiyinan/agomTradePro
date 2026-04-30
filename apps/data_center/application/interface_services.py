@@ -14,6 +14,7 @@ from core.integration.alpha_runtime import (
 from core.integration.alpha_homepage import load_alpha_homepage_data
 from core.integration.pulse_refresh import refresh_pulse_snapshot
 from core.integration.realtime_prices import fetch_latest_prices
+from apps.task_monitor.application.tracking import record_pending_task
 
 from .use_cases import (
     ManageIndicatorCatalogUseCase,
@@ -263,6 +264,12 @@ def _build_alpha_refresher(user):
                 universe_id=resolved.scope.universe_id,
                 trade_date=target_date,
                 scope_payload=resolved.scope.to_dict(),
+            )
+            record_pending_task(
+                task_id=task.id,
+                task_name="apps.alpha.application.tasks.qlib_predict_scores",
+                args=(resolved.scope.universe_id, target_date.isoformat(), 30),
+                kwargs={"scope_payload": resolved.scope.to_dict()},
             )
         except (KombuOperationalError, ConnectionError, OSError, TimeoutError) as exc:
             return {

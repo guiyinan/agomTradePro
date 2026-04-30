@@ -2,14 +2,18 @@ import json
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
 from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
 from apps.dashboard.interface import views
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
+from apps.task_monitor.application.repository_provider import get_task_record_repository
+from apps.task_monitor.domain.entities import TaskStatus
 
 
+@pytest.mark.django_db
 def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     captured: dict[str, object] = {}
 
@@ -56,6 +60,53 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     assert captured["top_n"] == 12
 
 
+@pytest.mark.django_db
+def test_alpha_refresh_htmx_records_pending_task_immediately(monkeypatch):
+    class FakeTask:
+        id = "task-123"
+
+    class FakeDelayWrapper:
+        @staticmethod
+        def delay(universe_id: str, intended_trade_date: str, top_n: int):
+            return FakeTask()
+
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 12, "universe_id": "csi300"},
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_alpha_refresh_celery_health",
+        lambda: {"available": True, "active_workers": ["worker@local"], "reason": "healthy"},
+    )
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+    cache.delete(
+        views._build_alpha_refresh_lock_key(
+            alpha_scope="portfolio",
+            target_date=date.today(),
+            top_n=12,
+            raw_universe_id="csi300",
+            resolved_pool=None,
+        )
+    )
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+
+    record = get_task_record_repository().get_by_task_id("task-123")
+    assert record is not None
+    assert record.status == TaskStatus.PENDING
+    assert record.task_name == "apps.alpha.application.tasks.qlib_predict_scores"
+    assert record.args == ("csi300", date.today().isoformat(), 12)
+    assert record.kwargs == {}
+
+
+@pytest.mark.django_db
 def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     captured: dict[str, object] = {}
 

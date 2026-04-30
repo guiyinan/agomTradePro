@@ -158,6 +158,9 @@ pytest tests/ -v --cov=apps --cov-report=html
 
 # 运行特定测试文件
 pytest tests/unit/test_regime_services.py -v
+
+# Alpha 运维页 / Dashboard refresh / RSS / Decision repair / Provider 告警回归套件
+python scripts/run_alpha_ops_regression.py
 ```
 
 - `scripts/run_live_server_pytest.py` 会在执行前检查 `/account/login/` 可达，CI/本地严格模式下服务不可达直接失败，不再把整组 Playwright 用例 skip 成假绿。

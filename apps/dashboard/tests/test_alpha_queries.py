@@ -13,6 +13,8 @@ from apps.dashboard.application.queries import (
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.equity.infrastructure.models import StockInfoModel
 from apps.rotation.infrastructure.models import AssetClassModel
+from apps.task_monitor.application.repository_provider import get_task_record_repository
+from apps.task_monitor.domain.entities import TaskStatus
 
 
 def test_alpha_visualization_query_passes_user_to_alpha_service(monkeypatch):
@@ -359,6 +361,7 @@ def test_alpha_homepage_query_uses_simple_when_cache_is_broader_mapping():
     assert result.scores[0].code == "000002.SZ"
 
 
+@pytest.mark.django_db
 def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
     captured: dict[str, object] = {}
     query = object.__new__(AlphaHomepageQuery)
@@ -409,6 +412,52 @@ def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
     assert captured["top_n"] == 10
     assert captured["scope_payload"]["scope_hash"] == "deadbeef"
     assert "csi300" not in str(captured)
+
+
+@pytest.mark.django_db
+def test_alpha_homepage_auto_trigger_records_pending_task_immediately(monkeypatch):
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeCache:
+        @staticmethod
+        def add(key, value, timeout=None):
+            return True
+
+    class FakeTask:
+        id = "task-auto-1"
+
+    class FakeDelayWrapper:
+        @staticmethod
+        def delay(universe_id, intended_trade_date, top_n, scope_payload=None):
+            return FakeTask()
+
+    scope = SimpleNamespace(
+        universe_id="portfolio-7-deadbeef",
+        scope_hash="deadbeef",
+        to_dict=lambda: {
+            "universe_id": "portfolio-7-deadbeef",
+            "scope_hash": "deadbeef",
+            "instrument_codes": ["000001.SZ"],
+        },
+    )
+    monkeypatch.setattr("django.core.cache.cache", FakeCache)
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+
+    status = query._trigger_async_inference_if_needed(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=scope,
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert status["refresh_triggered"] is True
+
+    record = get_task_record_repository().get_by_task_id("task-auto-1")
+    assert record is not None
+    assert record.status == TaskStatus.PENDING
+    assert record.task_name == "apps.alpha.application.tasks.qlib_predict_scores"
+    assert record.args == ("portfolio-7-deadbeef", "2026-04-18", 10)
+    assert record.kwargs["scope_payload"]["scope_hash"] == "deadbeef"
 
 
 def test_alpha_homepage_query_triggers_scoped_refresh_when_using_broader_cache():

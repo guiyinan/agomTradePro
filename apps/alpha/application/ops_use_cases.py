@@ -31,9 +31,7 @@ from apps.alpha.application.ops_services import (
 )
 from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 from apps.alpha.application.repository_provider import get_alpha_pool_data_repository
-from apps.task_monitor.application.repository_provider import get_task_record_repository
-from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
-from apps.task_monitor.domain.entities import TaskExecutionRecord, TaskPriority, TaskStatus
+from apps.task_monitor.application.tracking import record_pending_task
 
 
 def _build_conflict_payload(
@@ -53,35 +51,6 @@ def _build_conflict_payload(
     if extra_payload:
         payload.update(extra_payload)
     return payload
-
-
-def _record_pending_task(
-    *,
-    task_id: str,
-    task_name: str,
-    args: tuple[Any, ...] = (),
-    kwargs: dict[str, Any] | None = None,
-) -> None:
-    """Persist one queued task so ops pages can show it before worker pickup."""
-    RecordTaskExecutionUseCase(repository=get_task_record_repository()).execute(
-        TaskExecutionRecord(
-            task_id=task_id,
-            task_name=task_name,
-            status=TaskStatus.PENDING,
-            args=args,
-            kwargs=kwargs or {},
-            started_at=None,
-            finished_at=None,
-            result=None,
-            exception=None,
-            traceback=None,
-            runtime_seconds=None,
-            retries=0,
-            priority=TaskPriority.NORMAL,
-            queue=None,
-            worker=None,
-        )
-    )
 
 
 class GetAlphaInferenceOpsOverviewUseCase:
@@ -134,7 +103,7 @@ class TriggerGeneralInferenceUseCase:
         try:
             task = qlib_predict_scores.delay(universe_id, trade_date.isoformat(), top_n)
             promote_dashboard_alpha_refresh_task_lock(lock_key, task_id=task.id)
-            _record_pending_task(
+            record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(universe_id, trade_date.isoformat(), top_n),
@@ -207,7 +176,7 @@ class TriggerScopedInferenceUseCase:
                 scope_payload=scope.to_dict(),
             )
             promote_dashboard_alpha_refresh_task_lock(lock_key, task_id=task.id)
-            _record_pending_task(
+            record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_predict_scores",
                 args=(scope.universe_id, trade_date.isoformat(), top_n),
@@ -265,7 +234,7 @@ class TriggerScopedBatchInferenceUseCase:
                 pool_mode=pool_mode,
             )
             promote_inference_batch_task_lock(lock_key, task_id=task.id)
-            _record_pending_task(
+            record_pending_task(
                 task_id=task.id,
                 task_name="alpha.qlib_daily_scoped_inference",
                 kwargs={
@@ -331,7 +300,7 @@ class TriggerQlibUniverseRefreshUseCase:
                 lookback_days=lookback_days,
             )
             promote_qlib_data_refresh_task_lock(lock_key, task_id=task.id)
-            _record_pending_task(
+            record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
                 kwargs={
@@ -405,7 +374,7 @@ class TriggerQlibScopedCodesRefreshUseCase:
                 lookback_days=lookback_days,
             )
             promote_qlib_data_refresh_task_lock(lock_key, task_id=task.id)
-            _record_pending_task(
+            record_pending_task(
                 task_id=task.id,
                 task_name="apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
                 kwargs={

@@ -86,6 +86,19 @@
 - 因此运维页里的“所有 Alpha Provider 不可用”不再出现 `尝试顺序: simple`
   这类误导性单点失败告警
 
+配套回归入口：
+
+- `python scripts/run_alpha_ops_regression.py`
+
+当前回归套件覆盖：
+
+- Qlib data refresh 投递后，overview/page 立刻可见 `pending` 任务
+- Dashboard Alpha 手动 refresh / 自动补推理在 `delay()` 后立刻写入 `task_monitor`
+- Policy RSS 手动抓取接口在返回 `task_id` 时立刻写入 `task_monitor`
+- Data Center decision reliability repair 触发 scoped Alpha 推理时立刻写入 `task_monitor`
+- `provider_filter` 单点探测失败不再误报全局 `provider_unavailable`
+- Dashboard Alpha 查询仍保持现有 fast-path / fallback 语义
+
 ### 1. Qlib 数据刷新逻辑抽取
 
 原先 `apps.alpha.application.tasks` 中的：
@@ -109,12 +122,13 @@
 
 任务返回标准化 summary dict，供 `task_monitor` 保存和页面展示。
 
-从 `2026-04-30` 起，Ops 页在 `delay()` 成功后会立刻写入一条 `pending` 的 `task_monitor` 记录。
+从 `2026-04-30` 起，Ops 页和 Dashboard Alpha 异步入口在 `delay()` 成功后都会立刻写入一条 `pending` 的 `task_monitor` 记录。
 
 效果：
 
 - `/alpha/ops/qlib-data/` 底部“最近刷新任务”不再需要等 worker 真正 `prerun` 后才出现
 - 刷新后页面可以立即看到刚投递的任务 ID 和 `pending` 状态
+- Dashboard 手动 refresh / 自动补推理在 `task_monitor` 中也不再出现“排队成功但暂时查不到任务”的观察盲区
 - worker 开始执行后，`task_monitor` 的 `task_prerun/task_postrun` 信号会继续把同一条记录更新为 `started/success/failure`
 
 ### 3. 防重复语义

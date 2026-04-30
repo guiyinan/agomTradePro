@@ -40,6 +40,7 @@ from apps.alpha.application.pool_resolver import (
     get_alpha_pool_mode_choices,
     normalize_alpha_pool_mode,
 )
+from apps.task_monitor.application.tracking import record_pending_task
 from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_GENERAL,
     ALPHA_SCOPE_PORTFOLIO,
@@ -1715,6 +1716,11 @@ def alpha_refresh_htmx(request):
                     lock_meta=lock_meta,
                 )
             task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
+            record_pending_task(
+                task_id=task.id,
+                task_name="apps.alpha.application.tasks.qlib_predict_scores",
+                args=(raw_universe_id, target_date.isoformat(), top_n),
+            )
             promote_dashboard_alpha_refresh_task_lock(
                 lock_key,
                 task_id=task.id,
@@ -1764,6 +1770,12 @@ def alpha_refresh_htmx(request):
                 target_date.isoformat(),
                 top_n,
                 scope_payload=resolved_pool.scope.to_dict(),
+            )
+            record_pending_task(
+                task_id=task.id,
+                task_name="apps.alpha.application.tasks.qlib_predict_scores",
+                args=(resolved_pool.scope.universe_id, target_date.isoformat(), top_n),
+                kwargs={"scope_payload": resolved_pool.scope.to_dict()},
             )
             promote_dashboard_alpha_refresh_task_lock(
                 lock_key,

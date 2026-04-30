@@ -17,6 +17,7 @@ from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver,
 )
 from apps.alpha.application.services import AlphaService
+from apps.task_monitor.application.tracking import record_pending_task
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.dashboard.application.repository_provider import (
     AlphaRecommendationHistoryRepository,
@@ -473,6 +474,12 @@ class AlphaHomepageQuery:
                 trade_date.isoformat(),
                 top_n,
                 scope_payload=scope.to_dict(),
+            )
+            record_pending_task(
+                task_id=task.id,
+                task_name="apps.alpha.application.tasks.qlib_predict_scores",
+                args=(scope.universe_id, trade_date.isoformat(), top_n),
+                kwargs={"scope_payload": scope.to_dict()},
             )
             return {
                 "refresh_triggered": True,
