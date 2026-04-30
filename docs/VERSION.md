@@ -3,7 +3,7 @@
 > **当前版本**: `0.7.0`
 > **Build 日期**: `2026-03-23`
 > **完整版本号**: `0.7.0-build.20260323`
-> **开发文档快照**: `2026-04-28`
+> **开发文档快照**: `2026-04-30`
 
 ---
 
@@ -40,7 +40,12 @@ Build: 2026-03-23
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-04-28）
+## 0.7.0 之后的开发快照（截至 2026-04-30）
+
+- `main` 已拉齐到最新通过 CI 的开发主线，当前公开主线包含宏观单位治理、Alpha/Qlib 运维台和异步任务可见性修复
+- Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 现在都会在返回 `task_id` 后立即向 `task_monitor` 写入 `pending` 记录
+- `provider_filter` 单点探测失败不再误报全局 `provider_unavailable`，Alpha 运维告警语义与 Dashboard fast-path/fallback 语义已对齐
+- 新增回归脚本 `python scripts/run_alpha_ops_regression.py`，当前覆盖 Alpha ops、Dashboard、Policy RSS 和 Data Center decision reliability repair 的关键回归点
 
 - Alpha / Qlib 运维台 V1 已落地：新增 staff 可读、superuser 可执行的推理管理与基础数据管理页面，方便统一查看激活模型、缓存、任务、告警与本地 Qlib 数据状态
 - 这轮运维台与 Nightly 修复没有变更 MCP 外部契约：SDK/MCP 的 tool 名称、参数 schema、canonical API 路径与 RBAC 语义保持不变
@@ -221,4 +226,4 @@ git push origin v0.7.0
 ---
 
 **维护者**: AgomTradePro Team  
-**最后更新**: 2026-04-21
+**最后更新**: 2026-04-30

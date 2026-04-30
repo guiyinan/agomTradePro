@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 新增公共异步任务跟踪 helper `apps/task_monitor/application/tracking.py`，统一在 Celery worker pickup 前写入 `pending` 任务记录
+- 新增聚焦回归脚本 `scripts/run_alpha_ops_regression.py`，覆盖 Alpha ops、Dashboard Alpha refresh、Policy RSS 和 Data Center decision reliability repair 的异步任务可见性
 - 新增全仓治理检查脚本 `scripts/check_governance_consistency.py`，覆盖 MCP 工具数、关键文档计数、`docs/INDEX.md` 死链、模块 11 项形态、错位 `AppConfig`、单数 `dto.py` 与 Application 层 pandas/numpy 导入
 - 新增 `governance/governance_baseline.json`，用 baseline 记录当前已知历史债务与模块形态分数，防止后续新增或倒退
 - 新增 `docs/governance/ARCHITECTURE_GUARDRAILS.md`，说明增量架构门禁、全仓治理检查和历史债务 baseline 的关系
@@ -33,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
+- `main` 已拉齐到最新通过 CI 的 `dev/next-development`，公开主线现在包含 2026-04-29 宏观量纲治理与 2026-04-30 异步任务可见性修复
 - GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
 - 架构审计规则版本更新为 `2026-04-24.v1`，新增 Application 层 pandas/numpy 导入审计和错位 `AppConfig` 审计规则
 - `pulse`、`realtime`、`alpha`、`sentiment`、`strategy` 的四层规范文件形态已补齐到当前治理基线；`strategy/application/dto.py` 已统一为 `dtos.py`
@@ -73,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 已移除旧的 `core/integration/asset_analysis_market_sources.py` bridge，跨模块市场协作改由 app-owned provider + shared registry 暴露
 
 ### Fixed
+- 修复 Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 这些关键异步入口在返回 `task_id` 后、worker `prerun` 前无法立即在 `task_monitor` 中看到 `pending` 记录的问题
+- 修复 Alpha `provider_filter` 单点探测失败被误写成全局 `provider_unavailable` 告警的问题，运维页不再出现 `尝试顺序: simple` 这类误导性全局故障提示
 - 修复 `docs/INDEX.md` 中 Regime Navigator 计划文档、Qlib 本地上传方案和 Alpha 快速开始等链接漂移
 - 清理多个非 app-root 包中的错位 `AppConfig` 定义，避免 layer package 被误当作 Django app 配置入口
 - `simulated_trading/application/performance_calculator.py` 去除 Application 层 pandas/numpy 依赖，改用标准库统计与纯 Python 回撤计算
