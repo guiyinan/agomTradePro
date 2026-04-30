@@ -321,6 +321,7 @@ pip install -e ".[dev]"
 
 ```bash
 pytest tests/ -v --cov=apps
+pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
 ```
 
 ---

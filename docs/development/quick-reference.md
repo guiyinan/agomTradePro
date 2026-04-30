@@ -144,7 +144,21 @@ python scripts/run_full_regression.py --stages preflight,browser
 
 # 运行特定模块测试
 pytest tests/unit/domain/ -v
-pytest tests/integration/ -v
+pytest tests/integration/ -v -m "not live_required and not optional_runtime and not diagnostic"
+
+# 运行依赖 live server / 实时环境的集成测试
+set AGOMTRADEPRO_LIVE_SERVER=1
+pytest tests/integration/test_complete_investment_flow.py tests/integration/test_backtesting_flow.py -v -m live_required
+
+# 运行依赖实时行情与本地 8000 服务的测试
+set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
+pytest tests/integration/test_realtime_monitoring_flow.py -v -m live_required
+
+# 运行可选重依赖测试（例如 Qlib / worker）
+pytest tests/integration/test_qlib_integration.py -v -m optional_runtime
+
+# 运行脚本式诊断测试（默认不进入 CI / nightly）
+pytest tests/integration/test_new_modules.py -v -m diagnostic
 
 # 运行综合 UAT 回归（显式管理 Django live server，拒绝整组 skip 假绿）
 python tests/uat/run_uat.py

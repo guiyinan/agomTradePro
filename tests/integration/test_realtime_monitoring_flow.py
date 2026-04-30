@@ -30,6 +30,11 @@ os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
 from sdk.agomtradepro import AgomTradeProClient
 
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.live_required,
+]
+
 
 @pytest.fixture(scope="module", autouse=True)
 def require_live_realtime_environment() -> None:

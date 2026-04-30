@@ -66,6 +66,7 @@ jobs:
           PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/integration/ -v \
+            -m "not live_required and not optional_runtime and not diagnostic" \
             -o faulthandler_timeout=900 \
             --timeout=600 \
             --timeout-method=thread \

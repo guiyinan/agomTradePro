@@ -17,7 +17,11 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.skip(reason="script-style diagnostic module, not managed by pytest")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.diagnostic,
+    pytest.mark.skip(reason="script-style diagnostic module, not managed by pytest"),
+]
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent

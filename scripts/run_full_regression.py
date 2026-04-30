@@ -380,7 +380,15 @@ def main() -> int:
                 "Pytest: integration",
                 lambda: runner.run_command(
                     "Pytest: integration",
-                    [sys.executable, "-m", "pytest", "tests/integration", "-q"],
+                    [
+                        sys.executable,
+                        "-m",
+                        "pytest",
+                        "tests/integration",
+                        "-m",
+                        "not live_required and not optional_runtime and not diagnostic",
+                        "-q",
+                    ],
                 ),
             ),
             Step(

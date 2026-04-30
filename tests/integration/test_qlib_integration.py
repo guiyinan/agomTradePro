@@ -301,6 +301,7 @@ class TestQlibCeleryTasks:
             })
         return scores
 
+    @pytest.mark.optional_runtime
     @pytest.mark.skipif(
         os.environ.get('CI') == 'true',
         reason="Skip in CI - requires Celery worker"
@@ -701,6 +702,7 @@ class TestQlibIntegrationWithAlphaService:
 class TestQlibEndToEnd:
     """Qlib 端到端测试"""
 
+    @pytest.mark.optional_runtime
     @pytest.mark.skipif(
         not importlib.util.find_spec("qlib"),
         reason="qlib not installed"
@@ -818,6 +820,7 @@ class TestQlibManagementCommands:
             # 预期可能失败（如果 Qlib 未安装）
             assert "Qlib" in str(e) or "qlib" in str(e).lower()
 
+    @pytest.mark.optional_runtime
     @pytest.mark.skipif(
         os.environ.get('CI') == 'true',
         reason="Skip in CI - requires Qlib installation"
