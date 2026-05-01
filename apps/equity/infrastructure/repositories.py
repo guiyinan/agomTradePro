@@ -420,6 +420,60 @@ class DjangoStockRepository:
                     break
         return resolved
 
+    def get_stock_context_rows(self, stock_codes: list[str]) -> dict[str, dict[str, Any]]:
+        """Return stock info and latest daily row keyed by requested code."""
+
+        normalized_codes = [str(code).upper() for code in stock_codes if code]
+        if not normalized_codes:
+            return {}
+
+        requested_codes = list(dict.fromkeys(normalized_codes))
+        candidate_codes = {
+            candidate
+            for code in requested_codes
+            for candidate in self._build_stock_code_candidates(code)
+        }
+        info_rows = StockInfoModel._default_manager.filter(stock_code__in=list(candidate_codes)).values(
+            "stock_code",
+            "name",
+            "sector",
+            "market",
+        )
+        info_map = {str(row["stock_code"]).upper(): row for row in info_rows}
+
+        daily_rows = (
+            StockDailyModel._default_manager.filter(stock_code__in=list(candidate_codes))
+            .order_by("stock_code", "-trade_date")
+            .values("stock_code", "trade_date", "close", "volume")
+        )
+        daily_map: dict[str, dict[str, Any]] = {}
+        for row in daily_rows:
+            code = str(row["stock_code"]).upper()
+            if code not in daily_map:
+                daily_map[code] = row
+
+        context: dict[str, dict[str, Any]] = {}
+        for requested_code in requested_codes:
+            row = {"name": "", "sector": "", "market": ""}
+            latest_daily: dict[str, Any] = {}
+            for candidate in self._build_stock_code_candidates(requested_code):
+                candidate_info = info_map.get(candidate.upper())
+                if candidate_info and not any(row.values()):
+                    row = {
+                        "name": str(candidate_info.get("name") or ""),
+                        "sector": str(candidate_info.get("sector") or ""),
+                        "market": str(candidate_info.get("market") or ""),
+                    }
+                if not latest_daily and candidate.upper() in daily_map:
+                    latest_daily = daily_map[candidate.upper()]
+            context[requested_code] = {
+                **row,
+                "trade_date": latest_daily.get("trade_date"),
+                "close": float(latest_daily.get("close") or 0.0),
+                "volume": float(latest_daily.get("volume") or 0.0),
+            }
+        return context
+
     def get_financial_data(self, stock_code: str, limit: int = 4) -> list[FinancialData]:
         """
         获取股票的财务数据

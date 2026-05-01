@@ -5,6 +5,9 @@ from apps.account.application.repository_provider import (
     get_account_repository,
     get_portfolio_repository,
 )
+from apps.dashboard.application.integration_gateways import (
+    build_dashboard_application_gateway,
+)
 from apps.dashboard.infrastructure.providers import (
     AlphaRecommendationHistoryRepository,
     DashboardAlphaContextRepository,
@@ -23,19 +26,19 @@ def get_position_repository():
 
 def get_dashboard_overview_repository() -> DashboardOverviewRepository:
     """Return the dashboard overview read model repository."""
-    return DashboardOverviewRepository()
+    return DashboardOverviewRepository(build_dashboard_application_gateway())
 
 
 def get_dashboard_query_repository() -> DashboardQueryRepository:
     """Return the dashboard query repository."""
 
-    return DashboardQueryRepository()
+    return DashboardQueryRepository(build_dashboard_application_gateway())
 
 
 def get_dashboard_alpha_context_repository() -> DashboardAlphaContextRepository:
     """Return the dashboard Alpha context repository."""
 
-    return DashboardAlphaContextRepository()
+    return DashboardAlphaContextRepository(build_dashboard_application_gateway())
 
 
 def get_alpha_recommendation_history_repository() -> AlphaRecommendationHistoryRepository:

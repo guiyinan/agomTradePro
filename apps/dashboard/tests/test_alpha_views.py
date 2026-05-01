@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
+from apps.dashboard.interface import alpha_stock_views
 from apps.dashboard.interface import views
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
 from apps.task_monitor.application.repository_provider import get_task_record_repository
@@ -424,6 +425,30 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
                     "selection_reason": "按当前激活组合所属市场生成候选池。",
                 },
                 actionable_candidates=[],
+                exit_watchlist=[
+                    {
+                        "account_id": 21,
+                        "account_name": "模拟一号",
+                        "asset_code": "000001.SZ",
+                        "asset_name": "平安银行",
+                        "shares": 500,
+                        "market_value": 6200,
+                        "decision_side_label": "统一推荐 SELL",
+                        "exit_action": "SELL",
+                        "exit_action_label": "立即退出",
+                        "exit_source": "decision_rhythm.recommendation",
+                        "exit_reason_text": "Alpha 衰减",
+                        "invalidation_summary": "若政策闸门升至 L2 则退出。",
+                        "source_signal_ids": ["101"],
+                    }
+                ],
+                exit_watch_summary={
+                    "total": 1,
+                    "urgent_count": 0,
+                    "sell_count": 1,
+                    "reduce_count": 0,
+                    "hold_count": 0,
+                },
                 pending_requests=[],
                 recent_runs=[],
                 history_run_id=12,
@@ -451,6 +476,8 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     assert payload["data"]["pool"]["pool_size"] == 3200
     assert payload["data"]["history_run_id"] == 12
     assert payload["data"]["top_candidates"][0]["stage"] == "top_ranked"
+    assert payload["data"]["exit_watchlist"][0]["asset_code"] == "000001.SZ"
+    assert payload["data"]["exit_watch_summary"]["sell_count"] == 1
 
 
 def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
@@ -485,6 +512,8 @@ def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
                 },
                 pool={"label": "账户驱动 Alpha 池", "pool_size": 3200},
                 actionable_candidates=[],
+                exit_watchlist=[],
+                exit_watch_summary={},
                 pending_requests=[],
                 recent_runs=[],
                 history_run_id=8,
@@ -748,6 +777,226 @@ def test_alpha_stocks_empty_state_renders_refresh_cta():
     assert "立即推理刷新" in content
 
 
+def test_alpha_stocks_partial_renders_inline_refresh_button():
+    content = render_to_string(
+        "dashboard/partials/alpha_stocks_table.html",
+        {
+            "alpha_meta": {
+                "requested_trade_date": "2026-04-30",
+            },
+            "alpha_pool": {
+                "label": "账户驱动 Alpha 池",
+                "selection_reason": "按当前账户池输出排序。",
+                "pool_size": 12,
+                "market": "CN",
+                "portfolio_name": "默认组合",
+                "pool_mode": "price_covered",
+            },
+            "alpha_stocks": [
+                {
+                    "code": "000001.SZ",
+                    "name": "平安银行",
+                    "alpha_score": 0.91,
+                    "rank": 1,
+                    "stage": "top_ranked",
+                    "stage_label": "Alpha Top 候选/排名",
+                    "source": "qlib",
+                    "confidence": 0.88,
+                    "asof_date": "2026-04-30",
+                    "recommendation_basis": {},
+                    "buy_reasons": [],
+                    "no_buy_reasons": [],
+                }
+            ],
+            "alpha_actionable_candidates": [],
+            "alpha_pending_requests": [],
+            "alpha_recent_runs": [],
+            "selected_portfolio_id": 9,
+            "selected_alpha_pool_mode": "price_covered",
+            "alpha_pool_mode_choices": [],
+            "alpha_scope": "portfolio",
+            "top_n": 12,
+        },
+    )
+
+    assert "刷新首页推荐" in content
+    assert "triggerAlphaRealtimeRefresh(12, this)" in content
+
+
+def test_alpha_stocks_partial_renders_exit_watchlist():
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    content = render_to_string(
+        "dashboard/partials/alpha_stocks_table.html",
+        {
+            "alpha_meta": {
+                "requested_trade_date": "2026-04-30",
+            },
+            "alpha_pool": {
+                "label": "账户驱动 Alpha 池",
+                "selection_reason": "按当前账户池输出排序。",
+                "pool_size": 12,
+                "market": "CN",
+                "portfolio_name": "默认组合",
+                "pool_mode": "price_covered",
+            },
+            "alpha_stocks": [],
+            "alpha_actionable_candidates": [],
+            "alpha_exit_watchlist": [
+                {
+                    "account_name": "模拟一号",
+                    "asset_code": "000001.SZ",
+                    "asset_name": "平安银行",
+                    "account_id": 21,
+                    "is_selected": True,
+                    "account_detail_url": "/simulated-trading/my-accounts/21/",
+                    "shares": 500,
+                    "market_value": 6200,
+                    "decision_side_label": "统一推荐 SELL",
+                    "exit_action": "SELL",
+                    "exit_action_label": "立即退出",
+                    "priority_label": "本轮评估",
+                    "exit_source": "decision_rhythm.recommendation",
+                    "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
+                    "stop_loss_price": "10.50",
+                    "target_price_low": "12.80",
+                    "target_price_high": "13.60",
+                    "contract_status_label": "已绑定退出契约",
+                    "reduce_quantity": None,
+                    "invalidation_summary": "若政策闸门升至 L2 且 Alpha 评分继续走弱，则退出。",
+                    "source_signal_ids": ["101"],
+                    "recommendation_detail_url": "/api/decision/workspace/recommendations/?recommendation_id=urec_101",
+                    "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
+                    "decision_workspace_url": "/decision/workspace/?security_code=000001.SZ&step=5&account_id=21&action=SELL&source=dashboard-exit",
+                }
+            ],
+            "alpha_exit_watch_summary": {
+                "total": 1,
+                "urgent_count": 0,
+                "sell_count": 1,
+                "reduce_count": 0,
+                "hold_count": 0,
+            },
+            "alpha_pending_requests": [],
+            "alpha_recent_runs": [],
+            "selected_portfolio_id": 9,
+            "selected_alpha_pool_mode": "price_covered",
+            "alpha_pool_mode_choices": [],
+            "alpha_scope": "portfolio",
+        },
+        request=request,
+    )
+
+    assert "持仓退出监控" in content
+    assert "立即退出" in content
+    assert "decision_rhythm.recommendation" in content
+    assert "止损 10.50" in content
+    assert "来源信号：101" in content
+    assert "SELL 1" in content
+    assert "本轮评估" in content
+    assert "/api/dashboard/alpha/exit-panel/" in content
+    assert "hx-trigger=\"load\"" in content
+    assert "alpha-list-item alpha-list-item-exit alpha-list-item-exit-sell is-selected" in content
+    assert "/simulated-trading/my-accounts/21/" in content
+    assert "/api/decision/workspace/recommendations/?recommendation_id=urec_101" in content
+    assert "/api/decision/workspace/plans/plan_101/" in content
+    assert "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit" in content
+    assert "security_code=000001.SZ" in content
+    assert "account_id=21" in content
+    assert "step=5" in content
+    assert "进入决策工作台" in content
+
+
+def test_alpha_exit_panel_htmx_renders_recommendation_and_plan_detail(monkeypatch):
+    request = RequestFactory().get(
+        "/api/dashboard/alpha/exit-panel/",
+        {
+            "asset_code": "000001.SZ",
+            "account_id": 21,
+            "top_n": 10,
+            "alpha_scope": "portfolio",
+        },
+        HTTP_HX_REQUEST="true",
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_stock_scores_payload",
+        lambda **kwargs: {
+            "exit_watchlist": [
+                {
+                    "account_id": 21,
+                    "account_name": "模拟一号",
+                    "asset_code": "000001.SZ",
+                    "asset_name": "平安银行",
+                    "shares": 500,
+                    "market_value": 6200,
+                    "exit_action": "SELL",
+                    "exit_action_label": "立即退出",
+                    "priority_label": "立即处理",
+                    "exit_source": "decision_rhythm.transition_plan",
+                    "exit_reason_text": "调仓计划建议 EXIT",
+                    "stop_loss_price": "10.50",
+                    "target_price_low": "12.80",
+                    "target_price_high": "13.60",
+                    "contract_status_label": "已绑定退出契约",
+                    "contract_ready": True,
+                    "account_detail_url": "/simulated-trading/my-accounts/21/",
+                    "recommendation_detail_url": "/api/decision/workspace/recommendations/?recommendation_id=urec_101",
+                    "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
+                    "decision_workspace_url": "/decision/workspace/",
+                    "recommendation_snapshot": {
+                        "recommendation_id": "urec_101",
+                        "side": "SELL",
+                        "status": "approved",
+                        "user_action": "adopted",
+                        "confidence": 0.81,
+                        "composite_score": -0.22,
+                        "alpha_model_score": 0.31,
+                        "human_rationale": "Alpha 衰减且综合分跌入 SELL 区间。",
+                        "reason_codes": ["ALPHA_DECAY", "POLICY_TIGHTEN"],
+                        "stop_loss_price": "10.50",
+                    },
+                    "transition_plan_snapshot": {
+                        "plan_id": "plan_101",
+                        "action": "EXIT",
+                        "current_qty": 500,
+                        "target_qty": 0,
+                        "delta_qty": -500,
+                        "price_band_low": "12.60",
+                        "price_band_high": "13.20",
+                        "stop_loss_price": "10.50",
+                        "invalidation_description": "政策闸门升至 L2 且综合分继续转弱。",
+                        "notes": ["减掉全部持仓", "等待下一轮候选"],
+                        "is_ready_for_approval": True,
+                    },
+                    "signal_contract_snapshot": {
+                        "signal_id": 101,
+                        "invalidation_description": "若政策闸门升至 L2 则退出。",
+                        "conditions": ["政策闸门升至 L2", "Alpha 评分继续走弱"],
+                    },
+                }
+            ]
+        },
+    )
+
+    response = alpha_stock_views.alpha_exit_panel_htmx(request)
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Recommendation / Plan 详情" in content
+    assert "Unified Recommendation" in content
+    assert "Transition Plan Order" in content
+    assert "ALPHA_DECAY" in content
+    assert "减掉全部持仓" in content
+    assert "政策闸门升至 L2" in content
+    assert "Suggest Then Execute" in content
+    assert "查看账户持仓" in content
+    assert "推荐明细 API" in content
+    assert "调仓计划 API" in content
+
+
 def test_action_recommendation_partial_blocks_unreliable_pulse(monkeypatch):
     request = RequestFactory().get(
         "/api/dashboard/action-recommendation/",
@@ -874,16 +1123,18 @@ def test_dashboard_macro_components_do_not_refresh_stale_pulse(monkeypatch):
             return None
 
     monkeypatch.setattr(
-        "apps.regime.application.navigator_use_cases.BuildRegimeNavigatorUseCase",
-        FakeNavigatorUseCase,
-    )
-    monkeypatch.setattr(
-        "apps.pulse.application.use_cases.GetLatestPulseUseCase",
-        FakePulseUseCase,
-    )
-    monkeypatch.setattr(
-        "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase",
-        FakeActionUseCase,
+        "apps.dashboard.application.interface_services.load_phase1_macro_components",
+        lambda **kwargs: SimpleNamespace(
+            navigator=FakeNavigatorUseCase().execute(kwargs.get("as_of_date")),
+            pulse=FakePulseUseCase().execute(
+                as_of_date=kwargs.get("as_of_date"),
+                refresh_if_stale=kwargs.get("refresh_if_stale", False),
+            ),
+            action=FakeActionUseCase().execute(
+                kwargs.get("as_of_date"),
+                refresh_pulse_if_stale=kwargs.get("refresh_if_stale", False),
+            ),
+        ),
     )
 
     views._load_phase1_macro_components(as_of_date=date(2026, 4, 24))
@@ -1185,7 +1436,9 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
+    monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
     monkeypatch.setattr(views, "_build_regime_status_context", lambda navigator, pulse, action: {})
     monkeypatch.setattr(views, "_build_pulse_card_context", lambda pulse: {})
     monkeypatch.setattr(views, "_build_action_recommendation_context", lambda action: {})
@@ -1194,11 +1447,6 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     monkeypatch.setattr(views, "get_alpha_visualization_query", lambda: FakeAlphaQuery())
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeHomepageQuery())
     monkeypatch.setattr(views, "get_decision_plane_query", lambda: FakeDecisionQuery())
-    monkeypatch.setattr(
-        "apps.equity.application.config.get_valuation_repair_config_summary",
-        lambda use_cache=False: None,
-        raising=False,
-    )
     monkeypatch.setattr(
         views,
         "render",
@@ -1315,6 +1563,67 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
     assert "暂无通过触发器和风控约束的可行动候选" in content
 
 
+def test_main_workflow_panel_renders_exit_chain_entry_links():
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    content = render_to_string(
+        "dashboard/main_workflow_panel.html",
+        {
+            "current_regime": "Recovery",
+            "policy_level": "P1",
+            "action_weights": None,
+            "action_sectors": None,
+            "alpha_actionable_count": 0,
+            "alpha_stock_scores": [],
+            "actionable_candidates": [],
+            "valuation_repair_config_summary": None,
+            "pending_requests": [],
+            "pending_count": 0,
+            "alpha_decision_chain_overview": {
+                "top_ranked_count": 0,
+                "top10_actionable_count": 0,
+                "top10_pending_count": 0,
+                "top10_rank_only_count": 0,
+                "actionable_outside_top10_count": 0,
+                "pending_outside_top10_count": 0,
+            },
+            "alpha_exit_watchlist": [
+                {
+                    "asset_code": "000001.SZ",
+                    "asset_name": "平安银行",
+                    "account_id": 21,
+                    "account_name": "模拟一号",
+                    "exit_action": "SELL",
+                    "exit_action_label": "立即退出",
+                    "exit_source": "decision_rhythm.recommendation",
+                    "decision_side_label": "统一推荐 SELL",
+                    "priority_label": "立即处理",
+                    "stop_loss_price": "10.50",
+                    "contract_status_label": "已绑定退出契约",
+                    "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
+                    "decision_workspace_url": "/decision/workspace/",
+                }
+            ],
+            "alpha_exit_watch_summary": {
+                "total": 1,
+                "urgent_count": 1,
+                "sell_count": 1,
+                "reduce_count": 0,
+                "hold_count": 0,
+            },
+            "selected_portfolio_id": 9,
+            "selected_alpha_scope": "portfolio",
+        },
+        request=request,
+    )
+
+    assert "退出链路入口" in content
+    assert "打开退出详情" in content
+    assert "立即退出" in content
+    assert "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21" in content
+
+
 def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendations():
     request = RequestFactory().get("/dashboard/")
     request.user = SimpleNamespace(is_authenticated=True, username="admin")
@@ -1384,6 +1693,33 @@ def test_alpha_history_page_template_renders_detail_controls():
                     "cache_reason": "Qlib 实时结果未就绪。",
                 }
             ],
+            "current_exit_watchlist": [
+                {
+                    "asset_code": "000001.SZ",
+                    "asset_name": "平安银行",
+                    "account_id": 21,
+                    "account_name": "模拟一号",
+                    "is_selected": True,
+                    "exit_action": "SELL",
+                    "exit_action_label": "立即退出",
+                    "priority_label": "立即处理",
+                    "exit_source": "decision_rhythm.recommendation",
+                    "decision_side_label": "统一推荐 SELL",
+                    "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
+                    "recommendation_detail_url": "/api/decision/workspace/recommendations/?recommendation_id=urec_101",
+                    "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
+                    "decision_workspace_url": "/decision/workspace/",
+                }
+            ],
+            "current_exit_watch_summary": {
+                "total": 1,
+                "urgent_count": 1,
+                "sell_count": 1,
+                "reduce_count": 0,
+                "hold_count": 0,
+            },
+            "current_exit_portfolio_id": 9,
+            "current_exit_alpha_scope": "portfolio",
         },
         request=request,
     )
@@ -1393,3 +1729,84 @@ def test_alpha_history_page_template_renders_detail_controls():
     assert "复制 JSON" in content
     assert "loadAlphaHistoryDetail" in content
     assert "/api/dashboard/alpha/history/5/" in content
+    assert "当前持仓退出链路" in content
+    assert "在 Dashboard 详情中打开" in content
+    assert "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21" in content
+
+
+def test_decision_workspace_template_renders_exit_chain_sidebar():
+    request = RequestFactory().get("/decision/workspace/?account_id=21&security_code=000001.SZ&step=5")
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    content = render_to_string(
+        "decision/workspace.html",
+        {
+            "workspace_exit_watch_summary": {
+                "total": 1,
+                "urgent_count": 1,
+                "sell_count": 1,
+                "reduce_count": 0,
+                "hold_count": 0,
+            },
+            "workspace_selected_exit_item": {
+                "asset_code": "000001.SZ",
+                "asset_name": "平安银行",
+                "account_id": 21,
+                "account_name": "模拟一号",
+                "exit_action": "SELL",
+                "exit_action_label": "立即退出",
+                "decision_side_label": "统一推荐 SELL",
+                "contract_status_label": "已绑定退出契约",
+                "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
+                "decision_workspace_url": "/decision/workspace/?security_code=000001.SZ&step=5&account_id=21&action=SELL&source=dashboard-exit",
+                "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
+            },
+            "workspace_exit_watchlist": [
+                {
+                    "asset_code": "000001.SZ",
+                    "asset_name": "平安银行",
+                    "account_id": 21,
+                    "account_name": "模拟一号",
+                    "exit_action": "SELL",
+                    "priority_label": "立即处理",
+                    "exit_source": "decision_rhythm.recommendation",
+                    "invalidation_summary": "若政策闸门升至 L2 则退出。",
+                    "decision_workspace_url": "/decision/workspace/?security_code=000001.SZ&step=5&account_id=21&action=SELL&source=dashboard-exit",
+                    "is_selected": True,
+                }
+            ],
+        },
+        request=request,
+    )
+
+    assert "退出链路" in content
+    assert "统一 recommendation / transition plan / signal contract" in content
+    assert "在 Workspace 中定位" in content
+    assert "打开 Dashboard 详情" in content
+    assert "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit" in content
+
+
+def test_dashboard_api_root_exposes_docs_and_mcp_entries():
+    from apps.dashboard.interface.api_urls import dashboard_api_root
+
+    request = RequestFactory().get("/api/dashboard/")
+    response = dashboard_api_root(request)
+    payload = json.loads(response.content)
+
+    assert response.status_code == 200
+    assert payload["endpoints"]["ai_capability"] == "/api/ai-capability/"
+    assert payload["endpoints"]["documentation_portal"] == "/docs/"
+    assert payload["endpoints"]["mcp_tools_settings"] == "/settings/mcp-tools/"
+
+
+def test_global_api_root_exposes_ai_capability_and_mcp_entries():
+    from core.urls import api_root_view
+
+    request = RequestFactory().get("/api/")
+    response = api_root_view(request)
+    payload = json.loads(response.content)
+
+    assert response.status_code == 200
+    assert payload["endpoints"]["ai-capability"] == "/api/ai-capability/"
+    assert payload["endpoints"]["documentation-portal"] == "/docs/"
+    assert payload["endpoints"]["mcp-tools-settings"] == "/settings/mcp-tools/"

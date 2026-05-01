@@ -140,6 +140,12 @@ class AlphaTriggerRepository:
         )
         return list(queryset if limit is None else queryset[:limit])
 
+    def list_models_by_statuses(self, statuses: list[str], limit: int | None = None) -> list[Any]:
+        """获取指定状态的触发器模型，供应用层只读聚合使用。"""
+
+        queryset = self.model._default_manager.filter(status__in=statuses).order_by("-created_at")
+        return list(queryset if limit is None else queryset[:limit])
+
     def count_all(self) -> int:
         """获取触发器总数。"""
 
@@ -466,6 +472,12 @@ class AlphaCandidateRepository:
         """按状态获取候选模型，供页面模板使用。"""
 
         queryset = self.model._default_manager.filter(status=status).order_by("-created_at")
+        return list(queryset if limit is None else queryset[:limit])
+
+    def list_models_by_statuses(self, statuses: list[str], limit: int | None = None) -> list[Any]:
+        """按多个状态获取候选模型，供应用层只读聚合使用。"""
+
+        queryset = self.model._default_manager.filter(status__in=statuses).order_by("-created_at")
         return list(queryset if limit is None else queryset[:limit])
 
     def list_models_by_source_trigger_id(

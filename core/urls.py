@@ -75,6 +75,7 @@ def api_root_view(request):
                 "agent-runtime": "/api/agent-runtime/",
                 "account": "/api/account/",
                 "alpha": "/api/alpha/",
+                "ai-capability": "/api/ai-capability/",
                 "asset-analysis": "/api/asset-analysis/",
                 "audit": "/api/audit/",
                 "backtest": "/api/backtest/",
@@ -101,6 +102,8 @@ def api_root_view(request):
                 "system-config-center": "/api/system/config-center/",
                 "terminal": "/api/terminal/",
                 "docs": "/api/docs/",
+                "documentation-portal": "/docs/",
+                "mcp-tools-settings": "/settings/mcp-tools/",
                 "schema": "/api/schema/",
             }
         }

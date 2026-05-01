@@ -373,3 +373,27 @@ def get_signal_invalidation_payloads(signal_ids: list[int]) -> dict[str, dict[st
     if not normalized_ids:
         return {}
     return DjangoSignalRepository().get_invalidation_payloads(normalized_ids)
+
+
+def list_active_signal_payloads_by_asset(
+    *,
+    asset_code: str,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Return recent active signal payloads for one asset code."""
+
+    signals = DjangoSignalRepository().get_signals_by_asset(
+        asset_code=asset_code,
+        status="approved",
+    )
+    return [
+        {
+            "id": signal.id,
+            "asset_code": signal.asset_code,
+            "direction": signal.direction,
+            "logic_desc": signal.logic_desc,
+            "created_at": signal.created_at,
+            "status": getattr(signal.status, "value", signal.status),
+        }
+        for signal in signals[:limit]
+    ]

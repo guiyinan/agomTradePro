@@ -110,6 +110,14 @@
                     <span class="nav-icon">⚙️</span>
                     <span class="nav-text">设置中心</span>
                 </a>
+                <a href="{% url 'settings-mcp-tools' %}" class="nav-item">
+                    <span class="nav-icon">🧩</span>
+                    <span class="nav-text">MCP 工具目录</span>
+                </a>
+                <a href="{% url 'docs' %}" class="nav-item">
+                    <span class="nav-icon">📘</span>
+                    <span class="nav-text">系统文档</span>
+                </a>
             </div>
         </nav>
 
@@ -387,7 +395,7 @@
                         type="button"
                         id="alphaRealtimeRefreshBtn"
                         class="refresh-btn refresh-btn-realtime"
-                        onclick="triggerAlphaRealtimeRefresh(10)"
+                        onclick="triggerAlphaRealtimeRefresh(10, this)"
                     >
                         <span>⚡ 立即推理</span>
                     </button>
@@ -466,7 +474,7 @@
                         </div>
                     </div>
                     <div class="card-body" id="alphaStocksTable">
-                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_pool=alpha_pool alpha_actionable_candidates=alpha_actionable_candidates alpha_pending_requests=alpha_pending_requests alpha_recent_runs=alpha_recent_runs alpha_history_run_id=alpha_history_run_id selected_portfolio_id=selected_portfolio_id selected_alpha_pool_mode=selected_alpha_pool_mode alpha_scope=selected_alpha_scope %}
+                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_pool=alpha_pool alpha_actionable_candidates=alpha_actionable_candidates alpha_exit_watchlist=alpha_exit_watchlist alpha_exit_watch_summary=alpha_exit_watch_summary alpha_pending_requests=alpha_pending_requests alpha_recent_runs=alpha_recent_runs alpha_history_run_id=alpha_history_run_id selected_portfolio_id=selected_portfolio_id selected_alpha_pool_mode=selected_alpha_pool_mode alpha_scope=selected_alpha_scope %}
                     </div>
                 </div>
 
@@ -479,6 +487,16 @@
                         </div>
                         <div class="card-body" id="alphaFactorPanel">
                             {% include 'dashboard/partials/alpha_factor_panel.html' with stock=alpha_factor_panel.stock stock_code=alpha_factor_panel.stock_code provider=alpha_factor_panel.provider alpha_scope=alpha_factor_panel.alpha_scope alpha_meta=alpha_factor_panel.alpha_meta alpha_pool=alpha_factor_panel.alpha_pool recommendation_basis=alpha_factor_panel.recommendation_basis factor_basis=alpha_factor_panel.factor_basis buy_reasons=alpha_factor_panel.buy_reasons no_buy_reasons=alpha_factor_panel.no_buy_reasons risk_snapshot=alpha_factor_panel.risk_snapshot factor_origin=alpha_factor_panel.factor_origin factors=alpha_factor_panel.factors factor_count=alpha_factor_panel.factor_count empty_reason=alpha_factor_panel.empty_reason %}
+                        </div>
+                    </div>
+
+                    <div class="alpha-content-card factor-panel-card">
+                        <div class="card-header">
+                            <h3>Recommendation / Plan 详情</h3>
+                            <span class="card-hint">点击左侧持仓退出监控加载</span>
+                        </div>
+                        <div class="card-body" id="alphaExitDetailPanel">
+                            {% include 'dashboard/partials/alpha_exit_detail_panel.html' with selected=alpha_exit_detail_panel.selected recommendation=alpha_exit_detail_panel.recommendation transition_plan=alpha_exit_detail_panel.transition_plan signal_contract=alpha_exit_detail_panel.signal_contract has_exit_watchlist=alpha_exit_detail_panel.has_exit_watchlist empty_reason=alpha_exit_detail_panel.empty_reason %}
                         </div>
                     </div>
 
@@ -1121,8 +1139,8 @@ function scheduleAlphaAutoRefreshFromPanel() {
     }, pollAfterMs);
 }
 
-async function triggerAlphaRealtimeRefresh(topN = 10) {
-    const refreshBtn = document.getElementById('alphaRealtimeRefreshBtn');
+async function triggerAlphaRealtimeRefresh(topN = 10, triggerButton = null) {
+    const refreshBtn = triggerButton || document.getElementById('alphaRealtimeRefreshBtn');
     const statusNode = document.getElementById('alphaRefreshStatus');
     const originalLabel = refreshBtn ? refreshBtn.innerHTML : '';
     const alphaScope = getAlphaScopeMode();
@@ -2691,6 +2709,21 @@ chatSendBtn.onclick = async function() {
 .factor-provider-etf {
     background: rgba(100, 116, 139, 0.16);
     color: #475569;
+}
+
+.factor-provider-sell {
+    background: rgba(239, 68, 68, 0.16);
+    color: #b91c1c;
+}
+
+.factor-provider-reduce {
+    background: rgba(245, 158, 11, 0.18);
+    color: #b45309;
+}
+
+.factor-provider-hold {
+    background: rgba(16, 185, 129, 0.16);
+    color: #047857;
 }
 
 .factor-count-badge {

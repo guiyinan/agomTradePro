@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
+from django.core.exceptions import ImproperlyConfigured
+from django.db import DatabaseError
 from django.utils import timezone as django_timezone
 from apps.dashboard.application.repository_provider import (
     get_dashboard_alpha_context_repository,
@@ -21,6 +23,19 @@ from apps.dashboard.application.repository_provider import (
 )
 
 logger = logging.getLogger(__name__)
+
+DEGRADED_DASHBOARD_QUERY_EXCEPTIONS = (
+    AttributeError,
+    ConnectionError,
+    DatabaseError,
+    ImportError,
+    ImproperlyConfigured,
+    LookupError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
 
 
 # ============================================================================
@@ -156,7 +171,7 @@ class AlphaVisualizationQuery:
                     }
                 ),
             }
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get alpha stock scores: {e}")
             return {
                 "items": [],
@@ -261,14 +276,14 @@ class AlphaVisualizationQuery:
 
         try:
             from apps.asset_analysis.application.asset_name_service import resolve_asset_names
-        except Exception as e:
+        except (ImportError, ImproperlyConfigured) as e:
             logger.debug(f"Failed to import asset name resolver: {e}")
             return {}
 
         lookup_codes = sorted({alias for aliases in code_aliases.values() for alias in aliases})
         try:
             resolved_lookup_map = resolve_asset_names(lookup_codes)
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.debug(f"Failed to resolve security names: {e}")
             return {}
 
@@ -351,7 +366,7 @@ class AlphaVisualizationQuery:
                 "data_source": "live",
                 "warning_message": None,
             }
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get alpha provider status: {e}")
             return {
                 "providers": {},
@@ -397,7 +412,7 @@ class AlphaVisualizationQuery:
                 "data_source": "registry",
                 "warning_message": None,
             }
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get lightweight alpha provider status: {e}")
             return {
                 "providers": {},
@@ -428,7 +443,7 @@ class AlphaVisualizationQuery:
                 "data_source": "live",
                 "warning_message": None,
             }
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get alpha coverage metrics: {e}")
             return {
                 "coverage_ratio": 0.0,
@@ -448,7 +463,7 @@ class AlphaVisualizationQuery:
                 return trends
             return self._empty_ic_data(days)
 
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get alpha IC trends: {e}")
             return self._empty_ic_data(days)
 
@@ -576,7 +591,7 @@ class DecisionPlaneQuery:
             if allowed_classes:
                 return ", ".join(allowed_classes[:3])
             return "全部"
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get beta gate visible classes: {e}")
             return "-"
 
@@ -594,7 +609,7 @@ class DecisionPlaneQuery:
                 "ACTIONABLE": "alpha_actionable_count",
             }
             return int(summary.get(key_by_status.get(status, ""), 0))
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get alpha status count for {status}: {e}")
             return 0
 
@@ -607,7 +622,7 @@ class DecisionPlaneQuery:
 
             quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
             return quota["quota_total"] if quota else 10
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get quota total: {e}")
             return 10
 
@@ -620,7 +635,7 @@ class DecisionPlaneQuery:
 
             quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
             return quota["quota_used"] if quota else 0
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get quota used: {e}")
             return 0
 
@@ -633,21 +648,17 @@ class DecisionPlaneQuery:
 
             quota = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
             return quota["quota_remaining"] if quota else 10
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get quota remaining: {e}")
             return 10
 
     def _get_quota_usage_percent(self) -> float:
         """获取决策配额使用百分比"""
-        try:
-            total = self._get_quota_total()
-            used = self._get_quota_used()
-            if total > 0:
-                return round(used / total * 100, 1)
-            return 0.0
-        except Exception as e:
-            logger.warning(f"Failed to get quota usage percent: {e}")
-            return 0.0
+        total = self._get_quota_total()
+        used = self._get_quota_used()
+        if total > 0:
+            return round(used / total * 100, 1)
+        return 0.0
 
     def _attach_asset_names(self, items: list[Any]) -> list[Any]:
         """为候选或请求对象批量补充资产名称。"""
@@ -668,7 +679,7 @@ class DecisionPlaneQuery:
             from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 
             name_map = resolve_asset_names(list(lookup_codes))
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to resolve asset names for workflow panel: {e}")
             return items
 
@@ -695,7 +706,7 @@ class DecisionPlaneQuery:
             context_repo = get_dashboard_alpha_context_repository()
             candidates = context_repo.load_actionable_candidates(max_count=max_count)
             return self._attach_asset_names(candidates)
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get actionable candidates: {e}")
             return []
 
@@ -720,7 +731,7 @@ class DecisionPlaneQuery:
                     break
 
             return self._attach_asset_names(deduped)
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get pending requests: {e}")
             return []
 
@@ -1103,7 +1114,7 @@ class RegimeSummaryQuery:
                 regime_warnings=["No regime data available"],
             )
 
-        except Exception as e:
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get regime summary: {e}")
             return RegimeSummaryData(
                 current_regime="Unknown",
@@ -1121,10 +1132,8 @@ class RegimeSummaryQuery:
     def _get_latest_macro_value(self, indicator_code: str) -> float | None:
         """获取最新宏观指标值"""
         try:
-            return get_dashboard_query_repository().get_latest_macro_indicator_value(
-                indicator_code
-            )
-        except Exception as e:
+            return get_dashboard_query_repository().get_latest_macro_indicator_value(indicator_code)
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.debug(f"Failed to get macro value for {indicator_code}: {e}")
             return None
 
@@ -1139,15 +1148,23 @@ class DashboardDetailQuery:
                 user_id=user_id,
                 asset_code=asset_code,
             )
-        except Exception as e:
+        except ValueError as e:
             position_error = str(e)
-            if "matching query does not exist" in position_error.lower():
+            if "position not found" in position_error.lower():
                 return {
                     "position": None,
                     "related_signals": [],
                     "asset_code": asset_code,
                     "error": f"未找到持仓 {asset_code}",
                 }
+            logger.warning(f"Failed to get position detail for {asset_code}: {e}")
+            return {
+                "position": None,
+                "related_signals": [],
+                "asset_code": asset_code,
+                "error": position_error,
+            }
+        except DEGRADED_DASHBOARD_QUERY_EXCEPTIONS as e:
             logger.warning(f"Failed to get position detail for {asset_code}: {e}")
             return {
                 "position": None,
@@ -1171,7 +1188,9 @@ class DashboardDetailQuery:
         trigger_repo = get_alpha_trigger_repository()
         candidate_repo = get_alpha_candidate_repository()
         use_case = GenerateCandidateUseCase(trigger_repo, candidate_repo)
-        generation_context = get_dashboard_query_repository().load_alpha_candidate_generation_context()
+        generation_context = (
+            get_dashboard_query_repository().load_alpha_candidate_generation_context()
+        )
         active_triggers = generation_context["active_triggers"]
         existing_trigger_ids = generation_context["existing_trigger_ids"]
 
@@ -1202,8 +1221,12 @@ class DashboardDetailQuery:
                         resp.candidate.candidate_id, CandidateStatus.ACTIONABLE
                     )
                     promoted += 1
-                except Exception:
-                    pass
+                except (DatabaseError, TypeError, ValueError) as exc:
+                    logger.warning(
+                        "Failed to promote Alpha candidate %s to ACTIONABLE: %s",
+                        getattr(resp.candidate, "candidate_id", None),
+                        exc,
+                    )
 
         return {
             "generated": generated,

@@ -12,6 +12,58 @@
         <a href="{% url 'dashboard:index' %}" class="section-link">返回首页</a>
     </div>
 
+    <section class="alpha-history-exit-entry">
+        <div class="alpha-history-exit-head">
+            <div>
+                <h3>当前持仓退出链路</h3>
+                <p>历史页也直接挂到当前的 SELL / REDUCE / HOLD 跟踪链路，可一键回到 Dashboard 详情面板。</p>
+            </div>
+            <a href="{% url 'dashboard:index' %}{% if current_exit_portfolio_id %}?portfolio_id={{ current_exit_portfolio_id }}{% endif %}" class="section-link">打开 Dashboard 退出面板</a>
+        </div>
+        {% if current_exit_watch_summary.total %}
+        <div class="alpha-history-exit-summary">
+            <span class="alpha-history-exit-pill alpha-history-exit-pill-urgent">立即处理 {{ current_exit_watch_summary.urgent_count|default:0 }}</span>
+            <span class="alpha-history-exit-pill alpha-history-exit-pill-sell">SELL {{ current_exit_watch_summary.sell_count|default:0 }}</span>
+            <span class="alpha-history-exit-pill alpha-history-exit-pill-reduce">REDUCE {{ current_exit_watch_summary.reduce_count|default:0 }}</span>
+            <span class="alpha-history-exit-pill">HOLD {{ current_exit_watch_summary.hold_count|default:0 }}</span>
+        </div>
+        {% endif %}
+        {% if current_exit_watchlist %}
+        <div class="alpha-history-exit-list">
+            {% for item in current_exit_watchlist|slice:":3" %}
+            <article class="alpha-history-exit-item{% if item.is_selected %} is-selected{% endif %}">
+                <div class="alpha-history-exit-main">
+                    <strong>{{ item.asset_code }}</strong>
+                    {% if item.asset_name %}<span>{{ item.asset_name }}</span>{% endif %}
+                    <span class="alpha-history-exit-badge alpha-history-exit-badge-{{ item.exit_action|lower }}">{{ item.exit_action_label }}</span>
+                    <span class="alpha-history-exit-priority">{{ item.priority_label }}</span>
+                </div>
+                <div class="alpha-history-page-meta">
+                    <span>账户 {{ item.account_name }}</span>
+                    <span>退出来源 {{ item.exit_source }}</span>
+                    <span>决策侧 {{ item.decision_side_label }}</span>
+                </div>
+                <div class="alpha-history-page-text">
+                    {{ item.exit_reason_text|default:"当前未触发退出动作。" }}
+                </div>
+                <div class="alpha-history-page-actions">
+                    <a href="{% url 'dashboard:index' %}?alpha_scope={{ current_exit_alpha_scope|default:'portfolio' }}{% if current_exit_portfolio_id %}&portfolio_id={{ current_exit_portfolio_id }}{% endif %}&exit_asset_code={{ item.asset_code|urlencode }}{% if item.account_id %}&exit_account_id={{ item.account_id }}{% endif %}">在 Dashboard 详情中打开</a>
+                    {% if item.recommendation_detail_url %}
+                    <a href="{{ item.recommendation_detail_url }}" target="_blank" rel="noopener">推荐明细 API</a>
+                    {% endif %}
+                    {% if item.transition_plan_detail_url %}
+                    <a href="{{ item.transition_plan_detail_url }}" target="_blank" rel="noopener">调仓计划 API</a>
+                    {% endif %}
+                    <a href="{{ item.decision_workspace_url|default:'/decision/workspace/' }}">进入决策工作台</a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alpha-history-page-text">当前没有需要跟踪的持仓退出项。</div>
+        {% endif %}
+    </section>
+
     {% if history_runs %}
     <div class="alpha-history-page-list">
         {% for run in history_runs %}
@@ -65,6 +117,123 @@
     border-radius: 14px;
     padding: 14px 16px;
     background: #fff;
+}
+
+.alpha-history-exit-entry {
+    border: 1px solid #dbe7f5;
+    border-radius: 14px;
+    background: #f8fbff;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+
+.alpha-history-exit-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.alpha-history-exit-head h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: #122c57;
+}
+
+.alpha-history-exit-head p {
+    margin: 0;
+    font-size: 13px;
+    color: #556274;
+}
+
+.alpha-history-exit-summary {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.alpha-history-exit-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #ecf1f8;
+    color: #425164;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.alpha-history-exit-pill-urgent {
+    background: #ffe7e7;
+    color: #a33434;
+}
+
+.alpha-history-exit-pill-sell {
+    background: #ffecec;
+    color: #b42318;
+}
+
+.alpha-history-exit-pill-reduce {
+    background: #fff0d9;
+    color: #9a6220;
+}
+
+.alpha-history-exit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alpha-history-exit-item {
+    border: 1px solid #dde6f0;
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px;
+}
+
+.alpha-history-exit-item.is-selected {
+    border-color: #3756a4;
+    box-shadow: 0 0 0 2px rgba(55, 86, 164, 0.12);
+}
+
+.alpha-history-exit-main {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.alpha-history-exit-badge {
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #eef3ff;
+    color: #3756a4;
+}
+
+.alpha-history-exit-badge-sell {
+    background: #ffe4e4;
+    color: #a33434;
+}
+
+.alpha-history-exit-badge-reduce {
+    background: #fff1d8;
+    color: #9a6220;
+}
+
+.alpha-history-exit-badge-hold {
+    background: #edf6ea;
+    color: #2c6f3c;
+}
+
+.alpha-history-exit-priority {
+    font-size: 12px;
+    font-weight: 700;
+    color: #a33434;
 }
 
 .alpha-history-page-main,
@@ -203,6 +372,12 @@
     font-family: Consolas, Monaco, monospace;
     font-size: 12px;
     resize: vertical;
+}
+
+@media (max-width: 768px) {
+    .alpha-history-exit-head {
+        flex-direction: column;
+    }
 }
 </style>
 <script>

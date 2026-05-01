@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from apps.equity.application.repository_provider import (
+    get_equity_stock_repository,
     get_equity_valuation_repair_repository,
 )
 
@@ -15,3 +16,12 @@ def get_valuation_repair_snapshot_map(stock_codes: list[str]) -> dict[str, dict[
     if not normalized_codes:
         return {}
     return get_equity_valuation_repair_repository().get_snapshot_map(normalized_codes)
+
+
+def get_stock_context_map(stock_codes: list[str]) -> dict[str, dict[str, Any]]:
+    """Return stock info and latest local daily context keyed by requested code."""
+
+    normalized_codes = [str(code).upper() for code in stock_codes if code]
+    if not normalized_codes:
+        return {}
+    return get_equity_stock_repository().get_stock_context_rows(normalized_codes)

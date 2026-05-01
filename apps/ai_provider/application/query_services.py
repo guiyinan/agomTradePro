@@ -55,3 +55,24 @@ def list_supported_models(provider_name: str | None = None) -> list[str]:
             provider.default_model for provider in active_providers if provider.default_model
         )
     )
+
+
+def get_primary_system_provider_payload() -> dict[str, Any] | None:
+    """Return the first active configured system provider with a usable API key."""
+
+    provider_repo = get_ai_provider_repository()
+    provider = next(iter(provider_repo.get_active_configured_system_providers()), None)
+    if provider is None:
+        return None
+
+    api_key = provider_repo.get_api_key(provider)
+    if not api_key:
+        return None
+
+    return {
+        "name": provider.name,
+        "base_url": provider.base_url,
+        "provider_type": provider.provider_type,
+        "default_model": provider.default_model,
+        "api_key": api_key,
+    }

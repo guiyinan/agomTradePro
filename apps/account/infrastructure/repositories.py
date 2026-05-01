@@ -599,6 +599,22 @@ class PositionRepository:
         except PositionModel.DoesNotExist:
             return None
 
+    def get_user_position_by_asset_code(self, *, user_id: int, asset_code: str) -> Position | None:
+        """Return one active user position by asset code."""
+
+        model = (
+            PositionModel._default_manager.filter(
+                portfolio__user_id=user_id,
+                asset_code=asset_code,
+                is_closed=False,
+            )
+            .order_by("-opened_at")
+            .first()
+        )
+        if model is None:
+            return None
+        return PortfolioRepository()._convert_to_position_entities([model])[0]
+
     def list_open_positions_for_adjustment(self, portfolio_id: int) -> list[dict[str, Any]]:
         """获取用于风控调仓的活跃持仓。"""
         models = PositionModel._default_manager.filter(
@@ -1439,6 +1455,23 @@ class PortfolioSnapshotRepository:
             for snap in reversed(list(snapshots))
         ]
 
+    def list_performance_rows(self, portfolio_id: int) -> list[dict[str, Any]]:
+        """Return ordered snapshot rows for dashboard performance charts."""
+
+        snapshots = PortfolioDailySnapshotModel._default_manager.filter(
+            portfolio_id=portfolio_id
+        ).order_by("snapshot_date")
+        return [
+            {
+                "snapshot_date": snapshot.snapshot_date,
+                "total_value": float(snapshot.total_value or 0),
+                "cash_balance": float(snapshot.cash_balance or 0),
+                "invested_value": float(snapshot.invested_value or 0),
+                "position_count": int(snapshot.position_count or 0),
+            }
+            for snapshot in snapshots
+        ]
+
 
 # ============================================================
 # Transaction Cost Config Repository
@@ -1606,6 +1639,28 @@ class AccountInterfaceRepository:
         """Return the singleton system settings model."""
 
         return SystemSettingsModel.get_settings()
+
+    def list_global_investment_rule_payloads(self) -> list[dict[str, Any]]:
+        """Return active global investment rules for read-only consumers."""
+
+        from apps.account.infrastructure.models import InvestmentRuleModel
+
+        queryset = (
+            InvestmentRuleModel._default_manager.filter(
+                is_active=True,
+                user__isnull=True,
+            )
+            .order_by("priority", "id")
+            .values("rule_type", "conditions", "advice_template")
+        )
+        return [
+            {
+                "rule_type": str(row["rule_type"]),
+                "conditions": dict(row.get("conditions") or {}),
+                "advice_template": str(row.get("advice_template") or ""),
+            }
+            for row in queryset
+        ]
 
     def has_system_settings_singleton(self) -> bool:
         """Return whether the singleton system settings row already exists."""

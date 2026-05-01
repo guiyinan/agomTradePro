@@ -1,0 +1,166 @@
+<div class="alpha-factor-panel">
+    <div class="factor-panel-header">
+        <div>
+            <h3 class="factor-panel-title">Recommendation / Plan 详情</h3>
+            {% if selected %}
+            <div class="factor-panel-subtitle">
+                <strong>{{ selected.asset_code }}</strong>
+                {% if selected.asset_name %}<span class="factor-stock-name">{{ selected.asset_name }}</span>{% endif %}
+            </div>
+            {% else %}
+            <div class="factor-panel-subtitle">请选择左侧持仓退出监控项</div>
+            {% endif %}
+        </div>
+        {% if selected %}
+        <div class="factor-panel-badges">
+            <span class="factor-provider-badge">{{ selected.account_name }}</span>
+            <span class="factor-provider-badge factor-provider-{{ selected.exit_action|lower }}">{{ selected.exit_action_label }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if selected %}
+    <div class="factor-summary-grid">
+        <div class="factor-summary-item">
+            <span class="summary-label">当前动作</span>
+            <span class="summary-value">{{ selected.exit_action }}</span>
+        </div>
+        <div class="factor-summary-item">
+            <span class="summary-label">优先级</span>
+            <span class="summary-value">{{ selected.priority_label }}</span>
+        </div>
+        <div class="factor-summary-item">
+            <span class="summary-label">持仓</span>
+            <span class="summary-value">{{ selected.shares|floatformat:0 }}</span>
+        </div>
+        <div class="factor-summary-item">
+            <span class="summary-label">市值</span>
+            <span class="summary-value">{{ selected.market_value|floatformat:0 }}</span>
+        </div>
+    </div>
+
+    <div class="{% if selected.contract_ready %}factor-decision-ready{% else %}factor-decision-blocked{% endif %}" style="padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6;">
+        {% if selected.contract_ready %}
+        <strong>Suggest Then Execute</strong>
+        <span>统一 recommendation / transition plan 负责给出卖出或减仓建议；模拟盘自动交易会在下一轮任务里执行对应卖单。</span>
+        {% else %}
+        <strong>当前还不能直接执行</strong>
+        <span>这笔持仓还缺完整退出契约，系统会继续展示建议与证伪摘要，但应先补齐失效条件或止损后再进入严格执行链路。</span>
+        {% endif %}
+    </div>
+
+    <div class="factor-detail-block">
+        <h4>当前退出判断</h4>
+        <div class="factor-detail-grid">
+            <div><span>Exit Source</span><strong>{{ selected.exit_source|default:"-" }}</strong></div>
+            <div><span>Decision Side</span><strong>{{ selected.decision_side|default:"HOLD" }}</strong></div>
+            <div><span>Stop Loss</span><strong>{{ selected.stop_loss_price|default:"-" }}</strong></div>
+            <div><span>Target Band</span><strong>{{ selected.target_price_low|default:"-" }} - {{ selected.target_price_high|default:"-" }}</strong></div>
+        </div>
+        <p class="factor-origin-note">{{ selected.exit_reason_text|default:"当前未触发退出动作。" }}</p>
+    </div>
+
+    <div class="factor-detail-block">
+        <h4>Unified Recommendation</h4>
+        {% if recommendation.recommendation_id %}
+        <div class="factor-detail-grid">
+            <div><span>ID</span><strong>{{ recommendation.recommendation_id }}</strong></div>
+            <div><span>Side</span><strong>{{ recommendation.side|default:"-" }}</strong></div>
+            <div><span>Status</span><strong>{{ recommendation.status|default:"-" }}</strong></div>
+            <div><span>User Action</span><strong>{{ recommendation.user_action|default:"-" }}</strong></div>
+            <div><span>Composite</span><strong>{{ recommendation.composite_score|default:"-" }}</strong></div>
+            <div><span>Alpha Score</span><strong>{{ recommendation.alpha_model_score|default:"-" }}</strong></div>
+            <div><span>Confidence</span><strong>{{ recommendation.confidence|default:"-" }}</strong></div>
+            <div><span>Stop Loss</span><strong>{{ recommendation.stop_loss_price|default:"-" }}</strong></div>
+        </div>
+        {% if recommendation.human_rationale %}
+        <p class="factor-origin-note">{{ recommendation.human_rationale }}</p>
+        {% endif %}
+        {% if recommendation.reason_codes %}
+        <ul class="factor-explain-list">
+            {% for code in recommendation.reason_codes %}
+            <li>{{ code }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <div class="factor-empty-state">
+            <div class="factor-empty-icon">◌</div>
+            <p>当前没有可展示的 unified recommendation 详情。</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="factor-detail-block">
+        <h4>Transition Plan Order</h4>
+        {% if transition_plan.plan_id %}
+        <div class="factor-detail-grid">
+            <div><span>Plan ID</span><strong>{{ transition_plan.plan_id }}</strong></div>
+            <div><span>Action</span><strong>{{ transition_plan.action|default:"-" }}</strong></div>
+            <div><span>Current Qty</span><strong>{{ transition_plan.current_qty|default:"0" }}</strong></div>
+            <div><span>Target Qty</span><strong>{{ transition_plan.target_qty|default:"0" }}</strong></div>
+            <div><span>Delta Qty</span><strong>{{ transition_plan.delta_qty|default:"0" }}</strong></div>
+            <div><span>Ready</span><strong>{% if transition_plan.is_ready_for_approval %}yes{% else %}no{% endif %}</strong></div>
+            <div><span>Price Band</span><strong>{{ transition_plan.price_band_low|default:"-" }} - {{ transition_plan.price_band_high|default:"-" }}</strong></div>
+            <div><span>Stop Loss</span><strong>{{ transition_plan.stop_loss_price|default:"-" }}</strong></div>
+        </div>
+        {% if transition_plan.invalidation_description %}
+        <p class="factor-origin-note">{{ transition_plan.invalidation_description }}</p>
+        {% endif %}
+        {% if transition_plan.notes %}
+        <ul class="factor-explain-list">
+            {% for note in transition_plan.notes %}
+            <li>{{ note }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <div class="factor-empty-state">
+            <div class="factor-empty-icon">◌</div>
+            <p>当前没有生成持仓对应的 transition plan order。</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="factor-detail-block">
+        <h4>退出契约 / 证伪</h4>
+        <div class="factor-detail-grid">
+            <div><span>Signal ID</span><strong>{{ signal_contract.signal_id|default:"-" }}</strong></div>
+            <div><span>Contract</span><strong>{{ selected.contract_status_label|default:"-" }}</strong></div>
+        </div>
+        {% if signal_contract.invalidation_description %}
+        <p class="factor-origin-note">{{ signal_contract.invalidation_description }}</p>
+        {% elif selected.invalidation_summary %}
+        <p class="factor-origin-note">{{ selected.invalidation_summary }}</p>
+        {% endif %}
+        {% if signal_contract.conditions %}
+        <ul class="factor-explain-list">
+            {% for condition in signal_contract.conditions %}
+            <li>{{ condition }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="factor-detail-block">
+        <h4>下一步操作</h4>
+        <div class="alpha-list-actions" style="margin-top: 0;">
+            {% if selected.account_detail_url %}
+            <a href="{{ selected.account_detail_url }}" class="alpha-inline-link">查看账户持仓</a>
+            {% endif %}
+            {% if selected.recommendation_detail_url %}
+            <a href="{{ selected.recommendation_detail_url }}" class="alpha-inline-link" target="_blank" rel="noopener">推荐明细 API</a>
+            {% endif %}
+            {% if selected.transition_plan_detail_url %}
+            <a href="{{ selected.transition_plan_detail_url }}" class="alpha-inline-link" target="_blank" rel="noopener">调仓计划 API</a>
+            {% endif %}
+            <a href="{{ selected.decision_workspace_url|default:'/decision/workspace/' }}" class="alpha-inline-link">进入决策工作台</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="factor-empty-state">
+        <div class="factor-empty-icon">◌</div>
+        <p>{{ empty_reason }}</p>
+    </div>
+    {% endif %}
+</div>

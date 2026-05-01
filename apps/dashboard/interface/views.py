@@ -16,15 +16,10 @@ from types import SimpleNamespace
 from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone as django_timezone
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-
-from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.alpha.application.ops_locks import (
     ALPHA_REFRESH_LOCK_TTL_SECONDS,
     acquire_dashboard_alpha_refresh_pending_lock,
@@ -46,6 +41,13 @@ from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_PORTFOLIO,
     normalize_alpha_scope,
 )
+from apps.dashboard.interface import api_v1_views
+from apps.dashboard.interface import alpha_history_views
+from apps.dashboard.interface import alpha_metrics_views
+from apps.dashboard.interface import macro_views
+from apps.dashboard.interface import portfolio_views
+from apps.dashboard.interface import alpha_stock_views
+from apps.dashboard.interface import workflow_views
 from apps.dashboard.application.queries import (
     get_alpha_decision_chain_query,
     get_alpha_homepage_query,
@@ -54,8 +56,6 @@ from apps.dashboard.application.queries import (
     get_decision_plane_query,
 )
 from apps.dashboard.application import interface_services as dashboard_interface_services
-from core.cache_utils import CACHE_TTL, cached_api
-
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
 
@@ -73,24 +73,7 @@ def _get_request_user_id(user) -> int | None:
 
 def _get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
     """Return whether dashboard Alpha async refresh currently has a live Celery worker."""
-    try:
-        from apps.task_monitor.application.repository_provider import get_celery_health_checker
-
-        health = get_celery_health_checker().check_health()
-        active_workers = list(getattr(health, "active_workers", []) or [])
-        if active_workers and bool(getattr(health, "is_healthy", False)):
-            return {"available": True, "active_workers": active_workers, "reason": "healthy"}
-        if not active_workers:
-            return {"available": False, "active_workers": [], "reason": "no_active_workers"}
-        return {"available": False, "active_workers": active_workers, "reason": "unhealthy"}
-    except Exception as exc:
-        logger.warning("Failed to inspect Celery health for dashboard alpha refresh: %s", exc)
-        return {
-            "available": False,
-            "active_workers": [],
-            "reason": "health_check_failed",
-            "error": str(exc),
-        }
+    return dashboard_interface_services.get_dashboard_alpha_refresh_celery_health()
 
 
 def _build_alpha_refresh_lock_key(
@@ -274,45 +257,31 @@ def _ensure_dashboard_positions(data, user_id: int):
     return dashboard_interface_services.ensure_dashboard_positions(data, user_id)
 
 
+def _get_dashboard_portfolio_options(user_id: int) -> list[dict]:
+    """Load dashboard portfolio choices with a database-only fallback."""
+    try:
+        return dashboard_interface_services.get_portfolio_options(user_id)
+    except DatabaseError as exc:
+        logger.warning("Failed to get portfolio options: %s", exc)
+        return []
+
+
+def _get_dashboard_valuation_repair_config_summary() -> dict | None:
+    """Load valuation-repair config summary through the dashboard application boundary."""
+    return dashboard_interface_services.get_valuation_repair_config_summary(use_cache=False)
+
+
 def _load_phase1_macro_components(
     as_of_date: date | None = None,
     *,
     refresh_if_stale: bool = False,
 ):
     """Load navigator, pulse, and action recommendation objects for dashboard widgets."""
-    target_date = as_of_date or date.today()
-    navigator = None
-    pulse = None
-    action = None
-
-    try:
-        from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
-
-        navigator = BuildRegimeNavigatorUseCase().execute(target_date)
-    except Exception as exc:
-        logger.warning("Failed to load regime navigator widget data: %s", exc)
-
-    try:
-        from apps.pulse.application.use_cases import GetLatestPulseUseCase
-
-        pulse = GetLatestPulseUseCase().execute(
-            as_of_date=target_date,
-            refresh_if_stale=refresh_if_stale,
-        )
-    except Exception as exc:
-        logger.warning("Failed to load pulse widget data: %s", exc)
-
-    try:
-        from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
-
-        action = GetActionRecommendationUseCase().execute(
-            target_date,
-            refresh_pulse_if_stale=refresh_if_stale,
-        )
-    except Exception as exc:
-        logger.warning("Failed to load action recommendation widget data: %s", exc)
-
-    return navigator, pulse, action
+    components = dashboard_interface_services.load_phase1_macro_components(
+        as_of_date=as_of_date,
+        refresh_if_stale=refresh_if_stale,
+    )
+    return components.navigator, components.pulse, components.action
 
 
 def _score_to_percent(score: float) -> int:
@@ -546,101 +515,37 @@ def _get_alpha_stock_scores_payload(
 ) -> dict:
     """Return Alpha stock items plus reliability metadata."""
     normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
-    try:
-        query = get_alpha_homepage_query()
-        data = query.execute(
-            top_n=top_n,
-            user=user,
-            portfolio_id=portfolio_id,
-            pool_mode=pool_mode,
-            alpha_scope=normalized_alpha_scope,
-        )
-        meta = dict(data.meta)
-        meta.setdefault("alpha_scope", normalized_alpha_scope)
-        pool = dict(data.pool)
-        pool.setdefault("alpha_scope", normalized_alpha_scope)
-        return {
-            "items": data.top_candidates,
-            "meta": meta,
-            "pool": pool,
-            "actionable_candidates": data.actionable_candidates,
-            "pending_requests": data.pending_requests,
-            "recent_runs": data.recent_runs,
-            "history_run_id": data.history_run_id,
-        }
-    except Exception as e:
-        logger.warning(f"Failed to get alpha stock scores payload: {e}")
-        return {
-            "items": [],
-            "meta": {
-                "status": "error",
-                "source": "none",
-                "warning_message": "alpha_stock_scores_unavailable",
-                "is_degraded": True,
-                "uses_cached_data": False,
-                "alpha_scope": normalized_alpha_scope,
-                "recommendation_ready": False,
-                "must_not_use_for_decision": True,
-            },
-            "pool": {"alpha_scope": normalized_alpha_scope},
-            "actionable_candidates": [],
-            "pending_requests": [],
-            "recent_runs": [],
-            "history_run_id": None,
-        }
+    return dashboard_interface_services.get_alpha_stock_scores_payload(
+        top_n=top_n,
+        user=user,
+        portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
+        alpha_scope=normalized_alpha_scope,
+        query_factory=get_alpha_homepage_query,
+    )
 
 
 def _get_alpha_visualization_data(top_n: int = 10, ic_days: int = 30, user=None):
     """Return the aggregated Alpha visualization payload with a single query execution."""
-    try:
-        query = get_alpha_visualization_query()
-        return query.execute(top_n=top_n, ic_days=ic_days, user=user)
-    except Exception as e:
-        logger.warning(f"Failed to get alpha visualization data: {e}")
-        return None
+    return dashboard_interface_services.get_alpha_visualization_data(
+        top_n=top_n,
+        ic_days=ic_days,
+        user=user,
+        query_factory=get_alpha_visualization_query,
+    )
 
 
 def _get_empty_alpha_metrics_data():
     """Return empty Alpha metrics for degraded dashboard rendering."""
-    return SimpleNamespace(
-        stock_scores=[],
-        stock_scores_meta={},
-        provider_status={
-            "providers": {},
-            "metrics": {},
-            "timestamp": None,
-            "status": "degraded",
-            "data_source": "fallback",
-            "warning_message": "provider_status_unavailable",
-        },
-        coverage_metrics={
-            "coverage_ratio": 0.0,
-            "total_requests": 0,
-            "cache_hit_rate": 0.0,
-            "timestamp": None,
-            "status": "degraded",
-            "data_source": "fallback",
-            "warning_message": "coverage_metrics_unavailable",
-        },
-        ic_trends=[],
-        ic_trends_meta={
-            "status": "degraded",
-            "data_source": "fallback",
-            "warning_message": "ic_trends_unavailable",
-        },
-    )
+    return alpha_metrics_views.get_empty_alpha_metrics_data()
 
 
 def _get_alpha_metrics_data(ic_days: int = 30):
     """Return Alpha dashboard metrics without reloading stock recommendations."""
-    try:
-        query = get_alpha_visualization_query()
-        if hasattr(query, "execute_metrics"):
-            return query.execute_metrics(ic_days=ic_days)
-        return query.execute(top_n=0, ic_days=ic_days, user=None)
-    except Exception as e:
-        logger.warning(f"Failed to get alpha metrics data: {e}")
-        return _get_empty_alpha_metrics_data()
+    return alpha_metrics_views.get_alpha_metrics_data(
+        ic_days=ic_days,
+        query_factory=get_alpha_visualization_query,
+    )
 
 
 def _get_alpha_stock_scores(
@@ -690,19 +595,10 @@ def _get_alpha_provider_status(user=None) -> dict:
     重构说明 (2026-03-11):
     - 委托至 AlphaVisualizationQuery
     """
-    try:
-        data = _get_alpha_metrics_data(ic_days=30)
-        return data.provider_status
-    except Exception as e:
-        logger.warning(f"Failed to get alpha provider status: {e}")
-        return {
-            "providers": {},
-            "metrics": {},
-            "timestamp": None,
-            "status": "degraded",
-            "data_source": "fallback",
-            "warning_message": "provider_status_unavailable",
-        }
+    return alpha_metrics_views.get_alpha_provider_status(
+        user=user,
+        query_factory=get_alpha_visualization_query,
+    )
 
 
 def _get_alpha_coverage_metrics(user=None) -> dict:
@@ -712,20 +608,10 @@ def _get_alpha_coverage_metrics(user=None) -> dict:
     重构说明 (2026-03-11):
     - 委托至 AlphaVisualizationQuery
     """
-    try:
-        data = _get_alpha_metrics_data(ic_days=30)
-        return data.coverage_metrics
-    except Exception as e:
-        logger.warning(f"Failed to get alpha coverage metrics: {e}")
-        return {
-            "coverage_ratio": 0.0,
-            "total_requests": 0,
-            "cache_hit_rate": 0.0,
-            "timestamp": None,
-            "status": "degraded",
-            "data_source": "fallback",
-            "warning_message": "coverage_metrics_unavailable",
-        }
+    return alpha_metrics_views.get_alpha_coverage_metrics(
+        user=user,
+        query_factory=get_alpha_visualization_query,
+    )
 
 
 def _get_alpha_ic_trends_payload(days: int = 30, user=None) -> dict:
@@ -735,26 +621,19 @@ def _get_alpha_ic_trends_payload(days: int = 30, user=None) -> dict:
     重构说明 (2026-03-11):
     - 委托至 AlphaVisualizationQuery
     """
-    try:
-        data = _get_alpha_metrics_data(ic_days=days)
-        return {
-            "items": data.ic_trends,
-            "status": data.ic_trends_meta.get("status", "available"),
-            "data_source": data.ic_trends_meta.get("data_source", "live"),
-            "warning_message": data.ic_trends_meta.get("warning_message"),
-        }
-    except Exception as e:
-        logger.warning(f"Failed to get alpha IC trends: {e}")
-        return {
-            "items": [],
-            "status": "degraded",
-            "data_source": "fallback",
-            "warning_message": "ic_trends_unavailable",
-        }
+    return alpha_metrics_views.get_alpha_ic_trends_payload(
+        days=days,
+        user=user,
+        query_factory=get_alpha_visualization_query,
+    )
 
 
 def _get_alpha_ic_trends(days: int = 30, user=None) -> list:
-    return _get_alpha_ic_trends_payload(days, user=user)["items"]
+    return alpha_metrics_views.get_alpha_ic_trends(
+        days=days,
+        user=user,
+        query_factory=get_alpha_visualization_query,
+    )
 
 
 def _get_alpha_decision_chain_data(
@@ -767,27 +646,16 @@ def _get_alpha_decision_chain_data(
     decision_plane_data=None,
 ):
     """Return the unified Alpha decision-chain payload."""
-    try:
-        query = get_alpha_decision_chain_query()
-        if (
-            alpha_visualization_data is not None
-            and decision_plane_data is not None
-            and hasattr(query, "build")
-        ):
-            return query.build(
-                alpha_visualization_data=alpha_visualization_data,
-                decision_plane_data=decision_plane_data,
-            )
-        return query.execute(
-            top_n=top_n,
-            ic_days=ic_days,
-            max_candidates=max_candidates,
-            max_pending=max_pending,
-            user=user,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to get alpha decision chain data: {e}")
-        return None
+    return dashboard_interface_services.get_alpha_decision_chain_data(
+        top_n=top_n,
+        ic_days=ic_days,
+        max_candidates=max_candidates,
+        max_pending=max_pending,
+        user=user,
+        alpha_visualization_data=alpha_visualization_data,
+        decision_plane_data=decision_plane_data,
+        query_factory=get_alpha_decision_chain_query,
+    )
 
 
 def _build_alpha_factor_panel(
@@ -827,17 +695,13 @@ def _build_alpha_factor_panel(
     empty_reason = ""
 
     if load_provider_factors and not factors and provider in {"simple", "qlib", "etf"}:
-        try:
-            from apps.alpha.application.services import AlphaService
-
-            service = AlphaService()
-            provider_instance = service._registry.get_provider(provider)
-            if provider_instance:
-                factors = provider_instance.get_factor_exposure(stock_code, django_timezone.localdate()) or {}
-                if factors:
-                    factor_origin = f"{provider}_provider"
-        except Exception as exc:
-            logger.warning("Failed to load factor exposure for %s: %s", stock_code, exc)
+        factors = dashboard_interface_services.load_alpha_factor_exposure(
+            stock_code,
+            provider,
+            as_of_date=django_timezone.localdate(),
+        )
+        if factors:
+            factor_origin = f"{provider}_provider"
 
     if not factors:
         if provider == "qlib":
@@ -897,6 +761,80 @@ def _build_alpha_factor_panel(
     }
 
 
+def _build_alpha_exit_detail_panel_context(
+    *,
+    exit_watchlist: list[dict[str, object]],
+    account_id: int | None = None,
+    asset_code: str | None = None,
+) -> dict[str, object]:
+    """Build sidebar detail context for one exit-watchlist item."""
+
+    normalized_code = str(asset_code or "").strip().upper()
+    selected = None
+    for item in exit_watchlist:
+        item_account_id = item.get("account_id")
+        item_code = str(item.get("asset_code") or "").strip().upper()
+        if normalized_code and item_code != normalized_code:
+            continue
+        if account_id is not None and item_account_id not in {account_id, str(account_id)}:
+            continue
+        selected = item
+        break
+
+    if selected is None and exit_watchlist:
+        selected = exit_watchlist[0]
+
+    if selected is None:
+        return {
+            "selected": None,
+            "recommendation": {},
+            "transition_plan": {},
+            "signal_contract": {},
+            "has_exit_watchlist": False,
+            "empty_reason": "当前没有持仓退出监控项，侧边详情面板会在出现 SELL / REDUCE / 证伪跟踪后展示。",
+        }
+
+    return {
+        "selected": selected,
+        "recommendation": dict(selected.get("recommendation_snapshot") or {}),
+        "transition_plan": dict(selected.get("transition_plan_snapshot") or {}),
+        "signal_contract": dict(selected.get("signal_contract_snapshot") or {}),
+        "has_exit_watchlist": True,
+        "empty_reason": "",
+    }
+
+
+def _mark_alpha_exit_watchlist_selection(
+    exit_watchlist: list[dict[str, object]],
+    *,
+    account_id: int | None = None,
+    asset_code: str | None = None,
+) -> list[dict[str, object]]:
+    """Annotate one exit-watchlist item as selected for cross-page deep links."""
+
+    normalized_code = str(asset_code or "").strip().upper()
+    selected_index: int | None = None
+    for index, item in enumerate(exit_watchlist):
+        item_account_id = item.get("account_id")
+        item_code = str(item.get("asset_code") or "").strip().upper()
+        if normalized_code and item_code != normalized_code:
+            continue
+        if account_id is not None and item_account_id not in {account_id, str(account_id)}:
+            continue
+        selected_index = index
+        break
+
+    if selected_index is None and exit_watchlist:
+        selected_index = 0
+
+    annotated_items: list[dict[str, object]] = []
+    for index, item in enumerate(exit_watchlist):
+        annotated_item = dict(item)
+        annotated_item["is_selected"] = selected_index is not None and index == selected_index
+        annotated_items.append(annotated_item)
+    return annotated_items
+
+
 @login_required(login_url="/account/login/")
 def dashboard_entry(request):
     """
@@ -942,30 +880,23 @@ def dashboard_view(request):
     else:
         selected_portfolio_id = None
     selected_alpha_pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
-    try:
-        portfolio_options = dashboard_interface_services.get_portfolio_options(request.user.id)
-    except Exception as e:
-        logger.warning(f"Failed to get portfolio options: {e}")
-        portfolio_options = []
+    portfolio_options = _get_dashboard_portfolio_options(request.user.id)
     requested_alpha_scope = request.GET.get("alpha_scope")
     selected_alpha_scope = normalize_alpha_scope(requested_alpha_scope)
+    selected_exit_asset_code = str(request.GET.get("exit_asset_code") or "").strip().upper() or None
+    raw_exit_account_id = request.GET.get("exit_account_id")
+    try:
+        selected_exit_account_id = (
+            _parse_positive_int_param(raw_exit_account_id, field_name="exit_account_id", default=0)
+            if raw_exit_account_id not in (None, "")
+            else None
+        )
+    except ValueError:
+        selected_exit_account_id = None
     if requested_alpha_scope in (None, "") and not portfolio_options and selected_portfolio_id is None:
         selected_alpha_scope = ALPHA_SCOPE_GENERAL
 
     decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
-    if decision_plane_data is None:
-        decision_plane_data = SimpleNamespace(
-            beta_gate_visible_classes="-",
-            alpha_watch_count=0,
-            alpha_candidate_count=0,
-            alpha_actionable_count=0,
-            quota_total=10,
-            quota_used=0,
-            quota_remaining=10,
-            quota_usage_percent=0.0,
-            actionable_candidates=[],
-            pending_requests=[],
-        )
 
     alpha_metrics_data = _get_alpha_metrics_data(ic_days=30)
 
@@ -976,25 +907,79 @@ def dashboard_view(request):
         pool_mode=selected_alpha_pool_mode,
         alpha_scope=selected_alpha_scope,
     )
-    workflow_actionable_candidates = decision_plane_data.actionable_candidates
-    workflow_pending_requests = decision_plane_data.pending_requests
     alpha_actionable_candidates = alpha_payload["actionable_candidates"]
     alpha_pending_requests = alpha_payload["pending_requests"]
     alpha_stock_scores = alpha_payload["items"]
-    alpha_stock_scores_meta = alpha_payload["meta"]
     alpha_decision_chain_overview = _build_alpha_decision_chain_overview(
         top_candidates=alpha_stock_scores,
         actionable_candidates=alpha_actionable_candidates,
         pending_requests=alpha_pending_requests,
     )
-    initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
     investment_accounts = _get_dashboard_accounts(request.user)
-    try:
-        from apps.equity.application.config import get_valuation_repair_config_summary
-        valuation_repair_config_summary = get_valuation_repair_config_summary(use_cache=False)
-    except Exception as e:
-        logger.warning(f"Failed to get valuation repair config summary: {e}")
-        valuation_repair_config_summary = None
+    valuation_repair_config_summary = _get_dashboard_valuation_repair_config_summary()
+
+    context = _build_dashboard_page_context(
+        request=request,
+        data=data,
+        navigator=navigator,
+        pulse=pulse,
+        action=action,
+        portfolio_options=portfolio_options,
+        investment_accounts=investment_accounts,
+        selected_portfolio_id=selected_portfolio_id,
+        selected_alpha_pool_mode=selected_alpha_pool_mode,
+        selected_alpha_scope=selected_alpha_scope,
+        decision_plane_data=decision_plane_data,
+        alpha_metrics_data=alpha_metrics_data,
+        alpha_payload=alpha_payload,
+        alpha_decision_chain_overview=alpha_decision_chain_overview,
+        valuation_repair_config_summary=valuation_repair_config_summary,
+        selected_exit_asset_code=selected_exit_asset_code,
+        selected_exit_account_id=selected_exit_account_id,
+    )
+
+    return render(request, 'dashboard/index.html', context)
+
+
+def _build_dashboard_page_context(
+    *,
+    request,
+    data,
+    navigator,
+    pulse,
+    action,
+    portfolio_options: list[dict],
+    investment_accounts: list[dict],
+    selected_portfolio_id: int | None,
+    selected_alpha_pool_mode: str,
+    selected_alpha_scope: str,
+    decision_plane_data,
+    alpha_metrics_data,
+    alpha_payload: dict,
+    alpha_decision_chain_overview: dict,
+    valuation_repair_config_summary: dict | None,
+    selected_exit_asset_code: str | None,
+    selected_exit_account_id: int | None,
+) -> dict:
+    """Build the dashboard template context from already-loaded read models."""
+    alpha_stock_scores = alpha_payload["items"]
+    alpha_stock_scores_meta = alpha_payload["meta"]
+    alpha_actionable_candidates = alpha_payload["actionable_candidates"]
+    alpha_exit_watchlist = _mark_alpha_exit_watchlist_selection(
+        alpha_payload.get("exit_watchlist", []),
+        account_id=selected_exit_account_id,
+        asset_code=selected_exit_asset_code,
+    )
+    alpha_exit_watch_summary = alpha_payload.get("exit_watch_summary", {})
+    alpha_exit_detail_panel = _build_alpha_exit_detail_panel_context(
+        exit_watchlist=alpha_exit_watchlist,
+        account_id=selected_exit_account_id,
+        asset_code=selected_exit_asset_code,
+    )
+    alpha_pending_requests = alpha_payload["pending_requests"]
+    workflow_actionable_candidates = decision_plane_data.actionable_candidates
+    workflow_pending_requests = decision_plane_data.pending_requests
+    initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
 
     context = {
         "user": request.user,
@@ -1057,6 +1042,15 @@ def dashboard_view(request):
         "alpha_stock_scores": alpha_stock_scores,
         "alpha_stock_scores_meta": alpha_stock_scores_meta,
         "alpha_actionable_candidates": alpha_actionable_candidates,
+        "alpha_exit_watchlist": alpha_exit_watchlist,
+        "alpha_exit_watch_summary": alpha_exit_watch_summary,
+        "alpha_exit_detail_panel": alpha_exit_detail_panel,
+        "alpha_exit_selected_asset_code": alpha_exit_detail_panel.get("selected", {}).get("asset_code")
+        if alpha_exit_detail_panel.get("selected")
+        else "",
+        "alpha_exit_selected_account_id": alpha_exit_detail_panel.get("selected", {}).get("account_id")
+        if alpha_exit_detail_panel.get("selected")
+        else "",
         "alpha_pending_requests": alpha_pending_requests,
         "alpha_pool": alpha_payload["pool"],
         "alpha_recent_runs": alpha_payload["recent_runs"],
@@ -1085,349 +1079,28 @@ def dashboard_view(request):
     context.update(_build_action_recommendation_context(action))
     context.update(_build_attention_items_context(data, navigator, pulse))
     context.update(_build_browser_notification_context(navigator, pulse))
-
-    return render(request, 'dashboard/index.html', context)
-
-
-# ========================================
-# HTMX 专用视图
-# ========================================
-
-
-@login_required(login_url="/account/login/")
-def regime_status_htmx(request):
-    """Render the regime status bar partial for HTMX refreshes."""
-    navigator, pulse, action = _load_phase1_macro_components()
-    context = _build_regime_status_context(navigator, pulse, action)
-    return render(request, "components/regime_status_bar.html", context)
-
-
-@login_required(login_url="/account/login/")
-def pulse_card_htmx(request):
-    """Render the Pulse card partial for HTMX refreshes."""
-    _, pulse, _ = _load_phase1_macro_components()
-    context = _build_pulse_card_context(pulse)
-    return render(request, "components/pulse_card.html", context)
-
-
-@login_required(login_url="/account/login/")
-def action_recommendation_htmx(request):
-    """Render the action recommendation partial for HTMX refreshes."""
-    _, _, action = _load_phase1_macro_components()
-    context = _build_action_recommendation_context(action)
-    return render(request, "components/action_recommendation.html", context)
-
-
-@login_required(login_url="/account/login/")
-def attention_items_htmx(request):
-    """Render today's attention-items partial for HTMX refreshes."""
-    data = _ensure_dashboard_positions(_build_dashboard_data(request.user.id), request.user.id)
-    navigator, pulse, _ = _load_phase1_macro_components()
-    context = _build_attention_items_context(data, navigator, pulse)
-    return render(request, "components/attention_items.html", context)
-
-
-@login_required(login_url="/account/login/")
-def position_detail_htmx(request, asset_code: str):
-    """
-    HTMX 持仓详情视图
-
-    用于在模态框中显示持仓详情，包括：
-    - 持仓基本信息
-    - 历史价格走势
-    - 相关投资信号
-    """
-    context = get_dashboard_detail_query().get_position_detail(
-        user_id=request.user.id,
-        asset_code=asset_code,
-    )
-
-    return render(request, 'dashboard/partials/position_detail.html', context)
-
-
-@login_required(login_url="/account/login/")
-def positions_list_htmx(request):
-    """
-    HTMX 持仓列表视图
-
-    支持排序、筛选和按账户过滤的持仓列表，用于动态更新。
-    """
-    # If not accessed via HTMX, redirect to main dashboard
-    if 'HX-Request' not in request.headers:
-        from django.shortcuts import redirect
-        return redirect('dashboard:index')
-
-    # 账户过滤
-    try:
-        account_id = _parse_positive_int_param(
-            request.GET.get('account_id', ''),
-            field_name='account_id',
-            default=None,
-        )
-    except ValueError as exc:
-        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-
-    # 直接从模拟账户加载持仓（避免构建完整 Dashboard 数据）
-    positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
-
-    # 若无模拟持仓且未指定账户，回退到组合快照
-    if not positions and not account_id:
-        data = _build_dashboard_data(request.user.id)
-        data = _ensure_dashboard_positions(data, request.user.id)
-        positions = list(data.positions)
-
-    # 获取排序参数
-    sort_by = request.GET.get('sort', 'market_value')
-
-    # 排序
-    if sort_by == 'code':
-        positions.sort(key=lambda p: p.get("asset_code", "") if isinstance(p, dict) else p.asset_code)
-    elif sort_by == 'pnl_pct':
-        positions.sort(
-            key=lambda p: p.get("unrealized_pnl_pct", 0) if isinstance(p, dict) else (p.unrealized_pnl_pct or 0),
-            reverse=True,
-        )
-    elif sort_by == 'market_value':
-        positions.sort(
-            key=lambda p: p.get("market_value", 0) if isinstance(p, dict) else (p.market_value or 0),
-            reverse=True,
-        )
-
-    context = {
-        'positions': positions,
-        'show_account': not account_id,
-    }
-
-    return render(request, 'dashboard/partials/positions_table.html', context)
-
-
-def _generate_allocation_from_positions(positions: list[dict]) -> dict:
-    """Generate allocation chart data from position dicts, grouped by asset class."""
-    allocation: dict[str, float] = {}
-    for pos in positions:
-        asset_class = pos.get("asset_class_display") or pos.get("asset_class", "其他")
-        allocation[asset_class] = allocation.get(asset_class, 0) + pos.get("market_value", 0)
-    return allocation
-
-
-@login_required(login_url="/account/login/")
-def allocation_chart_htmx(request):
-    """
-    HTMX 资产配置图表数据
-
-    返回 JSON 格式的资产配置数据，用于前端图表更新。
-    支持 account_id 参数按账户过滤，不传则返回全部账户汇总。
-    """
-    try:
-        account_id = _parse_positive_int_param(
-            request.GET.get('account_id', ''),
-            field_name='account_id',
-            default=None,
-        )
-    except ValueError as exc:
-        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-
-    positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
-    allocation_data = _generate_allocation_from_positions(positions)
-
-    return JsonResponse({
-        'success': True,
-        'data': allocation_data
-    })
-
-
-@login_required(login_url="/account/login/")
-def performance_chart_htmx(request):
-    """
-    HTMX 收益趋势图表数据
-
-    返回 JSON 格式的收益历史数据。
-    支持 account_id 参数按账户过滤。
-    """
-    try:
-        account_id = _parse_positive_int_param(
-            request.GET.get('account_id', ''),
-            field_name='account_id',
-            default=None,
-        )
-    except ValueError as exc:
-        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-
-    performance_data = dashboard_interface_services.build_performance_chart_data(
-        user_id=request.user.id,
-        account_id=account_id,
-    )
-
-    return JsonResponse({
-        'success': True,
-        'data': performance_data
-    })
-
-
-@api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
-@permission_classes([IsAuthenticated])
-@cached_api(key_prefix='dashboard_summary', ttl_seconds=CACHE_TTL['dashboard_summary'], include_user=True)
-def dashboard_summary_v1(request):
-    """Summary endpoint for Streamlit dashboard."""
-    data = _build_dashboard_data(request.user.id)
-    return Response(
-        {
-            "user": {
-                "id": request.user.id,
-                "username": request.user.username,
-                "display_name": data.display_name,
-            },
-            "regime": {
-                "current": data.current_regime,
-                "confidence": data.regime_confidence,
-                "date": data.regime_date.isoformat() if data.regime_date else None,
-            },
-            "portfolio": {
-                "total_assets": data.total_assets,
-                "initial_capital": data.initial_capital,
-                "total_return": data.total_return,
-                "total_return_pct": data.total_return_pct,
-                "cash_balance": data.cash_balance,
-                "invested_value": data.invested_value,
-                "invested_ratio": data.invested_ratio,
-            },
-        }
-    )
-
-
-@api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
-@permission_classes([IsAuthenticated])
-@cached_api(key_prefix='regime_quadrant', ttl_seconds=CACHE_TTL['regime_current'], include_user=False)
-def regime_quadrant_v1(request):
-    """Regime quadrant data for Streamlit visualization."""
-    data = _build_dashboard_data(request.user.id)
-    return Response(
-        {
-            "current_regime": data.current_regime,
-            "distribution": data.regime_distribution or {},
-            "confidence": data.regime_confidence,
-            "as_of_date": data.regime_date.isoformat() if data.regime_date else None,
-            "macro": {
-                "pmi": data.pmi_value,
-                "cpi": data.cpi_value,
-                "growth_momentum_z": data.growth_momentum_z,
-                "inflation_momentum_z": data.inflation_momentum_z,
-            },
-        }
-    )
-
-
-@api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
-@permission_classes([IsAuthenticated])
-def equity_curve_v1(request):
-    """
-    Equity curve data for Streamlit.
-    """
-    requested_range = request.GET.get("range", "ALL").upper()
-    data = _build_dashboard_data(request.user.id)
-    series = data.performance_data if hasattr(data, "performance_data") else []
-
-    if not series:
-        # Defensive fallback for first-load or empty-history edge cases.
-        series = [
-            {
-                "date": date.today().isoformat(),
-                "portfolio_value": data.total_assets,
-                "return_pct": data.total_return_pct,
-            }
-        ]
-
-    return Response(
-        {
-            "range": requested_range,
-            "has_history": bool(data.performance_data),
-            "series": series,
-        }
-    )
-
-
-@api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
-@permission_classes([IsAuthenticated])
-@cached_api(key_prefix='signal_status', ttl_seconds=CACHE_TTL['signal_list'], vary_on=['limit'], include_user=True)
-def signal_status_v1(request):
-    """Signal status and recent signal list for Streamlit."""
-    try:
-        limit = max(1, min(int(request.GET.get("limit", 50)), 200))
-    except ValueError:
-        limit = 50
-
-    data = _build_dashboard_data(request.user.id)
-    signals = data.active_signals if data.active_signals else []
-    return Response(
-        {
-            "stats": data.signal_stats,
-            "signals": signals[:limit],
-            "limit": limit,
-        }
-    )
-
-
-@api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
-@permission_classes([IsAuthenticated])
-def alpha_decision_chain_v1(request):
-    """Unified Alpha ranking -> actionable -> pending chain for dashboard/MCP/SDK."""
-    try:
-        top_n = _parse_positive_int_param(
-            request.GET.get("top_n", 10),
-            field_name="top_n",
-            default=10,
-        )
-        max_candidates = _parse_positive_int_param(
-            request.GET.get("max_candidates", 5),
-            field_name="max_candidates",
-            default=5,
-        )
-        max_pending = _parse_positive_int_param(
-            request.GET.get("max_pending", 10),
-            field_name="max_pending",
-            default=10,
-        )
-    except ValueError as exc:
-        return Response({"success": False, "error": str(exc)}, status=400)
-
-    chain_data = _get_alpha_decision_chain_data(
-        top_n=top_n,
-        ic_days=30,
-        max_candidates=max_candidates,
-        max_pending=max_pending,
-        user=request.user,
-    )
-
-    if chain_data is None:
-        return Response(
-            {"success": False, "error": "alpha_decision_chain_unavailable"},
-            status=503,
-        )
-
-    return Response(
-        {
-            "success": True,
-            "data": {
-                "overview": chain_data.overview,
-                "top_stocks": chain_data.top_stocks,
-                "actionable_candidates": chain_data.actionable_candidates,
-                "pending_requests": chain_data.pending_requests,
-                "top_n": top_n,
-                "max_candidates": max_candidates,
-                "max_pending": max_pending,
-            },
-        }
-    )
+    return context
 
 
 # ========================================
 # 决策平面数据获取辅助函数（委托至 Query Services）
 # ========================================
+
+
+def _empty_decision_plane_data() -> SimpleNamespace:
+    """Return a safe fallback when decision-plane aggregation is unavailable."""
+    return SimpleNamespace(
+        beta_gate_visible_classes="-",
+        alpha_watch_count=0,
+        alpha_candidate_count=0,
+        alpha_actionable_count=0,
+        quota_total=10,
+        quota_used=0,
+        quota_remaining=10,
+        quota_usage_percent=0.0,
+        actionable_candidates=[],
+        pending_requests=[],
+    )
 
 def _get_beta_gate_visible_classes() -> str:
     """
@@ -1436,13 +1109,7 @@ def _get_beta_gate_visible_classes() -> str:
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute()
-        return data.beta_gate_visible_classes
-    except Exception as e:
-        logger.warning(f"Failed to get beta gate visible classes: {e}")
-        return "-"
+    return _get_decision_plane_data().beta_gate_visible_classes
 
 
 def _get_alpha_status_count(status: str) -> int:
@@ -1452,19 +1119,14 @@ def _get_alpha_status_count(status: str) -> int:
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute()
-        if status == "WATCH":
-            return data.alpha_watch_count
-        elif status == "CANDIDATE":
-            return data.alpha_candidate_count
-        elif status == "ACTIONABLE":
-            return data.alpha_actionable_count
-        return 0
-    except Exception as e:
-        logger.warning(f"Failed to get alpha status count for {status}: {e}")
-        return 0
+    data = _get_decision_plane_data()
+    if status == "WATCH":
+        return data.alpha_watch_count
+    if status == "CANDIDATE":
+        return data.alpha_candidate_count
+    if status == "ACTIONABLE":
+        return data.alpha_actionable_count
+    return 0
 
 
 def _get_quota_total() -> int:
@@ -1474,13 +1136,7 @@ def _get_quota_total() -> int:
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute()
-        return data.quota_total
-    except Exception as e:
-        logger.warning(f"Failed to get quota total: {e}")
-        return 10
+    return _get_decision_plane_data().quota_total
 
 
 def _get_quota_used() -> int:
@@ -1490,13 +1146,7 @@ def _get_quota_used() -> int:
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute()
-        return data.quota_used
-    except Exception as e:
-        logger.warning(f"Failed to get quota used: {e}")
-        return 0
+    return _get_decision_plane_data().quota_used
 
 
 def _get_quota_remaining() -> int:
@@ -1506,13 +1156,7 @@ def _get_quota_remaining() -> int:
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute()
-        return data.quota_remaining
-    except Exception as e:
-        logger.warning(f"Failed to get quota remaining: {e}")
-        return 10
+    return _get_decision_plane_data().quota_remaining
 
 
 def _get_quota_usage_percent() -> float:
@@ -1522,13 +1166,7 @@ def _get_quota_usage_percent() -> float:
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute()
-        return data.quota_usage_percent
-    except Exception as e:
-        logger.warning(f"Failed to get quota usage percent: {e}")
-        return 0.0
+    return _get_decision_plane_data().quota_usage_percent
 
 
 def _get_actionable_candidates():
@@ -1538,13 +1176,7 @@ def _get_actionable_candidates():
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute(max_candidates=5, max_pending=10)
-        return data.actionable_candidates
-    except Exception as e:
-        logger.warning(f"Failed to get actionable candidates: {e}")
-        return []
+    return _get_decision_plane_data(max_candidates=5, max_pending=10).actionable_candidates
 
 
 def _get_pending_requests():
@@ -1554,660 +1186,48 @@ def _get_pending_requests():
     重构说明 (2026-03-11):
     - 委托至 DecisionPlaneQuery
     """
-    try:
-        query = get_decision_plane_query()
-        data = query.execute(max_candidates=5, max_pending=10)
-        return data.pending_requests
-    except Exception as e:
-        logger.warning(f"Failed to get pending requests: {e}")
-        return []
+    return _get_decision_plane_data(max_candidates=5, max_pending=10).pending_requests
 
 
 def _get_pending_count() -> int:
-    try:
-        return len(_get_pending_requests())
-    except Exception:
-        return 0
+    return len(_get_pending_requests())
 
 
 def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
     """Return the aggregated decision-plane payload with a single query execution."""
-    try:
-        query = get_decision_plane_query()
-        return query.execute(max_candidates=max_candidates, max_pending=max_pending)
-    except Exception as e:
-        logger.warning(f"Failed to get decision plane data: {e}")
-        return None
+    data = dashboard_interface_services.get_decision_plane_data(
+        max_candidates=max_candidates,
+        max_pending=max_pending,
+        query_factory=get_decision_plane_query,
+    )
+    return data or _empty_decision_plane_data()
 
 
-@login_required(login_url="/account/login/")
-def workflow_refresh_candidates(request):
-    """
-    主流程候选刷新：从活跃触发器补齐候选，并尝试提升高置信候选为 ACTIONABLE。
-    """
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
-
-    try:
-        result = get_dashboard_detail_query().generate_alpha_candidates()
-
-        return JsonResponse({
-            "success": True,
-            "result": result,
-        })
-
-    except Exception as e:
-        logger.error(f"Failed to refresh workflow candidates: {e}", exc_info=True)
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
+workflow_refresh_candidates = workflow_views.workflow_refresh_candidates
+regime_status_htmx = macro_views.regime_status_htmx
+pulse_card_htmx = macro_views.pulse_card_htmx
+action_recommendation_htmx = macro_views.action_recommendation_htmx
+attention_items_htmx = macro_views.attention_items_htmx
+position_detail_htmx = portfolio_views.position_detail_htmx
+positions_list_htmx = portfolio_views.positions_list_htmx
+allocation_chart_htmx = portfolio_views.allocation_chart_htmx
+performance_chart_htmx = portfolio_views.performance_chart_htmx
 
 
 # ========================================
 # Alpha 可视化 HTMX 视图
 # ========================================
 
-@login_required(login_url="/account/login/")
-def alpha_refresh_htmx(request):
-    """Trigger a manual realtime Alpha refresh for today's dashboard universe."""
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
-
-    try:
-        target_date = django_timezone.localdate()
-        top_n = _parse_positive_int_param(
-            request.POST.get("top_n", 10),
-            field_name="top_n",
-            default=10,
-        )
-        raw_portfolio_id = request.POST.get("portfolio_id")
-        pool_mode = _normalize_dashboard_alpha_pool_mode(request.POST.get("pool_mode"))
-        raw_alpha_scope = request.POST.get("alpha_scope")
-        alpha_scope = normalize_alpha_scope(raw_alpha_scope)
-        portfolio_id = (
-            _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
-            if raw_portfolio_id not in (None, "")
-            else None
-        )
-        if alpha_scope == ALPHA_SCOPE_PORTFOLIO and raw_alpha_scope not in (None, "") and portfolio_id is None:
-            raise ValueError("账户专属 Alpha 推理必须提供 portfolio_id")
-
-        user_id = _get_request_user_id(request.user)
-        raw_universe_id = str(request.POST.get("universe_id") or "").strip() or "csi300"
-        resolved_pool = None
-        if alpha_scope == ALPHA_SCOPE_PORTFOLIO and user_id is not None:
-            resolved_pool = PortfolioAlphaPoolResolver().resolve(
-                user_id=user_id,
-                portfolio_id=portfolio_id,
-                trade_date=target_date,
-                pool_mode=pool_mode,
-            )
-
-        use_sync = request.POST.get("sync") in ("1", "true")
-        sync_reason = None
-        universe_id = resolved_pool.scope.universe_id if resolved_pool is not None else raw_universe_id
-        scope_hash = resolved_pool.scope.scope_hash if resolved_pool is not None else None
-        lock_meta_payload = build_dashboard_alpha_refresh_metadata(
-            alpha_scope=alpha_scope,
-            target_date=target_date,
-            top_n=top_n,
-            universe_id=universe_id,
-            portfolio_id=portfolio_id,
-            pool_mode=resolved_pool.scope.pool_mode if resolved_pool is not None else pool_mode,
-            scope_hash=scope_hash,
-        )
-        lock_key = _build_alpha_refresh_lock_key(
-            alpha_scope=alpha_scope,
-            target_date=target_date,
-            top_n=top_n,
-            raw_universe_id=raw_universe_id,
-            resolved_pool=resolved_pool,
-        )
-        lock_meta = _resolve_existing_alpha_refresh_lock(lock_key)
-        if lock_meta is not None:
-            return _build_alpha_refresh_conflict_response(
-                alpha_scope=alpha_scope,
-                target_date=target_date,
-                top_n=top_n,
-                universe_id=universe_id,
-                portfolio_id=portfolio_id,
-                pool_mode=pool_mode,
-                lock_meta=lock_meta,
-            )
-
-        if not use_sync:
-            celery_health = _get_dashboard_alpha_refresh_celery_health()
-            if not bool(celery_health.get("available")):
-                use_sync = True
-                sync_reason = str(celery_health.get("reason") or "celery_unavailable")
-
-        if use_sync:
-            return _alpha_refresh_sync(
-                lock_key=lock_key,
-                target_date=target_date,
-                top_n=top_n,
-                raw_universe_id=raw_universe_id,
-                alpha_scope=alpha_scope,
-                portfolio_id=portfolio_id,
-                pool_mode=pool_mode,
-                resolved_pool=resolved_pool,
-                sync_reason=sync_reason,
-            )
-
-        from apps.alpha.application.tasks import qlib_predict_scores
-
-        if resolved_pool is None:
-            if not acquire_dashboard_alpha_refresh_pending_lock(
-                lock_key,
-                meta=lock_meta_payload,
-                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            ):
-                lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
-                    "status": "running",
-                    "mode": "async",
-                    "task_id": None,
-                    "task_state": "PENDING",
-                }
-                return _build_alpha_refresh_conflict_response(
-                    alpha_scope=alpha_scope,
-                    target_date=target_date,
-                    top_n=top_n,
-                    universe_id=universe_id,
-                    portfolio_id=portfolio_id,
-                    pool_mode=pool_mode,
-                    lock_meta=lock_meta,
-                )
-            task = qlib_predict_scores.delay(raw_universe_id, target_date.isoformat(), top_n)
-            record_pending_task(
-                task_id=task.id,
-                task_name="apps.alpha.application.tasks.qlib_predict_scores",
-                args=(raw_universe_id, target_date.isoformat(), top_n),
-            )
-            promote_dashboard_alpha_refresh_task_lock(
-                lock_key,
-                task_id=task.id,
-                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            )
-            message = (
-                "已触发通用 Alpha 刷新任务；结果仅用于研究排名，不作为账户专属建议。"
-                if alpha_scope == ALPHA_SCOPE_GENERAL
-                else "已触发 Alpha 实时刷新任务，请稍后刷新查看最新结果。"
-            )
-            response_payload = {
-                "success": True,
-                "alpha_scope": alpha_scope,
-                "task_id": task.id,
-                "universe_id": raw_universe_id,
-                "portfolio_id": portfolio_id,
-                "scope_hash": None,
-                "requested_trade_date": target_date.isoformat(),
-                "pool_mode": pool_mode,
-                "message": message,
-                "poll_after_ms": 5000,
-                "must_not_use_for_decision": True,
-            }
-        else:
-            if not acquire_dashboard_alpha_refresh_pending_lock(
-                lock_key,
-                meta=lock_meta_payload,
-                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            ):
-                lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
-                    "status": "running",
-                    "mode": "async",
-                    "task_id": None,
-                    "task_state": "PENDING",
-                }
-                return _build_alpha_refresh_conflict_response(
-                    alpha_scope=alpha_scope,
-                    target_date=target_date,
-                    top_n=top_n,
-                    universe_id=universe_id,
-                    portfolio_id=portfolio_id,
-                    pool_mode=pool_mode,
-                    lock_meta=lock_meta,
-                )
-            task = qlib_predict_scores.delay(
-                resolved_pool.scope.universe_id,
-                target_date.isoformat(),
-                top_n,
-                scope_payload=resolved_pool.scope.to_dict(),
-            )
-            record_pending_task(
-                task_id=task.id,
-                task_name="apps.alpha.application.tasks.qlib_predict_scores",
-                args=(resolved_pool.scope.universe_id, target_date.isoformat(), top_n),
-                kwargs={"scope_payload": resolved_pool.scope.to_dict()},
-            )
-            promote_dashboard_alpha_refresh_task_lock(
-                lock_key,
-                task_id=task.id,
-                timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            )
-            response_payload = {
-                "success": True,
-                "alpha_scope": ALPHA_SCOPE_PORTFOLIO,
-                "task_id": task.id,
-                "universe_id": resolved_pool.scope.universe_id,
-                "portfolio_id": resolved_pool.portfolio_id,
-                "scope_hash": resolved_pool.scope.scope_hash,
-                "requested_trade_date": target_date.isoformat(),
-                "pool_mode": resolved_pool.scope.pool_mode,
-                "message": "已触发账户专属 scoped Qlib 推理任务，请稍后刷新查看最新结果。",
-                "poll_after_ms": 5000,
-                "must_not_use_for_decision": True,
-            }
-        return JsonResponse(response_payload)
-    except ValueError as exc:
-        return JsonResponse({"success": False, "error": str(exc)}, status=400)
-    except Exception as exc:
-        if "lock_key" in locals():
-            release_dashboard_alpha_refresh_lock(lock_key)
-        logger.error("Failed to trigger alpha realtime refresh: %s", exc, exc_info=True)
-        return JsonResponse(
-            {"success": False, "error": f"触发 Alpha 实时刷新失败: {exc}"},
-            status=500,
-        )
+alpha_history_page = alpha_history_views.alpha_history_page
+alpha_history_list_api = alpha_history_views.alpha_history_list_api
+alpha_history_detail_api = alpha_history_views.alpha_history_detail_api
+alpha_refresh_htmx = alpha_stock_views.alpha_refresh_htmx
+alpha_stocks_htmx = alpha_stock_views.alpha_stocks_htmx
 
 
-def _alpha_refresh_sync(
-    *,
-    lock_key: str,
-    target_date,
-    top_n,
-    raw_universe_id,
-    alpha_scope,
-    portfolio_id,
-    pool_mode,
-    resolved_pool,
-    sync_reason: str | None = None,
-):
-    """Run one scoped Qlib inference inline for dashboard manual refresh."""
-    from apps.alpha.application.tasks import qlib_predict_scores
-
-    universe_id = raw_universe_id
-    scope_hash = None
-    scope_payload = None
-    if resolved_pool is not None:
-        universe_id = resolved_pool.scope.universe_id
-        scope_hash = resolved_pool.scope.scope_hash
-        scope_payload = resolved_pool.scope.to_dict()
-
-    sync_lock_meta = build_dashboard_alpha_refresh_metadata(
-        alpha_scope=alpha_scope,
-        target_date=target_date,
-        top_n=top_n,
-        universe_id=universe_id,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
-        scope_hash=scope_hash,
-    )
-    if not acquire_dashboard_alpha_refresh_pending_lock(
-        lock_key,
-        meta=sync_lock_meta,
-        timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
-    ):
-        lock_meta = _resolve_existing_alpha_refresh_lock(lock_key) or {
-            "status": "running",
-            "mode": "sync",
-            "task_id": None,
-            "task_state": "RUNNING",
-        }
-        return _build_alpha_refresh_conflict_response(
-            alpha_scope=alpha_scope,
-            target_date=target_date,
-            top_n=top_n,
-            universe_id=universe_id,
-            portfolio_id=portfolio_id,
-            pool_mode=pool_mode,
-            lock_meta=lock_meta,
-        )
-
-    try:
-        promote_dashboard_alpha_refresh_task_lock(
-            lock_key,
-            task_id="__sync__",
-            timeout=_ALPHA_REFRESH_LOCK_TTL_SECONDS,
-            meta_updates=sync_lock_meta,
-        )
-        task_result = qlib_predict_scores.apply(
-            args=[universe_id, target_date.isoformat(), top_n],
-            kwargs={
-                "scope_payload": scope_payload,
-            },
-        )
-        result_payload = task_result.get(propagate=False)
-        failed = bool(getattr(task_result, "failed", lambda: False)())
-
-        if failed:
-            logger.warning(
-                "Sync alpha inference failed: universe=%s, trade_date=%s, result=%s",
-                universe_id,
-                target_date.isoformat(),
-                result_payload,
-            )
-            return JsonResponse(
-                {"success": False, "error": "同步推理失败，请检查 Qlib 运行状态。"},
-                status=500,
-            )
-
-        if not isinstance(result_payload, dict) or result_payload.get("status") != "success":
-            return JsonResponse(
-                {
-                    "success": False,
-                    "error": "推理完成但无新结果（可能数据不足、数据未更新或非交易日）。",
-                    "alpha_scope": alpha_scope,
-                    "universe_id": universe_id,
-                    "requested_trade_date": target_date.isoformat(),
-                },
-                status=200,
-            )
-
-        if result_payload.get("fallback_used"):
-            message = "同步推理完成，但当前仍使用最近可用 Alpha cache；请先补齐 Qlib 基础数据。"
-        elif result_payload.get("trade_date_adjusted"):
-            effective_trade_date = result_payload.get("effective_trade_date") or result_payload.get(
-                "qlib_data_latest_date"
-            )
-            message = f"同步推理完成，当前基于最近可用交易日 {effective_trade_date} 更新评分。"
-        elif sync_reason == "no_active_workers":
-            message = "未检测到 Celery worker，已改为同步推理并完成评分更新。"
-        elif sync_reason == "unhealthy":
-            message = "Celery 当前异常，已改为同步推理并完成评分更新。"
-        elif sync_reason == "health_check_failed":
-            message = "Celery 健康检查失败，已改为同步推理并完成评分更新。"
-        else:
-            message = "同步推理完成，已更新评分。"
-
-        return JsonResponse({
-            "success": True,
-            "alpha_scope": alpha_scope,
-            "task_id": None,
-            "universe_id": universe_id,
-            "portfolio_id": portfolio_id,
-            "scope_hash": result_payload.get("scope_hash") or scope_hash,
-            "requested_trade_date": target_date.isoformat(),
-            "pool_mode": pool_mode,
-            "message": message,
-            "poll_after_ms": 1000,
-            "sync": True,
-            "sync_reason": sync_reason,
-            "must_not_use_for_decision": True,
-        })
-    finally:
-        release_dashboard_alpha_refresh_lock(lock_key)
-
-
-@login_required(login_url="/account/login/")
-def alpha_stocks_htmx(request):
-    """
-    HTMX Alpha 选股结果视图
-
-    返回 Alpha 选股评分表格，支持动态刷新。
-    """
-    try:
-        top_n = _parse_positive_int_param(
-            request.GET.get('top_n', 10),
-            field_name='top_n',
-            default=10,
-        )
-        raw_portfolio_id = request.GET.get("portfolio_id")
-        pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
-        alpha_scope = normalize_alpha_scope(request.GET.get("alpha_scope"))
-        portfolio_id = (
-            _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
-            if raw_portfolio_id not in (None, "")
-            else None
-        )
-    except ValueError as exc:
-        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-    scores_payload = _get_alpha_stock_scores_payload(
-        top_n=top_n,
-        user=request.user,
-        portfolio_id=None if alpha_scope == ALPHA_SCOPE_GENERAL else portfolio_id,
-        pool_mode=pool_mode,
-        alpha_scope=alpha_scope,
-    )
-    scores = scores_payload["items"]
-    meta = scores_payload["meta"]
-    pool = scores_payload["pool"]
-    actionable_candidates = scores_payload["actionable_candidates"]
-    pending_requests = scores_payload["pending_requests"]
-    recent_runs = scores_payload["recent_runs"]
-    contract = _build_alpha_readiness_contract(
-        meta=meta,
-        top_candidates=scores,
-        actionable_candidates=actionable_candidates,
-        pending_requests=pending_requests,
-    )
-
-    if request.GET.get("format") == "json":
-        return JsonResponse(
-            {
-                "success": True,
-                "data": {
-                    "items": scores,
-                    "top_candidates": scores,
-                    "actionable_candidates": actionable_candidates,
-                    "pending_requests": pending_requests,
-                    "meta": meta,
-                    "pool": pool,
-                    "recent_runs": recent_runs,
-                    "history_run_id": scores_payload["history_run_id"],
-                    "contract": contract,
-                    "alpha_scope": alpha_scope,
-                    "count": len(scores),
-                    "top_n": top_n,
-                },
-            }
-        )
-
-    if 'HX-Request' not in request.headers:
-        from django.shortcuts import redirect
-        return redirect('dashboard:index')
-
-    context = {
-        'alpha_stocks': scores,
-        'alpha_meta': meta,
-        'alpha_pool': pool,
-        'alpha_actionable_candidates': actionable_candidates,
-        'alpha_pending_requests': pending_requests,
-        'alpha_recent_runs': recent_runs,
-        'alpha_history_run_id': scores_payload["history_run_id"],
-        'selected_portfolio_id': portfolio_id or pool.get("portfolio_id"),
-        'selected_alpha_pool_mode': pool_mode or pool.get("pool_mode"),
-        'alpha_scope': alpha_scope,
-        'alpha_pool_mode_choices': get_alpha_pool_mode_choices(),
-        'top_n': top_n,
-    }
-
-    return render(request, 'dashboard/partials/alpha_stocks_table.html', context)
-
-
-@login_required(login_url="/account/login/")
-def alpha_history_page(request):
-    """Dashboard Alpha recommendation history page."""
-    portfolio_id = request.GET.get("portfolio_id")
-    stock_code = str(request.GET.get("stock_code") or "").strip().upper() or None
-    stage = str(request.GET.get("stage") or "").strip() or None
-    source = str(request.GET.get("source") or "").strip() or None
-    try:
-        parsed_portfolio_id = (
-            _parse_positive_int_param(portfolio_id, field_name="portfolio_id", default=0)
-            if portfolio_id not in (None, "")
-            else None
-        )
-    except ValueError:
-        parsed_portfolio_id = None
-    runs = get_alpha_homepage_query().list_history(
-        user_id=request.user.id,
-        portfolio_id=parsed_portfolio_id,
-        stock_code=stock_code,
-        stage=stage,
-        source=source,
-    )
-    context = {
-        "history_runs": runs,
-        "filters": {
-            "portfolio_id": parsed_portfolio_id,
-            "stock_code": stock_code or "",
-            "stage": stage or "",
-            "source": source or "",
-        },
-    }
-    return render(request, "dashboard/alpha_history.html", context)
-
-
-@login_required(login_url="/account/login/")
-def alpha_history_list_api(request):
-    """Return recommendation history list for the current user."""
-    portfolio_id = request.GET.get("portfolio_id")
-    trade_date_raw = request.GET.get("trade_date")
-    try:
-        parsed_portfolio_id = (
-            _parse_positive_int_param(portfolio_id, field_name="portfolio_id", default=0)
-            if portfolio_id not in (None, "")
-            else None
-        )
-        trade_date_value = date.fromisoformat(trade_date_raw) if trade_date_raw else None
-    except ValueError as exc:
-        return JsonResponse({"success": False, "error": str(exc)}, status=400)
-
-    runs = get_alpha_homepage_query().list_history(
-        user_id=request.user.id,
-        portfolio_id=parsed_portfolio_id,
-        stock_code=str(request.GET.get("stock_code") or "").strip().upper() or None,
-        stage=str(request.GET.get("stage") or "").strip() or None,
-        source=str(request.GET.get("source") or "").strip() or None,
-        trade_date=trade_date_value,
-    )
-    return JsonResponse({"success": True, "data": runs})
-
-
-@login_required(login_url="/account/login/")
-def alpha_history_detail_api(request, run_id: int):
-    """Return a single historical recommendation run detail."""
-    detail = get_alpha_homepage_query().get_history_detail(user_id=request.user.id, run_id=run_id)
-    if detail is None:
-        return JsonResponse({"success": False, "error": "历史记录不存在"}, status=404)
-    return JsonResponse({"success": True, "data": detail})
-
-
-@login_required(login_url="/account/login/")
-def alpha_provider_status_htmx(request):
-    """
-    HTMX Alpha Provider 状态视图
-
-    返回 Provider 状态面板 JSON 数据。
-    """
-    provider_status = _get_alpha_provider_status(user=request.user)
-
-    return JsonResponse({
-        'success': True,
-        'data': provider_status,
-        'status': provider_status.get('status', 'available'),
-        'data_source': provider_status.get('data_source', 'live'),
-        'warning_message': provider_status.get('warning_message'),
-    })
-
-
-@login_required(login_url="/account/login/")
-def alpha_coverage_htmx(request):
-    """
-    HTMX Alpha 覆盖率指标视图
-
-    返回覆盖率指标 JSON 数据。
-    """
-    coverage = _get_alpha_coverage_metrics(user=request.user)
-
-    return JsonResponse({
-        'success': True,
-        'data': coverage,
-        'status': coverage.get('status', 'available'),
-        'data_source': coverage.get('data_source', 'live'),
-        'warning_message': coverage.get('warning_message'),
-    })
-
-
-@login_required(login_url="/account/login/")
-def alpha_ic_trends_htmx(request):
-    """
-    HTMX Alpha IC/ICIR 趋势图数据视图
-
-    返回 IC 趋势 JSON 数据。
-    """
-    try:
-        days = _parse_positive_int_param(
-            request.GET.get('days', 30),
-            field_name='days',
-            default=30,
-        )
-    except ValueError as exc:
-        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-    payload = _get_alpha_ic_trends_payload(days=days, user=request.user)
-
-    return JsonResponse({
-        'success': True,
-        'data': payload['items'],
-        'status': payload['status'],
-        'data_source': payload['data_source'],
-        'warning_message': payload['warning_message'],
-    })
-
-
-@login_required(login_url="/account/login/")
-def alpha_factor_panel_htmx(request):
-    """HTMX factor panel for a selected alpha stock."""
-    if 'HX-Request' not in request.headers:
-        return redirect('dashboard:index')
-
-    stock_code = (request.GET.get('code') or '').strip()
-    source = (request.GET.get('source') or '').strip() or None
-    raw_portfolio_id = request.GET.get("portfolio_id")
-    pool_mode = _normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
-    alpha_scope = normalize_alpha_scope(request.GET.get("alpha_scope"))
-    try:
-        top_n = _parse_positive_int_param(
-            request.GET.get('top_n', 10),
-            field_name='top_n',
-            default=10,
-        )
-        portfolio_id = (
-            _parse_positive_int_param(raw_portfolio_id, field_name="portfolio_id", default=0)
-            if raw_portfolio_id not in (None, "")
-            else None
-        )
-    except ValueError as exc:
-        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
-
-    if not stock_code:
-        return render(
-            request,
-            'dashboard/partials/alpha_factor_panel.html',
-            {
-                'stock': None,
-                'stock_code': '',
-                'provider': source or 'unknown',
-                'factor_origin': '',
-                'factors': [],
-                'factor_count': 0,
-                'empty_reason': '请选择左侧一只股票查看因子暴露。',
-                'alpha_scope': alpha_scope,
-                'alpha_meta': {},
-                'alpha_pool': {},
-                'recommendation_basis': {},
-                'factor_basis': [],
-                'buy_reasons': [],
-                'no_buy_reasons': [],
-                'risk_snapshot': {},
-            },
-        )
-
-    context = _build_alpha_factor_panel(
-        stock_code=stock_code,
-        source=source,
-        top_n=top_n,
-        user=request.user,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
-        alpha_scope=alpha_scope,
-    )
-    return render(request, 'dashboard/partials/alpha_factor_panel.html', context)
+alpha_factor_panel_htmx = alpha_stock_views.alpha_factor_panel_htmx
+dashboard_summary_v1 = api_v1_views.dashboard_summary_v1
+regime_quadrant_v1 = api_v1_views.regime_quadrant_v1
+equity_curve_v1 = api_v1_views.equity_curve_v1
+signal_status_v1 = api_v1_views.signal_status_v1
+alpha_decision_chain_v1 = api_v1_views.alpha_decision_chain_v1

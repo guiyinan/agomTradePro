@@ -43,6 +43,12 @@ def get_portfolio_repository() -> PortfolioRepository:
     return PortfolioRepository()
 
 
+def get_portfolio_snapshot_repository() -> PortfolioSnapshotRepository:
+    """Return the account portfolio snapshot repository."""
+
+    return PortfolioSnapshotRepository()
+
+
 def build_market_price_service():
     """Build the default market price service lazily."""
 

@@ -113,6 +113,117 @@
     color: var(--color-text-secondary);
 }
 
+.workspace-exit-summary {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.workspace-exit-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #ecf1f8;
+    color: #425164;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.workspace-exit-pill-urgent {
+    background: #ffe7e7;
+    color: #a33434;
+}
+
+.workspace-exit-pill-sell {
+    background: #ffecec;
+    color: #b42318;
+}
+
+.workspace-exit-pill-reduce {
+    background: #fff0d9;
+    color: #9a6220;
+}
+
+.workspace-exit-card {
+    border: 1px solid #dde6f0;
+    border-radius: 14px;
+    background: #fbfcfe;
+    padding: 12px;
+}
+
+.workspace-exit-card + .workspace-exit-card {
+    margin-top: 10px;
+}
+
+.workspace-exit-card.is-selected {
+    border-color: #3756a4;
+    box-shadow: 0 0 0 2px rgba(55, 86, 164, 0.12);
+}
+
+.workspace-exit-head {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.workspace-exit-code {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.workspace-exit-badge {
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #eef3ff;
+    color: #3756a4;
+}
+
+.workspace-exit-badge-sell {
+    background: #ffe4e4;
+    color: #a33434;
+}
+
+.workspace-exit-badge-reduce {
+    background: #fff1d8;
+    color: #9a6220;
+}
+
+.workspace-exit-badge-hold {
+    background: #edf6ea;
+    color: #2c6f3c;
+}
+
+.workspace-exit-meta,
+.workspace-exit-note {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.workspace-exit-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.workspace-exit-actions a {
+    font-size: 12px;
+    font-weight: 600;
+    color: #164ca1;
+    text-decoration: none;
+}
+
+.workspace-exit-actions a:hover {
+    text-decoration: underline;
+}
+
 .workspace-main {
     min-width: 0;
 }
@@ -326,6 +437,64 @@
                 <ul id="workspace-position-list" class="workspace-position-list">
                     <li class="workspace-sidebar-subtitle">等待账户加载</li>
                 </ul>
+            </div>
+
+            <div class="workspace-sidebar-card">
+                <div class="workspace-sidebar-title">退出链路</div>
+                <p class="workspace-sidebar-subtitle">统一 recommendation / transition plan / signal contract 的当前卖出跟踪入口。</p>
+                {% if workspace_exit_watch_summary.total %}
+                <div class="workspace-exit-summary">
+                    <span class="workspace-exit-pill workspace-exit-pill-urgent">立即处理 {{ workspace_exit_watch_summary.urgent_count|default:0 }}</span>
+                    <span class="workspace-exit-pill workspace-exit-pill-sell">SELL {{ workspace_exit_watch_summary.sell_count|default:0 }}</span>
+                    <span class="workspace-exit-pill workspace-exit-pill-reduce">REDUCE {{ workspace_exit_watch_summary.reduce_count|default:0 }}</span>
+                    <span class="workspace-exit-pill">HOLD {{ workspace_exit_watch_summary.hold_count|default:0 }}</span>
+                </div>
+                {% endif %}
+                {% if workspace_selected_exit_item %}
+                <div class="workspace-exit-card is-selected" style="margin-top: 14px;">
+                    <div class="workspace-exit-head">
+                        <span class="workspace-exit-code">{{ workspace_selected_exit_item.asset_code }}</span>
+                        {% if workspace_selected_exit_item.asset_name %}<span>{{ workspace_selected_exit_item.asset_name }}</span>{% endif %}
+                        <span class="workspace-exit-badge workspace-exit-badge-{{ workspace_selected_exit_item.exit_action|lower }}">{{ workspace_selected_exit_item.exit_action_label }}</span>
+                    </div>
+                    <div class="workspace-exit-meta">
+                        账户 {{ workspace_selected_exit_item.account_name }} · {{ workspace_selected_exit_item.decision_side_label }} · {{ workspace_selected_exit_item.contract_status_label }}
+                    </div>
+                    <div class="workspace-exit-note">
+                        {{ workspace_selected_exit_item.exit_reason_text|default:"当前未触发退出动作。" }}
+                    </div>
+                    <div class="workspace-exit-actions">
+                        <a href="{{ workspace_selected_exit_item.decision_workspace_url }}">停留在当前工作台</a>
+                        <a href="/dashboard/?alpha_scope=portfolio&exit_asset_code={{ workspace_selected_exit_item.asset_code|urlencode }}{% if workspace_selected_exit_item.account_id %}&exit_account_id={{ workspace_selected_exit_item.account_id }}{% endif %}">打开 Dashboard 详情</a>
+                        {% if workspace_selected_exit_item.transition_plan_detail_url %}
+                        <a href="{{ workspace_selected_exit_item.transition_plan_detail_url }}" target="_blank" rel="noopener">调仓计划 API</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if workspace_exit_watchlist %}
+                <div style="margin-top: 12px;">
+                    {% for item in workspace_exit_watchlist %}
+                    <div class="workspace-exit-card{% if item.is_selected %} is-selected{% endif %}">
+                        <div class="workspace-exit-head">
+                            <span class="workspace-exit-code">{{ item.asset_code }}</span>
+                            <span class="workspace-exit-badge workspace-exit-badge-{{ item.exit_action|lower }}">{{ item.exit_action }}</span>
+                            <span>{{ item.priority_label }}</span>
+                        </div>
+                        <div class="workspace-exit-meta">{{ item.account_name }} · {{ item.exit_source }}</div>
+                        <div class="workspace-exit-note">{{ item.invalidation_summary }}</div>
+                        <div class="workspace-exit-actions">
+                            <a href="{{ item.decision_workspace_url }}">在 Workspace 中定位</a>
+                            <a href="/dashboard/?alpha_scope=portfolio&exit_asset_code={{ item.asset_code|urlencode }}{% if item.account_id %}&exit_account_id={{ item.account_id }}{% endif %}">Dashboard 详情</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <ul class="workspace-position-list">
+                    <li class="workspace-sidebar-subtitle">当前没有需要跟踪的退出项。</li>
+                </ul>
+                {% endif %}
             </div>
 
             <div class="workspace-sidebar-card">

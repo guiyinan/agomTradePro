@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from apps.alpha.domain.entities import normalize_stock_code
@@ -163,6 +163,24 @@ class QlibModelRegistryRepository:
         return QlibModelRegistryModel._default_manager.filter(
             activated_at__date=target_date
         ).count()
+
+    def list_recent_metric_rows(self, days: int) -> list[dict[str, Any]]:
+        """Return recent metric rows keyed by created date."""
+
+        from .models import QlibModelRegistryModel
+
+        if days <= 0:
+            return []
+
+        cutoff_date = date.today() - timedelta(days=max(days - 1, 0))
+        rows = (
+            QlibModelRegistryModel._default_manager.filter(
+                created_at__date__gte=cutoff_date,
+            )
+            .order_by("created_at")
+            .values("created_at", "ic", "icir", "rank_ic")
+        )
+        return list(rows)
 
     def get_by_artifact_hash(self, artifact_hash: str) -> Any:
         from .models import QlibModelRegistryModel

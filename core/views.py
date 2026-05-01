@@ -263,6 +263,8 @@ def decision_workspace_view(request):
     from apps.policy.application.repository_provider import get_current_policy_repository
 
     logger = logging.getLogger(__name__)
+    requested_workspace_account_id = str(request.GET.get("account_id") or "").strip()
+    requested_security_code = str(request.GET.get("security_code") or "").strip().upper()
 
     context = {
         "page_title": "决策工作台",
@@ -385,6 +387,42 @@ def decision_workspace_view(request):
         logger.warning(f"Failed to get pending requests: {e}")
         context["pending_requests"] = []
         context["pending_count"] = 0
+
+    # ========== 当前持仓退出链路 ========== 
+    try:
+        from apps.dashboard.interface import views as dashboard_views
+
+        parsed_workspace_account_id = None
+        if requested_workspace_account_id not in {"", "default"}:
+            try:
+                parsed_workspace_account_id = int(requested_workspace_account_id)
+            except (TypeError, ValueError):
+                parsed_workspace_account_id = None
+        exit_alpha_payload = dashboard_views._get_alpha_stock_scores_payload(
+            top_n=10,
+            user=request.user,
+            portfolio_id=None,
+            pool_mode=None,
+            alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
+        )
+        workspace_exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
+            exit_alpha_payload.get("exit_watchlist", []),
+            account_id=parsed_workspace_account_id,
+            asset_code=requested_security_code or None,
+        )
+        workspace_exit_detail = dashboard_views._build_alpha_exit_detail_panel_context(
+            exit_watchlist=workspace_exit_watchlist,
+            account_id=parsed_workspace_account_id,
+            asset_code=requested_security_code or None,
+        )
+        context["workspace_exit_watchlist"] = workspace_exit_watchlist[:5]
+        context["workspace_exit_watch_summary"] = exit_alpha_payload.get("exit_watch_summary", {})
+        context["workspace_selected_exit_item"] = workspace_exit_detail.get("selected")
+    except Exception as e:
+        logger.warning(f"Failed to get workspace exit watchlist: {e}")
+        context["workspace_exit_watchlist"] = []
+        context["workspace_exit_watch_summary"] = {}
+        context["workspace_selected_exit_item"] = None
 
     # ========== 告警信息 ==========
     alerts = []

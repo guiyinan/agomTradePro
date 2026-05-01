@@ -86,7 +86,7 @@
         {% if alpha_meta.cache_created_at %}<span>缓存写入 {{ alpha_meta.cache_created_at }}</span>{% endif %}
         {% if alpha_meta.cache_reason %}<span>调用缓存原因：{{ alpha_meta.cache_reason }}</span>{% endif %}
         {% if alpha_meta.refresh_triggered %}<span>系统已自动触发实时刷新任务。</span>{% endif %}
-        <button type="button" class="btn btn-primary btn-sm" style="margin-left: 12px;" onclick="triggerAlphaRealtimeRefresh(10)">⚡ 立即推理刷新</button>
+        <button type="button" class="btn btn-primary btn-sm" style="margin-left: 12px;" onclick="triggerAlphaRealtimeRefresh({{ top_n|default:10 }}, this)">⚡ 立即推理刷新</button>
     </div>
     {% else %}
     {% if alpha_meta.no_recommendation_reason %}
@@ -104,7 +104,7 @@
         {% endif %}
     </div>
     <div style="margin-top: 12px;">
-        <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
+        <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh({{ top_n|default:10 }}, this)">
             ⚡ 立即推理刷新
         </button>
     </div>
@@ -123,9 +123,16 @@
                 <h4>Alpha Top 候选/排名</h4>
                 <p>{% if alpha_scope == "general" %}通用研究层排序，不生成可执行建议。{% else %}账户专属排序，只有 readiness 通过才可进入可行动候选。{% endif %}</p>
             </div>
-            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-history-link">
-                查看历史记录
-            </a>
+            <div class="alpha-section-actions">
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm"
+                        onclick="triggerAlphaRealtimeRefresh({{ top_n|default:10 }}, this)">
+                    🔄 刷新首页推荐
+                </button>
+                <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-history-link">
+                    查看历史记录
+                </a>
+            </div>
         </div>
         {% if alpha_stocks %}
         <div class="alpha-top-grid">
@@ -221,7 +228,7 @@
                     {{ alpha_meta.no_recommendation_reason|default:"账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。" }}
                 {% endif %}
             </p>
-            <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh(10)">
+            <button type="button" class="btn btn-primary btn-sm" onclick="triggerAlphaRealtimeRefresh({{ top_n|default:10 }}, this)">
                 ⚡ 立即推理刷新
             </button>
         </div>
@@ -239,6 +246,96 @@
     </section>
     {% else %}
     <div class="alpha-secondary-grid">
+        <section class="alpha-section-block alpha-exit-monitor-block">
+            <div class="alpha-section-header">
+                <div>
+                    <h4>持仓退出监控</h4>
+                    <p>已持仓证券统一展示 HOLD / REDUCE / SELL、证伪摘要和退出契约，便于持续跟踪卖出时点。</p>
+                </div>
+                <span class="alpha-pill">{{ alpha_exit_watchlist|length }}</span>
+            </div>
+            {% if alpha_exit_watch_summary.total %}
+            <div class="alpha-exit-summary-row">
+                <span class="alpha-summary-pill alpha-summary-pill-urgent">立即处理 {{ alpha_exit_watch_summary.urgent_count|default:0 }}</span>
+                <span class="alpha-summary-pill alpha-summary-pill-sell">SELL {{ alpha_exit_watch_summary.sell_count|default:0 }}</span>
+                <span class="alpha-summary-pill alpha-summary-pill-reduce">REDUCE {{ alpha_exit_watch_summary.reduce_count|default:0 }}</span>
+                <span class="alpha-summary-pill">HOLD {{ alpha_exit_watch_summary.hold_count|default:0 }}</span>
+            </div>
+            {% endif %}
+            {% if alpha_exit_watchlist %}
+            <div class="alpha-exit-panel-sync"
+                 hx-get="{% url 'api_dashboard:alpha_exit_panel' %}?asset_code={% if alpha_exit_selected_asset_code %}{{ alpha_exit_selected_asset_code|urlencode }}{% else %}{{ alpha_exit_watchlist.0.asset_code|urlencode }}{% endif %}{% if alpha_exit_selected_account_id %}&account_id={{ alpha_exit_selected_account_id }}{% elif alpha_exit_watchlist.0.account_id %}&account_id={{ alpha_exit_watchlist.0.account_id }}{% endif %}&top_n={{ top_n|default:10 }}&alpha_scope={{ alpha_scope|default:'portfolio'|urlencode }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
+                 hx-trigger="load"
+                 hx-target="#alphaExitDetailPanel"
+                 hx-swap="innerHTML"
+                 aria-hidden="true"></div>
+            <div class="alpha-list">
+                {% for item in alpha_exit_watchlist %}
+                <div class="alpha-list-item alpha-list-item-exit alpha-list-item-exit-{{ item.exit_action|lower }}{% if item.is_selected %} is-selected{% endif %}"
+                     hx-get="{% url 'api_dashboard:alpha_exit_panel' %}?asset_code={{ item.asset_code|urlencode }}{% if item.account_id %}&account_id={{ item.account_id }}{% endif %}&top_n={{ top_n|default:10 }}&alpha_scope={{ alpha_scope|default:'portfolio'|urlencode }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
+                     hx-trigger="click"
+                     hx-target="#alphaExitDetailPanel"
+                     hx-swap="innerHTML"
+                     onclick="this.closest('.alpha-list').querySelectorAll('.alpha-list-item-exit').forEach(function(el){el.classList.remove('is-selected');}); this.classList.add('is-selected');">
+                    <div class="alpha-list-main">
+                        <strong>{{ item.asset_code }}</strong>
+                        <span>{{ item.asset_name }}</span>
+                        <span class="alpha-exit-badge alpha-exit-badge-{{ item.exit_action|lower }}">{{ item.exit_action_label }}</span>
+                        <span class="alpha-priority-text">{{ item.priority_label }}</span>
+                    </div>
+                    <div class="alpha-list-meta">
+                        <span>账户 {{ item.account_name }}</span>
+                        <span>持仓 {{ item.shares|floatformat:0 }}</span>
+                        <span>市值 {{ item.market_value|floatformat:0 }}</span>
+                        <span>决策侧 {{ item.decision_side_label }}</span>
+                    </div>
+                    <div class="alpha-list-meta">
+                        {% if item.stop_loss_price %}<span>止损 {{ item.stop_loss_price }}</span>{% endif %}
+                        {% if item.target_price_low or item.target_price_high %}
+                        <span>目标带 {{ item.target_price_low|default:"-" }} - {{ item.target_price_high|default:"-" }}</span>
+                        {% endif %}
+                        <span>{{ item.contract_status_label }}</span>
+                        {% if item.reduce_quantity %}<span>建议减仓 {{ item.reduce_quantity }}</span>{% endif %}
+                    </div>
+                    <div class="alpha-list-text">退出来源：{{ item.exit_source }}{% if item.exit_reason_text %}；{{ item.exit_reason_text }}{% endif %}</div>
+                    <div class="alpha-list-text">证伪/跟踪：{{ item.invalidation_summary }}</div>
+                    {% if item.source_signal_ids %}
+                    <div class="alpha-list-text">来源信号：{{ item.source_signal_ids|join:", " }}</div>
+                    {% endif %}
+                    <div class="alpha-list-actions">
+                        {% if item.account_detail_url %}
+                        <a href="{{ item.account_detail_url }}" class="alpha-inline-link" onclick="event.stopPropagation();">
+                            查看账户持仓
+                        </a>
+                        {% endif %}
+                        {% if item.recommendation_detail_url %}
+                        <a href="{{ item.recommendation_detail_url }}" class="alpha-inline-link" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                            推荐明细 API
+                        </a>
+                        {% endif %}
+                        {% if item.transition_plan_detail_url %}
+                        <a href="{{ item.transition_plan_detail_url }}" class="alpha-inline-link" target="_blank" rel="noopener" onclick="event.stopPropagation();">
+                            调仓计划 API
+                        </a>
+                        {% endif %}
+                        <a href="{{ item.decision_workspace_url|default:'/decision/workspace/' }}" class="alpha-inline-link" onclick="event.stopPropagation();">
+                            进入决策工作台
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alpha-exit-panel-sync"
+                 hx-get="{% url 'api_dashboard:alpha_exit_panel' %}?top_n={{ top_n|default:10 }}&alpha_scope={{ alpha_scope|default:'portfolio'|urlencode }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
+                 hx-trigger="load"
+                 hx-target="#alphaExitDetailPanel"
+                 hx-swap="innerHTML"
+                 aria-hidden="true"></div>
+            <p class="alpha-empty-inline">当前没有可展示的持仓退出监控项。</p>
+            {% endif %}
+        </section>
+
         <section class="alpha-section-block">
             <div class="alpha-section-header">
                 <div>
@@ -382,12 +479,17 @@
 .alpha-pool-meta,
 .alpha-cache-summary,
 .alpha-history-meta,
-.alpha-stock-score-row {
+.alpha-stock-score-row,
+.alpha-exit-summary-row {
     display: flex;
     flex-wrap: wrap;
     gap: 10px 14px;
     font-size: 12px;
     color: #556274;
+}
+
+.alpha-exit-summary-row {
+    margin-bottom: 10px;
 }
 
 .alpha-pool-reason,
@@ -453,13 +555,15 @@
 }
 
 .alpha-history-link,
-.alpha-stock-link {
+.alpha-stock-link,
+.alpha-inline-link {
     color: #164ca1;
     text-decoration: none;
 }
 
 .alpha-history-link:hover,
-.alpha-stock-link:hover {
+.alpha-stock-link:hover,
+.alpha-inline-link:hover {
     text-decoration: underline;
 }
 
@@ -477,6 +581,32 @@
 .alpha-stage-badge-top_ranked {
     background: #eef3ff;
     color: #3756a4;
+}
+
+.alpha-summary-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #eef3ff;
+    color: #3756a4;
+}
+
+.alpha-summary-pill-urgent {
+    background: #ffe5e5;
+    color: #a33434;
+}
+
+.alpha-summary-pill-sell {
+    background: #fff0f0;
+    color: #a33434;
+}
+
+.alpha-summary-pill-reduce {
+    background: #fff3df;
+    color: #9a6220;
 }
 
 .alpha-stage-badge-actionable {
@@ -590,6 +720,72 @@
 
 .alpha-list-item-pending {
     background: #fffaf2;
+}
+
+.alpha-list-item-exit {
+    background: #f8fbff;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.alpha-list-item-exit-sell {
+    border-color: #f1c5c5;
+    background: #fff6f6;
+}
+
+.alpha-list-item-exit-reduce {
+    border-color: #ecd7a5;
+    background: #fffaf0;
+}
+
+.alpha-exit-monitor-block {
+    grid-column: 1 / -1;
+}
+
+.alpha-list-item-exit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.alpha-list-item-exit.is-selected {
+    border-color: #3756a4;
+    box-shadow: 0 0 0 2px rgba(55, 86, 164, 0.12);
+}
+
+.alpha-exit-panel-sync {
+    display: none;
+}
+
+.alpha-exit-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #edf3ff;
+    color: #3756a4;
+}
+
+.alpha-exit-badge-sell {
+    background: #ffe4e4;
+    color: #a33434;
+}
+
+.alpha-exit-badge-reduce {
+    background: #fff1d8;
+    color: #9a6220;
+}
+
+.alpha-exit-badge-hold {
+    background: #edf6ea;
+    color: #2c6f3c;
+}
+
+.alpha-priority-text {
+    color: #a33434;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .alpha-list-main,
