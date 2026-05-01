@@ -1,4 +1,4 @@
-from shared.infrastructure.asset_analysis_registry import (
+from core.integration.asset_analysis_market_registry import (
     AssetAnalysisMarketRegistry,
 )
 

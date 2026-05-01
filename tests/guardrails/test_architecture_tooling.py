@@ -227,6 +227,94 @@ def test_verify_architecture_domain_rule_blocks_application_and_infrastructure_i
     assert violations[0]["rule_id"] == "apps_domain_no_application_or_infrastructure_imports"
 
 
+def test_verify_architecture_application_line_rule_blocks_transaction_and_get_model():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_application_line_rule",
+    )
+    rule = {
+        "id": "apps_application_no_transaction_or_get_model",
+        "description": "Application layers must not own transaction scopes or dynamic model resolution.",
+        "source_roots": ["apps"],
+        "source_layers": ["application"],
+        "forbidden_line_patterns": [
+            r"with\s+transaction\.atomic\(",
+            r"@\s*transaction\.atomic\b",
+            r"transaction\.atomic\(",
+            r"django_apps\.get_model\(",
+            r"\bapps\.get_model\(",
+        ],
+    }
+    records = [
+        module.LineRecord(
+            source_path="apps/share/application/use_cases.py",
+            source_root="apps",
+            source_module="share",
+            source_layer="application",
+            lineno=10,
+            line_text="        with transaction.atomic():",
+        ),
+        module.LineRecord(
+            source_path="apps/share/application/use_cases.py",
+            source_root="apps",
+            source_module="share",
+            source_layer="application",
+            lineno=11,
+            line_text='        model = django_apps.get_model("share", "ShareLinkModel")',
+        ),
+    ]
+
+    violations = module.find_line_violations(records, [rule])
+
+    assert len(violations) == 2
+    assert violations[0]["rule_id"] == "apps_application_no_transaction_or_get_model"
+    assert violations[1]["rule_id"] == "apps_application_no_transaction_or_get_model"
+
+
+def test_verify_architecture_app_root_model_shim_rule_exempts_admin_only():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_model_shim_rule",
+    )
+    rule = {
+        "id": "apps_no_app_root_model_shim_imports_outside_admin",
+        "description": "Only admin entrypoints may import app-root models.py shims.",
+        "source_roots": ["apps"],
+        "exclude_path_patterns": [
+            r"(^|/)admin\.py$",
+            r"^apps/[^/]+/models\.py$",
+            r"/migrations/",
+        ],
+        "forbidden_import_patterns": [r"^apps\.[^.]+\.models$"],
+    }
+    records = [
+        module.ImportRecord(
+            source_path="apps/alpha/interface/admin.py",
+            source_root="apps",
+            source_module="alpha",
+            source_layer="interface",
+            import_path="apps.alpha.models",
+            target_module="alpha",
+            lineno=3,
+        ),
+        module.ImportRecord(
+            source_path="apps/alpha/interface/views.py",
+            source_root="apps",
+            source_module="alpha",
+            source_layer="interface",
+            import_path="apps.alpha.models",
+            target_module="alpha",
+            lineno=5,
+        ),
+    ]
+
+    violations = module.find_import_violations(records, [rule])
+
+    assert len(violations) == 1
+    assert violations[0]["source_path"] == "apps/alpha/interface/views.py"
+    assert violations[0]["rule_id"] == "apps_no_app_root_model_shim_imports_outside_admin"
+
+
 def test_scaffold_application_providers_renders_grouped_imports():
     module = _load_script_module(
         "scaffold_application_providers.py",

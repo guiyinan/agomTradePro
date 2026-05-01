@@ -6,6 +6,7 @@ from apps.sentiment.infrastructure.providers import (
     SentimentAlertRepository,
     SentimentAnalysisLogRepository,
     SentimentCacheRepository,
+    SentimentConfigRepository,
     SentimentIndexRepository,
 )
 
@@ -32,3 +33,9 @@ def get_sentiment_alert_repository() -> SentimentAlertRepository:
     """Return the configured sentiment alert repository."""
 
     return SentimentAlertRepository()
+
+
+def get_sentiment_config_repository() -> SentimentConfigRepository:
+    """Return the configured sentiment config repository."""
+
+    return SentimentConfigRepository()

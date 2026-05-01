@@ -7,13 +7,12 @@ Account Interface Views
 import json
 import logging
 from decimal import Decimal
-from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -44,45 +43,6 @@ def _get_token_name_from_request(request, default_prefix: str = "token") -> str:
     if raw_name:
         return raw_name
     return f"{default_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
-
-
-def _determine_registration_status(*, system_settings, user: User) -> tuple[str, str]:
-    """Compute approval status and RBAC role for a newly registered user."""
-    from django.db.models import Q
-
-    has_admin = User._default_manager.filter(Q(is_superuser=True) | Q(is_staff=True)).exclude(
-        pk=user.pk
-    ).exists()
-
-    if not system_settings.require_user_approval:
-        user.is_active = True
-        return "auto_approved", "owner"
-    if not has_admin and system_settings.auto_approve_first_admin:
-        user.is_superuser = True
-        user.is_staff = True
-        user.is_active = True
-        return "auto_approved", "admin"
-    return "pending", "owner"
-
-
-def _provision_registered_user(
-    *,
-    user: User,
-    display_name: str,
-    system_settings: Any,
-    client_ip: str | None,
-    approval_status: str,
-    rbac_role: str,
-) -> None:
-    """Persist registration-related account records in one transaction."""
-    interface_services.provision_registered_user(
-        user=user,
-        display_name=display_name,
-        system_settings=system_settings,
-        client_ip=client_ip,
-        approval_status=approval_status,
-        rbac_role=rbac_role,
-    )
 
 
 def _add_flash_message(request, level: str, message: str) -> None:
@@ -134,7 +94,7 @@ def register_view(request):
                 },
             )
 
-        if User._default_manager.filter(username=username).exists():
+        if interface_services.username_exists(username):
             messages.error(request, "用户名已存在")
             return render(
                 request,
@@ -167,27 +127,15 @@ def register_view(request):
 
         # 创建用户
         try:
-            with transaction.atomic():
-                user = User._default_manager.create_user(
-                    username=username,
-                    email=email,
-                    password=password,
-                    is_active=False,
-                )
-                approval_status, rbac_role = _determine_registration_status(
-                    system_settings=system_settings,
-                    user=user,
-                )
-                user.save(update_fields=["is_active", "is_superuser", "is_staff"])
-
-                _provision_registered_user(
-                    user=user,
-                    display_name=display_name,
-                    system_settings=system_settings,
-                    client_ip=get_client_ip(request),
-                    approval_status=approval_status,
-                    rbac_role=rbac_role,
-                )
+            registration = interface_services.register_user(
+                username=username,
+                email=email,
+                password=password,
+                display_name=display_name,
+                client_ip=get_client_ip(request),
+            )
+            user = registration.user
+            approval_status = registration.approval_status
 
             # 根据审批状态显示不同消息
             if approval_status == "pending":
@@ -200,7 +148,10 @@ def register_view(request):
                 login(request, user)
 
                 admin_msg = " 您已成为系统管理员。" if user.is_superuser else ""
-                messages.success(request, f"欢迎加入 AgomTradePro，{display_name}！{admin_msg}")
+                messages.success(
+                    request,
+                    f"欢迎加入 AgomTradePro，{registration.display_name}！{admin_msg}",
+                )
                 return redirect("/dashboard/")
 
         except IntegrityError:
@@ -251,12 +202,6 @@ def login_view(request):
     GET: 显示登录表单
     POST: 处理登录请求
     """
-    from django.contrib.auth import get_user_model
-
-    User = get_user_model()
-
-    has_admin = User.objects.filter(is_superuser=True).exists()
-
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
@@ -275,9 +220,7 @@ def login_view(request):
     return render(
         request,
         "account/login.html",
-        {
-            "has_admin": has_admin,
-        },
+        interface_services.build_login_context(),
     )
 
 
@@ -467,7 +410,7 @@ def portfolio_volatility_api_view(request):
 
     try:
         # 获取投资组合ID（默认活跃组合）
-        portfolio = request.user.portfolios.filter(is_active=True).first()
+        portfolio = interface_services.get_active_portfolio_for_user(request.user.id)
 
         if not portfolio:
             return JsonResponse({"success": False, "error": "暂无投资组合"}, status=404)

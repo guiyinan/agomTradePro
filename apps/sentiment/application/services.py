@@ -14,7 +14,10 @@ from typing import List, Optional
 from django.utils import timezone
 
 from apps.ai_provider.application.client_provider import build_openai_compatible_adapter
-from apps.sentiment.application.repository_provider import get_sentiment_alert_repository
+from apps.sentiment.application.repository_provider import (
+    get_sentiment_alert_repository,
+    get_sentiment_config_repository,
+)
 from apps.ai_provider.domain.entities import AIChatRequest
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
@@ -22,7 +25,6 @@ from apps.sentiment.domain.entities import (
     SentimentIndex,
     SentimentSource,
 )
-from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +349,9 @@ class SentimentIndexCalculator:
     负责根据多个情感分析结果计算综合情绪指数。
     """
 
+    def __init__(self, config_repository=None):
+        self.config_repository = config_repository or get_sentiment_config_repository()
+
     def calculate_index(
         self,
         news_scores: list[float],
@@ -368,13 +373,9 @@ class SentimentIndexCalculator:
         """
         # 从配置读取权重（如果未指定）
         if news_weight is None:
-            news_weight = ConfigHelper.get_float(
-                ConfigKeys.SENTIMENT_NEWS_WEIGHT, DEFAULT_NEWS_WEIGHT
-            )
+            news_weight = self.config_repository.get_news_weight(DEFAULT_NEWS_WEIGHT)
         if policy_weight is None:
-            policy_weight = ConfigHelper.get_float(
-                ConfigKeys.SENTIMENT_POLICY_WEIGHT, DEFAULT_POLICY_WEIGHT
-            )
+            policy_weight = self.config_repository.get_policy_weight(DEFAULT_POLICY_WEIGHT)
         # 计算新闻情绪
         news_sentiment = self._weighted_average(news_scores) if news_scores else 0.0
 

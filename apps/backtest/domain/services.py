@@ -198,7 +198,8 @@ class BacktestEngine:
         config: BacktestConfig,
         get_regime_func: Callable[[date], dict | None],
         get_asset_price_func: Callable[[str, date], float | None],
-        pit_processor: PITDataProcessor | None = None
+        pit_processor: PITDataProcessor | None = None,
+        risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
     ):
         """
         Args:
@@ -206,11 +207,13 @@ class BacktestEngine:
             get_regime_func: 获取 Regime 的函数 (date) -> Dict
             get_asset_price_func: 获取资产价格的函数 (asset_class, date) -> float
             pit_processor: Point-in-Time 数据处理器
+            risk_free_rate: Annual risk-free rate used for Sharpe calculation
         """
         self.config = config
         self.get_regime = get_regime_func
         self.get_price = get_asset_price_func
         self.pit_processor = pit_processor
+        self.risk_free_rate = risk_free_rate
 
         # 内部状态
         self._cash = config.initial_capital
@@ -534,17 +537,7 @@ class BacktestEngine:
         if annualized_std == 0:
             return None
 
-        # 从配置获取无风险利率
-        try:
-            from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
-            risk_free_rate = ConfigHelper.get_float(
-                ConfigKeys.BACKTEST_RISK_FREE_RATE,
-                DEFAULT_RISK_FREE_RATE
-            )
-        except ImportError:
-            risk_free_rate = DEFAULT_RISK_FREE_RATE
-
-        return (annualized_mean - risk_free_rate) / annualized_std
+        return (annualized_mean - self.risk_free_rate) / annualized_std
 
     def _calculate_max_drawdown(self) -> float:
         """计算最大回撤"""

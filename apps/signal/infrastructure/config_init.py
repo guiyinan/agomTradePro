@@ -6,16 +6,18 @@ Configuration Initialization for Domain Layer
 
 from typing import Dict
 
+from django.apps import apps as django_apps
+
 from apps.signal.domain import rules as signal_rules
 from apps.signal.domain.entities import Eligibility
-from shared.infrastructure.models import RegimeEligibilityConfigModel
 
 
 def _load_eligibility_matrix_from_db() -> dict[str, dict[str, Eligibility]]:
     """从数据库加载准入矩阵"""
     matrix = {}
 
-    configs = RegimeEligibilityConfigModel.objects.filter(is_active=True)
+    regime_eligibility_model = django_apps.get_model("regime", "RegimeEligibilityConfigModel")
+    configs = regime_eligibility_model._default_manager.filter(is_active=True)
 
     for config in configs:
         if config.asset_class not in matrix:

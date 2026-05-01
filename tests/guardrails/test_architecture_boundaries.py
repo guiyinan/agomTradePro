@@ -56,6 +56,7 @@ def test_guardrail_architecture_audit_report_can_be_generated(tmp_path):
             "--format",
             "text",
             "--include-audit",
+            "--fail-on-audit-violations",
             "--write-report",
             str(report_path),
         ],
@@ -73,12 +74,15 @@ def test_guardrail_architecture_audit_report_can_be_generated(tmp_path):
     assert report["violation_count"] == 0
     assert "audit" in report
     assert report["audit"]["rule_count"] == len(ruleset["audit_rules"])
-    assert report["audit"]["violation_count"] >= 0
+    assert report["audit"]["violation_count"] == 0
 
     audit_rule_ids = {rule["id"] for rule in ruleset["audit_rules"]}
     assert "core_application_no_cross_app_infrastructure_access" in audit_rule_ids
     assert "shared_no_apps_dependencies" in audit_rule_ids
     assert "apps_application_no_pandas_numpy_imports" in audit_rule_ids
+    assert "apps_application_no_transaction_or_get_model" in audit_rule_ids
+    assert "apps_no_app_root_model_shim_imports_outside_admin" in audit_rule_ids
+    assert "no_retired_shared_business_compat_imports" in audit_rule_ids
     assert "apps_no_misplaced_app_config" in audit_rule_ids
     assert (
         "apps_application_no_same_app_infrastructure_imports_except_repository_provider"

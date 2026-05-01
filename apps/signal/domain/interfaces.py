@@ -145,6 +145,27 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
+    def persist_invalidation_outcome(
+        self,
+        *,
+        signal_id: str,
+        current_status: str,
+        reason: str,
+        details: dict[str, Any],
+    ) -> bool:
+        """Persist an invalidation outcome for legacy compatibility callers.
+
+        Args:
+            signal_id: The signal's unique identifier
+            current_status: The signal status before invalidation handling
+            reason: The rejection/invalidation reason
+            details: Additional invalidation details to persist
+
+        Returns:
+            True if updated, False if not found
+        """
+        ...
+
     def update_signal_status(
         self,
         signal_id: str,

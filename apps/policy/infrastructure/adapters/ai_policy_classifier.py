@@ -26,7 +26,7 @@ from apps.policy.domain.entities import (
     StructuredPolicyData,
 )
 from apps.policy.domain.interfaces import PolicyClassifierProtocol
-from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)
 

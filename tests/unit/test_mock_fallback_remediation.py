@@ -22,7 +22,6 @@ from apps.sector.application.use_cases import (
 )
 from apps.sector.domain.entities import SectorIndex, SectorInfo
 from shared.infrastructure.config_loader import get_asset_ticker, get_indicator_config
-from shared.infrastructure.models import SectorPreferenceConfigModel
 
 
 class _FakeSectorRepo:
@@ -56,6 +55,9 @@ class _FakeSectorRepo:
 
     def get_all_sectors(self, level: str):
         return [self._sector]
+
+    def get_sector_weights_by_regime(self, regime: str):
+        return {"农林牧渔": 0.8}
 
     def get_sector_index_range(self, sector_code: str, start_date: date, end_date: date):
         return self._indices
@@ -109,12 +111,6 @@ def test_rotation_price_service_returns_none_when_market_data_unavailable(monkey
 
 @pytest.mark.django_db
 def test_sector_rotation_returns_degraded_when_market_returns_missing():
-    SectorPreferenceConfigModel.objects.create(
-        regime="Recovery",
-        sector_name="农林牧渔",
-        weight=0.8,
-        is_active=True,
-    )
     use_case = AnalyzeSectorRotationUseCase(
         sector_repo=_FakeSectorRepo(),
         market_adapter=_UnavailableMarketAdapter(),

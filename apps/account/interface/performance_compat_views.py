@@ -11,12 +11,13 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from django.apps import apps as django_apps
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.account.application import interface_services
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +27,7 @@ def _resolve_account_id(portfolio_id: int) -> Optional[int]:
     通过 LedgerMigrationMapModel 将 portfolio_id 映射到统一账户 ID。
     未找到映射则返回 None。
     """
-    LedgerMigrationMapModel = django_apps.get_model("simulated_trading", "LedgerMigrationMapModel")
-
-    mapping = (
-        LedgerMigrationMapModel.objects.filter(
-            source_table="portfolio",
-            source_id=portfolio_id,
-            target_table="simulated_account",
-        )
-        .values_list("target_id", flat=True)
-        .first()
-    )
-    return mapping
+    return interface_services.get_unified_account_id_for_portfolio(portfolio_id)
 
 
 def _delegate(request: Request, account_id: int, view_class, **kwargs):

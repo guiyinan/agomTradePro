@@ -25,6 +25,19 @@ logger = logging.getLogger(__name__)
 class DjangoAuditRepository:
     """Audit 数据仓储"""
 
+    def get_database_health(self) -> dict[str, str]:
+        """Run a lightweight database probe and return connection metadata."""
+
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+
+        return {
+            "database": str(connection.settings_dict["NAME"]),
+            "engine": str(connection.settings_dict["ENGINE"]),
+        }
+
     def save_attribution_report(
         self,
         backtest_id: int,

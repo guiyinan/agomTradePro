@@ -9,7 +9,6 @@ P1-4: 接入输入消毒，防止 XSS 攻击
 from datetime import date
 from typing import Optional
 
-from django.apps import apps as django_apps
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -18,10 +17,46 @@ from shared.sanitization import sanitize_plain_text
 
 from ..domain.entities import PolicyLevel
 
-PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
-PolicyLog = django_apps.get_model("policy", "PolicyLog")
-RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
-RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
+POLICY_LEVEL_CHOICES = [
+    ("PX", "PX - 待分类"),
+    ("P0", "P0 - 常态"),
+    ("P1", "P1 - 预警"),
+    ("P2", "P2 - 干预"),
+    ("P3", "P3 - 危机"),
+]
+
+RSS_SOURCE_CATEGORY_CHOICES = [
+    ("gov_docs", "政府文件库"),
+    ("central_bank", "央行公告"),
+    ("mof", "财政部"),
+    ("csrc", "证监会"),
+    ("media", "财经媒体"),
+    ("other", "其他"),
+]
+
+RSS_PARSER_TYPE_CHOICES = [
+    ("feedparser", "feedparser"),
+    ("httpx", "httpx+manual"),
+]
+
+RSS_PROXY_TYPE_CHOICES = [
+    ("http", "HTTP"),
+    ("https", "HTTPS"),
+    ("socks5", "SOCKS5"),
+]
+
+RSS_FETCH_STATUS_CHOICES = [
+    ("success", "成功"),
+    ("error", "失败"),
+    ("partial", "部分成功"),
+]
+
+RSSHUB_FORMAT_CHOICES = [
+    ("", "默认"),
+    ("rss", "RSS 2.0"),
+    ("atom", "Atom"),
+    ("json", "JSON Feed"),
+]
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -100,24 +135,17 @@ class PolicyEventSerializer(serializers.Serializer):
         return attrs
 
 
-class PolicyLogSerializer(serializers.ModelSerializer):
-    """PolicyLog ORM 模型序列化器"""
+class PolicyLogSerializer(serializers.Serializer):
+    """Policy log output serializer."""
 
+    id = serializers.IntegerField(read_only=True)
+    event_date = serializers.DateField()
+    level = serializers.ChoiceField(choices=POLICY_LEVEL_CHOICES)
     level_display = serializers.CharField(source="get_level_display", read_only=True)
-
-    class Meta:
-        model = PolicyLog
-        fields = [
-            'id',
-            'event_date',
-            'level',
-            'level_display',
-            'title',
-            'description',
-            'evidence_url',
-            'created_at'
-        ]
-        read_only_fields = ['id', 'created_at']
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField()
+    evidence_url = serializers.URLField(max_length=500)
+    created_at = serializers.DateTimeField(read_only=True)
 
 
 class PolicyStatusSerializer(serializers.Serializer):
@@ -187,54 +215,121 @@ class PolicyHistoryWithStatsSerializer(serializers.Serializer):
 
 # ========== RSS 相关序列化器 ==========
 
-class RSSSourceConfigSerializer(serializers.ModelSerializer):
-    """RSS源配置序列化器"""
+class RSSSourceConfigSerializer(serializers.Serializer):
+    """RSS source config serializer."""
 
-    category_display = serializers.CharField(source='get_category_display', read_only=True)
-    parser_type_display = serializers.CharField(source='get_parser_type_display', read_only=True)
-    proxy_type_display = serializers.CharField(source='get_proxy_type_display', read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(max_length=100)
+    url = serializers.URLField(max_length=500)
+    category = serializers.ChoiceField(choices=RSS_SOURCE_CATEGORY_CHOICES)
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    is_active = serializers.BooleanField()
+    fetch_interval_hours = serializers.IntegerField(min_value=1, max_value=168)
+    extract_content = serializers.BooleanField(default=False)
+    proxy_enabled = serializers.BooleanField(default=False)
+    proxy_host = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    proxy_port = serializers.IntegerField(
+        min_value=1,
+        max_value=65535,
+        allow_null=True,
+        required=False,
+    )
+    proxy_username = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    proxy_password = serializers.CharField(
+        max_length=200,
+        allow_blank=True,
+        required=False,
+        write_only=True,
+    )
+    proxy_type = serializers.ChoiceField(
+        choices=RSS_PROXY_TYPE_CHOICES,
+        default="http",
+    )
+    proxy_type_display = serializers.CharField(
+        source="get_proxy_type_display",
+        read_only=True,
+    )
+    parser_type = serializers.ChoiceField(
+        choices=RSS_PARSER_TYPE_CHOICES,
+        default="feedparser",
+    )
+    parser_type_display = serializers.CharField(
+        source="get_parser_type_display",
+        read_only=True,
+    )
+    timeout_seconds = serializers.IntegerField(min_value=5, max_value=120, default=30)
+    retry_times = serializers.IntegerField(min_value=0, max_value=10, default=3)
+    rsshub_enabled = serializers.BooleanField(default=False)
+    rsshub_route_path = serializers.CharField(max_length=500, allow_blank=True, required=False)
+    rsshub_use_global_config = serializers.BooleanField(default=True)
+    rsshub_custom_base_url = serializers.URLField(
+        max_length=500,
+        allow_blank=True,
+        required=False,
+    )
+    rsshub_custom_access_key = serializers.CharField(
+        max_length=200,
+        allow_blank=True,
+        required=False,
+    )
+    rsshub_format = serializers.ChoiceField(
+        choices=RSSHUB_FORMAT_CHOICES,
+        allow_blank=True,
+        required=False,
+        default="",
+    )
+    last_fetch_at = serializers.DateTimeField(read_only=True)
+    last_fetch_status = serializers.CharField(read_only=True)
+    last_error_message = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
-    class Meta:
-        model = RSSSourceConfigModel
-        fields = '__all__'
-        extra_kwargs = {
-            'proxy_password': {'write_only': True}  # 密码只写，不返回
-        }
+
+class RSSSourceConfigCreateSerializer(RSSSourceConfigSerializer):
+    """RSS source write serializer."""
 
 
-class RSSSourceConfigCreateSerializer(serializers.ModelSerializer):
-    """RSS源配置创建序列化器"""
+class PolicyLevelKeywordSerializer(serializers.Serializer):
+    """Policy level keyword serializer."""
 
-    class Meta:
-        model = RSSSourceConfigModel
-        fields = [
-            'name', 'url', 'category', 'is_active',
-            'fetch_interval_hours', 'parser_type', 'timeout_seconds',
-            'retry_times', 'extract_content',
-            'proxy_enabled', 'proxy_host', 'proxy_port',
-            'proxy_username', 'proxy_password', 'proxy_type'
-        ]
+    id = serializers.IntegerField(read_only=True)
+    level = serializers.ChoiceField(choices=POLICY_LEVEL_CHOICES)
+    level_display = serializers.CharField(source="get_level_display", read_only=True)
+    keywords = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        allow_empty=False,
+    )
+    weight = serializers.IntegerField()
+    category = serializers.CharField(
+        max_length=50,
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
+    is_active = serializers.BooleanField(default=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    def validate_keywords(self, value):
+        cleaned = [keyword.strip() for keyword in value if keyword.strip()]
+        if not cleaned:
+            raise serializers.ValidationError("至少填写一个关键词")
+        return cleaned
 
 
-class PolicyLevelKeywordSerializer(serializers.ModelSerializer):
-    """政策档位关键词规则序列化器"""
+class RSSFetchLogSerializer(serializers.Serializer):
+    """RSS fetch log serializer."""
 
-    level_display = serializers.CharField(source='get_level_display', read_only=True)
-
-    class Meta:
-        model = PolicyLevelKeywordModel
-        fields = '__all__'
-
-
-class RSSFetchLogSerializer(serializers.ModelSerializer):
-    """RSS抓取日志序列化器"""
-
-    source_name = serializers.CharField(source='source.name', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-
-    class Meta:
-        model = RSSFetchLog
-        fields = '__all__'
+    id = serializers.IntegerField(read_only=True)
+    source = serializers.IntegerField(source="source_id", read_only=True)
+    source_name = serializers.CharField(source="source.name", read_only=True)
+    fetched_at = serializers.DateTimeField(read_only=True)
+    status = serializers.ChoiceField(choices=RSS_FETCH_STATUS_CHOICES, read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    items_count = serializers.IntegerField(read_only=True)
+    new_items_count = serializers.IntegerField(read_only=True)
+    error_message = serializers.CharField(read_only=True)
+    fetch_duration_seconds = serializers.FloatField(read_only=True, allow_null=True)
 
 
 class RSSFetchOutputSerializer(serializers.Serializer):

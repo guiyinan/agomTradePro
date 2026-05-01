@@ -10,6 +10,7 @@ from apps.asset_analysis.application.dtos import ScreenRequest, ScreenResponse
 from apps.asset_analysis.application.repository_provider import (
     get_asset_pool_query_repository,
     get_asset_repository,
+    get_registered_pool_screener,
     get_weight_config_repository,
 )
 from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
@@ -18,9 +19,6 @@ from apps.policy.application.repository_provider import get_current_policy_repos
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.sentiment.application.repository_provider import get_sentiment_index_repository
 from apps.signal.application.repository_provider import get_signal_repository
-from shared.infrastructure.asset_analysis_registry import (
-    get_asset_analysis_market_registry,
-)
 
 
 @dataclass(frozen=True)
@@ -117,7 +115,7 @@ def get_current_weight_config(
 
 def screen_equity_assets(context: ScoreContext, filters: dict[str, Any]) -> list[Any]:
     """Screen and score equity assets for pool classification."""
-    return get_asset_analysis_market_registry().get_pool_screener("equity")(
+    return get_registered_pool_screener("equity")(
         context,
         filters,
     )
@@ -125,7 +123,7 @@ def screen_equity_assets(context: ScoreContext, filters: dict[str, Any]) -> list
 
 def screen_fund_assets(context: ScoreContext, filters: dict[str, Any]) -> list[Any]:
     """Screen and score fund assets for pool classification."""
-    return get_asset_analysis_market_registry().get_pool_screener("fund")(
+    return get_registered_pool_screener("fund")(
         context,
         filters,
     )

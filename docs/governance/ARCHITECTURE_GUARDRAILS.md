@@ -1,6 +1,6 @@
 # Architecture Guardrails
 
-> Last updated: 2026-04-24
+> Last updated: 2026-05-02
 
 This document defines how repository-wide architecture checks are enforced.
 
@@ -17,6 +17,14 @@ The project uses two complementary guardrails:
    - Runs in `.github/workflows/consistency-check.yml`.
    - Scans the whole repository for governance drift.
    - Checks MCP tool counts, key documentation counters, `docs/INDEX.md` links, module shape scores, misplaced `AppConfig` definitions, singular `dto.py` files, and Application-layer pandas/numpy debt.
+
+3. `scripts/verify_architecture.py --include-audit --fail-on-audit-violations`
+   - Full-repository architecture audit gate.
+   - Fails on both boundary violations and audit violations.
+   - Current hard checks include:
+     - Application-layer ORM manager access
+     - Application-layer `transaction.atomic` / dynamic `get_model()` usage
+     - Non-admin imports of app-root `models.py` shims
 
 ## Baseline
 

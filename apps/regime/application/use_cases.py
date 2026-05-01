@@ -18,7 +18,7 @@ from core.exceptions import (
     InsufficientDataError,
 )
 from core.metrics import record_exception
-from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+from .repository_provider import get_regime_config_repository
 
 from ..domain.entities import RegimeSnapshot
 from ..domain.services import (
@@ -224,8 +224,9 @@ class HighFrequencySignalUseCase:
     for regime changes. This reduces lag from 3-6 months to 1-2 weeks.
     """
 
-    def __init__(self, repository):
+    def __init__(self, repository, config_repository=None):
         self.repository = repository
+        self.config_repository = config_repository or get_regime_config_repository()
 
     def execute(self, request: HighFrequencySignalRequest) -> HighFrequencySignalResponse:
         """
@@ -238,8 +239,6 @@ class HighFrequencySignalUseCase:
             HighFrequencySignalResponse: Generated signal
         """
         try:
-            from apps.macro.domain.entities import RegimeSensitivity
-
             contributing_indicators = []
             warning_signals = []
             signal_scores = []  # List of (score, weight) tuples
@@ -259,8 +258,8 @@ class HighFrequencySignalUseCase:
                 # Score: -1 (bearish) to +1 (bullish)
                 # Normalized: spread > threshold BP = +1, spread < 0 BP = -1
                 spread_bp = term_spread_result["spread_value"]
-                spread_threshold = ConfigHelper.get_float(
-                    ConfigKeys.REGIME_SPREAD_BP_THRESHOLD, DEFAULT_SPREAD_BP_THRESHOLD
+                spread_threshold = self.config_repository.get_spread_threshold_bp(
+                    DEFAULT_SPREAD_BP_THRESHOLD
                 )
                 if spread_bp > spread_threshold:
                     score = 1.0
@@ -383,8 +382,8 @@ class HighFrequencySignalUseCase:
             spread_bp = spread_data.value  # Already in BP
             is_inverted = spread_bp < 0
 
-            spread_threshold = ConfigHelper.get_float(
-                ConfigKeys.REGIME_SPREAD_BP_THRESHOLD, DEFAULT_SPREAD_BP_THRESHOLD
+            spread_threshold = self.config_repository.get_spread_threshold_bp(
+                DEFAULT_SPREAD_BP_THRESHOLD
             )
             if is_inverted:
                 signal = "BEARISH"
@@ -471,8 +470,8 @@ class HighFrequencySignalUseCase:
             # - Rising US yields -> capital outflow pressure -> BEARISH for China
             # - Falling US yields -> easing pressure -> BULLISH for China
             # - Threshold from configuration
-            us_yield_threshold = ConfigHelper.get_float(
-                ConfigKeys.REGIME_US_YIELD_THRESHOLD, DEFAULT_US_YIELD_THRESHOLD
+            us_yield_threshold = self.config_repository.get_us_yield_threshold(
+                DEFAULT_US_YIELD_THRESHOLD
             )
             if us_yield > us_yield_threshold:
                 signal = "BEARISH"
@@ -524,6 +523,9 @@ class ResolveSignalConflictUseCase:
     4. Default: Use monthly, lower confidence (0.5)
     """
 
+    def __init__(self, config_repository=None):
+        self.config_repository = config_repository or get_regime_config_repository()
+
     def execute(self, request: ResolveSignalConflictRequest) -> ResolveSignalConflictResponse:
         """
         Resolve signal conflict using predefined rules
@@ -535,11 +537,11 @@ class ResolveSignalConflictUseCase:
             ResolveSignalConflictResponse: Resolution result
         """
         # Get configurable values
-        daily_persist_days = ConfigHelper.get_int(
-            ConfigKeys.REGIME_DAILY_PERSIST_DAYS, DEFAULT_DAILY_PERSIST_DAYS
+        daily_persist_days = self.config_repository.get_daily_persist_days(
+            DEFAULT_DAILY_PERSIST_DAYS
         )
-        confidence_boost = ConfigHelper.get_float(
-            ConfigKeys.REGIME_CONFLICT_CONFIDENCE_BOOST, DEFAULT_CONFLICT_CONFIDENCE_BOOST
+        confidence_boost = self.config_repository.get_conflict_confidence_boost(
+            DEFAULT_CONFLICT_CONFIDENCE_BOOST
         )
 
         # Rule 1: Daily and Monthly一致
@@ -726,20 +728,7 @@ class CalculateRegimeUseCase:
                     )
                     # 在序列开头插入前值（如果序列为空或第一个值晚于 end_date - timedelta(days=60)）
                     if full_series and (end_date - full_series[0].reporting_period).days > 60:
-                        # 创建一个填充的指标
-                        from apps.macro.domain.entities import MacroIndicator, PeriodType
-
-                        filled_indicator = MacroIndicator(
-                            code=indicator_code,
-                            value=last_observation.value,
-                            reporting_period=end_date - timedelta(days=30),  # 假设月度数据
-                            period_type=PeriodType.MONTH,
-                            published_at=last_observation.published_at,
-                            source=last_observation.source,
-                        )
-                        result["growth"] = [filled_indicator.value] + [
-                            ind.value for ind in full_series
-                        ]
+                        result["growth"] = [last_observation.value] + [ind.value for ind in full_series]
                     else:
                         result["growth"] = [ind.value for ind in full_series]
 
@@ -751,17 +740,7 @@ class CalculateRegimeUseCase:
                         source=source,
                     )
                     if full_series and (end_date - full_series[0].reporting_period).days > 60:
-                        from apps.macro.domain.entities import MacroIndicator, PeriodType
-
-                        filled_indicator = MacroIndicator(
-                            code=indicator_code,
-                            value=last_observation.value,
-                            reporting_period=end_date - timedelta(days=30),
-                            period_type=PeriodType.MONTH,
-                            published_at=last_observation.published_at,
-                            source=last_observation.source,
-                        )
-                        result["inflation"] = [filled_indicator.value] + [
+                        result["inflation"] = [last_observation.value] + [
                             ind.value for ind in full_series
                         ]
                     else:

@@ -11,7 +11,8 @@ from typing import Optional
 from django.core.cache import cache
 
 from apps.equity.domain.rules import StockScreeningRule
-from shared.infrastructure.models import StockScreeningRuleConfigModel
+
+from .models import StockScreeningRuleConfigModel
 
 logger = logging.getLogger(__name__)
 

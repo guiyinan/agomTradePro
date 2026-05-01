@@ -2,7 +2,6 @@
 
 import logging
 from datetime import date
-from importlib import import_module
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
@@ -10,6 +9,10 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.repository_provider import (
+    get_current_policy_repository,
+    get_policy_notification_service,
+)
 from ..application.use_cases import (
     CreatePolicyEventInput,
     CreatePolicyEventOutput,
@@ -31,20 +34,6 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _policy_repository():
-    return import_module("apps.policy.infrastructure.repositories").DjangoPolicyRepository()
-
-
-def _build_alert_service():
-    from django.conf import settings
-
-    return import_module("shared.infrastructure.alert_service").create_default_alert_service(
-        slack_webhook=getattr(settings, 'SLACK_WEBHOOK_URL', None),
-        email_config=getattr(settings, 'ALERT_EMAIL_CONFIG', None),
-        use_console=getattr(settings, 'DEBUG', True),
-    )
 
 class PolicyStatusView(APIView):
     """
@@ -83,7 +72,7 @@ class PolicyStatusView(APIView):
             )
 
             # 执行用例
-            repo = _policy_repository()
+            repo = get_current_policy_repository()
             use_case = GetPolicyStatusUseCase(event_store=repo)
             output: PolicyStatusOutput = use_case.execute(as_of_date)
 
@@ -184,7 +173,7 @@ class PolicyEventListView(APIView):
             level = PolicyLevel(level_str) if level_str else None
 
             # 执行用例
-            repo = _policy_repository()
+            repo = get_current_policy_repository()
             use_case = GetPolicyHistoryUseCase(event_store=repo)
             output: PolicyHistoryOutput = use_case.execute(start_date, end_date, level)
 
@@ -249,8 +238,8 @@ class PolicyEventListView(APIView):
             )
 
             # 执行用例
-            repo = _policy_repository()
-            alert_service = _build_alert_service()
+            repo = get_current_policy_repository()
+            alert_service = get_policy_notification_service()
 
             use_case = CreatePolicyEventUseCase(
                 event_store=repo,
@@ -336,7 +325,7 @@ class PolicyEventDetailView(APIView):
         try:
             event_date_obj = date.fromisoformat(event_date)
 
-            repo = _policy_repository()
+            repo = get_current_policy_repository()
             event = repo.get_event_by_date(event_date_obj)
 
             if not event:
@@ -394,8 +383,8 @@ class PolicyEventDetailView(APIView):
             serializer = PolicyEventSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
-            repo = _policy_repository()
-            alert_service = _build_alert_service()
+            repo = get_current_policy_repository()
+            alert_service = get_policy_notification_service()
 
             use_case = UpdatePolicyEventUseCase(
                 event_store=repo,
@@ -476,7 +465,7 @@ class PolicyEventDetailView(APIView):
             event_id_raw = request.query_params.get("event_id")
             event_id = int(event_id_raw) if event_id_raw else None
 
-            repo = _policy_repository()
+            repo = get_current_policy_repository()
             use_case = DeletePolicyEventUseCase(event_store=repo)
 
             success, message = use_case.execute(event_date=event_date_obj, event_id=event_id)

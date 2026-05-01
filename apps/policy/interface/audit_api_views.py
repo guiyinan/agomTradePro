@@ -1,7 +1,6 @@
 """Policy audit API views."""
 
 import logging
-from importlib import import_module
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
@@ -9,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.repository_provider import get_current_policy_repository
 from ..application.use_cases import (
     AutoAssignAuditsUseCase,
     BulkReviewUseCase,
@@ -18,10 +18,6 @@ from ..application.use_cases import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _policy_repository():
-    return import_module("apps.policy.infrastructure.repositories").DjangoPolicyRepository()
 
 class AuditQueueView(APIView):
     """
@@ -65,7 +61,7 @@ class AuditQueueView(APIView):
         """获取审核队列"""
         try:
             use_case = GetAuditQueueUseCase(
-                policy_repository=_policy_repository()
+                policy_repository=get_current_policy_repository()
             )
 
             status_filter = request.query_params.get('status', 'pending_review')
@@ -121,7 +117,7 @@ class ReviewPolicyItemView(APIView):
         """审核政策条目"""
         try:
             use_case = ReviewPolicyItemUseCase(
-                policy_repository=_policy_repository()
+                policy_repository=get_current_policy_repository()
             )
 
             input_dto = ReviewPolicyItemInput(
@@ -173,7 +169,7 @@ class BulkReviewView(APIView):
         """批量审核"""
         try:
             review_use_case = ReviewPolicyItemUseCase(
-                policy_repository=_policy_repository()
+                policy_repository=get_current_policy_repository()
             )
             bulk_use_case = BulkReviewUseCase(review_use_case)
 

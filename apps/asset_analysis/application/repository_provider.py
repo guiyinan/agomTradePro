@@ -15,6 +15,10 @@ from apps.asset_analysis.infrastructure.providers import (
     DjangoAssetPoolQueryRepository,
     DjangoWeightConfigRepository,
 )
+from core.integration.asset_analysis_market_registry import (
+    AssetPoolScreener,
+    get_asset_analysis_market_registry,
+)
 
 
 def get_asset_analysis_log_repository() -> AssetAnalysisLogRepository:
@@ -39,6 +43,12 @@ def resolve_index_asset_names(codes: list[str]) -> dict[str, str]:
     """Resolve asset names from asset-pool entries for index-like assets."""
 
     return get_asset_pool_query_repository().resolve_asset_names(codes)
+
+
+def get_registered_pool_screener(asset_type: str) -> AssetPoolScreener:
+    """Return a registered pool screener from the runtime integration registry."""
+
+    return get_asset_analysis_market_registry().get_pool_screener(asset_type)
 
 
 def list_latest_scored_assets(

@@ -8,6 +8,7 @@ from apps.account.infrastructure.providers import (
     AccountRepository,
     AssetMetadataRepository,
     MacroSizingConfigRepository,
+    PortfolioApiRepository,
     PortfolioRepository,
     PortfolioSnapshotRepository,
     PositionRepository,
@@ -41,6 +42,12 @@ def get_portfolio_repository() -> PortfolioRepository:
     """Return the account portfolio repository."""
 
     return PortfolioRepository()
+
+
+def get_portfolio_api_repository() -> PortfolioApiRepository:
+    """Return the account portfolio API repository."""
+
+    return PortfolioApiRepository()
 
 
 def get_portfolio_snapshot_repository() -> PortfolioSnapshotRepository:
@@ -114,6 +121,7 @@ __all__ = [
     "AssetMetadataRepository",
     "MacroSizingConfigRepository",
     "PortfolioRepository",
+    "PortfolioApiRepository",
     "PortfolioSnapshotRepository",
     "PositionRepository",
     "StopLossRepository",
@@ -132,4 +140,5 @@ __all__ = [
     "get_account_repository",
     "get_backup_email_connection",
     "get_portfolio_repository",
+    "get_portfolio_api_repository",
 ]

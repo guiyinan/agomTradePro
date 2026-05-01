@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from .models import (
     PolicyAuditQueue,
+    PolicyLevelKeywordModel,
     PolicyLog,
     RSSFetchLog,
     RSSHubGlobalConfig,
@@ -327,3 +328,261 @@ class PolicyWorkbenchInterfaceRepository:
             "rss_item_guid": event.rss_item_guid or "",
             "created_at": event.created_at,
         }
+
+
+class PolicyPageInterfaceRepository:
+    """Data access helpers used by policy HTML page views."""
+
+    def list_rss_sources(
+        self,
+        *,
+        category: str = "",
+        is_active: str = "",
+        search: str = "",
+    ):
+        queryset = RSSSourceConfigModel._default_manager.all()
+        if category:
+            queryset = queryset.filter(category=category)
+        if is_active:
+            queryset = queryset.filter(is_active=is_active == "true")
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        return queryset.order_by("category", "name")
+
+    def list_policy_keywords(
+        self,
+        *,
+        level: str = "",
+        is_active: str = "",
+    ):
+        queryset = PolicyLevelKeywordModel._default_manager.all()
+        if level:
+            queryset = queryset.filter(level=level)
+        if is_active:
+            queryset = queryset.filter(is_active=is_active == "true")
+        return queryset.order_by("-weight", "level")
+
+    def list_rss_fetch_logs(
+        self,
+        *,
+        source_id: str = "",
+        status: str = "",
+    ):
+        queryset = RSSFetchLog._default_manager.select_related("source").all()
+        if source_id:
+            queryset = queryset.filter(source_id=source_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset.order_by("-fetched_at")
+
+    def get_rss_fetch_log_summary(self, *, source_id: str = "", status: str = "") -> dict[str, Any]:
+        queryset = self.list_rss_fetch_logs(source_id=source_id, status=status)
+        return {
+            "sources": RSSSourceConfigModel._default_manager.all(),
+            "statuses": RSSFetchLog.STATUS_CHOICES,
+            "success_count": queryset.filter(status="success").count(),
+            "error_count": queryset.filter(status="error").count(),
+        }
+
+    def list_rss_reader_items(
+        self,
+        *,
+        source_id: str = "",
+        level: str = "",
+        category: str = "",
+    ):
+        queryset = PolicyLog._default_manager.select_related("rss_source").all()
+        if source_id:
+            queryset = queryset.filter(rss_source_id=source_id)
+        if level:
+            queryset = queryset.filter(level=level)
+        if category:
+            queryset = queryset.filter(info_category=category)
+        return queryset.order_by("-event_date", "-created_at")
+
+    def get_rss_reader_summary(
+        self,
+        *,
+        source_id: str = "",
+        level: str = "",
+        category: str = "",
+    ) -> dict[str, Any]:
+        queryset = self.list_rss_reader_items(
+            source_id=source_id,
+            level=level,
+            category=category,
+        )
+        today = timezone.now().date()
+        return {
+            "sources": RSSSourceConfigModel._default_manager.all(),
+            "levels": PolicyLog.POLICY_LEVELS,
+            "categories": PolicyLog.INFO_CATEGORY_CHOICES,
+            "total_items": queryset.count(),
+            "today_items": queryset.filter(created_at__date=today).count(),
+            "p3_items": queryset.filter(level="P3").count(),
+        }
+
+    def list_policy_events(
+        self,
+        *,
+        level: str = "",
+        start_date: str = "",
+        end_date: str = "",
+    ):
+        queryset = PolicyLog._default_manager.all()
+        if level:
+            queryset = queryset.filter(level=level)
+        if start_date:
+            queryset = queryset.filter(event_date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(event_date__lte=end_date)
+        return queryset.order_by("-event_date", "-created_at")
+
+    def create_policy_event(self, payload: dict[str, Any]) -> PolicyLog:
+        return PolicyLog._default_manager.create(**payload)
+
+    def get_policy_page_constants(self) -> dict[str, Any]:
+        return {
+            "rss_source_categories": RSSSourceConfigModel.CATEGORY_CHOICES,
+            "policy_levels": PolicyLog.POLICY_LEVELS,
+            "policy_categories": PolicyLog.INFO_CATEGORY_CHOICES,
+            "rss_fetch_statuses": RSSFetchLog.STATUS_CHOICES,
+            "event_types": PolicyLog.EVENT_TYPE_CHOICES,
+            "gate_levels": PolicyLog.GATE_LEVEL_CHOICES,
+        }
+
+
+class PolicyRssApiInterfaceRepository:
+    """Data access helpers used by policy RSS API views."""
+
+    @staticmethod
+    def _apply_bool_filter(queryset, *, field_name: str, raw_value: str | None):
+        if raw_value in (None, ""):
+            return queryset
+        return queryset.filter(**{field_name: raw_value == "true"})
+
+    def list_rss_source_configs(
+        self,
+        *,
+        category: str = "",
+        is_active: str | None = "",
+        parser_type: str = "",
+        search: str = "",
+    ):
+        queryset = RSSSourceConfigModel._default_manager.all()
+        if category:
+            queryset = queryset.filter(category=category)
+        queryset = self._apply_bool_filter(
+            queryset,
+            field_name="is_active",
+            raw_value=is_active,
+        )
+        if parser_type:
+            queryset = queryset.filter(parser_type=parser_type)
+        if search:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search) | models.Q(url__icontains=search)
+            )
+        return queryset.order_by("category", "name")
+
+    def get_rss_source_config(self, source_id: int) -> RSSSourceConfigModel | None:
+        return RSSSourceConfigModel._default_manager.filter(pk=source_id).first()
+
+    def create_rss_source_config(self, payload: dict[str, Any]) -> RSSSourceConfigModel:
+        return RSSSourceConfigModel._default_manager.create(**payload)
+
+    def update_rss_source_config(
+        self,
+        source_id: int,
+        payload: dict[str, Any],
+    ) -> RSSSourceConfigModel | None:
+        source = self.get_rss_source_config(source_id)
+        if source is None:
+            return None
+
+        for field, value in payload.items():
+            setattr(source, field, value)
+        source.save()
+        return source
+
+    def delete_rss_source_config(self, source_id: int) -> bool:
+        source = self.get_rss_source_config(source_id)
+        if source is None:
+            return False
+        source.delete()
+        return True
+
+    def list_rss_fetch_logs(
+        self,
+        *,
+        source_name: str = "",
+        source_id: str = "",
+        status: str = "",
+    ):
+        queryset = RSSFetchLog._default_manager.select_related("source").all()
+        if source_name:
+            queryset = queryset.filter(source__name=source_name)
+        elif source_id:
+            queryset = queryset.filter(source_id=source_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset.order_by("-fetched_at")
+
+    def get_rss_fetch_log(self, log_id: int) -> RSSFetchLog | None:
+        return (
+            RSSFetchLog._default_manager.select_related("source")
+            .filter(pk=log_id)
+            .first()
+        )
+
+    def list_policy_level_keywords(
+        self,
+        *,
+        level: str = "",
+        is_active: str | None = "",
+        category: str = "",
+    ):
+        queryset = PolicyLevelKeywordModel._default_manager.all()
+        if level:
+            queryset = queryset.filter(level=level)
+        queryset = self._apply_bool_filter(
+            queryset,
+            field_name="is_active",
+            raw_value=is_active,
+        )
+        if category:
+            queryset = queryset.filter(category=category)
+        return queryset.order_by("-weight", "level")
+
+    def get_policy_level_keyword(
+        self,
+        keyword_id: int,
+    ) -> PolicyLevelKeywordModel | None:
+        return PolicyLevelKeywordModel._default_manager.filter(pk=keyword_id).first()
+
+    def create_policy_level_keyword(
+        self,
+        payload: dict[str, Any],
+    ) -> PolicyLevelKeywordModel:
+        return PolicyLevelKeywordModel._default_manager.create(**payload)
+
+    def update_policy_level_keyword(
+        self,
+        keyword_id: int,
+        payload: dict[str, Any],
+    ) -> PolicyLevelKeywordModel | None:
+        keyword = self.get_policy_level_keyword(keyword_id)
+        if keyword is None:
+            return None
+
+        for field, value in payload.items():
+            setattr(keyword, field, value)
+        keyword.save()
+        return keyword
+
+    def delete_policy_level_keyword(self, keyword_id: int) -> bool:
+        keyword = self.get_policy_level_keyword(keyword_id)
+        if keyword is None:
+            return False
+        keyword.delete()
+        return True

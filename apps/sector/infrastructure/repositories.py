@@ -19,6 +19,7 @@ from .models import (
     SectorConstituentModel,
     SectorIndexModel,
     SectorInfoModel,
+    SectorPreferenceConfigModel,
     SectorRelativeStrengthModel,
 )
 
@@ -82,6 +83,18 @@ class DjangoSectorRepository:
             ))
 
         return sectors
+
+    def get_sector_weights_by_regime(self, regime: str) -> dict[str, float]:
+        """Return configured sector weights for one regime."""
+
+        configs = SectorPreferenceConfigModel._default_manager.filter(
+            regime=regime,
+            is_active=True,
+        )
+        return {
+            config.sector_name: config.weight
+            for config in configs
+        }
 
     def save_sector_info(
         self,

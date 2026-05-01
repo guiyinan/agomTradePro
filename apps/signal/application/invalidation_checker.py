@@ -262,14 +262,12 @@ class InvalidationCheckService:
                 "reason": result.reason,
                 "checked_conditions": result.checked_conditions,
             }
-            if status == "pending":
-                signal.status = "rejected"
-            else:
-                signal.status = "invalidated"
-                signal.invalidated_at = timezone.now()
-            signal.invalidation_details = details
-            signal.rejection_reason = result.reason
-            signal.save()
+            self.signal_repository.persist_invalidation_outcome(
+                signal_id=str(signal.id),
+                current_status=status,
+                reason=result.reason,
+                details=details,
+            )
             return
 
         details = {

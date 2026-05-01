@@ -1,4 +1,4 @@
-"""Technical registry for cross-app asset-analysis integrations."""
+"""Runtime registry for asset-analysis market integrations."""
 
 from __future__ import annotations
 

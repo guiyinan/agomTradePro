@@ -1,5 +1,5 @@
 from datetime import date
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -10,11 +10,12 @@ from apps.regime.application.use_cases import HighFrequencySignalUseCase
 def test_term_spread_signal_uses_config_threshold():
     repo = Mock()
     repo.get_latest_observation.return_value = Mock(value=80.0)
-    use_case = HighFrequencySignalUseCase(repository=repo)
+    config_repo = Mock()
+    config_repo.get_spread_threshold_bp.return_value = 50.0
+    use_case = HighFrequencySignalUseCase(repository=repo, config_repository=config_repo)
 
     # 当前值 80BP，配置阈值 50BP -> 应判定为 BULLISH
-    with patch("apps.regime.application.use_cases.ConfigHelper.get_float", return_value=50.0):
-        result = use_case._evaluate_term_spread(date.today())
+    result = use_case._evaluate_term_spread(date.today())
 
     assert result["success"] is True
     assert result["signal"] == "BULLISH"
@@ -24,11 +25,12 @@ def test_term_spread_signal_uses_config_threshold():
 def test_term_spread_signal_respects_higher_config_threshold():
     repo = Mock()
     repo.get_latest_observation.return_value = Mock(value=80.0)
-    use_case = HighFrequencySignalUseCase(repository=repo)
+    config_repo = Mock()
+    config_repo.get_spread_threshold_bp.return_value = 120.0
+    use_case = HighFrequencySignalUseCase(repository=repo, config_repository=config_repo)
 
     # 当前值 80BP，配置阈值 120BP -> 应判定为 NEUTRAL
-    with patch("apps.regime.application.use_cases.ConfigHelper.get_float", return_value=120.0):
-        result = use_case._evaluate_term_spread(date.today())
+    result = use_case._evaluate_term_spread(date.today())
 
     assert result["success"] is True
     assert result["signal"] == "NEUTRAL"

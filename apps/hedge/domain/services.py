@@ -24,10 +24,7 @@ from apps.hedge.domain.entities import (
     HedgePortfolio,
     get_common_hedge_pairs,
 )
-from shared.infrastructure.correlation import (
-    CorrelationResult,
-    RollingCorrelationCalculator,
-)
+from shared.domain.correlation import RollingCorrelationCalculator
 
 
 @dataclass

@@ -18,19 +18,73 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from django.db import transaction
-
 from ..domain.entities import DomainEvent, EventHandler, EventType
 from ..domain.interfaces import (
     AlphaCandidateRepositoryProtocol,
+    DecisionExecutionSyncRepositoryProtocol,
     DecisionRequestRepositoryProtocol,
 )
 from .repository_provider import (
     get_alpha_candidate_repository,
+    get_decision_execution_sync_repository,
     get_decision_request_repository,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _RepositoryBackedDecisionExecutionSyncRepository:
+    """Fallback sync adapter for tests or explicit mock repositories."""
+
+    def __init__(
+        self,
+        *,
+        decision_request_repo: DecisionRequestRepositoryProtocol,
+        alpha_candidate_repo: AlphaCandidateRepositoryProtocol,
+    ) -> None:
+        self._decision_request_repo = decision_request_repo
+        self._alpha_candidate_repo = alpha_candidate_repo
+
+    def sync_executed(
+        self,
+        *,
+        request_id: str,
+        execution_ref: dict[str, Any] | None,
+        candidate_id: str | None,
+    ) -> bool:
+        request_updated = self._decision_request_repo.update_execution_status_to_executed(
+            request_id,
+            execution_ref,
+        )
+        candidate_updated = True
+        if candidate_id:
+            candidate_updated = self._alpha_candidate_repo.update_status_to_executed(
+                candidate_id
+            )
+        return request_updated and candidate_updated
+
+    def sync_failed(
+        self,
+        *,
+        request_id: str,
+        candidate_id: str | None,
+        error_message: str | None,
+    ) -> bool:
+        request_updated = self._decision_request_repo.update_execution_status_to_failed(
+            request_id
+        )
+        candidate_updated = True
+        if candidate_id:
+            candidate_updated = self._alpha_candidate_repo.update_execution_status_to_failed(
+                candidate_id
+            )
+        if request_updated and error_message:
+            logger.warning(
+                "DecisionRequest %s execution failed: %s",
+                request_id,
+                error_message,
+            )
+        return request_updated and candidate_updated
 
 
 class DecisionApprovedHandler(EventHandler):
@@ -261,6 +315,7 @@ class DecisionExecutedHandler(EventHandler):
         event_bus=None,
         decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
         alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
+        decision_execution_sync_repo: DecisionExecutionSyncRepositoryProtocol | None = None,
     ):
         """
         初始化处理器
@@ -271,6 +326,11 @@ class DecisionExecutedHandler(EventHandler):
             alpha_candidate_repo: Alpha 候选仓储（可选，默认自动创建）
         """
         self.event_bus = event_bus
+        use_default_sync_repo = (
+            decision_execution_sync_repo is None
+            and decision_request_repo is None
+            and alpha_candidate_repo is None
+        )
 
         if decision_request_repo is None:
             decision_request_repo = get_decision_request_repository()
@@ -280,6 +340,17 @@ class DecisionExecutedHandler(EventHandler):
 
         self._decision_request_repo = decision_request_repo
         self._alpha_candidate_repo = alpha_candidate_repo
+        self._decision_execution_sync_repo = (
+            decision_execution_sync_repo
+            or (
+                get_decision_execution_sync_repository()
+                if use_default_sync_repo
+                else _RepositoryBackedDecisionExecutionSyncRepository(
+                decision_request_repo=self._decision_request_repo,
+                alpha_candidate_repo=self._alpha_candidate_repo,
+                )
+            )
+        )
 
     def can_handle(self, event_type: EventType) -> bool:
         """判断是否能处理该类型的事件"""
@@ -304,14 +375,17 @@ class DecisionExecutedHandler(EventHandler):
                 logger.warning(f"Event {event.event_id} missing request_id, skipping")
                 return
 
-            # 使用事务确保一致性
-            with transaction.atomic():
-                # 更新 DecisionRequest
-                self._update_decision_request(request_id, execution_ref)
-
-                # 更新 AlphaCandidate（如果存在）
-                if candidate_id:
-                    self._update_alpha_candidate_executed(candidate_id)
+            success = self._decision_execution_sync_repo.sync_executed(
+                request_id=request_id,
+                execution_ref=execution_ref,
+                candidate_id=candidate_id,
+            )
+            if not success:
+                logger.warning(
+                    "Decision execution sync reported partial failure: request=%s candidate=%s",
+                    request_id,
+                    candidate_id,
+                )
 
             logger.info(
                 f"Updated execution status to EXECUTED: "
@@ -324,35 +398,6 @@ class DecisionExecutedHandler(EventHandler):
                 exc_info=True,
             )
             # 主事务成功优先，事件处理失败只记录日志
-
-    def _update_decision_request(
-        self, request_id: str, execution_ref: dict[str, Any] | None
-    ) -> None:
-        """
-        更新 DecisionRequest 的执行状态
-
-        Args:
-            request_id: 决策请求 ID
-            execution_ref: 执行引用（如 trade_id, position_id 等）
-        """
-        success = self._decision_request_repo.update_execution_status_to_executed(
-            request_id, execution_ref
-        )
-
-        if not success:
-            logger.warning(f"Failed to update DecisionRequest: {request_id}")
-
-    def _update_alpha_candidate_executed(self, candidate_id: str) -> None:
-        """
-        更新 AlphaCandidate 为已执行状态
-
-        Args:
-            candidate_id: 候选 ID
-        """
-        success = self._alpha_candidate_repo.update_status_to_executed(candidate_id)
-
-        if not success:
-            logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
@@ -385,6 +430,7 @@ class DecisionExecutionFailedHandler(EventHandler):
         event_bus=None,
         decision_request_repo: DecisionRequestRepositoryProtocol | None = None,
         alpha_candidate_repo: AlphaCandidateRepositoryProtocol | None = None,
+        decision_execution_sync_repo: DecisionExecutionSyncRepositoryProtocol | None = None,
     ):
         """
         初始化处理器
@@ -395,6 +441,11 @@ class DecisionExecutionFailedHandler(EventHandler):
             alpha_candidate_repo: Alpha 候选仓储（可选，默认自动创建）
         """
         self.event_bus = event_bus
+        use_default_sync_repo = (
+            decision_execution_sync_repo is None
+            and decision_request_repo is None
+            and alpha_candidate_repo is None
+        )
 
         if decision_request_repo is None:
             decision_request_repo = get_decision_request_repository()
@@ -404,6 +455,17 @@ class DecisionExecutionFailedHandler(EventHandler):
 
         self._decision_request_repo = decision_request_repo
         self._alpha_candidate_repo = alpha_candidate_repo
+        self._decision_execution_sync_repo = (
+            decision_execution_sync_repo
+            or (
+                get_decision_execution_sync_repository()
+                if use_default_sync_repo
+                else _RepositoryBackedDecisionExecutionSyncRepository(
+                    decision_request_repo=self._decision_request_repo,
+                    alpha_candidate_repo=self._alpha_candidate_repo,
+                )
+            )
+        )
 
     def can_handle(self, event_type: EventType) -> bool:
         """判断是否能处理该类型的事件"""
@@ -428,14 +490,17 @@ class DecisionExecutionFailedHandler(EventHandler):
                 logger.warning(f"Event {event.event_id} missing request_id, skipping")
                 return
 
-            # 使用事务确保一致性
-            with transaction.atomic():
-                # 更新 DecisionRequest
-                self._update_decision_request_failed(request_id, error_message)
-
-                # 更新 AlphaCandidate（如果存在）
-                if candidate_id:
-                    self._update_alpha_candidate_failed(candidate_id)
+            success = self._decision_execution_sync_repo.sync_failed(
+                request_id=request_id,
+                candidate_id=candidate_id,
+                error_message=error_message,
+            )
+            if not success:
+                logger.warning(
+                    "Decision execution failure sync reported partial failure: request=%s candidate=%s",
+                    request_id,
+                    candidate_id,
+                )
 
             logger.info(
                 f"Updated execution status to FAILED: "
@@ -448,37 +513,6 @@ class DecisionExecutionFailedHandler(EventHandler):
                 exc_info=True,
             )
             # 主事务成功优先，事件处理失败只记录日志
-
-    def _update_decision_request_failed(self, request_id: str, error_message: str | None) -> None:
-        """
-        更新 DecisionRequest 的执行失败状态
-
-        Args:
-            request_id: 决策请求 ID
-            error_message: 错误信息
-        """
-        success = self._decision_request_repo.update_execution_status_to_failed(request_id)
-
-        if not success:
-            logger.warning(f"Failed to update DecisionRequest: {request_id}")
-        else:
-            # 错误信息记录到日志
-            if error_message:
-                logger.warning(f"DecisionRequest {request_id} execution failed: {error_message}")
-
-    def _update_alpha_candidate_failed(self, candidate_id: str) -> None:
-        """
-        更新 AlphaCandidate 为执行失败状态
-
-        注意：保留 ACTIONABLE 状态，允许用户重试
-
-        Args:
-            candidate_id: 候选 ID
-        """
-        success = self._alpha_candidate_repo.update_execution_status_to_failed(candidate_id)
-
-        if not success:
-            logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""

@@ -85,13 +85,15 @@ SYSTEM_CONFIG_INITIAL_DATA = [
 
 def init_system_config():
     """初始化系统配置"""
-    from shared.infrastructure.models import RiskParameterConfigModel
+    from django.apps import apps as django_apps
+
+    risk_parameter_model = django_apps.get_model("regime", "RiskParameterConfigModel")
 
     created_count = 0
     updated_count = 0
 
     for data in SYSTEM_CONFIG_INITIAL_DATA:
-        obj, created = RiskParameterConfigModel._default_manager.update_or_create(
+        obj, created = risk_parameter_model._default_manager.update_or_create(
             key=data["key"],
             defaults={
                 "name": data["name"],

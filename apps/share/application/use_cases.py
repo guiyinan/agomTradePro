@@ -3,30 +3,16 @@ Share Application Use Cases
 
 用例编排层，协调 Domain 层和 Infrastructure 层完成业务用例。
 """
-from datetime import datetime
-from typing import Any, List, Optional
+
+from __future__ import annotations
+
+from datetime import date, datetime
 
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 
-from apps.share.application.repository_provider import (
-    ShareLinkDoesNotExist,
-    ShareSnapshotDoesNotExist,
-    SimulatedAccountDoesNotExist,
-    UserDoesNotExist,
-    share_access_log_manager,
-    share_link_manager,
-    share_snapshot_manager,
-    simulated_account_manager,
-    user_manager,
-)
-from apps.share.domain.entities import (
-    AccessResultStatus,
-    ShareLevel,
-    ShareLinkEntity,
-    ShareStatus,
-    ShareTheme,
-)
+from apps.share.application.repository_provider import get_share_application_repository
+from apps.share.domain.interfaces import ShareApplicationRepositoryProtocol
+from apps.share.domain.entities import ShareLinkEntity
 
 
 class ShareLinkUseCases:
@@ -35,6 +21,14 @@ class ShareLinkUseCases:
 
     处理分享链接的创建、查询、更新、撤销等操作。
     """
+
+    def __init__(
+        self,
+        repository: ShareApplicationRepositoryProtocol | None = None,
+    ) -> None:
+        """Initialize the use case with an injectable repository."""
+
+        self._repository = repository or get_share_application_repository()
 
     def create_share_link(
         self,
@@ -86,41 +80,30 @@ class ShareLinkUseCases:
         """
         from apps.share.domain.services import generate_short_code
 
-        # 验证账户存在
-        try:
-            account = simulated_account_manager.get(id=account_id)
-        except SimulatedAccountDoesNotExist:
-            raise ValidationError({"account_id": "模拟账户不存在"})
-
-        # 验证用户
-        try:
-            user = user_manager.get(id=owner_id)
-        except UserDoesNotExist:
+        if not self._repository.user_exists(owner_id):
             raise ValidationError({"owner_id": "用户不存在"})
 
-        # 生成或验证短码
+        if not self._repository.account_belongs_to_owner(owner_id=owner_id, account_id=account_id):
+            raise ValidationError({"account_id": "模拟账户不存在或无权分享此账户"})
+
         if short_code is None:
-            # 生成唯一短码
-            for _ in range(10):  # 最多尝试10次
+            for _ in range(10):
                 code = generate_short_code(10)
-                if not share_link_manager.filter(short_code=code).exists():
+                if not self._repository.share_link_short_code_exists(code):
                     short_code = code
                     break
             else:
                 raise ValidationError("无法生成唯一短码，请稍后重试")
-        else:
-            # 验证预设短码格式和唯一性
-            if share_link_manager.filter(short_code=short_code).exists():
-                raise ValidationError({"short_code": "短码已存在"})
+        elif self._repository.share_link_short_code_exists(short_code):
+            raise ValidationError({"short_code": "短码已存在"})
 
-        # 处理密码哈希
         password_hash = None
         if password:
             from django.contrib.auth.hashers import make_password
+
             password_hash = make_password(password)
 
-        # 创建模型实例
-        model = share_link_manager.create(
+        return self._repository.create_share_link(
             owner_id=owner_id,
             account_id=account_id,
             short_code=short_code,
@@ -142,8 +125,6 @@ class ShareLinkUseCases:
             show_invalidation_logic=show_invalidation_logic,
         )
 
-        return self._model_to_entity(model)
-
     def get_share_link(self, share_link_id: int) -> ShareLinkEntity | None:
         """
         获取分享链接
@@ -154,11 +135,7 @@ class ShareLinkUseCases:
         Returns:
             ShareLinkEntity 或 None
         """
-        try:
-            model = share_link_manager.get(id=share_link_id)
-            return self._model_to_entity(model)
-        except ShareLinkDoesNotExist:
-            return None
+        return self._repository.get_share_link(share_link_id)
 
     def get_share_link_by_code(self, short_code: str) -> ShareLinkEntity | None:
         """
@@ -170,11 +147,7 @@ class ShareLinkUseCases:
         Returns:
             ShareLinkEntity 或 None
         """
-        try:
-            model = share_link_manager.get(short_code=short_code)
-            return self._model_to_entity(model)
-        except ShareLinkDoesNotExist:
-            return None
+        return self._repository.get_share_link_by_code(short_code)
 
     def list_share_links(
         self,
@@ -195,18 +168,12 @@ class ShareLinkUseCases:
         Returns:
             ShareLinkEntity 列表
         """
-        queryset = share_link_manager.all()
-
-        if owner_id is not None:
-            queryset = queryset.filter(owner_id=owner_id)
-        if account_id is not None:
-            queryset = queryset.filter(account_id=account_id)
-        if status is not None:
-            queryset = queryset.filter(status=status)
-        if share_level is not None:
-            queryset = queryset.filter(share_level=share_level)
-
-        return [self._model_to_entity(m) for m in queryset]
+        return self._repository.list_share_links(
+            owner_id=owner_id,
+            account_id=account_id,
+            status=status,
+            share_level=share_level,
+        )
 
     def update_share_link(
         self,
@@ -241,72 +208,54 @@ class ShareLinkUseCases:
         Raises:
             ValidationError: 验证失败
         """
-        try:
-            model = share_link_manager.get(id=share_link_id)
-        except ShareLinkDoesNotExist:
+        existing = self._repository.get_share_link(share_link_id)
+        if existing is None:
             return None
 
-        # 验证权限
-        if model.owner_id != owner_id:
+        if existing.owner_id != owner_id:
             raise ValidationError("无权修改此分享链接")
 
-        # 更新字段
-        update_fields = []
-
+        updates: dict[str, object] = {}
         if title is not None:
-            model.title = title
-            update_fields.append("title")
+            updates["title"] = title
         if subtitle is not None:
-            model.subtitle = subtitle
-            update_fields.append("subtitle")
+            updates["subtitle"] = subtitle
         if theme is not None:
-            model.theme = theme
-            update_fields.append("theme")
+            updates["theme"] = theme
         if share_level is not None:
-            model.share_level = share_level
-            update_fields.append("share_level")
+            updates["share_level"] = share_level
         if expires_at is not None:
-            model.expires_at = expires_at
-            update_fields.append("expires_at")
+            updates["expires_at"] = expires_at
         if max_access_count is not None:
-            model.max_access_count = max_access_count
-            update_fields.append("max_access_count")
+            updates["max_access_count"] = max_access_count
         if allow_indexing is not None:
-            model.allow_indexing = allow_indexing
-            update_fields.append("allow_indexing")
+            updates["allow_indexing"] = allow_indexing
         if show_amounts is not None:
-            model.show_amounts = show_amounts
-            update_fields.append("show_amounts")
+            updates["show_amounts"] = show_amounts
         if show_positions is not None:
-            model.show_positions = show_positions
-            update_fields.append("show_positions")
+            updates["show_positions"] = show_positions
         if show_transactions is not None:
-            model.show_transactions = show_transactions
-            update_fields.append("show_transactions")
+            updates["show_transactions"] = show_transactions
         if show_decision_summary is not None:
-            model.show_decision_summary = show_decision_summary
-            update_fields.append("show_decision_summary")
+            updates["show_decision_summary"] = show_decision_summary
         if show_decision_evidence is not None:
-            model.show_decision_evidence = show_decision_evidence
-            update_fields.append("show_decision_evidence")
+            updates["show_decision_evidence"] = show_decision_evidence
         if show_invalidation_logic is not None:
-            model.show_invalidation_logic = show_invalidation_logic
-            update_fields.append("show_invalidation_logic")
+            updates["show_invalidation_logic"] = show_invalidation_logic
 
-        # 处理密码
         if password is not None:
             if password == "":
-                # 清除密码
-                model.password_hash = None
+                updates["password_hash"] = None
             else:
                 from django.contrib.auth.hashers import make_password
-                model.password_hash = make_password(password)
-            update_fields.append("password_hash")
 
-        if update_fields:
-            model.save(update_fields=update_fields)
-
-        return self._model_to_entity(model)
+                updates["password_hash"] = make_password(password)
+        if not updates:
+            return existing
+        return self._repository.update_share_link_fields(
+            share_link_id=share_link_id,
+            updates=updates,
+        )
 
     def revoke_share_link(self, share_link_id: int, owner_id: int) -> bool:
         """
@@ -319,13 +268,10 @@ class ShareLinkUseCases:
         Returns:
             是否成功
         """
-        try:
-            model = share_link_manager.get(id=share_link_id, owner_id=owner_id)
-            model.status = "revoked"
-            model.save(update_fields=["status"])
-            return True
-        except ShareLinkDoesNotExist:
-            return False
+        return self._repository.revoke_share_link(
+            share_link_id=share_link_id,
+            owner_id=owner_id,
+        )
 
     def delete_share_link(self, share_link_id: int, owner_id: int) -> bool:
         """
@@ -338,12 +284,10 @@ class ShareLinkUseCases:
         Returns:
             是否成功
         """
-        try:
-            model = share_link_manager.get(id=share_link_id, owner_id=owner_id)
-            model.delete()
-            return True
-        except ShareLinkDoesNotExist:
-            return False
+        return self._repository.delete_share_link(
+            share_link_id=share_link_id,
+            owner_id=owner_id,
+        )
 
     def verify_password(self, share_link_id: int, password: str) -> bool:
         """
@@ -356,43 +300,14 @@ class ShareLinkUseCases:
         Returns:
             是否正确
         """
-        try:
-            model = share_link_manager.get(id=share_link_id)
-            if not model.password_hash:
-                return True  # 无密码即通过
-            from django.contrib.auth.hashers import check_password
-            return check_password(password, model.password_hash)
-        except ShareLinkDoesNotExist:
+        share_link = self._repository.get_share_link(share_link_id)
+        if share_link is None:
             return False
+        if not share_link.password_hash:
+            return True
+        from django.contrib.auth.hashers import check_password
 
-    def _model_to_entity(self, model: Any) -> ShareLinkEntity:
-        """将 ORM 模型转换为 Domain 实体"""
-        return ShareLinkEntity(
-            id=model.id,
-            owner_id=model.owner_id,
-            account_id=model.account_id,
-            short_code=model.short_code,
-            title=model.title,
-            subtitle=model.subtitle,
-            theme=ShareTheme(model.theme),
-            share_level=ShareLevel(model.share_level),
-            status=ShareStatus(model.status),
-            password_hash=model.password_hash,
-            expires_at=model.expires_at,
-            max_access_count=model.max_access_count,
-            access_count=model.access_count,
-            last_snapshot_at=model.last_snapshot_at,
-            last_accessed_at=model.last_accessed_at,
-            allow_indexing=model.allow_indexing,
-            show_amounts=model.show_amounts,
-            show_positions=model.show_positions,
-            show_transactions=model.show_transactions,
-            show_decision_summary=model.show_decision_summary,
-            show_decision_evidence=model.show_decision_evidence,
-            show_invalidation_logic=model.show_invalidation_logic,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
-        )
+        return check_password(password, share_link.password_hash)
 
 
 class ShareSnapshotUseCases:
@@ -402,6 +317,14 @@ class ShareSnapshotUseCases:
     处理快照的创建、查询等操作。
     """
 
+    def __init__(
+        self,
+        repository: ShareApplicationRepositoryProtocol | None = None,
+    ) -> None:
+        """Initialize the use case with an injectable repository."""
+
+        self._repository = repository or get_share_application_repository()
+
     def create_snapshot(
         self,
         share_link_id: int,
@@ -410,8 +333,8 @@ class ShareSnapshotUseCases:
         positions_payload: dict,
         transactions_payload: dict,
         decision_payload: dict,
-        source_range_start: datetime | None = None,
-        source_range_end: datetime | None = None,
+        source_range_start: date | None = None,
+        source_range_end: date | None = None,
     ) -> int | None:
         """
         创建快照
@@ -429,39 +352,16 @@ class ShareSnapshotUseCases:
         Returns:
             快照 ID 或 None
         """
-        try:
-            share_link = share_link_manager.get(id=share_link_id)
-
-            # 获取当前最大版本号
-            last_version = (
-                share_snapshot_manager.filter(share_link_id=share_link_id)
-                .order_by('-snapshot_version')
-                .values_list('snapshot_version', flat=True)
-                .first()
-            )
-
-            next_version = (last_version + 1) if last_version is not None else 1
-
-            snapshot = share_snapshot_manager.create(
-                share_link=share_link,
-                snapshot_version=next_version,
-                summary_payload=summary_payload or {},
-                performance_payload=performance_payload or {},
-                positions_payload=positions_payload or {},
-                transactions_payload=transactions_payload or {},
-                decision_payload=decision_payload or {},
-                source_range_start=source_range_start,
-                source_range_end=source_range_end,
-            )
-
-            # 更新分享链接的最后快照时间
-            share_link.last_snapshot_at = timezone.now()
-            share_link.save(update_fields=['last_snapshot_at'])
-
-            return snapshot.id
-
-        except ShareLinkDoesNotExist:
-            return None
+        return self._repository.create_snapshot(
+            share_link_id=share_link_id,
+            summary_payload=summary_payload,
+            performance_payload=performance_payload,
+            positions_payload=positions_payload,
+            transactions_payload=transactions_payload,
+            decision_payload=decision_payload,
+            source_range_start=source_range_start,
+            source_range_end=source_range_end,
+        )
 
     def get_latest_snapshot(self, share_link_id: int) -> dict | None:
         """
@@ -473,29 +373,7 @@ class ShareSnapshotUseCases:
         Returns:
             快照数据字典或 None
         """
-        try:
-            snapshot = share_snapshot_manager.filter(
-                share_link_id=share_link_id
-            ).order_by('-snapshot_version').first()
-
-            if not snapshot:
-                return None
-
-            return {
-                "id": snapshot.id,
-                "snapshot_version": snapshot.snapshot_version,
-                "summary": snapshot.summary_payload,
-                "performance": snapshot.performance_payload,
-                "positions": snapshot.positions_payload,
-                "transactions": snapshot.transactions_payload,
-                "decisions": snapshot.decision_payload,
-                "generated_at": snapshot.generated_at,
-                "source_range_start": snapshot.source_range_start,
-                "source_range_end": snapshot.source_range_end,
-            }
-
-        except ShareSnapshotDoesNotExist:
-            return None
+        return self._repository.get_latest_snapshot(share_link_id)
 
 
 class ShareAccessUseCases:
@@ -504,6 +382,14 @@ class ShareAccessUseCases:
 
     处理访问验证、日志记录等操作。
     """
+
+    def __init__(
+        self,
+        repository: ShareApplicationRepositoryProtocol | None = None,
+    ) -> None:
+        """Initialize the use case with an injectable repository."""
+
+        self._repository = repository or get_share_application_repository()
 
     def log_access(
         self,
@@ -530,10 +416,8 @@ class ShareAccessUseCases:
         """
         import hashlib
 
-        # 对 IP 进行哈希
         ip_hash = hashlib.sha256(ip_address.encode()).hexdigest()
-
-        log = share_access_log_manager.create(
+        return self._repository.log_access(
             share_link_id=share_link_id,
             ip_hash=ip_hash,
             user_agent=user_agent,
@@ -541,8 +425,6 @@ class ShareAccessUseCases:
             is_verified=is_verified,
             result_status=result_status,
         )
-
-        return log.id
 
     def get_access_logs(
         self,
@@ -559,22 +441,10 @@ class ShareAccessUseCases:
         Returns:
             日志列表
         """
-        logs = share_access_log_manager.filter(
-            share_link_id=share_link_id
-        ).order_by('-accessed_at')[:limit]
-
-        return [
-            {
-                "id": log.id,
-                "accessed_at": log.accessed_at,
-                "ip_hash": log.ip_hash,
-                "user_agent": log.user_agent,
-                "referer": log.referer,
-                "is_verified": log.is_verified,
-                "result_status": log.result_status,
-            }
-            for log in logs
-        ]
+        return self._repository.get_access_logs(
+            share_link_id=share_link_id,
+            limit=limit,
+        )
 
     def get_access_stats(self, share_link_id: int) -> dict:
         """
@@ -586,14 +456,4 @@ class ShareAccessUseCases:
         Returns:
             统计数据
         """
-        logs = share_access_log_manager.filter(share_link_id=share_link_id)
-
-        total = logs.count()
-        successful = logs.filter(result_status="success").count()
-        unique_visitors = logs.values("ip_hash").distinct().count()
-
-        return {
-            "total_accesses": total,
-            "successful_accesses": successful,
-            "unique_visitors": unique_visitors,
-        }
+        return self._repository.get_access_stats(share_link_id=share_link_id)

@@ -57,11 +57,55 @@ class _FakeTradeRepository:
         return len(self.saved_entities)
 
 
-def _make_service(position_repo=None, trade_repo=None) -> UnifiedPositionService:
+class _FakePositionMutationRepository:
+    def __init__(self, position_repo: _FakePositionRepository, trade_repo: _FakeTradeRepository):
+        self._position_repo = position_repo
+        self._trade_repo = trade_repo
+
+    def create_or_merge_position_with_buy_trade(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        position_defaults: dict,
+        trade_payload: dict,
+    ):
+        record = self._position_repo.save_position_record(
+            account_id=account_id,
+            asset_code=asset_code,
+            defaults=position_defaults,
+        )
+        self._trade_repo.create_trade_record(**trade_payload)
+        return record
+
+    def close_position_with_sell_trade(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        remaining_position_defaults: dict | None,
+        trade,
+    ) -> None:
+        self._trade_repo.save(trade)
+        if remaining_position_defaults is None:
+            self._position_repo.delete(account_id, asset_code)
+            return
+
+        self._position_repo.save_position_record(
+            account_id=account_id,
+            asset_code=asset_code,
+            defaults=remaining_position_defaults,
+        )
+
+
+def _make_service(position_repo=None, trade_repo=None, mutation_repo=None) -> UnifiedPositionService:
+    position_repo = position_repo or _FakePositionRepository()
+    trade_repo = trade_repo or _FakeTradeRepository()
     return UnifiedPositionService(
         account_repo=SimpleNamespace(),
-        position_repo=position_repo or _FakePositionRepository(),
-        trade_repo=trade_repo or _FakeTradeRepository(),
+        position_repo=position_repo,
+        trade_repo=trade_repo,
+        mutation_repo=mutation_repo or _FakePositionMutationRepository(position_repo, trade_repo),
     )
 
 

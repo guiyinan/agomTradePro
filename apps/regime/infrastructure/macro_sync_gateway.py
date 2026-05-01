@@ -1,10 +1,10 @@
 """
 Macro Sync Task Gateway for Regime Module.
 
-通过 Gateway + 延迟导入封装 regime 对 macro Celery 任务的依赖。
+通过 Gateway + 任务名签名封装 regime 对 macro Celery 任务的依赖。
 """
 
-from typing import Optional
+from celery import signature
 
 from apps.regime.domain.protocols import MacroSyncTaskGatewayProtocol
 
@@ -18,10 +18,11 @@ class DjangoMacroSyncTaskGateway(MacroSyncTaskGatewayProtocol):
         indicator: str | None,
         days_back: int,
     ):
-        from apps.macro.application.tasks import sync_macro_data
-
-        return sync_macro_data.s(
-            source=source,
-            indicator=indicator,
-            days_back=days_back,
+        return signature(
+            "apps.macro.application.tasks.sync_macro_data",
+            kwargs={
+                "source": source,
+                "indicator": indicator,
+                "days_back": days_back,
+            },
         )

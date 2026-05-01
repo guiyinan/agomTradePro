@@ -6,6 +6,7 @@ from apps.simulated_trading.infrastructure.providers import (
     DjangoDailyNetValueRepository,
     DjangoFeeConfigRepository,
     DjangoInspectionRepository,
+    DjangoPositionMutationRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
@@ -28,6 +29,12 @@ def get_simulated_trade_repository() -> DjangoTradeRepository:
     """Return the default simulated trade repository."""
 
     return DjangoTradeRepository()
+
+
+def get_simulated_position_mutation_repository() -> DjangoPositionMutationRepository:
+    """Return the default infrastructure transaction coordinator for positions."""
+
+    return DjangoPositionMutationRepository()
 
 
 def get_simulated_daily_net_value_repository() -> DjangoDailyNetValueRepository:

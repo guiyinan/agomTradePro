@@ -9,9 +9,6 @@ from typing import Any
 
 from django.utils import timezone
 
-from apps.account.application.config_summary_service import (
-    get_account_config_summary_service,
-)
 from apps.alpha.application.repository_provider import (
     TushareQlibBuilder,
     get_alpha_alert_repository,
@@ -25,6 +22,7 @@ from apps.task_monitor.application.provider import (
     get_celery_health_checker,
     get_task_record_repository,
 )
+from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +71,10 @@ def _to_iso(value: Any) -> str | None:
 class QlibRuntimeDataRefreshService:
     """Refresh local qlib runtime data for universes or explicit code scopes."""
 
-    def __init__(self) -> None:
-        self.config_service = get_account_config_summary_service()
-
     def get_runtime_config(self) -> dict[str, Any]:
-        """Return runtime qlib config through the account-owned config service."""
-        return self.config_service.get_runtime_qlib_config()
+        """Return runtime qlib config through the integration bridge."""
+
+        return get_runtime_qlib_config()
 
     def refresh_universes(
         self,
@@ -172,7 +168,7 @@ class AlphaOpsOverviewQueryService:
         """Return the Alpha inference ops overview payload."""
         from apps.alpha.application.ops_locks import list_active_dashboard_alpha_refresh_locks
 
-        qlib_config = get_account_config_summary_service().get_runtime_qlib_config()
+        qlib_config = get_runtime_qlib_config()
         active_model = get_qlib_model_registry_repository().get_active_model()
         return {
             "active_model": self._serialize_active_model(active_model),
@@ -292,7 +288,7 @@ class QlibDataOpsOverviewQueryService:
 
     def build(self) -> dict[str, Any]:
         """Return the Qlib data ops overview payload."""
-        runtime_config = get_account_config_summary_service().get_runtime_qlib_config()
+        runtime_config = get_runtime_qlib_config()
         latest_local_trade_date = None
         local_data_error = None
         provider_uri = runtime_config.get("provider_uri")

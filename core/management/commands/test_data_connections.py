@@ -7,7 +7,7 @@ AgomTradePro 综合数据连接测试脚本
     python manage.py test_data_connections
 """
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -56,7 +56,7 @@ class DataConnectionTester:
             "test": test_name,
             "status": status,
             "details": details,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.results.append(result)
         icon = "✅" if status == "success" else "❌" if status == "error" else "⚠️"
@@ -464,7 +464,7 @@ class DataConnectionTester:
         self.stdout.write("\n" + "="*60)
         self.stdout.write("🚀 AgomTradePro 数据连接综合测试")
         self.stdout.write("="*60)
-        self.stdout.write(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.stdout.write(f"测试时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
 
         tests = [
             ("数据库连接", self.test_database_connection),
@@ -510,7 +510,7 @@ class DataConnectionTester:
         os.makedirs(os.path.dirname(results_file), exist_ok=True)
 
         summary = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "total_tests": len(self.results),
             "success": len([r for r in self.results if r["status"] == "success"]),
             "errors": len([r for r in self.results if r["status"] == "error"]),

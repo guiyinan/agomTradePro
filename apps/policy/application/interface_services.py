@@ -146,3 +146,155 @@ class PolicyWorkbenchInterfaceService:
         """Return one serialized workbench item detail row."""
 
         return self.interface_repo.get_workbench_item_detail(event_id)
+
+
+class PolicyPageInterfaceService:
+    """Application-facing helpers for policy HTML page views."""
+
+    def __init__(self, page_repo):
+        self.page_repo = page_repo
+
+    def list_rss_sources(self, *, category: str = "", is_active: str = "", search: str = ""):
+        return self.page_repo.list_rss_sources(
+            category=category,
+            is_active=is_active,
+            search=search,
+        )
+
+    def list_policy_keywords(self, *, level: str = "", is_active: str = ""):
+        return self.page_repo.list_policy_keywords(
+            level=level,
+            is_active=is_active,
+        )
+
+    def list_rss_fetch_logs(self, *, source_id: str = "", status: str = ""):
+        return self.page_repo.list_rss_fetch_logs(
+            source_id=source_id,
+            status=status,
+        )
+
+    def get_rss_fetch_log_summary(self, *, source_id: str = "", status: str = "") -> dict[str, Any]:
+        return self.page_repo.get_rss_fetch_log_summary(
+            source_id=source_id,
+            status=status,
+        )
+
+    def list_rss_reader_items(
+        self,
+        *,
+        source_id: str = "",
+        level: str = "",
+        category: str = "",
+    ):
+        return self.page_repo.list_rss_reader_items(
+            source_id=source_id,
+            level=level,
+            category=category,
+        )
+
+    def get_rss_reader_summary(
+        self,
+        *,
+        source_id: str = "",
+        level: str = "",
+        category: str = "",
+    ) -> dict[str, Any]:
+        return self.page_repo.get_rss_reader_summary(
+            source_id=source_id,
+            level=level,
+            category=category,
+        )
+
+    def list_policy_events(
+        self,
+        *,
+        level: str = "",
+        start_date: str = "",
+        end_date: str = "",
+    ):
+        return self.page_repo.list_policy_events(
+            level=level,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def create_policy_event(self, payload: dict[str, Any]):
+        return self.page_repo.create_policy_event(payload)
+
+    def get_page_constants(self) -> dict[str, Any]:
+        return self.page_repo.get_policy_page_constants()
+
+
+class PolicyRssApiInterfaceService:
+    """Application-facing helpers for policy RSS API views."""
+
+    def __init__(self, api_repo):
+        self.api_repo = api_repo
+
+    def list_rss_source_configs(
+        self,
+        *,
+        category: str = "",
+        is_active: str | None = "",
+        parser_type: str = "",
+        search: str = "",
+    ):
+        return self.api_repo.list_rss_source_configs(
+            category=category,
+            is_active=is_active,
+            parser_type=parser_type,
+            search=search,
+        )
+
+    def get_rss_source_config(self, source_id: int):
+        return self.api_repo.get_rss_source_config(source_id)
+
+    def create_rss_source_config(self, payload: dict[str, Any]):
+        return self.api_repo.create_rss_source_config(payload)
+
+    def update_rss_source_config(self, source_id: int, payload: dict[str, Any]):
+        return self.api_repo.update_rss_source_config(source_id, payload)
+
+    def delete_rss_source_config(self, source_id: int) -> bool:
+        return self.api_repo.delete_rss_source_config(source_id)
+
+    def list_rss_fetch_logs(
+        self,
+        *,
+        source_name: str = "",
+        source_id: str = "",
+        status: str = "",
+    ):
+        return self.api_repo.list_rss_fetch_logs(
+            source_name=source_name,
+            source_id=source_id,
+            status=status,
+        )
+
+    def get_rss_fetch_log(self, log_id: int):
+        return self.api_repo.get_rss_fetch_log(log_id)
+
+    def list_policy_level_keywords(
+        self,
+        *,
+        level: str = "",
+        is_active: str | None = "",
+        category: str = "",
+    ):
+        return self.api_repo.list_policy_level_keywords(
+            level=level,
+            is_active=is_active,
+            category=category,
+        )
+
+    def get_policy_level_keyword(self, keyword_id: int):
+        return self.api_repo.get_policy_level_keyword(keyword_id)
+
+    def create_policy_level_keyword(self, payload: dict[str, Any]):
+        return self.api_repo.create_policy_level_keyword(payload)
+
+    def update_policy_level_keyword(self, keyword_id: int, payload: dict[str, Any]):
+        return self.api_repo.update_policy_level_keyword(keyword_id, payload)
+
+    def delete_policy_level_keyword(self, keyword_id: int) -> bool:
+        return self.api_repo.delete_policy_level_keyword(keyword_id)

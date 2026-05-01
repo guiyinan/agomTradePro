@@ -16,7 +16,7 @@ class RotationConfig(AppConfig):
             from apps.rotation.application.repository_provider import (
                 resolve_rotation_asset_names,
             )
-            from shared.infrastructure.asset_analysis_registry import (
+            from core.integration.asset_analysis_market_registry import (
                 get_asset_analysis_market_registry,
             )
 

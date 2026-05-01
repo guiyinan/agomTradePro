@@ -38,6 +38,7 @@ from .models import (
     FundNetValueModel,
     FundPerformanceModel,
     FundSectorAllocationModel,
+    FundTypePreferenceConfigModel,
 )
 
 # ==================== 通用资产分析框架集成 ====================
@@ -203,6 +204,18 @@ class DjangoFundRepository:
 
         models = queryset.all()
         return [self._model_to_entity_info(m) for m in models]
+
+    def get_fund_type_preferences_by_regime(self, regime: str) -> list[str]:
+        """Return preferred fund types for one regime ordered by priority."""
+
+        return list(
+            FundTypePreferenceConfigModel._default_manager.filter(
+                regime=regime,
+                is_active=True,
+            )
+            .order_by("-priority")
+            .values_list("fund_type", flat=True)
+        )
 
     def save_fund_info(self, fund_info: FundInfo) -> None:
         """保存或更新基金信息

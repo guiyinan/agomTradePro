@@ -21,7 +21,7 @@ class AssetAnalysisConfig(AppConfig):
             from apps.asset_analysis.application.repository_provider import (
                 resolve_index_asset_names,
             )
-            from shared.infrastructure.asset_analysis_registry import (
+            from core.integration.asset_analysis_market_registry import (
                 get_asset_analysis_market_registry,
             )
 

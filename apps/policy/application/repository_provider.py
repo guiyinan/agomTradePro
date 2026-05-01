@@ -9,6 +9,8 @@ from apps.policy.infrastructure.adapters import FeedparserAdapter, create_conten
 from apps.policy.infrastructure.adapters.content_extractor import ContentExtractorError
 from apps.policy.infrastructure.interface_repositories import (
     PolicyAdminInterfaceRepository,
+    PolicyPageInterfaceRepository,
+    PolicyRssApiInterfaceRepository,
     PolicyWorkbenchInterfaceRepository,
 )
 from apps.policy.infrastructure.notification_service import NotificationServiceFactory
@@ -49,11 +51,16 @@ __all__ = [
     "PolicyAdminInterfaceService",
     "PolicyWorkbenchInterfaceRepository",
     "PolicyWorkbenchInterfaceService",
+    "PolicyRssApiInterfaceRepository",
+    "PolicyRssApiInterfaceService",
     "RSSRepository",
     "WorkbenchRepository",
     "create_ai_policy_classifier",
     "create_content_extractor",
     "get_current_policy_repository",
+    "get_policy_page_interface_service",
+    "get_policy_rss_api_interface_service",
+    "get_policy_workbench_interface_service",
     "get_rss_repository",
     "get_workbench_repository",
 ]
@@ -76,6 +83,22 @@ def get_policy_workbench_interface_service():
         workbench_repo=get_workbench_repository(),
         interface_repo=PolicyWorkbenchInterfaceRepository(),
     )
+
+
+def get_policy_page_interface_service():
+    """Return the policy page interface service."""
+
+    from apps.policy.application.interface_services import PolicyPageInterfaceService
+
+    return PolicyPageInterfaceService(page_repo=PolicyPageInterfaceRepository())
+
+
+def get_policy_rss_api_interface_service():
+    """Return the policy RSS API interface service."""
+
+    from apps.policy.application.interface_services import PolicyRssApiInterfaceService
+
+    return PolicyRssApiInterfaceService(api_repo=PolicyRssApiInterfaceRepository())
 
 
 def get_hedge_position_repository() -> HedgePositionRepository:

@@ -105,9 +105,8 @@ class ScreenFundsUseCase:
                 from apps.regime.application.current_regime import resolve_current_regime
                 regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
-            # 2. 获取筛选偏好（从数据库配置加载）
-            from shared.infrastructure.config_loader import get_fund_type_preferences
-            preferred_types = get_fund_type_preferences(regime)
+            # 2. 获取筛选偏好（通过 fund 仓储加载）
+            preferred_types = self.fund_repo.get_fund_type_preferences_by_regime(regime)
 
             if not preferred_types:
                 preferred_types = ['混合型', '股票型']  # 默认偏好
@@ -200,10 +199,7 @@ class RankFundsUseCase:
         all_funds = self.fund_repo.get_funds_with_performance(start_date, end_date)
 
         # 2. 获取 Regime 权重配置
-        from shared.infrastructure.config_loader import get_fund_type_preferences
-
-        # 将类型偏好转换为权重字典
-        preferred_types = get_fund_type_preferences(regime)
+        preferred_types = self.fund_repo.get_fund_type_preferences_by_regime(regime)
         regime_weights = dict.fromkeys(preferred_types, 1.0)
 
         # 3. 排名（调用 Domain 服务）

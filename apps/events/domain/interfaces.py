@@ -252,3 +252,27 @@ class DecisionRequestRepositoryProtocol(Protocol):
             是否更新成功
         """
         ...
+
+
+class DecisionExecutionSyncRepositoryProtocol(Protocol):
+    """Infrastructure-coordinated write model for decision execution status sync."""
+
+    def sync_executed(
+        self,
+        *,
+        request_id: str,
+        execution_ref: dict[str, Any] | None,
+        candidate_id: str | None,
+    ) -> bool:
+        """Persist all writes for a DECISION_EXECUTED event atomically."""
+        ...
+
+    def sync_failed(
+        self,
+        *,
+        request_id: str,
+        candidate_id: str | None,
+        error_message: str | None,
+    ) -> bool:
+        """Persist all writes for a DECISION_EXECUTION_FAILED event atomically."""
+        ...

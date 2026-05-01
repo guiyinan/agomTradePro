@@ -2,7 +2,23 @@
 
 from __future__ import annotations
 
-from django.contrib.auth.models import AnonymousUser, User
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class SupportsAccountProfile(Protocol):
+    """Minimal profile shape needed by RBAC helpers."""
+
+    rbac_role: str
+
+
+@runtime_checkable
+class SupportsRBACUser(Protocol):
+    """Application-layer user protocol to avoid depending on Django ORM types."""
+
+    is_authenticated: bool
+    is_superuser: bool
+    account_profile: SupportsAccountProfile | None
 
 ROLE_ALIASES: dict[str, str] = {
     "管理员": "admin",
@@ -70,7 +86,7 @@ def role_allows_by_matrix(role: str, level: str, domain: str) -> bool:
     return False
 
 
-def get_user_role(user: User | AnonymousUser) -> str:
+def get_user_role(user: SupportsRBACUser | object) -> str:
     if not getattr(user, "is_authenticated", False):
         return "read_only"
     if getattr(user, "is_superuser", False):
@@ -81,9 +97,9 @@ def get_user_role(user: User | AnonymousUser) -> str:
     return "read_only"
 
 
-def user_allows(user: User | AnonymousUser, level: str, domain: str) -> bool:
+def user_allows(user: SupportsRBACUser | object, level: str, domain: str) -> bool:
     return role_allows_by_matrix(get_user_role(user), level, domain)
 
 
-def is_system_admin(user: User | AnonymousUser) -> bool:
+def is_system_admin(user: SupportsRBACUser | object) -> bool:
     return user_allows(user, level="admin", domain="system")

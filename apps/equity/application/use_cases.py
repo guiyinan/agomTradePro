@@ -7,6 +7,7 @@
 - 调用 Domain 层的业务逻辑
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -21,10 +22,26 @@ from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
 from apps.equity.domain.services_technical import TechnicalChartService
 
+logger = logging.getLogger(__name__)
+
+RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    ImportError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
+
 
 @dataclass
 class ScreenStocksRequest:
     """筛选个股请求"""
+
     regime: str | None = None  # 如果为 None，自动获取最新 Regime
     custom_rule: dict | None = None  # 自定义规则
     max_count: int = 30
@@ -33,6 +50,7 @@ class ScreenStocksRequest:
 @dataclass
 class ScreenStocksResponse:
     """筛选个股响应"""
+
     success: bool
     regime: str
     stock_codes: list[str]
@@ -72,6 +90,7 @@ class ScreenStocksUseCase:
                 regime = request.regime
             else:
                 from apps.regime.application.current_regime import resolve_current_regime
+
                 regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
             # 2. 获取筛选规则（从数据库配置加载）
@@ -100,7 +119,7 @@ class ScreenStocksUseCase:
                     max_pb=rule.max_pb,
                     min_market_cap=rule.min_market_cap,
                     sector_preference=rule.sector_preference,
-                    max_count=request.max_count
+                    max_count=request.max_count,
                 )
 
             # 3. 获取全市场数据（最新财务数据 + 最新估值）
@@ -155,29 +174,26 @@ class ScreenStocksUseCase:
                 stock_codes=stock_codes,
                 items=items,
                 screening_criteria={
-                    'rule_name': rule.name,
-                    'min_roe': rule.min_roe,
-                    'max_pe': rule.max_pe,
-                    'max_pb': rule.max_pb,
-                    'sectors': rule.sector_preference
-                }
+                    "rule_name": rule.name,
+                    "min_roe": rule.min_roe,
+                    "max_pe": rule.max_pe,
+                    "max_pb": rule.max_pb,
+                    "sectors": rule.sector_preference,
+                },
             )
 
-        except Exception as e:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
+            logger.warning("ScreenStocksUseCase.execute failed: %s", e)
             return ScreenStocksResponse(
                 success=False,
-                regime='',
+                regime="",
                 stock_codes=[],
                 items=[],
                 screening_criteria={},
-                error=str(e)
+                error=str(e),
             )
 
-    def _parse_custom_rule(
-        self,
-        custom_rule: dict,
-        regime: str
-    ) -> StockScreeningRule:
+    def _parse_custom_rule(self, custom_rule: dict, regime: str) -> StockScreeningRule:
         """
         解析自定义规则
 
@@ -190,17 +206,17 @@ class ScreenStocksUseCase:
         """
         return StockScreeningRule(
             regime=regime,
-            name=custom_rule.get('name', '自定义规则'),
-            min_roe=custom_rule.get('min_roe', 0.0),
-            min_revenue_growth=custom_rule.get('min_revenue_growth', 0.0),
-            min_profit_growth=custom_rule.get('min_profit_growth', 0.0),
-            max_debt_ratio=custom_rule.get('max_debt_ratio', 100.0),
-            max_pe=custom_rule.get('max_pe', 999.0),
-            max_pb=custom_rule.get('max_pb', 999.0),
-            min_market_cap=Decimal(str(custom_rule.get('min_market_cap', 0))),
-            sector_preference=custom_rule.get('sector_preference'),
-            max_count=custom_rule.get('max_count', 50)
-            )
+            name=custom_rule.get("name", "自定义规则"),
+            min_roe=custom_rule.get("min_roe", 0.0),
+            min_revenue_growth=custom_rule.get("min_revenue_growth", 0.0),
+            min_profit_growth=custom_rule.get("min_profit_growth", 0.0),
+            max_debt_ratio=custom_rule.get("max_debt_ratio", 100.0),
+            max_pe=custom_rule.get("max_pe", 999.0),
+            max_pb=custom_rule.get("max_pb", 999.0),
+            min_market_cap=Decimal(str(custom_rule.get("min_market_cap", 0))),
+            sector_preference=custom_rule.get("sector_preference"),
+            max_count=custom_rule.get("max_count", 50),
+        )
 
 
 @dataclass
@@ -314,7 +330,8 @@ class GetTechnicalChartUseCase:
                 signals=signal_payload,
                 latest_signal=signal_payload[-1] if signal_payload else None,
             )
-        except Exception as exc:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
+            logger.warning("GetTechnicalChartUseCase.execute failed: %s", exc)
             return GetTechnicalChartResponse(
                 success=False,
                 stock_code=request.stock_code,
@@ -367,7 +384,8 @@ class GetIntradayChartUseCase:
                     else "akshare"
                 ),
             )
-        except Exception as exc:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
+            logger.warning("GetIntradayChartUseCase.execute failed: %s", exc)
             return GetIntradayChartResponse(
                 success=False,
                 stock_code=request.stock_code,
@@ -383,6 +401,7 @@ class GetIntradayChartUseCase:
 @dataclass
 class AnalyzeValuationRequest:
     """估值分析请求"""
+
     stock_code: str
     lookback_days: int = 252  # 回看天数（默认 1 年）
 
@@ -390,6 +409,7 @@ class AnalyzeValuationRequest:
 @dataclass
 class AnalyzeValuationResponse:
     """估值分析响应（个股详情页完整数据）"""
+
     success: bool
     stock_code: str
     stock_name: str
@@ -449,9 +469,7 @@ class AnalyzeValuationUseCase:
             start_date = end_date - timedelta(days=request.lookback_days)
 
             valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code,
-                start_date,
-                end_date
+                request.stock_code, start_date, end_date
             )
 
             # 5. 获取财务数据
@@ -459,9 +477,7 @@ class AnalyzeValuationUseCase:
 
             # 6. 获取日线数据（用于获取当前价格、换手率等）
             daily_prices = self.stock_repo.get_daily_prices(
-                request.stock_code,
-                start_date=end_date - timedelta(days=7),
-                end_date=end_date
+                request.stock_code, start_date=end_date - timedelta(days=7), end_date=end_date
             )
             latest_daily = daily_prices[-1] if daily_prices else None
 
@@ -488,47 +504,53 @@ class AnalyzeValuationUseCase:
 
                 # 7. 构建最新估值详情字典
                 latest_valuation = {
-                    'pe': latest.pe if latest.pe > 0 else None,
-                    'pb': latest.pb if latest.pb > 0 else None,
-                    'ps': latest.ps if latest.ps > 0 else None,
-                    'pe_percentile': pe_percentile,
-                    'pb_percentile': pb_percentile,
-                    'total_mv': float(latest.total_mv) if latest.total_mv else None,
-                    'circ_mv': float(latest.circ_mv) if latest.circ_mv else None,
-                    'dividend_yield': latest.dividend_yield if latest.dividend_yield > 0 else None,
-                    'price': float(latest_daily[1]) if latest_daily else None,
-                    'trade_date': latest.trade_date.isoformat() if latest.trade_date else None,
-                    'updated_at': latest.fetched_at.isoformat() if hasattr(latest, 'fetched_at') and latest.fetched_at else None,
+                    "pe": latest.pe if latest.pe > 0 else None,
+                    "pb": latest.pb if latest.pb > 0 else None,
+                    "ps": latest.ps if latest.ps > 0 else None,
+                    "pe_percentile": pe_percentile,
+                    "pb_percentile": pb_percentile,
+                    "total_mv": float(latest.total_mv) if latest.total_mv else None,
+                    "circ_mv": float(latest.circ_mv) if latest.circ_mv else None,
+                    "dividend_yield": latest.dividend_yield if latest.dividend_yield > 0 else None,
+                    "price": float(latest_daily[1]) if latest_daily else None,
+                    "trade_date": latest.trade_date.isoformat() if latest.trade_date else None,
+                    "updated_at": (
+                        latest.fetched_at.isoformat()
+                        if hasattr(latest, "fetched_at") and latest.fetched_at
+                        else None
+                    ),
                 }
             else:
                 response_error = f"未找到股票 {request.stock_code} 的估值数据"
                 latest_valuation = {
-                    'pe': None,
-                    'pb': None,
-                    'ps': None,
-                    'pe_percentile': 0.0,
-                    'pb_percentile': 0.0,
-                    'total_mv': None,
-                    'circ_mv': None,
-                    'dividend_yield': None,
-                    'price': float(latest_daily[1]) if latest_daily else None,
-                    'trade_date': latest_daily[0].isoformat() if latest_daily else None,
-                    'updated_at': None,
+                    "pe": None,
+                    "pb": None,
+                    "ps": None,
+                    "pe_percentile": 0.0,
+                    "pb_percentile": 0.0,
+                    "total_mv": None,
+                    "circ_mv": None,
+                    "dividend_yield": None,
+                    "price": float(latest_daily[1]) if latest_daily else None,
+                    "trade_date": latest_daily[0].isoformat() if latest_daily else None,
+                    "updated_at": None,
                 }
 
             # 8. 构建财务数据字典
             financial_data = None
             if financial:
                 financial_data = {
-                    'roe': financial.roe,
-                    'roa': financial.roa,
-                    'revenue': float(financial.revenue) if financial.revenue else None,
-                    'net_profit': float(financial.net_profit) if financial.net_profit else None,
-                    'revenue_growth': financial.revenue_growth,
-                    'net_profit_growth': financial.net_profit_growth,
-                    'debt_ratio': financial.debt_ratio,
-                    'gross_margin': None,  # 需要从其他地方获取
-                    'report_date': financial.report_date.isoformat() if financial.report_date else None,
+                    "roe": financial.roe,
+                    "roa": financial.roa,
+                    "revenue": float(financial.revenue) if financial.revenue else None,
+                    "net_profit": float(financial.net_profit) if financial.net_profit else None,
+                    "revenue_growth": financial.revenue_growth,
+                    "net_profit_growth": financial.net_profit_growth,
+                    "debt_ratio": financial.debt_ratio,
+                    "gross_margin": None,  # 需要从其他地方获取
+                    "report_date": (
+                        financial.report_date.isoformat() if financial.report_date else None
+                    ),
                 }
 
             # 9. 返回结果
@@ -536,8 +558,8 @@ class AnalyzeValuationUseCase:
                 success=True,
                 stock_code=request.stock_code,
                 stock_name=stock_info.name,
-                sector=stock_info.sector or '',
-                market=stock_info.market or '',
+                sector=stock_info.sector or "",
+                market=stock_info.market or "",
                 list_date=stock_info.list_date.isoformat() if stock_info.list_date else None,
                 current_pe=latest.pe if latest is not None else 0.0,
                 pe_percentile=pe_percentile,
@@ -549,13 +571,14 @@ class AnalyzeValuationUseCase:
                 error=response_error,
             )
 
-        except Exception as e:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
+            logger.warning("AnalyzeValuationUseCase.execute failed: %s", e)
             return AnalyzeValuationResponse(
                 success=False,
                 stock_code=request.stock_code,
-                stock_name='',
-                sector='',
-                market='',
+                stock_name="",
+                sector="",
+                market="",
                 list_date=None,
                 current_pe=0.0,
                 pe_percentile=0.0,
@@ -564,7 +587,7 @@ class AnalyzeValuationUseCase:
                 is_undervalued=False,
                 latest_valuation=None,
                 financial_data=None,
-                error=str(e)
+                error=str(e),
             )
 
 
@@ -572,9 +595,11 @@ class AnalyzeValuationUseCase:
 # DCF 绝对估值
 # ============================================================================
 
+
 @dataclass
 class CalculateDCFRequest:
     """DCF 估值请求"""
+
     stock_code: str
     growth_rate: float = 0.1  # 未来增长率（默认 10%）
     discount_rate: float = 0.1  # 折现率（默认 10%）
@@ -585,6 +610,7 @@ class CalculateDCFRequest:
 @dataclass
 class CalculateDCFResponse:
     """DCF 估值响应"""
+
     success: bool
     stock_code: str
     stock_name: str
@@ -643,14 +669,14 @@ class CalculateDCFUseCase:
                 growth_rate=request.growth_rate,
                 discount_rate=request.discount_rate,
                 terminal_growth=request.terminal_growth,
-                projection_years=request.projection_years
+                projection_years=request.projection_years,
             )
 
             # 5. 获取当前市值和股价
             valuation = self.stock_repo.get_valuation_history(
                 request.stock_code,
                 start_date=date.today() - timedelta(days=7),
-                end_date=date.today()
+                end_date=date.today(),
             )
 
             current_price = None
@@ -659,13 +685,17 @@ class CalculateDCFUseCase:
 
             if valuation:
                 current_mv = valuation[-1].total_mv
-                current_price = valuation[-1].total_mv / valuation[-1].ps if valuation[-1].ps > 0 else None
+                current_price = (
+                    valuation[-1].total_mv / valuation[-1].ps if valuation[-1].ps > 0 else None
+                )
 
                 # 计算每股内在价值（简化：使用总股本）
                 # intrinsic_value_per_share = intrinsic_value / total_shares
                 # 这里简化处理：假设内在价值/市值比例
                 if current_mv and current_mv > 0:
-                    intrinsic_value_per_share = intrinsic_value / current_mv * (current_price or Decimal(1))
+                    intrinsic_value_per_share = (
+                        intrinsic_value / current_mv * (current_price or Decimal(1))
+                    )
 
                 # 计算上涨空间
                 if current_price and current_price > 0:
@@ -679,19 +709,20 @@ class CalculateDCFUseCase:
                 intrinsic_value=intrinsic_value,
                 intrinsic_value_per_share=intrinsic_value_per_share,
                 current_price=current_price,
-                upside=upside
+                upside=upside,
             )
 
-        except Exception as e:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
+            logger.warning("CalculateDCFUseCase.execute failed: %s", e)
             return CalculateDCFResponse(
                 success=False,
                 stock_code=request.stock_code,
-                stock_name='',
+                stock_name="",
                 intrinsic_value=Decimal(0),
                 intrinsic_value_per_share=None,
                 current_price=None,
                 upside=None,
-                error=str(e)
+                error=str(e),
             )
 
 
@@ -699,9 +730,11 @@ class CalculateDCFUseCase:
 # Regime 相关性分析
 # ============================================================================
 
+
 @dataclass
 class AnalyzeRegimeCorrelationRequest:
     """Regime 相关性分析请求"""
+
     stock_code: str
     lookback_days: int = 1260  # 回看天数（默认 5 年，约 1260 个交易日）
 
@@ -709,6 +742,7 @@ class AnalyzeRegimeCorrelationRequest:
 @dataclass
 class RegimePerformance:
     """单个 Regime 的表现"""
+
     regime: str
     avg_return: float
     beta: float
@@ -718,6 +752,7 @@ class RegimePerformance:
 @dataclass
 class AnalyzeRegimeCorrelationResponse:
     """Regime 相关性分析响应"""
+
     success: bool
     stock_code: str
     stock_name: str
@@ -768,9 +803,7 @@ class AnalyzeRegimeCorrelationUseCase:
             start_date = end_date - timedelta(days=request.lookback_days)
 
             stock_returns = self.stock_repo.calculate_daily_returns(
-                request.stock_code,
-                start_date,
-                end_date
+                request.stock_code, start_date, end_date
             )
 
             if not stock_returns:
@@ -788,42 +821,32 @@ class AnalyzeRegimeCorrelationUseCase:
             analyzer = RegimeCorrelationAnalyzer()
 
             # 计算各 Regime 下的平均收益
-            avg_returns = analyzer.calculate_regime_correlation(
-                stock_returns,
-                regime_history
-            )
+            avg_returns = analyzer.calculate_regime_correlation(stock_returns, regime_history)
 
             # 计算各 Regime 下的 Beta
             regime_betas = analyzer.calculate_regime_beta(
-                stock_returns,
-                market_returns,
-                regime_history
+                stock_returns, market_returns, regime_history
             )
 
             # 6. 构造响应
             regime_performance = {}
-            for regime in ['Recovery', 'Overheat', 'Stagflation', 'Deflation']:
+            for regime in ["Recovery", "Overheat", "Stagflation", "Deflation"]:
                 # 计算样本天数
-                sample_days = sum(
-                    1 for r in regime_history.values()
-                    if r == regime
-                )
+                sample_days = sum(1 for r in regime_history.values() if r == regime)
 
                 regime_performance[regime] = RegimePerformance(
                     regime=regime,
                     avg_return=avg_returns.get(regime, 0.0),
                     beta=regime_betas.get(regime, 1.0),
-                    sample_days=sample_days
+                    sample_days=sample_days,
                 )
 
             # 找出最佳和最差 Regime
             sorted_by_return = sorted(
-                regime_performance.items(),
-                key=lambda x: x[1].avg_return,
-                reverse=True
+                regime_performance.items(), key=lambda x: x[1].avg_return, reverse=True
             )
-            best_regime = sorted_by_return[0][0] if sorted_by_return else 'Recovery'
-            worst_regime = sorted_by_return[-1][0] if sorted_by_return else 'Deflation'
+            best_regime = sorted_by_return[0][0] if sorted_by_return else "Recovery"
+            worst_regime = sorted_by_return[-1][0] if sorted_by_return else "Deflation"
 
             return AnalyzeRegimeCorrelationResponse(
                 success=True,
@@ -831,18 +854,19 @@ class AnalyzeRegimeCorrelationUseCase:
                 stock_name=stock_info.name,
                 regime_performance=regime_performance,
                 best_regime=best_regime,
-                worst_regime=worst_regime
+                worst_regime=worst_regime,
             )
 
-        except Exception as e:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
+            logger.warning("AnalyzeRegimeCorrelationUseCase.execute failed: %s", e)
             return AnalyzeRegimeCorrelationResponse(
                 success=False,
                 stock_code=request.stock_code,
-                stock_name='',
+                stock_name="",
                 regime_performance={},
-                best_regime='',
-                worst_regime='',
-                error=str(e)
+                best_regime="",
+                worst_regime="",
+                error=str(e),
             )
 
     def _get_regime_history(self, start_date: date, end_date: date) -> dict[date, str]:
@@ -871,9 +895,10 @@ class AnalyzeRegimeCorrelationUseCase:
             # 对于缺失的日期，使用前一个有效日期的 Regime
             return self._fill_missing_dates(regime_history, start_date, end_date)
 
-        except Exception:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             # 如果获取失败，返回空字典
             # Domain 层的 RegimeCorrelationAnalyzer 会处理空数据情况
+            logger.warning("AnalyzeRegimeCorrelationUseCase._get_regime_history degraded: %s", exc)
             return {}
 
     def _get_market_returns(self, start_date: date, end_date: date) -> dict[date, float]:
@@ -897,20 +922,16 @@ class AnalyzeRegimeCorrelationUseCase:
             if not benchmark_code:
                 return {}
             return market_adapter.get_index_daily_returns(
-                index_code=benchmark_code,
-                start_date=start_date,
-                end_date=end_date
+                index_code=benchmark_code, start_date=start_date, end_date=end_date
             )
 
-        except Exception:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as exc:
             # 如果获取失败，返回空字典
+            logger.warning("AnalyzeRegimeCorrelationUseCase._get_market_returns degraded: %s", exc)
             return {}
 
     def _fill_missing_dates(
-        self,
-        regime_history: dict[date, str],
-        start_date: date,
-        end_date: date
+        self, regime_history: dict[date, str], start_date: date, end_date: date
     ) -> dict[date, str]:
         """
         填充缺失的日期
@@ -929,7 +950,7 @@ class AnalyzeRegimeCorrelationUseCase:
 
         result = {}
         current = start_date
-        last_regime = 'Recovery'  # 默认 Regime
+        last_regime = "Recovery"  # 默认 Regime
 
         # 按日期排序
         sorted_dates = sorted(regime_history.keys())
@@ -964,9 +985,11 @@ class AnalyzeRegimeCorrelationUseCase:
 # 综合估值分析
 # ============================================================================
 
+
 @dataclass
 class ComprehensiveValuationRequest:
     """综合估值分析请求"""
+
     stock_code: str
     lookback_days: int = 252  # 回看天数
     industry_avg_pe: float = 20.0  # 行业平均 PE
@@ -977,6 +1000,7 @@ class ComprehensiveValuationRequest:
 @dataclass
 class ValuationScoreDTO:
     """估值评分 DTO"""
+
     method: str
     score: float
     signal: str  # 'undervalued', 'fair', 'overvalued'
@@ -984,16 +1008,17 @@ class ValuationScoreDTO:
 
     def to_dict(self):
         return {
-            'method': self.method,
-            'score': self.score,
-            'signal': self.signal,
-            'details': self.details
+            "method": self.method,
+            "score": self.score,
+            "signal": self.signal,
+            "details": self.details,
         }
 
 
 @dataclass
 class ComprehensiveValuationResponse:
     """综合估值分析响应"""
+
     success: bool
     stock_code: str
     stock_name: str
@@ -1051,9 +1076,7 @@ class ComprehensiveValuationUseCase:
             start_date = end_date - timedelta(days=request.lookback_days)
 
             valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code,
-                start_date,
-                end_date
+                request.stock_code, start_date, end_date
             )
 
             if not valuation_history:
@@ -1075,16 +1098,13 @@ class ComprehensiveValuationUseCase:
                 historical_pb=historical_pb,
                 industry_avg_pe=request.industry_avg_pe,
                 industry_avg_pb=request.industry_avg_pb,
-                risk_free_rate=request.risk_free_rate
+                risk_free_rate=request.risk_free_rate,
             )
 
             # 6. 转换为响应格式
             scores_dto = [
                 ValuationScoreDTO(
-                    method=s.method,
-                    score=s.score,
-                    signal=s.signal,
-                    details=s.details
+                    method=s.method, score=s.score, signal=s.signal, details=s.details
                 )
                 for s in result.scores
             ]
@@ -1097,18 +1117,19 @@ class ComprehensiveValuationUseCase:
                 overall_signal=result.overall_signal,
                 recommendation=result.recommendation,
                 confidence=result.confidence,
-                scores=[s.to_dict() for s in scores_dto]
+                scores=[s.to_dict() for s in scores_dto],
             )
 
-        except Exception as e:
+        except RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS as e:
+            logger.warning("ComprehensiveValuationUseCase.execute failed: %s", e)
             return ComprehensiveValuationResponse(
                 success=False,
                 stock_code=request.stock_code,
-                stock_name='',
+                stock_name="",
                 overall_score=0.0,
-                overall_signal='',
-                recommendation='',
+                overall_signal="",
+                recommendation="",
                 confidence=0.0,
                 scores=[],
-                error=str(e)
+                error=str(e),
             )

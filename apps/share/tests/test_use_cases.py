@@ -102,6 +102,30 @@ class TestShareLinkUseCases:
 
         assert "account_id" in str(exc_info.value)
 
+    def test_create_share_link_rejects_foreign_account(self, use_case, test_user, other_user):
+        """Test creating a share link for another user's account is rejected."""
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        foreign_account = SimulatedAccountModel.objects.create(
+            user=other_user,
+            account_name="Foreign Account",
+            account_type="simulated",
+            initial_capital=Decimal("100000.00"),
+            current_cash=Decimal("100000.00"),
+            current_market_value=Decimal("0.00"),
+            total_value=Decimal("100000.00"),
+            start_date=django_timezone.now().date(),
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            use_case.create_share_link(
+                owner_id=test_user.id,
+                account_id=foreign_account.id,
+                title="Foreign Account",
+            )
+
+        assert "account_id" in str(exc_info.value)
+
     def test_create_share_link_invalid_user(self, use_case, test_account):
         """Test creating share link with non-existent user raises error."""
         with pytest.raises(ValidationError) as exc_info:

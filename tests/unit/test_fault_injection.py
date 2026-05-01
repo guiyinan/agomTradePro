@@ -73,7 +73,7 @@ class TestDatabaseFailures:
 
         # 模拟事务错误
         with patch(
-            'apps.events.application.decision_execution_handlers.transaction'
+            'apps.events.infrastructure.repositories.transaction'
         ) as mock_transaction:
             mock_transaction.atomic.side_effect = Exception("Transaction failed")
 

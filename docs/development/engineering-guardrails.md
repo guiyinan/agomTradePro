@@ -34,7 +34,7 @@
 4. 增量 diff 架构门禁：  
    `python scripts/check_architecture_delta.py --rules-file governance/architecture_rules.json --base-ref <base> --head-ref <head> --include-audit --fail-on-audit-violations --format text`
 5. 版本化边界校验：  
-   `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text`
+   `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text --include-audit --fail-on-audit-violations`
 6. 模块账本生成：  
    `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --write-ledger docs/development/module-ledger.md`
 
@@ -51,6 +51,8 @@
    - `simulated_trading -> strategy ORM` 禁令
    - `events -> downstream handlers/models` 禁令
    - `account interface -> simulated_trading ORM / migrate_account_ledger` 禁令
+   - `application -> transaction.atomic / django_apps.get_model` 禁令
+   - 非 `admin.py` 代码导入 app-root `models.py` shim 禁令
 
 ### 0.3) 治理脚手架用法
 

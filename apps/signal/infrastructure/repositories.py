@@ -457,6 +457,49 @@ class DjangoSignalRepository:
         except self._model.DoesNotExist:
             return False
 
+    def persist_invalidation_outcome(
+        self,
+        *,
+        signal_id: str,
+        current_status: str,
+        reason: str,
+        details: dict[str, Any],
+    ) -> bool:
+        """Persist a legacy invalidation outcome without exposing ORM to application code."""
+
+        try:
+            orm_obj = self._model.objects.get(id=signal_id)
+        except self._model.DoesNotExist:
+            return False
+
+        orm_obj.invalidation_details = details
+        orm_obj.rejection_reason = reason
+
+        if current_status == "pending":
+            orm_obj.status = "rejected"
+            orm_obj.save(
+                update_fields=[
+                    "status",
+                    "invalidation_details",
+                    "rejection_reason",
+                    "updated_at",
+                ]
+            )
+            return True
+
+        orm_obj.status = "invalidated"
+        orm_obj.invalidated_at = timezone.now()
+        orm_obj.save(
+            update_fields=[
+                "status",
+                "invalidated_at",
+                "invalidation_details",
+                "rejection_reason",
+                "updated_at",
+            ]
+        )
+        return True
+
     def count_by_status(self, status: str) -> int:
         """
         按状态统计信号数量

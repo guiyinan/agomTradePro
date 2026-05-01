@@ -13,9 +13,11 @@ Features:
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
-from typing import Dict, List, Optional
+from typing import Any
 
-from .repository_provider import DjangoAuditRepository, get_audit_failure_counter
+from apps.audit.domain.interfaces import AuditRepositoryProtocol
+
+from .repository_provider import get_audit_failure_counter, get_audit_repository
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +37,14 @@ class HealthCheckResult:
     component: str
     status: str  # OK, WARNING, ERROR
     message: str
-    details: dict[str, any]
+    details: dict[str, Any]
     checked_at: datetime
 
     def is_healthy(self) -> bool:
         """是否健康"""
         return self.status == "OK"
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "component": self.component,
@@ -66,14 +68,14 @@ class AuditHealthReport:
     """
     overall_status: str  # OK, WARNING, ERROR
     checks: list[HealthCheckResult]
-    metrics: dict[str, any]
+    metrics: dict[str, Any]
     generated_at: datetime
 
     def is_healthy(self) -> bool:
         """是否健康"""
         return self.overall_status == "OK"
 
-    def to_dict(self) -> dict[str, any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "overall_status": self.overall_status,
@@ -103,6 +105,8 @@ class AuditHealthChecker:
         self,
         warning_threshold: int | None = None,
         error_threshold: int | None = None,
+        audit_repo: AuditRepositoryProtocol | None = None,
+        failure_counter: Any | None = None,
     ):
         """
         初始化健康检查器
@@ -110,11 +114,13 @@ class AuditHealthChecker:
         Args:
             warning_threshold: WARNING 状态阈值（失败次数）
             error_threshold: ERROR 状态阈值（失败次数）
+            audit_repo: 审计仓储协议实现
+            failure_counter: 失败计数器实现
         """
         self.warning_threshold = warning_threshold or self.DEFAULT_FAILURE_WARNING_THRESHOLD
         self.error_threshold = error_threshold or self.DEFAULT_FAILURE_ERROR_THRESHOLD
-        self.audit_repo = DjangoAuditRepository()
-        self.failure_counter = get_audit_failure_counter()
+        self.audit_repo = audit_repo or get_audit_repository()
+        self.failure_counter = failure_counter or get_audit_failure_counter()
 
     def check_all(self) -> AuditHealthReport:
         """
@@ -204,20 +210,13 @@ class AuditHealthChecker:
             检查结果
         """
         try:
-            from django.db import connection
-
-            # 执行简单查询测试连接
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
+            database_health = self.audit_repo.get_database_health()
 
             return HealthCheckResult(
                 component="audit_database_connection",
                 status="OK",
                 message="Database connection is healthy",
-                details={
-                    "database": connection.settings_dict["NAME"],
-                    "engine": connection.settings_dict["ENGINE"],
-                },
+                details=database_health,
                 checked_at=datetime.now(UTC),
             )
 
@@ -282,7 +281,7 @@ class AuditHealthChecker:
         else:
             return "OK"
 
-    def _get_audit_metrics(self) -> dict[str, any]:
+    def _get_audit_metrics(self) -> dict[str, Any]:
         """
         获取审计模块指标
 

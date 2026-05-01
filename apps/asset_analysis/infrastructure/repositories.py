@@ -22,7 +22,7 @@ from apps.asset_analysis.infrastructure.models import (
     AssetScoringLog,
     WeightConfigModel,
 )
-from shared.infrastructure.asset_analysis_registry import (
+from core.integration.asset_analysis_market_registry import (
     get_asset_analysis_market_registry,
 )
 

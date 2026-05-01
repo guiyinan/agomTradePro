@@ -17,6 +17,7 @@ from apps.events.infrastructure.event_store import (
 )
 from apps.events.infrastructure.providers import (
     get_alpha_candidate_repository,
+    get_decision_execution_sync_repository,
     get_decision_request_repository,
     get_failed_event_repository,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "InMemoryEventStore",
     "SnapshotStore",
     "get_alpha_candidate_repository",
+    "get_decision_execution_sync_repository",
     "get_decision_request_repository",
     "get_event_store",
     "get_failed_event_repository",

@@ -209,24 +209,36 @@ def _build_decision_chain(
                     _as_float(getattr(feature_snapshot, "alpha_model_score", None)),
                     _as_float(getattr(recommendation, "alpha_model_score", None)),
                 ),
-                "entry_price_low": _as_float(getattr(recommendation, "entry_price_low", None))
-                if recommendation
-                else None,
-                "entry_price_high": _as_float(getattr(recommendation, "entry_price_high", None))
-                if recommendation
-                else None,
-                "target_price_low": _as_float(getattr(recommendation, "target_price_low", None))
-                if recommendation
-                else None,
-                "target_price_high": _as_float(getattr(recommendation, "target_price_high", None))
-                if recommendation
-                else None,
-                "stop_loss_price": _as_float(getattr(recommendation, "stop_loss_price", None))
-                if recommendation
-                else None,
-                "position_pct": _as_float(getattr(recommendation, "position_pct", None))
-                if recommendation
-                else None,
+                "entry_price_low": (
+                    _as_float(getattr(recommendation, "entry_price_low", None))
+                    if recommendation
+                    else None
+                ),
+                "entry_price_high": (
+                    _as_float(getattr(recommendation, "entry_price_high", None))
+                    if recommendation
+                    else None
+                ),
+                "target_price_low": (
+                    _as_float(getattr(recommendation, "target_price_low", None))
+                    if recommendation
+                    else None
+                ),
+                "target_price_high": (
+                    _as_float(getattr(recommendation, "target_price_high", None))
+                    if recommendation
+                    else None
+                ),
+                "stop_loss_price": (
+                    _as_float(getattr(recommendation, "stop_loss_price", None))
+                    if recommendation
+                    else None
+                ),
+                "position_pct": (
+                    _as_float(getattr(recommendation, "position_pct", None))
+                    if recommendation
+                    else None
+                ),
                 "execution_target": decision_request.execution_target,
                 "execution_status": decision_request.execution_status,
                 "execution_ref": decision_request.execution_ref or {},
@@ -299,8 +311,15 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
     if account is None:
         return None
 
-    positions = list(account.positions.all().order_by("-market_value"))
-    trades = list(account.trades.all().order_by("-execution_date", "-execution_time")[:20])
+    positions = _repo().list_owned_account_positions_for_snapshot(
+        owner_id=share_link.owner_id,
+        account_id=share_link.account_id,
+    )
+    trades = _repo().list_owned_account_trades_for_snapshot(
+        owner_id=share_link.owner_id,
+        account_id=share_link.account_id,
+        limit=20,
+    )
     positions_by_code = {position.asset_code: position for position in positions}
     asset_codes = {
         asset_code
@@ -385,7 +404,9 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         for trade in trades
     ]
 
-    decision_items, evidence_items = _build_decision_chain(account.id, asset_codes, positions_by_code)
+    decision_items, evidence_items = _build_decision_chain(
+        account.id, asset_codes, positions_by_code
+    )
     if not decision_items:
         for trade in trades[:10]:
             if trade.reason:

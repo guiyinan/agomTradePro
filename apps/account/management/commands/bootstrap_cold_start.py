@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 from io import StringIO
 
+from django.apps import apps as django_apps
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
@@ -14,9 +15,9 @@ from apps.account.infrastructure.models import (
     InvestmentRuleModel,
 )
 from apps.audit.infrastructure.models import ConfidenceConfigModel, IndicatorThresholdConfigModel
-from apps.decision_rhythm.infrastructure.models import DecisionModelParamConfigModel
 from apps.equity.infrastructure.models import ScoringWeightConfigModel, StockInfoModel
 from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
+from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
 from apps.regime.infrastructure.models import RegimeThresholdConfig
@@ -25,7 +26,9 @@ from apps.rotation.infrastructure.models import (
     RotationConfigModel,
     RotationTemplateModel,
 )
+from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
+from apps.equity.infrastructure.models import StockScreeningRuleConfigModel
 
 
 @dataclass(frozen=True)
@@ -142,7 +145,7 @@ class Command(BaseCommand):
             ),
             BootstrapStep(
                 name="decision_model_params",
-                check=lambda: DecisionModelParamConfigModel._default_manager.filter(env=decision_env).exists(),
+                check=lambda: self._decision_model_params_ready(decision_env),
                 run=lambda: self._run_command("init_decision_model_params", env=decision_env),
             ),
             BootstrapStep(
@@ -200,6 +203,13 @@ class Command(BaseCommand):
         if output:
             self.stdout.write(output)
 
+    def _decision_model_params_ready(self, env: str) -> bool:
+        model = django_apps.get_model(
+            "decision_rhythm",
+            "DecisionModelParamConfigModel",
+        )
+        return model._default_manager.filter(env=env).exists()
+
     def _bootstrap_scoring_weights(self):
         default_configs = [
             {
@@ -238,12 +248,6 @@ class Command(BaseCommand):
         self.stdout.write("Created default scoring weights when missing.")
 
     def _equity_config_exists(self) -> bool:
-        from shared.infrastructure.models import (
-            FundTypePreferenceConfigModel,
-            SectorPreferenceConfigModel,
-            StockScreeningRuleConfigModel,
-        )
-
         return (
             StockScreeningRuleConfigModel._default_manager.exists()
             and SectorPreferenceConfigModel._default_manager.exists()

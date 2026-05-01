@@ -54,6 +54,14 @@ def get_navigator_repository() -> DjangoNavigatorRepository:
     return _get_navigator_repository()
 
 
+def get_regime_config_repository():
+    """Return the configured regime config repository."""
+
+    from apps.regime.infrastructure.providers import RegimeConfigRepository
+
+    return RegimeConfigRepository()
+
+
 def get_macro_source_config_gateway() -> MacroSourceConfigGatewayProtocol:
     """Return the configured macro source gateway for regime views."""
 

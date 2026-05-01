@@ -15,6 +15,7 @@ from apps.sentiment.infrastructure.models import (
     SentimentCache,
     SentimentIndexModel,
 )
+from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 
 class SentimentIndexRepository:
@@ -336,5 +337,21 @@ class SentimentAlertRepository:
             title=title,
             message=message,
             metadata=metadata or {},
+        )
+
+
+class SentimentConfigRepository:
+    """Infrastructure-backed config access for sentiment application services."""
+
+    def get_news_weight(self, default: float) -> float:
+        return ConfigHelper.get_float(
+            ConfigKeys.SENTIMENT_NEWS_WEIGHT,
+            default,
+        )
+
+    def get_policy_weight(self, default: float) -> float:
+        return ConfigHelper.get_float(
+            ConfigKeys.SENTIMENT_POLICY_WEIGHT,
+            default,
         )
 

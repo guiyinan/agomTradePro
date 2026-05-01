@@ -42,6 +42,15 @@ class TokenCreationOutcome:
     token_name: str | None = None
 
 
+@dataclass(frozen=True)
+class RegisteredUserOutcome:
+    """Registration workflow result for template views."""
+
+    user: Any
+    approval_status: str
+    display_name: str
+
+
 _interface_repo = AccountInterfaceRepository
 _classification_repo = AccountClassificationRepository
 
@@ -111,6 +120,50 @@ def provision_registered_user(
     )
 
 
+def username_exists(username: str) -> bool:
+    """Return whether a username already exists."""
+
+    return _interface_repo().username_exists(username)
+
+
+def has_any_administrator(*, exclude_user_id: int | None = None) -> bool:
+    """Return whether the system already has an admin/staff user."""
+
+    return _interface_repo().has_any_administrator(exclude_user_id=exclude_user_id)
+
+
+def register_user(
+    *,
+    username: str,
+    email: str | None,
+    password: str,
+    display_name: str,
+    client_ip: str | None,
+) -> RegisteredUserOutcome:
+    """Create a registered user and related account scaffolding."""
+
+    result = _interface_repo().register_user_with_account_scaffolding(
+        username=username,
+        email=email,
+        password=password,
+        display_name=display_name,
+        client_ip=client_ip,
+    )
+    return RegisteredUserOutcome(
+        user=result["user"],
+        approval_status=result["approval_status"],
+        display_name=result["display_name"],
+    )
+
+
+def build_login_context() -> dict[str, Any]:
+    """Build the login page context."""
+
+    return {
+        "has_admin": has_any_administrator(),
+    }
+
+
 def build_profile_context(user_id: int) -> dict[str, Any]:
     """Build the HTML profile page context."""
 
@@ -121,6 +174,12 @@ def build_settings_context(user_id: int) -> dict[str, Any]:
     """Build the HTML settings page context."""
 
     return _interface_repo().build_settings_context(user_id)
+
+
+def get_active_portfolio_for_user(user_id: int):
+    """Return the user's active portfolio when available."""
+
+    return _interface_repo().get_active_portfolio_for_user(user_id)
 
 
 def update_account_settings(
@@ -684,6 +743,12 @@ def find_user_by_id(user_id: int):
     """Return one user by id when available."""
 
     return _interface_repo().find_user_by_id(user_id)
+
+
+def get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
+    """Return the unified account id mapped from one account portfolio id."""
+
+    return _interface_repo().get_unified_account_id_for_portfolio(portfolio_id)
 
 
 def get_active_observer_grant(*, owner_user_id: int, observer_user_id: int):

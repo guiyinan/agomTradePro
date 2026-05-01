@@ -13,6 +13,7 @@ IMPORTANT:
 
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 from typing import Any, List, Optional, Protocol
 
 
@@ -24,6 +25,43 @@ class MacroIndicatorValue:
     observed_at: date
     published_at: date | None
     unit: str | None
+
+
+class PeriodType(Enum):
+    """Regime-owned macro period type read model."""
+
+    DAY = "D"
+    WEEK = "W"
+    MONTH = "M"
+    QUARTER = "Q"
+    HALF_YEAR = "H"
+    YEAR = "Y"
+
+
+@dataclass(frozen=True)
+class MacroIndicator:
+    """Regime-owned macro observation read model."""
+
+    code: str
+    value: float
+    reporting_period: date
+    period_type: PeriodType = PeriodType.DAY
+    unit: str = ""
+    original_unit: str = ""
+    published_at: date | None = None
+    source: str = "unknown"
+
+    @property
+    def observed_at(self) -> date:
+        """Compatibility alias for older observation-oriented call sites."""
+
+        return self.reporting_period
+
+    def __post_init__(self) -> None:
+        """Allow adapters to pass stored string values directly."""
+
+        if isinstance(self.period_type, str):
+            object.__setattr__(self, "period_type", PeriodType(self.period_type))
 
 
 @dataclass(frozen=True)

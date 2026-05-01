@@ -16,7 +16,7 @@ class EquityConfig(AppConfig):
                 resolve_equity_names,
             )
             from apps.equity.application.services import screen_equity_assets_for_pool
-            from shared.infrastructure.asset_analysis_registry import (
+            from core.integration.asset_analysis_market_registry import (
                 get_asset_analysis_market_registry,
             )
 

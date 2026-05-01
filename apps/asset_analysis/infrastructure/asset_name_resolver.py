@@ -11,10 +11,10 @@ import hashlib
 import json
 import logging
 
-from django.core.cache import cache
-from shared.infrastructure.asset_analysis_registry import (
+from core.integration.asset_analysis_market_registry import (
     get_asset_analysis_market_registry,
 )
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 

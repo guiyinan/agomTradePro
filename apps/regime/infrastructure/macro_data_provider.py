@@ -20,8 +20,10 @@ from typing import List, Optional
 from ..domain.protocols import (
     DataSourceConfigProtocol,
     IndicatorSeries,
+    MacroIndicator,
     MacroDataProviderProtocol,
     MacroIndicatorValue,
+    PeriodType,
 )
 
 logger = logging.getLogger(__name__)
@@ -113,9 +115,7 @@ class DataCenterMacroRepositoryAdapter:
             )
         return self._period_type_cache[indicator_code]
 
-    def _to_macro_indicator(self, fact) -> "MacroIndicator":
-        from apps.macro.domain.entities import MacroIndicator, PeriodType
-
+    def _to_macro_indicator(self, fact) -> MacroIndicator:
         extra = fact.extra or {}
         period_type_value = extra.get("period_type") or self._get_default_period_type(
             fact.indicator_code
@@ -313,8 +313,6 @@ class DataCenterMacroRepositoryAdapter:
         use_pit: bool = False,
         source: str | None = None,
     ) -> list:
-        from apps.macro.domain.entities import MacroIndicator
-
         code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
         indicators = self.get_series(
             code=code,

@@ -4,7 +4,6 @@ Django Admin for Policy Events.
 增强的管理界面，提供统计、筛选和快速操作功能。
 """
 
-from django.apps import apps as django_apps
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
@@ -12,13 +11,14 @@ from django.utils.safestring import mark_safe
 
 from ..application.repository_provider import get_policy_admin_interface_service
 from ..domain.entities import PolicyLevel
-
-PolicyAuditQueue = django_apps.get_model("policy", "PolicyAuditQueue")
-PolicyLevelKeywordModel = django_apps.get_model("policy", "PolicyLevelKeywordModel")
-PolicyLog = django_apps.get_model("policy", "PolicyLog")
-RSSFetchLog = django_apps.get_model("policy", "RSSFetchLog")
-RSSHubGlobalConfig = django_apps.get_model("policy", "RSSHubGlobalConfig")
-RSSSourceConfigModel = django_apps.get_model("policy", "RSSSourceConfigModel")
+from ..models import (
+    PolicyAuditQueue,
+    PolicyLevelKeywordModel,
+    PolicyLog,
+    RSSFetchLog,
+    RSSHubGlobalConfig,
+    RSSSourceConfigModel,
+)
 
 
 def _policy_admin_service():

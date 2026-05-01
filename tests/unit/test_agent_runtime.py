@@ -72,11 +72,13 @@ def _success_response(content="Hello", tool_calls=None, finish_reason="stop"):
 def _tool_call_response(tool_name, arguments, call_id="call_1"):
     return _success_response(
         content="",
-        tool_calls=[{
-            "id": call_id,
-            "tool_name": tool_name,
-            "arguments": json.dumps(arguments),
-        }],
+        tool_calls=[
+            {
+                "id": call_id,
+                "tool_name": tool_name,
+                "arguments": json.dumps(arguments),
+            }
+        ],
         finish_reason="tool_calls",
     )
 
@@ -99,26 +101,30 @@ def _error_response(error_msg="Provider error"):
 def _build_registry_with_tools():
     """Build a registry with test tools."""
     registry = FunctionRegistry()
-    registry.register(ToolDefinition(
-        name="get_test_data",
-        description="Get test data",
-        parameters={
-            "type": "object",
-            "properties": {"key": {"type": "string"}},
-            "required": ["key"],
-        },
-        function=lambda key="default": {"value": f"data_for_{key}"},
-    ))
-    registry.register(ToolDefinition(
-        name="get_failing_data",
-        description="A tool that always fails",
-        parameters={
-            "type": "object",
-            "properties": {},
-            "required": [],
-        },
-        function=lambda: (_ for _ in ()).throw(RuntimeError("tool error")),
-    ))
+    registry.register(
+        ToolDefinition(
+            name="get_test_data",
+            description="Get test data",
+            parameters={
+                "type": "object",
+                "properties": {"key": {"type": "string"}},
+                "required": ["key"],
+            },
+            function=lambda key="default": {"value": f"data_for_{key}"},
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="get_failing_data",
+            description="A tool that always fails",
+            parameters={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+            function=lambda: (_ for _ in ()).throw(RuntimeError("tool error")),
+        )
+    )
     return registry
 
 
@@ -165,7 +171,11 @@ class TestAgentRuntimeNoTools:
 
         # 验证 messages 包含 system prompt
         call_kwargs = client.chat_completion.call_args
-        messages = call_kwargs.kwargs.get("messages") or call_kwargs[1].get("messages") or call_kwargs[0][0]
+        messages = (
+            call_kwargs.kwargs.get("messages")
+            or call_kwargs[1].get("messages")
+            or call_kwargs[0][0]
+        )
         assert any(m.get("role") == "system" for m in messages)
 
     def test_provider_error(self):
@@ -349,11 +359,13 @@ class TestAgentRuntimeToolErrors:
         responses = [
             _success_response(
                 content="",
-                tool_calls=[{
-                    "id": "call_1",
-                    "tool_name": "get_test_data",
-                    "arguments": "not valid json{{{",
-                }],
+                tool_calls=[
+                    {
+                        "id": "call_1",
+                        "tool_name": "get_test_data",
+                        "arguments": "not valid json{{{",
+                    }
+                ],
                 finish_reason="tool_calls",
             ),
             _success_response("fallback answer"),
@@ -408,6 +420,18 @@ class TestContextProviders:
         assert section.name == "regime"
         assert section.summary["quadrant"] == "MD"
 
+    def test_regime_context_provider_distribution_degrades(self):
+        """Regime distribution 失败时仍返回 current 数据。"""
+        mock_adapter = MagicMock()
+        mock_adapter.get_current_regime.return_value = {"quadrant": "MD", "confidence": 0.8}
+        mock_adapter.get_regime_distribution.side_effect = ValueError("distribution unavailable")
+
+        provider = RegimeContextProvider(mock_adapter)
+        section = provider.build_section({})
+
+        assert section.raw_data["current"]["quadrant"] == "MD"
+        assert "distribution" not in section.raw_data
+
     def test_portfolio_context_provider(self):
         """PortfolioContextProvider 构建摘要。"""
         mock_provider = MagicMock()
@@ -443,19 +467,38 @@ class TestContextProviders:
         assert "nonexistent" in bundle.sections
         assert "不可用" in bundle.sections["nonexistent"].summary
 
+    def test_context_bundle_provider_failure_degrades_to_error_section(self):
+        """单个 provider 构建失败时，bundle 仍返回降级 section。"""
+        builder = ContextBundleBuilder()
+        failing_provider = MagicMock()
+        failing_provider.domain_name = "macro"
+        failing_provider.build_section.side_effect = ValueError("adapter failed")
+        builder.register_provider(failing_provider)
+
+        bundle = builder.build(scope=["macro"])
+
+        assert "macro" in bundle.sections
+        assert "构建失败" in bundle.sections["macro"].summary
+        assert "adapter failed" in bundle.sections["macro"].summary
+        assert bundle.sections["macro"].raw_data is None
+
     def test_context_bundle_summary_text(self):
         """ContextBundle 构建摘要文本。"""
         bundle = ContextBundle()
-        bundle.add_section(ContextSection(
-            name="macro",
-            summary="PMI: 51.2, CPI: 2.1",
-            raw_data={},
-        ))
-        bundle.add_section(ContextSection(
-            name="regime",
-            summary={"quadrant": "MD"},
-            raw_data={},
-        ))
+        bundle.add_section(
+            ContextSection(
+                name="macro",
+                summary="PMI: 51.2, CPI: 2.1",
+                raw_data={},
+            )
+        )
+        bundle.add_section(
+            ContextSection(
+                name="regime",
+                summary={"quadrant": "MD"},
+                raw_data={},
+            )
+        )
 
         text = bundle.build_summary_text()
         assert "MACRO" in text
@@ -553,12 +596,17 @@ class TestFunctionRegistry:
 
     def test_register_and_execute(self):
         registry = FunctionRegistry()
-        registry.register(ToolDefinition(
-            name="add",
-            description="Add two numbers",
-            parameters={"type": "object", "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}}},
-            function=lambda a=0, b=0: a + b,
-        ))
+        registry.register(
+            ToolDefinition(
+                name="add",
+                description="Add two numbers",
+                parameters={
+                    "type": "object",
+                    "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
+                },
+                function=lambda a=0, b=0: a + b,
+            )
+        )
 
         assert "add" in registry.get_tool_names()
         result = registry.execute("add", {"a": 1, "b": 2})
@@ -566,12 +614,14 @@ class TestFunctionRegistry:
 
     def test_openai_format(self):
         registry = FunctionRegistry()
-        registry.register(ToolDefinition(
-            name="test_tool",
-            description="A test tool",
-            parameters={"type": "object", "properties": {}},
-            function=lambda: None,
-        ))
+        registry.register(
+            ToolDefinition(
+                name="test_tool",
+                description="A test tool",
+                parameters={"type": "object", "properties": {}},
+                function=lambda: None,
+            )
+        )
 
         tools = registry.to_openai_format()
         assert len(tools) == 1
@@ -581,12 +631,22 @@ class TestFunctionRegistry:
     def test_whitelist_filtering(self):
         """AgentRuntime 按白名单过滤工具。"""
         registry = FunctionRegistry()
-        registry.register(ToolDefinition(
-            name="allowed_tool", description="", parameters={}, function=lambda: None,
-        ))
-        registry.register(ToolDefinition(
-            name="blocked_tool", description="", parameters={}, function=lambda: None,
-        ))
+        registry.register(
+            ToolDefinition(
+                name="allowed_tool",
+                description="",
+                parameters={},
+                function=lambda: None,
+            )
+        )
+        registry.register(
+            ToolDefinition(
+                name="blocked_tool",
+                description="",
+                parameters={},
+                function=lambda: None,
+            )
+        )
 
         client = _mock_ai_client([_success_response()])
         factory = _mock_ai_factory(client)
@@ -607,11 +667,13 @@ class TestChainFinalOutputResolution:
     """并行链路最终输出必须按步骤顺序稳定解析。"""
 
     def test_parallel_final_output_uses_step_order_not_completion_order(self):
-        chain = SimpleNamespace(steps=[
-            SimpleNamespace(step_id="step_a", order=1),
-            SimpleNamespace(step_id="step_b", order=2),
-            SimpleNamespace(step_id="step_c", order=3),
-        ])
+        chain = SimpleNamespace(
+            steps=[
+                SimpleNamespace(step_id="step_a", order=1),
+                SimpleNamespace(step_id="step_b", order=2),
+                SimpleNamespace(step_id="step_c", order=3),
+            ]
+        )
 
         accumulated_output = {
             # Simulate completion order being different from execution order.

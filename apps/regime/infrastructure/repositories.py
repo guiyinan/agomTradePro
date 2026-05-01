@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.models import Count, Max
 
 from ..domain.entities import KalmanState, RegimeSnapshot
+from .config_helper import ConfigHelper, ConfigKeys
 from .models import RegimeLog
 
 
@@ -424,3 +425,31 @@ class DjangoNavigatorRepository:
 def get_navigator_repository() -> DjangoNavigatorRepository:
     """Backward-compatible navigator repository factory."""
     return DjangoNavigatorRepository()
+
+
+class RegimeConfigRepository:
+    """Infrastructure-backed config access for regime application services."""
+
+    def get_spread_threshold_bp(self, default: float) -> float:
+        return ConfigHelper.get_float(
+            ConfigKeys.REGIME_SPREAD_BP_THRESHOLD,
+            default,
+        )
+
+    def get_us_yield_threshold(self, default: float) -> float:
+        return ConfigHelper.get_float(
+            ConfigKeys.REGIME_US_YIELD_THRESHOLD,
+            default,
+        )
+
+    def get_daily_persist_days(self, default: int) -> int:
+        return ConfigHelper.get_int(
+            ConfigKeys.REGIME_DAILY_PERSIST_DAYS,
+            default,
+        )
+
+    def get_conflict_confidence_boost(self, default: float) -> float:
+        return ConfigHelper.get_float(
+            ConfigKeys.REGIME_CONFLICT_CONFIDENCE_BOOST,
+            default,
+        )

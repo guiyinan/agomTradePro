@@ -20,11 +20,11 @@ import logging
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
+    get_simulated_position_mutation_repository,
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
@@ -53,10 +53,11 @@ class UnifiedPositionService:
         )
     """
 
-    def __init__(self, account_repo, position_repo, trade_repo):
+    def __init__(self, account_repo, position_repo, trade_repo, mutation_repo=None):
         self._account_repo = account_repo
         self._position_repo = position_repo
         self._trade_repo = trade_repo
+        self._mutation_repo = mutation_repo
 
     # ── reads ──────────────────────────────────────────────────────────────
 
@@ -100,90 +101,86 @@ class UnifiedPositionService:
         avg_cost_d = _to_decimal(price, _COST_PLACES)
         cur_price_d = _to_decimal(current_price if current_price is not None else price, _COST_PLACES)
 
-        with db_transaction.atomic():
-            existing = self._position_repo.get_position(account_id, asset_code)
+        existing = self._position_repo.get_position(account_id, asset_code)
 
-            if existing:
-                # Merge: blend avg_cost, add quantities
-                combined_qty = existing.quantity + qty
-                blended_cost = (
-                    (Decimal(str(existing.avg_cost)) * existing.quantity + avg_cost_d * qty)
-                    / combined_qty
-                ).quantize(_COST_PLACES, rounding=ROUND_HALF_UP)
-                mv2, pnl2, pnl_pct2 = recalculate_derived_fields(
-                    float(combined_qty), float(blended_cost), float(cur_price_d)
-                )
-                model = self._position_repo.save_position_record(
-                    account_id=account_id,
-                    asset_code=asset_code,
-                    defaults={
-                        "asset_name": existing.asset_name,
-                        "asset_type": existing.asset_type,
-                        "quantity": combined_qty,
-                        "available_quantity": combined_qty,
-                        "avg_cost": blended_cost,
-                        "total_cost": (blended_cost * combined_qty).quantize(_VALUE_PLACES),
-                        "current_price": cur_price_d,
-                        "market_value": _to_decimal(mv2, _VALUE_PLACES),
-                        "unrealized_pnl": _to_decimal(pnl2, _VALUE_PLACES),
-                        "unrealized_pnl_pct": pnl_pct2,
-                        "first_buy_date": existing.first_buy_date,
-                        "last_update_date": date.today(),
-                        "signal_id": existing.signal_id,
-                        "entry_reason": existing.entry_reason,
-                        "invalidation_rule_json": existing.invalidation_rule_json,
-                        "invalidation_description": existing.invalidation_description or "",
-                        "is_invalidated": existing.is_invalidated,
-                        "invalidation_reason": existing.invalidation_reason or "",
-                        "invalidation_checked_at": existing.invalidation_checked_at,
-                    },
-                )
-            else:
-                mv, pnl, pnl_pct = recalculate_derived_fields(
-                    float(qty), float(avg_cost_d), float(cur_price_d)
-                )
-                model = self._position_repo.save_position_record(
-                    account_id=account_id,
-                    asset_code=asset_code,
-                    defaults={
-                        "asset_name": asset_name or asset_code,
-                        "asset_type": asset_type,
-                        "quantity": qty,
-                        "available_quantity": qty,
-                        "avg_cost": avg_cost_d,
-                        "total_cost": (avg_cost_d * qty).quantize(_VALUE_PLACES),
-                        "current_price": cur_price_d,
-                        "market_value": _to_decimal(mv, _VALUE_PLACES),
-                        "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
-                        "unrealized_pnl_pct": pnl_pct,
-                        "first_buy_date": date.today(),
-                        "last_update_date": date.today(),
-                        "signal_id": source_id if source == "signal" else None,
-                        "entry_reason": entry_reason or f"created via {source}",
-                    },
-                )
-
-            # Write BUY trade record
-            self._trade_repo.create_trade_record(
-                account_id=account_id,
-                asset_code=asset_code,
-                asset_name=asset_name or asset_code,
-                asset_type=asset_type,
-                action="buy",
-                quantity=qty,
-                price=avg_cost_d,
-                amount=(avg_cost_d * qty).quantize(_VALUE_PLACES),
-                commission=Decimal("0"),
-                slippage=Decimal("0"),
-                total_cost=Decimal("0"),
-                realized_pnl=None,
-                realized_pnl_pct=None,
-                reason=entry_reason or f"开仓 ({source})",
-                order_date=date.today(),
-                execution_date=date.today(),
-                execution_time=timezone.now(),
-                status="executed",
+        if existing:
+            # Merge: blend avg_cost, add quantities
+            combined_qty = existing.quantity + qty
+            blended_cost = (
+                (Decimal(str(existing.avg_cost)) * existing.quantity + avg_cost_d * qty)
+                / combined_qty
+            ).quantize(_COST_PLACES, rounding=ROUND_HALF_UP)
+            mv2, pnl2, pnl_pct2 = recalculate_derived_fields(
+                float(combined_qty), float(blended_cost), float(cur_price_d)
             )
+            position_defaults = {
+                "asset_name": existing.asset_name,
+                "asset_type": existing.asset_type,
+                "quantity": combined_qty,
+                "available_quantity": combined_qty,
+                "avg_cost": blended_cost,
+                "total_cost": (blended_cost * combined_qty).quantize(_VALUE_PLACES),
+                "current_price": cur_price_d,
+                "market_value": _to_decimal(mv2, _VALUE_PLACES),
+                "unrealized_pnl": _to_decimal(pnl2, _VALUE_PLACES),
+                "unrealized_pnl_pct": pnl_pct2,
+                "first_buy_date": existing.first_buy_date,
+                "last_update_date": date.today(),
+                "signal_id": existing.signal_id,
+                "entry_reason": existing.entry_reason,
+                "invalidation_rule_json": existing.invalidation_rule_json,
+                "invalidation_description": existing.invalidation_description or "",
+                "is_invalidated": existing.is_invalidated,
+                "invalidation_reason": existing.invalidation_reason or "",
+                "invalidation_checked_at": existing.invalidation_checked_at,
+            }
+        else:
+            mv, pnl, pnl_pct = recalculate_derived_fields(
+                float(qty), float(avg_cost_d), float(cur_price_d)
+            )
+            position_defaults = {
+                "asset_name": asset_name or asset_code,
+                "asset_type": asset_type,
+                "quantity": qty,
+                "available_quantity": qty,
+                "avg_cost": avg_cost_d,
+                "total_cost": (avg_cost_d * qty).quantize(_VALUE_PLACES),
+                "current_price": cur_price_d,
+                "market_value": _to_decimal(mv, _VALUE_PLACES),
+                "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
+                "unrealized_pnl_pct": pnl_pct,
+                "first_buy_date": date.today(),
+                "last_update_date": date.today(),
+                "signal_id": source_id if source == "signal" else None,
+                "entry_reason": entry_reason or f"created via {source}",
+            }
+
+        trade_payload = {
+            "account_id": account_id,
+            "asset_code": asset_code,
+            "asset_name": asset_name or asset_code,
+            "asset_type": asset_type,
+            "action": "buy",
+            "quantity": qty,
+            "price": avg_cost_d,
+            "amount": (avg_cost_d * qty).quantize(_VALUE_PLACES),
+            "commission": Decimal("0"),
+            "slippage": Decimal("0"),
+            "total_cost": Decimal("0"),
+            "realized_pnl": None,
+            "realized_pnl_pct": None,
+            "reason": entry_reason or f"开仓 ({source})",
+            "order_date": date.today(),
+            "execution_date": date.today(),
+            "execution_time": timezone.now(),
+            "status": "executed",
+        }
+        model = self._mutation_repo.create_or_merge_position_with_buy_trade(
+            account_id=account_id,
+            asset_code=asset_code,
+            position_defaults=position_defaults,
+            trade_payload=trade_payload,
+        )
 
         return model
 
@@ -294,44 +291,47 @@ class UnifiedPositionService:
             else 0.0
         )
 
-        self._trade_repo.save(
-            SimulatedTrade(
-                trade_id=0,
-                account_id=account_id,
-                asset_code=model.asset_code,
-                asset_name=model.asset_name,
-                asset_type=model.asset_type,
-                action=TradeAction.SELL,
-                quantity=qty_to_close,
-                price=float(price_d),
-                amount=float(amount),
-                order_date=date.today(),
-                execution_date=date.today(),
-                execution_time=timezone.now(),
-                commission=0.0,
-                slippage=0.0,
-                total_cost=0.0,
-                realized_pnl=float(realized_pnl),
-                realized_pnl_pct=realized_pnl_pct,
-                reason=reason,
-                signal_id=model.signal_id,
-                status=OrderStatus.EXECUTED,
-            )
+        sell_trade = SimulatedTrade(
+            trade_id=0,
+            account_id=account_id,
+            asset_code=model.asset_code,
+            asset_name=model.asset_name,
+            asset_type=model.asset_type,
+            action=TradeAction.SELL,
+            quantity=qty_to_close,
+            price=float(price_d),
+            amount=float(amount),
+            order_date=date.today(),
+            execution_date=date.today(),
+            execution_time=timezone.now(),
+            commission=0.0,
+            slippage=0.0,
+            total_cost=0.0,
+            realized_pnl=float(realized_pnl),
+            realized_pnl_pct=realized_pnl_pct,
+            reason=reason,
+            signal_id=model.signal_id,
+            status=OrderStatus.EXECUTED,
         )
 
         remaining = model.quantity - qty_to_close
         if remaining <= 0:
-            self._position_repo.delete(account_id, asset_code)
+            self._mutation_repo.close_position_with_sell_trade(
+                account_id=account_id,
+                asset_code=asset_code,
+                remaining_position_defaults=None,
+                trade=sell_trade,
+            )
             return None
 
         remaining = remaining.quantize(_QUANTITY_PLACES)
         mv, pnl, pnl_pct = recalculate_derived_fields(
             float(remaining), float(avg_cost_d), float(price_d)
         )
-        self._position_repo.save_position_record(
+        self._mutation_repo.close_position_with_sell_trade(
             account_id=account_id,
             asset_code=asset_code,
-            defaults={
+            remaining_position_defaults={
                 "asset_name": model.asset_name,
                 "asset_type": model.asset_type,
                 "quantity": remaining,
@@ -352,6 +352,7 @@ class UnifiedPositionService:
                 "invalidation_reason": model.invalidation_reason or "",
                 "invalidation_checked_at": model.invalidation_checked_at,
             },
+            trade=sell_trade,
         )
 
         return self._position_repo.get_position(account_id, asset_code)
@@ -365,4 +366,5 @@ class UnifiedPositionService:
             account_repo=get_simulated_account_repository(),
             position_repo=get_simulated_position_repository(),
             trade_repo=get_simulated_trade_repository(),
+            mutation_repo=get_simulated_position_mutation_repository(),
         )

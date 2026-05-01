@@ -1,5 +1,5 @@
 {
-  "version": "2026-04-26.v4",
+  "version": "2026-05-02.v6",
   "source_roots": [
     "apps",
     "core",
@@ -131,6 +131,24 @@
       "rationale": "Application code should coordinate repositories instead of talking to ORM managers."
     },
     {
+      "id": "apps_application_no_transaction_or_get_model",
+      "description": "Application layers must not own Django transaction scopes or resolve ORM models dynamically.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "forbidden_line_patterns": [
+        "with\\s+transaction\\.atomic\\(",
+        "@\\s*transaction\\.atomic\\b",
+        "transaction\\.atomic\\(",
+        "django_apps\\.get_model\\(",
+        "\\bapps\\.get_model\\("
+      ],
+      "rationale": "Transaction scope and runtime ORM model resolution belong in infrastructure, admin, or migrations instead of application orchestration."
+    },
+    {
       "id": "apps_application_no_pandas_numpy_imports",
       "description": "Application layers must not introduce pandas or numpy imports; data-frame and vectorized work belongs in infrastructure adapters/services.",
       "source_roots": [
@@ -143,6 +161,19 @@
         "^(pandas|numpy)$"
       ],
       "rationale": "Keep application code focused on orchestration and keep heavy data processing behind infrastructure boundaries."
+    },
+    {
+      "id": "no_retired_shared_business_compat_imports",
+      "description": "Retired shared business compatibility modules must not be imported anywhere.",
+      "source_roots": [
+        "apps",
+        "core",
+        "shared"
+      ],
+      "forbidden_import_patterns": [
+        "^shared\\.infrastructure\\.(models|config_helper|config_loader|asset_analysis_registry)$"
+      ],
+      "rationale": "Business config/model compatibility shims and asset-analysis registry moved back to owning apps and must not be reintroduced through shared/."
     },
     {
       "id": "apps_no_misplaced_app_config",
@@ -175,6 +206,22 @@
         "(^|\\.)infrastructure(?:\\.|$)"
       ],
       "rationale": "Interface should stay at validation and response formatting boundaries."
+    },
+    {
+      "id": "apps_no_app_root_model_shim_imports_outside_admin",
+      "description": "Only Django admin entrypoints may import app-root models.py shims.",
+      "source_roots": [
+        "apps"
+      ],
+      "exclude_path_patterns": [
+        "(^|/)admin\\.py$",
+        "^apps/[^/]+/models\\.py$",
+        "/migrations/"
+      ],
+      "forbidden_import_patterns": [
+        "^apps\\.[^.]+\\.models$"
+      ],
+      "rationale": "App-root models.py files are Django bootstrap shims, not general-purpose import surfaces for business code."
     },
     {
       "id": "core_application_no_cross_app_infrastructure_access",

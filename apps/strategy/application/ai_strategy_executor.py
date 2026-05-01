@@ -41,6 +41,19 @@ from apps.strategy.domain.protocols import (
 
 logger = logging.getLogger(__name__)
 
+RECOVERABLE_AI_STRATEGY_EXCEPTIONS = (
+    AttributeError,
+    ConnectionError,
+    ImportError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+)
+
 
 # ========================================================================
 # AI 响应解析器
@@ -164,7 +177,7 @@ class AIResponseParser:
                 metadata={"source": "ai_strategy", "raw_data": item},
             )
 
-        except Exception as e:
+        except RECOVERABLE_AI_STRATEGY_EXCEPTIONS as e:
             logger.warning(f"Failed to parse signal item: {item}, error: {e}")
             return None
 
@@ -335,7 +348,7 @@ class AIStrategyExecutor:
 
             return filtered_signals
 
-        except Exception as e:
+        except (ImportError, RuntimeError, TimeoutError, TypeError, ValueError) as e:
             logger.error(f"AI strategy execution failed: {e}", exc_info=True)
             raise
 
@@ -436,9 +449,28 @@ class AIStrategyExecutor:
         except ImportError:
             logger.info("AgentRuntime not available, using legacy execution path")
             return None
-        except Exception as exc:
+        except RECOVERABLE_AI_STRATEGY_EXCEPTIONS as exc:
             logger.warning("AgentRuntime execution error: %s, falling back", exc)
             return None
+
+    def _load_context_entry(
+        self,
+        context: dict[str, Any],
+        *,
+        key: str,
+        loader,
+        warning_message: str,
+    ) -> None:
+        """Best-effort context hydration for optional AI inputs."""
+
+        try:
+            value = loader()
+        except RECOVERABLE_AI_STRATEGY_EXCEPTIONS as exc:
+            logger.warning("%s: %s", warning_message, exc)
+            return
+
+        if value is not None:
+            context[key] = value
 
     def _prepare_context(self, portfolio_id: int) -> dict[str, Any]:
         """
@@ -453,37 +485,48 @@ class AIStrategyExecutor:
         context = {"portfolio_id": portfolio_id, "timestamp": timezone.now().isoformat()}
 
         # 获取宏观数据
-        try:
-            if hasattr(self.macro_provider, "get_all_indicators"):
-                context["macro"] = self.macro_provider.get_all_indicators()
-        except Exception as e:
-            logger.warning(f"Failed to get macro data: {e}")
+        if hasattr(self.macro_provider, "get_all_indicators"):
+            self._load_context_entry(
+                context,
+                key="macro",
+                loader=self.macro_provider.get_all_indicators,
+                warning_message="Failed to get macro data",
+            )
 
         # 获取 Regime
-        try:
-            context["regime"] = self.regime_provider.get_current_regime()
-        except Exception as e:
-            logger.warning(f"Failed to get regime data: {e}")
+        self._load_context_entry(
+            context,
+            key="regime",
+            loader=self.regime_provider.get_current_regime,
+            warning_message="Failed to get regime data",
+        )
 
         # 获取资产池
-        try:
-            context["asset_pool"] = self.asset_pool_provider.get_investable_assets()
-        except Exception as e:
-            logger.warning(f"Failed to get asset pool: {e}")
+        self._load_context_entry(
+            context,
+            key="asset_pool",
+            loader=self.asset_pool_provider.get_investable_assets,
+            warning_message="Failed to get asset pool",
+        )
 
         # 获取投资组合数据
-        try:
-            positions = self.portfolio_provider.get_positions(portfolio_id)
-            cash = self.portfolio_provider.get_cash(portfolio_id)
-            context["portfolio"] = {"positions": positions, "cash": cash}
-        except Exception as e:
-            logger.warning(f"Failed to get portfolio data: {e}")
+        self._load_context_entry(
+            context,
+            key="portfolio",
+            loader=lambda: {
+                "positions": self.portfolio_provider.get_positions(portfolio_id),
+                "cash": self.portfolio_provider.get_cash(portfolio_id),
+            },
+            warning_message="Failed to get portfolio data",
+        )
 
         # 获取有效信号
-        try:
-            context["signals"] = self.signal_provider.get_valid_signals()
-        except Exception as e:
-            logger.warning(f"Failed to get signals: {e}")
+        self._load_context_entry(
+            context,
+            key="signals",
+            loader=self.signal_provider.get_valid_signals,
+            warning_message="Failed to get signals",
+        )
 
         return context
 

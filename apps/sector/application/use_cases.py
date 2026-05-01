@@ -13,7 +13,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 
-from shared.infrastructure.config_loader import get_sector_weights
 from core.integration.market_index_returns import fetch_index_daily_returns
 
 from .repository_provider import DjangoSectorRepository
@@ -119,7 +118,7 @@ class AnalyzeSectorRotationUseCase:
                 regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
             # 2. 加载板块权重配置
-            regime_weights = get_sector_weights(regime)
+            regime_weights = self.sector_repo.get_sector_weights_by_regime(regime)
             if not regime_weights:
                 return SectorRotationResult(
                     success=False,

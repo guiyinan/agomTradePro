@@ -7,6 +7,7 @@ AI 策略执行器单元测试
 - 审核模式过滤
 - 待审核信号队列管理
 """
+
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -30,15 +31,16 @@ from apps.strategy.domain.entities import (
 # AI 响应解析器测试
 # ========================================================================
 
+
 class TestAIResponseParser:
     """AI 响应解析器测试"""
 
     def test_parse_json_array_format(self):
         """测试解析 JSON 数组格式"""
-        content = '''[
+        content = """[
             {"asset_code": "000001.SH", "action": "buy", "weight": 0.3, "reason": "PMI 扩张", "confidence": 0.8},
             {"asset_code": "510300.SH", "action": "sell", "weight": 0.5, "reason": "风险控制", "confidence": 0.9}
-        ]'''
+        ]"""
 
         signals = AIResponseParser.parse_signals(content)
 
@@ -52,12 +54,12 @@ class TestAIResponseParser:
 
     def test_parse_json_object_with_signals_field(self):
         """测试解析包含 signals 字段的 JSON 对象"""
-        content = '''{
+        content = """{
             "reason": "市场分析",
             "signals": [
                 {"asset_code": "000001.SH", "action": "buy", "weight": 0.3}
             ]
-        }'''
+        }"""
 
         signals = AIResponseParser.parse_signals(content)
 
@@ -66,7 +68,7 @@ class TestAIResponseParser:
 
     def test_parse_single_signal_object(self):
         """测试解析单个信号对象"""
-        content = '''{"asset_code": "000001.SH", "action": "buy", "weight": 0.3}'''
+        content = """{"asset_code": "000001.SH", "action": "buy", "weight": 0.3}"""
 
         signals = AIResponseParser.parse_signals(content)
 
@@ -75,10 +77,10 @@ class TestAIResponseParser:
 
     def test_parse_text_csv_format(self):
         """测试解析纯文本 CSV 格式"""
-        content = '''
+        content = """
 000001.SH,buy,0.3,PMI 扩张
 510300.SH,sell,0.5,风险控制
-'''
+"""
 
         signals = AIResponseParser.parse_signals(content, default_confidence=0.7)
 
@@ -89,7 +91,7 @@ class TestAIResponseParser:
 
     def test_parse_with_invalid_action(self):
         """测试无效的 action 类型"""
-        content = '''[{"asset_code": "000001.SH", "action": "invalid", "weight": 0.3}]'''
+        content = """[{"asset_code": "000001.SH", "action": "invalid", "weight": 0.3}]"""
 
         signals = AIResponseParser.parse_signals(content)
 
@@ -99,7 +101,7 @@ class TestAIResponseParser:
 
     def test_parse_with_missing_asset_code(self):
         """测试缺少 asset_code"""
-        content = '''[{"action": "buy", "weight": 0.3}]'''
+        content = """[{"action": "buy", "weight": 0.3}]"""
 
         signals = AIResponseParser.parse_signals(content)
 
@@ -108,7 +110,7 @@ class TestAIResponseParser:
 
     def test_parse_with_invalid_weight(self):
         """测试无效的 weight"""
-        content = '''[{"asset_code": "000001.SH", "action": "buy", "weight": 2.5}]'''
+        content = """[{"asset_code": "000001.SH", "action": "buy", "weight": 2.5}]"""
 
         signals = AIResponseParser.parse_signals(content)
 
@@ -118,7 +120,7 @@ class TestAIResponseParser:
 
     def test_parse_with_invalid_confidence(self):
         """测试无效的 confidence"""
-        content = '''[{"asset_code": "000001.SH", "action": "buy", "confidence": "invalid"}]'''
+        content = """[{"asset_code": "000001.SH", "action": "buy", "confidence": "invalid"}]"""
 
         signals = AIResponseParser.parse_signals(content, default_confidence=0.6)
 
@@ -131,6 +133,7 @@ class TestAIResponseParser:
 # AI 策略执行器测试
 # ========================================================================
 
+
 class TestAIStrategyExecutor:
     """AI 策略执行器测试"""
 
@@ -138,11 +141,11 @@ class TestAIStrategyExecutor:
     def mock_providers(self):
         """创建 Mock 提供者"""
         return {
-            'macro_provider': Mock(),
-            'regime_provider': Mock(),
-            'asset_pool_provider': Mock(),
-            'signal_provider': Mock(),
-            'portfolio_provider': Mock()
+            "macro_provider": Mock(),
+            "regime_provider": Mock(),
+            "asset_pool_provider": Mock(),
+            "signal_provider": Mock(),
+            "portfolio_provider": Mock(),
         }
 
     @pytest.fixture
@@ -154,10 +157,7 @@ class TestAIStrategyExecutor:
     def ai_strategy(self):
         """创建 AI 策略"""
         risk_params = RiskControlParams()
-        config = StrategyConfig(
-            strategy_type=StrategyType.AI_DRIVEN,
-            risk_params=risk_params
-        )
+        config = StrategyConfig(strategy_type=StrategyType.AI_DRIVEN, risk_params=risk_params)
 
         ai_config = AIConfig(
             prompt_template_id=1,
@@ -165,8 +165,8 @@ class TestAIStrategyExecutor:
             ai_provider_id=1,
             temperature=0.7,
             max_tokens=2000,
-            approval_mode='conditional',
-            confidence_threshold=0.8
+            approval_mode="conditional",
+            confidence_threshold=0.8,
         )
 
         return Strategy(
@@ -178,11 +178,12 @@ class TestAIStrategyExecutor:
             created_by_id=1,
             config=config,
             risk_params=risk_params,
-            ai_config=ai_config
+            ai_config=ai_config,
         )
 
     def test_execute_without_ai_config(self, executor):
         """测试没有 AI 配置的策略"""
+
         # 创建一个 Mock 策略对象（绕过 __post_init__ 验证）
         class MockStrategy:
             def __init__(self):
@@ -198,16 +199,9 @@ class TestAIStrategyExecutor:
     def test_apply_approval_mode_auto(self, executor):
         """测试自动审核模式"""
         risk_params = RiskControlParams()
-        config = StrategyConfig(
-            strategy_type=StrategyType.AI_DRIVEN,
-            risk_params=risk_params
-        )
+        config = StrategyConfig(strategy_type=StrategyType.AI_DRIVEN, risk_params=risk_params)
 
-        ai_config = AIConfig(
-            prompt_template_id=1,
-            approval_mode='auto',
-            confidence_threshold=0.8
-        )
+        ai_config = AIConfig(prompt_template_id=1, approval_mode="auto", confidence_threshold=0.8)
 
         strategy = Strategy(
             strategy_id=1,
@@ -218,34 +212,31 @@ class TestAIStrategyExecutor:
             created_by_id=1,
             config=config,
             risk_params=risk_params,
-            ai_config=ai_config
+            ai_config=ai_config,
         )
 
         # 创建测试信号
         from apps.strategy.domain.entities import SignalRecommendation
+
         signals = [
             SignalRecommendation(
                 asset_code="000001.SH",
                 asset_name="上证指数",
                 action=ActionType.BUY,
                 confidence=0.5,
-                metadata={}
+                metadata={},
             ),
             SignalRecommendation(
                 asset_code="510300.SH",
                 asset_name="沪深300ETF",
                 action=ActionType.SELL,
                 confidence=0.9,
-                metadata={}
-            )
+                metadata={},
+            ),
         ]
 
         # 应用审核模式
-        filtered = executor._apply_approval_mode(
-            signals,
-            'auto',
-            0.8
-        )
+        filtered = executor._apply_approval_mode(signals, "auto", 0.8)
 
         # auto 模式应该返回所有信号
         assert len(filtered) == 2
@@ -260,30 +251,26 @@ class TestAIStrategyExecutor:
                 asset_name="上证指数",
                 action=ActionType.BUY,
                 confidence=0.9,  # 高于阈值
-                metadata={}
+                metadata={},
             ),
             SignalRecommendation(
                 asset_code="510300.SH",
                 asset_name="沪深300ETF",
                 action=ActionType.SELL,
                 confidence=0.6,  # 低于阈值
-                metadata={}
-            )
+                metadata={},
+            ),
         ]
 
         # 应用条件审核模式
-        filtered = executor._apply_approval_mode(
-            signals,
-            'conditional',
-            0.8
-        )
+        filtered = executor._apply_approval_mode(signals, "conditional", 0.8)
 
         # 应该返回所有信号，但状态不同
         assert len(filtered) == 2
-        assert filtered[0].metadata['approval_status'] == 'auto_approved'
-        assert filtered[0].metadata['requires_approval'] is False
-        assert filtered[1].metadata['approval_status'] == 'pending'
-        assert filtered[1].metadata['requires_approval'] is True
+        assert filtered[0].metadata["approval_status"] == "auto_approved"
+        assert filtered[0].metadata["requires_approval"] is False
+        assert filtered[1].metadata["approval_status"] == "pending"
+        assert filtered[1].metadata["requires_approval"] is True
 
     def test_apply_approval_mode_always(self, executor):
         """测试必须人工审核模式"""
@@ -295,21 +282,17 @@ class TestAIStrategyExecutor:
                 asset_name="上证指数",
                 action=ActionType.BUY,
                 confidence=0.9,
-                metadata={}
+                metadata={},
             )
         ]
 
         # 应用必须审核模式
-        filtered = executor._apply_approval_mode(
-            signals,
-            'always',
-            0.8
-        )
+        filtered = executor._apply_approval_mode(signals, "always", 0.8)
 
         # 所有信号都应该需要审核
         assert len(filtered) == 1
-        assert filtered[0].metadata['approval_status'] == 'pending'
-        assert filtered[0].metadata['requires_approval'] is True
+        assert filtered[0].metadata["approval_status"] == "pending"
+        assert filtered[0].metadata["requires_approval"] is True
 
     def test_apply_approval_mode_unknown(self, executor):
         """测试未知审核模式"""
@@ -321,23 +304,45 @@ class TestAIStrategyExecutor:
                 asset_name="上证指数",
                 action=ActionType.BUY,
                 confidence=0.5,
-                metadata={}
+                metadata={},
             )
         ]
 
         # 未知模式应该返回所有信号
-        filtered = executor._apply_approval_mode(
-            signals,
-            'unknown',
-            0.8
-        )
+        filtered = executor._apply_approval_mode(signals, "unknown", 0.8)
 
         assert len(filtered) == 1
+
+    def test_prepare_context_degrades_partial_provider_failure(self, executor, mock_providers):
+        """单个上下文源失败时，其余上下文仍应继续装载。"""
+        mock_providers["macro_provider"].get_all_indicators.side_effect = RuntimeError("macro down")
+        mock_providers["regime_provider"].get_current_regime.return_value = {
+            "dominant_regime": "HG"
+        }
+        mock_providers["asset_pool_provider"].get_investable_assets.return_value = [
+            {"asset_code": "000001.SH"}
+        ]
+        mock_providers["portfolio_provider"].get_positions.return_value = [
+            {"asset_code": "000001.SH"}
+        ]
+        mock_providers["portfolio_provider"].get_cash.return_value = 100000.0
+        mock_providers["signal_provider"].get_valid_signals.return_value = [
+            {"asset_code": "000001.SH"}
+        ]
+
+        context = executor._prepare_context(portfolio_id=1)
+
+        assert "macro" not in context
+        assert context["regime"]["dominant_regime"] == "HG"
+        assert context["asset_pool"][0]["asset_code"] == "000001.SH"
+        assert context["portfolio"]["cash"] == 100000.0
+        assert context["signals"][0]["asset_code"] == "000001.SH"
 
 
 # ========================================================================
 # 待审核信号队列测试
 # ========================================================================
+
 
 class TestPendingApprovalQueue:
     """待审核信号队列测试"""
@@ -350,21 +355,22 @@ class TestPendingApprovalQueue:
     def sample_signals(self):
         """创建示例信号"""
         from apps.strategy.domain.entities import SignalRecommendation
+
         return [
             SignalRecommendation(
                 asset_code="000001.SH",
                 asset_name="上证指数",
                 action=ActionType.BUY,
                 confidence=0.5,
-                metadata={'requires_approval': True, 'approval_status': 'pending'}
+                metadata={"requires_approval": True, "approval_status": "pending"},
             ),
             SignalRecommendation(
                 asset_code="510300.SH",
                 asset_name="沪深300ETF",
                 action=ActionType.SELL,
                 confidence=0.6,
-                metadata={'requires_approval': True, 'approval_status': 'pending'}
-            )
+                metadata={"requires_approval": True, "approval_status": "pending"},
+            ),
         ]
 
     def test_add_and_get_pending_signals(self, queue, sample_signals):
@@ -387,8 +393,8 @@ class TestPendingApprovalQueue:
 
         # 验证状态已更新
         pending = queue.get_pending_signals(1, 1)
-        assert pending[0].metadata['approval_status'] == 'approved'
-        assert pending[0].metadata['requires_approval'] is False
+        assert pending[0].metadata["approval_status"] == "approved"
+        assert pending[0].metadata["requires_approval"] is False
 
     def test_reject_signal(self, queue, sample_signals):
         """测试审核拒绝信号"""
@@ -400,7 +406,7 @@ class TestPendingApprovalQueue:
 
         # 验证状态已更新
         pending = queue.get_pending_signals(1, 1)
-        assert pending[0].metadata['approval_status'] == 'rejected'
+        assert pending[0].metadata["approval_status"] == "rejected"
 
     def test_approve_nonexistent_signal(self, queue, sample_signals):
         """测试审核不存在的信号"""

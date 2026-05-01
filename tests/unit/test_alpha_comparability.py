@@ -10,7 +10,7 @@
 """
 
 from datetime import date
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -166,20 +166,18 @@ class TestAlphaComparabilityImprovements:
 
         registry.register(mock_qlib)
 
-        # Mock application config service 返回固定 provider，避免 Application 层直接依赖 ORM。
+        # Mock runtime settings bridge 返回固定 provider。
         with patch(
-            "apps.alpha.application.services.get_account_config_summary_service"
-        ) as mock_service_factory:
-            mock_settings = MagicMock()
-            mock_settings.get_runtime_alpha_fixed_provider.return_value = "qlib"
-            mock_service_factory.return_value = mock_settings
+            "apps.alpha.application.services.load_runtime_alpha_fixed_provider"
+        ) as mock_runtime_provider:
+            mock_runtime_provider.return_value = "qlib"
 
             # 测试系统配置固定使用 qlib
             result = registry.get_scores_with_fallback(
                 "csi300", date.today(), 30, provider_filter=None
             )
             assert result.source == "qlib"
-            mock_settings.get_runtime_alpha_fixed_provider.assert_called_once()
+            mock_runtime_provider.assert_called_once()
 
             # 测试 provider_filter 参数优先于系统配置
             result2 = registry.get_scores_with_fallback(

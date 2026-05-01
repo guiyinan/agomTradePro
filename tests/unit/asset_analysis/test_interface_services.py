@@ -17,8 +17,8 @@ def test_screen_equity_assets_uses_registered_equity_screener(monkeypatch):
     registry = _StubRegistry()
     monkeypatch.setattr(
         interface_services,
-        "get_asset_analysis_market_registry",
-        lambda: registry,
+        "get_registered_pool_screener",
+        registry.get_pool_screener,
     )
 
     result = interface_services.screen_equity_assets(
@@ -40,8 +40,8 @@ def test_screen_fund_assets_uses_registered_fund_screener(monkeypatch):
     registry = _StubRegistry()
     monkeypatch.setattr(
         interface_services,
-        "get_asset_analysis_market_registry",
-        lambda: registry,
+        "get_registered_pool_screener",
+        registry.get_pool_screener,
     )
 
     result = interface_services.screen_fund_assets(

@@ -1,8 +1,6 @@
 import json
 import uuid
 from datetime import date
-from types import SimpleNamespace
-
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
@@ -40,18 +38,15 @@ def _build_staff_client() -> Client:
 
 
 def _patch_runtime_qlib_config_disabled(monkeypatch) -> None:
-    fake_summary_service = SimpleNamespace(
-        get_runtime_qlib_config=lambda: {
+    monkeypatch.setattr(
+        "apps.alpha.application.ops_services.get_runtime_qlib_config",
+        lambda: {
             "enabled": False,
             "provider_uri": "",
             "region": "CN",
             "model_path": "",
             "is_configured": False,
-        }
-    )
-    monkeypatch.setattr(
-        "apps.alpha.application.ops_services.get_account_config_summary_service",
-        lambda: fake_summary_service,
+        },
     )
 
 

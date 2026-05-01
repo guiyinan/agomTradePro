@@ -51,9 +51,12 @@ from .models import (
     FinancialDataModel,
     StockDailyModel,
     StockInfoModel,
+    StockScreeningRuleConfigModel,
     ValuationDataQualitySnapshotModel,
     ValuationModel,
 )
+from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
+from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 
 logger = logging.getLogger(__name__)
 
@@ -2255,8 +2258,6 @@ class EquityBootstrapConfigRepository:
     def upsert_stock_screening_rule(self, rule_data: dict[str, Any]) -> None:
         """Create or update one stock screening rule row."""
 
-        from shared.infrastructure.models import StockScreeningRuleConfigModel
-
         StockScreeningRuleConfigModel._default_manager.update_or_create(
             regime=rule_data["regime"],
             rule_name=rule_data["rule_name"],
@@ -2266,8 +2267,6 @@ class EquityBootstrapConfigRepository:
     def upsert_sector_preference(self, preference: dict[str, Any]) -> None:
         """Create or update one sector preference row."""
 
-        from shared.infrastructure.models import SectorPreferenceConfigModel
-
         SectorPreferenceConfigModel._default_manager.update_or_create(
             regime=preference["regime"],
             sector_name=preference["sector_name"],
@@ -2276,8 +2275,6 @@ class EquityBootstrapConfigRepository:
 
     def upsert_fund_type_preference(self, preference: dict[str, Any]) -> None:
         """Create or update one fund-type preference row."""
-
-        from shared.infrastructure.models import FundTypePreferenceConfigModel
 
         FundTypePreferenceConfigModel._default_manager.update_or_create(
             regime=preference["regime"],

@@ -12,7 +12,7 @@ Connect to the production AgomTradePro system on VPS using MCP (Model Context Pr
 ## Connection Info
 
 - **VPS URL**: `http://your-vps-ip:8000`
-- **API Token**: `28c11b3441d70f581c7410faeb5baeb90901c005`
+- **API Token**: `${AGOM_REMOTE_API_TOKEN}`
 - **Health Check**: `http://your-vps-ip:8000/api/health/`
 
 ## Verified API Endpoints
@@ -22,27 +22,27 @@ Based on actual testing, these endpoints are working:
 ### Core Endpoints
 ```bash
 # Health check (returns {"status": "ok", ...})
-curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   http://your-vps-ip:8000/api/health/
 
 # Current regime (returns dominant_regime, confidence, etc.)
-curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   http://your-vps-ip:8000/api/regime/current/
 
 # Policy status (returns current_level, level_name, recommendations)
-curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   http://your-vps-ip:8000/api/policy/status/
 
 # List signals
-curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   http://your-vps-ip:8000/api/signals/
 
 # Supported macro indicators (52 indicators available)
-curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   http://your-vps-ip:8000/api/macro/supported-indicators/
 
 # API root (lists all available endpoints)
-curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   http://your-vps-ip:8000/api/
 ```
 
@@ -70,7 +70,7 @@ curl -s -H "Authorization: Token 28c11b3441d70f581c7410faeb5baeb90901c005" \
 
 ```bash
 # Set token as variable for reuse
-TOKEN="28c11b3441d70f581c7410faeb5baeb90901c005"
+TOKEN="${AGOM_REMOTE_API_TOKEN}"
 BASE="http://your-vps-ip:8000"
 
 # Quick health check
@@ -98,7 +98,7 @@ class AgomTradeProClient:
     """Client for AgomTradePro VPS API"""
 
     def __init__(self, base_url="http://your-vps-ip:8000",
-                 token="28c11b3441d70f581c7410faeb5baeb90901c005"):
+                 token="${AGOM_REMOTE_API_TOKEN}"):
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Token {token}"})
@@ -194,7 +194,7 @@ To use MCP tools directly in Claude Code, configure `~/.config/claude-code/mcp_s
       "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
         "AGOMTRADEPRO_BASE_URL": "http://your-vps-ip:8000",
-        "AGOMTRADEPRO_API_TOKEN": "28c11b3441d70f581c7410faeb5baeb90901c005",
+        "AGOMTRADEPRO_API_TOKEN": "${AGOM_REMOTE_API_TOKEN}",
         "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true"
       }
     }

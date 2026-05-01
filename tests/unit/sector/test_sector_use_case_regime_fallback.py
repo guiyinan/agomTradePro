@@ -10,6 +10,9 @@ from apps.sector.domain.entities import SectorIndex, SectorInfo
 
 
 class _EmptySectorRepo:
+    def get_sector_weights_by_regime(self, regime: str):
+        return {"801010": 1.0}
+
     def get_all_sectors(self, level=None):
         return []
 
@@ -19,11 +22,6 @@ def test_analyze_sector_rotation_resolves_latest_regime_when_missing(mocker) -> 
         "apps.regime.application.current_regime.resolve_current_regime",
         return_value=SimpleNamespace(dominant_regime="Recovery"),
     )
-    mocker.patch(
-        "apps.sector.application.use_cases.get_sector_weights",
-        return_value={"801010": 1.0},
-    )
-
     result = AnalyzeSectorRotationUseCase(_EmptySectorRepo()).execute(
         AnalyzeSectorRotationRequest(regime=None, level="SW1")
     )
@@ -34,6 +32,9 @@ def test_analyze_sector_rotation_resolves_latest_regime_when_missing(mocker) -> 
 
 
 class _SingleSectorRepo:
+    def get_sector_weights_by_regime(self, regime: str):
+        return {"801010": 1.0}
+
     def get_all_sectors(self, level=None):
         return [SectorInfo(sector_code="801010", sector_name="农林牧渔", level="SW1")]
 
@@ -58,10 +59,6 @@ class _SingleSectorRepo:
 
 
 def test_analyze_sector_rotation_degrades_when_market_returns_are_unavailable(mocker) -> None:
-    mocker.patch(
-        "apps.sector.application.use_cases.get_sector_weights",
-        return_value={"801010": 1.0},
-    )
     use_case = AnalyzeSectorRotationUseCase(_SingleSectorRepo())
     mocker.patch.object(use_case, "_get_market_returns", return_value=None)
 

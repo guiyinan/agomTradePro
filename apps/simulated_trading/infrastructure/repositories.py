@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, List, Optional
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Avg, Count, F, Max, Min, Q, Sum
 
 from apps.simulated_trading.domain.entities import (
@@ -762,6 +762,57 @@ class DjangoTradeRepository:
             "sell_count": sell_count,
             "total_realized_pnl": total_realized_pnl,
         }
+
+
+class DjangoPositionMutationRepository:
+    """Coordinate multi-table position mutations inside infrastructure transactions."""
+
+    def create_or_merge_position_with_buy_trade(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        position_defaults: dict[str, Any],
+        trade_payload: dict[str, Any],
+    ) -> PositionModel:
+        """Persist the updated position row and matching buy trade atomically."""
+
+        with transaction.atomic():
+            model, _ = PositionModel._default_manager.update_or_create(
+                account_id=account_id,
+                asset_code=asset_code,
+                defaults=position_defaults,
+            )
+            SimulatedTradeModel._default_manager.create(**trade_payload)
+        return model
+
+    def close_position_with_sell_trade(
+        self,
+        *,
+        account_id: int,
+        asset_code: str,
+        remaining_position_defaults: dict[str, Any] | None,
+        trade: SimulatedTrade,
+    ) -> None:
+        """Persist the sell trade and remaining position state atomically."""
+
+        with transaction.atomic():
+            trade_model = SimulatedTradeMapper.to_model(trade)
+            trade_model.id = None
+            trade_model.save()
+
+            if remaining_position_defaults is None:
+                PositionModel._default_manager.filter(
+                    account_id=account_id,
+                    asset_code=asset_code,
+                ).delete()
+                return
+
+            PositionModel._default_manager.update_or_create(
+                account_id=account_id,
+                asset_code=asset_code,
+                defaults=remaining_position_defaults,
+            )
 
     def get_by_date_range(
         self,

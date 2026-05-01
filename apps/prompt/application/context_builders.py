@@ -14,6 +14,19 @@ from ..domain.context_entities import ContextBundle, ContextPolicy, ContextSecti
 
 logger = logging.getLogger(__name__)
 
+RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS = (
+    AttributeError,
+    ConnectionError,
+    ImportError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+    json.JSONDecodeError,
+)
+
 
 class ContextProvider(Protocol):
     """上下文提供者协议。"""
@@ -51,10 +64,8 @@ class MacroContextProvider:
         try:
             as_of_date = params.get("as_of_date")
             indicators = params.get("indicators")
-            return self._adapter.get_macro_summary(
-                as_of_date=as_of_date, indicators=indicators
-            )
-        except Exception as exc:
+            return self._adapter.get_macro_summary(as_of_date=as_of_date, indicators=indicators)
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("MacroContextProvider.build_summary failed: %s", exc)
             return "宏观数据获取失败"
 
@@ -63,10 +74,8 @@ class MacroContextProvider:
         if not self._adapter:
             return {}
         try:
-            return self._adapter.get_all_indicators(
-                as_of_date=params.get("as_of_date")
-            )
-        except Exception as exc:
+            return self._adapter.get_all_indicators(as_of_date=params.get("as_of_date"))
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("MacroContextProvider.build_raw_data failed: %s", exc)
             return {}
 
@@ -97,7 +106,7 @@ class RegimeContextProvider:
             as_of_date = params.get("as_of_date")
             status = self._adapter.get_current_regime(as_of_date)
             return status
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("RegimeContextProvider.build_summary failed: %s", exc)
             return "Regime 数据获取失败"
 
@@ -111,10 +120,13 @@ class RegimeContextProvider:
             data["current"] = self._adapter.get_current_regime(as_of_date)
             try:
                 data["distribution"] = self._adapter.get_regime_distribution(as_of_date)
-            except Exception:
-                pass
+            except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
+                logger.debug(
+                    "RegimeContextProvider.build_raw_data distribution degraded: %s",
+                    exc,
+                )
             return data
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("RegimeContextProvider.build_raw_data failed: %s", exc)
             return {}
 
@@ -152,7 +164,7 @@ class PortfolioContextProvider:
                 "position_count": position_count,
                 "cash": cash,
             }
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("PortfolioContextProvider.build_summary failed: %s", exc)
             return "投资组合数据获取失败"
 
@@ -167,7 +179,7 @@ class PortfolioContextProvider:
                 "positions": self._provider.get_positions(portfolio_id),
                 "cash": self._provider.get_cash(portfolio_id),
             }
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("PortfolioContextProvider.build_raw_data failed: %s", exc)
             return {}
 
@@ -206,7 +218,7 @@ class SignalContextProvider:
                     ],
                 }
             return {"active_signal_count": 0, "signals": []}
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("SignalContextProvider.build_summary failed: %s", exc)
             return "信号数据获取失败"
 
@@ -215,7 +227,7 @@ class SignalContextProvider:
             return []
         try:
             return self._provider.get_valid_signals()
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("SignalContextProvider.build_raw_data failed: %s", exc)
             return []
 
@@ -245,12 +257,10 @@ class AssetPoolContextProvider:
             if isinstance(assets, list):
                 return {
                     "investable_asset_count": len(assets),
-                    "sample": [
-                        getattr(a, "code", str(a)) for a in assets[:10]
-                    ],
+                    "sample": [getattr(a, "code", str(a)) for a in assets[:10]],
                 }
             return {"investable_asset_count": 0, "sample": []}
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("AssetPoolContextProvider.build_summary failed: %s", exc)
             return "资产池数据获取失败"
 
@@ -259,7 +269,7 @@ class AssetPoolContextProvider:
             return []
         try:
             return self._provider.get_investable_assets()
-        except Exception as exc:
+        except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
             logger.warning("AssetPoolContextProvider.build_raw_data failed: %s", exc)
             return []
 
@@ -317,26 +327,28 @@ class ContextBundleBuilder:
             provider = self._providers.get(domain_name)
             if not provider:
                 logger.warning("No context provider for domain: %s", domain_name)
-                bundle.add_section(ContextSection(
-                    name=domain_name,
-                    summary=f"{domain_name} 数据不可用（无 provider）",
-                    raw_data=None,
-                    generated_at=datetime.now(UTC).isoformat(),
-                ))
+                bundle.add_section(
+                    ContextSection(
+                        name=domain_name,
+                        summary=f"{domain_name} 数据不可用（无 provider）",
+                        raw_data=None,
+                        generated_at=datetime.now(UTC).isoformat(),
+                    )
+                )
                 continue
 
             try:
                 section = provider.build_section(params)
                 bundle.add_section(section)
-            except Exception as exc:
-                logger.error(
-                    "Context provider '%s' failed: %s", domain_name, exc, exc_info=True
+            except RECOVERABLE_CONTEXT_BUILD_EXCEPTIONS as exc:
+                logger.error("Context provider '%s' failed: %s", domain_name, exc, exc_info=True)
+                bundle.add_section(
+                    ContextSection(
+                        name=domain_name,
+                        summary=f"{domain_name} 数据构建失败: {exc}",
+                        raw_data=None,
+                        generated_at=datetime.now(UTC).isoformat(),
+                    )
                 )
-                bundle.add_section(ContextSection(
-                    name=domain_name,
-                    summary=f"{domain_name} 数据构建失败: {exc}",
-                    raw_data=None,
-                    generated_at=datetime.now(UTC).isoformat(),
-                ))
 
         return bundle

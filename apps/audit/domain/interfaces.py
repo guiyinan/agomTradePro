@@ -11,6 +11,10 @@ from typing import Dict, List, Optional, Protocol
 class AuditRepositoryProtocol(Protocol):
     """Repository protocol for audit data access"""
 
+    def get_database_health(self) -> dict[str, str]:
+        """Run a lightweight database probe and return connection metadata."""
+        ...
+
     def get_indicator_performance(
         self,
         indicator_code: str,

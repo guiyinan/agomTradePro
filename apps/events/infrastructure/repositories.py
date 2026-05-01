@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from core.integration.alpha_candidates import (
     AlphaCandidateRepositoryWrapper,
     get_alpha_candidate_repository,
@@ -269,3 +270,68 @@ def get_failed_event_repository() -> FailedEventRepository:
 def get_alpha_candidate_repository() -> AlphaCandidateRepositoryWrapper:
     """获取 Alpha 候选仓储包装器实例"""
     return AlphaCandidateRepositoryWrapper()
+
+
+class DecisionExecutionSyncRepository:
+    """Coordinate decision execution writebacks inside infrastructure transactions."""
+
+    def __init__(
+        self,
+        decision_request_repo: DecisionRequestRepositoryWrapper | None = None,
+        alpha_candidate_repo: AlphaCandidateRepositoryWrapper | None = None,
+    ) -> None:
+        self._decision_request_repo = decision_request_repo or DecisionRequestRepositoryWrapper()
+        self._alpha_candidate_repo = alpha_candidate_repo or AlphaCandidateRepositoryWrapper()
+
+    def sync_executed(
+        self,
+        *,
+        request_id: str,
+        execution_ref: dict[str, Any] | None,
+        candidate_id: str | None,
+    ) -> bool:
+        """Persist DECISION_EXECUTED side effects atomically."""
+
+        with transaction.atomic():
+            request_updated = self._decision_request_repo.update_execution_status_to_executed(
+                request_id,
+                execution_ref,
+            )
+            candidate_updated = True
+            if candidate_id:
+                candidate_updated = self._alpha_candidate_repo.update_status_to_executed(
+                    candidate_id
+                )
+        return request_updated and candidate_updated
+
+    def sync_failed(
+        self,
+        *,
+        request_id: str,
+        candidate_id: str | None,
+        error_message: str | None,
+    ) -> bool:
+        """Persist DECISION_EXECUTION_FAILED side effects atomically."""
+
+        with transaction.atomic():
+            request_updated = self._decision_request_repo.update_execution_status_to_failed(
+                request_id
+            )
+            candidate_updated = True
+            if candidate_id:
+                candidate_updated = self._alpha_candidate_repo.update_execution_status_to_failed(
+                    candidate_id
+                )
+        if request_updated and error_message:
+            logger.warning(
+                "DecisionRequest %s execution failed: %s",
+                request_id,
+                error_message,
+            )
+        return request_updated and candidate_updated
+
+
+def get_decision_execution_sync_repository() -> DecisionExecutionSyncRepository:
+    """Return the infrastructure sync repository for decision execution events."""
+
+    return DecisionExecutionSyncRepository()
