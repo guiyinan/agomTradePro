@@ -1,0 +1,149 @@
+name: CI Fast Feedback
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'dev/**'
+  push:
+    branches:
+      - main
+      - 'dev/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-fast-feedback-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-tests:
+    name: Detect test scope
+    runs-on: ubuntu-latest
+    outputs:
+      base-ref: ${{ steps.refs.outputs.base-ref }}
+      head-ref: ${{ steps.refs.outputs.head-ref }}
+      changed-modules: ${{ steps.modules.outputs.changed-modules }}
+      test-paths: ${{ steps.tests.outputs.test-paths }}
+      test-count: ${{ steps.tests.outputs.test-count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve diff refs
+        id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+            BASE_REF="origin/${{ github.base_ref }}"
+            HEAD_REF="${{ github.sha }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            BASE_REF="${{ github.event.before }}"
+            HEAD_REF="${{ github.sha }}"
+            if [[ "${BASE_REF}" == "0000000000000000000000000000000000000000" ]] || ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
+              if git rev-parse "${HEAD_REF}^" >/dev/null 2>&1; then
+                BASE_REF="$(git rev-parse "${HEAD_REF}^")"
+              else
+                BASE_REF="${HEAD_REF}"
+              fi
+            fi
+          else
+            BASE_REF="$(git rev-parse HEAD~1)"
+            HEAD_REF="$(git rev-parse HEAD)"
+          fi
+
+          echo "base-ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "head-ref=${HEAD_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed modules
+        id: modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANGED_MODULES="$(
+            git diff --name-only "${{ steps.refs.outputs.base-ref }}...${{ steps.refs.outputs.head-ref }}" 2>/dev/null \
+              | awk -F/ '
+                  /^apps\/[^\/]+\// { print $2; next }
+                  /^core\// { print "core"; next }
+                  /^shared\// { print "shared"; next }
+                  /^\.github\// { print "ci"; next }
+                ' \
+              | sort -u \
+              | tr '\n' ',' \
+              | sed 's/,$//'
+          )"
+          echo "changed-modules=${CHANGED_MODULES:-none}" >> "$GITHUB_OUTPUT"
+
+      - name: Select pytest targets
+        id: tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_PATHS="$(python scripts/select_tests.py \
+            --base "${{ steps.refs.outputs.base-ref }}" \
+            --head "${{ steps.refs.outputs.head-ref }}" \
+            --profile logic_guardrails \
+            --output-format space)"
+
+          if [[ -z "${TEST_PATHS}" ]]; then
+            TEST_PATHS="tests/guardrails/"
+          fi
+
+          echo "Selected tests: ${TEST_PATHS}"
+          {
+            echo "test-paths<<EOF"
+            echo "${TEST_PATHS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "test-count=$(wc -w <<< "${TEST_PATHS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+  fast-feedback:
+    name: Fast feedback (Python 3.11)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: detect-tests
+    env:
+      SECRET_KEY: ci-fast-feedback-secret-key-123456789012345678901234567890
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e sdk/
+
+      - name: Prepare database
+        run: python manage.py migrate --noinput
+
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Run targeted pytest suite
+        run: |
+          echo "Changed modules: ${{ needs.detect-tests.outputs.changed-modules }}"
+          echo "Running ${{ needs.detect-tests.outputs.test-count }} targets"
+          pytest -v --tb=short --durations=15 \
+            ${{ needs.detect-tests.outputs.test-paths }}
+
+      - name: Production static sanity check
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.production
+        run: |
+          python manage.py check
+          python manage.py collectstatic --noinput -v 0

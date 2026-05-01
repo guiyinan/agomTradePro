@@ -86,6 +86,7 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
         "tests/api/test_alpha_api_edges.py",
         "tests/integration/test_alpha_*.py",
         "tests/unit/test_alpha*.py",
+        "tests/unit/test_alpha_exit_loop_end_to_end.py",
         "tests/e2e/test_alpha_dashboard_e2e.py",
     ],
 
@@ -129,6 +130,9 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
         "tests/api/test_simulated_trading_api_edges.py",
         "tests/integration/simulated_trading/",
         "tests/unit/domain/simulated_trading/",
+        "tests/unit/test_auto_trading_engine.py",
+        "tests/unit/test_auto_trading_task_wiring.py",
+        "tests/unit/test_position_invalidation_tasks.py",
     ],
 
     # Strategy
@@ -169,6 +173,10 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
         "tests/unit/decision_rhythm/",
         "tests/unit/test_decision_rhythm*.py",
         "tests/unit/test_decision_workspace*.py",
+        "tests/unit/test_execute_buy_order_use_case.py",
+        "tests/unit/test_execute_decision_use_case.py",
+        "tests/unit/test_transition_plan_domain.py",
+        "tests/unit/test_unified_recommendation_use_cases.py",
         "tests/guardrails/test_decision_rhythm_api_error_mapping.py",
     ],
 
@@ -215,6 +223,7 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
     # Pulse
     "pulse": [
         "tests/api/test_pulse_api.py",
+        "tests/unit/test_pulse*.py",
     ],
 
     # Realtime
@@ -287,6 +296,7 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
         "tests/api/test_signal_api_edges.py",
         "tests/integration/signal/",
         "tests/unit/domain/test_signal*.py",
+        "tests/unit/test_signal_query_repository.py",
     ],
 }
 
