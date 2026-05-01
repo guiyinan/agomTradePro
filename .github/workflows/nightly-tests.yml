@@ -1,8 +1,5 @@
 name: Nightly Tests
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   schedule:
     - cron: '0 2 * * *'  # UTC 02:00 (北京时间 10:00)
@@ -18,7 +15,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -128,7 +125,7 @@ jobs:
           python scripts/generate_quality_report.py --type nightly --output reports/quality
 
       - name: Upload Coverage Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: coverage-reports
@@ -137,21 +134,21 @@ jobs:
             htmlcov-*/
 
       - name: Upload Quality Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: quality-report
           path: reports/quality/
 
       - name: Upload Architecture Audit Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: architecture-audit-report
           path: reports/architecture/
 
       - name: Upload Playwright Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-artifacts
