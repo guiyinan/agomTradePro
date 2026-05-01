@@ -25,4 +25,9 @@ def list_held_simulated_asset_codes() -> list[str]:
 def get_position_snapshots(account_id: int | str) -> list[dict]:
     """Return lightweight simulated position snapshots for cross-app planning."""
 
-    return _get_position_snapshots(account_id=account_id)
+    normalized = str(account_id or "").strip()
+    if not normalized:
+        return []
+    if not normalized.isdigit():
+        return []
+    return _get_position_snapshots(account_id=int(normalized))
