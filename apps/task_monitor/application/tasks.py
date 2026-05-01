@@ -20,7 +20,10 @@ from celery.signals import (
 )
 from django.utils import timezone
 
-from apps.task_monitor.application.repository_provider import get_task_record_repository
+from apps.task_monitor.application.repository_provider import (
+    get_database_backup_service,
+    get_task_record_repository,
+)
 from apps.task_monitor.application.use_cases import RecordTaskExecutionUseCase
 from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
@@ -391,28 +394,13 @@ def backup_database_task(
         dict: 备份结果，包含备份文件路径和清理统计
     """
     import subprocess
-    from io import StringIO
-    from pathlib import Path
-
-    from django.core.management import call_command
 
     try:
-        # 捕获管理命令输出
-        output = StringIO()
-
-        # 构建命令参数
-        cmd_args = []
-        if keep_days:
-            cmd_args.extend(["--keep", str(keep_days)])
-        if compress:
-            cmd_args.append("--compress")
-        if output_dir:
-            cmd_args.extend(["--output", output_dir])
-
-        # 调用备份命令
-        call_command("backup_database", *cmd_args, stdout=output)
-
-        result_text = output.getvalue()
+        result = get_database_backup_service().backup_database(
+            keep_days=keep_days,
+            compress=compress,
+            output_dir=output_dir,
+        )
 
         logger.info(
             "Database backup task completed",
@@ -420,14 +408,18 @@ def backup_database_task(
                 "keep_days": keep_days,
                 "compress": compress,
                 "output_dir": output_dir,
+                "backup_file": result.backup_file,
+                "removed_old_backups": result.removed_old_backups,
             }
         )
 
         return {
             "status": "success",
-            "message": result_text,
-            "keep_days": keep_days,
-            "compressed": compress,
+            "message": f"Database backup created: {result.backup_file}",
+            "backup_file": result.backup_file,
+            "keep_days": result.keep_days,
+            "compressed": result.compressed,
+            "removed_old_backups": result.removed_old_backups,
         }
 
     except subprocess.CalledProcessError as exc:

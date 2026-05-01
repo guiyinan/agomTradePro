@@ -74,6 +74,16 @@ python scripts/scaffold_application_providers.py \
 2. ORM queryset / filter 逻辑继续下沉到 Infrastructure Repository
 3. 新增 provider 只是边界收口层，不承载业务规则
 
+### 0.4) Dashboard / 聚合读模型边界（2026-04-30）
+
+1. `apps/dashboard/infrastructure/repositories.py` 这类聚合读模型仓储，不得再直接 import 其他 app。
+2. 跨 app 数据拼装必须先收口到本模块 `application` 层 gateway，再把 gateway 注入到 Infrastructure Repository。
+3. `application/repository_provider.py` 若必须组装同 app concrete implementation，只能依赖 `infrastructure.providers` 暴露的工厂；不要直接 import `infrastructure.repositories`。
+4. 这样做的目标是把：
+   - Dashboard 的跨模块编排留在 Application
+   - Dashboard 的 ORM / read model 留在 Infrastructure
+   - Application 层对 Django repository class 的直接依赖降到最小并可扫描
+
 ### 1) 配置唯一来源（Single Source of Truth）
 
 1. 所有业务阈值必须通过 `ConfigHelper + ConfigKeys` 读取。
@@ -100,6 +110,14 @@ python scripts/scaffold_application_providers.py \
 1. 业务层禁止无说明 `except Exception` 直接吞错并返回成功。
 2. 可恢复异常必须记录结构化上下文（模块、输入摘要、错误类型、trace id）。
 3. 不可恢复异常必须上抛到统一错误边界并触发告警。
+
+### 3.1) 可恢复异常白名单与边界例外（2026-05-01）
+
+1. Application 层优先定义模块内的 `RECOVERABLE_*_EXCEPTIONS` 元组，显式列出允许降级的异常类型；禁止用裸 `except Exception` 覆盖整个用例。
+2. 典型可恢复异常包括：`ValueError`、`TypeError`、`LookupError`、`ImportError`、`ConnectionError`、`TimeoutError`、`DatabaseError`、`ImproperlyConfigured` 以及项目内已定义的业务异常。
+3. 缓存读取失败、可选 Provider 初始化失败、告警写入失败、配置读取失败等“可降级旁路”可以捕获白名单异常后继续主流程，但必须写日志说明降级原因。
+4. 只有明确属于“非阻断型旁路写入”的边界允许保留 `except Exception`，例如审计日志/指标上报不能反向影响主业务结果；此类兜底必须紧贴边界并带注释说明原因。
+5. 若同一模块存在多处同类降级点，优先收口到少数 helper（如 metrics / alert / provider bootstrap 边界），不要在主流程里散落多处裸捕获。
 
 ### 4) 测试必须环境无关
 

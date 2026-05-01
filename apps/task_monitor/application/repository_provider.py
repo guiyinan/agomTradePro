@@ -19,3 +19,11 @@ def get_celery_health_checker():
     from apps.task_monitor.infrastructure.providers import CeleryHealthChecker
 
     return CeleryHealthChecker(celery_app=celery_app)
+
+
+def get_database_backup_service():
+    """Return the default database backup service."""
+
+    from apps.task_monitor.infrastructure.backup_service import DatabaseBackupService
+
+    return DatabaseBackupService()

@@ -38,19 +38,19 @@ def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
             captured["saved_snapshot"] = snapshot
 
     monkeypatch.setattr(
-        "django.core.management.call_command",
-        lambda name, **kwargs: captured.update({"repair_command": name, "repair_kwargs": kwargs}),
+        "apps.pulse.application.use_cases.refresh_pulse_macro_inputs",
+        lambda **kwargs: captured.update({"repair_kwargs": kwargs}),
     )
     monkeypatch.setattr(
-        "apps.regime.application.current_regime.resolve_current_regime",
+        "apps.pulse.application.use_cases.resolve_current_regime_for_pulse",
         lambda as_of_date=None: SimpleNamespace(dominant_regime="Recovery"),
     )
     monkeypatch.setattr(
-        "apps.pulse.infrastructure.data_provider.DjangoPulseDataProvider",
+        "apps.pulse.infrastructure.providers.DjangoPulseDataProvider",
         FakeProvider,
     )
     monkeypatch.setattr(
-        "apps.pulse.infrastructure.repositories.PulseRepository",
+        "apps.pulse.infrastructure.providers.PulseRepository",
         FakeRepository,
     )
 
@@ -59,11 +59,6 @@ def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
     assert snapshot is not None
     assert captured["provider_date"] == date(2026, 4, 20)
     assert captured["saved_snapshot"].observed_at == date(2026, 4, 20)
-    assert captured["repair_command"] == "repair_decision_data_reliability"
-    assert captured["repair_kwargs"]["target_date"] == "2026-04-20"
-    assert captured["repair_kwargs"]["macro_indicator_codes"] == ",".join(
-        PULSE_MACRO_SYNC_INDICATORS
-    )
-    assert captured["repair_kwargs"]["asset_codes"] == "000300.SH"
-    assert captured["repair_kwargs"]["skip_pulse"] is True
-    assert captured["repair_kwargs"]["skip_alpha"] is True
+    assert captured["repair_kwargs"]["target_date"] == date(2026, 4, 20)
+    assert captured["repair_kwargs"]["macro_indicator_codes"] == PULSE_MACRO_SYNC_INDICATORS
+    assert captured["repair_kwargs"]["asset_codes"] == ("000300.SH",)

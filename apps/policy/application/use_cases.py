@@ -54,6 +54,26 @@ from .repository_provider import (
 
 logger = logging.getLogger(__name__)
 
+RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS = (
+    AIServiceError,
+    AttributeError,
+    BusinessLogicError,
+    ConnectionError,
+    DataFetchError,
+    DataValidationError,
+    DatabaseError,
+    DjangoValidationError,
+    ExternalServiceError,
+    ImportError,
+    IntegrityError,
+    InvalidInputError,
+    LookupError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
+
 
 @dataclass
 class GetCurrentPolicyResponse:
@@ -85,7 +105,7 @@ class GetCurrentPolicyUseCase:
             exc = DataFetchError(f"Failed to fetch policy level from database: {e}")
             record_exception(exc, module="policy", is_handled=True)
             return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(exc))
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             # Unexpected error - log with full context
             logger.exception(f"GetCurrentPolicyUseCase: unexpected error: {e}")
             record_exception(e, module="policy", is_handled=False)
@@ -274,7 +294,7 @@ class CreatePolicyEventUseCase:
             output.errors.append(f"数据库错误: {str(e)}")
             logger.error(f"Database error creating policy event: {e}", exc_info=True)
             record_exception(e, module="policy", is_handled=True)
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             # Unexpected error
             output.errors.append(f"系统错误: {str(e)}")
             logger.exception(f"Unexpected error creating policy event: {e}")
@@ -342,7 +362,7 @@ class CreatePolicyEventUseCase:
             logger.warning(f"External service error sending alert: {e}")
             record_exception(e, module="policy", is_handled=True, service_name="alert")
             return False
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.error(f"Failed to send alert: {e}")
             record_exception(e, module="policy", is_handled=True)
             return False
@@ -543,7 +563,7 @@ class UpdatePolicyEventUseCase:
                 output.event = saved
                 output.warnings.append("⚠️ 政策事件已更新")
                 return output
-            except Exception as e:
+            except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
                 output.errors.append(f"更新失败: {str(e)}")
                 logger.error(f"Failed to update policy event on {event_date}: {e}", exc_info=True)
                 return output
@@ -757,7 +777,7 @@ class FetchRSSUseCase:
                 output.errors.append(error_msg)
                 logger.error(error_msg, exc_info=True)
                 record_exception(e, module="policy", is_handled=True)
-            except Exception as e:
+            except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
                 error_msg = f"RSS源 {source.name} 抓取失败（未预期）: {str(e)}"
                 output.errors.append(error_msg)
                 logger.exception(error_msg)
@@ -766,9 +786,7 @@ class FetchRSSUseCase:
         output.success = output.sources_processed > 0
         return output
 
-    def _fetch_single_source(
-        self, source: Any, force_refetch: bool
-    ) -> dict[str, Any]:
+    def _fetch_single_source(self, source: Any, force_refetch: bool) -> dict[str, Any]:
         """
         抓取单个RSS源（增强版 - 集成AI分类）
 
@@ -856,7 +874,7 @@ class FetchRSSUseCase:
                         record_exception(
                             e, module="policy", is_handled=True, service_name="ai_classification"
                         )
-                    except Exception as e:
+                    except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
                         logger.error(f"AI classification error for {item.title}: {e}")
                         record_exception(e, module="policy", is_handled=True)
 
@@ -930,7 +948,7 @@ class FetchRSSUseCase:
                                             is_handled=True,
                                             service_name="ai_classification",
                                         )
-                                    except Exception as e:
+                                    except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
                                         logger.warning(
                                             f"AI classification failed (unexpected): {e}"
                                         )
@@ -953,9 +971,9 @@ class FetchRSSUseCase:
                     "rss_source_id": source.id,
                     "rss_item_guid": item.guid or item.link,
                     "risk_impact": risk_impact.value,
-                    "processing_metadata": classification_result.processing_metadata
-                    if classification_result
-                    else {},
+                    "processing_metadata": (
+                        classification_result.processing_metadata if classification_result else {}
+                    ),
                 }
 
                 # 阶段2：处理完成后更新已落库记录
@@ -1013,7 +1031,7 @@ class FetchRSSUseCase:
                         structured_data=structured_data_dict,
                     )
 
-            except Exception as e:
+            except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
                 # Processing error - keep pending raw record and continue
                 logger.warning(
                     f"Failed to process RSS item {item.link} (error): {e}, keeping pending raw record"
@@ -1047,7 +1065,7 @@ class FetchRSSUseCase:
                         )
                         new_events_count += 1
                         logger.info(f"Saved pending RSS item after early failure: {item.title}")
-                except Exception as save_error:
+                except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as save_error:
                     logger.error(f"Failed to save pending RSS item {item.link}: {save_error}")
                 continue
 
@@ -1144,7 +1162,7 @@ class FetchRSSUseCase:
                 title=f"RSS新政策事件: {event.level.value}",
                 message=message,
             )
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.error(f"Failed to send alert for RSS event: {e}")
             return False
 
@@ -1194,7 +1212,7 @@ AI置信度: N/A
                 title=f"RSS新政策事件: {level.value}",
                 message=message,
             )
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.error(f"Failed to send alert for RSS event: {e}")
             return False
 
@@ -1320,7 +1338,7 @@ class ReviewPolicyItemUseCase:
                 f"{'approved' if input.approved else 'rejected'} by {input.reviewer.username}"
             )
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             output.errors.append(f"审核失败: {str(e)}")
             logger.error(f"Failed to review policy {input.policy_log_id}: {e}", exc_info=True)
 
@@ -1442,6 +1460,8 @@ from ..domain.rules import (
     is_sla_exceeded,
     should_auto_approve,
 )
+
+
 @dataclass
 class WorkbenchSummaryInput:
     """工作台概览输入 DTO"""
@@ -1528,7 +1548,7 @@ class GetWorkbenchSummaryUseCase:
 
             return WorkbenchSummaryOutput(success=True, summary=summary)
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to get workbench summary: {e}")
             return WorkbenchSummaryOutput(success=False, error=str(e))
 
@@ -1594,7 +1614,7 @@ class GetWorkbenchItemsUseCase:
                 total=result["total"],
             )
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to get workbench items: {e}")
             return WorkbenchItemsOutput(success=False, error=str(e))
 
@@ -1644,7 +1664,7 @@ class ApproveEventUseCase:
             else:
                 return ApproveEventOutput(success=False, error="Event not found")
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to approve event: {e}")
             return ApproveEventOutput(success=False, error=str(e))
 
@@ -1697,7 +1717,7 @@ class RejectEventUseCase:
             else:
                 return RejectEventOutput(success=False, error="Event not found")
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to reject event: {e}")
             return RejectEventOutput(success=False, error=str(e))
 
@@ -1750,7 +1770,7 @@ class RollbackEventUseCase:
             else:
                 return RollbackEventOutput(success=False, error="Event not found")
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to rollback event: {e}")
             return RollbackEventOutput(success=False, error=str(e))
 
@@ -1807,7 +1827,7 @@ class OverrideEventUseCase:
             else:
                 return OverrideEventOutput(success=False, error="Event not found")
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to override event: {e}")
             return OverrideEventOutput(success=False, error=str(e))
 
@@ -1896,6 +1916,6 @@ class GetSentimentGateStateUseCase:
                 },
             )
 
-        except Exception as e:
+        except RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS as e:
             logger.exception(f"Failed to get sentiment gate state: {e}")
             return SentimentGateStateOutput(success=False, error=str(e))

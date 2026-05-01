@@ -87,6 +87,16 @@ if TYPE_CHECKING:
     from apps.data_center.domain.entities import ProviderHealthSnapshot
 
 logger = logging.getLogger(__name__)
+RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
+    AttributeError,
+    ConnectionError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
 DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS = 4.0
 DEFAULT_DECISION_MACRO_INDICATORS = (
     "CN_PMI",
@@ -984,7 +994,7 @@ class RepairDecisionDataReliabilityUseCase:
                     )
                 )
                 indicator_details["sync"] = sync_result.to_dict()
-            except Exception as exc:
+            except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
                 blocked_reasons.append(f"{indicator_code}: 同步失败: {exc}")
                 indicator_details["sync"] = {
@@ -1054,7 +1064,7 @@ class RepairDecisionDataReliabilityUseCase:
                     )
                 )
                 details["quote_sync"] = sync_result.to_dict()
-            except Exception as exc:
+            except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
                 blocked_reasons.append(f"实时行情同步失败: {exc}")
                 details["quote_sync"] = {
@@ -1085,7 +1095,7 @@ class RepairDecisionDataReliabilityUseCase:
                         )
                     )
                     details["prices"][asset_code] = {"sync": sync_result.to_dict()}
-                except Exception as exc:
+                except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                     failed = True
                     blocked_reasons.append(f"{asset_code}: 历史价格同步失败: {exc}")
                     details["prices"][asset_code] = {
@@ -1167,7 +1177,7 @@ class RepairDecisionDataReliabilityUseCase:
 
         try:
             snapshot = self._pulse_refresher(target_date)
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             return DecisionReliabilitySection(
                 status="failed",
                 must_not_use_for_decision=True,
@@ -1245,7 +1255,7 @@ class RepairDecisionDataReliabilityUseCase:
                         or repair_payload.get("status")
                     )
                     blocked_reasons.append(f"Alpha 修复失败: {message}")
-            except Exception as exc:
+            except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
                 blocked_reasons.append(f"Alpha 修复失败: {exc}")
                 details["repair"] = {
@@ -1261,7 +1271,7 @@ class RepairDecisionDataReliabilityUseCase:
                     request.portfolio_id,
                 )
                 details["readiness"] = status_payload
-            except Exception as exc:
+            except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
                 failed = True
                 blocked_reasons.append(f"Alpha readiness 读取失败: {exc}")
                 details["readiness"] = {
@@ -1642,7 +1652,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("macro", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
@@ -1708,7 +1718,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("historical_price", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
@@ -1770,7 +1780,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("realtime_quote", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
@@ -1826,7 +1836,7 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("fund_nav", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -1875,7 +1885,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("financial", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -1924,7 +1934,7 @@ class SyncValuationUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("valuation", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -1986,7 +1996,7 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
             return SyncResult(
                 "sector_membership", provider.provider_name(), stored_count, "success"
             )
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -2027,7 +2037,7 @@ class SyncNewsUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("news", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
@@ -2062,7 +2072,7 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
                 )
             )
             return SyncResult("capital_flow", provider.provider_name(), stored_count, "success")
-        except Exception as exc:
+        except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(

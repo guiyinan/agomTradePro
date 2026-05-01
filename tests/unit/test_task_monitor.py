@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 from django.utils import timezone
 
+from apps.task_monitor.application.tasks import backup_database_task
 from apps.task_monitor.application.use_cases import (
     CheckCeleryHealthUseCase,
     CleanupOldRecordsUseCase,
@@ -26,6 +27,7 @@ from apps.task_monitor.domain.entities import (
     TaskStatus,
 )
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
+from apps.task_monitor.infrastructure.backup_service import DatabaseBackupResult
 from apps.task_monitor.infrastructure.repositories import (
     CeleryHealthChecker,
     DjangoTaskRecordRepository,
@@ -337,6 +339,37 @@ class TestCeleryHealthChecker:
 
         assert result.is_healthy is False
         assert result.broker_reachable is False
+
+
+def test_backup_database_task_uses_backup_service(monkeypatch):
+    class FakeBackupService:
+        def backup_database(self, *, keep_days: int, compress: bool, output_dir: str | None):
+            assert keep_days == 5
+            assert compress is False
+            assert output_dir == "D:/tmp/backups"
+            return DatabaseBackupResult(
+                backup_file="D:/tmp/backups/db_backup_20260430.sqlite3",
+                removed_old_backups=2,
+                keep_days=keep_days,
+                compressed=compress,
+                engine="django.db.backends.sqlite3",
+            )
+
+    monkeypatch.setattr(
+        "apps.task_monitor.application.tasks.get_database_backup_service",
+        lambda: FakeBackupService(),
+    )
+
+    result = backup_database_task.run(
+        keep_days=5,
+        compress=False,
+        output_dir="D:/tmp/backups",
+    )
+
+    assert result["status"] == "success"
+    assert result["backup_file"] == "D:/tmp/backups/db_backup_20260430.sqlite3"
+    assert result["removed_old_backups"] == 2
+    assert result["compressed"] is False
 
 
 class TestGetTaskStatusUseCase:

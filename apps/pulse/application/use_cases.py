@@ -9,6 +9,7 @@ from apps.pulse.application.repository_provider import (
 )
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
+from core.integration.decision_data_reliability import refresh_pulse_macro_inputs
 from core.integration.current_regime import resolve_current_regime_for_pulse
 
 logger = logging.getLogger(__name__)
@@ -43,17 +44,10 @@ def _is_snapshot_usable(
 def _refresh_macro_inputs_for_pulse(target_date: date) -> None:
     """Refresh Data Center inputs that feed Pulse before recalculation."""
     try:
-        from django.core.management import call_command
-
-        call_command(
-            "repair_decision_data_reliability",
-            target_date=target_date.isoformat(),
-            macro_indicator_codes=",".join(PULSE_MACRO_SYNC_INDICATORS),
-            asset_codes="000300.SH",
-            skip_pulse=True,
-            skip_alpha=True,
-            strict=False,
-            verbosity=0,
+        refresh_pulse_macro_inputs(
+            target_date=target_date,
+            macro_indicator_codes=PULSE_MACRO_SYNC_INDICATORS,
+            asset_codes=("000300.SH",),
         )
     except Exception as exc:
         logger.warning("Failed to refresh Pulse Data Center inputs: %s", exc)

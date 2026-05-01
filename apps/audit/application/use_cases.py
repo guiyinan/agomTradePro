@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import List, Optional
 
+from django.core.exceptions import ImproperlyConfigured
+from django.db import DatabaseError
 from apps.audit.domain.entities import (
     DynamicWeightConfig,
     IndicatorPerformanceReport,
@@ -38,6 +40,23 @@ from apps.regime.application.repository_provider import get_regime_repository
 from core.exceptions import DataValidationError, InsufficientDataError
 
 logger = logging.getLogger(__name__)
+
+RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS = (
+    ArithmeticError,
+    AttributeError,
+    ConnectionError,
+    DataValidationError,
+    DatabaseError,
+    ImportError,
+    ImproperlyConfigured,
+    InsufficientDataError,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
 
 
 @dataclass
@@ -186,7 +205,7 @@ class GenerateAttributionReportUseCase:
                 regime_actual = self._calculate_regime_actual(
                     backtest_dict["start_date"], backtest_dict["end_date"]
                 )
-            except Exception as regime_error:
+            except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as regime_error:
                 # In non-DB unit tests or degraded runtime, regime actual should not
                 # block attribution report generation.
                 logger.warning(
@@ -241,7 +260,7 @@ class GenerateAttributionReportUseCase:
 
             return GenerateAttributionReportResponse(success=True, report_id=report_id)
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"归因分析失败: {e}", exc_info=True)
             return GenerateAttributionReportResponse(success=False, error=str(e))
 
@@ -430,7 +449,7 @@ class GenerateAttributionReportUseCase:
                 tushare_token=tushare_settings.tushare_token,
                 tushare_http_url=tushare_settings.tushare_http_url,
             )
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"无法初始化价格适配器: {e}")
             raise ValueError(
                 f"无法初始化价格数据源，归因分析需要真实的历史价格数据。"
@@ -472,7 +491,7 @@ class GenerateAttributionReportUseCase:
                 else:
                     data_source_status[asset_class] = "无收益率数据"
 
-            except Exception as e:
+            except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
                 data_source_status[asset_class] = f"错误: {e}"
                 logger.warning(f"获取 {asset_class} 数据失败: {e}")
 
@@ -621,7 +640,7 @@ class GetAuditSummaryUseCase:
 
             return GetAuditSummaryResponse(success=True, reports=reports)
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"获取审计摘要失败: {e}", exc_info=True)
             return GetAuditSummaryResponse(success=False, error=str(e))
 
@@ -768,7 +787,7 @@ class EvaluateIndicatorPerformanceUseCase:
                             "signal_strength": report.signal_strength,
                         },
                     )
-                except Exception as save_error:
+                except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as save_error:
                     message = str(save_error)
                     if (
                         "Database access not allowed" in message
@@ -789,7 +808,7 @@ class EvaluateIndicatorPerformanceUseCase:
                 report_id=report_id,
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"评估指标 {request.indicator_code} 失败: {e}", exc_info=True)
             return EvaluateIndicatorPerformanceResponse(success=False, error=str(e))
 
@@ -951,7 +970,7 @@ class ValidateThresholdsUseCase:
                 validation_run_id=validation_run_id,
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"阈值验证失败: {e}", exc_info=True)
 
             # 更新验证摘要为失败状态 (通过 Repository)
@@ -1114,7 +1133,7 @@ class AdjustIndicatorWeightsUseCase:
                 adjusted_weights=adjusted_weights,
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"权重调整失败: {e}", exc_info=True)
             return AdjustIndicatorWeightsResponse(success=False, error=str(e))
 
@@ -1266,7 +1285,8 @@ class LogOperationUseCase:
             # 计算延迟
             latency_seconds = time.time() - start_time
 
-            # 审计失败不阻塞主流程，但记录错误日志
+            # 审计日志属于非阻断型旁路写入，这里保留边界级兜底，
+            # 避免任意 repository/metrics 故障影响主业务流程。
             error_msg = f"记录操作日志失败: {e}"
 
             # 增强可观测性：记录到失败计数器
@@ -1399,7 +1419,7 @@ class QueryOperationLogsUseCase:
                 page_size=request.page_size,
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"查询操作日志失败: {e}", exc_info=True)
             return QueryOperationLogsResponse(
                 success=False,
@@ -1461,7 +1481,7 @@ class GetOperationLogDetailUseCase:
                 log=log,
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"获取操作日志详情失败: {e}", exc_info=True)
             return GetOperationLogDetailResponse(
                 success=False,
@@ -1586,7 +1606,7 @@ class ExportOperationLogsUseCase:
                 row_count=len(logs),
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"导出操作日志失败: {e}", exc_info=True)
             return ExportOperationLogsResponse(
                 success=False,
@@ -1640,7 +1660,7 @@ class GetOperationStatsUseCase:
                 stats=stats,
             )
 
-        except Exception as e:
+        except RECOVERABLE_AUDIT_USE_CASE_EXCEPTIONS as e:
             logger.error(f"获取操作统计失败: {e}", exc_info=True)
             return GetOperationStatsResponse(
                 success=False,

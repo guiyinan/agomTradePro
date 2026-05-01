@@ -11,6 +11,8 @@ from collections.abc import Callable
 from datetime import date, timezone
 from typing import Any, Optional
 
+from django.core.exceptions import ImproperlyConfigured
+from django.db import DatabaseError
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
@@ -34,6 +36,20 @@ logger = logging.getLogger(__name__)
 # 延迟导入监控模块（避免循环依赖）
 _alpha_metrics_instance = None
 
+RECOVERABLE_ALPHA_SERVICE_EXCEPTIONS = (
+    AttributeError,
+    ConnectionError,
+    DatabaseError,
+    ImportError,
+    ImproperlyConfigured,
+    LookupError,
+    OSError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
+
 
 def get_alpha_metrics():
     """获取 Alpha 指标收集器"""
@@ -45,6 +61,22 @@ def get_alpha_metrics():
     return _alpha_metrics_instance
 
 
+def _run_non_blocking_alpha_side_effect(
+    callback: Callable[[], None],
+    *,
+    context: str,
+    log_level: str = "debug",
+) -> bool:
+    """Run non-blocking metrics/alert side effects at the Alpha boundary."""
+
+    try:
+        callback()
+        return True
+    except Exception as exc:
+        getattr(logger, log_level)("Alpha side effect skipped during %s: %s", context, exc)
+        return False
+
+
 def _record_metrics(
     callback: Callable[[Any], None],
     *,
@@ -52,10 +84,24 @@ def _record_metrics(
 ) -> None:
     """Execute non-blocking Alpha metric recording with explicit diagnostics."""
 
+    _run_non_blocking_alpha_side_effect(
+        lambda: callback(get_alpha_metrics()),
+        context=context,
+    )
+
+
+def _get_provider_health_or_unavailable(
+    provider: AlphaProvider,
+    *,
+    context: str,
+) -> tuple[AlphaProviderStatus | None, str | None]:
+    """Treat provider health-check failures as soft boundary failures."""
+
     try:
-        callback(get_alpha_metrics())
+        return provider.health_check(), None
     except Exception as exc:
-        logger.debug("Alpha metrics skipped during %s: %s", context, exc)
+        logger.error("检查 Provider %s 状态失败 (%s): %s", provider.name, context, exc)
+        return None, str(exc)
 
 
 def _get_runtime_qlib_config() -> dict[str, Any]:
@@ -337,13 +383,13 @@ class AlphaProviderRegistry:
         """
         active = []
         for provider in self._providers:
-            try:
-                status = provider.health_check()
-                if status != AlphaProviderStatus.UNAVAILABLE:
-                    active.append(provider)
-                    logger.debug(f"Provider {provider.name}: {status.value}")
-            except Exception as e:
-                logger.error(f"检查 Provider {provider.name} 状态失败: {e}")
+            status, error = _get_provider_health_or_unavailable(
+                provider,
+                context="get_active_providers",
+            )
+            if error is None and status != AlphaProviderStatus.UNAVAILABLE:
+                active.append(provider)
+                logger.debug(f"Provider {provider.name}: {status.value}")
 
         return active
 
@@ -390,7 +436,7 @@ class AlphaProviderRegistry:
             if fixed_provider and not provider_filter:
                 logger.info(f"[AlphaConfig] 系统配置固定使用 Provider: {fixed_provider}")
                 provider_filter = fixed_provider
-        except Exception as e:
+        except RECOVERABLE_ALPHA_SERVICE_EXCEPTIONS as e:
             logger.debug(f"获取固定 Provider 配置失败: {e}")
 
         if provider_filter:
@@ -406,10 +452,11 @@ class AlphaProviderRegistry:
                     error_message=f"指定的 Provider '{provider_filter}' 不存在或不可用",
                 )
 
-            try:
-                status = provider.health_check()
-            except Exception as exc:
-                logger.error(f"检查 Provider {provider_filter} 状态失败: {exc}")
+            status, error = _get_provider_health_or_unavailable(
+                provider,
+                context=f"provider_filter:{provider_filter}",
+            )
+            if error is not None:
                 status = AlphaProviderStatus.UNAVAILABLE
 
             if status == AlphaProviderStatus.UNAVAILABLE:
@@ -581,24 +628,23 @@ class AlphaProviderRegistry:
                     )
 
                 # 记录成功指标
-                try:
-                    metrics = get_alpha_metrics()
-                    metrics.record_provider_call(
-                        provider.name,
-                        success=True,
-                        latency_ms=latency_ms,
-                        staleness_days=result.staleness_days,
-                    )
-                    if cache_hit:
-                        metrics.record_cache_hit(True)
-                    if result.scores:
-                        metrics.record_coverage(len(result.scores), 300)
-                except Exception as e:
-                    logger.debug(f"记录指标失败: {e}")
+                _record_metrics(
+                    lambda metrics: (
+                        metrics.record_provider_call(
+                            provider.name,
+                            success=True,
+                            latency_ms=latency_ms,
+                            staleness_days=result.staleness_days,
+                        ),
+                        metrics.record_cache_hit(True) if cache_hit else None,
+                        metrics.record_coverage(len(result.scores), 300) if result.scores else None,
+                    ),
+                    context=f"{provider.name}_provider_success",
+                )
 
                 return result
 
-            except Exception as e:
+            except RECOVERABLE_ALPHA_SERVICE_EXCEPTIONS as e:
                 latency_ms = (time.time() - provider_start_time) * 1000
                 logger.error(
                     f"[AlphaProvider] Provider {provider.name} 调用失败: {e}", exc_info=True
@@ -614,6 +660,21 @@ class AlphaProviderRegistry:
                     context=f"{provider.name}_provider_exception",
                 )
 
+                continue
+            except Exception as e:
+                latency_ms = (time.time() - provider_start_time) * 1000
+                logger.error(
+                    f"[AlphaProvider] Provider {provider.name} 出现未分类异常: {e}",
+                    exc_info=True,
+                )
+                _record_metrics(
+                    lambda metrics: metrics.record_provider_call(
+                        provider.name,
+                        success=False,
+                        latency_ms=latency_ms,
+                    ),
+                    context=f"{provider.name}_provider_unclassified_exception",
+                )
                 continue
 
         if best_degraded_result is not None and best_degraded_provider_name is not None:
@@ -669,8 +730,8 @@ class AlphaProviderRegistry:
             )
 
         # 创建严重告警
-        try:
-            get_alpha_alert_repository().create_alert(
+        _run_non_blocking_alpha_side_effect(
+            lambda: get_alpha_alert_repository().create_alert(
                 alert_type="provider_unavailable",
                 severity="error",
                 title="所有 Alpha Provider 不可用",
@@ -680,9 +741,9 @@ class AlphaProviderRegistry:
                     "intended_trade_date": intended_trade_date.isoformat(),
                     "attempted_providers": attempted_providers,
                 },
-            )
-        except Exception as e:
-            logger.debug(f"创建告警失败: {e}")
+            ),
+            context="provider_unavailable_alert",
+        )
 
         return AlphaResult(
             success=False,
@@ -749,7 +810,8 @@ class AlphaProviderRegistry:
             attempted_providers: 尝试过的 Provider 列表
             reason: 降级原因
         """
-        try:
+
+        def _write_alert() -> None:
             alert_repository = get_alpha_alert_repository()
             # 检查是否已有相同告警（避免重复）
             recent_alert = alert_repository.get_open_alert(alert_type="model_degraded")
@@ -778,8 +840,11 @@ class AlphaProviderRegistry:
                     },
                 )
                 logger.warning(f"[AlphaAlert] 创建降级告警: {reason}")
-        except Exception as e:
-            logger.debug(f"创建降级告警失败: {e}")
+
+        _run_non_blocking_alpha_side_effect(
+            _write_alert,
+            context="fallback_alert",
+        )
 
 
 class AlphaService:
@@ -832,42 +897,54 @@ class AlphaService:
         3. Simple - 外部依赖
         4. ETF - 最后防线
         """
+
+        def _register_optional_provider(
+            factory: Callable[[], AlphaProvider],
+            *,
+            failure_message: str,
+        ) -> None:
+            """Optional provider startup must not block Alpha service boot."""
+
+            try:
+                self._registry.register(factory())
+            except Exception as exc:
+                logger.warning("%s: %s", failure_message, exc)
+
         # 1. Qlib Provider（最高优先级，但可能不可用）
         try:
             qlib_config = _get_runtime_qlib_config()
             if qlib_config.get("enabled"):
-                qlib_provider = build_qlib_alpha_provider(
-                    provider_uri=qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data"),
-                    model_path=qlib_config.get("model_path", "/models/qlib"),
-                    region=qlib_config.get("region", "CN"),
+                _register_optional_provider(
+                    lambda: build_qlib_alpha_provider(
+                        provider_uri=qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data"),
+                        model_path=qlib_config.get("model_path", "/models/qlib"),
+                        region=qlib_config.get("region", "CN"),
+                    ),
+                    failure_message="Qlib Provider 初始化失败（预期，如果未安装 Qlib）",
                 )
-                self._registry.register(qlib_provider)
                 logger.info(f"Qlib Provider 已注册: {qlib_config.get('provider_uri')}")
             else:
                 logger.info("Qlib 未启用，跳过注册")
-        except Exception as e:
+        except RECOVERABLE_ALPHA_SERVICE_EXCEPTIONS as e:
             logger.warning(f"Qlib Provider 初始化失败（预期，如果未安装 Qlib）: {e}")
 
         # 2. Cache Provider（稳定快速）
-        try:
-            cache_provider = CacheAlphaProvider()
-            self._registry.register(cache_provider)
-        except Exception as e:
-            logger.warning(f"Cache Provider 初始化失败: {e}")
+        _register_optional_provider(
+            CacheAlphaProvider,
+            failure_message="Cache Provider 初始化失败",
+        )
 
         # 3. Simple Provider（中等优先级）
-        try:
-            simple_provider = SimpleAlphaProvider()
-            self._registry.register(simple_provider)
-        except Exception as e:
-            logger.warning(f"Simple Provider 初始化失败: {e}")
+        _register_optional_provider(
+            SimpleAlphaProvider,
+            failure_message="Simple Provider 初始化失败",
+        )
 
         # 4. ETF Provider（最低优先级，最后防线）
-        try:
-            etf_provider = ETFFallbackProvider()
-            self._registry.register(etf_provider)
-        except Exception as e:
-            logger.warning(f"ETF Provider 初始化失败: {e}")
+        _register_optional_provider(
+            ETFFallbackProvider,
+            failure_message="ETF Provider 初始化失败",
+        )
 
     def get_stock_scores(
         self,
@@ -964,23 +1041,27 @@ class AlphaService:
         status = {}
 
         for provider in self._registry.get_all_providers():
-            try:
-                health = provider.health_check()
-                provider_info = {
-                    "priority": provider.priority,
-                    "status": health.value,
-                    "max_staleness_days": provider.max_staleness_days,
-                }
-                # 添加健康检查消息（用于显示降级原因）
-                if hasattr(provider, "_last_health_message") and provider._last_health_message:
-                    provider_info["message"] = provider._last_health_message
-                status[provider.name] = provider_info
-            except Exception as e:
+            health, error = _get_provider_health_or_unavailable(
+                provider,
+                context="get_provider_status",
+            )
+            if error is not None:
                 status[provider.name] = {
                     "priority": provider.priority,
                     "status": "error",
-                    "error": str(e),
+                    "error": error,
                 }
+                continue
+
+            provider_info = {
+                "priority": provider.priority,
+                "status": health.value,
+                "max_staleness_days": provider.max_staleness_days,
+            }
+            # 添加健康检查消息（用于显示降级原因）
+            if hasattr(provider, "_last_health_message") and provider._last_health_message:
+                provider_info["message"] = provider._last_health_message
+            status[provider.name] = provider_info
 
         return status
 
