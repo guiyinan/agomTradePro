@@ -4,6 +4,9 @@ Django Admin configuration for Equity Module.
 
 from django.contrib import admin
 
+from apps.equity.application.repository_provider import (
+    get_equity_scoring_weight_config_repository,
+)
 from apps.equity.models import (
     FinancialDataModel,
     ScoringWeightConfigModel,
@@ -205,10 +208,7 @@ class ScoringWeightConfigAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         """保存前确保只有一个启用的配置"""
         if obj.is_active:
-            # 将其他配置设为不启用
-            ScoringWeightConfigModel._default_manager.filter(is_active=True).exclude(
-                pk=obj.pk
-            ).update(is_active=False)
+            get_equity_scoring_weight_config_repository().deactivate_other_active_configs(obj.pk)
         super().save_model(request, obj, form, change)
 
     def response_add(self, request, obj, post_url_continue=None):

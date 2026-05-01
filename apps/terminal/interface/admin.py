@@ -6,6 +6,7 @@ Django Admin配置。
 
 from django.contrib import admin
 
+from apps.terminal.application.interface_services import can_create_terminal_runtime_settings
 from apps.terminal.models import (
     TerminalAuditLogORM,
     TerminalCommandORM,
@@ -124,7 +125,7 @@ class TerminalRuntimeSettingsAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        return not TerminalRuntimeSettingsORM._default_manager.exists()
+        return can_create_terminal_runtime_settings()
 
     def has_delete_permission(self, request, obj=None):
         return False

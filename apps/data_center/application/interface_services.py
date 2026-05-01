@@ -128,6 +128,12 @@ def load_provider_settings_payload() -> dict[str, Any]:
     }
 
 
+def can_create_provider_settings() -> bool:
+    """Return whether the singleton provider-settings row can be created."""
+
+    return not DataProviderSettingsRepository().has_settings()
+
+
 def save_provider_settings_payload(
     *,
     default_source: str,

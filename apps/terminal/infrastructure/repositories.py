@@ -133,6 +133,11 @@ class DjangoTerminalAuditRepository:
 class DjangoTerminalRuntimeSettingsRepository:
     """基于 Django ORM 的 Terminal 运行设置仓储。"""
 
+    def has_settings(self) -> bool:
+        """Return whether the runtime settings singleton already exists."""
+
+        return TerminalRuntimeSettingsORM._default_manager.exists()
+
     def get_settings(self) -> dict[str, Any]:
         """Return singleton terminal runtime settings as a plain dict."""
 

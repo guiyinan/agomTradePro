@@ -9,9 +9,10 @@ Django Admin 配置：
 """
 
 from django.contrib import admin
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.utils.html import format_html
 
+from apps.simulated_trading.application.interface_services import build_admin_dashboard_context
 from apps.simulated_trading.models import (
     AccountBenchmarkComponentModel,
     AccountPositionValuationSnapshotModel,
@@ -567,48 +568,13 @@ class SimulatedTradingAdminSite(admin.AdminSite):
 
 def dashboard_view(request):
     """模拟盘仪表盘视图"""
-    from datetime import timedelta
-
     from django.shortcuts import render
-    from django.utils import timezone
-
-    # 获取统计数据
-    total_accounts = SimulatedAccountModel._default_manager.filter(is_active=True).count()
-    total_positions = PositionModel._default_manager.count()
-    total_trades = SimulatedTradeModel._default_manager.count()
-
-    # 今日交易统计
-    today = timezone.now().date()
-    today_trades = SimulatedTradeModel._default_manager.filter(execution_date=today)
-    today_buy_count = today_trades.filter(action="buy").count()
-    today_sell_count = today_trades.filter(action="sell").count()
-
-    # 资金统计
-    total_capital = (
-        SimulatedAccountModel._default_manager.filter(is_active=True).aggregate(
-            total=Sum("total_value")
-        )["total"]
-        or 0
-    )
-
-    total_pnl = (
-        SimulatedTradeModel._default_manager.filter(
-            action="sell", realized_pnl__isnull=False
-        ).aggregate(total=Sum("realized_pnl"))["total"]
-        or 0
-    )
 
     context = {
         "title": "模拟盘仪表盘",
-        "total_accounts": total_accounts,
-        "total_positions": total_positions,
-        "total_trades": total_trades,
-        "today_buy_count": today_buy_count,
-        "today_sell_count": today_sell_count,
-        "total_capital": total_capital,
-        "total_pnl": total_pnl,
         "site_header": SimulatedTradingAdminSite.site_header,
     }
+    context.update(build_admin_dashboard_context())
 
     return render(request, "admin/simulated_trading/dashboard.html", context)
 

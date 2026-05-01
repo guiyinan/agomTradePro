@@ -397,8 +397,9 @@ class AlphaModelFeatureProvider:
         """延迟加载 service"""
         if self._alpha_service is None:
             try:
-                from apps.alpha.application.services import AlphaService
-                self._alpha_service = AlphaService()
+                from core.integration.alpha_scores import fetch_stock_scores
+
+                self._alpha_service = fetch_stock_scores
             except ImportError:
                 pass
         return self._alpha_service
@@ -437,7 +438,10 @@ class AlphaModelFeatureProvider:
             if service:
                 # 获取股票池评分，然后查找目标股票
                 from datetime import date
-                result = service.get_stock_scores(universe_id="csi300", intended_trade_date=date.today())
+                result = service(
+                    universe_id="csi300",
+                    intended_trade_date=date.today(),
+                )
 
                 if result.success and result.scores:
                     for stock_score in result.scores:
@@ -447,9 +451,9 @@ class AlphaModelFeatureProvider:
                             return max(0.0, min(1.0, normalized))
 
             # 尝试从 alpha_trigger 获取
-            from apps.alpha_trigger.infrastructure.repositories import AlphaCandidateRepository
+            from core.integration.alpha_candidates import get_alpha_candidate_repository
 
-            repo = AlphaCandidateRepository()
+            repo = get_alpha_candidate_repository()
             candidates = repo.get_by_asset(security_code)
 
             if candidates and len(candidates) > 0:
@@ -632,13 +636,11 @@ class AlphaSignalProvider(SignalProviderProtocol):
             信号列表
         """
         try:
-            from apps.alpha_trigger.infrastructure.repositories import (
-                AlphaCandidateRepository,
-                AlphaTriggerRepository,
-            )
+            from core.integration.alpha_candidates import get_alpha_candidate_repository
+            from core.integration.alpha_triggers import get_alpha_trigger_repository
 
             # 使用 AlphaTriggerRepository 获取活跃触发器
-            trigger_repo = AlphaTriggerRepository()
+            trigger_repo = get_alpha_trigger_repository()
             triggers = trigger_repo.get_active(asset_code=security_code)
 
             # 转换为信号格式
@@ -652,7 +654,7 @@ class AlphaSignalProvider(SignalProviderProtocol):
                 })
 
             # 同时从候选中获取
-            candidate_repo = AlphaCandidateRepository()
+            candidate_repo = get_alpha_candidate_repository()
             if security_code:
                 candidates = candidate_repo.get_by_asset(security_code)
             else:
@@ -699,9 +701,9 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
             候选列表
         """
         try:
-            from apps.alpha_trigger.infrastructure.repositories import AlphaCandidateRepository
+            from core.integration.alpha_candidates import get_alpha_candidate_repository
 
-            repo = AlphaCandidateRepository()
+            repo = get_alpha_candidate_repository()
             # 使用 get_actionable 获取可操作的候选
             candidates = repo.get_actionable()
 

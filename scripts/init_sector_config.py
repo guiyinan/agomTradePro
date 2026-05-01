@@ -5,7 +5,7 @@
     python manage.py shell < scripts/init_sector_config.py
 """
 
-from shared.infrastructure.models import SectorPreferenceConfigModel
+from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 
 
 def init_sector_preferences():

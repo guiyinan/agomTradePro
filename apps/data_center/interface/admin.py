@@ -4,6 +4,7 @@ Data Center — Django Admin Registration
 
 from django.contrib import admin
 
+from apps.data_center.application.interface_services import can_create_provider_settings
 from apps.data_center.models import (
     DataProviderSettingsModel,
     IndicatorCatalogModel,
@@ -47,7 +48,7 @@ class DataProviderSettingsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request) -> bool:  # type: ignore[override]
         """Only one singleton row is allowed."""
-        return not DataProviderSettingsModel.objects.exists()
+        return can_create_provider_settings()
 
     def has_delete_permission(self, request, obj=None) -> bool:  # type: ignore[override]
         return False

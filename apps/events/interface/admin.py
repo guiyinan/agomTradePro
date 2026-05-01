@@ -8,6 +8,9 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from apps.events.application.interface_services import (
+    count_related_events_by_correlation_ids,
+)
 from apps.events.event_store import (
     EventSnapshotModel,
     EventSubscriptionModel,
@@ -15,7 +18,6 @@ from apps.events.event_store import (
 )
 
 
-@admin.register(StoredEventModel)
 class StoredEventAdmin(admin.ModelAdmin):
     """存储事件 Admin"""
 
@@ -207,14 +209,11 @@ class StoredEventActionsAdmin(StoredEventAdmin):
             self.message_user(request, "选中的事件没有关联 ID")
             return
 
-        # 查找所有相关事件
-        related_events = StoredEventModel._default_manager.filter(
-            correlation_id__in=correlation_ids
-        ).order_by("occurred_at")
-
         # 显示结果
         self.message_user(
-            request, f"找到 {related_events.count()} 个相关事件（{len(correlation_ids)} 个关联链）"
+            request,
+            f"找到 {count_related_events_by_correlation_ids(correlation_ids)} 个相关事件"
+            f"（{len(correlation_ids)} 个关联链）",
         )
 
         # 这里可以重定向到自定义视图或直接显示

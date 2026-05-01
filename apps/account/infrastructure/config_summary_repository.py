@@ -187,6 +187,12 @@ class DjangoAccountConfigSummaryRepository:
 
         return SystemSettingsModel.get_runtime_alpha_fixed_provider()
 
+    def get_runtime_alpha_pool_mode(self, default_mode: str = "") -> str:
+        """Return runtime alpha pool mode."""
+
+        mode = SystemSettingsModel.get_runtime_alpha_pool_mode()
+        return mode or default_mode
+
     def get_runtime_benchmark_code(self, key: str, default: str = "") -> str:
         """Return a runtime benchmark code by key."""
 

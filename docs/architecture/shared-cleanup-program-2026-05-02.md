@@ -21,6 +21,7 @@
 - 新增 `core.integration.asset_analysis_market_registry`
 - `asset_analysis / equity / fund / rotation` 全部改用 core runtime integration registry
 - 审计规则禁止再导入 `shared.infrastructure.asset_analysis_registry`
+- `shared.infrastructure.fixtures.system_config` 迁到 `apps.regime.infrastructure.fixtures.system_config`
 
 这意味着：
 

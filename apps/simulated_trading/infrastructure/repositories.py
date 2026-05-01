@@ -365,6 +365,21 @@ class DjangoSimulatedAccountRepository:
         models = SimulatedAccountModel._default_manager.all()
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
+    def count_active_account_models(self) -> int:
+        """Return the number of active account ORM rows."""
+
+        return SimulatedAccountModel._default_manager.filter(is_active=True).count()
+
+    def sum_active_total_value(self):
+        """Return the aggregate total value across active accounts."""
+
+        return (
+            SimulatedAccountModel._default_manager.filter(is_active=True).aggregate(
+                total=Sum("total_value")
+            )["total"]
+            or 0
+        )
+
     def get_by_user(self, user_id: int) -> list[SimulatedAccount]:
         """
         ⭐ 新增：根据用户ID获取所有投资组合
@@ -478,6 +493,11 @@ class DjangoPositionRepository:
             account_id=account_id,
             asset_code=asset_code,
         ).first()
+
+    def count_position_models(self) -> int:
+        """Return the total number of position ORM rows."""
+
+        return PositionModel._default_manager.count()
 
     def update_position_prices(self, price_by_code: dict[str, Any]) -> list[dict]:
         """Update open positions and account totals from latest prices."""
@@ -739,6 +759,31 @@ class DjangoTradeRepository:
             account_id=account_id
         ).order_by('-execution_date', '-execution_time')
         return [SimulatedTradeMapper.to_entity(m) for m in models]
+
+    def count_trade_models(self) -> int:
+        """Return the total number of trade ORM rows."""
+
+        return SimulatedTradeModel._default_manager.count()
+
+    def summarize_trade_models_for_date(self, execution_date) -> dict[str, int]:
+        """Return buy/sell counts for one execution date."""
+
+        queryset = SimulatedTradeModel._default_manager.filter(execution_date=execution_date)
+        return {
+            "buy_count": queryset.filter(action="buy").count(),
+            "sell_count": queryset.filter(action="sell").count(),
+        }
+
+    def sum_realized_pnl_for_closed_trades(self):
+        """Return aggregated realized pnl for completed sell trades."""
+
+        return (
+            SimulatedTradeModel._default_manager.filter(
+                action="sell",
+                realized_pnl__isnull=False,
+            ).aggregate(total=Sum("realized_pnl"))["total"]
+            or 0
+        )
 
     def list_trade_models_for_account(self, account_id: int, limit: int | None = None) -> list[Any]:
         """Return trade ORM rows for template rendering."""

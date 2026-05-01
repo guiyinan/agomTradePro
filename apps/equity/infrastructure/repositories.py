@@ -1980,6 +1980,16 @@ class ScoringWeightConfigRepository:
             },
         )
 
+    def deactivate_other_active_configs(self, exclude_pk: int | None) -> None:
+        """Ensure only one scoring-weight config remains active."""
+
+        from .models import ScoringWeightConfigModel
+
+        queryset = ScoringWeightConfigModel._default_manager.filter(is_active=True)
+        if exclude_pk is not None:
+            queryset = queryset.exclude(pk=exclude_pk)
+        queryset.update(is_active=False)
+
     def _get_default_config(self):
         """
         获取默认评分权重配置

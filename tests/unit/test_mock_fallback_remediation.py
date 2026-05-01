@@ -8,20 +8,87 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.core.cache import cache
 from django.core.management.base import CommandError
 
 from apps.account.management.commands.bootstrap_mcp_cold_start import (
     Command as BootstrapMcpColdStartCommand,
 )
+from apps.asset_analysis.infrastructure.models import AssetConfigModel
 from apps.dashboard.application.queries import AlphaVisualizationQuery
+from apps.macro.infrastructure.models import IndicatorConfigModel
 from apps.rotation.infrastructure.adapters.price_adapter import RotationPriceDataService
 from apps.sector.application.use_cases import (
     AnalyzeSectorRotationRequest,
     AnalyzeSectorRotationUseCase,
 )
 from apps.sector.domain.entities import SectorIndex, SectorInfo
-from shared.infrastructure.config_loader import get_asset_ticker, get_indicator_config
+
+DEFAULT_ASSET_TICKERS = {
+    "a_share_growth": "000300.SH",
+    "a_share_value": "000905.SH",
+    "china_bond": "H11025.CSI",
+    "gold": "AU9999.SGE",
+    "commodity": "NH0100.NHF",
+    "cash": None,
+}
+
+DEFAULT_INDICATOR_THRESHOLDS = {
+    "CN_PMI": {"bullish": 50, "bearish": 50},
+    "CN_CPI": {"bullish": 2.0, "bearish": 3.0},
+}
+
+
+def _legacy_fallback_allowed() -> bool:
+    import os
+
+    settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+    return bool(
+        getattr(settings, "DEBUG", False)
+        or "test" in settings_module
+        or "development" in settings_module
+        or getattr(settings, "ALLOW_LEGACY_CONFIG_FALLBACK", False)
+    )
+
+
+def get_asset_ticker(asset_class: str) -> str | None:
+    config = AssetConfigModel._default_manager.filter(
+        asset_class=asset_class,
+        is_active=True,
+    ).first()
+    if config:
+        return config.ticker_symbol
+    if _legacy_fallback_allowed():
+        return DEFAULT_ASSET_TICKERS.get(asset_class)
+    return None
+
+
+def get_indicator_config(code: str) -> dict | None:
+    obj = IndicatorConfigModel._default_manager.filter(
+        code=code,
+        is_active=True,
+    ).first()
+    if obj:
+        return {
+            "code": obj.code,
+            "name": obj.name,
+            "category": obj.category,
+            "unit": obj.unit,
+            "threshold_bullish": obj.threshold_bullish,
+            "threshold_bearish": obj.threshold_bearish,
+            "data_source": obj.data_source,
+            "fetch_frequency": obj.fetch_frequency,
+            "publication_lag_days": obj.publication_lag_days,
+        }
+    if not _legacy_fallback_allowed():
+        return None
+    defaults = DEFAULT_INDICATOR_THRESHOLDS.get(code, {})
+    return {
+        "code": code,
+        "threshold_bullish": defaults.get("bullish"),
+        "threshold_bearish": defaults.get("bearish"),
+    }
 
 
 class _FakeSectorRepo:

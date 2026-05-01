@@ -15,12 +15,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from shared.infrastructure.models import (
+from apps.asset_analysis.infrastructure.models import (
     AssetConfigModel,
+)
+from apps.filter.infrastructure.models import (
+    FilterParameterConfigModel,
+)
+from apps.macro.infrastructure.models import (
     IndicatorConfigModel,
+)
+from apps.regime.infrastructure.models import (
     RegimeEligibilityConfigModel,
     RiskParameterConfigModel,
-    FilterParameterConfigModel,
 )
 
 

@@ -28,7 +28,7 @@ from decimal import Decimal
 
 def init_stock_screening_rules():
     """初始化个股筛选规则"""
-    from shared.infrastructure.models import StockScreeningRuleConfigModel
+    from apps.equity.infrastructure.models import StockScreeningRuleConfigModel
 
     rules = [
         {
@@ -94,7 +94,7 @@ def init_stock_screening_rules():
 
 def init_sector_preferences():
     """初始化板块偏好"""
-    from shared.infrastructure.models import SectorPreferenceConfigModel
+    from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 
     preferences = [
         # Recovery
@@ -131,7 +131,7 @@ def init_sector_preferences():
 
 def init_fund_type_preferences():
     """初始化基金类型偏好"""
-    from shared.infrastructure.models import FundTypePreferenceConfigModel
+    from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 
     preferences = [
         # Recovery

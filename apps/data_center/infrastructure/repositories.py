@@ -120,6 +120,11 @@ class ProviderConfigRepository:
 class DataProviderSettingsRepository:
     """Persists and retrieves global provider settings (singleton)."""
 
+    def has_settings(self) -> bool:
+        """Return whether the singleton settings row already exists."""
+
+        return DataProviderSettingsModel.objects.exists()
+
     def load(self) -> DataProviderSettings:
         return DataProviderSettingsModel.load().to_domain()
 

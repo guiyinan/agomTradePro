@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from shared.infrastructure.models import IndicatorConfigModel
+from apps.macro.infrastructure.models import IndicatorConfigModel
 
 
 # 常用宏观指标配置

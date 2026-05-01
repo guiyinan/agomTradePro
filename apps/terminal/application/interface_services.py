@@ -5,7 +5,10 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
-from apps.terminal.application.repository_provider import get_terminal_command_repository
+from apps.terminal.application.repository_provider import (
+    get_terminal_command_repository,
+    get_terminal_runtime_settings_repository,
+)
 
 
 def get_terminal_config_page_context() -> dict[str, Any]:
@@ -25,3 +28,9 @@ def get_terminal_config_page_context() -> dict[str, Any]:
         "commands": commands,
         "categories": dict(categories),
     }
+
+
+def can_create_terminal_runtime_settings() -> bool:
+    """Return whether the singleton runtime settings row can be created."""
+
+    return not get_terminal_runtime_settings_repository().has_settings()

@@ -38,6 +38,9 @@ class AccountConfigSummaryRepository(Protocol):
     def get_runtime_alpha_fixed_provider(self) -> str:
         """Return runtime fixed alpha provider."""
 
+    def get_runtime_alpha_pool_mode(self, default_mode: str = "") -> str:
+        """Return runtime alpha pool mode."""
+
     def get_runtime_benchmark_code(self, key: str, default: str = "") -> str:
         """Return a runtime benchmark code by key."""
 
@@ -107,6 +110,11 @@ class AccountConfigSummaryService:
         """Return runtime fixed alpha provider."""
 
         return self.repository.get_runtime_alpha_fixed_provider()
+
+    def get_runtime_alpha_pool_mode(self, default_mode: str = "") -> str:
+        """Return runtime alpha pool mode."""
+
+        return self.repository.get_runtime_alpha_pool_mode(default_mode)
 
     def get_runtime_benchmark_code(self, key: str, default: str = "") -> str:
         """Return a runtime benchmark code by key."""

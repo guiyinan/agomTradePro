@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from shared.infrastructure.models import RiskParameterConfigModel
+from apps.regime.infrastructure.models import RiskParameterConfigModel
 
 
 # 默认阈值配置

@@ -7,6 +7,8 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from django.utils import timezone
+
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
 from apps.signal.application.repository_provider import get_signal_repository
@@ -328,6 +330,26 @@ def list_daily_inspection_report_payloads(
         limit=limit,
         inspection_date=inspection_date,
     )
+
+
+def build_admin_dashboard_context() -> dict[str, Any]:
+    """Build summary stats for the simulated-trading admin dashboard."""
+
+    account_repo = get_simulated_account_repository()
+    position_repo = get_simulated_position_repository()
+    trade_repo = get_simulated_trade_repository()
+    today = timezone.now().date()
+    today_summary = trade_repo.summarize_trade_models_for_date(today)
+
+    return {
+        "total_accounts": account_repo.count_active_account_models(),
+        "total_positions": position_repo.count_position_models(),
+        "total_trades": trade_repo.count_trade_models(),
+        "today_buy_count": today_summary["buy_count"],
+        "today_sell_count": today_summary["sell_count"],
+        "total_capital": account_repo.sum_active_total_value(),
+        "total_pnl": trade_repo.sum_realized_pnl_for_closed_trades(),
+    }
 
 
 def _account_type_label(account_type: str) -> str:
