@@ -1,7 +1,8 @@
 """Application ports for simulated trading."""
 
+from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Protocol, Tuple
+from typing import Protocol
 
 
 class AssetPoolQueryRepositoryProtocol(Protocol):
@@ -32,6 +33,31 @@ class SignalQueryRepositoryProtocol(Protocol):
         ...
 
     def get_signal_invalidation_payload(self, signal_id: int) -> tuple[str | None, str]:
+        ...
+
+
+@dataclass(frozen=True)
+class PositionExitAdvice:
+    """Unified exit advice for one held asset."""
+
+    asset_code: str
+    should_exit: bool = False
+    should_reduce: bool = False
+    quantity: int | None = None
+    reason_code: str = ""
+    reason_text: str = ""
+    source: str = ""
+
+
+class PositionExitAdvisorProtocol(Protocol):
+    """Provide unified exit advice for simulated holdings."""
+
+    def get_exit_advices(
+        self,
+        account_id: int,
+        positions: list[object],
+        as_of_date: date,
+    ) -> list[PositionExitAdvice]:
         ...
 
 

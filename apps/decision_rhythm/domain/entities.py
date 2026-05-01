@@ -1384,7 +1384,7 @@ class TransitionOrder:
     def is_ready_for_approval(self) -> bool:
         if self.is_hold:
             return False
-        if self.stop_loss_price is None:
+        if self.stop_loss_price in [None, Decimal("0"), "0", 0]:
             return False
         if not self.invalidation_rule:
             return False
@@ -1439,7 +1439,7 @@ class PortfolioTransitionPlan:
         if not actionable_orders:
             return ["当前计划没有可执行订单"]
         for order in actionable_orders:
-            if order.stop_loss_price is None:
+            if order.stop_loss_price in [None, Decimal("0"), "0", 0]:
                 issues.append(f"{order.security_code}: 缺少止损价")
             if not order.invalidation_rule or order.invalidation_rule.get("requires_user_confirmation"):
                 issues.append(f"{order.security_code}: 缺少完整证伪条件")
@@ -1709,8 +1709,14 @@ def create_portfolio_transition_plan(
             if current_qty > 0:
                 target_weight = round(current_weight * (target_qty / current_qty), 2)
         else:
-            target_qty = current_qty
-            action = "HOLD"
+            if current_qty > 0 and desired_qty > 0 and desired_qty < current_qty:
+                target_qty = desired_qty
+                action = "REDUCE"
+                target_weight = round(current_weight * (target_qty / current_qty), 2)
+                notes.append("reduce_from_hold_target")
+            else:
+                target_qty = current_qty
+                action = "HOLD"
 
         delta_qty = target_qty - current_qty
         invalidation_rule, invalidation_description, requires_confirmation = _resolve_invalidation_payload(

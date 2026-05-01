@@ -2,32 +2,29 @@
 
 from __future__ import annotations
 
-from apps.signal.infrastructure.repositories import (
+from apps.signal.infrastructure.providers import (
     DjangoSignalRepository,
     DjangoUserRepository,
     UnifiedSignalRepository,
+    build_signal_repository,
+    build_unified_signal_repository,
+    build_user_repository,
 )
 
 
 def get_signal_repository():
     """Return the default signal repository."""
 
-    from apps.signal.infrastructure.repositories import DjangoSignalRepository
-
-    return DjangoSignalRepository()
+    return build_signal_repository()
 
 
 def get_user_repository():
     """Return the default signal user repository."""
 
-    from apps.signal.infrastructure.repositories import DjangoUserRepository
-
-    return DjangoUserRepository()
+    return build_user_repository()
 
 
 def get_unified_signal_repository():
     """Return the default unified signal repository."""
 
-    from apps.signal.infrastructure.repositories import UnifiedSignalRepository
-
-    return UnifiedSignalRepository()
+    return build_unified_signal_repository()

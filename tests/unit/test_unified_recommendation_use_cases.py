@@ -161,6 +161,19 @@ class MockRecommendationRepository:
         self._conflicts.append(recommendation_id)
 
 
+class MockPositionSnapshotProvider:
+    """Mock 持仓快照提供者"""
+
+    def __init__(self):
+        self._positions: dict[str, list[dict[str, Any]]] = {}
+
+    def get_position_snapshots(self, account_id: str) -> list[dict[str, Any]]:
+        return list(self._positions.get(account_id, []))
+
+    def set_positions(self, account_id: str, positions: list[dict[str, Any]]):
+        self._positions[account_id] = list(positions)
+
+
 # ============================================================================
 # 测试类
 # ============================================================================
@@ -177,6 +190,7 @@ class TestGenerateUnifiedRecommendationsUseCase:
         signal_provider = MockSignalProvider()
         candidate_provider = MockCandidateProvider()
         recommendation_repo = MockRecommendationRepository()
+        position_snapshot_provider = MockPositionSnapshotProvider()
 
         # Mock 参数用例
         param_use_case = MagicMock(spec=GetModelParamsUseCase)
@@ -200,6 +214,7 @@ class TestGenerateUnifiedRecommendationsUseCase:
             candidate_provider=candidate_provider,
             recommendation_repo=recommendation_repo,
             param_use_case=param_use_case,
+            position_snapshot_provider=position_snapshot_provider,
         )
 
         return {
@@ -209,6 +224,7 @@ class TestGenerateUnifiedRecommendationsUseCase:
             "signal_provider": signal_provider,
             "candidate_provider": candidate_provider,
             "recommendation_repo": recommendation_repo,
+            "position_snapshot_provider": position_snapshot_provider,
         }
 
     def test_generate_single_recommendation(self, setup):
@@ -343,6 +359,49 @@ class TestGenerateUnifiedRecommendationsUseCase:
         assert response.success is True
         # 验证快照已保存
         assert len(setup["recommendation_repo"]._snapshots) == 1
+
+    def test_generate_includes_held_positions_when_candidates_absent(self, setup):
+        """测试未传 security_codes 时，会覆盖当前持仓。"""
+        setup["position_snapshot_provider"].set_positions(
+            "account_001",
+            [{"asset_code": "600001.SH", "quantity": 1000}],
+        )
+        setup["feature_provider"].set_scores("600001.SH", {"alpha": 0.55})
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(account_id="account_001")
+        )
+
+        assert response.success is True
+        assert len(response.recommendations) == 1
+        assert response.recommendations[0].security_code == "600001.SH"
+        assert response.recommendations[0].side == "HOLD"
+
+    def test_generate_marks_held_position_sell_when_alpha_decays(self, setup):
+        """测试已持仓证券 alpha 衰减后会输出 SELL。"""
+        setup["position_snapshot_provider"].set_positions(
+            "account_001",
+            [{"asset_code": "600002.SH", "quantity": 800}],
+        )
+        setup["feature_provider"].set_scores(
+            "600002.SH",
+            {
+                "sentiment": 0.45,
+                "flow": 0.40,
+                "technical": 0.42,
+                "fundamental": 0.50,
+                "alpha": 0.20,
+            },
+        )
+
+        response = setup["use_case"].execute(
+            GenerateRecommendationsRequest(account_id="account_001")
+        )
+
+        assert response.success is True
+        assert len(response.recommendations) == 1
+        assert response.recommendations[0].security_code == "600002.SH"
+        assert response.recommendations[0].side == "SELL"
 
 
 class TestGetUnifiedRecommendationsUseCase:

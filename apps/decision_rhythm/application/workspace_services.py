@@ -52,6 +52,13 @@ from .use_cases import (
 logger = logging.getLogger(__name__)
 
 
+class SimulatedPositionSnapshotProvider:
+    """Adapter for recommendation generation over current simulated holdings."""
+
+    def get_position_snapshots(self, account_id: str) -> list[dict[str, Any]]:
+        return get_position_snapshots(account_id=account_id)
+
+
 def _resolve_security_name_map(security_codes: list[str]) -> dict[str, str]:
     """Resolve display names for workspace security codes."""
     normalized_codes = [
@@ -573,6 +580,7 @@ def refresh_workspace_recommendations(
         candidate_provider=candidate_provider,
         recommendation_repo=recommendation_repo,
         param_use_case=param_use_case,
+        position_snapshot_provider=SimulatedPositionSnapshotProvider(),
     )
     result = generate_use_case.execute(
         GenerateRecommendationsRequest(

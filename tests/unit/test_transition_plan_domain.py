@@ -110,6 +110,59 @@ def test_create_transition_plan_blocks_approval_when_invalidation_missing():
     assert "缺少完整证伪条件" in plan.blocking_issues[0]
 
 
+def test_create_transition_plan_blocks_approval_when_stop_loss_missing():
+    recommendation = _make_recommendation("rec-buy-no-stop", "000004.SH", "BUY", source_signal_ids=["1"])
+    recommendation.stop_loss_price = Decimal("0")
+
+    plan = create_portfolio_transition_plan(
+        account_id="acct-1",
+        recommendations=[recommendation],
+        current_positions=[],
+        signal_payloads={
+            "1": {
+                "invalidation_rule_json": {
+                    "logic": "AND",
+                    "conditions": [{"indicator_code": "PMI", "operator": "<", "threshold": 50}],
+                },
+                "invalidation_description": "PMI 跌破 50",
+            }
+        },
+    )
+
+    assert len(plan.orders) == 1
+    assert plan.orders[0].action == "BUY"
+    assert plan.can_enter_approval is False
+    assert "缺少止损价" in plan.blocking_issues[0]
+
+
+def test_create_transition_plan_converts_hold_target_to_reduce():
+    recommendation = _make_recommendation("rec-reduce", "000005.SH", "HOLD", suggested_quantity=200)
+
+    plan = create_portfolio_transition_plan(
+        account_id="acct-1",
+        recommendations=[recommendation],
+        current_positions=[
+            {
+                "asset_code": "000005.SH",
+                "asset_name": "Test",
+                "quantity": 500,
+                "avg_cost": "10.00",
+                "current_price": "10.50",
+                "market_value": "5250",
+            }
+        ],
+        signal_payloads={},
+    )
+
+    assert len(plan.orders) == 1
+    order = plan.orders[0]
+    assert order.action == "REDUCE"
+    assert order.current_qty == 500
+    assert order.target_qty == 200
+    assert order.delta_qty == -300
+    assert "reduce_from_hold_target" in order.notes
+
+
 def test_create_transition_plan_blocks_hold_only_plans_from_approval():
     plan = create_portfolio_transition_plan(
         account_id="acct-1",

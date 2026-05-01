@@ -13,6 +13,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 from uuid import uuid4
 
+from django.core.exceptions import ImproperlyConfigured
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.alpha_trigger.domain.entities import CandidateStatus
@@ -55,6 +57,19 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
+    AttributeError,
+    ConnectionError,
+    DatabaseError,
+    ImportError,
+    ImproperlyConfigured,
+    LookupError,
+    RuntimeError,
+    TimeoutError,
+    TypeError,
+    ValueError,
+)
 
 
 # ========== DTOs ==========
@@ -310,7 +325,7 @@ class SubmitDecisionRequestUseCase:
                 decision_request=decision_request,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to submit decision request: {e}", exc_info=True)
             return SubmitDecisionRequestResponse(
                 success=False,
@@ -429,7 +444,7 @@ class SubmitBatchRequestUseCase:
                 summary=summary,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to submit batch decision requests: {e}", exc_info=True)
             return SubmitBatchRequestResponse(
                 success=False,
@@ -511,7 +526,7 @@ class GetQuotaStatusUseCase:
                 status=status,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to get quota status: {e}", exc_info=True)
             return GetQuotaStatusResponse(
                 success=False,
@@ -560,7 +575,7 @@ class GetRhythmSummaryUseCase:
                 summary=summary,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to get rhythm summary: {e}", exc_info=True)
             return GetRhythmSummaryResponse(
                 success=False,
@@ -631,7 +646,7 @@ class ResetQuotaUseCase:
                 message=message,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to reset quota: {e}", exc_info=True)
             return ResetQuotaResponse(
                 success=False,
@@ -733,6 +748,7 @@ class ExecuteDecisionRequest:
     action: str | None = None  # "buy" or "sell"
     quantity: int | None = None
     price: float | None = None
+    signal_id: int | None = None
     reason: str = ""
     # 实盘账户参数
     portfolio_id: int | None = None
@@ -942,7 +958,7 @@ class PrecheckDecisionUseCase:
                     )
                     if not beta_gate_passed:
                         errors.append(f"Beta Gate 未通过: {decision.blocking_reason}")
-                except Exception as e:
+                except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
                     warnings.append(f"Beta Gate 检查失败（跳过）: {e}")
 
             # 4. 检查配额
@@ -953,7 +969,7 @@ class PrecheckDecisionUseCase:
                     quota_ok = False
                     errors.append("配额已耗尽")
                 details["quota_status"] = quota.to_dict() if quota else {}
-            except Exception as e:
+            except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
                 warnings.append(f"配额检查失败（跳过）: {e}")
 
             # 5. 检查冷却期
@@ -964,7 +980,7 @@ class PrecheckDecisionUseCase:
                     cooldown_ok = False
                     errors.append(f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时")
                 details["cooldown_status"] = cooldown.to_dict() if cooldown else None
-            except Exception as e:
+            except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
                 warnings.append(f"冷却期检查失败（跳过）: {e}")
 
             result = PrecheckResult(
@@ -980,7 +996,7 @@ class PrecheckDecisionUseCase:
 
             return PrecheckResponse(success=True, result=result)
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Precheck failed: {e}", exc_info=True)
             return PrecheckResponse(success=False, error=str(e))
 
@@ -1023,6 +1039,7 @@ class ExecuteDecisionUseCase:
         simulated_account_repo=None,
         position_repo=None,
         trade_repo=None,
+        signal_repo=None,
         event_bus=None,
     ):
         """
@@ -1034,6 +1051,7 @@ class ExecuteDecisionUseCase:
             simulated_account_repo: 模拟账户仓储（可选）
             position_repo: 持仓仓储（可选）
             trade_repo: 交易记录仓储（可选）
+            signal_repo: 信号查询仓储（可选）
             event_bus: 事件总线（可选）
         """
         self.request_repo = request_repo
@@ -1041,6 +1059,7 @@ class ExecuteDecisionUseCase:
         self.simulated_account_repo = simulated_account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
+        self.signal_repo = signal_repo
         self.event_bus = event_bus
 
     def execute(self, request: ExecuteDecisionRequest) -> ExecuteDecisionResponse:
@@ -1137,7 +1156,7 @@ class ExecuteDecisionUseCase:
 
             return ExecuteDecisionResponse(success=True, result=result)
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Execute decision failed: {e}", exc_info=True)
             # 更新决策请求为失败状态
             try:
@@ -1145,123 +1164,13 @@ class ExecuteDecisionUseCase:
                     request_id=request.request_id,
                     execution_status=ExecutionStatus.FAILED,
                 )
-            except Exception:
-                pass
+            except (DatabaseError, RuntimeError, TypeError, ValueError) as status_error:
+                logger.warning(
+                    "Failed to mark decision request %s as FAILED after execution error: %s",
+                    request.request_id,
+                    status_error,
+                )
             return ExecuteDecisionResponse(success=False, error=str(e))
-
-
-class CancelDecisionRequestUseCase:
-    """
-    取消决策请求用例
-
-    将执行状态从 PENDING/FAILED 迁移到 CANCELLED，并同步候选执行跟踪。
-    """
-
-    def __init__(self, request_repo, candidate_repo):
-        self.request_repo = request_repo
-        self.candidate_repo = candidate_repo
-
-    def execute(self, request: CancelDecisionRequest) -> CancelDecisionResponse:
-        try:
-            decision_request = self.request_repo.get_by_id(request.request_id)
-            if decision_request is None:
-                return CancelDecisionResponse(
-                    success=False,
-                    error=f"Request not found: {request.request_id}",
-                )
-
-            current_status = (
-                decision_request.execution_status.value
-                if hasattr(decision_request.execution_status, "value")
-                else str(decision_request.execution_status)
-            )
-            if not ExecutionStatusStateMachine.can_transition(
-                current_status,
-                ExecutionStatus.CANCELLED.value,
-            ):
-                return CancelDecisionResponse(
-                    success=False,
-                    error=f"Cannot cancel request with status: {current_status}",
-                )
-
-            self.request_repo.update_execution_status(
-                request.request_id,
-                ExecutionStatus.CANCELLED,
-            )
-
-            if decision_request.candidate_id:
-                try:
-                    self.candidate_repo.update_execution_tracking(
-                        decision_request.candidate_id,
-                        decision_request_id=request.request_id,
-                        execution_status=ExecutionStatus.CANCELLED.value,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "Failed to update candidate execution tracking during cancel: %s",
-                        exc,
-                    )
-
-            return CancelDecisionResponse(
-                success=True,
-                request_id=request.request_id,
-                status=ExecutionStatus.CANCELLED.value,
-                reason=request.reason,
-            )
-
-        except Exception as exc:
-            logger.error(f"Cancel decision failed: {exc}", exc_info=True)
-            return CancelDecisionResponse(success=False, error=str(exc))
-
-
-class UpdateQuotaConfigUseCase:
-    """
-    更新配额配置用例
-
-    通过注入的配额仓储更新或创建账户级配额配置。
-    """
-
-    def __init__(self, quota_repo):
-        self.quota_repo = quota_repo
-
-    def execute(self, request: UpdateQuotaConfigRequest) -> UpdateQuotaConfigResponse:
-        try:
-            if request.max_decisions <= 0 or request.max_executions < 0:
-                return UpdateQuotaConfigResponse(
-                    success=False,
-                    error="max_decisions must be > 0 and max_executions must be >= 0",
-                )
-
-            existing = self.quota_repo.get_quota(
-                request.period,
-                account_id=request.account_id,
-            )
-            now = timezone.now()
-
-            quota = DecisionQuota(
-                period=request.period,
-                max_decisions=request.max_decisions,
-                max_execution_count=request.max_executions,
-                used_decisions=existing.used_decisions if existing else 0,
-                used_executions=existing.used_executions if existing else 0,
-                period_start=existing.period_start if existing else now,
-                period_end=existing.period_end if existing else None,
-                quota_id=existing.quota_id if existing else f"quota_{uuid4().hex[:12]}",
-                account_id=request.account_id,
-                created_at=existing.created_at if existing else now,
-                updated_at=now,
-            )
-
-            saved = self.quota_repo.save(quota)
-            return UpdateQuotaConfigResponse(
-                success=True,
-                quota=saved,
-                created=existing is None,
-            )
-
-        except Exception as exc:
-            logger.error(f"Update quota config failed: {exc}", exc_info=True)
-            return UpdateQuotaConfigResponse(success=False, error=str(exc))
 
     def _execute_simulated(
         self,
@@ -1287,10 +1196,12 @@ class UpdateQuotaConfigUseCase:
         )
 
         if request.action == "buy":
+            signal_id = self._resolve_simulated_buy_signal_id(request, decision_request)
             use_case = ExecuteBuyOrderUseCase(
                 account_repo=self.simulated_account_repo,
                 position_repo=self.position_repo,
                 trade_repo=self.trade_repo,
+                signal_repo=self.signal_repo,
             )
             trade = use_case.execute(
                 account_id=request.sim_account_id,
@@ -1300,6 +1211,7 @@ class UpdateQuotaConfigUseCase:
                 quantity=request.quantity,
                 price=request.price,
                 reason=request.reason,
+                signal_id=signal_id,
             )
         else:
             use_case = ExecuteSellOrderUseCase(
@@ -1322,6 +1234,50 @@ class UpdateQuotaConfigUseCase:
             "quantity": request.quantity,
             "price": request.price,
         }
+
+    def _resolve_simulated_buy_signal_id(
+        self,
+        request: ExecuteDecisionRequest,
+        decision_request: DecisionRequest,
+    ) -> int | None:
+        """Resolve the most traceable signal for a simulated buy path."""
+        if request.signal_id:
+            return request.signal_id
+
+        candidate = None
+        if self.candidate_repo and decision_request.candidate_id:
+            try:
+                candidate = self.candidate_repo.get_by_id(decision_request.candidate_id)
+            except (DatabaseError, LookupError, RuntimeError, TypeError, ValueError):
+                candidate = None
+
+        for field_name in ("signal_id", "source_signal_id"):
+            value = getattr(candidate, field_name, None)
+            if value in (None, ""):
+                continue
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                logger.warning("Unsupported candidate signal id: %s", value)
+
+        if not self.signal_repo or not request.asset_code:
+            return None
+
+        try:
+            summaries = self.signal_repo.get_valid_signal_summaries([request.asset_code])
+        except (DatabaseError, RuntimeError, TypeError, ValueError) as exc:
+            logger.warning("Failed to resolve signal id for %s: %s", request.asset_code, exc)
+            return None
+
+        if not summaries:
+            return None
+
+        signal_id = summaries[0].get("id")
+        try:
+            return int(signal_id) if signal_id is not None else None
+        except (TypeError, ValueError):
+            logger.warning("Unsupported signal summary id: %s", signal_id)
+            return None
 
     def _execute_account(
         self,
@@ -1382,6 +1338,120 @@ class UpdateQuotaConfigUseCase:
         )
 
         self.event_bus.publish(event)
+
+
+class CancelDecisionRequestUseCase:
+    """
+    取消决策请求用例
+
+    将执行状态从 PENDING/FAILED 迁移到 CANCELLED，并同步候选执行跟踪。
+    """
+
+    def __init__(self, request_repo, candidate_repo):
+        self.request_repo = request_repo
+        self.candidate_repo = candidate_repo
+
+    def execute(self, request: CancelDecisionRequest) -> CancelDecisionResponse:
+        try:
+            decision_request = self.request_repo.get_by_id(request.request_id)
+            if decision_request is None:
+                return CancelDecisionResponse(
+                    success=False,
+                    error=f"Request not found: {request.request_id}",
+                )
+
+            current_status = (
+                decision_request.execution_status.value
+                if hasattr(decision_request.execution_status, "value")
+                else str(decision_request.execution_status)
+            )
+            if not ExecutionStatusStateMachine.can_transition(
+                current_status,
+                ExecutionStatus.CANCELLED.value,
+            ):
+                return CancelDecisionResponse(
+                    success=False,
+                    error=f"Cannot cancel request with status: {current_status}",
+                )
+
+            self.request_repo.update_execution_status(
+                request.request_id,
+                ExecutionStatus.CANCELLED,
+            )
+
+            if decision_request.candidate_id:
+                try:
+                    self.candidate_repo.update_execution_tracking(
+                        decision_request.candidate_id,
+                        decision_request_id=request.request_id,
+                        execution_status=ExecutionStatus.CANCELLED.value,
+                    )
+                except (DatabaseError, RuntimeError, TypeError, ValueError) as exc:
+                    logger.warning(
+                        "Failed to update candidate execution tracking during cancel: %s",
+                        exc,
+                    )
+
+            return CancelDecisionResponse(
+                success=True,
+                request_id=request.request_id,
+                status=ExecutionStatus.CANCELLED.value,
+                reason=request.reason,
+            )
+
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as exc:
+            logger.error(f"Cancel decision failed: {exc}", exc_info=True)
+            return CancelDecisionResponse(success=False, error=str(exc))
+
+
+class UpdateQuotaConfigUseCase:
+    """
+    更新配额配置用例
+
+    通过注入的配额仓储更新或创建账户级配额配置。
+    """
+
+    def __init__(self, quota_repo):
+        self.quota_repo = quota_repo
+
+    def execute(self, request: UpdateQuotaConfigRequest) -> UpdateQuotaConfigResponse:
+        try:
+            if request.max_decisions <= 0 or request.max_executions < 0:
+                return UpdateQuotaConfigResponse(
+                    success=False,
+                    error="max_decisions must be > 0 and max_executions must be >= 0",
+                )
+
+            existing = self.quota_repo.get_quota(
+                request.period,
+                account_id=request.account_id,
+            )
+            now = timezone.now()
+
+            quota = DecisionQuota(
+                period=request.period,
+                max_decisions=request.max_decisions,
+                max_execution_count=request.max_executions,
+                used_decisions=existing.used_decisions if existing else 0,
+                used_executions=existing.used_executions if existing else 0,
+                period_start=existing.period_start if existing else now,
+                period_end=existing.period_end if existing else None,
+                quota_id=existing.quota_id if existing else f"quota_{uuid4().hex[:12]}",
+                account_id=request.account_id,
+                created_at=existing.created_at if existing else now,
+                updated_at=now,
+            )
+
+            saved = self.quota_repo.save(quota)
+            return UpdateQuotaConfigResponse(
+                success=True,
+                quota=saved,
+                created=existing is None,
+            )
+
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as exc:
+            logger.error(f"Update quota config failed: {exc}", exc_info=True)
+            return UpdateQuotaConfigResponse(success=False, error=str(exc))
 
 
 # ========== 估值定价引擎用例 ==========
@@ -1627,7 +1697,7 @@ class CreateValuationSnapshotUseCase:
                 snapshot=snapshot,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to create valuation snapshot: {e}", exc_info=True)
             return CreateValuationSnapshotResponse(
                 success=False,
@@ -1724,7 +1794,7 @@ class GetAggregatedWorkspaceUseCase:
                         "confidence": self.regime_provider.get_regime_confidence(),
                         "source": getattr(self.regime_provider, "source", "UNKNOWN"),
                     }
-                except Exception as e:
+                except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
                     logger.warning(f"Failed to get regime context: {e}")
 
             return GetAggregatedWorkspaceResponse(
@@ -1733,7 +1803,7 @@ class GetAggregatedWorkspaceUseCase:
                 regime_context=regime_context,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to get aggregated workspace: {e}", exc_info=True)
             return GetAggregatedWorkspaceResponse(
                 success=False,
@@ -1849,8 +1919,8 @@ class PreviewExecutionUseCase:
             if self.regime_provider:
                 try:
                     regime_source = getattr(self.regime_provider, "source", "V2_CALCULATION")
-                except Exception:
-                    pass
+                except (AttributeError, RuntimeError, TypeError):
+                    regime_source = "UNKNOWN"
 
             # 创建预览审批请求（DRAFT 状态）
             approval_request = create_execution_approval_request(
@@ -1890,7 +1960,7 @@ class PreviewExecutionUseCase:
                 risk_checks=risk_checks,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to preview execution: {e}", exc_info=True)
             return PreviewExecutionResponse(
                 success=False,
@@ -1910,9 +1980,11 @@ class PreviewExecutionUseCase:
             price_valid = market_price <= recommendation.entry_price_high
             risk_checks["price_validation"] = {
                 "passed": price_valid,
-                "reason": ""
-                if price_valid
-                else f"市场价格 {market_price} 高于入场上限 {recommendation.entry_price_high}",
+                "reason": (
+                    ""
+                    if price_valid
+                    else f"市场价格 {market_price} 高于入场上限 {recommendation.entry_price_high}"
+                ),
             }
         else:
             price_valid = True  # SELL 不限制价格
@@ -1933,7 +2005,7 @@ class PreviewExecutionUseCase:
                     "remaining": quota.remaining_decisions if quota else 0,
                     "reason": "" if quota_ok else "配额已耗尽",
                 }
-            except Exception as e:
+            except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
                 risk_checks["quota"] = {"passed": True, "reason": f"检查失败（跳过）: {e}"}
         else:
             risk_checks["quota"] = {"passed": True, "reason": "未配置"}
@@ -1946,11 +2018,13 @@ class PreviewExecutionUseCase:
                 risk_checks["cooldown"] = {
                     "passed": cooldown_ok,
                     "hours_remaining": cooldown.decision_ready_in_hours if cooldown else 0,
-                    "reason": ""
-                    if cooldown_ok
-                    else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
+                    "reason": (
+                        ""
+                        if cooldown_ok
+                        else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时"
+                    ),
                 }
-            except Exception as e:
+            except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
                 risk_checks["cooldown"] = {"passed": True, "reason": f"检查失败（跳过）: {e}"}
         else:
             risk_checks["cooldown"] = {"passed": True, "reason": "未配置"}
@@ -2063,7 +2137,7 @@ class ApproveExecutionUseCase:
                 approval_request=updated_request,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to approve execution: {e}", exc_info=True)
             return ApproveExecutionResponse(
                 success=False,
@@ -2160,7 +2234,7 @@ class RejectExecutionUseCase:
                 approval_request=updated_request,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to reject execution: {e}", exc_info=True)
             return RejectExecutionResponse(
                 success=False,
@@ -2171,6 +2245,7 @@ class RejectExecutionUseCase:
 # ============================================================================
 # 统一推荐参数管理用例（Top-down + Bottom-up 融合）
 # ============================================================================
+
 
 class ModelParamConfigRepositoryProtocol(Protocol):
     """模型参数配置仓储协议"""
@@ -2454,7 +2529,7 @@ class UpdateModelParamUseCase:
                 config=saved_config,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to update model param: {e}", exc_info=True)
             return UpdateModelParamResponse(
                 success=False,
@@ -2536,6 +2611,14 @@ class CandidateProviderProtocol(Protocol):
         ...
 
 
+class PositionSnapshotProviderProtocol(Protocol):
+    """持仓快照提供者协议。"""
+
+    def get_position_snapshots(self, account_id: str) -> list[dict[str, Any]]:
+        """获取账户当前持仓快照。"""
+        ...
+
+
 class UnifiedRecommendationRepositoryProtocol(Protocol):
     """统一推荐仓储协议"""
 
@@ -2606,6 +2689,7 @@ class GenerateUnifiedRecommendationsUseCase:
         candidate_provider: CandidateProviderProtocol,
         recommendation_repo: UnifiedRecommendationRepositoryProtocol,
         param_use_case: GetModelParamsUseCase,
+        position_snapshot_provider: PositionSnapshotProviderProtocol | None = None,
     ):
         """
         初始化用例
@@ -2617,6 +2701,7 @@ class GenerateUnifiedRecommendationsUseCase:
             candidate_provider: 候选数据提供者
             recommendation_repo: 推荐仓储
             param_use_case: 参数获取用例
+            position_snapshot_provider: 持仓快照提供者（可选）
         """
         self.feature_provider = feature_provider
         self.valuation_provider = valuation_provider
@@ -2624,6 +2709,7 @@ class GenerateUnifiedRecommendationsUseCase:
         self.candidate_provider = candidate_provider
         self.recommendation_repo = recommendation_repo
         self.param_use_case = param_use_case
+        self.position_snapshot_provider = position_snapshot_provider
 
     def execute(
         self,
@@ -2684,11 +2770,23 @@ class GenerateUnifiedRecommendationsUseCase:
             # 获取证券列表
             security_codes = request.security_codes
             if not security_codes:
-                # 从候选获取证券列表
                 candidates = self.candidate_provider.get_active_candidates(request.account_id)
-                security_codes = list(
-                    set(c.get("security_code") for c in candidates if c.get("security_code"))
-                )
+                candidate_codes = {
+                    str(code).strip()
+                    for code in (c.get("security_code") for c in candidates)
+                    if str(code or "").strip()
+                }
+                held_codes: set[str] = set()
+                if self.position_snapshot_provider is not None:
+                    position_snapshots = self.position_snapshot_provider.get_position_snapshots(
+                        request.account_id
+                    )
+                    held_codes = {
+                        str(code).strip()
+                        for code in (p.get("asset_code") for p in position_snapshots)
+                        if str(code or "").strip()
+                    }
+                security_codes = list(candidate_codes | held_codes)
 
             # 2. 生成推荐
             raw_recommendations: list[UnifiedRecommendation] = []
@@ -2767,24 +2865,34 @@ class GenerateUnifiedRecommendationsUseCase:
                     reason_codes=penalty_reasons
                     + self._generate_reason_codes(snapshot, composite_score),
                     human_rationale=self._generate_rationale(snapshot, composite_score, side),
-                    fair_value=Decimal(str(valuation.get("fair_value", 0)))
-                    if valuation
-                    else Decimal("0"),
-                    entry_price_low=Decimal(str(valuation.get("entry_price_low", 0)))
-                    if valuation
-                    else Decimal("0"),
-                    entry_price_high=Decimal(str(valuation.get("entry_price_high", 0)))
-                    if valuation
-                    else Decimal("0"),
-                    target_price_low=Decimal(str(valuation.get("target_price_low", 0)))
-                    if valuation
-                    else Decimal("0"),
-                    target_price_high=Decimal(str(valuation.get("target_price_high", 0)))
-                    if valuation
-                    else Decimal("0"),
-                    stop_loss_price=Decimal(str(valuation.get("stop_loss_price", 0)))
-                    if valuation
-                    else Decimal("0"),
+                    fair_value=(
+                        Decimal(str(valuation.get("fair_value", 0))) if valuation else Decimal("0")
+                    ),
+                    entry_price_low=(
+                        Decimal(str(valuation.get("entry_price_low", 0)))
+                        if valuation
+                        else Decimal("0")
+                    ),
+                    entry_price_high=(
+                        Decimal(str(valuation.get("entry_price_high", 0)))
+                        if valuation
+                        else Decimal("0")
+                    ),
+                    target_price_low=(
+                        Decimal(str(valuation.get("target_price_low", 0)))
+                        if valuation
+                        else Decimal("0")
+                    ),
+                    target_price_high=(
+                        Decimal(str(valuation.get("target_price_high", 0)))
+                        if valuation
+                        else Decimal("0")
+                    ),
+                    stop_loss_price=(
+                        Decimal(str(valuation.get("stop_loss_price", 0)))
+                        if valuation
+                        else Decimal("0")
+                    ),
                     position_pct=default_position_pct,
                     suggested_quantity=0,  # 需要根据账户资金计算
                     max_capital=max_capital_per_trade,
@@ -2822,7 +2930,7 @@ class GenerateUnifiedRecommendationsUseCase:
                 conflicts=saved_conflicts,
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to generate recommendations: {e}", exc_info=True)
             return GenerateRecommendationsResponse(
                 success=False,
@@ -2997,7 +3105,7 @@ class GetUnifiedRecommendationsUseCase:
                 total_count=len(recommendations),
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to get recommendations: {e}", exc_info=True)
             return GetRecommendationsResponse(
                 success=False,
@@ -3063,7 +3171,7 @@ class GetConflictsUseCase:
                 total_count=len(conflicts),
             )
 
-        except Exception as e:
+        except RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS as e:
             logger.error(f"Failed to get conflicts: {e}", exc_info=True)
             return GetConflictsResponse(
                 success=False,

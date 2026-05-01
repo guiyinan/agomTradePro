@@ -100,6 +100,9 @@ def daily_auto_trading_task(
             asset_pool_repo=get_asset_pool_query_repository(),
             signal_repo=signal_repo,
         )
+        from apps.decision_rhythm.application.exit_advisors import (
+            build_decision_rhythm_exit_advisor,
+        )
 
         # 3. 创建引擎
         engine = AutoTradingEngine(
@@ -112,6 +115,7 @@ def daily_auto_trading_task(
             asset_pool_service=asset_pool_service,
             price_provider=price_provider,
             signal_service=signal_repo,
+            exit_advisor=build_decision_rhythm_exit_advisor(),
         )
 
         # 4. 执行交易

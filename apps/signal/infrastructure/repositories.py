@@ -684,7 +684,7 @@ class DjangoSignalRepository:
         }
 
     def get_valid_signal_summaries(self, asset_codes: list[str] | None = None) -> list[dict]:
-        query = self._model.objects.filter(status='valid', is_active=True)
+        query = self._model.objects.filter(status='approved')
         if asset_codes:
             query = query.filter(asset_code__in=asset_codes)
         query = query.order_by('-created_at')

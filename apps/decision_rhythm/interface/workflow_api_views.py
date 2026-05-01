@@ -149,6 +149,7 @@ class ExecuteDecisionRequestView(APIView):
                 action=data.get("action", "buy"),
                 quantity=data.get("quantity"),
                 price=data.get("price"),
+                signal_id=data.get("signal_id"),
                 shares=data.get("shares"),
                 avg_cost=data.get("avg_cost"),
                 current_price=data.get("current_price"),

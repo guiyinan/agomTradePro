@@ -215,6 +215,7 @@ def build_execute_decision_dependencies() -> ExecuteDecisionDependencies:
             simulated_account_repo=_account_repository(),
             position_repo=_position_repository(),
             trade_repo=_trade_repository(),
+            signal_repo=_signal_repository(),
         ),
     )
 

@@ -455,6 +455,9 @@ class ExecuteDecisionRequestSerializer(serializers.Serializer):
     action = serializers.CharField(default="buy", required=False, help_text="交易动作")
     quantity = serializers.IntegerField(allow_null=True, required=False, help_text="数量")
     price = serializers.FloatField(allow_null=True, required=False, help_text="价格")
+    signal_id = serializers.IntegerField(
+        allow_null=True, required=False, help_text="来源信号 ID"
+    )
     shares = serializers.IntegerField(allow_null=True, required=False, help_text="持仓股数")
     avg_cost = serializers.FloatField(allow_null=True, required=False, help_text="平均成本")
     current_price = serializers.FloatField(allow_null=True, required=False, help_text="当前价格")

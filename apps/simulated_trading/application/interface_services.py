@@ -276,6 +276,7 @@ def build_auto_trading_engine() -> AutoTradingEngine:
         asset_pool_repo=get_asset_pool_query_repository(),
         signal_repo=signal_repo,
     )
+    from apps.decision_rhythm.application.exit_advisors import build_decision_rhythm_exit_advisor
 
     return AutoTradingEngine(
         account_repo=account_repo,
@@ -287,6 +288,7 @@ def build_auto_trading_engine() -> AutoTradingEngine:
         asset_pool_service=asset_pool_service,
         price_provider=UnifiedPriceService(),
         signal_service=signal_repo,
+        exit_advisor=build_decision_rhythm_exit_advisor(),
     )
 
 

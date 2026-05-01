@@ -11,6 +11,10 @@ import logging
 from datetime import date
 from typing import TYPE_CHECKING, Optional, Protocol
 
+from apps.simulated_trading.application.ports import (
+    PositionExitAdvice,
+    PositionExitAdvisorProtocol,
+)
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
@@ -91,6 +95,7 @@ class AutoTradingEngine:
         signal_service: SignalServiceProtocol | None = None,
         price_provider: PriceProviderProtocol | None = None,
         regime_service: RegimeServiceProtocol | None = None,
+        exit_advisor: PositionExitAdvisorProtocol | None = None,
         strategy_executor: Optional["StrategyExecutor"] = None,
     ):
         self.account_repo = account_repo
@@ -103,6 +108,7 @@ class AutoTradingEngine:
         self.signal_service = signal_service
         self.price_provider = price_provider
         self.regime_service = regime_service
+        self.exit_advisor = exit_advisor
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
 
     def run_daily_trading(self, trade_date: date, account_ids: list[int] | None = None) -> dict:
@@ -335,25 +341,39 @@ class AutoTradingEngine:
         # 1. 获取当前持仓
         positions = self.position_repo.get_by_account(account.account_id)
         logger.info(f"  当前持仓: {len(positions)} 个")
+        advisor_map = self._build_exit_advice_map(account.account_id, positions, trade_date)
 
         # 2. 检查是否需要卖出现有持仓
         for position in positions:
-            if self._should_sell_position(position, account, trade_date):
+            exit_advice = self._get_position_exit_advice(
+                position=position,
+                account=account,
+                trade_date=trade_date,
+                advisor_map=advisor_map,
+            )
+            if exit_advice and (exit_advice.should_exit or exit_advice.should_reduce):
                 try:
                     price = self._get_current_price(position.asset_code, trade_date)
                     if price is None:
                         logger.warning(f"    无法获取 {position.asset_code} 价格,跳过卖出")
                         continue
 
+                    quantity = self._resolve_exit_quantity(position, exit_advice)
+                    if quantity <= 0:
+                        logger.info(f"    跳过 {position.asset_code}: 退出建议数量为0")
+                        continue
+
                     self.sell_use_case.execute(
                         account_id=account.account_id,
                         asset_code=position.asset_code,
-                        quantity=position.quantity,  # 全部卖出
+                        quantity=quantity,
                         price=price,
-                        reason=self._get_sell_reason(position)
+                        reason=self._get_sell_reason(position, exit_advice),
                     )
                     sell_count += 1
-                    logger.info(f"    ✓ 卖出: {position.asset_name} x{position.quantity} @ {price:.2f}")
+                    logger.info(
+                        f"    ✓ 卖出: {position.asset_name} x{quantity} @ {price:.2f}"
+                    )
                 except Exception as e:
                     logger.error(f"    ✗ 卖出失败: {position.asset_code}, 错误: {e}")
 
@@ -375,20 +395,62 @@ class AutoTradingEngine:
 
         return buy_count, sell_count
 
-    def _should_sell_position(
+    def _build_exit_advice_map(
+        self,
+        account_id: int,
+        positions: list[Position],
+        trade_date: date,
+    ) -> dict[str, PositionExitAdvice]:
+        if self.exit_advisor is None:
+            return {}
+
+        try:
+            advices = self.exit_advisor.get_exit_advices(account_id, positions, trade_date)
+        except Exception as exc:
+            logger.warning("exit_advisor 执行失败，回退旧卖出逻辑: %s", exc)
+            return {}
+
+        return {advice.asset_code: advice for advice in advices if advice.asset_code}
+
+    def _get_position_exit_advice(
         self,
         position: Position,
         account: SimulatedAccount,
-        trade_date: date
-    ) -> bool:
+        trade_date: date,
+        advisor_map: dict[str, PositionExitAdvice] | None = None,
+    ) -> PositionExitAdvice | None:
         """
-        判断是否应该卖出持仓
+        生成持仓退出建议。
 
-        卖出条件:
-        1. 信号失效
-        2. Regime不匹配(资产进入禁投池)
-        3. 触发止损
+        优先级:
+        1. 持仓已证伪
+        2. 决策层退出建议
+        3. 信号失效
+        4. 禁投池/风控阻断
+        5. 账户级止损兜底
         """
+        if position.is_invalidated:
+            logger.info(f"    持仓 {position.asset_code} 已证伪,准备卖出")
+            return PositionExitAdvice(
+                asset_code=position.asset_code,
+                should_exit=True,
+                quantity=int(position.quantity),
+                reason_code="POSITION_INVALIDATED",
+                reason_text=position.invalidation_reason or "持仓已证伪",
+                source="simulated_trading.position_invalidation",
+            )
+
+        advisor_advice = (advisor_map or {}).get(position.asset_code)
+        if advisor_advice and (advisor_advice.should_exit or advisor_advice.should_reduce):
+            action = "清仓" if advisor_advice.should_exit else "减仓"
+            logger.info(
+                "    持仓 %s 命中决策层%s建议,来源=%s",
+                position.asset_code,
+                action,
+                advisor_advice.source,
+            )
+            return advisor_advice
+
         # 1. 检查信号是否仍然有效
         signal_valid = True
         if position.signal_id:
@@ -401,14 +463,28 @@ class AutoTradingEngine:
 
         if not signal_valid:
             logger.info(f"    持仓 {position.asset_code} 信号失效,准备卖出")
-            return True
+            return PositionExitAdvice(
+                asset_code=position.asset_code,
+                should_exit=True,
+                quantity=int(position.quantity),
+                reason_code="SIGNAL_INVALID",
+                reason_text="信号失效卖出",
+                source="simulated_trading.signal_validation",
+            )
 
         # 2. 检查是否仍在可投池
         if self.asset_pool_service:
             pool_type = self.asset_pool_service.get_asset_pool_type(position.asset_code)
             if pool_type == "prohibited":
                 logger.info(f"    持仓 {position.asset_code} 进入禁投池,准备卖出")
-                return True
+                return PositionExitAdvice(
+                    asset_code=position.asset_code,
+                    should_exit=True,
+                    quantity=int(position.quantity),
+                    reason_code="PROHIBITED_POOL",
+                    reason_text="资产进入禁投池",
+                    source="simulated_trading.asset_pool",
+                )
 
         # 3. 检查是否触发止损
         if account.stop_loss_pct and position.unrealized_pnl_pct < -account.stop_loss_pct:
@@ -416,12 +492,28 @@ class AutoTradingEngine:
                 f"    持仓 {position.asset_code} 触发止损 "
                 f"(浮亏{position.unrealized_pnl_pct:.2f}% > 止损线{account.stop_loss_pct}%),准备卖出"
             )
-            return True
+            return PositionExitAdvice(
+                asset_code=position.asset_code,
+                should_exit=True,
+                quantity=int(position.quantity),
+                reason_code="ACCOUNT_STOP_LOSS",
+                reason_text=f"止损卖出(浮亏{position.unrealized_pnl_pct:.2f}%)",
+                source="simulated_trading.account_risk",
+            )
 
-        return False
+        return None
 
-    def _get_sell_reason(self, position: Position) -> str:
+    def _resolve_exit_quantity(self, position: Position, advice: PositionExitAdvice) -> int:
+        quantity = advice.quantity
+        if advice.should_exit or not quantity:
+            quantity = int(position.quantity)
+        quantity = min(int(quantity), int(position.quantity))
+        return max(quantity, 0)
+
+    def _get_sell_reason(self, position: Position, advice: PositionExitAdvice | None = None) -> str:
         """获取卖出原因"""
+        if advice and advice.reason_text:
+            return advice.reason_text
         if position.unrealized_pnl_pct < 0:
             return f"止损卖出(浮亏{position.unrealized_pnl_pct:.2f}%)"
         else:
