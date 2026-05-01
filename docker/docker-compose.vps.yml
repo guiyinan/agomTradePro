@@ -87,6 +87,10 @@ services:
       SECRET_KEY: ${SECRET_KEY:-}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       AGOMTRADEPRO_ENCRYPTION_KEY: ${AGOMTRADEPRO_ENCRYPTION_KEY:-}
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-True}
@@ -105,7 +109,7 @@ services:
         condition: service_healthy
     healthcheck:
       disable: true
-    mem_limit: 500m
+    mem_limit: 1500m
     cpus: 1.0
     logging:
       driver: "json-file"

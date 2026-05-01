@@ -34,6 +34,11 @@ Default wrapper behavior:
 - Download built image tar back to local machine
 - Prompt again before remote deployment
 
+Runtime note for production:
+
+- `celery_worker` must receive the same data-source and AI provider env vars as `web`, especially `TUSHARE_TOKEN`, otherwise Alpha/Qlib inference tasks will fail inside the worker even when the site renders normally.
+- Qlib inference is memory-sensitive on VPS. Keep the worker memory limit comfortably above the idle baseline; `500m` is too low for this project and can lead to `SIGKILL` / `WorkerLostError` during inference.
+
 Built image tar is saved under:
 
 - `dist/remote-built-images/`

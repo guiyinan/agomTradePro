@@ -15,6 +15,7 @@ dependencies = [
     "django-environ",
     "django-cors-headers",
     "django-jazzmin>=3.0",
+    "whitenoise>=6.8",
     "celery[redis,s3]",
     "redis",
     "django-celery-beat",

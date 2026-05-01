@@ -75,6 +75,30 @@ from .base import *  # noqa: E402
 DEBUG = False
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
+# Static files
+# In production we serve collected static assets via WhiteNoise by default so
+# the app remains self-contained even when Nginx is not fronting /static.
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    MIDDLEWARE.insert(
+        security_middleware_index + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+WHITENOISE_MAX_AGE = env.int("WHITENOISE_MAX_AGE", default=31536000)
+WHITENOISE_KEEP_ONLY_HASHED_FILES = env.bool(
+    "WHITENOISE_KEEP_ONLY_HASHED_FILES",
+    default=True,
+)
+
 # Database - PostgreSQL for production
 DATABASES = {
     'default': {
