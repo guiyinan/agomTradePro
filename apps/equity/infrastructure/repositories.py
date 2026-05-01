@@ -17,24 +17,18 @@ import requests
 from django.db import models
 from django.utils import timezone
 
+from apps.data_center.application.repository_provider import (
+    fetch_akshare_eastmoney_historical_prices,
+    fetch_tushare_historical_prices,
+    get_akshare_module,
+    get_asset_repository,
+    get_financial_fact_repository,
+    get_price_bar_repository,
+    get_quote_snapshot_repository,
+    get_valuation_fact_repository,
+)
 from apps.data_center.domain.entities import FinancialFact, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType
-from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
-from apps.data_center.infrastructure.repositories import (
-    AssetRepository as DataCenterAssetRepository,
-)
-from apps.data_center.infrastructure.repositories import (
-    FinancialFactRepository as DataCenterFinancialFactRepository,
-)
-from apps.data_center.infrastructure.repositories import (
-    PriceBarRepository as DataCenterPriceBarRepository,
-)
-from apps.data_center.infrastructure.repositories import (
-    QuoteSnapshotRepository as DataCenterQuoteSnapshotRepository,
-)
-from apps.data_center.infrastructure.repositories import (
-    ValuationFactRepository as DataCenterValuationFactRepository,
-)
 from apps.equity.domain.entities import (
     EquityAssetScore,
     FinancialData,
@@ -44,6 +38,8 @@ from apps.equity.domain.entities import (
     TechnicalIndicators,
     ValuationMetrics,
 )
+from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
+from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 from core.exceptions import DataFetchError, DataValidationError
 
 from .adapters import TushareStockAdapter
@@ -55,8 +51,6 @@ from .models import (
     ValuationDataQualitySnapshotModel,
     ValuationModel,
 )
-from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
-from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 
 logger = logging.getLogger(__name__)
 
@@ -319,11 +313,11 @@ class DjangoStockRepository:
 
     def __init__(self) -> None:
         self._last_intraday_source: str | None = None
-        self._dc_asset_repo = DataCenterAssetRepository()
-        self._dc_financial_repo = DataCenterFinancialFactRepository()
-        self._dc_price_bar_repo = DataCenterPriceBarRepository()
-        self._dc_quote_repo = DataCenterQuoteSnapshotRepository()
-        self._dc_valuation_repo = DataCenterValuationFactRepository()
+        self._dc_asset_repo = get_asset_repository()
+        self._dc_financial_repo = get_financial_fact_repository()
+        self._dc_price_bar_repo = get_price_bar_repository()
+        self._dc_quote_repo = get_quote_snapshot_repository()
+        self._dc_valuation_repo = get_valuation_fact_repository()
 
     def get_all_stocks_with_fundamentals(
         self, as_of_date: date | None = None
@@ -436,7 +430,9 @@ class DjangoStockRepository:
             for code in requested_codes
             for candidate in self._build_stock_code_candidates(code)
         }
-        info_rows = StockInfoModel._default_manager.filter(stock_code__in=list(candidate_codes)).values(
+        info_rows = StockInfoModel._default_manager.filter(
+            stock_code__in=list(candidate_codes)
+        ).values(
             "stock_code",
             "name",
             "sector",
@@ -1485,9 +1481,7 @@ class DjangoStockRepository:
     ) -> list:
         """通过 Data Center 的 Tushare Gateway 获取历史 K 线。"""
         try:
-            from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
-
-            return TushareGateway().get_historical_prices(
+            return fetch_tushare_historical_prices(
                 asset_code=stock_code,
                 start_date=start_date.strftime("%Y%m%d"),
                 end_date=end_date.strftime("%Y%m%d"),
@@ -1556,11 +1550,7 @@ class DjangoStockRepository:
     ) -> list:
         """通过 AKShare EastMoney Gateway 获取历史 K 线。"""
         try:
-            from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
-                AKShareEastMoneyGateway,
-            )
-
-            return AKShareEastMoneyGateway().get_historical_prices(
+            return fetch_akshare_eastmoney_historical_prices(
                 asset_code=stock_code,
                 start_date=start_date.strftime("%Y%m%d"),
                 end_date=end_date.strftime("%Y%m%d"),

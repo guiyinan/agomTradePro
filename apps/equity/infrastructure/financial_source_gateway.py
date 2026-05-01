@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from apps.data_center.infrastructure.models import FinancialFactModel
+from apps.data_center.application.repository_provider import get_financial_fact_repository
+from apps.data_center.domain.entities import FinancialFact
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +52,13 @@ def _to_report_type(period_end: date) -> str:
 class _BaseFinancialGateway:
     provider_name = ""
 
-    def fetch(self, stock_code: str, periods: int = 8) -> FinancialSyncBatch:
-        qs = FinancialFactModel.objects.filter(asset_code=stock_code)
-        if self.provider_name:
-            qs = qs.filter(source__icontains=self.provider_name)
+    def __init__(self) -> None:
+        self._fact_repo = get_financial_fact_repository()
 
-        rows = list(qs.order_by("-period_end", "metric_code")[: max(periods * 12, 80)])
+    def fetch(self, stock_code: str, periods: int = 8) -> FinancialSyncBatch:
+        rows = self._fact_repo.get_facts(stock_code, limit=max(periods * 12, 80))
+        if self.provider_name:
+            rows = [row for row in rows if self.provider_name in (row.source or "").lower()]
         if not rows:
             return FinancialSyncBatch(
                 source_provider=self.provider_name,
@@ -64,7 +66,7 @@ class _BaseFinancialGateway:
                 records=[],
             )
 
-        grouped: dict[date, dict[str, FinancialFactModel]] = {}
+        grouped: dict[date, dict[str, FinancialFact]] = {}
         for row in rows:
             grouped.setdefault(row.period_end, {})[row.metric_code] = row
 
@@ -77,16 +79,46 @@ class _BaseFinancialGateway:
                     stock_code=stock_code,
                     report_date=anchor.report_date or period_end,
                     report_type=_to_report_type(period_end),
-                    revenue=self._safe_decimal(metric_map.get("revenue").value if metric_map.get("revenue") else 0),
-                    net_profit=self._safe_decimal(metric_map.get("net_profit").value if metric_map.get("net_profit") else 0),
-                    revenue_growth=self._safe_float(metric_map.get("revenue_growth").value if metric_map.get("revenue_growth") else None),
-                    net_profit_growth=self._safe_float(metric_map.get("net_profit_growth").value if metric_map.get("net_profit_growth") else None),
-                    total_assets=self._safe_decimal(metric_map.get("total_assets").value if metric_map.get("total_assets") else 0),
-                    total_liabilities=self._safe_decimal(metric_map.get("total_liabilities").value if metric_map.get("total_liabilities") else 0),
-                    equity=self._safe_decimal(metric_map.get("equity").value if metric_map.get("equity") else 0),
-                    roe=self._safe_float(metric_map.get("roe").value if metric_map.get("roe") else 0) or 0.0,
-                    roa=self._safe_float(metric_map.get("roa").value if metric_map.get("roa") else None),
-                    debt_ratio=self._safe_float(metric_map.get("debt_ratio").value if metric_map.get("debt_ratio") else 0) or 0.0,
+                    revenue=self._safe_decimal(
+                        metric_map.get("revenue").value if metric_map.get("revenue") else 0
+                    ),
+                    net_profit=self._safe_decimal(
+                        metric_map.get("net_profit").value if metric_map.get("net_profit") else 0
+                    ),
+                    revenue_growth=self._safe_float(
+                        metric_map.get("revenue_growth").value
+                        if metric_map.get("revenue_growth")
+                        else None
+                    ),
+                    net_profit_growth=self._safe_float(
+                        metric_map.get("net_profit_growth").value
+                        if metric_map.get("net_profit_growth")
+                        else None
+                    ),
+                    total_assets=self._safe_decimal(
+                        metric_map.get("total_assets").value
+                        if metric_map.get("total_assets")
+                        else 0
+                    ),
+                    total_liabilities=self._safe_decimal(
+                        metric_map.get("total_liabilities").value
+                        if metric_map.get("total_liabilities")
+                        else 0
+                    ),
+                    equity=self._safe_decimal(
+                        metric_map.get("equity").value if metric_map.get("equity") else 0
+                    ),
+                    roe=self._safe_float(
+                        metric_map.get("roe").value if metric_map.get("roe") else 0
+                    )
+                    or 0.0,
+                    roa=self._safe_float(
+                        metric_map.get("roa").value if metric_map.get("roa") else None
+                    ),
+                    debt_ratio=self._safe_float(
+                        metric_map.get("debt_ratio").value if metric_map.get("debt_ratio") else 0
+                    )
+                    or 0.0,
                 )
             )
             if len(records) >= periods:
@@ -123,6 +155,7 @@ class TushareFinancialGateway(_BaseFinancialGateway):
     provider_name = "tushare"
 
     def __init__(self, token: str, http_url: str | None = None):
+        super().__init__()
         self.token = token
         self.http_url = http_url
 

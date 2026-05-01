@@ -13,9 +13,12 @@ from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
+from apps.ai_provider.application.repository_provider import (
+    build_ai_failover_helper,
+    get_ai_provider_repository,
+    get_ai_usage_repository,
+)
 from apps.ai_provider.domain.services import AICostCalculator
-from apps.ai_provider.infrastructure.adapters import AIFailoverHelper, OpenAICompatibleAdapter
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.policy.domain.entities import (
     AIClassificationResult,
     AuditStatus,
@@ -31,6 +34,24 @@ from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
 logger = logging.getLogger(__name__)
 
 
+def AIProviderRepository():
+    """Compatibility factory for tests and policy infrastructure callers."""
+
+    return get_ai_provider_repository()
+
+
+def AIUsageRepository():
+    """Compatibility factory for tests and policy infrastructure callers."""
+
+    return get_ai_usage_repository()
+
+
+def AIFailoverHelper(providers: list[dict[str, Any]]):
+    """Compatibility factory for tests and policy infrastructure callers."""
+
+    return build_ai_failover_helper(providers)
+
+
 class AIPolicyClassifier(PolicyClassifierProtocol):
     """
     AI政策分类器
@@ -43,7 +64,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.75
     DEFAULT_AUTO_REJECT_THRESHOLD = 0.3
 
-    def __init__(self, ai_helper: AIFailoverHelper, usage_repo=None):
+    def __init__(self, ai_helper: Any, usage_repo: Any | None = None):
         """
         初始化分类器
 
@@ -59,22 +80,18 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
     def auto_approve_threshold(self) -> float:
         """获取自动通过阈值（从配置读取）"""
         return ConfigHelper.get_float(
-            ConfigKeys.AI_AUTO_APPROVE_THRESHOLD,
-            self.DEFAULT_AUTO_APPROVE_THRESHOLD
+            ConfigKeys.AI_AUTO_APPROVE_THRESHOLD, self.DEFAULT_AUTO_APPROVE_THRESHOLD
         )
 
     @property
     def auto_reject_threshold(self) -> float:
         """获取自动拒绝阈值（从配置读取）"""
         return ConfigHelper.get_float(
-            ConfigKeys.AI_AUTO_REJECT_THRESHOLD,
-            self.DEFAULT_AUTO_REJECT_THRESHOLD
+            ConfigKeys.AI_AUTO_REJECT_THRESHOLD, self.DEFAULT_AUTO_REJECT_THRESHOLD
         )
 
     def classify_rss_item(
-        self,
-        item: RSSItem,
-        content: str | None = None
+        self, item: RSSItem, content: str | None = None
     ) -> AIClassificationResult:
         """
         对单个RSS条目进行分类
@@ -93,50 +110,48 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
 
         # 调用AI
         ai_result = self.ai_helper.chat_completion_with_failover(
-            messages=messages,
-            temperature=0.3,  # 降低温度以获得更一致的结果
-            max_tokens=2000
+            messages=messages, temperature=0.3, max_tokens=2000  # 降低温度以获得更一致的结果
         )
 
         processing_time_ms = int((timezone.now() - start_time).total_seconds() * 1000)
 
         # 记录AI使用日志
-        if self.usage_repo and ai_result.get('provider_used'):
-            self._log_ai_usage(ai_result, 'policy_classification')
+        if self.usage_repo and ai_result.get("provider_used"):
+            self._log_ai_usage(ai_result, "policy_classification")
 
-        if ai_result.get('status') != 'success':
+        if ai_result.get("status") != "success":
             return AIClassificationResult(
                 success=False,
                 error_message=f"AI调用失败: {ai_result.get('error_message', 'Unknown error')}",
                 processing_metadata={
-                    'ai_model_used': ai_result.get('model', 'unknown'),
-                    'ai_processing_time_ms': processing_time_ms,
-                    'ai_error': ai_result.get('error_message')
-                }
+                    "ai_model_used": ai_result.get("model", "unknown"),
+                    "ai_processing_time_ms": processing_time_ms,
+                    "ai_error": ai_result.get("error_message"),
+                },
             )
 
         # 解析AI返回结果
         try:
-            parsed_data = self._parse_ai_response(ai_result.get('content', ''))
+            parsed_data = self._parse_ai_response(ai_result.get("content", ""))
 
             # 构建结构化数据
             structured_data = StructuredPolicyData(
-                policy_subject=parsed_data.get('structured_data', {}).get('policy_subject'),
-                policy_object=parsed_data.get('structured_data', {}).get('policy_object'),
-                effective_date=parsed_data.get('structured_data', {}).get('effective_date'),
-                expiry_date=parsed_data.get('structured_data', {}).get('expiry_date'),
-                conditions=parsed_data.get('structured_data', {}).get('conditions', []),
-                impact_scope=parsed_data.get('structured_data', {}).get('impact_scope'),
-                affected_sectors=parsed_data.get('structured_data', {}).get('affected_sectors', []),
-                affected_stocks=parsed_data.get('structured_data', {}).get('affected_stocks', []),
-                sentiment=parsed_data.get('structured_data', {}).get('sentiment'),
-                sentiment_score=parsed_data.get('structured_data', {}).get('sentiment_score'),
-                keywords=parsed_data.get('structured_data', {}).get('keywords', []),
-                summary=parsed_data.get('structured_data', {}).get('summary'),
+                policy_subject=parsed_data.get("structured_data", {}).get("policy_subject"),
+                policy_object=parsed_data.get("structured_data", {}).get("policy_object"),
+                effective_date=parsed_data.get("structured_data", {}).get("effective_date"),
+                expiry_date=parsed_data.get("structured_data", {}).get("expiry_date"),
+                conditions=parsed_data.get("structured_data", {}).get("conditions", []),
+                impact_scope=parsed_data.get("structured_data", {}).get("impact_scope"),
+                affected_sectors=parsed_data.get("structured_data", {}).get("affected_sectors", []),
+                affected_stocks=parsed_data.get("structured_data", {}).get("affected_stocks", []),
+                sentiment=parsed_data.get("structured_data", {}).get("sentiment"),
+                sentiment_score=parsed_data.get("structured_data", {}).get("sentiment_score"),
+                keywords=parsed_data.get("structured_data", {}).get("keywords", []),
+                summary=parsed_data.get("structured_data", {}).get("summary"),
             )
 
             # 确定审核状态
-            confidence = parsed_data.get('confidence', 0.5)
+            confidence = parsed_data.get("confidence", 0.5)
             if confidence >= self.auto_approve_threshold:
                 audit_status = AuditStatus.AUTO_APPROVED
             elif confidence < self.auto_reject_threshold:
@@ -145,7 +160,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
                 audit_status = AuditStatus.PENDING_REVIEW
 
             # 解析政策档位
-            policy_level_str = parsed_data.get('policy_level')
+            policy_level_str = parsed_data.get("policy_level")
             policy_level = None
             if policy_level_str:
                 try:
@@ -155,19 +170,19 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
 
             return AIClassificationResult(
                 success=True,
-                info_category=InfoCategory(parsed_data.get('info_category', 'macro')),
+                info_category=InfoCategory(parsed_data.get("info_category", "macro")),
                 audit_status=audit_status,
                 ai_confidence=confidence,
                 policy_level=policy_level,
                 structured_data=structured_data,
-                risk_impact=RiskImpact(parsed_data.get('risk_impact', 'unknown')),
+                risk_impact=RiskImpact(parsed_data.get("risk_impact", "unknown")),
                 processing_metadata={
-                    'ai_model_used': ai_result.get('model'),
-                    'ai_provider_used': ai_result.get('provider_used'),
-                    'ai_processing_time_ms': processing_time_ms,
-                    'ai_tokens_used': ai_result.get('total_tokens', 0),
-                    'extraction_method': 'ai'
-                }
+                    "ai_model_used": ai_result.get("model"),
+                    "ai_provider_used": ai_result.get("provider_used"),
+                    "ai_processing_time_ms": processing_time_ms,
+                    "ai_tokens_used": ai_result.get("total_tokens", 0),
+                    "extraction_method": "ai",
+                },
             )
 
         except Exception as e:
@@ -176,15 +191,14 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
                 success=False,
                 error_message=f"解析AI响应失败: {str(e)}",
                 processing_metadata={
-                    'ai_model_used': ai_result.get('model'),
-                    'ai_processing_time_ms': processing_time_ms,
-                    'raw_response': ai_result.get('content', '')[:500]
-                }
+                    "ai_model_used": ai_result.get("model"),
+                    "ai_processing_time_ms": processing_time_ms,
+                    "raw_response": ai_result.get("content", "")[:500],
+                },
             )
 
     def batch_classify(
-        self,
-        items: list[tuple[RSSItem, str | None]]
+        self, items: list[tuple[RSSItem, str | None]]
     ) -> list[AIClassificationResult]:
         """
         批量分类
@@ -206,45 +220,42 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
         try:
             # 获取提供商
             provider_repo = AIProviderRepository()
-            provider = provider_repo.get_by_name(ai_result.get('provider_used', ''))
+            provider = provider_repo.get_by_name(ai_result.get("provider_used", ""))
 
             if not provider:
                 return
 
             # 计算预估成本
             estimated_cost = self.cost_calculator.calculate_cost(
-                model=ai_result.get('model', provider.default_model),
-                prompt_tokens=ai_result.get('prompt_tokens', 0),
-                completion_tokens=ai_result.get('completion_tokens', 0)
+                model=ai_result.get("model", provider.default_model),
+                prompt_tokens=ai_result.get("prompt_tokens", 0),
+                completion_tokens=ai_result.get("completion_tokens", 0),
             )
 
             # 记录日志
-            from apps.ai_provider.infrastructure.repositories import AIUsageRepository
             if not self.usage_repo:
                 self.usage_repo = AIUsageRepository()
 
             self.usage_repo.log_usage(
                 provider=provider,
-                model=ai_result.get('model', provider.default_model),
-                prompt_tokens=ai_result.get('prompt_tokens', 0),
-                completion_tokens=ai_result.get('completion_tokens', 0),
-                total_tokens=ai_result.get('total_tokens', 0),
+                model=ai_result.get("model", provider.default_model),
+                prompt_tokens=ai_result.get("prompt_tokens", 0),
+                completion_tokens=ai_result.get("completion_tokens", 0),
+                total_tokens=ai_result.get("total_tokens", 0),
                 estimated_cost=estimated_cost,
-                response_time_ms=ai_result.get('response_time_ms', 0),
-                status=ai_result.get('status', 'error'),
+                response_time_ms=ai_result.get("response_time_ms", 0),
+                status=ai_result.get("status", "error"),
                 request_type=request_type,
-                error_message=ai_result.get('error_message', ''),
+                error_message=ai_result.get("error_message", ""),
                 request_metadata={
-                    'finish_reason': ai_result.get('finish_reason'),
-                }
+                    "finish_reason": ai_result.get("finish_reason"),
+                },
             )
         except Exception as e:
             logger.warning(f"Failed to log AI usage: {e}")
 
     def _build_classification_prompt(
-        self,
-        item: RSSItem,
-        content: str | None = None
+        self, item: RSSItem, content: str | None = None
     ) -> list[dict[str, str]]:
         """
         构建AI分类提示词
@@ -321,7 +332,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
 
         return [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
 
     def _parse_ai_response(self, response: str) -> dict[str, Any]:
@@ -340,7 +351,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             return json.loads(response)
         except json.JSONDecodeError:
             # 尝试提取JSON块
-            json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+            json_match = re.search(r"```json\s*(.*?)\s*```", response, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group(1))
@@ -348,7 +359,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
                     pass
 
             # 尝试提取花括号内容
-            brace_match = re.search(r'\{.*\}', response, re.DOTALL)
+            brace_match = re.search(r"\{.*\}", response, re.DOTALL)
             if brace_match:
                 try:
                     return json.loads(brace_match.group(0))
@@ -358,10 +369,10 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             # 都失败了，返回默认值
             logger.warning(f"Could not parse AI response as JSON: {response[:200]}")
             return {
-                'info_category': 'other',
-                'confidence': 0.3,
-                'risk_impact': 'unknown',
-                'structured_data': {}
+                "info_category": "other",
+                "confidence": 0.3,
+                "risk_impact": "unknown",
+                "structured_data": {},
             }
 
 
@@ -373,30 +384,29 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
         AIPolicyClassifier or None: 如果AI服务未配置则返回None
     """
     try:
-        # 从数据库获取AI提供商配置
         provider_repo = AIProviderRepository()
         active_providers = provider_repo.get_active_configured_system_providers()
-
         if not active_providers:
             logger.warning("No active AI providers configured in database")
             return None
 
-        # 构建提供商列表（按优先级排序）
         providers_list = []
         for provider in active_providers:
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
             api_key = provider_repo.get_api_key(provider)
             if not api_key:
                 continue
-            providers_list.append({
-                'name': provider.name,
-                'base_url': provider.base_url,
-                'api_key': api_key,
-                'default_model': provider.default_model,
-                'priority': provider.priority,
-                'api_mode': extra_config.get('api_mode'),
-                'fallback_enabled': extra_config.get('fallback_enabled'),
-            })
+            providers_list.append(
+                {
+                    "name": provider.name,
+                    "base_url": provider.base_url,
+                    "api_key": api_key,
+                    "default_model": provider.default_model,
+                    "priority": provider.priority,
+                    "api_mode": extra_config.get("api_mode"),
+                    "fallback_enabled": extra_config.get("fallback_enabled"),
+                }
+            )
 
         if not providers_list:
             logger.warning(
@@ -415,7 +425,6 @@ def create_ai_policy_classifier() -> AIPolicyClassifier | None:
             return None
 
         # 创建使用日志仓储
-        from apps.ai_provider.infrastructure.repositories import AIUsageRepository
         usage_repo = AIUsageRepository()
 
         logger.info(f"Created AI policy classifier with {len(providers_list)} providers")

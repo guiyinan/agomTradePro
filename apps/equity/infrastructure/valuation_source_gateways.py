@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from apps.data_center.infrastructure.models import ValuationFactModel
+from apps.data_center.application.repository_provider import get_valuation_fact_repository
 from apps.equity.domain.entities import ValuationMetrics
 from apps.equity.infrastructure.repositories import compute_valuation_quality_flag
 
@@ -31,16 +31,21 @@ class ValuationSyncBatch:
 class _BaseValuationGateway:
     provider_name = ""
 
+    def __init__(self) -> None:
+        self._valuation_repo = get_valuation_fact_repository()
+
     def fetch(self, stock_code: str, start_date: date, end_date: date) -> ValuationSyncBatch:
-        qs = ValuationFactModel.objects.filter(
-            asset_code=stock_code,
-            val_date__gte=start_date,
-            val_date__lte=end_date,
+        rows = list(
+            reversed(
+                self._valuation_repo.get_series(
+                    stock_code,
+                    start=start_date,
+                    end=end_date,
+                )
+            )
         )
         if self.provider_name:
-            qs = qs.filter(source__icontains=self.provider_name)
-
-        rows = list(qs.order_by("val_date"))
+            rows = [row for row in rows if self.provider_name in (row.source or "").lower()]
         previous_pb: float | None = None
         previous_pe: float | None = None
         records: list[ValuationMetrics] = []
@@ -114,5 +119,6 @@ class TushareValuationGateway(_BaseValuationGateway):
     provider_name = "tushare"
 
     def __init__(self, token: str, http_url: str | None = None):
+        super().__init__()
         self.token = token
         self.http_url = http_url

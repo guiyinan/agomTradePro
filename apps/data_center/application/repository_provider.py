@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from apps.data_center.domain.entities import DataProviderSettings, ProviderConfig
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.providers import (
@@ -14,8 +16,8 @@ from apps.data_center.infrastructure.providers import (
     IndicatorUnitRuleRepository,
     MacroFactRepository,
     NewsRepository,
-    ProviderConfigRepository,
     PriceBarRepository,
+    ProviderConfigRepository,
     QuoteSnapshotRepository,
     RawAuditRepository,
     SectorMembershipRepository,
@@ -88,6 +90,52 @@ def get_sector_membership_repository() -> SectorMembershipRepository:
 
 def get_valuation_fact_repository() -> ValuationFactRepository:
     return ValuationFactRepository()
+
+
+def get_akshare_module() -> Any:
+    """Return the shared AKShare module via the data-center boundary."""
+
+    from apps.data_center.infrastructure.legacy_sdk_bridge import (
+        get_akshare_module as _get_akshare_module,
+    )
+
+    return _get_akshare_module()
+
+
+def fetch_tushare_historical_prices(
+    *,
+    asset_code: str,
+    start_date: str,
+    end_date: str,
+) -> list[Any]:
+    """Fetch historical bars through the data-center Tushare gateway."""
+
+    from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+
+    return TushareGateway().get_historical_prices(
+        asset_code=asset_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+def fetch_akshare_eastmoney_historical_prices(
+    *,
+    asset_code: str,
+    start_date: str,
+    end_date: str,
+) -> list[Any]:
+    """Fetch historical bars through the data-center AKShare EastMoney gateway."""
+
+    from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+        AKShareEastMoneyGateway,
+    )
+
+    return AKShareEastMoneyGateway().get_historical_prices(
+        asset_code=asset_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 def build_unified_provider_factory() -> UnifiedProviderFactory:
