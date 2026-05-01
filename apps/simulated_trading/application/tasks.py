@@ -39,6 +39,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
 )
 from core.exceptions import DataFetchError
+from core.integration.decision_exit_advisor import build_decision_rhythm_exit_advisor
 from core.integration.realtime_polling import execute_realtime_price_polling
 
 logger = logging.getLogger(__name__)
@@ -100,10 +101,6 @@ def daily_auto_trading_task(
             asset_pool_repo=get_asset_pool_query_repository(),
             signal_repo=signal_repo,
         )
-        from apps.decision_rhythm.application.exit_advisors import (
-            build_decision_rhythm_exit_advisor,
-        )
-
         # 3. 创建引擎
         engine = AutoTradingEngine(
             account_repo=account_repo,

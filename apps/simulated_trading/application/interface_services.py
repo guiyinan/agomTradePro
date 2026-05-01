@@ -27,6 +27,7 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
+from core.integration.decision_exit_advisor import build_decision_rhythm_exit_advisor
 from core.integration.share_context import get_account_owner_share_links
 
 
@@ -276,8 +277,6 @@ def build_auto_trading_engine() -> AutoTradingEngine:
         asset_pool_repo=get_asset_pool_query_repository(),
         signal_repo=signal_repo,
     )
-    from apps.decision_rhythm.application.exit_advisors import build_decision_rhythm_exit_advisor
-
     return AutoTradingEngine(
         account_repo=account_repo,
         position_repo=position_repo,

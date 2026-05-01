@@ -10,7 +10,7 @@ from typing import Any
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 from apps.signal.application.query_services import get_signal_invalidation_payloads
-from apps.simulated_trading.application.query_services import get_position_snapshots
+from core.integration.simulated_positions import get_position_snapshots
 
 from ..domain.entities import (
     ApprovalStatus,
