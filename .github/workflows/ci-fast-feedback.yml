@@ -101,6 +101,116 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "test-count=$(wc -w <<< "${TEST_PATHS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
 
+  incremental-quality:
+    name: Incremental quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: detect-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e sdk/
+
+      - name: Resolve incremental quality targets
+        id: targets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          LINT_TARGETS="$(python scripts/select_quality_targets.py \
+            --base "${{ needs.detect-tests.outputs.base-ref }}" \
+            --head "${{ needs.detect-tests.outputs.head-ref }}" \
+            --profile lint \
+            --output-format space)"
+          TYPECHECK_TARGETS="$(python scripts/select_quality_targets.py \
+            --base "${{ needs.detect-tests.outputs.base-ref }}" \
+            --head "${{ needs.detect-tests.outputs.head-ref }}" \
+            --profile typecheck \
+            --output-format space)"
+          DOMAIN_COVERAGE_TARGETS="$(python scripts/select_quality_targets.py \
+            --base "${{ needs.detect-tests.outputs.base-ref }}" \
+            --head "${{ needs.detect-tests.outputs.head-ref }}" \
+            --profile domain-coverage \
+            --output-format space)"
+
+          {
+            echo "lint-targets<<EOF"
+            echo "${LINT_TARGETS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "typecheck-targets<<EOF"
+            echo "${TYPECHECK_TARGETS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "domain-coverage-targets<<EOF"
+            echo "${DOMAIN_COVERAGE_TARGETS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "lint-count=$(wc -w <<< "${LINT_TARGETS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "typecheck-count=$(wc -w <<< "${TYPECHECK_TARGETS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "domain-coverage-count=$(wc -w <<< "${DOMAIN_COVERAGE_TARGETS}" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Run ruff on changed Python files
+        if: steps.targets.outputs.lint-count != '0'
+        run: |
+          python -m ruff check \
+            ${{ steps.targets.outputs.lint-targets }}
+
+      - name: Run black --check on changed Python files
+        if: steps.targets.outputs.lint-count != '0'
+        run: |
+          python -m black --check \
+            ${{ steps.targets.outputs.lint-targets }}
+
+      - name: Run isort --check-only on changed Python files
+        if: steps.targets.outputs.lint-count != '0'
+        run: |
+          python -m isort --check-only \
+            ${{ steps.targets.outputs.lint-targets }}
+
+      - name: Run mypy on changed application sources
+        if: steps.targets.outputs.typecheck-count != '0'
+        run: |
+          python -m mypy --config-file pyproject.toml --follow-imports=silent \
+            ${{ steps.targets.outputs.typecheck-targets }}
+
+      - name: Run incremental domain coverage gate
+        if: steps.targets.outputs.domain-coverage-count != '0'
+        run: |
+          python - <<'PY'
+          import shlex
+          import subprocess
+
+          targets = """${{ steps.targets.outputs.domain-coverage-targets }}""".split()
+          cmd = [
+              "pytest",
+              "tests/unit/domain/",
+              "-v",
+              "--tb=short",
+              "-o",
+              "addopts=",
+              "--cov-fail-under=70",
+              "--cov-report=term-missing",
+          ]
+          cmd.extend(f"--cov={target}" for target in targets)
+          print("Running incremental domain coverage gate:")
+          print(" ".join(shlex.quote(part) for part in cmd))
+          raise SystemExit(subprocess.call(cmd))
+          PY
+
   fast-feedback:
     name: Fast feedback (Python 3.11)
     runs-on: ubuntu-latest

@@ -151,107 +151,18 @@ jobs:
           echo "==================================="
           echo "Check 8: Architecture Layer Guard"
           echo "==================================="
-          python - <<'PY'
-          import os
-          import re
-          import subprocess
-          import sys
-
-          domain_rules = [
-              (re.compile(r"^\s*(from|import)\s+django\b"), "Domain layer must not import django"),
-              (re.compile(r"^\s*(from|import)\s+pandas\b"), "Domain layer must not import pandas"),
-              (re.compile(r"^\s*(from|import)\s+numpy\b"), "Domain layer must not import numpy"),
-              (re.compile(r"^\s*(from|import)\s+requests\b"), "Domain layer must not import requests"),
-          ]
-          application_rules = [
-              (re.compile(r"^\s*(from|import)\s+.*infrastructure\.models\b"), "Application layer must not import infrastructure models directly"),
-              (re.compile(r"\.objects\."), "Application layer must not access ORM manager directly"),
-          ]
-          interface_rules = [
-              (re.compile(r"^\s*(from|import)\s+.*infrastructure\."), "Interface layer must call Application use cases, not Infrastructure directly"),
-          ]
-
-          violations = []
-          base_ref = os.environ.get("BASE_REF", "").strip()
-          head_ref = os.environ.get("HEAD_REF", "").strip()
-          if base_ref and head_ref and base_ref != head_ref:
-              try:
-                  diff_text = subprocess.check_output(
-                      ["git", "diff", "-U0", f"{base_ref}...{head_ref}", "--", ":(glob)apps/**/*.py"],
-                      text=True,
-                      stderr=subprocess.STDOUT,
-                  )
-              except subprocess.CalledProcessError:
-                  diff_text = subprocess.check_output(
-                      ["git", "diff", "-U0", base_ref, head_ref, "--", ":(glob)apps/**/*.py"],
-                      text=True,
-                      stderr=subprocess.STDOUT,
-                  )
-          else:
-              paths = subprocess.check_output(
-                  ["git", "ls-files", ":(glob)apps/**/*.py"],
-                  text=True,
-              ).splitlines()
-              chunks = []
-              for p in paths:
-                  chunks.append(f"diff --git a/{p} b/{p}\n+++ b/{p}\n@@ -0,0 +1,999999 @@\n")
-                  with open(p, "r", encoding="utf-8", errors="ignore") as fh:
-                      for ln in fh.read().splitlines():
-                          chunks.append(f"+{ln}\n")
-              diff_text = "".join(chunks)
-
-          current_file = None
-          current_line = 0
-          hunk_re = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
-
-          for raw_line in diff_text.splitlines():
-              if raw_line.startswith("+++ b/"):
-                  current_file = raw_line[6:]
-                  current_line = 0
-                  continue
-
-              if current_file is None:
-                  continue
-
-              match = hunk_re.match(raw_line)
-              if match:
-                  current_line = int(match.group(1))
-                  continue
-
-              if raw_line.startswith("+") and not raw_line.startswith("+++"):
-                  line = raw_line[1:]
-                  norm = current_file.replace("\\", "/")
-
-                  if norm.endswith("/admin.py"):
-                      rules = []
-                  elif "/domain/" in norm:
-                      rules = domain_rules
-                  elif "/application/" in norm:
-                      rules = application_rules
-                  elif "/interface/" in norm:
-                      rules = interface_rules
-                  else:
-                      rules = []
-
-                  for pattern, message in rules:
-                      if pattern.search(line):
-                          violations.append((current_file, current_line, message, line.strip()))
-                  current_line += 1
-              elif raw_line.startswith("-") and not raw_line.startswith("---"):
-                  continue
-              else:
-                  if raw_line and not raw_line.startswith("\\"):
-                      current_line += 1
-
-          if violations:
-              print("Layer guard violations found:")
-              for fp, lineno, message, line in violations:
-                  print(f"- {fp}:{lineno}: {message}")
-                  print(f"    code: {line}")
-              sys.exit(1)
-
-          print("Architecture Layer Guard: PASS")
-          PY
+          python scripts/check_architecture_delta.py \
+            --rules-file governance/architecture_rules.json \
+            --base-ref "$BASE_REF" \
+            --head-ref "$HEAD_REF" \
+            --include-audit \
+            --fail-on-audit-violations \
+            --format text
+          python scripts/verify_architecture.py \
+            --rules-file governance/architecture_rules.json \
+            --format text \
+            --include-audit \
+            --fail-on-audit-violations
 
       # Check 9: Domain layer coverage >= 70%
       - name: Domain Layer Coverage Gate

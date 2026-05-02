@@ -12,6 +12,7 @@ The project uses two complementary guardrails:
    - Runs in `.github/workflows/architecture-layer-guard.yml`.
    - Scans changed lines in pull requests and pushes.
    - Fails immediately for new Domain/Application/Interface layer violations.
+   - Also hard-fails new audit-rule regressions because the workflow enables `--fail-on-audit-violations`.
 
 2. `scripts/check_governance_consistency.py`
    - Runs in `.github/workflows/consistency-check.yml`.
@@ -24,7 +25,14 @@ The project uses two complementary guardrails:
    - Current hard checks include:
      - Application-layer ORM manager access
      - Application-layer `transaction.atomic` / dynamic `get_model()` usage
+     - Interface-layer infrastructure imports, including `interface/admin.py`
+     - Bare `datetime.now()` / `datetime.utcnow()` usage in `apps/` and `core/`
      - Non-admin imports of app-root `models.py` shims
+
+4. `scripts/select_quality_targets.py`
+   - Runs in `.github/workflows/ci-fast-feedback.yml`.
+   - Selects changed Python files for incremental `ruff` / `black` / `isort` / `mypy`.
+   - Also selects changed domain modules for the daily `Domain >= 70%` coverage gate.
 
 ## Baseline
 

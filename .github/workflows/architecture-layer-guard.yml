@@ -73,7 +73,9 @@ jobs:
         run: |
           python scripts/verify_architecture.py \
             --rules-file governance/architecture_rules.json \
-            --format text
+            --format text \
+            --include-audit \
+            --fail-on-audit-violations
 
       - name: Enforce module cycle baseline
         run: |

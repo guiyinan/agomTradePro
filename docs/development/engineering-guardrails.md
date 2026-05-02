@@ -37,6 +37,8 @@
    `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text --include-audit --fail-on-audit-violations`
 6. 模块账本生成：  
    `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --write-ledger docs/development/module-ledger.md`
+7. 增量质量目标选择：  
+   `python scripts/select_quality_targets.py --base <base> --head <head> --profile lint --output-format newline`
 
 ### 0.2) 架构账本与边界基线
 
@@ -52,6 +54,8 @@
    - `events -> downstream handlers/models` 禁令
    - `account interface -> simulated_trading ORM / migrate_account_ledger` 禁令
    - `application -> transaction.atomic / django_apps.get_model` 禁令
+   - `interface/admin.py` 也纳入 infrastructure import 审计，不再豁免
+   - bare `datetime.now()` / `datetime.utcnow()` 禁令
    - 非 `admin.py` 代码导入 app-root `models.py` shim 禁令
 
 ### 0.3) 治理脚手架用法
@@ -130,6 +134,7 @@ python scripts/scaffold_application_providers.py \
 5. 当前 CI 工作流：
    - `.github/workflows/logic-guardrails.yml`
    - `.github/workflows/architecture-layer-guard.yml`
+   - `.github/workflows/ci-fast-feedback.yml`
 6. `scripts/select_tests.py` 的全量回退与模块映射，必须覆盖 `apps/*/tests/` 下的 app-local tests，不得只跑 `tests/unit|integration|guardrails`。
 7. `tests/api/` 与 `tests/migrations/` 属于正式 CI 入口，nightly / RC 不得漏跑。
 8. 高变更模块的 diff-based selector 必须显式带上对应 API 边界测试，不得只依赖集成测试兜底；当前至少包含 `account / ai_provider / alpha / alpha_trigger / audit / backtest / beta_gate / dashboard / data_center / decision_rhythm（含 workspace_execution / workspace_recommendations） / equity / events / factor / hedge / macro / policy / regime / simulated_trading / strategy / prompt / realtime / rotation / sentiment / signal / task_monitor / terminal`。
@@ -143,6 +148,23 @@ python scripts/scaffold_application_providers.py \
 15. Nightly 全量回归不得依赖单一 60 分钟窗口硬顶住所有阶段；完整单测阶段至少要同时具备并行执行、`--durations` 慢测输出，以及单测级 timeout，避免某个挂死用例把整夜测直接拖到 job timeout。
 16. 公共 helper 接口必须兼容轻量测试替身；像 `user` 这类新增可选参数，只能在注入工厂明确接受该参数时再透传，不能直接破坏旧 mock。
 17. Provider 边界收紧返回结构时，适配层必须先做兼容归一化；例如 ETF 成分股 fixture 仍返回旧版 2-tuple 时，不能让降级链路直接在解包阶段崩掉。
+18. `ci-fast-feedback` 现在会对变更的 Python 文件执行增量 `ruff` / `black --check` / `isort --check-only`，并对变更的 `apps|core|shared` Python 文件执行增量 `mypy`。
+19. 领域层变更必须在日常 PR 阶段通过增量覆盖率门禁；当前阈值为 `Domain >= 70%`。
+
+### 4.1) 本地 pre-commit
+
+在本地开发机上执行一次：
+
+```bash
+pre-commit install
+```
+
+当前仓库已内置 `.pre-commit-config.yaml`，默认会在提交前执行：
+
+1. `ruff --fix`
+2. `ruff format`
+3. `black`
+4. `isort`
 
 ### 5) API 改动同步门禁
 

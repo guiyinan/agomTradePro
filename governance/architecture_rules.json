@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-02.v6",
+  "version": "2026-05-02.v7",
   "source_roots": [
     "apps",
     "core",
@@ -199,9 +199,6 @@
       "source_layers": [
         "interface"
       ],
-      "exclude_path_patterns": [
-        "/admin\\.py$"
-      ],
       "forbidden_import_patterns": [
         "(^|\\.)infrastructure(?:\\.|$)"
       ],
@@ -317,6 +314,19 @@
       ],
       "forbid_same_app_infrastructure_imports": true,
       "rationale": "Keep use_cases/tasks/services focused on orchestration while composition stays in repository_provider.py."
+    },
+    {
+      "id": "apps_and_core_no_naive_datetime_now",
+      "description": "apps/ and core/ code must use timezone-aware datetime APIs instead of bare datetime.now()/utcnow().",
+      "source_roots": [
+        "apps",
+        "core"
+      ],
+      "forbidden_line_patterns": [
+        "\\bdatetime\\.now\\(\\s*\\)",
+        "\\bdatetime\\.utcnow\\("
+      ],
+      "rationale": "Use datetime.now(timezone.utc), datetime.now(UTC), or django.utils.timezone.now() to respect USE_TZ=True."
     },
     {
       "id": "macro_no_account_dependency",
