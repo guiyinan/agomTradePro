@@ -33,6 +33,30 @@ class RuntimeSettingsProvider(Protocol):
 _provider: RuntimeSettingsProvider | None = None
 
 
+def get_account_config_summary_service():
+    """Return the account-owned runtime settings service."""
+
+    from apps.account.application.config_summary_service import (
+        get_account_config_summary_service as load_account_config_summary_service,
+    )
+
+    return load_account_config_summary_service()
+
+
+def _get_runtime_settings_source() -> RuntimeSettingsProvider | None:
+    """Resolve the current runtime settings source.
+
+    Prefer the account-owned summary service so tests can monkeypatch the public
+    bridge entrypoint. Fall back to the explicitly configured provider during
+    early bootstrap or partial app initialization.
+    """
+
+    try:
+        return get_account_config_summary_service()
+    except Exception:
+        return _provider
+
+
 def configure_runtime_settings_provider(provider: RuntimeSettingsProvider) -> None:
     """Register the runtime settings provider from the owning app."""
 
@@ -43,54 +67,61 @@ def configure_runtime_settings_provider(provider: RuntimeSettingsProvider) -> No
 def get_runtime_macro_index_metadata_map() -> dict[str, dict]:
     """Return runtime macro index metadata map from the configured provider."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return {}
-    return _provider.get_runtime_macro_index_metadata_map()
+    return provider.get_runtime_macro_index_metadata_map()
 
 
 def get_runtime_macro_index_codes() -> list[str]:
     """Return runtime macro index codes from the configured provider."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return []
-    return _provider.get_runtime_macro_index_codes()
+    return provider.get_runtime_macro_index_codes()
 
 
 def get_runtime_macro_publication_lags() -> dict[str, dict]:
     """Return runtime macro publication lag configuration."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return {}
-    return _provider.get_runtime_macro_publication_lags()
+    return provider.get_runtime_macro_publication_lags()
 
 
 def get_runtime_qlib_config() -> dict[str, object]:
     """Return runtime qlib configuration."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return {}
-    return _provider.get_runtime_qlib_config()
+    return provider.get_runtime_qlib_config()
 
 
 def get_runtime_alpha_fixed_provider() -> str:
     """Return runtime fixed alpha provider selection."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return ""
-    return _provider.get_runtime_alpha_fixed_provider()
+    return provider.get_runtime_alpha_fixed_provider()
 
 
 def get_runtime_alpha_pool_mode(default_mode: str) -> str:
     """Return runtime alpha pool mode with caller-supplied fallback."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return default_mode
-    return _provider.get_runtime_alpha_pool_mode(default_mode)
+    return provider.get_runtime_alpha_pool_mode(default_mode)
 
 
 def get_runtime_benchmark_code(key: str, default: str = "") -> str:
     """Return runtime benchmark code with caller-supplied fallback."""
 
-    if _provider is None:
+    provider = _get_runtime_settings_source()
+    if provider is None:
         return default
-    return _provider.get_runtime_benchmark_code(key, default)
+    return provider.get_runtime_benchmark_code(key, default)
