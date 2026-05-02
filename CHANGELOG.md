@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 新增 Alpha exit loop 后端主链，串起 `decision_rhythm` 退出建议、`signal` 查询、自动交易执行与任务投递，并补齐 `tests/unit/test_alpha_exit_loop_end_to_end.py` 等一组端到端回归
+- Dashboard 新增 Alpha exit 细节面板、history/detail 页面与 metrics/stock API 入口，首页主工作流和 Decision Workspace 侧边栏现在都能复用同一套退出链上下文
+- 新增 `scripts/select_quality_targets.py`、`.github/workflows/ci-fast-feedback.yml`、`.pre-commit-config.yaml` 与对应测试，用统一质量目标选择器驱动更快的 CI 反馈
+- 新增一组 2026-05-01 / 2026-05-02 架构整改文档，覆盖 shared cleanup、Application write guard、account portfolio API、share application 与模块循环依赖回归说明
 - 新增公共异步任务跟踪 helper `apps/task_monitor/application/tracking.py`，统一在 Celery worker pickup 前写入 `pending` 任务记录
 - 新增聚焦回归脚本 `scripts/run_alpha_ops_regression.py`，覆盖 Alpha ops、Dashboard Alpha refresh、Policy RSS 和 Data Center decision reliability repair 的异步任务可见性
 - 新增全仓治理检查脚本 `scripts/check_governance_consistency.py`，覆盖 MCP 工具数、关键文档计数、`docs/INDEX.md` 死链、模块 11 项形态、错位 `AppConfig`、单数 `dto.py` 与 Application 层 pandas/numpy 导入
@@ -35,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
+- Dashboard 退出链入口已统一：首页主工作流、Decision Workspace、Alpha history/detail 以及相关 API 现在经 `query_services` / `interface_services` / integration gateway 收口，不再依赖超大混合视图
+- 运行时桥接与 provider 装配继续收口到 app-owned provider 与 `core/integration/*`，`shared/` 清理和跨模块 `infrastructure` 边界治理继续推进
+- CI 质量门禁升级：`rc-gate`、`Architecture Layer Guard`、fast-feedback workflow 与工程护栏文档现统一使用质量目标选择逻辑，开发机也同步引入 pre-commit 基线
+- 生产环境静态资源处理已加固，并清理一批冗余 vendored 前端静态包，减少部署时的历史包袱与告警噪音
 - `main` 已拉齐到最新通过 CI 的 `dev/next-development`，公开主线现在包含 2026-04-29 宏观量纲治理与 2026-04-30 异步任务可见性修复
 - Nightly、`scripts/run_full_regression.py` 与 README 中的默认 integration 口径现统一排除 `live_required`、`optional_runtime` 与 `diagnostic` 套件；需要 live server、可选运行时或脚本式诊断的测试改为显式单独执行
 - GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
@@ -77,6 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 已移除旧的 `core/integration/asset_analysis_market_sources.py` bridge，跨模块市场协作改由 app-owned provider + shared registry 暴露
 
 ### Fixed
+- 修复运行时 bridge 与测试安全 provider 漂移，`runtime_settings` / `runtime_benchmarks` / `signal` 相关读链在测试环境和降级场景下重新恢复稳定
+- 修复 workspace account id 非数字时的兼容性问题，Decision Workspace 相关读取不再因 ID 解析失败而中断
+- 修复 Decision / Simulated Trading 之间的模块循环依赖，退出建议与持仓读取链现在通过 integration bridge 解耦
+- 修复 GitHub Actions 中残留的 Node 20 shim warnings，CI 输出噪音已收敛
 - 修复 Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 这些关键异步入口在返回 `task_id` 后、worker `prerun` 前无法立即在 `task_monitor` 中看到 `pending` 记录的问题
 - 修复 Alpha `provider_filter` 单点探测失败被误写成全局 `provider_unavailable` 告警的问题，运维页不再出现 `尝试顺序: simple` 这类误导性全局故障提示
 - 修复 `docs/INDEX.md` 中 Regime Navigator 计划文档、Qlib 本地上传方案和 Alpha 快速开始等链接漂移

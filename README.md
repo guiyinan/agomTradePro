@@ -10,7 +10,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#测试)
+[![Tests](https://img.shields.io/badge/tests-5%2C487-brightgreen.svg)](#测试)
 [![Modules](https://img.shields.io/badge/业务模块-35-purple.svg)](#架构)
 [![MCP Tools](https://img.shields.io/badge/MCP_工具-318-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
@@ -25,6 +25,18 @@
 ## What's New
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
+
+### 2026-05-02
+
+- 架构治理这轮又完成了一次关键收口：`ai_provider`、`data_center`、`equity`、`policy` 等链路里残留的跨模块 `infrastructure` 直连已继续下沉，运行时 bridge 责任也进一步收口到 app-owned provider 与 `core/integration/*`
+- 运行时桥接与测试安全 provider 已恢复到稳定状态，`runtime_settings` / `runtime_benchmarks` / `signal` 相关读链在测试环境和降级环境下不再依赖脆弱的旧桥接路径
+- CI 质量门禁继续加严：新增 `ci-fast-feedback.yml`、`scripts/select_quality_targets.py` 和 `.pre-commit-config.yaml`，`rc-gate` / 架构护栏文档与规则同步升级，GitHub Actions 里的 Node 20 shim 警告也一并清掉
+
+### 2026-05-01
+
+- Alpha exit loop 后端主链已落地，决策节奏、信号查询、自动交易执行和任务投递这几段现在有一条端到端的退出建议链路，并补齐了对应单元回归
+- Dashboard 的 exit chain 入口已统一：首页主工作流、Decision Workspace 侧边栏、Alpha history/detail panel、metrics/stock API 现在使用一致的查询与接口服务边界，不再靠超大视图函数拼装
+- 工作台兼容性也补了一轮：非数字型 workspace account id 不再触发异常，Decision 与 Simulated Trading 之间的模块循环依赖已拆开；同时生产环境静态资源处理更稳，仓库里的冗余 vendored 前端包已清理
 
 ### 2026-04-30
 

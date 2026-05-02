@@ -10,7 +10,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-5%2C487-brightgreen.svg)](#testing)
 [![Modules](https://img.shields.io/badge/business_modules-35-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-318-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
@@ -25,6 +25,18 @@
 ## What's New
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-05-02
+
+- Another architecture-governance pass is now closed out: remaining cross-module `infrastructure` reach-through in paths such as `ai_provider`, `data_center`, `equity`, and `policy` has been pushed further behind app-owned providers and `core/integration/*`
+- Runtime bridges and test-safe provider paths are stable again, so `runtime_settings`, `runtime_benchmarks`, and related `signal` reads no longer depend on brittle legacy bridge wiring in test or degraded environments
+- CI quality gates were tightened again: the repo now includes `ci-fast-feedback.yml`, `scripts/select_quality_targets.py`, and `.pre-commit-config.yaml`, with the `rc-gate` and architecture-guardrail rules/docs updated in the same pass; the GitHub Actions Node 20 shim warnings were removed too
+
+### 2026-05-01
+
+- The Alpha exit loop backend is now in place, giving decision-rhythm, signal-query, auto-trading execution, and task-dispatch flows one end-to-end exit-advice path backed by new regression coverage
+- Dashboard exit-chain entry points are now unified: the homepage workflow, Decision Workspace sidebar, Alpha history/detail panel, and metrics/stock APIs all route through consistent query and interface-service boundaries instead of oversized mixed views
+- Workspace compatibility also improved in this pass: non-numeric workspace account ids no longer break the flow, the Decision/Simulated Trading module cycle has been split, and production static-asset handling is more robust after cleaning out redundant vendored frontend bundles
 
 ### 2026-04-30
 
