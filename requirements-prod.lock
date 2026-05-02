@@ -79,7 +79,7 @@ colorama==0.4.6
     #   tqdm
 cron-descriptor==1.4.5
     # via django-celery-beat
-cryptography==46.0.5
+cryptography==47.0.0
     # via -r requirements-prod.txt
 curl-cffi==0.14.0
     # via akshare
@@ -255,7 +255,7 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.32.5
+requests==2.33.1
     # via
     #   -r requirements-prod.txt
     #   akshare
@@ -358,5 +358,7 @@ webencodings==0.5.1
     # via html5lib
 websocket-client==1.9.0
     # via tushare
+whitenoise==6.12.0
+    # via -r requirements-prod.txt
 xlrd==2.0.2
     # via akshare
