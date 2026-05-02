@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import DatabaseError, models
 from django.utils import timezone
 
+from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.dashboard.domain.entities import (
     AlertConfig,
     AlertSeverity,
@@ -23,6 +24,7 @@ from apps.dashboard.domain.entities import (
     WidgetType,
 )
 from apps.dashboard.domain.services import LayoutResolutionResult
+from apps.fund.infrastructure.models import FundHoldingModel
 
 from .models import (
     AlphaRecommendationRunModel,
@@ -53,6 +55,17 @@ class DashboardAlphaContextRepository:
         local_context = self._integration_gateway.get_stock_context_map(codes)
 
         asset_context = self._load_data_center_asset_context(codes, code_aliases)
+        legacy_holding_context = self._load_legacy_holding_asset_context(
+            [
+                code
+                for code in codes
+                if not (
+                    (local_context.get(code, {}) or {}).get("name")
+                    or (asset_context.get(code, {}) or {}).get("name")
+                )
+            ],
+            code_aliases,
+        )
         quote_context = self._load_data_center_quote_context(codes, code_aliases)
 
         context: dict[str, dict[str, Any]] = {}
@@ -64,9 +77,10 @@ class DashboardAlphaContextRepository:
                 "market": str(latest_daily.get("market") or ""),
             }
             master_info = asset_context.get(code, {})
+            legacy_info = legacy_holding_context.get(code, {})
             info.update(
                 {
-                    "name": info.get("name") or master_info.get("name") or "",
+                    "name": info.get("name") or master_info.get("name") or legacy_info.get("name") or "",
                     "sector": info.get("sector") or master_info.get("sector") or "",
                     "market": info.get("market") or master_info.get("market") or "",
                     "close": float(
@@ -122,6 +136,36 @@ class DashboardAlphaContextRepository:
                     "sector": asset.sector or asset.industry or "",
                     "market": asset.exchange,
                 }
+                break
+        return context
+
+    def _load_legacy_holding_asset_context(
+        self,
+        codes: list[str],
+        code_aliases: dict[str, set[str]],
+    ) -> dict[str, dict[str, str]]:
+        context: dict[str, dict[str, str]] = {}
+        for code in codes:
+            normalized_code = str(code).strip().upper()
+            for alias in code_aliases.get(normalized_code, {normalized_code}):
+                holding = (
+                    FundHoldingModel._default_manager.filter(stock_code=alias)
+                    .exclude(stock_name__exact="")
+                    .order_by("-report_date", "-id")
+                    .first()
+                )
+                if holding is None:
+                    continue
+
+                stock_name = str(holding.stock_name or "").strip()
+                if not stock_name:
+                    continue
+
+                context[normalized_code] = {"name": stock_name}
+                AssetMasterModel._default_manager.update_or_create(
+                    code=normalized_code,
+                    defaults={"name": stock_name},
+                )
                 break
         return context
 

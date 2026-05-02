@@ -2,6 +2,7 @@
 Login page object for authentication testing.
 """
 import re
+import time
 
 from playwright.sync_api import Page, expect
 
@@ -71,7 +72,7 @@ class LoginPage(BasePage):
         if remember_me:
             self.check(auth.remember_me)
 
-        self.click(auth.login_btn)
+        self.page.locator(auth.login_btn).first.click(no_wait_after=True)
 
     def login_as_admin(self) -> None:
         """Login as admin user."""
@@ -89,8 +90,28 @@ class LoginPage(BasePage):
 
     def assert_login_success(self) -> None:
         """Assert that login was successful."""
-        # Should redirect away from login page
-        expect(self.page).not_to_have_url(re.compile(r".*/account/login/.*"))
+        success_selectors = (
+            'a:has-text("系统首页")',
+            'a[href="/dashboard/"]',
+            ".dashboard-grid",
+            ".sidebar-card",
+            ".stat-card",
+        )
+        deadline = time.monotonic() + (config.navigation_timeout / 1000)
+        while time.monotonic() < deadline:
+            current_url = self.page.url or ""
+            if "/dashboard/" in current_url or not re.search(r".*/account/login/.*", current_url):
+                return
+            for selector in success_selectors:
+                try:
+                    if self.page.locator(selector).count() > 0:
+                        return
+                except Exception:
+                    continue
+            self.page.wait_for_timeout(250)
+        if "/dashboard/" in (self.page.url or ""):
+            return
+        raise AssertionError(f"Login did not complete successfully, current URL: {self.page.url}")
 
     def assert_login_failed(self) -> None:
         """Assert that login failed."""

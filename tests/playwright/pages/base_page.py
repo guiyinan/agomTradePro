@@ -36,19 +36,19 @@ class BasePage:
             path: URL path to navigate to
         """
         full_url = f"{self.base_url}{path}"
-        self.page.goto(full_url, wait_until="networkidle", timeout=config.navigation_timeout)
+        self.page.goto(full_url, wait_until="load", timeout=config.navigation_timeout)
 
     def reload(self) -> None:
         """Reload the current page."""
-        self.page.reload(wait_until="networkidle")
+        self.page.reload(wait_until="load")
 
     def go_back(self) -> None:
         """Navigate back in browser history."""
-        self.page.go_back(wait_until="networkidle")
+        self.page.go_back(wait_until="load")
 
     def go_forward(self) -> None:
         """Navigate forward in browser history."""
-        self.page.go_forward(wait_until="networkidle")
+        self.page.go_forward(wait_until="load")
 
     def get_current_url(self) -> str:
         """Get the current page URL.
@@ -70,7 +70,7 @@ class BasePage:
 
     # Wait Methods
 
-    def wait_for_load_state(self, state: str = "networkidle") -> None:
+    def wait_for_load_state(self, state: str = "load") -> None:
         """Wait for a specific load state.
 
         Args:

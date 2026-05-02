@@ -19,7 +19,10 @@ def test_high_risk_write_paths_use_transactions() -> None:
     assert "with transaction.atomic()" in strategy_views
     assert "with transaction.atomic()" in beta_gate_views
     assert "transaction.on_commit" in regime_views
-    assert "with transaction.atomic()" in account_views
+    assert "with transaction.atomic()" not in account_views
+    assert "interface_services.register_user(" in account_views
+    assert "interface_services.update_system_settings(" in account_views
+    assert "interface_services.create_self_token(" in account_views
 
 
 def test_prompt_force_reload_no_longer_deletes_before_recreate() -> None:

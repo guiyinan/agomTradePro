@@ -5,10 +5,12 @@
 """
 
 from datetime import UTC, date, datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
 
+from apps.policy.application.use_cases import FetchRSSOutput
 from apps.policy.domain.entities import PolicyLevel
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
 
@@ -141,11 +143,22 @@ class TestWorkbenchFetchAPI:
             category='policy'
         )
 
-        response = auth_client.post(
-            '/api/policy/workbench/fetch/',
-            data={'source_id': source.id},
-            format='json'
-        )
+        with patch(
+            "apps.policy.interface.workbench_api_views.FetchRSSUseCase.execute",
+            return_value=FetchRSSOutput(
+                success=True,
+                sources_processed=1,
+                total_items=3,
+                new_policy_events=2,
+                errors=[],
+                details=[{"source_name": source.name, "items_count": 3, "new_events_count": 2}],
+            ),
+        ):
+            response = auth_client.post(
+                '/api/policy/workbench/fetch/',
+                data={'source_id': source.id},
+                format='json'
+            )
 
         assert response.status_code == 200
         data = response.json()

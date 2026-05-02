@@ -115,6 +115,7 @@ def page(browser: Browser, base_url: str) -> Generator[Page, None, None]:
 
     # Set default timeout
     page.set_default_timeout(config.default_timeout)
+    page.set_default_navigation_timeout(config.navigation_timeout)
 
     yield page
 
@@ -168,9 +169,10 @@ def authenticated_page(page: Page, base_url: str) -> Generator[Page, None, None]
 
     # Perform login
     login.login_as_admin()
+    login.assert_login_success()
 
     # Wait for navigation after login
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("load")
 
     yield page
 
@@ -190,7 +192,8 @@ def screenshot_on_failure(request, page: Page):
     """Take screenshot on test failure."""
     yield
 
-    if request.node.rep_call.failed and request.config.getoption("--screenshot-on-failure"):
+    rep_call = getattr(request.node, "rep_call", None)
+    if rep_call and rep_call.failed and request.config.getoption("--screenshot-on-failure"):
         # Create screenshot directory if needed
         screenshot_dir = Path(config.screenshot_dir) / "errors"
         screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -202,7 +205,21 @@ def screenshot_on_failure(request, page: Page):
         filepath = screenshot_dir / filename
 
         # Take screenshot
-        page.screenshot(path=str(filepath), full_page=True)
+        try:
+            page.screenshot(
+                path=str(filepath),
+                full_page=True,
+                timeout=config.screenshot_timeout,
+            )
+        except Exception:
+            try:
+                page.screenshot(
+                    path=str(filepath),
+                    full_page=False,
+                    timeout=config.screenshot_timeout,
+                )
+            except Exception:
+                pass
         print(f"\nScreenshot saved to: {filepath}")
 
 

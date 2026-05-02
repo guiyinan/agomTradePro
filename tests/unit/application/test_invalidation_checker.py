@@ -58,7 +58,12 @@ class TestInvalidationCheckServiceIntegration:
 
     def test_pending_signal_becomes_rejected(self):
         """测试 pending 信号证伪条件满足时变为 rejected 状态"""
-        service = InvalidationCheckService()
+        signal_repository = Mock()
+        signal_repository.persist_invalidation_outcome.return_value = True
+        service = InvalidationCheckService(
+            signal_repository=signal_repository,
+            macro_repository=Mock(),
+        )
 
         # Create mock signal
         signal_model = Mock(spec=InvestmentSignalModel)
@@ -71,14 +76,24 @@ class TestInvalidationCheckServiceIntegration:
         # Call _invalidate_signal with pending status
         service._invalidate_signal(signal_model, result, current_status='pending')
 
-        # Verify status became rejected
-        assert signal_model.status == 'rejected'
-        assert signal_model.rejection_reason == "PMI 跌破 50"
-        signal_model.save.assert_called_once()
+        signal_repository.persist_invalidation_outcome.assert_called_once_with(
+            signal_id="1",
+            current_status="pending",
+            reason="PMI 跌破 50",
+            details={
+                "reason": "PMI 跌破 50",
+                "checked_conditions": result.checked_conditions,
+            },
+        )
 
     def test_approved_signal_becomes_invalidated(self):
         """测试 approved 信号证伪条件满足时变为 invalidated 状态"""
-        service = InvalidationCheckService()
+        signal_repository = Mock()
+        signal_repository.persist_invalidation_outcome.return_value = True
+        service = InvalidationCheckService(
+            signal_repository=signal_repository,
+            macro_repository=Mock(),
+        )
 
         # Create mock signal
         signal_model = Mock(spec=InvestmentSignalModel)
@@ -88,19 +103,17 @@ class TestInvalidationCheckServiceIntegration:
         # Create mock result
         result = _make_check_result(is_invalidated=True, reason="PMI 跌破 50")
 
-        # Mock timezone.now()
-        with patch('apps.signal.application.invalidation_checker.timezone') as mock_tz:
-            mock_now = datetime.now()
-            mock_tz.now.return_value = mock_now
+        service._invalidate_signal(signal_model, result, current_status='approved')
 
-            # Call _invalidate_signal with approved status
-            service._invalidate_signal(signal_model, result, current_status='approved')
-
-        # Verify status became invalidated
-        assert signal_model.status == 'invalidated'
-        assert signal_model.rejection_reason == "PMI 跌破 50"
-        assert signal_model.invalidated_at == mock_now
-        signal_model.save.assert_called_once()
+        signal_repository.persist_invalidation_outcome.assert_called_once_with(
+            signal_id="2",
+            current_status="approved",
+            reason="PMI 跌破 50",
+            details={
+                "reason": "PMI 跌破 50",
+                "checked_conditions": result.checked_conditions,
+            },
+        )
 
     def test_check_signal_model_returns_none_for_rejected(self, invalidation_rule):
         """测试 rejected 信号返回 None"""
@@ -242,7 +255,12 @@ class TestInvalidationCheckServiceIntegration:
 
     def test_pending_signal_with_satisfied_invalidation_gets_rejected(self, invalidation_rule):
         """测试证伪条件满足的 pending 信号被标记为 rejected"""
-        service = InvalidationCheckService()
+        signal_repository = Mock()
+        signal_repository.persist_invalidation_outcome.return_value = True
+        service = InvalidationCheckService(
+            signal_repository=signal_repository,
+            macro_repository=Mock(),
+        )
 
         # Create a pending signal
         signal_model = Mock(spec=InvestmentSignalModel)
@@ -264,20 +282,33 @@ class TestInvalidationCheckServiceIntegration:
             )
             mock_repo.get_history_by_code.return_value = []
 
-            result = service._check_signal_model(signal_model)
+            check_result = service._check_signal_model(signal_model)
 
-        # Verify the signal was rejected (not invalidated)
-        assert signal_model.status == 'rejected'
-        assert signal_model.rejection_reason is not None
-        # For pending signals, invalidated_at should not be set
-        # (the Mock object might have the attribute, but we check the status change)
+        assert check_result is not None
+        assert check_result.is_invalidated is True
+        signal_repository.persist_invalidation_outcome.assert_called_once_with(
+            signal_id="8",
+            current_status="pending",
+            reason=check_result.reason,
+            details={
+                "reason": check_result.reason,
+                "checked_conditions": check_result.checked_conditions,
+            },
+        )
 
     def test_approved_signal_with_satisfied_invalidation_gets_invalidated(self, invalidation_rule):
         """测试证伪条件满足的 approved 信号被标记为 invalidated"""
-        service = InvalidationCheckService()
+        signal_repository = Mock()
+        signal_repository.persist_invalidation_outcome.return_value = True
+        service = InvalidationCheckService(
+            signal_repository=signal_repository,
+            macro_repository=Mock(),
+        )
 
         # Create an approved signal
         signal_model = Mock(spec=InvestmentSignalModel)
+        signal_model.id = 9
+        signal_model.asset_code = "000001.SH"
         entity = Mock()
         entity.id = "9"
         entity.status = SignalStatus.APPROVED
@@ -293,12 +324,19 @@ class TestInvalidationCheckServiceIntegration:
             )
             mock_repo.get_history_by_code.return_value = []
 
-            result = service._check_signal_model(signal_model)
+            check_result = service._check_signal_model(signal_model)
 
-        # Verify the signal was invalidated
-        assert signal_model.status == 'invalidated'
-        assert signal_model.invalidated_at is not None
-        assert signal_model.rejection_reason is not None
+        assert check_result is not None
+        assert check_result.is_invalidated is True
+        signal_repository.persist_invalidation_outcome.assert_called_once_with(
+            signal_id="9",
+            current_status="approved",
+            reason=check_result.reason,
+            details={
+                "reason": check_result.reason,
+                "checked_conditions": check_result.checked_conditions,
+            },
+        )
 
     @pytest.mark.django_db
     def test_default_macro_repository_reads_data_center(self, invalidation_rule):

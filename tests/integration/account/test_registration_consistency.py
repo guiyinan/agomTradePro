@@ -67,7 +67,7 @@ class TestRegistrationConsistency(TestCase):
     def test_register_rolls_back_user_when_provisioning_fails(self) -> None:
         """A provisioning failure should not leave a half-created user behind."""
         with patch(
-            "apps.account.interface.views._provision_registered_user",
+            "apps.account.infrastructure.repositories.AccountInterfaceRepository.provision_registered_user",
             side_effect=RuntimeError("boom"),
         ):
             response = self._post_registration("reg_consistency_failure")

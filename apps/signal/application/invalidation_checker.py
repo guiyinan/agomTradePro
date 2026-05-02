@@ -258,20 +258,16 @@ class InvalidationCheckService:
         # Legacy path for old callers/tests passing ORM model directly.
         if hasattr(signal, "save") and not isinstance(signal, InvestmentSignal):
             status = str(current_status or getattr(signal, "status", "") or "").lower()
-            signal.rejection_reason = result.reason
-
-            if status == "pending":
-                signal.status = "rejected"
-            else:
-                signal.status = "invalidated"
-                signal.invalidated_at = timezone.now()
-
-            if hasattr(signal, "invalidation_details"):
-                signal.invalidation_details = {
-                    "reason": result.reason,
-                    "checked_conditions": result.checked_conditions,
-                }
-            signal.save()
+            details = {
+                "reason": result.reason,
+                "checked_conditions": result.checked_conditions,
+            }
+            self.signal_repository.persist_invalidation_outcome(
+                signal_id=str(getattr(signal, "id")),
+                current_status=status,
+                reason=result.reason,
+                details=details,
+            )
             return
 
         details = {

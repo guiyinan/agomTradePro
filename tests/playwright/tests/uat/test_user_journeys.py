@@ -74,6 +74,7 @@ class TestJourneyA:
         """A1: After login, user should be redirected to dashboard."""
         login_page.goto()
         login_page.login_as_admin()
+        login_page.assert_login_success()
 
         # Wait for navigation
         login_page.page.wait_for_load_state("networkidle")
@@ -428,7 +429,6 @@ class TestGlobalExperienceBaseline:
     @pytest.mark.global_experience
     def test_feedback_loading_states(self, authenticated_page: Page) -> None:
         """Feedback: loading, success, failure, empty states are perceivable."""
-        authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
         _assert_has_any(
             authenticated_page,
@@ -465,6 +465,8 @@ class TestGlobalExperienceBaseline:
 
         login_page.goto()
         login_page.login_as_admin()
+        login_page.assert_login_success()
+        page.wait_for_load_state("networkidle")
 
         page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(page)

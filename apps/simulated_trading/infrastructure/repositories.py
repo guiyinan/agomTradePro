@@ -808,6 +808,38 @@ class DjangoTradeRepository:
             "total_realized_pnl": total_realized_pnl,
         }
 
+    def get_by_date_range(
+        self,
+        account_id: int,
+        start_date: date,
+        end_date: date,
+    ) -> list[SimulatedTrade]:
+        """获取日期范围内的交易记录。"""
+
+        models = SimulatedTradeModel._default_manager.filter(
+            account_id=account_id,
+            execution_date__gte=start_date,
+            execution_date__lte=end_date,
+        ).order_by("-execution_date", "-execution_time")
+        return [SimulatedTradeMapper.to_entity(m) for m in models]
+
+    def get_by_asset(self, account_id: int, asset_code: str) -> list[SimulatedTrade]:
+        """获取特定资产的所有交易记录。"""
+
+        models = SimulatedTradeModel._default_manager.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        ).order_by("-execution_date", "-execution_time")
+        return [SimulatedTradeMapper.to_entity(m) for m in models]
+
+    def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
+        """按执行日期统计交易数。"""
+
+        return SimulatedTradeModel._default_manager.filter(
+            account_id=account_id,
+            execution_date=execution_date,
+        ).count()
+
 
 class DjangoPositionMutationRepository:
     """Coordinate multi-table position mutations inside infrastructure transactions."""
