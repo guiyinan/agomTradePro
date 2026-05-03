@@ -184,7 +184,8 @@ def test_indicator_catalog_seed_contains_governance_console_metadata():
     assert gdp.extra["governance_scope"] == "macro_console"
     assert gdp.extra["governance_sync_supported"] is True
 
-    assert cpi_yoy.extra["governance_scope"] == "macro_console"
+    assert cpi_yoy.extra["governance_scope"] == "macro_compat_alias"
+    assert cpi_yoy.extra["alias_of_indicator_code"] == "CN_CPI_NATIONAL_YOY"
     assert cpi_yoy.extra["governance_sync_supported"] is False
 
     assert social_financing_yoy.extra["governance_scope"] == "macro_console"
