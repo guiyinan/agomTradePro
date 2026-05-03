@@ -8,6 +8,7 @@ import json
 from datetime import date
 from typing import Any, List, Optional
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.db import transaction
 from django.utils import timezone
@@ -38,6 +39,14 @@ class DjangoSignalRepository:
     def get_all(self) -> list[InvestmentSignal]:
         query = self._model.objects.all().order_by("-created_at")
         return [self._orm_to_entity(obj) for obj in query]
+
+    def _get_signal_record_by_id(self, signal_id: str) -> InvestmentSignalModel | None:
+        """Return one ORM signal record or None for invalid/nonexistent ids."""
+
+        try:
+            return self._model._default_manager.filter(id=signal_id).first()
+        except (TypeError, ValueError, ValidationError):
+            return None
 
     def save(self, entity: InvestmentSignal) -> InvestmentSignal:
         return self.save_signal(entity)
@@ -126,11 +135,10 @@ class DjangoSignalRepository:
         Returns:
             Optional[InvestmentSignal]: 信号实体，不存在则返回 None
         """
-        try:
-            orm_obj = self._model.objects.get(id=signal_id)
-            return self._orm_to_entity(orm_obj)
-        except self._model.DoesNotExist:
+        orm_obj = self._get_signal_record_by_id(signal_id)
+        if orm_obj is None:
             return None
+        return self._orm_to_entity(orm_obj)
 
     def get_signals_by_asset(
         self,
@@ -267,7 +275,7 @@ class DjangoSignalRepository:
     def get_signal_payload(self, signal_id: str) -> dict[str, Any] | None:
         """Return one serialized signal payload by id."""
 
-        signal = self._model._default_manager.filter(id=signal_id).first()
+        signal = self._get_signal_record_by_id(signal_id)
         if signal is None:
             return None
         return self._serialize_signal_record(signal)
@@ -313,9 +321,8 @@ class DjangoSignalRepository:
     ) -> dict[str, Any] | None:
         """Update arbitrary signal fields and return the serialized payload."""
 
-        try:
-            signal = self._model._default_manager.get(id=signal_id)
-        except self._model.DoesNotExist:
+        signal = self._get_signal_record_by_id(signal_id)
+        if signal is None:
             return None
 
         update_fields: list[str] = []
@@ -337,9 +344,8 @@ class DjangoSignalRepository:
     ) -> dict[str, Any] | None:
         """Update one signal status and return public fields."""
 
-        try:
-            signal = self._model._default_manager.get(id=signal_id)
-        except self._model.DoesNotExist:
+        signal = self._get_signal_record_by_id(signal_id)
+        if signal is None:
             return None
 
         signal.status = status
@@ -354,7 +360,7 @@ class DjangoSignalRepository:
     def delete_signal_record(self, signal_id: str) -> str | None:
         """Delete one signal record and return its asset code if found."""
 
-        signal = self._model._default_manager.filter(id=signal_id).first()
+        signal = self._get_signal_record_by_id(signal_id)
         if signal is None:
             return None
         asset_code = signal.asset_code

@@ -36,6 +36,7 @@ class SignalViewSet(viewsets.GenericViewSet):
 
     提供以下接口:
     - GET /api/signal/ - 获取信号列表
+    - GET /api/signal/active/ - 获取已批准信号（兼容旧调用）
     - POST /api/signal/ - 创建信号
     - GET /api/signal/{id}/ - 获取信号详情
     - PUT /api/signal/{id}/ - 更新信号
@@ -54,20 +55,30 @@ class SignalViewSet(viewsets.GenericViewSet):
             return InvestmentSignalUpdateSerializer
         return InvestmentSignalSerializer
 
-    def list(self, request):
-        """List signals via application query services."""
+    def _build_list_response(self, request, *, status_override: str | None = None):
+        """Return a filtered signal list response."""
 
         query_serializer = SignalListQuerySerializer(data=request.query_params)
         query_serializer.is_valid(raise_exception=True)
         data = query_serializer.validated_data
         signals = list_investment_signal_payloads(
-            status_filter=data.get("status") or "",
+            status_filter=status_override if status_override is not None else data.get("status") or "",
             asset_class=data.get("asset_class") or "",
             direction=data.get("direction") or "",
             search=data.get("search") or "",
             limit=data.get("limit", 50),
         )
         return Response(InvestmentSignalSerializer(signals, many=True).data)
+
+    def list(self, request):
+        """List signals via application query services."""
+        return self._build_list_response(request)
+
+    @action(detail=False, methods=["get"])
+    def active(self, request):
+        """Return approved signals for backward-compatible clients."""
+
+        return self._build_list_response(request, status_override="approved")
 
     def retrieve(self, request, pk=None):
         """Retrieve one signal payload."""

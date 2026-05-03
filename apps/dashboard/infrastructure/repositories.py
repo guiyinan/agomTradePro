@@ -98,6 +98,24 @@ class DashboardAlphaContextRepository:
                         if latest_daily.get("trade_date")
                         else None
                     ),
+                    "report_date": (
+                        latest_daily.get("report_date").isoformat()
+                        if latest_daily.get("report_date")
+                        else None
+                    ),
+                    "roe": latest_daily.get("roe"),
+                    "debt_ratio": latest_daily.get("debt_ratio"),
+                    "revenue_growth": latest_daily.get("revenue_growth"),
+                    "profit_growth": latest_daily.get("profit_growth"),
+                    "valuation_trade_date": (
+                        latest_daily.get("valuation_trade_date").isoformat()
+                        if latest_daily.get("valuation_trade_date")
+                        else None
+                    ),
+                    "pe": latest_daily.get("pe"),
+                    "pb": latest_daily.get("pb"),
+                    "ps": latest_daily.get("ps"),
+                    "dividend_yield": latest_daily.get("dividend_yield"),
                     "quote_snapshot_at": quote_context.get(code, {}).get("snapshot_at"),
                     "quote_source": quote_context.get(code, {}).get("source", ""),
                 }

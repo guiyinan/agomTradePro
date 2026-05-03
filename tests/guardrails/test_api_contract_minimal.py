@@ -40,6 +40,7 @@ API_ENDPOINTS = [
     ("/api/alpha/recommendations/", "Alpha recommendations", False),  # 可能返回 400
     ("/api/asset-analysis/screen/", "Asset analysis screen", False),  # POST 接口
     ("/api/realtime/prices/", "Realtime prices", True),
+    ("/api/signal/active/", "Signal approved list alias", True),
 
     # 已验证的合同测试
     ("/signal/", "Signal list", False),  # 可能返回 HTML redirect
@@ -131,6 +132,20 @@ class TestCriticalBusinessAPIs:
         # 测试 signal list
         response = client.get("/api/signal/")
         assert response.status_code != 501
+
+        # 测试 active alias
+        response = client.get("/api/signal/active/")
+        assert response.status_code != 501
+        if response.status_code == 200:
+            assert response.headers["Content-Type"].startswith("application/json")
+
+    def test_signal_invalid_lookup_returns_json_404(self):
+        """Signal 非法详情路径应返回 DRF JSON 404，而不是 HTML/500"""
+        client = _build_authenticated_client()
+        response = client.get("/api/signal/not-a-valid-id/")
+
+        assert response.status_code == 404
+        assert response.headers["Content-Type"].startswith("application/json")
 
     def test_events_api_no_501(self):
         """Events 系统 API 不应返回 501"""

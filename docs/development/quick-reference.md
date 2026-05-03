@@ -284,6 +284,7 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/api/signal/` | GET/POST | 列出/创建信号 (需认证) |
+| `/api/signal/active/` | GET | 获取已批准信号；等价于 `/api/signal/?status=approved` (需认证) |
 | `/api/signal/{id}/` | GET | 获取信号详情 (需认证) |
 | `/api/signal/health/` | GET | 健康检查 (需认证) |
 | `/signal/manage/` | GET | 信号管理页面 |

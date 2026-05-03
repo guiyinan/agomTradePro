@@ -2,6 +2,7 @@
 Smoke tests for critical user paths.
 Tests that all major pages render their core UI contracts.
 """
+import json
 import re
 import time
 from collections.abc import Iterable
@@ -253,6 +254,32 @@ def _assert_equity_contract(page: Page) -> None:
     _assert_card_style(page, ".screen-workflow-step")
 
 
+def _assert_equity_result_metrics(page: Page) -> None:
+    """Assert the auto-loaded equity result table renders key financial metrics."""
+    expect(page.locator("#resultsCard")).to_be_visible(timeout=15000)
+    _assert_min_count(page, "#resultsTableBody tr", 1)
+    assert _wait_for_non_placeholder_text(
+        page,
+        "#resultsTableBody tr:first-child td:nth-child(5)",
+    ) == "12.30"
+    assert _wait_for_non_placeholder_text(
+        page,
+        "#resultsTableBody tr:first-child td:nth-child(6)",
+    ) == "5.60"
+    assert _wait_for_non_placeholder_text(
+        page,
+        "#resultsTableBody tr:first-child td:nth-child(7)",
+    ) == "0.72"
+    assert _wait_for_non_placeholder_text(
+        page,
+        "#resultsTableBody tr:first-child td:nth-child(8)",
+    ) == "15.60"
+    assert _wait_for_non_placeholder_text(
+        page,
+        "#resultsTableBody tr:first-child td:nth-child(9)",
+    ) == "18.20"
+
+
 def _assert_fund_contract(page: Page) -> None:
     """Assert fund dashboard renders macro context and scoring table."""
     _assert_page_shell(page, "/fund/dashboard/")
@@ -411,6 +438,83 @@ class TestCriticalPaths:
         """Test that equity screening page loads."""
         authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
         _assert_equity_contract(authenticated_page)
+
+    def test_equity_screen_renders_dashboard_alpha_financial_columns(
+        self,
+        authenticated_page: Page,
+    ) -> None:
+        """Test that dashboard alpha payload fields reach the equity result table."""
+        authenticated_page.route(
+            "**/api/dashboard/alpha/stocks/**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "items": [
+                                {
+                                    "code": "000001.SZ",
+                                    "name": "平安银行",
+                                    "sector": "银行",
+                                    "market": "SZ",
+                                    "roe": 12.3,
+                                    "pe": 5.6,
+                                    "pb": 0.72,
+                                    "revenue_growth": 15.6,
+                                    "profit_growth": 18.2,
+                                    "score": 0.913,
+                                    "confidence": 0.88,
+                                    "source": "cache",
+                                    "rank": 1,
+                                    "asof_date": "2026-05-02",
+                                }
+                            ],
+                            "top_candidates": [],
+                            "actionable_candidates": [],
+                            "exit_watchlist": [],
+                            "exit_watch_summary": {},
+                            "pending_requests": [],
+                            "meta": {
+                                "status": "available",
+                                "source": "cache",
+                                "recommendation_ready": False,
+                                "must_not_use_for_decision": True,
+                                "readiness_status": "research_only",
+                                "blocked_reason": "仅研究。",
+                                "scope_verification_status": "general_universe",
+                            },
+                            "pool": {
+                                "alpha_scope": "general",
+                                "label": "通用 Alpha 研究池",
+                                "pool_size": 1,
+                                "pool_mode": "market",
+                            },
+                            "recent_runs": [],
+                            "history_run_id": None,
+                            "contract": {
+                                "recommendation_ready": False,
+                                "must_not_treat_as_recommendation": True,
+                                "readiness_status": "research_only",
+                                "scope_verification_status": "general_universe",
+                                "freshness_status": "",
+                                "blocked_reason": "仅研究。",
+                                "verified_scope_hash": "",
+                            },
+                            "alpha_scope": "general",
+                            "count": 1,
+                            "top_n": 10,
+                        },
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+        )
+
+        authenticated_page.goto(f"{config.base_url}{config.equity_screen_url}")
+        _assert_equity_contract(authenticated_page)
+        _assert_equity_result_metrics(authenticated_page)
 
     def test_fund_dashboard_loads(self, authenticated_page: Page) -> None:
         """Test that fund dashboard page loads."""

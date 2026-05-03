@@ -234,6 +234,7 @@ POST /policy/events/new/
 | 端点 | 方法 | 描述 |
 |------|------|------|
 | `/api/signal/` | GET/POST | 获取/创建投资信号 (需认证) |
+| `/api/signal/active/` | GET | 获取已批准信号；兼容旧调用，推荐新调用使用 `/api/signal/?status=approved` (需认证) |
 | `/api/signal/{id}/` | GET | 获取信号详情 (需认证) |
 | `/api/signal/health/` | GET | 信号模块健康检查 (需认证) |
 | `/signal/manage/` | GET | 信号管理页面 |
@@ -243,6 +244,10 @@ POST /policy/events/new/
 ```bash
 # 获取信号列表 (需要认证)
 GET /api/signal/
+Authorization: Token your_api_token_here
+
+# 获取已批准信号 (推荐也可用 /api/signal/?status=approved)
+GET /api/signal/active/
 Authorization: Token your_api_token_here
 
 # 健康检查 (需要认证)

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 新增 Dashboard Alpha candidate 到 `/equity/screen/` 的自动化回归覆盖：API 契约测试锁 `ROE / PE / PB / 营收增长 / 净利润增长` 字段，Playwright smoke 锁结果表最终渲染
 - 新增 Alpha exit loop 后端主链，串起 `decision_rhythm` 退出建议、`signal` 查询、自动交易执行与任务投递，并补齐 `tests/unit/test_alpha_exit_loop_end_to_end.py` 等一组端到端回归
 - Dashboard 新增 Alpha exit 细节面板、history/detail 页面与 metrics/stock API 入口，首页主工作流和 Decision Workspace 侧边栏现在都能复用同一套退出链上下文
 - 新增 `scripts/select_quality_targets.py`、`.github/workflows/ci-fast-feedback.yml`、`.pre-commit-config.yaml` 与对应测试，用统一质量目标选择器驱动更快的 CI 反馈
@@ -39,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
+- `/equity/screen/` 结果表现在会为首页带入的 Dashboard Alpha 候选补齐最新 `ROE / PE / PB / 营收增长 / 净利润增长` 上下文，不再只显示综合评分
 - Dashboard 退出链入口已统一：首页主工作流、Decision Workspace、Alpha history/detail 以及相关 API 现在经 `query_services` / `interface_services` / integration gateway 收口，不再依赖超大混合视图
 - 运行时桥接与 provider 装配继续收口到 app-owned provider 与 `core/integration/*`，`shared/` 清理和跨模块 `infrastructure` 边界治理继续推进
 - CI 质量门禁升级：`rc-gate`、`Architecture Layer Guard`、fast-feedback workflow 与工程护栏文档现统一使用质量目标选择逻辑，开发机也同步引入 pre-commit 基线

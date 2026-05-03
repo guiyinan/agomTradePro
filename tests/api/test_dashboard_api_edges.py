@@ -58,6 +58,81 @@ def test_dashboard_alpha_stocks_rejects_invalid_top_n(client, auth_user):
 
 
 @pytest.mark.django_db
+def test_dashboard_alpha_stocks_contract_includes_equity_screen_metrics(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+
+    monkeypatch.setattr(
+        "apps.dashboard.interface.views._get_alpha_stock_scores_payload",
+        lambda **kwargs: {
+            "items": [
+                {
+                    "code": "000001.SZ",
+                    "name": "平安银行",
+                    "sector": "银行",
+                    "market": "SZ",
+                    "roe": 12.3,
+                    "debt_ratio": 80.0,
+                    "revenue_growth": 15.6,
+                    "profit_growth": 18.2,
+                    "pe": 5.6,
+                    "pb": 0.72,
+                    "ps": 1.34,
+                    "dividend_yield": 4.5,
+                    "report_date": "2026-03-31",
+                    "valuation_trade_date": "2026-05-02",
+                    "score": 0.913,
+                    "alpha_score": 0.913,
+                    "rank": 1,
+                    "stage": "top_ranked",
+                    "stage_label": "Alpha Top 候选/排名",
+                    "source": "cache",
+                    "confidence": 0.88,
+                    "buy_reasons": [],
+                    "no_buy_reasons": [],
+                }
+            ],
+            "meta": {
+                "status": "available",
+                "source": "cache",
+                "recommendation_ready": False,
+                "must_not_use_for_decision": True,
+                "readiness_status": "research_only",
+                "blocked_reason": "仅研究。",
+                "scope_verification_status": "general_universe",
+            },
+            "pool": {"label": "账户驱动 Alpha 池", "pool_size": 1, "pool_mode": "market"},
+            "actionable_candidates": [],
+            "exit_watchlist": [],
+            "exit_watch_summary": {},
+            "pending_requests": [],
+            "recent_runs": [],
+            "history_run_id": None,
+        },
+    )
+
+    response = client.get("/api/dashboard/alpha/stocks/?format=json&top_n=1")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    candidate = payload["data"]["top_candidates"][0]
+
+    assert candidate["code"] == "000001.SZ"
+    assert candidate["name"] == "平安银行"
+    assert candidate["roe"] == 12.3
+    assert candidate["pe"] == 5.6
+    assert candidate["pb"] == 0.72
+    assert candidate["revenue_growth"] == 15.6
+    assert candidate["profit_growth"] == 18.2
+    assert candidate["report_date"] == "2026-03-31"
+    assert candidate["valuation_trade_date"] == "2026-05-02"
+
+
+@pytest.mark.django_db
 def test_dashboard_alpha_decision_chain_rejects_invalid_top_n(client, auth_user):
     client.force_login(auth_user)
 

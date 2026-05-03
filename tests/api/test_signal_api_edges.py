@@ -112,3 +112,43 @@ def test_signal_stats_returns_aggregated_counts(authenticated_client):
     assert payload["stats"]["total"] >= 2
     assert payload["stats"]["approved"] >= 1
     assert payload["stats"]["rejected"] >= 1
+
+
+@pytest.mark.django_db
+def test_signal_active_alias_returns_only_approved_signals(authenticated_client):
+    approved_signal = InvestmentSignalModel.objects.create(
+        asset_code="000001",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="Approved signal",
+        invalidation_description="PMI < 50",
+        target_regime="Recovery",
+        status="approved",
+    )
+    InvestmentSignalModel.objects.create(
+        asset_code="000002",
+        asset_class="a_share_growth",
+        direction="SHORT",
+        logic_desc="Pending signal",
+        invalidation_description="PMI > 55",
+        target_regime="Deflation",
+        status="pending",
+    )
+
+    response = authenticated_client.get("/api/signal/active/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["id"] == approved_signal.id
+    assert payload[0]["status"] == "approved"
+
+
+@pytest.mark.django_db
+def test_signal_retrieve_invalid_id_returns_json_404(authenticated_client):
+    response = authenticated_client.get("/api/signal/active-like-string/")
+
+    assert response.status_code == 404
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {"detail": "Not found."}

@@ -122,8 +122,18 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
                 "sector": "银行",
                 "market": "SZ",
                 "trade_date": None,
+                "report_date": None,
                 "close": 11.11,
                 "volume": 321.0,
+                "roe": 12.3,
+                "debt_ratio": 80.0,
+                "revenue_growth": 15.6,
+                "profit_growth": 18.2,
+                "pe": 5.6,
+                "pb": 0.72,
+                "ps": 1.34,
+                "dividend_yield": 4.5,
+                "valuation_trade_date": None,
             }
         }
     )
@@ -133,6 +143,11 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
     assert context["000001.SZ"]["name"] == "平安银行"
     assert context["000001.SZ"]["close"] == pytest.approx(11.11)
     assert context["000001.SZ"]["volume"] == pytest.approx(321.0)
+    assert context["000001.SZ"]["roe"] == pytest.approx(12.3)
+    assert context["000001.SZ"]["revenue_growth"] == pytest.approx(15.6)
+    assert context["000001.SZ"]["profit_growth"] == pytest.approx(18.2)
+    assert context["000001.SZ"]["pe"] == pytest.approx(5.6)
+    assert context["000001.SZ"]["pb"] == pytest.approx(0.72)
 
 
 def test_dashboard_alpha_context_uses_gateway_for_actionable_map():

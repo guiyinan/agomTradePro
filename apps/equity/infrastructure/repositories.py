@@ -418,7 +418,7 @@ class DjangoStockRepository:
         return resolved
 
     def get_stock_context_rows(self, stock_codes: list[str]) -> dict[str, dict[str, Any]]:
-        """Return stock info and latest daily row keyed by requested code."""
+        """Return stock info plus latest market, financial, and valuation context."""
 
         normalized_codes = [str(code).upper() for code in stock_codes if code]
         if not normalized_codes:
@@ -451,10 +451,48 @@ class DjangoStockRepository:
             if code not in daily_map:
                 daily_map[code] = row
 
+        financial_rows = (
+            FinancialDataModel._default_manager.filter(stock_code__in=list(candidate_codes))
+            .order_by("stock_code", "-report_date")
+            .values(
+                "stock_code",
+                "report_date",
+                "roe",
+                "debt_ratio",
+                "revenue_growth",
+                "net_profit_growth",
+            )
+        )
+        financial_map: dict[str, dict[str, Any]] = {}
+        for row in financial_rows:
+            code = str(row["stock_code"]).upper()
+            if code not in financial_map:
+                financial_map[code] = row
+
+        valuation_rows = (
+            ValuationModel._default_manager.filter(stock_code__in=list(candidate_codes))
+            .order_by("stock_code", "-trade_date")
+            .values(
+                "stock_code",
+                "trade_date",
+                "pe",
+                "pb",
+                "ps",
+                "dividend_yield",
+            )
+        )
+        valuation_map: dict[str, dict[str, Any]] = {}
+        for row in valuation_rows:
+            code = str(row["stock_code"]).upper()
+            if code not in valuation_map:
+                valuation_map[code] = row
+
         context: dict[str, dict[str, Any]] = {}
         for requested_code in requested_codes:
             row = {"name": "", "sector": "", "market": ""}
             latest_daily: dict[str, Any] = {}
+            latest_financial: dict[str, Any] = {}
+            latest_valuation: dict[str, Any] = {}
             for candidate in self._build_stock_code_candidates(requested_code):
                 candidate_info = info_map.get(candidate.upper())
                 if candidate_info and not any(row.values()):
@@ -465,11 +503,25 @@ class DjangoStockRepository:
                     }
                 if not latest_daily and candidate.upper() in daily_map:
                     latest_daily = daily_map[candidate.upper()]
+                if not latest_financial and candidate.upper() in financial_map:
+                    latest_financial = financial_map[candidate.upper()]
+                if not latest_valuation and candidate.upper() in valuation_map:
+                    latest_valuation = valuation_map[candidate.upper()]
             context[requested_code] = {
                 **row,
                 "trade_date": latest_daily.get("trade_date"),
                 "close": float(latest_daily.get("close") or 0.0),
                 "volume": float(latest_daily.get("volume") or 0.0),
+                "report_date": latest_financial.get("report_date"),
+                "roe": latest_financial.get("roe"),
+                "debt_ratio": latest_financial.get("debt_ratio"),
+                "revenue_growth": latest_financial.get("revenue_growth"),
+                "profit_growth": latest_financial.get("net_profit_growth"),
+                "valuation_trade_date": latest_valuation.get("trade_date"),
+                "pe": latest_valuation.get("pe"),
+                "pb": latest_valuation.get("pb"),
+                "ps": latest_valuation.get("ps"),
+                "dividend_yield": latest_valuation.get("dividend_yield"),
             }
         return context
 

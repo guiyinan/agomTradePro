@@ -21056,6 +21056,35 @@
                 }
             }
         },
+        "/api/signal/active/": {
+            "get": {
+                "operationId": "api_signal_active_get",
+                "description": "Return approved signals for backward-compatible clients.",
+                "tags": [
+                    "signal"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    },
+                    {
+                        "tokenAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InvestmentSignal"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/signal/check_eligibility/": {
             "post": {
                 "operationId": "api_signal_check_eligibility_post",
