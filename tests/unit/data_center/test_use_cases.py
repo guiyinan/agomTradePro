@@ -417,6 +417,7 @@ class TestQueryMacroSeriesUseCase:
         catalog = IndicatorCatalog(
             code="CN_PMI",
             name_cn="制造业PMI",
+            description="景气度指数",
             default_unit="指数",
             default_period_type="M",
         )
@@ -443,6 +444,7 @@ class TestQueryMacroSeriesUseCase:
 
         assert result.total == 1
         assert result.name_cn == "制造业PMI"
+        assert result.description == "景气度指数"
         assert result.data[0].value == 50.9
         assert result.data[0].quality == "valid"
 
@@ -459,6 +461,61 @@ class TestQueryMacroSeriesUseCase:
         assert result.name_cn == "CN_PMI"
         assert result.must_not_use_for_decision is True
         assert result.freshness_status == "missing"
+
+    def test_exposes_indicator_semantics_for_gdp_level_series(self):
+        fact = MacroFact(
+            indicator_code="CN_GDP",
+            reporting_period=date(2025, 3, 1),
+            value=31846640000000.0,
+            unit="元",
+            source="akshare",
+            revision_number=1,
+            published_at=date(2025, 4, 18),
+            quality=DataQualityStatus.VALID,
+            extra={
+                "original_unit": "亿元",
+                "display_unit": "亿元",
+                "multiplier_to_storage": 100000000.0,
+            },
+        )
+        catalog = IndicatorCatalog(
+            code="CN_GDP",
+            name_cn="GDP 国内生产总值累计值",
+            description="季度累计值口径，反映经济总量，不是单季值。",
+            default_unit="亿元",
+            default_period_type="Q",
+            extra={
+                "series_semantics": "cumulative_level",
+                "paired_indicator_code": "CN_GDP_YOY",
+            },
+        )
+        unit_rules = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_GDP",
+                    original_unit="亿元",
+                    storage_unit="元",
+                    display_unit="亿元",
+                    multiplier_to_storage=100000000.0,
+                )
+            ]
+        )
+
+        uc = QueryMacroSeriesUseCase(
+            _MacroFactRepo([fact]),
+            _IndicatorCatalogRepo(catalog),
+            unit_rules,
+        )
+
+        result = uc.execute(MacroSeriesRequest(indicator_code="CN_GDP"))
+
+        assert result.name_cn == "GDP 国内生产总值累计值"
+        assert "不是单季值" in result.description
+        assert result.series_semantics == "cumulative_level"
+        assert result.paired_indicator_code == "CN_GDP_YOY"
+        assert result.data[0].display_value == 318466.4
+        assert result.data[0].display_unit == "亿元"
 
 
 class TestQueryLatestQuoteUseCase:

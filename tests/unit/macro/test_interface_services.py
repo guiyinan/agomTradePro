@@ -26,12 +26,14 @@ class _FakeCatalog:
         default_unit: str,
         description: str = "",
         default_period_type: str = "M",
+        extra: dict | None = None,
     ):
         self.code = code
         self.name_cn = name_cn
         self.default_unit = default_unit
         self.description = description
         self.default_period_type = default_period_type
+        self.extra = extra or {}
 
 
 class _FakeCatalogRepository:
@@ -158,3 +160,114 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
     assert snapshot["indicator_map"]["CN_M2"]["latest_value"] == 325.4
     assert snapshot["indicator_map"]["CN_M2"]["refresh_start"] == date(2025, 4, 1)
     assert len(snapshot["history"]) == 1
+
+
+class _FakeGdpReadRepository:
+    def list_distinct_codes(self) -> list[str]:
+        return ["CN_GDP", "CN_GDP_YOY"]
+
+    def get_latest_indicator(self, code: str) -> dict | None:
+        payloads = {
+            "CN_GDP": {
+                "code": "CN_GDP",
+                "value": 31846640000000.0,
+                "display_value": 318466.4,
+                "display_unit": "亿元",
+                "unit": "元",
+                "reporting_period": date(2025, 3, 1),
+                "period_type": "Q",
+            },
+            "CN_GDP_YOY": {
+                "code": "CN_GDP_YOY",
+                "value": 5.4,
+                "display_value": 5.4,
+                "display_unit": "%",
+                "unit": "%",
+                "reporting_period": date(2025, 3, 1),
+                "period_type": "Q",
+            },
+        }
+        return payloads.get(code)
+
+    def get_indicator_rows(self, *, code: str, ascending: bool = True):
+        assert code == "CN_GDP_YOY"
+        return [
+            {
+                "id": 11,
+                "code": "CN_GDP_YOY",
+                "value": 5.4,
+                "unit": "%",
+                "display_value": 5.4,
+                "display_unit": "%",
+                "original_unit": "%",
+                "reporting_period": date(2025, 3, 1),
+                "observed_at": date(2025, 3, 1),
+                "published_at": date(2025, 4, 18),
+                "period_type": "Q",
+                "period_type_display": "季",
+                "source": "akshare",
+                "revision_number": 1,
+                "publication_lag_days": 48,
+            }
+        ]
+
+    def get_storage_summary(self) -> dict[str, object]:
+        return {
+            "total_indicators": 2,
+            "total_records": 8,
+            "latest_date": date(2025, 3, 1),
+            "min_date": date(2024, 3, 1),
+            "max_date": date(2025, 3, 1),
+        }
+
+
+class _FakeGdpCatalogRepository:
+    def list_active(self):
+        return [
+            _FakeCatalog("CN_GDP", "GDP 国内生产总值累计值", "亿元", "累计值口径", "Q"),
+            _FakeCatalog("CN_GDP_YOY", "GDP同比增速", "%", "同比口径", "Q"),
+        ]
+
+
+def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monkeypatch):
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_macro_read_repository",
+        lambda: _FakeGdpReadRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_indicator_catalog_repository",
+        lambda: _FakeGdpCatalogRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
+        classmethod(
+            lambda cls: {
+                "CN_GDP": {
+                    "name": "GDP（国内生产总值累计值）",
+                    "unit": "亿元",
+                    "description": "累计值口径",
+                    "series_semantics": "cumulative_level",
+                    "paired_indicator_code": "CN_GDP_YOY",
+                    "display_priority": 20,
+                },
+                "CN_GDP_YOY": {
+                    "name": "GDP同比增速",
+                    "unit": "%",
+                    "description": "同比口径",
+                    "series_semantics": "yoy_rate",
+                    "paired_indicator_code": "CN_GDP",
+                    "display_priority": 120,
+                },
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_active_provider_id_by_source",
+        lambda source_type: 7 if source_type == "akshare" else None,
+    )
+
+    snapshot = get_macro_data_page_snapshot()
+
+    assert snapshot["selected_indicator"] == "CN_GDP_YOY"
+    assert snapshot["indicator_map"]["CN_GDP"]["latest_period"] == "2025-Q1"
+    assert snapshot["history"][0]["reporting_period_label"] == "2025-Q1"

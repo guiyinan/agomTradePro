@@ -202,6 +202,9 @@ def test_sync_macro_use_case_stores_facts_and_audit():
     assert result.domain == "macro"
     assert result.stored_count == 1
     assert len(fact_repo.saved) == 1
+    assert fact_repo.saved[0].source == "tushare"
+    assert fact_repo.saved[0].extra["provider_name"] == "provider-main"
+    assert fact_repo.saved[0].extra["source_type"] == "tushare"
     assert len(raw_repo.items) == 1
     assert raw_repo.items[0].capability == "macro"
     assert raw_repo.items[0].status == "ok"
@@ -233,4 +236,7 @@ def test_sync_news_use_case_stores_articles_and_audit():
     assert result.stored_count == 1
     assert len(news_repo.saved) == 1
     assert news_repo.saved[0].external_id == "news-1"
+    assert news_repo.saved[0].source == "tushare"
+    assert news_repo.saved[0].extra["provider_name"] == "provider-main"
+    assert news_repo.saved[0].extra["source_type"] == "tushare"
     assert raw_repo.items[0].capability == "news"

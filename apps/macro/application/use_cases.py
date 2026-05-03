@@ -248,12 +248,17 @@ class SyncMacroDataUseCase:
             "CN_M2_YOY",            # M2同比
             "CN_VALUE_ADDED",       # 工业增加值
             "CN_RETAIL_SALES",      # 社会消费品零售总额
+            "CN_RETAIL_SALES_YOY",  # 社会消费品零售总额同比
+            "CN_FIXED_INVESTMENT",  # 固定资产投资累计值
+            "CN_FAI_YOY",           # 固定资产投资累计同比
             "CN_GDP",               # GDP (国内生产总值)
             "CN_GDP_YOY",           # GDP同比
 
             # 贸易数据
-            "CN_EXPORTS",           # 出口同比增长
-            "CN_IMPORTS",           # 进口同比增长
+            "CN_EXPORTS",           # 当月出口额
+            "CN_EXPORT_YOY",        # 当月出口额同比增长
+            "CN_IMPORTS",           # 当月进口额
+            "CN_IMPORT_YOY",        # 当月进口额同比增长
             "CN_TRADE_BALANCE",     # 贸易差额
 
             # 房产数据
@@ -268,6 +273,8 @@ class SyncMacroDataUseCase:
             "CN_NEW_CREDIT",        # 新增信贷
             "CN_RMB_DEPOSIT",        # 人民币存款
             "CN_RMB_LOAN",          # 人民币贷款
+            "CN_SOCIAL_FINANCING",  # 社会融资规模增量
+            "CN_SOCIAL_FINANCING_YOY",  # 社会融资规模增量同比
 
             # 其他数据
             "CN_UNEMPLOYMENT",      # 城镇调查失业率

@@ -125,6 +125,25 @@ def _classify_indicator(code: str) -> str:
     return "other"
 
 
+def _format_history_chart_label(row: dict[str, Any]) -> str:
+    """Format chart labels using the indicator period semantics."""
+
+    label = row.get("reporting_period_label")
+    if isinstance(label, str) and label:
+        return label
+    reporting_period = str(row.get("reporting_period") or "")
+    period_type = str(row.get("period_type") or "").upper()
+    if period_type == "Q" and len(reporting_period) >= 7:
+        month = reporting_period[5:7]
+        quarter_map = {"03": "Q1", "06": "Q2", "09": "Q3", "12": "Q4"}
+        quarter = quarter_map.get(month)
+        if quarter:
+            return f"{reporting_period[:4]}-{quarter}"
+    if period_type == "M" and len(reporting_period) >= 7:
+        return reporting_period[:7]
+    return reporting_period
+
+
 def macro_data_view(request: HttpRequest) -> HttpResponse:
     """Render the macro data management page."""
 
@@ -141,7 +160,9 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
             for code, indicator in indicator_map.items()
             if _classify_indicator(code) == category_definition["id"]
         ]
-        category_indicators.sort(key=lambda item: item["code"])
+        category_indicators.sort(
+            key=lambda item: (-int(item.get("display_priority", 0)), item["code"])
+        )
         if category_indicators:
             indicator_categories.append(
                 {
@@ -157,7 +178,7 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
             )
 
     selected_indicator_data = indicator_map.get(resolved_selected_indicator)
-    chart_dates = [row["reporting_period"][:7] for row in snapshot["history"]]
+    chart_dates = [_format_history_chart_label(row) for row in snapshot["history"]]
     chart_values = [safe_float(row["value"]) for row in snapshot["history"]]
 
     context = {

@@ -1,6 +1,6 @@
 # Macro Data Center Cutover
 
-更新时间: 2026-04-29
+更新时间: 2026-05-03
 
 ## 目标
 
@@ -28,6 +28,69 @@
 - 货币量纲已支持 `元/千元/万元/亿元/万亿元` 双向换算；canonical storage 继续统一到 `元`
 - `normalize_macro_fact_units` 不只修数值和单位，也会回填 `matched_rule_id`、`display_unit`、`dimension_key`、`publication_lag_days` 等治理元信息
 - 脏数据修复流程固定为：先修 fetcher / 规则，再走 `SyncMacroUseCase` 重刷事实，最后执行 `python manage.py normalize_macro_fact_units` 并要求 dry-run 为 `updated=0`
+
+## 2026-05-03 宏观治理台与口径补齐
+
+- 新增 staff 治理页 `/data-center/governance/`，用于集中审计：
+  - legacy `source` 别名残留
+  - catalog-only 缺口
+  - 可自动补同步缺口
+  - 配对序列缺失
+- 本轮已完成 `AKShare Public -> akshare` 存量统一，治理台当前不再报 `legacy source` 问题。
+- 本轮已补齐并回填：
+  - `CN_FIXED_INVESTMENT`
+  - `CN_FAI_YOY`
+  - `CN_SOCIAL_FINANCING`
+  - `CN_SOCIAL_FINANCING_YOY`
+  - `CN_EXPORT_YOY`
+  - `CN_IMPORT_YOY`
+- 进出口 canonical 语义已纠正：
+  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径，display unit `亿美元`
+  - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速
+- `CN_CPI_YOY` 当前只保留为兼容 alias；治理真源优先读 `CN_CPI_NATIONAL_YOY`
+- 截至 `2026-05-03`，治理台真实缺口已清零，只剩兼容 alias 提示项。
+- `apps/macro/application/indicator_service.py` 中已移除 `CN_EXPORT_YOY -> CN_EXPORTS`、`CN_IMPORT_YOY -> CN_IMPORTS`、`CN_RETAIL_SALES_YOY -> CN_RETAIL_SALES` 这类危险回退，避免同比指标再被误映射到绝对额序列。
+
+## 2026-05-03 运行配置下沉补充
+
+- `IndicatorCatalog.extra` 已补齐并开始承载以下运行时元数据：
+  - `schedule_frequency`
+  - `schedule_day_of_month`
+  - `schedule_release_months`
+  - `publication_lag_days`
+  - `publication_lag_description`
+  - `orm_period_type_override`
+  - `domain_period_type_override`
+- `ScheduleDataFetchUseCase` 的宏观调度口径现完全读取 catalog runtime metadata，本地已不再维护独立同步日历表。
+- `sync_macro_data` 的 period_type 解析现完全读取 catalog period override / source payload，本地已不再维护 legacy period override 表。
+- `apps/macro/infrastructure/adapters/fetchers/*` 现优先读取 runtime metadata / unit rule 解析 source unit，本地 `INDICATOR_UNITS` 只保留 fallback 语义。
+- `apps/macro/infrastructure/adapters/base.py` 的发布时间 lag 现完全读取 runtime publication lag metadata，本地已不再维护发布日期 lag 常量表。
+- 季度调度已补上真实判定逻辑，不再出现配置了 `quarterly` 但运行时永远不触发的情况。
+- 宏观治理台巡检范围也已下沉到 `IndicatorCatalog.extra`：
+  - `governance_scope`
+  - `governance_sync_supported`
+- `MacroGovernanceRepository` 现根据 catalog metadata 构建治理清单，不再依赖页面层硬编码指标列表。
+- legacy `source` 统一也已改为运行时推断：
+  - 优先使用 `data_center_macro_fact.extra.source_type`
+  - 否则回退到 `ProviderConfig(name -> source_type)` 映射
+- 因此治理台与修复动作不再维护独立 `AKShare Public -> akshare` 这类页面层 alias 表。
+- `apps/data_center/migrations/0017_canonicalize_fact_sources.py` 已完成 Data Center 全量事实表 `source` 存量整改：
+  - 统一将事实表 `source` 规范为 canonical `source_type`
+  - 对带 `extra` 的事实保留 `extra.provider_name` 与 `extra.source_type` 供审计使用
+- `apps/data_center/migrations/0018_seed_macro_compat_alias_catalog.py` 已将剩余 legacy 指标别名下沉到 catalog：
+  - `CN_PMI_MANUFACTURING -> CN_PMI`
+  - `CN_PMI_NON_MANUFACTURING -> CN_NON_MAN_PMI`
+  - `CN_CPI_MOY -> CN_CPI_NATIONAL_MOM`
+  - `CN_CPI_YOY -> CN_CPI_NATIONAL_YOY`
+- `apps/macro/application/indicator_service.py` 已删除本地 `LEGACY_CODE_ALIASES` 常量；兼容码解析现完全依赖 catalog alias metadata。
+- 后续 Data Center 同步写入也已统一：
+  - 事实表 `source` 固定写 canonical `source_type`
+  - provider 展示名仅保留在审计日志与 `extra.provider_name`
+
+## 仍保留的运行默认常量
+
+- 当前宏观治理链路里已不再保留额外的代码内 alias / schedule / publication lag / period override 真源表。
+- 业务口径、单位、配对关系、compat alias、canonical storage 统一以 `IndicatorCatalog`、`IndicatorUnitRule`、`data_center_macro_fact` 为准。
 
 ## 当前治理入口
 

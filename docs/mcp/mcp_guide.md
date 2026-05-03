@@ -162,7 +162,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-04-29`: `318` registered tools.
+You can validate tool registration locally. Current local snapshot on `2026-05-03`: `318` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
@@ -170,6 +170,39 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 
 ## Recent MCP-Facing Changes
 
+- Data Center 宏观治理台已落地到 `/data-center/governance/`。这是一套 staff 运维页面，不是 MCP tool；Agent 侧仍应通过 `data_center_list_indicators`、`data_center_get_macro_series`、`data_center_sync_macro` 等 canonical tool 访问治理后的事实表。
+- 宏观运行配置已开始下沉到 `IndicatorCatalog.extra`，MCP/Agent 对宏观指标的解释与调度判断应优先读取运行时元数据，而不是在 Agent 侧硬编码：
+  - `series_semantics`
+  - `paired_indicator_code`
+  - `schedule_frequency`
+  - `schedule_day_of_month`
+  - `schedule_release_months`
+  - `publication_lag_days`
+  - `orm_period_type_override` / `domain_period_type_override`
+- 宏观 runtime metadata 现已成为唯一运行真源：
+  - 本地已不再维护独立 schedule fallback 表
+  - 本地已不再维护独立 publication lag fallback 表
+  - 本地已不再维护独立 period override fallback 表
+- 宏观治理台本身也已改成 metadata 驱动：
+  - `governance_scope`
+  - `governance_sync_supported`
+- Data Center 事实表 `source` 现统一存 canonical `source_type`，不再存 provider display name。
+- 如需展示或审计 provider 名称，应优先读取 `extra.provider_name` 或同步审计日志，而不是把事实表 `source` 当成 provider 展示名。
+- 对 legacy source 的理解也应优先读取事实表 `extra.source_type`，必要时再结合 `ProviderConfig.name -> source_type`；不要在 Agent/MCP 侧再硬编码 provider alias 表。
+- 剩余 legacy indicator code alias 也已下沉到 catalog metadata，MCP/SDK 侧不应再自行维护：
+  - `CN_PMI_MANUFACTURING -> CN_PMI`
+  - `CN_PMI_NON_MANUFACTURING -> CN_NON_MAN_PMI`
+  - `CN_CPI_MOY -> CN_CPI_NATIONAL_MOM`
+  - `CN_CPI_YOY -> CN_CPI_NATIONAL_YOY`
+- 宏观指标治理已补齐以下口径对：
+  - `CN_FIXED_INVESTMENT` = 固定资产投资累计值
+  - `CN_FAI_YOY` = 固定资产投资累计同比增速
+  - `CN_SOCIAL_FINANCING` = 社会融资规模增量
+  - `CN_SOCIAL_FINANCING_YOY` = 社会融资规模增量同比增速
+- 进出口口径已纠偏，MCP/SDK 不得再把金额和同比混用：
+  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额，display unit 为 `亿美元`
+  - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速，display unit 为 `%`
+- `CN_CPI_YOY` 当前只保留为兼容别名代码；治理真源与优先查询代码仍是 `CN_CPI_NATIONAL_YOY`。
 - `run_simulated_daily_inspection(...)` now accepts `auto_create_proposal`; when enabled,
   the API response includes stable `proposal_created` / `proposal_id` fields.
 - Strategy / simulated trading tools now expose the full simulated auto-trading path:
@@ -200,6 +233,28 @@ Notes:
 - `data_center_providers` 是统一财经数据源中台入口，Tushare、AKShare、EastMoney、QMT、FRED 等配置都从这里进入。
 - 对于第三方 Tushare 数据源，使用 `http_url` 字段；后端会把它下发到 `pro._DataApi__http_url`。
 - 对于 QMT 行情源，使用 `source_type="qmt"`，本地 XtQuant 参数放在 `extra_config`。
+
+### Macro Governance Notes
+
+- MCP 查询宏观数据时，运行时真源固定为 `IndicatorCatalog` + `IndicatorUnitRule` + `data_center_macro_fact`。
+- 页面治理入口 `/data-center/governance/` 可以用于人工审计，但 Agent 不应假设该页面是 API 契约的一部分。
+- 对抓取节奏、发布时间、period_type 的理解，优先读取 catalog runtime metadata；不要仅凭 code 后缀或历史经验推断。
+- 对宏观 series 的解释必须先看 `series_semantics` / `paired_indicator_code`：
+  - `monthly_level` / `cumulative_level` / `flow_level` 表示量值口径
+  - `yoy_rate` 表示同比增速口径
+- 对季度指标再补一条约束：
+  - `schedule_frequency=quarterly` 时，应结合 `schedule_release_months` 解释其发布时间窗口，不能按月频处理
+- 典型高风险指标当前正确读法：
+  - `CN_GDP` = 季度累计值，不是单季值
+  - `CN_GDP_YOY` = GDP 同比增速
+  - `CN_RETAIL_SALES` = 社零当月值
+  - `CN_RETAIL_SALES_YOY` = 社零同比增速
+  - `CN_EXPORTS` = 当月出口额
+  - `CN_EXPORT_YOY` = 当月出口额同比增速
+  - `CN_IMPORTS` = 当月进口额
+  - `CN_IMPORT_YOY` = 当月进口额同比增速
+  - `CN_SOCIAL_FINANCING` = 社会融资规模增量，不是余额
+  - `CN_SOCIAL_FINANCING_YOY` = 社会融资规模增量同比增速
 
 ### Equity Tools
 

@@ -14,6 +14,7 @@ from apps.data_center.infrastructure.providers import (
     FundNavRepository,
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
+    MacroGovernanceRepository,
     MacroFactRepository,
     NewsRepository,
     PriceBarRepository,

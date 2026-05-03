@@ -172,7 +172,9 @@ Three methods (priority order):
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
 | `client.config_center` | **Config center** - unified config snapshot and capabilities |
 
-## MCP Tools (60+)
+## MCP Tools
+
+Current local MCP registration snapshot on `2026-05-03`: `318` tools.
 
 Canonical API routing for SDK/MCP is documented in:
 
@@ -185,6 +187,38 @@ Canonical API routing for SDK/MCP is documented in:
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
 - **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
 - **Alpha Trigger**: `list_alpha_candidates`, `get_alpha_candidate`, `update_alpha_candidate_status`
+
+### Macro Governance Contract
+
+Current macro governance contract after the 2026-05-03 repair:
+
+- runtime truth source = `IndicatorCatalog` + `IndicatorUnitRule` + `data_center_macro_fact`
+- staff governance console = `/data-center/governance/`
+- MCP/SDK should still read/write only through canonical data-center APIs and tools
+- runtime schedule / publication / period override metadata now begins to live in `IndicatorCatalog.extra`
+
+High-risk code semantics that callers must now treat as canonical:
+
+- `CN_GDP` = quarterly cumulative level
+- `CN_GDP_YOY` = GDP YoY rate
+- `CN_FIXED_INVESTMENT` = fixed investment cumulative level
+- `CN_FAI_YOY` = fixed investment cumulative YoY rate
+- `CN_SOCIAL_FINANCING` = monthly social financing flow
+- `CN_SOCIAL_FINANCING_YOY` = monthly social financing flow YoY rate
+- `CN_EXPORTS` = monthly export amount, display unit `亿美元`
+- `CN_EXPORT_YOY` = monthly export amount YoY rate
+- `CN_IMPORTS` = monthly import amount, display unit `亿美元`
+- `CN_IMPORT_YOY` = monthly import amount YoY rate
+
+Compatibility note:
+
+- `CN_CPI_YOY` is retained only as a compatibility alias code. Canonical lookup should prefer `CN_CPI_NATIONAL_YOY`.
+- callers should interpret macro runtime metadata in this priority order:
+  - `series_semantics` / `paired_indicator_code` for meaning
+  - `schedule_frequency` / `schedule_day_of_month` / `schedule_release_months` for cadence
+  - `publication_lag_days` for freshness expectation
+  - `orm_period_type_override` / `domain_period_type_override` for storage/runtime period semantics
+- do not infer macro meaning or cadence solely from code suffixes such as `_YOY` / `_MOM` / `GDP`.
 
 ### Dashboard Alpha Contract
 

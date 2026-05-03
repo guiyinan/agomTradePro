@@ -13,11 +13,11 @@ from typing import List
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import safe_float
+from .common import resolve_indicator_units, safe_float
 
 logger = logging.getLogger(__name__)
 
-# 指标单位映射 (unit, original_unit)
+# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
 INDICATOR_UNITS = {
     "CN_PMI": ("指数", "指数"),
     "CN_NON_MAN_PMI": ("指数", "指数"),
@@ -81,7 +81,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_PMI", ("", ""))
+            unit, original_unit = resolve_indicator_units(
+                "CN_PMI",
+                *INDICATOR_UNITS.get("CN_PMI", ("", "")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -127,7 +130,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_CPI", ("", ""))
+            unit, original_unit = resolve_indicator_units(
+                "CN_CPI",
+                *INDICATOR_UNITS.get("CN_CPI", ("", "")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -184,7 +190,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get(indicator_code, ("", ""))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *INDICATOR_UNITS.get(indicator_code, ("", "")),
+            )
             for _, row in df.iterrows():
                 try:
                     value_raw = row['value']
@@ -236,7 +245,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_PPI", ("", ""))
+            unit, original_unit = resolve_indicator_units(
+                "CN_PPI",
+                *INDICATOR_UNITS.get("CN_PPI", ("", "")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -282,7 +294,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_PPI_YOY", ("", ""))
+            unit, original_unit = resolve_indicator_units(
+                "CN_PPI_YOY",
+                *INDICATOR_UNITS.get("CN_PPI_YOY", ("", "")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -328,7 +343,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_M2", ("万亿元", "万亿元"))
+            unit, original_unit = resolve_indicator_units(
+                "CN_M2",
+                *INDICATOR_UNITS.get("CN_M2", ("万亿元", "万亿元")),
+            )
             for _, row in df.iterrows():
                 try:
                     value_in_trillion = float(row['value']) / 10000
@@ -383,7 +401,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_M2_YOY", ("%", "%"))
+            unit, original_unit = resolve_indicator_units(
+                "CN_M2_YOY",
+                *INDICATOR_UNITS.get("CN_M2_YOY", ("%", "%")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -429,7 +450,10 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_NON_MAN_PMI", ("指数", "指数"))
+            unit, original_unit = resolve_indicator_units(
+                "CN_NON_MAN_PMI",
+                *INDICATOR_UNITS.get("CN_NON_MAN_PMI", ("指数", "指数")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(

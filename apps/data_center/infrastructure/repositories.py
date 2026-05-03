@@ -14,6 +14,10 @@ Phase 2: AssetRepository, IndicatorCatalogRepository, MacroFactRepository,
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
+
+from django.db import transaction
+from django.db.models import Count, Max
 
 from apps.data_center.domain.entities import (
     AssetAlias,
@@ -160,6 +164,16 @@ def _dedupe_codes(codes: list[str]) -> list[str]:
         seen.add(normalized)
         result.append(normalized)
     return result
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
 
 
 def _infer_market_suffixes(base_code: str) -> list[str]:
@@ -499,6 +513,284 @@ class MacroFactRepository:
             )
             count += 1
         return count
+
+
+class MacroGovernanceRepository:
+    """Audits and repairs macro fact governance issues in the canonical store."""
+
+    DEFAULT_SCOPE = "macro_console"
+
+    def list_governed_indicator_codes(self, *, scope: str = DEFAULT_SCOPE) -> list[str]:
+        rows: list[tuple[int, str]] = []
+        for catalog in IndicatorCatalogModel.objects.filter(is_active=True):
+            extra = dict(catalog.extra or {})
+            if str(extra.get("governance_scope") or "").strip() != scope:
+                continue
+            try:
+                display_priority = int(extra.get("display_priority", 9999))
+            except (TypeError, ValueError):
+                display_priority = 9999
+            rows.append((display_priority, catalog.code))
+        rows.sort(key=lambda item: (item[0], item[1]))
+        return [code for _, code in rows]
+
+    def list_sync_supported_indicator_codes(
+        self,
+        *,
+        scope: str = DEFAULT_SCOPE,
+    ) -> set[str]:
+        supported_codes: set[str] = set()
+        for catalog in IndicatorCatalogModel.objects.filter(is_active=True):
+            extra = dict(catalog.extra or {})
+            if str(extra.get("governance_scope") or "").strip() != scope:
+                continue
+            if _coerce_bool(extra.get("governance_sync_supported")):
+                supported_codes.add(catalog.code)
+        return supported_codes
+
+    def _build_provider_source_lookup(self) -> dict[str, str]:
+        provider_lookup: dict[str, str] = {}
+        for row in ProviderConfigModel.objects.exclude(name="").values("name", "source_type"):
+            provider_name = str(row.get("name") or "").strip()
+            source_type = str(row.get("source_type") or "").strip()
+            if provider_name and source_type:
+                provider_lookup[provider_name] = source_type
+        return provider_lookup
+
+    def _resolve_canonical_source_name(
+        self,
+        source_name: str,
+        extra: dict[str, Any],
+        provider_lookup: dict[str, str],
+    ) -> str:
+        source_type = str(extra.get("source_type") or "").strip()
+        if source_type:
+            return source_type
+        return provider_lookup.get(source_name, source_name)
+
+    def build_snapshot(
+        self,
+        *,
+        scope: str = DEFAULT_SCOPE,
+    ) -> dict[str, Any]:
+        indicator_codes = self.list_governed_indicator_codes(scope=scope)
+        supported_sync_codes = self.list_sync_supported_indicator_codes(scope=scope)
+        catalogs = {
+            item.code: item
+            for item in IndicatorCatalogModel.objects.filter(code__in=indicator_codes)
+        }
+        aggregates = {
+            row["indicator_code"]: row
+            for row in (
+                MacroFactModel.objects.filter(indicator_code__in=indicator_codes)
+                .values("indicator_code")
+                .annotate(
+                    row_count=Count("id"),
+                    latest_period=Max("reporting_period"),
+                    source_count=Count("source", distinct=True),
+                )
+            )
+        }
+        source_rows: dict[str, list[dict[str, Any]]] = {}
+        for row in (
+            MacroFactModel.objects.filter(indicator_code__in=indicator_codes)
+            .values("indicator_code", "source")
+            .annotate(
+                row_count=Count("id"),
+                latest_period=Max("reporting_period"),
+            )
+            .order_by("indicator_code", "source")
+        ):
+            source_rows.setdefault(str(row["indicator_code"]), []).append(
+                {
+                    "source": str(row["source"]),
+                    "row_count": int(row["row_count"]),
+                    "latest_period": row["latest_period"],
+                }
+            )
+
+        provider_lookup = self._build_provider_source_lookup()
+        legacy_source_codes: set[str] = set()
+        alias_row_map: dict[tuple[str, str], dict[str, Any]] = {}
+        for fact in (
+            MacroFactModel.objects.filter(indicator_code__in=indicator_codes)
+            .only("indicator_code", "source", "reporting_period", "extra")
+            .order_by("indicator_code", "reporting_period", "id")
+            .iterator()
+        ):
+            source_name = str(fact.source or "")
+            canonical_source = self._resolve_canonical_source_name(
+                source_name,
+                dict(fact.extra or {}),
+                provider_lookup,
+            )
+            if not canonical_source or canonical_source == source_name:
+                continue
+            legacy_source_codes.add(str(fact.indicator_code))
+            key = (source_name, canonical_source)
+            row = alias_row_map.setdefault(
+                key,
+                {
+                    "from_source": source_name,
+                    "to_source": canonical_source,
+                    "row_count": 0,
+                    "latest_period": fact.reporting_period,
+                },
+            )
+            row["row_count"] = int(row["row_count"]) + 1
+            latest_period = row.get("latest_period")
+            if latest_period is None or fact.reporting_period > latest_period:
+                row["latest_period"] = fact.reporting_period
+
+        indicator_rows: list[dict[str, Any]] = []
+        healthy_count = 0
+        missing_supported_count = 0
+        catalog_only_gap_count = 0
+        alias_catalog_count = 0
+        alias_issue_count = 0
+        paired_gap_count = 0
+
+        for code in indicator_codes:
+            catalog = catalogs.get(code)
+            aggregate = aggregates.get(code, {})
+            extra = dict((catalog.extra if catalog is not None else {}) or {})
+            paired_code = str(extra.get("paired_indicator_code") or "")
+            alias_of_code = str(extra.get("alias_of_indicator_code") or "")
+            paired_count = int(aggregates.get(paired_code, {}).get("row_count", 0)) if paired_code else 0
+            alias_target_count = (
+                int(aggregates.get(alias_of_code, {}).get("row_count", 0)) if alias_of_code else 0
+            )
+            sources = source_rows.get(code, [])
+            source_names = [str(item["source"]) for item in sources]
+            tags: list[str] = []
+
+            row_count = int(aggregate.get("row_count", 0) or 0)
+            if row_count == 0:
+                if alias_of_code and alias_target_count > 0:
+                    tags.append("alias_catalog")
+                    alias_catalog_count += 1
+                elif code in supported_sync_codes:
+                    tags.append("missing_supported")
+                    missing_supported_count += 1
+                else:
+                    tags.append("catalog_only_gap")
+                    catalog_only_gap_count += 1
+            if code in legacy_source_codes:
+                tags.append("legacy_source_alias")
+                alias_issue_count += 1
+            if row_count > 0 and paired_code and paired_count == 0:
+                tags.append("paired_gap")
+                paired_gap_count += 1
+            if not tags:
+                tags.append("healthy")
+                healthy_count += 1
+
+            indicator_rows.append(
+                {
+                    "code": code,
+                    "name_cn": catalog.name_cn if catalog is not None else code,
+                    "description": catalog.description if catalog is not None else "",
+                    "series_semantics": str(extra.get("series_semantics") or ""),
+                    "paired_indicator_code": paired_code,
+                    "alias_of_indicator_code": alias_of_code,
+                    "default_unit": catalog.default_unit if catalog is not None else "",
+                    "default_period_type": catalog.default_period_type if catalog is not None else "",
+                    "row_count": row_count,
+                    "latest_period": aggregate.get("latest_period"),
+                    "sources": sources,
+                    "source_names": source_names,
+                    "has_data": row_count > 0,
+                    "paired_has_data": paired_count > 0 if paired_code else True,
+                    "sync_supported": code in supported_sync_codes,
+                    "tags": tags,
+                }
+            )
+
+        alias_rows = sorted(
+            alias_row_map.values(),
+            key=lambda item: (str(item["from_source"]), str(item["to_source"])),
+        )
+
+        return {
+            "summary": {
+                "governed_indicator_count": len(indicator_codes),
+                "healthy_indicator_count": healthy_count,
+                "missing_supported_count": missing_supported_count,
+                "catalog_only_gap_count": catalog_only_gap_count,
+                "alias_catalog_count": alias_catalog_count,
+                "alias_issue_count": alias_issue_count,
+                "paired_gap_count": paired_gap_count,
+                "alias_row_count": sum(int(item["row_count"]) for item in alias_rows),
+                "total_macro_rows": MacroFactModel.objects.count(),
+            },
+            "governed_indicator_codes": indicator_codes,
+            "supported_sync_codes": sorted(supported_sync_codes),
+            "source_alias_issues": alias_rows,
+            "indicator_rows": indicator_rows,
+        }
+
+    @transaction.atomic
+    def canonicalize_sources(
+        self,
+        *,
+        scope: str = DEFAULT_SCOPE,
+        indicator_codes: list[str] | None = None,
+    ) -> dict[str, int]:
+        target_indicator_codes = indicator_codes or self.list_governed_indicator_codes(scope=scope)
+        queryset = MacroFactModel.objects.filter(indicator_code__in=target_indicator_codes)
+        provider_lookup = self._build_provider_source_lookup()
+
+        updated_count = 0
+        deleted_count = 0
+        skipped_conflicts = 0
+
+        for fact in queryset.order_by("indicator_code", "reporting_period", "id").iterator():
+            target_source = self._resolve_canonical_source_name(
+                str(fact.source or ""),
+                dict(fact.extra or {}),
+                provider_lookup,
+            )
+            if not target_source or target_source == fact.source:
+                continue
+
+            conflict = (
+                MacroFactModel.objects.filter(
+                    indicator_code=fact.indicator_code,
+                    reporting_period=fact.reporting_period,
+                    source=target_source,
+                    revision_number=fact.revision_number,
+                )
+                .exclude(id=fact.id)
+                .first()
+            )
+            if conflict is not None:
+                same_payload = (
+                    conflict.value == fact.value
+                    and conflict.unit == fact.unit
+                    and conflict.published_at == fact.published_at
+                    and conflict.quality == fact.quality
+                    and (conflict.extra or {}) == (fact.extra or {})
+                )
+                if same_payload:
+                    fact.delete()
+                    deleted_count += 1
+                else:
+                    skipped_conflicts += 1
+                continue
+
+            next_extra = dict(fact.extra or {})
+            if next_extra.get("source_type") != target_source:
+                next_extra["source_type"] = target_source
+                fact.extra = next_extra
+            fact.source = target_source
+            fact.save(update_fields=["source", "extra"])
+            updated_count += 1
+
+        return {
+            "updated_count": updated_count,
+            "deleted_count": deleted_count,
+            "skipped_conflicts": skipped_conflicts,
+        }
 
 
 class PriceBarRepository:

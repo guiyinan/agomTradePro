@@ -1,0 +1,15 @@
+{% extends "data_center/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block subtitle %}Provider 配置页当前保留为简版入口，治理动作集中在治理台。{% endblock %}
+
+{% block content %}
+<section class="section">
+    <h2>Providers</h2>
+    <p class="lead">现阶段优先处理宏观数据治理问题。Provider 详细增删改查仍通过 `/api/data-center/providers/` 完成，页面侧先保留稳定入口，避免再次出现缺模板空页。</p>
+    <div class="actions">
+        <a href="{% url 'data_center:dc-governance-page' %}" style="text-decoration:none;"><button type="button" class="btn-primary">前往治理台</button></a>
+    </div>
+</section>
+{% endblock %}

@@ -177,6 +177,16 @@ class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
     def provider_name(self) -> str:
         return self._config.name
 
+    def provider_source(self) -> str:
+        source_type = str(self._config.source_type or "").strip()
+        return source_type or self.provider_name()
+
+    def _provider_extra(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = dict(extra or {})
+        payload.setdefault("provider_name", self.provider_name())
+        payload["source_type"] = self.provider_source()
+        return payload
+
     def supports(self, capability: DataCapability) -> bool:
         return capability in self._caps
 
@@ -274,12 +284,16 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     reporting_period=observed_at,
                     value=float(point.value),
                     unit=getattr(point, "unit", "") or "",
-                    source=self.provider_name(),
+                    source=self.provider_source(),
                     published_at=getattr(point, "published_at", None),
                     quality=DataQualityStatus.VALID,
-                    extra={
-                        "original_unit": getattr(point, "original_unit", "") or getattr(point, "unit", "") or "",
-                    },
+                    extra=self._provider_extra(
+                        {
+                            "original_unit": getattr(point, "original_unit", "")
+                            or getattr(point, "unit", "")
+                            or "",
+                        }
+                    ),
                 )
             )
         return results
@@ -309,7 +323,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 close=bar.close,
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=bar.amount,
-                source=self.provider_name(),
+                source=self.provider_source(),
                 adjustment=PriceAdjustment.NONE,
             )
             for bar in bars
@@ -325,13 +339,14 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 asset_code=normalize_asset_code(quote.stock_code, "tushare"),
                 snapshot_at=_ensure_aware(getattr(quote, "fetched_at", None)),
                 current_price=float(quote.price),
-                source=self.provider_name(),
+                source=self.provider_source(),
                 open=_safe_float(quote.open),
                 high=_safe_float(quote.high),
                 low=_safe_float(quote.low),
                 prev_close=_safe_float(quote.pre_close),
                 volume=float(quote.volume) if quote.volume is not None else None,
                 amount=_safe_float(quote.amount),
+                extra=self._provider_extra(),
             )
             for quote in quotes
         ]
@@ -363,7 +378,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     nav_date=nav_date,
                     nav=float(getattr(row, "unit_nav")),
                     acc_nav=_safe_float(getattr(row, "accum_nav", None)),
-                    source=self.provider_name(),
+                    source=self.provider_source(),
+                    extra=self._provider_extra(),
                 )
             )
         return facts
@@ -380,7 +396,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 asset_code=record.stock_code,
                 period_end=record.report_date,
                 period_type=_to_period_type(record.report_type),
-                source=self.provider_name(),
+                source=self.provider_source(),
+                extra=self._provider_extra(),
             )
             facts.extend(
                 [
@@ -461,7 +478,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 dv_ratio=(
                     float(record.dividend_yield) if record.dividend_yield is not None else None
                 ),
-                source=self.provider_name(),
+                source=self.provider_source(),
+                extra=self._provider_extra(),
             )
             for record in batch.records
         ]
@@ -489,12 +507,16 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     reporting_period=observed_at,
                     value=float(point.value),
                     unit=getattr(point, "unit", "") or "",
-                    source=self.provider_name(),
+                    source=self.provider_source(),
                     published_at=getattr(point, "published_at", None),
                     quality=DataQualityStatus.VALID,
-                    extra={
-                        "original_unit": getattr(point, "original_unit", "") or getattr(point, "unit", "") or "",
-                    },
+                    extra=self._provider_extra(
+                        {
+                            "original_unit": getattr(point, "original_unit", "")
+                            or getattr(point, "unit", "")
+                            or "",
+                        }
+                    ),
                 )
             )
         return results
@@ -526,7 +548,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 close=bar.close,
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=bar.amount,
-                source=self.provider_name(),
+                source=self.provider_source(),
             )
             for bar in bars
         ]
@@ -543,13 +565,14 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 asset_code=normalize_asset_code(quote.stock_code, "akshare"),
                 snapshot_at=_ensure_aware(getattr(quote, "fetched_at", None)),
                 current_price=float(quote.price),
-                source=self.provider_name(),
+                source=self.provider_source(),
                 open=_safe_float(quote.open),
                 high=_safe_float(quote.high),
                 low=_safe_float(quote.low),
                 prev_close=_safe_float(quote.pre_close),
                 volume=float(quote.volume) if quote.volume is not None else None,
                 amount=_safe_float(quote.amount),
+                extra=self._provider_extra(),
             )
             for quote in quotes
         ]
@@ -579,7 +602,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     nav_date=nav_date,
                     nav=float(row.get("unit_nav")),
                     acc_nav=_safe_float(row.get("累计净值")),
-                    source=self.provider_name(),
+                    source=self.provider_source(),
+                    extra=self._provider_extra(),
                 )
             )
         return facts
@@ -621,8 +645,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 asset_code=canonical_asset_code,
                 period_end=period_end,
                 period_type=_period_type_from_period_end(period_end),
-                source=self.provider_name(),
+                source=self.provider_source(),
                 report_date=period_end,
+                extra=self._provider_extra(),
             )
             metric_values = {
                 "revenue": (revenue, "元"),
@@ -701,7 +726,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     market_cap=values.get("market_cap"),
                     float_market_cap=None,
                     dv_ratio=None,
-                    source=self.provider_name(),
+                    source=self.provider_source(),
+                    extra=self._provider_extra(),
                 )
             )
         return facts
@@ -733,7 +759,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 sector_code=resolved_code or resolved_name,
                 sector_name=resolved_name,
                 effective_date=as_of,
-                source=self.provider_name(),
+                source=self.provider_source(),
             )
             for row in df.to_dict("records")
             if row.get("stock_code")
@@ -753,8 +779,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 summary=article.content,
                 published_at=_ensure_aware(article.published_at),
                 url=article.url or "",
-                source=self.provider_name(),
+                source=self.provider_source(),
                 external_id=article.news_id,
+                extra=self._provider_extra(),
             )
             for article in articles
         ]
@@ -780,8 +807,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 large_net=flow.large_net_inflow,
                 medium_net=flow.medium_net_inflow,
                 small_net=flow.small_net_inflow,
-                source=self.provider_name(),
-                extra={"main_net_ratio": flow.main_net_ratio},
+                source=self.provider_source(),
+                extra=self._provider_extra({"main_net_ratio": flow.main_net_ratio}),
             )
             for flow in flows
         ]
@@ -824,7 +851,7 @@ class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 close=bar.close,
                 volume=float(bar.volume) if bar.volume is not None else None,
                 amount=bar.amount,
-                source=self.provider_name(),
+                source=self.provider_source(),
             )
             for bar in bars
         ]
@@ -836,13 +863,14 @@ class QmtUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 asset_code=normalize_asset_code(quote.stock_code, "qmt"),
                 snapshot_at=_ensure_aware(getattr(quote, "fetched_at", None)),
                 current_price=float(quote.price),
-                source=self.provider_name(),
+                source=self.provider_source(),
                 open=_safe_float(quote.open),
                 high=_safe_float(quote.high),
                 low=_safe_float(quote.low),
                 prev_close=_safe_float(quote.pre_close),
                 volume=float(quote.volume) if quote.volume is not None else None,
                 amount=_safe_float(quote.amount),
+                extra=self._provider_extra(),
             )
             for quote in quotes
         ]
@@ -886,10 +914,10 @@ class FredUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     reporting_period=date.fromisoformat(row["date"]),
                     value=float(value),
                     unit=unit,
-                    source=self.provider_name(),
+                    source=self.provider_source(),
                     published_at=date.fromisoformat(row["date"]),
                     quality=DataQualityStatus.VALID,
-                    extra={"original_unit": unit},
+                    extra=self._provider_extra({"original_unit": unit}),
                 )
             )
         return facts

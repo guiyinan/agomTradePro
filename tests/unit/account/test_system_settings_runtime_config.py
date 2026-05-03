@@ -5,7 +5,10 @@ from apps.account.infrastructure.models import SystemSettingsModel
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
 from apps.macro.application.indicator_service import IndicatorService, IndicatorUnitRuleService
 from core.application.config_center import get_system_settings_summary
-from core.integration.runtime_settings import get_runtime_macro_publication_lags
+from core.integration.runtime_settings import (
+    get_runtime_macro_index_metadata_map,
+    get_runtime_macro_publication_lags,
+)
 from core.context_processors import get_market_visuals
 
 
@@ -50,10 +53,44 @@ def test_macro_indicator_metadata_is_loaded_from_system_settings():
     )
 
     metadata = IndicatorService.get_indicator_metadata_map()
+    runtime_metadata = get_runtime_macro_index_metadata_map()
 
     assert metadata["TEST.INDEX"]["name"] == "测试指数"
     assert IndicatorUnitRuleService.get_unit_for_indicator("TEST.INDEX") == "点"
     assert get_runtime_macro_publication_lags()["TEST.INDEX"]["days"] == 2
+    assert runtime_metadata["TEST.INDEX"]["default_period_type"] == "D"
+
+
+@pytest.mark.django_db
+def test_macro_runtime_metadata_exposes_schedule_and_period_override_fields():
+    IndicatorCatalogModel.objects.update_or_create(
+        code="TEST.SCHEDULED",
+        defaults={
+            "name_cn": "测试调度指标",
+            "name_en": "Test Scheduled Indicator",
+            "category": "测试",
+            "description": "用于测试运行时调度元数据",
+            "default_period_type": "Q",
+            "is_active": True,
+            "extra": {
+                "schedule_frequency": "quarterly",
+                "schedule_day_of_month": 20,
+                "schedule_release_months": [1, 4, 7, 10],
+                "publication_lag_days": 20,
+                "publication_lag_description": "季后20日",
+                "orm_period_type_override": "Q",
+                "domain_period_type_override": "Q",
+            },
+        },
+    )
+
+    runtime_metadata = get_runtime_macro_index_metadata_map()
+
+    assert runtime_metadata["TEST.SCHEDULED"]["schedule_frequency"] == "quarterly"
+    assert runtime_metadata["TEST.SCHEDULED"]["schedule_day_of_month"] == 20
+    assert runtime_metadata["TEST.SCHEDULED"]["schedule_release_months"] == [1, 4, 7, 10]
+    assert runtime_metadata["TEST.SCHEDULED"]["orm_period_type_override"] == "Q"
+    assert runtime_metadata["TEST.SCHEDULED"]["domain_period_type_override"] == "Q"
 
 
 @pytest.mark.django_db

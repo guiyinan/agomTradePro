@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from io import StringIO
 from typing import Any
 
 from apps.data_center.application.dtos import SyncQuoteRequest
@@ -50,6 +51,7 @@ from .repository_provider import (
     FundNavRepository,
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
+    MacroGovernanceRepository,
     MacroFactRepository,
     NewsRepository,
     PriceBarRepository,
@@ -83,6 +85,10 @@ def _make_indicator_unit_rule_repo() -> IndicatorUnitRuleRepository:
     return IndicatorUnitRuleRepository()
 
 
+def _make_macro_governance_repo() -> MacroGovernanceRepository:
+    return MacroGovernanceRepository()
+
+
 def make_manage_provider_config_use_case() -> ManageProviderConfigUseCase:
     """Build the provider configuration management use case."""
 
@@ -105,6 +111,127 @@ def make_manage_indicator_unit_rule_use_case() -> ManageIndicatorUnitRuleUseCase
         _make_indicator_catalog_repo(),
         _make_indicator_unit_rule_repo(),
     )
+
+
+def load_macro_governance_payload() -> dict[str, Any]:
+    """Build the macro governance audit payload for the admin console."""
+
+    snapshot = _make_macro_governance_repo().build_snapshot()
+    indicator_rows = list(snapshot["indicator_rows"])
+    missing_sync_candidates = [
+        item for item in indicator_rows if "missing_supported" in item["tags"]
+    ]
+    catalog_only_gaps = [
+        item for item in indicator_rows if "catalog_only_gap" in item["tags"]
+    ]
+    alias_catalogs = [item for item in indicator_rows if "alias_catalog" in item["tags"]]
+    paired_gaps = [item for item in indicator_rows if "paired_gap" in item["tags"]]
+    return {
+        **snapshot,
+        "governed_indicator_codes": list(snapshot["governed_indicator_codes"]),
+        "missing_sync_candidates": missing_sync_candidates,
+        "catalog_only_gaps": catalog_only_gaps,
+        "alias_catalogs": alias_catalogs,
+        "paired_gaps": paired_gaps,
+    }
+
+
+def _run_normalize_macro_fact_units() -> dict[str, Any]:
+    from django.core.management import call_command
+
+    indicator_codes = _make_macro_governance_repo().list_governed_indicator_codes()
+    stdout = StringIO()
+    call_command(
+        "normalize_macro_fact_units",
+        "--indicator-codes",
+        ",".join(indicator_codes),
+        stdout=stdout,
+    )
+    return {
+        "indicator_codes": indicator_codes,
+        "command_output": stdout.getvalue(),
+    }
+
+
+def _run_sync_missing_macro_series() -> dict[str, Any]:
+    from django.core.management import call_command
+
+    payload = load_macro_governance_payload()
+    supported_sync_codes = set(payload.get("supported_sync_codes") or [])
+    indicator_codes = [
+        item["code"]
+        for item in payload["missing_sync_candidates"]
+        if item["code"] in supported_sync_codes
+    ]
+    if not indicator_codes:
+        return {
+            "indicator_codes": [],
+            "command_output": "No supported missing indicator codes to sync.\n",
+        }
+
+    stdout = StringIO()
+    call_command(
+        "sync_macro_data",
+        "--source",
+        "akshare",
+        "--indicators",
+        *indicator_codes,
+        "--years",
+        10,
+        stdout=stdout,
+    )
+    return {
+        "indicator_codes": indicator_codes,
+        "command_output": stdout.getvalue(),
+    }
+
+
+def run_macro_governance_action(action: str) -> dict[str, Any]:
+    """Execute one governance repair action and return a UI-friendly result."""
+
+    if action == "canonicalize_sources":
+        repair = _make_macro_governance_repo().canonicalize_sources()
+        return {
+            "action": action,
+            "label": "统一 source 别名",
+            "status": "success",
+            "details": repair,
+        }
+
+    if action == "normalize_units":
+        details = _run_normalize_macro_fact_units()
+        return {
+            "action": action,
+            "label": "重跑单位标准化",
+            "status": "success",
+            "details": details,
+        }
+
+    if action == "sync_missing_series":
+        details = _run_sync_missing_macro_series()
+        return {
+            "action": action,
+            "label": "补同步缺失序列",
+            "status": "success",
+            "details": details,
+        }
+
+    if action == "run_full_repair":
+        source_details = _make_macro_governance_repo().canonicalize_sources()
+        normalize_details = _run_normalize_macro_fact_units()
+        sync_details = _run_sync_missing_macro_series()
+        return {
+            "action": action,
+            "label": "执行完整治理",
+            "status": "success",
+            "details": {
+                "source": source_details,
+                "normalize": normalize_details,
+                "sync": sync_details,
+            },
+        }
+
+    raise ValueError(f"Unsupported governance action: {action}")
 
 
 def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUseCase:

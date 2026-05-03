@@ -158,7 +158,7 @@ def test_indicator_service_blocks_rate_to_index_or_level_fallbacks(monkeypatch):
     _patch_metadata_map(
         monkeypatch,
         {
-            "CN_CPI_YOY": {"unit": "%"},
+            "CN_CPI_YOY": {"unit": "%", "alias_of_indicator_code": "CN_CPI_NATIONAL_YOY"},
             "CN_CPI_NATIONAL_YOY": {"unit": "%"},
             "CN_PPI_YOY": {"unit": "%"},
             "CN_M2_YOY": {"unit": "%"},
@@ -167,6 +167,10 @@ def test_indicator_service_blocks_rate_to_index_or_level_fallbacks(monkeypatch):
     assert IndicatorService.get_code_candidates("CN_CPI_YOY") == [
         "CN_CPI_YOY",
         "CN_CPI_NATIONAL_YOY",
+    ]
+    assert IndicatorService.get_code_candidates("CN_CPI_NATIONAL_YOY") == [
+        "CN_CPI_NATIONAL_YOY",
+        "CN_CPI_YOY",
     ]
     assert IndicatorService.get_code_candidates("CN_PPI_YOY") == ["CN_PPI_YOY"]
     assert IndicatorService.get_code_candidates("CN_M2_YOY") == ["CN_M2_YOY"]
@@ -195,6 +199,46 @@ def test_indicator_service_keeps_safe_same_semantics_aliases(monkeypatch):
     ]
 
 
+def test_indicator_service_uses_catalog_managed_compat_aliases(monkeypatch):
+    _patch_metadata_map(
+        monkeypatch,
+        {
+            "CN_PMI": {"unit": "指数"},
+            "CN_PMI_MANUFACTURING": {
+                "unit": "指数",
+                "alias_of_indicator_code": "CN_PMI",
+            },
+            "CN_NON_MAN_PMI": {"unit": "指数"},
+            "CN_PMI_NON_MANUFACTURING": {
+                "unit": "指数",
+                "alias_of_indicator_code": "CN_NON_MAN_PMI",
+            },
+            "CN_CPI_NATIONAL_MOM": {"unit": "%"},
+            "CN_CPI_MOY": {
+                "unit": "%",
+                "alias_of_indicator_code": "CN_CPI_NATIONAL_MOM",
+            },
+        },
+    )
+
+    assert IndicatorService.get_code_candidates("CN_PMI_MANUFACTURING") == [
+        "CN_PMI_MANUFACTURING",
+        "CN_PMI",
+    ]
+    assert IndicatorService.get_code_candidates("CN_PMI") == [
+        "CN_PMI",
+        "CN_PMI_MANUFACTURING",
+    ]
+    assert IndicatorService.get_code_candidates("CN_PMI_NON_MANUFACTURING") == [
+        "CN_PMI_NON_MANUFACTURING",
+        "CN_NON_MAN_PMI",
+    ]
+    assert IndicatorService.get_code_candidates("CN_CPI_MOY") == [
+        "CN_CPI_MOY",
+        "CN_CPI_NATIONAL_MOM",
+    ]
+
+
 def test_indicator_service_get_available_indicators_uses_read_repository(monkeypatch):
     monkeypatch.setattr(IndicatorService, "read_repository", _FakeIndicatorReadRepository())
     _patch_metadata_map(
@@ -206,6 +250,8 @@ def test_indicator_service_get_available_indicators_uses_read_repository(monkeyp
                 "category": "增长",
                 "unit": "%",
                 "description": "国内生产总值同比",
+                "series_semantics": "yoy_rate",
+                "paired_indicator_code": "CN_GDP",
                 "threshold_bullish": 5.0,
             }
         },
@@ -221,6 +267,8 @@ def test_indicator_service_get_available_indicators_uses_read_repository(monkeyp
             "category": "增长",
             "unit": "%",
             "description": "国内生产总值同比",
+            "series_semantics": "yoy_rate",
+            "paired_indicator_code": "CN_GDP",
             "latest_value": 5.2,
             "latest_date": "2026-04-01",
             "period_type": "M",
@@ -239,21 +287,29 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
             "name": "GDP（国内生产总值累计值）",
             "unit": "亿元",
             "description": "国内生产总值累计值，反映实体经济总量，非同比增速口径。",
+            "series_semantics": "cumulative_level",
+            "paired_indicator_code": "CN_GDP_YOY",
         },
         "CN_M2": {
             "name": "M2（广义货币供应量余额）",
             "unit": "万亿元",
             "description": "广义货币供应量余额，反映货币总量，非同比增速口径。",
+            "series_semantics": "balance_level",
+            "paired_indicator_code": "CN_M2_YOY",
         },
         "CN_CPI": {
             "name": "CPI（居民消费价格指数）",
             "unit": "指数",
             "description": "居民消费价格指数水平值，非同比涨幅口径。",
+            "series_semantics": "index_level",
+            "paired_indicator_code": "CN_CPI_NATIONAL_YOY",
         },
         "CN_PPI": {
             "name": "PPI（工业生产者出厂价格指数）",
             "unit": "指数",
             "description": "工业生产者出厂价格指数水平值，非同比涨幅口径。",
+            "series_semantics": "index_level",
+            "paired_indicator_code": "CN_PPI_YOY",
         },
     }
     _patch_metadata_map(monkeypatch, runtime_only)
@@ -266,18 +322,23 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
     assert gdp["name"] == "GDP（国内生产总值累计值）"
     assert gdp["unit"] == "亿元"
     assert "非同比增速" in gdp["description"]
+    assert gdp["series_semantics"] == "cumulative_level"
+    assert gdp["paired_indicator_code"] == "CN_GDP_YOY"
 
     assert m2["name"] == "M2（广义货币供应量余额）"
     assert m2["unit"] == "万亿元"
     assert "非同比增速" in m2["description"]
+    assert m2["series_semantics"] == "balance_level"
 
     assert cpi["name"] == "CPI（居民消费价格指数）"
     assert cpi["unit"] == "指数"
     assert "非同比涨幅" in cpi["description"]
+    assert cpi["series_semantics"] == "index_level"
 
     assert ppi["name"] == "PPI（工业生产者出厂价格指数）"
     assert ppi["unit"] == "指数"
     assert "非同比涨幅" in ppi["description"]
+    assert ppi["series_semantics"] == "index_level"
 
 
 def test_get_available_indicators_for_frontend_uses_batch_projection(monkeypatch):

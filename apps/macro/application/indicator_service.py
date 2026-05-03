@@ -106,22 +106,6 @@ class IndicatorService:
     """Dynamic indicator metadata reader backed by data_center catalog."""
 
     read_repository = get_macro_read_repository()
-
-    CODE_ALIASES: dict[str, list[str]] = {
-        "CN_PMI_MANUFACTURING": ["CN_PMI_MANUFACTURING", "CN_PMI"],
-        "CN_PMI_NON_MANUFACTURING": ["CN_PMI_NON_MANUFACTURING", "CN_NON_MAN_PMI"],
-        "CN_CPI_YOY": ["CN_CPI_YOY", "CN_CPI_NATIONAL_YOY"],
-        "CN_CPI_NATIONAL_YOY": ["CN_CPI_NATIONAL_YOY", "CN_CPI_YOY"],
-        "CN_CPI_MOY": ["CN_CPI_MOY", "CN_CPI_NATIONAL_MOM"],
-        "CN_PPI_YOY": ["CN_PPI_YOY"],
-        "CN_M2_YOY": ["CN_M2_YOY"],
-        "CN_EXPORT_YOY": ["CN_EXPORT_YOY", "CN_EXPORTS"],
-        "CN_IMPORT_YOY": ["CN_IMPORT_YOY", "CN_IMPORTS"],
-        "CN_GDP_YOY": ["CN_GDP_YOY"],
-        "CN_FAI_YOY": ["CN_FAI_YOY"],
-        "CN_REALESTATE_INVESTMENT_YOY": ["CN_REALESTATE_INVESTMENT_YOY"],
-        "CN_RETAIL_SALES_YOY": ["CN_RETAIL_SALES_YOY", "CN_RETAIL_SALES"],
-    }
     _LEVEL_UNITS = frozenset(
         {
             "元",
@@ -160,9 +144,24 @@ class IndicatorService:
 
     @classmethod
     def _classify_measure_kind(cls, code: str) -> str:
+        metadata = cls.get_indicator_metadata_map().get(code, {})
+        series_semantics = str(metadata.get("series_semantics") or "")
+        if series_semantics in {"yoy_rate", "mom_rate", "rate"}:
+            return "rate"
+        if series_semantics == "index_level":
+            return "index"
+        if series_semantics in {
+            "level",
+            "monthly_level",
+            "cumulative_level",
+            "balance_level",
+            "flow_level",
+        }:
+            return "level"
+
         if code.endswith(("_YOY", "_MOM", "_MOY")):
             return "rate"
-        unit = cls.get_indicator_metadata_map().get(code, {}).get("unit", "")
+        unit = metadata.get("unit", "")
         if unit == "指数":
             return "index"
         if unit in cls._LEVEL_UNITS:
@@ -184,8 +183,34 @@ class IndicatorService:
         return True
 
     @classmethod
+    def _get_configured_code_candidates(
+        cls,
+        code: str,
+        metadata_map: dict[str, dict[str, Any]],
+    ) -> list[str]:
+        metadata = metadata_map.get(code, {})
+        configured: list[str] = [code]
+
+        alias_of = metadata.get("alias_of_indicator_code")
+        if isinstance(alias_of, str) and alias_of:
+            configured.append(alias_of)
+
+        compatible_codes = metadata.get("compatible_indicator_codes") or []
+        if isinstance(compatible_codes, (list, tuple)):
+            configured.extend(str(item) for item in compatible_codes if item)
+
+        for candidate_code, candidate_metadata in metadata_map.items():
+            if candidate_code == code:
+                continue
+            if candidate_metadata.get("alias_of_indicator_code") == code:
+                configured.append(candidate_code)
+
+        return configured
+
+    @classmethod
     def get_code_candidates(cls, code: str) -> list[str]:
-        aliases = cls.CODE_ALIASES.get(code, [code])
+        metadata_map = cls.get_indicator_metadata_map()
+        aliases = cls._get_configured_code_candidates(code, metadata_map)
         seen: set[str] = set()
         ordered: list[str] = []
         for item in aliases:
@@ -226,6 +251,8 @@ class IndicatorService:
                     "category": metadata.get("category", "其他"),
                     "unit": latest.get("display_unit") or metadata.get("unit", ""),
                     "description": metadata.get("description", ""),
+                    "series_semantics": metadata.get("series_semantics", ""),
+                    "paired_indicator_code": metadata.get("paired_indicator_code", ""),
                     "latest_value": float(latest.get("display_value", latest["value"])),
                     "latest_date": latest["reporting_period"].isoformat(),
                     "period_type": latest["period_type"],
@@ -253,6 +280,8 @@ class IndicatorService:
             "category": metadata.get("category", "其他"),
             "unit": latest.get("display_unit") or metadata.get("unit", ""),
             "description": metadata.get("description", ""),
+            "series_semantics": metadata.get("series_semantics", ""),
+            "paired_indicator_code": metadata.get("paired_indicator_code", ""),
             "latest_value": float(latest.get("display_value", latest["value"])),
             "latest_date": latest["reporting_period"].isoformat(),
             "period_type": latest["period_type"],

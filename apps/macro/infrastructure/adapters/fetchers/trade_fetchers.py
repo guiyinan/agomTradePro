@@ -5,22 +5,35 @@
 """
 
 import logging
+import re
 from datetime import date
 from typing import List
 
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import pick_column, safe_float
+from .common import pick_column, resolve_indicator_units, safe_float
 
 logger = logging.getLogger(__name__)
 
-# 指标单位映射 (unit, original_unit)
+# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
 INDICATOR_UNITS = {
-    "CN_EXPORTS": ("%", "%"),
-    "CN_IMPORTS": ("%", "%"),
+    "CN_EXPORTS": ("亿美元", "亿美元"),
+    "CN_EXPORT_YOY": ("%", "%"),
+    "CN_IMPORTS": ("亿美元", "亿美元"),
+    "CN_IMPORT_YOY": ("%", "%"),
     "CN_TRADE_BALANCE": ("亿美元", "亿美元"),
 }
+
+
+def parse_trade_month(date_str: object) -> str:
+    """解析中文月份格式。"""
+    raw = str(date_str)
+    match = re.match(r"(\d{4})年(\d{1,2})月", raw)
+    if match:
+        year, month = match.groups()
+        return f"{year}-{month.zfill(2)}"
+    return raw
 
 
 class TradeIndicatorFetcher:
@@ -37,26 +50,31 @@ class TradeIndicatorFetcher:
         start_date: date,
         end_date: date
     ) -> list[MacroDataPoint]:
-        """获取中国出口数据"""
+        """获取中国当月出口额数据。"""
         try:
-            df = self.ak.macro_china_exports_yoy()
+            df = self.ak.macro_china_hgjck()
             if df.empty:
                 logger.warning("出口数据为空")
                 return []
 
-            date_col = pick_column(df, ['日期'], 1)
-            value_col = pick_column(df, ['今值', '值'], 2)
+            date_col = pick_column(df, ['月份'], 0)
+            value_col = pick_column(df, ['当月出口额-金额'], 1)
 
-            df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
+            df['date'] = pd.to_datetime(df[date_col].apply(parse_trade_month), format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
-            df.columns = ['observed_at', 'value']
+            df.columns = ['observed_at', 'raw_value']
+            # AKShare 当前原始值量级需换算到“亿美元”后才与海关月度规模相符。
+            df['value'] = df['raw_value'].apply(safe_float) / 100000.0
             df = df[
                 (df['observed_at'].dt.date >= start_date) &
                 (df['observed_at'].dt.date <= end_date)
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_EXPORTS", ("%", "%"))
+            unit, original_unit = resolve_indicator_units(
+                "CN_EXPORTS",
+                *INDICATOR_UNITS.get("CN_EXPORTS", ("亿美元", "亿美元")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -78,22 +96,22 @@ class TradeIndicatorFetcher:
             logger.error(f"获取出口数据失败: {e}")
             raise
 
-    def fetch_imports(
+    def fetch_export_yoy(
         self,
         start_date: date,
         end_date: date
     ) -> list[MacroDataPoint]:
-        """获取中国进口数据"""
+        """获取中国当月出口额同比增速。"""
         try:
-            df = self.ak.macro_china_imports_yoy()
+            df = self.ak.macro_china_hgjck()
             if df.empty:
-                logger.warning("进口数据为空")
+                logger.warning("出口同比数据为空")
                 return []
 
-            date_col = pick_column(df, ['日期'], 1)
-            value_col = pick_column(df, ['今值', '值'], 2)
+            date_col = pick_column(df, ['月份'], 0)
+            value_col = pick_column(df, ['当月出口额-同比增长'], 2)
 
-            df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
+            df['date'] = pd.to_datetime(df[date_col].apply(parse_trade_month), format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
             df.columns = ['observed_at', 'value']
             df = df[
@@ -102,7 +120,60 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_IMPORTS", ("%", "%"))
+            unit, original_unit = resolve_indicator_units(
+                "CN_EXPORT_YOY",
+                *INDICATOR_UNITS.get("CN_EXPORT_YOY", ("%", "%")),
+            )
+            for _, row in df.iterrows():
+                try:
+                    point = MacroDataPoint(
+                        code="CN_EXPORT_YOY",
+                        value=safe_float(row['value']),
+                        observed_at=row['observed_at'].date(),
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
+                    )
+                    self._validate(point)
+                    data_points.append(point)
+                except (ValueError, DataValidationError) as e:
+                    logger.warning(f"跳过无效出口同比数据: {row}, 错误: {e}")
+
+            return self._sort_and_deduplicate(data_points)
+
+        except Exception as e:
+            logger.error(f"获取出口同比数据失败: {e}")
+            raise
+
+    def fetch_imports(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> list[MacroDataPoint]:
+        """获取中国当月进口额数据。"""
+        try:
+            df = self.ak.macro_china_hgjck()
+            if df.empty:
+                logger.warning("进口数据为空")
+                return []
+
+            date_col = pick_column(df, ['月份'], 0)
+            value_col = pick_column(df, ['当月进口额-金额'], 4)
+
+            df['date'] = pd.to_datetime(df[date_col].apply(parse_trade_month), format='mixed', errors='coerce')
+            df = df[['date', value_col]].dropna()
+            df.columns = ['observed_at', 'raw_value']
+            df['value'] = df['raw_value'].apply(safe_float) / 100000.0
+            df = df[
+                (df['observed_at'].dt.date >= start_date) &
+                (df['observed_at'].dt.date <= end_date)
+            ]
+
+            data_points = []
+            unit, original_unit = resolve_indicator_units(
+                "CN_IMPORTS",
+                *INDICATOR_UNITS.get("CN_IMPORTS", ("亿美元", "亿美元")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -122,6 +193,55 @@ class TradeIndicatorFetcher:
 
         except Exception as e:
             logger.error(f"获取进口数据失败: {e}")
+            raise
+
+    def fetch_import_yoy(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> list[MacroDataPoint]:
+        """获取中国当月进口额同比增速。"""
+        try:
+            df = self.ak.macro_china_hgjck()
+            if df.empty:
+                logger.warning("进口同比数据为空")
+                return []
+
+            date_col = pick_column(df, ['月份'], 0)
+            value_col = pick_column(df, ['当月进口额-同比增长'], 5)
+
+            df['date'] = pd.to_datetime(df[date_col].apply(parse_trade_month), format='mixed', errors='coerce')
+            df = df[['date', value_col]].dropna()
+            df.columns = ['observed_at', 'value']
+            df = df[
+                (df['observed_at'].dt.date >= start_date) &
+                (df['observed_at'].dt.date <= end_date)
+            ]
+
+            data_points = []
+            unit, original_unit = resolve_indicator_units(
+                "CN_IMPORT_YOY",
+                *INDICATOR_UNITS.get("CN_IMPORT_YOY", ("%", "%")),
+            )
+            for _, row in df.iterrows():
+                try:
+                    point = MacroDataPoint(
+                        code="CN_IMPORT_YOY",
+                        value=safe_float(row['value']),
+                        observed_at=row['observed_at'].date(),
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
+                    )
+                    self._validate(point)
+                    data_points.append(point)
+                except (ValueError, DataValidationError) as e:
+                    logger.warning(f"跳过无效进口同比数据: {row}, 错误: {e}")
+
+            return self._sort_and_deduplicate(data_points)
+
+        except Exception as e:
+            logger.error(f"获取进口同比数据失败: {e}")
             raise
 
     def fetch_trade_balance(
@@ -148,7 +268,10 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get("CN_TRADE_BALANCE", ("亿美元", "亿美元"))
+            unit, original_unit = resolve_indicator_units(
+                "CN_TRADE_BALANCE",
+                *INDICATOR_UNITS.get("CN_TRADE_BALANCE", ("亿美元", "亿美元")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(

@@ -1,0 +1,15 @@
+{% extends "data_center/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block subtitle %}健康监控页当前提供最小壳层，后续可继续接 provider health 细节。{% endblock %}
+
+{% block content %}
+<section class="section">
+    <h2>Monitor</h2>
+    <p class="lead">当前治理重点是宏观事实表的口径和缺口。Provider 健康详细数据仍可通过 `/api/data-center/providers/status/` 获取。</p>
+    <div class="actions">
+        <a href="{% url 'data_center:dc-governance-page' %}" style="text-decoration:none;"><button type="button" class="btn-primary">查看治理审计</button></a>
+    </div>
+</section>
+{% endblock %}

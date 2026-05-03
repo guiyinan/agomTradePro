@@ -610,6 +610,10 @@ class QueryMacroSeriesUseCase:
         catalog = self._catalog.get_by_code(request.indicator_code)
         name_cn = catalog.name_cn if catalog else request.indicator_code
         period_type = catalog.default_period_type if catalog else "M"
+        description = catalog.description if catalog else ""
+        catalog_extra = dict(catalog.extra or {}) if catalog else {}
+        series_semantics = str(catalog_extra.get("series_semantics") or "")
+        paired_indicator_code = str(catalog_extra.get("paired_indicator_code") or "")
 
         data_points: list[MacroDataPoint]
         data_source = "none"
@@ -660,6 +664,9 @@ class QueryMacroSeriesUseCase:
             indicator_code=request.indicator_code,
             name_cn=name_cn,
             period_type=period_type,
+            description=description,
+            series_semantics=series_semantics,
+            paired_indicator_code=paired_indicator_code,
             data=data_points,
             total=len(data_points),
             data_source=data_source,
@@ -1494,6 +1501,38 @@ class _BaseSyncUseCase:
             raise ValueError(f"Provider adapter unavailable: {provider_id}")
         return config, provider
 
+    @staticmethod
+    def _normalize_fact_source(
+        fact,
+        *,
+        source_type: str,
+        provider_name: str,
+    ):
+        updates: dict[str, Any] = {"source": source_type}
+        if hasattr(fact, "extra"):
+            next_extra = dict(getattr(fact, "extra", {}) or {})
+            next_extra["source_type"] = source_type
+            next_extra.setdefault("provider_name", provider_name)
+            updates["extra"] = next_extra
+        return dataclasses.replace(fact, **updates)
+
+    @classmethod
+    def _normalize_fact_sources(
+        cls,
+        facts: list[Any],
+        *,
+        source_type: str,
+        provider_name: str,
+    ) -> list[Any]:
+        return [
+            cls._normalize_fact_source(
+                fact,
+                source_type=source_type,
+                provider_name=provider_name,
+            )
+            for fact in facts
+        ]
+
     def _persist_provider_health_metric(
         self,
         config: ProviderConfig,
@@ -1580,6 +1619,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
         *,
         indicator_code: str,
         source_type: str,
+        provider_name: str,
         facts: list,
     ) -> list:
         if self._catalog.get_by_code(indicator_code) is None:
@@ -1602,6 +1642,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
             extra.update(
                 {
                     "source_type": source_type,
+                    "provider_name": provider_name,
                     "original_unit": original_unit,
                     "display_unit": rule.display_unit,
                     "dimension_key": rule.dimension_key,
@@ -1613,6 +1654,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 dataclasses.replace(
                     fact,
                     value=float(fact.value) * float(rule.multiplier_to_storage),
+                    source=source_type,
                     unit=rule.storage_unit,
                     extra=extra,
                 )
@@ -1627,6 +1669,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
             normalized = self._normalize_macro_facts(
                 indicator_code=request.indicator_code,
                 source_type=config.source_type,
+                provider_name=provider.provider_name(),
                 facts=facts,
             )
             stored_count = self._facts.bulk_upsert(normalized)
@@ -1695,6 +1738,11 @@ class SyncPriceUseCase(_BaseSyncUseCase):
         started = datetime.now(timezone.utc)
         try:
             bars = provider.fetch_price_history(request.asset_code, request.start, request.end)
+            bars = self._normalize_fact_sources(
+                bars,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_upsert(bars)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -1761,6 +1809,11 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
         started = datetime.now(timezone.utc)
         try:
             quotes = provider.fetch_quote_snapshots(request.asset_codes)
+            quotes = self._normalize_fact_sources(
+                quotes,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_upsert(quotes)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
@@ -1815,10 +1868,15 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
         self._facts = fact_repo
 
     def execute(self, request: SyncFundNavRequest) -> SyncResult:
-        _config, provider = self._get_provider(request.provider_id)
+        config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         try:
             facts = provider.fetch_fund_nav(request.fund_code, request.start, request.end)
+            facts = self._normalize_fact_sources(
+                facts,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
@@ -1868,10 +1926,15 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
         self._facts = fact_repo
 
     def execute(self, request: SyncFinancialRequest) -> SyncResult:
-        _config, provider = self._get_provider(request.provider_id)
+        config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         try:
             facts = provider.fetch_financials(request.asset_code, periods=request.periods)
+            facts = self._normalize_fact_sources(
+                facts,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
@@ -1913,10 +1976,15 @@ class SyncValuationUseCase(_BaseSyncUseCase):
         self._facts = fact_repo
 
     def execute(self, request: SyncValuationRequest) -> SyncResult:
-        _config, provider = self._get_provider(request.provider_id)
+        config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         try:
             facts = provider.fetch_valuations(request.asset_code, request.start, request.end)
+            facts = self._normalize_fact_sources(
+                facts,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
@@ -1966,7 +2034,7 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
         self._facts = fact_repo
 
     def execute(self, request: SyncSectorMembershipRequest) -> SyncResult:
-        _config, provider = self._get_provider(request.provider_id)
+        config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         params = {
             "sector_code": request.sector_code,
@@ -1980,6 +2048,11 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
                 sector_code=request.sector_code,
                 sector_name=request.sector_name,
                 effective_date=request.effective_date,
+            )
+            facts = self._normalize_fact_sources(
+                facts,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
@@ -2024,11 +2097,16 @@ class SyncNewsUseCase(_BaseSyncUseCase):
         self._facts = fact_repo
 
     def execute(self, request: SyncNewsRequest) -> SyncResult:
-        _config, provider = self._get_provider(request.provider_id)
+        config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         params = {"asset_code": request.asset_code, "limit": request.limit}
         try:
             facts = provider.fetch_news(request.asset_code, limit=request.limit)
+            facts = self._normalize_fact_sources(
+                facts,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_insert(facts)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
@@ -2059,11 +2137,16 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
         self._facts = fact_repo
 
     def execute(self, request: SyncCapitalFlowRequest) -> SyncResult:
-        _config, provider = self._get_provider(request.provider_id)
+        config, provider = self._get_provider(request.provider_id)
         started = datetime.now(timezone.utc)
         params = {"asset_code": request.asset_code, "period": request.period}
         try:
             facts = provider.fetch_capital_flows(request.asset_code, period=request.period)
+            facts = self._normalize_fact_sources(
+                facts,
+                source_type=config.source_type,
+                provider_name=provider.provider_name(),
+            )
             stored_count = self._facts.bulk_upsert(facts)
             latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
             self._raw_audit_repo.log(

@@ -11,7 +11,6 @@ Exports:
 
 from .akshare_adapter import AKShareAdapter
 from .base import (
-    PUBLICATION_LAGS,
     BaseMacroAdapter,
     DataSourceUnavailableError,
     DataValidationError,
@@ -35,7 +34,6 @@ __all__ = [
     # Data Models
     "MacroDataPoint",
     "PublicationLag",
-    "PUBLICATION_LAGS",
     "get_publication_lags",
     # Exceptions
     "DataSourceUnavailableError",

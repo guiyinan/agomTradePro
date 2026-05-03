@@ -1,0 +1,280 @@
+{% extends "data_center/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block subtitle %}针对宏观数据口径、source 别名和缺口序列的治理台。{% endblock %}
+
+{% block content %}
+<section class="section">
+    <h2>治理摘要</h2>
+    <p class="lead">这里不只看 GDP。高风险宏观指标的口径、配对序列、source 规范和存量缺口都集中审计。</p>
+    <div class="actions">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="run_full_repair">
+            <button type="submit" class="btn-primary">执行完整治理</button>
+        </form>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="canonicalize_sources">
+            <button type="submit" class="btn-secondary">统一 source 别名</button>
+        </form>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="normalize_units">
+            <button type="submit" class="btn-secondary">重跑单位标准化</button>
+        </form>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="sync_missing_series">
+            <button type="submit" class="btn-warn">补同步缺失序列</button>
+        </form>
+    </div>
+</section>
+
+{% if action_result %}
+<section class="section">
+    <h2>最近执行结果</h2>
+    <div class="tag-list" style="margin-bottom: 12px;">
+        <span class="badge badge-ok">{{ action_result.label }}</span>
+        <span class="badge badge-neutral">{{ action_result.status }}</span>
+    </div>
+    <div class="stack">
+        {% if action_result.details.source %}
+        <div>
+            <strong>source</strong>
+            <pre>{{ action_result.details.source }}</pre>
+        </div>
+        {% endif %}
+        {% if action_result.details.normalize %}
+        <div>
+            <strong>normalize</strong>
+            <pre>{{ action_result.details.normalize.command_output }}</pre>
+        </div>
+        {% endif %}
+        {% if action_result.details.sync %}
+        <div>
+            <strong>sync</strong>
+            <pre>{{ action_result.details.sync.command_output }}</pre>
+        </div>
+        {% endif %}
+        {% if action_result.details.command_output %}
+        <pre>{{ action_result.details.command_output }}</pre>
+        {% endif %}
+        {% if not action_result.details.command_output and not action_result.details.source and not action_result.details.normalize and not action_result.details.sync %}
+        <pre>{{ action_result.details }}</pre>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+<section class="section">
+    <div class="grid-4">
+        <div class="stat-card">
+            <div class="label">治理覆盖指标</div>
+            <div class="value">{{ snapshot.summary.governed_indicator_count }}</div>
+            <div class="hint">当前纳入口径治理和缺口审计的核心宏观指标数。</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">legacy source 行数</div>
+            <div class="value">{{ snapshot.summary.alias_row_count }}</div>
+            <div class="hint">还在使用旧 source 别名的存量事实行数。</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">可自动补同步缺口</div>
+            <div class="value">{{ snapshot.summary.missing_supported_count }}</div>
+            <div class="hint">catalog 已有、同步器也支持，但库里还没落数的指标。</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">真实未接入缺口</div>
+            <div class="value">{{ snapshot.summary.catalog_only_gap_count }}</div>
+            <div class="hint">排除兼容别名后，catalog 已定义但同步链路尚未接入的口径。</div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <h2>Source 别名问题</h2>
+    {% if snapshot.source_alias_issues %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>旧 source</th>
+                    <th>目标 source</th>
+                    <th>影响行数</th>
+                    <th>最近期次</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in snapshot.source_alias_issues %}
+                <tr>
+                    <td class="mono">{{ row.from_source }}</td>
+                    <td class="mono">{{ row.to_source }}</td>
+                    <td>{{ row.row_count }}</td>
+                    <td>{{ row.latest_period|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty">当前没有 legacy source 别名残留。</div>
+    {% endif %}
+</section>
+
+<section class="section">
+    <h2>可自动补同步的缺口</h2>
+    {% if snapshot.missing_sync_candidates %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>指标</th>
+                    <th>名称</th>
+                    <th>语义</th>
+                    <th>配对</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in snapshot.missing_sync_candidates %}
+                <tr>
+                    <td class="mono">{{ row.code }}</td>
+                    <td>{{ row.name_cn }}</td>
+                    <td class="mono">{{ row.series_semantics|default:"-" }}</td>
+                    <td class="mono">{{ row.paired_indicator_code|default:"-" }}</td>
+                    <td><span class="badge badge-warn">待补同步</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty">当前没有“已支持但未落数”的缺口。</div>
+    {% endif %}
+</section>
+
+<section class="section">
+    <h2>兼容别名 catalog</h2>
+    {% if snapshot.alias_catalogs %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>别名指标</th>
+                    <th>名称</th>
+                    <th>canonical 指标</th>
+                    <th>说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in snapshot.alias_catalogs %}
+                <tr>
+                    <td class="mono">{{ row.code }}</td>
+                    <td>{{ row.name_cn }}</td>
+                    <td class="mono">{{ row.alias_of_indicator_code|default:"-" }}</td>
+                    <td>兼容保留，不单独落数，实际查询应走 canonical 指标。</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty">当前没有仅作为兼容别名存在的 catalog 代码。</div>
+    {% endif %}
+</section>
+
+<section class="section">
+    <h2>真实 catalog-only 缺口</h2>
+    {% if snapshot.catalog_only_gaps %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>指标</th>
+                    <th>名称</th>
+                    <th>语义</th>
+                    <th>配对</th>
+                    <th>说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in snapshot.catalog_only_gaps %}
+                <tr>
+                    <td class="mono">{{ row.code }}</td>
+                    <td>{{ row.name_cn }}</td>
+                    <td class="mono">{{ row.series_semantics|default:"-" }}</td>
+                    <td class="mono">{{ row.paired_indicator_code|default:"-" }}</td>
+                    <td>catalog 已定义，当前同步器未接入或未开通该口径。</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty">当前没有 catalog-only 缺口。</div>
+    {% endif %}
+</section>
+
+<section class="section">
+    <h2>指标审计矩阵</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>指标</th>
+                    <th>名称</th>
+                    <th>语义</th>
+                    <th>数据量</th>
+                    <th>最近期次</th>
+                    <th>source</th>
+                    <th>标签</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in snapshot.indicator_rows %}
+                <tr>
+                    <td class="mono">{{ row.code }}</td>
+                    <td>
+                        <div>{{ row.name_cn }}</div>
+                        {% if row.description %}
+                        <div style="color:#627266; margin-top:4px; font-size:12px;">{{ row.description }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="mono">{{ row.series_semantics|default:"-" }}</td>
+                    <td>{{ row.row_count }}</td>
+                    <td>{{ row.latest_period|default:"-" }}</td>
+                    <td class="mono">
+                        {% if row.source_names %}
+                            {{ row.source_names|join:", " }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="tag-list">
+                            {% for tag in row.tags %}
+                                {% if tag == "healthy" %}
+                                <span class="badge badge-ok">healthy</span>
+                                {% elif tag == "legacy_source_alias" %}
+                                <span class="badge badge-danger">legacy source</span>
+                                {% elif tag == "missing_supported" %}
+                                <span class="badge badge-warn">missing supported</span>
+                                {% elif tag == "catalog_only_gap" %}
+                                <span class="badge badge-neutral">catalog-only gap</span>
+                                {% elif tag == "paired_gap" %}
+                                <span class="badge badge-warn">paired gap</span>
+                                {% else %}
+                                <span class="badge badge-neutral">{{ tag }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

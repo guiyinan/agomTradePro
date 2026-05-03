@@ -297,6 +297,9 @@ class MacroSeriesResponse:
     indicator_code: str
     name_cn: str
     period_type: str
+    description: str = ""
+    series_semantics: str = ""
+    paired_indicator_code: str = ""
     data: list[MacroDataPoint] = field(default_factory=list)
     total: int = 0
     data_source: str = "none"
@@ -327,6 +330,9 @@ class MacroSeriesResponse:
             "indicator_code": self.indicator_code,
             "name_cn": self.name_cn,
             "period_type": self.period_type,
+            "description": self.description,
+            "series_semantics": self.series_semantics,
+            "paired_indicator_code": self.paired_indicator_code,
             "total": self.total,
             "data": [p.to_dict() for p in self.data],
             "data_source": self.data_source,

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ page_title|default:"Data Center" }}{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #f3f7f4;
+            --panel: #ffffff;
+            --panel-soft: #f7faf8;
+            --text: #15221a;
+            --muted: #627266;
+            --line: #d8e3da;
+            --accent: #1f7a4d;
+            --accent-soft: #e8f5ee;
+            --warn: #b86017;
+            --warn-soft: #fff3e7;
+            --danger: #b43b33;
+            --danger-soft: #feeeec;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at top right, rgba(31, 122, 77, 0.10), transparent 28%),
+                linear-gradient(180deg, #f8fbf9 0%, var(--bg) 100%);
+            color: var(--text);
+        }
+
+        a { color: inherit; }
+
+        .shell {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 28px 20px 48px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .brand p {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.78);
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .nav a.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .section {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 14px 30px rgba(21, 34, 26, 0.05);
+            margin-bottom: 18px;
+        }
+
+        .section h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
+        }
+
+        .section p.lead {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-ok { background: var(--accent-soft); color: var(--accent); }
+        .badge-warn { background: var(--warn-soft); color: var(--warn); }
+        .badge-danger { background: var(--danger-soft); color: var(--danger); }
+        .badge-neutral { background: #eef2ef; color: #526255; }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .actions form { margin: 0; }
+
+        button {
+            border: 0;
+            border-radius: 12px;
+            padding: 11px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-secondary { background: #edf3ee; color: var(--text); }
+        .btn-warn { background: #fff0df; color: #9d4f12; }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .stat-card {
+            background: var(--panel-soft);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .hint {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+            font-size: 14px;
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .mono {
+            font-family: Consolas, "SFMono-Regular", monospace;
+            font-size: 13px;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #0f1a13;
+            color: #dcebe0;
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+
+        .empty {
+            padding: 14px 16px;
+            background: var(--panel-soft);
+            border: 1px dashed var(--line);
+            border-radius: 14px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        @media (max-width: 1080px) {
+            .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .topbar { flex-direction: column; align-items: flex-start; }
+        }
+
+        @media (max-width: 680px) {
+            .shell { padding: 18px 14px 40px; }
+            .grid-4 { grid-template-columns: 1fr; }
+            .section { padding: 18px; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="shell">
+        <div class="topbar">
+            <div class="brand">
+                <h1>{{ page_title|default:"Data Center" }}</h1>
+                <p>{% block subtitle %}数据中台治理与审计入口{% endblock %}</p>
+            </div>
+            <nav class="nav">
+                <a href="{% url 'data_center:dc-governance-page' %}" class="{% if request.path == '/data-center/governance/' %}active{% endif %}">治理台</a>
+                <a href="{% url 'data_center:dc-providers-page' %}" class="{% if request.path == '/data-center/providers/' %}active{% endif %}">Providers</a>
+                <a href="{% url 'data_center:dc-monitor-page' %}" class="{% if request.path == '/data-center/monitor/' %}active{% endif %}">Monitor</a>
+            </nav>
+        </div>
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

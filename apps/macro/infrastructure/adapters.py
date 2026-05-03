@@ -34,14 +34,21 @@ class AKShareAdapter:
         "CN_M2": "m2",
         "CN_VALUE_ADDED": "value_added",
         "CN_RETAIL_SALES": "retail_sales",
+        "CN_RETAIL_SALES_YOY": "retail_sales_yoy",
+        "CN_FIXED_INVESTMENT": "fixed_investment",
+        "CN_FAI_YOY": "fixed_investment_yoy",
         "CN_GDP": "gdp",
         "CN_EXPORTS": "exports",
+        "CN_EXPORT_YOY": "export_yoy",
         "CN_IMPORTS": "imports",
+        "CN_IMPORT_YOY": "import_yoy",
         "CN_TRADE_BALANCE": "trade_balance",
         "CN_SHIBOR": "shibor",
         "CN_LPR": "lpr",
         "CN_RRR": "rrr",
         "CN_NEW_CREDIT": "new_credit",
+        "CN_SOCIAL_FINANCING": "social_financing",
+        "CN_SOCIAL_FINANCING_YOY": "social_financing_yoy",
     }
 
     def supports(self, indicator_code: str) -> bool:

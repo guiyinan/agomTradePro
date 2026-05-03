@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 个人投研平台
-> **最后更新**: 2026-04-28
+> **最后更新**: 2026-05-03
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -30,6 +30,8 @@
 
 - 宏观运行时入口已统一收口到 `data_center`：HTTP 走 `/api/data-center/*`，MCP 走 `data_center_*` 工具族。
 - 指标目录与量纲规则真源见 [development/macro-data-center-cutover.md](development/macro-data-center-cutover.md)。
+- 宏观调度频率、发布时间 lag、period override 已开始下沉到 `IndicatorCatalog.extra`，SDK/MCP/页面解释需优先读取 runtime metadata。
+- 宏观治理台已落地到 `/data-center/governance/`；这是人工审计入口，不改变 SDK/MCP canonical 契约。
 
 ## 文档目录
 

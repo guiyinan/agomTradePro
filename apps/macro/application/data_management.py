@@ -8,10 +8,13 @@ Provides functionality for:
 """
 
 import logging
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, Callable
+
+from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
 from ..domain.entities import MacroIndicator
 
@@ -295,44 +298,39 @@ class ScheduleDataFetchUseCase:
     配置定时任务规则
     """
 
-    # 支持的指标及其建议抓取频率
-    INDICATOR_SCHEDULES = {
-        "CN_PMI": {"frequency": "monthly", "day_of_month": 1},
-        "CN_NON_MAN_PMI": {"frequency": "monthly", "day_of_month": 1},
-        "CN_CPI": {"frequency": "monthly", "day_of_month": 10},
-        "CN_CPI_NATIONAL_YOY": {"frequency": "monthly", "day_of_month": 10},
-        "CN_CPI_NATIONAL_MOM": {"frequency": "monthly", "day_of_month": 10},
-        "CN_CPI_URBAN_YOY": {"frequency": "monthly", "day_of_month": 10},
-        "CN_CPI_URBAN_MOM": {"frequency": "monthly", "day_of_month": 10},
-        "CN_CPI_RURAL_YOY": {"frequency": "monthly", "day_of_month": 10},
-        "CN_CPI_RURAL_MOM": {"frequency": "monthly", "day_of_month": 10},
-        "CN_PPI": {"frequency": "monthly", "day_of_month": 10},
-        "CN_PPI_YOY": {"frequency": "monthly", "day_of_month": 10},
-        "CN_M2": {"frequency": "monthly", "day_of_month": 15},
-        "CN_VALUE_ADDED": {"frequency": "monthly", "day_of_month": 15},
-        "CN_RETAIL_SALES": {"frequency": "monthly", "day_of_month": 15},
-        "CN_GDP": {"frequency": "quarterly", "day_of_month": 20},
-        "CN_SHIBOR": {"frequency": "daily"},
-        "CN_EXPORTS": {"frequency": "monthly", "day_of_month": 10},
-        "CN_IMPORTS": {"frequency": "monthly", "day_of_month": 10},
-        "CN_TRADE_BALANCE": {"frequency": "monthly", "day_of_month": 10},
-        "CN_UNEMPLOYMENT": {"frequency": "monthly", "day_of_month": 15},
-        "CN_FX_RESERVES": {"frequency": "monthly", "day_of_month": 10},
-        "CN_LPR": {"frequency": "monthly", "day_of_month": 20},
-        "CN_RRR": {"frequency": "daily"},  # 不定期调整，每日检查
-        "CN_NEW_HOUSE_PRICE": {"frequency": "monthly", "day_of_month": 15},
-        "CN_OIL_PRICE": {"frequency": "daily"},  # 不定期调整，每日检查
-        "CN_NEW_CREDIT": {"frequency": "monthly", "day_of_month": 15},
-        "CN_RMB_DEPOSIT": {"frequency": "monthly", "day_of_month": 15},
-        "CN_RMB_LOAN": {"frequency": "monthly", "day_of_month": 15},
-    }
-
     def __init__(self, repository):
         """
         Args:
             repository: 数据仓储
         """
         self.repository = repository
+
+    @classmethod
+    def _load_runtime_schedule_overrides(cls) -> dict[str, dict[str, Any]]:
+        schedules: dict[str, dict[str, Any]] = {}
+        try:
+            metadata_map = get_runtime_macro_index_metadata_map()
+        except Exception:
+            return schedules
+
+        for code, metadata in metadata_map.items():
+            frequency = str(metadata.get("schedule_frequency") or "").strip()
+            if not frequency:
+                continue
+            schedule: dict[str, Any] = {"frequency": frequency}
+            day_of_month = metadata.get("schedule_day_of_month")
+            if day_of_month is not None:
+                schedule["day_of_month"] = int(day_of_month)
+            release_months = metadata.get("schedule_release_months") or []
+            if isinstance(release_months, (list, tuple)) and release_months:
+                schedule["release_months"] = [
+                    int(month)
+                    for month in release_months
+                    if str(month).strip()
+                ]
+            schedules[code] = schedule
+
+        return schedules
 
     def get_scheduled_indicators(self) -> dict[str, dict]:
         """
@@ -341,7 +339,7 @@ class ScheduleDataFetchUseCase:
         Returns:
             Dict: 指标调度配置
         """
-        return self.INDICATOR_SCHEDULES
+        return self._load_runtime_schedule_overrides()
 
     def get_due_indicators(self, as_of_date: date | None = None) -> list[str]:
         """
@@ -356,7 +354,7 @@ class ScheduleDataFetchUseCase:
         check_date = as_of_date or date.today()
         due_indicators = []
 
-        for indicator, schedule in self.INDICATOR_SCHEDULES.items():
+        for indicator, schedule in self.get_scheduled_indicators().items():
             if self._is_indicator_due(indicator, schedule, check_date):
                 due_indicators.append(indicator)
 
@@ -378,9 +376,13 @@ class ScheduleDataFetchUseCase:
 
         if frequency == "daily":
             return self._is_daily_due(indicator, check_date)
-        elif frequency == "monthly":
+        if frequency == "monthly":
             day_of_month = schedule.get("day_of_month", 1)
             return self._is_monthly_due(indicator, check_date, day_of_month)
+        if frequency == "quarterly":
+            day_of_month = schedule.get("day_of_month", 1)
+            release_months = schedule.get("release_months") or [1, 4, 7, 10]
+            return self._is_quarterly_due(indicator, check_date, day_of_month, release_months)
 
         return False
 
@@ -404,3 +406,32 @@ class ScheduleDataFetchUseCase:
 
         # 如果没有数据或数据早于本月开始，则需要抓取
         return latest is None or latest < month_start
+
+    def _is_quarterly_due(
+        self,
+        indicator: str,
+        check_date: date,
+        target_day: int,
+        release_months: list[int],
+    ) -> bool:
+        """判断季度指标是否到期。"""
+
+        if check_date.day < target_day:
+            return False
+        if release_months and check_date.month not in release_months:
+            return False
+
+        latest = self.repository.get_latest_observation_date(indicator, check_date)
+        expected_period_end = self._get_previous_month_end(check_date)
+        return latest is None or latest < expected_period_end
+
+    @staticmethod
+    def _get_previous_month_end(check_date: date) -> date:
+        """Return the last day of the month preceding the check date."""
+
+        year = check_date.year
+        month = check_date.month - 1
+        if month == 0:
+            year -= 1
+            month = 12
+        return date(year, month, monthrange(year, month)[1])

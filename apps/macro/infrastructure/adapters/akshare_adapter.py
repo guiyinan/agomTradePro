@@ -67,12 +67,17 @@ class AKShareAdapter(BaseMacroAdapter):
         "CN_M2": "M2 广义货币供应量余额",
         "CN_M2_YOY": "M2同比增速",
         "CN_VALUE_ADDED": "工业增加值",
-        "CN_RETAIL_SALES": "社会消费品零售总额",
+        "CN_RETAIL_SALES": "社会消费品零售总额当月值",
+        "CN_RETAIL_SALES_YOY": "社会消费品零售总额同比增速",
+        "CN_FIXED_INVESTMENT": "固定资产投资累计值",
+        "CN_FAI_YOY": "固定资产投资累计同比增速",
         "CN_GDP": "GDP 国内生产总值累计值",
         "CN_GDP_YOY": "GDP同比增速",
         # 贸易数据
-        "CN_EXPORTS": "出口同比增长",
-        "CN_IMPORTS": "进口同比增长",
+        "CN_EXPORTS": "当月出口额",
+        "CN_EXPORT_YOY": "当月出口额同比增速",
+        "CN_IMPORTS": "当月进口额",
+        "CN_IMPORT_YOY": "当月进口额同比增速",
         "CN_TRADE_BALANCE": "贸易差额",
         # 房产数据
         "CN_NEW_HOUSE_PRICE": "新房价格指数",
@@ -91,6 +96,8 @@ class AKShareAdapter(BaseMacroAdapter):
         "CN_RMB_LOAN": "人民币贷款",
         "CN_DR007": "存款类机构7天期回购加权平均利率",
         "CN_PBOC_NET_INJECTION": "央行公开市场净投放",
+        "CN_SOCIAL_FINANCING": "社会融资规模增量",
+        "CN_SOCIAL_FINANCING_YOY": "社会融资规模同比增速",
         # ============ 高频指标（Regime 滞后性改进 Phase 1）============
         "CN_BOND_10Y": "10年期国债收益率",
         "CN_BOND_5Y": "5年期国债收益率",
@@ -270,16 +277,30 @@ class AKShareAdapter(BaseMacroAdapter):
                 return self.economic_fetcher.fetch_value_added(start_date, end_date)
             elif indicator_code == "CN_RETAIL_SALES":
                 return self.economic_fetcher.fetch_retail_sales(start_date, end_date)
+            elif indicator_code == "CN_RETAIL_SALES_YOY":
+                return self.economic_fetcher.fetch_retail_sales_yoy(start_date, end_date)
+            elif indicator_code == "CN_FIXED_INVESTMENT":
+                return self.economic_fetcher.fetch_fixed_investment(start_date, end_date)
+            elif indicator_code == "CN_FAI_YOY":
+                return self.economic_fetcher.fetch_fixed_investment_yoy(start_date, end_date)
             elif indicator_code == "CN_GDP":
                 return self.economic_fetcher.fetch_gdp(start_date, end_date)
             elif indicator_code == "CN_GDP_YOY":
                 return self.economic_fetcher.fetch_gdp_yoy(start_date, end_date)
+            elif indicator_code == "CN_SOCIAL_FINANCING":
+                return self.economic_fetcher.fetch_social_financing(start_date, end_date)
+            elif indicator_code == "CN_SOCIAL_FINANCING_YOY":
+                return self.economic_fetcher.fetch_social_financing_yoy(start_date, end_date)
 
             # 贸易指标
             elif indicator_code == "CN_EXPORTS":
                 return self.trade_fetcher.fetch_exports(start_date, end_date)
+            elif indicator_code == "CN_EXPORT_YOY":
+                return self.trade_fetcher.fetch_export_yoy(start_date, end_date)
             elif indicator_code == "CN_IMPORTS":
                 return self.trade_fetcher.fetch_imports(start_date, end_date)
+            elif indicator_code == "CN_IMPORT_YOY":
+                return self.trade_fetcher.fetch_import_yoy(start_date, end_date)
             elif indicator_code == "CN_TRADE_BALANCE":
                 return self.trade_fetcher.fetch_trade_balance(start_date, end_date)
 

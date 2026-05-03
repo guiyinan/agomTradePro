@@ -38,6 +38,48 @@ TABLE_SORT_FIELDS = {
 _UNSET = object()
 
 
+def _format_reporting_period_label(reporting_period: date, period_type: str) -> str:
+    """Format reporting period labels for UI cards and charts."""
+
+    normalized_period_type = (period_type or "").upper()
+    if normalized_period_type == "Q":
+        quarter = ((reporting_period.month - 1) // 3) + 1
+        return f"{reporting_period.year}-Q{quarter}"
+    if normalized_period_type == "H":
+        half = 1 if reporting_period.month <= 6 else 2
+        return f"{reporting_period.year}-H{half}"
+    if normalized_period_type == "Y":
+        return f"{reporting_period.year}"
+    if normalized_period_type == "M":
+        return reporting_period.strftime("%Y-%m")
+    return reporting_period.isoformat()
+
+
+def _resolve_indicator_display_priority(
+    metadata: dict[str, Any],
+    catalog_extra: dict[str, Any],
+) -> int:
+    """Return a stable display priority for indicator cards."""
+
+    priority = metadata.get("display_priority", catalog_extra.get("display_priority", 0))
+    try:
+        return int(priority)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _select_default_indicator_code(indicator_map: dict[str, dict[str, Any]]) -> str:
+    """Pick the initial indicator shown on the macro page."""
+
+    with_data = [item for item in indicator_map.values() if item.get("has_data")]
+    if with_data:
+        with_data.sort(
+            key=lambda item: (-int(item.get("display_priority", 0)), item["code"])
+        )
+        return with_data[0]["code"]
+    return next(iter(indicator_map), "")
+
+
 def _resolve_manual_refresh_provider_id() -> int | None:
     """Return the preferred Data Center provider id for page-level manual refresh."""
 
@@ -121,6 +163,10 @@ def _format_indicator_row_for_display(row: dict[str, Any]) -> dict[str, Any]:
         "storage_value": storage_value,
         "storage_unit": storage_unit,
         "reporting_period": reporting_period.isoformat(),
+        "reporting_period_label": _format_reporting_period_label(
+            reporting_period,
+            str(row.get("period_type") or ""),
+        ),
         "period_type": row["period_type"],
         "period_type_display": row["period_type_display"],
         "observed_at": observed_at.isoformat(),
@@ -162,15 +208,22 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
                 if latest_by_code.get(catalog.code)
                 else None
             ),
-            "latest_period": (
-                latest_by_code[catalog.code]["reporting_period"].isoformat()[:7]
-                if latest_by_code.get(catalog.code)
-                else ""
-            ),
             "unit": (
                 (latest_by_code[catalog.code].get("display_unit") or "")
                 if latest_by_code.get(catalog.code)
                 else (metadata_map.get(catalog.code, {}).get("unit") or catalog.default_unit or "-")
+            ),
+            "series_semantics": metadata_map.get(catalog.code, {}).get(
+                "series_semantics",
+                (getattr(catalog, "extra", {}) or {}).get("series_semantics", ""),
+            ),
+            "paired_indicator_code": metadata_map.get(catalog.code, {}).get(
+                "paired_indicator_code",
+                (getattr(catalog, "extra", {}) or {}).get("paired_indicator_code", ""),
+            ),
+            "display_priority": _resolve_indicator_display_priority(
+                metadata_map.get(catalog.code, {}),
+                getattr(catalog, "extra", {}) or {},
             ),
             "period_type": getattr(catalog, "default_period_type", "") or "",
             "refresh_start": _suggest_refresh_start(
@@ -183,16 +236,21 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
                 today=refresh_end_date,
             ),
             "has_data": catalog.code in synced_codes,
+            "latest_period": (
+                _format_reporting_period_label(
+                    latest_by_code[catalog.code]["reporting_period"],
+                    str(latest_by_code[catalog.code].get("period_type") or ""),
+                )
+                if latest_by_code.get(catalog.code)
+                else ""
+            ),
         }
         for catalog in active_catalogs
     }
 
     resolved_selected_indicator = selected_indicator
     if resolved_selected_indicator not in indicator_map:
-        resolved_selected_indicator = next(
-            (code for code, indicator in indicator_map.items() if indicator["has_data"]),
-            next(iter(indicator_map), ""),
-        )
+        resolved_selected_indicator = _select_default_indicator_code(indicator_map)
 
     history_rows: list[dict[str, Any]] = []
     if resolved_selected_indicator and indicator_map.get(resolved_selected_indicator, {}).get(

@@ -19,10 +19,11 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
+from .common import resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
-# 指标单位映射 (unit, original_unit) - 使用元组格式
+# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
 WEEKLY_INDICATOR_UNITS = {
     "CN_POWER_GEN": ("亿千瓦时", "亿千瓦时"),
     "CN_BLAST_FURNACE": ("%", "%"),  # 保留兼容性
@@ -98,7 +99,10 @@ class WeeklyIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = WEEKLY_INDICATOR_UNITS.get(indicator_code, ("亿千瓦时", "亿千瓦时"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *WEEKLY_INDICATOR_UNITS.get(indicator_code, ("亿千瓦时", "亿千瓦时")),
+            )
 
             for _, row in df[['date', 'value']].dropna().iterrows():
                 try:
@@ -164,7 +168,10 @@ class WeeklyIndicatorFetcher:
             df_weekly = df.groupby('week').last().reset_index()
 
             data_points = []
-            unit, original_unit = WEEKLY_INDICATOR_UNITS.get(indicator_code, ("点", "点"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *WEEKLY_INDICATOR_UNITS.get(indicator_code, ("点", "点")),
+            )
 
             for _, row in df_weekly[['date', 'value']].dropna().iterrows():
                 try:
@@ -232,7 +239,10 @@ class WeeklyIndicatorFetcher:
             df_weekly = df.groupby('week').last().reset_index()
 
             data_points = []
-            unit, original_unit = WEEKLY_INDICATOR_UNITS.get(indicator_code, ("点", "点"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *WEEKLY_INDICATOR_UNITS.get(indicator_code, ("点", "点")),
+            )
 
             for _, row in df_weekly[['date', 'value']].dropna().iterrows():
                 try:
@@ -300,7 +310,10 @@ class WeeklyIndicatorFetcher:
             df_weekly = df.groupby('week').last().reset_index()
 
             data_points = []
-            unit, original_unit = WEEKLY_INDICATOR_UNITS.get(indicator_code, ("点", "点"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *WEEKLY_INDICATOR_UNITS.get(indicator_code, ("点", "点")),
+            )
 
             for _, row in df_weekly[['date', 'value']].dropna().iterrows():
                 try:

@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from apps.data_center.application.interface_services import load_macro_governance_payload
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.policy.application.use_cases import FetchRSSUseCase
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel, RSSItem
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
@@ -235,3 +237,75 @@ def test_guardrail_regime_view_safe_data_source_access():
     assert unsafe_pattern not in views_content, "Regime 视图使用了不安全的数据源访问模式"
 
 
+@pytest.mark.guardrail
+def test_guardrail_macro_governance_no_local_fallback_constants():
+    """
+    护栏：宏观治理口径不得退回到代码内 fallback 常量。
+
+    运行时真源必须继续留在 catalog metadata / canonical facts，而不是再引入
+    schedule / publication lag / period override / legacy alias 的本地表。
+    """
+    forbidden_markers = {
+        "apps/macro/application/data_management.py": ["DEFAULT_INDICATOR_SCHEDULES"],
+        "apps/macro/infrastructure/adapters/base.py": [
+            "BASE_PUBLICATION_LAGS",
+            "PUBLICATION_LAGS",
+        ],
+        "apps/macro/management/commands/sync_macro_data.py": ["LEGACY_PERIOD_OVERRIDES"],
+        "apps/macro/application/indicator_service.py": ["LEGACY_CODE_ALIASES"],
+    }
+
+    for path_str, markers in forbidden_markers.items():
+        content = Path(path_str).read_text(encoding="utf-8")
+        for marker in markers:
+            assert marker not in content, f"{path_str} 重新引入了治理 fallback 常量: {marker}"
+
+
+@pytest.mark.guardrail
+@pytest.mark.django_db
+def test_guardrail_macro_governance_snapshot_stays_clean():
+    """
+    护栏：迁移后的最小健康基线数据下，宏观治理摘要必须保持全绿。
+
+    任何新增 alias/source/缺口/配对问题都应先修 catalog 或同步链，再允许合入。
+    """
+    payload = load_macro_governance_payload()
+    governed_codes = [
+        row["code"]
+        for row in payload["indicator_rows"]
+        if "healthy" in row["tags"] or "missing_supported" in row["tags"]
+    ]
+    catalogs = {
+        item.code: item
+        for item in IndicatorCatalogModel.objects.filter(code__in=governed_codes)
+    }
+
+    for code in governed_codes:
+        catalog = catalogs[code]
+        MacroFactModel.objects.update_or_create(
+            indicator_code=code,
+            reporting_period=date(2026, 3, 31),
+            source="akshare",
+            revision_number=1,
+            defaults={
+                "value": "1.000000",
+                "unit": catalog.default_unit or "%",
+                "quality": "valid",
+                "extra": {
+                    "source_type": "akshare",
+                    "provider_name": "AKShare Public",
+                    "period_type": catalog.default_period_type or "M",
+                    "display_unit": catalog.default_unit or "%",
+                    "original_unit": catalog.default_unit or "%",
+                },
+            },
+        )
+
+    summary = load_macro_governance_payload()["summary"]
+
+    assert summary["missing_supported_count"] == 0
+    assert summary["catalog_only_gap_count"] == 0
+    assert summary["alias_catalog_count"] == 0
+    assert summary["alias_issue_count"] == 0
+    assert summary["paired_gap_count"] == 0
+    assert summary["alias_row_count"] == 0

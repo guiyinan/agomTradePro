@@ -3,7 +3,7 @@
 > **当前版本**: `0.7.0`
 > **Build 日期**: `2026-03-23`
 > **完整版本号**: `0.7.0-build.20260323`
-> **开发文档快照**: `2026-04-30`
+> **开发文档快照**: `2026-05-03`
 
 ---
 
@@ -35,12 +35,30 @@
 代号: AgomTradePro
 状态: 开发中
 Build: 2026-03-23
-文档快照: 2026-04-28
+文档快照: 2026-05-03
 ```
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-04-30）
+## 0.7.0 之后的开发快照（截至 2026-05-03）
+
+- Data Center 与 Macro 页面已补齐 GDP 语义修正：`CN_GDP` 明确标记为“国内生产总值累计值”，并通过元数据暴露 `series_semantics` / `paired_indicator_code`，避免把季度累计额误读成单季值或同比
+- 宏观页默认展示逻辑已支持语义优先级；当 `CN_GDP` 与 `CN_GDP_YOY` 同时存在时，会优先落到同比增速，季度标签也统一显示为 `YYYY-Qn`
+- `python manage.py sync_macro_data` 已修复 GDP / 月度指标将 `PeriodType` 枚举误写入 JSON 的问题，`CN_GDP_YOY` 可正常回填入库
+- 宏观口径治理已扩展到 M2、CPI、PPI、社零、固投、工业增加值、外储、社融、进出口等高风险指标；`IndicatorCatalog` 现在会显式标注 level / index_level / yoy_rate / cumulative_level / balance_level 等语义
+- AKShare 采集链已校正 `CN_RETAIL_SALES` 与 `CN_FX_RESERVES` 的 code-to-column / code-to-unit 对应关系，避免把社零同比误当总额、把外储亿美元误写成万亿美元口径
+- Data Center 新增宏观数据治理台 `/data-center/governance/`，集中审计 legacy source 别名、catalog-only 缺口、可自动补同步缺口和配对序列缺失，并提供一键修复入口
+- 固定资产投资、社会融资规模、进出口口径已进一步治理：`CN_FIXED_INVESTMENT/CN_FAI_YOY` 与 `CN_SOCIAL_FINANCING/CN_SOCIAL_FINANCING_YOY` 已接入并完成回填；`CN_EXPORTS/CN_IMPORTS` 已纠正为金额口径，`CN_EXPORT_YOY/CN_IMPORT_YOY` 单独承载同比口径
+- 宏观运行配置已开始从代码常量下沉到 `IndicatorCatalog.extra`：调度频率、发布时间 lag、季度发布时间窗口、period override 现可通过运行时 metadata 暴露给页面、SDK 与 MCP
+- `sync_macro_data` 现直接读取 catalog runtime metadata 解析 period_type；季度调度判定也已补齐，不再出现 `quarterly` 配置存在但运行时永远不触发的问题
+- 宏观 fetcher 层的单位解析已开始优先读取 runtime metadata / unit rule，本地 `INDICATOR_UNITS` 退化为 fallback，不再作为抓取链的主要口径真源
+- 宏观治理台的巡检范围与自动补数范围也已下沉到 `IndicatorCatalog.extra`；治理台不再依赖页面层硬编码指标列表
+- legacy source 统一逻辑现优先读取 `data_center_macro_fact.extra.source_type`，再结合 `ProviderConfig.name -> source_type` 推断 canonical source，页面层不再维护独立 alias 常量表
+- Data Center 全部事实表后续新增写入已统一使用 canonical `source_type`；provider display name 仅保留在 `extra.provider_name` 与审计链路
+- `apps/data_center/migrations/0017_canonicalize_fact_sources.py` 已完成存量事实表 `source` 规范化整改，覆盖 macro/price/quote/fund/financial/valuation/sector/news/capital flow
+- 宏观调度、publication lag、period override 的本地治理 fallback 表已移除，运行时统一以 `IndicatorCatalog.extra` 元数据为准
+- `apps/data_center/migrations/0018_seed_macro_compat_alias_catalog.py` 已将剩余 legacy code alias 下沉为 catalog-managed 兼容别名，`apps/macro/application/indicator_service.py` 不再维护本地 `LEGACY_CODE_ALIASES`
+- `tests/guardrails/test_logic_guardrails.py` 已新增宏观治理防回归护栏：禁止重新引入本地 fallback 常量，并要求最小健康基线数据下治理摘要保持全绿；该 guardrail 会被核心 CI 持续执行
 
 - `main` 已拉齐到最新通过 CI 的开发主线，当前公开主线包含宏观单位治理、Alpha/Qlib 运维台和异步任务可见性修复
 - Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 现在都会在返回 `task_id` 后立即向 `task_monitor` 写入 `pending` 记录

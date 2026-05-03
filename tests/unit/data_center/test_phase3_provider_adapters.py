@@ -67,6 +67,9 @@ def test_fred_unified_provider_adapter_parses_observations(monkeypatch):
     assert facts[0].indicator_code == "US_FED_FUNDS_RATE"
     assert facts[0].value == 4.33
     assert facts[0].unit == "%"
+    assert facts[0].source == "fred"
+    assert facts[0].extra["provider_name"] == "fred"
+    assert facts[0].extra["source_type"] == "fred"
 
 
 def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):
@@ -98,7 +101,9 @@ def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):
     assert facts[0].fund_code == "110011.OF"
     assert facts[0].nav == 1.234
     assert facts[0].acc_nav == 1.567
-    assert facts[0].source == "tushare-main"
+    assert facts[0].source == "tushare"
+    assert facts[0].extra["provider_name"] == "tushare-main"
+    assert facts[0].extra["source_type"] == "tushare"
 
 
 def test_akshare_unified_provider_adapter_maps_capital_flows(monkeypatch):
@@ -129,7 +134,9 @@ def test_akshare_unified_provider_adapter_maps_capital_flows(monkeypatch):
     assert facts[0].asset_code == "000001.SZ"
     assert facts[0].main_net == 12.3
     assert facts[0].extra["main_net_ratio"] == 1.2
-    assert facts[0].source == "akshare-main"
+    assert facts[0].source == "akshare"
+    assert facts[0].extra["provider_name"] == "akshare-main"
+    assert facts[0].extra["source_type"] == "akshare"
 
 
 def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
@@ -160,7 +167,7 @@ def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
     assert len(bars) == 1
     assert bars[0].asset_code == "000300.SH"
     assert bars[0].bar_date == date(2026, 4, 21)
-    assert bars[0].source == "AKShare Public"
+    assert bars[0].source == "akshare"
 
 
 def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
@@ -200,7 +207,9 @@ def test_akshare_unified_provider_adapter_fetches_valuation_series(monkeypatch):
     assert facts[0].pe_static == 73.62
     assert facts[0].pb == 0.77
     assert facts[0].market_cap == 753.74 * 100_000_000
-    assert facts[0].source == "AKShare Public"
+    assert facts[0].source == "akshare"
+    assert facts[0].extra["provider_name"] == "AKShare Public"
+    assert facts[0].extra["source_type"] == "akshare"
 
 
 def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
@@ -242,4 +251,6 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     assert by_metric["debt_ratio"].value == 67.5
     assert by_metric["total_assets"].value == 564_032_300_000.0 / 0.675
     assert by_metric["equity"].value == by_metric["total_assets"].value - 564_032_300_000.0
-    assert by_metric["revenue"].source == "AKShare Public"
+    assert by_metric["revenue"].source == "akshare"
+    assert by_metric["revenue"].extra["provider_name"] == "AKShare Public"
+    assert by_metric["revenue"].extra["source_type"] == "akshare"

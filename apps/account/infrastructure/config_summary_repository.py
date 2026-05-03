@@ -43,6 +43,9 @@ class DjangoAccountConfigSummaryRepository:
                 "category": catalog.category or "其他",
                 "unit": unit,
                 "description": catalog.description or "",
+                "default_unit": catalog.default_unit or "",
+                "default_period_type": catalog.default_period_type or "",
+                **extra,
                 "publication_lag_days": int(extra.get("publication_lag_days", 0) or 0),
                 "publication_lag_description": extra.get("publication_lag_description", "实时"),
             }

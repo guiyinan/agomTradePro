@@ -14,10 +14,11 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
+from .common import resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
-# 指标单位映射 (unit, original_unit)
+# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
 INDICATOR_UNITS = {
     "CN_BOND_10Y": ("%", "%"),
     "CN_BOND_5Y": ("%", "%"),
@@ -145,7 +146,10 @@ class HighFrequencyIndicatorFetcher:
             df_filtered = df_filtered[df_filtered['date'].dt.date <= end_date]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get(indicator_code, ("%", "%"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *INDICATOR_UNITS.get(indicator_code, ("%", "%")),
+            )
             for _, row in df_filtered[['date', indicator_code]].dropna().iterrows():
                 try:
                     point = MacroDataPoint(
@@ -211,7 +215,10 @@ class HighFrequencyIndicatorFetcher:
                 df = df[df['date'].dt.date <= end_date]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get(indicator_code, ("BP", "BP"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *INDICATOR_UNITS.get(indicator_code, ("BP", "BP")),
+            )
             for _, row in df[['date', 'spread']].dropna().iterrows():
                 try:
                     # 利差以基点（BP）为单位，1% = 100BP
@@ -267,7 +274,10 @@ class HighFrequencyIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get(indicator_code, ("点", "点"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *INDICATOR_UNITS.get(indicator_code, ("点", "点")),
+            )
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -324,7 +334,10 @@ class HighFrequencyIndicatorFetcher:
 
             # 只返回当前一天的报价（因为 FX API 不支持历史数据）
             data_points = []
-            unit, original_unit = INDICATOR_UNITS.get(indicator_code, ("元/美元", "元/美元"))
+            unit, original_unit = resolve_indicator_units(
+                indicator_code,
+                *INDICATOR_UNITS.get(indicator_code, ("元/美元", "元/美元")),
+            )
             try:
                 point = MacroDataPoint(
                     code=indicator_code,

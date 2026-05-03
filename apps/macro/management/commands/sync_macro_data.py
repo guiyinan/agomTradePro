@@ -10,44 +10,52 @@ from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
 
+from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
+
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
 from apps.macro.infrastructure.providers import DjangoMacroRepository
 
-# 高频指标映射到对应的 period_type
-# 注意：ORM 支持扩展类型（10Y, 5Y 等），但 Domain 层 PeriodType 枚举不支持
-# 对于这些指标，我们使用 PeriodType.DAY 并在 ORM 层存储实际类型
-HIGH_FREQ_INDICATORS = {
-    # Phase 1: 日度核心指标
-    "CN_BOND_10Y": ("10Y", PeriodType.DAY),
-    "CN_BOND_5Y": ("5Y", PeriodType.DAY),
-    "CN_BOND_2Y": ("2Y", PeriodType.DAY),
-    "CN_BOND_1Y": ("1Y", PeriodType.DAY),
-    "CN_TERM_SPREAD_10Y1Y": ("D", PeriodType.DAY),
-    "CN_TERM_SPREAD_10Y2Y": ("D", PeriodType.DAY),
-    "CN_CORP_YIELD_AAA": ("10Y", PeriodType.DAY),
-    "CN_CORP_YIELD_AA": ("10Y", PeriodType.DAY),
-    "CN_CREDIT_SPREAD": ("D", PeriodType.DAY),
-    "CN_NHCI": ("W", PeriodType.WEEK),
-    "CN_FX_CENTER": ("D", PeriodType.DAY),
-    "US_BOND_10Y": ("10Y", PeriodType.DAY),
-    "USD_INDEX": ("D", PeriodType.DAY),
-    "VIX_INDEX": ("D", PeriodType.DAY),
-
-    # Phase 2: 周度指标（使用公开数据源替代）
-    "CN_POWER_GEN": ("M", PeriodType.MONTH),  # 月度用电量数据
-    "CN_BLAST_FURNACE": ("W", PeriodType.WEEK),  # 钢铁指数周聚合
-    "CN_CCFI": ("W", PeriodType.WEEK),  # BDI航运指数周聚合
-    "CN_SCFI": ("W", PeriodType.WEEK),  # BCI航运指数周聚合
-
-    # Phase 3: PMI 分项指标（手动维护数据文件）
-    "CN_PMI_NEW_ORDER": ("M", PeriodType.MONTH),  # 新订单指数
-    "CN_PMI_INVENTORY": ("M", PeriodType.MONTH),  # 产成品库存指数
-    "CN_PMI_RAW_MAT": ("M", PeriodType.MONTH),  # 原材料库存指数
-    "CN_PMI_PURCHASE": ("M", PeriodType.MONTH),  # 采购量指数
-    "CN_PMI_PRODUCTION": ("M", PeriodType.MONTH),  # 生产指数
-    "CN_PMI_EMPLOYMENT": ("M", PeriodType.MONTH),  # 从业人员指数
+DOMAIN_PERIOD_TYPES = {
+    "D": PeriodType.DAY,
+    "W": PeriodType.WEEK,
+    "M": PeriodType.MONTH,
+    "Q": PeriodType.QUARTER,
+    "H": PeriodType.HALF_YEAR,
+    "Y": PeriodType.YEAR,
 }
+
+
+def _resolve_period_types(
+    indicator_code: str,
+    runtime_metadata_map: dict[str, dict],
+) -> tuple[str, PeriodType]:
+    metadata = runtime_metadata_map.get(indicator_code, {})
+    orm_period_type = str(
+        metadata.get("orm_period_type_override")
+        or metadata.get("default_period_type")
+        or ""
+    ).strip()
+    domain_period_token = str(
+        metadata.get("domain_period_type_override")
+        or metadata.get("default_period_type")
+        or orm_period_type
+        or ""
+    ).strip()
+    domain_period_type = DOMAIN_PERIOD_TYPES.get(domain_period_token)
+
+    if orm_period_type and domain_period_type is not None:
+        return orm_period_type, domain_period_type
+
+    fallback_period_type = orm_period_type or "M"
+    return fallback_period_type, DOMAIN_PERIOD_TYPES.get(fallback_period_type, PeriodType.MONTH)
+
+
+def _load_runtime_metadata_map() -> dict[str, dict]:
+    try:
+        return get_runtime_macro_index_metadata_map()
+    except Exception:
+        return {}
 
 
 class Command(BaseCommand):
@@ -93,6 +101,7 @@ class Command(BaseCommand):
         repository = DjangoMacroRepository()
         end_date = date.today()
         start_date = end_date - timedelta(days=365 * years)
+        runtime_metadata_map = _load_runtime_metadata_map()
 
         total_saved = 0
 
@@ -112,13 +121,10 @@ class Command(BaseCommand):
                 # 保存数据
                 saved_count = 0
                 for dp in data_points:
-                    # 确定正确的 period_type
-                    if indicator_code in HIGH_FREQ_INDICATORS:
-                        orm_period_type, domain_period_type = HIGH_FREQ_INDICATORS[indicator_code]
-                    elif 'GDP' in indicator_code:
-                        orm_period_type = domain_period_type = PeriodType.QUARTER
-                    else:
-                        orm_period_type = domain_period_type = PeriodType.MONTH
+                    orm_period_type, domain_period_type = _resolve_period_types(
+                        indicator_code,
+                        runtime_metadata_map,
+                    )
 
                     # 构建指标实体（使用 domain PeriodType）
                     indicator = MacroIndicator(

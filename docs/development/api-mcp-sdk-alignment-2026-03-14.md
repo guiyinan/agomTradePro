@@ -47,6 +47,30 @@
 | audit | `/api/audit/` | 历史页面式前缀已移除 |
 | decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
 
+### 2026-05-03 宏观治理补充
+
+- staff 宏观治理页入口：`/data-center/governance/`
+- 该页面不是新的 API / SDK / MCP 契约；SDK/MCP 仍通过 `/api/data-center/*` 访问治理结果
+- 进出口 canonical 口径已纠正为：
+  - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径
+  - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速
+- 固投 / 社融 canonical 口径已补齐：
+  - `CN_FIXED_INVESTMENT` / `CN_FAI_YOY`
+  - `CN_SOCIAL_FINANCING` / `CN_SOCIAL_FINANCING_YOY`
+- `CN_CPI_YOY` 继续作为兼容 alias 保留；治理真源优先使用 `CN_CPI_NATIONAL_YOY`
+- 宏观运行配置已下沉到 `IndicatorCatalog.extra`，SDK/MCP 解释宏观指标时应优先读取：
+  - `series_semantics`
+  - `paired_indicator_code`
+  - `schedule_frequency`
+  - `schedule_day_of_month`
+  - `schedule_release_months`
+  - `publication_lag_days`
+  - `orm_period_type_override` / `domain_period_type_override`
+- 因此：
+  - 不要把 `quarterly` 指标按月频处理
+  - 不要只凭 code suffix 推断 period_type
+  - 不要再把同比指标回退解释为绝对额序列
+
 其中 redesign 相关新增 canonical 端点为：
 
 - `/api/regime/navigator/`
