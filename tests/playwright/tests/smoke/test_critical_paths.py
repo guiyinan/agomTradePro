@@ -164,14 +164,39 @@ def _assert_macro_contract(page: Page) -> None:
 
     _assert_min_count(page, ".ind-item:visible", 1)
 
+    synced_indicator_items = page.locator('.ind-item[data-has-data="true"]:visible')
     indicator_info_bar = page.locator("#indicatorInfoBar")
+    target_indicator = (
+        synced_indicator_items.first
+        if synced_indicator_items.count() > 0
+        else indicator_items.first
+    )
     if not indicator_info_bar.is_visible():
-        indicator_items.first.click()
+        target_indicator.click()
 
     expect(indicator_info_bar).to_be_visible(timeout=10000)
     _wait_for_non_placeholder_text(page, "#currentIndicatorCode")
     _wait_for_non_placeholder_text(page, "#currentIndicatorName")
+
+    if synced_indicator_items.count() == 0:
+        expect(page.locator("#chartPlaceholder")).to_be_visible(timeout=10000)
+        placeholder_text = _normalize_text(
+            page.locator("#chartPlaceholder").inner_text(timeout=5000)
+        )
+        assert "该指标暂无同步数据" in placeholder_text
+        assert _normalize_text(
+            page.locator("#currentIndicatorValue").inner_text(timeout=5000)
+        ) == "-"
+        assert _normalize_text(
+            page.locator("#currentIndicatorRecords").inner_text(timeout=5000)
+        ) == "0 条"
+        expect(page.locator("#refreshIndicatorBtn")).to_be_visible()
+        _assert_card_style(page, ".stat-card")
+        return
+
+    target_indicator.click()
     _wait_for_non_placeholder_text(page, "#currentIndicatorValue")
+    expect(page.locator("#chartPlaceholder")).not_to_be_visible(timeout=10000)
     _assert_box_size(page, "#mainChart", min_width=400, min_height=240)
     _assert_card_style(page, ".stat-card")
 
