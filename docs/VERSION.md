@@ -42,6 +42,8 @@ Build: 2026-03-23
 
 ## 0.7.0 之后的开发快照（截至 2026-05-03）
 
+- 登录页与注册页已切换到轻量认证基座，不再默认加载全站导航、浮动告警中心和多组无关前端依赖；匿名认证页首屏负担已明显收敛
+- `core.context_processors.get_market_visuals` 现对匿名 `/account/login/` 与 `/account/register/` 做默认值短路，不再为认证页额外触发运行时配置摘要读取
 - Data Center 与 Macro 页面已补齐 GDP 语义修正：`CN_GDP` 明确标记为“国内生产总值累计值”，并通过元数据暴露 `series_semantics` / `paired_indicator_code`，避免把季度累计额误读成单季值或同比
 - 宏观页默认展示逻辑已支持语义优先级；当 `CN_GDP` 与 `CN_GDP_YOY` 同时存在时，会优先落到同比增速，季度标签也统一显示为 `YYYY-Qn`
 - `python manage.py sync_macro_data` 已修复 GDP / 月度指标将 `PeriodType` 枚举误写入 JSON 的问题，`CN_GDP_YOY` 可正常回填入库

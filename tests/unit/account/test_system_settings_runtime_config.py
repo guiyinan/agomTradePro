@@ -1,5 +1,8 @@
 import pytest
 from django.conf import settings as django_settings
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory
+from unittest.mock import patch
 
 from apps.account.infrastructure.models import SystemSettingsModel
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
@@ -125,6 +128,23 @@ def test_system_settings_runtime_market_visual_tokens_support_us_convention():
     assert summary["market_color_convention"] == "us_market"
     assert summary["market_color_label"] == "美股绿涨红跌"
     assert context["convention"] == "us_market"
+
+
+@pytest.mark.django_db
+def test_get_market_visuals_uses_default_tokens_for_anonymous_auth_pages():
+    factory = RequestFactory()
+    request = factory.get("/account/login/")
+    request.user = AnonymousUser()
+
+    with patch(
+        "apps.account.application.config_summary_service.get_account_config_summary_service",
+        side_effect=AssertionError("auth pages should not query runtime summary service"),
+    ):
+        context = get_market_visuals(request)["market_visuals"]
+
+    assert context["convention"] == "cn_a_share"
+    assert context["rise"] == "var(--color-error)"
+    assert context["fall"] == "var(--color-success)"
 
 
 @pytest.mark.django_db

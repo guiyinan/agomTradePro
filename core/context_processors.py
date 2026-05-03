@@ -8,6 +8,34 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_MARKET_VISUALS = {
+    "rise": "var(--color-error)",
+    "fall": "var(--color-success)",
+    "rise_soft": "var(--color-error-light)",
+    "fall_soft": "var(--color-success-light)",
+    "rise_strong": "var(--color-error-dark)",
+    "fall_strong": "var(--color-success-dark)",
+    "inflow": "var(--color-error)",
+    "outflow": "var(--color-success)",
+    "convention": "cn_a_share",
+    "label": "A股红涨绿跌",
+}
+_AUTH_PAGE_PATH_PREFIXES = ("/account/login/", "/account/register/")
+
+
+def _should_use_default_market_visuals(request) -> bool:
+    """Return whether one auth-page request can skip runtime visual lookup."""
+
+    if request is None:
+        return False
+
+    path = getattr(request, "path", "")
+    if not path.startswith(_AUTH_PAGE_PATH_PREFIXES):
+        return False
+
+    user = getattr(request, "user", None)
+    return not getattr(user, "is_authenticated", False)
+
 
 def get_market_visuals(request) -> dict[str, dict[str, str]]:
     """
@@ -16,6 +44,9 @@ def get_market_visuals(request) -> dict[str, dict[str, str]]:
     所有行情相关页面应消费 rise/fall/inflow/outflow 等语义 token，
     而不是直接硬编码 red/green。
     """
+    if _should_use_default_market_visuals(request):
+        return {"market_visuals": dict(_DEFAULT_MARKET_VISUALS)}
+
     try:
         from apps.account.application.config_summary_service import (
             get_account_config_summary_service,
@@ -24,18 +55,7 @@ def get_market_visuals(request) -> dict[str, dict[str, str]]:
         visual_tokens = get_account_config_summary_service().get_market_visual_tokens()
     except Exception as exc:
         logger.warning("Failed to load market visual tokens: %s", exc)
-        visual_tokens = {
-            "rise": "var(--color-error)",
-            "fall": "var(--color-success)",
-            "rise_soft": "var(--color-error-light)",
-            "fall_soft": "var(--color-success-light)",
-            "rise_strong": "var(--color-error-dark)",
-            "fall_strong": "var(--color-success-dark)",
-            "inflow": "var(--color-error)",
-            "outflow": "var(--color-success)",
-            "convention": "cn_a_share",
-            "label": "A股红涨绿跌",
-        }
+        visual_tokens = dict(_DEFAULT_MARKET_VISUALS)
     return {"market_visuals": visual_tokens}
 
 

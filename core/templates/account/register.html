@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% load static %}
 
 {% block title %}注册 - AgomTradePro{% endblock %}
@@ -133,11 +133,10 @@
 }
 
 .login-page {
-    min-height: calc(100vh - 56px);
+    min-height: calc(100vh - 140px);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-surface);
     padding: 20px;
 }
 

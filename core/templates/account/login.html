@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% load static %}
 
 {% block title %}登录 - AgomTradePro{% endblock %}
@@ -52,15 +52,15 @@
 
 <style>
 .login-page {
-    min-height: calc(100vh - 56px);
+    min-height: calc(100vh - 140px);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-surface);
+    padding: 32px 20px;
 }
 
 .login-card {
-    width: 400px;
+    width: min(400px, 100%);
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);

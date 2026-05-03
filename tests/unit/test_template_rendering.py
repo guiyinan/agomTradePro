@@ -125,6 +125,7 @@ class TestTemplateRendering(TestCase):
             "404.html",
             "500.html",
             "account/login.html",
+            "account/register.html",
         ]
 
         for template_name in critical_templates:
