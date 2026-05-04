@@ -5,7 +5,10 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from apps.data_center.application.interface_services import get_active_provider_id_by_source
+from apps.data_center.application.interface_services import (
+    get_active_provider_id_by_source,
+    load_macro_governance_payload,
+)
 from apps.data_center.application.repository_provider import get_indicator_catalog_repository
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
@@ -183,6 +186,8 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
     read_repository = get_macro_read_repository()
     catalog_repository = get_indicator_catalog_repository()
     metadata_map = IndicatorService.get_indicator_metadata_map()
+    governance_payload = load_macro_governance_payload()
+    sync_supported_codes = set(governance_payload.get("supported_sync_codes") or [])
     active_catalogs = sorted(catalog_repository.list_active(), key=lambda item: item.code)
     synced_codes = set(read_repository.list_distinct_codes())
     refresh_provider_id = _resolve_manual_refresh_provider_id()
@@ -236,6 +241,7 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
                 today=refresh_end_date,
             ),
             "has_data": catalog.code in synced_codes,
+            "sync_supported": catalog.code in sync_supported_codes,
             "latest_period": (
                 _format_reporting_period_label(
                     latest_by_code[catalog.code]["reporting_period"],
@@ -262,6 +268,9 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         )
 
     summary = read_repository.get_storage_summary()
+    bulk_refresh_indicator_codes = [
+        code for code, item in indicator_map.items() if item.get("sync_supported")
+    ]
     return {
         "indicator_map": indicator_map,
         "selected_indicator": resolved_selected_indicator,
@@ -269,6 +278,8 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         "stats": {
             "total_indicators": len(indicator_map),
             "synced_indicators": len(synced_codes),
+            "sync_supported_indicators": len(bulk_refresh_indicator_codes),
+            "sync_unsupported_indicators": len(indicator_map) - len(bulk_refresh_indicator_codes),
             "total_records": summary["total_records"],
             "latest_date": summary["latest_date"],
         },
@@ -276,6 +287,9 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         "max_date": summary["max_date"],
         "refresh_provider_id": refresh_provider_id,
         "refresh_end_date": refresh_end_date,
+        "sync_supported_indicator_count": len(bulk_refresh_indicator_codes),
+        "sync_unsupported_indicator_count": len(indicator_map) - len(bulk_refresh_indicator_codes),
+        "bulk_refresh_indicator_codes": bulk_refresh_indicator_codes,
     }
 
 

@@ -137,6 +137,9 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     assert "/macro/api/indicator-data/" not in macro_data
     assert '{% url "api_data_center:dc-macro-series" %}' in macro_data
     assert '{% url "api_data_center:dc-sync-macro" %}' in macro_data
+    assert 'id="refreshAllIndicatorsBtn"' in macro_data
+    assert "function normalizeChronologicalSeries(data)" in macro_data
+    assert "const chronologicalData = normalizeChronologicalSeries(result.data);" in macro_data
 
     assert "const API_BASE = '/macro/api';" not in macro_controller
     assert "const API_BASE = '/api/data-center';" in macro_controller

@@ -193,6 +193,9 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
         "max_date": snapshot["max_date"],
         "refresh_provider_id": snapshot["refresh_provider_id"],
         "refresh_end_date": snapshot["refresh_end_date"],
+        "sync_supported_indicator_count": snapshot["sync_supported_indicator_count"],
+        "sync_unsupported_indicator_count": snapshot["sync_unsupported_indicator_count"],
+        "bulk_refresh_indicator_codes": snapshot["bulk_refresh_indicator_codes"],
     }
     return render(request, "macro/data.html", context)
 

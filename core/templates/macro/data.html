@@ -13,9 +13,15 @@
         <div>
             <h1>宏观数据中心</h1>
             <p class="subtitle">中国宏观经济指标全景展示</p>
-            <p class="description">指标名称、展示单位与说明统一来自 Data Center 指标目录与量纲规则。</p>
+            <p class="description">
+                指标名称、展示单位与说明统一来自 Data Center 指标目录与量纲规则。当前目录共 {{ stats.total_indicators }} 个指标，其中 {{ sync_supported_indicator_count }} 个已接入自动同步；
+                无数据时“未同步”表示可抓取，“未接入”表示尚未接入自动同步链路。
+            </p>
         </div>
         <div class="header-controls">
+            <button id="refreshAllIndicatorsBtn" type="button" class="control-btn" onclick="refreshAllIndicators()">
+                <span class="btn-icon">⟳</span> 全部刷新可抓取指标
+            </button>
             <button class="control-btn" onclick="window.location.href='/macro/controller/'">
                 <span class="btn-icon">⚙️</span> 数据管理
             </button>
@@ -32,6 +38,7 @@ const macroSeriesUrl = '{% url "api_data_center:dc-macro-series" %}';
 const macroSyncUrl = '{% url "api_data_center:dc-sync-macro" %}';
 const manualRefreshProviderId = Number('{{ refresh_provider_id|default:"0" }}');
 const manualRefreshEndDate = '{{ refresh_end_date|date:"Y-m-d"|default:"" }}';
+const bulkRefreshIndicatorCodes = {{ bulk_refresh_indicator_codes|safe }};
 {% for category in indicator_categories %}
     {% for ind in category.indicators %}
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
@@ -50,9 +57,11 @@ const initialChartData = {
 let currentIndicatorCode = initialIndicator;
 let currentChart = null;
 let refreshStatusTimer = null;
+let isBulkRefreshing = false;
 
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
+    updateRefreshAllButtonState();
     if (initialIndicator) {
         const initialItem = document.querySelector(`.ind-item[data-code="${initialIndicator}"]`);
         if (initialItem) {
@@ -76,6 +85,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showIndicatorInfoBar() {
     document.getElementById('indicatorInfoBar').style.display = 'flex';
+}
+
+function normalizeChronologicalSeries(data) {
+    if (!Array.isArray(data)) {
+        return [];
+    }
+    return [...data].sort((left, right) => {
+        const leftPeriod = String(left.reporting_period || '');
+        const rightPeriod = String(right.reporting_period || '');
+        if (leftPeriod !== rightPeriod) {
+            return leftPeriod.localeCompare(rightPeriod);
+        }
+
+        const leftRevision = Number(left.revision_number ?? 0);
+        const rightRevision = Number(right.revision_number ?? 0);
+        if (leftRevision !== rightRevision) {
+            return leftRevision - rightRevision;
+        }
+
+        const leftPublishedAt = String(left.published_at || '');
+        const rightPublishedAt = String(right.published_at || '');
+        return leftPublishedAt.localeCompare(rightPublishedAt);
+    });
 }
 
 function clearChart() {
@@ -122,6 +154,11 @@ function getManualRefreshStart(code) {
     return item?.dataset.refreshStart || '2010-01-01';
 }
 
+function isIndicatorSyncSupported(code) {
+    const item = getIndicatorItem(code);
+    return item?.dataset.syncSupported === 'true';
+}
+
 function updateRefreshButtonState(code, isLoading = false) {
     const button = document.getElementById('refreshIndicatorBtn');
     if (!button) {
@@ -129,11 +166,47 @@ function updateRefreshButtonState(code, isLoading = false) {
     }
     const hasProvider = manualRefreshProviderId > 0;
     const hasIndicator = Boolean(code);
-    button.disabled = !hasProvider || !hasIndicator || isLoading;
+    const syncSupported = hasIndicator && isIndicatorSyncSupported(code);
+    button.disabled = !hasProvider || !hasIndicator || !syncSupported || isLoading || isBulkRefreshing;
     button.textContent = isLoading ? '抓取中...' : '手动刷新抓取';
-    button.title = hasProvider && hasIndicator
-        ? `抓取区间：${getManualRefreshStart(code)} ~ ${manualRefreshEndDate || '今天'}`
-        : '当前未配置可用的 Data Center 宏观 provider';
+    if (isBulkRefreshing) {
+        button.title = '全部抓取进行中，暂不支持单指标刷新';
+        return;
+    }
+    if (!hasProvider) {
+        button.title = '当前未配置可用的 Data Center 宏观 provider';
+        return;
+    }
+    if (!hasIndicator) {
+        button.title = '请先选择一个指标';
+        return;
+    }
+    if (!syncSupported) {
+        button.title = '该指标尚未接入自动同步链路';
+        return;
+    }
+    button.title = `抓取区间：${getManualRefreshStart(code)} ~ ${manualRefreshEndDate || '今天'}`;
+}
+
+function updateRefreshAllButtonState(isLoading = false) {
+    const button = document.getElementById('refreshAllIndicatorsBtn');
+    if (!button) {
+        return;
+    }
+    const hasProvider = manualRefreshProviderId > 0;
+    const hasSupportedIndicators = bulkRefreshIndicatorCodes.length > 0;
+    const loading = isLoading || isBulkRefreshing;
+    button.disabled = !hasProvider || !hasSupportedIndicators || loading;
+    button.textContent = loading ? '全部抓取中...' : '全部刷新可抓取指标';
+    if (!hasProvider) {
+        button.title = '当前未配置可用的 Data Center 宏观 provider';
+        return;
+    }
+    if (!hasSupportedIndicators) {
+        button.title = '当前目录中没有已接入自动同步的指标';
+        return;
+    }
+    button.title = `按目录中 ${bulkRefreshIndicatorCodes.length} 个已接入指标串行补抓`;
 }
 
 function markIndicatorAsSynced(code) {
@@ -146,6 +219,35 @@ function markIndicatorAsSynced(code) {
     if (badge) {
         badge.remove();
     }
+}
+
+async function requestIndicatorRefresh(code) {
+    if (!manualRefreshProviderId) {
+        throw new Error('当前未配置可用的 Data Center 宏观 provider');
+    }
+    if (!isIndicatorSyncSupported(code)) {
+        throw new Error(`指标 ${code} 尚未接入自动同步链路`);
+    }
+
+    const response = await fetch(macroSyncUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            provider_id: manualRefreshProviderId,
+            indicator_code: code,
+            start: getManualRefreshStart(code),
+            end: manualRefreshEndDate
+        })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || payload.status !== 'success') {
+        throw new Error(payload.detail || payload.error_message || `抓取 ${code} 失败`);
+    }
+    return payload;
 }
 
 // 从服务器数据更新指标信息
@@ -204,11 +306,12 @@ async function selectIndicator(code, options = {}) {
                 renderNoDataState(code);
                 return 0;
             }
-            const dates = result.data.map(d => d.reporting_period);
-            const values = result.data.map(d => Number(d.display_value ?? d.value));
-            updateIndicatorInfo(code, result.data);
-            renderMainChart(code, dates, values, latestUnitFromData(result.data));
-            return result.data.length;
+            const chronologicalData = normalizeChronologicalSeries(result.data);
+            const dates = chronologicalData.map(d => d.reporting_period);
+            const values = chronologicalData.map(d => Number(d.display_value ?? d.value));
+            updateIndicatorInfo(code, chronologicalData);
+            renderMainChart(code, dates, values, latestUnitFromData(chronologicalData));
+            return chronologicalData.length;
         }
     } catch (error) {
         // 空态由下方统一处理
@@ -233,25 +336,7 @@ async function refreshIndicator(code = currentIndicatorCode) {
     setRefreshStatus('正在抓取当前指标...', 'muted');
 
     try {
-        const response = await fetch(macroSyncUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                provider_id: manualRefreshProviderId,
-                indicator_code: code,
-                start: getManualRefreshStart(code),
-                end: manualRefreshEndDate
-            })
-        });
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok || payload.status !== 'success') {
-            throw new Error(payload.detail || payload.error_message || `抓取 ${code} 失败`);
-        }
-
+        const payload = await requestIndicatorRefresh(code);
         markIndicatorAsSynced(code);
         const rowCount = await selectIndicator(code, { keepRefreshStatus: true });
         if (rowCount > 0) {
@@ -265,6 +350,65 @@ async function refreshIndicator(code = currentIndicatorCode) {
         setRefreshStatus(error.message || '抓取失败，请稍后重试', 'error');
     } finally {
         updateRefreshButtonState(code, false);
+    }
+}
+
+async function refreshAllIndicators() {
+    if (isBulkRefreshing) {
+        return;
+    }
+    if (!manualRefreshProviderId) {
+        setRefreshStatus('当前未配置可用的 Data Center 宏观 provider', 'error');
+        updateRefreshAllButtonState();
+        return;
+    }
+    if (bulkRefreshIndicatorCodes.length === 0) {
+        setRefreshStatus('当前目录中没有已接入自动同步的指标', 'warning');
+        updateRefreshAllButtonState();
+        return;
+    }
+
+    isBulkRefreshing = true;
+    updateRefreshAllButtonState(true);
+    updateRefreshButtonState(currentIndicatorCode);
+
+    let successCount = 0;
+    const failures = [];
+
+    try {
+        for (let index = 0; index < bulkRefreshIndicatorCodes.length; index += 1) {
+            const code = bulkRefreshIndicatorCodes[index];
+            setRefreshStatus(
+                `正在批量抓取 (${index + 1}/${bulkRefreshIndicatorCodes.length})：${code}`,
+                'muted',
+            );
+            try {
+                await requestIndicatorRefresh(code);
+                markIndicatorAsSynced(code);
+                successCount += 1;
+            } catch (error) {
+                failures.push(error.message || `${code} 抓取失败`);
+            }
+        }
+
+        if (currentIndicatorCode) {
+            await selectIndicator(currentIndicatorCode, { keepRefreshStatus: true });
+        }
+
+        if (failures.length === 0) {
+            setRefreshStatus(`批量抓取完成，成功刷新 ${successCount} 个指标`, 'success');
+        } else if (successCount > 0) {
+            setRefreshStatus(
+                `批量抓取完成：成功 ${successCount} 个，失败 ${failures.length} 个；首个失败：${failures[0]}`,
+                'warning',
+            );
+        } else {
+            setRefreshStatus(`批量抓取失败：${failures[0]}`, 'error');
+        }
+    } finally {
+        isBulkRefreshing = false;
+        updateRefreshAllButtonState(false);
+        updateRefreshButtonState(currentIndicatorCode);
     }
 }
 
@@ -346,7 +490,8 @@ function updateIndicatorInfo(code, data) {
 }
 
 function renderNoDataState(code) {
-    const canRefresh = manualRefreshProviderId > 0;
+    const syncSupported = isIndicatorSyncSupported(code);
+    const canRefresh = manualRefreshProviderId > 0 && syncSupported;
     showIndicatorInfoBar();
     document.getElementById('currentIndicatorCode').textContent = code;
     document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
@@ -356,11 +501,17 @@ function renderNoDataState(code) {
     document.getElementById('currentIndicatorPeriod').textContent = '-';
     document.getElementById('currentIndicatorRecords').textContent = '0 条';
     document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
-    showChartPlaceholder('该指标暂无同步数据', '指标目录已收口到 Data Center，但当前环境还没有该指标的宏观事实记录。');
+    if (syncSupported) {
+        showChartPlaceholder('该指标暂无同步数据', '指标目录已收口到 Data Center，但当前环境还没有该指标的宏观事实记录。');
+    } else {
+        showChartPlaceholder('该指标尚未接入自动同步', '该指标已在目录中展示，但尚未接入自动同步抓取链路，因此当前不能从页面直接补抓。');
+    }
     document.getElementById('chartPlaceholderAction').innerHTML =
         canRefresh
             ? `<button type="button" class="placeholder-refresh-btn" onclick="refreshIndicator('${code}')">立即抓取当前指标</button>`
-            : '<div class="placeholder-note">当前未配置可用的 Data Center 宏观 provider</div>';
+            : syncSupported
+                ? '<div class="placeholder-note">当前未配置可用的 Data Center 宏观 provider</div>'
+                : '<div class="placeholder-note">该指标尚未接入自动同步链路，请先在 Data Center 补齐接入配置。</div>';
     updateRefreshButtonState(code);
 }
 
@@ -515,6 +666,13 @@ function getCookie(name) {
         </div>
     </div>
     <div class="stat-card">
+        <div class="stat-icon">🔄</div>
+        <div class="stat-info">
+            <div class="stat-label">可自动抓取</div>
+            <div class="stat-value">{{ sync_supported_indicator_count }}</div>
+        </div>
+    </div>
+    <div class="stat-card">
         <div class="stat-icon">📅</div>
         <div class="stat-info">
             <div class="stat-label">最新更新</div>
@@ -561,12 +719,13 @@ function getCookie(name) {
                              data-name="{{ ind.name }}"
                              data-unit="{{ ind.unit|default:'-' }}"
                              data-has-data="{{ ind.has_data|yesno:'true,false' }}"
+                             data-sync-supported="{{ ind.sync_supported|yesno:'true,false' }}"
                              data-refresh-start="{{ ind.refresh_start|date:'Y-m-d' }}"
                              onclick="selectIndicator('{{ ind.code }}')">
                             <span class="ind-code">{{ ind.code }}</span>
                             <span class="ind-name">{{ ind.name }}</span>
                             {% if not ind.has_data %}
-                            <span class="ind-status-badge">未同步</span>
+                            <span class="ind-status-badge">{% if ind.sync_supported %}未同步{% else %}未接入{% endif %}</span>
                             {% endif %}
                         </div>
                         {% endfor %}
@@ -701,10 +860,17 @@ function getCookie(name) {
     background: #F6F8FA;
 }
 
+.control-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    border-color: var(--color-border);
+    background: white;
+}
+
 /* 统计卡片 */
 .stats-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 20px;
 }

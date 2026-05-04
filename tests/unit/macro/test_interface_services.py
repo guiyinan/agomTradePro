@@ -146,19 +146,30 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
         "apps.macro.application.interface_services.get_active_provider_id_by_source",
         lambda source_type: 7 if source_type == "akshare" else None,
     )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_macro_governance_payload",
+        lambda: {"supported_sync_codes": ["CN_M2"]},
+    )
 
     snapshot = get_macro_data_page_snapshot()
 
     assert snapshot["selected_indicator"] == "CN_M2"
     assert snapshot["stats"]["total_indicators"] == 2
     assert snapshot["stats"]["synced_indicators"] == 1
+    assert snapshot["stats"]["sync_supported_indicators"] == 1
+    assert snapshot["stats"]["sync_unsupported_indicators"] == 1
     assert snapshot["refresh_provider_id"] == 7
     assert snapshot["indicator_map"]["CN_GDP"]["has_data"] is False
+    assert snapshot["indicator_map"]["CN_GDP"]["sync_supported"] is False
     assert snapshot["indicator_map"]["CN_GDP"]["unit"] == "亿元"
     assert snapshot["indicator_map"]["CN_GDP"]["refresh_start"].isoformat() == "2010-01-01"
     assert snapshot["indicator_map"]["CN_M2"]["has_data"] is True
+    assert snapshot["indicator_map"]["CN_M2"]["sync_supported"] is True
     assert snapshot["indicator_map"]["CN_M2"]["latest_value"] == 325.4
     assert snapshot["indicator_map"]["CN_M2"]["refresh_start"] == date(2025, 4, 1)
+    assert snapshot["sync_supported_indicator_count"] == 1
+    assert snapshot["sync_unsupported_indicator_count"] == 1
+    assert snapshot["bulk_refresh_indicator_codes"] == ["CN_M2"]
     assert len(snapshot["history"]) == 1
 
 
@@ -265,9 +276,16 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
         "apps.macro.application.interface_services.get_active_provider_id_by_source",
         lambda source_type: 7 if source_type == "akshare" else None,
     )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_macro_governance_payload",
+        lambda: {"supported_sync_codes": ["CN_GDP", "CN_GDP_YOY"]},
+    )
 
     snapshot = get_macro_data_page_snapshot()
 
     assert snapshot["selected_indicator"] == "CN_GDP_YOY"
+    assert snapshot["indicator_map"]["CN_GDP"]["sync_supported"] is True
+    assert snapshot["indicator_map"]["CN_GDP_YOY"]["sync_supported"] is True
+    assert snapshot["bulk_refresh_indicator_codes"] == ["CN_GDP", "CN_GDP_YOY"]
     assert snapshot["indicator_map"]["CN_GDP"]["latest_period"] == "2025-Q1"
     assert snapshot["history"][0]["reporting_period_label"] == "2025-Q1"
