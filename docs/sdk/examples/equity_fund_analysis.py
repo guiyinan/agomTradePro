@@ -8,10 +8,7 @@ from agomtradepro import AgomTradeProClient
 from datetime import date
 
 # Initialize client
-client = AgomTradeProClient(
-    base_url="http://localhost:8000",
-    api_token="your_token_here"
-)
+client = AgomTradeProClient(base_url="http://localhost:8000", api_token="your_token_here")
 
 # =============================================================================
 # Equity Analysis
@@ -66,8 +63,10 @@ try:
     financials = client.equity.get_financials(stock_code, report_type="annual", limit=3)
     print(f"   {stock_code} Annual Reports")
     for f in financials:
-        print(f"   {f['report_date']}: Revenue {f.get('revenue', 0):,.0f}, "
-              f"Net Income {f.get('net_income', 0):,.0f}")
+        print(
+            f"   {f['report_date']}: Revenue {f.get('revenue', 0):,.0f}, "
+            f"Net Income {f.get('net_income', 0):,.0f}"
+        )
 except Exception as e:
     print(f"   Error: {e}")
 print()
@@ -91,57 +90,85 @@ print()
 
 print("\n=== Fund Analysis ===\n")
 
-# Example 6: Get fund score
-print("6. Fund Score Analysis")
-fund_code = "000001.OF"
+# Example 6: Rank funds under current regime
+print("6. Ranked Funds for Current Regime")
+fund_code = "000001"
 try:
-    score = client.fund.get_fund_score(fund_code)
-    print(f"   {fund_code} ({score.get('name', 'N/A')})")
-    print(f"   Overall Score: {score.get('overall_score', 0)}/100")
-    print(f"   Performance Score: {score.get('performance_score', 0)}/100")
-    print(f"   Risk Score: {score.get('risk_score', 0)}/100")
-    print(f"   Manager Score: {score.get('manager_score', 0)}/100")
+    regime = client.regime.get_current()
+    ranked = client.fund.rank_funds(regime=regime.dominant_regime, max_count=5)
+    print(f"   Current Regime: {regime.dominant_regime}")
+    print(f"   {'Rank':<6} {'Code':<10} {'Name':<24} {'Score':<8}")
+    print("   " + "-" * 56)
+    for item in ranked:
+        print(
+            f"   {item['rank']:<6} {item['fund_code']:<10} "
+            f"{item['fund_name'][:24]:<24} {item['total_score']:>6.1f}"
+        )
+    if ranked:
+        fund_code = ranked[0]["fund_code"]
 except Exception as e:
     print(f"   Error: {e}")
 print()
 
-# Example 7: List equity funds
-print("7. Top Equity Funds")
+# Example 7: Screen equity growth funds
+print("7. Screen Equity Growth Funds")
 try:
-    funds = client.fund.list_funds(fund_type="equity", min_score=60, limit=10)
-    print(f"   {'Code':<12} {'Name':<30} {'Score':<8}")
-    print("   " + "-" * 50)
-    for fund in funds[:5]:
-        name = fund.get('name', 'N/A')[:28]
-        print(f"   {fund['code']:<12} {name:<30} {fund.get('score', 0):>6}")
+    screen_result = client.fund.screen_funds(
+        regime="Recovery",
+        custom_types=["股票型"],
+        custom_styles=["成长"],
+        min_scale=1_000_000_000,
+        limit=5,
+    )
+    print(f"   Success: {screen_result.get('success')}")
+    for code, name in zip(screen_result.get("fund_codes", []), screen_result.get("fund_names", [])):
+        print(f"   {code:<12} {name}")
 except Exception as e:
     print(f"   Error: {e}")
 print()
 
-# Example 8: Get fund performance
-print("8. Fund Performance")
+# Example 8: Get fund detail
+print("8. Fund Detail")
 try:
+    detail = client.fund.get_fund_detail(fund_code)
+    print(f"   Code: {detail.get('fund_code')}")
+    print(f"   Name: {detail.get('fund_name')}")
+    print(f"   Type: {detail.get('fund_type')}")
+    print(f"   Style: {detail.get('investment_style')}")
+except Exception as e:
+    print(f"   Error: {e}")
+print()
+
+# Example 9: Get fund NAV and performance
+print("9. Fund NAV and Performance")
+try:
+    nav_history = client.fund.get_nav_history(
+        fund_code,
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 12, 31),
+        limit=3,
+    )
     perf = client.fund.get_performance(fund_code, period="1y")
-    print(f"   {fund_code} Performance (1 Year)")
-    print(f"   Return: {perf.get('return', 0):.2%}")
-    print(f"   Volatility: {perf.get('volatility', 0):.2%}")
-    print(f"   Sharpe Ratio: {perf.get('sharpe', 'N/A')}")
-    print(f"   Max Drawdown: {perf.get('max_drawdown', 0):.2%}")
+    for nav in nav_history:
+        print(f"   NAV {nav['nav_date']}: unit={nav['unit_nav']} accum={nav['accum_nav']}")
+    print(f"   Total Return: {perf.get('total_return')}")
+    print(f"   Volatility: {perf.get('volatility')}")
+    print(f"   Sharpe Ratio: {perf.get('sharpe_ratio')}")
 except Exception as e:
     print(f"   Error: {e}")
 print()
 
-# Example 9: Get fund holdings
-print("9. Fund Top Holdings")
+# Example 10: Get fund holdings
+print("10. Fund Top Holdings")
 try:
-    holdings = client.fund.get_holdings(fund_code, limit=10)
+    holdings = client.fund.get_holdings(fund_code, report_date=date(2024, 9, 30))
     print(f"   {fund_code} Top Holdings")
-    print(f"   {'Stock':<12} {'Name':<20} {'Weight':<10}")
+    print(f"   {'Stock':<12} {'Name':<20} {'Ratio':<10}")
     print("   " + "-" * 42)
     for h in holdings[:5]:
-        stock_name = h.get('stock_name', 'N/A')[:18]
-        weight = h.get('weight', 0) * 100
-        print(f"   {h['stock_code']:<12} {stock_name:<20} {weight:>6.2f}%")
+        stock_name = h.get("stock_name", "N/A")[:18]
+        ratio = (h.get("holding_ratio") or 0) * 100
+        print(f"   {h['stock_code']:<12} {stock_name:<20} {ratio:>6.2f}%")
 except Exception as e:
     print(f"   Error: {e}")
 print()
@@ -152,28 +179,28 @@ print()
 
 print("\n=== Sector Analysis ===\n")
 
-# Example 10: Get hot sectors
-print("10. Hot Sectors Today")
+# Example 11: Get hot sectors
+print("11. Hot Sectors Today")
 try:
     hot_sectors = client.sector.get_hot_sectors(limit=5)
     print(f"   {'Sector':<20} {'Change':<10} {'Score':<8}")
     print("   " + "-" * 38)
     for sector in hot_sectors:
-        change = sector.get('change_percent', 0) * 100
+        change = sector.get("change_percent", 0) * 100
         print(f"   {sector['name']:<20} {change:>+6.2f}% {sector.get('score', 0):>6}")
 except Exception as e:
     print(f"   Error: {e}")
 print()
 
-# Example 11: Compare sectors
-print("11. Sector Comparison")
+# Example 12: Compare sectors
+print("12. Sector Comparison")
 try:
     sectors_to_compare = ["银行", "医药", "地产"]
     comparison = client.sector.compare_sectors(sectors_to_compare)
     print(f"   {'Sector':<12} {'Score':<8} {'Change':<10}")
     print("   " + "-" * 30)
     for name, data in comparison.items():
-        change = data.get('change_percent', 0) * 100
+        change = data.get("change_percent", 0) * 100
         print(f"   {name:<12} {data.get('score', 0):>6} {change:>+6.2f}%")
 except Exception as e:
     print(f"   Error: {e}")

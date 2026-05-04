@@ -232,6 +232,51 @@ print(action["asset_weights"])
 print(action["risk_budget_pct"])
 ```
 
+### 11. Run Fund Research Workflow
+
+Fund research is not zero-data by default. Prepare local `fund_info + NAV + fund_performance`
+first, otherwise `rank` / `screen` may return empty results even when the page/API chain is healthy.
+
+```bash
+cd D:/githv/agomTradePro
+python manage.py prepare_fund_research_data --start-date 2024-01-01 --end-date 2024-12-31
+```
+
+```python
+from datetime import date
+
+regime = client.regime.get_current().dominant_regime
+
+ranked = client.fund.rank_funds(regime=regime, max_count=5)
+screened = client.fund.screen_funds(
+    regime=regime,
+    custom_types=["股票型"],
+    custom_styles=["成长"],
+    min_scale=1_000_000_000,
+    limit=5,
+)
+
+target_code = ranked[0]["fund_code"]
+detail = client.fund.get_fund_detail(target_code)
+nav_history = client.fund.get_nav_history(
+    target_code,
+    start_date=date(2024, 1, 1),
+    end_date=date(2024, 12, 31),
+    limit=5,
+)
+holdings = client.fund.get_holdings(
+    target_code,
+    report_date=date(2024, 9, 30),
+)
+performance = client.fund.get_performance(target_code, period="1y")
+
+print(detail["fund_name"])
+print(screened["fund_names"])
+print(nav_history[:2])
+print(holdings[:3])
+print(performance)
+```
+
 Notes:
 
 - `client.decision_workflow.get_funnel_context()` supports both `trade_id` and `backtest_id`.
@@ -253,7 +298,7 @@ Notes:
 | `client.account` | Account and portfolio management |
 | `client.simulated_trading` | Simulated trading accounts |
 | `client.equity` | Stock analysis |
-| `client.fund` | Fund analysis |
+| `client.fund` | Fund research |
 | `client.sector` | Sector analysis |
 | `client.strategy` | Strategy management |
 | `client.realtime` | Real-time price monitoring |

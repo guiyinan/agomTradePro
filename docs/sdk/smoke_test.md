@@ -73,9 +73,42 @@ Expected:
 - tool count > 0
 - tool calls return successfully
 
-## 6. Troubleshooting
+## 6. Fund Research Smoke
+
+Use the dedicated local smoke script when you need to verify the canonical fund
+research chain end-to-end across HTTP API, SDK, and MCP:
+
+```bash
+cd D:/githv/agomTradePro
+python scripts/run_fund_research_smoke.py --auto-token-user admin
+```
+
+Optional:
+
+```bash
+python scripts/run_fund_research_smoke.py --api-token <token> --report-json reports/fund-smoke.json
+```
+
+What it verifies:
+
+- current regime resolution
+- `/api/fund/rank/`
+- `/api/fund/screen/`
+- `/api/fund/info/{fund_code}/`
+- `/api/fund/nav/{fund_code}/`
+- `/api/fund/holding/{fund_code}/`
+- `/api/fund/performance/calculate/`
+- `client.fund.rank_funds()` / `screen_funds()` / `get_fund_detail()` / `get_nav_history()` / `get_holdings()` / `get_performance()`
+- MCP `rank_funds` / `screen_funds` / `get_fund_detail` / `get_fund_nav_history` / `get_fund_holdings` / `get_fund_performance`
+
+The script auto-discovers a real local holding sample from Django ORM, so it can
+use an actually existing `fund_code + report_date` pair instead of hardcoding a stale report date.
+
+## 7. Troubleshooting
 
 - `401 Authentication failed`: token missing/invalid; regenerate token.
 - `404 Resource not found`: SDK route mismatch or endpoint not mounted.
 - `503` or connection refused: backend/db not ready.
 - Requests routed via proxy: ensure `NO_PROXY` contains `127.0.0.1,localhost`.
+- `Fund API rank returned no candidates`: first check whether the local runserver is using the latest code and whether fund research data has been prepared.
+- `No fund holding sample found in local database`: seed or sync fund holdings before expecting holding smoke to pass.

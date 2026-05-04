@@ -7,6 +7,7 @@
 - 提供数据访问方法
 """
 
+import math
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
@@ -31,6 +32,7 @@ from ..domain.entities import (
     FundPerformance,
     FundSectorAllocation,
 )
+from ..domain.services import FundPerformanceCalculator
 from .models import (
     FundHoldingModel,
     FundInfoModel,
@@ -152,6 +154,7 @@ class DjangoFundRepository:
         self._provider_repo = ProviderConfigRepository()
         self._provider_factory = UnifiedProviderFactory(self._provider_repo)
         self._raw_audit_repo = RawAuditRepository()
+        self._perf_calculator = FundPerformanceCalculator()
 
     # ==================== 基金信息 ====================
 
@@ -482,6 +485,33 @@ class DjangoFundRepository:
         except FundPerformanceModel.DoesNotExist:
             return None
 
+    def get_nearest_fund_performance(
+        self,
+        fund_code: str,
+        start_date: date,
+        end_date: date,
+        tolerance_days: int = 31,
+    ) -> FundPerformance | None:
+        """Return a nearby stored performance snapshot when exact dates are absent."""
+
+        window_start = start_date - timedelta(days=tolerance_days)
+        window_end = end_date + timedelta(days=tolerance_days)
+
+        model = (
+            FundPerformanceModel._default_manager.filter(
+                fund_code=fund_code,
+                start_date__gte=window_start,
+                start_date__lte=start_date + timedelta(days=tolerance_days),
+                end_date__gte=end_date - timedelta(days=tolerance_days),
+                end_date__lte=window_end,
+            )
+            .order_by("-end_date", "start_date")
+            .first()
+        )
+        if model is None:
+            return None
+        return self._model_to_entity_performance(model)
+
     def save_fund_performance(self, performance: FundPerformance) -> None:
         """保存或更新基金业绩
 
@@ -503,6 +533,125 @@ class DjangoFundRepository:
             },
         )
 
+    def ensure_fund_universe_seeded(self) -> int:
+        """Seed fund master data when the local fund universe is empty."""
+
+        if FundInfoModel._default_manager.filter(is_active=True).exists():
+            return 0
+        return self.sync_fund_info_from_tushare()
+
+    def resolve_research_window(
+        self,
+        *,
+        requested_end_date: date,
+        lookback_days: int = 365,
+    ) -> tuple[date, date]:
+        """Anchor research windows to the latest locally available fund dataset."""
+
+        latest_performance_end = FundPerformanceModel._default_manager.aggregate(
+            latest=Max("end_date")
+        )["latest"]
+        latest_nav_date = FundNetValueModel._default_manager.aggregate(latest=Max("nav_date"))["latest"]
+        latest_available = latest_performance_end or latest_nav_date or requested_end_date
+        resolved_end_date = min(requested_end_date, latest_available)
+        resolved_start_date = resolved_end_date - timedelta(days=lookback_days)
+        return resolved_start_date, resolved_end_date
+
+    def get_or_build_fund_performance(
+        self,
+        fund_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        allow_remote_sync: bool = False,
+    ) -> FundPerformance | None:
+        """Resolve one fund performance snapshot from stored data or local NAV history."""
+
+        exact = self.get_fund_performance(fund_code, start_date, end_date)
+        if exact is not None:
+            return exact
+
+        nearby = self.get_nearest_fund_performance(fund_code, start_date, end_date)
+        if nearby is not None:
+            return nearby
+
+        built = self.build_and_store_fund_performance(
+            fund_code=fund_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if built is not None:
+            return built
+
+        if not allow_remote_sync:
+            return None
+
+        synced_count = self.sync_fund_nav_from_tushare(
+            fund_code=fund_code,
+            start_date=start_date.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+        )
+        if synced_count <= 0:
+            return None
+
+        return self.build_and_store_fund_performance(
+            fund_code=fund_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def build_and_store_fund_performance(
+        self,
+        *,
+        fund_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> FundPerformance | None:
+        """Calculate one performance snapshot from NAV data and persist it."""
+
+        nav_series = self.get_fund_nav(fund_code, start_date, end_date)
+        if len(nav_series) < 2:
+            return None
+
+        total_return = self._perf_calculator.calculate_total_return(nav_series)
+        days = (nav_series[-1].nav_date - nav_series[0].nav_date).days
+        annualized_return = self._perf_calculator.calculate_annualized_return(total_return, days)
+
+        daily_returns = [
+            nav.daily_return
+            for nav in nav_series
+            if nav.daily_return is not None
+        ]
+        if len(daily_returns) < 2:
+            daily_returns = self._derive_daily_returns(nav_series)
+
+        volatility = (
+            self._perf_calculator.calculate_volatility(daily_returns)
+            if len(daily_returns) >= 2
+            else None
+        )
+        sharpe_ratio = (
+            self._perf_calculator.calculate_sharpe_ratio(annualized_return, volatility)
+            if volatility and volatility > 0
+            else None
+        )
+        max_drawdown = self._perf_calculator.calculate_max_drawdown(nav_series)
+
+        performance = FundPerformance(
+            fund_code=fund_code,
+            start_date=nav_series[0].nav_date,
+            end_date=nav_series[-1].nav_date,
+            total_return=total_return,
+            annualized_return=annualized_return,
+            volatility=volatility,
+            sharpe_ratio=sharpe_ratio,
+            max_drawdown=max_drawdown,
+            beta=None,
+            alpha=None,
+        )
+        self.save_fund_performance(performance)
+        return performance
+
     # ==================== 综合查询 ====================
 
     def get_funds_with_performance(
@@ -518,13 +667,19 @@ class DjangoFundRepository:
             [(基金信息, 业绩, 行业配置)] 列表
         """
         result = []
+        self.ensure_fund_universe_seeded()
 
         # 获取所有基金
         funds = self.get_all_funds()
 
         for fund in funds:
             # 获取业绩
-            perf = self.get_fund_performance(fund.fund_code, start_date, end_date)
+            perf = self.get_or_build_fund_performance(
+                fund.fund_code,
+                start_date,
+                end_date,
+                allow_remote_sync=False,
+            )
 
             if not perf:
                 continue  # 没有业绩数据的基金跳过
@@ -544,41 +699,31 @@ class DjangoFundRepository:
         Returns:
             同步的基金数量
         """
-        df = self.tushare_adapter.fetch_fund_list(market="O")
-
-        if df is None or df.empty:
-            return 0
-
         count = 0
-        for _, row in df.iterrows():
-            # 映射基金类型
-            fund_type_map = {
-                "开放式": "混合型",
-                "封闭式": "混合型",
-                "ETF型": "指数型",
-                "LOF型": "指数型",
-            }
-            fund_type = fund_type_map.get(row.get("fund_type", ""), "混合型")
+        seen_codes: set[str] = set()
+        for market in ("O", "E"):
+            df = self.tushare_adapter.fetch_fund_list(market=market)
+            if df is None or df.empty:
+                continue
 
-            # 去除基金代码中的 .OF 后缀
-            fund_code = row["ts_code"].replace(".OF", "")
+            for _, row in df.iterrows():
+                fund_code = self._normalize_fund_code(str(row.get("ts_code", "")))
+                if not fund_code or fund_code in seen_codes:
+                    continue
 
-            fund_info = FundInfo(
-                fund_code=fund_code,
-                fund_name=row.get("name", ""),
-                fund_type=fund_type,
-                setup_date=row.get("setup_date"),
-                management_company=row.get("management"),
-                custodian=row.get("custodian"),
-                fund_scale=(
-                    Decimal(str(row.get("issue_amount", 0))) * 100000000
-                    if row.get("issue_amount")
-                    else None
-                ),
-            )
+                fund_info = FundInfo(
+                    fund_code=fund_code,
+                    fund_name=self._clean_optional_text(row.get("name")) or fund_code,
+                    fund_type=self._normalize_fund_type(str(row.get("fund_type", "")), market),
+                    setup_date=self._coerce_date(row.get("setup_date")),
+                    management_company=self._clean_optional_text(row.get("management")),
+                    custodian=self._clean_optional_text(row.get("custodian")),
+                    fund_scale=self._coerce_issue_amount(row.get("issue_amount")),
+                )
 
-            self.save_fund_info(fund_info)
-            count += 1
+                self.save_fund_info(fund_info)
+                seen_codes.add(fund_code)
+                count += 1
 
         return count
 
@@ -612,10 +757,11 @@ class DjangoFundRepository:
                         end=end,
                     )
                 )
-                facts = self._dc_fund_nav_repo.get_series(fund_code, start=start, end=end)
-                for fact in facts:
-                    self._mirror_dc_nav_fact(fact)
-                return result.stored_count
+                if result.stored_count > 0:
+                    facts = self._dc_fund_nav_repo.get_series(fund_code, start=start, end=end)
+                    for fact in facts:
+                        self._mirror_dc_nav_fact(fact)
+                    return result.stored_count
             except Exception:
                 pass
 
@@ -737,3 +883,81 @@ class DjangoFundRepository:
             beta=model.beta,
             alpha=model.alpha,
         )
+
+    def _derive_daily_returns(self, nav_series: list[FundNetValue]) -> list[float]:
+        """Derive daily returns from NAV series when provider payload omitted them."""
+
+        returns: list[float] = []
+        for previous, current in zip(nav_series, nav_series[1:]):
+            prev_nav = float(previous.unit_nav)
+            curr_nav = float(current.unit_nav)
+            if prev_nav <= 0:
+                continue
+            returns.append((curr_nav / prev_nav - 1) * 100)
+        return returns
+
+    def _normalize_fund_code(self, ts_code: str) -> str:
+        """Normalize Tushare fund codes to local base codes."""
+
+        return ts_code.split(".")[0].strip().upper()
+
+    def _normalize_fund_type(self, raw_type: str, market: str) -> str:
+        """Map external fund type labels into the local canonical set."""
+
+        normalized = raw_type.strip()
+        if "股票" in normalized:
+            return "股票型"
+        if "债" in normalized:
+            return "债券型"
+        if "货币" in normalized:
+            return "货币型"
+        if "QDII" in normalized.upper():
+            return "QDII"
+        if "商品" in normalized:
+            return "商品型"
+        if "ETF" in normalized.upper() or "LOF" in normalized.upper() or "指数" in normalized:
+            return "指数型"
+        if "混合" in normalized:
+            return "混合型"
+        if normalized in {"开放式", "封闭式"}:
+            return "混合型" if market == "O" else "指数型"
+        return "混合型"
+
+    def _coerce_date(self, value) -> date | None:
+        """Convert provider date values to ``date`` when possible."""
+
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        return None
+
+    def _coerce_issue_amount(self, value) -> Decimal | None:
+        """Convert issue amount in 亿份 to yuan-like storage used by the fund module."""
+
+        if self._is_empty_like(value):
+            return None
+        try:
+            return Decimal(str(value)) * Decimal("100000000")
+        except ArithmeticError:
+            return None
+
+    def _clean_optional_text(self, value) -> str | None:
+        """Normalize provider text fields and drop NaN-like placeholders."""
+
+        if self._is_empty_like(value):
+            return None
+        return str(value).strip() or None
+
+    def _is_empty_like(self, value) -> bool:
+        """Return True when provider data is empty, null, or NaN-like."""
+
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return value.strip() == "" or value.strip().lower() == "nan"
+        if isinstance(value, float):
+            return math.isnan(value) or value == 0.0
+        return value == 0

@@ -189,10 +189,7 @@ class _FakeClient:
                 "asset_code": asset_code,
             },
             run_daily_inspection=(
-                lambda account_id,
-                strategy_id=None,
-                inspection_date=None,
-                auto_create_proposal=False: {
+                lambda account_id, strategy_id=None, inspection_date=None, auto_create_proposal=False: {
                     "account_id": account_id,
                     "strategy_id": strategy_id,
                     "inspection_date": inspection_date,
@@ -266,6 +263,52 @@ class _FakeClient:
             delete_filter=lambda filter_id: None,
             health=lambda: {"ok": True},
         )
+        self.fund = SimpleNamespace(
+            rank_funds=lambda regime="Recovery", max_count=50: [
+                {"fund_code": "000001", "regime": regime, "max_count": max_count}
+            ],
+            screen_funds=(
+                lambda regime=None, custom_types=None, custom_styles=None, min_scale=None, limit=30: {
+                    "success": True,
+                    "regime": regime or "Recovery",
+                    "fund_codes": ["000001"],
+                    "fund_names": ["华夏成长"],
+                    "screening_criteria": {
+                        "custom_types": custom_types,
+                        "custom_styles": custom_styles,
+                        "min_scale": min_scale,
+                        "limit": limit,
+                    },
+                }
+            ),
+            get_fund_detail=lambda fund_code: {
+                "fund_code": fund_code,
+                "fund_name": "华夏成长",
+                "fund_type": "股票型",
+            },
+            get_nav_history=lambda fund_code, start_date=None, end_date=None, limit=100: [
+                {
+                    "fund_code": fund_code,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "limit": limit,
+                }
+            ],
+            analyze_fund=lambda fund_code, report_date=None: {
+                "fund_code": fund_code,
+                "report_date": report_date,
+            },
+            get_performance=lambda fund_code, period="1y": {
+                "fund_code": fund_code,
+                "period": period,
+            },
+            get_holdings=lambda fund_code, report_date=None: [
+                {"fund_code": fund_code, "report_date": report_date}
+            ],
+            get_recommendations=lambda regime=None, fund_type=None, limit=20: [
+                {"regime": regime, "fund_type": fund_type, "limit": limit}
+            ],
+        )
         self.rotation = SimpleNamespace(
             list_regimes=lambda: [{"key": "Overheat", "label": "Overheat"}],
             list_templates=lambda: [{"id": 1, "key": "moderate"}],
@@ -319,12 +362,7 @@ class _FakeClient:
                 "dashboard_refresh_locks": [],
             },
             trigger_ops_inference=(
-                lambda mode,
-                trade_date=None,
-                top_n=30,
-                universe_id=None,
-                portfolio_id=None,
-                pool_mode=None: {
+                lambda mode, trade_date=None, top_n=30, universe_id=None, portfolio_id=None, pool_mode=None: {
                     "success": True,
                     "mode": mode,
                     "trade_date": trade_date,
@@ -341,13 +379,7 @@ class _FakeClient:
                 "recent_tasks": [{"task_id": "task-2", "status": "SUCCESS"}],
             },
             refresh_ops_qlib_data=(
-                lambda mode,
-                target_date,
-                lookback_days=400,
-                universes=None,
-                portfolio_ids=None,
-                all_active_portfolios=False,
-                pool_mode=None: {
+                lambda mode, target_date, lookback_days=400, universes=None, portfolio_ids=None, all_active_portfolios=False, pool_mode=None: {
                     "success": True,
                     "mode": mode,
                     "target_date": target_date,
@@ -393,6 +425,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomtradepro_mcp.tools.sentiment_tools",
         "agomtradepro_mcp.tools.task_monitor_tools",
         "agomtradepro_mcp.tools.filter_tools",
+        "agomtradepro_mcp.tools.fund_tools",
         "agomtradepro_mcp.tools.rotation_tools",
         "agomtradepro_mcp.tools.alpha_tools",
         "agomtradepro_mcp.tools.pulse_tools",
@@ -500,7 +533,10 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
             {"trade_date": "2026-03-21", "account_ids": [7]},
         ),
         ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
-        ("list_ai_strategy_configs", {"strategy_id": 2, "approval_mode": "conditional", "limit": 5}),
+        (
+            "list_ai_strategy_configs",
+            {"strategy_id": 2, "approval_mode": "conditional", "limit": 5},
+        ),
         ("get_strategy_ai_config", {"strategy_id": 2}),
         (
             "create_ai_strategy_config",
@@ -539,6 +575,17 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_sentiment_recent", {"payload": {"limit": 5}}),
         ("get_sentiment_health", {}),
         ("clear_sentiment_cache", {}),
+        ("rank_funds", {"regime": "Recovery", "max_count": 5}),
+        (
+            "screen_funds",
+            {
+                "regime": "Recovery",
+                "custom_types": ["股票型"],
+                "custom_styles": ["成长"],
+                "min_scale": 1000000000,
+                "limit": 10,
+            },
+        ),
         ("get_task_monitor_status", {"task_id": "task-1"}),
         ("list_task_monitor_tasks", {}),
         ("get_task_monitor_statistics", {}),

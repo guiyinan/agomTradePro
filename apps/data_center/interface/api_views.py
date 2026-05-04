@@ -546,7 +546,7 @@ def asset_resolve(request: Request) -> Response:
 def macro_series(request: Request) -> Response:
     """GET /api/data-center/macro/series/?indicator_code=&start=&end=&limit=&source=
 
-    Fetch a macro economic time-series.
+    Fetch a macro economic time-series in reverse chronological order.
 
     Query params:
       indicator_code — required (e.g. CN_GDP, CN_PMI)
@@ -554,6 +554,10 @@ def macro_series(request: Request) -> Response:
       end            — optional ISO date
       limit          — optional int, default 500
       source         — optional provider filter (e.g. tushare, akshare)
+
+    Notes:
+      - API consumers get newest-first rows by default.
+      - Chart/timeline UIs should reorder to past→now before rendering.
     """
     from datetime import date as date_cls
 

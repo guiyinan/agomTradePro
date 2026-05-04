@@ -160,7 +160,7 @@ Three methods (priority order):
 | `client.account` | Unified account management - accounts, positions, performance; old portfolio APIs remain compatibility-only |
 | `client.simulated_trading` | Unified account trading/execution module; module name retained for compatibility |
 | `client.equity` | Stock analysis - scoring, recommendations, financials |
-| `client.fund` | Fund analysis - scoring, performance, holdings |
+| `client.fund` | Fund research - rank, screen, detail, NAV, style, holdings, performance |
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
 | `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, AI strategy config, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
@@ -263,7 +263,7 @@ These calls mirror the staff/superuser web console:
 - **Unified Accounts**: `list_accounts`, `get_account`, `create_account`, `get_account_positions`, `get_account_performance`
 - **Simulated Trading Compat**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_auto_trading`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
 - **Equity**: `get_stock_score`, `list_stocks`, `get_stock_recommendations`
-- **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
+- **Fund**: `rank_funds`, `screen_funds`, `get_fund_score`, `list_funds`, `get_fund_detail`, `get_fund_nav_history`, `analyze_fund`, `get_fund_holdings`, `get_fund_performance`
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`
 - **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`, `list_ai_strategy_configs`, `get_strategy_ai_config`, `create_ai_strategy_config`, `update_ai_strategy_config`, `list_position_rules`, `create_position_rule`, `update_position_rule`
 - **Rotation**: `list_rotation_regimes`, `list_rotation_templates`, `list_account_rotation_configs`, `get_account_rotation_config`, `create_account_rotation_config`, `update_account_rotation_config`, `apply_rotation_template_to_account_config`
@@ -363,11 +363,15 @@ For detailed migration information, see:
 | [data_analysis.py](../docs/sdk/examples/data_analysis.py) | Data analysis with pandas |
 | [simulated_trading.py](../docs/sdk/examples/simulated_trading.py) | Simulated trading workflow |
 | [equity_fund_analysis.py](../docs/sdk/examples/equity_fund_analysis.py) | Stock and fund analysis |
+| [fund_research_workflow.py](../docs/sdk/examples/fund_research_workflow.py) | Canonical fund research workflow |
 | [realtime_strategy.py](../docs/sdk/examples/realtime_strategy.py) | Real-time monitoring and strategies |
 
 ## Notes
 
 - `client.backtest.list()` is the preferred SDK list method. `client.backtest.list_backtests()` remains supported as a compatibility alias.
+- Fund research callers should prepare local `fund_info` + NAV + `fund_performance` data first. Recommended command:
+  `python manage.py prepare_fund_research_data --start-date 2024-01-01 --end-date 2024-12-31`
+- Fund canonical payloads: `info -> fund`, `nav -> nav_data`, `holding -> holdings`; `style` and `holding` prefer `report_date` over `as_of_date`.
 - `tests/integration/test_realtime_monitoring_flow.py` is a live-market integration test. It is skipped by default unless `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` is set.
 
 ## Development
@@ -392,10 +396,10 @@ agomtradepro-mcp
 - **Version**: 1.2.0
 - **App Modules**: 35 business modules
 - **SDK Modules**: 36 service modules
-- **MCP Tools**: 302 tools
+- **MCP Tools**: 318 tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
-- **Last Updated**: 2026-04-21
+- **Last Updated**: 2026-05-04
 
 ## License
 

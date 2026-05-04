@@ -204,13 +204,25 @@ client.equity.get_valuation(stock_code, as_of_date) -> dict
 
 ```python
 client.fund.get_fund_score(fund_code, as_of_date) -> dict
+client.fund.rank_funds(regime="Recovery", max_count=50) -> list[dict]
+client.fund.screen_funds(regime=None, custom_types=None, custom_styles=None, min_scale=None, limit=30) -> dict
 client.fund.list_funds(fund_type, min_score, limit) -> list
 client.fund.get_fund_detail(fund_code) -> dict
 client.fund.get_recommendations(regime, fund_type, limit) -> list
-client.fund.analyze_fund(fund_code, as_of_date) -> dict
+client.fund.analyze_fund(fund_code, report_date=None, *, as_of_date=None) -> dict
+client.fund.get_nav_history(fund_code, start_date=None, end_date=None, limit=100) -> list[dict]
 client.fund.get_performance(fund_code, period) -> dict
-client.fund.get_holdings(fund_code, as_of_date) -> list
+client.fund.get_holdings(fund_code, report_date=None, *, as_of_date=None) -> list
 ```
+
+Fund module canonical notes:
+
+- `fund_code` accepts legacy SDK input like `000001.OF`, but the SDK normalizes it to the backend canonical six-digit code before calling `/api/fund/*`.
+- `get_fund_detail()` unwraps the API payload and returns the `fund` object directly.
+- `get_nav_history()` unwraps `nav_data`.
+- `get_holdings()` unwraps `holdings`.
+- `analyze_fund()` and `get_holdings()` prefer `report_date`; `as_of_date` is compatibility-only.
+- `list_funds()` is a compatibility wrapper over current ranking results, not a dedicated `/funds/` resource endpoint.
 
 ## Sector Module
 

@@ -89,12 +89,13 @@ class TushareFundAdapter:
             ts_code=fund_code,
             start_date=start_date,
             end_date=end_date,
-            fields='trade_date,unit_nav,accum_nav'
+            fields='ts_code,ann_date,nav_date,unit_nav,accum_nav,adj_nav'
         )
 
         # 转换日期格式
         if df is not None and not df.empty:
-            df['trade_date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d')
+            df['nav_date'] = pd.to_datetime(df['nav_date'], format='%Y%m%d', errors='coerce')
+            df = df.rename(columns={'nav_date': 'trade_date'})
 
         return df
 

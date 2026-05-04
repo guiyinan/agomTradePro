@@ -2,6 +2,7 @@ from datetime import date
 
 from apps.macro.application.interface_services import (
     get_macro_data_page_snapshot,
+    get_macro_indicator_data,
     get_supported_macro_indicators,
 )
 
@@ -63,6 +64,7 @@ class _FakeMacroReadRepository:
 
     def get_indicator_rows(self, *, code: str, ascending: bool = True):
         assert code == "CN_M2"
+        assert ascending is True
         return [
             {
                 "id": 1,
@@ -173,6 +175,74 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
     assert len(snapshot["history"]) == 1
 
 
+def test_get_macro_indicator_data_requests_chronological_series(monkeypatch):
+    class _CapturingReadRepository:
+        def __init__(self) -> None:
+            self.called_with_ascending: bool | None = None
+
+        def get_indicator_rows(
+            self,
+            *,
+            code: str,
+            start_date: date | None = None,
+            end_date: date | None = None,
+            limit: int = 500,
+            ascending: bool = True,
+        ):
+            assert code == "CN_IMPORT_YOY"
+            self.called_with_ascending = ascending
+            if ascending:
+                return [
+                    {
+                        "id": 1,
+                        "code": code,
+                        "value": 1.2,
+                        "unit": "%",
+                        "display_value": 1.2,
+                        "display_unit": "%",
+                        "original_unit": "%",
+                        "reporting_period": date(2025, 6, 1),
+                        "observed_at": date(2025, 6, 1),
+                        "published_at": date(2025, 6, 1),
+                        "period_type": "M",
+                        "period_type_display": "月度",
+                        "source": "akshare",
+                        "revision_number": 1,
+                        "publication_lag_days": 0,
+                    },
+                    {
+                        "id": 2,
+                        "code": code,
+                        "value": 27.8,
+                        "unit": "%",
+                        "display_value": 27.8,
+                        "display_unit": "%",
+                        "original_unit": "%",
+                        "reporting_period": date(2026, 3, 1),
+                        "observed_at": date(2026, 3, 1),
+                        "published_at": date(2026, 3, 1),
+                        "period_type": "M",
+                        "period_type_display": "月度",
+                        "source": "akshare",
+                        "revision_number": 1,
+                        "publication_lag_days": 0,
+                    },
+                ]
+            raise AssertionError("UI helper must request ascending=True")
+
+    repository = _CapturingReadRepository()
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_macro_read_repository",
+        lambda: repository,
+    )
+
+    rows = get_macro_indicator_data(code="CN_IMPORT_YOY")
+
+    assert repository.called_with_ascending is True
+    assert rows[0]["reporting_period"] == "2025-06-01"
+    assert rows[-1]["reporting_period"] == "2026-03-01"
+
+
 class _FakeGdpReadRepository:
     def list_distinct_codes(self) -> list[str]:
         return ["CN_GDP", "CN_GDP_YOY"]
@@ -202,6 +272,7 @@ class _FakeGdpReadRepository:
 
     def get_indicator_rows(self, *, code: str, ascending: bool = True):
         assert code == "CN_GDP_YOY"
+        assert ascending is True
         return [
             {
                 "id": 11,

@@ -123,8 +123,10 @@ class ScreenFundsUseCase:
 
             # 3. 获取全市场基金数据
             # 获取过去一年的业绩
-            end_date = date.today()
-            start_date = end_date - timedelta(days=365)
+            start_date, end_date = self.fund_repo.resolve_research_window(
+                requested_end_date=date.today(),
+                lookback_days=365,
+            )
 
             all_funds = self.fund_repo.get_funds_with_performance(start_date, end_date)
 
@@ -193,8 +195,10 @@ class RankFundsUseCase:
             排名后的基金评分列表
         """
         # 1. 获取全市场基金数据
-        end_date = date.today()
-        start_date = end_date - timedelta(days=365)
+        start_date, end_date = self.fund_repo.resolve_research_window(
+            requested_end_date=date.today(),
+            lookback_days=365,
+        )
 
         all_funds = self.fund_repo.get_funds_with_performance(start_date, end_date)
 

@@ -403,6 +403,60 @@ class TestRunProviderConnectionTestUseCase:
 
 
 class TestQueryMacroSeriesUseCase:
+    def test_preserves_repository_latest_first_order_for_api_consumers(self):
+        older_fact = MacroFact(
+            indicator_code="CN_IMPORT_YOY",
+            reporting_period=date(2025, 6, 1),
+            value=1.2,
+            unit="%",
+            source="akshare",
+            revision_number=1,
+            published_at=date(2025, 6, 1),
+            quality=DataQualityStatus.VALID,
+        )
+        newer_fact = MacroFact(
+            indicator_code="CN_IMPORT_YOY",
+            reporting_period=date(2026, 3, 1),
+            value=27.8,
+            unit="%",
+            source="akshare",
+            revision_number=1,
+            published_at=date(2026, 3, 1),
+            quality=DataQualityStatus.VALID,
+        )
+        catalog = IndicatorCatalog(
+            code="CN_IMPORT_YOY",
+            name_cn="进口同比",
+            description="进口金额同比增速",
+            default_unit="%",
+            default_period_type="M",
+        )
+        unit_rules = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_IMPORT_YOY",
+                    original_unit="%",
+                    storage_unit="%",
+                    display_unit="%",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
+
+        uc = QueryMacroSeriesUseCase(
+            _MacroFactRepo([newer_fact, older_fact]),
+            _IndicatorCatalogRepo(catalog),
+            unit_rules,
+        )
+
+        result = uc.execute(MacroSeriesRequest(indicator_code="CN_IMPORT_YOY"))
+
+        assert result.total == 2
+        assert result.latest_reporting_period == date(2026, 3, 1)
+        assert result.data[0].reporting_period == date(2026, 3, 1)
+        assert result.data[1].reporting_period == date(2025, 6, 1)
+
     def test_prefers_data_center_facts_when_available(self):
         fact = MacroFact(
             indicator_code="CN_PMI",

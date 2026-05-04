@@ -56,6 +56,9 @@ agomtradepro/Scripts/python manage.py createsuperuser
 # 同步宏观数据
 agomtradepro/Scripts/python manage.py sync_macro_data
 
+# 准备基金研究页面数据（fund_info + NAV + performance）
+agomtradepro/Scripts/python manage.py prepare_fund_research_data --start-date 2024-01-01 --end-date 2024-12-31
+
 # 初始化配置数据
 agomtradepro/Scripts/python manage.py init_asset_codes
 agomtradepro/Scripts/python manage.py init_indicators
@@ -138,6 +141,9 @@ pytest tests/ -v
 
 # 运行本地全量回归入口（默认包含 preflight + backend + browser + RC 子集）
 python scripts/run_full_regression.py
+
+# 运行 fund research 专项冒烟（API + SDK + MCP）
+python scripts/run_fund_research_smoke.py --auto-token-user admin
 
 # 只跑测试基础设施和浏览器矩阵
 python scripts/run_full_regression.py --stages preflight,browser
@@ -388,6 +394,20 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/data-center/sync/news/` | POST | 同步新闻到中台 |
 | `/api/data-center/sync/capital-flows/` | POST | 同步资金流到中台 |
 
+### Fund API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/fund/` | GET | 返回 fund API 根路径与可发现端点 |
+| `/api/fund/screen/` | POST | 基金筛选；支持 `regime/custom_types/custom_styles/min_scale/max_count` |
+| `/api/fund/rank/` | GET | 基金排名；支持 `regime/max_count` |
+| `/api/fund/style/{fund_code}/` | GET | 基金风格分析；查询参数使用 `report_date` |
+| `/api/fund/performance/calculate/` | POST | 计算基金业绩；请求体使用 `fund_code/start_date/end_date` |
+| `/api/fund/info/{fund_code}/` | GET | 基金基础信息；返回 `fund` |
+| `/api/fund/nav/{fund_code}/` | GET | 基金净值序列；返回 `nav_data` |
+| `/api/fund/holding/{fund_code}/` | GET | 基金持仓；查询参数使用 `report_date`，返回 `holdings` |
+| `/api/fund/multidim-screen/` | POST | 通用资产分析框架下的基金多维筛选 |
+
 ### 路由兼容与快捷入口
 
 - 页面根路径快捷入口：`/account/ -> /account/login/`、`/equity/ -> /equity/screen/`、`/fund/ -> /fund/dashboard/`、`/prompt/ -> /prompt/manage/`
@@ -395,6 +415,8 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 - 宏观数据统一使用 `/api/data-center/macro/series/`，查询参数使用 `indicator_code`
 - `/api/pulse/current/` 在无历史快照或最新快照已过期/不可靠时，会尝试按需重算当前 Pulse；若当前 Regime 只能解析为 `Unknown`，则保留已有 Pulse 快照，不用未知 Regime 覆盖接口输出
 - Setup Wizard 密码强度检查同时支持 `/setup/api/password-strength/` 与 `/api/setup/password-strength/`
+- 基金研究页面依赖本地已准备好的 `fund_info`、`fund_net_value` / `data_center fund nav fact`、`fund_performance`；只存在 `fund_holding` 时，`/api/fund/rank/` 与 `/api/fund/screen/` 仍可能返回空结果
+- `prepare_fund_research_data` 会优先以本地最新可用净值日期锚定研究窗口；当允许远端同步时，可补齐 NAV 并回填 performance，避免“今天有页面、但本地日期窗口内无可评分基金”的假空白
 
 ### 数据源中台提示
 

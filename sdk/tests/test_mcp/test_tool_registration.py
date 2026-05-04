@@ -68,6 +68,14 @@ def test_extended_mcp_tools_registered():
         "get_data_center_provider_status",
         "data_center_get_quotes",
         "data_center_get_capital_flows",
+        "rank_funds",
+        "screen_funds",
+        "get_fund_detail",
+        "get_fund_nav_history",
+        "analyze_fund",
+        "get_fund_holdings",
+        "get_fund_performance",
+        "get_fund_recommendations",
     }
 
     missing = expected - names

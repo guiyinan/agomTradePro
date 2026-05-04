@@ -1,840 +1,695 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}基金分析 - AgomTradePro{% endblock %}
+{% block title %}基金研究工作台 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/fund.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div class="header-content">
-        <div>
-            <h1>基金分析</h1>
-            <p class="subtitle">基于 Regime 的基金筛选与分析</p>
-            <p class="description">基金筛选、风格分析、业绩评估</p>
-        </div>
-    </div>
-</div>
-
-<!-- 当前 Regime、Policy、Sentiment 显示 -->
-<div class="stats-row">
-    <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-info">
-            <div class="stat-label">当前宏观环境</div>
-            <div class="stat-value">{{ regime_display }}</div>
-            <div class="stat-detail">{{ current_regime }}</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">🎯</div>
-        <div class="stat-info">
-            <div class="stat-label">置信度</div>
-            <div class="stat-value">{{ regime_confidence }}</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">📜</div>
-        <div class="stat-info">
-            <div class="stat-label">政策档位</div>
-            <div class="stat-value">{{ current_policy }}</div>
-            <div class="stat-detail">{{ policy_display }}</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">💭</div>
-        <div class="stat-info">
-            <div class="stat-label">市场情绪</div>
-            <div class="stat-value">{{ sentiment_index }}</div>
-            <div class="stat-detail">{{ sentiment_level }} ({{ sentiment_date }})</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon">💡</div>
-        <div class="stat-info">
-            <div class="stat-label">推荐策略</div>
-            <div class="stat-value">{{ regime_display }}环境优选</div>
-        </div>
-    </div>
-</div>
-
-<div class="fund-dashboard">
-    <!-- 左侧：功能导航 -->
-    <div class="left-sidebar">
-        <div class="sidebar-card">
-            <div class="sidebar-header">
-                <h3>📋 功能导航</h3>
-            </div>
-            <div class="nav-menu">
-                <a href="#multidim" class="nav-item active" onclick="switchSection('multidim')">
-                    <span class="nav-icon">🎯</span>
-                    <span class="nav-text">多维度评分</span>
-                </a>
-                <a href="#screen" class="nav-item" onclick="switchSection('screen')">
-                    <span class="nav-icon">🔍</span>
-                    <span class="nav-text">基金筛选</span>
-                </a>
-                <a href="#rank" class="nav-item" onclick="switchSection('rank')">
-                    <span class="nav-icon">🏆</span>
-                    <span class="nav-text">基金排名</span>
-                </a>
-                <a href="#style" class="nav-item" onclick="switchSection('style')">
-                    <span class="nav-icon">📐</span>
-                    <span class="nav-text">风格分析</span>
-                </a>
-                <a href="#performance" class="nav-item" onclick="switchSection('performance')">
-                    <span class="nav-icon">📈</span>
-                    <span class="nav-text">业绩评估</span>
-                </a>
-                <a href="#holding" class="nav-item" onclick="switchSection('holding')">
-                    <span class="nav-icon">💼</span>
-                    <span class="nav-text">持仓分析</span>
-                </a>
-            </div>
-        </div>
-
-        <div class="sidebar-card">
-            <div class="sidebar-header">
-                <h3>📚 快速链接</h3>
-            </div>
-            <div class="quick-links">
-                <a href="https://fund.eastmoney.com/" target="_blank" class="quick-link-item">
-                    <span>📊</span> 东方财富网
-                </a>
-                <a href="https://fundf10.eastmoney.com/" target="_blank" class="quick-link-item">
-                    <span>📈</span> 基金F10
-                </a>
-                <a href="https://fund.eastmoney.com/jzdy.html" target="_blank" class="quick-link-item">
-                    <span>⭐</span> 基金排行
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- 中间：功能展示区域 -->
-    <div class="main-panel">
-        <!-- 多维度评分 -->
-        <div id="section-multidim" class="section-content active">
-            <div class="section-header">
-                <h2>🎯 多维度评分筛选</h2>
-                <p>基于 Regime + Policy + Sentiment + Signal 四维度综合评分</p>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">筛选条件</h3>
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label>基金类型</label>
-                        <select id="multiFundType">
-                            <option value="">全部</option>
-                            <option value="股票型">股票型</option>
-                            <option value="混合型">混合型</option>
-                            <option value="债券型">债券型</option>
-                            <option value="货币型">货币型</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>投资风格</label>
-                        <select id="multiInvestmentStyle">
-                            <option value="">全部</option>
-                            <option value="成长">成长</option>
-                            <option value="价值">价值</option>
-                            <option value="平衡">平衡</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>最小规模（亿）</label>
-                        <input type="number" id="multiMinScale" placeholder="不限制" min="0" step="0.1">
-                    </div>
-                    <div class="filter-item">
-                        <label>返回数量</label>
-                        <input type="number" id="multiMaxCount" value="20" min="1" max="100">
-                    </div>
-                </div>
-
-                <div class="multi-dim-info">
-                    <div class="info-item">
-                        <span class="info-label">当前 Regime</span>
-                        <span class="info-value">{{ current_regime }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Policy 档位</span>
-                        <span class="info-value">{{ current_policy }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">情绪指数</span>
-                        <span class="info-value">{{ sentiment_index }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">激活信号</span>
-                        <span class="info-value" id="activeSignalsCount">-</span>
-                    </div>
-                </div>
-
-                <div class="weight-config" id="weightConfig" class="hidden">
-                    <h4 class="text-small">当前权重配置</h4>
-                    <div class="weight-info">
-                        <span>Regime: <strong id="weightRegime">-</strong></span>
-                        <span>Policy: <strong id="weightPolicy">-</strong></span>
-                        <span>Sentiment: <strong id="weightSentiment">-</strong></span>
-                        <span>Signal: <strong id="weightSignal">-</strong></span>
-                    </div>
-                </div>
-
-                <div class="flex-row-sm mt-md">
-                    <button class="btn btn-primary" onclick="runMultiDimScreen()">
-                        <span>🎯</span> 开始评分筛选
+<div class="fund-page">
+    <section class="fund-hero">
+        <div class="fund-hero__content">
+            <div class="fund-hero__copy">
+                <h1>基金研究工作台</h1>
+                <p class="fund-hero__lead">
+                    把宏观环境、基金初筛、风格识别、业绩复核和持仓验证串成一条连续研究路径，减少来回切换和重复输入。
+                </p>
+                <div class="fund-hero__actions">
+                    <button type="button" class="fund-btn fund-btn--primary" data-jump-section="multidim">
+                        <i class="bi bi-stars"></i>
+                        从多维评分开始
                     </button>
-                    <button class="btn btn-secondary" onclick="showWeightConfig()">
-                        <span>⚙️</span> 查看权重
+                    <button type="button" class="fund-btn fund-btn--secondary" data-jump-section="screen">
+                        <i class="bi bi-funnel"></i>
+                        直接做基金初筛
                     </button>
                 </div>
             </div>
 
-            <div id="multiDimResults" class="card" class="hidden">
-                <h3 class="card-title">评分结果</h3>
-                <div class="table-container">
-                    <table id="multiDimTable">
-                        <thead>
-                            <tr>
-                                <th>排名</th>
-                                <th>基金代码</th>
-                                <th>基金名称</th>
-                                <th>类型</th>
-                                <th>风格</th>
-                                <th>Regime</th>
-                                <th>Policy</th>
-                                <th>Sentiment</th>
-                                <th>Signal</th>
-                                <th>综合评分</th>
-                                <th>风险等级</th>
-                            </tr>
-                        </thead>
-                        <tbody id="multiDimTableBody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 基金筛选 -->
-        <div id="section-screen" class="section-content">
-            <div class="section-header">
-                <h2>🔍 基金筛选</h2>
-                <p>根据当前 Regime 筛选适合的基金</p>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">筛选条件</h3>
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label>Regime 环境</label>
-                        <select id="regimeSelect">
-                            <option value="">自动检测</option>
-                            <option value="Recovery">复苏 (Recovery)</option>
-                            <option value="Overheat">过热 (Overheat)</option>
-                            <option value="Stagflation">滞胀 (Stagflation)</option>
-                            <option value="Deflation">通缩 (Deflation)</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>基金类型</label>
-                        <select id="fundTypeSelect">
-                            <option value="">全部</option>
-                            <option value="equity">股票型</option>
-                            <option value="mixed">混合型</option>
-                            <option value="bond">债券型</option>
-                            <option value="money">货币型</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>基金规模</label>
-                        <select id="scaleSelect">
-                            <option value="">不限</option>
-                            <option value="large">大型 (>50亿)</option>
-                            <option value="medium">中型 (10-50亿)</option>
-                            <option value="small">小型 (<10亿)</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>返回数量</label>
-                        <input type="number" id="maxCount" value="20" min="1" max="100">
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="screenFunds()">
-                    <span>🔍</span> 开始筛选
-                </button>
-            </div>
-
-            <div id="screenResults" class="card" class="hidden">
-                <h3 class="card-title">筛选结果</h3>
-                <div class="table-container">
-                    <table id="screenTable">
-                        <thead>
-                            <tr>
-                                <th>排名</th>
-                                <th>基金代码</th>
-                                <th>基金名称</th>
-                                <th>类型</th>
-                                <th>规模(亿)</th>
-                                <th>匹配度</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="screenTableBody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 基金排名 -->
-        <div id="section-rank" class="section-content">
-            <div class="section-header">
-                <h2>🏆 基金排名</h2>
-                <p>在特定 Regime 下表现最优的基金</p>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">排名参数</h3>
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label>Regime 环境</label>
-                        <select id="rankRegimeSelect">
-                            <option value="Recovery" selected>复苏 (Recovery)</option>
-                            <option value="Overheat">过热 (Overheat)</option>
-                            <option value="Stagflation">滞胀 (Stagflation)</option>
-                            <option value="Deflation">通缩 (Deflation)</option>
-                        </select>
-                    </div>
-                    <div class="filter-item">
-                        <label>排名数量</label>
-                        <input type="number" id="rankCount" value="30" min="10" max="100">
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="rankFunds()">
-                    <span>🏆</span> 获取排名
-                </button>
-            </div>
-
-            <div id="rankResults" class="card" class="hidden">
-                <h3 class="card-title">排名结果</h3>
-                <div class="table-container">
-                    <table id="rankTable">
-                        <thead>
-                            <tr>
-                                <th>排名</th>
-                                <th>基金代码</th>
-                                <th>基金名称</th>
-                                <th>类型</th>
-                                <th>风格</th>
-                                <th>得分</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="rankTableBody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 风格分析 -->
-        <div id="section-style" class="section-content">
-            <div class="section-header">
-                <h2>📐 风格分析</h2>
-                <p>分析基金的投资风格特征</p>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">选择基金</h3>
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label>基金代码</label>
-                        <input type="text" id="styleFundCode" placeholder="例如: 000001">
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="analyzeStyle()">
-                    <span>📐</span> 分析风格
-                </button>
-            </div>
-
-            <div id="styleResult" class="card" class="hidden">
-                <h3 class="card-title">风格分析结果</h3>
-                <div id="styleContent"></div>
-            </div>
-        </div>
-
-        <!-- 业绩评估 -->
-        <div id="section-performance" class="section-content">
-            <div class="section-header">
-                <h2>📈 业绩评估</h2>
-                <p>计算基金的历史业绩指标</p>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">业绩参数</h3>
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label>基金代码</label>
-                        <input type="text" id="perfFundCode" placeholder="例如: 000001">
-                    </div>
-                    <div class="filter-item">
-                        <label>起始日期</label>
-                        <input type="date" id="perfStartDate">
-                    </div>
-                    <div class="filter-item">
-                        <label>结束日期</label>
-                        <input type="date" id="perfEndDate">
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="calculatePerformance()">
-                    <span>📈</span> 计算业绩
-                </button>
-            </div>
-
-            <div id="perfResult" class="card" class="hidden">
-                <h3 class="card-title">业绩指标</h3>
-                <div id="perfContent"></div>
-            </div>
-        </div>
-
-        <!-- 持仓分析 -->
-        <div id="section-holding" class="section-content">
-            <div class="section-header">
-                <h2>💼 持仓分析</h2>
-                <p>查看基金的持仓明细</p>
-            </div>
-
-            <div class="card">
-                <h3 class="card-title">查询持仓</h3>
-                <div class="filter-group">
-                    <div class="filter-item">
-                        <label>基金代码</label>
-                        <input type="text" id="holdingFundCode" placeholder="例如: 000001">
-                    </div>
-                    <div class="filter-item">
-                        <label>报告期</label>
-                        <input type="text" id="holdingDate" placeholder="例如: 2024-09-30 (可选)">
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="queryHolding()">
-                    <span>💼</span> 查询持仓
-                </button>
-            </div>
-
-            <div id="holdingResult" class="card" class="hidden">
-                <h3 class="card-title">持仓明细</h3>
-                <div id="holdingContent"></div>
-            </div>
-        </div>
-
-        <!-- 默认提示 -->
-        <div id="welcomeCard" class="welcome-card">
-            <div class="welcome-icon">📊</div>
-            <h2>欢迎使用基金分析系统</h2>
-            <p>请从左侧导航选择功能，或使用 AI 助手获取帮助</p>
-            <div class="quick-actions">
-                <button class="btn btn-primary" onclick="switchSection('screen')">基金筛选</button>
-                <button class="btn btn-secondary" onclick="switchSection('rank')">基金排名</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 右侧：AI 分析 -->
-    <div class="right-sidebar">
-        <div class="ai-panel">
-            <div class="panel-header">
-                <h3>🤖 AI 基金助手</h3>
-            </div>
-
-            <div class="ai-content">
-                <div class="ai-input-section">
-                    <div class="quick-questions">
-                        <button class="quick-btn" onclick="askAI('推荐几只{{ regime_display }}环境适合的基金')">推荐基金</button>
-                        <button class="quick-btn" onclick="askAI('解释{{ regime_display }}环境应该配置哪些类型的基金')">配置建议</button>
-                        <button class="quick-btn" onclick="askAI('分析当前宏观经济环境对基金投资的影响')">宏观影响</button>
-                        <button class="quick-btn" onclick="askAI('如何根据 Regime 切换调整基金配置？')">调整策略</button>
-                    </div>
-                    <textarea id="aiQuestion" class="ai-textarea" placeholder="输入您的问题，或点击上方快捷按钮..."></textarea>
-                    <button class="ai-submit-btn" onclick="submitAIQuestion()">
-                        <span class="btn-icon">🤖</span>
-                        提问
-                    </button>
-                </div>
-
-                <div class="ai-output-section">
-                    <div class="output-header">
-                        <span class="output-title">AI 回复</span>
-                        <span class="output-status" id="aiStatus"></span>
-                    </div>
-                    <div id="aiResponse" class="ai-response">
-                        <div class="ai-placeholder">
-                            <div class="placeholder-icon">💭</div>
-                            <p>我是您的基金分析 AI 助手</p>
-                            <p class="text-small">可以帮您推荐基金、分析风格、评估业绩</p>
+            <div class="fund-hero__insight">
+                <div class="hero-insight-card">
+                    <div class="hero-insight-card__label">当前研究主线</div>
+                    <h2>{{ regime_display }}环境下优先建立候选池</h2>
+                    <p>
+                        先基于 Regime、Policy、Sentiment 完成候选基金筛选，再把入选标的带入风格、业绩和持仓模块做交叉验证。
+                    </p>
+                    <div class="hero-insight-card__steps">
+                        <div class="hero-step">
+                            <span class="hero-step__index">1</span>
+                            <span>先筛出候选基金</span>
+                        </div>
+                        <div class="hero-step">
+                            <span class="hero-step__index">2</span>
+                            <span>一键带入研究工作台</span>
+                        </div>
+                        <div class="hero-step">
+                            <span class="hero-step__index">3</span>
+                            <span>完成风格、业绩、持仓复核</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </section>
+
+    <section class="market-context-grid">
+        <article class="context-card">
+            <div class="context-card__icon"><i class="bi bi-globe2"></i></div>
+            <div class="context-card__body">
+                <span class="context-card__label">当前 Regime</span>
+                <strong class="context-card__value">{{ regime_display }}</strong>
+                <span class="context-card__detail">{{ current_regime }} / 置信度 {{ regime_confidence }}</span>
+            </div>
+        </article>
+        <article class="context-card">
+            <div class="context-card__icon"><i class="bi bi-sliders"></i></div>
+            <div class="context-card__body">
+                <span class="context-card__label">政策档位</span>
+                <strong class="context-card__value">{{ current_policy }}</strong>
+                <span class="context-card__detail">{{ policy_display }}</span>
+            </div>
+        </article>
+        <article class="context-card">
+            <div class="context-card__icon"><i class="bi bi-activity"></i></div>
+            <div class="context-card__body">
+                <span class="context-card__label">市场情绪</span>
+                <strong class="context-card__value">{{ sentiment_index }}</strong>
+                <span class="context-card__detail">{{ sentiment_level }} / {{ sentiment_date }}</span>
+            </div>
+        </article>
+        <article class="context-card">
+            <div class="context-card__icon"><i class="bi bi-lightning-charge"></i></div>
+            <div class="context-card__body">
+                <span class="context-card__label">激活信号</span>
+                <strong class="context-card__value" id="activeSignalsCount">{{ active_signals_count|default:0 }}</strong>
+                <span class="context-card__detail">可用于辅助多维评分</span>
+            </div>
+        </article>
+    </section>
+
+    <div class="fund-shell">
+        <aside class="fund-rail">
+            <section class="fund-side-card fund-side-card--sticky">
+                <div class="fund-side-card__header">
+                    <h3>研究流程</h3>
+                    <p>按顺序完成基金研究</p>
+                </div>
+                <div class="workflow-nav">
+                    <button type="button" class="workflow-nav__item is-active" data-section="multidim">
+                        <i class="bi bi-stars"></i>
+                        <span>多维评分</span>
+                    </button>
+                    <button type="button" class="workflow-nav__item" data-section="screen">
+                        <i class="bi bi-funnel"></i>
+                        <span>基金筛选</span>
+                    </button>
+                    <button type="button" class="workflow-nav__item" data-section="rank">
+                        <i class="bi bi-trophy"></i>
+                        <span>基金排名</span>
+                    </button>
+                    <button type="button" class="workflow-nav__item" data-section="style">
+                        <i class="bi bi-pie-chart"></i>
+                        <span>风格分析</span>
+                    </button>
+                    <button type="button" class="workflow-nav__item" data-section="performance">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <span>业绩评估</span>
+                    </button>
+                    <button type="button" class="workflow-nav__item" data-section="holding">
+                        <i class="bi bi-briefcase"></i>
+                        <span>持仓分析</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="fund-side-card">
+                <div class="fund-side-card__header">
+                    <h3>外部资料</h3>
+                    <p>用于补充核验</p>
+                </div>
+                <div class="quick-links">
+                    <a href="https://fund.eastmoney.com/" target="_blank" rel="noreferrer" class="quick-links__item">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>东方财富基金</span>
+                    </a>
+                    <a href="https://fundf10.eastmoney.com/" target="_blank" rel="noreferrer" class="quick-links__item">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>基金 F10</span>
+                    </a>
+                    <a href="https://fund.eastmoney.com/jzdy.html" target="_blank" rel="noreferrer" class="quick-links__item">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>基金排行</span>
+                    </a>
+                </div>
+            </section>
+        </aside>
+
+        <main class="fund-workspace">
+            <section class="workspace-card workspace-card--selected">
+                <div class="workspace-card__header">
+                    <div>
+                        <h2>已选基金</h2>
+                        <p>从任一结果表点击“带入研究”后，会自动填充后续三个分析工具。</p>
+                    </div>
+                    <div class="workspace-card__actions">
+                        <button type="button" class="fund-btn fund-btn--ghost" onclick="focusSelectedSection('style')">
+                            <i class="bi bi-pie-chart"></i>
+                            风格分析
+                        </button>
+                        <button type="button" class="fund-btn fund-btn--ghost" onclick="focusSelectedSection('performance')">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            业绩评估
+                        </button>
+                        <button type="button" class="fund-btn fund-btn--ghost" onclick="focusSelectedSection('holding')">
+                            <i class="bi bi-briefcase"></i>
+                            持仓分析
+                        </button>
+                    </div>
+                </div>
+
+                <div id="selectedFundCard" class="selected-fund selected-fund--empty">
+                    <div class="selected-fund__placeholder">
+                        <div class="selected-fund__placeholder-icon"><i class="bi bi-search"></i></div>
+                        <div>
+                            <strong>还没有选中基金</strong>
+                            <p>先在多维评分、筛选或排名结果里挑一只基金，再把它带入研究工作台。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="workspace-section is-active" data-section="multidim">
+                <div class="tool-section__header">
+                    <div>
+                        <h2>多维评分筛选</h2>
+                        <p>把 Regime、Policy、Sentiment 和 Signal 合成一张候选池名单，适合做研究起点。</p>
+                    </div>
+                    <div class="tool-section__meta">
+                        <span class="meta-pill">Regime: {{ current_regime }}</span>
+                        <span class="meta-pill">Policy: {{ current_policy }}</span>
+                        <span class="meta-pill">Sentiment: {{ sentiment_index }}</span>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div class="form-grid form-grid--four">
+                        <div class="field-group">
+                            <label for="multiFundType">基金类型</label>
+                            <select id="multiFundType">
+                                <option value="">全部</option>
+                                <option value="股票型">股票型</option>
+                                <option value="混合型">混合型</option>
+                                <option value="债券型">债券型</option>
+                                <option value="货币型">货币型</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="multiInvestmentStyle">投资风格</label>
+                            <select id="multiInvestmentStyle">
+                                <option value="">全部</option>
+                                <option value="成长">成长</option>
+                                <option value="价值">价值</option>
+                                <option value="平衡">平衡</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="multiMinScale">最小规模（亿）</label>
+                            <input type="number" id="multiMinScale" placeholder="不限制" min="0" step="0.1">
+                        </div>
+                        <div class="field-group">
+                            <label for="multiMaxCount">返回数量</label>
+                            <input type="number" id="multiMaxCount" value="20" min="1" max="100">
+                        </div>
+                    </div>
+
+                    <div class="context-inline-grid">
+                        <div class="context-inline-item">
+                            <span>当前 Regime</span>
+                            <strong>{{ regime_display }}</strong>
+                        </div>
+                        <div class="context-inline-item">
+                            <span>当前 Policy</span>
+                            <strong>{{ policy_display }}</strong>
+                        </div>
+                        <div class="context-inline-item">
+                            <span>情绪水平</span>
+                            <strong>{{ sentiment_level }}</strong>
+                        </div>
+                        <div class="context-inline-item">
+                            <span>激活信号</span>
+                            <strong id="multiContextSignals">{{ active_signals_count|default:0 }}</strong>
+                        </div>
+                    </div>
+
+                    <div id="weightConfig" class="status-panel is-hidden">
+                        <div class="status-panel__title">当前权重配置</div>
+                        <div class="status-panel__grid">
+                            <span>Regime <strong id="weightRegime">-</strong></span>
+                            <span>Policy <strong id="weightPolicy">-</strong></span>
+                            <span>Sentiment <strong id="weightSentiment">-</strong></span>
+                            <span>Signal <strong id="weightSignal">-</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="tool-actions">
+                        <button type="button" class="fund-btn fund-btn--primary" onclick="runMultiDimScreen()">
+                            <i class="bi bi-stars"></i>
+                            开始评分筛选
+                        </button>
+                        <button type="button" class="fund-btn fund-btn--secondary" onclick="showWeightConfig()">
+                            <i class="bi bi-sliders"></i>
+                            查看权重
+                        </button>
+                    </div>
+                </div>
+
+                <div id="multiDimResults" class="workspace-card is-hidden">
+                    <div class="results-header">
+                        <div>
+                            <h3>评分结果</h3>
+                            <p>先建立候选池，再把重点基金带入下方研究工具。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="fund-results-table">
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>基金代码</th>
+                                    <th>基金名称</th>
+                                    <th>类型</th>
+                                    <th>风格</th>
+                                    <th>Regime</th>
+                                    <th>Policy</th>
+                                    <th>Sentiment</th>
+                                    <th>Signal</th>
+                                    <th>综合评分</th>
+                                    <th>风险等级</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="multiDimTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="workspace-section" data-section="screen">
+                <div class="tool-section__header">
+                    <div>
+                        <h2>基金筛选</h2>
+                        <p>按当前 Regime 偏好做快速初筛，再把候选标的推送到研究工作台。</p>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div class="form-grid form-grid--three">
+                        <div class="field-group">
+                            <label for="regimeSelect">Regime 环境</label>
+                            <select id="regimeSelect">
+                                <option value="">自动检测</option>
+                                <option value="Recovery">复苏 (Recovery)</option>
+                                <option value="Overheat">过热 (Overheat)</option>
+                                <option value="Stagflation">滞胀 (Stagflation)</option>
+                                <option value="Deflation">通缩 (Deflation)</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="screenMinScale">最小规模（亿）</label>
+                            <input type="number" id="screenMinScale" placeholder="不限制" min="0" step="0.1">
+                        </div>
+                        <div class="field-group">
+                            <label for="maxCount">返回数量</label>
+                            <input type="number" id="maxCount" value="20" min="1" max="100">
+                        </div>
+                    </div>
+
+                    <div class="choice-layout">
+                        <div class="choice-block">
+                            <span class="choice-block__label">基金类型</span>
+                            <div class="choice-chip-group">
+                                <label class="choice-chip"><input type="checkbox" name="screenFundType" value="股票型">股票型</label>
+                                <label class="choice-chip"><input type="checkbox" name="screenFundType" value="混合型">混合型</label>
+                                <label class="choice-chip"><input type="checkbox" name="screenFundType" value="债券型">债券型</label>
+                                <label class="choice-chip"><input type="checkbox" name="screenFundType" value="货币型">货币型</label>
+                            </div>
+                        </div>
+                        <div class="choice-block">
+                            <span class="choice-block__label">投资风格</span>
+                            <div class="choice-chip-group">
+                                <label class="choice-chip"><input type="checkbox" name="screenStyle" value="成长">成长</label>
+                                <label class="choice-chip"><input type="checkbox" name="screenStyle" value="价值">价值</label>
+                                <label class="choice-chip"><input type="checkbox" name="screenStyle" value="平衡">平衡</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tool-actions">
+                        <button type="button" class="fund-btn fund-btn--primary" onclick="screenFunds()">
+                            <i class="bi bi-funnel"></i>
+                            开始筛选
+                        </button>
+                    </div>
+                </div>
+
+                <div id="screenResults" class="workspace-card is-hidden">
+                    <div class="results-header">
+                        <div>
+                            <h3>筛选结果</h3>
+                            <p id="screenResultsMeta">正在根据筛选条件整理候选基金。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="fund-results-table">
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>基金代码</th>
+                                    <th>基金名称</th>
+                                    <th>类型</th>
+                                    <th>投资风格</th>
+                                    <th>规模</th>
+                                    <th>管理人</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="screenTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="workspace-section" data-section="rank">
+                <div class="tool-section__header">
+                    <div>
+                        <h2>基金排名</h2>
+                        <p>查看在特定 Regime 下表现更优的基金，用于补充候选排序。</p>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div class="form-grid form-grid--two">
+                        <div class="field-group">
+                            <label for="rankRegimeSelect">Regime 环境</label>
+                            <select id="rankRegimeSelect">
+                                <option value="Recovery" selected>复苏 (Recovery)</option>
+                                <option value="Overheat">过热 (Overheat)</option>
+                                <option value="Stagflation">滞胀 (Stagflation)</option>
+                                <option value="Deflation">通缩 (Deflation)</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="rankCount">排名数量</label>
+                            <input type="number" id="rankCount" value="30" min="10" max="100">
+                        </div>
+                    </div>
+
+                    <div class="tool-actions">
+                        <button type="button" class="fund-btn fund-btn--primary" onclick="rankFunds()">
+                            <i class="bi bi-trophy"></i>
+                            获取排名
+                        </button>
+                    </div>
+                </div>
+
+                <div id="rankResults" class="workspace-card is-hidden">
+                    <div class="results-header">
+                        <div>
+                            <h3>排名结果</h3>
+                            <p id="rankResultsMeta">按总分与适配度排序。</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="fund-results-table">
+                            <thead>
+                                <tr>
+                                    <th>排名</th>
+                                    <th>基金代码</th>
+                                    <th>基金名称</th>
+                                    <th>总分</th>
+                                    <th>业绩</th>
+                                    <th>Regime 匹配</th>
+                                    <th>风险</th>
+                                    <th>规模</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rankTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="workspace-section" data-section="style">
+                <div class="tool-section__header">
+                    <div>
+                        <h2>风格分析</h2>
+                        <p>分析基金持仓的风格权重与行业集中度，判断它是否匹配当前研究假设。</p>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div class="form-grid form-grid--two">
+                        <div class="field-group">
+                            <label for="styleFundCode">基金代码</label>
+                            <input type="text" id="styleFundCode" placeholder="例如: 000001">
+                        </div>
+                        <div class="field-group">
+                            <label for="styleReportDate">报告期（可选）</label>
+                            <input type="date" id="styleReportDate">
+                        </div>
+                    </div>
+                    <div class="tool-actions">
+                        <button type="button" class="fund-btn fund-btn--primary" onclick="analyzeStyle()">
+                            <i class="bi bi-pie-chart"></i>
+                            分析风格
+                        </button>
+                    </div>
+                </div>
+
+                <div id="styleResult" class="workspace-card is-hidden">
+                    <div class="results-header">
+                        <div>
+                            <h3>风格分析结果</h3>
+                            <p>结合持仓结构判断风格偏向与集中度风险。</p>
+                        </div>
+                    </div>
+                    <div id="styleContent"></div>
+                </div>
+            </section>
+
+            <section class="workspace-section" data-section="performance">
+                <div class="tool-section__header">
+                    <div>
+                        <h2>业绩评估</h2>
+                        <p>快速复核区间收益、波动率、回撤与夏普，避免只凭概念选基金。</p>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div class="form-grid form-grid--three">
+                        <div class="field-group">
+                            <label for="perfFundCode">基金代码</label>
+                            <input type="text" id="perfFundCode" placeholder="例如: 000001">
+                        </div>
+                        <div class="field-group">
+                            <label for="perfStartDate">起始日期</label>
+                            <input type="date" id="perfStartDate">
+                        </div>
+                        <div class="field-group">
+                            <label for="perfEndDate">结束日期</label>
+                            <input type="date" id="perfEndDate">
+                        </div>
+                    </div>
+                    <div class="tool-actions">
+                        <button type="button" class="fund-btn fund-btn--primary" onclick="calculatePerformance()">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            计算业绩
+                        </button>
+                    </div>
+                </div>
+
+                <div id="perfResult" class="workspace-card is-hidden">
+                    <div class="results-header">
+                        <div>
+                            <h3>业绩指标</h3>
+                            <p>重点关注收益、波动与回撤的组合关系。</p>
+                        </div>
+                    </div>
+                    <div id="perfContent"></div>
+                </div>
+            </section>
+
+            <section class="workspace-section" data-section="holding">
+                <div class="tool-section__header">
+                    <div>
+                        <h2>持仓分析</h2>
+                        <p>查看前十大或已披露持仓，确认基金真实暴露是否符合研究判断。</p>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div class="form-grid form-grid--two">
+                        <div class="field-group">
+                            <label for="holdingFundCode">基金代码</label>
+                            <input type="text" id="holdingFundCode" placeholder="例如: 000001">
+                        </div>
+                        <div class="field-group">
+                            <label for="holdingDate">报告期（可选）</label>
+                            <input type="date" id="holdingDate">
+                        </div>
+                    </div>
+                    <div class="tool-actions">
+                        <button type="button" class="fund-btn fund-btn--primary" onclick="queryHolding()">
+                            <i class="bi bi-briefcase"></i>
+                            查询持仓
+                        </button>
+                    </div>
+                </div>
+
+                <div id="holdingResult" class="workspace-card is-hidden">
+                    <div class="results-header">
+                        <div>
+                            <h3>持仓明细</h3>
+                            <p>确认实际持仓是否集中在预期行业或风格上。</p>
+                        </div>
+                    </div>
+                    <div id="holdingContent"></div>
+                </div>
+            </section>
+        </main>
+
+        <aside class="fund-sidepanel">
+            <section class="fund-side-card fund-side-card--sticky">
+                <div class="fund-side-card__header">
+                    <h3>AI 基金助手</h3>
+                    <p>围绕当前宏观环境给出补充解释</p>
+                </div>
+
+                <div class="ai-helper">
+                    <div class="ai-helper__quick-list">
+                        <button type="button" class="quick-question-btn" onclick="askAI('推荐几只{{ regime_display }}环境适合的基金')">推荐基金</button>
+                        <button type="button" class="quick-question-btn" onclick="askAI('解释{{ regime_display }}环境应该配置哪些类型的基金')">配置建议</button>
+                        <button type="button" class="quick-question-btn" onclick="askAI('分析当前宏观经济环境对基金投资的影响')">宏观影响</button>
+                        <button type="button" class="quick-question-btn" onclick="askAI('如何根据 Regime 切换调整基金配置？')">调整策略</button>
+                    </div>
+
+                    <label class="field-group field-group--full">
+                        <span>问题输入</span>
+                        <textarea id="aiQuestion" class="ai-helper__textarea" placeholder="输入问题，或先点上面的快捷问题。"></textarea>
+                    </label>
+
+                    <button type="button" class="fund-btn fund-btn--primary fund-btn--full ai-submit-btn" onclick="submitAIQuestion()">
+                        <i class="bi bi-magic"></i>
+                        提问
+                    </button>
+
+                    <div class="ai-response-box">
+                        <div class="ai-response-box__header">
+                            <span>AI 回复</span>
+                            <span id="aiStatus" class="ai-response-box__status"></span>
+                        </div>
+                        <div id="aiResponse" class="ai-response-box__body">
+                            <div class="empty-state">
+                                <div class="empty-state__icon"><i class="bi bi-chat-square-text"></i></div>
+                                <p>可让 AI 帮你解释 Regime、筛选逻辑和基金配置思路。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="fund-side-card">
+                <div class="fund-side-card__header">
+                    <h3>使用建议</h3>
+                    <p>降低误判和重复劳动</p>
+                </div>
+                <ul class="research-tips">
+                    <li>优先从多维评分或基金筛选建立候选池，不要直接盯单只基金。</li>
+                    <li>把候选基金带入工作台后，再做风格、业绩和持仓三项复核。</li>
+                    <li>风格与持仓不匹配时，优先怀疑基金漂移或报告期滞后。</li>
+                </ul>
+            </section>
+        </aside>
     </div>
 </div>
 
 <script>
-// 切换功能区域
-function switchSection(sectionId) {
-    // 隐藏欢迎卡片
-    document.getElementById('welcomeCard').style.display = 'none';
-
-    // 更新导航选中状态
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    document.querySelector(`.nav-item[href="#${sectionId}"]`).classList.add('active');
-
-    // 显示对应区域
-    document.querySelectorAll('.section-content').forEach(section => {
-        section.classList.remove('active');
-    });
-    document.getElementById(`section-${sectionId}`).classList.add('active');
-}
-
-// 多维度评分筛选
-async function runMultiDimScreen() {
-    const fundType = document.getElementById('multiFundType').value;
-    const investmentStyle = document.getElementById('multiInvestmentStyle').value;
-    const minScale = parseFloat(document.getElementById('multiMinScale').value) || null;
-    const maxCount = parseInt(document.getElementById('multiMaxCount').value);
-
-    document.getElementById('multiDimResults').style.display = 'block';
-    document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" class="loading-text">评分中...</td></tr>';
-
-    const filters = {};
-    if (fundType) filters.fund_type = fundType;
-    if (investmentStyle) filters.investment_style = investmentStyle;
-    if (minScale) filters.min_scale = minScale * 100000000; // 转换为元
-
-    const context = {
-        regime: '{{ current_regime }}',
-        policy_level: '{{ current_policy }}',
-        sentiment_index: parseFloat('{{ sentiment_index }}') || 0.0,
-    };
-
-    try {
-        const response = await fetch('/fund/multidim-screen/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                filters: filters,
-                context: context,
-                max_count: maxCount
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success && result.funds && result.funds.length > 0) {
-            displayMultiDimResults(result.funds);
-        } else {
-            document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" class="loading-text">暂无符合条件的基金</td></tr>';
+const fundApi = {
+    multidim: "/api/fund/multidim-screen/",
+    screen: "/api/fund/screen/",
+    rank: "/api/fund/rank/",
+    style: (fundCode, reportDate) => {
+        const params = new URLSearchParams();
+        if (reportDate) {
+            params.set("report_date", reportDate);
         }
-    } catch (error) {
-        document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" class="error-text">请求失败: ' + error.message + '</td></tr>';
-    }
-}
-
-function displayMultiDimResults(funds) {
-    const tbody = document.getElementById('multiDimTableBody');
-    tbody.innerHTML = '';
-
-    funds.forEach((fund, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><span class="fund-code">${fund.asset_code || '-'}</span></td>
-            <td>${fund.asset_name || '-'}</td>
-            <td>${fund.fund_type || '-'}</td>
-            <td>${fund.investment_style || '-'}</td>
-            <td>${fund.scores?.regime?.toFixed(1) || '-'}</td>
-            <td>${fund.scores?.policy?.toFixed(1) || '-'}</td>
-            <td>${fund.scores?.sentiment?.toFixed(1) || '-'}</td>
-            <td>${fund.scores?.signal?.toFixed(1) || '-'}</td>
-            <td><span class="score-badge">${fund.scores?.total?.toFixed(1) || '-'}</span></td>
-            <td>${fund.risk_level || '-'}</td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-function showWeightConfig() {
-    const configDiv = document.getElementById('weightConfig');
-    if (configDiv.style.display === 'none') {
-        // 加载权重配置
-        fetch('/api/asset-analysis/current-weight/?asset_type=fund')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.weights) {
-                    document.getElementById('weightRegime').textContent = (data.weights.regime * 100).toFixed(0) + '%';
-                    document.getElementById('weightPolicy').textContent = (data.weights.policy * 100).toFixed(0) + '%';
-                    document.getElementById('weightSentiment').textContent = (data.weights.sentiment * 100).toFixed(0) + '%';
-                    document.getElementById('weightSignal').textContent = (data.weights.signal * 100).toFixed(0) + '%';
-                    configDiv.style.display = 'block';
-                }
-            });
-    } else {
-        configDiv.style.display = 'none';
-    }
-}
-
-// 页面加载时获取激活信号数量
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('activeSignalsCount').textContent = '{{ active_signals_count|default:0 }}';
-});
-
-// 基金筛选
-async function screenFunds() {
-    const regime = document.getElementById('regimeSelect').value;
-    const fundType = document.getElementById('fundTypeSelect').value;
-    const scale = document.getElementById('scaleSelect').value;
-    const maxCount = parseInt(document.getElementById('maxCount').value);
-
-    document.getElementById('screenResults').style.display = 'block';
-    document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">加载中...</td></tr>';
-
-    try {
-        const response = await fetch('/fund/screen/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                regime: regime || null,
-                fund_type: fundType || null,
-                scale: scale || null,
-                max_count: maxCount
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success && result.funds) {
-            displayFunds(result.funds, 'screenTableBody');
-        } else {
-            document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">暂无数据</td></tr>';
+        const query = params.toString();
+        return `/api/fund/style/${encodeURIComponent(fundCode)}/${query ? `?${query}` : ""}`;
+    },
+    performance: "/api/fund/performance/calculate/",
+    info: (fundCode) => `/api/fund/info/${encodeURIComponent(fundCode)}/`,
+    holding: (fundCode, reportDate) => {
+        const params = new URLSearchParams();
+        if (reportDate) {
+            params.set("report_date", reportDate);
         }
-    } catch (error) {
-        document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" class="error-text">请求失败: ' + error.message + '</td></tr>';
-    }
+        const query = params.toString();
+        return `/api/fund/holding/${encodeURIComponent(fundCode)}/${query ? `?${query}` : ""}`;
+    },
+};
+
+const sectionIds = ["multidim", "screen", "rank", "style", "performance", "holding"];
+let selectedFundCode = "";
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
-// 基金排名
-async function rankFunds() {
-    const regime = document.getElementById('rankRegimeSelect').value;
-    const maxCount = parseInt(document.getElementById('rankCount').value);
-
-    document.getElementById('rankResults').style.display = 'block';
-    document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">加载中...</td></tr>';
-
-    try {
-        const response = await fetch(`/fund/rank/?regime=${regime}&max_count=${maxCount}`);
-        const result = await response.json();
-
-        if (result.success && result.funds) {
-            displayFunds(result.funds, 'rankTableBody');
-        } else {
-            document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">暂无数据</td></tr>';
-        }
-    } catch (error) {
-        document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" class="error-text">请求失败: ' + error.message + '</td></tr>';
+function formatScale(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+        return "-";
     }
+    if (numeric >= 100000000) {
+        return `${(numeric / 100000000).toFixed(2)}亿`;
+    }
+    if (numeric >= 10000) {
+        return `${(numeric / 10000).toFixed(0)}万`;
+    }
+    return numeric.toFixed(0);
 }
 
-// 显示基金列表
-function displayFunds(funds, tableBodyId) {
-    const tbody = document.getElementById(tableBodyId);
-    tbody.innerHTML = '';
-
-    funds.forEach((fund, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><span class="fund-code">${fund.code || '-'}</span></td>
-            <td>${fund.name || '-'}</td>
-            <td>${fund.type || '-'}</td>
-            <td>${fund.scale || '-'}</td>
-            <td><span class="score-badge">${fund.score || fund.match_score || '-'}</span></td>
-            <td>
-                <button class="btn-sm" onclick="viewFundDetail('${fund.code}')">详情</button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
+function formatPercent(value, digits = 1) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return "-";
+    }
+    return `${(numeric * 100).toFixed(digits)}%`;
 }
 
-// 查看基金详情
-function viewFundDetail(fundCode) {
-    window.open(`/fund/info/${fundCode}/`, '_blank');
-}
-
-// 风格分析
-async function analyzeStyle() {
-    const fundCode = document.getElementById('styleFundCode').value;
-    if (!fundCode) {
-        alert('请输入基金代码');
-        return;
+function formatScore(value, digits = 1) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return "-";
     }
-
-    document.getElementById('styleResult').style.display = 'block';
-    document.getElementById('styleContent').innerHTML = '<p class="loading-text">分析中...</p>';
-
-    try {
-        const response = await fetch(`/fund/style/${fundCode}/`);
-        const result = await response.json();
-
-        if (result.success) {
-            displayStyleResult(result);
-        } else {
-            document.getElementById('styleContent').innerHTML = `<p class="error-text">${result.error || '分析失败'}</p>`;
-        }
-    } catch (error) {
-        document.getElementById('styleContent').innerHTML = `<p class="error-text">请求失败: ${error.message}</p>`;
-    }
-}
-
-// 计算业绩
-async function calculatePerformance() {
-    const fundCode = document.getElementById('perfFundCode').value;
-    const startDate = document.getElementById('perfStartDate').value;
-    const endDate = document.getElementById('perfEndDate').value;
-
-    if (!fundCode) {
-        alert('请输入基金代码');
-        return;
-    }
-
-    document.getElementById('perfResult').style.display = 'block';
-    document.getElementById('perfContent').innerHTML = '<p class="loading-text">计算中...</p>';
-
-    try {
-        const response = await fetch('/fund/performance/calculate/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                fund_code: fundCode,
-                start_date: startDate || null,
-                end_date: endDate || null
-            })
-        });
-        const result = await response.json();
-
-        if (result.success) {
-            displayPerformanceResult(result);
-        } else {
-            document.getElementById('perfContent').innerHTML = `<p class="error-text">${result.error || '计算失败'}</p>`;
-        }
-    } catch (error) {
-        document.getElementById('perfContent').innerHTML = `<p class="error-text">请求失败: ${error.message}</p>`;
-    }
-}
-
-// 查询持仓
-async function queryHolding() {
-    const fundCode = document.getElementById('holdingFundCode').value;
-    const reportDate = document.getElementById('holdingDate').value;
-
-    if (!fundCode) {
-        alert('请输入基金代码');
-        return;
-    }
-
-    document.getElementById('holdingResult').style.display = 'block';
-    document.getElementById('holdingContent').innerHTML = '<p class="loading-text">查询中...</p>';
-
-    try {
-        const url = reportDate ? `/fund/holding/${fundCode}/?report_date=${reportDate}` : `/fund/holding/${fundCode}/`;
-        const response = await fetch(url);
-        const result = await response.json();
-
-        if (result.success) {
-            displayHoldingResult(result);
-        } else {
-            document.getElementById('holdingContent').innerHTML = `<p class="error-text">${result.error || '查询失败'}</p>`;
-        }
-    } catch (error) {
-        document.getElementById('holdingContent').innerHTML = `<p class="error-text">请求失败: ${error.message}</p>`;
-    }
-}
-
-// AI 提问
-async function askAI(question) {
-    document.getElementById('aiQuestion').value = question;
-    submitAIQuestion();
-}
-
-async function submitAIQuestion() {
-    const question = document.getElementById('aiQuestion').value.trim();
-    if (!question) return;
-
-    const responseDiv = document.getElementById('aiResponse');
-    const statusSpan = document.getElementById('aiStatus');
-    const submitBtn = document.querySelector('.ai-submit-btn');
-
-    statusSpan.textContent = '思考中...';
-    responseDiv.innerHTML = '<div class="ai-placeholder"><div class="placeholder-icon">⏳</div><p>AI 正在分析...</p></div>';
-    submitBtn.disabled = true;
-
-    const context = {
-        module: 'fund',
-        current_regime: '{{ current_regime }}',
-        regime_display: '{{ regime_display }}'
-    };
-
-    try {
-        const response = await fetch('/api/prompt/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                message: question,
-                context: context
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.reply) {
-            responseDiv.innerHTML = `<div class="ai-response-content">${data.reply}</div>`;
-            statusSpan.textContent = '';
-        } else {
-            throw new Error('未收到回复');
-        }
-    } catch (error) {
-        responseDiv.innerHTML = `<div class="ai-response-content">AI 暂时不可用，请稍后重试。</div>`;
-        statusSpan.textContent = '(离线)';
-    }
-
-    submitBtn.disabled = false;
+    return numeric.toFixed(digits);
 }
 
 function getCookie(name) {
     let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i += 1) {
             const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            if (cookie.substring(0, name.length + 1) === `${name}=`) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
             }
@@ -843,85 +698,656 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// 显示分析结果
-function displayStyleResult(result) {
-    const content = document.getElementById('styleContent');
-    content.innerHTML = `
-        <div class="result-grid">
-            <div class="result-item">
-                <label>价值/成长</label>
-                <span>${result.style_value || '-'}</span>
-            </div>
-            <div class="result-item">
-                <label>大盘/小盘</label>
-                <span>${result.style_size || '-'}</span>
-            </div>
-        </div>
-    `;
+async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || data.message || "请求失败");
+    }
+    return data;
 }
 
-function displayPerformanceResult(result) {
-    const content = document.getElementById('perfContent');
-    content.innerHTML = `
-        <div class="result-grid">
-            <div class="result-item">
-                <label>累计收益率</label>
-                <span class="highlight">${(result.total_return * 100).toFixed(2)}%</span>
-            </div>
-            <div class="result-item">
-                <label>年化收益率</label>
-                <span class="highlight">${(result.annual_return * 100).toFixed(2)}%</span>
-            </div>
-            <div class="result-item">
-                <label>夏普比率</label>
-                <span>${result.sharpe_ratio ? result.sharpe_ratio.toFixed(2) : '-'}</span>
-            </div>
-            <div class="result-item">
-                <label>最大回撤</label>
-                <span class="negative">${(result.max_drawdown * 100).toFixed(2)}%</span>
-            </div>
-            <div class="result-item">
-                <label>波动率</label>
-                <span>${(result.volatility * 100).toFixed(2)}%</span>
-            </div>
-        </div>
-    `;
-}
+function setActiveSection(sectionId, shouldScroll = false) {
+    if (!sectionIds.includes(sectionId)) {
+        return;
+    }
 
-function displayHoldingResult(result) {
-    const content = document.getElementById('holdingContent');
-    if (result.holdings && result.holdings.length > 0) {
-        let html = '<div class="table-container"><table><thead><tr><th>股票代码</th><th>股票名称</th><th>持仓比例</th><th>持仓市值(万元)</th></tr></thead><tbody>';
-        result.holdings.forEach(h => {
-            html += `<tr>
-                <td>${h.stock_code || '-'}</td>
-                <td>${h.stock_name || '-'}</td>
-                <td>${h.ratio ? (h.ratio * 100).toFixed(2) + '%' : '-'}</td>
-                <td>${h.value || '-'}</td>
-            </tr>`;
-        });
-        html += '</tbody></table></div>';
-        content.innerHTML = html;
-    } else {
-        content.innerHTML = '<p class="loading-text">暂无持仓数据</p>';
+    document.querySelectorAll(".workflow-nav__item").forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.section === sectionId);
+    });
+
+    document.querySelectorAll(".workspace-section").forEach((section) => {
+        section.classList.toggle("is-active", section.dataset.section === sectionId);
+    });
+
+    if (shouldScroll) {
+        const targetSection = document.querySelector(`.workspace-section[data-section="${sectionId}"]`);
+        if (targetSection) {
+            targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
     }
 }
+
+function toggleHiddenState(elementId, hidden) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        return;
+    }
+    element.classList.toggle("is-hidden", hidden);
+}
+
+function prefillFundInputs(fundCode) {
+    ["styleFundCode", "perfFundCode", "holdingFundCode"].forEach((inputId) => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = fundCode;
+        }
+    });
+}
+
+function renderSelectedFundPlaceholder() {
+    document.getElementById("selectedFundCard").className = "selected-fund selected-fund--empty";
+    document.getElementById("selectedFundCard").innerHTML = `
+        <div class="selected-fund__placeholder">
+            <div class="selected-fund__placeholder-icon"><i class="bi bi-search"></i></div>
+            <div>
+                <strong>还没有选中基金</strong>
+                <p>先在多维评分、筛选或排名结果里挑一只基金，再把它带入研究工作台。</p>
+            </div>
+        </div>
+    `;
+}
+
+function renderSelectedFundCard(fund) {
+    const fundName = fund.fund_name || selectedFundCode || "-";
+    document.getElementById("selectedFundCard").className = "selected-fund";
+    document.getElementById("selectedFundCard").innerHTML = `
+        <div class="selected-fund__summary">
+            <div>
+                <div class="selected-fund__code">${escapeHtml(fund.fund_code || selectedFundCode || "-")}</div>
+                <h3>${escapeHtml(fundName)}</h3>
+            </div>
+            <button type="button" class="fund-btn fund-btn--secondary" onclick="loadFundProfile('${escapeHtml(fund.fund_code || selectedFundCode)}')">
+                <i class="bi bi-arrow-repeat"></i>
+                刷新资料
+            </button>
+        </div>
+        <div class="selected-fund__meta-grid">
+            <div class="selected-fund__meta-item">
+                <span>基金类型</span>
+                <strong>${escapeHtml(fund.fund_type || "-")}</strong>
+            </div>
+            <div class="selected-fund__meta-item">
+                <span>投资风格</span>
+                <strong>${escapeHtml(fund.investment_style || "-")}</strong>
+            </div>
+            <div class="selected-fund__meta-item">
+                <span>基金规模</span>
+                <strong>${formatScale(fund.fund_scale)}</strong>
+            </div>
+            <div class="selected-fund__meta-item">
+                <span>成立日期</span>
+                <strong>${escapeHtml(fund.setup_date || "-")}</strong>
+            </div>
+            <div class="selected-fund__meta-item">
+                <span>管理公司</span>
+                <strong>${escapeHtml(fund.management_company || "-")}</strong>
+            </div>
+            <div class="selected-fund__meta-item">
+                <span>托管人</span>
+                <strong>${escapeHtml(fund.custodian || "-")}</strong>
+            </div>
+        </div>
+    `;
+}
+
+async function loadFundProfile(fundCode) {
+    if (!fundCode) {
+        renderSelectedFundPlaceholder();
+        return;
+    }
+
+    selectedFundCode = fundCode;
+    prefillFundInputs(fundCode);
+    document.getElementById("selectedFundCard").className = "selected-fund";
+    document.getElementById("selectedFundCard").innerHTML = `
+        <div class="inline-loading">
+            <i class="bi bi-arrow-repeat spin"></i>
+            <span>正在载入 ${escapeHtml(fundCode)} 的基金资料...</span>
+        </div>
+    `;
+
+    try {
+        const payload = await fetchJson(fundApi.info(fundCode));
+        renderSelectedFundCard(payload.fund || { fund_code: fundCode });
+    } catch (error) {
+        document.getElementById("selectedFundCard").className = "selected-fund selected-fund--error";
+        document.getElementById("selectedFundCard").innerHTML = `
+            <div class="inline-error">
+                <i class="bi bi-exclamation-circle"></i>
+                <div>
+                    <strong>${escapeHtml(fundCode)}</strong>
+                    <p>${escapeHtml(error.message)}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function focusFundResearch(fundCode, targetSection = "style") {
+    if (!fundCode) {
+        return;
+    }
+    loadFundProfile(fundCode);
+    setActiveSection(targetSection, true);
+}
+
+function focusSelectedSection(sectionId) {
+    if (!selectedFundCode) {
+        alert("请先从结果表中选择一只基金");
+        return;
+    }
+    setActiveSection(sectionId, true);
+}
+
+function getCheckedValues(name) {
+    return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map((item) => item.value);
+}
+
+function setTableMessage(tableBodyId, colspan, message, variant = "loading-text") {
+    document.getElementById(tableBodyId).innerHTML = `<tr><td colspan="${colspan}" class="${variant}">${escapeHtml(message)}</td></tr>`;
+}
+
+async function showWeightConfig() {
+    const panel = document.getElementById("weightConfig");
+    if (!panel.classList.contains("is-hidden")) {
+        panel.classList.add("is-hidden");
+        return;
+    }
+
+    try {
+        const data = await fetchJson("/api/asset-analysis/current-weight/?asset_type=fund");
+        if (data.success && data.weights) {
+            document.getElementById("weightRegime").textContent = `${(Number(data.weights.regime) * 100).toFixed(0)}%`;
+            document.getElementById("weightPolicy").textContent = `${(Number(data.weights.policy) * 100).toFixed(0)}%`;
+            document.getElementById("weightSentiment").textContent = `${(Number(data.weights.sentiment) * 100).toFixed(0)}%`;
+            document.getElementById("weightSignal").textContent = `${(Number(data.weights.signal) * 100).toFixed(0)}%`;
+            panel.classList.remove("is-hidden");
+        }
+    } catch (error) {
+        alert(`获取权重失败: ${error.message}`);
+    }
+}
+
+function renderActionButton(fundCode) {
+    return `
+        <button type="button" class="table-action-btn" onclick="focusFundResearch('${escapeHtml(fundCode)}')">
+            带入研究
+        </button>
+    `;
+}
+
+async function runMultiDimScreen() {
+    const fundType = document.getElementById("multiFundType").value;
+    const investmentStyle = document.getElementById("multiInvestmentStyle").value;
+    const minScale = Number(document.getElementById("multiMinScale").value);
+    const maxCount = Number(document.getElementById("multiMaxCount").value);
+
+    toggleHiddenState("multiDimResults", false);
+    setTableMessage("multiDimTableBody", 12, "评分中...");
+
+    const filters = {};
+    if (fundType) {
+        filters.fund_type = fundType;
+    }
+    if (investmentStyle) {
+        filters.investment_style = investmentStyle;
+    }
+    if (Number.isFinite(minScale) && minScale > 0) {
+        filters.min_scale = minScale * 100000000;
+    }
+
+    try {
+        const result = await fetchJson(fundApi.multidim, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({
+                filters,
+                context: {
+                    regime: "{{ current_regime }}",
+                    policy_level: "{{ current_policy }}",
+                    sentiment_index: Number("{{ sentiment_index }}") || 0,
+                },
+                max_count: maxCount,
+            }),
+        });
+
+        document.getElementById("multiContextSignals").textContent = result.context?.active_signals_count ?? "{{ active_signals_count|default:0 }}";
+        document.getElementById("activeSignalsCount").textContent = result.context?.active_signals_count ?? "{{ active_signals_count|default:0 }}";
+
+        if (!result.success || !Array.isArray(result.funds) || result.funds.length === 0) {
+            setTableMessage("multiDimTableBody", 12, "暂无符合条件的基金");
+            return;
+        }
+
+        const tbody = document.getElementById("multiDimTableBody");
+        tbody.innerHTML = result.funds.map((fund, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td><span class="table-code">${escapeHtml(fund.asset_code || "-")}</span></td>
+                <td>${escapeHtml(fund.asset_name || "-")}</td>
+                <td>${escapeHtml(fund.fund_type || "-")}</td>
+                <td>${escapeHtml(fund.investment_style || "-")}</td>
+                <td>${formatScore(fund.scores?.regime)}</td>
+                <td>${formatScore(fund.scores?.policy)}</td>
+                <td>${formatScore(fund.scores?.sentiment)}</td>
+                <td>${formatScore(fund.scores?.signal)}</td>
+                <td><span class="score-pill">${formatScore(fund.scores?.total)}</span></td>
+                <td>${escapeHtml(fund.risk_level || "-")}</td>
+                <td>${renderActionButton(fund.asset_code || "")}</td>
+            </tr>
+        `).join("");
+    } catch (error) {
+        setTableMessage("multiDimTableBody", 12, `请求失败: ${error.message}`, "error-text");
+    }
+}
+
+async function screenFunds() {
+    const regime = document.getElementById("regimeSelect").value;
+    const minScale = Number(document.getElementById("screenMinScale").value);
+    const maxCount = Number(document.getElementById("maxCount").value);
+
+    toggleHiddenState("screenResults", false);
+    document.getElementById("screenResultsMeta").textContent = "正在根据筛选条件整理候选基金。";
+    setTableMessage("screenTableBody", 8, "筛选中...");
+
+    try {
+        const result = await fetchJson(fundApi.screen, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({
+                regime: regime || null,
+                custom_types: getCheckedValues("screenFundType"),
+                custom_styles: getCheckedValues("screenStyle"),
+                min_scale: Number.isFinite(minScale) && minScale > 0 ? String(minScale * 100000000) : null,
+                max_count: maxCount,
+            }),
+        });
+
+        if (!result.success || !Array.isArray(result.fund_codes) || result.fund_codes.length === 0) {
+            document.getElementById("screenResultsMeta").textContent = "当前条件下没有筛出可用基金。";
+            setTableMessage("screenTableBody", 8, "暂无符合条件的基金");
+            return;
+        }
+
+        document.getElementById("screenResultsMeta").textContent = `共筛出 ${result.fund_codes.length} 只基金，当前 Regime 为 ${result.regime}。`;
+
+        const detailRecords = await Promise.all(
+            result.fund_codes.map(async (fundCode, index) => {
+                try {
+                    const payload = await fetchJson(fundApi.info(fundCode));
+                    return {
+                        rank: index + 1,
+                        code: fundCode,
+                        name: payload.fund?.fund_name || result.fund_names?.[index] || "-",
+                        type: payload.fund?.fund_type || "-",
+                        style: payload.fund?.investment_style || "-",
+                        scale: payload.fund?.fund_scale || null,
+                        manager: payload.fund?.management_company || "-",
+                    };
+                } catch (error) {
+                    return {
+                        rank: index + 1,
+                        code: fundCode,
+                        name: result.fund_names?.[index] || "-",
+                        type: "-",
+                        style: "-",
+                        scale: null,
+                        manager: "-",
+                    };
+                }
+            }),
+        );
+
+        const tbody = document.getElementById("screenTableBody");
+        tbody.innerHTML = detailRecords.map((fund) => `
+            <tr>
+                <td>${fund.rank}</td>
+                <td><span class="table-code">${escapeHtml(fund.code)}</span></td>
+                <td>${escapeHtml(fund.name)}</td>
+                <td>${escapeHtml(fund.type)}</td>
+                <td>${escapeHtml(fund.style)}</td>
+                <td>${formatScale(fund.scale)}</td>
+                <td>${escapeHtml(fund.manager)}</td>
+                <td>${renderActionButton(fund.code)}</td>
+            </tr>
+        `).join("");
+    } catch (error) {
+        document.getElementById("screenResultsMeta").textContent = "筛选失败，请检查接口状态。";
+        setTableMessage("screenTableBody", 8, `请求失败: ${error.message}`, "error-text");
+    }
+}
+
+async function rankFunds() {
+    const regime = document.getElementById("rankRegimeSelect").value;
+    const maxCount = Number(document.getElementById("rankCount").value);
+
+    toggleHiddenState("rankResults", false);
+    document.getElementById("rankResultsMeta").textContent = "正在加载排名结果。";
+    setTableMessage("rankTableBody", 9, "加载中...");
+
+    try {
+        const result = await fetchJson(`${fundApi.rank}?regime=${encodeURIComponent(regime)}&max_count=${maxCount}`);
+        if (!result.success || !Array.isArray(result.funds) || result.funds.length === 0) {
+            document.getElementById("rankResultsMeta").textContent = "当前条件下没有可展示的排名结果。";
+            setTableMessage("rankTableBody", 9, "暂无数据");
+            return;
+        }
+
+        document.getElementById("rankResultsMeta").textContent = `${result.regime} 环境下返回 ${result.count} 条排名结果。`;
+
+        const tbody = document.getElementById("rankTableBody");
+        tbody.innerHTML = result.funds.map((fund) => `
+            <tr>
+                <td>${fund.rank}</td>
+                <td><span class="table-code">${escapeHtml(fund.fund_code)}</span></td>
+                <td>${escapeHtml(fund.fund_name)}</td>
+                <td><span class="score-pill">${formatScore(fund.total_score)}</span></td>
+                <td>${formatScore(fund.performance_score)}</td>
+                <td>${formatScore(fund.regime_fit_score)}</td>
+                <td>${formatScore(fund.risk_score)}</td>
+                <td>${formatScore(fund.scale_score)}</td>
+                <td>${renderActionButton(fund.fund_code)}</td>
+            </tr>
+        `).join("");
+    } catch (error) {
+        document.getElementById("rankResultsMeta").textContent = "排名加载失败。";
+        setTableMessage("rankTableBody", 9, `请求失败: ${error.message}`, "error-text");
+    }
+}
+
+function renderBarList(items, formatter) {
+    return items.map(([label, value]) => {
+        const numeric = Number(value);
+        const width = Number.isFinite(numeric) ? Math.max(8, Math.min(100, numeric * 100)) : 8;
+        return `
+            <div class="metric-bar">
+                <div class="metric-bar__top">
+                    <span>${escapeHtml(label)}</span>
+                    <strong>${formatter(numeric)}</strong>
+                </div>
+                <div class="metric-bar__track">
+                    <span class="metric-bar__fill" style="width: ${width}%"></span>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+async function analyzeStyle() {
+    const fundCode = document.getElementById("styleFundCode").value.trim();
+    const reportDate = document.getElementById("styleReportDate").value;
+    if (!fundCode) {
+        alert("请输入基金代码");
+        return;
+    }
+
+    toggleHiddenState("styleResult", false);
+    document.getElementById("styleContent").innerHTML = '<p class="loading-text">分析中...</p>';
+
+    try {
+        const result = await fetchJson(fundApi.style(fundCode, reportDate));
+        loadFundProfile(fundCode);
+
+        const styleEntries = Object.entries(result.style_weights || {});
+        const sectorEntries = Object.entries(result.sector_concentration || {});
+
+        document.getElementById("styleContent").innerHTML = `
+            <div class="result-overview">
+                <div class="result-overview__title">
+                    <strong>${escapeHtml(result.fund_name || fundCode)}</strong>
+                    <span>${escapeHtml(result.fund_code || fundCode)}</span>
+                </div>
+                <p>风格权重越集中，说明组合暴露越明确；行业集中度用于判断是否存在拥挤风险。</p>
+            </div>
+            <div class="analysis-grid">
+                <div class="analysis-card">
+                    <h4>风格权重</h4>
+                    ${styleEntries.length ? renderBarList(styleEntries, (value) => formatPercent(value, 1)) : '<p class="empty-text">暂无风格权重数据</p>'}
+                </div>
+                <div class="analysis-card">
+                    <h4>行业集中度</h4>
+                    ${sectorEntries.length ? renderBarList(sectorEntries, (value) => formatPercent(value, 1)) : '<p class="empty-text">暂无行业集中度数据</p>'}
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById("styleContent").innerHTML = `<p class="error-text">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+async function calculatePerformance() {
+    const fundCode = document.getElementById("perfFundCode").value.trim();
+    const startDate = document.getElementById("perfStartDate").value;
+    const endDate = document.getElementById("perfEndDate").value;
+
+    if (!fundCode) {
+        alert("请输入基金代码");
+        return;
+    }
+    if (!startDate || !endDate) {
+        alert("请选择完整的起止日期");
+        return;
+    }
+
+    toggleHiddenState("perfResult", false);
+    document.getElementById("perfContent").innerHTML = '<p class="loading-text">计算中...</p>';
+
+    try {
+        const result = await fetchJson(fundApi.performance, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({
+                fund_code: fundCode,
+                start_date: startDate,
+                end_date: endDate,
+            }),
+        });
+
+        loadFundProfile(fundCode);
+
+        const performance = result.performance || {};
+        document.getElementById("perfContent").innerHTML = `
+            <div class="result-overview">
+                <div class="result-overview__title">
+                    <strong>${escapeHtml(result.fund_name || fundCode)}</strong>
+                    <span>${escapeHtml(result.fund_code || fundCode)} / ${escapeHtml(startDate)} 至 ${escapeHtml(endDate)}</span>
+                </div>
+            </div>
+            <div class="metric-card-grid">
+                <div class="metric-card">
+                    <span>累计收益率</span>
+                    <strong>${formatPercent(performance.total_return, 2)}</strong>
+                </div>
+                <div class="metric-card">
+                    <span>年化收益率</span>
+                    <strong>${formatPercent(performance.annualized_return, 2)}</strong>
+                </div>
+                <div class="metric-card">
+                    <span>波动率</span>
+                    <strong>${formatPercent(performance.volatility, 2)}</strong>
+                </div>
+                <div class="metric-card">
+                    <span>夏普比率</span>
+                    <strong>${formatScore(performance.sharpe_ratio, 2)}</strong>
+                </div>
+                <div class="metric-card">
+                    <span>最大回撤</span>
+                    <strong>${formatPercent(performance.max_drawdown, 2)}</strong>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById("perfContent").innerHTML = `<p class="error-text">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+async function queryHolding() {
+    const fundCode = document.getElementById("holdingFundCode").value.trim();
+    const reportDate = document.getElementById("holdingDate").value;
+
+    if (!fundCode) {
+        alert("请输入基金代码");
+        return;
+    }
+
+    toggleHiddenState("holdingResult", false);
+    document.getElementById("holdingContent").innerHTML = '<p class="loading-text">查询中...</p>';
+
+    try {
+        const result = await fetchJson(fundApi.holding(fundCode, reportDate));
+        loadFundProfile(fundCode);
+
+        if (!Array.isArray(result.holdings) || result.holdings.length === 0) {
+            document.getElementById("holdingContent").innerHTML = '<p class="empty-text">暂无持仓数据</p>';
+            return;
+        }
+
+        document.getElementById("holdingContent").innerHTML = `
+            <div class="result-overview">
+                <div class="result-overview__title">
+                    <strong>${escapeHtml(result.fund_code || fundCode)}</strong>
+                    <span>报告期：${escapeHtml(result.report_date || "最新")}</span>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="fund-results-table">
+                    <thead>
+                        <tr>
+                            <th>股票代码</th>
+                            <th>股票名称</th>
+                            <th>持仓比例</th>
+                            <th>持仓市值</th>
+                            <th>持股数量</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.holdings.map((holding) => `
+                            <tr>
+                                <td><span class="table-code">${escapeHtml(holding.stock_code || "-")}</span></td>
+                                <td>${escapeHtml(holding.stock_name || "-")}</td>
+                                <td>${formatPercent(holding.holding_ratio, 2)}</td>
+                                <td>${formatScale(holding.holding_value)}</td>
+                                <td>${escapeHtml(holding.holding_amount || "-")}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById("holdingContent").innerHTML = `<p class="error-text">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+function formatAiReply(reply) {
+    return escapeHtml(reply).replace(/\n/g, "<br>");
+}
+
+async function askAI(question) {
+    document.getElementById("aiQuestion").value = question;
+    await submitAIQuestion();
+}
+
+async function submitAIQuestion() {
+    const question = document.getElementById("aiQuestion").value.trim();
+    if (!question) {
+        return;
+    }
+
+    const responseDiv = document.getElementById("aiResponse");
+    const statusSpan = document.getElementById("aiStatus");
+    const submitBtn = document.querySelector(".ai-submit-btn");
+
+    statusSpan.textContent = "思考中...";
+    responseDiv.innerHTML = '<div class="empty-state"><div class="empty-state__icon"><i class="bi bi-hourglass-split"></i></div><p>AI 正在分析...</p></div>';
+    submitBtn.disabled = true;
+
+    try {
+        const data = await fetchJson("/api/prompt/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            body: JSON.stringify({
+                message: question,
+                context: {
+                    module: "fund",
+                    current_regime: "{{ current_regime }}",
+                    regime_display: "{{ regime_display }}",
+                },
+            }),
+        });
+
+        if (!data.reply) {
+            throw new Error("未收到回复");
+        }
+
+        responseDiv.innerHTML = `<div class="ai-response-content">${formatAiReply(data.reply)}</div>`;
+        statusSpan.textContent = "";
+    } catch (error) {
+        responseDiv.innerHTML = `<div class="ai-response-content">AI 暂时不可用，请稍后重试。<br>${escapeHtml(error.message)}</div>`;
+        statusSpan.textContent = "(离线)";
+    }
+
+    submitBtn.disabled = false;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-section]").forEach((button) => {
+        button.addEventListener("click", () => setActiveSection(button.dataset.section, true));
+    });
+
+    document.querySelectorAll("[data-jump-section]").forEach((button) => {
+        button.addEventListener("click", () => setActiveSection(button.dataset.jumpSection, true));
+    });
+
+    const endDateInput = document.getElementById("perfEndDate");
+    const startDateInput = document.getElementById("perfStartDate");
+    const today = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+    if (endDateInput && !endDateInput.value) {
+        endDateInput.value = today.toISOString().slice(0, 10);
+    }
+    if (startDateInput && !startDateInput.value) {
+        startDateInput.value = oneYearAgo.toISOString().slice(0, 10);
+    }
+
+    renderSelectedFundPlaceholder();
+});
 </script>
 
-<!-- 页面样式已移至 static/css/fund.css -->
-<!-- Floating Widget Config -->
 <script>
-    // Load floating widget config from JSON file
     fetch('{% static "widgets/configs/fund_widget.json" %}')
-        .then(response => response.json())
-        .then(config => {
+        .then((response) => response.json())
+        .then((config) => {
             window.floatingWidgetConfig = config;
-            // Trigger initialization manually since DOM is already loaded
             if (window.initFloatingWidget) {
                 window.initFloatingWidget(config);
             }
         })
-        .catch(err => console.error('Failed to load widget config:', err));
+        .catch((error) => console.error('Failed to load widget config:', error));
 </script>
-
 {% endblock %}

@@ -1,4 +1,3 @@
-from typing import TYPE_CHECKING
 """
 AgomTradePro SDK - Fund 基金分析模块
 
@@ -6,10 +5,10 @@ AgomTradePro SDK - Fund 基金分析模块
 """
 
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
-from .base import BaseModule
 from ..exceptions import AgomTradeProAPIError
+from .base import BaseModule
 
 
 class FundModule(BaseModule):
@@ -28,10 +27,89 @@ class FundModule(BaseModule):
         """
         super().__init__(client, "/api/fund")
 
+    @staticmethod
+    def _normalize_fund_code(fund_code: str) -> str:
+        """
+        Normalize SDK input to the canonical backend fund code.
+
+        The current fund API uses the local six-digit code. Keep accepting
+        legacy SDK examples such as ``000001.OF`` by stripping the suffix.
+        """
+        normalized = fund_code.strip().upper()
+        if normalized.endswith(".OF"):
+            return normalized[:-3]
+        return normalized
+
+    def _filter_ranked_funds(
+        self,
+        ranked_funds: list[dict[str, Any]],
+        *,
+        fund_type: str | None,
+        min_score: float | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """Apply compatibility filters on top of canonical rank results."""
+        filtered: list[dict[str, Any]] = []
+        expected_type = fund_type.strip() if fund_type else None
+
+        for fund in ranked_funds:
+            total_score = fund.get("total_score")
+            if min_score is not None and isinstance(total_score, (int, float)):
+                if float(total_score) < min_score:
+                    continue
+
+            if expected_type:
+                detail = self.get_fund_detail(
+                    self._normalize_fund_code(str(fund.get("fund_code") or fund.get("code") or ""))
+                )
+                actual_type = str(detail.get("fund_type") or "").strip()
+                if actual_type != expected_type:
+                    continue
+
+            filtered.append(fund)
+            if len(filtered) >= limit:
+                break
+
+        return filtered
+
+    @staticmethod
+    def _parse_nav_date(raw_value: Any) -> date | None:
+        """Parse nav date from API payload."""
+        if isinstance(raw_value, date):
+            return raw_value
+        if isinstance(raw_value, str):
+            try:
+                return date.fromisoformat(raw_value)
+            except ValueError:
+                return None
+        return None
+
+    def _resolve_latest_available_nav_date(self, fund_code: str) -> date | None:
+        """
+        Resolve the latest local NAV date for period-based performance calls.
+
+        SDK callers often use local historical-only datasets. Anchoring to
+        ``date.today()`` can therefore miss the latest available research window
+        and produce a false 404 from ``performance/calculate/``.
+        """
+        nav_history = self.get_nav_history(fund_code, limit=5000)
+        nav_dates = [
+            parsed
+            for parsed in (
+                self._parse_nav_date(item.get("nav_date"))
+                for item in nav_history
+                if isinstance(item, dict)
+            )
+            if parsed is not None
+        ]
+        if not nav_dates:
+            return None
+        return max(nav_dates)
+
     def get_fund_score(
         self,
         fund_code: str,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         获取基金评分
@@ -52,21 +130,23 @@ class FundModule(BaseModule):
             >>> print(f"综合评分: {score['overall_score']}")
             >>> print(f"业绩分数: {score['performance_score']}")
         """
+        normalized_code = self._normalize_fund_code(fund_code)
         funds = self.list_funds(limit=200)
         for fund in funds:
-            if fund.get("fund_code") == fund_code or fund.get("code") == fund_code:
+            candidate_code = str(fund.get("fund_code") or fund.get("code") or "")
+            if self._normalize_fund_code(candidate_code) == normalized_code:
                 return fund
         return {
             "success": False,
-            "fund_code": fund_code,
+            "fund_code": normalized_code,
             "as_of_date": as_of_date.isoformat() if as_of_date else None,
             "error": "fund score endpoint is not exposed by current canonical API",
         }
 
     def list_funds(
         self,
-        fund_type: Optional[str] = None,
-        min_score: Optional[float] = None,
+        fund_type: str | None = None,
+        min_score: float | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -86,15 +166,49 @@ class FundModule(BaseModule):
             >>> for fund in funds:
             ...     print(f"{fund['code']}: {fund['name']}")
         """
-        params: dict[str, Any] = {"max_count": limit}
+        ranked_funds = self.rank_funds(max_count=max(limit * 3, limit))
+        return self._filter_ranked_funds(
+            ranked_funds,
+            fund_type=fund_type,
+            min_score=min_score,
+            limit=limit,
+        )
 
-        if fund_type is not None:
-            params["fund_type"] = fund_type
-        if min_score is not None:
-            params["min_score"] = min_score
-
-        response = self._get("rank/", params=params)
+    def rank_funds(
+        self,
+        regime: str = "Recovery",
+        max_count: int = 50,
+    ) -> list[dict[str, Any]]:
+        """
+        Return canonical ranked fund results from ``/api/fund/rank/``.
+        """
+        response = self._get(
+            "rank/",
+            params={"regime": regime, "max_count": max_count},
+        )
         return response.get("funds", [])
+
+    def screen_funds(
+        self,
+        regime: str | None = None,
+        custom_types: list[str] | None = None,
+        custom_styles: list[str] | None = None,
+        min_scale: float | None = None,
+        limit: int = 30,
+    ) -> dict[str, Any]:
+        """
+        Call the canonical fund screening endpoint.
+        """
+        payload: dict[str, Any] = {"max_count": limit}
+        if regime is not None:
+            payload["regime"] = regime
+        if custom_types:
+            payload["custom_types"] = custom_types
+        if custom_styles:
+            payload["custom_styles"] = custom_styles
+        if min_scale is not None:
+            payload["min_scale"] = min_scale
+        return self._post("screen/", json=payload)
 
     def get_fund_detail(self, fund_code: str) -> dict[str, Any]:
         """
@@ -115,12 +229,13 @@ class FundModule(BaseModule):
             >>> print(f"基金名称: {detail['name']}")
             >>> print(f"基金类型: {detail['fund_type']}")
         """
-        return self._get(f"info/{fund_code}/")
+        response = self._get(f"info/{self._normalize_fund_code(fund_code)}/")
+        return response.get("fund", response)
 
     def get_recommendations(
         self,
-        regime: Optional[str] = None,
-        fund_type: Optional[str] = None,
+        regime: str | None = None,
+        fund_type: str | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
         """
@@ -143,19 +258,23 @@ class FundModule(BaseModule):
             >>> for fund in recs:
             ...     print(f"{fund['code']}: {fund['reason']}")
         """
-        params: dict[str, Any] = {"max_count": limit}
-        if regime is not None:
-            params["regime"] = regime
-        if fund_type is not None:
-            params["fund_type"] = fund_type
-
-        response = self._get("rank/", params=params)
-        return response.get("funds", [])
+        ranked_funds = self.rank_funds(
+            regime=regime or "Recovery",
+            max_count=max(limit * 3, limit),
+        )
+        return self._filter_ranked_funds(
+            ranked_funds,
+            fund_type=fund_type,
+            min_score=None,
+            limit=limit,
+        )
 
     def analyze_fund(
         self,
         fund_code: str,
-        as_of_date: Optional[date] = None,
+        report_date: date | None = None,
+        *,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         分析基金
@@ -164,7 +283,8 @@ class FundModule(BaseModule):
 
         Args:
             fund_code: 基金代码
-            as_of_date: 分析日期（None 表示最新）
+            report_date: 报告日期（None 表示最新）
+            as_of_date: 分析日期兼容别名
 
         Returns:
             基金分析结果
@@ -175,17 +295,21 @@ class FundModule(BaseModule):
             >>> print(f"业绩分析: {analysis['performance']}")
             >>> print(f"风险分析: {analysis['risk']}")
         """
+        effective_report_date = report_date or as_of_date
         params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
+        if effective_report_date is not None:
+            params["report_date"] = effective_report_date.isoformat()
 
-        return self._get(f"style/{fund_code}/", params=params)
+        return self._get(
+            f"style/{self._normalize_fund_code(fund_code)}/",
+            params=params,
+        )
 
     def get_nav_history(
         self,
         fund_code: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -218,20 +342,29 @@ class FundModule(BaseModule):
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
 
-        response = self._get(f"nav/{fund_code}/", params=params)
-        return response.get("data", response.get("results", response))
+        response = self._get(
+            f"nav/{self._normalize_fund_code(fund_code)}/",
+            params=params,
+        )
+        return response.get(
+            "nav_data",
+            response.get("data", response.get("results", response)),
+        )
 
     def get_holdings(
         self,
         fund_code: str,
-        as_of_date: Optional[date] = None,
+        report_date: date | None = None,
+        *,
+        as_of_date: date | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取基金持仓
 
         Args:
             fund_code: 基金代码
-            as_of_date: 持仓日期（None 表示最新）
+            report_date: 报告日期（None 表示最新）
+            as_of_date: 持仓日期兼容别名
 
         Returns:
             持仓列表
@@ -242,12 +375,19 @@ class FundModule(BaseModule):
             >>> for h in holdings:
             ...     print(f"{h['stock_code']}: {h['weight']:.2%}")
         """
+        effective_report_date = report_date or as_of_date
         params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
+        if effective_report_date is not None:
+            params["report_date"] = effective_report_date.isoformat()
 
-        response = self._get(f"holding/{fund_code}/", params=params)
-        return response.get("data", response.get("results", response))
+        response = self._get(
+            f"holding/{self._normalize_fund_code(fund_code)}/",
+            params=params,
+        )
+        return response.get(
+            "holdings",
+            response.get("data", response.get("results", response)),
+        )
 
     def get_performance(
         self,
@@ -281,13 +421,14 @@ class FundModule(BaseModule):
             "inception": 365 * 10,
         }
         days = days_by_period.get(period, 365)
-        end_date = date.today()
+        normalized_code = self._normalize_fund_code(fund_code)
+        end_date = self._resolve_latest_available_nav_date(normalized_code) or date.today()
         start_date = end_date - timedelta(days=days)
         try:
             response = self._post(
                 "performance/calculate/",
                 json={
-                    "fund_code": fund_code,
+                    "fund_code": normalized_code,
                     "start_date": start_date.isoformat(),
                     "end_date": end_date.isoformat(),
                 },

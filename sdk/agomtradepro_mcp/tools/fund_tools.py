@@ -16,6 +16,54 @@ def register_fund_tools(server: FastMCP) -> None:
     """注册 Fund 相关的 MCP 工具"""
 
     @server.tool()
+    def rank_funds(
+        regime: str = "Recovery",
+        max_count: int = 50,
+    ) -> list[dict[str, Any]]:
+        """
+        获取基金排名。
+
+        Args:
+            regime: 宏观象限
+            max_count: 返回数量上限
+
+        Returns:
+            基金排名列表
+        """
+        client = AgomTradeProClient()
+        return client.fund.rank_funds(regime=regime, max_count=max_count)
+
+    @server.tool()
+    def screen_funds(
+        regime: str | None = None,
+        custom_types: list[str] | None = None,
+        custom_styles: list[str] | None = None,
+        min_scale: float | None = None,
+        limit: int = 30,
+    ) -> dict[str, Any]:
+        """
+        按当前 canonical fund screen 接口筛选基金。
+
+        Args:
+            regime: 宏观象限；为空时由后端按当前环境推断
+            custom_types: 自定义基金类型列表
+            custom_styles: 自定义投资风格列表
+            min_scale: 最低基金规模
+            limit: 返回数量上限
+
+        Returns:
+            fund screen 响应
+        """
+        client = AgomTradeProClient()
+        return client.fund.screen_funds(
+            regime=regime,
+            custom_types=custom_types,
+            custom_styles=custom_styles,
+            min_scale=min_scale,
+            limit=limit,
+        )
+
+    @server.tool()
     def get_fund_score(
         fund_code: str,
         as_of_date: str | None = None,
@@ -103,6 +151,7 @@ def register_fund_tools(server: FastMCP) -> None:
     @server.tool()
     def analyze_fund(
         fund_code: str,
+        report_date: str | None = None,
         as_of_date: str | None = None,
     ) -> dict[str, Any]:
         """
@@ -110,7 +159,8 @@ def register_fund_tools(server: FastMCP) -> None:
 
         Args:
             fund_code: 基金代码
-            as_of_date: 分析日期（ISO 格式，None 表示最新）
+            report_date: 报告日期（ISO 格式，优先）
+            as_of_date: 分析日期兼容别名（ISO 格式，None 表示最新）
 
         Returns:
             基金分析结果
@@ -119,8 +169,38 @@ def register_fund_tools(server: FastMCP) -> None:
             >>> analysis = analyze_fund("000001.OF")
         """
         client = AgomTradeProClient()
-        parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-        return client.fund.analyze_fund(fund_code, parsed_date)
+        effective_date = report_date or as_of_date
+        parsed_date = date.fromisoformat(effective_date) if effective_date else None
+        return client.fund.analyze_fund(fund_code, report_date=parsed_date)
+
+    @server.tool()
+    def get_fund_nav_history(
+        fund_code: str,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        获取基金净值历史
+
+        Args:
+            fund_code: 基金代码
+            start_date: 开始日期（ISO 格式）
+            end_date: 结束日期（ISO 格式）
+            limit: 返回数量限制
+
+        Returns:
+            基金净值历史
+        """
+        client = AgomTradeProClient()
+        parsed_start = date.fromisoformat(start_date) if start_date else None
+        parsed_end = date.fromisoformat(end_date) if end_date else None
+        return client.fund.get_nav_history(
+            fund_code,
+            start_date=parsed_start,
+            end_date=parsed_end,
+            limit=limit,
+        )
 
     @server.tool()
     def get_fund_performance(
@@ -146,6 +226,7 @@ def register_fund_tools(server: FastMCP) -> None:
     @server.tool()
     def get_fund_holdings(
         fund_code: str,
+        report_date: str | None = None,
         as_of_date: str | None = None,
     ) -> list[dict[str, Any]]:
         """
@@ -153,7 +234,8 @@ def register_fund_tools(server: FastMCP) -> None:
 
         Args:
             fund_code: 基金代码
-            as_of_date: 持仓日期（ISO 格式，None 表示最新）
+            report_date: 报告日期（ISO 格式，优先）
+            as_of_date: 持仓日期兼容别名（ISO 格式，None 表示最新）
 
         Returns:
             持仓列表
@@ -162,6 +244,6 @@ def register_fund_tools(server: FastMCP) -> None:
             >>> holdings = get_fund_holdings("000001.OF")
         """
         client = AgomTradeProClient()
-        parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-        return client.fund.get_holdings(fund_code, parsed_date)
-
+        effective_date = report_date or as_of_date
+        parsed_date = date.fromisoformat(effective_date) if effective_date else None
+        return client.fund.get_holdings(fund_code, report_date=parsed_date)

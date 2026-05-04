@@ -413,6 +413,48 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 
 ---
 
+## 2026-05-04 Fund Research 补充
+
+基金研究链路在 2026-05-04 做了两类对齐，后续文档、SDK、MCP 必须以此为准：
+
+### Canonical Fund API 口径
+
+- 根路径：`/api/fund/`
+- 排名：`GET /api/fund/rank/?regime=Recovery&max_count=50`
+- 筛选：`POST /api/fund/screen/`
+- 风格分析：`GET /api/fund/style/{fund_code}/?report_date=YYYY-MM-DD`
+- 业绩计算：`POST /api/fund/performance/calculate/`
+- 基金信息：`GET /api/fund/info/{fund_code}/`，响应字段为 `fund`
+- 净值历史：`GET /api/fund/nav/{fund_code}/`，响应字段为 `nav_data`
+- 持仓：`GET /api/fund/holding/{fund_code}/?report_date=YYYY-MM-DD`，响应字段为 `holdings`
+
+### SDK / MCP 必须同步的细节
+
+- fund code 对外允许兼容 `000001.OF`，但 SDK 调后端前应规范化为本地 canonical 六位 code，例如 `000001`
+- `style` 和 `holding` 查询优先使用 `report_date`，`as_of_date` 只保留兼容别名，不再作为 canonical 参数名
+- SDK `get_fund_detail()` 必须解包 `fund`
+- SDK `get_nav_history()` 必须解包 `nav_data`
+- SDK `get_holdings()` 必须解包 `holdings`
+- MCP 应暴露 `rank_funds`、`screen_funds`、`get_fund_nav_history`，避免 fund 维度只剩兼容包装工具，缺少 canonical 排名 / 筛选 / 净值读取入口
+
+### 数据前置条件
+
+- fund 研究页不是“只要持仓表有数就能工作”
+- `rank` / `screen` 依赖：
+  - `fund_info`
+  - `fund_net_value` 或 data_center 的 fund nav facts
+  - `fund_performance`
+- 当本地只存在 `fund_holding` 而缺主数据 / 净值 / performance 时，链路可能通，但结果仍会是空列表
+
+### 数据准备命令
+
+- `python manage.py prepare_fund_research_data --start-date 2024-01-01 --end-date 2024-12-31`
+- 如需允许远端补 NAV：
+  - `python manage.py prepare_fund_research_data --allow-remote-nav-sync --start-date 2024-01-01 --end-date 2024-12-31`
+- 该命令现在会以“本地最新可用基金数据日期”锚定研究窗口，并在缺失时尝试从本地 NAV 衍生 performance 快照，避免简单按系统当天日期导致 fund research 假空白
+
+---
+
 ## 账户账本统一（2026-03-27）
 
 ### 背景

@@ -316,7 +316,7 @@ def get_macro_indicator_data(
     start_date: date | None = None,
     end_date: date | None = None,
 ) -> list[dict[str, Any]]:
-    """Return one indicator's serialized time-series rows for the API."""
+    """Return one indicator's serialized time-series rows in chronological order for UI consumers."""
 
     read_repository = get_macro_read_repository()
     rows = read_repository.get_indicator_rows(

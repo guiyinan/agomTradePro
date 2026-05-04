@@ -213,6 +213,11 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 - `get_dashboard_alpha_candidates(...)` / `trigger_dashboard_alpha_refresh(...)` 返回共享 `contract`，用于区分真实推荐、异步刷新和兜底结果
 - `decision_workflow_get_funnel_context(...)` 会附带顶层 `step3_status` / `step3_signal_date` 等摘要字段，便于 Agent 直接消费
 - `get_pulse_current()` 继续返回 canonical `/api/pulse/current/` JSON；当当前 Regime 只能解析成 `Unknown` 时，后端会保留最近有效的 Pulse 快照，而不是把 tactical context 覆盖成未知状态
+- Fund canonical MCP tools 现已显式补齐：
+  - `rank_funds(regime, max_count)`
+  - `screen_funds(regime, custom_types, custom_styles, min_scale, limit)`
+  - `get_fund_nav_history(fund_code, start_date, end_date, limit)`
+  - `analyze_fund(..., report_date=...)` / `get_fund_holdings(..., report_date=...)` 优先使用 `report_date`
 
 ## Available Tools
 
@@ -328,6 +333,30 @@ get_regime_distribution(start_date, end_date)
 explain_regime(regime_type)
 get_recommended_assets(regime_type)
 ```
+
+### Fund Tools
+
+```
+rank_funds(regime, max_count)
+screen_funds(regime, custom_types, custom_styles, min_scale, limit)
+get_fund_score(fund_code, as_of_date)
+list_funds(fund_type, min_score, limit)
+get_fund_detail(fund_code)
+get_fund_recommendations(regime, fund_type, limit)
+get_fund_nav_history(fund_code, start_date, end_date, limit)
+analyze_fund(fund_code, report_date, as_of_date)
+get_fund_performance(fund_code, period)
+get_fund_holdings(fund_code, report_date, as_of_date)
+```
+
+Notes:
+
+- canonical read tools are `rank_funds` and `screen_funds`
+- `list_funds` / `get_fund_recommendations` are compatibility wrappers built on top of current rank results
+- fund detail payload is already unwrapped to the `fund` object
+- NAV history payload is already unwrapped to `nav_data`
+- holdings payload is already unwrapped to `holdings`
+- `000001.OF` style legacy SDK/MCP input is accepted, but backend requests are normalized to local canonical six-digit fund code
 
 ### Dashboard Alpha Tools
 
