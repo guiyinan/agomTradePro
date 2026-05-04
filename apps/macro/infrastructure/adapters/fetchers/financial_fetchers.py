@@ -6,7 +6,7 @@
 
 import logging
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import List
 
 import pandas as pd
@@ -449,16 +449,43 @@ class FinancialIndicatorFetcher:
             if not hasattr(self.ak, 'repo_rate_hist'):
                 logger.warning("当前 akshare 版本不支持 repo_rate_hist, 无法获取 DR007")
                 return []
-            
-            # 使用 ak.repo_rate_hist 替代假定的宏观利率函数
-            df = self.ak.repo_rate_hist()
-            if df.empty:
+
+            frames = []
+            window_start = start_date
+            while window_start <= end_date:
+                window_end = min(window_start + timedelta(days=364), end_date)
+                try:
+                    chunk = self.ak.repo_rate_hist(
+                        start_date=window_start.strftime("%Y%m%d"),
+                        end_date=window_end.strftime("%Y%m%d"),
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "DR007 区间 %s ~ %s 获取失败，跳过该窗口: %s",
+                        window_start,
+                        window_end,
+                        exc,
+                    )
+                    window_start = window_end + timedelta(days=1)
+                    continue
+                if chunk is not None and not chunk.empty:
+                    frames.append(chunk)
+                window_start = window_end + timedelta(days=1)
+
+            if not frames:
                 logger.warning("DR007 数据为空")
                 return []
+            df = pd.concat(frames, ignore_index=True)
 
             date_col = 'date' if 'date' in df.columns else df.columns[0]
-            # DR007 对应的回购利率列名可能是 DR007 或别的，根据实际情况适配
-            value_col = 'DR007' if 'DR007' in df.columns else df.columns[2]
+            value_col = (
+                'FDR007'
+                if 'FDR007' in df.columns
+                else ('DR007' if 'DR007' in df.columns else None)
+            )
+            if not value_col:
+                logger.warning("repo_rate_hist 返回结果不包含 FDR007/DR007 列")
+                return []
 
             df['date'] = pd.to_datetime(df[date_col], format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()

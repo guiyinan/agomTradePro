@@ -21,14 +21,50 @@ def test_fetch_dr007_success():
     fetcher = FinancialIndicatorFetcher(ak_mock, "akshare", lambda x: None, dummy_dedup)
     
     with patch.object(ak_mock, "repo_rate_hist", create=True) as mock_repo_rate:
-        mock_repo_rate.return_value = pd.DataFrame([
-            {"date": "2024-01-01", "DR007": 1.85}
-        ])
+        mock_repo_rate.side_effect = [
+            pd.DataFrame([
+                {"date": "2024-01-01", "FDR007": 1.85},
+                {"date": "2024-12-31", "FDR007": 1.95},
+            ]),
+            pd.DataFrame([
+                {"date": "2025-01-01", "FDR007": 1.90},
+            ]),
+        ]
         
-        indicators = fetcher.fetch_dr007(date(2024, 1, 1), date(2024, 1, 31))
-        assert len(indicators) == 1
+        indicators = fetcher.fetch_dr007(date(2024, 1, 1), date(2025, 1, 31))
+        assert len(indicators) == 3
         assert indicators[0].code == "CN_DR007"
         assert indicators[0].value == 1.85
+        assert mock_repo_rate.call_count == 2
+        assert mock_repo_rate.call_args_list[0].kwargs == {
+            "start_date": "20240101",
+            "end_date": "20241230",
+        }
+        assert mock_repo_rate.call_args_list[1].kwargs == {
+            "start_date": "20241231",
+            "end_date": "20250131",
+        }
+
+
+def test_fetch_dr007_skips_failed_window_and_keeps_valid_rows():
+    ak_mock = MagicMock()
+    ak_mock.repo_rate_hist = MagicMock()
+
+    fetcher = FinancialIndicatorFetcher(ak_mock, "akshare", lambda x: None, dummy_dedup)
+
+    with patch.object(ak_mock, "repo_rate_hist", create=True) as mock_repo_rate:
+        mock_repo_rate.side_effect = [
+            pd.DataFrame([
+                {"date": "2026-04-30", "FDR007": 1.39},
+            ]),
+            KeyError("frValueMap"),
+        ]
+
+        indicators = fetcher.fetch_dr007(date(2025, 5, 2), date(2026, 5, 4))
+
+    assert len(indicators) == 1
+    assert indicators[0].code == "CN_DR007"
+    assert indicators[0].value == 1.39
 
 
 def test_fetch_lpr_keeps_percent_point_values():

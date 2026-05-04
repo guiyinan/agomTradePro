@@ -183,6 +183,7 @@ def test_indicator_catalog_seed_contains_governance_console_metadata():
     pmi = IndicatorCatalogModel.objects.get(code="CN_PMI")
     shibor = IndicatorCatalogModel.objects.get(code="CN_SHIBOR")
     bond_10y = IndicatorCatalogModel.objects.get(code="CN_BOND_10Y")
+    dr007 = IndicatorCatalogModel.objects.get(code="CN_DR007")
 
     assert gdp.extra["governance_scope"] == "macro_console"
     assert gdp.extra["governance_sync_supported"] is True
@@ -202,3 +203,6 @@ def test_indicator_catalog_seed_contains_governance_console_metadata():
 
     assert bond_10y.extra["governance_scope"] == "macro_console"
     assert bond_10y.extra["governance_sync_supported"] is True
+
+    assert dr007.extra["governance_scope"] == "macro_console"
+    assert dr007.extra["governance_sync_supported"] is True
