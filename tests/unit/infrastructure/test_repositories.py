@@ -138,6 +138,35 @@ class TestDjangoMacroRepository:
         assert len(saved_list) == 5
         assert all(s.code.startswith("TEST_IND_") for s in saved_list)
 
+    def test_save_indicator_falls_back_to_catalog_period_type_when_override_is_non_standard(self):
+        _seed_indicator_rule(
+            code="CN_BOND_10Y",
+            original_unit="%",
+            default_period_type="D",
+        )
+        repository = DjangoMacroRepository()
+        indicator = MacroIndicator(
+            code="CN_BOND_10Y",
+            value=2.31,
+            reporting_period=date(2025, 4, 30),
+            period_type=PeriodType.DAY,
+            unit="%",
+            original_unit="%",
+            published_at=date(2025, 4, 30),
+            source="test",
+        )
+
+        saved = repository.save_indicator(indicator, period_type_override="10Y")
+
+        assert saved.code == "CN_BOND_10Y"
+        assert saved.period_type == PeriodType.DAY
+
+        fact = MacroFactModel.objects.get(
+            indicator_code="CN_BOND_10Y",
+            reporting_period=date(2025, 4, 30),
+        )
+        assert (fact.extra or {})["period_type"] == "10Y"
+
     def test_get_series_with_filters(self):
         """测试带过滤条件的时序查询"""
         repository = DjangoMacroRepository()

@@ -127,7 +127,8 @@ def _resolve_period_type(
 ) -> str:
     extra = fact.extra or {}
     period_type = extra.get("period_type")
-    if isinstance(period_type, str) and period_type:
+    valid_period_types = {item.value for item in PeriodType}
+    if isinstance(period_type, str) and period_type in valid_period_types:
         return period_type
     if catalog and catalog.default_period_type:
         return str(catalog.default_period_type)
