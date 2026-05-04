@@ -344,7 +344,11 @@ class FinancialIndicatorFetcher:
                 return []
 
             date_col = '月份' if '月份' in df.columns else df.columns[0]
-            value_col = '住户存款-当月值' if '住户存款-当月值' in df.columns else df.columns[2]
+            value_col = (
+                '新增储蓄存款-数量'
+                if '新增储蓄存款-数量' in df.columns
+                else ('新增存款-数量' if '新增存款-数量' in df.columns else df.columns[1])
+            )
 
             df['date'] = pd.to_datetime(df[date_col].apply(parse_chinese_date), format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
@@ -364,7 +368,6 @@ class FinancialIndicatorFetcher:
                     value_str = row['value']
                     if isinstance(value_str, str):
                         value_str = value_str.replace('%', '').replace(',', '')
-                    # 原始数据已经是亿元
                     value = float(value_str)
                     point = MacroDataPoint(
                         code="CN_RMB_DEPOSIT",

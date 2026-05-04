@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
 WEEKLY_INDICATOR_UNITS = {
     "CN_POWER_GEN": ("亿千瓦时", "亿千瓦时"),
-    "CN_BLAST_FURNACE": ("%", "%"),  # 保留兼容性
+    "CN_BLAST_FURNACE": ("点", "点"),
     "CN_CCFI": ("点", "点"),  # 保留兼容性
     "CN_SCFI": ("点", "点"),  # 保留兼容性
     # 新增公开数据源指标
