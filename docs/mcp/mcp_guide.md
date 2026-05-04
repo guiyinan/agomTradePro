@@ -162,7 +162,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-05-03`: `318` registered tools.
+You can validate tool registration locally. Current local snapshot on `2026-05-04`: `321` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
