@@ -1557,10 +1557,71 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
     )
 
     assert "Alpha 推荐资产" in content
+    assert "不会重排成 1-5" in content
+    assert "查看完整排名" in content
     assert "000001.SZ" in content
     assert "平安银行" in content
     assert "Alpha 排名第 1" in content
     assert "暂无通过触发器和风控约束的可行动候选" in content
+
+
+def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
+    request = RequestFactory().get(
+        "/dashboard/alpha/ranking/",
+        {"alpha_scope": "portfolio", "portfolio_id": 9, "pool_mode": "price_covered", "top_n": 200},
+    )
+    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_portfolio_options",
+        lambda user_id: [{"id": 9, "name": "主组合"}],
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_stock_scores_payload",
+        lambda top_n, user, portfolio_id, pool_mode, alpha_scope: {
+            "items": [
+                {
+                    "code": "000001.SZ",
+                    "name": "平安银行",
+                    "rank": 8,
+                    "alpha_score": 0.91,
+                    "confidence": 0.88,
+                    "stage_label": "Alpha Top 候选",
+                    "source": "cache",
+                    "buy_reason_summary": "来自更大缓存裁剪后的保序结果",
+                    "invalidation_summary": "跌出 Top 10",
+                    "asof_date": "2026-04-16",
+                }
+            ],
+            "meta": {
+                "source": "cache",
+                "effective_asof_date": "2026-04-16",
+            },
+            "pool": {
+                "label": "账户驱动 Alpha 池",
+                "pool_size": 320,
+                "portfolio_id": 9,
+                "pool_mode": "price_covered",
+            },
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "recent_runs": [],
+            "history_run_id": 12,
+        },
+    )
+
+    response = alpha_stock_views.alpha_ranking_page(request)
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Alpha 完整排名" in content
+    assert "不会为了展示而重排成 1-5" in content
+    assert "当前已加载 1 条，股票池规模约 320" in content
+    assert "000001.SZ" in content
+    assert "#8" in content
+    assert "打开 JSON" in content
 
 
 def test_main_workflow_panel_renders_exit_chain_entry_links():

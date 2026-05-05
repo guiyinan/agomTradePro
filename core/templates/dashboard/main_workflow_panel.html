@@ -139,7 +139,19 @@
 
     <!-- Alpha 推荐资产列表 -->
     <div class="candidate-actions-section alpha-recommendations-section" style="margin-top: 12px;">
-        <h3 class="subsection-title">Alpha 推荐资产 (展示 {{ alpha_stock_scores|slice:":5"|length }} / 共 {{ alpha_stock_scores|length|default:0 }})</h3>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div>
+                <h3 class="subsection-title">Alpha 推荐资产 (展示 {{ alpha_stock_scores|slice:":5"|length }} / 共 {{ alpha_stock_scores|length|default:0 }})</h3>
+                <p class="candidate-meta" style="margin: 6px 0 0 0;">
+                    注：这里保留 Alpha 原始排名。首页只截取前 5 条展示，且账户池可能是从更大缓存裁剪出来的 scoped 结果，因此不会重排成 1-5。
+                </p>
+            </div>
+            <a class="btn-precheck"
+               href="{% url 'dashboard:alpha_ranking' %}?alpha_scope={{ selected_alpha_scope|default:'portfolio' }}{% if selected_portfolio_id and selected_alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and selected_alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}&top_n=200"
+               style="text-decoration:none;">
+                📋 查看完整排名
+            </a>
+        </div>
         {% if alpha_stock_scores %}
             {% for stock in alpha_stock_scores|slice:":5" %}
             <div class="candidate-action-row" data-stock-code="{{ stock.code }}">

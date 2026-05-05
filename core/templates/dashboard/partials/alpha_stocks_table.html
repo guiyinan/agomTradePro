@@ -129,6 +129,9 @@
                         onclick="triggerAlphaRealtimeRefresh({{ top_n|default:10 }}, this)">
                     🔄 刷新首页推荐
                 </button>
+                <a href="{% url 'dashboard:alpha_ranking' %}?alpha_scope={{ alpha_scope|default:'portfolio' }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}&top_n=200" class="alpha-history-link">
+                    查看完整排名
+                </a>
                 <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-history-link">
                     查看历史记录
                 </a>

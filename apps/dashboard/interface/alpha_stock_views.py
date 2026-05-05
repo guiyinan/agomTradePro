@@ -14,6 +14,75 @@ def _dashboard_views():
 
 
 @login_required(login_url="/account/login/")
+def alpha_ranking_page(request):
+    """Render a server-side Alpha ranking page with adjustable scope filters."""
+
+    dashboard_views = _dashboard_views()
+    raw_portfolio_id = request.GET.get("portfolio_id")
+    requested_alpha_scope = request.GET.get("alpha_scope")
+    try:
+        top_n = dashboard_views._parse_positive_int_param(
+            request.GET.get("top_n", 200),
+            field_name="top_n",
+            default=200,
+        )
+    except ValueError:
+        top_n = 200
+
+    try:
+        selected_portfolio_id = (
+            dashboard_views._parse_positive_int_param(
+                raw_portfolio_id,
+                field_name="portfolio_id",
+                default=0,
+            )
+            if raw_portfolio_id not in (None, "")
+            else None
+        )
+    except ValueError:
+        selected_portfolio_id = None
+
+    selected_alpha_pool_mode = dashboard_views._normalize_dashboard_alpha_pool_mode(
+        request.GET.get("pool_mode")
+    )
+    portfolio_options = dashboard_views._get_dashboard_portfolio_options(request.user.id)
+    selected_alpha_scope = dashboard_views.normalize_alpha_scope(requested_alpha_scope)
+    if requested_alpha_scope in (None, "") and not portfolio_options and selected_portfolio_id is None:
+        selected_alpha_scope = dashboard_views.ALPHA_SCOPE_GENERAL
+
+    alpha_payload = dashboard_views._get_alpha_stock_scores_payload(
+        top_n=top_n,
+        user=request.user,
+        portfolio_id=None
+        if selected_alpha_scope == dashboard_views.ALPHA_SCOPE_GENERAL
+        else selected_portfolio_id,
+        pool_mode=selected_alpha_pool_mode,
+        alpha_scope=selected_alpha_scope,
+    )
+    alpha_pool = alpha_payload["pool"]
+    effective_portfolio_id = (
+        None
+        if selected_alpha_scope == dashboard_views.ALPHA_SCOPE_GENERAL
+        else selected_portfolio_id or alpha_pool.get("portfolio_id")
+    )
+    context = {
+        "alpha_stocks": alpha_payload["items"],
+        "alpha_meta": alpha_payload["meta"],
+        "alpha_pool": alpha_pool,
+        "alpha_scope": selected_alpha_scope,
+        "portfolio_options": portfolio_options,
+        "selected_portfolio_id": effective_portfolio_id,
+        "selected_alpha_pool_mode": selected_alpha_pool_mode or alpha_pool.get("pool_mode"),
+        "alpha_pool_mode_choices": dashboard_views.get_alpha_pool_mode_choices(),
+        "top_n": top_n,
+        "loaded_count": len(alpha_payload["items"]),
+        "pool_size_hint": alpha_pool.get("pool_size") or 0,
+        "alpha_history_run_id": alpha_payload.get("history_run_id"),
+    }
+    return render(request, "dashboard/alpha_ranking.html", context)
+
+
+@login_required(login_url="/account/login/")
 def alpha_refresh_htmx(request):
     """Trigger a manual realtime Alpha refresh for today's dashboard universe."""
 

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Alpha 完整排名{% endblock %}
+
+{% block content %}
+<section class="content-card" style="margin: 24px auto; max-width: 1240px;">
+    <div class="section-header">
+        <div>
+            <h2 class="section-title">Alpha 完整排名</h2>
+            <p class="text-muted">这里展示同一口径下的完整 Alpha 排名视图，可切换 scope、组合、股票池模式和返回条数。</p>
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <a href="{% url 'dashboard:index' %}{% if alpha_scope %}?alpha_scope={{ alpha_scope }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}{% endif %}" class="section-link">返回首页</a>
+            <a href="{% url 'api_dashboard:alpha_stocks' %}?format=json&top_n={{ top_n }}&alpha_scope={{ alpha_scope }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}" class="section-link" target="_blank" rel="noopener">打开 JSON</a>
+        </div>
+    </div>
+
+    <div style="border: 1px solid #dbe7f5; border-radius: 14px; background: #f8fbff; padding: 14px 16px; margin-bottom: 16px;">
+        <strong>排名说明</strong>
+        <p style="margin: 8px 0 0 0; color: #556274;">
+            首页只截取前 5 条展示，但这里保留 Alpha 原始排名，不会为了展示而重排成 1-5。若当前账户池结果来自更大范围缓存裁剪，排名也会继续沿用原始 rank。
+        </p>
+        {% if pool_size_hint and loaded_count < pool_size_hint %}
+        <p style="margin: 8px 0 0 0; color: #556274;">
+            当前已加载 {{ loaded_count }} 条，股票池规模约 {{ pool_size_hint }}。如果要看全量，请把“返回条数”调大到不小于股票池规模。
+        </p>
+        {% endif %}
+    </div>
+
+    <form method="get" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom: 18px;">
+        <label style="display:flex; flex-direction:column; gap:6px;">
+            <span>Alpha Scope</span>
+            <select name="alpha_scope" class="form-control">
+                <option value="portfolio" {% if alpha_scope != 'general' %}selected{% endif %}>账户专属 Alpha</option>
+                <option value="general" {% if alpha_scope == 'general' %}selected{% endif %}>通用 Alpha</option>
+            </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px;">
+            <span>组合</span>
+            <select name="portfolio_id" class="form-control">
+                <option value="">当前组合</option>
+                {% for portfolio in portfolio_options %}
+                <option value="{{ portfolio.id }}" {% if portfolio.id == selected_portfolio_id %}selected{% endif %}>{{ portfolio.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px;">
+            <span>股票池模式</span>
+            <select name="pool_mode" class="form-control">
+                {% for choice in alpha_pool_mode_choices %}
+                <option value="{{ choice.value }}" {% if choice.value == selected_alpha_pool_mode %}selected{% endif %}>{{ choice.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px;">
+            <span>返回条数</span>
+            <input type="number" name="top_n" min="1" value="{{ top_n }}" class="form-control">
+        </label>
+        <div style="display:flex; align-items:flex-end;">
+            <button type="submit" class="btn btn-primary">刷新排名</button>
+        </div>
+    </form>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 14px; color: #556274; font-size: 13px;">
+        <span>当前 scope: {{ alpha_scope }}</span>
+        <span>已加载 {{ loaded_count }} 条</span>
+        <span>池子 {{ alpha_pool.label|default:"-" }}</span>
+        <span>池子规模 {{ alpha_pool.pool_size|default:0 }}</span>
+        <span>来源 {{ alpha_meta.source|default:"-" }}</span>
+        <span>
+            评分日
+            {% if alpha_meta.effective_asof_date %}
+                {{ alpha_meta.effective_asof_date }}
+            {% elif alpha_meta.cache_date %}
+                {{ alpha_meta.cache_date }}
+            {% else %}
+                -
+            {% endif %}
+        </span>
+    </div>
+
+    {% if alpha_stocks %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; background:#fff;">
+            <thead>
+                <tr style="background:#f8fbff; color:#122c57;">
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">排名</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">代码</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">名称</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">Alpha</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">置信度</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">阶段</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">来源</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">评分日</th>
+                    <th style="text-align:left; padding:10px 12px; border-bottom:1px solid #dde6f0;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in alpha_stocks %}
+                <tr>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">#{{ stock.rank|default:forloop.counter }}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;"><strong>{{ stock.code }}</strong></td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{{ stock.name|default:"-" }}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{% if stock.alpha_score != None %}{{ stock.alpha_score|floatformat:3 }}{% elif stock.score != None %}{{ stock.score|floatformat:3 }}{% else %}-{% endif %}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{% if stock.confidence != None %}{{ stock.confidence|floatformat:2 }}{% else %}-{% endif %}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{{ stock.stage_label|default:"Alpha 排名" }}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{{ stock.source|default:"-" }}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{{ stock.asof_date|default:"-" }}</td>
+                    <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">
+                        <a href="{% url 'decision-workspace' %}?source=dashboard-alpha&security_code={{ stock.code|urlencode }}">在 Workflow 中查看</a>
+                    </td>
+                </tr>
+                {% if stock.buy_reason_summary or stock.invalidation_summary %}
+                <tr>
+                    <td colspan="9" style="padding:10px 12px 14px 12px; border-bottom:1px solid #eef3f8; color:#556274; font-size:13px;">
+                        {% if stock.buy_reason_summary %}<span>推荐依据：{{ stock.buy_reason_summary }}</span>{% endif %}
+                        {% if stock.buy_reason_summary and stock.invalidation_summary %}<span style="margin: 0 8px;">|</span>{% endif %}
+                        {% if stock.invalidation_summary %}<span>证伪：{{ stock.invalidation_summary }}</span>{% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p>当前没有可展示的 Alpha 排名。</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
