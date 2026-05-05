@@ -1,10 +1,17 @@
+from types import SimpleNamespace
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 import pytest
 
+from apps.data_center.application.dtos import SyncResult
 from apps.data_center.application.interface_services import load_macro_governance_payload
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
+from apps.data_center.infrastructure.models import (
+    IndicatorCatalogModel,
+    MacroFactModel,
+    ProviderConfigModel,
+)
 
 
 @pytest.fixture
@@ -41,6 +48,7 @@ def test_governance_console_renders_audit_rows(admin_client):
                 "paired_indicator_code": "CN_GDP_YOY",
                 "governance_scope": "macro_console",
                 "governance_sync_supported": True,
+                "governance_sync_source_type": "akshare",
             },
         },
     )
@@ -57,6 +65,7 @@ def test_governance_console_renders_audit_rows(admin_client):
                 "paired_indicator_code": "CN_GDP",
                 "governance_scope": "macro_console",
                 "governance_sync_supported": True,
+                "governance_sync_source_type": "akshare",
             },
         },
     )
@@ -115,16 +124,55 @@ def test_governance_console_can_canonicalize_legacy_sources(admin_client):
 
 @pytest.mark.django_db
 def test_governance_console_sync_action_invokes_macro_sync(admin_client, monkeypatch):
-    captured = {}
+    captured: dict[str, object] = {}
+    provider = ProviderConfigModel.objects.create(
+        name="AKShare Public",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        extra_config={},
+    )
+    IndicatorCatalogModel.objects.update_or_create(
+        code="TEST_SYNC",
+        defaults={
+            "name_cn": "测试同步指标",
+            "default_unit": "%",
+            "default_period_type": "M",
+            "category": "test",
+            "is_active": True,
+            "extra": {
+                "governance_scope": "macro_console",
+                "governance_sync_supported": True,
+                "governance_sync_source_type": "akshare",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.repositories.MacroGovernanceRepository.build_snapshot",
+        lambda self, **kwargs: {
+            "governed_indicator_codes": ["TEST_SYNC"],
+            "supported_sync_codes": ["TEST_SYNC"],
+            "indicator_rows": [
+                {
+                    "code": "TEST_SYNC",
+                    "tags": ["missing_supported"],
+                    "sync_source_type": "akshare",
+                }
+            ],
+        },
+    )
 
-    def fake_call_command(*args, **kwargs):
-        captured["args"] = args
-        captured["kwargs"] = kwargs
-        stdout = kwargs.get("stdout")
-        if stdout is not None:
-            stdout.write("sync macro invoked")
+    def fake_make_sync_macro_use_case():
+        def execute(request):
+            captured["request"] = request
+            return SyncResult("macro", "AKShare Public", 7, "success")
 
-    monkeypatch.setattr("django.core.management.call_command", fake_call_command)
+        return SimpleNamespace(execute=execute)
+
+    monkeypatch.setattr(
+        "apps.data_center.application.interface_services.make_sync_macro_use_case",
+        fake_make_sync_macro_use_case,
+    )
 
     response = admin_client.post(
         reverse("data_center:dc-governance-page"),
@@ -132,25 +180,83 @@ def test_governance_console_sync_action_invokes_macro_sync(admin_client, monkeyp
     )
 
     assert response.status_code == 200
-    assert captured["args"][0] == "sync_macro_data"
-    assert "--source" in captured["args"]
-    assert "akshare" in captured["args"]
+    request = captured["request"]
+    assert request.provider_id == provider.id
+    assert request.indicator_code == "TEST_SYNC"
 
 
 @pytest.mark.django_db
 def test_governance_console_full_repair_runs_all_repair_steps(admin_client, monkeypatch):
-    captured = {"commands": []}
+    provider = ProviderConfigModel.objects.create(
+        name="AKShare Public",
+        source_type="akshare",
+        is_active=True,
+        priority=1,
+        extra_config={},
+    )
+    IndicatorCatalogModel.objects.update_or_create(
+        code="TEST_SYNC",
+        defaults={
+            "name_cn": "测试同步指标",
+            "default_unit": "%",
+            "default_period_type": "M",
+            "category": "test",
+            "is_active": True,
+            "extra": {
+                "governance_scope": "macro_console",
+                "governance_sync_supported": True,
+                "governance_sync_source_type": "akshare",
+            },
+        },
+    )
+    captured = {"canonicalize": 0, "normalize": 0, "sync_requests": []}
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.repositories.MacroGovernanceRepository.build_snapshot",
+        lambda self, **kwargs: {
+            "governed_indicator_codes": ["TEST_SYNC"],
+            "supported_sync_codes": ["TEST_SYNC"],
+            "indicator_rows": [
+                {
+                    "code": "TEST_SYNC",
+                    "tags": ["missing_supported"],
+                    "sync_source_type": "akshare",
+                }
+            ],
+        },
+    )
 
-    def fake_call_command(*args, **kwargs):
-        captured["commands"].append(args[0])
-        stdout = kwargs.get("stdout")
-        if stdout is not None:
-            stdout.write(f"{args[0]} invoked")
+    def fake_normalize(self, *, indicator_codes=None, dry_run=False):
+        captured["normalize"] += 1
+        return {
+            "updated_count": 1,
+            "unchanged_count": 0,
+            "skipped_count": 0,
+            "dry_run": dry_run,
+            "messages": [],
+        }
 
-    monkeypatch.setattr("django.core.management.call_command", fake_call_command)
+    def fake_make_sync_macro_use_case():
+        def execute(request):
+            captured["sync_requests"].append(request)
+            return SyncResult("macro", "AKShare Public", 3, "success")
+
+        return SimpleNamespace(execute=execute)
+
+    def fake_canonicalize(self, **kwargs):
+        captured["canonicalize"] += 1
+        return {"updated_rows": 1}
+
     monkeypatch.setattr(
         "apps.data_center.infrastructure.repositories.MacroGovernanceRepository.canonicalize_sources",
-        lambda self: {"updated_rows": 1},
+        fake_canonicalize,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.repositories.MacroGovernanceRepository.normalize_macro_fact_units",
+        fake_normalize,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.interface_services.make_sync_macro_use_case",
+        fake_make_sync_macro_use_case,
     )
 
     response = admin_client.post(
@@ -159,7 +265,10 @@ def test_governance_console_full_repair_runs_all_repair_steps(admin_client, monk
     )
 
     assert response.status_code == 200
-    assert captured["commands"] == ["normalize_macro_fact_units", "sync_macro_data"]
+    assert captured["canonicalize"] == 1
+    assert captured["normalize"] == 1
+    assert len(captured["sync_requests"]) == 1
+    assert captured["sync_requests"][0].provider_id == provider.id
 
 
 @pytest.mark.django_db
@@ -176,6 +285,7 @@ def test_governance_payload_excludes_compat_alias_scope_from_macro_console():
                 "series_semantics": "yoy_rate",
                 "governance_scope": "macro_console",
                 "governance_sync_supported": True,
+                "governance_sync_source_type": "akshare",
             },
         },
     )

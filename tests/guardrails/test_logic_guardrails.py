@@ -6,6 +6,7 @@ import pytest
 
 from apps.data_center.application.interface_services import load_macro_governance_payload
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
+from apps.macro.infrastructure.adapters.fetchers.common import resolve_indicator_units
 from apps.policy.application.use_cases import FetchRSSUseCase
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel, RSSItem
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
@@ -309,3 +310,27 @@ def test_guardrail_macro_governance_snapshot_stays_clean():
     assert summary["alias_issue_count"] == 0
     assert summary["paired_gap_count"] == 0
     assert summary["alias_row_count"] == 0
+
+
+@pytest.mark.guardrail
+def test_guardrail_governed_macro_units_do_not_silently_fallback(monkeypatch):
+    """
+    护栏：受治理的宏观指标缺少 metadata / unit rule 时，抓取层不得静默回退本地单位常量。
+    """
+
+    class _EmptyRuleRepo:
+        @staticmethod
+        def resolve_active_rule(*args, **kwargs):
+            return None
+
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        lambda: {"TEST.GOV": {"governance_scope": "macro_console"}},
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.repository_provider.get_indicator_unit_rule_repository",
+        lambda: _EmptyRuleRepo(),
+    )
+
+    with pytest.raises(ValueError, match="Governed indicator TEST.GOV"):
+        resolve_indicator_units("TEST.GOV")

@@ -15,6 +15,7 @@ from apps.data_center.infrastructure.models import (
     MacroFactModel,
     PriceBarModel,
     ProviderConfigModel,
+    PublisherCatalogModel,
     QuoteSnapshotModel,
 )
 
@@ -56,6 +57,7 @@ def test_data_center_api_root_contract(authenticated_client):
     assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["endpoints"]["providers"] == "/api/data-center/providers/"
+    assert payload["endpoints"]["publishers"] == "/api/data-center/publishers/"
     assert payload["endpoints"]["indicators"] == "/api/data-center/indicators/"
     assert payload["endpoints"]["price_quotes"] == "/api/data-center/prices/quotes/"
 
@@ -93,6 +95,13 @@ def test_data_center_macro_series_reads_from_fact_table(authenticated_client):
             "default_period_type": "M",
             "category": "growth",
             "is_active": True,
+            "extra": {
+                "provenance_class": "official",
+                "publisher": "国家统计局/中国物流与采购联合会",
+                "publisher_code": "NBS",
+                "publisher_codes": ["NBS", "CFLP"],
+                "access_channel": "akshare",
+            },
         },
     )
     IndicatorUnitRuleModel.objects.update_or_create(
@@ -134,6 +143,85 @@ def test_data_center_macro_series_reads_from_fact_table(authenticated_client):
     assert payload["data"][0]["original_unit"] == "指数"
     assert payload["data"][0]["quality"] == "valid"
     assert payload["must_not_use_for_decision"] is False
+    assert payload["provenance_class"] == "official"
+    assert payload["provenance_label"] == "官方数据"
+    assert payload["publisher"] == "国家统计局/中国物流与采购联合会"
+    assert payload["publisher_code"] == "NBS"
+    assert payload["publisher_codes"] == ["NBS", "CFLP"]
+    assert payload["access_channel"] == "akshare"
+    assert payload["data"][0]["provenance_class"] == "official"
+    assert payload["contract"]["provenance_class"] == "official"
+
+
+@pytest.mark.django_db
+def test_data_center_macro_series_marks_derived_series_as_research_only(authenticated_client):
+    current_period = timezone.localdate().replace(day=1)
+    IndicatorCatalogModel.objects.update_or_create(
+        code="CN_SOCIAL_FINANCING_YOY",
+        defaults={
+            "name_cn": "社融同比",
+            "default_period_type": "M",
+            "category": "liquidity",
+            "is_active": True,
+            "extra": {
+                "provenance_class": "derived",
+                "publisher": "系统派生",
+                "publisher_code": "SYSTEM_DERIVED",
+                "publisher_codes": ["SYSTEM_DERIVED"],
+                "access_channel": "data_center",
+                "derivation_method": (
+                    "same-month social financing flow year-over-year growth "
+                    "with prior_flow_value > 0 guardrail"
+                ),
+                "upstream_indicator_codes": ["CN_SOCIAL_FINANCING"],
+                "decision_grade_enabled": False,
+            },
+        },
+    )
+    IndicatorUnitRuleModel.objects.update_or_create(
+        indicator_code="CN_SOCIAL_FINANCING_YOY",
+        source_type="",
+        original_unit="%",
+        defaults={
+            "dimension_key": "ratio",
+            "storage_unit": "%",
+            "display_unit": "%",
+            "multiplier_to_storage": 1.0,
+            "is_active": True,
+            "priority": 10,
+        },
+    )
+    MacroFactModel.objects.create(
+        indicator_code="CN_SOCIAL_FINANCING_YOY",
+        value="25.000000",
+        unit="%",
+        reporting_period=current_period,
+        published_at=current_period + timedelta(days=1),
+        source="data_center",
+        revision_number=1,
+        quality="valid",
+        extra={"original_unit": "%", "period_type": "M"},
+    )
+
+    response = authenticated_client.get(
+        "/api/data-center/macro/series/?indicator_code=CN_SOCIAL_FINANCING_YOY"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["decision_grade"] == "research_only"
+    assert payload["must_not_use_for_decision"] is True
+    assert "系统衍生数据" in payload["blocked_reason"]
+    assert payload["provenance_class"] == "derived"
+    assert payload["provenance_label"] == "系统衍生"
+    assert payload["publisher"] == "系统派生"
+    assert payload["publisher_code"] == "SYSTEM_DERIVED"
+    assert payload["publisher_codes"] == ["SYSTEM_DERIVED"]
+    assert payload["access_channel"] == "data_center"
+    assert payload["upstream_indicator_codes"] == ["CN_SOCIAL_FINANCING"]
+    assert payload["is_derived"] is True
+    assert payload["data"][0]["decision_grade"] == "research_only"
+    assert payload["data"][0]["is_derived"] is True
 
 
 @pytest.mark.django_db
@@ -142,6 +230,42 @@ def test_legacy_macro_api_routes_are_removed(authenticated_client):
     response = authenticated_client.get(legacy_path)
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_publisher_catalog_crud_contract(admin_client):
+    create_response = admin_client.post(
+        "/api/data-center/publishers/",
+        data={
+            "code": "TEST_PUBLISHER",
+            "canonical_name": "测试发布机构",
+            "publisher_class": "other",
+            "aliases": ["测试机构别名"],
+            "description": "测试用 publisher",
+        },
+        format="json",
+    )
+
+    assert create_response.status_code == 201
+    payload = create_response.json()
+    assert payload["code"] == "TEST_PUBLISHER"
+    assert "测试机构别名" in payload["aliases"]
+
+    list_response = admin_client.get("/api/data-center/publishers/")
+    assert list_response.status_code == 200
+    assert any(item["code"] == "TEST_PUBLISHER" for item in list_response.json()["results"])
+
+    patch_response = admin_client.patch(
+        "/api/data-center/publishers/TEST_PUBLISHER/",
+        data={"description": "已更新测试机构"},
+        format="json",
+    )
+    assert patch_response.status_code == 200
+    assert patch_response.json()["description"] == "已更新测试机构"
+
+    delete_response = admin_client.delete("/api/data-center/publishers/TEST_PUBLISHER/")
+    assert delete_response.status_code == 204
+    assert PublisherCatalogModel.objects.filter(code="TEST_PUBLISHER").exists() is False
 
 
 @pytest.mark.django_db

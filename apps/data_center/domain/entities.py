@@ -193,6 +193,38 @@ class AssetAlias:
 
 
 @dataclass(frozen=True)
+class PublisherCatalog:
+    """Canonical publisher / institution metadata for provenance governance."""
+
+    code: str
+    canonical_name: str
+    publisher_class: str
+    aliases: list[str] = field(default_factory=list)
+    canonical_name_en: str = ""
+    country_code: str = "CN"
+    website: str = ""
+    is_active: bool = True
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.code or not self.canonical_name or not self.publisher_class:
+            raise ValueError("PublisherCatalog core fields cannot be empty")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "canonical_name": self.canonical_name,
+            "publisher_class": self.publisher_class,
+            "aliases": list(self.aliases),
+            "canonical_name_en": self.canonical_name_en,
+            "country_code": self.country_code,
+            "website": self.website,
+            "is_active": self.is_active,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True)
 class IndicatorCatalog:
     """Canonical macro indicator definition."""
 

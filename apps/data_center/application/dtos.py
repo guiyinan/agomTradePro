@@ -78,6 +78,64 @@ class ProviderResponse:
 
 
 @dataclass
+class CreatePublisherCatalogRequest:
+    """Input DTO for creating a provenance publisher definition."""
+
+    code: str
+    canonical_name: str
+    publisher_class: str
+    aliases: list[str] = field(default_factory=list)
+    canonical_name_en: str = ""
+    country_code: str = "CN"
+    website: str = ""
+    is_active: bool = True
+    description: str = ""
+
+
+@dataclass
+class UpdatePublisherCatalogRequest:
+    """Input DTO for updating a provenance publisher definition."""
+
+    code: str
+    canonical_name: str | None = None
+    publisher_class: str | None = None
+    aliases: list[str] | None = None
+    canonical_name_en: str | None = None
+    country_code: str | None = None
+    website: str | None = None
+    is_active: bool | None = None
+    description: str | None = None
+
+
+@dataclass
+class PublisherCatalogResponse:
+    """Output DTO for one provenance publisher definition."""
+
+    code: str
+    canonical_name: str
+    publisher_class: str
+    aliases: list[str]
+    canonical_name_en: str
+    country_code: str
+    website: str
+    is_active: bool
+    description: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "canonical_name": self.canonical_name,
+            "publisher_class": self.publisher_class,
+            "aliases": self.aliases,
+            "canonical_name_en": self.canonical_name_en,
+            "country_code": self.country_code,
+            "website": self.website,
+            "is_active": self.is_active,
+            "description": self.description,
+        }
+
+
+@dataclass
 class CreateIndicatorCatalogRequest:
     """Input DTO for creating a macro indicator definition."""
 
@@ -270,6 +328,14 @@ class MacroDataPoint:
     is_stale: bool
     freshness_status: str
     decision_grade: str
+    provenance_class: str = ""
+    provenance_label: str = ""
+    publisher: str = ""
+    publisher_code: str = ""
+    publisher_codes: list[str] = field(default_factory=list)
+    access_channel: str = ""
+    derivation_method: str = ""
+    is_derived: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -287,6 +353,14 @@ class MacroDataPoint:
             "is_stale": self.is_stale,
             "freshness_status": self.freshness_status,
             "decision_grade": self.decision_grade,
+            "provenance_class": self.provenance_class,
+            "provenance_label": self.provenance_label,
+            "publisher": self.publisher,
+            "publisher_code": self.publisher_code,
+            "publisher_codes": self.publisher_codes,
+            "access_channel": self.access_channel,
+            "derivation_method": self.derivation_method,
+            "is_derived": self.is_derived,
         }
 
 
@@ -310,6 +384,15 @@ class MacroSeriesResponse:
     latest_reporting_period: date | None = None
     latest_published_at: date | None = None
     latest_quality: str = ""
+    provenance_class: str = ""
+    provenance_label: str = ""
+    publisher: str = ""
+    publisher_code: str = ""
+    publisher_codes: list[str] = field(default_factory=list)
+    access_channel: str = ""
+    derivation_method: str = ""
+    upstream_indicator_codes: list[str] = field(default_factory=list)
+    is_derived: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         contract = {
@@ -325,6 +408,15 @@ class MacroSeriesResponse:
                 self.latest_published_at.isoformat() if self.latest_published_at else None
             ),
             "latest_quality": self.latest_quality,
+            "provenance_class": self.provenance_class,
+            "provenance_label": self.provenance_label,
+            "publisher": self.publisher,
+            "publisher_code": self.publisher_code,
+            "publisher_codes": self.publisher_codes,
+            "access_channel": self.access_channel,
+            "derivation_method": self.derivation_method,
+            "upstream_indicator_codes": self.upstream_indicator_codes,
+            "is_derived": self.is_derived,
         }
         return {
             "indicator_code": self.indicator_code,
@@ -347,6 +439,15 @@ class MacroSeriesResponse:
                 self.latest_published_at.isoformat() if self.latest_published_at else None
             ),
             "latest_quality": self.latest_quality,
+            "provenance_class": self.provenance_class,
+            "provenance_label": self.provenance_label,
+            "publisher": self.publisher,
+            "publisher_code": self.publisher_code,
+            "publisher_codes": self.publisher_codes,
+            "access_channel": self.access_channel,
+            "derivation_method": self.derivation_method,
+            "upstream_indicator_codes": self.upstream_indicator_codes,
+            "is_derived": self.is_derived,
             "contract": contract,
         }
 

@@ -1,0 +1,290 @@
+{% extends "data_center/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block subtitle %}发布机构代码表与别名治理入口{% endblock %}
+
+{% block content %}
+<section class="section">
+    <h2>Publisher Catalog</h2>
+    <p class="lead">这里维护发布机构代码表、canonical 名称和别名归并。程序判断统一基于 `publisher_code` / `publisher_codes`，`publisher` 仅保留给展示和兼容接口。</p>
+    <div class="toolbar">
+        <div class="actions">
+            <button type="button" class="btn-primary" onclick="loadPublishers()">刷新列表</button>
+            <button type="button" class="btn-secondary" onclick="toggleActiveOnly()">切换 Active 过滤</button>
+            <button type="button" class="btn-secondary" onclick="resetPublisherForm()">新建机构</button>
+        </div>
+        <div class="metric-strip">
+            <span class="metric-pill">API: <span class="mono">/api/data-center/publishers/</span></span>
+            <span class="metric-pill">MCP: <span class="mono">data_center_list_publishers</span></span>
+            <span class="metric-pill">MCP: <span class="mono">data_center_update_publisher</span></span>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <h2>MCP / SDK 对齐</h2>
+    <p class="lead">页面、API、SDK、MCP 现在对同一套 publisher 代码表说话。管理动作可以在页面做，也可以走 MCP 工具批量编排。</p>
+    <div class="tag-list">
+        <span class="badge badge-neutral mono">data_center_list_publishers</span>
+        <span class="badge badge-neutral mono">data_center_get_publisher</span>
+        <span class="badge badge-neutral mono">data_center_create_publisher</span>
+        <span class="badge badge-neutral mono">data_center_update_publisher</span>
+        <span class="badge badge-neutral mono">data_center_delete_publisher</span>
+    </div>
+</section>
+
+<section class="section">
+    <div class="panel-grid">
+        <div>
+            <h2>发布机构列表</h2>
+            <p class="lead">优先检查代码、机构类型、canonical 名称和别名是否完整。联合发布口径应通过 `publisher_codes` 组合，而不是继续堆自由文本。</p>
+            <div class="table-wrap" style="margin-top: 16px;">
+                <table id="publisher-list">
+                    <thead>
+                        <tr>
+                            <th>代码</th>
+                            <th>机构</th>
+                            <th>类型</th>
+                            <th>别名</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="empty">正在加载 publisher 列表…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="publisher-status" class="status-line"></div>
+        </div>
+
+        <div>
+            <h2>编辑 Publisher</h2>
+            <p class="lead">别名一行一个即可。代码建议稳定大写，变更后会影响后续指标元数据和聚合逻辑，不建议随意改动既有 code。</p>
+            <form id="publisher-form" class="stack">
+                <input id="publisher-current-code" type="hidden">
+                <div class="field-grid">
+                    <label class="field">
+                        <span>code</span>
+                        <input id="publisher-code" name="code" type="text" maxlength="40" required>
+                    </label>
+                    <label class="field">
+                        <span>publisher_class</span>
+                        <select id="publisher-class" name="publisher_class">
+                            <option value="government">government</option>
+                            <option value="association">association</option>
+                            <option value="market_infrastructure">market_infrastructure</option>
+                            <option value="regulator">regulator</option>
+                            <option value="system">system</option>
+                            <option value="other">other</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>canonical_name</span>
+                        <input id="publisher-name" name="canonical_name" type="text" maxlength="120" required>
+                    </label>
+                    <label class="field">
+                        <span>canonical_name_en</span>
+                        <input id="publisher-name-en" name="canonical_name_en" type="text" maxlength="160">
+                    </label>
+                    <label class="field">
+                        <span>country_code</span>
+                        <input id="publisher-country" name="country_code" type="text" maxlength="10" value="CN">
+                    </label>
+                    <label class="field">
+                        <span>website</span>
+                        <input id="publisher-website" name="website" type="url">
+                    </label>
+                    <label class="field field-full">
+                        <span>aliases</span>
+                        <textarea id="publisher-aliases" name="aliases" placeholder="中国人民银行&#10;人民银行&#10;中国人行"></textarea>
+                    </label>
+                    <label class="field field-full">
+                        <span>description</span>
+                        <textarea id="publisher-description" name="description"></textarea>
+                    </label>
+                    <label class="field field-full">
+                        <span class="checkbox">
+                            <input id="publisher-active" name="is_active" type="checkbox" checked>
+                            机构已启用
+                        </span>
+                    </label>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn-primary">保存 Publisher</button>
+                    <button type="button" class="btn-secondary" onclick="resetPublisherForm()">清空表单</button>
+                    <button type="button" class="btn-danger" onclick="deleteSelectedPublisher()">删除当前</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const publisherApi = "/api/data-center/publishers/";
+let activeOnly = false;
+
+function readCookie(name) {
+    const cookieValue = document.cookie
+        .split(";")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith(`${name}=`));
+    return cookieValue ? decodeURIComponent(cookieValue.split("=").slice(1).join("=")) : "";
+}
+
+function setPublisherStatus(message, tone = "") {
+    const node = document.getElementById("publisher-status");
+    node.textContent = message || "";
+    node.className = tone ? `status-line ${tone}` : "status-line";
+}
+
+function aliasLinesToList(rawText) {
+    return rawText
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+function toggleActiveOnly() {
+    activeOnly = !activeOnly;
+    loadPublishers();
+}
+
+function resetPublisherForm() {
+    document.getElementById("publisher-form").reset();
+    document.getElementById("publisher-current-code").value = "";
+    document.getElementById("publisher-country").value = "CN";
+    document.getElementById("publisher-active").checked = true;
+    document.getElementById("publisher-code").readOnly = false;
+    setPublisherStatus("已切回新建模式。");
+}
+
+function renderPublisherRow(item) {
+    const aliases = Array.isArray(item.aliases) && item.aliases.length ? item.aliases.join(" / ") : "—";
+    return `
+        <tr>
+            <td class="mono">${item.code}</td>
+            <td>
+                <strong>${item.canonical_name}</strong>
+                <div class="inline-note">${item.canonical_name_en || ""}</div>
+            </td>
+            <td class="mono">${item.publisher_class}</td>
+            <td>${aliases}</td>
+            <td><span class="badge ${item.is_active ? "badge-ok" : "badge-neutral"}">${item.is_active ? "active" : "paused"}</span></td>
+            <td>
+                <button type="button" class="btn-secondary" onclick="editPublisher('${item.code}')">编辑</button>
+            </td>
+        </tr>
+    `;
+}
+
+async function loadPublishers() {
+    const tbody = document.querySelector("#publisher-list tbody");
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">正在刷新 publisher 列表…</td></tr>';
+    const query = activeOnly ? "?active_only=true" : "";
+    const response = await fetch(`${publisherApi}${query}`, { credentials: "same-origin" });
+    if (!response.ok) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Publisher 列表加载失败。</td></tr>';
+        setPublisherStatus("Publisher 列表加载失败。", "error");
+        return;
+    }
+    const payload = await response.json();
+    const results = payload.results || [];
+    if (!results.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">当前没有匹配的发布机构。</td></tr>';
+        setPublisherStatus(activeOnly ? "active_only=true 下没有数据。" : "当前没有发布机构记录。");
+        return;
+    }
+    tbody.innerHTML = results.map(renderPublisherRow).join("");
+    setPublisherStatus(`已加载 ${results.length} 个 publisher${activeOnly ? "（仅 active）" : ""}。`, "success");
+}
+
+async function editPublisher(code) {
+    const response = await fetch(`${publisherApi}${code}/`, { credentials: "same-origin" });
+    if (!response.ok) {
+        setPublisherStatus("读取 publisher 详情失败。", "error");
+        return;
+    }
+    const item = await response.json();
+    document.getElementById("publisher-current-code").value = item.code;
+    document.getElementById("publisher-code").value = item.code;
+    document.getElementById("publisher-code").readOnly = true;
+    document.getElementById("publisher-class").value = item.publisher_class || "other";
+    document.getElementById("publisher-name").value = item.canonical_name || "";
+    document.getElementById("publisher-name-en").value = item.canonical_name_en || "";
+    document.getElementById("publisher-country").value = item.country_code || "CN";
+    document.getElementById("publisher-website").value = item.website || "";
+    document.getElementById("publisher-aliases").value = (item.aliases || []).join("\n");
+    document.getElementById("publisher-description").value = item.description || "";
+    document.getElementById("publisher-active").checked = Boolean(item.is_active);
+    setPublisherStatus(`正在编辑 ${item.code}。`);
+}
+
+async function submitPublisher(event) {
+    event.preventDefault();
+    const currentCode = document.getElementById("publisher-current-code").value;
+    const isEdit = Boolean(currentCode);
+    const payload = {
+        code: document.getElementById("publisher-code").value.trim().toUpperCase(),
+        canonical_name: document.getElementById("publisher-name").value.trim(),
+        canonical_name_en: document.getElementById("publisher-name-en").value.trim(),
+        publisher_class: document.getElementById("publisher-class").value,
+        aliases: aliasLinesToList(document.getElementById("publisher-aliases").value),
+        country_code: document.getElementById("publisher-country").value.trim() || "CN",
+        website: document.getElementById("publisher-website").value.trim(),
+        is_active: document.getElementById("publisher-active").checked,
+        description: document.getElementById("publisher-description").value.trim(),
+    };
+
+    const response = await fetch(isEdit ? `${publisherApi}${currentCode}/` : publisherApi, {
+        method: isEdit ? "PATCH" : "POST",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": readCookie("csrftoken"),
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        setPublisherStatus("Publisher 保存失败，请检查输入。", "error");
+        return;
+    }
+
+    await loadPublishers();
+    if (!isEdit) {
+        resetPublisherForm();
+    }
+    setPublisherStatus(isEdit ? "Publisher 已更新。" : "Publisher 已创建。", "success");
+}
+
+async function deleteSelectedPublisher() {
+    const currentCode = document.getElementById("publisher-current-code").value;
+    if (!currentCode) {
+        setPublisherStatus("当前没有选中的 publisher。", "error");
+        return;
+    }
+    const response = await fetch(`${publisherApi}${currentCode}/`, {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: {
+            "X-CSRFToken": readCookie("csrftoken"),
+        },
+    });
+    if (!response.ok) {
+        setPublisherStatus("删除 publisher 失败。", "error");
+        return;
+    }
+    resetPublisherForm();
+    await loadPublishers();
+    setPublisherStatus(`Publisher ${currentCode} 已删除。`, "success");
+}
+
+document.getElementById("publisher-form").addEventListener("submit", submitPublisher);
+resetPublisherForm();
+loadPublishers();
+</script>
+{% endblock %}

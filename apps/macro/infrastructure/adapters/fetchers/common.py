@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -35,28 +35,48 @@ def safe_float(value: object) -> float:
     return float(value)
 
 
-def resolve_indicator_units(
-    indicator_code: str,
-    fallback_unit: str = "",
-    fallback_original_unit: str = "",
-) -> tuple[str, str]:
-    """Resolve fetcher-facing units from runtime metadata first, then fall back.
+def _load_indicator_metadata(indicator_code: str) -> dict[str, Any]:
+    try:
+        metadata = dict(get_runtime_macro_index_metadata_map().get(indicator_code, {}) or {})
+    except Exception:
+        metadata = {}
+    if metadata:
+        return metadata
+
+    try:
+        from apps.data_center.application.repository_provider import (
+            get_indicator_catalog_repository,
+        )
+
+        catalog = get_indicator_catalog_repository().get_by_code(indicator_code)
+    except Exception:
+        catalog = None
+
+    if catalog is None:
+        return {}
+
+    extra = dict(catalog.extra or {})
+    extra.setdefault("default_unit", catalog.default_unit or "")
+    extra.setdefault("default_period_type", catalog.default_period_type or "")
+    return extra
+
+
+def resolve_indicator_units(indicator_code: str) -> tuple[str, str]:
+    """Resolve fetcher-facing units from governed metadata or active unit rules.
 
     Fetchers should continue emitting source/raw units. Canonical conversion is
     still owned by data_center normalization and unit-rule governance.
     """
 
+    metadata = _load_indicator_metadata(indicator_code)
+    governance_scope = str(metadata.get("governance_scope") or "").strip()
     original_unit = ""
-    try:
-        metadata = get_runtime_macro_index_metadata_map().get(indicator_code, {})
-        original_unit = str(
-            metadata.get("default_unit")
-            or metadata.get("original_unit")
-            or metadata.get("unit")
-            or ""
-        ).strip()
-    except Exception:
-        original_unit = ""
+    original_unit = str(
+        metadata.get("default_unit")
+        or metadata.get("original_unit")
+        or metadata.get("unit")
+        or ""
+    ).strip()
 
     if not original_unit:
         try:
@@ -73,6 +93,14 @@ def resolve_indicator_units(
             original_unit = ""
 
     if not original_unit:
-        original_unit = fallback_original_unit or fallback_unit or ""
+        if governance_scope:
+            raise ValueError(
+                f"Governed indicator {indicator_code} is missing runtime unit metadata "
+                "and active unit-rule coverage"
+            )
+        raise ValueError(
+            f"Indicator {indicator_code} is missing runtime unit metadata "
+            "and active unit-rule coverage"
+        )
 
     return original_unit, original_unit

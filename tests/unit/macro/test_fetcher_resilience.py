@@ -131,6 +131,43 @@ def _sort(points):
     return points
 
 
+@pytest.fixture(autouse=True)
+def governed_macro_runtime_metadata(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        lambda: {
+            "CN_GDP": {"default_unit": "亿元", "governance_scope": "macro_console"},
+            "CN_GDP_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_M2_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_EXPORTS": {"default_unit": "亿美元", "governance_scope": "macro_console"},
+            "CN_EXPORT_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_IMPORTS": {"default_unit": "亿美元", "governance_scope": "macro_console"},
+            "CN_IMPORT_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_RETAIL_SALES": {"default_unit": "亿元", "governance_scope": "macro_console"},
+            "CN_RETAIL_SALES_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_FIXED_INVESTMENT": {
+                "default_unit": "亿元",
+                "governance_scope": "macro_console",
+            },
+            "CN_FAI_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_SOCIAL_FINANCING": {
+                "default_unit": "亿元",
+                "governance_scope": "macro_console",
+            },
+            "CN_SOCIAL_FINANCING_YOY": {
+                "default_unit": "%",
+                "governance_scope": "macro_console",
+            },
+            "CN_FX_RESERVES": {"default_unit": "亿美元", "governance_scope": "macro_console"},
+            "CN_UNEMPLOYMENT": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_NEW_HOUSE_PRICE": {
+                "default_unit": "%",
+                "governance_scope": "macro_console",
+            },
+        },
+    )
+
+
 def test_parse_chinese_quarter_supports_cumulative_quarter_labels() -> None:
     assert parse_chinese_quarter("2025年第1-4季度") == "2025-12-01"
     assert parse_chinese_quarter("2025年第1-3季度") == "2025-09-01"
@@ -142,7 +179,40 @@ def test_resolve_indicator_units_prefers_runtime_metadata(monkeypatch) -> None:
         lambda: {"TEST.RUNTIME": {"default_unit": "亿千瓦时"}},
     )
 
-    assert resolve_indicator_units("TEST.RUNTIME", "点", "点") == ("亿千瓦时", "亿千瓦时")
+    assert resolve_indicator_units("TEST.RUNTIME") == ("亿千瓦时", "亿千瓦时")
+
+
+def test_resolve_indicator_units_blocks_governed_fallback_without_metadata_or_rule(
+    monkeypatch,
+) -> None:
+    class _EmptyRuleRepo:
+        @staticmethod
+        def resolve_active_rule(*args, **kwargs):
+            return None
+
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        lambda: {"TEST.GOV": {"governance_scope": "macro_console"}},
+    )
+    monkeypatch.setattr(
+        "apps.data_center.application.repository_provider.get_indicator_unit_rule_repository",
+        lambda: _EmptyRuleRepo(),
+    )
+
+    with pytest.raises(ValueError, match="Governed indicator TEST.GOV"):
+        resolve_indicator_units("TEST.GOV")
+
+
+def test_resolve_indicator_units_blocks_ungoverned_missing_metadata_without_fallback(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        lambda: {},
+    )
+
+    with pytest.raises(ValueError, match="Indicator TEST.GOV"):
+        resolve_indicator_units("TEST.GOV")
 
 
 def test_macro_data_point_published_at_prefers_runtime_publication_lags(monkeypatch) -> None:
@@ -174,7 +244,7 @@ def test_fetch_gdp_uses_named_absolute_value_column() -> None:
 def test_fetch_gdp_uses_resolved_units(monkeypatch) -> None:
     monkeypatch.setattr(
         "apps.macro.infrastructure.adapters.fetchers.economic_fetchers.resolve_indicator_units",
-        lambda indicator_code, fallback_unit="", fallback_original_unit="": ("测试单位", "测试单位"),
+        lambda indicator_code: ("测试单位", "测试单位"),
     )
     fetcher = EconomicIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
 
@@ -318,6 +388,24 @@ def test_fetch_social_financing_yoy_derives_from_same_month_flow() -> None:
     assert points[0].code == "CN_SOCIAL_FINANCING_YOY"
     assert points[0].value == pytest.approx(25.0)
     assert points[0].unit == "%"
+
+
+class _NegativeBaseSocialFinancingAK(_NoOpAK):
+    def macro_china_shrzgm(self):
+        return pd.DataFrame(
+            {
+                "月份": ["202404", "202504"],
+                "社会融资规模增量": [-658.0, 11599.0],
+            }
+        )
+
+
+def test_fetch_social_financing_yoy_skips_non_positive_prior_flow_base() -> None:
+    fetcher = EconomicIndicatorFetcher(_NegativeBaseSocialFinancingAK(), "akshare", _validate, _sort)
+
+    points = fetcher.fetch_social_financing_yoy(date(2025, 1, 1), date(2025, 12, 31))
+
+    assert points == []
 
 
 def test_fetch_fx_reserves_keeps_catalog_unit_in_hundred_million_usd() -> None:

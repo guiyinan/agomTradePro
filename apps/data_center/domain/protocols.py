@@ -23,6 +23,7 @@ from apps.data_center.domain.entities import (
     MacroFact,
     NewsFact,
     PriceBar,
+    PublisherCatalog,
     ProviderConfig,
     ProviderHealthSnapshot,
     QuoteSnapshot,
@@ -189,6 +190,17 @@ class IndicatorCatalogRepositoryProtocol(Protocol):
 
 
 @runtime_checkable
+class PublisherCatalogRepositoryProtocol(Protocol):
+    """Persistence contract for provenance publisher definitions."""
+
+    def get_by_code(self, code: str) -> PublisherCatalog | None: ...
+    def list_all(self) -> list[PublisherCatalog]: ...
+    def list_active(self) -> list[PublisherCatalog]: ...
+    def upsert(self, publisher: PublisherCatalog) -> PublisherCatalog: ...
+    def delete(self, code: str) -> None: ...
+
+
+@runtime_checkable
 class IndicatorUnitRuleRepositoryProtocol(Protocol):
     """Persistence contract for macro indicator unit-governance rules."""
 
@@ -203,6 +215,35 @@ class IndicatorUnitRuleRepositoryProtocol(Protocol):
         source_type: str = "",
         original_unit: str | None = None,
     ) -> IndicatorUnitRule | None: ...
+
+
+@runtime_checkable
+class MacroGovernanceRepositoryProtocol(Protocol):
+    """Governance audit and repair contract for canonical macro facts."""
+
+    def list_governed_indicator_codes(self, *, scope: str = "macro_console") -> list[str]: ...
+
+    def list_sync_supported_indicator_codes(
+        self,
+        *,
+        scope: str = "macro_console",
+    ) -> set[str]: ...
+
+    def build_snapshot(self, *, scope: str = "macro_console") -> dict[str, Any]: ...
+
+    def canonicalize_sources(
+        self,
+        *,
+        scope: str = "macro_console",
+        indicator_codes: list[str] | None = None,
+    ) -> dict[str, int]: ...
+
+    def normalize_macro_fact_units(
+        self,
+        *,
+        indicator_codes: list[str] | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]: ...
 
 
 @runtime_checkable

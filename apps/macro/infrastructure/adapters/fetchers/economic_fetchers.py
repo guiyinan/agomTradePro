@@ -16,19 +16,6 @@ from .common import pick_column, resolve_indicator_units, safe_float
 
 logger = logging.getLogger(__name__)
 
-# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
-INDICATOR_UNITS = {
-    "CN_VALUE_ADDED": ("%", "%"),
-    "CN_RETAIL_SALES": ("亿元", "亿元"),
-    "CN_RETAIL_SALES_YOY": ("%", "%"),
-    "CN_GDP": ("亿元", "亿元"),
-    "CN_GDP_YOY": ("%", "%"),
-    "CN_FIXED_INVESTMENT": ("亿元", "亿元"),
-    "CN_FAI_YOY": ("%", "%"),
-    "CN_SOCIAL_FINANCING": ("亿元", "亿元"),
-    "CN_SOCIAL_FINANCING_YOY": ("%", "%"),
-}
-
 
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式"""
@@ -99,10 +86,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_VALUE_ADDED",
-                *INDICATOR_UNITS.get("CN_VALUE_ADDED", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_VALUE_ADDED")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -149,10 +133,7 @@ class EconomicIndicatorFetcher:
             df = df[['observed_at', 'value']].dropna()
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_RETAIL_SALES",
-                *INDICATOR_UNITS.get("CN_RETAIL_SALES", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_RETAIL_SALES")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -203,10 +184,7 @@ class EconomicIndicatorFetcher:
             df = df[['observed_at', 'value']].dropna()
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_RETAIL_SALES_YOY",
-                *INDICATOR_UNITS.get("CN_RETAIL_SALES_YOY", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_RETAIL_SALES_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -259,10 +237,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_GDP",
-                *INDICATOR_UNITS.get("CN_GDP", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_GDP")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -312,10 +287,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_GDP_YOY",
-                *INDICATOR_UNITS.get("CN_GDP_YOY", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_GDP_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -365,10 +337,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_FIXED_INVESTMENT",
-                *INDICATOR_UNITS.get("CN_FIXED_INVESTMENT", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_FIXED_INVESTMENT")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -437,10 +406,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_FAI_YOY",
-                *INDICATOR_UNITS.get("CN_FAI_YOY", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_FAI_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -489,10 +455,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_SOCIAL_FINANCING",
-                *INDICATOR_UNITS.get("CN_SOCIAL_FINANCING", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_SOCIAL_FINANCING")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -546,7 +509,7 @@ class EconomicIndicatorFetcher:
             )
             df["prior_year"] = df["year"] - 1
             df = df.merge(prior, on=["prior_year", "month"], how="left")
-            df = df[df["prior_flow_value"].notna() & (df["prior_flow_value"] != 0)]
+            df = df[df["prior_flow_value"].notna() & (df["prior_flow_value"] > 0)]
             df["value"] = ((df["flow_value"] / df["prior_flow_value"]) - 1.0) * 100.0
             df = df[
                 (df["observed_at"].dt.date >= start_date)
@@ -554,10 +517,7 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_SOCIAL_FINANCING_YOY",
-                *INDICATOR_UNITS.get("CN_SOCIAL_FINANCING_YOY", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_SOCIAL_FINANCING_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(

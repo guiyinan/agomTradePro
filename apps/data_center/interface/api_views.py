@@ -32,6 +32,7 @@ from rest_framework.response import Response
 from apps.data_center.application.dtos import (
     CreateIndicatorCatalogRequest,
     CreateIndicatorUnitRuleRequest,
+    CreatePublisherCatalogRequest,
     CreateProviderRequest,
     DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
@@ -49,6 +50,7 @@ from apps.data_center.application.dtos import (
     SyncValuationRequest,
     UpdateIndicatorCatalogRequest,
     UpdateIndicatorUnitRuleRequest,
+    UpdatePublisherCatalogRequest,
     UpdateProviderRequest,
 )
 from apps.data_center.application.interface_services import (
@@ -56,6 +58,7 @@ from apps.data_center.application.interface_services import (
     load_provider_settings_payload,
     make_manage_indicator_catalog_use_case,
     make_manage_indicator_unit_rule_use_case,
+    make_manage_publisher_catalog_use_case,
     make_decision_repair_use_case,
     make_manage_provider_config_use_case,
     make_query_capital_flows_use_case,
@@ -91,6 +94,7 @@ from apps.data_center.interface.serializers import (
     DecisionReliabilityRepairRequestSerializer,
     IndicatorCatalogSerializer,
     IndicatorUnitRuleSerializer,
+    PublisherCatalogSerializer,
     ProviderConfigListSerializer,
     ProviderConfigSerializer,
     ProviderHealthSnapshotSerializer,
@@ -261,6 +265,80 @@ def provider_detail(request: Request, provider_id: int) -> Response:
         return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
     refresh_registry()
     return Response(updated.to_dict())
+
+
+# ---------------------------------------------------------------------------
+# Publisher catalog management
+# ---------------------------------------------------------------------------
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def publisher_list_create(request: Request) -> Response:
+    """GET/POST /api/data-center/publishers/."""
+    use_case = make_manage_publisher_catalog_use_case()
+
+    if request.method == "GET":
+        active_only = _parse_bool_param(request.query_params.get("active_only"), default=False)
+        results = use_case.list_all(active_only=active_only)
+        serializer = PublisherCatalogSerializer([item.to_dict() for item in results], many=True)
+        return Response({"results": serializer.data})
+
+    serializer = PublisherCatalogSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+    created = use_case.create(
+        CreatePublisherCatalogRequest(
+            code=d["code"],
+            canonical_name=d["canonical_name"],
+            canonical_name_en=d.get("canonical_name_en", ""),
+            publisher_class=d["publisher_class"],
+            aliases=d.get("aliases", []),
+            country_code=d.get("country_code", "CN"),
+            website=d.get("website", ""),
+            is_active=d.get("is_active", True),
+            description=d.get("description", ""),
+        )
+    )
+    return Response(created.to_dict(), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsAdminUser])
+def publisher_detail(request: Request, publisher_code: str) -> Response:
+    """GET/PATCH/DELETE /api/data-center/publishers/{code}/."""
+    use_case = make_manage_publisher_catalog_use_case()
+
+    if request.method == "GET":
+        result = use_case.get(publisher_code)
+        if result is None:
+            return Response({"detail": "Publisher not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(result.to_dict())
+
+    if request.method == "PATCH":
+        serializer = PublisherCatalogSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        d = serializer.validated_data
+        updated = use_case.update(
+            UpdatePublisherCatalogRequest(
+                code=publisher_code,
+                canonical_name=d.get("canonical_name"),
+                canonical_name_en=d.get("canonical_name_en"),
+                publisher_class=d.get("publisher_class"),
+                aliases=d.get("aliases"),
+                country_code=d.get("country_code"),
+                website=d.get("website"),
+                is_active=d.get("is_active"),
+                description=d.get("description"),
+            )
+        )
+        if updated is None:
+            return Response({"detail": "Publisher not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(updated.to_dict())
+
+    if not use_case.delete(publisher_code):
+        return Response({"detail": "Publisher not found."}, status=status.HTTP_404_NOT_FOUND)
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 import pytest
 
-from apps.data_center.infrastructure.models import IndicatorCatalogModel
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, PublisherCatalogModel
 
 
 @pytest.mark.django_db
@@ -187,6 +187,7 @@ def test_indicator_catalog_seed_contains_governance_console_metadata():
 
     assert gdp.extra["governance_scope"] == "macro_console"
     assert gdp.extra["governance_sync_supported"] is True
+    assert gdp.extra["governance_sync_source_type"] == "akshare"
 
     assert cpi_yoy.extra["governance_scope"] == "macro_compat_alias"
     assert cpi_yoy.extra["alias_of_indicator_code"] == "CN_CPI_NATIONAL_YOY"
@@ -194,15 +195,64 @@ def test_indicator_catalog_seed_contains_governance_console_metadata():
 
     assert social_financing_yoy.extra["governance_scope"] == "macro_console"
     assert social_financing_yoy.extra["governance_sync_supported"] is True
+    assert social_financing_yoy.extra["governance_sync_source_type"] == "akshare"
 
     assert pmi.extra["governance_scope"] == "macro_console"
     assert pmi.extra["governance_sync_supported"] is True
+    assert pmi.extra["governance_sync_source_type"] == "akshare"
 
     assert shibor.extra["governance_scope"] == "macro_console"
     assert shibor.extra["governance_sync_supported"] is True
+    assert shibor.extra["governance_sync_source_type"] == "akshare"
 
     assert bond_10y.extra["governance_scope"] == "macro_console"
     assert bond_10y.extra["governance_sync_supported"] is True
+    assert bond_10y.extra["governance_sync_source_type"] == "akshare"
 
     assert dr007.extra["governance_scope"] == "macro_console"
     assert dr007.extra["governance_sync_supported"] is True
+    assert dr007.extra["governance_sync_source_type"] == "akshare"
+
+
+@pytest.mark.django_db
+def test_indicator_catalog_seed_contains_macro_provenance_metadata():
+    export_yoy = IndicatorCatalogModel.objects.get(code="CN_EXPORT_YOY")
+    social_financing_yoy = IndicatorCatalogModel.objects.get(code="CN_SOCIAL_FINANCING_YOY")
+    shibor = IndicatorCatalogModel.objects.get(code="CN_SHIBOR")
+
+    assert export_yoy.extra["provenance_class"] == "official"
+    assert export_yoy.extra["publisher"] == "海关总署"
+    assert export_yoy.extra["publisher_code"] == "GACC"
+    assert export_yoy.extra["publisher_codes"] == ["GACC"]
+    assert export_yoy.extra["access_channel"] == "akshare"
+
+    assert social_financing_yoy.extra["provenance_class"] == "derived"
+    assert social_financing_yoy.extra["publisher"] == "系统派生"
+    assert social_financing_yoy.extra["publisher_code"] == "SYSTEM_DERIVED"
+    assert social_financing_yoy.extra["publisher_codes"] == ["SYSTEM_DERIVED"]
+    assert social_financing_yoy.extra["decision_grade_enabled"] is False
+    assert social_financing_yoy.extra["upstream_indicator_codes"] == ["CN_SOCIAL_FINANCING"]
+    assert "prior_flow_value > 0 guardrail" in social_financing_yoy.extra["derivation_method"]
+
+    assert shibor.extra["provenance_class"] == "authoritative_third_party"
+    assert shibor.extra["publisher"] == "全国银行间同业拆借中心"
+    assert shibor.extra["publisher_code"] == "NIFC"
+    assert shibor.extra["publisher_codes"] == ["NIFC"]
+
+
+@pytest.mark.django_db
+def test_publisher_catalog_seed_contains_canonical_institutions_and_aliases():
+    pboc = PublisherCatalogModel.objects.get(code="PBOC")
+    nbs = PublisherCatalogModel.objects.get(code="NBS")
+    system_derived = PublisherCatalogModel.objects.get(code="SYSTEM_DERIVED")
+
+    assert pboc.canonical_name == "中国人民银行"
+    assert "中国人行" in pboc.aliases
+    assert "人民银行" in pboc.aliases
+    assert pboc.publisher_class == "government"
+
+    assert nbs.canonical_name == "国家统计局"
+    assert nbs.publisher_class == "government"
+
+    assert system_derived.canonical_name == "系统派生"
+    assert system_derived.publisher_class == "system"

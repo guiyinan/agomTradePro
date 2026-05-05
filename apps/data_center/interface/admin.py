@@ -9,6 +9,7 @@ from apps.data_center.models import (
     DataProviderSettingsModel,
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
+    PublisherCatalogModel,
     ProviderConfigModel,
 )
 
@@ -59,6 +60,15 @@ class IndicatorCatalogAdmin(admin.ModelAdmin):
     list_display = ("code", "name_cn", "category", "default_period_type", "is_active")
     list_filter = ("category", "default_period_type", "is_active")
     search_fields = ("code", "name_cn", "name_en", "description")
+    ordering = ("code",)
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(PublisherCatalogModel)
+class PublisherCatalogAdmin(admin.ModelAdmin):
+    list_display = ("code", "canonical_name", "publisher_class", "is_active")
+    list_filter = ("publisher_class", "is_active")
+    search_fields = ("code", "canonical_name", "canonical_name_en", "description")
     ordering = ("code",)
     readonly_fields = ("created_at", "updated_at")
 

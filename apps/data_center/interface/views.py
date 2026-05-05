@@ -36,6 +36,15 @@ def monitor_page(request: HttpRequest) -> HttpResponse:
 
 
 @staff_member_required
+def publishers_page(request: HttpRequest) -> HttpResponse:
+    """Publisher governance page at /data-center/publishers/."""
+    return render(request, "data_center/publishers.html", {
+        "page_title": "Data Center — Publishers",
+        "active_nav": "data-center",
+    })
+
+
+@staff_member_required
 def governance_page(request: HttpRequest) -> HttpResponse:
     """Macro data governance and audit console at /data-center/governance/."""
 

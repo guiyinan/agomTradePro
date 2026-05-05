@@ -125,6 +125,19 @@
 
         .actions form { margin: 0; }
 
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 18px;
+        }
+
+        .toolbar .actions {
+            margin-top: 0;
+        }
+
         button {
             border: 0;
             border-radius: 12px;
@@ -137,6 +150,7 @@
         .btn-primary { background: var(--accent); color: white; }
         .btn-secondary { background: #edf3ee; color: var(--text); }
         .btn-warn { background: #fff0df; color: #9d4f12; }
+        .btn-danger { background: var(--danger-soft); color: var(--danger); }
 
         .grid-4 {
             display: grid;
@@ -208,6 +222,102 @@
             gap: 12px;
         }
 
+        .panel-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+            gap: 18px;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .field-grid .field-full {
+            grid-column: 1 / -1;
+        }
+
+        label.field {
+            display: grid;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        input[type="text"],
+        input[type="url"],
+        input[type="number"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 11px 12px;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        .checkbox {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .inline-note {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .metric-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .metric-pill {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--panel-soft);
+            border: 1px solid var(--line);
+            font-size: 13px;
+        }
+
+        .status-line {
+            margin-top: 12px;
+            min-height: 22px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .status-line.error {
+            color: var(--danger);
+        }
+
+        .status-line.success {
+            color: var(--accent);
+        }
+
         pre {
             white-space: pre-wrap;
             word-break: break-word;
@@ -231,12 +341,14 @@
         @media (max-width: 1080px) {
             .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .topbar { flex-direction: column; align-items: flex-start; }
+            .panel-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 680px) {
             .shell { padding: 18px 14px 40px; }
             .grid-4 { grid-template-columns: 1fr; }
             .section { padding: 18px; }
+            .field-grid { grid-template-columns: 1fr; }
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -250,11 +362,13 @@
             </div>
             <nav class="nav">
                 <a href="{% url 'data_center:dc-governance-page' %}" class="{% if request.path == '/data-center/governance/' %}active{% endif %}">治理台</a>
+                <a href="{% url 'data_center:dc-publishers-page' %}" class="{% if request.path == '/data-center/publishers/' %}active{% endif %}">Publishers</a>
                 <a href="{% url 'data_center:dc-providers-page' %}" class="{% if request.path == '/data-center/providers/' %}active{% endif %}">Providers</a>
                 <a href="{% url 'data_center:dc-monitor-page' %}" class="{% if request.path == '/data-center/monitor/' %}active{% endif %}">Monitor</a>
             </nav>
         </div>
         {% block content %}{% endblock %}
     </div>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

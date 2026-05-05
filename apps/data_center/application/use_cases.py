@@ -19,6 +19,7 @@ from apps.data_center.application.dtos import (
     AssetResponse,
     CreateIndicatorCatalogRequest,
     CreateIndicatorUnitRuleRequest,
+    CreatePublisherCatalogRequest,
     CreateProviderRequest,
     DecisionReliabilityRepairReport,
     DecisionReliabilityRepairRequest,
@@ -31,6 +32,7 @@ from apps.data_center.application.dtos import (
     MacroSeriesResponse,
     PriceBarResponse,
     PriceHistoryRequest,
+    PublisherCatalogResponse,
     ProviderResponse,
     QuoteResponse,
     ResolveAssetRequest,
@@ -46,12 +48,14 @@ from apps.data_center.application.dtos import (
     SyncValuationRequest,
     UpdateIndicatorCatalogRequest,
     UpdateIndicatorUnitRuleRequest,
+    UpdatePublisherCatalogRequest,
     UpdateProviderRequest,
 )
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
     IndicatorCatalog,
     IndicatorUnitRule,
+    PublisherCatalog,
     ProviderConfig,
     RawAudit,
 )
@@ -64,9 +68,11 @@ from apps.data_center.domain.protocols import (
     FundNavRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
     IndicatorUnitRuleRepositoryProtocol,
+    MacroGovernanceRepositoryProtocol,
     MacroFactRepositoryProtocol,
     NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
+    PublisherCatalogRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
@@ -170,6 +176,20 @@ def _config_to_response(config: ProviderConfig) -> ProviderResponse:
     )
 
 
+def _publisher_to_response(publisher: PublisherCatalog) -> PublisherCatalogResponse:
+    return PublisherCatalogResponse(
+        code=publisher.code,
+        canonical_name=publisher.canonical_name,
+        publisher_class=publisher.publisher_class,
+        aliases=list(publisher.aliases),
+        canonical_name_en=publisher.canonical_name_en,
+        country_code=publisher.country_code,
+        website=publisher.website,
+        is_active=publisher.is_active,
+        description=publisher.description,
+    )
+
+
 def _catalog_to_response(
     catalog: IndicatorCatalog,
     *,
@@ -221,6 +241,21 @@ def _storage_value_to_display_value(
     if multiplier_to_storage == 0:
         return value
     return value / multiplier_to_storage
+
+
+def _dedupe_string_list(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        normalized = str(value).strip()
+        if not normalized:
+            continue
+        key = normalized.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(normalized)
+    return result
 
 
 class ManageProviderConfigUseCase:
@@ -296,6 +331,76 @@ class ManageProviderConfigUseCase:
             return False
         self._repo.delete(provider_id)
         logger.info("Deleted provider config id=%s", provider_id)
+        return True
+
+
+class ManagePublisherCatalogUseCase:
+    """CRUD operations for provenance publisher definitions."""
+
+    def __init__(self, repo: PublisherCatalogRepositoryProtocol) -> None:
+        self._repo = repo
+
+    def list_all(self, *, active_only: bool = False) -> list[PublisherCatalogResponse]:
+        publishers = self._repo.list_active() if active_only else self._repo.list_all()
+        return [_publisher_to_response(item) for item in publishers]
+
+    def get(self, code: str) -> PublisherCatalogResponse | None:
+        publisher = self._repo.get_by_code(code)
+        return _publisher_to_response(publisher) if publisher else None
+
+    def create(self, request: CreatePublisherCatalogRequest) -> PublisherCatalogResponse:
+        publisher = PublisherCatalog(
+            code=request.code.strip().upper(),
+            canonical_name=request.canonical_name,
+            publisher_class=request.publisher_class,
+            aliases=list(request.aliases),
+            canonical_name_en=request.canonical_name_en,
+            country_code=request.country_code,
+            website=request.website,
+            is_active=request.is_active,
+            description=request.description,
+        )
+        saved = self._repo.upsert(publisher)
+        return _publisher_to_response(saved)
+
+    def update(self, request: UpdatePublisherCatalogRequest) -> PublisherCatalogResponse | None:
+        existing = self._repo.get_by_code(request.code)
+        if existing is None:
+            return None
+        updated = PublisherCatalog(
+            code=existing.code.strip().upper(),
+            canonical_name=(
+                request.canonical_name
+                if request.canonical_name is not None
+                else existing.canonical_name
+            ),
+            publisher_class=(
+                request.publisher_class
+                if request.publisher_class is not None
+                else existing.publisher_class
+            ),
+            aliases=request.aliases if request.aliases is not None else list(existing.aliases),
+            canonical_name_en=(
+                request.canonical_name_en
+                if request.canonical_name_en is not None
+                else existing.canonical_name_en
+            ),
+            country_code=(
+                request.country_code if request.country_code is not None else existing.country_code
+            ),
+            website=request.website if request.website is not None else existing.website,
+            is_active=request.is_active if request.is_active is not None else existing.is_active,
+            description=(
+                request.description if request.description is not None else existing.description
+            ),
+        )
+        saved = self._repo.upsert(updated)
+        return _publisher_to_response(saved)
+
+    def delete(self, code: str) -> bool:
+        if self._repo.get_by_code(code) is None:
+            return False
+        self._repo.delete(code)
         return True
 
 
@@ -592,10 +697,12 @@ class QueryMacroSeriesUseCase:
         fact_repo: MacroFactRepositoryProtocol,
         catalog_repo: IndicatorCatalogRepositoryProtocol,
         unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
+        publisher_repo: PublisherCatalogRepositoryProtocol | None = None,
     ) -> None:
         self._facts = fact_repo
         self._catalog = catalog_repo
         self._unit_rules = unit_rule_repo
+        self._publishers = publisher_repo
 
     def execute(self, request: MacroSeriesRequest) -> MacroSeriesResponse:
         facts = self._facts.get_series(
@@ -614,6 +721,26 @@ class QueryMacroSeriesUseCase:
         catalog_extra = dict(catalog.extra or {}) if catalog else {}
         series_semantics = str(catalog_extra.get("series_semantics") or "")
         paired_indicator_code = str(catalog_extra.get("paired_indicator_code") or "")
+        provenance_class = str(catalog_extra.get("provenance_class") or "").strip()
+        provenance_label = _provenance_label_for_class(provenance_class)
+        publisher_code, publisher_codes = self._extract_publisher_codes(catalog_extra)
+        publisher = self._resolve_publisher_display_name(
+            publisher_code=publisher_code,
+            publisher_codes=publisher_codes,
+            explicit_publisher=str(catalog_extra.get("publisher") or "").strip(),
+        )
+        access_channel = str(catalog_extra.get("access_channel") or "").strip()
+        derivation_method = str(catalog_extra.get("derivation_method") or "").strip()
+        upstream_indicator_codes = [
+            str(code).strip()
+            for code in (catalog_extra.get("upstream_indicator_codes") or [])
+            if str(code).strip()
+        ]
+        is_derived = provenance_class == "derived"
+        decision_grade_enabled = self._is_decision_grade_enabled(
+            provenance_class=provenance_class,
+            catalog_extra=catalog_extra,
+        )
 
         data_points: list[MacroDataPoint]
         data_source = "none"
@@ -636,6 +763,7 @@ class QueryMacroSeriesUseCase:
                     published_at=f.published_at,
                     period_type=period_type,
                     as_of_date=as_of_date,
+                    catalog_extra=catalog_extra,
                 )
                 for f in facts
             ]
@@ -649,6 +777,13 @@ class QueryMacroSeriesUseCase:
                 decision_grade = "degraded"
                 blocked_reason = (
                     "最新宏观数据已超过 freshness 阈值，当前结果仅可用于研究，不可直接用于决策。"
+                )
+            elif not decision_grade_enabled:
+                freshness_status = "fresh"
+                decision_grade = "research_only"
+                blocked_reason = self._build_provenance_blocked_reason(
+                    provenance_class=provenance_class,
+                    derivation_method=derivation_method,
                 )
             else:
                 freshness_status = "fresh"
@@ -677,6 +812,15 @@ class QueryMacroSeriesUseCase:
             latest_reporting_period=latest_reporting_period,
             latest_published_at=latest_published_at,
             latest_quality=latest_quality,
+            provenance_class=provenance_class,
+            provenance_label=provenance_label,
+            publisher=publisher,
+            publisher_code=publisher_code,
+            publisher_codes=publisher_codes,
+            access_channel=access_channel or (data_points[0].access_channel if data_points else ""),
+            derivation_method=derivation_method,
+            upstream_indicator_codes=upstream_indicator_codes,
+            is_derived=is_derived,
         )
 
     def _build_macro_data_point(
@@ -692,7 +836,9 @@ class QueryMacroSeriesUseCase:
         published_at: date | None,
         period_type: str,
         as_of_date: date | None = None,
+        catalog_extra: dict[str, Any] | None = None,
     ) -> MacroDataPoint:
+        catalog_meta = dict(catalog_extra or {})
         age_days = get_macro_age_days(reporting_period, published_at, as_of_date=as_of_date)
         point_is_stale = is_macro_observation_stale(
             reporting_period,
@@ -700,9 +846,25 @@ class QueryMacroSeriesUseCase:
             period_type=period_type,
             as_of_date=as_of_date,
         )
-        decision_grade = "decision_safe"
+        provenance_class = str(catalog_meta.get("provenance_class") or "").strip()
+        derivation_method = str(catalog_meta.get("derivation_method") or "").strip()
+        publisher_code, publisher_codes = self._extract_publisher_codes(catalog_meta)
+        publisher = self._resolve_publisher_display_name(
+            publisher_code=publisher_code,
+            publisher_codes=publisher_codes,
+            explicit_publisher=str(catalog_meta.get("publisher") or "").strip(),
+        )
+        is_derived = provenance_class == "derived"
+        decision_grade_enabled = self._is_decision_grade_enabled(
+            provenance_class=provenance_class,
+            catalog_extra=catalog_meta,
+        )
         if point_is_stale:
             decision_grade = "degraded"
+        elif not decision_grade_enabled:
+            decision_grade = "research_only"
+        else:
+            decision_grade = "decision_safe"
 
         original_unit = str(extra.get("original_unit") or "")
         display_unit = str(extra.get("display_unit") or original_unit or unit)
@@ -744,7 +906,96 @@ class QueryMacroSeriesUseCase:
             is_stale=point_is_stale,
             freshness_status="stale" if point_is_stale else "fresh",
             decision_grade=decision_grade,
+            provenance_class=provenance_class,
+            provenance_label=_provenance_label_for_class(provenance_class),
+            publisher=publisher,
+            publisher_code=publisher_code,
+            publisher_codes=publisher_codes,
+            access_channel=str(
+                catalog_meta.get("access_channel") or extra.get("source_type") or source
+            ),
+            derivation_method=derivation_method,
+            is_derived=is_derived,
         )
+
+    @staticmethod
+    def _extract_publisher_codes(catalog_extra: dict[str, Any]) -> tuple[str, list[str]]:
+        explicit_code = str(catalog_extra.get("publisher_code") or "").strip().upper()
+        explicit_codes = _dedupe_string_list(
+            [str(code).strip().upper() for code in (catalog_extra.get("publisher_codes") or [])]
+        )
+        publisher_codes = explicit_codes or ([explicit_code] if explicit_code else [])
+        publisher_code = explicit_code or (publisher_codes[0] if publisher_codes else "")
+        return publisher_code, publisher_codes
+
+    def _resolve_publisher_display_name(
+        self,
+        *,
+        publisher_code: str,
+        publisher_codes: list[str],
+        explicit_publisher: str,
+    ) -> str:
+        if self._publishers is None:
+            return explicit_publisher
+
+        resolved_names: list[str] = []
+        seen: set[str] = set()
+        for code in publisher_codes:
+            publisher = self._publishers.get_by_code(code)
+            if publisher is None:
+                continue
+            name = publisher.canonical_name.strip()
+            if not name:
+                continue
+            key = name.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            resolved_names.append(name)
+
+        if resolved_names:
+            return "/".join(resolved_names)
+
+        if publisher_code:
+            publisher = self._publishers.get_by_code(publisher_code)
+            if publisher is not None and publisher.canonical_name.strip():
+                return publisher.canonical_name.strip()
+
+        return explicit_publisher
+
+    @staticmethod
+    def _is_decision_grade_enabled(
+        *,
+        provenance_class: str,
+        catalog_extra: dict[str, Any],
+    ) -> bool:
+        explicit = catalog_extra.get("decision_grade_enabled")
+        if explicit is None:
+            return provenance_class != "derived"
+        return bool(explicit)
+
+    @staticmethod
+    def _build_provenance_blocked_reason(
+        *,
+        provenance_class: str,
+        derivation_method: str,
+    ) -> str:
+        if provenance_class == "derived":
+            if derivation_method:
+                return (
+                    "当前序列属于系统衍生数据，默认仅供研究，不可直接用于决策。"
+                    f"派生方法：{derivation_method}"
+                )
+            return "当前序列属于系统衍生数据，默认仅供研究，不可直接用于决策。"
+        return "当前序列 provenance 未通过决策级校验，仅可用于研究。"
+
+
+def _provenance_label_for_class(provenance_class: str) -> str:
+    return {
+        "official": "官方数据",
+        "authoritative_third_party": "权威转引",
+        "derived": "系统衍生",
+    }.get(provenance_class, "")
 
 
 class QueryPriceHistoryUseCase:
@@ -1453,6 +1704,152 @@ class QueryCapitalFlowsUseCase:
         end: date | None = None,
     ) -> list[dict[str, object]]:
         return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end)]
+
+
+class RunMacroGovernanceActionUseCase:
+    """Execute macro governance repair actions through governed repositories/use cases."""
+
+    DEFAULT_SCOPE = "macro_console"
+
+    def __init__(
+        self,
+        governance_repo: MacroGovernanceRepositoryProtocol,
+        provider_repo: ProviderConfigRepositoryProtocol,
+        sync_macro_runner: Callable[[SyncMacroRequest], SyncResult],
+    ) -> None:
+        self._governance_repo = governance_repo
+        self._provider_repo = provider_repo
+        self._sync_macro_runner = sync_macro_runner
+
+    def execute(self, action: str) -> dict[str, Any]:
+        if action == "canonicalize_sources":
+            repair = self._governance_repo.canonicalize_sources(scope=self.DEFAULT_SCOPE)
+            return {
+                "action": action,
+                "label": "统一 source 别名",
+                "status": "success",
+                "details": repair,
+            }
+
+        if action == "normalize_units":
+            details = self._normalize_units()
+            return {
+                "action": action,
+                "label": "重跑单位标准化",
+                "status": "success",
+                "details": details,
+            }
+
+        if action == "sync_missing_series":
+            details = self._sync_missing_series()
+            return {
+                "action": action,
+                "label": "补同步缺失序列",
+                "status": "success",
+                "details": details,
+            }
+
+        if action == "run_full_repair":
+            source_details = self._governance_repo.canonicalize_sources(scope=self.DEFAULT_SCOPE)
+            normalize_details = self._normalize_units()
+            sync_details = self._sync_missing_series()
+            return {
+                "action": action,
+                "label": "执行完整治理",
+                "status": "success",
+                "details": {
+                    "source": source_details,
+                    "normalize": normalize_details,
+                    "sync": sync_details,
+                },
+            }
+
+        raise ValueError(f"Unsupported governance action: {action}")
+
+    def _normalize_units(self) -> dict[str, Any]:
+        indicator_codes = self._governance_repo.list_governed_indicator_codes(scope=self.DEFAULT_SCOPE)
+        details = self._governance_repo.normalize_macro_fact_units(
+            indicator_codes=indicator_codes,
+            dry_run=False,
+        )
+        return {
+            "indicator_codes": indicator_codes,
+            **details,
+        }
+
+    def _sync_missing_series(self) -> dict[str, Any]:
+        payload = self._governance_repo.build_snapshot(scope=self.DEFAULT_SCOPE)
+        supported_sync_codes = set(payload.get("supported_sync_codes") or [])
+        indicator_rows = payload.get("indicator_rows") or []
+        target_rows = [
+            row
+            for row in indicator_rows
+            if "missing_supported" in (row.get("tags") or [])
+            and row.get("code") in supported_sync_codes
+        ]
+        if not target_rows:
+            return {
+                "indicator_codes": [],
+                "sync_runs": [],
+                "message": "No supported missing indicator codes to sync.",
+            }
+
+        target_date = datetime.now(timezone.utc).date()
+        start_date = target_date - timedelta(days=365 * 10)
+        sync_runs: list[dict[str, Any]] = []
+
+        for row in target_rows:
+            indicator_code = str(row.get("code") or "").strip()
+            source_type = str(row.get("sync_source_type") or "").strip()
+            if not indicator_code:
+                continue
+            if not source_type:
+                raise ValueError(
+                    f"Governed indicator {indicator_code} is missing governance_sync_source_type"
+                )
+
+            provider_id = self._resolve_macro_provider_id(source_type)
+            sync_result = self._sync_macro_runner(
+                SyncMacroRequest(
+                    provider_id=provider_id,
+                    indicator_code=indicator_code,
+                    start=start_date,
+                    end=target_date,
+                )
+            )
+            sync_runs.append(
+                {
+                    "indicator_code": indicator_code,
+                    "source_type": source_type,
+                    "provider_id": provider_id,
+                    "provider_name": sync_result.provider_name,
+                    "stored_count": sync_result.stored_count,
+                    "status": sync_result.status,
+                }
+            )
+
+        return {
+            "indicator_codes": [
+                str(row.get("code") or "").strip()
+                for row in target_rows
+                if row.get("code")
+            ],
+            "sync_runs": sync_runs,
+        }
+
+    def _resolve_macro_provider_id(self, source_type: str) -> int:
+        providers = [
+            provider
+            for provider in self._provider_repo.list_all()
+            if provider.id is not None
+            and provider.is_active
+            and provider.source_type == source_type
+            and DataCapability.MACRO.value in _SOURCE_TYPE_CAPABILITIES.get(provider.source_type, ())
+        ]
+        providers.sort(key=lambda provider: provider.priority)
+        if not providers:
+            raise ValueError(f"No active macro provider configured for source_type={source_type}")
+        return int(providers[0].id)
 
 
 # ---------------------------------------------------------------------------

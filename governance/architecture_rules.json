@@ -149,6 +149,23 @@
       "rationale": "Transaction scope and runtime ORM model resolution belong in infrastructure, admin, or migrations instead of application orchestration."
     },
     {
+      "id": "apps_application_no_call_command_except_whitelisted_entrypoints",
+      "description": "Application layers must not invoke Django management commands directly outside whitelisted composition entrypoints.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "application"
+      ],
+      "exclude_path_patterns": [
+        "^apps/data_center/application/interface_services\\.py$"
+      ],
+      "forbidden_line_patterns": [
+        "\\bcall_command\\("
+      ],
+      "rationale": "Application orchestration should depend on use cases and repositories rather than shelling out through management commands."
+    },
+    {
       "id": "apps_application_no_pandas_numpy_imports",
       "description": "Application layers must not introduce pandas or numpy imports; data-frame and vectorized work belongs in infrastructure adapters/services.",
       "source_roots": [

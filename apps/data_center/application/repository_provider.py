@@ -18,6 +18,7 @@ from apps.data_center.infrastructure.providers import (
     MacroFactRepository,
     NewsRepository,
     PriceBarRepository,
+    PublisherCatalogRepository,
     ProviderConfigRepository,
     QuoteSnapshotRepository,
     RawAuditRepository,
@@ -63,6 +64,10 @@ def get_fund_nav_repository() -> FundNavRepository:
 
 def get_indicator_catalog_repository() -> IndicatorCatalogRepository:
     return IndicatorCatalogRepository()
+
+
+def get_publisher_catalog_repository() -> PublisherCatalogRepository:
+    return PublisherCatalogRepository()
 
 
 def get_indicator_unit_rule_repository() -> IndicatorUnitRuleRepository:

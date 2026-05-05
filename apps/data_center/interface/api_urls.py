@@ -24,6 +24,8 @@ from apps.data_center.interface.api_views import (
     news,
     price_history,
     price_latest_quote,
+    publisher_detail,
+    publisher_list_create,
     provider_detail,
     provider_list_create,
     provider_settings,
@@ -54,6 +56,7 @@ class DataCenterApiRootView(APIView):
                     "providers": "/api/data-center/providers/",
                     "provider_status": "/api/data-center/providers/status/",
                     "provider_settings": "/api/data-center/settings/",
+                    "publishers": "/api/data-center/publishers/",
                     "indicators": "/api/data-center/indicators/",
                     "asset_resolve": "/api/data-center/assets/resolve/",
                     "macro_series": "/api/data-center/macro/series/",
@@ -85,6 +88,9 @@ urlpatterns = [
     path("providers/status/", provider_status, name="dc-provider-status"),
     # Global settings
     path("settings/", provider_settings, name="dc-settings"),
+    # Publisher governance
+    path("publishers/", publisher_list_create, name="dc-publisher-list"),
+    path("publishers/<str:publisher_code>/", publisher_detail, name="dc-publisher-detail"),
     # Indicator governance
     path("indicators/", indicator_list_create, name="dc-indicator-list"),
     path("indicators/<str:indicator_code>/", indicator_detail, name="dc-indicator-detail"),

@@ -2,14 +2,111 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block subtitle %}健康监控页当前提供最小壳层，后续可继续接 provider health 细节。{% endblock %}
+{% block subtitle %}数据中台 — 运行状态{% endblock %}
 
 {% block content %}
 <section class="section">
-    <h2>Monitor</h2>
-    <p class="lead">当前治理重点是宏观事实表的口径和缺口。Provider 健康详细数据仍可通过 `/api/data-center/providers/status/` 获取。</p>
-    <div class="actions">
-        <a href="{% url 'data_center:dc-governance-page' %}" style="text-decoration:none;"><button type="button" class="btn-primary">查看治理审计</button></a>
+    <h2>查看所有已注册 Provider 的实时健康状态</h2>
+    <p class="lead">这一页只看实时健康快照，不做配置变更。若某个 provider 连续失败、延迟劣化或长期未成功，这里会第一时间暴露出来。</p>
+    <div class="toolbar">
+        <div class="actions">
+            <button type="button" class="btn-primary" onclick="loadStatus()">刷新状态</button>
+            <a href="/data-center/providers/" style="text-decoration:none;"><button type="button" class="btn-secondary">Provider 配置</button></a>
+        </div>
+        <div class="metric-strip">
+            <span class="metric-pill">API: <span class="mono">/api/data-center/providers/status/</span></span>
+            <span class="metric-pill">函数: <span class="mono">loadStatus</span></span>
+        </div>
     </div>
 </section>
+
+<section class="section">
+    <h2>Provider 健康快照</h2>
+    <div class="table-wrap" style="margin-top: 16px;">
+        <table id="status-list">
+            <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Capability</th>
+                    <th>Status</th>
+                    <th>连续失败</th>
+                    <th>最近成功</th>
+                    <th>平均延迟(ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="6" class="empty">正在加载运行状态…</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="status-message" class="status-line"></div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const statusApi = "/api/data-center/providers/status/";
+
+function renderStatusBadge(status) {
+    if (status === "healthy" || status === "success" || status === "closed") {
+        return "badge-ok";
+    }
+    if (status === "degraded" || status === "half_open" || status === "unknown") {
+        return "badge-warn";
+    }
+    return "badge-danger";
+}
+
+function setMonitorStatus(message, tone = "") {
+    const node = document.getElementById("status-message");
+    node.textContent = message || "";
+    node.className = tone ? `status-line ${tone}` : "status-line";
+}
+
+function formatValue(value) {
+    return value === null || value === undefined || value === "" ? "—" : value;
+}
+
+function formatTimestamp(value) {
+    if (!value) {
+        return "—";
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+async function loadStatus() {
+    const tbody = document.querySelector("#status-list tbody");
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">正在刷新运行状态…</td></tr>';
+    const response = await fetch(statusApi, { credentials: "same-origin" });
+    if (!response.ok) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">状态接口返回失败。</td></tr>';
+        setMonitorStatus("状态接口返回失败。", "error");
+        return;
+    }
+    const payload = await response.json();
+    const results = payload.results || [];
+    if (!results.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">当前没有 active provider 状态。</td></tr>';
+        setMonitorStatus("没有可显示的 active provider。");
+        return;
+    }
+    tbody.innerHTML = results.map((item) => `
+        <tr>
+            <td>${item.provider_name}</td>
+            <td class="mono">${item.capability}</td>
+            <td><span class="badge ${renderStatusBadge(item.status)}">${item.status}</span></td>
+            <td>${formatValue(item.consecutive_failures)}</td>
+            <td>${formatTimestamp(item.last_success_at)}</td>
+            <td>${formatValue(item.avg_latency_ms)}</td>
+        </tr>
+    `).join("");
+    setMonitorStatus(`已加载 ${results.length} 条 provider health 快照。`, "success");
+}
+
+loadStatus();
+</script>
 {% endblock %}

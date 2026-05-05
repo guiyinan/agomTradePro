@@ -15,6 +15,85 @@ def register_data_center_tools(server: FastMCP) -> None:
         return client.data_center.list_indicators(active_only=active_only)
 
     @server.tool()
+    def data_center_list_publishers(active_only: bool = False) -> list[dict[str, Any]]:
+        """列出 provenance publisher 代码表。"""
+        client = AgomTradeProClient()
+        return client.data_center.list_publishers(active_only=active_only)
+
+    @server.tool()
+    def data_center_get_publisher(publisher_code: str) -> dict[str, Any]:
+        """读取单个 provenance publisher 定义。"""
+        client = AgomTradeProClient()
+        return client.data_center.get_publisher(publisher_code)
+
+    @server.tool()
+    def data_center_create_publisher(
+        code: str,
+        canonical_name: str,
+        publisher_class: str,
+        aliases: list[str] | None = None,
+        canonical_name_en: str = "",
+        country_code: str = "CN",
+        website: str = "",
+        is_active: bool = True,
+        description: str = "",
+    ) -> dict[str, Any]:
+        """创建 provenance publisher 定义。"""
+        client = AgomTradeProClient()
+        return client.data_center.create_publisher(
+            {
+                "code": code,
+                "canonical_name": canonical_name,
+                "publisher_class": publisher_class,
+                "aliases": aliases or [],
+                "canonical_name_en": canonical_name_en,
+                "country_code": country_code,
+                "website": website,
+                "is_active": is_active,
+                "description": description,
+            }
+        )
+
+    @server.tool()
+    def data_center_update_publisher(
+        publisher_code: str,
+        canonical_name: str | None = None,
+        publisher_class: str | None = None,
+        aliases: list[str] | None = None,
+        canonical_name_en: str | None = None,
+        country_code: str | None = None,
+        website: str | None = None,
+        is_active: bool | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """更新 provenance publisher 定义。"""
+        client = AgomTradeProClient()
+        payload: dict[str, Any] = {}
+        if canonical_name is not None:
+            payload["canonical_name"] = canonical_name
+        if publisher_class is not None:
+            payload["publisher_class"] = publisher_class
+        if aliases is not None:
+            payload["aliases"] = aliases
+        if canonical_name_en is not None:
+            payload["canonical_name_en"] = canonical_name_en
+        if country_code is not None:
+            payload["country_code"] = country_code
+        if website is not None:
+            payload["website"] = website
+        if is_active is not None:
+            payload["is_active"] = is_active
+        if description is not None:
+            payload["description"] = description
+        return client.data_center.update_publisher(publisher_code, payload)
+
+    @server.tool()
+    def data_center_delete_publisher(publisher_code: str) -> dict[str, Any]:
+        """删除 provenance publisher 定义。"""
+        client = AgomTradeProClient()
+        return client.data_center.delete_publisher(publisher_code)
+
+    @server.tool()
     def data_center_get_indicator(indicator_code: str) -> dict[str, Any]:
         """读取单个指标目录定义。"""
         client = AgomTradeProClient()
@@ -205,7 +284,26 @@ def register_data_center_tools(server: FastMCP) -> None:
         end: str | None = None,
         limit: int | None = None,
     ) -> dict[str, Any]:
-        """读取指定宏观指标的标准化时序。"""
+        """读取指定宏观指标的标准化时序。
+
+        返回值会携带宏观 provenance 契约字段，用于区分：
+        - `official` 官方数据
+        - `authoritative_third_party` 其他权威数据
+        - `derived` 系统衍生数据
+
+        重点字段包括：
+        - `provenance_class` / `provenance_label`
+        - `publisher`
+        - `publisher_code` / `publisher_codes`
+        - `access_channel`
+        - `derivation_method`
+        - `upstream_indicator_codes`
+        - `is_derived`
+        - `decision_grade`
+        - `must_not_use_for_decision`
+
+        其中 `derived` 序列默认仅供研究，不可直接用于决策。
+        """
         client = AgomTradeProClient()
         return client.data_center.get_macro_series(indicator_code, start=start, end=end, limit=limit)
 

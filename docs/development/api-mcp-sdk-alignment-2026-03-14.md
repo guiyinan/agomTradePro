@@ -51,12 +51,34 @@
 
 - staff 宏观治理页入口：`/data-center/governance/`
 - 该页面不是新的 API / SDK / MCP 契约；SDK/MCP 仍通过 `/api/data-center/*` 访问治理结果
+- `GET /api/data-center/macro/series/` 现已补齐 provenance contract，SDK/MCP 不得再自行猜测宏观数据可信度：
+  - `provenance_class`
+  - `provenance_label`
+  - `publisher`
+  - `publisher_code`
+  - `publisher_codes`
+  - `access_channel`
+  - `derivation_method`
+  - `upstream_indicator_codes`
+  - `is_derived`
+  - `decision_grade`
+  - `must_not_use_for_decision`
+- provenance 只允许三类：
+  - `official`
+  - `authoritative_third_party`
+  - `derived`
+- publisher 机构口径不再只靠自由文本，统一引入 `PublisherCatalog`：
+  - SDK/MCP 若需要做机构识别、聚合、过滤，应优先读取 `publisher_code/publisher_codes`
+  - `publisher` 仅作为展示文案，不再作为稳定主键
+- 其中 `derived` 默认是 `research_only`，SDK/MCP 不得把它提升为 decision-safe，也不得省略 `must_not_use_for_decision`
 - 进出口 canonical 口径已纠正为：
   - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额口径
   - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速
+- `CN_EXPORT_YOY` 当前属于 `official`，虽然在 `2021-02` 这类低基数月份可能出现大于 `100%` 的同比值，但这属于官方统计口径，不应被 SDK/MCP 擅自改写。
 - 固投 / 社融 canonical 口径已补齐：
   - `CN_FIXED_INVESTMENT` / `CN_FAI_YOY`
   - `CN_SOCIAL_FINANCING` / `CN_SOCIAL_FINANCING_YOY`
+- `CN_SOCIAL_FINANCING_YOY` 当前明确属于 `derived`，并已加上 `prior_flow_value > 0` 护栏；Agent 侧不得把它当成人行官方原始序列。
 - `CN_CPI_YOY` 继续作为兼容 alias 保留；治理真源优先使用 `CN_CPI_NATIONAL_YOY`
 - 宏观运行配置已下沉到 `IndicatorCatalog.extra`，SDK/MCP 解释宏观指标时应优先读取：
   - `series_semantics`
@@ -70,6 +92,8 @@
   - 不要把 `quarterly` 指标按月频处理
   - 不要只凭 code suffix 推断 period_type
   - 不要再把同比指标回退解释为绝对额序列
+  - 不要为 fetcher、SDK 或 MCP 保留本地单位 fallback / mock 单位表
+  - 不要再把 `publisher` 自由文本当成机构主键使用
 
 其中 redesign 相关新增 canonical 端点为：
 

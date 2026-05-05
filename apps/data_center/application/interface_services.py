@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from io import StringIO
 from typing import Any
 
 from apps.data_center.application.dtos import SyncQuoteRequest
@@ -20,6 +19,7 @@ from apps.task_monitor.application.tracking import record_pending_task
 from .use_cases import (
     ManageIndicatorCatalogUseCase,
     ManageIndicatorUnitRuleUseCase,
+    ManagePublisherCatalogUseCase,
     ManageProviderConfigUseCase,
     QueryCapitalFlowsUseCase,
     QueryFinancialsUseCase,
@@ -32,6 +32,7 @@ from .use_cases import (
     QueryValuationsUseCase,
     RepairDecisionDataReliabilityUseCase,
     ResolveAssetUseCase,
+    RunMacroGovernanceActionUseCase,
     RunProviderConnectionTestUseCase,
     SyncCapitalFlowUseCase,
     SyncFinancialUseCase,
@@ -55,6 +56,7 @@ from .repository_provider import (
     MacroFactRepository,
     NewsRepository,
     PriceBarRepository,
+    PublisherCatalogRepository,
     ProviderConfigRepository,
     QuoteSnapshotRepository,
     RawAuditRepository,
@@ -81,6 +83,10 @@ def _make_indicator_catalog_repo() -> IndicatorCatalogRepository:
     return IndicatorCatalogRepository()
 
 
+def _make_publisher_catalog_repo() -> PublisherCatalogRepository:
+    return PublisherCatalogRepository()
+
+
 def _make_indicator_unit_rule_repo() -> IndicatorUnitRuleRepository:
     return IndicatorUnitRuleRepository()
 
@@ -102,6 +108,12 @@ def make_manage_indicator_catalog_use_case() -> ManageIndicatorCatalogUseCase:
         _make_indicator_catalog_repo(),
         _make_indicator_unit_rule_repo(),
     )
+
+
+def make_manage_publisher_catalog_use_case() -> ManagePublisherCatalogUseCase:
+    """Build the publisher catalog management use case."""
+
+    return ManagePublisherCatalogUseCase(_make_publisher_catalog_repo())
 
 
 def make_manage_indicator_unit_rule_use_case() -> ManageIndicatorUnitRuleUseCase:
@@ -136,102 +148,20 @@ def load_macro_governance_payload() -> dict[str, Any]:
     }
 
 
-def _run_normalize_macro_fact_units() -> dict[str, Any]:
-    from django.core.management import call_command
+def make_run_macro_governance_action_use_case() -> RunMacroGovernanceActionUseCase:
+    """Build the macro governance repair use case."""
 
-    indicator_codes = _make_macro_governance_repo().list_governed_indicator_codes()
-    stdout = StringIO()
-    call_command(
-        "normalize_macro_fact_units",
-        "--indicator-codes",
-        ",".join(indicator_codes),
-        stdout=stdout,
+    return RunMacroGovernanceActionUseCase(
+        governance_repo=_make_macro_governance_repo(),
+        provider_repo=_make_provider_repo(),
+        sync_macro_runner=make_sync_macro_use_case().execute,
     )
-    return {
-        "indicator_codes": indicator_codes,
-        "command_output": stdout.getvalue(),
-    }
-
-
-def _run_sync_missing_macro_series() -> dict[str, Any]:
-    from django.core.management import call_command
-
-    payload = load_macro_governance_payload()
-    supported_sync_codes = set(payload.get("supported_sync_codes") or [])
-    indicator_codes = [
-        item["code"]
-        for item in payload["missing_sync_candidates"]
-        if item["code"] in supported_sync_codes
-    ]
-    if not indicator_codes:
-        return {
-            "indicator_codes": [],
-            "command_output": "No supported missing indicator codes to sync.\n",
-        }
-
-    stdout = StringIO()
-    call_command(
-        "sync_macro_data",
-        "--source",
-        "akshare",
-        "--indicators",
-        *indicator_codes,
-        "--years",
-        10,
-        stdout=stdout,
-    )
-    return {
-        "indicator_codes": indicator_codes,
-        "command_output": stdout.getvalue(),
-    }
 
 
 def run_macro_governance_action(action: str) -> dict[str, Any]:
     """Execute one governance repair action and return a UI-friendly result."""
 
-    if action == "canonicalize_sources":
-        repair = _make_macro_governance_repo().canonicalize_sources()
-        return {
-            "action": action,
-            "label": "统一 source 别名",
-            "status": "success",
-            "details": repair,
-        }
-
-    if action == "normalize_units":
-        details = _run_normalize_macro_fact_units()
-        return {
-            "action": action,
-            "label": "重跑单位标准化",
-            "status": "success",
-            "details": details,
-        }
-
-    if action == "sync_missing_series":
-        details = _run_sync_missing_macro_series()
-        return {
-            "action": action,
-            "label": "补同步缺失序列",
-            "status": "success",
-            "details": details,
-        }
-
-    if action == "run_full_repair":
-        source_details = _make_macro_governance_repo().canonicalize_sources()
-        normalize_details = _run_normalize_macro_fact_units()
-        sync_details = _run_sync_missing_macro_series()
-        return {
-            "action": action,
-            "label": "执行完整治理",
-            "status": "success",
-            "details": {
-                "source": source_details,
-                "normalize": normalize_details,
-                "sync": sync_details,
-            },
-        }
-
-    raise ValueError(f"Unsupported governance action: {action}")
+    return make_run_macro_governance_action_use_case().execute(action)
 
 
 def make_run_provider_connection_test_use_case() -> RunProviderConnectionTestUseCase:
@@ -296,6 +226,7 @@ def make_query_macro_series_use_case() -> QueryMacroSeriesUseCase:
         MacroFactRepository(),
         _make_indicator_catalog_repo(),
         _make_indicator_unit_rule_repo(),
+        _make_publisher_catalog_repo(),
     )
 
 

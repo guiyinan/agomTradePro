@@ -16,19 +16,6 @@ from .common import resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
-# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
-INDICATOR_UNITS = {
-    "CN_FX_RESERVES": ("亿美元", "亿美元"),
-    "CN_LPR": ("%", "%"),
-    "CN_SHIBOR": ("%", "%"),
-    "CN_RRR": ("%", "%"),
-    "CN_NEW_CREDIT": ("亿元", "亿元"),
-    "CN_RMB_DEPOSIT": ("亿元", "亿元"),
-    "CN_RMB_LOAN": ("亿元", "亿元"),
-    "CN_DR007": ("%", "%"),
-    "CN_PBOC_NET_INJECTION": ("亿元", "亿元"),
-}
-
 
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式"""
@@ -104,10 +91,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_FX_RESERVES",
-                *INDICATOR_UNITS.get("CN_FX_RESERVES", ("亿美元", "亿美元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_FX_RESERVES")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -153,10 +137,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_LPR",
-                *INDICATOR_UNITS.get("CN_LPR", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_LPR")
             for _, row in df.iterrows():
                 try:
                     value_decimal = _safe_percent_point(row['value'])
@@ -203,10 +184,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_SHIBOR",
-                *INDICATOR_UNITS.get("CN_SHIBOR", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_SHIBOR")
             for _, row in df.iterrows():
                 try:
                     value_decimal = _safe_percent_point(row['value'])
@@ -254,10 +232,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_RRR",
-                *INDICATOR_UNITS.get("CN_RRR", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_RRR")
             for _, row in df.iterrows():
                 try:
                     value_decimal = _safe_percent_point(row['value'])
@@ -304,10 +279,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_NEW_CREDIT",
-                *INDICATOR_UNITS.get("CN_NEW_CREDIT", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_NEW_CREDIT")
             for _, row in df.iterrows():
                 try:
                     # 原始数据已经是亿元
@@ -359,10 +331,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_RMB_DEPOSIT",
-                *INDICATOR_UNITS.get("CN_RMB_DEPOSIT", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_RMB_DEPOSIT")
             for _, row in df.iterrows():
                 try:
                     value_str = row['value']
@@ -412,10 +381,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_RMB_LOAN",
-                *INDICATOR_UNITS.get("CN_RMB_LOAN", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_RMB_LOAN")
             for _, row in df.iterrows():
                 try:
                     value_str = row['value']
@@ -499,10 +465,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_DR007",
-                *INDICATOR_UNITS.get("CN_DR007", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_DR007")
             for _, row in df.iterrows():
                 try:
                     value = _safe_float(row['value'])
@@ -557,10 +520,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_PBOC_NET_INJECTION",
-                *INDICATOR_UNITS.get("CN_PBOC_NET_INJECTION", ("亿元", "亿元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_PBOC_NET_INJECTION")
             for _, row in df.iterrows():
                 try:
                     value_str = str(row['value']).replace('亿', '').replace('元', '').replace(',', '')

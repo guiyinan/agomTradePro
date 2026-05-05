@@ -17,23 +17,21 @@ from ..base import DataValidationError, MacroDataPoint
 from .common import resolve_indicator_units
 
 logger = logging.getLogger(__name__)
-
-# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
-INDICATOR_UNITS = {
-    "CN_BOND_10Y": ("%", "%"),
-    "CN_BOND_5Y": ("%", "%"),
-    "CN_BOND_2Y": ("%", "%"),
-    "CN_BOND_1Y": ("%", "%"),
-    "CN_TERM_SPREAD_10Y1Y": ("BP", "BP"),
-    "CN_TERM_SPREAD_10Y2Y": ("BP", "BP"),
-    "CN_CORP_YIELD_AAA": ("%", "%"),
-    "CN_CORP_YIELD_AA": ("%", "%"),
-    "CN_CREDIT_SPREAD": ("BP", "BP"),
-    "CN_NHCI": ("点", "点"),
-    "CN_FX_CENTER": ("元/美元", "元/美元"),
-    "US_BOND_10Y": ("%", "%"),
-    "USD_INDEX": ("点", "点"),
-    "VIX_INDEX": ("点", "点"),
+SUPPORTED_INDICATOR_CODES = {
+    "CN_BOND_10Y",
+    "CN_BOND_5Y",
+    "CN_BOND_2Y",
+    "CN_BOND_1Y",
+    "CN_TERM_SPREAD_10Y1Y",
+    "CN_TERM_SPREAD_10Y2Y",
+    "CN_CORP_YIELD_AAA",
+    "CN_CORP_YIELD_AA",
+    "CN_CREDIT_SPREAD",
+    "CN_NHCI",
+    "CN_FX_CENTER",
+    "US_BOND_10Y",
+    "USD_INDEX",
+    "VIX_INDEX",
 }
 
 
@@ -131,7 +129,7 @@ class HighFrequencyIndicatorFetcher:
         prefix = country + "_BOND_"
         indicator_code = prefix + term
 
-        if indicator_code not in INDICATOR_UNITS:
+        if indicator_code not in SUPPORTED_INDICATOR_CODES:
             logger.warning(f"未知的国债指标: {indicator_code}")
             return []
 
@@ -146,10 +144,7 @@ class HighFrequencyIndicatorFetcher:
             df_filtered = df_filtered[df_filtered['date'].dt.date <= end_date]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                indicator_code,
-                *INDICATOR_UNITS.get(indicator_code, ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units(indicator_code)
             for _, row in df_filtered[['date', indicator_code]].dropna().iterrows():
                 try:
                     point = MacroDataPoint(
@@ -215,10 +210,7 @@ class HighFrequencyIndicatorFetcher:
                 df = df[df['date'].dt.date <= end_date]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                indicator_code,
-                *INDICATOR_UNITS.get(indicator_code, ("BP", "BP")),
-            )
+            unit, original_unit = resolve_indicator_units(indicator_code)
             for _, row in df[['date', 'spread']].dropna().iterrows():
                 try:
                     # 利差以基点（BP）为单位，1% = 100BP
@@ -274,10 +266,7 @@ class HighFrequencyIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                indicator_code,
-                *INDICATOR_UNITS.get(indicator_code, ("点", "点")),
-            )
+            unit, original_unit = resolve_indicator_units(indicator_code)
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -334,10 +323,7 @@ class HighFrequencyIndicatorFetcher:
 
             # 只返回当前一天的报价（因为 FX API 不支持历史数据）
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                indicator_code,
-                *INDICATOR_UNITS.get(indicator_code, ("元/美元", "元/美元")),
-            )
+            unit, original_unit = resolve_indicator_units(indicator_code)
             try:
                 point = MacroDataPoint(
                     code=indicator_code,

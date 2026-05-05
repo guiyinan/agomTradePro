@@ -13,10 +13,13 @@ from apps.data_center.application.dtos import (
     DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
     MacroSeriesRequest,
+    CreatePublisherCatalogRequest,
     UpdateProviderRequest,
+    UpdatePublisherCatalogRequest,
 )
 from apps.data_center.application.use_cases import (
     ManageProviderConfigUseCase,
+    ManagePublisherCatalogUseCase,
     QueryLatestQuoteUseCase,
     QueryMacroSeriesUseCase,
     RepairDecisionDataReliabilityUseCase,
@@ -28,6 +31,7 @@ from apps.data_center.domain.entities import (
     IndicatorUnitRule,
     MacroFact,
     PriceBar,
+    PublisherCatalog,
     ProviderConfig,
     QuoteSnapshot,
     RawAudit,
@@ -136,6 +140,27 @@ class _IndicatorCatalogRepo:
         if self._catalog and self._catalog.code == code:
             return self._catalog
         return None
+
+
+class _PublisherCatalogRepo:
+    def __init__(self, items: list[PublisherCatalog] | None = None) -> None:
+        self._store = {item.code: item for item in items or []}
+
+    def get_by_code(self, code: str) -> PublisherCatalog | None:
+        return self._store.get(code)
+
+    def list_all(self) -> list[PublisherCatalog]:
+        return list(self._store.values())
+
+    def list_active(self) -> list[PublisherCatalog]:
+        return [item for item in self._store.values() if item.is_active]
+
+    def upsert(self, publisher: PublisherCatalog) -> PublisherCatalog:
+        self._store[publisher.code] = publisher
+        return publisher
+
+    def delete(self, code: str) -> None:
+        self._store.pop(code, None)
 
 
 class _IndicatorUnitRuleRepo:
@@ -348,6 +373,55 @@ class TestManageProviderConfigUseCase:
             CreateProviderRequest(name="qmt_local", source_type="qmt", extra_config=extra)
         )
         assert resp.extra_config == extra
+
+
+class TestManagePublisherCatalogUseCase:
+    def _make_uc(self) -> tuple[ManagePublisherCatalogUseCase, _PublisherCatalogRepo]:
+        repo = _PublisherCatalogRepo()
+        return ManagePublisherCatalogUseCase(repo), repo
+
+    def test_create_and_get(self):
+        uc, _ = self._make_uc()
+        created = uc.create(
+            CreatePublisherCatalogRequest(
+                code="PBOC",
+                canonical_name="中国人民银行",
+                publisher_class="government",
+                aliases=["人民银行", "中国人行"],
+            )
+        )
+
+        assert created.code == "PBOC"
+        assert created.canonical_name == "中国人民银行"
+        assert "人民银行" in created.aliases
+
+        loaded = uc.get("PBOC")
+        assert loaded is not None
+        assert loaded.publisher_class == "government"
+
+    def test_update_and_delete(self):
+        uc, _ = self._make_uc()
+        uc.create(
+            CreatePublisherCatalogRequest(
+                code="SAFE",
+                canonical_name="国家外汇管理局",
+                publisher_class="regulator",
+            )
+        )
+
+        updated = uc.update(
+            UpdatePublisherCatalogRequest(
+                code="SAFE",
+                aliases=["外汇局"],
+                description="外汇储备口径机构",
+            )
+        )
+        assert updated is not None
+        assert updated.aliases == ["外汇局"]
+        assert updated.description == "外汇储备口径机构"
+
+        assert uc.delete("SAFE") is True
+        assert uc.get("SAFE") is None
 
 
 # ---------------------------------------------------------------------------
@@ -570,6 +644,220 @@ class TestQueryMacroSeriesUseCase:
         assert result.paired_indicator_code == "CN_GDP_YOY"
         assert result.data[0].display_value == 318466.4
         assert result.data[0].display_unit == "亿元"
+
+    def test_exposes_official_provenance_for_decision_grade_series(self):
+        current_period = date.today().replace(day=1)
+        fact = MacroFact(
+            indicator_code="CN_EXPORT_YOY",
+            reporting_period=current_period,
+            value=12.4,
+            unit="%",
+            source="akshare",
+            revision_number=1,
+            published_at=current_period,
+            quality=DataQualityStatus.VALID,
+            extra={"original_unit": "%", "period_type": "M"},
+        )
+        catalog = IndicatorCatalog(
+            code="CN_EXPORT_YOY",
+            name_cn="出口同比",
+            description="海关总署公布的当月出口同比增速",
+            default_unit="%",
+            default_period_type="M",
+            extra={
+                "provenance_class": "official",
+                "publisher": "海关总署",
+                "publisher_code": "GACC",
+                "publisher_codes": ["GACC"],
+                "access_channel": "akshare",
+            },
+        )
+        unit_rules = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_EXPORT_YOY",
+                    original_unit="%",
+                    storage_unit="%",
+                    display_unit="%",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
+
+        uc = QueryMacroSeriesUseCase(
+            _MacroFactRepo([fact]),
+            _IndicatorCatalogRepo(catalog),
+            unit_rules,
+            _PublisherCatalogRepo(
+                [
+                    PublisherCatalog(
+                        code="GACC",
+                        canonical_name="海关总署",
+                        publisher_class="government",
+                    )
+                ]
+            ),
+        )
+
+        result = uc.execute(
+            MacroSeriesRequest(indicator_code="CN_EXPORT_YOY", end=current_period)
+        )
+
+        assert result.decision_grade == "decision_safe"
+        assert result.must_not_use_for_decision is False
+        assert result.provenance_class == "official"
+        assert result.provenance_label == "官方数据"
+        assert result.publisher == "海关总署"
+        assert result.publisher_code == "GACC"
+        assert result.publisher_codes == ["GACC"]
+        assert result.access_channel == "akshare"
+        assert result.is_derived is False
+        assert result.data[0].provenance_class == "official"
+        assert result.data[0].publisher == "海关总署"
+        assert result.data[0].publisher_code == "GACC"
+
+    def test_blocks_derived_series_as_research_only_even_when_fresh(self):
+        current_period = date.today().replace(day=1)
+        fact = MacroFact(
+            indicator_code="CN_SOCIAL_FINANCING_YOY",
+            reporting_period=current_period,
+            value=25.0,
+            unit="%",
+            source="data_center",
+            revision_number=1,
+            published_at=current_period,
+            quality=DataQualityStatus.VALID,
+            extra={"original_unit": "%", "period_type": "M"},
+        )
+        catalog = IndicatorCatalog(
+            code="CN_SOCIAL_FINANCING_YOY",
+            name_cn="社融同比",
+            description="系统根据同月社融增量派生的同比增速",
+            default_unit="%",
+            default_period_type="M",
+            extra={
+                "provenance_class": "derived",
+                "publisher": "系统派生",
+                "publisher_code": "SYSTEM_DERIVED",
+                "publisher_codes": ["SYSTEM_DERIVED"],
+                "access_channel": "data_center",
+                "derivation_method": (
+                    "same-month social financing flow year-over-year growth "
+                    "with prior_flow_value > 0 guardrail"
+                ),
+                "upstream_indicator_codes": ["CN_SOCIAL_FINANCING"],
+                "decision_grade_enabled": False,
+            },
+        )
+        unit_rules = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_SOCIAL_FINANCING_YOY",
+                    original_unit="%",
+                    storage_unit="%",
+                    display_unit="%",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
+
+        uc = QueryMacroSeriesUseCase(
+            _MacroFactRepo([fact]),
+            _IndicatorCatalogRepo(catalog),
+            unit_rules,
+            _PublisherCatalogRepo(
+                [
+                    PublisherCatalog(
+                        code="SYSTEM_DERIVED",
+                        canonical_name="系统派生",
+                        publisher_class="system",
+                    )
+                ]
+            ),
+        )
+
+        result = uc.execute(
+            MacroSeriesRequest(indicator_code="CN_SOCIAL_FINANCING_YOY", end=current_period)
+        )
+
+        assert result.freshness_status == "fresh"
+        assert result.decision_grade == "research_only"
+        assert result.must_not_use_for_decision is True
+        assert "系统衍生数据" in result.blocked_reason
+        assert "prior_flow_value > 0 guardrail" in result.blocked_reason
+        assert result.provenance_class == "derived"
+        assert result.provenance_label == "系统衍生"
+        assert result.publisher == "系统派生"
+        assert result.publisher_code == "SYSTEM_DERIVED"
+        assert result.publisher_codes == ["SYSTEM_DERIVED"]
+        assert result.access_channel == "data_center"
+        assert result.upstream_indicator_codes == ["CN_SOCIAL_FINANCING"]
+        assert result.is_derived is True
+        assert result.data[0].decision_grade == "research_only"
+        assert result.data[0].is_derived is True
+
+    def test_resolves_publisher_alias_to_canonical_name_by_code(self):
+        current_period = date.today().replace(day=1)
+        fact = MacroFact(
+            indicator_code="CN_M2",
+            reporting_period=current_period,
+            value=320.0,
+            unit="万亿元",
+            source="akshare",
+            revision_number=1,
+            published_at=current_period,
+            quality=DataQualityStatus.VALID,
+            extra={"original_unit": "万亿元", "period_type": "M"},
+        )
+        catalog = IndicatorCatalog(
+            code="CN_M2",
+            name_cn="M2",
+            description="广义货币供应量",
+            default_unit="万亿元",
+            default_period_type="M",
+            extra={
+                "provenance_class": "official",
+                "publisher": "中国人行",
+                "publisher_code": "PBOC",
+                "publisher_codes": ["PBOC"],
+                "access_channel": "akshare",
+            },
+        )
+        unit_rules = _IndicatorUnitRuleRepo(
+            [
+                IndicatorUnitRule(
+                    id=1,
+                    indicator_code="CN_M2",
+                    original_unit="万亿元",
+                    storage_unit="万亿元",
+                    display_unit="万亿元",
+                    multiplier_to_storage=1.0,
+                )
+            ]
+        )
+        publishers = _PublisherCatalogRepo(
+            [
+                PublisherCatalog(
+                    code="PBOC",
+                    canonical_name="中国人民银行",
+                    publisher_class="government",
+                    aliases=["人民银行", "中国人行"],
+                )
+            ]
+        )
+
+        result = QueryMacroSeriesUseCase(
+            _MacroFactRepo([fact]),
+            _IndicatorCatalogRepo(catalog),
+            unit_rules,
+            publishers,
+        ).execute(MacroSeriesRequest(indicator_code="CN_M2", end=current_period))
+
+        assert result.publisher == "中国人民银行"
+        assert result.publisher_code == "PBOC"
+        assert result.publisher_codes == ["PBOC"]
 
 
 class TestQueryLatestQuoteUseCase:

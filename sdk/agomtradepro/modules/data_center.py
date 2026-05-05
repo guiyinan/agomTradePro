@@ -58,6 +58,25 @@ class DataCenterModule(BaseModule):
             return self._patch("settings/", json=payload)
         return self._put("settings/", json=payload)
 
+    def list_publishers(self, *, active_only: bool = False) -> list[dict[str, Any]]:
+        params = {"active_only": str(active_only).lower()} if active_only else None
+        response = self._get("publishers/", params=params)
+        if isinstance(response, dict):
+            return response.get("results", response.get("data", []))
+        return response
+
+    def get_publisher(self, publisher_code: str) -> dict[str, Any]:
+        return self._get(f"publishers/{publisher_code}/")
+
+    def create_publisher(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._post("publishers/", json=payload)
+
+    def update_publisher(self, publisher_code: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._patch(f"publishers/{publisher_code}/", json=payload)
+
+    def delete_publisher(self, publisher_code: str) -> dict[str, Any]:
+        return self._delete(f"publishers/{publisher_code}/")
+
     def list_indicators(self, *, active_only: bool = False) -> list[dict[str, Any]]:
         params = {"active_only": str(active_only).lower()} if active_only else None
         response = self._get("indicators/", params=params)

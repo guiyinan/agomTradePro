@@ -1,6 +1,6 @@
 # Macro Data Center Cutover
 
-更新时间: 2026-05-03
+更新时间: 2026-05-04
 
 ## 目标
 
@@ -63,13 +63,17 @@
   - `domain_period_type_override`
 - `ScheduleDataFetchUseCase` 的宏观调度口径现完全读取 catalog runtime metadata，本地已不再维护独立同步日历表。
 - `sync_macro_data` 的 period_type 解析现完全读取 catalog period override / source payload，本地已不再维护 legacy period override 表。
-- `apps/macro/infrastructure/adapters/fetchers/*` 现优先读取 runtime metadata / unit rule 解析 source unit，本地 `INDICATOR_UNITS` 只保留 fallback 语义。
+- `apps/macro/infrastructure/adapters/fetchers/*` 现优先读取 runtime metadata / unit rule 解析 source unit。
+- 对所有宏观指标，若 runtime metadata 与 active unit rule 都缺失，则 fetcher 现在一律 fail-closed。
+- 本地 `INDICATOR_UNITS` / `allow_fetcher_unit_fallback` 已退出运行时，不再允许任何白名单 fallback。
 - `apps/macro/infrastructure/adapters/base.py` 的发布时间 lag 现完全读取 runtime publication lag metadata，本地已不再维护发布日期 lag 常量表。
 - 季度调度已补上真实判定逻辑，不再出现配置了 `quarterly` 但运行时永远不触发的情况。
 - 宏观治理台巡检范围也已下沉到 `IndicatorCatalog.extra`：
   - `governance_scope`
   - `governance_sync_supported`
+  - `governance_sync_source_type`
 - `MacroGovernanceRepository` 现根据 catalog metadata 构建治理清单，不再依赖页面层硬编码指标列表。
+- 治理台的“补同步缺失序列”动作现通过 `RunMacroGovernanceActionUseCase + SyncMacroUseCase` 执行，并按 `governance_sync_source_type` 选择 provider；页面层不再硬编码 `akshare`。
 - legacy `source` 统一也已改为运行时推断：
   - 优先使用 `data_center_macro_fact.extra.source_type`
   - 否则回退到 `ProviderConfig(name -> source_type)` 映射
@@ -87,6 +91,39 @@
   - 事实表 `source` 固定写 canonical `source_type`
   - provider 展示名仅保留在审计日志与 `extra.provider_name`
 
+## 2026-05-04 provenance 与护栏补充
+
+- `PublisherCatalog` 已落地为 provenance 机构代码表，用于归一机构别名：
+  - `人民银行` / `中国人行` / `中国人民银行` -> `PBOC`
+  - `统计局` / `国家统计局` -> `NBS`
+- `IndicatorCatalog.extra` 的 publisher 相关字段现统一为：
+  - `publisher`
+  - `publisher_code`
+  - `publisher_codes`
+- `GET /api/data-center/macro/series/` 现统一返回 provenance contract：
+  - `provenance_class`
+  - `provenance_label`
+  - `publisher`
+  - `publisher_code`
+  - `publisher_codes`
+  - `access_channel`
+  - `derivation_method`
+  - `upstream_indicator_codes`
+  - `is_derived`
+  - `decision_grade`
+  - `must_not_use_for_decision`
+- provenance 当前只允许三类：
+  - `official`
+  - `authoritative_third_party`
+  - `derived`
+- `derived` 序列默认只能 `research_only`，即使 freshness 为 `fresh`，也不得直接进入决策链路。
+- 已补种子元数据示例：
+  - `CN_EXPORT_YOY` = `official`，发布方 `海关总署`
+  - `CN_SHIBOR` = `authoritative_third_party`，发布方 `全国银行间同业拆借中心`
+  - `CN_SOCIAL_FINANCING_YOY` = `derived`，发布方 `系统派生`
+- `CN_EXPORT_YOY` 在 `2021-02` 出现 `154.9%` 属于低基数下的官方同比值，不是单位转换错误。
+- `CN_SOCIAL_FINANCING_YOY` 已明确标成系统衍生，并增加 `prior_flow_value > 0` 护栏，避免负基数/零基数把同比结果炸穿。
+
 ## 仍保留的运行默认常量
 
 - 当前宏观治理链路里已不再保留额外的代码内 alias / schedule / publication lag / period override 真源表。
@@ -94,6 +131,11 @@
 
 ## 当前治理入口
 
+- `GET /data-center/publishers/`
+- `GET /data-center/providers/`
+- `GET /data-center/monitor/`
+- `GET/POST /api/data-center/publishers/`
+- `GET/PATCH/DELETE /api/data-center/publishers/{code}/`
 - `GET/POST /api/data-center/indicators/`
 - `GET/PATCH/DELETE /api/data-center/indicators/{code}/`
 - `GET/POST /api/data-center/indicators/{code}/unit-rules/`

@@ -114,6 +114,33 @@ class IndicatorCatalogSerializer(serializers.Serializer):
     default_rule = serializers.DictField(read_only=True)
 
 
+class PublisherCatalogSerializer(serializers.Serializer):
+    """Serializer for provenance publisher catalog CRUD."""
+
+    PUBLISHER_CLASS_CHOICES = [
+        "government",
+        "association",
+        "market_infrastructure",
+        "regulator",
+        "system",
+        "other",
+    ]
+
+    code = serializers.CharField(max_length=40)
+    canonical_name = serializers.CharField(max_length=120)
+    canonical_name_en = serializers.CharField(max_length=160, allow_blank=True, default="")
+    publisher_class = serializers.ChoiceField(choices=PUBLISHER_CLASS_CHOICES)
+    aliases = serializers.ListField(
+        child=serializers.CharField(max_length=120),
+        required=False,
+        default=list,
+    )
+    country_code = serializers.CharField(max_length=10, required=False, default="CN")
+    website = serializers.URLField(allow_blank=True, required=False, default="")
+    is_active = serializers.BooleanField(default=True)
+    description = serializers.CharField(allow_blank=True, default="")
+
+
 class IndicatorUnitRuleSerializer(serializers.Serializer):
     """Serializer for indicator unit-rule CRUD."""
 

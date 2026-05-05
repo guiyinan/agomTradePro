@@ -183,6 +183,7 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
   - 本地已不再维护独立 schedule fallback 表
   - 本地已不再维护独立 publication lag fallback 表
   - 本地已不再维护独立 period override fallback 表
+  - 本地已不再维护独立 fetcher unit fallback 表
 - 宏观治理台本身也已改成 metadata 驱动：
   - `governance_scope`
   - `governance_sync_supported`
@@ -203,6 +204,18 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
   - `CN_EXPORTS` / `CN_IMPORTS` = 当月金额，display unit 为 `亿美元`
   - `CN_EXPORT_YOY` / `CN_IMPORT_YOY` = 当月金额同比增速，display unit 为 `%`
 - `CN_CPI_YOY` 当前只保留为兼容别名代码；治理真源与优先查询代码仍是 `CN_CPI_NATIONAL_YOY`。
+- `data_center_get_macro_series(...)` 现会直接返回 provenance contract，Agent 读取宏观数据时必须消费以下字段，而不是自行猜测：
+  - `provenance_class`
+  - `provenance_label`
+  - `publisher`
+  - `publisher_code`
+  - `publisher_codes`
+  - `access_channel`
+  - `derivation_method`
+  - `upstream_indicator_codes`
+  - `is_derived`
+  - `decision_grade`
+  - `must_not_use_for_decision`
 - `run_simulated_daily_inspection(...)` now accepts `auto_create_proposal`; when enabled,
   the API response includes stable `proposal_created` / `proposal_id` fields.
 - Strategy / simulated trading tools now expose the full simulated auto-trading path:
@@ -242,11 +255,19 @@ Notes:
 ### Macro Governance Notes
 
 - MCP 查询宏观数据时，运行时真源固定为 `IndicatorCatalog` + `IndicatorUnitRule` + `data_center_macro_fact`。
+- publisher 机构归一真源现补齐为 `PublisherCatalog`：
+  - 机构识别、筛选、聚合优先使用 `publisher_code/publisher_codes`
+  - `publisher` 只用于展示，不应再被当作稳定主键
 - 页面治理入口 `/data-center/governance/` 可以用于人工审计，但 Agent 不应假设该页面是 API 契约的一部分。
+- fetcher 层现在没有任何单位 fallback；若 catalog metadata 和 active unit rule 缺失，系统应视为治理缺口并直接失败，而不是返回“看起来能跑”的 mock 单位数据。
 - 对抓取节奏、发布时间、period_type 的理解，优先读取 catalog runtime metadata；不要仅凭 code 后缀或历史经验推断。
 - 对宏观 series 的解释必须先看 `series_semantics` / `paired_indicator_code`：
   - `monthly_level` / `cumulative_level` / `flow_level` 表示量值口径
   - `yoy_rate` 表示同比增速口径
+- 对宏观 series 的可信度必须先看 provenance：
+  - `official` = 官方数据，可按 freshness 继续判断是否 decision-safe
+  - `authoritative_third_party` = 其他权威数据，可按 freshness 继续判断是否 decision-safe
+  - `derived` = 系统衍生数据，默认 `research_only`
 - 对季度指标再补一条约束：
   - `schedule_frequency=quarterly` 时，应结合 `schedule_release_months` 解释其发布时间窗口，不能按月频处理
 - 典型高风险指标当前正确读法：
@@ -259,7 +280,10 @@ Notes:
   - `CN_IMPORTS` = 当月进口额
   - `CN_IMPORT_YOY` = 当月进口额同比增速
   - `CN_SOCIAL_FINANCING` = 社会融资规模增量，不是余额
-  - `CN_SOCIAL_FINANCING_YOY` = 社会融资规模增量同比增速
+  - `CN_SOCIAL_FINANCING_YOY` = 社会融资规模增量同比增速，但它是 `derived`，默认仅供研究
+- 数据解读提醒：
+  - `CN_EXPORT_YOY` 在低基数月份可能大于 `100%`，例如 `2021-02` 的 `154.9%`，这仍属于官方同比口径，不应被 Agent 擅自修正
+  - `CN_SOCIAL_FINANCING_YOY` 已增加 `prior_flow_value > 0` 护栏，若基数非正值则应跳过派生，而不是继续输出极端同比
 
 ### Equity Tools
 
@@ -428,6 +452,11 @@ invalidate_signal(signal_id, reason)
 
 ```
 data_center_list_indicators(active_only)
+data_center_list_publishers(active_only)
+data_center_get_publisher(publisher_code)
+data_center_create_publisher(code, canonical_name, publisher_class, aliases, canonical_name_en, country_code, website, is_active, description)
+data_center_update_publisher(publisher_code, canonical_name, publisher_class, aliases, canonical_name_en, country_code, website, is_active, description)
+data_center_delete_publisher(publisher_code)
 data_center_get_indicator(indicator_code)
 data_center_list_indicator_unit_rules(indicator_code)
 data_center_get_macro_series(indicator_code, start, end, limit)

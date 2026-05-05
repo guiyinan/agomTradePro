@@ -16,13 +16,6 @@ from .common import pick_column, resolve_indicator_units, safe_float
 
 logger = logging.getLogger(__name__)
 
-# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
-INDICATOR_UNITS = {
-    "CN_UNEMPLOYMENT": ("%", "%"),
-    "CN_NEW_HOUSE_PRICE": ("%", "%"),
-    "CN_OIL_PRICE": ("元/升", "元/升"),
-}
-
 
 def _safe_percent_point(value, default=0.0):
     """Return percentage-style source values in percentage points."""
@@ -79,10 +72,7 @@ class OtherIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_UNEMPLOYMENT",
-                *INDICATOR_UNITS.get("CN_UNEMPLOYMENT", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_UNEMPLOYMENT")
             for _, row in df.iterrows():
                 try:
                     value_decimal = _safe_percent_point(row['value'])
@@ -135,10 +125,7 @@ class OtherIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_NEW_HOUSE_PRICE",
-                *INDICATOR_UNITS.get("CN_NEW_HOUSE_PRICE", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_NEW_HOUSE_PRICE")
             for _, row in df_filtered.iterrows():
                 try:
                     value_yoy = safe_float(row['value']) - 100.0
@@ -185,10 +172,7 @@ class OtherIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_OIL_PRICE",
-                *INDICATOR_UNITS.get("CN_OIL_PRICE", ("元/升", "元/升")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_OIL_PRICE")
             for _, row in df.iterrows():
                 try:
                     # 原始数据单位是元/吨，转换为元/升

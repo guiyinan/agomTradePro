@@ -53,6 +53,21 @@ def _assert_monitor_page_contract(response) -> str:
     )
 
 
+def _assert_publisher_page_contract(response) -> str:
+    return _assert_html_contract(
+        response,
+        "Data Center — Publishers",
+        "发布机构代码表与别名治理入口",
+        "Publisher Catalog",
+        "publisher_code",
+        "publisher_codes",
+        'id="publisher-list"',
+        "/api/data-center/publishers/",
+        "data_center_list_publishers",
+        "data_center_update_publisher",
+    )
+
+
 @pytest.fixture
 def admin_client(db):
     user = User.objects.create_user(
@@ -171,6 +186,13 @@ def test_data_center_monitor_page_renders_runtime_status_entry(admin_client):
     response = admin_client.get("/data-center/monitor/")
 
     _assert_monitor_page_contract(response)
+
+
+@pytest.mark.django_db
+def test_data_center_publisher_page_renders_management_console(admin_client):
+    response = admin_client.get("/data-center/publishers/")
+
+    _assert_publisher_page_contract(response)
 
 
 @pytest.mark.django_db

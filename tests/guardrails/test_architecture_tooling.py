@@ -271,6 +271,45 @@ def test_verify_architecture_application_line_rule_blocks_transaction_and_get_mo
     assert violations[1]["rule_id"] == "apps_application_no_transaction_or_get_model"
 
 
+def test_verify_architecture_application_call_command_rule_respects_whitelist():
+    module = _load_script_module(
+        "verify_architecture.py",
+        "test_verify_architecture_application_call_command_rule",
+    )
+    rule = {
+        "id": "apps_application_no_call_command_except_whitelisted_entrypoints",
+        "description": "Application layers must not invoke Django management commands directly outside whitelisted composition entrypoints.",
+        "source_roots": ["apps"],
+        "source_layers": ["application"],
+        "exclude_path_patterns": [r"^apps/data_center/application/interface_services\.py$"],
+        "forbidden_line_patterns": [r"\bcall_command\("],
+    }
+    records = [
+        module.LineRecord(
+            source_path="apps/data_center/application/interface_services.py",
+            source_root="apps",
+            source_module="data_center",
+            source_layer="application",
+            lineno=10,
+            line_text='        call_command("build_qlib_data", verbosity=0)',
+        ),
+        module.LineRecord(
+            source_path="apps/data_center/application/use_cases.py",
+            source_root="apps",
+            source_module="data_center",
+            source_layer="application",
+            lineno=22,
+            line_text='        call_command("sync_macro_data", "--source", "akshare")',
+        ),
+    ]
+
+    violations = module.find_line_violations(records, [rule])
+
+    assert len(violations) == 1
+    assert violations[0]["source_path"] == "apps/data_center/application/use_cases.py"
+    assert violations[0]["rule_id"] == "apps_application_no_call_command_except_whitelisted_entrypoints"
+
+
 def test_verify_architecture_app_root_model_shim_rule_exempts_admin_only():
     module = _load_script_module(
         "verify_architecture.py",

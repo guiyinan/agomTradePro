@@ -16,15 +16,6 @@ from .common import pick_column, resolve_indicator_units, safe_float
 
 logger = logging.getLogger(__name__)
 
-# 指标单位 fallback，仅在 runtime metadata / unit rule 不可用时生效。
-INDICATOR_UNITS = {
-    "CN_EXPORTS": ("亿美元", "亿美元"),
-    "CN_EXPORT_YOY": ("%", "%"),
-    "CN_IMPORTS": ("亿美元", "亿美元"),
-    "CN_IMPORT_YOY": ("%", "%"),
-    "CN_TRADE_BALANCE": ("亿美元", "亿美元"),
-}
-
 
 def parse_trade_month(date_str: object) -> str:
     """解析中文月份格式。"""
@@ -71,10 +62,7 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_EXPORTS",
-                *INDICATOR_UNITS.get("CN_EXPORTS", ("亿美元", "亿美元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_EXPORTS")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -120,10 +108,7 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_EXPORT_YOY",
-                *INDICATOR_UNITS.get("CN_EXPORT_YOY", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_EXPORT_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -170,10 +155,7 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_IMPORTS",
-                *INDICATOR_UNITS.get("CN_IMPORTS", ("亿美元", "亿美元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_IMPORTS")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -219,10 +201,7 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_IMPORT_YOY",
-                *INDICATOR_UNITS.get("CN_IMPORT_YOY", ("%", "%")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_IMPORT_YOY")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
@@ -268,10 +247,7 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
-            unit, original_unit = resolve_indicator_units(
-                "CN_TRADE_BALANCE",
-                *INDICATOR_UNITS.get("CN_TRADE_BALANCE", ("亿美元", "亿美元")),
-            )
+            unit, original_unit = resolve_indicator_units("CN_TRADE_BALANCE")
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(

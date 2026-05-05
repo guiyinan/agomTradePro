@@ -9,6 +9,8 @@
 
 宏观事实数据只存 `data_center_macro_fact`，外部读入口统一为：
 
+- `GET/POST /api/data-center/publishers/`
+- `GET/PATCH/DELETE /api/data-center/publishers/{code}/`
 - `GET /api/data-center/macro/series/`
 - `POST /api/data-center/sync/macro/`
 - `GET/POST /api/data-center/indicators/`
@@ -20,12 +22,23 @@
 
 ## 2. 宏观时序响应结构
 
-`GET /api/data-center/macro/series/` 返回 canonical storage pair 与 display pair：
+`GET /api/data-center/macro/series/` 返回 canonical storage pair、display pair 与 provenance contract：
 
 ```json
 {
   "indicator_code": "CN_GDP",
-  "series": [
+  "provenance_class": "official",
+  "provenance_label": "官方数据",
+  "publisher": "国家统计局",
+  "publisher_code": "NBS",
+  "publisher_codes": ["NBS"],
+  "access_channel": "akshare",
+  "derivation_method": "",
+  "upstream_indicator_codes": [],
+  "is_derived": false,
+  "decision_grade": "decision_safe",
+  "must_not_use_for_decision": false,
+  "data": [
     {
       "value": 134908400000000.0,
       "unit": "元",
@@ -36,7 +49,15 @@
       "period_type": "Q",
       "published_at": "2026-01-17",
       "source": "akshare",
-      "quality": "official"
+      "quality": "official",
+      "provenance_class": "official",
+      "provenance_label": "官方数据",
+      "publisher": "国家统计局",
+      "publisher_code": "NBS",
+      "publisher_codes": ["NBS"],
+      "access_channel": "akshare",
+      "derivation_method": "",
+      "is_derived": false
     }
   ]
 }
@@ -47,6 +68,45 @@
 - `value` + `unit`：系统内部计算口径，只表示 canonical storage value/unit。
 - `display_value` + `display_unit`：页面、图表、表格统一展示口径。
 - `original_unit`：数据源原始单位，供审计和巡检使用。
+- `provenance_class`：宏观来源分类，只允许 `official`、`authoritative_third_party`、`derived`。
+- `publisher`：原始发布/维护机构。
+- `publisher_code`：主发布机构代码，供程序稳定引用。
+- `publisher_codes`：联合发布机构代码列表。
+- `access_channel`：系统访问通道，例如 `akshare`、`data_center`。
+- `derivation_method`：仅衍生序列使用，说明派生逻辑。
+- `upstream_indicator_codes`：仅衍生序列使用，列出上游真源指标。
+- `decision_grade` + `must_not_use_for_decision`：是否允许直接进入决策链路。
+
+当前宏观 provenance 约束：
+
+1. `official`：官方原始统计或官方公开发布。
+2. `authoritative_third_party`：权威机构维护，但不是国家统计口径本身。
+3. `derived`：系统自动算出的衍生序列，默认 `research_only`。
+
+典型例子：
+
+- `CN_EXPORT_YOY`：`official`，来自海关总署当月出口同比增速。
+- `CN_SHIBOR`：`authoritative_third_party`，来自全国银行间同业拆借中心。
+- `CN_SOCIAL_FINANCING_YOY`：`derived`，由系统按同月社融增量同比派生，默认不可直接用于决策。
+
+## 2.1 Publisher 代码表
+
+为避免 `人民银行` / `中国人行` / `中国人民银行` 这类自由文本漂移，宏观 provenance 现在统一引入 `PublisherCatalog`：
+
+- 单机构时使用 `publisher_code`
+- 联合发布时使用 `publisher_codes`
+- `publisher` 继续保留为展示文本，但程序逻辑应优先依赖 code
+
+当前典型 canonical code：
+
+- `NBS` = 国家统计局
+- `CFLP` = 中国物流与采购联合会
+- `GACC` = 海关总署
+- `PBOC` = 中国人民银行
+- `SAFE` = 国家外汇管理局
+- `NIFC` = 全国银行间同业拆借中心
+- `CFETS` = 中国外汇交易中心
+- `SYSTEM_DERIVED` = 系统派生
 
 ## 3. 单位治理规则
 
@@ -60,6 +120,7 @@
 - 同步失败
 - 写入审计
 - 不允许回退到硬编码单位或 legacy 单位字典
+- fetcher 直接 fail-closed，不允许本地 mock/fallback 单位继续出数
 
 示例：
 

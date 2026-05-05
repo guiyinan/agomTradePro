@@ -2,14 +2,349 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block subtitle %}Provider 配置页当前保留为简版入口，治理动作集中在治理台。{% endblock %}
+{% block subtitle %}数据中台 — Provider 配置{% endblock %}
 
 {% block content %}
 <section class="section">
-    <h2>Providers</h2>
-    <p class="lead">现阶段优先处理宏观数据治理问题。Provider 详细增删改查仍通过 `/api/data-center/providers/` 完成，页面侧先保留稳定入口，避免再次出现缺模板空页。</p>
-    <div class="actions">
-        <a href="{% url 'data_center:dc-governance-page' %}" style="text-decoration:none;"><button type="button" class="btn-primary">前往治理台</button></a>
+    <h2>统一数据源配置入口</h2>
+    <p class="lead">这里维护 provider 的优先级、连接地址、启停状态和全局 failover 设置。治理台负责口径护栏，这一页负责把接入层配干净。</p>
+    <div class="toolbar">
+        <div class="actions">
+            <button type="button" class="btn-primary" onclick="loadProviders()">刷新列表</button>
+            <a href="/data-center/monitor/" style="text-decoration:none;"><button type="button" class="btn-secondary">运行状态</button></a>
+            <button type="button" class="btn-secondary" onclick="document.getElementById('settings-panel').scrollIntoView({ behavior: 'smooth' })">设置中心</button>
+        </div>
+        <div class="metric-strip">
+            <span class="metric-pill">API: <span class="mono">/api/data-center/providers/</span></span>
+            <span class="metric-pill">状态: <span class="mono">/api/data-center/providers/status/</span></span>
+        </div>
     </div>
 </section>
+
+<section class="section" id="settings-panel">
+    <h2>设置中心</h2>
+    <p class="lead">统一维护默认 source、是否允许 failover，以及容差阈值。页面只做输入输出，真正生效由 data_center settings use case 负责。</p>
+    <form id="settings-form" class="stack">
+        <div class="field-grid">
+            <label class="field">
+                <span>default_source</span>
+                <select id="settings-default-source" name="default_source">
+                    <option value="akshare">akshare</option>
+                    <option value="tushare">tushare</option>
+                    <option value="failover">failover</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>failover_tolerance</span>
+                <input id="settings-failover-tolerance" name="failover_tolerance" type="number" min="0" max="1" step="0.01">
+            </label>
+            <label class="field field-full">
+                <span class="checkbox">
+                    <input id="settings-enable-failover" name="enable_failover" type="checkbox">
+                    启用 failover
+                </span>
+                <span class="inline-note">容差超过阈值时不做静默切换，而是保持失败暴露。</span>
+            </label>
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn-primary">保存设置</button>
+            <button type="button" class="btn-secondary" onclick="loadSettings()">重载设置</button>
+        </div>
+    </form>
+    <div id="settings-status" class="status-line"></div>
+</section>
+
+<section class="section">
+    <div class="panel-grid">
+        <div>
+            <h2>Provider 列表</h2>
+            <p class="lead">敏感密钥不会在列表里回显，只展示是否已配置。测试连接会走当前 provider 的 use case，而不是页面层硬编码。</p>
+            <div class="table-wrap" style="margin-top: 16px;">
+                <table id="provider-list">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>source_type</th>
+                            <th>优先级</th>
+                            <th>HTTP URL</th>
+                            <th>Key</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="7" class="empty">正在加载 provider 列表…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="provider-status" class="status-line"></div>
+        </div>
+
+        <div>
+            <h2>编辑 Provider</h2>
+            <p class="lead">新增和编辑共用一张表单。空着的 `api_key` / `api_secret` 不会覆盖已有值。</p>
+            <form id="provider-form" class="stack">
+                <input id="provider-id" type="hidden">
+                <div class="field-grid">
+                    <label class="field">
+                        <span>name</span>
+                        <input id="provider-name" name="name" type="text" required>
+                    </label>
+                    <label class="field">
+                        <span>source_type</span>
+                        <select id="provider-source-type" name="source_type">
+                            <option value="akshare">akshare</option>
+                            <option value="tushare">tushare</option>
+                            <option value="eastmoney">eastmoney</option>
+                            <option value="qmt">qmt</option>
+                            <option value="fred">fred</option>
+                            <option value="wind">wind</option>
+                            <option value="choice">choice</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>priority</span>
+                        <input id="provider-priority" name="priority" type="number" min="0" value="100">
+                    </label>
+                    <label class="field">
+                        <span>http_url</span>
+                        <input id="provider-http-url" name="http_url" type="url">
+                    </label>
+                    <label class="field">
+                        <span>api_endpoint</span>
+                        <input id="provider-api-endpoint" name="api_endpoint" type="url">
+                    </label>
+                    <label class="field">
+                        <span>api_key</span>
+                        <input id="provider-api-key" name="api_key" type="password" autocomplete="new-password">
+                    </label>
+                    <label class="field">
+                        <span>api_secret</span>
+                        <input id="provider-api-secret" name="api_secret" type="password" autocomplete="new-password">
+                    </label>
+                    <label class="field field-full">
+                        <span class="checkbox">
+                            <input id="provider-is-active" name="is_active" type="checkbox" checked>
+                            provider 已启用
+                        </span>
+                    </label>
+                    <label class="field field-full">
+                        <span>extra_config (JSON)</span>
+                        <textarea id="provider-extra-config" name="extra_config">{}</textarea>
+                    </label>
+                    <label class="field field-full">
+                        <span>description</span>
+                        <textarea id="provider-description" name="description"></textarea>
+                    </label>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn-primary">保存 Provider</button>
+                    <button type="button" class="btn-secondary" onclick="resetProviderForm()">清空表单</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const providerApi = "/api/data-center/providers/";
+const providerSettingsApi = "/api/data-center/settings/";
+
+function readCookie(name) {
+    const cookieValue = document.cookie
+        .split(";")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith(`${name}=`));
+    return cookieValue ? decodeURIComponent(cookieValue.split("=").slice(1).join("=")) : "";
+}
+
+function setStatus(targetId, message, tone = "") {
+    const node = document.getElementById(targetId);
+    node.textContent = message || "";
+    node.className = tone ? `status-line ${tone}` : "status-line";
+}
+
+function safeJsonParse(rawText, fallback) {
+    try {
+        return JSON.parse(rawText);
+    } catch (error) {
+        throw new Error("extra_config 必须是合法 JSON");
+    }
+}
+
+function providerPayloadFromForm() {
+    return {
+        name: document.getElementById("provider-name").value.trim(),
+        source_type: document.getElementById("provider-source-type").value,
+        priority: Number(document.getElementById("provider-priority").value || 100),
+        http_url: document.getElementById("provider-http-url").value.trim(),
+        api_endpoint: document.getElementById("provider-api-endpoint").value.trim(),
+        api_key: document.getElementById("provider-api-key").value,
+        api_secret: document.getElementById("provider-api-secret").value,
+        is_active: document.getElementById("provider-is-active").checked,
+        extra_config: safeJsonParse(document.getElementById("provider-extra-config").value || "{}", {}),
+        description: document.getElementById("provider-description").value.trim(),
+    };
+}
+
+function resetProviderForm() {
+    document.getElementById("provider-form").reset();
+    document.getElementById("provider-id").value = "";
+    document.getElementById("provider-priority").value = "100";
+    document.getElementById("provider-extra-config").value = "{}";
+    document.getElementById("provider-is-active").checked = true;
+    setStatus("provider-status", "已切回新建模式。");
+}
+
+async function loadSettings() {
+    setStatus("settings-status", "正在加载设置…");
+    const response = await fetch(providerSettingsApi, { credentials: "same-origin" });
+    const payload = await response.json();
+    document.getElementById("settings-default-source").value = payload.default_source;
+    document.getElementById("settings-enable-failover").checked = Boolean(payload.enable_failover);
+    document.getElementById("settings-failover-tolerance").value = payload.failover_tolerance;
+    setStatus("settings-status", "设置已同步。", "success");
+}
+
+async function saveSettings(event) {
+    event.preventDefault();
+    const payload = {
+        default_source: document.getElementById("settings-default-source").value,
+        enable_failover: document.getElementById("settings-enable-failover").checked,
+        failover_tolerance: Number(document.getElementById("settings-failover-tolerance").value || 0),
+    };
+    const response = await fetch(providerSettingsApi, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": readCookie("csrftoken"),
+        },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        setStatus("settings-status", "设置保存失败。", "error");
+        return;
+    }
+    setStatus("settings-status", "设置已保存。", "success");
+}
+
+function renderProviderRow(provider) {
+    const url = provider.http_url || provider.api_endpoint || "—";
+    const statusLabel = provider.is_active ? "active" : "paused";
+    return `
+        <tr>
+            <td>
+                <strong>${provider.name}</strong><br>
+                <span class="inline-note mono">#${provider.id}</span>
+            </td>
+            <td class="mono">${provider.source_type}</td>
+            <td>${provider.priority}</td>
+            <td class="mono">${url}</td>
+            <td>${provider.has_api_key ? "configured" : "empty"}</td>
+            <td><span class="badge ${provider.is_active ? "badge-ok" : "badge-neutral"}">${statusLabel}</span></td>
+            <td>
+                <div class="tag-list">
+                    <button type="button" class="btn-secondary" onclick="editProvider(${provider.id})">编辑</button>
+                    <button type="button" class="btn-secondary" onclick="testProvider(${provider.id})">连通性</button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+async function loadProviders() {
+    const tbody = document.querySelector("#provider-list tbody");
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">正在刷新 provider 列表…</td></tr>';
+    const response = await fetch(providerApi, { credentials: "same-origin" });
+    const payload = await response.json();
+    const results = payload.results || [];
+    if (!results.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">当前还没有 provider 配置。</td></tr>';
+        return;
+    }
+    tbody.innerHTML = results.map(renderProviderRow).join("");
+    setStatus("provider-status", `已加载 ${results.length} 个 provider。`, "success");
+}
+
+async function editProvider(providerId) {
+    const response = await fetch(`${providerApi}${providerId}/`, { credentials: "same-origin" });
+    if (!response.ok) {
+        setStatus("provider-status", "读取 provider 详情失败。", "error");
+        return;
+    }
+    const provider = await response.json();
+    document.getElementById("provider-id").value = provider.id;
+    document.getElementById("provider-name").value = provider.name || "";
+    document.getElementById("provider-source-type").value = provider.source_type || "akshare";
+    document.getElementById("provider-priority").value = provider.priority ?? 100;
+    document.getElementById("provider-http-url").value = provider.http_url || "";
+    document.getElementById("provider-api-endpoint").value = provider.api_endpoint || "";
+    document.getElementById("provider-api-key").value = "";
+    document.getElementById("provider-api-secret").value = "";
+    document.getElementById("provider-is-active").checked = Boolean(provider.is_active);
+    document.getElementById("provider-extra-config").value = JSON.stringify(provider.extra_config || {}, null, 2);
+    document.getElementById("provider-description").value = provider.description || "";
+    setStatus("provider-status", `正在编辑 ${provider.name}。`);
+}
+
+async function submitProvider(event) {
+    event.preventDefault();
+    let payload;
+    try {
+        payload = providerPayloadFromForm();
+    } catch (error) {
+        setStatus("provider-status", error.message, "error");
+        return;
+    }
+
+    const providerId = document.getElementById("provider-id").value;
+    const isEdit = Boolean(providerId);
+    const response = await fetch(isEdit ? `${providerApi}${providerId}/` : providerApi, {
+        method: isEdit ? "PATCH" : "POST",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": readCookie("csrftoken"),
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        setStatus("provider-status", "Provider 保存失败，请检查输入。", "error");
+        return;
+    }
+
+    await loadProviders();
+    resetProviderForm();
+    setStatus("provider-status", isEdit ? "Provider 已更新。" : "Provider 已创建。", "success");
+}
+
+async function testProvider(providerId) {
+    setStatus("provider-status", `正在测试 provider #${providerId} …`);
+    const response = await fetch(`${providerApi}${providerId}/test/`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+            "X-CSRFToken": readCookie("csrftoken"),
+        },
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        setStatus("provider-status", payload.detail || "连接测试失败。", "error");
+        return;
+    }
+    const summary = payload.summary || "连接测试完成。";
+    const logs = Array.isArray(payload.logs) ? ` ${payload.logs.join(" | ")}` : "";
+    setStatus("provider-status", `${summary}${logs}`, payload.success ? "success" : "error");
+}
+
+document.getElementById("provider-form").addEventListener("submit", submitProvider);
+document.getElementById("settings-form").addEventListener("submit", saveSettings);
+resetProviderForm();
+loadSettings();
+loadProviders();
+</script>
 {% endblock %}

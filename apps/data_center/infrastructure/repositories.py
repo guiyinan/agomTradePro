@@ -14,6 +14,7 @@ Phase 2: AssetRepository, IndicatorCatalogRepository, MacroFactRepository,
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
@@ -31,6 +32,7 @@ from apps.data_center.domain.entities import (
     MacroFact,
     NewsFact,
     PriceBar,
+    PublisherCatalog,
     ProviderConfig,
     QuoteSnapshot,
     RawAudit,
@@ -56,6 +58,7 @@ from apps.data_center.infrastructure.models import (
     MacroFactModel,
     NewsFactModel,
     PriceBarModel,
+    PublisherCatalogModel,
     ProviderConfigModel,
     QuoteSnapshotModel,
     RawAuditModel,
@@ -162,6 +165,21 @@ def _dedupe_codes(codes: list[str]) -> list[str]:
         if not normalized or normalized in seen:
             continue
         seen.add(normalized)
+        result.append(normalized)
+    return result
+
+
+def _dedupe_names(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        normalized = str(value).strip()
+        if not normalized:
+            continue
+        key = normalized.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
         result.append(normalized)
     return result
 
@@ -322,6 +340,62 @@ class AssetRepository:
             self._from_model(m)
             for m in AssetMasterModel.objects.filter(exchange=exchange, is_active=True)
         ]
+
+
+class PublisherCatalogRepository:
+    """ORM-backed repository for provenance publisher definitions."""
+
+    @staticmethod
+    def _from_model(m: PublisherCatalogModel) -> PublisherCatalog:
+        return PublisherCatalog(
+            code=m.code,
+            canonical_name=m.canonical_name,
+            canonical_name_en=m.canonical_name_en,
+            publisher_class=m.publisher_class,
+            aliases=list(m.aliases or []),
+            country_code=m.country_code,
+            website=m.website,
+            is_active=m.is_active,
+            description=m.description,
+        )
+
+    def get_by_code(self, code: str) -> PublisherCatalog | None:
+        try:
+            return self._from_model(PublisherCatalogModel.objects.get(code=code.strip().upper()))
+        except PublisherCatalogModel.DoesNotExist:
+            return None
+
+    def list_all(self) -> list[PublisherCatalog]:
+        return [self._from_model(m) for m in PublisherCatalogModel.objects.all()]
+
+    def list_active(self) -> list[PublisherCatalog]:
+        return [self._from_model(m) for m in PublisherCatalogModel.objects.filter(is_active=True)]
+
+    def upsert(self, publisher: PublisherCatalog) -> PublisherCatalog:
+        aliases = _dedupe_names(
+            [
+                alias
+                for alias in publisher.aliases
+                if alias.strip() and alias.strip() != publisher.canonical_name.strip()
+            ]
+        )
+        model, _ = PublisherCatalogModel.objects.update_or_create(
+            code=publisher.code.strip().upper(),
+            defaults=dict(
+                canonical_name=publisher.canonical_name,
+                canonical_name_en=publisher.canonical_name_en,
+                publisher_class=publisher.publisher_class,
+                aliases=aliases,
+                country_code=publisher.country_code,
+                website=publisher.website,
+                is_active=publisher.is_active,
+                description=publisher.description,
+            ),
+        )
+        return self._from_model(model)
+
+    def delete(self, code: str) -> None:
+        PublisherCatalogModel.objects.filter(code=code.strip().upper()).delete()
 
 
 class IndicatorCatalogRepository:
@@ -656,6 +730,7 @@ class MacroGovernanceRepository:
             extra = dict((catalog.extra if catalog is not None else {}) or {})
             paired_code = str(extra.get("paired_indicator_code") or "")
             alias_of_code = str(extra.get("alias_of_indicator_code") or "")
+            sync_source_type = str(extra.get("governance_sync_source_type") or "").strip()
             paired_count = int(aggregates.get(paired_code, {}).get("row_count", 0)) if paired_code else 0
             alias_target_count = (
                 int(aggregates.get(alias_of_code, {}).get("row_count", 0)) if alias_of_code else 0
@@ -693,6 +768,7 @@ class MacroGovernanceRepository:
                     "series_semantics": str(extra.get("series_semantics") or ""),
                     "paired_indicator_code": paired_code,
                     "alias_of_indicator_code": alias_of_code,
+                    "sync_source_type": sync_source_type,
                     "default_unit": catalog.default_unit if catalog is not None else "",
                     "default_period_type": catalog.default_period_type if catalog is not None else "",
                     "row_count": row_count,
@@ -727,6 +803,133 @@ class MacroGovernanceRepository:
             "supported_sync_codes": sorted(supported_sync_codes),
             "source_alias_issues": alias_rows,
             "indicator_rows": indicator_rows,
+        }
+
+    @staticmethod
+    def _normalize_macro_fact(
+        fact: MacroFactModel,
+        rule_repo: IndicatorUnitRuleRepository,
+        *,
+        dry_run: bool,
+    ) -> tuple[str, str | None]:
+        extra = dict(fact.extra or {})
+        source_type = str(extra.get("source_type") or "")
+        raw_unit = str(extra.get("original_unit") or fact.unit or "")
+
+        rule = rule_repo.resolve_active_rule(
+            fact.indicator_code,
+            source_type=source_type,
+            original_unit=raw_unit or None,
+        )
+        if rule is None:
+            rule = rule_repo.resolve_active_rule(
+                fact.indicator_code,
+                source_type=source_type,
+            )
+        if rule is None:
+            return (
+                "skipped",
+                f"skip {fact.indicator_code} {fact.reporting_period}: no unit rule",
+            )
+
+        original_unit = rule.original_unit or raw_unit or fact.unit or ""
+        current_value = Decimal(str(fact.value))
+        normalized_value = current_value
+        normalized_unit = fact.unit or ""
+
+        if fact.unit != rule.storage_unit:
+            if fact.unit in {rule.original_unit, rule.display_unit, "", None}:
+                normalized_value = current_value * Decimal(str(rule.multiplier_to_storage))
+                normalized_unit = rule.storage_unit
+            else:
+                return (
+                    "skipped",
+                    (
+                        f"skip {fact.indicator_code} {fact.reporting_period}: ambiguous unit "
+                        f"{fact.unit!r} for rule storage={rule.storage_unit!r}"
+                    ),
+                )
+
+        publication_lag_days = extra.get("publication_lag_days")
+        if publication_lag_days is None and fact.published_at:
+            publication_lag_days = max((fact.published_at - fact.reporting_period).days, 0)
+
+        normalized_extra = {
+            **extra,
+            "original_unit": original_unit,
+            "display_unit": rule.display_unit,
+            "dimension_key": rule.dimension_key,
+            "multiplier_to_storage": float(rule.multiplier_to_storage),
+            "matched_rule_id": rule.id,
+            "source_type": source_type,
+        }
+        if publication_lag_days is not None:
+            normalized_extra["publication_lag_days"] = publication_lag_days
+
+        changed = (
+            normalized_value != current_value
+            or normalized_unit != fact.unit
+            or normalized_extra != extra
+        )
+        if not changed:
+            return "unchanged", None
+
+        previous_unit = fact.unit or ""
+        if not dry_run:
+            fact.value = normalized_value
+            fact.unit = normalized_unit
+            fact.extra = normalized_extra
+            fact.save(update_fields=["value", "unit", "extra"])
+
+        return (
+            "updated",
+            (
+                f"{'plan' if dry_run else 'fix'} {fact.indicator_code} {fact.reporting_period}: "
+                f"{current_value} {previous_unit or '-'} -> {normalized_value} {normalized_unit or '-'}"
+            ),
+        )
+
+    @transaction.atomic
+    def normalize_macro_fact_units(
+        self,
+        *,
+        indicator_codes: list[str] | None = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        rule_repo = IndicatorUnitRuleRepository()
+        queryset = MacroFactModel.objects.all().order_by("indicator_code", "reporting_period", "id")
+        if indicator_codes:
+            queryset = queryset.filter(indicator_code__in=indicator_codes)
+
+        updated_count = 0
+        skipped_count = 0
+        unchanged_count = 0
+        messages: list[str] = []
+
+        for fact in queryset.iterator():
+            action, message = self._normalize_macro_fact(
+                fact,
+                rule_repo,
+                dry_run=dry_run,
+            )
+            if action == "updated":
+                updated_count += 1
+            elif action == "skipped":
+                skipped_count += 1
+            else:
+                unchanged_count += 1
+            if message:
+                messages.append(message)
+
+        if dry_run:
+            transaction.set_rollback(True)
+
+        return {
+            "updated_count": updated_count,
+            "unchanged_count": unchanged_count,
+            "skipped_count": skipped_count,
+            "dry_run": dry_run,
+            "messages": messages,
         }
 
     @transaction.atomic

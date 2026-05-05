@@ -263,6 +263,64 @@ class AssetAliasModel(models.Model):
         return f"{self.provider_name}:{self.alias_code} → {self.asset.code}"
 
 
+class PublisherCatalogModel(models.Model):
+    """Canonical publisher / institution registry for provenance governance."""
+
+    PUBLISHER_CLASS_CHOICES = [
+        ("government", "Government"),
+        ("association", "Association"),
+        ("market_infrastructure", "Market Infrastructure"),
+        ("regulator", "Regulator"),
+        ("system", "System"),
+        ("other", "Other"),
+    ]
+
+    code = models.CharField(
+        max_length=40,
+        unique=True,
+        db_index=True,
+        help_text="Stable publisher code such as PBOC, NBS, GACC",
+    )
+    canonical_name = models.CharField(max_length=120, help_text="Canonical Chinese display name")
+    canonical_name_en = models.CharField(max_length=160, blank=True)
+    publisher_class = models.CharField(max_length=30, choices=PUBLISHER_CLASS_CHOICES)
+    aliases = models.JSONField(default=list, blank=True, help_text="Known alias names")
+    country_code = models.CharField(max_length=10, default="CN", blank=True)
+    website = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_publisher_catalog"
+        ordering = ["code"]
+        verbose_name = "Publisher Catalog"
+        verbose_name_plural = "Publisher Catalog"
+        indexes = [
+            models.Index(fields=["is_active"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code} — {self.canonical_name}"
+
+    def to_domain(self):
+        """Convert to domain PublisherCatalog value object."""
+        from apps.data_center.domain.entities import PublisherCatalog
+
+        return PublisherCatalog(
+            code=self.code,
+            canonical_name=self.canonical_name,
+            canonical_name_en=self.canonical_name_en,
+            publisher_class=self.publisher_class,
+            aliases=list(self.aliases or []),
+            country_code=self.country_code,
+            website=self.website,
+            is_active=self.is_active,
+            description=self.description,
+        )
+
+
 class IndicatorCatalogModel(models.Model):
     """Catalogue of all known macro / economic indicator definitions.
 
