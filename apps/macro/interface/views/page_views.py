@@ -185,6 +185,7 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
         "indicator_categories": indicator_categories,
         "selected_indicator": resolved_selected_indicator,
         "selected_indicator_data": selected_indicator_data,
+        "initial_history_rows": snapshot["history"],
         "chart_dates": chart_dates,
         "chart_values": chart_values,
         "filter_search": search_query,

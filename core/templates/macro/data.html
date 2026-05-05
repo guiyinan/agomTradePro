@@ -29,8 +29,8 @@
     </div>
 </div>
 
+{{ initial_history_rows|json_script:"initialHistoryRowsData" }}
 <script>
-// 从服务器端数据构建指标名称映射
 const indicatorNamesMap = {};
 const indicatorDescriptionsMap = {};
 const indicatorUnitsMap = {};
@@ -39,6 +39,8 @@ const macroSyncUrl = '{% url "api_data_center:dc-sync-macro" %}';
 const manualRefreshProviderId = Number('{{ refresh_provider_id|default:"0" }}');
 const manualRefreshEndDate = '{{ refresh_end_date|date:"Y-m-d"|default:"" }}';
 const bulkRefreshIndicatorCodes = {{ bulk_refresh_indicator_codes|safe }};
+const DEFAULT_VISIBLE_POINTS = 36;
+const RANGE_PRESET_OPTIONS = ['12', '24', '36', '60', 'all'];
 {% for category in indicator_categories %}
     {% for ind in category.indicators %}
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
@@ -47,48 +49,88 @@ const bulkRefreshIndicatorCodes = {{ bulk_refresh_indicator_codes|safe }};
     {% endfor %}
 {% endfor %}
 
-// 初始选中的指标数据
 const initialIndicator = '{{ selected_indicator|escapejs }}';
-const initialChartData = {
-    dates: {{ chart_dates|safe }},
-    values: {{ chart_values|safe }}
+const initialHistoryRows = JSON.parse(document.getElementById('initialHistoryRowsData').textContent || '[]');
+const initialIndicatorMeta = {
+    name: '{{ selected_indicator_data.name|default:""|escapejs }}',
+    description: '{{ selected_indicator_data.description|default:""|escapejs }}',
+    unit: '{{ selected_indicator_data.unit|default:""|escapejs }}',
+    periodType: '{{ selected_indicator_data.period_type|default:""|escapejs }}',
+    latestPeriod: '{{ selected_indicator_data.latest_period|default:""|escapejs }}',
+    hasData: {% if selected_indicator_data and selected_indicator_data.has_data %}true{% else %}false{% endif %},
 };
 
 let currentIndicatorCode = initialIndicator;
 let currentChart = null;
 let refreshStatusTimer = null;
 let isBulkRefreshing = false;
+let currentIndicatorPayload = null;
+let currentVisibleRange = { startIndex: 0, endIndex: -1, preset: '36' };
+let detailTableScope = 'visible';
+let chartResizeHandlerAttached = false;
 
-// 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
     updateRefreshAllButtonState();
     if (initialIndicator) {
-        const initialItem = document.querySelector(`.ind-item[data-code="${initialIndicator}"]`);
-        if (initialItem) {
-            initialItem.classList.add('active');
-        }
         showIndicatorInfoBar();
         updateRefreshButtonState(initialIndicator);
-        updateIndicatorInfoFromServer();
-        if (initialChartData.dates.length > 0) {
-            const normalizedInitialSeries = normalizeDisplaySeries(
-                initialChartData.dates,
-                initialChartData.values,
-            );
-            renderMainChart(
-                initialIndicator,
-                normalizedInitialSeries.dates,
-                normalizedInitialSeries.values,
-                '{{ selected_indicator_data.unit|default:""|escapejs }}',
-            );
+        const initialPayload = buildInitialPayloadFromServerContext();
+        if (initialPayload && initialPayload.data.length > 0) {
+            currentIndicatorPayload = initialPayload;
+            currentVisibleRange = buildVisibleRange(initialPayload.data.length, String(DEFAULT_VISIBLE_POINTS));
+            detailTableScope = 'visible';
+            updateRangeControlsAvailability(true);
+            updateDetailButtonState();
+            updateIndicatorInfo(initialIndicator, initialPayload);
+            renderMainChart(initialIndicator, initialPayload);
         } else {
             renderNoDataState(initialIndicator);
         }
+        return;
+    }
+    updateRangeControlsAvailability(false);
+    updateDetailButtonState();
+    showChartPlaceholder('选择一个指标查看趋势', '从左侧列表点击指标名称，默认先展示最近 36 个周期。');
+});
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeDataDetailDrawer();
     }
 });
 
 function showIndicatorInfoBar() {
     document.getElementById('indicatorInfoBar').style.display = 'flex';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeMarkdownCell(value) {
+    return String(value ?? '-')
+        .replace(/\|/g, '\\|')
+        .replace(/\n/g, '<br>');
+}
+
+function formatMetricValue(value, maximumFractionDigits = 4) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return '-';
+    }
+    return new Intl.NumberFormat('zh-CN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits,
+    }).format(numericValue);
+}
+
+function formatDisplayDate(value) {
+    return value ? String(value) : '-';
 }
 
 function normalizeChronologicalSeries(data) {
@@ -139,26 +181,203 @@ function buildSortablePeriodKey(label) {
     return text;
 }
 
-function normalizeDisplaySeries(dates, values) {
-    if (!Array.isArray(dates) || !Array.isArray(values) || dates.length !== values.length) {
-        return {
-            dates: Array.isArray(dates) ? dates : [],
-            values: Array.isArray(values) ? values : [],
-        };
+function formatReportingPeriodLabel(reportingPeriod, periodType) {
+    const rawValue = String(reportingPeriod || '');
+    const normalizedPeriodType = String(periodType || '').toUpperCase();
+    if (!rawValue) {
+        return '-';
     }
+    if (normalizedPeriodType === 'Q' && rawValue.length >= 7) {
+        const quarterMap = { '03': 'Q1', '06': 'Q2', '09': 'Q3', '12': 'Q4' };
+        const quarter = quarterMap[rawValue.slice(5, 7)];
+        if (quarter) {
+            return `${rawValue.slice(0, 4)}-${quarter}`;
+        }
+    }
+    if (normalizedPeriodType === 'M' && rawValue.length >= 7) {
+        return rawValue.slice(0, 7);
+    }
+    if (normalizedPeriodType === 'Y' && rawValue.length >= 4) {
+        return rawValue.slice(0, 4);
+    }
+    return rawValue;
+}
 
-    const normalizedPairs = dates.map((dateLabel, index) => ({
-        dateLabel,
-        value: values[index],
-        sortKey: buildSortablePeriodKey(dateLabel),
-    }));
-
-    normalizedPairs.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
-
+function normalizeMacroPayload(code, result) {
+    const normalizedData = normalizeChronologicalSeries(Array.isArray(result?.data) ? result.data : []);
     return {
-        dates: normalizedPairs.map(item => item.dateLabel),
-        values: normalizedPairs.map(item => item.value),
+        indicator_code: code,
+        name_cn: result?.name_cn || indicatorNamesMap[code] || code,
+        description: result?.description || indicatorDescriptionsMap[code] || '',
+        period_type: result?.period_type || '',
+        series_semantics: result?.series_semantics || '',
+        paired_indicator_code: result?.paired_indicator_code || '',
+        total: Number(result?.total ?? normalizedData.length),
+        data: normalizedData,
+        data_source: result?.data_source || '',
+        freshness_status: result?.freshness_status || '',
+        decision_grade: result?.decision_grade || '',
+        must_not_use_for_decision: Boolean(result?.must_not_use_for_decision),
+        blocked_reason: result?.blocked_reason || '',
+        latest_reporting_period: result?.latest_reporting_period || '',
+        latest_published_at: result?.latest_published_at || '',
+        latest_quality: result?.latest_quality || '',
+        provenance_class: result?.provenance_class || '',
+        provenance_label: result?.provenance_label || '',
+        publisher: result?.publisher || '',
+        publisher_code: result?.publisher_code || '',
+        publisher_codes: Array.isArray(result?.publisher_codes) ? result.publisher_codes : [],
+        access_channel: result?.access_channel || '',
+        derivation_method: result?.derivation_method || '',
+        upstream_indicator_codes: Array.isArray(result?.upstream_indicator_codes) ? result.upstream_indicator_codes : [],
+        is_derived: Boolean(result?.is_derived),
     };
+}
+
+function buildInitialPayloadFromServerContext() {
+    if (!initialIndicatorMeta.hasData || !initialIndicator || !Array.isArray(initialHistoryRows) || initialHistoryRows.length === 0) {
+        return null;
+    }
+    return normalizeMacroPayload(initialIndicator, {
+        indicator_code: initialIndicator,
+        name_cn: initialIndicatorMeta.name || indicatorNamesMap[initialIndicator] || initialIndicator,
+        description: initialIndicatorMeta.description || indicatorDescriptionsMap[initialIndicator] || '',
+        period_type: initialIndicatorMeta.periodType || '',
+        latest_reporting_period: initialIndicatorMeta.latestPeriod || '',
+        data_source: 'server_snapshot',
+        data: initialHistoryRows.map(row => ({
+            reporting_period: row.reporting_period,
+            value: row.storage_value ?? row.value,
+            unit: row.storage_unit || row.unit || initialIndicatorMeta.unit || '',
+            display_value: row.display_value ?? row.value,
+            display_unit: row.display_unit || row.unit || initialIndicatorMeta.unit || '',
+            original_unit: row.original_unit || row.unit || initialIndicatorMeta.unit || '',
+            source: row.source || 'data_center_fact',
+            quality: row.quality || '',
+            published_at: row.published_at || null,
+            age_days: row.age_days ?? '',
+            freshness_status: row.freshness_status || '',
+            revision_number: row.revision_number ?? 0,
+        })),
+    });
+}
+
+function buildChartPoints(payload) {
+    if (!payload || !Array.isArray(payload.data)) {
+        return [];
+    }
+    return payload.data.map(row => ({
+        label: formatReportingPeriodLabel(row.reporting_period, payload.period_type),
+        value: Number(row.display_value ?? row.value),
+        displayUnit: row.display_unit || row.original_unit || row.unit || '',
+        row,
+    }));
+}
+
+function buildVisibleRange(totalPoints, preset) {
+    if (totalPoints <= 0) {
+        return { startIndex: 0, endIndex: -1, preset: preset === 'all' ? 'all' : '36' };
+    }
+    if (preset === 'all') {
+        return { startIndex: 0, endIndex: totalPoints - 1, preset: 'all' };
+    }
+    const desiredCount = Number.parseInt(String(preset), 10);
+    const safeCount = Number.isFinite(desiredCount) && desiredCount > 0
+        ? Math.min(desiredCount, totalPoints)
+        : Math.min(DEFAULT_VISIBLE_POINTS, totalPoints);
+    return {
+        startIndex: Math.max(totalPoints - safeCount, 0),
+        endIndex: totalPoints - 1,
+        preset: String(safeCount),
+    };
+}
+
+function normalizeVisibleRange(range, totalPoints) {
+    if (totalPoints <= 0) {
+        return { startIndex: 0, endIndex: -1, preset: '36' };
+    }
+    const startIndex = Math.max(0, Math.min(totalPoints - 1, Number(range?.startIndex ?? 0)));
+    const endIndex = Math.max(startIndex, Math.min(totalPoints - 1, Number(range?.endIndex ?? totalPoints - 1)));
+    return {
+        startIndex,
+        endIndex,
+        preset: range?.preset ?? null,
+    };
+}
+
+function getVisibleRows() {
+    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data)) {
+        return [];
+    }
+    const normalizedRange = normalizeVisibleRange(currentVisibleRange, currentIndicatorPayload.data.length);
+    if (normalizedRange.endIndex < normalizedRange.startIndex) {
+        return [];
+    }
+    return currentIndicatorPayload.data.slice(normalizedRange.startIndex, normalizedRange.endIndex + 1);
+}
+
+function buildVisibleRangeLabel() {
+    const visibleRows = getVisibleRows();
+    if (visibleRows.length === 0) {
+        return '-';
+    }
+    return `${formatReportingPeriodLabel(visibleRows[0].reporting_period, currentIndicatorPayload?.period_type)} ~ ${formatReportingPeriodLabel(visibleRows[visibleRows.length - 1].reporting_period, currentIndicatorPayload?.period_type)}`;
+}
+
+function updateRangePresetButtons() {
+    const visibleRows = getVisibleRows();
+    document.querySelectorAll('.range-preset-btn').forEach(button => {
+        const preset = button.dataset.range;
+        const active = preset === 'all'
+            ? currentVisibleRange.preset === 'all'
+            : currentVisibleRange.preset === preset && visibleRows.length === Number(preset);
+        button.classList.toggle('active', active);
+    });
+}
+
+function updateRangeControlsAvailability(enabled) {
+    document.querySelectorAll('.range-preset-btn').forEach(button => {
+        button.disabled = !enabled;
+    });
+    updateRangePresetButtons();
+}
+
+function updateDetailButtonState() {
+    const detailButton = document.getElementById('openDataDetailBtn');
+    if (!detailButton) {
+        return;
+    }
+    detailButton.disabled = !currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0;
+}
+
+function updateVisibleRangeSummary() {
+    const summaryEl = document.getElementById('currentRangeSummary');
+    const recordEl = document.getElementById('currentIndicatorRecords');
+    if (!summaryEl || !recordEl) {
+        return;
+    }
+    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0) {
+        summaryEl.textContent = '暂无可展示区间';
+        recordEl.textContent = '0 条';
+        return;
+    }
+    const visibleRows = getVisibleRows();
+    summaryEl.textContent = `当前显示 ${visibleRows.length}/${currentIndicatorPayload.data.length} 条 · ${buildVisibleRangeLabel()}`;
+    recordEl.textContent = `${currentIndicatorPayload.data.length} 条 / 显示 ${visibleRows.length} 条`;
+}
+
+function syncVisibleRangeDependentUI() {
+    updateRangePresetButtons();
+    updateVisibleRangeSummary();
+    renderDataDetailPanel();
+}
+
+function applyRangePreset(preset) {
+    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0) {
+        return;
+    }
+    currentVisibleRange = buildVisibleRange(currentIndicatorPayload.data.length, preset);
+    renderMainChart(currentIndicatorCode, currentIndicatorPayload);
 }
 
 function clearChart() {
@@ -174,6 +393,8 @@ function showChartPlaceholder(title, description) {
     document.getElementById('chartPlaceholderDesc').textContent = description;
     document.getElementById('chartPlaceholderAction').innerHTML = '';
     document.getElementById('chartPlaceholder').style.display = 'block';
+    updateRangeControlsAvailability(false);
+    updateDetailButtonState();
 }
 
 function setRefreshStatus(message, tone = 'muted') {
@@ -202,12 +423,12 @@ function getIndicatorItem(code) {
 
 function getManualRefreshStart(code) {
     const item = getIndicatorItem(code);
-    return item?.dataset.refreshStart || '2010-01-01';
+    return item ? item.dataset.refreshStart : '2010-01-01';
 }
 
 function isIndicatorSyncSupported(code) {
     const item = getIndicatorItem(code);
-    return item?.dataset.syncSupported === 'true';
+    return item ? item.dataset.syncSupported === 'true' : false;
 }
 
 function updateRefreshButtonState(code, isLoading = false) {
@@ -301,21 +522,6 @@ async function requestIndicatorRefresh(code) {
     return payload;
 }
 
-// 从服务器数据更新指标信息
-function updateIndicatorInfoFromServer() {
-    {% if selected_indicator_data %}
-    document.getElementById('currentIndicatorCode').textContent = '{{ selected_indicator }}';
-    document.getElementById('currentIndicatorName').textContent = '{{ selected_indicator_data.name|escapejs }}';
-    document.getElementById('currentIndicatorValue').textContent = '{{ selected_indicator_data.latest_value|default:"-" }}';
-    document.getElementById('currentIndicatorUnit').textContent = '{{ selected_indicator_data.unit|escapejs }}';
-    document.getElementById('currentIndicatorPeriod').textContent = '{{ selected_indicator_data.latest_period|default:"-" }}';
-    document.getElementById('currentIndicatorSource').textContent = '{{ selected_indicator_data.has_data|yesno:"data_center_fact,-" }}';
-    document.getElementById('currentIndicatorRecords').textContent = {{ chart_values|length }} + ' 条';
-    document.getElementById('currentIndicatorDescription').textContent = '{{ selected_indicator_data.description|default:""|escapejs }}';
-    {% endif %}
-}
-
-// 选择指标
 async function selectIndicator(code, options = {}) {
     const { keepRefreshStatus = false } = options;
     currentIndicatorCode = code;
@@ -324,7 +530,6 @@ async function selectIndicator(code, options = {}) {
         setRefreshStatus('', 'muted');
     }
 
-    // 更新 UI 选中状态
     document.querySelectorAll('.ind-item').forEach(el => {
         el.classList.remove('active');
         if (el.dataset.code === code) {
@@ -332,17 +537,17 @@ async function selectIndicator(code, options = {}) {
         }
     });
 
-    // 折叠所有分类
     collapseAllCategories();
-    // 展开当前选中指标所在的分类
     const currentItem = document.querySelector(`.ind-item[data-code="${code}"]`);
     if (currentItem) {
         const catContent = currentItem.closest('.cat-content');
         if (catContent) {
             catContent.style.display = 'block';
             const catId = catContent.id.replace('cat-content-', '');
-            const icon = document.getElementById('cat-icon-' + catId);
-            if (icon) icon.textContent = '▼';
+            const icon = document.getElementById(`cat-icon-${catId}`);
+            if (icon) {
+                icon.textContent = '▼';
+            }
         }
     }
 
@@ -357,12 +562,14 @@ async function selectIndicator(code, options = {}) {
                 renderNoDataState(code);
                 return 0;
             }
-            const chronologicalData = normalizeChronologicalSeries(result.data);
-            const dates = chronologicalData.map(d => d.reporting_period);
-            const values = chronologicalData.map(d => Number(d.display_value ?? d.value));
-            updateIndicatorInfo(code, chronologicalData);
-            renderMainChart(code, dates, values, latestUnitFromData(chronologicalData));
-            return chronologicalData.length;
+            currentIndicatorPayload = normalizeMacroPayload(code, result);
+            currentVisibleRange = buildVisibleRange(currentIndicatorPayload.data.length, String(DEFAULT_VISIBLE_POINTS));
+            detailTableScope = 'visible';
+            updateRangeControlsAvailability(true);
+            updateDetailButtonState();
+            updateIndicatorInfo(code, currentIndicatorPayload);
+            renderMainChart(code, currentIndicatorPayload);
+            return currentIndicatorPayload.data.length;
         }
     } catch (error) {
         // 空态由下方统一处理
@@ -463,40 +670,76 @@ async function refreshAllIndicators() {
     }
 }
 
-// 渲染主图表
-function renderMainChart(code, dates, values, unit = '') {
+function renderMainChart(code, payload) {
     const chartDom = document.getElementById('mainChart');
-    const displayUnit = unit || '';
-    const normalizedSeries = normalizeDisplaySeries(dates, values);
+    const chartPoints = buildChartPoints(payload);
+    if (chartPoints.length === 0) {
+        renderNoDataState(code);
+        return;
+    }
+
+    currentVisibleRange = normalizeVisibleRange(currentVisibleRange, chartPoints.length);
+    const totalPoints = chartPoints.length;
+    const startPercent = totalPoints <= 1 ? 0 : (currentVisibleRange.startIndex / (totalPoints - 1)) * 100;
+    const endPercent = totalPoints <= 1 ? 100 : (currentVisibleRange.endIndex / (totalPoints - 1)) * 100;
+
     clearChart();
     document.getElementById('chartPlaceholder').style.display = 'none';
 
     currentChart = echarts.init(chartDom);
-
     currentChart.setOption({
         title: {
-            text: indicatorNamesMap[code] || code,
+            text: payload.name_cn || indicatorNamesMap[code] || code,
             left: 'center',
             textStyle: { fontSize: 14 }
         },
         tooltip: {
             trigger: 'axis',
             formatter: function(params) {
-                const value = Number(params[0].value);
-                const suffix = displayUnit && displayUnit !== '-' ? ` ${displayUnit}` : '';
-                return `${params[0].axisValue}<br/>数值: ${value.toFixed(2)}${suffix}`;
+                const point = chartPoints[params[0].dataIndex];
+                const row = point ? point.row : null;
+                const suffix = point?.displayUnit && point.displayUnit !== '-' ? ` ${point.displayUnit}` : '';
+                return [
+                    `${params[0].axisValue}`,
+                    `数值: ${formatMetricValue(point?.value)}${suffix}`,
+                    `来源: ${row?.source || '-'}`,
+                    `发布时间: ${row?.published_at || '-'}`,
+                ].join('<br/>');
             }
         },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
+        grid: { left: '3%', right: '4%', bottom: 90, top: 56, containLabel: true },
         xAxis: {
             type: 'category',
-            data: normalizedSeries.dates,
+            data: chartPoints.map(item => item.label),
             axisLabel: { rotate: 45, fontSize: 10 }
         },
         yAxis: { type: 'value' },
+        dataZoom: [
+            {
+                type: 'inside',
+                start: startPercent,
+                end: endPercent,
+            },
+            {
+                type: 'slider',
+                start: startPercent,
+                end: endPercent,
+                height: 20,
+                bottom: 20,
+                borderColor: '#D6DDE8',
+                fillerColor: 'rgba(37, 99, 235, 0.16)',
+                handleStyle: {
+                    color: '#2563EB',
+                    borderColor: '#1D4ED8',
+                },
+                moveHandleStyle: {
+                    color: '#93C5FD',
+                },
+            }
+        ],
         series: [{
             type: 'line',
-            data: normalizedSeries.values,
+            data: chartPoints.map(item => item.value),
             smooth: true,
             itemStyle: { color: '#2563EB' },
             lineStyle: { width: 2.5 },
@@ -513,35 +756,77 @@ function renderMainChart(code, dates, values, unit = '') {
         }]
     });
 
-    window.addEventListener('resize', () => currentChart.resize());
-}
+    currentChart.off('datazoom');
+    currentChart.on('datazoom', function() {
+        syncVisibleRangeFromChart(totalPoints);
+    });
 
-function latestUnitFromData(data) {
-    if (!Array.isArray(data) || data.length === 0) {
-        return '';
+    if (!chartResizeHandlerAttached) {
+        window.addEventListener('resize', function() {
+            if (currentChart) {
+                currentChart.resize();
+            }
+        });
+        chartResizeHandlerAttached = true;
     }
-    return data[data.length - 1].display_unit || data[data.length - 1].unit || '';
+
+    syncVisibleRangeDependentUI();
 }
 
-// 更新指标信息
-function updateIndicatorInfo(code, data) {
-    if (!Array.isArray(data) || data.length === 0) {
+function syncVisibleRangeFromChart(totalPoints) {
+    if (!currentChart || totalPoints <= 0) {
+        return;
+    }
+    const option = currentChart.getOption();
+    const zoomOptions = Array.isArray(option.dataZoom) ? option.dataZoom : [];
+    if (zoomOptions.length === 0) {
+        return;
+    }
+    const zoomState = zoomOptions[0];
+    const startPercent = Number(zoomState.start ?? 0);
+    const endPercent = Number(zoomState.end ?? 100);
+    const startIndex = totalPoints <= 1
+        ? 0
+        : Math.max(0, Math.min(totalPoints - 1, Math.floor((startPercent / 100) * (totalPoints - 1))));
+    const endIndex = totalPoints <= 1
+        ? 0
+        : Math.max(startIndex, Math.min(totalPoints - 1, Math.ceil((endPercent / 100) * (totalPoints - 1))));
+    const visibleCount = endIndex - startIndex + 1;
+    const matchedPreset = RANGE_PRESET_OPTIONS.find(optionValue => {
+        if (optionValue === 'all') {
+            return startIndex === 0 && endIndex === totalPoints - 1;
+        }
+        return endIndex === totalPoints - 1 && visibleCount === Number(optionValue);
+    }) || null;
+    currentVisibleRange = {
+        startIndex,
+        endIndex,
+        preset: matchedPreset,
+    };
+    syncVisibleRangeDependentUI();
+}
+
+function updateIndicatorInfo(code, payload) {
+    if (!payload || !Array.isArray(payload.data) || payload.data.length === 0) {
         renderNoDataState(code);
         return;
     }
-    const latest = data[data.length - 1];
+    const latest = payload.data[payload.data.length - 1];
     document.getElementById('currentIndicatorCode').textContent = code;
-    document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
-    document.getElementById('currentIndicatorValue').textContent = Number(latest.display_value ?? latest.value).toFixed(2);
-    document.getElementById('currentIndicatorUnit').textContent = latest.display_unit || latest.unit || '-';
+    document.getElementById('currentIndicatorName').textContent = payload.name_cn || indicatorNamesMap[code] || code;
+    document.getElementById('currentIndicatorValue').textContent = formatMetricValue(latest.display_value ?? latest.value);
+    document.getElementById('currentIndicatorUnit').textContent = latest.display_unit || latest.original_unit || latest.unit || '-';
     document.getElementById('currentIndicatorSource').textContent = latest.source || '-';
-    document.getElementById('currentIndicatorPeriod').textContent = latest.reporting_period;
-    document.getElementById('currentIndicatorRecords').textContent = data.length + ' 条';
-    document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
+    document.getElementById('currentIndicatorPeriod').textContent = formatReportingPeriodLabel(latest.reporting_period, payload.period_type);
+    document.getElementById('currentIndicatorDescription').textContent = payload.description || indicatorDescriptionsMap[code] || '';
     updateRefreshButtonState(code);
+    updateVisibleRangeSummary();
 }
 
 function renderNoDataState(code) {
+    currentIndicatorPayload = null;
+    currentVisibleRange = { startIndex: 0, endIndex: -1, preset: '36' };
+    detailTableScope = 'visible';
     const syncSupported = isIndicatorSyncSupported(code);
     const canRefresh = manualRefreshProviderId > 0 && syncSupported;
     showIndicatorInfoBar();
@@ -553,6 +838,7 @@ function renderNoDataState(code) {
     document.getElementById('currentIndicatorPeriod').textContent = '-';
     document.getElementById('currentIndicatorRecords').textContent = '0 条';
     document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
+    document.getElementById('currentRangeSummary').textContent = '暂无可展示区间';
     if (syncSupported) {
         showChartPlaceholder('该指标暂无同步数据', '指标目录已收口到 Data Center，但当前环境还没有该指标的宏观事实记录。');
     } else {
@@ -564,13 +850,15 @@ function renderNoDataState(code) {
             : syncSupported
                 ? '<div class="placeholder-note">当前未配置可用的 Data Center 宏观 provider</div>'
                 : '<div class="placeholder-note">该指标尚未接入自动同步链路，请先在 Data Center 补齐接入配置。</div>';
+    updateRangeControlsAvailability(false);
+    updateDetailButtonState();
+    renderDataDetailPanel();
     updateRefreshButtonState(code);
 }
 
-// 折叠/展开分类
 function toggleCategory(catId) {
-    const content = document.getElementById('cat-content-' + catId);
-    const icon = document.getElementById('cat-icon-' + catId);
+    const content = document.getElementById(`cat-content-${catId}`);
+    const icon = document.getElementById(`cat-icon-${catId}`);
 
     if (content.style.display === 'none') {
         content.style.display = 'block';
@@ -581,7 +869,6 @@ function toggleCategory(catId) {
     }
 }
 
-// 折叠所有分类
 function collapseAllCategories() {
     document.querySelectorAll('.cat-content').forEach(el => {
         el.style.display = 'none';
@@ -591,29 +878,213 @@ function collapseAllCategories() {
     });
 }
 
-// 搜索指标
 function filterIndicators() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
 
     document.querySelectorAll('.cat-content').forEach(content => {
         const items = content.querySelectorAll('.ind-item');
-        let hasMatch = false;
 
         items.forEach(item => {
             const code = item.dataset.code.toLowerCase();
             const name = item.dataset.name.toLowerCase();
-
-            if (code.includes(searchTerm) || name.includes(searchTerm)) {
-                item.style.display = 'flex';
-                hasMatch = true;
-            } else {
-                item.style.display = 'none';
-            }
+            item.style.display = code.includes(searchTerm) || name.includes(searchTerm) ? 'flex' : 'none';
         });
     });
 }
 
-// 切换 Tab
+function openDataDetailDrawer() {
+    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0) {
+        return;
+    }
+    const drawer = document.getElementById('dataDetailDrawer');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    renderDataDetailPanel();
+}
+
+function closeDataDetailDrawer() {
+    const drawer = document.getElementById('dataDetailDrawer');
+    if (!drawer) {
+        return;
+    }
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+}
+
+function setDetailTableScope(scope) {
+    detailTableScope = scope === 'all' ? 'all' : 'visible';
+    renderDataDetailPanel();
+}
+
+function setDataDetailStatus(message, tone = 'muted') {
+    const statusEl = document.getElementById('dataDetailCopyStatus');
+    if (!statusEl) {
+        return;
+    }
+    statusEl.textContent = message || '';
+    statusEl.className = `detail-copy-status ${tone}`;
+}
+
+function buildMetaCard(label, valueHtml) {
+    return `
+        <div class="meta-card">
+            <div class="meta-card-label">${escapeHtml(label)}</div>
+            <div class="meta-card-value">${valueHtml}</div>
+        </div>
+    `;
+}
+
+function renderDataDetailPanel() {
+    const countEl = document.getElementById('dataDetailCount');
+    const metaEl = document.getElementById('dataDetailMeta');
+    const bodyEl = document.getElementById('dataDetailTableBody');
+    const emptyEl = document.getElementById('dataDetailEmpty');
+    if (!countEl || !metaEl || !bodyEl || !emptyEl) {
+        return;
+    }
+
+    document.querySelectorAll('.detail-scope-btn').forEach(button => {
+        button.classList.toggle('active', button.dataset.scope === detailTableScope);
+    });
+
+    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0) {
+        countEl.textContent = '暂无记录';
+        metaEl.innerHTML = '';
+        bodyEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        emptyEl.textContent = '当前指标没有可展示的明细数据。';
+        setDataDetailStatus('', 'muted');
+        return;
+    }
+
+    const visibleRows = getVisibleRows();
+    const scopedRows = detailTableScope === 'all' ? currentIndicatorPayload.data : visibleRows;
+    const latest = currentIndicatorPayload.data[currentIndicatorPayload.data.length - 1];
+    countEl.textContent = detailTableScope === 'all'
+        ? `全部 ${currentIndicatorPayload.data.length} 条记录`
+        : `当前区间 ${scopedRows.length} 条记录 · ${buildVisibleRangeLabel()}`;
+    metaEl.innerHTML = [
+        buildMetaCard('指标', `${escapeHtml(currentIndicatorPayload.name_cn || currentIndicatorPayload.indicator_code)}<span class="meta-card-sub">${escapeHtml(currentIndicatorPayload.indicator_code)}</span>`),
+        buildMetaCard('最新值', `${escapeHtml(formatMetricValue(latest.display_value ?? latest.value))} ${escapeHtml(latest.display_unit || latest.original_unit || latest.unit || '-')}`),
+        buildMetaCard('最新报告期', escapeHtml(formatReportingPeriodLabel(latest.reporting_period, currentIndicatorPayload.period_type))),
+        buildMetaCard('数据来源', escapeHtml(currentIndicatorPayload.publisher || latest.source || currentIndicatorPayload.data_source || '-')),
+        buildMetaCard('发布渠道', escapeHtml(currentIndicatorPayload.access_channel || '-')),
+        buildMetaCard('新鲜度', escapeHtml(currentIndicatorPayload.freshness_status || latest.freshness_status || '-')),
+        buildMetaCard('决策等级', escapeHtml(currentIndicatorPayload.decision_grade || latest.decision_grade || '-')),
+        buildMetaCard('时间语义', escapeHtml(currentIndicatorPayload.series_semantics || currentIndicatorPayload.period_type || '-')),
+    ].join('');
+
+    if (scopedRows.length === 0) {
+        bodyEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+        emptyEl.textContent = '当前区间没有数据，请拖动滑块或切换到“全部记录”。';
+        return;
+    }
+
+    bodyEl.innerHTML = scopedRows.map(row => `
+        <tr>
+            <td>${escapeHtml(formatReportingPeriodLabel(row.reporting_period, currentIndicatorPayload.period_type))}</td>
+            <td class="number-cell">${escapeHtml(formatMetricValue(row.display_value ?? row.value))}</td>
+            <td>${escapeHtml(row.display_unit || row.original_unit || row.unit || '-')}</td>
+            <td class="number-cell">${escapeHtml(formatMetricValue(row.value))}</td>
+            <td>${escapeHtml(row.unit || '-')}</td>
+            <td>${escapeHtml(row.original_unit || '-')}</td>
+            <td>${escapeHtml(row.source || '-')}</td>
+            <td>${escapeHtml(formatDisplayDate(row.published_at))}</td>
+            <td>${escapeHtml(row.quality || '-')}</td>
+            <td>${escapeHtml(row.freshness_status || '-')}</td>
+            <td class="number-cell">${escapeHtml(row.age_days ?? '-')}</td>
+        </tr>
+    `).join('');
+    emptyEl.style.display = 'none';
+}
+
+function buildMarkdownForScope(scope) {
+    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0) {
+        return '';
+    }
+    const rows = scope === 'all' ? currentIndicatorPayload.data : getVisibleRows();
+    const latest = currentIndicatorPayload.data[currentIndicatorPayload.data.length - 1];
+    const summaryRows = [
+        ['指标代码', currentIndicatorPayload.indicator_code],
+        ['指标名称', currentIndicatorPayload.name_cn || '-'],
+        ['描述', currentIndicatorPayload.description || '-'],
+        ['时间语义', currentIndicatorPayload.series_semantics || currentIndicatorPayload.period_type || '-'],
+        ['当前显示区间', buildVisibleRangeLabel()],
+        ['导出范围', scope === 'all' ? `全部 ${currentIndicatorPayload.data.length} 条` : `当前区间 ${rows.length} 条`],
+        ['最新值', `${formatMetricValue(latest.display_value ?? latest.value)} ${latest.display_unit || latest.original_unit || latest.unit || '-'}`],
+        ['最新报告期', formatReportingPeriodLabel(latest.reporting_period, currentIndicatorPayload.period_type)],
+        ['发布时间', currentIndicatorPayload.latest_published_at || latest.published_at || '-'],
+        ['数据来源', currentIndicatorPayload.publisher || latest.source || currentIndicatorPayload.data_source || '-'],
+        ['发布渠道', currentIndicatorPayload.access_channel || '-'],
+        ['新鲜度', currentIndicatorPayload.freshness_status || latest.freshness_status || '-'],
+        ['决策等级', currentIndicatorPayload.decision_grade || latest.decision_grade || '-'],
+        ['阻断原因', currentIndicatorPayload.blocked_reason || '-'],
+    ];
+
+    const lines = [
+        `## ${currentIndicatorPayload.name_cn || currentIndicatorPayload.indicator_code} (${currentIndicatorPayload.indicator_code})`,
+        '',
+        '| 字段 | 值 |',
+        '| --- | --- |',
+    ];
+    summaryRows.forEach(row => {
+        lines.push(`| ${escapeMarkdownCell(row[0])} | ${escapeMarkdownCell(row[1])} |`);
+    });
+
+    lines.push(
+        '',
+        '| 报告期 | 展示值 | 展示单位 | 存储值 | 存储单位 | 原始单位 | 数据源 | 发布时间 | 质量 | 新鲜度 | 天龄 |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    );
+
+    rows.forEach(row => {
+        lines.push(
+            `| ${escapeMarkdownCell(formatReportingPeriodLabel(row.reporting_period, currentIndicatorPayload.period_type))}`
+            + ` | ${escapeMarkdownCell(formatMetricValue(row.display_value ?? row.value))}`
+            + ` | ${escapeMarkdownCell(row.display_unit || row.original_unit || row.unit || '-')}`
+            + ` | ${escapeMarkdownCell(formatMetricValue(row.value))}`
+            + ` | ${escapeMarkdownCell(row.unit || '-')}`
+            + ` | ${escapeMarkdownCell(row.original_unit || '-')}`
+            + ` | ${escapeMarkdownCell(row.source || '-')}`
+            + ` | ${escapeMarkdownCell(formatDisplayDate(row.published_at))}`
+            + ` | ${escapeMarkdownCell(row.quality || '-')}`
+            + ` | ${escapeMarkdownCell(row.freshness_status || '-')}`
+            + ` | ${escapeMarkdownCell(row.age_days ?? '-')}`
+            + ' |'
+        );
+    });
+
+    return lines.join('\n');
+}
+
+async function copyDataDetailMarkdown(scope) {
+    const markdown = buildMarkdownForScope(scope);
+    if (!markdown) {
+        setDataDetailStatus('当前没有可复制的数据。', 'warning');
+        return;
+    }
+
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(markdown);
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = markdown;
+            textarea.setAttribute('readonly', 'readonly');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+        setDataDetailStatus(scope === 'all' ? '已复制全部记录 Markdown。' : '已复制当前区间 Markdown。', 'success');
+    } catch (error) {
+        setDataDetailStatus('复制失败，请手动重试。', 'error');
+    }
+}
+
 function switchTab(tabName) {
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
@@ -625,10 +1096,9 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById('tab-' + tabName).classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
 }
 
-// AI 分析
 async function askAI(question) {
     document.getElementById('aiQuestion').value = question;
     submitAIQuestion();
@@ -636,7 +1106,9 @@ async function askAI(question) {
 
 async function submitAIQuestion() {
     const question = document.getElementById('aiQuestion').value.trim();
-    if (!question) return;
+    if (!question) {
+        return;
+    }
 
     const responseDiv = document.getElementById('aiResponse');
     const statusSpan = document.getElementById('aiStatus');
@@ -646,7 +1118,6 @@ async function submitAIQuestion() {
     responseDiv.innerHTML = '<div class="ai-placeholder"><div class="placeholder-icon">⏳</div><p>AI 正在分析...</p></div>';
     submitBtn.disabled = true;
 
-    // 如果有选中的指标，添加到上下文
     const context = {
         has_indicator: !!currentIndicatorCode,
     };
@@ -678,7 +1149,7 @@ async function submitAIQuestion() {
             throw new Error('未收到回复');
         }
     } catch (error) {
-        responseDiv.innerHTML = `<div class="ai-response-content">AI 暂时不可用，请稍后重试。</div>`;
+        responseDiv.innerHTML = '<div class="ai-response-content">AI 暂时不可用，请稍后重试。</div>';
         statusSpan.textContent = '(离线)';
     }
 
@@ -691,7 +1162,7 @@ function getCookie(name) {
         const cookies = document.cookie.split(';');
         for (let i = 0; i < cookies.length; i++) {
             const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            if (cookie.substring(0, name.length + 1) === `${name}=`) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
             }
@@ -826,6 +1297,23 @@ function getCookie(name) {
         </div>
         <div class="indicator-description" id="currentIndicatorDescription"></div>
 
+        <div class="chart-toolbar">
+            <div class="chart-range-controls">
+                <span class="chart-toolbar-label">显示区间</span>
+                <button type="button" class="range-preset-btn" data-range="12" onclick="applyRangePreset('12')">近12</button>
+                <button type="button" class="range-preset-btn" data-range="24" onclick="applyRangePreset('24')">近24</button>
+                <button type="button" class="range-preset-btn" data-range="36" onclick="applyRangePreset('36')">近36</button>
+                <button type="button" class="range-preset-btn" data-range="60" onclick="applyRangePreset('60')">近60</button>
+                <button type="button" class="range-preset-btn" data-range="all" onclick="applyRangePreset('all')">全部</button>
+            </div>
+            <div class="chart-toolbar-actions">
+                <span id="currentRangeSummary" class="current-range-summary">暂无可展示区间</span>
+                <button id="openDataDetailBtn" type="button" class="detail-drawer-btn" onclick="openDataDetailDrawer()">
+                    表格详情 / Markdown
+                </button>
+            </div>
+        </div>
+
         <!-- 主图表 -->
         <div class="main-chart-container">
             <div id="mainChart" class="main-chart"></div>
@@ -877,6 +1365,56 @@ function getCookie(name) {
             </div>
         </div>
     </div>
+</div>
+
+<div id="dataDetailDrawer" class="data-detail-drawer" aria-hidden="true">
+    <div class="data-detail-backdrop" onclick="closeDataDetailDrawer()"></div>
+    <aside class="data-detail-panel" role="dialog" aria-modal="true" aria-labelledby="dataDetailTitle">
+        <div class="data-detail-header">
+            <div>
+                <h3 id="dataDetailTitle">指标明细</h3>
+                <p id="dataDetailCount" class="data-detail-count">暂无记录</p>
+            </div>
+            <button type="button" class="data-detail-close" onclick="closeDataDetailDrawer()" aria-label="关闭">×</button>
+        </div>
+
+        <div id="dataDetailMeta" class="data-detail-meta"></div>
+
+        <div class="data-detail-actions">
+            <div class="detail-scope-switch">
+                <button type="button" class="detail-scope-btn active" data-scope="visible" onclick="setDetailTableScope('visible')">当前区间</button>
+                <button type="button" class="detail-scope-btn" data-scope="all" onclick="setDetailTableScope('all')">全部记录</button>
+            </div>
+            <div class="detail-copy-actions">
+                <button type="button" class="detail-copy-btn" onclick="copyDataDetailMarkdown('visible')">复制当前区间 Markdown</button>
+                <button type="button" class="detail-copy-btn secondary" onclick="copyDataDetailMarkdown('all')">复制全部 Markdown</button>
+            </div>
+        </div>
+
+        <div id="dataDetailCopyStatus" class="detail-copy-status muted" aria-live="polite"></div>
+
+        <div class="data-detail-table-wrap">
+            <table class="data-detail-table">
+                <thead>
+                    <tr>
+                        <th>报告期</th>
+                        <th>展示值</th>
+                        <th>展示单位</th>
+                        <th>存储值</th>
+                        <th>存储单位</th>
+                        <th>原始单位</th>
+                        <th>数据源</th>
+                        <th>发布时间</th>
+                        <th>质量</th>
+                        <th>新鲜度</th>
+                        <th>天龄</th>
+                    </tr>
+                </thead>
+                <tbody id="dataDetailTableBody"></tbody>
+            </table>
+            <div id="dataDetailEmpty" class="data-detail-empty">当前指标没有可展示的明细数据。</div>
+        </div>
+    </aside>
 </div>
 
 <style>
@@ -1239,6 +1777,80 @@ function getCookie(name) {
     line-height: 1.5;
 }
 
+.chart-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.chart-range-controls,
+.chart-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chart-toolbar-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+}
+
+.range-preset-btn,
+.detail-drawer-btn,
+.detail-scope-btn,
+.detail-copy-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: white;
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.range-preset-btn:hover,
+.detail-drawer-btn:hover,
+.detail-scope-btn:hover,
+.detail-copy-btn:hover {
+    border-color: #2563EB;
+    color: #2563EB;
+    background: #EFF6FF;
+}
+
+.range-preset-btn.active,
+.detail-scope-btn.active {
+    background: #2563EB;
+    border-color: #2563EB;
+    color: white;
+}
+
+.range-preset-btn:disabled,
+.detail-drawer-btn:disabled,
+.detail-scope-btn:disabled,
+.detail-copy-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.detail-drawer-btn {
+    border-radius: var(--radius-sm);
+}
+
+.current-range-summary {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
 .main-chart {
     width: 100%;
     height: 480px;
@@ -1282,6 +1894,200 @@ function getCookie(name) {
 .placeholder-note {
     font-size: 12px;
     color: var(--color-text-muted);
+}
+
+.data-detail-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    pointer-events: none;
+}
+
+.data-detail-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.data-detail-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: min(860px, 100vw);
+    height: 100%;
+    background: #ffffff;
+    box-shadow: -16px 0 48px rgba(15, 23, 42, 0.16);
+    transform: translateX(100%);
+    transition: transform 0.24s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.data-detail-drawer.open {
+    pointer-events: auto;
+}
+
+.data-detail-drawer.open .data-detail-backdrop {
+    opacity: 1;
+}
+
+.data-detail-drawer.open .data-detail-panel {
+    transform: translateX(0);
+}
+
+.data-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.data-detail-header h3 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    color: var(--color-text-primary);
+}
+
+.data-detail-count {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.data-detail-close {
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+
+.data-detail-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 16px 24px;
+}
+
+.meta-card {
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: #FAFBFC;
+}
+
+.meta-card-label {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.meta-card-value {
+    font-size: 13px;
+    color: var(--color-text-primary);
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.meta-card-sub {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.data-detail-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 0 24px 12px;
+    flex-wrap: wrap;
+}
+
+.detail-scope-switch,
+.detail-copy-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.detail-copy-btn.secondary {
+    border-style: dashed;
+}
+
+.detail-copy-status {
+    min-height: 18px;
+    padding: 0 24px 12px;
+    font-size: 12px;
+}
+
+.detail-copy-status.muted {
+    color: var(--color-text-muted);
+}
+
+.detail-copy-status.success {
+    color: #166534;
+}
+
+.detail-copy-status.warning {
+    color: #92400E;
+}
+
+.detail-copy-status.error {
+    color: #B91C1C;
+}
+
+.data-detail-table-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 0 24px 24px;
+}
+
+.data-detail-table {
+    width: 100%;
+    min-width: 980px;
+    border-collapse: collapse;
+    background: white;
+}
+
+.data-detail-table th,
+.data-detail-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 12px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.data-detail-table th {
+    position: sticky;
+    top: 0;
+    background: #F8FAFC;
+    z-index: 1;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.data-detail-table .number-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.data-detail-empty {
+    display: none;
+    padding: 32px 8px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 13px;
 }
 
 /* 右侧边栏 */
@@ -1461,6 +2267,10 @@ function getCookie(name) {
     .stats-row {
         grid-template-columns: 1fr;
     }
+
+    .data-detail-panel {
+        width: 100vw;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1481,6 +2291,36 @@ function getCookie(name) {
 
     .chart-placeholder {
         min-height: 300px;
+    }
+
+    .chart-toolbar,
+    .data-detail-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chart-toolbar-actions,
+    .chart-range-controls,
+    .detail-scope-switch,
+    .detail-copy-actions {
+        width: 100%;
+    }
+
+    .range-preset-btn,
+    .detail-drawer-btn,
+    .detail-scope-btn,
+    .detail-copy-btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .data-detail-header,
+    .data-detail-meta,
+    .data-detail-actions,
+    .detail-copy-status,
+    .data-detail-table-wrap {
+        padding-left: 16px;
+        padding-right: 16px;
     }
 }
 </style>
