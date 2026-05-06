@@ -615,6 +615,7 @@ class TestQueryMacroSeriesUseCase:
             extra={
                 "series_semantics": "cumulative_level",
                 "paired_indicator_code": "CN_GDP_YOY",
+                "chart_policy": "yearly_reset_bar",
             },
         )
         unit_rules = _IndicatorUnitRuleRepo(
@@ -642,6 +643,7 @@ class TestQueryMacroSeriesUseCase:
         assert "不是单季值" in result.description
         assert result.series_semantics == "cumulative_level"
         assert result.paired_indicator_code == "CN_GDP_YOY"
+        assert result.chart_policy == "yearly_reset_bar"
         assert result.data[0].display_value == 318466.4
         assert result.data[0].display_unit == "亿元"
 

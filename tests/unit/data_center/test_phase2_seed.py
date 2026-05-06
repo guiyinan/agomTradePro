@@ -71,6 +71,7 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert "不是单季值" in gdp.description
     assert gdp.extra["series_semantics"] == "cumulative_level"
     assert gdp.extra["paired_indicator_code"] == "CN_GDP_YOY"
+    assert gdp.extra["chart_policy"] == "yearly_reset_bar"
     assert gdp.extra["display_priority"] == 20
 
     assert gdp_yoy.default_unit == "%"
@@ -79,61 +80,81 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert "同比增速口径" in gdp_yoy.description
     assert gdp_yoy.extra["series_semantics"] == "yoy_rate"
     assert gdp_yoy.extra["paired_indicator_code"] == "CN_GDP"
+    assert gdp_yoy.extra["chart_policy"] == "continuous_line"
     assert gdp_yoy.extra["display_priority"] == 120
 
     assert m2.name_cn == "M2 广义货币供应量余额"
     assert m2.extra["series_semantics"] == "balance_level"
     assert m2.extra["paired_indicator_code"] == "CN_M2_YOY"
+    assert m2.extra["chart_policy"] == "continuous_line"
     assert m2_yoy.extra["series_semantics"] == "yoy_rate"
+    assert m2_yoy.extra["chart_policy"] == "continuous_line"
 
     assert cpi.extra["series_semantics"] == "index_level"
     assert cpi.extra["paired_indicator_code"] == "CN_CPI_NATIONAL_YOY"
+    assert cpi.extra["chart_policy"] == "continuous_line"
     assert cpi_yoy.extra["series_semantics"] == "yoy_rate"
+    assert cpi_yoy.extra["chart_policy"] == "continuous_line"
 
     assert ppi.extra["series_semantics"] == "index_level"
     assert ppi.extra["paired_indicator_code"] == "CN_PPI_YOY"
+    assert ppi.extra["chart_policy"] == "continuous_line"
     assert ppi_yoy.extra["series_semantics"] == "yoy_rate"
+    assert ppi_yoy.extra["chart_policy"] == "continuous_line"
 
     assert retail.name_cn == "社会消费品零售总额当月值"
     assert retail.default_unit == "亿元"
     assert retail.extra["series_semantics"] == "monthly_level"
     assert retail.extra["paired_indicator_code"] == "CN_RETAIL_SALES_YOY"
+    assert retail.extra["chart_policy"] == "period_bar"
     assert retail_yoy.extra["series_semantics"] == "yoy_rate"
+    assert retail_yoy.extra["chart_policy"] == "continuous_line"
 
     assert fixed_investment.default_unit == "亿元"
     assert fixed_investment.extra["series_semantics"] == "cumulative_level"
     assert fixed_investment.extra["paired_indicator_code"] == "CN_FAI_YOY"
+    assert fixed_investment.extra["chart_policy"] == "yearly_reset_bar"
     assert fai_yoy.extra["series_semantics"] == "yoy_rate"
+    assert fai_yoy.extra["chart_policy"] == "continuous_line"
 
     assert value_added.name_cn == "工业增加值同比增速"
     assert value_added.default_unit == "%"
     assert value_added.extra["series_semantics"] == "yoy_rate"
+    assert value_added.extra["chart_policy"] == "continuous_line"
 
     assert exports.name_cn == "当月出口额"
     assert exports.default_unit == "亿美元"
     assert exports.extra["series_semantics"] == "monthly_level"
     assert exports.extra["paired_indicator_code"] == "CN_EXPORT_YOY"
+    assert exports.extra["chart_policy"] == "period_bar"
     assert export_yoy.extra["series_semantics"] == "yoy_rate"
+    assert export_yoy.extra["chart_policy"] == "continuous_line"
 
     assert imports.name_cn == "当月进口额"
     assert imports.default_unit == "亿美元"
     assert imports.extra["series_semantics"] == "monthly_level"
     assert imports.extra["paired_indicator_code"] == "CN_IMPORT_YOY"
+    assert imports.extra["chart_policy"] == "period_bar"
     assert import_yoy.extra["series_semantics"] == "yoy_rate"
+    assert import_yoy.extra["chart_policy"] == "continuous_line"
 
     assert fx_reserves.name_cn == "国家外汇储备余额"
     assert fx_reserves.default_unit == "亿美元"
     assert fx_reserves.extra["series_semantics"] == "balance_level"
+    assert fx_reserves.extra["chart_policy"] == "continuous_line"
 
     assert social_financing.name_cn == "社会融资规模增量"
     assert social_financing.default_unit == "亿元"
     assert social_financing.extra["series_semantics"] == "flow_level"
     assert social_financing.extra["paired_indicator_code"] == "CN_SOCIAL_FINANCING_YOY"
+    assert social_financing.extra["chart_policy"] == "period_bar"
     assert social_financing_yoy.extra["series_semantics"] == "yoy_rate"
+    assert social_financing_yoy.extra["chart_policy"] == "continuous_line"
 
     assert pmi.default_unit == "指数"
     assert pmi.default_period_type == "M"
     assert pmi.category == "growth"
+    assert pmi.extra["chart_policy"] == "continuous_line"
 
     assert cpi.default_unit == "指数"
     assert cpi.default_period_type == "M"
@@ -238,6 +259,47 @@ def test_indicator_catalog_seed_contains_macro_provenance_metadata():
     assert shibor.extra["publisher"] == "全国银行间同业拆借中心"
     assert shibor.extra["publisher_code"] == "NIFC"
     assert shibor.extra["publisher_codes"] == ["NIFC"]
+
+
+@pytest.mark.django_db
+def test_indicator_catalog_seed_explicitly_covers_all_active_series_semantics():
+    missing_codes = [
+        indicator.code
+        for indicator in IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
+        if not (indicator.extra or {}).get("series_semantics")
+    ]
+
+    assert missing_codes == []
+
+
+@pytest.mark.django_db
+def test_indicator_catalog_seed_covers_representative_runtime_chart_policies():
+    industrial_profit = IndicatorCatalogModel.objects.get(code="CN_INDUSTRIAL_PROFIT")
+    power_gen = IndicatorCatalogModel.objects.get(code="CN_POWER_GEN")
+    blast_furnace = IndicatorCatalogModel.objects.get(code="CN_BLAST_FURNACE")
+    export_alias = IndicatorCatalogModel.objects.get(code="CN_EXPORT")
+    rmb_deposit = IndicatorCatalogModel.objects.get(code="CN_RMB_DEPOSIT")
+    rmb_loan = IndicatorCatalogModel.objects.get(code="CN_RMB_LOAN")
+
+    assert industrial_profit.extra["series_semantics"] == "cumulative_level"
+    assert industrial_profit.extra["chart_policy"] == "yearly_reset_bar"
+
+    assert power_gen.extra["series_semantics"] == "monthly_level"
+    assert power_gen.extra["chart_policy"] == "period_bar"
+
+    assert blast_furnace.extra["series_semantics"] == "index_level"
+    assert blast_furnace.extra["chart_policy"] == "continuous_line"
+
+    assert export_alias.extra["series_semantics"] == "monthly_level"
+    assert export_alias.extra["alias_of_indicator_code"] == "CN_EXPORTS"
+    assert export_alias.extra["governance_scope"] == "macro_compat_alias"
+    assert export_alias.extra["chart_policy"] == "period_bar"
+
+    assert rmb_deposit.extra["series_semantics"] == "balance_level"
+    assert rmb_deposit.extra["chart_policy"] == "continuous_line"
+
+    assert rmb_loan.extra["series_semantics"] == "flow_level"
+    assert rmb_loan.extra["chart_policy"] == "period_bar"
 
 
 @pytest.mark.django_db

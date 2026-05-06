@@ -26,6 +26,7 @@ class MacroDataPageViewTests(TestCase):
                     "unit": "指数",
                     "series_semantics": "monthly_flow",
                     "paired_indicator_code": "",
+                    "chart_policy": "",
                     "display_priority": 10,
                     "period_type": "M",
                     "refresh_start": "2020-01-01",
@@ -75,3 +76,4 @@ class MacroDataPageViewTests(TestCase):
         self.assertIn("openDataDetailBtn", content)
         self.assertIn("dataDetailDrawer", content)
         self.assertIn("复制当前区间 Markdown", content)
+        self.assertIn("indicatorGovernanceNote", content)

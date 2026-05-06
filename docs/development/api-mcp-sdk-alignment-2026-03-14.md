@@ -83,17 +83,30 @@
 - 宏观运行配置已下沉到 `IndicatorCatalog.extra`，SDK/MCP 解释宏观指标时应优先读取：
   - `series_semantics`
   - `paired_indicator_code`
+  - `chart_policy`
   - `schedule_frequency`
   - `schedule_day_of_month`
   - `schedule_release_months`
   - `publication_lag_days`
   - `orm_period_type_override` / `domain_period_type_override`
+- 当前 active 宏观指标已补齐显式 `series_semantics`，图表策略统一收口为：
+  - `continuous_line`
+  - `period_bar`
+  - `yearly_reset_bar`
 - 因此：
   - 不要把 `quarterly` 指标按月频处理
   - 不要只凭 code suffix 推断 period_type
   - 不要再把同比指标回退解释为绝对额序列
+  - 不要再猜测某个序列“是否适合直接连线”；应直接读取 `chart_policy`
   - 不要为 fetcher、SDK 或 MCP 保留本地单位 fallback / mock 单位表
   - 不要再把 `publisher` 自由文本当成机构主键使用
+- 新环境或修库后建议执行：
+
+```bash
+python manage.py init_macro_indicator_governance --strict
+```
+
+该命令会幂等补齐宏观治理元数据，并在仍存在缺失语义的 active 指标时失败。
 
 其中 redesign 相关新增 canonical 端点为：
 

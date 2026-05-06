@@ -374,6 +374,7 @@ class MacroSeriesResponse:
     description: str = ""
     series_semantics: str = ""
     paired_indicator_code: str = ""
+    chart_policy: str = ""
     data: list[MacroDataPoint] = field(default_factory=list)
     total: int = 0
     data_source: str = "none"
@@ -425,6 +426,7 @@ class MacroSeriesResponse:
             "description": self.description,
             "series_semantics": self.series_semantics,
             "paired_indicator_code": self.paired_indicator_code,
+            "chart_policy": self.chart_policy,
             "total": self.total,
             "data": [p.to_dict() for p in self.data],
             "data_source": self.data_source,

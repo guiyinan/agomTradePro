@@ -226,6 +226,10 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
                 "paired_indicator_code",
                 (getattr(catalog, "extra", {}) or {}).get("paired_indicator_code", ""),
             ),
+            "chart_policy": metadata_map.get(catalog.code, {}).get(
+                "chart_policy",
+                (getattr(catalog, "extra", {}) or {}).get("chart_policy", ""),
+            ),
             "display_priority": _resolve_indicator_display_priority(
                 metadata_map.get(catalog.code, {}),
                 getattr(catalog, "extra", {}) or {},

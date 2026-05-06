@@ -721,6 +721,7 @@ class QueryMacroSeriesUseCase:
         catalog_extra = dict(catalog.extra or {}) if catalog else {}
         series_semantics = str(catalog_extra.get("series_semantics") or "")
         paired_indicator_code = str(catalog_extra.get("paired_indicator_code") or "")
+        chart_policy = str(catalog_extra.get("chart_policy") or "")
         provenance_class = str(catalog_extra.get("provenance_class") or "").strip()
         provenance_label = _provenance_label_for_class(provenance_class)
         publisher_code, publisher_codes = self._extract_publisher_codes(catalog_extra)
@@ -802,6 +803,7 @@ class QueryMacroSeriesUseCase:
             description=description,
             series_semantics=series_semantics,
             paired_indicator_code=paired_indicator_code,
+            chart_policy=chart_policy,
             data=data_points,
             total=len(data_points),
             data_source=data_source,

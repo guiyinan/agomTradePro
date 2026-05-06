@@ -330,6 +330,7 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
                     "description": "累计值口径",
                     "series_semantics": "cumulative_level",
                     "paired_indicator_code": "CN_GDP_YOY",
+                    "chart_policy": "yearly_reset_bar",
                     "display_priority": 20,
                 },
                 "CN_GDP_YOY": {
@@ -357,6 +358,7 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
     assert snapshot["selected_indicator"] == "CN_GDP_YOY"
     assert snapshot["indicator_map"]["CN_GDP"]["sync_supported"] is True
     assert snapshot["indicator_map"]["CN_GDP_YOY"]["sync_supported"] is True
+    assert snapshot["indicator_map"]["CN_GDP"]["chart_policy"] == "yearly_reset_bar"
     assert snapshot["bulk_refresh_indicator_codes"] == ["CN_GDP", "CN_GDP_YOY"]
     assert snapshot["indicator_map"]["CN_GDP"]["latest_period"] == "2025-Q1"
     assert snapshot["history"][0]["reporting_period_label"] == "2025-Q1"

@@ -208,6 +208,18 @@
     color: var(--color-text-muted);
 }
 
+.indicator-governance-note {
+    display: none;
+    margin: 0 0 var(--spacing-md) 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-left: 4px solid #d97706;
+    border-radius: var(--radius-md);
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: var(--font-size-small);
+    line-height: 1.6;
+}
+
 /* Charts Section */
 .charts-grid {
     display: grid;

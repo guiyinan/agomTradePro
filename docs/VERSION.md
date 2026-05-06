@@ -52,6 +52,8 @@ Build: 2026-03-23
 - `core.context_processors.get_market_visuals` 现对匿名 `/account/login/` 与 `/account/register/` 做默认值短路，不再为认证页额外触发运行时配置摘要读取
 - Data Center 与 Macro 页面已补齐 GDP 语义修正：`CN_GDP` 明确标记为“国内生产总值累计值”，并通过元数据暴露 `series_semantics` / `paired_indicator_code`，避免把季度累计额误读成单季值或同比
 - 宏观页默认展示逻辑已支持语义优先级；当 `CN_GDP` 与 `CN_GDP_YOY` 同时存在时，会优先落到同比增速，季度标签也统一显示为 `YYYY-Qn`
+- 宏观图表治理已进一步从“页面规则”下沉到指标元数据：`IndicatorCatalog.extra.chart_policy` 现统一由语义规则驱动落库，当前标准化为 `continuous_line` / `period_bar` / `yearly_reset_bar` 三类；宏观页会按该属性统一处理累计值、当期流量值和连续比率/指数序列，避免再按指标代码写展示特判
+- active 宏观指标现已补齐显式 `series_semantics`，包括累计值、当期流量、余额、指数、利率、同比/环比与 compat alias 口径；`python manage.py init_macro_indicator_governance --strict` 可幂等修复这套治理元数据并作为新环境初始化护栏
 - `python manage.py sync_macro_data` 已修复 GDP / 月度指标将 `PeriodType` 枚举误写入 JSON 的问题，`CN_GDP_YOY` 可正常回填入库
 - 宏观口径治理已扩展到 M2、CPI、PPI、社零、固投、工业增加值、外储、社融、进出口等高风险指标；`IndicatorCatalog` 现在会显式标注 level / index_level / yoy_rate / cumulative_level / balance_level 等语义
 - AKShare 采集链已校正 `CN_RETAIL_SALES` 与 `CN_FX_RESERVES` 的 code-to-column / code-to-unit 对应关系，避免把社零同比误当总额、把外储亿美元误写成万亿美元口径

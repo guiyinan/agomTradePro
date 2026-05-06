@@ -289,6 +289,7 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
             "description": "国内生产总值累计值，反映实体经济总量，非同比增速口径。",
             "series_semantics": "cumulative_level",
             "paired_indicator_code": "CN_GDP_YOY",
+            "chart_policy": "yearly_reset_bar",
         },
         "CN_M2": {
             "name": "M2（广义货币供应量余额）",
@@ -296,6 +297,7 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
             "description": "广义货币供应量余额，反映货币总量，非同比增速口径。",
             "series_semantics": "balance_level",
             "paired_indicator_code": "CN_M2_YOY",
+            "chart_policy": "continuous_line",
         },
         "CN_CPI": {
             "name": "CPI（居民消费价格指数）",
@@ -303,6 +305,7 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
             "description": "居民消费价格指数水平值，非同比涨幅口径。",
             "series_semantics": "index_level",
             "paired_indicator_code": "CN_CPI_NATIONAL_YOY",
+            "chart_policy": "continuous_line",
         },
         "CN_PPI": {
             "name": "PPI（工业生产者出厂价格指数）",
@@ -310,6 +313,7 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
             "description": "工业生产者出厂价格指数水平值，非同比涨幅口径。",
             "series_semantics": "index_level",
             "paired_indicator_code": "CN_PPI_YOY",
+            "chart_policy": "continuous_line",
         },
     }
     _patch_metadata_map(monkeypatch, runtime_only)
@@ -324,21 +328,25 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
     assert "非同比增速" in gdp["description"]
     assert gdp["series_semantics"] == "cumulative_level"
     assert gdp["paired_indicator_code"] == "CN_GDP_YOY"
+    assert gdp["chart_policy"] == "yearly_reset_bar"
 
     assert m2["name"] == "M2（广义货币供应量余额）"
     assert m2["unit"] == "万亿元"
     assert "非同比增速" in m2["description"]
     assert m2["series_semantics"] == "balance_level"
+    assert m2["chart_policy"] == "continuous_line"
 
     assert cpi["name"] == "CPI（居民消费价格指数）"
     assert cpi["unit"] == "指数"
     assert "非同比涨幅" in cpi["description"]
     assert cpi["series_semantics"] == "index_level"
+    assert cpi["chart_policy"] == "continuous_line"
 
     assert ppi["name"] == "PPI（工业生产者出厂价格指数）"
     assert ppi["unit"] == "指数"
     assert "非同比涨幅" in ppi["description"]
     assert ppi["series_semantics"] == "index_level"
+    assert ppi["chart_policy"] == "continuous_line"
 
 
 def test_get_available_indicators_for_frontend_uses_batch_projection(monkeypatch):

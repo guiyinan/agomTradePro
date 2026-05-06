@@ -34,6 +34,9 @@
 const indicatorNamesMap = {};
 const indicatorDescriptionsMap = {};
 const indicatorUnitsMap = {};
+const indicatorSeriesSemanticsMap = {};
+const indicatorPairedCodesMap = {};
+const indicatorChartPolicyMap = {};
 const macroSeriesUrl = '{% url "api_data_center:dc-macro-series" %}';
 const macroSyncUrl = '{% url "api_data_center:dc-sync-macro" %}';
 const manualRefreshProviderId = Number('{{ refresh_provider_id|default:"0" }}');
@@ -46,6 +49,9 @@ const RANGE_PRESET_OPTIONS = ['12', '24', '36', '60', 'all'];
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
         indicatorDescriptionsMap['{{ ind.code }}'] = '{{ ind.description|default:""|escapejs }}';
         indicatorUnitsMap['{{ ind.code }}'] = '{{ ind.unit|default:"-"|escapejs }}';
+        indicatorSeriesSemanticsMap['{{ ind.code }}'] = '{{ ind.series_semantics|default:""|escapejs }}';
+        indicatorPairedCodesMap['{{ ind.code }}'] = '{{ ind.paired_indicator_code|default:""|escapejs }}';
+        indicatorChartPolicyMap['{{ ind.code }}'] = '{{ ind.chart_policy|default:""|escapejs }}';
     {% endfor %}
 {% endfor %}
 
@@ -56,6 +62,9 @@ const initialIndicatorMeta = {
     description: '{{ selected_indicator_data.description|default:""|escapejs }}',
     unit: '{{ selected_indicator_data.unit|default:""|escapejs }}',
     periodType: '{{ selected_indicator_data.period_type|default:""|escapejs }}',
+    seriesSemantics: '{{ selected_indicator_data.series_semantics|default:""|escapejs }}',
+    pairedIndicatorCode: '{{ selected_indicator_data.paired_indicator_code|default:""|escapejs }}',
+    chartPolicy: '{{ selected_indicator_data.chart_policy|default:""|escapejs }}',
     latestPeriod: '{{ selected_indicator_data.latest_period|default:""|escapejs }}',
     hasData: {% if selected_indicator_data and selected_indicator_data.has_data %}true{% else %}false{% endif %},
 };
@@ -210,8 +219,9 @@ function normalizeMacroPayload(code, result) {
         name_cn: result?.name_cn || indicatorNamesMap[code] || code,
         description: result?.description || indicatorDescriptionsMap[code] || '',
         period_type: result?.period_type || '',
-        series_semantics: result?.series_semantics || '',
-        paired_indicator_code: result?.paired_indicator_code || '',
+        series_semantics: result?.series_semantics || indicatorSeriesSemanticsMap[code] || '',
+        paired_indicator_code: result?.paired_indicator_code || indicatorPairedCodesMap[code] || '',
+        chart_policy: result?.chart_policy || indicatorChartPolicyMap[code] || '',
         total: Number(result?.total ?? normalizedData.length),
         data: normalizedData,
         data_source: result?.data_source || '',
@@ -243,6 +253,9 @@ function buildInitialPayloadFromServerContext() {
         name_cn: initialIndicatorMeta.name || indicatorNamesMap[initialIndicator] || initialIndicator,
         description: initialIndicatorMeta.description || indicatorDescriptionsMap[initialIndicator] || '',
         period_type: initialIndicatorMeta.periodType || '',
+        series_semantics: initialIndicatorMeta.seriesSemantics || indicatorSeriesSemanticsMap[initialIndicator] || '',
+        paired_indicator_code: initialIndicatorMeta.pairedIndicatorCode || indicatorPairedCodesMap[initialIndicator] || '',
+        chart_policy: initialIndicatorMeta.chartPolicy || indicatorChartPolicyMap[initialIndicator] || '',
         latest_reporting_period: initialIndicatorMeta.latestPeriod || '',
         data_source: 'server_snapshot',
         data: initialHistoryRows.map(row => ({
@@ -262,6 +275,23 @@ function buildInitialPayloadFromServerContext() {
     });
 }
 
+function getPayloadGovernanceConfig(payload) {
+    const chartPolicy = String(payload?.chart_policy || '');
+    const pairedIndicatorCode = String(payload?.paired_indicator_code || '');
+    if (chartPolicy === 'yearly_reset_bar') {
+        return {
+            chartPolicy,
+            note: pairedIndicatorCode
+                ? `该指标是年内累计值口径，跨年会自然重置，不能直接连成连续趋势线；图表已切换为按周期位次着色的柱状图。判断增长方向请结合配对指标 ${pairedIndicatorCode}。`
+                : '该指标是年内累计值口径，跨年会自然重置，不能直接连成连续趋势线；图表已切换为按周期位次着色的柱状图。',
+        };
+    }
+    return {
+        chartPolicy,
+        note: '',
+    };
+}
+
 function buildChartPoints(payload) {
     if (!payload || !Array.isArray(payload.data)) {
         return [];
@@ -272,6 +302,99 @@ function buildChartPoints(payload) {
         displayUnit: row.display_unit || row.original_unit || row.unit || '',
         row,
     }));
+}
+
+function getPointCycleKey(point, periodType) {
+    const reportingPeriod = String(point?.row?.reporting_period || '');
+    const normalizedPeriodType = String(periodType || '').toUpperCase();
+    if (normalizedPeriodType === 'Q' && reportingPeriod.length >= 7) {
+        const month = reportingPeriod.slice(5, 7);
+        const quarterMap = { '03': 'Q1', '06': 'Q2', '09': 'Q3', '12': 'Q4' };
+        return quarterMap[month] || 'Q?';
+    }
+    if (normalizedPeriodType === 'M' && reportingPeriod.length >= 7) {
+        return reportingPeriod.slice(5, 7);
+    }
+    return String(point?.label || '');
+}
+
+function buildChartSeries(chartPoints, governance) {
+    const baseStyle = {
+        type: 'line',
+        smooth: true,
+        connectNulls: false,
+        showSymbol: true,
+        symbolSize: 6,
+        itemStyle: { color: '#2563EB' },
+        lineStyle: { width: 2.5, color: '#2563EB' },
+    };
+
+    if (governance.chartPolicy === 'period_bar') {
+        return [
+            {
+                type: 'bar',
+                data: chartPoints.map(item => item.value),
+                barMaxWidth: 34,
+                itemStyle: {
+                    borderRadius: [6, 6, 0, 0],
+                    color: '#2563EB',
+                },
+                emphasis: {
+                    itemStyle: {
+                        opacity: 0.9,
+                    },
+                },
+            }
+        ];
+    }
+
+    if (governance.chartPolicy !== 'yearly_reset_bar') {
+        return [
+            {
+                ...baseStyle,
+                data: chartPoints.map(item => item.value),
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
+                            { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
+                        ]
+                    }
+                }
+            }
+        ];
+    }
+
+    const quarterPalette = {
+        Q1: '#2563EB',
+        Q2: '#0F766E',
+        Q3: '#CA8A04',
+        Q4: '#C2410C',
+        'Q?': '#64748B',
+    };
+
+    return [
+        {
+            type: 'bar',
+            data: chartPoints.map(item => item.value),
+            barMaxWidth: 34,
+            itemStyle: {
+                borderRadius: [6, 6, 0, 0],
+                color: function(params) {
+                    const point = chartPoints[params.dataIndex];
+                    const cycleKey = getPointCycleKey(point, point?.row?.period_type);
+                    return quarterPalette[cycleKey] || '#64748B';
+                },
+            },
+            emphasis: {
+                itemStyle: {
+                    opacity: 0.9,
+                },
+            },
+        }
+    ];
 }
 
 function buildVisibleRange(totalPoints, preset) {
@@ -673,10 +796,12 @@ async function refreshAllIndicators() {
 function renderMainChart(code, payload) {
     const chartDom = document.getElementById('mainChart');
     const chartPoints = buildChartPoints(payload);
+    const governance = getPayloadGovernanceConfig(payload);
     if (chartPoints.length === 0) {
         renderNoDataState(code);
         return;
     }
+    const chartSeries = buildChartSeries(chartPoints, governance);
 
     currentVisibleRange = normalizeVisibleRange(currentVisibleRange, chartPoints.length);
     const totalPoints = chartPoints.length;
@@ -696,11 +821,15 @@ function renderMainChart(code, payload) {
         tooltip: {
             trigger: 'axis',
             formatter: function(params) {
-                const point = chartPoints[params[0].dataIndex];
+                const activeParam = Array.isArray(params)
+                    ? params.find(item => item && Number.isFinite(chartPoints[item.dataIndex]?.value))
+                    : null;
+                const dataIndex = activeParam?.dataIndex ?? params?.[0]?.dataIndex ?? 0;
+                const point = chartPoints[dataIndex];
                 const row = point ? point.row : null;
                 const suffix = point?.displayUnit && point.displayUnit !== '-' ? ` ${point.displayUnit}` : '';
                 return [
-                    `${params[0].axisValue}`,
+                    `${activeParam?.axisValue || params?.[0]?.axisValue || '-'}`,
                     `数值: ${formatMetricValue(point?.value)}${suffix}`,
                     `来源: ${row?.source || '-'}`,
                     `发布时间: ${row?.published_at || '-'}`,
@@ -714,6 +843,7 @@ function renderMainChart(code, payload) {
             axisLabel: { rotate: 45, fontSize: 10 }
         },
         yAxis: { type: 'value' },
+        legend: { show: false },
         dataZoom: [
             {
                 type: 'inside',
@@ -737,23 +867,7 @@ function renderMainChart(code, payload) {
                 },
             }
         ],
-        series: [{
-            type: 'line',
-            data: chartPoints.map(item => item.value),
-            smooth: true,
-            itemStyle: { color: '#2563EB' },
-            lineStyle: { width: 2.5 },
-            areaStyle: {
-                color: {
-                    type: 'linear',
-                    x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                        { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
-                        { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
-                    ]
-                }
-            }
-        }]
+        series: chartSeries
     });
 
     currentChart.off('datazoom');
@@ -771,6 +885,21 @@ function renderMainChart(code, payload) {
     }
 
     syncVisibleRangeDependentUI();
+}
+
+function updateIndicatorGovernanceNote(payload) {
+    const noteEl = document.getElementById('indicatorGovernanceNote');
+    if (!noteEl) {
+        return;
+    }
+    const governance = getPayloadGovernanceConfig(payload);
+    if (!governance.note) {
+        noteEl.textContent = '';
+        noteEl.style.display = 'none';
+        return;
+    }
+    noteEl.textContent = governance.note;
+    noteEl.style.display = 'block';
 }
 
 function syncVisibleRangeFromChart(totalPoints) {
@@ -819,6 +948,7 @@ function updateIndicatorInfo(code, payload) {
     document.getElementById('currentIndicatorSource').textContent = latest.source || '-';
     document.getElementById('currentIndicatorPeriod').textContent = formatReportingPeriodLabel(latest.reporting_period, payload.period_type);
     document.getElementById('currentIndicatorDescription').textContent = payload.description || indicatorDescriptionsMap[code] || '';
+    updateIndicatorGovernanceNote(payload);
     updateRefreshButtonState(code);
     updateVisibleRangeSummary();
 }
@@ -838,6 +968,7 @@ function renderNoDataState(code) {
     document.getElementById('currentIndicatorPeriod').textContent = '-';
     document.getElementById('currentIndicatorRecords').textContent = '0 条';
     document.getElementById('currentIndicatorDescription').textContent = indicatorDescriptionsMap[code] || '';
+    updateIndicatorGovernanceNote(null);
     document.getElementById('currentRangeSummary').textContent = '暂无可展示区间';
     if (syncSupported) {
         showChartPlaceholder('该指标暂无同步数据', '指标目录已收口到 Data Center，但当前环境还没有该指标的宏观事实记录。');
@@ -1296,6 +1427,7 @@ function getCookie(name) {
             </div>
         </div>
         <div class="indicator-description" id="currentIndicatorDescription"></div>
+        <div class="indicator-governance-note" id="indicatorGovernanceNote" style="display: none;"></div>
 
         <div class="chart-toolbar">
             <div class="chart-range-controls">

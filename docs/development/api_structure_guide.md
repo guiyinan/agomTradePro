@@ -33,6 +33,7 @@
   "publisher_code": "NBS",
   "publisher_codes": ["NBS"],
   "access_channel": "akshare",
+  "chart_policy": "yearly_reset_bar",
   "derivation_method": "",
   "upstream_indicator_codes": [],
   "is_derived": false,
@@ -68,6 +69,7 @@
 - `value` + `unit`：系统内部计算口径，只表示 canonical storage value/unit。
 - `display_value` + `display_unit`：页面、图表、表格统一展示口径。
 - `original_unit`：数据源原始单位，供审计和巡检使用。
+- `series_semantics`：指标的业务时序语义真源，例如 `yoy_rate`、`flow_level`、`cumulative_level`。
 - `provenance_class`：宏观来源分类，只允许 `official`、`authoritative_third_party`、`derived`。
 - `publisher`：原始发布/维护机构。
 - `publisher_code`：主发布机构代码，供程序稳定引用。
@@ -76,6 +78,20 @@
 - `derivation_method`：仅衍生序列使用，说明派生逻辑。
 - `upstream_indicator_codes`：仅衍生序列使用，列出上游真源指标。
 - `decision_grade` + `must_not_use_for_decision`：是否允许直接进入决策链路。
+- `chart_policy`：图表展示治理属性。当前 canonical 枚举为：
+  - `continuous_line`：适用于同比/环比、利率、指数、余额等连续观察序列。
+  - `period_bar`：适用于当期值、流量值等离散周期序列。
+  - `yearly_reset_bar`：适用于年内累计值，跨年会自然重置，展示层不得直接连成连续趋势线。
+
+运行时约束：
+
+- `series_semantics` 是图表策略的一级真源，`chart_policy` 是直接供 UI / MCP / SDK 消费的展示真源。
+- 前端、MCP、SDK 不允许再按指标代码、周期类型或历史经验推断“是否适合连线”。
+- 新环境或修库后建议执行：
+
+```bash
+python manage.py init_macro_indicator_governance --strict
+```
 
 当前宏观 provenance 约束：
 
@@ -214,10 +230,12 @@ DELETE /api/data-center/indicators/{code}/unit-rules/{rule_id}/
 新增一个宏观指标时，只允许做以下动作：
 
 1. 在 `IndicatorCatalog` 新建指标。
-2. 在 `IndicatorUnitRule` 新建默认规则，必要时补 provider 覆盖规则。
-3. 在对应 provider/fetcher 增加原始抓取逻辑。
-4. 跑同步。
-5. 用 `/api/data-center/macro/series/` 验证 canonical/storage/display 三套字段是否正确。
+2. 显式写入 `series_semantics`，并让 `chart_policy` 由治理命令/迁移派生。
+3. 在 `IndicatorUnitRule` 新建默认规则，必要时补 provider 覆盖规则。
+4. 在对应 provider/fetcher 增加原始抓取逻辑。
+5. 运行 `python manage.py init_macro_indicator_governance --strict`。
+6. 跑同步。
+7. 用 `/api/data-center/macro/series/` 验证 canonical/storage/display 三套字段是否正确。
 
 禁止再做：
 
