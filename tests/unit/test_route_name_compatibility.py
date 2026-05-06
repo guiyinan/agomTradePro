@@ -139,10 +139,10 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     assert '{% url "api_data_center:dc-sync-macro" %}' in macro_data
     assert 'id="refreshAllIndicatorsBtn"' in macro_data
     assert "function normalizeChronologicalSeries(data)" in macro_data
-    assert "function normalizeDisplaySeries(dates, values)" in macro_data
-    assert "const normalizedInitialSeries = normalizeDisplaySeries(" in macro_data
-    assert "const normalizedSeries = normalizeDisplaySeries(dates, values);" in macro_data
-    assert "const chronologicalData = normalizeChronologicalSeries(result.data);" in macro_data
+    assert "function normalizeMacroPayload(code, result)" in macro_data
+    assert "function buildChartSeries(chartPoints, governance)" in macro_data
+    assert "const response = await fetch(`${macroSeriesUrl}?indicator_code=${encodeURIComponent(code)}&limit=500`);" in macro_data
+    assert "currentIndicatorPayload = normalizeMacroPayload(code, result);" in macro_data
 
     assert "const API_BASE = '/macro/api';" not in macro_controller
     assert "const API_BASE = '/api/data-center';" in macro_controller

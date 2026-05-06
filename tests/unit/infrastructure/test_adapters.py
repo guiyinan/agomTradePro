@@ -15,15 +15,28 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from apps.macro.infrastructure.adapters.base import (
-    PUBLICATION_LAGS,
     BaseMacroAdapter,
     DataSourceUnavailableError,
     DataValidationError,
     MacroAdapterProtocol,
     MacroDataPoint,
     PublicationLag,
+    get_publication_lags,
 )
 from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter, MultiSourceAdapter
+
+
+@pytest.fixture(autouse=True)
+def _stub_runtime_publication_lags(monkeypatch):
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.base.get_runtime_macro_publication_lags",
+        lambda: {
+            "CN_PMI": {"days": 1, "description": "T+1"},
+            "CN_CPI": {"days": 10, "description": "T+10"},
+            "CN_SHIBOR": {"days": 0, "description": "same-day"},
+        },
+    )
+
 
 # ============================================================================
 # Test MacroDataPoint
@@ -68,10 +81,11 @@ class TestMacroDataPoint:
 
     def test_publication_lags_config(self):
         """测试发布延迟配置"""
-        assert "CN_PMI" in PUBLICATION_LAGS
-        assert PUBLICATION_LAGS["CN_PMI"].days == 1
-        assert PUBLICATION_LAGS["CN_CPI"].days == 10
-        assert PUBLICATION_LAGS["CN_SHIBOR"].days == 0
+        publication_lags = get_publication_lags()
+        assert "CN_PMI" in publication_lags
+        assert publication_lags["CN_PMI"].days == 1
+        assert publication_lags["CN_CPI"].days == 10
+        assert publication_lags["CN_SHIBOR"].days == 0
 
 
 # ============================================================================

@@ -6,6 +6,20 @@ from apps.macro.infrastructure.adapters.base import MacroDataPoint
 
 import pandas as pd
 
+
+@pytest.fixture(autouse=True)
+def _stub_runtime_macro_metadata(monkeypatch):
+    monkeypatch.setattr(
+        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        lambda: {
+            "CN_DR007": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_LPR": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_SHIBOR": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_RRR": {"default_unit": "%", "governance_scope": "macro_console"},
+            "CN_PBOC_NET_INJECTION": {"default_unit": "亿元", "governance_scope": "macro_console"},
+        },
+    )
+
 def dummy_validate(code, val, date_val, freq, unit):
     # Depending on the version, sometimes we just don't even need to mock validate like this if dummy_validate ignores arguments
     pass
