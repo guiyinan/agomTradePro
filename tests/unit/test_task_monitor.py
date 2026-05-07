@@ -4,8 +4,10 @@ Unit Tests for Task Monitor Module
 任务监控模块单元测试。
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 import pytest
 from django.utils import timezone
@@ -174,6 +176,49 @@ class TestDjangoTaskRecordRepository:
         retrieved = repository.get_by_task_id("test-id-123")
         assert retrieved.status == TaskStatus.FAILURE
         assert retrieved.retries == 1
+
+    def test_save_serializes_non_json_task_payload(self, repository, db):
+        """测试保存包含 date/Decimal/UUID 的任务参数"""
+        now = timezone.now()
+        sample_date = date(2026, 5, 7)
+        sample_uuid = uuid4()
+        record = TaskExecutionRecord(
+            task_id="json-safe-123",
+            task_name="test.task",
+            status=TaskStatus.STARTED,
+            args=(sample_date, Decimal("12.34"), sample_uuid),
+            kwargs={
+                "run_date": sample_date,
+                "amount": Decimal("12.34"),
+                "meta": {
+                    "uuid": sample_uuid,
+                    "items": [sample_date],
+                },
+            },
+            started_at=now,
+            finished_at=None,
+            result=None,
+            exception=None,
+            traceback=None,
+            runtime_seconds=None,
+            retries=0,
+            priority=TaskPriority.NORMAL,
+            queue="default",
+            worker="worker1",
+        )
+
+        repository.save(record)
+
+        model = TaskExecutionModel.objects.get(task_id="json-safe-123")
+        assert model.args == [sample_date.isoformat(), "12.34", str(sample_uuid)]
+        assert model.kwargs == {
+            "run_date": sample_date.isoformat(),
+            "amount": "12.34",
+            "meta": {
+                "uuid": str(sample_uuid),
+                "items": [sample_date.isoformat()],
+            },
+        }
 
     def test_list_by_task_name(self, repository, db):
         """测试按任务名称列出记录"""

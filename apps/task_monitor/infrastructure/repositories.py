@@ -4,12 +4,16 @@ Task Monitor Infrastructure Repositories
 任务监控仓储实现。
 """
 
+import json
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from enum import Enum
+from typing import Any, List, Optional
+from uuid import UUID
 
 from django.db import models
 from django.db.models import Avg, Count, Q
+from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
 
 from apps.task_monitor.domain.entities import (
@@ -46,15 +50,40 @@ def _safe_float(value: any) -> float:
         return 0.0
 
 
+def _to_json_compatible(value: Any) -> Any:
+    """Normalize arbitrary values into JSON-safe Python primitives."""
+    if isinstance(value, dict):
+        return {str(key): _to_json_compatible(item) for key, item in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_to_json_compatible(item) for item in value]
+
+    if isinstance(value, Enum):
+        return value.value
+
+    if isinstance(value, UUID):
+        return str(value)
+
+    try:
+        return json.loads(json.dumps(value, cls=DjangoJSONEncoder))
+    except TypeError:
+        return str(value)
+
+
 class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
     """基于 Django ORM 的任务记录仓储实现"""
 
     def save(self, record: TaskExecutionRecord) -> str:
         """保存任务执行记录"""
+        normalized_args = _to_json_compatible(record.args)
+        normalized_kwargs = _to_json_compatible(record.kwargs)
+
         try:
             # 尝试更新现有记录
             model = TaskExecutionModel.objects.get(task_id=record.task_id)
             model.status = record.status.value
+            model.args = normalized_args
+            model.kwargs = normalized_kwargs
             model.started_at = record.started_at
             model.finished_at = record.finished_at
             model.result = record.result
@@ -72,8 +101,8 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
                 task_id=record.task_id,
                 task_name=record.task_name,
                 status=record.status.value,
-                args=list(record.args),
-                kwargs=record.kwargs,
+                args=normalized_args,
+                kwargs=normalized_kwargs,
                 started_at=record.started_at,
                 finished_at=record.finished_at,
                 result=record.result,
