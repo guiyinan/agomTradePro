@@ -112,6 +112,10 @@ def test_qlib_refresh_cache_alias_forwards_top_n_without_type_error():
 
 def test_qlib_daily_inference_refreshes_data_before_queueing_prediction():
     with (
+        patch(
+            "apps.alpha.application.tasks._resolve_recent_closed_trade_date",
+            return_value=date(2026, 5, 7),
+        ),
         patch("apps.alpha.application.tasks._refresh_qlib_runtime_data") as refresh_mock,
         patch("apps.alpha.application.tasks.qlib_predict_scores.delay") as delay_mock,
     ):
@@ -131,7 +135,7 @@ def test_qlib_daily_inference_refreshes_data_before_queueing_prediction():
     refresh_mock.assert_called_once()
     assert refresh_mock.call_args.kwargs["universes"] == "csi300,csi500"
     assert refresh_mock.call_args.kwargs["lookback_days"] == 120
-    delay_mock.assert_called_once_with("csi300", date.today().isoformat(), 20)
+    delay_mock.assert_called_once_with("csi300", "2026-05-07", 20)
 
 
 def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
@@ -141,13 +145,25 @@ def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
         pool_mode="price_covered",
         instrument_codes=("000001.SZ", "600000.SH"),
         selection_reason="test",
-        trade_date=date.today(),
+        trade_date=date(2026, 5, 7),
         display_label="默认组合 · 价格覆盖池",
         portfolio_id=135,
         portfolio_name="默认组合",
     )
 
     with (
+        patch(
+            "apps.alpha.application.tasks._resolve_recent_closed_trade_date",
+            return_value=date(2026, 5, 7),
+        ),
+        patch(
+            "apps.alpha.application.tasks.get_qlib_model_registry_repository",
+            return_value=SimpleNamespace(get_active_model=lambda: SimpleNamespace(artifact_hash="hash-1")),
+        ),
+        patch(
+            "apps.alpha.application.tasks.get_alpha_score_cache_repository",
+            return_value=SimpleNamespace(get_qlib_cache_for_trade_date=lambda **kwargs: None),
+        ),
         patch(
             "apps.alpha.infrastructure.repositories.AlphaPoolDataRepository.list_active_portfolio_refs",
             return_value=[{"portfolio_id": 135, "user_id": 182, "name": "默认组合"}],
@@ -181,7 +197,7 @@ def test_qlib_daily_scoped_inference_queues_active_portfolio_scopes():
     assert refresh_mock.call_args.kwargs["stock_codes"] == {"000001.SZ", "600000.SH"}
     delay_mock.assert_called_once_with(
         scope.universe_id,
-        date.today().isoformat(),
+        "2026-05-07",
         12,
         scope_payload=scope.to_dict(),
     )
