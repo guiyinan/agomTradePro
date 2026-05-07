@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.cache import never_cache
 
 
 def _dashboard_views():
@@ -434,6 +435,7 @@ def _alpha_refresh_sync(
 
 
 @login_required(login_url="/account/login/")
+@never_cache
 def alpha_stocks_htmx(request):
     """Return the dashboard Alpha stock table payload."""
 

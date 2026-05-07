@@ -20,7 +20,7 @@ def _split_codes(raw: str | None) -> list[str]:
 class Command(BaseCommand):
     help = (
         "Seed macro indicator series semantics, compatibility alias metadata, and "
-        "chart_policy into IndicatorCatalog.extra."
+        "chart runtime metadata into IndicatorCatalog.extra."
     )
 
     def add_arguments(self, parser):

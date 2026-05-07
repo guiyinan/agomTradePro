@@ -175,12 +175,17 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
   - `series_semantics`
   - `paired_indicator_code`
   - `chart_policy`
+  - `chart_reset_frequency`
+  - `chart_segment_basis`
   - `schedule_frequency`
   - `schedule_day_of_month`
   - `schedule_release_months`
   - `publication_lag_days`
   - `orm_period_type_override` / `domain_period_type_override`
-- 当前 active 宏观指标已补齐显式 `series_semantics`，并由数据库派生统一 `chart_policy`：
+- 当前 active 宏观指标已补齐显式 `series_semantics`，并由数据库派生统一 `chart_policy`；对累计值序列还会同步暴露：
+  - `chart_reset_frequency`
+  - `chart_segment_basis`
+  当前 canonical 图表策略为：
   - `continuous_line`
   - `period_bar`
   - `yearly_reset_bar`
@@ -191,7 +196,7 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 python manage.py init_macro_indicator_governance --strict
 ```
 
-该命令会幂等修复 `series_semantics`、compat alias metadata 与 `chart_policy`，并在仍有 active 指标缺少显式语义时直接失败。
+该命令会幂等修复 `series_semantics`、compat alias metadata、`chart_policy` 与 reset-cycle 图表元数据，并在仍有 active 指标缺少显式语义时直接失败。
 - 宏观 runtime metadata 现已成为唯一运行真源：
   - 本地已不再维护独立 schedule fallback 表
   - 本地已不再维护独立 publication lag fallback 表
@@ -268,7 +273,7 @@ Notes:
 ### Macro Governance Notes
 
 - MCP 查询宏观数据时，运行时真源固定为 `IndicatorCatalog` + `IndicatorUnitRule` + `data_center_macro_fact`。
-- `series_semantics` 是宏观图表策略与 alias 安全回退的一级真源；`chart_policy` 是直接面向 UI / MCP consumer 的展示策略真源。
+- `series_semantics` 是宏观图表策略与 alias 安全回退的一级真源；`chart_policy`、`chart_reset_frequency`、`chart_segment_basis` 是直接面向 UI / MCP consumer 的展示策略真源。
 - 对累计值、当期值、利率/同比这三类序列的图表解释，必须读取 catalog metadata，不允许在 Agent prompt 或 SDK wrapper 里复写本地 if/else 表。
 - publisher 机构归一真源现补齐为 `PublisherCatalog`：
   - 机构识别、筛选、聚合优先使用 `publisher_code/publisher_codes`

@@ -3,7 +3,7 @@
 > **当前版本**: `0.7.0`
 > **Build 日期**: `2026-03-23`
 > **完整版本号**: `0.7.0-build.20260323`
-> **开发文档快照**: `2026-05-04`
+> **开发文档快照**: `2026-05-06`
 
 ---
 
@@ -52,7 +52,8 @@ Build: 2026-03-23
 - `core.context_processors.get_market_visuals` 现对匿名 `/account/login/` 与 `/account/register/` 做默认值短路，不再为认证页额外触发运行时配置摘要读取
 - Data Center 与 Macro 页面已补齐 GDP 语义修正：`CN_GDP` 明确标记为“国内生产总值累计值”，并通过元数据暴露 `series_semantics` / `paired_indicator_code`，避免把季度累计额误读成单季值或同比
 - 宏观页默认展示逻辑已支持语义优先级；当 `CN_GDP` 与 `CN_GDP_YOY` 同时存在时，会优先落到同比增速，季度标签也统一显示为 `YYYY-Qn`
-- 宏观图表治理已进一步从“页面规则”下沉到指标元数据：`IndicatorCatalog.extra.chart_policy` 现统一由语义规则驱动落库，当前标准化为 `continuous_line` / `period_bar` / `yearly_reset_bar` 三类；宏观页会按该属性统一处理累计值、当期流量值和连续比率/指数序列，避免再按指标代码写展示特判
+- 宏观图表治理已进一步从“页面规则”下沉到指标元数据：`IndicatorCatalog.extra.chart_policy` 现统一由语义规则驱动落库，当前标准化为 `continuous_line` / `period_bar` / `yearly_reset_bar` 三类；对累计值类指标还会同步落库 `chart_reset_frequency` / `chart_segment_basis`，宏观页据此统一复用 reset-stack 图表逻辑，避免再按指标代码写展示特判
+- reset-stack 类累计值图表现统一隐藏图例，直接依赖柱内颜色分段与 tooltip 展示周期位次，减少 `CN_GDP`、固投、工业利润等图表的纵向占用
 - active 宏观指标现已补齐显式 `series_semantics`，包括累计值、当期流量、余额、指数、利率、同比/环比与 compat alias 口径；`python manage.py init_macro_indicator_governance --strict` 可幂等修复这套治理元数据并作为新环境初始化护栏
 - `python manage.py sync_macro_data` 已修复 GDP / 月度指标将 `PeriodType` 枚举误写入 JSON 的问题，`CN_GDP_YOY` 可正常回填入库
 - 宏观口径治理已扩展到 M2、CPI、PPI、社零、固投、工业增加值、外储、社融、进出口等高风险指标；`IndicatorCatalog` 现在会显式标注 level / index_level / yoy_rate / cumulative_level / balance_level 等语义
@@ -71,6 +72,15 @@ Build: 2026-03-23
 - `tests/guardrails/test_logic_guardrails.py` 已新增宏观治理防回归护栏：禁止重新引入本地 fallback 常量，并要求最小健康基线数据下治理摘要保持全绿；该 guardrail 会被核心 CI 持续执行
 
 - `main` 已拉齐到最新通过 CI 的开发主线，当前公开主线包含宏观单位治理、Alpha/Qlib 运维台和异步任务可见性修复
+- `/equity/screen/` 的“系统自动推荐”按钮现已改为真正触发 `/api/dashboard/alpha/refresh/` 后再回读推荐结果，并对当前推荐股票顺手同步 `/api/equity/valuation-data/sync/` 与 `/api/equity/financial-data/sync/` 真源数据；不再只是重复读取旧的 `/api/dashboard/alpha/stocks/` 缓存视图，页面摘要也会显式展示最新评分日，便于识别像 `2026-05-06` 收盘后仍停留在 `2026-04-30` 这类新鲜度问题
+- `/equity/screen/` 读取 `/api/dashboard/alpha/stocks/` 时现已显式附加时间戳并使用 `cache: 'no-store'`，避免浏览器继续复用更早的 `2026-04-24` JSON 响应而掩盖服务端其实已经切到 `2026-04-30` 的情况
+- Alpha / Qlib 的收盘后自动链路已补齐三处修复：`qlib_predict_scores` 在刷新本地日线后会强制清空单进程 qlib 初始化状态，避免首个任务明明把数据刷到 `2026-05-06` 却仍按旧的 `2026-04-30` calendar 继续推理并落旧 `asof_date`
+- `qlib_daily_scoped_inference` 现改为按“最近一个已收盘交易日”而不是裸 `localdate()` 决定目标交易日，并对已有 `asof_date == intended_trade_date` 的 scoped qlib cache 做幂等跳过；午夜到次日收盘前的恢复任务会继续补前一交易日，不会误切到尚未收盘的“今天”
+- Celery 现显式声明 `celery / qlib_infer / qlib_train` 队列，并新增 `qlib-post-close-scoped-inference-recovery` 收盘后恢复调度；即使 beat 晚于 `17:40` 启动，后续 `18:00-23:50` 的恢复窗口仍会自动补跑缺失 scoped inference，不再依赖页面手点触发
+- `/equity/screen/` 新增直达 `/dashboard/alpha/ranking/` 的“查看完整排名”入口，并沿用当前 URL 中的 `portfolio_id / pool_mode / alpha_scope`；财务与估值展示继续坚持单一真源优先，未同步时保持空值而不是混源 fallback
+- `/equity/screen/` / Dashboard Alpha 上下文中的财务与估值字段现已明确只读取 `data_center` canonical fact tables；旧 `equity_financial_data` / `equity_valuation` 镜像表不再参与页面展示兜底，避免 Alpha 股票池看到“有旧本地值但不是真源”的混源结果
+- `DjangoStockRepository.list_active_stock_codes()` 的默认 universe 已从仅 `equity_stock_info.is_active=True` 扩到“legacy active + Data Center 当前 `price_covered` canonical stock”，财务同步、估值同步与估值质量校验的默认覆盖面已从本地 10 只扩大到当前实际可见的 49 只，避免后台定时任务继续只围着旧 active 清单打转
+- `/api/dashboard/alpha/stocks/` 现已通过 `never_cache` 返回 `Cache-Control: no-store`，避免 Dashboard / Equity Screen / 浏览器 fetch 在同一登录态下继续复用陈旧 Alpha JSON
 - Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 现在都会在返回 `task_id` 后立即向 `task_monitor` 写入 `pending` 记录
 - `provider_filter` 单点探测失败不再误报全局 `provider_unavailable`，Alpha 运维告警语义与 Dashboard fast-path/fallback 语义已对齐
 - 新增回归脚本 `python scripts/run_alpha_ops_regression.py`，当前覆盖 Alpha ops、Dashboard、Policy RSS 和 Data Center decision reliability repair 的关键回归点

@@ -1,6 +1,6 @@
 # Macro Data Center Cutover
 
-更新时间: 2026-05-04
+更新时间: 2026-05-07
 
 ## 目标
 
@@ -154,9 +154,25 @@
   - 页面按钮直接调用 `POST /api/data-center/sync/macro/`
   - provider 仅从 Data Center active provider 解析，不再回落到旧 `macro` 同步链路
   - 页面会按指标周期给出建议抓取窗口：日频默认近 2 年，周频默认近 5 年，月/季/年频默认回溯到 `2010-01-01`
+- `/macro/data/` 现已支持“当前指标一次性自动自愈刷新”：
+  - 当指标 `sync_supported=true` 且当前状态为 `stale/degraded`，页面会自动补抓一次
+  - 当指标目录已接入治理但当前环境尚无事实数据时，页面也会自动补抓一次
+  - 自动刷新只对每个指标触发一次，避免页面轮询式反复打源
 - `/macro/data/` 左栏滚动已收为单层：外层 sticky 容器不再滚动，指标列表成为唯一滚动区，分类展开区不再叠加内层滚动条
 - `core/templates/regime/dashboard.html` 的手动同步已改走 `/api/data-center/sync/macro/`
 - 旧宏观数据管理页 `/macro/controller/` 已重定向到 `/data-center/providers/`
+
+## 2026-05-07 freshness 自愈补充
+
+- `apps/macro/application/tasks.check_data_freshness` 已改为 catalog 驱动：
+  - 不再硬编码 `PMI/CPI/M2/PPI`
+  - 统一扫描 `IndicatorCatalog.extra.governance_sync_supported=true` 的 active 指标
+  - 缺失序列与 stale 序列都会被纳入告警结果
+- 新增 `apps.macro.application.tasks.auto_sync_due_macro_indicators`：
+  - 自动识别 `missing/stale` 的治理指标
+  - 按 `governance_sync_source_type` 选择 active provider
+  - 按指标周期和最新报告期自动推断回补窗口
+- `CELERY_BEAT_SCHEDULE` 已加入 `auto-sync-due-macro-indicators`，每天 `08:20` 自动执行一次，配合现有 freshness 巡检，形成“检查 + 自动补抓”的数据基座闭环。
 
 ## 刷新但不需要重训
 

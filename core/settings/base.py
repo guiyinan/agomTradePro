@@ -8,6 +8,7 @@ from pathlib import Path
 
 import environ
 from celery.schedules import crontab
+from kombu import Queue
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -494,6 +495,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.macro.application.tasks.check_data_freshness",
         "schedule": crontab(hour="*/6", minute=0),  # 每 6 小时执行一次
     },
+    "auto-sync-due-macro-indicators": {
+        "task": "apps.macro.application.tasks.auto_sync_due_macro_indicators",
+        "schedule": crontab(hour=8, minute=20),  # 每天 8:20 执行一次
+    },
     "send-database-backup-email": {
         "task": "apps.account.application.tasks.send_database_backup_email_task",
         "schedule": crontab(hour=8, minute=10),
@@ -631,9 +636,25 @@ CELERY_BEAT_SCHEDULE = {
             "pool_mode": "price_covered",
             "refresh_data": True,
             "lookback_days": 120,
+            "only_missing": True,
         },
         "options": {
             "expires": 7200,  # 2 小时超时
+        },
+    },
+    "qlib-post-close-scoped-inference-recovery": {
+        "task": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
+        "schedule": crontab(hour="18-23", minute="*/10", day_of_week="mon-fri"),
+        "kwargs": {
+            "top_n": 30,
+            "portfolio_limit": 0,
+            "pool_mode": "price_covered",
+            "refresh_data": True,
+            "lookback_days": 120,
+            "only_missing": True,
+        },
+        "options": {
+            "expires": 1800,  # 30 分钟超时
         },
     },
     "qlib-weekly-cache-refresh": {
@@ -764,12 +785,21 @@ QLIB_SETTINGS = {
     "model_path": env("QLIB_MODEL_PATH", default=str(BASE_DIR / "data" / "qlib" / "models")),
 }
 
+CELERY_TASK_DEFAULT_QUEUE = "celery"
+CELERY_TASK_QUEUES = (
+    Queue("celery"),
+    Queue("qlib_infer"),
+    Queue("qlib_train"),
+)
+
 # Celery 队列路由配置（Qlib 任务专用队列）
 CELERY_TASK_ROUTES = {
     "apps.alpha.application.tasks.qlib_train_model": {"queue": "qlib_train"},
     "apps.alpha.application.tasks.qlib_predict_scores": {"queue": "qlib_infer"},
     "apps.alpha.application.tasks.qlib_evaluate_model": {"queue": "qlib_train"},
     "apps.alpha.application.tasks.qlib_refresh_cache": {"queue": "qlib_infer"},
+    "apps.alpha.application.tasks.qlib_refresh_runtime_data_task": {"queue": "qlib_infer"},
+    "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task": {"queue": "qlib_infer"},
 }
 
 # Qlib 任务超时配置

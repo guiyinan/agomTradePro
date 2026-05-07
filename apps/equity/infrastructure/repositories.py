@@ -29,6 +29,7 @@ from apps.data_center.application.repository_provider import (
 )
 from apps.data_center.domain.entities import FinancialFact, ValuationFact
 from apps.data_center.domain.enums import FinancialPeriodType
+from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
 from apps.equity.domain.entities import (
     EquityAssetScore,
     FinancialData,
@@ -418,7 +419,7 @@ class DjangoStockRepository:
         return resolved
 
     def get_stock_context_rows(self, stock_codes: list[str]) -> dict[str, dict[str, Any]]:
-        """Return stock info plus latest market, financial, and valuation context."""
+        """Return stock info plus latest market and canonical fundamental context."""
 
         normalized_codes = [str(code).upper() for code in stock_codes if code]
         if not normalized_codes:
@@ -451,48 +452,10 @@ class DjangoStockRepository:
             if code not in daily_map:
                 daily_map[code] = row
 
-        financial_rows = (
-            FinancialDataModel._default_manager.filter(stock_code__in=list(candidate_codes))
-            .order_by("stock_code", "-report_date")
-            .values(
-                "stock_code",
-                "report_date",
-                "roe",
-                "debt_ratio",
-                "revenue_growth",
-                "net_profit_growth",
-            )
-        )
-        financial_map: dict[str, dict[str, Any]] = {}
-        for row in financial_rows:
-            code = str(row["stock_code"]).upper()
-            if code not in financial_map:
-                financial_map[code] = row
-
-        valuation_rows = (
-            ValuationModel._default_manager.filter(stock_code__in=list(candidate_codes))
-            .order_by("stock_code", "-trade_date")
-            .values(
-                "stock_code",
-                "trade_date",
-                "pe",
-                "pb",
-                "ps",
-                "dividend_yield",
-            )
-        )
-        valuation_map: dict[str, dict[str, Any]] = {}
-        for row in valuation_rows:
-            code = str(row["stock_code"]).upper()
-            if code not in valuation_map:
-                valuation_map[code] = row
-
         context: dict[str, dict[str, Any]] = {}
         for requested_code in requested_codes:
             row = {"name": "", "sector": "", "market": ""}
             latest_daily: dict[str, Any] = {}
-            latest_financial: dict[str, Any] = {}
-            latest_valuation: dict[str, Any] = {}
             for candidate in self._build_stock_code_candidates(requested_code):
                 candidate_info = info_map.get(candidate.upper())
                 if candidate_info and not any(row.values()):
@@ -503,10 +466,11 @@ class DjangoStockRepository:
                     }
                 if not latest_daily and candidate.upper() in daily_map:
                     latest_daily = daily_map[candidate.upper()]
-                if not latest_financial and candidate.upper() in financial_map:
-                    latest_financial = financial_map[candidate.upper()]
-                if not latest_valuation and candidate.upper() in valuation_map:
-                    latest_valuation = valuation_map[candidate.upper()]
+
+            # Dashboard / equity-screen fundamental metrics must come from the
+            # canonical data-center fact tables instead of legacy equity mirrors.
+            latest_financial = self._get_stock_context_financial_fact_row(requested_code)
+            latest_valuation = self._get_stock_context_valuation_fact_row(requested_code)
             context[requested_code] = {
                 **row,
                 "trade_date": latest_daily.get("trade_date"),
@@ -524,6 +488,34 @@ class DjangoStockRepository:
                 "dividend_yield": latest_valuation.get("dividend_yield"),
             }
         return context
+
+    def _get_stock_context_financial_fact_row(self, stock_code: str) -> dict[str, Any]:
+        latest_financials = self._get_financials_from_data_center(stock_code, limit=1)
+        if not latest_financials:
+            return {}
+
+        latest = latest_financials[0]
+        return {
+            "report_date": latest.report_date,
+            "roe": latest.roe,
+            "debt_ratio": latest.debt_ratio,
+            "revenue_growth": latest.revenue_growth,
+            "net_profit_growth": latest.net_profit_growth,
+        }
+
+    def _get_stock_context_valuation_fact_row(self, stock_code: str) -> dict[str, Any]:
+        latest_fact = self._dc_valuation_repo.get_latest(stock_code)
+        if latest_fact is None:
+            return {}
+
+        latest = self._dc_fact_to_valuation(latest_fact)
+        return {
+            "trade_date": latest.trade_date,
+            "pe": latest.pe,
+            "pb": latest.pb,
+            "ps": latest.ps,
+            "dividend_yield": latest.dividend_yield,
+        }
 
     def get_financial_data(self, stock_code: str, limit: int = 4) -> list[FinancialData]:
         """
@@ -1906,18 +1898,56 @@ class DjangoStockRepository:
         Returns:
             股票代码列表
         """
+        target_date = timezone.localdate()
+        codes: list[str] = []
+        seen_codes: set[str] = set()
+
+        # Keep legacy active-stock semantics for existing local equity flows.
         queryset = StockInfoModel._default_manager.filter(is_active=True)
 
         if stock_codes:
             normalized_codes = [str(code).strip().upper() for code in stock_codes if code]
             queryset = queryset.filter(stock_code__in=normalized_codes)
+        else:
+            normalized_codes = []
 
-        queryset = queryset.values_list("stock_code", flat=True).order_by("stock_code")
+        local_codes = queryset.values_list("stock_code", flat=True).order_by("stock_code")
+        for raw_code in local_codes:
+            normalized = str(raw_code or "").strip().upper()
+            if normalized and normalized not in seen_codes:
+                codes.append(normalized)
+                seen_codes.add(normalized)
+
+        # Expand the default sync / quality universe to the canonical stocks that
+        # currently have price coverage in Data Center, matching Alpha's visible pool.
+        asset_queryset = AssetMasterModel._default_manager.filter(
+            is_active=True,
+            asset_type="stock",
+            exchange__in=["SSE", "SZSE", "BSE"],
+        )
+        if normalized_codes:
+            asset_queryset = asset_queryset.filter(code__in=normalized_codes)
+        canonical_codes = list(asset_queryset.values_list("code", flat=True))
+        if canonical_codes:
+            price_covered_codes = (
+                PriceBarModel._default_manager.filter(
+                    bar_date__lte=target_date,
+                    asset_code__in=canonical_codes,
+                )
+                .values_list("asset_code", flat=True)
+                .distinct()
+                .order_by("asset_code")
+            )
+            for raw_code in price_covered_codes:
+                normalized = str(raw_code or "").strip().upper()
+                if normalized and normalized not in seen_codes:
+                    codes.append(normalized)
+                    seen_codes.add(normalized)
 
         if limit:
-            queryset = queryset[:limit]
+            return codes[:limit]
 
-        return list(queryset)
+        return codes
 
     def get_latest_valuation_date(self) -> date | None:
         """获取最新估值日期。"""

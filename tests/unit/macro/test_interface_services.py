@@ -1,5 +1,6 @@
 from datetime import date
 
+from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesResponse
 from apps.macro.application.interface_services import (
     get_macro_data_page_snapshot,
     get_macro_indicator_data,
@@ -95,6 +96,40 @@ class _FakeMacroReadRepository:
         }
 
 
+class _FakeM2QueryUseCase:
+    def execute(self, request):
+        assert request.indicator_code == "CN_M2"
+        point = MacroDataPoint(
+            indicator_code="CN_M2",
+            reporting_period=date(2026, 4, 1),
+            value=325.4,
+            unit="元",
+            display_value=325.4,
+            display_unit="万亿元",
+            original_unit="万亿元",
+            source="akshare",
+            quality="official",
+            published_at=date(2026, 4, 15),
+            age_days=20,
+            is_stale=False,
+            freshness_status="fresh",
+            decision_grade="decision_safe",
+        )
+        return MacroSeriesResponse(
+            indicator_code="CN_M2",
+            name_cn="M2",
+            period_type="M",
+            data=[point],
+            total=1,
+            freshness_status="fresh",
+            decision_grade="decision_safe",
+            must_not_use_for_decision=False,
+            latest_reporting_period=date(2026, 4, 1),
+            latest_published_at=date(2026, 4, 15),
+            latest_quality="official",
+        )
+
+
 def test_get_supported_macro_indicators_prefers_indicator_metadata(monkeypatch):
     monkeypatch.setattr(
         "apps.macro.application.interface_services.build_sync_macro_data_use_case",
@@ -152,6 +187,10 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
         "apps.macro.application.interface_services.load_macro_governance_payload",
         lambda: {"supported_sync_codes": ["CN_M2"]},
     )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.make_query_macro_series_use_case",
+        lambda: _FakeM2QueryUseCase(),
+    )
 
     snapshot = get_macro_data_page_snapshot()
 
@@ -173,6 +212,10 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
     assert snapshot["sync_unsupported_indicator_count"] == 1
     assert snapshot["bulk_refresh_indicator_codes"] == ["CN_M2"]
     assert len(snapshot["history"]) == 1
+    assert snapshot["history"][0]["freshness_status"] == "fresh"
+    assert snapshot["history"][0]["decision_grade"] == "decision_safe"
+    assert snapshot["indicator_map"]["CN_M2"]["freshness_status"] == "fresh"
+    assert snapshot["indicator_map"]["CN_M2"]["decision_grade"] == "decision_safe"
 
 
 def test_get_macro_indicator_data_requests_chronological_series(monkeypatch):
@@ -311,6 +354,40 @@ class _FakeGdpCatalogRepository:
         ]
 
 
+class _FakeGdpYoyQueryUseCase:
+    def execute(self, request):
+        assert request.indicator_code == "CN_GDP_YOY"
+        point = MacroDataPoint(
+            indicator_code="CN_GDP_YOY",
+            reporting_period=date(2025, 3, 1),
+            value=5.4,
+            unit="%",
+            display_value=5.4,
+            display_unit="%",
+            original_unit="%",
+            source="akshare",
+            quality="official",
+            published_at=date(2025, 4, 18),
+            age_days=30,
+            is_stale=False,
+            freshness_status="fresh",
+            decision_grade="decision_safe",
+        )
+        return MacroSeriesResponse(
+            indicator_code="CN_GDP_YOY",
+            name_cn="GDP同比增速",
+            period_type="Q",
+            data=[point],
+            total=1,
+            freshness_status="fresh",
+            decision_grade="decision_safe",
+            must_not_use_for_decision=False,
+            latest_reporting_period=date(2025, 3, 1),
+            latest_published_at=date(2025, 4, 18),
+            latest_quality="official",
+        )
+
+
 def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monkeypatch):
     monkeypatch.setattr(
         "apps.macro.application.interface_services.get_macro_read_repository",
@@ -331,6 +408,8 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
                     "series_semantics": "cumulative_level",
                     "paired_indicator_code": "CN_GDP_YOY",
                     "chart_policy": "yearly_reset_bar",
+                    "chart_reset_frequency": "year",
+                    "chart_segment_basis": "period_delta",
                     "display_priority": 20,
                 },
                 "CN_GDP_YOY": {
@@ -352,6 +431,10 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
         "apps.macro.application.interface_services.load_macro_governance_payload",
         lambda: {"supported_sync_codes": ["CN_GDP", "CN_GDP_YOY"]},
     )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.make_query_macro_series_use_case",
+        lambda: _FakeGdpYoyQueryUseCase(),
+    )
 
     snapshot = get_macro_data_page_snapshot()
 
@@ -359,6 +442,9 @@ def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monk
     assert snapshot["indicator_map"]["CN_GDP"]["sync_supported"] is True
     assert snapshot["indicator_map"]["CN_GDP_YOY"]["sync_supported"] is True
     assert snapshot["indicator_map"]["CN_GDP"]["chart_policy"] == "yearly_reset_bar"
+    assert snapshot["indicator_map"]["CN_GDP"]["chart_reset_frequency"] == "year"
+    assert snapshot["indicator_map"]["CN_GDP"]["chart_segment_basis"] == "period_delta"
     assert snapshot["bulk_refresh_indicator_codes"] == ["CN_GDP", "CN_GDP_YOY"]
     assert snapshot["indicator_map"]["CN_GDP"]["latest_period"] == "2025-Q1"
     assert snapshot["history"][0]["reporting_period_label"] == "2025-Q1"
+    assert snapshot["history"][0]["freshness_status"] == "fresh"

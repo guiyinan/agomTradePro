@@ -34,6 +34,9 @@ from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
 
+POST_CLOSE_HOUR = 16
+POST_CLOSE_MINUTE = 0
+
 
 def _normalize_qlib_region(region_value):
     """Normalize runtime region values for qlib.init()."""
@@ -89,6 +92,35 @@ def _normalize_qlib_instrument_list(raw_codes: list[str] | tuple[str, ...]) -> l
         normalized_codes.append(normalized_code)
         seen.add(normalized_code)
     return normalized_codes
+
+
+def _reset_qlib_runtime_state() -> None:
+    """Clear one-process qlib init markers so refreshed day data becomes visible immediately."""
+    for func in (_get_qlib_data_latest_date, _execute_qlib_prediction):
+        if hasattr(func, "_qlib_initialized"):
+            delattr(func, "_qlib_initialized")
+
+
+def _previous_business_day(target_date: date) -> date:
+    """Return the previous weekday for scheduler fallback usage."""
+    previous_day = target_date - timedelta(days=1)
+    while previous_day.weekday() >= 5:
+        previous_day -= timedelta(days=1)
+    return previous_day
+
+
+def _resolve_recent_closed_trade_date(reference_dt: datetime | None = None) -> date:
+    """Resolve the most recent trade date that should have post-close inference."""
+    local_now = timezone.localtime(reference_dt) if reference_dt else timezone.localtime()
+    current_date = local_now.date()
+
+    if current_date.weekday() >= 5:
+        return _previous_business_day(current_date)
+
+    if (local_now.hour, local_now.minute) < (POST_CLOSE_HOUR, POST_CLOSE_MINUTE):
+        return _previous_business_day(current_date)
+
+    return current_date
 
 
 def _install_qlib_pandas_compat() -> None:
@@ -245,11 +277,14 @@ def _refresh_qlib_runtime_data(
     lookback_days: int = 400,
 ) -> dict:
     """Refresh local qlib data before inference so scheduled runs do not rely on manual repair."""
-    return QlibRuntimeDataRefreshService().refresh_universes(
-        target_date=target_date,
-        universes=universes,
-        lookback_days=lookback_days,
-    )
+    try:
+        return QlibRuntimeDataRefreshService().refresh_universes(
+            target_date=target_date,
+            universes=universes,
+            lookback_days=lookback_days,
+        )
+    finally:
+        _reset_qlib_runtime_state()
 
 
 def _refresh_qlib_runtime_data_for_codes(
@@ -260,11 +295,24 @@ def _refresh_qlib_runtime_data_for_codes(
     lookback_days: int = 120,
 ) -> dict:
     """Refresh qlib data for explicit account/portfolio stock scopes."""
-    return QlibRuntimeDataRefreshService().refresh_codes(
-        target_date=target_date,
-        stock_codes=stock_codes,
-        universe_id=universe_id,
-        lookback_days=lookback_days,
+    try:
+        return QlibRuntimeDataRefreshService().refresh_codes(
+            target_date=target_date,
+            stock_codes=stock_codes,
+            universe_id=universe_id,
+            lookback_days=lookback_days,
+        )
+    finally:
+        _reset_qlib_runtime_state()
+
+
+def _cache_is_fresh_for_trade_date(cache_row: Any | None, trade_date: date) -> bool:
+    """Return whether one qlib cache row already satisfies same-day scoped inference."""
+    if cache_row is None or not getattr(cache_row, "scores", None):
+        return False
+    return (
+        getattr(cache_row, "status", "") == "available"
+        and getattr(cache_row, "asof_date", None) == trade_date
     )
 
 
@@ -930,13 +978,18 @@ def qlib_daily_inference(
     refresh_data: bool = True,
     refresh_universes: str | list[str] | tuple[str, ...] | None = None,
     lookback_days: int = 400,
+    trade_date: str | None = None,
 ) -> dict:
     """
     每日触发 Qlib 推理任务。
 
     用于 Celery Beat 无参调度入口，自动使用当天日期，并先刷新本地 Qlib 日线。
     """
-    trade_date_obj = timezone.localdate()
+    trade_date_obj = (
+        date.fromisoformat(trade_date)
+        if trade_date
+        else _resolve_recent_closed_trade_date()
+    )
     refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
     if refresh_data:
         try:
@@ -971,6 +1024,7 @@ def qlib_daily_inference_alias(
     refresh_data: bool = True,
     refresh_universes: str | list[str] | tuple[str, ...] | None = None,
     lookback_days: int = 400,
+    trade_date: str | None = None,
 ) -> dict:
     """Backwards-compatible alias for database/beat task paths."""
     return qlib_daily_inference.run(
@@ -979,6 +1033,7 @@ def qlib_daily_inference_alias(
         refresh_data=refresh_data,
         refresh_universes=refresh_universes,
         lookback_days=lookback_days,
+        trade_date=trade_date,
     )
 
 
@@ -997,11 +1052,26 @@ def qlib_daily_scoped_inference(
     pool_mode: str = "price_covered",
     refresh_data: bool = True,
     lookback_days: int = 120,
+    trade_date: str | None = None,
+    only_missing: bool = True,
 ) -> dict:
     """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 
-    trade_date = timezone.localdate()
+    target_trade_date = (
+        date.fromisoformat(trade_date)
+        if trade_date
+        else _resolve_recent_closed_trade_date()
+    )
+    active_model = get_qlib_model_registry_repository().get_active_model()
+    if active_model is None:
+        return {
+            "status": "skipped",
+            "reason": "no_active_model",
+            "trade_date": target_trade_date.isoformat(),
+        }
+
+    cache_repository = get_alpha_score_cache_repository()
     portfolio_refs = get_alpha_pool_data_repository().list_active_portfolio_refs(
         limit=portfolio_limit
     )
@@ -1009,14 +1079,16 @@ def qlib_daily_scoped_inference(
 
     resolved_scopes: list[tuple[dict, Any]] = []
     scoped_codes: set[str] = set()
+    seen_scope_keys: set[tuple[str, str | None]] = set()
     queued: list[dict] = []
     skipped: list[dict] = []
+    fresh_cache_count = 0
     for ref in portfolio_refs:
         try:
             resolved = resolver.resolve(
                 user_id=int(ref["user_id"]),
                 portfolio_id=int(ref["portfolio_id"]),
-                trade_date=trade_date,
+                trade_date=target_trade_date,
                 pool_mode=pool_mode,
             )
             if resolved.scope.pool_size == 0:
@@ -1025,6 +1097,35 @@ def qlib_daily_scoped_inference(
                     "reason": "empty_scope",
                 })
                 continue
+            scope_key = (resolved.scope.universe_id, resolved.scope.scope_hash)
+            if scope_key in seen_scope_keys:
+                skipped.append(
+                    {
+                        "portfolio_id": ref["portfolio_id"],
+                        "reason": "duplicate_scope",
+                        "scope_hash": resolved.scope.scope_hash,
+                    }
+                )
+                continue
+            seen_scope_keys.add(scope_key)
+            if only_missing:
+                existing_cache = cache_repository.get_qlib_cache_for_trade_date(
+                    universe_id=resolved.scope.universe_id,
+                    trade_date=target_trade_date,
+                    model_artifact_hash=getattr(active_model, "artifact_hash", None),
+                    scope_hash=resolved.scope.scope_hash,
+                )
+                if _cache_is_fresh_for_trade_date(existing_cache, target_trade_date):
+                    fresh_cache_count += 1
+                    skipped.append(
+                        {
+                            "portfolio_id": ref["portfolio_id"],
+                            "reason": "fresh_cache_exists",
+                            "scope_hash": resolved.scope.scope_hash,
+                            "asof_date": existing_cache.asof_date.isoformat(),
+                        }
+                    )
+                    continue
             resolved_scopes.append((ref, resolved.scope))
             scoped_codes.update(
                 normalized
@@ -1047,10 +1148,10 @@ def qlib_daily_scoped_inference(
             })
 
     refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
-    if refresh_data and scoped_codes:
+    if refresh_data and scoped_codes and resolved_scopes:
         try:
             refresh_result = _refresh_qlib_runtime_data_for_codes(
-                target_date=trade_date,
+                target_date=target_trade_date,
                 stock_codes=scoped_codes,
                 universe_id="scoped_portfolios",
                 lookback_days=lookback_days,
@@ -1071,7 +1172,7 @@ def qlib_daily_scoped_inference(
         try:
             task = qlib_predict_scores.delay(
                 scope.universe_id,
-                trade_date.isoformat(),
+                target_trade_date.isoformat(),
                 top_n,
                 scope_payload=scope.to_dict(),
             )
@@ -1097,14 +1198,25 @@ def qlib_daily_scoped_inference(
                 "reason": str(exc),
             })
 
+    status = "queued" if queued else "skipped"
+    reason = None
+    if status == "skipped":
+        if fresh_cache_count and not resolved_scopes:
+            reason = "all_scopes_fresh"
+        elif not resolved_scopes:
+            reason = "no_scopes_to_queue"
+
     return {
-        "status": "queued",
-        "trade_date": trade_date.isoformat(),
+        "status": status,
+        "reason": reason,
+        "trade_date": target_trade_date.isoformat(),
         "top_n": top_n,
         "portfolio_count": len(portfolio_refs),
+        "scope_count": len(seen_scope_keys),
         "scoped_stock_count": len(scoped_codes),
         "refresh_result": refresh_result,
         "queued_count": len(queued),
+        "fresh_cache_count": fresh_cache_count,
         "skipped_count": len(skipped),
         "queued": queued,
         "skipped": skipped,
@@ -1118,6 +1230,8 @@ def qlib_daily_scoped_inference_alias(
     pool_mode: str = "price_covered",
     refresh_data: bool = True,
     lookback_days: int = 120,
+    trade_date: str | None = None,
+    only_missing: bool = True,
 ) -> dict:
     """Backwards-compatible alias for database/beat task paths."""
     return qlib_daily_scoped_inference.run(
@@ -1126,6 +1240,8 @@ def qlib_daily_scoped_inference_alias(
         pool_mode=pool_mode,
         refresh_data=refresh_data,
         lookback_days=lookback_days,
+        trade_date=trade_date,
+        only_missing=only_missing,
     )
 
 

@@ -7,10 +7,12 @@ Integration Tests for Qlib Alpha Module
 import importlib.util
 import os
 import pickle
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
+from django.utils import timezone
 
 from apps.alpha.application.services import AlphaProviderRegistry, AlphaService
 from apps.alpha.application.tasks import qlib_predict_scores
@@ -500,6 +502,165 @@ class TestQlibCeleryTasks:
         assert cache.metrics_snapshot["fallback_mode"] == "forward_fill_latest_qlib_cache"
         assert cache.metrics_snapshot["qlib_data_latest_date"] is None
         assert "No module named 'qlib'" in cache.metrics_snapshot["qlib_runtime_error"]
+
+    def test_refresh_runtime_data_resets_one_process_qlib_state(self, monkeypatch):
+        """测试刷新本地 qlib 数据后会清空进程内初始化标记。"""
+        from apps.alpha.application import tasks as task_module
+
+        class _FakeRefreshService:
+            def refresh_universes(self, *, target_date, universes, lookback_days):
+                return {
+                    "status": "success",
+                    "target_date": target_date.isoformat(),
+                    "universes": list(universes),
+                    "lookback_days": lookback_days,
+                }
+
+        task_module._get_qlib_data_latest_date._qlib_initialized = True
+        task_module._execute_qlib_prediction._qlib_initialized = True
+        monkeypatch.setattr(
+            "apps.alpha.application.tasks.QlibRuntimeDataRefreshService",
+            lambda: _FakeRefreshService(),
+        )
+
+        result = task_module._refresh_qlib_runtime_data(
+            target_date=date(2026, 5, 6),
+            universes=["csi300"],
+            lookback_days=120,
+        )
+
+        assert result["status"] == "success"
+        assert not hasattr(task_module._get_qlib_data_latest_date, "_qlib_initialized")
+        assert not hasattr(task_module._execute_qlib_prediction, "_qlib_initialized")
+
+    def test_resolve_recent_closed_trade_date_rolls_back_before_close(self):
+        """测试午夜到收盘前的自动任务仍指向最近一个已收盘交易日。"""
+        from apps.alpha.application.tasks import _resolve_recent_closed_trade_date
+
+        reference_dt = timezone.make_aware(
+            datetime(2026, 5, 7, 9, 30),
+            timezone.get_current_timezone(),
+        )
+
+        assert _resolve_recent_closed_trade_date(reference_dt) == date(2026, 5, 6)
+
+    def test_qlib_daily_scoped_inference_skips_fresh_scope_caches_and_queues_missing_scopes(
+        self,
+        monkeypatch,
+    ):
+        """测试收盘后 scoped 调度只补跑缺失或旧的 scope。"""
+        from apps.alpha.application.tasks import qlib_daily_scoped_inference
+
+        trade_date = date(2026, 5, 6)
+        fresh_scope = AlphaPoolScope(
+            pool_type="portfolio_market",
+            market="CN",
+            pool_mode="price_covered",
+            instrument_codes=("000001.SZ",),
+            selection_reason="fresh",
+            trade_date=trade_date,
+            display_label="组合A",
+            portfolio_id=101,
+            portfolio_name="组合A",
+        )
+        missing_scope = AlphaPoolScope(
+            pool_type="portfolio_market",
+            market="CN",
+            pool_mode="price_covered",
+            instrument_codes=("600000.SH",),
+            selection_reason="missing",
+            trade_date=trade_date,
+            display_label="组合B",
+            portfolio_id=102,
+            portfolio_name="组合B",
+        )
+        scope_map = {
+            101: fresh_scope,
+            102: missing_scope,
+        }
+
+        class _FakePoolRepo:
+            @staticmethod
+            def list_active_portfolio_refs(*, limit):
+                return [
+                    {"portfolio_id": 101, "user_id": 7, "name": "组合A"},
+                    {"portfolio_id": 102, "user_id": 8, "name": "组合B"},
+                ]
+
+        class _FakeResolver:
+            def resolve(self, *, user_id, portfolio_id, trade_date, pool_mode):
+                return SimpleNamespace(scope=scope_map[portfolio_id])
+
+        class _FakeTask:
+            calls: list[dict] = []
+
+            @classmethod
+            def delay(cls, universe_id, intended_trade_date, top_n, scope_payload=None):
+                cls.calls.append(
+                    {
+                        "universe_id": universe_id,
+                        "intended_trade_date": intended_trade_date,
+                        "top_n": top_n,
+                        "scope_payload": scope_payload,
+                    }
+                )
+                return SimpleNamespace(id=f"task-{len(cls.calls)}")
+
+        active_model = QlibModelRegistryModel.objects.create(
+            model_name="scheduled_scoped_model",
+            artifact_hash="scheduled_scoped_hash",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-05-06",
+            model_path="/tmp/test_model.pkl",
+            is_active=True,
+        )
+        AlphaScoreCacheModel.objects.create(
+            universe_id=fresh_scope.universe_id,
+            intended_trade_date=trade_date,
+            provider_source="qlib",
+            asof_date=trade_date,
+            model_id=active_model.model_name,
+            model_artifact_hash=active_model.artifact_hash,
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-05-06",
+            scores=self._sample_scores(3),
+            status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+            scope_hash=fresh_scope.scope_hash,
+            scope_label=fresh_scope.display_label,
+            scope_metadata=fresh_scope.to_dict(),
+        )
+
+        monkeypatch.setattr(
+            "apps.alpha.application.tasks.get_alpha_pool_data_repository",
+            lambda: _FakePoolRepo(),
+        )
+        monkeypatch.setattr(
+            "apps.alpha.application.pool_resolver.PortfolioAlphaPoolResolver",
+            _FakeResolver,
+        )
+        monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", _FakeTask)
+
+        result = qlib_daily_scoped_inference.run(
+            top_n=10,
+            portfolio_limit=0,
+            pool_mode="price_covered",
+            refresh_data=False,
+            lookback_days=120,
+            trade_date=trade_date.isoformat(),
+            only_missing=True,
+        )
+
+        assert result["status"] == "queued"
+        assert result["queued_count"] == 1
+        assert result["fresh_cache_count"] == 1
+        assert _FakeTask.calls[0]["universe_id"] == missing_scope.universe_id
+        assert _FakeTask.calls[0]["intended_trade_date"] == trade_date.isoformat()
+        assert _FakeTask.calls[0]["scope_payload"]["scope_hash"] == missing_scope.scope_hash
 
 
 @pytest.mark.django_db

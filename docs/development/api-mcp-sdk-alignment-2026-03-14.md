@@ -84,6 +84,8 @@
   - `series_semantics`
   - `paired_indicator_code`
   - `chart_policy`
+  - `chart_reset_frequency`
+  - `chart_segment_basis`
   - `schedule_frequency`
   - `schedule_day_of_month`
   - `schedule_release_months`
@@ -93,11 +95,14 @@
   - `continuous_line`
   - `period_bar`
   - `yearly_reset_bar`
+- 对 `cumulative_level` 指标，还会额外下发：
+  - `chart_reset_frequency`
+  - `chart_segment_basis`
 - 因此：
   - 不要把 `quarterly` 指标按月频处理
   - 不要只凭 code suffix 推断 period_type
   - 不要再把同比指标回退解释为绝对额序列
-  - 不要再猜测某个序列“是否适合直接连线”；应直接读取 `chart_policy`
+  - 不要再猜测某个序列“是否适合直接连线”；应直接读取 `chart_policy`，并在 reset-stack 场景读取 `chart_reset_frequency` / `chart_segment_basis`
   - 不要为 fetcher、SDK 或 MCP 保留本地单位 fallback / mock 单位表
   - 不要再把 `publisher` 自由文本当成机构主键使用
 - 新环境或修库后建议执行：

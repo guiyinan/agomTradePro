@@ -72,6 +72,8 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert gdp.extra["series_semantics"] == "cumulative_level"
     assert gdp.extra["paired_indicator_code"] == "CN_GDP_YOY"
     assert gdp.extra["chart_policy"] == "yearly_reset_bar"
+    assert gdp.extra["chart_reset_frequency"] == "year"
+    assert gdp.extra["chart_segment_basis"] == "period_delta"
     assert gdp.extra["display_priority"] == 20
 
     assert gdp_yoy.default_unit == "%"
@@ -114,6 +116,8 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert fixed_investment.extra["series_semantics"] == "cumulative_level"
     assert fixed_investment.extra["paired_indicator_code"] == "CN_FAI_YOY"
     assert fixed_investment.extra["chart_policy"] == "yearly_reset_bar"
+    assert fixed_investment.extra["chart_reset_frequency"] == "year"
+    assert fixed_investment.extra["chart_segment_basis"] == "period_delta"
     assert fai_yoy.extra["series_semantics"] == "yoy_rate"
     assert fai_yoy.extra["chart_policy"] == "continuous_line"
 
@@ -283,6 +287,8 @@ def test_indicator_catalog_seed_covers_representative_runtime_chart_policies():
 
     assert industrial_profit.extra["series_semantics"] == "cumulative_level"
     assert industrial_profit.extra["chart_policy"] == "yearly_reset_bar"
+    assert industrial_profit.extra["chart_reset_frequency"] == "year"
+    assert industrial_profit.extra["chart_segment_basis"] == "period_delta"
 
     assert power_gen.extra["series_semantics"] == "monthly_level"
     assert power_gen.extra["chart_policy"] == "period_bar"

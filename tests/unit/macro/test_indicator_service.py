@@ -290,6 +290,8 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
             "series_semantics": "cumulative_level",
             "paired_indicator_code": "CN_GDP_YOY",
             "chart_policy": "yearly_reset_bar",
+            "chart_reset_frequency": "year",
+            "chart_segment_basis": "period_delta",
         },
         "CN_M2": {
             "name": "M2（广义货币供应量余额）",
@@ -329,6 +331,8 @@ def test_indicator_service_exposes_clear_metadata_for_direct_level_and_index_ser
     assert gdp["series_semantics"] == "cumulative_level"
     assert gdp["paired_indicator_code"] == "CN_GDP_YOY"
     assert gdp["chart_policy"] == "yearly_reset_bar"
+    assert gdp["chart_reset_frequency"] == "year"
+    assert gdp["chart_segment_basis"] == "period_delta"
 
     assert m2["name"] == "M2（广义货币供应量余额）"
     assert m2["unit"] == "万亿元"

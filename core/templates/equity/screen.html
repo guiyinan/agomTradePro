@@ -212,7 +212,8 @@
                     </p>
                 </div>
                 <div class="screen-source-actions">
-                    <button class="btn btn-primary" type="button" onclick="loadDashboardAlphaRecommendations(true)">载入自动推荐</button>
+                    <button class="btn btn-primary" type="button" onclick="refreshDashboardAlphaRecommendations(true)">刷新自动推荐</button>
+                    <a id="alphaRankingLink" href="/dashboard/alpha/ranking/" class="btn btn-secondary" style="text-decoration: none;">查看完整排名</a>
                     <a href="/decision/workspace/" class="btn btn-secondary" style="text-decoration: none;">决策工作台</a>
                     <a href="/dashboard/" class="btn btn-secondary" style="text-decoration: none;">返回首页</a>
                 </div>
@@ -399,6 +400,7 @@ function buildDashboardAlphaApiUrl() {
     const query = new URLSearchParams();
     query.set('format', 'json');
     query.set('top_n', '10');
+    query.set('_ts', String(Date.now()));
 
     const portfolioId = urlParams.get('portfolio_id');
     const poolMode = urlParams.get('pool_mode');
@@ -409,6 +411,129 @@ function buildDashboardAlphaApiUrl() {
         query.set('pool_mode', poolMode);
     }
     return `/api/dashboard/alpha/stocks/?${query.toString()}`;
+}
+
+function buildDashboardAlphaRankingUrl() {
+    const query = new URLSearchParams();
+    query.set('top_n', '200');
+
+    const portfolioId = urlParams.get('portfolio_id');
+    const poolMode = urlParams.get('pool_mode');
+    const alphaScope = urlParams.get('alpha_scope');
+
+    if (alphaScope) {
+        query.set('alpha_scope', alphaScope);
+    }
+    if (portfolioId) {
+        query.set('portfolio_id', portfolioId);
+    }
+    if (poolMode) {
+        query.set('pool_mode', poolMode);
+    }
+
+    return `/dashboard/alpha/ranking/?${query.toString()}`;
+}
+
+function buildDashboardAlphaRefreshPayload(sync = true) {
+    const payload = new URLSearchParams();
+    payload.set('top_n', '10');
+
+    if (sync) {
+        payload.set('sync', 'true');
+    }
+
+    const portfolioId = urlParams.get('portfolio_id');
+    const poolMode = urlParams.get('pool_mode');
+    const alphaScope = urlParams.get('alpha_scope');
+
+    if (portfolioId) {
+        payload.set('portfolio_id', portfolioId);
+    }
+    if (poolMode) {
+        payload.set('pool_mode', poolMode);
+    }
+    if (alphaScope) {
+        payload.set('alpha_scope', alphaScope);
+    }
+
+    return payload;
+}
+
+function getDashboardAlphaMeta(payload) {
+    return payload?.data?.meta || {};
+}
+
+function getDashboardAlphaAsOfDate(payload, items) {
+    const meta = getDashboardAlphaMeta(payload);
+    return (
+        meta.effective_asof_date ||
+        meta.verified_asof_date ||
+        meta.cache_date ||
+        items.find((item) => item?.asof_date)?.asof_date ||
+        ''
+    );
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function getRecommendationCodes(items) {
+    return Array.from(new Set(
+        (Array.isArray(items) ? items : [])
+            .map((item) => String(item?.code || '').trim().toUpperCase())
+            .filter(Boolean)
+    ));
+}
+
+async function syncRecommendationFundamentals(stockCodes) {
+    if (!Array.isArray(stockCodes) || stockCodes.length === 0) {
+        return { synced: false, message: '当前推荐列表没有可同步的股票代码。' };
+    }
+
+    const csrftoken = getCookie('csrftoken');
+    const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRFToken': csrftoken,
+    };
+
+    const valuationResponse = await fetch('/api/equity/valuation-data/sync/', {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify({
+            stock_codes: stockCodes,
+            days_back: 7,
+            primary_source: 'akshare',
+        }),
+    });
+    const valuationPayload = await valuationResponse.json();
+    if (!valuationResponse.ok || valuationPayload.success === false) {
+        throw new Error(valuationPayload.error || '估值同步失败');
+    }
+
+    const financialResponse = await fetch('/api/equity/financial-data/sync/', {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify({
+            stock_codes: stockCodes,
+            periods: 8,
+            source: 'akshare',
+        }),
+    });
+    const financialPayload = await financialResponse.json();
+    if (!financialResponse.ok || financialPayload.success === false) {
+        throw new Error(financialPayload.error || '财务同步失败');
+    }
+
+    const valuationCount = Number(valuationPayload.synced_count || 0);
+    const financialCount = Number(financialPayload.synced_count || 0);
+    return {
+        synced: true,
+        valuationCount,
+        financialCount,
+        message: `已同步 ${stockCodes.length} 只推荐股票的估值/财务真源数据。`,
+    };
 }
 
 function switchTab(tab) {
@@ -670,15 +795,19 @@ async function runScreening() {
     }
 }
 
-async function loadDashboardAlphaRecommendations(renderResults = true) {
+async function loadDashboardAlphaRecommendations(renderResults = true, options = {}) {
+    const preserveLoading = Boolean(options.preserveLoading);
     document.getElementById('alphaSourceSummary').textContent = '正在同步系统自动推荐结果...';
     document.getElementById('autoRecommendationStatus').textContent = '系统自动推荐加载中';
-    document.getElementById('loadingCard').style.display = 'block';
-    document.getElementById('emptyCard').style.display = 'none';
+    if (!preserveLoading) {
+        document.getElementById('loadingCard').style.display = 'block';
+        document.getElementById('emptyCard').style.display = 'none';
+    }
 
     const startTime = Date.now();
     try {
         const payload = await window.fetchJsonOrThrow(buildDashboardAlphaApiUrl(), {
+            cache: 'no-store',
             headers: {
                 'Accept': 'application/json'
             }
@@ -686,16 +815,23 @@ async function loadDashboardAlphaRecommendations(renderResults = true) {
         const items = Array.isArray(payload?.data?.items)
             ? payload.data.items
             : (Array.isArray(payload?.data?.top_candidates) ? payload.data.top_candidates : []);
+        const meta = getDashboardAlphaMeta(payload);
+        const asofDate = getDashboardAlphaAsOfDate(payload, items) || '未知';
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         autoRecommendationItems = items;
         renderAutoRecommendationGrid(items);
 
+        const refreshMessage = options.refreshMessage ? `${options.refreshMessage} ` : '';
         if (urlParams.get('source') === 'dashboard-alpha') {
-            document.getElementById('autoRecommendationStatus').textContent = '来自首页 Alpha 推荐';
-            document.getElementById('alphaSourceSummary').textContent = `已从首页带入 ${items.length} 只 Alpha 推荐，当前页面与首页使用同一批系统推荐。`;
+            document.getElementById('autoRecommendationStatus').textContent = meta.uses_cached_data ? '来自首页 Alpha 推荐（缓存）' : '来自首页 Alpha 推荐';
+            document.getElementById('alphaSourceSummary').textContent = `${refreshMessage}已从首页带入 ${items.length} 只 Alpha 推荐，当前页面与首页使用同一批系统推荐。最新评分日 ${asofDate}。`;
         } else {
-            document.getElementById('autoRecommendationStatus').textContent = '系统自动推荐';
-            document.getElementById('alphaSourceSummary').textContent = `当前系统推荐共 ${items.length} 只股票。导航栏进入和首页进入看到的是同一批推荐，只是首页会直接把结果带到下方结果区。`;
+            document.getElementById('autoRecommendationStatus').textContent = meta.uses_cached_data ? '系统自动推荐（缓存）' : '系统自动推荐';
+            document.getElementById('alphaSourceSummary').textContent = `${refreshMessage}当前系统推荐共 ${items.length} 只股票。最新评分日 ${asofDate}。导航栏进入和首页进入看到的是同一批推荐，只是首页会直接把结果带到下方结果区。`;
+        }
+
+        if (meta.warning_message) {
+            document.getElementById('alphaSourceSummary').textContent += ` ${meta.warning_message}`;
         }
 
         if (renderResults) {
@@ -722,6 +858,76 @@ async function loadDashboardAlphaRecommendations(renderResults = true) {
     }
 }
 
+async function refreshDashboardAlphaRecommendations(renderResults = true) {
+    const statusNode = document.getElementById('autoRecommendationStatus');
+    const summaryNode = document.getElementById('alphaSourceSummary');
+    statusNode.textContent = '系统自动推荐刷新中';
+    summaryNode.textContent = '正在触发当日最新 Alpha 推荐刷新，请稍候...';
+    document.getElementById('loadingCard').style.display = 'block';
+    document.getElementById('emptyCard').style.display = 'none';
+
+    const csrftoken = getCookie('csrftoken');
+
+    try {
+        const response = await fetch('/api/dashboard/alpha/refresh/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json',
+            },
+            body: buildDashboardAlphaRefreshPayload(true).toString(),
+        });
+        const payload = await response.json();
+        const message = String(payload.message || payload.error || '').trim();
+
+        if (payload.success) {
+            const waitMs = payload.sync ? 0 : Math.min(Number(payload.poll_after_ms) || 0, 5000);
+            if (waitMs > 0) {
+                await sleep(waitMs);
+            }
+            await loadDashboardAlphaRecommendations(renderResults, {
+                preserveLoading: true,
+                refreshMessage: message || '系统自动推荐已触发刷新。',
+            });
+
+            const stockCodes = getRecommendationCodes(autoRecommendationItems);
+            if (stockCodes.length > 0) {
+                statusNode.textContent = '同步推荐财务/估值中';
+                summaryNode.textContent = '正在补齐当前推荐股票的财务与估值真源数据，请稍候...';
+                let syncResult;
+                try {
+                    syncResult = await syncRecommendationFundamentals(stockCodes);
+                } catch (syncError) {
+                    await loadDashboardAlphaRecommendations(renderResults, {
+                        preserveLoading: true,
+                        refreshMessage: `${message || '系统自动推荐已触发刷新。'} 但推荐股票财务/估值真源同步失败：${syncError.message}。`,
+                    });
+                    return;
+                }
+                await loadDashboardAlphaRecommendations(renderResults, {
+                    preserveLoading: true,
+                    refreshMessage: `${message || '系统自动推荐已触发刷新。'} ${syncResult.message}`,
+                });
+            }
+            return;
+        }
+
+        await loadDashboardAlphaRecommendations(renderResults, {
+            preserveLoading: true,
+            refreshMessage: message
+                ? `${message} 当前先回显最近可用结果。`
+                : '刷新未成功，当前先回显最近可用结果。',
+        });
+    } catch (error) {
+        console.error('Failed to refresh dashboard alpha recommendations:', error);
+        await loadDashboardAlphaRecommendations(renderResults, {
+            preserveLoading: true,
+            refreshMessage: `刷新触发失败：${error.message}。当前先回显最近可用结果。`,
+        });
+    }
+}
+
 function exportResults() {
     if (screeningResults.length === 0) {
         alert('没有可导出的数据');
@@ -737,6 +943,10 @@ function exportResults() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const rankingLink = document.getElementById('alphaRankingLink');
+    if (rankingLink) {
+        rankingLink.href = buildDashboardAlphaRankingUrl();
+    }
     loadDashboardAlphaRecommendations(true);
 });
 </script>

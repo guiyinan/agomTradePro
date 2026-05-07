@@ -6,6 +6,8 @@ from typing import Any
 
 ALIAS_SCOPE = "macro_compat_alias"
 FALLBACK_CHART_POLICY = "continuous_line"
+DEFAULT_RESET_FREQUENCY = ""
+DEFAULT_SEGMENT_BASIS = ""
 SEMANTICS_TO_CHART_POLICY = {
     "cumulative_level": "yearly_reset_bar",
     "monthly_level": "period_bar",
@@ -17,6 +19,23 @@ SEMANTICS_TO_CHART_POLICY = {
     "balance_level": "continuous_line",
     "level": "continuous_line",
 }
+
+
+def resolve_chart_runtime_metadata(series_semantics: str) -> dict[str, str]:
+    """Resolve the generic chart runtime metadata for one semantic class."""
+
+    normalized = str(series_semantics or "").strip()
+    if normalized == "cumulative_level":
+        return {
+            "chart_policy": "yearly_reset_bar",
+            "chart_reset_frequency": "year",
+            "chart_segment_basis": "period_delta",
+        }
+    return {
+        "chart_policy": resolve_chart_policy(normalized),
+        "chart_reset_frequency": DEFAULT_RESET_FREQUENCY,
+        "chart_segment_basis": DEFAULT_SEGMENT_BASIS,
+    }
 
 
 def resolve_chart_policy(series_semantics: str) -> str:
@@ -34,7 +53,7 @@ def merge_governance_extra(
 
     merged = dict(existing_extra or {})
     merged.update(updates)
-    merged["chart_policy"] = resolve_chart_policy(str(merged.get("series_semantics") or ""))
+    merged.update(resolve_chart_runtime_metadata(str(merged.get("series_semantics") or "")))
     return merged
 
 
@@ -52,7 +71,7 @@ def _row(
     }
     if extra:
         payload_extra.update(extra)
-    payload_extra["chart_policy"] = resolve_chart_policy(semantics)
+    payload_extra.update(resolve_chart_runtime_metadata(semantics))
     return {
         "name_cn": name_cn,
         "description": description,

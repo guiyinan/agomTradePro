@@ -34,6 +34,8 @@
   "publisher_codes": ["NBS"],
   "access_channel": "akshare",
   "chart_policy": "yearly_reset_bar",
+  "chart_reset_frequency": "year",
+  "chart_segment_basis": "period_delta",
   "derivation_method": "",
   "upstream_indicator_codes": [],
   "is_derived": false,
@@ -82,10 +84,12 @@
   - `continuous_line`：适用于同比/环比、利率、指数、余额等连续观察序列。
   - `period_bar`：适用于当期值、流量值等离散周期序列。
   - `yearly_reset_bar`：适用于年内累计值，跨年会自然重置，展示层不得直接连成连续趋势线。
+- `chart_reset_frequency`：reset-stack 图表的重置频率，例如 `year`。
+- `chart_segment_basis`：reset-stack 图表的分段口径；`period_delta` 表示同一重置周期内按相邻累计值差分后再分段展示。
 
 运行时约束：
 
-- `series_semantics` 是图表策略的一级真源，`chart_policy` 是直接供 UI / MCP / SDK 消费的展示真源。
+- `series_semantics` 是图表策略的一级真源，`chart_policy`、`chart_reset_frequency`、`chart_segment_basis` 是直接供 UI / MCP / SDK 消费的展示真源。
 - 前端、MCP、SDK 不允许再按指标代码、周期类型或历史经验推断“是否适合连线”。
 - 新环境或修库后建议执行：
 

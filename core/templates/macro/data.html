@@ -37,6 +37,8 @@ const indicatorUnitsMap = {};
 const indicatorSeriesSemanticsMap = {};
 const indicatorPairedCodesMap = {};
 const indicatorChartPolicyMap = {};
+const indicatorChartResetFrequencyMap = {};
+const indicatorChartSegmentBasisMap = {};
 const macroSeriesUrl = '{% url "api_data_center:dc-macro-series" %}';
 const macroSyncUrl = '{% url "api_data_center:dc-sync-macro" %}';
 const manualRefreshProviderId = Number('{{ refresh_provider_id|default:"0" }}');
@@ -44,6 +46,7 @@ const manualRefreshEndDate = '{{ refresh_end_date|date:"Y-m-d"|default:"" }}';
 const bulkRefreshIndicatorCodes = {{ bulk_refresh_indicator_codes|safe }};
 const DEFAULT_VISIBLE_POINTS = 36;
 const RANGE_PRESET_OPTIONS = ['12', '24', '36', '60', 'all'];
+const RESET_STACK_CHART_POLICIES = new Set(['yearly_reset_bar', 'reset_stack_bar']);
 {% for category in indicator_categories %}
     {% for ind in category.indicators %}
         indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
@@ -52,6 +55,8 @@ const RANGE_PRESET_OPTIONS = ['12', '24', '36', '60', 'all'];
         indicatorSeriesSemanticsMap['{{ ind.code }}'] = '{{ ind.series_semantics|default:""|escapejs }}';
         indicatorPairedCodesMap['{{ ind.code }}'] = '{{ ind.paired_indicator_code|default:""|escapejs }}';
         indicatorChartPolicyMap['{{ ind.code }}'] = '{{ ind.chart_policy|default:""|escapejs }}';
+        indicatorChartResetFrequencyMap['{{ ind.code }}'] = '{{ ind.chart_reset_frequency|default:""|escapejs }}';
+        indicatorChartSegmentBasisMap['{{ ind.code }}'] = '{{ ind.chart_segment_basis|default:""|escapejs }}';
     {% endfor %}
 {% endfor %}
 
@@ -65,7 +70,14 @@ const initialIndicatorMeta = {
     seriesSemantics: '{{ selected_indicator_data.series_semantics|default:""|escapejs }}',
     pairedIndicatorCode: '{{ selected_indicator_data.paired_indicator_code|default:""|escapejs }}',
     chartPolicy: '{{ selected_indicator_data.chart_policy|default:""|escapejs }}',
+    chartResetFrequency: '{{ selected_indicator_data.chart_reset_frequency|default:""|escapejs }}',
+    chartSegmentBasis: '{{ selected_indicator_data.chart_segment_basis|default:""|escapejs }}',
     latestPeriod: '{{ selected_indicator_data.latest_period|default:""|escapejs }}',
+    freshnessStatus: '{{ selected_indicator_data.freshness_status|default:""|escapejs }}',
+    decisionGrade: '{{ selected_indicator_data.decision_grade|default:""|escapejs }}',
+    blockedReason: '{{ selected_indicator_data.blocked_reason|default:""|escapejs }}',
+    latestPublishedAt: '{{ selected_indicator_data.latest_published_at|default:""|escapejs }}',
+    latestQuality: '{{ selected_indicator_data.latest_quality|default:""|escapejs }}',
     hasData: {% if selected_indicator_data and selected_indicator_data.has_data %}true{% else %}false{% endif %},
 };
 
@@ -77,6 +89,7 @@ let currentIndicatorPayload = null;
 let currentVisibleRange = { startIndex: 0, endIndex: -1, preset: '36' };
 let detailTableScope = 'visible';
 let chartResizeHandlerAttached = false;
+const autoRefreshAttemptedIndicators = new Set();
 
 document.addEventListener('DOMContentLoaded', function() {
     updateRefreshAllButtonState();
@@ -86,14 +99,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const initialPayload = buildInitialPayloadFromServerContext();
         if (initialPayload && initialPayload.data.length > 0) {
             currentIndicatorPayload = initialPayload;
-            currentVisibleRange = buildVisibleRange(initialPayload.data.length, String(DEFAULT_VISIBLE_POINTS));
+            {
+                const chartContext = getCurrentChartContext(initialPayload);
+                currentVisibleRange = buildVisibleRange(
+                    chartContext ? chartContext.chartConfig.xAxisData.length : initialPayload.data.length,
+                    String(DEFAULT_VISIBLE_POINTS),
+                );
+            }
             detailTableScope = 'visible';
             updateRangeControlsAvailability(true);
             updateDetailButtonState();
             updateIndicatorInfo(initialIndicator, initialPayload);
             renderMainChart(initialIndicator, initialPayload);
+            void maybeAutoRefreshIndicator(initialIndicator, initialPayload);
         } else {
             renderNoDataState(initialIndicator);
+            void maybeAutoRefreshIndicator(initialIndicator, null);
         }
         return;
     }
@@ -197,8 +218,7 @@ function formatReportingPeriodLabel(reportingPeriod, periodType) {
         return '-';
     }
     if (normalizedPeriodType === 'Q' && rawValue.length >= 7) {
-        const quarterMap = { '03': 'Q1', '06': 'Q2', '09': 'Q3', '12': 'Q4' };
-        const quarter = quarterMap[rawValue.slice(5, 7)];
+        const quarter = getQuarterKeyFromReportingPeriod(rawValue);
         if (quarter) {
             return `${rawValue.slice(0, 4)}-${quarter}`;
         }
@@ -222,6 +242,8 @@ function normalizeMacroPayload(code, result) {
         series_semantics: result?.series_semantics || indicatorSeriesSemanticsMap[code] || '',
         paired_indicator_code: result?.paired_indicator_code || indicatorPairedCodesMap[code] || '',
         chart_policy: result?.chart_policy || indicatorChartPolicyMap[code] || '',
+        chart_reset_frequency: result?.chart_reset_frequency || indicatorChartResetFrequencyMap[code] || '',
+        chart_segment_basis: result?.chart_segment_basis || indicatorChartSegmentBasisMap[code] || '',
         total: Number(result?.total ?? normalizedData.length),
         data: normalizedData,
         data_source: result?.data_source || '',
@@ -256,7 +278,14 @@ function buildInitialPayloadFromServerContext() {
         series_semantics: initialIndicatorMeta.seriesSemantics || indicatorSeriesSemanticsMap[initialIndicator] || '',
         paired_indicator_code: initialIndicatorMeta.pairedIndicatorCode || indicatorPairedCodesMap[initialIndicator] || '',
         chart_policy: initialIndicatorMeta.chartPolicy || indicatorChartPolicyMap[initialIndicator] || '',
+        chart_reset_frequency: initialIndicatorMeta.chartResetFrequency || indicatorChartResetFrequencyMap[initialIndicator] || '',
+        chart_segment_basis: initialIndicatorMeta.chartSegmentBasis || indicatorChartSegmentBasisMap[initialIndicator] || '',
         latest_reporting_period: initialIndicatorMeta.latestPeriod || '',
+        freshness_status: initialIndicatorMeta.freshnessStatus || '',
+        decision_grade: initialIndicatorMeta.decisionGrade || '',
+        blocked_reason: initialIndicatorMeta.blockedReason || '',
+        latest_published_at: initialIndicatorMeta.latestPublishedAt || '',
+        latest_quality: initialIndicatorMeta.latestQuality || '',
         data_source: 'server_snapshot',
         data: initialHistoryRows.map(row => ({
             reporting_period: row.reporting_period,
@@ -270,6 +299,7 @@ function buildInitialPayloadFromServerContext() {
             published_at: row.published_at || null,
             age_days: row.age_days ?? '',
             freshness_status: row.freshness_status || '',
+            decision_grade: row.decision_grade || '',
             revision_number: row.revision_number ?? 0,
         })),
     });
@@ -278,18 +308,49 @@ function buildInitialPayloadFromServerContext() {
 function getPayloadGovernanceConfig(payload) {
     const chartPolicy = String(payload?.chart_policy || '');
     const pairedIndicatorCode = String(payload?.paired_indicator_code || '');
-    if (chartPolicy === 'yearly_reset_bar') {
+    const chartResetFrequency = String(payload?.chart_reset_frequency || '');
+    const chartSegmentBasis = String(payload?.chart_segment_basis || '');
+    if (usesResetStackChart({ chartPolicy, chartSegmentBasis })) {
+        const resetLabelMap = {
+            year: '每年',
+            quarter: '每季度',
+            month: '每月',
+        };
+        const monthlyCumulativeNote = String(payload?.period_type || '').toUpperCase() === 'M'
+            ? ' 对月度年内累计序列，如果官方口径不单独发布 1 月值，年度首个分段会直接表示“1-首个发布月累计”。'
+            : '';
+        const resetLabel = resetLabelMap[chartResetFrequency] || '每个重置周期';
         return {
             chartPolicy,
+            chartResetFrequency,
+            chartSegmentBasis,
             note: pairedIndicatorCode
-                ? `该指标是年内累计值口径，跨年会自然重置，不能直接连成连续趋势线；图表已切换为按周期位次着色的柱状图。判断增长方向请结合配对指标 ${pairedIndicatorCode}。`
-                : '该指标是年内累计值口径，跨年会自然重置，不能直接连成连续趋势线；图表已切换为按周期位次着色的柱状图。',
+                ? `该指标是周期内累计值口径，跨重置周期会自然回到起点，不能直接连成连续趋势线；图表已切换为“${resetLabel}一个柱子、柱内按周期位次分段”的堆叠柱状图。${monthlyCumulativeNote} 判断增长方向请结合配对指标 ${pairedIndicatorCode}。`
+                : `该指标是周期内累计值口径，跨重置周期会自然回到起点，不能直接连成连续趋势线；图表已切换为“${resetLabel}一个柱子、柱内按周期位次分段”的堆叠柱状图。${monthlyCumulativeNote}`,
         };
     }
     return {
         chartPolicy,
+        chartResetFrequency,
+        chartSegmentBasis,
         note: '',
     };
+}
+
+function usesResetStackChart(governance) {
+    const chartPolicy = String(governance?.chartPolicy || governance?.chart_policy || '');
+    const chartSegmentBasis = String(
+        governance?.chartSegmentBasis || governance?.chart_segment_basis || ''
+    ).toLowerCase();
+    return RESET_STACK_CHART_POLICIES.has(chartPolicy) || chartSegmentBasis === 'period_delta';
+}
+
+function usesYearlyMonthlyCumulativeReset(governance, periodType) {
+    return (
+        usesResetStackChart(governance)
+        && String(governance?.chartResetFrequency || governance?.chart_reset_frequency || '').toLowerCase() === 'year'
+        && String(periodType || '').toUpperCase() === 'M'
+    );
 }
 
 function buildChartPoints(payload) {
@@ -300,17 +361,28 @@ function buildChartPoints(payload) {
         label: formatReportingPeriodLabel(row.reporting_period, payload.period_type),
         value: Number(row.display_value ?? row.value),
         displayUnit: row.display_unit || row.original_unit || row.unit || '',
+        periodType: String(row.period_type || payload.period_type || ''),
         row,
     }));
+}
+
+function getQuarterKeyFromReportingPeriod(reportingPeriod) {
+    const normalizedReportingPeriod = String(reportingPeriod || '');
+    if (normalizedReportingPeriod.length < 7) {
+        return 'Q?';
+    }
+    const monthNumber = Number.parseInt(normalizedReportingPeriod.slice(5, 7), 10);
+    if (!Number.isFinite(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+        return 'Q?';
+    }
+    return `Q${Math.floor((monthNumber - 1) / 3) + 1}`;
 }
 
 function getPointCycleKey(point, periodType) {
     const reportingPeriod = String(point?.row?.reporting_period || '');
     const normalizedPeriodType = String(periodType || '').toUpperCase();
     if (normalizedPeriodType === 'Q' && reportingPeriod.length >= 7) {
-        const month = reportingPeriod.slice(5, 7);
-        const quarterMap = { '03': 'Q1', '06': 'Q2', '09': 'Q3', '12': 'Q4' };
-        return quarterMap[month] || 'Q?';
+        return getQuarterKeyFromReportingPeriod(reportingPeriod);
     }
     if (normalizedPeriodType === 'M' && reportingPeriod.length >= 7) {
         return reportingPeriod.slice(5, 7);
@@ -318,7 +390,202 @@ function getPointCycleKey(point, periodType) {
     return String(point?.label || '');
 }
 
-function buildChartSeries(chartPoints, governance) {
+function getResetGroupKey(point, resetFrequency) {
+    const reportingPeriod = String(point?.row?.reporting_period || '');
+    const normalizedResetFrequency = String(resetFrequency || '').toLowerCase();
+    if (normalizedResetFrequency === 'quarter' && reportingPeriod.length >= 7) {
+        return `${reportingPeriod.slice(0, 4)}-${getQuarterKeyFromReportingPeriod(reportingPeriod)}`;
+    }
+    if (normalizedResetFrequency === 'month' && reportingPeriod.length >= 7) {
+        return reportingPeriod.slice(0, 7);
+    }
+    if (reportingPeriod.length >= 4) {
+        return reportingPeriod.slice(0, 4);
+    }
+    return String(point?.label || '');
+}
+
+function getCycleSequence(periodType, chartPoints) {
+    const normalizedPeriodType = String(periodType || '').toUpperCase();
+    if (normalizedPeriodType === 'Q') {
+        return ['Q1', 'Q2', 'Q3', 'Q4'];
+    }
+    if (normalizedPeriodType === 'M') {
+        return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    }
+    const discovered = [];
+    chartPoints.forEach(point => {
+        const cycleKey = getPointCycleKey(point, normalizedPeriodType);
+        if (cycleKey && !discovered.includes(cycleKey)) {
+            discovered.push(cycleKey);
+        }
+    });
+    return discovered;
+}
+
+function getMinimumObservedCycleMonth(chartPoints) {
+    const monthNumbers = (Array.isArray(chartPoints) ? chartPoints : [])
+        .map(point => Number.parseInt(getPointCycleKey(point, 'M'), 10))
+        .filter(monthNumber => Number.isFinite(monthNumber) && monthNumber >= 1 && monthNumber <= 12);
+    if (monthNumbers.length === 0) {
+        return null;
+    }
+    return Math.min(...monthNumbers);
+}
+
+function formatCycleDisplayName(cycleKey, periodType, governance = null, chartPoints = []) {
+    const normalizedPeriodType = String(periodType || '').toUpperCase();
+    if (normalizedPeriodType === 'M') {
+        const monthNumber = Number.parseInt(String(cycleKey), 10);
+        if (!Number.isFinite(monthNumber)) {
+            return String(cycleKey || '');
+        }
+        if (usesYearlyMonthlyCumulativeReset(governance, normalizedPeriodType)) {
+            const minimumObservedMonth = getMinimumObservedCycleMonth(chartPoints);
+            if (minimumObservedMonth && minimumObservedMonth > 1 && monthNumber === minimumObservedMonth) {
+                return `1-${minimumObservedMonth}月累计`;
+            }
+        }
+        return `${monthNumber}月`;
+    }
+    return String(cycleKey || '');
+}
+
+function getCycleColor(cycleKey, cycleIndex, periodType) {
+    const normalizedPeriodType = String(periodType || '').toUpperCase();
+    if (normalizedPeriodType === 'Q') {
+        const quarterPalette = {
+            Q1: '#2563EB',
+            Q2: '#0F766E',
+            Q3: '#CA8A04',
+            Q4: '#C2410C',
+            'Q?': '#64748B',
+        };
+        return quarterPalette[cycleKey] || '#64748B';
+    }
+
+    if (normalizedPeriodType === 'M') {
+        const monthPalette = [
+            '#1D4ED8', '#2563EB', '#3B82F6', '#60A5FA',
+            '#0F766E', '#14B8A6', '#2DD4BF', '#5EEAD4',
+            '#CA8A04', '#EAB308', '#F59E0B', '#F97316',
+        ];
+        return monthPalette[cycleIndex % monthPalette.length];
+    }
+
+    const fallbackPalette = ['#2563EB', '#0F766E', '#CA8A04', '#C2410C', '#7C3AED', '#64748B'];
+    return fallbackPalette[cycleIndex % fallbackPalette.length];
+}
+
+function buildResetStackChartConfig(chartPoints, governance) {
+    const periodType = String(chartPoints?.[0]?.periodType || '').toUpperCase();
+    const resetFrequency = String(governance?.chartResetFrequency || 'year').toLowerCase();
+    const segmentBasis = String(governance?.chartSegmentBasis || 'period_delta').toLowerCase();
+    const cycleSequence = getCycleSequence(periodType, chartPoints);
+    const groupedByResetCycle = new Map();
+
+    chartPoints.forEach(point => {
+        const groupKey = getResetGroupKey(point, resetFrequency);
+        if (!groupedByResetCycle.has(groupKey)) {
+            groupedByResetCycle.set(groupKey, []);
+        }
+        groupedByResetCycle.get(groupKey).push(point);
+    });
+
+    const xAxisData = Array.from(groupedByResetCycle.keys()).sort();
+    const seriesDataMap = Object.fromEntries(
+        cycleSequence.map(cycleKey => [cycleKey, new Array(xAxisData.length).fill(null)])
+    );
+    const tooltipMap = {};
+
+    xAxisData.forEach((groupKey, groupIndex) => {
+        const points = (groupedByResetCycle.get(groupKey) || []).slice().sort((left, right) => (
+            buildSortablePeriodKey(left.label).localeCompare(buildSortablePeriodKey(right.label))
+        ));
+        let previousCumulative = 0;
+        let latestPoint = null;
+        const groupTooltip = {};
+
+        points.forEach(point => {
+            const cycleKey = getPointCycleKey(point, periodType);
+            const cumulativeValue = Number(point.value);
+            if (!Number.isFinite(cumulativeValue)) {
+                return;
+            }
+            const segmentValue = segmentBasis === 'period_delta'
+                ? (cumulativeValue >= previousCumulative
+                    ? cumulativeValue - previousCumulative
+                    : cumulativeValue)
+                : cumulativeValue;
+            previousCumulative = cumulativeValue;
+            latestPoint = point;
+
+            if (!(cycleKey in seriesDataMap)) {
+                return;
+            }
+            seriesDataMap[cycleKey][groupIndex] = segmentValue;
+            groupTooltip[cycleKey] = {
+                point,
+                segmentValue,
+                cumulativeValue,
+            };
+        });
+
+        tooltipMap[groupKey] = {
+            cycles: groupTooltip,
+            latestPoint,
+        };
+    });
+
+    return {
+        xAxisData,
+        legendData: cycleSequence.map(cycleKey => formatCycleDisplayName(cycleKey, periodType, governance, chartPoints)),
+        xAxisLabelRotate: 0,
+        tooltipFormatter: function(params) {
+            const rows = Array.isArray(params) ? params : [];
+            const groupKey = String(rows?.[0]?.axisValue || '');
+            const tooltipEntry = tooltipMap[groupKey] || { cycles: {}, latestPoint: null };
+            const latestPoint = tooltipEntry.latestPoint;
+            const tooltipLines = [groupKey || '-'];
+
+            cycleSequence.forEach((cycleKey, cycleIndex) => {
+                const cycleEntry = tooltipEntry.cycles[cycleKey];
+                if (!cycleEntry) {
+                    return;
+                }
+                const color = getCycleColor(cycleKey, cycleIndex, periodType);
+                const cycleName = formatCycleDisplayName(cycleKey, periodType, governance, chartPoints);
+                const suffix = cycleEntry.point?.displayUnit && cycleEntry.point.displayUnit !== '-'
+                    ? ` ${cycleEntry.point.displayUnit}`
+                    : '';
+                tooltipLines.push(
+                    `<span style="display:inline-block;margin-right:6px;border-radius:50%;width:8px;height:8px;background:${color};"></span>${cycleName}: 当期 ${formatMetricValue(cycleEntry.segmentValue)}${suffix} / 累计 ${formatMetricValue(cycleEntry.cumulativeValue)}${suffix}`
+                );
+            });
+
+            tooltipLines.push(`来源: ${latestPoint?.row?.source || '-'}`);
+            tooltipLines.push(`发布时间: ${latestPoint?.row?.published_at || '-'}`);
+            return tooltipLines.join('<br/>');
+        },
+        series: cycleSequence.map((cycleKey, cycleIndex) => ({
+            name: formatCycleDisplayName(cycleKey, periodType, governance, chartPoints),
+            type: 'bar',
+            stack: 'cycle-stack',
+            data: seriesDataMap[cycleKey],
+            barMaxWidth: 52,
+            itemStyle: {
+                color: getCycleColor(cycleKey, cycleIndex, periodType),
+            },
+            emphasis: {
+                itemStyle: {
+                    opacity: 0.92,
+                },
+            },
+        })),
+    };
+}
+
+function buildChartConfig(chartPoints, governance) {
     const baseStyle = {
         type: 'line',
         smooth: true,
@@ -330,71 +597,59 @@ function buildChartSeries(chartPoints, governance) {
     };
 
     if (governance.chartPolicy === 'period_bar') {
-        return [
-            {
-                type: 'bar',
-                data: chartPoints.map(item => item.value),
-                barMaxWidth: 34,
-                itemStyle: {
-                    borderRadius: [6, 6, 0, 0],
-                    color: '#2563EB',
-                },
-                emphasis: {
+        return {
+            xAxisData: chartPoints.map(item => item.label),
+            legendShow: false,
+            xAxisLabelRotate: 45,
+            tooltipFormatter: null,
+            series: [
+                {
+                    type: 'bar',
+                    data: chartPoints.map(item => item.value),
+                    barMaxWidth: 34,
                     itemStyle: {
-                        opacity: 0.9,
+                        borderRadius: [6, 6, 0, 0],
+                        color: '#2563EB',
                     },
-                },
-            }
-        ];
+                    emphasis: {
+                        itemStyle: {
+                            opacity: 0.9,
+                        },
+                    },
+                }
+            ],
+        };
     }
 
-    if (governance.chartPolicy !== 'yearly_reset_bar') {
-        return [
-            {
-                ...baseStyle,
-                data: chartPoints.map(item => item.value),
-                areaStyle: {
-                    color: {
-                        type: 'linear',
-                        x: 0, y: 0, x2: 0, y2: 1,
-                        colorStops: [
-                            { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
-                            { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
-                        ]
+    if (!usesResetStackChart(governance)) {
+        return {
+            xAxisData: chartPoints.map(item => item.label),
+            legendShow: false,
+            xAxisLabelRotate: 45,
+            tooltipFormatter: null,
+            series: [
+                {
+                    ...baseStyle,
+                    data: chartPoints.map(item => item.value),
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
+                                { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
+                            ]
+                        }
                     }
                 }
-            }
-        ];
+            ],
+        };
     }
 
-    const quarterPalette = {
-        Q1: '#2563EB',
-        Q2: '#0F766E',
-        Q3: '#CA8A04',
-        Q4: '#C2410C',
-        'Q?': '#64748B',
+    return {
+        ...buildResetStackChartConfig(chartPoints, governance),
+        legendShow: false,
     };
-
-    return [
-        {
-            type: 'bar',
-            data: chartPoints.map(item => item.value),
-            barMaxWidth: 34,
-            itemStyle: {
-                borderRadius: [6, 6, 0, 0],
-                color: function(params) {
-                    const point = chartPoints[params.dataIndex];
-                    const cycleKey = getPointCycleKey(point, point?.row?.period_type);
-                    return quarterPalette[cycleKey] || '#64748B';
-                },
-            },
-            emphasis: {
-                itemStyle: {
-                    opacity: 0.9,
-                },
-            },
-        }
-    ];
 }
 
 function buildVisibleRange(totalPoints, preset) {
@@ -428,18 +683,91 @@ function normalizeVisibleRange(range, totalPoints) {
     };
 }
 
+function getCurrentChartContext(payload = currentIndicatorPayload) {
+    if (!payload || !Array.isArray(payload.data) || payload.data.length === 0) {
+        return null;
+    }
+    const chartPoints = buildChartPoints(payload);
+    const governance = getPayloadGovernanceConfig(payload);
+    const chartConfig = buildChartConfig(chartPoints, governance);
+    return { chartPoints, governance, chartConfig };
+}
+
+function getVisiblePointCount() {
+    const chartContext = getCurrentChartContext();
+    if (!chartContext) {
+        return 0;
+    }
+    const normalizedRange = normalizeVisibleRange(
+        currentVisibleRange,
+        chartContext.chartConfig.xAxisData.length,
+    );
+    if (normalizedRange.endIndex < normalizedRange.startIndex) {
+        return 0;
+    }
+    return normalizedRange.endIndex - normalizedRange.startIndex + 1;
+}
+
 function getVisibleRows() {
     if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data)) {
         return [];
     }
-    const normalizedRange = normalizeVisibleRange(currentVisibleRange, currentIndicatorPayload.data.length);
+    const chartContext = getCurrentChartContext();
+    if (!chartContext) {
+        return [];
+    }
+    const normalizedRange = normalizeVisibleRange(
+        currentVisibleRange,
+        chartContext.chartConfig.xAxisData.length,
+    );
     if (normalizedRange.endIndex < normalizedRange.startIndex) {
         return [];
     }
-    return currentIndicatorPayload.data.slice(normalizedRange.startIndex, normalizedRange.endIndex + 1);
+    if (!usesResetStackChart(chartContext.governance)) {
+        return currentIndicatorPayload.data.slice(
+            normalizedRange.startIndex,
+            normalizedRange.endIndex + 1,
+        );
+    }
+    const visibleGroupKeys = new Set(
+        chartContext.chartConfig.xAxisData.slice(
+            normalizedRange.startIndex,
+            normalizedRange.endIndex + 1,
+        ),
+    );
+    return currentIndicatorPayload.data.filter(row => {
+        const point = {
+            label: formatReportingPeriodLabel(row.reporting_period, currentIndicatorPayload.period_type),
+            row,
+        };
+        return visibleGroupKeys.has(
+            getResetGroupKey(point, chartContext.governance.chartResetFrequency),
+        );
+    });
 }
 
 function buildVisibleRangeLabel() {
+    const chartContext = getCurrentChartContext();
+    if (!chartContext) {
+        return '-';
+    }
+    const normalizedRange = normalizeVisibleRange(
+        currentVisibleRange,
+        chartContext.chartConfig.xAxisData.length,
+    );
+    if (normalizedRange.endIndex < normalizedRange.startIndex) {
+        return '-';
+    }
+    if (usesResetStackChart(chartContext.governance)) {
+        const visibleAxis = chartContext.chartConfig.xAxisData.slice(
+            normalizedRange.startIndex,
+            normalizedRange.endIndex + 1,
+        );
+        if (visibleAxis.length === 0) {
+            return '-';
+        }
+        return `${visibleAxis[0]} ~ ${visibleAxis[visibleAxis.length - 1]}`;
+    }
     const visibleRows = getVisibleRows();
     if (visibleRows.length === 0) {
         return '-';
@@ -448,12 +776,12 @@ function buildVisibleRangeLabel() {
 }
 
 function updateRangePresetButtons() {
-    const visibleRows = getVisibleRows();
+    const visiblePointCount = getVisiblePointCount();
     document.querySelectorAll('.range-preset-btn').forEach(button => {
         const preset = button.dataset.range;
         const active = preset === 'all'
             ? currentVisibleRange.preset === 'all'
-            : currentVisibleRange.preset === preset && visibleRows.length === Number(preset);
+            : currentVisibleRange.preset === preset && visiblePointCount === Number(preset);
         button.classList.toggle('active', active);
     });
 }
@@ -484,7 +812,15 @@ function updateVisibleRangeSummary() {
         recordEl.textContent = '0 条';
         return;
     }
+    const chartContext = getCurrentChartContext();
     const visibleRows = getVisibleRows();
+    if (chartContext && usesResetStackChart(chartContext.governance)) {
+        const totalPoints = chartContext.chartConfig.xAxisData.length;
+        const visiblePointCount = getVisiblePointCount();
+        summaryEl.textContent = `当前显示 ${visiblePointCount}/${totalPoints} 个周期 · ${buildVisibleRangeLabel()}`;
+        recordEl.textContent = `${totalPoints} 个周期 / 覆盖 ${visibleRows.length} 条原始记录`;
+        return;
+    }
     summaryEl.textContent = `当前显示 ${visibleRows.length}/${currentIndicatorPayload.data.length} 条 · ${buildVisibleRangeLabel()}`;
     recordEl.textContent = `${currentIndicatorPayload.data.length} 条 / 显示 ${visibleRows.length} 条`;
 }
@@ -496,10 +832,11 @@ function syncVisibleRangeDependentUI() {
 }
 
 function applyRangePreset(preset) {
-    if (!currentIndicatorPayload || !Array.isArray(currentIndicatorPayload.data) || currentIndicatorPayload.data.length === 0) {
+    const chartContext = getCurrentChartContext();
+    if (!chartContext) {
         return;
     }
-    currentVisibleRange = buildVisibleRange(currentIndicatorPayload.data.length, preset);
+    currentVisibleRange = buildVisibleRange(chartContext.chartConfig.xAxisData.length, preset);
     renderMainChart(currentIndicatorCode, currentIndicatorPayload);
 }
 
@@ -552,6 +889,66 @@ function getManualRefreshStart(code) {
 function isIndicatorSyncSupported(code) {
     const item = getIndicatorItem(code);
     return item ? item.dataset.syncSupported === 'true' : false;
+}
+
+function getPayloadLatestPoint(payload) {
+    if (!payload || !Array.isArray(payload.data) || payload.data.length === 0) {
+        return null;
+    }
+    return payload.data[payload.data.length - 1];
+}
+
+function shouldAutoRefreshIndicator(code, payload) {
+    if (!code || autoRefreshAttemptedIndicators.has(code)) {
+        return false;
+    }
+    if (isBulkRefreshing || !manualRefreshProviderId || !isIndicatorSyncSupported(code)) {
+        return false;
+    }
+    if (!payload || !Array.isArray(payload.data) || payload.data.length === 0) {
+        return true;
+    }
+    const latest = getPayloadLatestPoint(payload);
+    const freshnessStatus = String(payload.freshness_status || latest?.freshness_status || '').toLowerCase();
+    const decisionGrade = String(payload.decision_grade || latest?.decision_grade || '').toLowerCase();
+    return freshnessStatus === 'stale' || decisionGrade === 'degraded';
+}
+
+async function maybeAutoRefreshIndicator(code, payload) {
+    if (!shouldAutoRefreshIndicator(code, payload)) {
+        return false;
+    }
+
+    autoRefreshAttemptedIndicators.add(code);
+    const hasData = Boolean(payload && Array.isArray(payload.data) && payload.data.length > 0);
+    const statusMessage = hasData
+        ? '检测到当前指标数据已过期，正在自动刷新...'
+        : '检测到当前指标尚未入库，正在自动抓取...';
+
+    updateRefreshButtonState(code, true);
+    setRefreshStatus(statusMessage, 'warning');
+
+    try {
+        const refreshPayload = await requestIndicatorRefresh(code);
+        markIndicatorAsSynced(code);
+        const rowCount = await selectIndicator(code, {
+            keepRefreshStatus: true,
+            skipAutoRefresh: true,
+        });
+        if (rowCount > 0) {
+            setRefreshStatus(`自动刷新完成，已更新 ${rowCount} 条展示数据`, 'success');
+        } else if (Number(refreshPayload.stored_count || 0) > 0) {
+            setRefreshStatus(`自动刷新完成，已写入 ${refreshPayload.stored_count} 条记录`, 'warning');
+        } else {
+            setRefreshStatus('自动刷新完成，但当前数据源未返回可入库记录', 'warning');
+        }
+        return true;
+    } catch (error) {
+        setRefreshStatus(`自动刷新失败：${error.message || '请稍后重试'}`, 'error');
+        return false;
+    } finally {
+        updateRefreshButtonState(code, false);
+    }
 }
 
 function updateRefreshButtonState(code, isLoading = false) {
@@ -646,7 +1043,7 @@ async function requestIndicatorRefresh(code) {
 }
 
 async function selectIndicator(code, options = {}) {
-    const { keepRefreshStatus = false } = options;
+    const { keepRefreshStatus = false, skipAutoRefresh = false } = options;
     currentIndicatorCode = code;
     updateRefreshButtonState(code);
     if (!keepRefreshStatus) {
@@ -683,15 +1080,27 @@ async function selectIndicator(code, options = {}) {
         if (response.ok && Array.isArray(result.data)) {
             if (result.data.length === 0) {
                 renderNoDataState(code);
+                if (!skipAutoRefresh) {
+                    await maybeAutoRefreshIndicator(code, null);
+                }
                 return 0;
             }
             currentIndicatorPayload = normalizeMacroPayload(code, result);
-            currentVisibleRange = buildVisibleRange(currentIndicatorPayload.data.length, String(DEFAULT_VISIBLE_POINTS));
+            {
+                const chartContext = getCurrentChartContext(currentIndicatorPayload);
+                currentVisibleRange = buildVisibleRange(
+                    chartContext ? chartContext.chartConfig.xAxisData.length : currentIndicatorPayload.data.length,
+                    String(DEFAULT_VISIBLE_POINTS),
+                );
+            }
             detailTableScope = 'visible';
             updateRangeControlsAvailability(true);
             updateDetailButtonState();
             updateIndicatorInfo(code, currentIndicatorPayload);
             renderMainChart(code, currentIndicatorPayload);
+            if (!skipAutoRefresh) {
+                await maybeAutoRefreshIndicator(code, currentIndicatorPayload);
+            }
             return currentIndicatorPayload.data.length;
         }
     } catch (error) {
@@ -699,6 +1108,9 @@ async function selectIndicator(code, options = {}) {
     }
 
     renderNoDataState(code);
+    if (!skipAutoRefresh) {
+        await maybeAutoRefreshIndicator(code, null);
+    }
     return 0;
 }
 
@@ -801,10 +1213,10 @@ function renderMainChart(code, payload) {
         renderNoDataState(code);
         return;
     }
-    const chartSeries = buildChartSeries(chartPoints, governance);
+    const chartConfig = buildChartConfig(chartPoints, governance);
 
-    currentVisibleRange = normalizeVisibleRange(currentVisibleRange, chartPoints.length);
-    const totalPoints = chartPoints.length;
+    currentVisibleRange = normalizeVisibleRange(currentVisibleRange, chartConfig.xAxisData.length);
+    const totalPoints = chartConfig.xAxisData.length;
     const startPercent = totalPoints <= 1 ? 0 : (currentVisibleRange.startIndex / (totalPoints - 1)) * 100;
     const endPercent = totalPoints <= 1 ? 100 : (currentVisibleRange.endIndex / (totalPoints - 1)) * 100;
 
@@ -820,7 +1232,7 @@ function renderMainChart(code, payload) {
         },
         tooltip: {
             trigger: 'axis',
-            formatter: function(params) {
+            formatter: chartConfig.tooltipFormatter || function(params) {
                 const activeParam = Array.isArray(params)
                     ? params.find(item => item && Number.isFinite(chartPoints[item.dataIndex]?.value))
                     : null;
@@ -836,14 +1248,27 @@ function renderMainChart(code, payload) {
                 ].join('<br/>');
             }
         },
-        grid: { left: '3%', right: '4%', bottom: 90, top: 56, containLabel: true },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: chartConfig.legendShow ? 110 : 90,
+            top: chartConfig.legendShow ? 82 : 56,
+            containLabel: true,
+        },
         xAxis: {
             type: 'category',
-            data: chartPoints.map(item => item.label),
-            axisLabel: { rotate: 45, fontSize: 10 }
+            data: chartConfig.xAxisData,
+            axisLabel: {
+                rotate: chartConfig.xAxisLabelRotate ?? 45,
+                fontSize: 10,
+            }
         },
         yAxis: { type: 'value' },
-        legend: { show: false },
+        legend: {
+            show: Boolean(chartConfig.legendShow),
+            data: chartConfig.legendData || [],
+            top: 34,
+        },
         dataZoom: [
             {
                 type: 'inside',
@@ -867,7 +1292,7 @@ function renderMainChart(code, payload) {
                 },
             }
         ],
-        series: chartSeries
+        series: chartConfig.series
     });
 
     currentChart.off('datazoom');

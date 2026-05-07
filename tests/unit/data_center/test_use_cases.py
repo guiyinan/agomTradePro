@@ -616,6 +616,8 @@ class TestQueryMacroSeriesUseCase:
                 "series_semantics": "cumulative_level",
                 "paired_indicator_code": "CN_GDP_YOY",
                 "chart_policy": "yearly_reset_bar",
+                "chart_reset_frequency": "year",
+                "chart_segment_basis": "period_delta",
             },
         )
         unit_rules = _IndicatorUnitRuleRepo(
@@ -644,6 +646,8 @@ class TestQueryMacroSeriesUseCase:
         assert result.series_semantics == "cumulative_level"
         assert result.paired_indicator_code == "CN_GDP_YOY"
         assert result.chart_policy == "yearly_reset_bar"
+        assert result.chart_reset_frequency == "year"
+        assert result.chart_segment_basis == "period_delta"
         assert result.data[0].display_value == 318466.4
         assert result.data[0].display_unit == "亿元"
 

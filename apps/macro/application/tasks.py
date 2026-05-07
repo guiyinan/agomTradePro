@@ -13,11 +13,20 @@ Celery Tasks for Macro Data Synchronization.
 """
 
 from datetime import date, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
+from apps.data_center.application.dtos import MacroSeriesRequest, SyncMacroRequest
+from apps.data_center.application.interface_services import (
+    get_active_provider_id_by_source,
+    make_query_macro_series_use_case,
+    make_sync_macro_use_case,
+)
+from apps.data_center.application.repository_provider import (
+    get_indicator_catalog_repository,
+)
 from apps.macro.application.repository_provider import get_macro_repository
 from apps.macro.application.use_cases import (
     SyncMacroDataRequest,
@@ -25,6 +34,121 @@ from apps.macro.application.use_cases import (
 )
 
 logger = get_task_logger(__name__)
+
+
+def _is_enabled_flag(value: Any) -> bool:
+    """Return True when a catalog metadata flag is enabled."""
+
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def _default_refresh_start(period_type: str, *, today: date) -> date:
+    """Return a generic default backfill window by period type."""
+
+    normalized_period_type = (period_type or "").upper()
+    if normalized_period_type == "D":
+        return today - timedelta(days=365 * 2)
+    if normalized_period_type == "W":
+        return today - timedelta(days=365 * 5)
+    return date(2010, 1, 1)
+
+
+def _suggest_refresh_start(
+    *,
+    period_type: str,
+    latest_reporting_period: date | None,
+    today: date,
+) -> date:
+    """Return a pragmatic backfill window for an auto-sync refresh."""
+
+    if latest_reporting_period is None:
+        return _default_refresh_start(period_type, today=today)
+
+    normalized_period_type = (period_type or "").upper()
+    if normalized_period_type == "D":
+        overlap_days = 30
+    elif normalized_period_type == "W":
+        overlap_days = 90
+    else:
+        overlap_days = 365
+    suggested = latest_reporting_period - timedelta(days=overlap_days)
+    return max(suggested, _default_refresh_start(period_type, today=today))
+
+
+def _list_sync_governed_indicators() -> list[dict[str, str]]:
+    """Return active indicators that are configured for automatic macro sync."""
+
+    catalog_repo = get_indicator_catalog_repository()
+    indicators: list[dict[str, str]] = []
+    for catalog in sorted(catalog_repo.list_active(), key=lambda item: item.code):
+        extra = dict(catalog.extra or {})
+        if not _is_enabled_flag(extra.get("governance_sync_supported")):
+            continue
+        source_type = str(extra.get("governance_sync_source_type") or "").strip()
+        if not source_type:
+            logger.warning(
+                "Skipping governed auto-sync indicator without source_type: %s",
+                catalog.code,
+            )
+            continue
+        indicators.append(
+            {
+                "indicator_code": catalog.code,
+                "period_type": catalog.default_period_type,
+                "source_type": source_type,
+            }
+        )
+    return indicators
+
+
+def _collect_due_macro_indicators() -> list[dict[str, Any]]:
+    """Return governed sync-supported indicators whose data is missing or stale."""
+
+    query_use_case = make_query_macro_series_use_case()
+    today = date.today()
+    due_items: list[dict[str, Any]] = []
+
+    for item in _list_sync_governed_indicators():
+        response = query_use_case.execute(
+            MacroSeriesRequest(
+                indicator_code=item["indicator_code"],
+                end=today,
+                limit=1,
+            )
+        )
+        latest = response.data[0] if response.data else None
+        reason = ""
+        if response.total == 0:
+            reason = "missing"
+        elif response.freshness_status == "stale" or response.decision_grade == "degraded":
+            reason = "stale"
+        if not reason:
+            continue
+
+        due_items.append(
+            {
+                "indicator": item["indicator_code"],
+                "reason": reason,
+                "period_type": item["period_type"],
+                "source_type": item["source_type"],
+                "freshness_status": response.freshness_status,
+                "decision_grade": response.decision_grade,
+                "blocked_reason": response.blocked_reason,
+                "latest_reporting_period": response.latest_reporting_period,
+                "latest_published_at": response.latest_published_at,
+                "latest_date": (
+                    response.latest_reporting_period.isoformat()
+                    if response.latest_reporting_period
+                    else ""
+                ),
+                "days_lag": latest.age_days if latest else None,
+            }
+        )
+    return due_items
 
 
 @shared_task(
@@ -101,50 +225,27 @@ def check_data_freshness() -> dict:
     """
     检查数据新鲜度任务
 
-    定时检查各指标的最新数据日期，发现延迟时告警。
+    定时检查所有已配置自动同步的宏观指标，发现缺失或过期时告警。
 
     Returns:
         dict: 数据新鲜度报告
     """
     try:
         logger.info("Checking data freshness")
+        due_indicators = _collect_due_macro_indicators()
+        stale_indicators = [
+            item for item in due_indicators if item.get("reason") == "stale"
+        ]
 
-        repository = get_macro_repository()
-
-        # 检查关键指标
-        indicators = ['PMI', 'CPI', 'M2', 'PPI']
-        stale_indicators = []
-
-        for indicator in indicators:
-            latest = repository.get_latest_observation_date(indicator)
-            if latest:
-                days_lag = (date.today() - latest).days
-
-                # 根据指标特点设置不同的延迟阈值
-                thresholds = {
-                    'PMI': 45,    # 月度数据，45天
-                    'CPI': 45,
-                    'M2': 45,
-                    'PPI': 45
-                }
-
-                if days_lag > thresholds.get(indicator, 60):
-                    stale_indicators.append({
-                        'indicator': indicator,
-                        'latest_date': str(latest),
-                        'days_lag': days_lag,
-                        'threshold': thresholds[indicator]
-                    })
-                    logger.warning(f"Indicator {indicator} is stale: {days_lag} days")
-
-        if stale_indicators:
-            # 触发告警
-            send_data_freshness_alert.delay(stale_indicators)
+        if due_indicators:
+            send_data_freshness_alert.delay(due_indicators)
 
         return {
             'status': 'success',
+            'checked_count': len(_list_sync_governed_indicators()),
+            'due_indicators': due_indicators,
             'stale_indicators': stale_indicators,
-            'all_fresh': len(stale_indicators) == 0
+            'all_fresh': len(due_indicators) == 0
         }
 
     except Exception as exc:
@@ -158,7 +259,7 @@ def send_data_freshness_alert(stale_indicators: list) -> dict:
     发送数据新鲜度告警
 
     Args:
-        stale_indicators: 过期指标列表
+        stale_indicators: 缺失或过期指标列表
 
     Returns:
         dict: 告警发送结果
@@ -171,9 +272,11 @@ def send_data_freshness_alert(stale_indicators: list) -> dict:
         for item in stale_indicators:
             logger.warning(
                 f"STALE DATA ALERT: {item['indicator']} "
+                f"reason={item.get('reason', 'stale')} "
                 f"latest={item['latest_date']} "
-                f"lag={item['days_lag']} days "
-                f"(threshold={item['threshold']})"
+                f"lag={item.get('days_lag')} days "
+                f"status={item.get('freshness_status')} "
+                f"grade={item.get('decision_grade')}"
             )
 
         return {
@@ -183,6 +286,125 @@ def send_data_freshness_alert(stale_indicators: list) -> dict:
 
     except Exception as exc:
         logger.error(f"Failed to send alert: {exc}")
+        raise
+
+
+@shared_task(time_limit=1800, soft_time_limit=1700)
+def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> dict:
+    """
+    Automatically sync governed macro indicators whose series are missing or stale.
+
+    Args:
+        indicator_codes: Optional subset of indicator codes to refresh.
+
+    Returns:
+        dict: Sync result summary.
+    """
+
+    try:
+        logger.info("Starting governed macro auto-sync")
+        due_indicators = _collect_due_macro_indicators()
+        if indicator_codes:
+            requested_codes = {
+                str(code).strip().upper()
+                for code in indicator_codes
+                if str(code).strip()
+            }
+            due_indicators = [
+                item
+                for item in due_indicators
+                if str(item.get("indicator") or "").upper() in requested_codes
+            ]
+        if not due_indicators:
+            return {
+                'status': 'success',
+                'message': 'No governed stale or missing indicators to sync.',
+                'sync_runs': [],
+                'synced_indicator_count': 0,
+                'failed_indicator_count': 0,
+            }
+
+        sync_use_case = make_sync_macro_use_case()
+        today = date.today()
+        sync_runs: list[dict[str, Any]] = []
+
+        for item in due_indicators:
+            indicator_code = str(item.get("indicator") or "").strip()
+            source_type = str(item.get("source_type") or "").strip()
+            latest_reporting_period = item.get("latest_reporting_period")
+            period_type = str(item.get("period_type") or "")
+            provider_id = get_active_provider_id_by_source(source_type)
+            if provider_id is None:
+                logger.warning(
+                    "Skipping auto-sync for %s because source_type=%s has no active provider",
+                    indicator_code,
+                    source_type,
+                )
+                sync_runs.append(
+                    {
+                        'indicator_code': indicator_code,
+                        'reason': item.get('reason'),
+                        'source_type': source_type,
+                        'status': 'failed',
+                        'stored_count': 0,
+                        'error_message': f'No active provider configured for source_type={source_type}',
+                    }
+                )
+                continue
+
+            start_date = _suggest_refresh_start(
+                period_type=period_type,
+                latest_reporting_period=latest_reporting_period,
+                today=today,
+            )
+            try:
+                result = sync_use_case.execute(
+                    SyncMacroRequest(
+                        provider_id=provider_id,
+                        indicator_code=indicator_code,
+                        start=start_date,
+                        end=today,
+                    )
+                )
+                sync_runs.append(
+                    {
+                        'indicator_code': indicator_code,
+                        'reason': item.get('reason'),
+                        'source_type': source_type,
+                        'provider_id': provider_id,
+                        'provider_name': result.provider_name,
+                        'status': result.status,
+                        'stored_count': result.stored_count,
+                        'start': start_date.isoformat(),
+                        'end': today.isoformat(),
+                    }
+                )
+            except Exception as exc:
+                logger.exception("Governed macro auto-sync failed for %s", indicator_code)
+                sync_runs.append(
+                    {
+                        'indicator_code': indicator_code,
+                        'reason': item.get('reason'),
+                        'source_type': source_type,
+                        'provider_id': provider_id,
+                        'status': 'failed',
+                        'stored_count': 0,
+                        'start': start_date.isoformat(),
+                        'end': today.isoformat(),
+                        'error_message': str(exc),
+                    }
+                )
+
+        success_count = sum(1 for run in sync_runs if run.get('status') == 'success')
+        failed_count = len(sync_runs) - success_count
+        return {
+            'status': 'success' if failed_count == 0 else 'partial',
+            'sync_runs': sync_runs,
+            'synced_indicator_count': success_count,
+            'failed_indicator_count': failed_count,
+        }
+    except Exception as exc:
+        logger.error(f"Governed macro auto-sync failed: {exc}")
         raise
 
 

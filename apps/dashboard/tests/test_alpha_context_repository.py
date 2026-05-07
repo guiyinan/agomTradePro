@@ -149,7 +149,6 @@ def test_dashboard_alpha_context_uses_gateway_for_local_stock_context():
     assert context["000001.SZ"]["pe"] == pytest.approx(5.6)
     assert context["000001.SZ"]["pb"] == pytest.approx(0.72)
 
-
 def test_dashboard_alpha_context_uses_gateway_for_actionable_map():
     captured: dict[str, object] = {}
 

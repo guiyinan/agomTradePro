@@ -411,6 +411,28 @@ class AlphaScoreCacheRepository:
             return latest_cache
         return queryset.order_by("-intended_trade_date", "-created_at").first()
 
+    def get_qlib_cache_for_trade_date(
+        self,
+        *,
+        universe_id: str,
+        trade_date: date,
+        model_artifact_hash: str | None = None,
+        scope_hash: str | None = None,
+    ) -> Any | None:
+        """Return one qlib cache row for one universe/scope on one intended trade date."""
+        from .models import AlphaScoreCacheModel
+
+        queryset = AlphaScoreCacheModel._default_manager.filter(
+            universe_id=universe_id,
+            intended_trade_date=trade_date,
+            provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        )
+        if model_artifact_hash:
+            queryset = queryset.filter(model_artifact_hash=model_artifact_hash)
+        if scope_hash is not None:
+            queryset = queryset.filter(scope_hash=scope_hash)
+        return queryset.order_by("-created_at").first()
+
     def find_broader_qlib_cache_for_scope(
         self,
         *,

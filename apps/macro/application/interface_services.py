@@ -8,7 +8,9 @@ from typing import Any
 from apps.data_center.application.interface_services import (
     get_active_provider_id_by_source,
     load_macro_governance_payload,
+    make_query_macro_series_use_case,
 )
+from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesRequest
 from apps.data_center.application.repository_provider import get_indicator_catalog_repository
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
@@ -180,6 +182,42 @@ def _format_indicator_row_for_display(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _format_macro_data_point_for_display(
+    point: MacroDataPoint,
+    *,
+    period_type: str,
+) -> dict[str, Any]:
+    """Convert a macro series data point into the macro page payload shape."""
+
+    return {
+        "id": None,
+        "code": point.indicator_code,
+        "value": point.display_value,
+        "unit": point.display_unit,
+        "storage_value": point.value,
+        "storage_unit": point.unit,
+        "original_unit": point.original_unit,
+        "display_value": point.display_value,
+        "display_unit": point.display_unit,
+        "reporting_period": point.reporting_period.isoformat(),
+        "reporting_period_label": _format_reporting_period_label(
+            point.reporting_period,
+            period_type,
+        ),
+        "period_type": period_type,
+        "period_type_display": period_type,
+        "observed_at": point.reporting_period.isoformat(),
+        "published_at": point.published_at.isoformat() if point.published_at else None,
+        "source": point.source,
+        "revision_number": 0,
+        "publication_lag_days": None,
+        "quality": point.quality,
+        "freshness_status": point.freshness_status,
+        "decision_grade": point.decision_grade,
+        "age_days": point.age_days,
+    }
+
+
 def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, Any]:
     """Return view-model data for the macro data management page."""
 
@@ -230,6 +268,14 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
                 "chart_policy",
                 (getattr(catalog, "extra", {}) or {}).get("chart_policy", ""),
             ),
+            "chart_reset_frequency": metadata_map.get(catalog.code, {}).get(
+                "chart_reset_frequency",
+                (getattr(catalog, "extra", {}) or {}).get("chart_reset_frequency", ""),
+            ),
+            "chart_segment_basis": metadata_map.get(catalog.code, {}).get(
+                "chart_segment_basis",
+                (getattr(catalog, "extra", {}) or {}).get("chart_segment_basis", ""),
+            ),
             "display_priority": _resolve_indicator_display_priority(
                 metadata_map.get(catalog.code, {}),
                 getattr(catalog, "extra", {}) or {},
@@ -263,13 +309,46 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         resolved_selected_indicator = _select_default_indicator_code(indicator_map)
 
     history_rows: list[dict[str, Any]] = []
+    serialized_history: list[dict[str, Any]] = []
     if resolved_selected_indicator and indicator_map.get(resolved_selected_indicator, {}).get(
         "has_data"
     ):
-        history_rows = read_repository.get_indicator_rows(
-            code=resolved_selected_indicator,
-            ascending=True,
+        series_response = make_query_macro_series_use_case().execute(
+            MacroSeriesRequest(
+                indicator_code=resolved_selected_indicator,
+                limit=500,
+            )
         )
+        history_rows = sorted(
+            [
+                _format_macro_data_point_for_display(
+                    point,
+                    period_type=series_response.period_type,
+                )
+                for point in series_response.data
+            ],
+            key=lambda row: row["reporting_period"],
+        )
+        serialized_history = history_rows
+        indicator_map[resolved_selected_indicator]["freshness_status"] = (
+            series_response.freshness_status
+        )
+        indicator_map[resolved_selected_indicator]["decision_grade"] = (
+            series_response.decision_grade
+        )
+        indicator_map[resolved_selected_indicator]["blocked_reason"] = (
+            series_response.blocked_reason
+        )
+        indicator_map[resolved_selected_indicator]["latest_published_at"] = (
+            series_response.latest_published_at.isoformat()
+            if series_response.latest_published_at
+            else ""
+        )
+        indicator_map[resolved_selected_indicator]["latest_quality"] = (
+            series_response.latest_quality
+        )
+    else:
+        serialized_history = [_format_indicator_row_for_display(row) for row in history_rows]
 
     summary = read_repository.get_storage_summary()
     bulk_refresh_indicator_codes = [
@@ -278,7 +357,7 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
     return {
         "indicator_map": indicator_map,
         "selected_indicator": resolved_selected_indicator,
-        "history": [_format_indicator_row_for_display(row) for row in history_rows],
+        "history": serialized_history,
         "stats": {
             "total_indicators": len(indicator_map),
             "synced_indicators": len(synced_codes),

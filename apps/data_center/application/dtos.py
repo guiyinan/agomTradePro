@@ -375,6 +375,8 @@ class MacroSeriesResponse:
     series_semantics: str = ""
     paired_indicator_code: str = ""
     chart_policy: str = ""
+    chart_reset_frequency: str = ""
+    chart_segment_basis: str = ""
     data: list[MacroDataPoint] = field(default_factory=list)
     total: int = 0
     data_source: str = "none"
@@ -427,6 +429,8 @@ class MacroSeriesResponse:
             "series_semantics": self.series_semantics,
             "paired_indicator_code": self.paired_indicator_code,
             "chart_policy": self.chart_policy,
+            "chart_reset_frequency": self.chart_reset_frequency,
+            "chart_segment_basis": self.chart_segment_basis,
             "total": self.total,
             "data": [p.to_dict() for p in self.data],
             "data_source": self.data_source,

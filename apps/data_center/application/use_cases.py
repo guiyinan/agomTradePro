@@ -722,6 +722,8 @@ class QueryMacroSeriesUseCase:
         series_semantics = str(catalog_extra.get("series_semantics") or "")
         paired_indicator_code = str(catalog_extra.get("paired_indicator_code") or "")
         chart_policy = str(catalog_extra.get("chart_policy") or "")
+        chart_reset_frequency = str(catalog_extra.get("chart_reset_frequency") or "")
+        chart_segment_basis = str(catalog_extra.get("chart_segment_basis") or "")
         provenance_class = str(catalog_extra.get("provenance_class") or "").strip()
         provenance_label = _provenance_label_for_class(provenance_class)
         publisher_code, publisher_codes = self._extract_publisher_codes(catalog_extra)
@@ -804,6 +806,8 @@ class QueryMacroSeriesUseCase:
             series_semantics=series_semantics,
             paired_indicator_code=paired_indicator_code,
             chart_policy=chart_policy,
+            chart_reset_frequency=chart_reset_frequency,
+            chart_segment_basis=chart_segment_basis,
             data=data_points,
             total=len(data_points),
             data_source=data_source,
