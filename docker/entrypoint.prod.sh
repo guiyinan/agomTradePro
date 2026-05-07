@@ -141,7 +141,15 @@ if [ "$#" -eq 0 ] || [ "$1" = "gunicorn" ]; then
   is_web_command=1
 fi
 
-python manage.py migrate --noinput
+run_startup_migrations="${AGOMTRADEPRO_AUTO_MIGRATE_ON_START:-}"
+if [ -z "$run_startup_migrations" ]; then
+  run_startup_migrations="$is_web_command"
+fi
+
+if [ "$run_startup_migrations" = "1" ]; then
+  python manage.py migrate --noinput
+fi
+
 if [ "$is_web_command" = "1" ]; then
   if [ "${AGOMTRADEPRO_BOOTSTRAP_ON_START:-1}" = "1" ]; then
     bootstrap_args=""

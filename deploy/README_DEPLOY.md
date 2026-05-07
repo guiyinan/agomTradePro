@@ -143,7 +143,9 @@ What it does:
 - upload source tarball to VPS
 - build `agomtradepro-web:<tag>` on the VPS
 - deploy in-place with `docker compose`
-- optionally restore local SQLite into the container volume
+- optionally restore local SQLite into the named volume before app startup
+- run `migrate`, `bootstrap_cold_start`, and macro sync setup in one-off containers before long-running services start
+- keep `celery_worker` and `celery_beat` from competing for SQLite startup migrations
 - download a deployment report to `dist/remote-build-reports`
 - remove remote temporary upload/build files by default
 

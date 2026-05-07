@@ -1030,17 +1030,19 @@ if [ "$ACTION" = "fresh" ]; then
   compose down --remove-orphans || true
 fi
 
-compose up -d redis web
+compose up -d redis
 
 if [ "$INCLUDE_SQLITE" = "1" ] && [ -f backups/db.sqlite3 ]; then
-  WEB_CID="$(compose ps -q web)"
-  [ -n "$WEB_CID" ] || { echo "[ERROR] web container not found for SQLite restore" >&2; exit 1; }
-  docker cp backups/db.sqlite3 "$WEB_CID:/app/data/db.sqlite3"
-  compose restart web
+  docker volume create agomtradepro_sqlite_data >/dev/null
+  docker run --rm \
+    -v agomtradepro_sqlite_data:/dest \
+    -v "$RELEASE_DIR/backups:/src:ro" \
+    alpine:3.20 \
+    sh -lc 'cp /src/db.sqlite3 /dest/db.sqlite3 && chown 1000:1000 /dest /dest/db.sqlite3 && chmod 664 /dest/db.sqlite3'
 fi
 
 TRIES=0
-until compose exec -T web python manage.py migrate --noinput; do
+until compose run --rm --no-deps web python manage.py migrate --noinput; do
   TRIES=$((TRIES + 1))
   if [ "$TRIES" -ge 10 ]; then
     echo "[ERROR] migration failed after retries" >&2
@@ -1055,12 +1057,12 @@ if [ "$BOOTSTRAP_ALPHA" = "1" ]; then
   BOOTSTRAP_CMD="$BOOTSTRAP_CMD --with-alpha --alpha-universes ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
 fi
 
-if ! compose exec -T web sh -lc "$BOOTSTRAP_CMD"; then
+if ! compose run --rm --no-deps web sh -lc "$BOOTSTRAP_CMD"; then
   echo "[ERROR] cold-start bootstrap failed" >&2
   exit 1
 fi
 
-if ! compose exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then
+if ! compose run --rm --no-deps web python manage.py setup_macro_daily_sync --hour "${MACRO_SYNC_HOUR:-8}" --minute "${MACRO_SYNC_MINUTE:-5}"; then
   echo "[WARN] failed to configure macro periodic tasks automatically" >&2
 fi
 
