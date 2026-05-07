@@ -8,6 +8,8 @@ ALIAS_SCOPE = "macro_compat_alias"
 FALLBACK_CHART_POLICY = "continuous_line"
 DEFAULT_RESET_FREQUENCY = ""
 DEFAULT_SEGMENT_BASIS = ""
+DIRECT_INPUT_ALLOWED = "direct_allowed"
+DERIVE_REQUIRED = "derive_required"
 SEMANTICS_TO_CHART_POLICY = {
     "cumulative_level": "yearly_reset_bar",
     "monthly_level": "period_bar",
@@ -19,6 +21,21 @@ SEMANTICS_TO_CHART_POLICY = {
     "balance_level": "continuous_line",
     "level": "continuous_line",
 }
+
+
+def resolve_direct_input_policies(series_semantics: str) -> dict[str, str]:
+    """Resolve whether a semantic class can feed regime/pulse directly."""
+
+    normalized = str(series_semantics or "").strip()
+    if normalized == "cumulative_level":
+        return {
+            "regime_input_policy": DERIVE_REQUIRED,
+            "pulse_input_policy": DERIVE_REQUIRED,
+        }
+    return {
+        "regime_input_policy": DIRECT_INPUT_ALLOWED,
+        "pulse_input_policy": DIRECT_INPUT_ALLOWED,
+    }
 
 
 def resolve_chart_runtime_metadata(series_semantics: str) -> dict[str, str]:
@@ -53,8 +70,25 @@ def merge_governance_extra(
 
     merged = dict(existing_extra or {})
     merged.update(updates)
-    merged.update(resolve_chart_runtime_metadata(str(merged.get("series_semantics") or "")))
+    series_semantics = str(merged.get("series_semantics") or "")
+    merged.update(resolve_chart_runtime_metadata(series_semantics))
+    merged.update(resolve_direct_input_policies(series_semantics))
     return merged
+
+
+def is_direct_consumer_input_allowed(
+    extra: dict[str, Any] | None,
+    *,
+    consumer: str,
+) -> bool:
+    """Return True when one macro series may feed the consumer directly."""
+
+    metadata = dict(extra or {})
+    series_semantics = str(metadata.get("series_semantics") or "")
+    policies = resolve_direct_input_policies(series_semantics)
+    key = f"{consumer}_input_policy"
+    policy = str(metadata.get(key) or policies.get(key) or DIRECT_INPUT_ALLOWED).strip()
+    return policy == DIRECT_INPUT_ALLOWED
 
 
 def _row(

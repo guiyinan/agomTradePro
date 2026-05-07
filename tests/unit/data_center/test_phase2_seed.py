@@ -74,6 +74,8 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert gdp.extra["chart_policy"] == "yearly_reset_bar"
     assert gdp.extra["chart_reset_frequency"] == "year"
     assert gdp.extra["chart_segment_basis"] == "period_delta"
+    assert gdp.extra["regime_input_policy"] == "derive_required"
+    assert gdp.extra["pulse_input_policy"] == "derive_required"
     assert gdp.extra["display_priority"] == 20
 
     assert gdp_yoy.default_unit == "%"
@@ -83,6 +85,8 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert gdp_yoy.extra["series_semantics"] == "yoy_rate"
     assert gdp_yoy.extra["paired_indicator_code"] == "CN_GDP"
     assert gdp_yoy.extra["chart_policy"] == "continuous_line"
+    assert gdp_yoy.extra["regime_input_policy"] == "direct_allowed"
+    assert gdp_yoy.extra["pulse_input_policy"] == "direct_allowed"
     assert gdp_yoy.extra["display_priority"] == 120
 
     assert m2.name_cn == "M2 广义货币供应量余额"
@@ -118,6 +122,8 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert fixed_investment.extra["chart_policy"] == "yearly_reset_bar"
     assert fixed_investment.extra["chart_reset_frequency"] == "year"
     assert fixed_investment.extra["chart_segment_basis"] == "period_delta"
+    assert fixed_investment.extra["regime_input_policy"] == "derive_required"
+    assert fixed_investment.extra["pulse_input_policy"] == "derive_required"
     assert fai_yoy.extra["series_semantics"] == "yoy_rate"
     assert fai_yoy.extra["chart_policy"] == "continuous_line"
 
@@ -159,6 +165,8 @@ def test_indicator_catalog_seed_preserves_units_categories_and_period_types():
     assert pmi.default_period_type == "M"
     assert pmi.category == "growth"
     assert pmi.extra["chart_policy"] == "continuous_line"
+    assert pmi.extra["regime_input_policy"] == "direct_allowed"
+    assert pmi.extra["pulse_input_policy"] == "direct_allowed"
 
     assert cpi.default_unit == "指数"
     assert cpi.default_period_type == "M"

@@ -10,6 +10,9 @@ import math
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
+    is_direct_consumer_input_allowed,
+)
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
 
 logger = logging.getLogger(__name__)
@@ -119,6 +122,7 @@ class DjangoPulseDataProvider:
     def __init__(self, config: PulseConfig | None = None):
         self.config = config or PulseConfig.defaults()
         self._indicator_defs: list[PulseIndicatorDef] | None = None
+        self._indicator_extra_cache: dict[str, dict] = {}
 
     def _load_indicator_defs(self) -> list[PulseIndicatorDef]:
         """从 DB 加载指标定义，fallback 到 Domain 默认值"""
@@ -266,6 +270,13 @@ class DjangoPulseDataProvider:
             )
             return [(bar_date, float(close), None) for bar_date, close in rows]
 
+        if not self._is_pulse_direct_input_allowed(code):
+            logger.warning(
+                "Blocked Pulse direct input for %s because catalog policy requires derivation first",
+                code,
+            )
+            return []
+
         from apps.data_center.infrastructure.models import MacroFactModel
 
         rows = (
@@ -281,6 +292,20 @@ class DjangoPulseDataProvider:
             (reporting_period, float(value), published_at)
             for reporting_period, value, published_at in rows
         ]
+
+    def _get_indicator_extra(self, code: str) -> dict:
+        if code not in self._indicator_extra_cache:
+            from apps.data_center.infrastructure.models import IndicatorCatalogModel
+
+            catalog = IndicatorCatalogModel.objects.filter(code=code).first()
+            self._indicator_extra_cache[code] = dict(catalog.extra or {}) if catalog else {}
+        return self._indicator_extra_cache[code]
+
+    def _is_pulse_direct_input_allowed(self, code: str) -> bool:
+        return is_direct_consumer_input_allowed(
+            self._get_indicator_extra(code),
+            consumer="pulse",
+        )
 
     @staticmethod
     def _is_asset_code(code: str) -> bool:

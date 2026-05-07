@@ -52,6 +52,8 @@ def test_init_macro_indicator_governance_repairs_metadata_for_target_codes():
     assert industrial_profit.extra["chart_policy"] == "yearly_reset_bar"
     assert industrial_profit.extra["chart_reset_frequency"] == "year"
     assert industrial_profit.extra["chart_segment_basis"] == "period_delta"
+    assert industrial_profit.extra["regime_input_policy"] == "derive_required"
+    assert industrial_profit.extra["pulse_input_policy"] == "derive_required"
 
 
 @pytest.mark.django_db

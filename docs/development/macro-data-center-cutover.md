@@ -174,6 +174,18 @@
   - 按指标周期和最新报告期自动推断回补窗口
 - `CELERY_BEAT_SCHEDULE` 已加入 `auto-sync-due-macro-indicators`，每天 `08:20` 自动执行一次，配合现有 freshness 巡检，形成“检查 + 自动补抓”的数据基座闭环。
 
+## 2026-05-07 direct-input 护栏补充
+
+- `IndicatorCatalog.extra` 现统一补齐：
+  - `regime_input_policy`
+  - `pulse_input_policy`
+- 当前通用策略：
+  - `series_semantics = cumulative_level` => `derive_required`
+  - 其他已治理语义默认 => `direct_allowed`
+- `apps/regime/infrastructure/macro_data_provider.py` 现会在增长/通胀输入侧拦截 `derive_required` 指标，避免把年内累计值直接送入 Regime 动量计算。
+- `apps/pulse/infrastructure/data_provider.py` 现会在 Pulse 宏观读数入口拦截 `derive_required` 指标，避免把跨年重置的累计值直接拿去做 `zscore / level / pct_change`。
+- 这意味着像 `CN_GDP`、`CN_FIXED_INVESTMENT`、`CN_INDUSTRIAL_PROFIT` 这类累计口径序列，只能先转换为同比、环比、单期增量或其他明确派生口径，再用于决策链路。
+
 ## 刷新但不需要重训
 
 - 宏观页面首屏上下文与图表缓存

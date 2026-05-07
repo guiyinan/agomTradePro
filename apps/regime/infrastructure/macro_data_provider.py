@@ -17,6 +17,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
+from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
+    is_direct_consumer_input_allowed,
+)
+
 from ..domain.protocols import (
     DataSourceConfigProtocol,
     IndicatorSeries,
@@ -97,6 +101,7 @@ class DataCenterMacroRepositoryAdapter:
 
     def __init__(self) -> None:
         self._period_type_cache: dict[str, str] = {}
+        self._catalog_extra_cache: dict[str, dict] = {}
 
     def _get_models(self):
         from apps.data_center.infrastructure.models import (
@@ -114,6 +119,19 @@ class DataCenterMacroRepositoryAdapter:
                 catalog.default_period_type if catalog else "D"
             )
         return self._period_type_cache[indicator_code]
+
+    def _get_catalog_extra(self, indicator_code: str) -> dict:
+        if indicator_code not in self._catalog_extra_cache:
+            IndicatorCatalogModel, _ = self._get_models()
+            catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).first()
+            self._catalog_extra_cache[indicator_code] = dict(catalog.extra or {}) if catalog else {}
+        return self._catalog_extra_cache[indicator_code]
+
+    def _is_regime_direct_input_allowed(self, indicator_code: str) -> bool:
+        return is_direct_consumer_input_allowed(
+            self._get_catalog_extra(indicator_code),
+            consumer="regime",
+        )
 
     def _to_macro_indicator(self, fact) -> MacroIndicator:
         extra = fact.extra or {}
@@ -278,6 +296,12 @@ class DataCenterMacroRepositoryAdapter:
         source: str | None = None,
     ) -> list:
         code = self.GROWTH_INDICATORS.get(indicator_code, indicator_code)
+        if not self._is_regime_direct_input_allowed(code):
+            logger.warning(
+                "Blocked regime direct input for %s because catalog policy requires derivation first",
+                code,
+            )
+            return []
         return self.get_series(
             code=code,
             start_date=start_date,
@@ -314,6 +338,12 @@ class DataCenterMacroRepositoryAdapter:
         source: str | None = None,
     ) -> list:
         code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
+        if not self._is_regime_direct_input_allowed(code):
+            logger.warning(
+                "Blocked regime direct input for %s because catalog policy requires derivation first",
+                code,
+            )
+            return []
         indicators = self.get_series(
             code=code,
             start_date=start_date,
