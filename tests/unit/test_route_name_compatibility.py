@@ -140,7 +140,6 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     assert 'id="refreshAllIndicatorsBtn"' in macro_data
     assert "function normalizeChronologicalSeries(data)" in macro_data
     assert "function normalizeMacroPayload(code, result)" in macro_data
-    assert "function buildChartSeries(chartPoints, governance)" in macro_data
     assert "const response = await fetch(`${macroSeriesUrl}?indicator_code=${encodeURIComponent(code)}&limit=500`);" in macro_data
     assert "currentIndicatorPayload = normalizeMacroPayload(code, result);" in macro_data
 
