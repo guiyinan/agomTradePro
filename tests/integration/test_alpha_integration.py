@@ -17,6 +17,32 @@ from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvide
 from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
 
+def _seed_etf_fallback_data() -> None:
+    """Seed local ETF holdings so fallback tests never depend on remote data."""
+    for fund_code, fund_name in [
+        ("510300", "沪深300ETF"),
+        ("510500", "中证500ETF"),
+        ("510050", "上证50ETF"),
+    ]:
+        FundInfoModel._default_manager.update_or_create(
+            fund_code=fund_code,
+            defaults={
+                "fund_name": fund_name,
+                "fund_type": "指数型",
+                "is_active": True,
+            },
+        )
+        FundHoldingModel._default_manager.update_or_create(
+            fund_code=fund_code,
+            report_date=date.today(),
+            stock_code="600519.SH",
+            defaults={
+                "stock_name": "贵州茅台",
+                "holding_ratio": 4.5,
+            },
+        )
+
+
 @pytest.mark.django_db
 class TestAlphaServiceIntegration:
     """Alpha 服务集成测试"""
@@ -50,6 +76,7 @@ class TestAlphaServiceIntegration:
 
     def test_get_stock_scores_returns_result(self):
         """测试获取股票评分返回结果"""
+        _seed_etf_fallback_data()
         service = AlphaService()
         result = service.get_stock_scores("csi300", date.today())
 
@@ -114,32 +141,7 @@ class TestETFProviderIntegration:
     """ETF 降级 Provider 集成测试"""
 
     def _seed_etf_data(self):
-        FundInfoModel._default_manager.create(
-            fund_code="510300",
-            fund_name="沪深300ETF",
-            fund_type="指数型",
-            is_active=True,
-        )
-        FundInfoModel._default_manager.create(
-            fund_code="510500",
-            fund_name="中证500ETF",
-            fund_type="指数型",
-            is_active=True,
-        )
-        FundInfoModel._default_manager.create(
-            fund_code="510050",
-            fund_name="上证50ETF",
-            fund_type="指数型",
-            is_active=True,
-        )
-        for fund_code in ["510300", "510500", "510050"]:
-            FundHoldingModel._default_manager.create(
-                fund_code=fund_code,
-                report_date=date.today(),
-                stock_code="600519.SH",
-                stock_name="贵州茅台",
-                holding_ratio=4.5,
-            )
+        _seed_etf_fallback_data()
 
     def test_etf_provider_properties(self):
         """测试 ETF Provider 属性"""
