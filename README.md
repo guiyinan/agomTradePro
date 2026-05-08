@@ -10,9 +10,9 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-5%2C487-brightgreen.svg)](#测试)
+[![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#测试)
 [![Modules](https://img.shields.io/badge/业务模块-35-purple.svg)](#架构)
-[![MCP Tools](https://img.shields.io/badge/MCP_工具-326-orange.svg)](#ai-原生集成)
+[![MCP Tools](https://img.shields.io/badge/MCP_工具-321-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -25,6 +25,27 @@
 ## What's New
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
+
+### 2026-05-08
+
+- 本地 Alpha ETF fallback 现已补入种子数据，Fund / Dashboard 相关 smoke contract 也已对齐当前页面行为；离线回归和降级路径的可重复性更稳
+
+### 2026-05-07
+
+- 宏观治理与 Dashboard 数据流继续收口：累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路，减少累计指标污染转折判断的问题
+- `task_monitor` 的任务载荷口径已标准化，VPS SQLite 启动任务的序列化问题也已修复；任务可见性与远端启动排障更稳定
+- Alpha / governance guardrails 与宏观模板断言已继续对齐当前实现，CI 对真实回归和历史脆弱断言的区分更清晰
+
+### 2026-05-05
+
+- Dashboard Alpha 新增完整排名入口，可从候选页直接跳转到全量 ranking 视图
+- Data Center governance 与宏观页面探索能力继续扩展，宏观治理 seeds 和页面可读性同步推进
+
+### 2026-05-04
+
+- 基金研究数据工作流补了一轮扩展，宏观同步覆盖面继续扩大，`DR007` 同步链路也已恢复
+- 宏观页现在更明确地区分“未同步”和“未接入”，批量刷新入口也只针对已接入自动同步的指标执行补抓
+- MCP 文档口径已同步到当前 `321` 个本地注册工具快照
 
 ### 2026-05-02
 
@@ -48,7 +69,7 @@
 ### 2026-04-29
 
 - 宏观 MCP/SDK 正式收口到 `data_center`：MCP 官方宏观工具切到 `data_center_*`，指标目录与量纲规则可直接经 MCP/HTTP 治理
-- 宏观治理与 MCP 文档已同步刷新，当前本地注册快照为 `326` 个 MCP 工具
+- 宏观治理与 MCP 文档已同步刷新；当日文档快照口径为 `326` 个 MCP 工具
 
 ### 2026-04-28
 

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 新增 Dashboard Alpha 完整排名入口，候选页现在可直接跳转到全量 ranking 视图
+- 新增本地 Alpha ETF fallback 种子数据，离线回归与降级路径的可重复性更稳定
+- 新增宏观指标治理 seeds，Data Center governance 与宏观治理元数据可在新环境中更快落到一致基线
 - 新增 Dashboard Alpha candidate 到 `/equity/screen/` 的自动化回归覆盖：API 契约测试锁 `ROE / PE / PB / 营收增长 / 净利润增长` 字段，Playwright smoke 锁结果表最终渲染
 - 新增 Alpha exit loop 后端主链，串起 `decision_rhythm` 退出建议、`signal` 查询、自动交易执行与任务投递，并补齐 `tests/unit/test_alpha_exit_loop_end_to_end.py` 等一组端到端回归
 - Dashboard 新增 Alpha exit 细节面板、history/detail 页面与 metrics/stock API 入口，首页主工作流和 Decision Workspace 侧边栏现在都能复用同一套退出链上下文
@@ -40,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
+- 宏观数据页探索体验继续增强，宏观同步状态与批量刷新语义现更明确区分“未同步”和“未接入”
+- 宏观治理与 Dashboard 数据流继续收口，累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
+- `task_monitor` 任务载荷口径已标准化，VPS SQLite 启动任务的投递与排障链路更稳定
+- MCP 工具数文档口径已同步到当前 `321` 个本地注册快照，README / 版本文档 / 变更说明保持一致
 - `/equity/screen/` 结果表现在会为首页带入的 Dashboard Alpha 候选补齐最新 `ROE / PE / PB / 营收增长 / 净利润增长` 上下文，不再只显示综合评分
 - Dashboard 退出链入口已统一：首页主工作流、Decision Workspace、Alpha history/detail 以及相关 API 现在经 `query_services` / `interface_services` / integration gateway 收口，不再依赖超大混合视图
 - 运行时桥接与 provider 装配继续收口到 app-owned provider 与 `core/integration/*`，`shared/` 清理和跨模块 `infrastructure` 边界治理继续推进
@@ -50,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
 - 架构审计规则版本更新为 `2026-04-24.v1`，新增 Application 层 pandas/numpy 导入审计和错位 `AppConfig` 审计规则
 - `pulse`、`realtime`、`alpha`、`sentiment`、`strategy` 的四层规范文件形态已补齐到当前治理基线；`strategy/application/dto.py` 已统一为 `dtos.py`
-- MCP 工具数文档口径已同步到当前 `318` 个本地注册快照，系统模块覆盖口径同步为 `35/35`
+- 系统模块覆盖口径继续保持 `35/35`
 - 本轮架构债治理将多个 Interface / Application 热路径收口到 application interface service、repository provider 与 infrastructure repository 边界，减少直接 ORM / Infrastructure 耦合
 - `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 与 Nightly 主链重新保持绿色
 - Pulse 按需重算现在会在重建前刷新上游宏观输入，减少 stale / degraded 快照反复重算后继续输出低质量上下文的情况
@@ -87,6 +94,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 已移除旧的 `core/integration/asset_analysis_market_sources.py` bridge，跨模块市场协作改由 app-owned provider + shared registry 暴露
 
 ### Fixed
+- 修复多项宏观数据质量与治理元数据问题，宏观治理 metadata pipeline 和多指标数据口径进一步加固
+- 修复 `CN_DR007` 宏观同步链路，恢复按当前真实区间数据抓取
+- 修复 CI 治理基线与测试基线漂移，Alpha / governance guardrails 与 fund / macro smoke contract 重新对齐当前实现
+- 修复 `task_monitor` 返回载荷规范化问题，避免不同入口的任务状态展示出现结构漂移
+- 修复 VPS SQLite 启动任务的序列化问题，远端启动链路不再因载荷不可序列化而中断
 - 修复运行时 bridge 与测试安全 provider 漂移，`runtime_settings` / `runtime_benchmarks` / `signal` 相关读链在测试环境和降级场景下重新恢复稳定
 - 修复 workspace account id 非数字时的兼容性问题，Decision Workspace 相关读取不再因 ID 解析失败而中断
 - 修复 Decision / Simulated Trading 之间的模块循环依赖，退出建议与持仓读取链现在通过 integration bridge 解耦
