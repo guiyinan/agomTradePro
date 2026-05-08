@@ -312,7 +312,7 @@ def _assert_fund_contract(page: Page) -> None:
     _assert_min_count(page, ".context-card", 4)
     _assert_min_count(page, ".workflow-nav__item", 6)
     _wait_for_non_placeholder_text(page, "#activeSignalsCount")
-    _assert_min_count(page, "#multiDimTableBody", 1)
+    expect(page.get_by_role("button", name="从多维评分开始")).to_be_visible()
     _assert_card_style(page, ".context-card")
 
 
