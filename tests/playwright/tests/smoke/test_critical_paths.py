@@ -308,11 +308,12 @@ def _assert_equity_result_metrics(page: Page) -> None:
 def _assert_fund_contract(page: Page) -> None:
     """Assert fund dashboard renders macro context and scoring table."""
     _assert_page_shell(page, "/fund/dashboard/")
-    expect(page.locator("h1")).to_have_text("基金分析")
-    _assert_min_count(page, ".stat-card", 5)
+    expect(page.locator("h1")).to_have_text("基金研究工作台")
+    _assert_min_count(page, ".context-card", 4)
+    _assert_min_count(page, ".workflow-nav__item", 6)
     _wait_for_non_placeholder_text(page, "#activeSignalsCount")
-    _assert_min_count(page, "#multiDimTable thead th", 10)
-    _assert_card_style(page, ".stat-card")
+    _assert_min_count(page, "#multiDimTableBody", 1)
+    _assert_card_style(page, ".context-card")
 
 
 def _assert_asset_analysis_contract(page: Page) -> None:
