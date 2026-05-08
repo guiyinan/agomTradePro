@@ -12,7 +12,7 @@
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#测试)
 [![Modules](https://img.shields.io/badge/业务模块-35-purple.svg)](#架构)
-[![MCP Tools](https://img.shields.io/badge/MCP_工具-321-orange.svg)](#ai-原生集成)
+[![MCP Tools](https://img.shields.io/badge/MCP_工具-326-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -45,7 +45,7 @@
 
 - 基金研究数据工作流补了一轮扩展，宏观同步覆盖面继续扩大，`DR007` 同步链路也已恢复
 - 宏观页现在更明确地区分“未同步”和“未接入”，批量刷新入口也只针对已接入自动同步的指标执行补抓
-- MCP 文档口径已同步到当前 `321` 个本地注册工具快照
+- MCP 文档口径已同步到当前 `326` 个本地注册工具快照
 
 ### 2026-05-02
 

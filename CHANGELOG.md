@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 宏观数据页探索体验继续增强，宏观同步状态与批量刷新语义现更明确区分“未同步”和“未接入”
 - 宏观治理与 Dashboard 数据流继续收口，累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
 - `task_monitor` 任务载荷口径已标准化，VPS SQLite 启动任务的投递与排障链路更稳定
-- MCP 工具数文档口径已同步到当前 `321` 个本地注册快照，README / 版本文档 / 变更说明保持一致
+- MCP 工具数文档口径已同步到当前 `326` 个本地注册快照，README / 版本文档 / 变更说明保持一致
 - `/equity/screen/` 结果表现在会为首页带入的 Dashboard Alpha 候选补齐最新 `ROE / PE / PB / 营收增长 / 净利润增长` 上下文，不再只显示综合评分
 - Dashboard 退出链入口已统一：首页主工作流、Decision Workspace、Alpha history/detail 以及相关 API 现在经 `query_services` / `interface_services` / integration gateway 收口，不再依赖超大混合视图
 - 运行时桥接与 provider 装配继续收口到 app-owned provider 与 `core/integration/*`，`shared/` 清理和跨模块 `infrastructure` 边界治理继续推进
