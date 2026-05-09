@@ -14,6 +14,34 @@
         <p style="margin: 12px 0 0 0; color: var(--color-text-secondary); font-size: 13px;">
             本阶段结论仍基于全局 Regime / Pulse / Policy 模型，不按单账户持仓重新计算。
         </p>
+        <div class="workspace-freshness-panel">
+            <div class="workspace-freshness-card">
+                <div class="workspace-freshness-head">
+                    <span class="workspace-freshness-title">{{ regime_freshness.label }}</span>
+                    <span class="workspace-freshness-badge workspace-freshness-badge-{{ regime_freshness.badge_class }}">{{ regime_freshness.status_label }}</span>
+                </div>
+                <div class="workspace-freshness-meta">
+                    <span>数据日期: {{ regime_freshness.observed_at_display }}</span>
+                    <span>有效至: {{ regime_freshness.expires_at_display }}</span>
+                    <span>来源: {{ regime_freshness.source_label }}</span>
+                    <span>口径: 每晚预计算</span>
+                </div>
+                <div class="workspace-freshness-note">{{ regime_freshness.note }}</div>
+            </div>
+            <div class="workspace-freshness-card">
+                <div class="workspace-freshness-head">
+                    <span class="workspace-freshness-title">{{ pulse_freshness.label }}</span>
+                    <span class="workspace-freshness-badge workspace-freshness-badge-{{ pulse_freshness.badge_class }}">{{ pulse_freshness.status_label }}</span>
+                </div>
+                <div class="workspace-freshness-meta">
+                    <span>数据日期: {{ pulse_freshness.observed_at_display }}</span>
+                    <span>有效至: {{ pulse_freshness.expires_at_display }}</span>
+                    <span>来源: {{ pulse_freshness.source_label }}</span>
+                    <span>口径: 每晚预计算</span>
+                </div>
+                <div class="workspace-freshness-note">{{ pulse_freshness.note }}</div>
+            </div>
+        </div>
     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         <div class="attention-card">

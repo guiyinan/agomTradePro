@@ -6,18 +6,24 @@ Task Monitor Infrastructure Repositories
 
 import json
 import logging
+from io import StringIO
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, List, Optional
 from uuid import UUID
 
+from django.core.management import call_command
 from django.db import models
 from django.db.models import Avg, Count, Q
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
+from django_celery_beat.models import PeriodicTask
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    SchedulerBootstrapResult,
+    SchedulerCatalogSummary,
+    ScheduledTaskRecord,
     TaskExecutionRecord,
     TaskPriority,
     TaskStatistics,
@@ -25,6 +31,8 @@ from apps.task_monitor.domain.entities import (
 )
 from apps.task_monitor.domain.interfaces import (
     CeleryHealthCheckerProtocol,
+    SchedulerBootstrapGatewayProtocol,
+    SchedulerRepositoryProtocol,
     TaskRecordRepositoryProtocol,
 )
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
@@ -301,3 +309,144 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
             scheduled_tasks_count=scheduled_tasks_count,
             last_check=timezone.now(),
         )
+
+
+class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
+    """Read-only repository for database-backed periodic tasks."""
+
+    def get_catalog_summary(self) -> SchedulerCatalogSummary:
+        queryset = PeriodicTask.objects.all()
+        return SchedulerCatalogSummary(
+            total_tasks=queryset.count(),
+            enabled_tasks=queryset.filter(enabled=True).count(),
+            disabled_tasks=queryset.filter(enabled=False).count(),
+            crontab_tasks=queryset.filter(crontab__isnull=False).count(),
+            interval_tasks=queryset.filter(interval__isnull=False).count(),
+            one_off_tasks=queryset.filter(one_off=True).count(),
+        )
+
+    def list_periodic_tasks(self, limit: int = 100) -> list[ScheduledTaskRecord]:
+        tasks = list(
+            PeriodicTask.objects.select_related("crontab", "interval", "clocked", "solar")
+            .order_by("enabled", "name")[:limit]
+        )
+        task_paths = [task.task for task in tasks if task.task]
+        latest_execution_map = self._latest_execution_map(task_paths)
+        recent_failure_counts = self._recent_failure_counts(task_paths)
+
+        return [
+            ScheduledTaskRecord(
+                name=task.name,
+                task_path=task.task,
+                enabled=bool(task.enabled),
+                schedule_type=self._schedule_type(task),
+                schedule_display=self._schedule_display(task),
+                queue=(task.queue or None),
+                description=str(task.description or ""),
+                kwargs_preview=_truncate_text(str(task.kwargs or "{}"), 120),
+                last_run_at=task.last_run_at,
+                total_run_count=int(task.total_run_count or 0),
+                last_execution_status=(
+                    latest_execution_map[task.task].status
+                    if task.task in latest_execution_map
+                    else None
+                ),
+                last_execution_at=(
+                    latest_execution_map[task.task].created_at
+                    if task.task in latest_execution_map
+                    else None
+                ),
+                last_runtime_seconds=(
+                    latest_execution_map[task.task].runtime_seconds
+                    if task.task in latest_execution_map
+                    else None
+                ),
+                recent_failure_count=int(recent_failure_counts.get(task.task, 0)),
+            )
+            for task in tasks
+        ]
+
+    def _latest_execution_map(self, task_paths: list[str]) -> dict[str, TaskExecutionModel]:
+        if not task_paths:
+            return {}
+
+        latest_map: dict[str, TaskExecutionModel] = {}
+        queryset = TaskExecutionModel.objects.filter(task_name__in=task_paths).order_by(
+            "task_name",
+            "-created_at",
+        )
+        for model in queryset:
+            latest_map.setdefault(model.task_name, model)
+        return latest_map
+
+    def _recent_failure_counts(self, task_paths: list[str]) -> dict[str, int]:
+        if not task_paths:
+            return {}
+
+        since = timezone.now() - timedelta(hours=24)
+        rows = (
+            TaskExecutionModel.objects.filter(
+                task_name__in=task_paths,
+                status__in=["failure", "timeout"],
+                created_at__gte=since,
+            )
+            .values("task_name")
+            .annotate(total=Count("id"))
+        )
+        return {str(row["task_name"]): int(row["total"]) for row in rows}
+
+    @staticmethod
+    def _schedule_type(task: PeriodicTask) -> str:
+        if task.crontab_id:
+            return "crontab"
+        if task.interval_id:
+            return "interval"
+        if task.clocked_id:
+            return "clocked"
+        if task.solar_id:
+            return "solar"
+        return "custom"
+
+    @staticmethod
+    def _schedule_display(task: PeriodicTask) -> str:
+        if task.crontab_id and task.crontab:
+            timezone_name = getattr(task.crontab, "timezone", None)
+            timezone_suffix = f" ({timezone_name})" if timezone_name else ""
+            return (
+                f"cron {task.crontab.minute} {task.crontab.hour} "
+                f"{task.crontab.day_of_month} {task.crontab.month_of_year} "
+                f"{task.crontab.day_of_week}{timezone_suffix}"
+            )
+        if task.interval_id and task.interval:
+            return f"every {task.interval.every} {str(task.interval.period).lower()}"
+        if task.clocked_id and task.clocked:
+            return f"clocked @ {task.clocked.clocked_time.isoformat()}"
+        if task.solar_id and task.solar:
+            return (
+                f"solar {task.solar.event} @ lat={task.solar.latitude}, "
+                f"lon={task.solar.longitude}"
+            )
+        return "unspecified"
+
+
+class ManagementCommandSchedulerBootstrapGateway(SchedulerBootstrapGatewayProtocol):
+    """Initialize scheduler defaults through management commands."""
+
+    def initialize_default_schedules(self) -> SchedulerBootstrapResult:
+        buffer = StringIO()
+        call_command("init_scheduler_defaults", stdout=buffer, stderr=buffer)
+        output_lines = [
+            line.strip()
+            for line in buffer.getvalue().splitlines()
+            if line.strip()
+        ]
+        return SchedulerBootstrapResult(
+            executed_commands=["init_scheduler_defaults"],
+            output_lines=output_lines,
+        )
+
+
+def _truncate_text(value: str, limit: int) -> str:
+    if len(value) <= limit:
+        return value
+    return f"{value[: limit - 1]}…"

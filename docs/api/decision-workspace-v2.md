@@ -40,8 +40,42 @@
 - 历史模板 `core/templates/decision/workspace_legacy.html` 已废弃并移除，工作台只允许维护 `core/templates/decision/workspace.html`
 - 左侧栏账户现状使用 `/api/account/accounts/{id}/` 和 `/api/account/accounts/{id}/positions/`
 - Step 4 的详情弹窗只展示推荐参数与风控预览，不得承载任何执行目标、账户落地或审批评论表单
+- Step 1 应优先复用最近一次已落库的 `Regime` / `Pulse` 快照；仅在本地无快照时才回退到实时计算
+- Step 2 应优先复用最近一次已落库的 `ActionRecommendationLog`，避免页面打开时阻塞在宏观与 Pulse 重算链路
 - Step 3 读取轮动建议时，若当日 `rotation_signal` 已落库，应优先复用已持久化结果；仅在无可用 signal 时才触发实时重算，避免页面请求阻塞在外部行情链路
+- 决策工作台页面读路径允许复用“最近一次已落库”轮动信号作为 UI 上下文，即使该信号不是当日数据；前端必须通过 stale/source 元数据明确提示用户
 - Step 3 partial 和 JSON context 都应返回轮动结果状态元数据：`rotation_data_source`、`rotation_is_stale`、`rotation_warning_message`、`rotation_signal_date`，前端必须显式提示用户当前是否为回退结果
+- Step 1-3 的系统级上下文改为夜间预计算口径，默认由 `apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots` 在每日 22:45（Asia/Shanghai）统一刷新
+- 工作台前端必须显式展示每类系统级数据的 `数据日期`、`有效至`、`来源`、`状态`，避免用户把历史快照误判为实时结果
+- 当前有效期约定：夜间快照在 `observed_at` 次日 `23:59`（Asia/Shanghai）前视为有效；超时后标记为 `已过期`
+- 当前状态标签约定：
+  - `有效`：命中夜间快照且未超过有效期
+  - `已过期`：命中夜间快照，但已超过预期有效期
+  - `实时回退`：未命中可用夜间快照，页面临时实时计算
+  - `缺失`：无快照且无可展示回退结果
+
+### 1.2 Nightly Snapshot Contract
+
+夜间快照任务需要串行刷新以下系统级上下文，供工作台 Step 1-3 直接读取：
+
+1. 宏观输入同步
+2. `Regime` 快照计算与持久化
+3. `Pulse` 快照计算与持久化
+4. `ActionRecommendationLog` 刷新与持久化
+5. `RotationSignal` 刷新与持久化
+
+默认 beat 配置命令：
+
+```bash
+python manage.py setup_workspace_snapshot_refresh
+```
+
+默认创建的周期任务：
+
+- 名称: `decision-workspace-nightly-snapshot-refresh`
+- 任务: `apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots`
+- 时区: `Asia/Shanghai`
+- 默认时间: `22:45`
 
 ## 2. 统一推荐列表
 

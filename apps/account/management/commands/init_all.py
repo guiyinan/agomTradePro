@@ -60,6 +60,12 @@ class Command(BaseCommand):
                 'module': 'apps.prompt'
             },
             {
+                'name': 'Scheduler Defaults',
+                'command': 'init_scheduler_defaults',
+                'description': 'Initialize database-backed periodic tasks for macro, valuation, and workspace snapshots',
+                'module': 'apps.task_monitor'
+            },
+            {
                 'name': 'Macro Economic Data',
                 'command': 'sync_macro_data',
                 'description': 'Sync macro data (PMI, CPI, PPI) from AKShare',
@@ -237,6 +243,7 @@ class Command(BaseCommand):
         self.stdout.write('  2. Start server: python manage.py runserver')
         self.stdout.write('  3. Access admin: http://127.0.0.1:8000/admin/')
         self.stdout.write('  4. Access dashboard: http://127.0.0.1:8000/dashboard/')
+        self.stdout.write('  5. Access scheduler console: http://127.0.0.1:8000/ops/task-monitor/')
         self.stdout.write('')
         self.stdout.write('For detailed documentation, see: docs/development/system_initialization.md')
         self.stdout.write('')

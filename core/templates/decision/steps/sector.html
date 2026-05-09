@@ -14,6 +14,38 @@
         <p style="margin: 12px 0 0 0; color: var(--color-text-secondary); font-size: 13px;">
             板块偏好来自统一宏观主线与轮动模型，不按账户持仓差异单独重算。
         </p>
+        <div class="workspace-freshness-panel">
+            {% if recommendation_freshness %}
+            <div class="workspace-freshness-card">
+                <div class="workspace-freshness-head">
+                    <span class="workspace-freshness-title">{{ recommendation_freshness.label }}</span>
+                    <span class="workspace-freshness-badge workspace-freshness-badge-{{ recommendation_freshness.badge_class }}">{{ recommendation_freshness.status_label }}</span>
+                </div>
+                <div class="workspace-freshness-meta">
+                    <span>数据日期: {{ recommendation_freshness.observed_at_display }}</span>
+                    <span>有效至: {{ recommendation_freshness.expires_at_display }}</span>
+                    <span>来源: {{ recommendation_freshness.source_label }}</span>
+                    <span>口径: 每晚预计算</span>
+                </div>
+                <div class="workspace-freshness-note">{{ recommendation_freshness.note }}</div>
+            </div>
+            {% endif %}
+            {% if rotation_freshness %}
+            <div class="workspace-freshness-card">
+                <div class="workspace-freshness-head">
+                    <span class="workspace-freshness-title">{{ rotation_freshness.label }}</span>
+                    <span class="workspace-freshness-badge workspace-freshness-badge-{{ rotation_freshness.badge_class }}">{{ rotation_freshness.status_label }}</span>
+                </div>
+                <div class="workspace-freshness-meta">
+                    <span>数据日期: {{ rotation_freshness.observed_at_display }}</span>
+                    <span>有效至: {{ rotation_freshness.expires_at_display }}</span>
+                    <span>来源: {{ rotation_freshness.source_label }}</span>
+                    <span>口径: 每晚预计算</span>
+                </div>
+                <div class="workspace-freshness-note">{{ rotation_freshness.note }}</div>
+            </div>
+            {% endif %}
+        </div>
     </div>
     
     <div class="attention-card" style="margin-bottom: 20px;">

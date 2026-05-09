@@ -27,3 +27,21 @@ def get_database_backup_service():
     from apps.task_monitor.infrastructure.backup_service import DatabaseBackupService
 
     return DatabaseBackupService()
+
+
+def get_scheduler_repository():
+    """Return the default periodic task catalog repository."""
+
+    from apps.task_monitor.infrastructure.providers import DjangoSchedulerRepository
+
+    return DjangoSchedulerRepository()
+
+
+def get_scheduler_bootstrap_gateway():
+    """Return the default scheduler bootstrap gateway."""
+
+    from apps.task_monitor.infrastructure.providers import (
+        ManagementCommandSchedulerBootstrapGateway,
+    )
+
+    return ManagementCommandSchedulerBootstrapGateway()

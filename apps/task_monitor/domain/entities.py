@@ -7,8 +7,6 @@ Task Monitor Domain Entities
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
-from uuid import UUID
 
 
 class TaskStatus(Enum):
@@ -147,3 +145,43 @@ class TaskStatistics:
             "last_execution_status": self.last_execution_status.value,
             "last_execution_at": self.last_execution_at.isoformat() if self.last_execution_at else None,
         }
+
+
+@dataclass(frozen=True)
+class ScheduledTaskRecord:
+    """周期任务读模型。"""
+
+    name: str
+    task_path: str
+    enabled: bool
+    schedule_type: str
+    schedule_display: str
+    queue: str | None
+    description: str
+    kwargs_preview: str
+    last_run_at: datetime | None
+    total_run_count: int
+    last_execution_status: str | None
+    last_execution_at: datetime | None
+    last_runtime_seconds: float | None
+    recent_failure_count: int
+
+
+@dataclass(frozen=True)
+class SchedulerCatalogSummary:
+    """周期任务目录摘要。"""
+
+    total_tasks: int
+    enabled_tasks: int
+    disabled_tasks: int
+    crontab_tasks: int
+    interval_tasks: int
+    one_off_tasks: int
+
+
+@dataclass(frozen=True)
+class SchedulerBootstrapResult:
+    """默认周期任务初始化结果。"""
+
+    executed_commands: list[str]
+    output_lines: list[str]

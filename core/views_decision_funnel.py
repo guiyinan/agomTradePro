@@ -25,6 +25,8 @@ def funnel_step1_view(request):
             "regime_strength": context_data.regime_strength,
             "policy_level": context_data.policy_level,
             "overall_verdict": context_data.overall_verdict,
+            "regime_freshness": context_data.regime_freshness,
+            "pulse_freshness": context_data.pulse_freshness,
         },
     )
 
@@ -42,6 +44,7 @@ def funnel_step2_view(request):
             "asset_weights": direction_data.asset_weights,
             "risk_budget_pct": direction_data.risk_budget_pct,
             "action_recommendation": direction_data.action_recommendation,
+            "recommendation_freshness": direction_data.recommendation_freshness,
         },
     )
 
@@ -64,6 +67,8 @@ def funnel_step3_view(request):
             "rotation_is_stale": sectors_data.rotation_is_stale,
             "rotation_warning_message": sectors_data.rotation_warning_message,
             "rotation_signal_date": sectors_data.rotation_signal_date,
+            "recommendation_freshness": sectors_data.recommendation_freshness,
+            "rotation_freshness": sectors_data.rotation_freshness,
         },
     )
 

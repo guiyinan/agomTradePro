@@ -7,15 +7,12 @@ Decision_Rhythm, and Audit modules to provide seamless data for the UI pipeline.
 
 import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List, Optional
 
-from apps.audit.application.use_cases import (
-    GenerateAttributionReportRequest,
-    GenerateAttributionReportUseCase,
-)
-from apps.audit.application.repository_provider import get_audit_repository
-from apps.backtest.application.repository_provider import get_backtest_repository
+from django.utils import timezone
+
+from apps.regime.application.repository_provider import get_regime_repository
 from apps.regime.application.navigator_use_cases import (
     BuildRegimeNavigatorUseCase,
     GetActionRecommendationUseCase,
@@ -24,6 +21,71 @@ from apps.pulse.application.use_cases import GetLatestPulseUseCase
 from apps.rotation.application.integration_service import RotationIntegrationService
 
 logger = logging.getLogger(__name__)
+
+
+def _next_local_day_expiry(observed_at: date) -> datetime:
+    """Return the local end-of-day expiry for the next calendar day."""
+    expiry_date = observed_at + timedelta(days=1)
+    return timezone.make_aware(datetime.combine(expiry_date, time(23, 59)))
+
+
+def _build_freshness_payload(
+    *,
+    label: str,
+    observed_at: date | None,
+    source: str,
+    fallback_note: str | None = None,
+) -> dict[str, Any]:
+    """Build UI-friendly freshness metadata for nightly workspace snapshots."""
+    if observed_at is None:
+        return {
+            "label": label,
+            "observed_at": None,
+            "observed_at_display": "-",
+            "expires_at": None,
+            "expires_at_display": "-",
+            "source": source,
+            "source_label": "无快照",
+            "is_stale": True,
+            "status_label": "缺失",
+            "badge_class": "danger",
+            "note": fallback_note or "尚未生成可用快照。",
+        }
+
+    expires_at = _next_local_day_expiry(observed_at)
+    now_local = timezone.localtime(timezone.now())
+    is_live_fallback = source.startswith("live_")
+    is_stale = now_local > expires_at
+
+    if is_live_fallback:
+        status_label = "实时回退"
+        badge_class = "warning"
+        source_label = "页面实时计算"
+        note = fallback_note or "未命中夜间快照，当前结果来自页面级实时回退。"
+    elif is_stale:
+        status_label = "已过期"
+        badge_class = "danger"
+        source_label = "夜间快照"
+        note = fallback_note or "当前展示最近一次夜间快照，已超过预期有效期。"
+    else:
+        status_label = "有效"
+        badge_class = "success"
+        source_label = "夜间快照"
+        note = fallback_note or "当前展示最近一次夜间预计算快照。"
+
+    return {
+        "label": label,
+        "observed_at": observed_at,
+        "observed_at_display": observed_at.isoformat(),
+        "expires_at": expires_at,
+        "expires_at_display": timezone.localtime(expires_at).strftime("%Y-%m-%d %H:%M"),
+        "source": source,
+        "source_label": source_label,
+        "is_stale": is_stale,
+        "status_label": status_label,
+        "badge_class": badge_class,
+        "note": note,
+    }
 
 
 @dataclass
@@ -35,6 +97,8 @@ class DecisionStep1Response:
     regime_strength: str
     policy_level: Optional[str]
     overall_verdict: str
+    regime_freshness: dict[str, Any]
+    pulse_freshness: dict[str, Any]
 
 
 @dataclass
@@ -44,6 +108,7 @@ class DecisionStep2Response:
     action_recommendation: Dict[str, Any]
     asset_weights: Dict[str, float]
     risk_budget_pct: float
+    recommendation_freshness: dict[str, Any]
 
 
 @dataclass
@@ -56,6 +121,8 @@ class DecisionStep3Response:
     rotation_is_stale: bool = False
     rotation_warning_message: Optional[str] = None
     rotation_signal_date: Optional[str] = None
+    recommendation_freshness: Optional[dict[str, Any]] = None
+    rotation_freshness: Optional[dict[str, Any]] = None
 
 
 @dataclass
@@ -106,8 +173,24 @@ class DecisionContextUseCase:
         self.pulse_usecase = GetLatestPulseUseCase()
         self.action_usecase = GetActionRecommendationUseCase()
         self.rotation_service = RotationIntegrationService()
-        self.audit_repository = get_audit_repository()
-        self.backtest_repository = get_backtest_repository()
+        self.audit_repository = None
+        self.backtest_repository = None
+
+    def _get_audit_repository(self):
+        """Load the audit repository lazily for Step 6 only."""
+        if self.audit_repository is None:
+            from apps.audit.application.repository_provider import get_audit_repository
+
+            self.audit_repository = get_audit_repository()
+        return self.audit_repository
+
+    def _get_backtest_repository(self):
+        """Load the backtest repository lazily for Step 6 only."""
+        if self.backtest_repository is None:
+            from apps.backtest.application.repository_provider import get_backtest_repository
+
+            self.backtest_repository = get_backtest_repository()
+        return self.backtest_repository
 
     def get_step1_context(self, as_of_date: Optional[date] = None) -> DecisionStep1Response:
         """Step 1: Environment Assessment
@@ -115,14 +198,60 @@ class DecisionContextUseCase:
         """
         target_date = as_of_date or date.today()
 
-        # 1. Regime
-        navigator = self.nav_usecase.execute(target_date)
-        regime_name = navigator.regime_name if navigator else "UNKNOWN"
+        # 1. Regime - prefer the latest persisted snapshot for page rendering.
+        regime_name = "UNKNOWN"
+        regime_freshness = _build_freshness_payload(
+            label="Regime 快照",
+            observed_at=None,
+            source="missing",
+        )
+        try:
+            latest_regime = get_regime_repository().get_latest_snapshot(before_date=target_date)
+            if latest_regime is not None:
+                regime_name = latest_regime.dominant_regime or "UNKNOWN"
+                regime_freshness = _build_freshness_payload(
+                    label="Regime 快照",
+                    observed_at=latest_regime.observed_at,
+                    source="regime_snapshot",
+                )
+            else:
+                navigator = self.nav_usecase.execute(target_date)
+                regime_name = navigator.regime_name if navigator else "UNKNOWN"
+                regime_freshness = _build_freshness_payload(
+                    label="Regime 快照",
+                    observed_at=target_date,
+                    source="live_regime_fallback",
+                )
+        except Exception as e:
+            logger.warning(f"Failed to fetch cached regime snapshot in DecisionContext: {e}")
+            navigator = self.nav_usecase.execute(target_date)
+            regime_name = navigator.regime_name if navigator else "UNKNOWN"
+            regime_freshness = _build_freshness_payload(
+                label="Regime 快照",
+                observed_at=target_date,
+                source="live_regime_fallback",
+                fallback_note="夜间 Regime 快照读取失败，当前结果来自页面级实时回退。",
+            )
 
         # 2. Pulse
         pulse = None
+        pulse_freshness = _build_freshness_payload(
+            label="Pulse 快照",
+            observed_at=None,
+            source="missing",
+        )
         try:
-            pulse = self.pulse_usecase.execute()
+            pulse = self.pulse_usecase.execute(
+                as_of_date=target_date,
+                require_reliable=False,
+                refresh_if_stale=False,
+            )
+            if pulse is not None:
+                pulse_freshness = _build_freshness_payload(
+                    label="Pulse 快照",
+                    observed_at=getattr(pulse, "observed_at", None),
+                    source="pulse_snapshot",
+                )
         except Exception as e:
             logger.warning(f"Failed to fetch pulse in DecisionContext: {e}")
 
@@ -146,19 +275,36 @@ class DecisionContextUseCase:
             regime_strength=regime_strength,
             policy_level=policy_level,
             overall_verdict=verdict,
+            regime_freshness=regime_freshness,
+            pulse_freshness=pulse_freshness,
         )
 
     def get_step2_direction(self, as_of_date: Optional[date] = None) -> DecisionStep2Response:
         """Step 2: Direction Selection"""
         target_date = as_of_date or date.today()
-        action_rec = self.action_usecase.execute(target_date)
+        action_rec = self.action_usecase.execute(
+            target_date,
+            refresh_pulse_if_stale=False,
+            prefer_cached=True,
+        )
 
         if not action_rec:
             return DecisionStep2Response(
                 action_recommendation={},
                 asset_weights={"equity": 0.5, "bond": 0.3, "commodity": 0.1, "cash": 0.1},
                 risk_budget_pct=0.5,
+                recommendation_freshness=_build_freshness_payload(
+                    label="配置建议快照",
+                    observed_at=None,
+                    source="missing",
+                ),
             )
+
+        recommendation_freshness = _build_freshness_payload(
+            label="配置建议快照",
+            observed_at=getattr(action_rec, "context_observed_at", None) or target_date,
+            source=str(getattr(action_rec, "context_source", "live_action_fallback") or "live_action_fallback"),
+        )
 
         return DecisionStep2Response(
             action_recommendation={
@@ -170,6 +316,7 @@ class DecisionContextUseCase:
             },
             asset_weights=action_rec.asset_weights,
             risk_budget_pct=action_rec.risk_budget_pct,
+            recommendation_freshness=recommendation_freshness,
         )
 
     def get_step3_sectors(
@@ -181,8 +328,15 @@ class DecisionContextUseCase:
         Combine Action Recommended sectors with Momentum Rotation logic.
         """
         target_date = as_of_date or date.today()
-        action_rec = self.action_usecase.execute(target_date)
-        rotation_payload = self.rotation_service.get_rotation_recommendation("momentum")
+        action_rec = self.action_usecase.execute(
+            target_date,
+            refresh_pulse_if_stale=False,
+            prefer_cached=True,
+        )
+        rotation_payload = self.rotation_service.get_rotation_recommendation(
+            "momentum",
+            prefer_persisted=True,
+        )
         asset_master = self.rotation_service.get_asset_master(include_inactive=False)
 
         if rotation_payload.get("error"):
@@ -197,6 +351,16 @@ class DecisionContextUseCase:
                 rotation_is_stale=bool(rotation_payload.get("is_stale", False)),
                 rotation_warning_message=rotation_payload.get("warning_message"),
                 rotation_signal_date=rotation_payload.get("signal_date"),
+                recommendation_freshness=_build_freshness_payload(
+                    label="配置建议快照",
+                    observed_at=getattr(action_rec, "context_observed_at", None) or target_date if action_rec else None,
+                    source=str(getattr(action_rec, "context_source", "missing") or "missing") if action_rec else "missing",
+                ),
+                rotation_freshness=_build_freshness_payload(
+                    label="轮动信号快照",
+                    observed_at=None,
+                    source="missing",
+                ),
             )
 
         asset_lookup = {
@@ -249,6 +413,20 @@ class DecisionContextUseCase:
             for asset_code, weight in ranked_allocations[:5]
         ]
 
+        recommendation_freshness = _build_freshness_payload(
+            label="配置建议快照",
+            observed_at=getattr(action_rec, "context_observed_at", None) or target_date if action_rec else None,
+            source=str(getattr(action_rec, "context_source", "missing") or "missing") if action_rec else "missing",
+        )
+        rotation_source = str(rotation_payload.get("data_source") or "live_rotation_fallback")
+        rotation_observed_at = None
+        signal_date = rotation_payload.get("signal_date")
+        if signal_date:
+            try:
+                rotation_observed_at = date.fromisoformat(str(signal_date))
+            except ValueError:
+                rotation_observed_at = None
+
         return DecisionStep3Response(
             sector_recommendations=sector_recommendations,
             rotation_signals=rotation_signals,
@@ -256,6 +434,13 @@ class DecisionContextUseCase:
             rotation_is_stale=bool(rotation_payload.get("is_stale", False)),
             rotation_warning_message=rotation_payload.get("warning_message"),
             rotation_signal_date=rotation_payload.get("signal_date"),
+            recommendation_freshness=recommendation_freshness,
+            rotation_freshness=_build_freshness_payload(
+                label="轮动信号快照",
+                observed_at=rotation_observed_at,
+                source=rotation_source,
+                fallback_note=rotation_payload.get("warning_message"),
+            ),
         )
 
     def get_step6_audit(
@@ -271,13 +456,21 @@ class DecisionContextUseCase:
             if resolved_backtest_id is None:
                 return self._empty_audit_response("缺少可复盘的回测记录，请传入 backtest_id。")
 
-            reports = self.audit_repository.get_reports_by_backtest(resolved_backtest_id)
+            audit_repository = self._get_audit_repository()
+            backtest_repository = self._get_backtest_repository()
+
+            reports = audit_repository.get_reports_by_backtest(resolved_backtest_id)
             report_data = reports[0] if reports else None
 
             if report_data is None:
+                from apps.audit.application.use_cases import (
+                    GenerateAttributionReportRequest,
+                    GenerateAttributionReportUseCase,
+                )
+
                 generation_response = GenerateAttributionReportUseCase(
-                    audit_repository=self.audit_repository,
-                    backtest_repository=self.backtest_repository,
+                    audit_repository=audit_repository,
+                    backtest_repository=backtest_repository,
                 ).execute(GenerateAttributionReportRequest(backtest_id=resolved_backtest_id))
 
                 if not generation_response.success or generation_response.report_id is None:
@@ -286,7 +479,7 @@ class DecisionContextUseCase:
                         backtest_id=resolved_backtest_id,
                     )
 
-                report_data = self.audit_repository.get_attribution_report(
+                report_data = audit_repository.get_attribution_report(
                     generation_response.report_id
                 )
 
@@ -297,8 +490,8 @@ class DecisionContextUseCase:
                 )
 
             report_id = int(report_data["id"])
-            loss_analyses = self.audit_repository.get_loss_analyses(report_id)
-            summaries = self.audit_repository.get_experience_summaries(report_id)
+            loss_analyses = audit_repository.get_loss_analyses(report_id)
+            summaries = audit_repository.get_experience_summaries(report_id)
             loss_analysis = loss_analyses[0] if loss_analyses else None
             summary = summaries[0] if summaries else None
 
@@ -360,7 +553,7 @@ class DecisionContextUseCase:
         if trade_id and trade_id.isdigit():
             return int(trade_id)
 
-        completed_backtests = self.backtest_repository.get_backtests_by_status("completed")
+        completed_backtests = self._get_backtest_repository().get_backtests_by_status("completed")
         latest_backtest = next(
             iter(
                 sorted(

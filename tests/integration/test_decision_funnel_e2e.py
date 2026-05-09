@@ -113,7 +113,11 @@ def test_decision_step3_partial_uses_rotation_outputs(authenticated_client):
     with (
         patch(
             "core.application.decision_context.GetActionRecommendationUseCase.execute",
-            return_value=_action_recommendation_stub("科技", "消费"),
+            return_value=SimpleNamespace(
+                **_action_recommendation_stub("科技", "消费").__dict__,
+                context_observed_at=date(2026, 5, 9),
+                context_source="action_log_cached",
+            ),
         ),
         patch(
             "core.application.decision_context.RotationIntegrationService.get_rotation_recommendation",
@@ -121,7 +125,10 @@ def test_decision_step3_partial_uses_rotation_outputs(authenticated_client):
                 "target_allocation": {
                     "CSI300": 0.42,
                     "GOLD": 0.18,
-                }
+                },
+                "data_source": "stored_signal",
+                "is_stale": False,
+                "signal_date": "2026-05-09",
             },
         ),
         patch(
@@ -141,6 +148,9 @@ def test_decision_step3_partial_uses_rotation_outputs(authenticated_client):
         "推荐偏好依据",
         "Regime + 动量板块",
         "风格轮动信号 (Rotation)",
+        "数据日期",
+        "有效至",
+        "口径: 每晚预计算",
     )
     assert "科技" in content
     assert "消费" in content
@@ -154,7 +164,11 @@ def test_decision_step3_partial_shows_rotation_fallback_warning(authenticated_cl
     with (
         patch(
             "core.application.decision_context.GetActionRecommendationUseCase.execute",
-            return_value=_action_recommendation_stub("红利", "大盘"),
+            return_value=SimpleNamespace(
+                **_action_recommendation_stub("红利", "大盘").__dict__,
+                context_observed_at=date(2026, 3, 30),
+                context_source="action_log_cached",
+            ),
         ),
         patch(
             "core.application.decision_context.RotationIntegrationService.get_rotation_recommendation",
@@ -185,10 +199,69 @@ def test_decision_step3_partial_shows_rotation_fallback_warning(authenticated_cl
         "轮动结果状态",
         "Regime + 动量板块",
         "风格轮动信号 (Rotation)",
+        "数据日期",
+        "有效至",
     )
     assert "实时轮动重算失败" in content
     assert "已回退" in content
     assert "2026-03-30" in content
+
+
+@pytest.mark.django_db
+def test_decision_step1_and_step2_partials_show_freshness_metadata(authenticated_client):
+    """Step 1 and Step 2 partials should show validity windows for nightly snapshots."""
+    with (
+        patch(
+            "core.application.decision_context.get_regime_repository",
+            return_value=SimpleNamespace(
+                get_latest_snapshot=lambda before_date=None: SimpleNamespace(
+                    dominant_regime="Recovery",
+                    observed_at=date(2026, 5, 9),
+                    confidence=0.91,
+                )
+            ),
+        ),
+        patch(
+            "core.application.decision_context.GetLatestPulseUseCase.execute",
+            return_value=SimpleNamespace(
+                observed_at=date(2026, 5, 9),
+                composite_score=0.42,
+                regime_strength="strong",
+                is_reliable=True,
+            ),
+        ),
+        patch(
+            "core.application.decision_context.GetActionRecommendationUseCase.execute",
+            return_value=SimpleNamespace(
+                **_action_recommendation_stub("科技").__dict__,
+                context_observed_at=date(2026, 5, 9),
+                context_source="action_log_cached",
+            ),
+        ),
+    ):
+        step1_response = authenticated_client.get("/api/decision/context/step1/")
+        step2_response = authenticated_client.get("/api/decision/context/step2/")
+
+    step1_content = _assert_html_partial_contract(
+        step1_response,
+        "阶段 1: 宏观环境评估",
+        "数据日期",
+        "有效至",
+        "口径: 每晚预计算",
+        "Regime 快照",
+        "Pulse 快照",
+    )
+    assert "2026-05-09" in step1_content
+
+    step2_content = _assert_html_partial_contract(
+        step2_response,
+        "阶段 2: 大类资产方向",
+        "数据日期",
+        "有效至",
+        "口径: 每晚预计算",
+        "配置建议快照",
+    )
+    assert "2026-05-09" in step2_content
 
 
 @pytest.mark.django_db

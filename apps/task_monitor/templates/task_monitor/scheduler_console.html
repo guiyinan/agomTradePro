@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title %}AgomTradePro - {{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+.scheduler-console {
+    max-width: 1380px;
+    margin: 0 auto;
+    padding: 24px 0 40px;
+}
+
+.scheduler-console__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.scheduler-console__title h1 {
+    margin: 0 0 8px 0;
+    font-size: 30px;
+}
+
+.scheduler-console__title p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    max-width: 780px;
+    line-height: 1.6;
+}
+
+.scheduler-console__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.scheduler-console__grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.scheduler-console__card,
+.scheduler-console__panel {
+    background: var(--color-card-bg, #fff);
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.06));
+}
+
+.scheduler-console__card {
+    padding: 16px;
+}
+
+.scheduler-console__label {
+    display: block;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.scheduler-console__value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--color-text-primary);
+}
+
+.scheduler-console__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.9fr);
+    gap: 18px;
+}
+
+.scheduler-console__panel {
+    padding: 18px;
+}
+
+.scheduler-console__panel h2 {
+    margin: 0 0 14px 0;
+    font-size: 18px;
+}
+
+.scheduler-console__panel p {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.scheduler-console__health {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.scheduler-console__health-item {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.scheduler-console__health-item strong {
+    display: block;
+    font-size: 18px;
+    margin-top: 8px;
+}
+
+.scheduler-console__table-wrap {
+    overflow-x: auto;
+}
+
+.scheduler-console__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.scheduler-console__table th,
+.scheduler-console__table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+    vertical-align: top;
+    text-align: left;
+}
+
+.scheduler-console__table th {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.scheduler-console__task-name {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.scheduler-console__subtle {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.scheduler-console__badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.scheduler-console__badge-ok {
+    background: #e8f7ee;
+    color: #217346;
+}
+
+.scheduler-console__badge-warn {
+    background: #fff3dd;
+    color: #9a6220;
+}
+
+.scheduler-console__badge-danger {
+    background: #fdecec;
+    color: #b42318;
+}
+
+.scheduler-console__badge-neutral {
+    background: #eef2f7;
+    color: #4a5568;
+}
+
+.scheduler-console__failures {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.scheduler-console__failure-item {
+    border: 1px solid #f0d2d2;
+    background: #fff8f8;
+    border-radius: 14px;
+    padding: 12px 14px;
+}
+
+.scheduler-console__links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+@media (max-width: 1180px) {
+    .scheduler-console__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .scheduler-console__layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .scheduler-console__header {
+        flex-direction: column;
+    }
+
+    .scheduler-console__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .scheduler-console__health {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="scheduler-console">
+    <div class="scheduler-console__header">
+        <div class="scheduler-console__title">
+            <h1>{{ page_title }}</h1>
+            <p>把数据库中的 <code>PeriodicTask</code> 配置和 Celery 运行态放在一个视图里，便于确认默认计划任务是否已初始化、是否启用，以及最近有没有失败。</p>
+        </div>
+        <div class="scheduler-console__actions">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="bootstrap_defaults">
+                <button type="submit" class="btn btn-primary">一键初始化默认计划任务</button>
+            </form>
+            <a href="{{ periodic_task_admin_url }}" class="btn btn-secondary">PeriodicTask Admin</a>
+            <a href="{{ task_execution_admin_url }}" class="btn btn-secondary">执行记录 Admin</a>
+        </div>
+    </div>
+
+    <div class="scheduler-console__grid">
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">计划任务总数</span>
+            <div class="scheduler-console__value">{{ summary.total_tasks }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">已启用</span>
+            <div class="scheduler-console__value">{{ summary.enabled_tasks }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">已禁用</span>
+            <div class="scheduler-console__value">{{ summary.disabled_tasks }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">Crontab</span>
+            <div class="scheduler-console__value">{{ summary.crontab_tasks }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">Interval</span>
+            <div class="scheduler-console__value">{{ summary.interval_tasks }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">One-off</span>
+            <div class="scheduler-console__value">{{ summary.one_off_tasks }}</div>
+        </div>
+    </div>
+
+    <div class="scheduler-console__layout">
+        <div class="scheduler-console__panel">
+            <h2>PeriodicTask 目录</h2>
+            <div class="scheduler-console__table-wrap">
+                <table class="scheduler-console__table">
+                    <thead>
+                        <tr>
+                            <th>任务</th>
+                            <th>调度</th>
+                            <th>启用</th>
+                            <th>最近运行</th>
+                            <th>最近执行结果</th>
+                            <th>失败(24h)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in periodic_tasks %}
+                        <tr>
+                            <td>
+                                <div class="scheduler-console__task-name">{{ task.name }}</div>
+                                <div class="scheduler-console__subtle">{{ task.task_path }}</div>
+                                {% if task.description %}
+                                <div class="scheduler-console__subtle">{{ task.description }}</div>
+                                {% endif %}
+                                <div class="scheduler-console__subtle">kwargs: {{ task.kwargs_preview }}</div>
+                            </td>
+                            <td>
+                                <div>{{ task.schedule_display }}</div>
+                                <div class="scheduler-console__subtle">{{ task.schedule_type }}{% if task.queue %} | queue={{ task.queue }}{% endif %}</div>
+                            </td>
+                            <td>
+                                {% if task.enabled %}
+                                <span class="scheduler-console__badge scheduler-console__badge-ok">enabled</span>
+                                {% else %}
+                                <span class="scheduler-console__badge scheduler-console__badge-neutral">disabled</span>
+                                {% endif %}
+                                <div class="scheduler-console__subtle">run count: {{ task.total_run_count }}</div>
+                            </td>
+                            <td>
+                                {% if task.last_run_at %}
+                                <div>{{ task.last_run_at|date:"Y-m-d H:i" }}</div>
+                                {% else %}
+                                <div class="scheduler-console__subtle">尚未运行</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.last_execution_status == "success" %}
+                                <span class="scheduler-console__badge scheduler-console__badge-ok">success</span>
+                                {% elif task.last_execution_status == "failure" or task.last_execution_status == "timeout" %}
+                                <span class="scheduler-console__badge scheduler-console__badge-danger">{{ task.last_execution_status }}</span>
+                                {% elif task.last_execution_status %}
+                                <span class="scheduler-console__badge scheduler-console__badge-warn">{{ task.last_execution_status }}</span>
+                                {% else %}
+                                <span class="scheduler-console__badge scheduler-console__badge-neutral">no record</span>
+                                {% endif %}
+                                {% if task.last_execution_at %}
+                                <div class="scheduler-console__subtle">{{ task.last_execution_at|date:"Y-m-d H:i" }}</div>
+                                {% endif %}
+                                {% if task.last_runtime_seconds %}
+                                <div class="scheduler-console__subtle">runtime {{ task.last_runtime_seconds|floatformat:2 }}s</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.recent_failure_count > 0 %}
+                                <span class="scheduler-console__badge scheduler-console__badge-danger">{{ task.recent_failure_count }}</span>
+                                {% else %}
+                                <span class="scheduler-console__badge scheduler-console__badge-ok">0</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="scheduler-console__subtle">当前数据库中还没有 PeriodicTask。可以先点击上方的一键初始化。</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+            <div class="scheduler-console__panel">
+                <h2>Celery 运行态</h2>
+                <div class="scheduler-console__health">
+                    <div class="scheduler-console__health-item">
+                        <span class="scheduler-console__label">健康状态</span>
+                        <strong>
+                            {% if health.is_healthy %}Healthy{% else %}Degraded{% endif %}
+                        </strong>
+                    </div>
+                    <div class="scheduler-console__health-item">
+                        <span class="scheduler-console__label">Worker 数量</span>
+                        <strong>{{ health.active_workers|length }}</strong>
+                    </div>
+                    <div class="scheduler-console__health-item">
+                        <span class="scheduler-console__label">活跃任务</span>
+                        <strong>{{ health.active_tasks_count }}</strong>
+                    </div>
+                    <div class="scheduler-console__health-item">
+                        <span class="scheduler-console__label">待处理 / 已调度</span>
+                        <strong>{{ health.pending_tasks_count }} / {{ health.scheduled_tasks_count }}</strong>
+                    </div>
+                </div>
+                <div class="scheduler-console__links">
+                    <div class="scheduler-console__subtle">Broker: {% if health.broker_reachable %}reachable{% else %}unreachable{% endif %}</div>
+                    <div class="scheduler-console__subtle">Backend: {% if health.backend_reachable %}reachable{% else %}unreachable{% endif %}</div>
+                    <div class="scheduler-console__subtle">Last check: {{ health.last_check }}</div>
+                    {% if health.active_workers %}
+                    <div class="scheduler-console__subtle">Workers: {{ health.active_workers|join:", " }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="scheduler-console__panel">
+                <h2>最近失败任务</h2>
+                <ul class="scheduler-console__failures">
+                    {% for failure in recent_failures.items %}
+                    <li class="scheduler-console__failure-item">
+                        <div class="scheduler-console__task-name">{{ failure.task_name }}</div>
+                        <div class="scheduler-console__subtle">task_id={{ failure.task_id }}</div>
+                        <div class="scheduler-console__subtle">status={{ failure.status }} | retries={{ failure.retries }}</div>
+                        {% if failure.finished_at %}
+                        <div class="scheduler-console__subtle">finished={{ failure.finished_at }}</div>
+                        {% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="scheduler-console__subtle">最近 24 小时没有失败记录。</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="scheduler-console__panel">
+                <h2>数据库入口</h2>
+                <p>周期任务本身存放在 <code>django_celery_beat</code> 的数据库表里，页面这里只做统一观测与初始化入口；细粒度编辑仍可直接走 Django Admin。</p>
+                <div class="scheduler-console__links">
+                    <a href="{{ periodic_task_admin_url }}">打开 PeriodicTask 列表</a>
+                    <a href="{{ crontab_admin_url }}">打开 CrontabSchedule 列表</a>
+                    <a href="{{ task_execution_admin_url }}">打开 TaskExecution 记录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

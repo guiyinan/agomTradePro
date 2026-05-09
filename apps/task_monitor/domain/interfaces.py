@@ -9,6 +9,9 @@ from typing import List, Optional, Protocol
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    SchedulerBootstrapResult,
+    SchedulerCatalogSummary,
+    ScheduledTaskRecord,
     TaskExecutionRecord,
     TaskStatistics,
 )
@@ -142,4 +145,24 @@ class AlertChannelProtocol(Protocol):
         Returns:
             bool: 是否可用
         """
+        ...
+
+
+class SchedulerRepositoryProtocol(Protocol):
+    """周期任务配置仓储协议。"""
+
+    def get_catalog_summary(self) -> SchedulerCatalogSummary:
+        """返回周期任务摘要。"""
+        ...
+
+    def list_periodic_tasks(self, limit: int = 100) -> list[ScheduledTaskRecord]:
+        """返回周期任务列表。"""
+        ...
+
+
+class SchedulerBootstrapGatewayProtocol(Protocol):
+    """周期任务初始化网关协议。"""
+
+    def initialize_default_schedules(self) -> SchedulerBootstrapResult:
+        """初始化默认周期任务。"""
         ...

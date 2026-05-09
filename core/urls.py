@@ -392,6 +392,13 @@ module_patterns = [
         "api/system/",
         include(("apps.task_monitor.interface.urls", "task_monitor"), namespace="task_monitor"),
     ),
+    path(
+        "ops/task-monitor/",
+        include(
+            ("apps.task_monitor.interface.page_urls", "task_monitor_pages"),
+            namespace="task_monitor_pages",
+        ),
+    ),
     # Dashboard API routes
     path(
         "api/dashboard/",

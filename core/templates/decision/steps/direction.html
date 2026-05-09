@@ -14,6 +14,21 @@
         <p style="margin: 12px 0 0 0; color: var(--color-text-secondary); font-size: 13px;">
             本阶段输出的是系统级资产方向，不会因当前账户仓位不同而改变建议比例。
         </p>
+        <div class="workspace-freshness-panel">
+            <div class="workspace-freshness-card">
+                <div class="workspace-freshness-head">
+                    <span class="workspace-freshness-title">{{ recommendation_freshness.label }}</span>
+                    <span class="workspace-freshness-badge workspace-freshness-badge-{{ recommendation_freshness.badge_class }}">{{ recommendation_freshness.status_label }}</span>
+                </div>
+                <div class="workspace-freshness-meta">
+                    <span>数据日期: {{ recommendation_freshness.observed_at_display }}</span>
+                    <span>有效至: {{ recommendation_freshness.expires_at_display }}</span>
+                    <span>来源: {{ recommendation_freshness.source_label }}</span>
+                    <span>口径: 每晚预计算</span>
+                </div>
+                <div class="workspace-freshness-note">{{ recommendation_freshness.note }}</div>
+            </div>
+        </div>
     </div>
     
     <div class="attention-card" style="margin-bottom: 20px;">

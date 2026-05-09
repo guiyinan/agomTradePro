@@ -403,6 +403,15 @@ class DjangoNavigatorRepository:
             defaults=data
         )
 
+    def get_latest_action_recommendation(self, before_date: date | None = None):
+        """Return the latest persisted action recommendation log."""
+        from .models import ActionRecommendationLog
+
+        queryset = ActionRecommendationLog.objects.all()
+        if before_date is not None:
+            queryset = queryset.filter(observed_at__lte=before_date)
+        return queryset.order_by("-observed_at", "-id").first()
+
     def get_regimes_in_range(self, start_date: date, end_date: date):
         from .models import RegimeLog
         return RegimeLog.objects.filter(

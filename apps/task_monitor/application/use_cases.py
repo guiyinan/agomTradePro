@@ -12,12 +12,19 @@ from django.utils import timezone
 
 from apps.task_monitor.application.dtos import (
     HealthCheckResponse,
+    SchedulerBootstrapResponse,
+    SchedulerConsoleResponse,
+    SchedulerSummaryResponse,
+    ScheduledTaskResponse,
     TaskListResponse,
     TaskStatisticsResponse,
     TaskStatusResponse,
 )
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    SchedulerBootstrapResult,
+    SchedulerCatalogSummary,
+    ScheduledTaskRecord,
     TaskExecutionRecord,
     TaskFailureAlert,
     TaskPriority,
@@ -27,6 +34,8 @@ from apps.task_monitor.domain.entities import (
 from apps.task_monitor.domain.interfaces import (
     AlertChannelProtocol,
     CeleryHealthCheckerProtocol,
+    SchedulerBootstrapGatewayProtocol,
+    SchedulerRepositoryProtocol,
     TaskRecordRepositoryProtocol,
 )
 from core.exceptions import ExternalServiceError
@@ -326,3 +335,93 @@ class CleanupOldRecordsUseCase:
         count = self.repository.cleanup_old_records(days_to_keep=days_to_keep)
         logger.info(f"Cleaned up {count} old task records (older than {days_to_keep} days)")
         return count
+
+
+class GetSchedulerConsoleUseCase:
+    """构建周期任务后台页面上下文。"""
+
+    def __init__(
+        self,
+        scheduler_repository: SchedulerRepositoryProtocol,
+        health_checker: CeleryHealthCheckerProtocol,
+        task_record_repository: TaskRecordRepositoryProtocol,
+    ):
+        self.scheduler_repository = scheduler_repository
+        self.health_checker = health_checker
+        self.task_record_repository = task_record_repository
+
+    def execute(self, *, limit: int = 100) -> SchedulerConsoleResponse:
+        summary = self.scheduler_repository.get_catalog_summary()
+        periodic_tasks = self.scheduler_repository.list_periodic_tasks(limit=limit)
+        recent_failures = ListTasksUseCase(self.task_record_repository).execute(
+            failures_only=True,
+            limit=10,
+        )
+
+        try:
+            health = CheckCeleryHealthUseCase(self.health_checker).execute()
+        except Exception as exc:
+            logger.warning("Falling back to degraded Celery health payload: %s", exc)
+            health = HealthCheckResponse(
+                is_healthy=False,
+                broker_reachable=False,
+                backend_reachable=False,
+                active_workers=[],
+                active_tasks_count=0,
+                pending_tasks_count=0,
+                scheduled_tasks_count=0,
+                last_check=timezone.now().isoformat(),
+            )
+
+        return SchedulerConsoleResponse(
+            summary=_map_scheduler_summary(summary),
+            health=health,
+            periodic_tasks=[_map_scheduled_task(task) for task in periodic_tasks],
+            recent_failures=recent_failures,
+        )
+
+
+class BootstrapDefaultSchedulesUseCase:
+    """执行默认周期任务初始化。"""
+
+    def __init__(self, gateway: SchedulerBootstrapGatewayProtocol):
+        self.gateway = gateway
+
+    def execute(self) -> SchedulerBootstrapResponse:
+        result = self.gateway.initialize_default_schedules()
+        return SchedulerBootstrapResponse(
+            executed_commands=result.executed_commands,
+            output_lines=result.output_lines,
+        )
+
+
+def _map_scheduled_task(task: ScheduledTaskRecord) -> ScheduledTaskResponse:
+    return ScheduledTaskResponse(
+        name=task.name,
+        task_path=task.task_path,
+        enabled=task.enabled,
+        schedule_type=task.schedule_type,
+        schedule_display=task.schedule_display,
+        queue=task.queue,
+        description=task.description,
+        kwargs_preview=task.kwargs_preview,
+        last_run_at=task.last_run_at.isoformat() if task.last_run_at else None,
+        total_run_count=task.total_run_count,
+        last_execution_status=task.last_execution_status,
+        last_execution_at=(
+            task.last_execution_at.isoformat() if task.last_execution_at else None
+        ),
+        last_runtime_seconds=task.last_runtime_seconds,
+        recent_failure_count=task.recent_failure_count,
+    )
+
+
+def _map_scheduler_summary(summary: SchedulerCatalogSummary) -> SchedulerSummaryResponse:
+    return SchedulerSummaryResponse(
+        total_tasks=summary.total_tasks,
+        enabled_tasks=summary.enabled_tasks,
+        disabled_tasks=summary.disabled_tasks,
+        crontab_tasks=summary.crontab_tasks,
+        interval_tasks=summary.interval_tasks,
+        one_off_tasks=summary.one_off_tasks,
+    )

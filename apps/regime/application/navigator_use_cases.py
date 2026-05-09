@@ -16,8 +16,10 @@ from apps.pulse.application.query_services import (
 from apps.regime.application.repository_provider import (
     get_default_macro_repository,
     get_navigator_repository,
+    get_regime_repository,
 )
 from apps.regime.domain.action_mapper import (
+    ActionMapperConfig,
     RegimeActionRecommendation,
     map_regime_pulse_to_action,
 )
@@ -79,6 +81,8 @@ def _build_blocked_action_recommendation(
         pulse_observed_at=pulse_observed_at,
         pulse_is_reliable=pulse_is_reliable,
         stale_indicator_codes=stale_indicator_codes,
+        context_observed_at=as_of_date,
+        context_source="live_action_fallback",
     )
 
 
@@ -114,6 +118,59 @@ def _load_asset_config_from_db() -> RegimeAssetConfig | None:
     except Exception as e:
         logger.warning(f"Failed to load navigator asset config from DB: {e}")
         return None
+
+
+def _build_cached_action_recommendation(
+    *,
+    cached_action,
+    as_of_date: date,
+    confidence: float,
+    pulse_snapshot=None,
+) -> RegimeActionRecommendation:
+    """Rehydrate a UI-friendly action recommendation from the latest persisted log."""
+    config = ActionMapperConfig.defaults()
+    risk_budget_pct = float(getattr(cached_action, "risk_budget_pct", 0.0) or 0.0)
+    position_limit_pct = (
+        config.position_limit_high_risk
+        if risk_budget_pct >= config.position_limit_threshold
+        else config.position_limit_low_risk
+    )
+    pulse_strength = str(getattr(cached_action, "pulse_strength", "") or "moderate")
+    regime_name = str(getattr(cached_action, "regime_name", "") or "Unknown")
+    observed_at = getattr(cached_action, "observed_at", as_of_date)
+    blocked_reason = str(getattr(cached_action, "blocked_reason", "") or "")
+    must_not_use_for_decision = bool(
+        getattr(cached_action, "must_not_use_for_decision", False)
+    )
+
+    return RegimeActionRecommendation(
+        asset_weights=dict(getattr(cached_action, "asset_weights", {}) or {}),
+        risk_budget_pct=risk_budget_pct,
+        position_limit_pct=position_limit_pct,
+        recommended_sectors=list(getattr(cached_action, "recommended_sectors", []) or []),
+        benefiting_styles=list(getattr(cached_action, "benefiting_styles", []) or []),
+        hedge_recommendation=None,
+        reasoning=(
+            f"已复用 {observed_at.isoformat()} 的联合行动建议快照，"
+            "避免工作台刷新时重复触发宏观与脉搏重算。"
+        ),
+        regime_contribution=f"{regime_name}期，沿用最近一次已落库的资产配置指引。",
+        pulse_contribution=f"Pulse {pulse_strength}，沿用最近一次已落库的风险预算。",
+        generated_at=as_of_date,
+        confidence=float(confidence or 0.0),
+        must_not_use_for_decision=must_not_use_for_decision,
+        blocked_reason=blocked_reason,
+        blocked_code="pulse_unreliable" if must_not_use_for_decision else "",
+        pulse_observed_at=getattr(pulse_snapshot, "observed_at", None),
+        pulse_is_reliable=bool(getattr(pulse_snapshot, "is_reliable", True)),
+        stale_indicator_codes=[
+            str(reading.code)
+            for reading in getattr(pulse_snapshot, "indicator_readings", []) or []
+            if getattr(reading, "is_stale", False)
+        ],
+        context_observed_at=observed_at,
+        context_source="action_log_cached",
+    )
 
 
 class BuildRegimeNavigatorUseCase:
@@ -261,11 +318,43 @@ class GetActionRecommendationUseCase:
         as_of_date: date | None = None,
         *,
         refresh_pulse_if_stale: bool = True,
+        prefer_cached: bool = False,
     ) -> RegimeActionRecommendation | None:
         """Build an action recommendation, optionally refreshing stale Pulse data."""
         target_date = as_of_date or date.today()
 
         try:
+            if prefer_cached:
+                navigator_repo = get_navigator_repository()
+                cached_action = navigator_repo.get_latest_action_recommendation(
+                    before_date=target_date
+                )
+                if cached_action is not None:
+                    latest_regime = get_regime_repository().get_latest_snapshot(
+                        before_date=target_date
+                    )
+                    pulse_snapshot = None
+                    try:
+                        from apps.pulse.application.use_cases import GetLatestPulseUseCase
+
+                        pulse_snapshot = GetLatestPulseUseCase().execute(
+                            as_of_date=target_date,
+                            require_reliable=False,
+                            refresh_if_stale=False,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to load cached Pulse snapshot for action recommendation: %s",
+                            exc,
+                        )
+
+                    return _build_cached_action_recommendation(
+                        cached_action=cached_action,
+                        as_of_date=target_date,
+                        confidence=float(getattr(latest_regime, "confidence", 0.0) or 0.0),
+                        pulse_snapshot=pulse_snapshot,
+                    )
+
             # 1. 获取导航仪输出
             nav_use_case = BuildRegimeNavigatorUseCase(macro_repo=self.macro_repo)
             navigator = nav_use_case.execute(target_date)

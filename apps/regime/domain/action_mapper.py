@@ -67,6 +67,8 @@ class RegimeActionRecommendation:
     pulse_observed_at: date | None = None
     pulse_is_reliable: bool = True
     stale_indicator_codes: list[str] = field(default_factory=list)
+    context_observed_at: date | None = None
+    context_source: str = "live_action_fallback"
 
 
 def map_regime_pulse_to_action(
@@ -168,4 +170,6 @@ def map_regime_pulse_to_action(
         pulse_observed_at=as_of_date,
         pulse_is_reliable=True,
         stale_indicator_codes=[],
+        context_observed_at=as_of_date,
+        context_source="live_action_fallback",
     )

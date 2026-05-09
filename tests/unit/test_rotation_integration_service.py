@@ -74,3 +74,35 @@ def test_get_rotation_recommendation_falls_back_to_latest_signal_when_generation
     assert result["is_stale"] is True
     assert result["reason"] == "fallback to latest stored signal"
     assert "最近一次已落库信号" in result["warning_message"]
+
+
+@pytest.mark.django_db
+def test_get_rotation_recommendation_prefers_latest_persisted_signal_for_workspace(monkeypatch):
+    config = _create_momentum_config(name="测试动量配置-工作台复用")
+    signal_date = date.today() - timedelta(days=2)
+    RotationSignalModel.objects.create(
+        config=config,
+        signal_date=signal_date,
+        target_allocation={"510300": 0.55, "515180": 0.45},
+        current_regime="Recovery",
+        momentum_ranking=[["510300", 0.10], ["515180", 0.09]],
+        action_required="hold",
+        reason="reuse latest persisted signal for workspace",
+    )
+
+    service = RotationIntegrationService()
+    monkeypatch.setattr(
+        service,
+        "generate_rotation_signal",
+        lambda _: (_ for _ in ()).throw(
+            AssertionError("workspace read path should not regenerate stale rotation data")
+        ),
+    )
+
+    result = service.get_rotation_recommendation("momentum", prefer_persisted=True)
+
+    assert result["target_allocation"] == {"510300": 0.55, "515180": 0.45}
+    assert result["signal_date"] == signal_date.isoformat()
+    assert result["data_source"] == "stored_signal_fallback"
+    assert result["is_stale"] is True
+    assert "工作台优先复用最近一次已落库轮动信号" in result["warning_message"]

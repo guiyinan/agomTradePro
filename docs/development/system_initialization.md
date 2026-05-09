@@ -89,7 +89,8 @@ python manage.py init_all --step classification
 4. Regime 阈值 (`init_regime_thresholds`)
 5. 股票评分权重 (`init_scoring_weights`)
 6. Prompt 模板 (`init_prompt_templates`)
-7. 宏观数据 (`sync_macro_data`, 可选)
+7. 默认计划任务 (`init_scheduler_defaults`)
+8. 宏观数据 (`sync_macro_data`, 可选)
 
 ---
 
@@ -247,6 +248,31 @@ python manage.py sync_macro_data --years 5
 - `CN_SHIBOR` - SHIBOR 利率
 - `US_GDP` - 美国 GDP
 - `US_CPI` - 美国 CPI
+
+---
+
+#### 7. `init_scheduler_defaults` - 默认计划任务
+
+**位置**: `apps/task_monitor/management/commands/init_scheduler_defaults.py`
+
+```bash
+python manage.py init_scheduler_defaults
+
+# 仅初始化但默认禁用
+python manage.py init_scheduler_defaults --disable
+```
+
+**初始化内容**:
+
+- 宏观同步/Regime 周期任务
+- 股票估值同步/校验周期任务
+- 决策工作台夜间快照周期任务
+
+**任务存储方式**:
+
+- 通过 `django-celery-beat` 写入数据库表
+- 可在 Django Admin 的 `PeriodicTask` / `CrontabSchedule` 中继续编辑
+- 统一可视化页面：`/ops/task-monitor/`
 
 ---
 

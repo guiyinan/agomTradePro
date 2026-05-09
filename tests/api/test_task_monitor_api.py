@@ -26,6 +26,16 @@ def auth_user(db):
 
 
 @pytest.fixture
+def staff_user(db):
+    return get_user_model().objects.create_user(
+        username="task_monitor_staff",
+        password="testpass123",
+        email="task-monitor-staff@example.com",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
 def authenticated_client(api_client, auth_user):
     api_client.force_authenticate(user=auth_user)
     return api_client
@@ -186,3 +196,54 @@ def test_dashboard_aggregates_recent_failures_and_health(authenticated_client):
     assert payload["celery_health"]["active_tasks_count"] == 2
     mock_list.assert_called_once_with(failures_only=True, limit=10)
     mock_health.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_scheduler_console_page_renders_periodic_tasks(client, staff_user):
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    client.force_login(staff_user)
+    crontab = CrontabSchedule.objects.create(
+        minute="45",
+        hour="22",
+        day_of_week="*",
+        day_of_month="*",
+        month_of_year="*",
+        timezone="Asia/Shanghai",
+    )
+    PeriodicTask.objects.create(
+        name="decision-workspace-nightly-snapshot-refresh",
+        task="apps.decision_rhythm.application.tasks.refresh_decision_workspace_snapshots",
+        enabled=True,
+        crontab=crontab,
+        kwargs="{}",
+        description="Nightly workspace refresh",
+    )
+
+    response = client.get("/ops/task-monitor/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "计划任务中心" in content
+    assert "decision-workspace-nightly-snapshot-refresh" in content
+    assert "PeriodicTask 目录" in content
+    assert "Celery 运行态" in content
+
+
+@pytest.mark.django_db
+def test_scheduler_console_bootstrap_action_calls_initializer(client, staff_user):
+    client.force_login(staff_user)
+
+    with patch(
+        "apps.task_monitor.interface.page_views.bootstrap_scheduler_defaults",
+        return_value={"executed_commands": ["init_scheduler_defaults"], "output_lines": []},
+    ) as mock_bootstrap:
+        response = client.post(
+            "/ops/task-monitor/",
+            data={"action": "bootstrap_defaults"},
+            follow=False,
+        )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("/ops/task-monitor/")
+    mock_bootstrap.assert_called_once_with()

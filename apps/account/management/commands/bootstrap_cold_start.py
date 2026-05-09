@@ -121,6 +121,11 @@ class Command(BaseCommand):
                 run=lambda: self._run_command("init_prompt_templates"),
             ),
             BootstrapStep(
+                name="scheduler_defaults",
+                check=self._scheduler_defaults_ready,
+                run=lambda: self._run_command("init_scheduler_defaults"),
+            ),
+            BootstrapStep(
                 name="rotation_config",
                 check=lambda: AssetClassModel._default_manager.exists()
                 and RotationConfigModel._default_manager.exists()
@@ -258,6 +263,23 @@ class Command(BaseCommand):
         if not StrategyModel._default_manager.exists():
             return True
         return PositionManagementRuleModel._default_manager.exists()
+
+    def _scheduler_defaults_ready(self) -> bool:
+        periodic_task_model = django_apps.get_model("django_celery_beat", "PeriodicTask")
+        existing_names = set(
+            periodic_task_model._default_manager.values_list("name", flat=True)
+        )
+        expected_names = {
+            "daily-sync-and-calculate",
+            "check-data-freshness",
+            "high-frequency-generate-signal",
+            "high-frequency-recalculate-regime",
+            "equity-valuation-daily-sync",
+            "equity-valuation-quality-validate",
+            "equity-valuation-freshness-check",
+            "decision-workspace-nightly-snapshot-refresh",
+        }
+        return expected_names.issubset(existing_names)
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()

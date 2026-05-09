@@ -211,7 +211,12 @@ class RotationIntegrationService:
             'correlation_matrix': matrix_dict,
         }
 
-    def get_rotation_recommendation(self, strategy_type: str = 'momentum') -> dict:
+    def get_rotation_recommendation(
+        self,
+        strategy_type: str = 'momentum',
+        *,
+        prefer_persisted: bool = False,
+    ) -> dict:
         """
         Get rotation recommendation based on strategy type.
 
@@ -255,6 +260,23 @@ class RotationIntegrationService:
             if config_model is not None
             else None
         )
+
+        if prefer_persisted and latest_signal is not None:
+            result = self._build_recommendation_from_signal_model(latest_signal)
+            is_stale = latest_signal.signal_date < date.today()
+            self._apply_recommendation_metadata(
+                result=result,
+                data_source='stored_signal_fallback' if is_stale else 'stored_signal',
+                is_stale=is_stale,
+                strategy_type=strategy_type,
+                config_description=config.description,
+                warning_message=(
+                    "工作台优先复用最近一次已落库轮动信号，避免页面刷新时重复触发外部行情请求。"
+                    if is_stale
+                    else None
+                ),
+            )
+            return result
 
         # Decision workspace is read-heavy; when today's signal is already persisted,
         # reuse it instead of re-fetching market data on every page request.
