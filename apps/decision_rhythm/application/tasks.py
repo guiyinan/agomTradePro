@@ -14,7 +14,7 @@ from apps.macro.application.use_cases import (
 )
 from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 from apps.regime.application.orchestration import calculate_regime_after_sync
-from apps.rotation.infrastructure.services import RotationSignalScheduler
+from apps.rotation.application.repository_provider import generate_rotation_signals
 from core.integration.pulse_refresh import refresh_pulse_snapshot
 
 logger = get_task_logger(__name__)
@@ -174,7 +174,7 @@ def refresh_decision_workspace_snapshots(
         }
 
     try:
-        rotation_summary = RotationSignalScheduler().generate_all_signals(signal_date=target_date)
+        rotation_summary = generate_rotation_signals(target_date)
         failed_count = int(rotation_summary.get("failed", 0) or 0)
         components["rotation_signals"] = {
             **dict(rotation_summary or {}),

@@ -25,4 +25,3 @@ pre-commit
 # Developer tooling
 ipython
 ipdb
-paramiko>=3.4

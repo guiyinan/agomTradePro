@@ -50,16 +50,14 @@ def test_refresh_decision_workspace_snapshots_success(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        "apps.decision_rhythm.application.tasks.RotationSignalScheduler",
-        lambda: SimpleNamespace(
-            generate_all_signals=lambda signal_date: {
-                "signal_date": signal_date.isoformat(),
-                "total_configs": 1,
-                "successful": 1,
-                "failed": 0,
-                "signals": [],
-            }
-        ),
+        "apps.decision_rhythm.application.tasks.generate_rotation_signals",
+        lambda signal_date: {
+            "signal_date": signal_date.isoformat(),
+            "total_configs": 1,
+            "successful": 1,
+            "failed": 0,
+            "signals": [],
+        },
     )
 
     result = refresh_decision_workspace_snapshots.run(as_of_date=target_date.isoformat())
@@ -111,16 +109,14 @@ def test_refresh_decision_workspace_snapshots_continues_on_partial_failures(monk
         ),
     )
     monkeypatch.setattr(
-        "apps.decision_rhythm.application.tasks.RotationSignalScheduler",
-        lambda: SimpleNamespace(
-            generate_all_signals=lambda signal_date: {
-                "signal_date": signal_date.isoformat(),
-                "total_configs": 2,
-                "successful": 1,
-                "failed": 1,
-                "signals": [],
-            }
-        ),
+        "apps.decision_rhythm.application.tasks.generate_rotation_signals",
+        lambda signal_date: {
+            "signal_date": signal_date.isoformat(),
+            "total_configs": 2,
+            "successful": 1,
+            "failed": 1,
+            "signals": [],
+        },
     )
 
     result = refresh_decision_workspace_snapshots.run(as_of_date=target_date.isoformat())

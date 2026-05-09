@@ -81,7 +81,6 @@ dev = [
     "pre-commit",
     "ipython",
     "ipdb",
-    "paramiko>=3.4",
 ]
 
 # 完整开发环境（包含 Qlib）
@@ -107,7 +106,6 @@ all = [
     "pre-commit",
     "ipython",
     "ipdb",
-    "paramiko>=3.4",
 ]
 
 [tool.setuptools]
