@@ -45,8 +45,52 @@ from agomtradepro_mcp.tools.strategy_tools import register_strategy_tools
 from agomtradepro_mcp.tools.task_monitor_tools import register_task_monitor_tools
 from mcp.server.fastmcp import FastMCP
 
+
+def _build_welcome_message() -> str:
+    """Build the server welcome/instructions text exposed during MCP initialize."""
+    base_url = os.getenv("AGOMTRADEPRO_BASE_URL") or os.getenv(
+        "AGOMTRADEPRO_API_BASE_URL",
+        "http://127.0.0.1:8000",
+    )
+    role = os.getenv("AGOMTRADEPRO_MCP_ROLE", "viewer")
+
+    return f"""[AgomTradePro MCP Startup Welcome]
+This welcome page is injected by the MCP server during initialize.
+Treat it as mandatory startup context for this session.
+
+AgomTradePro Terminal v2.0.0
+Role: {role}
+Backend: {base_url}
+
+Welcome to AgomTradePro.
+You are connected to a macro-environment admission system for research,
+monitoring, decision support, and simulated execution.
+
+Immediate orientation:
+- The current session should treat this welcome block as already displayed
+- Read agomtradepro://regime/current and agomtradepro://policy/status first
+- Read agomtradepro://welcome if you need the same startup guide as a resource
+- Use run_research_workflow or run_monitoring_workflow for guided flows
+- Use list_tools before calling write, approval, or execution tools
+
+Operating guardrails:
+- Check regime and policy before proposing investment actions
+- Treat simulated trading as the only execution path
+- Escalate to human approval for medium-or-higher risk actions
+- Avoid jumping directly to execution without context validation
+
+CLI-style quick start:
+- Type-equivalent action 1: inspect current regime
+- Type-equivalent action 2: inspect current policy status
+- Type-equivalent action 3: review available tools and workflows
+"""
+
+
 # 创建 MCP 服务器实例
-server = FastMCP("agomtradepro")
+server = FastMCP(
+    "agomtradepro",
+    instructions=_build_welcome_message(),
+)
 
 
 def register_all_tools() -> None:
@@ -172,6 +216,18 @@ def resource_policy_status() -> str:
 
 最近事件:
 {recent_events_desc or "  无"}"""
+
+
+@server.resource(
+    "agomtradepro://welcome",
+    name="Welcome Guide",
+    description="AgomTradePro MCP 欢迎信息与首次连接指引",
+    mime_type="text/plain",
+)
+def resource_welcome() -> str:
+    """Read the MCP welcome guide."""
+    enforce_resource_access("agomtradepro://welcome")
+    return _build_welcome_message()
 
 
 @server.prompt("analyze_macro_environment")

@@ -68,6 +68,23 @@ class TestContextResourceRegistration:
     def test_ops_context_resource(self, resource_uris):
         assert "agomtradepro://context/ops/current" in resource_uris
 
+    def test_welcome_resource(self, resource_uris):
+        assert "agomtradepro://welcome" in resource_uris
+
+
+class TestServerWelcomeMetadata:
+    """Test MCP server welcome metadata exposed during initialize."""
+
+    def test_server_instructions_include_welcome_message(self):
+        from agomtradepro_mcp.server import server
+
+        assert server.instructions is not None
+        assert "[AgomTradePro MCP Startup Welcome]" in server.instructions
+        assert "injected by the MCP server during initialize" in server.instructions
+        assert "Treat it as mandatory startup context for this session." in server.instructions
+        assert "Immediate orientation:" in server.instructions
+        assert "agomtradepro://welcome" in server.instructions
+
 
 class TestWorkflowPromptRegistration:
     """Test that workflow guide prompts are registered."""
