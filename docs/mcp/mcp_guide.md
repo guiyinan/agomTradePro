@@ -2,6 +2,28 @@
 
 The MCP (Model Context Protocol) Server enables AI agents like Claude Code to interact with AgomTradePro through native tools.
 
+## Welcome Message
+
+When Codex, Claude Code, or another MCP client connects, the server now exposes a standard `instructions` welcome message during MCP initialize.
+The current implementation is not just a link hint: the full welcome page content is embedded directly into the startup instructions payload.
+
+The welcome message includes:
+
+- Current MCP role
+- Backend base URL
+- Suggested first resources and workflow prompts
+- Execution guardrails for investment actions
+
+For clients that do not render `instructions`, the same content is available as resource `agomtradepro://welcome`.
+
+Protocol note:
+
+- MCP can strongly inject startup context through `instructions`
+- MCP cannot guarantee every third-party client will visually render a page UI
+- Therefore AgomTradePro now uses both:
+  - inline startup injection in `instructions`
+  - mirrored fallback resource at `agomtradepro://welcome`
+
 ## Setup
 
 ### 1. Install the SDK
@@ -72,6 +94,19 @@ If you are a system admin, you can manage DRF tokens in UI instead of shell scri
   - Revoke token per user
 
 From the page, click "生成Token" or "重置Token" for target user. The new token will be shown once in success message, then only masked preview is displayed in list.
+
+### User MCP Guide Page (Recommended for Daily Copy/Paste)
+
+For the current logged-in user, the easiest copy/paste entry is:
+
+- Path: `/account/mcp/`
+- Purpose:
+  - show current user token
+  - show Base URL / API endpoints / default account ID
+  - show ready-to-copy `mcpServers` JSON
+  - show PowerShell / bash environment variable snippets
+
+If the account has no active token yet, the page supports one-click token creation.
 
 ### 2. Configure Claude Code
 

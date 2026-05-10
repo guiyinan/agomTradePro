@@ -85,7 +85,9 @@ def touch_access_token(token) -> None:
     _interface_repo().touch_access_token(token)
 
 
-def build_token_payload(*, username: str, token_name: str, token_value: str) -> dict[str, str] | None:
+def build_token_payload(
+    *, username: str, token_name: str, token_value: str
+) -> dict[str, str] | None:
     """Build the session payload for newly created tokens when plaintext display is enabled."""
 
     settings_obj = get_system_settings()
@@ -174,6 +176,12 @@ def build_settings_context(user_id: int) -> dict[str, Any]:
     """Build the HTML settings page context."""
 
     return _interface_repo().build_settings_context(user_id)
+
+
+def build_mcp_guide_context(user_id: int, *, base_url: str) -> dict[str, Any]:
+    """Build the HTML MCP guide page context."""
+
+    return _interface_repo().build_mcp_guide_context(user_id=user_id, base_url=base_url)
 
 
 def get_active_portfolio_for_user(user_id: int):
@@ -436,7 +444,9 @@ def get_portfolio_allocation_payload(
             {
                 **item,
                 "percentage": (
-                    float(item["amount_base"] / total_value_base * 100) if total_value_base > 0 else 0
+                    float(item["amount_base"] / total_value_base * 100)
+                    if total_value_base > 0
+                    else 0
                 ),
             }
             for item in currency_totals.values()
@@ -584,7 +594,9 @@ def build_token_management_context(search_query: str, only_without_token: bool) 
     )
 
 
-def rotate_user_token(*, actor_user_id: int, target_user_id: int, token_name: str) -> TokenCreationOutcome:
+def rotate_user_token(
+    *, actor_user_id: int, target_user_id: int, token_name: str
+) -> TokenCreationOutcome:
     """Create a token for another user as an administrator."""
 
     profile = _interface_repo().build_profile_context(target_user_id)["profile"]

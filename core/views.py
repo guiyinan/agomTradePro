@@ -259,8 +259,8 @@ def decision_workspace_view(request):
     """
     import logging
 
-    from apps.policy.application.use_cases import GetCurrentPolicyUseCase
     from apps.policy.application.repository_provider import get_current_policy_repository
+    from apps.policy.application.use_cases import GetCurrentPolicyUseCase
 
     logger = logging.getLogger(__name__)
     requested_workspace_account_id = str(request.GET.get("account_id") or "").strip()
@@ -306,9 +306,7 @@ def decision_workspace_view(request):
             get_beta_gate_config_summary_service,
         )
 
-        beta_gate_context = (
-            get_beta_gate_config_summary_service().get_active_config_context()
-        )
+        beta_gate_context = get_beta_gate_config_summary_service().get_active_config_context()
         context["beta_gate_allowed_classes"] = beta_gate_context["allowed_asset_classes"]
         if beta_gate_context["config_id"]:
             context["beta_gate_config_id"] = beta_gate_context["config_id"]
@@ -349,9 +347,7 @@ def decision_workspace_view(request):
             get_decision_rhythm_global_alert_service,
         )
 
-        quota_usage = (
-            get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
-        )
+        quota_usage = get_decision_rhythm_global_alert_service().get_weekly_quota_usage()
         if quota_usage:
             context["quota_total"] = quota_usage["quota_total"]
             context["quota_used"] = quota_usage["quota_used"]
@@ -388,7 +384,7 @@ def decision_workspace_view(request):
         context["pending_requests"] = []
         context["pending_count"] = 0
 
-    # ========== 当前持仓退出链路 ========== 
+    # ========== 当前持仓退出链路 ==========
     try:
         from apps.dashboard.interface import views as dashboard_views
 
@@ -453,9 +449,7 @@ def decision_workspace_view(request):
             get_alpha_trigger_global_alert_service,
         )
 
-        expiring_soon = (
-            get_alpha_trigger_global_alert_service().count_expiring_candidates()
-        )
+        expiring_soon = get_alpha_trigger_global_alert_service().count_expiring_candidates()
         if expiring_soon > 0:
             alerts.append(
                 {
@@ -493,6 +487,7 @@ def settings_center_view(request):
     context = build_config_center_snapshot(request.user)
     featured_order = [
         "account_settings",
+        "mcp_guide",
         "trading_cost",
         "system_settings",
         "data_center_providers",

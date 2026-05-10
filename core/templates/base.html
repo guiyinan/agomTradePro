@@ -206,6 +206,7 @@
                         <a href="{% url 'terminal' %}" class="dropdown-item" target="_blank">
                             <i class="bi bi-terminal"></i> AI Terminal
                         </a>
+                        <a href="{% url 'account:mcp_guide' %}" class="dropdown-item">MCP 接入说明</a>
                         <a href="{% url 'settings-mcp-tools' %}" class="dropdown-item">MCP 工具</a>
                         <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
                         <a href="{% url 'prompt:prompt-manage' %}" class="dropdown-item">Prompt模板管理</a>
@@ -267,6 +268,7 @@
                     </button>
                     <div class="dropdown-menu">
                         <a href="{% url 'account:profile' %}" class="dropdown-item">我的账户</a>
+                        <a href="{% url 'account:mcp_guide' %}" class="dropdown-item">MCP 接入说明</a>
                         <a href="{% url 'settings-center' %}" class="dropdown-item">设置中心</a>
                         {% if user.is_staff %}
                         <a href="{% url 'alpha:ops-inference' %}" class="dropdown-item">Alpha 推理管理</a>

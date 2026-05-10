@@ -9,11 +9,13 @@ import json
 import logging
 import warnings
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 from decimal import Decimal
 from typing import Any, Dict, List, Mapping, Optional
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, F, Q, Sum
@@ -21,14 +23,11 @@ from django.db.models.functions import Coalesce
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
-from apps.account.infrastructure.backup_service import (
-    generate_backup_archive,
-    validate_download_token,
-)
 from apps.account.domain.entities import (
     AccountProfile,
     AssetClassType,
     CrossBorderFlag,
+    DrawdownTier,
     InvestmentStyle,
     MacroSizingConfig,
     PortfolioSnapshot,
@@ -36,11 +35,14 @@ from apps.account.domain.entities import (
     PositionSource,
     PositionStatus,
     PulseTier,
-    DrawdownTier,
     RegimeTier,
     Region,
     RiskTolerance,
     Transaction,
+)
+from apps.account.infrastructure.backup_service import (
+    generate_backup_archive,
+    validate_download_token,
 )
 from apps.account.infrastructure.models import (
     AccountProfileModel,
@@ -56,8 +58,8 @@ from apps.account.infrastructure.models import (
     PositionModel,
     PositionSignalLogModel,
     StopLossConfigModel,
-    SystemSettingsModel,
     StopLossTriggerModel,
+    SystemSettingsModel,
     TakeProfitConfigModel,
     TradingCostConfigModel,
     TransactionModel,
@@ -244,9 +246,10 @@ class AccountClassificationRepository:
     def get_base_currency(self):
         """Return the configured base currency."""
 
-        return self.list_active_currencies().filter(is_base=True).first() or self.list_active_currencies().filter(
-            code="CNY"
-        ).first()
+        return (
+            self.list_active_currencies().filter(is_base=True).first()
+            or self.list_active_currencies().filter(code="CNY").first()
+        )
 
     def list_exchange_rates(self):
         """Return exchange rates with currency relations loaded."""
@@ -279,10 +282,14 @@ class AccountClassificationRepository:
     def get_latest_exchange_rate(self, *, from_code: str, to_code: str):
         """Return the latest exchange rate for one currency pair."""
 
-        return self.list_exchange_rates().filter(
-            from_currency__code=from_code,
-            to_currency__code=to_code,
-        ).first()
+        return (
+            self.list_exchange_rates()
+            .filter(
+                from_currency__code=from_code,
+                to_currency__code=to_code,
+            )
+            .first()
+        )
 
     def get_exchange_rate_for_conversion(self, *, from_code: str, to_code: str, date_value=None):
         """Return the effective exchange rate used for conversion."""
@@ -295,7 +302,9 @@ class AccountClassificationRepository:
             queryset = queryset.filter(effective_date__lte=date_value)
         return queryset.first()
 
-    def convert_amount(self, *, amount: Decimal, from_code: str, to_code: str, date_value=None) -> Decimal:
+    def convert_amount(
+        self, *, amount: Decimal, from_code: str, to_code: str, date_value=None
+    ) -> Decimal:
         """Convert one amount between currencies."""
 
         if from_code == to_code:
@@ -329,7 +338,9 @@ class AccountClassificationRepository:
         )
         return [
             {
-                "category_path": position.category.get_full_path() if position.category else "未分类",
+                "category_path": (
+                    position.category.get_full_path() if position.category else "未分类"
+                ),
                 "currency_code": position.currency.code if position.currency else "CNY",
                 "currency_name": position.currency.name if position.currency else "CNY",
                 "amount": position.market_value,
@@ -808,6 +819,7 @@ class PositionRepository:
 
         # Recalculate derived fields
         from shared.domain.position_calculations import recalculate_derived_fields
+
         price = float(model.current_price or model.avg_cost)
         mv, pnl, pnl_pct = recalculate_derived_fields(
             shares=model.shares if not model.is_closed else 0,
@@ -1131,7 +1143,9 @@ class PortfolioApiRepository:
     def get_unified_position(self, position_id: int):
         """Return one unified position with account loaded when available."""
 
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        from apps.simulated_trading.infrastructure.models import (
+            PositionModel as UnifiedPositionModel,
+        )
 
         return (
             UnifiedPositionModel._default_manager.select_related("account")
@@ -1142,7 +1156,9 @@ class PortfolioApiRepository:
     def get_unified_position_for_account_asset(self, *, account_id: int, asset_code: str):
         """Return one unified position by account and asset code when available."""
 
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        from apps.simulated_trading.infrastructure.models import (
+            PositionModel as UnifiedPositionModel,
+        )
 
         return (
             UnifiedPositionModel._default_manager.select_related("account")
@@ -1153,7 +1169,9 @@ class PortfolioApiRepository:
     def list_unified_positions(self, *, account_ids: list[int], asset_code: str | None = None):
         """Return unified positions for the provided account ids."""
 
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        from apps.simulated_trading.infrastructure.models import (
+            PositionModel as UnifiedPositionModel,
+        )
 
         queryset = (
             UnifiedPositionModel._default_manager.filter(account_id__in=account_ids)
@@ -1167,7 +1185,9 @@ class PortfolioApiRepository:
     def delete_unified_position(self, position_id: int) -> None:
         """Delete one unified position by id."""
 
-        from apps.simulated_trading.infrastructure.models import PositionModel as UnifiedPositionModel
+        from apps.simulated_trading.infrastructure.models import (
+            PositionModel as UnifiedPositionModel,
+        )
 
         UnifiedPositionModel._default_manager.filter(pk=position_id).delete()
 
@@ -1266,7 +1286,11 @@ class PortfolioApiRepository:
         ).first()
 
         category = legacy_projection.category if legacy_projection else None
-        currency = legacy_projection.currency if legacy_projection else getattr(portfolio, "base_currency", None)
+        currency = (
+            legacy_projection.currency
+            if legacy_projection
+            else getattr(portfolio, "base_currency", None)
+        )
         asset_class = (
             legacy_projection.asset_class
             if legacy_projection
@@ -1309,7 +1333,9 @@ class PortfolioApiRepository:
             "unrealized_pnl": unified_position.unrealized_pnl,
             "unrealized_pnl_pct": unified_position.unrealized_pnl_pct,
             "source": legacy_projection.source if legacy_projection else "manual",
-            "source_id": legacy_projection.source_id if legacy_projection else unified_position.signal_id,
+            "source_id": (
+                legacy_projection.source_id if legacy_projection else unified_position.signal_id
+            ),
             "is_closed": False,
             "opened_at": legacy_projection.opened_at if legacy_projection else None,
             "closed_at": legacy_projection.closed_at if legacy_projection else None,
@@ -1333,38 +1359,56 @@ class PortfolioApiRepository:
             "asset_code": unified_position.asset_code,
             "asset_name": unified_position.asset_name,
             "category": legacy_projection.category_id if legacy_projection else None,
-            "category_code": legacy_projection.category.code
-            if legacy_projection and legacy_projection.category
-            else None,
-            "category_name": legacy_projection.category.name
-            if legacy_projection and legacy_projection.category
-            else None,
-            "category_path": legacy_projection.category.get_full_path()
-            if legacy_projection and legacy_projection.category
-            else None,
+            "category_code": (
+                legacy_projection.category.code
+                if legacy_projection and legacy_projection.category
+                else None
+            ),
+            "category_name": (
+                legacy_projection.category.name
+                if legacy_projection and legacy_projection.category
+                else None
+            ),
+            "category_path": (
+                legacy_projection.category.get_full_path()
+                if legacy_projection and legacy_projection.category
+                else None
+            ),
             "currency": legacy_projection.currency_id if legacy_projection else None,
-            "currency_code": legacy_projection.currency.code
-            if legacy_projection and legacy_projection.currency
-            else None,
-            "currency_name": legacy_projection.currency.name
-            if legacy_projection and legacy_projection.currency
-            else None,
-            "currency_symbol": legacy_projection.currency.symbol
-            if legacy_projection and legacy_projection.currency
-            else None,
+            "currency_code": (
+                legacy_projection.currency.code
+                if legacy_projection and legacy_projection.currency
+                else None
+            ),
+            "currency_name": (
+                legacy_projection.currency.name
+                if legacy_projection and legacy_projection.currency
+                else None
+            ),
+            "currency_symbol": (
+                legacy_projection.currency.symbol
+                if legacy_projection and legacy_projection.currency
+                else None
+            ),
             "asset_class": legacy_projection.asset_class if legacy_projection else "equity",
             "region": legacy_projection.region if legacy_projection else "CN",
             "cross_border": legacy_projection.cross_border if legacy_projection else "domestic",
             "shares": 0.0,
-            "avg_cost": legacy_projection.avg_cost if legacy_projection else unified_position.avg_cost,
-            "current_price": legacy_projection.current_price
-            if legacy_projection
-            else unified_position.current_price,
+            "avg_cost": (
+                legacy_projection.avg_cost if legacy_projection else unified_position.avg_cost
+            ),
+            "current_price": (
+                legacy_projection.current_price
+                if legacy_projection
+                else unified_position.current_price
+            ),
             "market_value": Decimal("0.00"),
             "unrealized_pnl": Decimal("0.00"),
             "unrealized_pnl_pct": 0.0,
             "source": legacy_projection.source if legacy_projection else "manual",
-            "source_id": legacy_projection.source_id if legacy_projection else unified_position.signal_id,
+            "source_id": (
+                legacy_projection.source_id if legacy_projection else unified_position.signal_id
+            ),
             "is_closed": True,
             "opened_at": legacy_projection.opened_at if legacy_projection else None,
             "closed_at": legacy_projection.closed_at if legacy_projection else timezone.now(),
@@ -1393,16 +1437,18 @@ class PortfolioApiRepository:
             asset_key = position.get_asset_class_display()
             region_key = position.get_region_display()
             market_value = float(position.market_value or 0)
-            asset_class_breakdown[asset_key] = asset_class_breakdown.get(asset_key, 0.0) + market_value
+            asset_class_breakdown[asset_key] = (
+                asset_class_breakdown.get(asset_key, 0.0) + market_value
+            )
             region_breakdown[region_key] = region_breakdown.get(region_key, 0.0) + market_value
 
         capital_flows = CapitalFlowModel._default_manager.filter(portfolio=portfolio)
-        total_inflow = capital_flows.filter(flow_type="deposit").aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0")
-        total_outflow = capital_flows.filter(flow_type="withdraw").aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0")
+        total_inflow = capital_flows.filter(flow_type="deposit").aggregate(total=Sum("amount"))[
+            "total"
+        ] or Decimal("0")
+        total_outflow = capital_flows.filter(flow_type="withdraw").aggregate(total=Sum("amount"))[
+            "total"
+        ] or Decimal("0")
 
         return {
             "total_value": total_value,
@@ -2366,6 +2412,133 @@ class AccountInterfaceRepository:
             "access_tokens": access_tokens,
         }
 
+    def build_mcp_guide_context(self, *, user_id: int, base_url: str) -> dict[str, Any]:
+        """Build the MCP integration guide context for one user."""
+
+        user = User._default_manager.select_related("account_profile").get(id=user_id)
+        profile = user.account_profile
+        system_settings = SystemSettingsModel.get_settings()
+        token_plaintext_allowed = bool(system_settings.allow_token_plaintext_view)
+        investment_accounts = AccountRepository().list_investment_accounts(user_id)
+        preferred_account = investment_accounts[0] if investment_accounts else None
+        default_account_id = preferred_account["id"] if preferred_account else None
+        default_account_name = preferred_account["account_name"] if preferred_account else ""
+
+        access_tokens = list(
+            UserAccessTokenModel._default_manager.filter(user_id=user_id, is_active=True).order_by(
+                "-last_used_at",
+                "-created_at",
+            )
+        )
+        visible_tokens = [
+            {
+                "id": token.id,
+                "name": token.name,
+                "preview": token.preview,
+                "plaintext": token.reveal_key() if token_plaintext_allowed else "",
+                "created_at": token.created_at,
+                "last_used_at": token.last_used_at,
+            }
+            for token in access_tokens
+        ]
+        preferred_token = visible_tokens[0] if visible_tokens else None
+        preferred_token_value = (
+            preferred_token["plaintext"] if preferred_token and preferred_token["plaintext"] else ""
+        )
+        token_placeholder = preferred_token_value or "your_token_here"
+        default_account_placeholder = (
+            str(default_account_id) if default_account_id is not None else "your_account_id"
+        )
+        normalized_base_url = base_url.rstrip("/")
+        sdk_cwd = str(Path(settings.BASE_DIR) / "sdk").replace("\\", "/")
+        api_profile_endpoint = f"{normalized_base_url}/api/account/profile/"
+        dashboard_summary_endpoint = f"{normalized_base_url}/api/dashboard/v1/summary/"
+        accounts_endpoint = f"{normalized_base_url}/api/account/accounts/"
+        api_root_endpoint = f"{normalized_base_url}/api/"
+
+        powershell_env_block = "\n".join(
+            [
+                f'$env:AGOMTRADEPRO_BASE_URL="{normalized_base_url}"',
+                f'$env:AGOMTRADEPRO_API_TOKEN="{token_placeholder}"',
+                f'$env:AGOMTRADEPRO_DEFAULT_ACCOUNT_ID="{default_account_placeholder}"',
+                '$env:NO_PROXY="127.0.0.1,localhost"',
+                '$env:no_proxy="127.0.0.1,localhost"',
+            ]
+        )
+        bash_env_block = "\n".join(
+            [
+                f'export AGOMTRADEPRO_BASE_URL="{normalized_base_url}"',
+                f'export AGOMTRADEPRO_API_TOKEN="{token_placeholder}"',
+                f'export AGOMTRADEPRO_DEFAULT_ACCOUNT_ID="{default_account_placeholder}"',
+                'export NO_PROXY="127.0.0.1,localhost"',
+                'export no_proxy="127.0.0.1,localhost"',
+            ]
+        )
+        python_sdk_block = "\n".join(
+            [
+                "from agomtradepro import AgomTradeProClient",
+                "",
+                "client = AgomTradeProClient(",
+                f'    base_url="{normalized_base_url}",',
+                f'    api_token="{token_placeholder}",',
+                ")",
+                "",
+                "profile = client.account.get_profile()",
+                "summary = client.dashboard.get_summary()",
+            ]
+        )
+        mcp_config_json = json.dumps(
+            {
+                "mcpServers": {
+                    "agomtradepro_local": {
+                        "command": "python",
+                        "args": ["-m", "agomtradepro_mcp"],
+                        "cwd": sdk_cwd,
+                        "env": {
+                            "AGOMTRADEPRO_BASE_URL": normalized_base_url,
+                            "AGOMTRADEPRO_API_TOKEN": token_placeholder,
+                            "AGOMTRADEPRO_DEFAULT_ACCOUNT_ID": default_account_placeholder,
+                            "NO_PROXY": "127.0.0.1,localhost",
+                            "no_proxy": "127.0.0.1,localhost",
+                        },
+                    }
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        curl_example = "\n".join(
+            [
+                "curl -X GET \\",
+                f'  "{dashboard_summary_endpoint}" \\',
+                f'  -H "Authorization: Token {token_placeholder}"',
+            ]
+        )
+
+        return {
+            "user": user,
+            "profile": profile,
+            "system_settings": system_settings,
+            "access_tokens": access_tokens,
+            "visible_tokens": visible_tokens,
+            "preferred_token": preferred_token,
+            "token_plaintext_allowed": token_plaintext_allowed,
+            "base_url": normalized_base_url,
+            "api_root_endpoint": api_root_endpoint,
+            "api_profile_endpoint": api_profile_endpoint,
+            "dashboard_summary_endpoint": dashboard_summary_endpoint,
+            "accounts_endpoint": accounts_endpoint,
+            "sdk_cwd": sdk_cwd,
+            "mcp_config_json": mcp_config_json,
+            "powershell_env_block": powershell_env_block,
+            "bash_env_block": bash_env_block,
+            "python_sdk_block": python_sdk_block,
+            "curl_example": curl_example,
+            "default_account_id": default_account_id,
+            "default_account_name": default_account_name,
+            "account_count": len(investment_accounts),
+        }
+
     def update_account_settings(
         self,
         user_id: int,
@@ -2436,16 +2609,16 @@ class AccountInterfaceRepository:
     def get_user_transaction_queryset(self, user_id: int):
         """Return transactions scoped to portfolios owned by the user."""
 
-        return TransactionModel._default_manager.filter(
-            portfolio__user_id=user_id
-        ).select_related("portfolio", "position")
+        return TransactionModel._default_manager.filter(portfolio__user_id=user_id).select_related(
+            "portfolio", "position"
+        )
 
     def get_user_capital_flow_queryset(self, user_id: int):
         """Return capital flows scoped to portfolios owned by the user."""
 
-        return CapitalFlowModel._default_manager.filter(
-            portfolio__user_id=user_id
-        ).select_related("portfolio")
+        return CapitalFlowModel._default_manager.filter(portfolio__user_id=user_id).select_related(
+            "portfolio"
+        )
 
     def get_user_portfolio(self, *, user_id: int, portfolio_id: int):
         """Return one owned portfolio when available."""
@@ -2479,8 +2652,7 @@ class AccountInterfaceRepository:
         users = (
             User._default_manager.filter(is_active=True)
             .filter(
-                Q(username__icontains=query)
-                | Q(account_profile__display_name__icontains=query)
+                Q(username__icontains=query) | Q(account_profile__display_name__icontains=query)
             )
             .exclude(id=owner_user_id)
             .select_related("account_profile")[:10]
@@ -2586,10 +2758,9 @@ class AccountInterfaceRepository:
     def build_observer_positions_payload(self, owner_user_id: int) -> dict[str, Any]:
         """Return positions and summary statistics for the owner's active portfolio."""
 
-        portfolio = (
-            PortfolioModel._default_manager.filter(user_id=owner_user_id, is_active=True)
-            .first()
-        )
+        portfolio = PortfolioModel._default_manager.filter(
+            user_id=owner_user_id, is_active=True
+        ).first()
         empty_statistics = {
             "position_count": 0,
             "total_value": 0.0,
@@ -2821,7 +2992,9 @@ class AccountInterfaceRepository:
     ) -> dict[str, Any]:
         """Build the admin token management context."""
 
-        users = User._default_manager.select_related("account_profile").all().order_by("-date_joined")
+        users = (
+            User._default_manager.select_related("account_profile").all().order_by("-date_joined")
+        )
         if search_query:
             users = users.filter(
                 Q(username__icontains=search_query) | Q(email__icontains=search_query)
@@ -2951,7 +3124,11 @@ class AccountInterfaceRepository:
             profile = target_user.account_profile
 
             if target_user.id == actor.id:
-                return {"level": "error", "message": "不能拒绝自己", "username": target_user.username}
+                return {
+                    "level": "error",
+                    "message": "不能拒绝自己",
+                    "username": target_user.username,
+                }
 
             if profile.approval_status != "pending":
                 return {
@@ -3010,7 +3187,11 @@ class AccountInterfaceRepository:
             profile = target_user.account_profile
 
             if target_user.id == actor.id:
-                return {"level": "error", "message": "不能重置自己", "username": target_user.username}
+                return {
+                    "level": "error",
+                    "message": "不能重置自己",
+                    "username": target_user.username,
+                }
 
             profile.approval_status = "pending"
             profile.approved_at = None
@@ -3065,7 +3246,9 @@ class AccountInterfaceRepository:
         """Update system settings from an HTTP form mapping."""
 
         system_settings = SystemSettingsModel.get_settings()
-        market_color_choices = {key for key, _ in SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES}
+        market_color_choices = {
+            key for key, _ in SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES
+        }
         alpha_pool_mode_choices = {key for key, _ in SystemSettingsModel.ALPHA_POOL_MODE_CHOICES}
 
         benchmark_code_map = json.loads(data.get("benchmark_code_map", "{}") or "{}")
@@ -3126,24 +3309,28 @@ class AccountInterfaceRepository:
         """Return whether the observer currently has a valid read grant."""
 
         now = timezone.now()
-        return PortfolioObserverGrantModel._default_manager.filter(
-            owner_user_id=owner_user_id,
-            observer_user_id=observer_user_id,
-            status="active",
-        ).filter(
-            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
-        ).exists()
+        return (
+            PortfolioObserverGrantModel._default_manager.filter(
+                owner_user_id=owner_user_id,
+                observer_user_id=observer_user_id,
+                status="active",
+            )
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+            .exists()
+        )
 
     def get_accessible_portfolios_queryset(self, user_id: int):
         """Return portfolios owned by or shared with the given user."""
 
         now = timezone.now()
-        active_grants = PortfolioObserverGrantModel._default_manager.filter(
-            observer_user_id=user_id,
-            status="active",
-        ).filter(
-            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
-        ).values_list("owner_user_id", flat=True)
+        active_grants = (
+            PortfolioObserverGrantModel._default_manager.filter(
+                observer_user_id=user_id,
+                status="active",
+            )
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+            .values_list("owner_user_id", flat=True)
+        )
         return PortfolioModel._default_manager.filter(
             Q(user_id=user_id) | Q(user_id__in=active_grants)
         )

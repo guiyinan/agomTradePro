@@ -1,9 +1,9 @@
 from pathlib import Path
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import NoReverseMatch, URLPattern, URLResolver, get_resolver, resolve, reverse
-import pytest
 from rest_framework.views import APIView
 
 
@@ -140,7 +140,10 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
     assert 'id="refreshAllIndicatorsBtn"' in macro_data
     assert "function normalizeChronologicalSeries(data)" in macro_data
     assert "function normalizeMacroPayload(code, result)" in macro_data
-    assert "const response = await fetch(`${macroSeriesUrl}?indicator_code=${encodeURIComponent(code)}&limit=500`);" in macro_data
+    assert (
+        "const response = await fetch(`${macroSeriesUrl}?indicator_code=${encodeURIComponent(code)}&limit=500`);"
+        in macro_data
+    )
     assert "currentIndicatorPayload = normalizeMacroPayload(code, result);" in macro_data
 
     assert "const API_BASE = '/macro/api';" not in macro_controller
@@ -163,6 +166,18 @@ def test_regime_redesign_templates_reflect_closure():
     assert '{% url "regime_api:regime-navigator-history" %}' in regime_template
     assert "onboardingOverlay" not in regime_template
     assert "regime_onboarding_done" not in regime_template
+
+
+def test_mcp_guide_entry_is_exposed_in_dashboard_and_global_navigation():
+    template_dir = Path("core/templates")
+
+    dashboard_template = (template_dir / "dashboard/index.html").read_text(encoding="utf-8")
+    base_template = (template_dir / "base.html").read_text(encoding="utf-8")
+    account_settings_template = (template_dir / "account/settings.html").read_text(encoding="utf-8")
+
+    assert "{% url 'account:mcp_guide' %}" in dashboard_template
+    assert "{% url 'account:mcp_guide' %}" in base_template
+    assert "{% url 'account:mcp_guide' %}" in account_settings_template
 
 
 def test_removed_legacy_page_routes_return_404():

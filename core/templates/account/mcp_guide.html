@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MCP 接入说明 - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<style>
+.mcp-guide {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px;
+}
+.mcp-hero,
+.mcp-card,
+.mcp-snippet,
+.mcp-token-list {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.04);
+}
+.mcp-hero {
+    padding: 24px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.10), rgba(30, 64, 175, 0.06));
+}
+.mcp-hero h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+}
+.mcp-hero p {
+    margin: 0;
+    color: #475569;
+    line-height: 1.7;
+}
+.mcp-hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+.mcp-banner {
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1e3a8a;
+}
+.mcp-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.mcp-card {
+    padding: 18px;
+}
+.mcp-card-label {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+.mcp-card-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.mcp-card-hint {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+.mcp-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+.mcp-card h2,
+.mcp-snippet h2,
+.mcp-token-list h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+.mcp-card p,
+.mcp-snippet p,
+.mcp-token-list p {
+    color: #475569;
+    line-height: 1.7;
+}
+.mcp-token-box {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+.mcp-token-box code,
+.mcp-parameter-value code,
+.mcp-token-row code {
+    display: inline-block;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 13px;
+    word-break: break-all;
+}
+.mcp-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+.mcp-form input[type="text"] {
+    min-width: 240px;
+    flex: 1;
+}
+.mcp-parameter-list {
+    display: grid;
+    gap: 12px;
+}
+.mcp-parameter-item {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+.mcp-parameter-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.mcp-parameter-value {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #0f172a;
+    word-break: break-word;
+}
+.mcp-snippet-grid {
+    display: grid;
+    gap: 16px;
+}
+.mcp-snippet {
+    padding: 18px;
+}
+.mcp-snippet-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+.mcp-snippet-head h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+}
+.mcp-snippet pre {
+    margin: 0;
+    padding: 16px;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #e2e8f0;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.65;
+}
+.mcp-token-list {
+    padding: 18px;
+    margin-top: 20px;
+}
+.mcp-token-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1.5fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 0;
+    border-top: 1px solid #e2e8f0;
+}
+.mcp-token-row:first-of-type {
+    border-top: none;
+}
+.mcp-token-meta {
+    color: #475569;
+    font-size: 13px;
+}
+.mcp-token-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.mcp-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+}
+.mcp-status-pill.is-on {
+    background: #dcfce7;
+    color: #166534;
+}
+.mcp-status-pill.is-off {
+    background: #fee2e2;
+    color: #991b1b;
+}
+@media (max-width: 960px) {
+    .mcp-guide {
+        padding: 16px;
+    }
+    .mcp-grid {
+        grid-template-columns: 1fr;
+    }
+    .mcp-token-row {
+        grid-template-columns: 1fr;
+    }
+    .mcp-token-actions {
+        justify-content: flex-start;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mcp-guide">
+    <section class="mcp-hero">
+        <h1>MCP 接入说明</h1>
+        <p>把当前账户可用的 MCP / SDK 接入参数集中到一个页面，直接复制给 Codex、Claude Code 或其他支持 MCP 的 Agent 即可使用。</p>
+        <div class="mcp-hero-actions">
+            <a href="{% url 'account:settings' %}" class="btn btn-secondary">账户设置</a>
+            <a href="{% url 'settings-center' %}" class="btn btn-secondary">设置中心</a>
+            <a href="/api/docs/" class="btn btn-secondary">API 文档</a>
+        </div>
+    </section>
+
+    {% if new_token_payload %}
+    <div class="mcp-banner">
+        <strong>新 Token 已生成：</strong> {{ new_token_payload.token_name }}
+        <div class="mcp-token-box">
+            <code id="newTokenValue">{{ new_token_payload.token }}</code>
+            <button type="button" class="btn btn-primary" data-copy-target="newTokenValue">复制新 Token</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <section class="mcp-stats">
+        <article class="mcp-card">
+            <div class="mcp-card-label">MCP/SDK 权限</div>
+            <div class="mcp-card-value">
+                <span class="mcp-status-pill {% if profile.mcp_enabled %}is-on{% else %}is-off{% endif %}">
+                    {% if profile.mcp_enabled %}已开启{% else %}已关闭{% endif %}
+                </span>
+            </div>
+            <div class="mcp-card-hint">关闭后，所有 Token 会立即失效。</div>
+        </article>
+        <article class="mcp-card">
+            <div class="mcp-card-label">当前活跃 Token</div>
+            <div class="mcp-card-value">{{ access_tokens|length }}</div>
+            <div class="mcp-card-hint">
+                {% if token_plaintext_allowed %}支持查看完整 Token。{% else %}当前系统只允许查看预览串。{% endif %}
+            </div>
+        </article>
+        <article class="mcp-card">
+            <div class="mcp-card-label">默认账户 ID</div>
+            <div class="mcp-card-value">{% if default_account_id %}{{ default_account_id }}{% else %}未设置{% endif %}</div>
+            <div class="mcp-card-hint">{% if default_account_name %}{{ default_account_name }}{% else %}没有可用投资账户时可留空。{% endif %}</div>
+        </article>
+        <article class="mcp-card">
+            <div class="mcp-card-label">当前角色</div>
+            <div class="mcp-card-value">{{ profile.get_rbac_role_display }}</div>
+            <div class="mcp-card-hint">MCP 默认可从后端读取该角色，无需手工覆盖。</div>
+        </article>
+    </section>
+
+    <section class="mcp-grid">
+        <article class="mcp-card">
+            <h2>推荐 Token</h2>
+            {% if preferred_token and preferred_token.plaintext %}
+            <p>当前优先使用最近的活跃 Token。直接复制这一串即可放入 Agent 配置。</p>
+            <div class="mcp-token-box">
+                <code id="preferredTokenValue">{{ preferred_token.plaintext }}</code>
+                <button type="button" class="btn btn-primary" data-copy-target="preferredTokenValue">复制 Token</button>
+            </div>
+            {% elif access_tokens %}
+            <p>你已经有活跃 Token，但系统已关闭历史 Token 明文查看。若要重新复制到新 Agent，建议生成一个新 Token 并立即复制。</p>
+            <div class="mcp-token-box">
+                <code>{{ access_tokens.0.preview }}</code>
+            </div>
+            {% else %}
+            <p>当前账户还没有可用 Token。下面可以直接一键生成一个专门给 Codex 或其他 Agent 使用的 Token。</p>
+            {% endif %}
+
+            {% if profile.mcp_enabled %}
+            <form method="post" action="{% url 'account:create_self_token' %}" class="mcp-form">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'account:mcp_guide' %}">
+                <input type="text" name="token_name" class="form-control" value="codex-local" maxlength="100" placeholder="例如：codex-local / claude-desktop">
+                <button type="submit" class="btn btn-primary">生成新 Token</button>
+            </form>
+            {% else %}
+            <div class="mcp-banner" style="margin-top: 16px; margin-bottom: 0; background: #fff7ed; border-color: #fed7aa; color: #9a3412;">
+                管理员已关闭当前账户的 MCP/SDK 访问权限。此时不能创建新 Token，请先联系管理员开启。
+            </div>
+            {% endif %}
+        </article>
+
+        <article class="mcp-card">
+            <h2>关键参数</h2>
+            <div class="mcp-parameter-list">
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">MCP 运行形态</div>
+                    <div class="mcp-parameter-value"><code>stdio</code> 本地进程模式</div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">Base URL</div>
+                    <div class="mcp-parameter-value"><code id="baseUrlValue">{{ base_url }}</code></div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">API Root</div>
+                    <div class="mcp-parameter-value"><code>{{ api_root_endpoint }}</code></div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">认证头</div>
+                    <div class="mcp-parameter-value"><code>Authorization: Token &lt;your_token&gt;</code></div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">SDK 工作目录</div>
+                    <div class="mcp-parameter-value"><code>{{ sdk_cwd }}</code></div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">默认账户 ID</div>
+                    <div class="mcp-parameter-value">
+                        {% if default_account_id %}
+                        <code>{{ default_account_id }}</code>
+                        {% else %}
+                        选填；没有账户时可暂时留空
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="mcp-snippet-grid">
+        <article class="mcp-snippet">
+            <div class="mcp-snippet-head">
+                <div>
+                    <h3>Codex / Claude / 通用 MCP 配置</h3>
+                    <p>适用于支持 `mcpServers` 结构的桌面 Agent。把下面 JSON 复制到对应的 MCP 配置文件中。</p>
+                </div>
+                <button type="button" class="btn btn-secondary" data-copy-target="mcpConfigSnippet">复制配置</button>
+            </div>
+            <pre id="mcpConfigSnippet">{{ mcp_config_json }}</pre>
+        </article>
+
+        <article class="mcp-snippet">
+            <div class="mcp-snippet-head">
+                <div>
+                    <h3>PowerShell 环境变量</h3>
+                    <p>适合本机先设置环境变量，再手工启动 MCP 或 SDK 脚本。</p>
+                </div>
+                <button type="button" class="btn btn-secondary" data-copy-target="powershellSnippet">复制</button>
+            </div>
+            <pre id="powershellSnippet">{{ powershell_env_block }}</pre>
+        </article>
+
+        <article class="mcp-snippet">
+            <div class="mcp-snippet-head">
+                <div>
+                    <h3>Bash 环境变量</h3>
+                    <p>适合 Linux / macOS / WSL 环境。</p>
+                </div>
+                <button type="button" class="btn btn-secondary" data-copy-target="bashSnippet">复制</button>
+            </div>
+            <pre id="bashSnippet">{{ bash_env_block }}</pre>
+        </article>
+
+        <article class="mcp-snippet">
+            <div class="mcp-snippet-head">
+                <div>
+                    <h3>Python SDK 示例</h3>
+                    <p>直接测试 SDK 是否能正常连上当前后端。</p>
+                </div>
+                <button type="button" class="btn btn-secondary" data-copy-target="pythonSdkSnippet">复制</button>
+            </div>
+            <pre id="pythonSdkSnippet">{{ python_sdk_block }}</pre>
+        </article>
+
+        <article class="mcp-snippet">
+            <div class="mcp-snippet-head">
+                <div>
+                    <h3>关键 API Endpoint</h3>
+                    <p>调试 Agent 时，先用这些接口确认 Token、RBAC 和账户上下文是否正确。</p>
+                </div>
+                <button type="button" class="btn btn-secondary" data-copy-target="curlSnippet">复制 curl</button>
+            </div>
+            <pre id="curlSnippet">{{ curl_example }}</pre>
+            <div class="mcp-parameter-list" style="margin-top: 14px;">
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">账户资料</div>
+                    <div class="mcp-parameter-value"><code>{{ api_profile_endpoint }}</code></div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">账户列表</div>
+                    <div class="mcp-parameter-value"><code>{{ accounts_endpoint }}</code></div>
+                </div>
+                <div class="mcp-parameter-item">
+                    <div class="mcp-parameter-label">Dashboard 摘要</div>
+                    <div class="mcp-parameter-value"><code>{{ dashboard_summary_endpoint }}</code></div>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="mcp-token-list">
+        <h2>我的 Token 列表</h2>
+        <p>为不同 Agent 单独分配 Token 更利于审计与轮换。比如可以分别创建 `codex-local`、`claude-desktop`、`vps-script`。</p>
+        {% if visible_tokens %}
+            {% for token in visible_tokens %}
+            <div class="mcp-token-row">
+                <div>
+                    <strong>{{ token.name }}</strong>
+                    <div class="mcp-token-meta">
+                        创建于 {{ token.created_at|date:"Y-m-d H:i" }}
+                        {% if token.last_used_at %}，最后使用 {{ token.last_used_at|date:"Y-m-d H:i" }}{% endif %}
+                    </div>
+                </div>
+                <div>
+                    {% if token.plaintext %}
+                    <code id="tokenValue{{ token.id }}">{{ token.plaintext }}</code>
+                    {% else %}
+                    <code>{{ token.preview }}</code>
+                    {% endif %}
+                </div>
+                <div class="mcp-token-actions">
+                    {% if token.plaintext %}
+                    <button type="button" class="btn btn-secondary" data-copy-target="tokenValue{{ token.id }}">复制</button>
+                    {% endif %}
+                    <form method="post" action="{% url 'account:revoke_self_token' token.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{% url 'account:mcp_guide' %}">
+                        <button type="submit" class="btn btn-secondary" onclick="return confirm('确定撤销 Token {{ token.name }} 吗？')">撤销</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="mcp-banner" style="margin-bottom: 0;">
+            当前没有活跃 Token。生成后会立即出现在这里。
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+(() => {
+    async function copyFromElement(targetId) {
+        const element = document.getElementById(targetId);
+        if (!element) return;
+        const text = element.textContent || '';
+        try {
+            await navigator.clipboard.writeText(text);
+            if (window.showToast) {
+                window.showToast('已复制到剪贴板', 'success');
+            }
+        } catch (error) {
+            if (window.showToast) {
+                window.showToast('复制失败，请手动复制', 'warning');
+            }
+        }
+    }
+
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+        button.addEventListener('click', () => copyFromElement(button.dataset.copyTarget));
+    });
+})();
+</script>
+{% endblock %}

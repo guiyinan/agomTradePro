@@ -43,6 +43,20 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         docs_ref="docs/business/config-center-matrix.md#account_settings",
     ),
     ConfigCapability(
+        key="mcp_guide",
+        name="MCP 接入说明",
+        module="account",
+        section="账户级配置",
+        description="复制当前用户的 Token、Base URL、默认账户和 Agent 接入片段。",
+        permission="login",
+        frontend_url="/account/mcp/",
+        api_url="/api/account/profile/",
+        sdk_module="account",
+        mcp_tools=(),
+        supports_edit=False,
+        docs_ref="docs/business/config-center-matrix.md#mcp_guide",
+    ),
+    ConfigCapability(
         key="agent_runtime_operator",
         name="Agent Runtime Operator",
         module="agent_runtime",
@@ -217,6 +231,28 @@ def get_system_settings_summary(user: Any = None) -> dict[str, Any]:
     return get_account_config_summary_service().get_system_settings_summary()
 
 
+def get_mcp_guide_summary(user: Any) -> dict[str, Any]:
+    from apps.account.application.config_summary_service import (
+        get_account_config_summary_service,
+    )
+
+    summary = get_account_config_summary_service().get_account_settings_summary(user)
+    payload = dict(summary.get("summary", {}))
+    active_token_count = int(payload.get("active_token_count") or 0)
+    mcp_enabled = bool(payload.get("mcp_enabled"))
+    if mcp_enabled and active_token_count > 0:
+        status = "configured"
+    elif mcp_enabled:
+        status = "attention"
+    else:
+        status = "missing"
+    payload["token_ready"] = "yes" if active_token_count > 0 else "no"
+    return {
+        "status": status,
+        "summary": payload,
+    }
+
+
 def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
     from apps.agent_runtime.application.config_summary_service import (
         get_agent_runtime_config_summary_service,
@@ -277,6 +313,7 @@ def get_trading_cost_summary(user: Any) -> dict[str, Any]:
 
 _SUMMARY_BUILDERS = {
     "account_settings": lambda user: _safe_summary(get_account_settings_summary, "账户设置", user),
+    "mcp_guide": lambda user: _safe_summary(get_mcp_guide_summary, "MCP 接入说明", user),
     "agent_runtime_operator": lambda user: _safe_summary(
         get_agent_runtime_operator_summary, "Agent Runtime Operator", user
     ),

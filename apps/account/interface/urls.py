@@ -15,6 +15,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile_view, name='profile'),
     path('settings/', views.settings_view, name='settings'),
+    path('mcp/', views.mcp_guide_view, name='mcp_guide'),
     path('settings/tokens/create/', views.create_self_token_view, name='create_self_token'),
     path('settings/tokens/<int:token_id>/revoke/', views.revoke_self_token_view, name='revoke_self_token'),
     path('capital-flow/', views.capital_flow_view, name='capital_flow'),

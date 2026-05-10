@@ -15,9 +15,12 @@
         <div class="settings-entry-banner">
             <div>
                 <strong>设置中心是统一入口</strong>
-                <div class="settings-entry-text">当前页面负责编辑账户资料、交易费率和 Token；其他系统级配置请回到设置中心统一进入。</div>
+                <div class="settings-entry-text">当前页面负责编辑账户资料、交易费率和 Token；如果你要把参数复制给 Codex 或其他 Agent，请去 MCP 接入说明页。</div>
             </div>
-            <a href="{% url 'settings-center' %}" class="btn btn-secondary">返回设置中心</a>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <a href="{% url 'account:mcp_guide' %}" class="btn btn-primary">MCP 接入说明</a>
+                <a href="{% url 'settings-center' %}" class="btn btn-secondary">返回设置中心</a>
+            </div>
         </div>
     </div>
 
@@ -251,6 +254,11 @@
             当前 MCP/SDK 权限: <strong>{% if profile.mcp_enabled %}已开启{% else %}已关闭{% endif %}</strong>
             {% if not system_settings.allow_token_plaintext_view %}，系统已关闭 Token 明文查看{% endif %}
         </p>
+        <p class="subtitle" style="margin-bottom: 16px;">
+            需要给 Codex、Claude Code 或其他 Agent 复制完整配置时，使用
+            <a href="{% url 'account:mcp_guide' %}">MCP 接入说明</a>
+            页面更方便。
+        </p>
 
         {% if new_token_payload %}
             <div class="token-banner">
@@ -265,6 +273,7 @@
         {% if profile.mcp_enabled %}
             <form method="post" action="{% url 'account:create_self_token' %}" class="token-create-form">
                 {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'account:settings' %}">
                 <input type="text" name="token_name" class="form-control" placeholder="例如: my-local-sdk" maxlength="100">
                 <button type="submit" class="btn btn-primary">新建 Token</button>
             </form>
@@ -292,6 +301,7 @@
                             <td>
                                 <form method="post" action="{% url 'account:revoke_self_token' token.id %}">
                                     {% csrf_token %}
+                                    <input type="hidden" name="next" value="{% url 'account:settings' %}">
                                     <button type="submit" class="btn btn-secondary" onclick="return confirm('确定撤销 Token {{ token.name }} 吗？')">撤销</button>
                                 </form>
                             </td>

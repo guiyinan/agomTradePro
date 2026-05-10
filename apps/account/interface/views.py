@@ -7,6 +7,7 @@ Account Interface Views
 import json
 import logging
 from decimal import Decimal
+from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -49,6 +50,21 @@ def _add_flash_message(request, level: str, message: str) -> None:
     """Emit a Django flash message from a service outcome."""
 
     getattr(messages, level)(request, message)
+
+
+def _get_safe_next_path(request, *, default_path: str) -> str:
+    """Return a local redirect path from form data when valid."""
+
+    candidate = (request.POST.get("next") or "").strip()
+    if not candidate:
+        return default_path
+
+    parsed = urlparse(candidate)
+    if parsed.scheme or parsed.netloc:
+        return default_path
+    if not candidate.startswith("/"):
+        return default_path
+    return candidate
 
 
 @require_http_methods(["GET", "POST"])
@@ -139,9 +155,7 @@ def register_view(request):
 
             # 根据审批状态显示不同消息
             if approval_status == "pending":
-                messages.info(
-                    request, "注册成功！您的账户正在等待管理员审批，审批通过后即可登录。"
-                )
+                messages.info(request, "注册成功！您的账户正在等待管理员审批，审批通过后即可登录。")
                 return redirect("/account/login/")
             else:
                 # 自动登录
@@ -288,9 +302,20 @@ def settings_view(request):
 
 
 @login_required
+def mcp_guide_view(request):
+    """MCP/SDK integration guide for the current user."""
+
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    context = interface_services.build_mcp_guide_context(request.user.id, base_url=base_url)
+    context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
+    return render(request, "account/mcp_guide.html", context)
+
+
+@login_required
 @require_http_methods(["POST"])
 def create_self_token_view(request):
     """用户创建自己的 MCP/SDK Token。"""
+    redirect_path = _get_safe_next_path(request, default_path="/account/settings/")
     try:
         token_name = _get_token_name_from_request(request, default_prefix="self")
         outcome = interface_services.create_self_token(request.user.id, token_name=token_name)
@@ -300,13 +325,14 @@ def create_self_token_view(request):
     except Exception as e:
         messages.error(request, f"创建 Token 失败：{str(e)}")
 
-    return redirect("/account/settings/")
+    return redirect(redirect_path)
 
 
 @login_required
 @require_http_methods(["POST"])
 def revoke_self_token_view(request, token_id):
     """用户撤销自己的 Token。"""
+    redirect_path = _get_safe_next_path(request, default_path="/account/settings/")
     try:
         outcome = interface_services.revoke_self_token(request.user.id, token_id)
         _add_flash_message(request, outcome.level, outcome.message)
@@ -314,7 +340,7 @@ def revoke_self_token_view(request, token_id):
         messages.error(request, str(exc))
     except Exception as e:
         messages.error(request, f"撤销 Token 失败：{str(e)}")
-    return redirect("/account/settings/")
+    return redirect(redirect_path)
 
 
 @login_required
@@ -445,13 +471,15 @@ def portfolio_volatility_api_view(request):
                         "volatility_90d": analysis.current_volatility_90d,
                         "target": analysis.target_volatility,
                     },
-                    "adjustment": {
-                        "should_reduce": analysis.adjustment_result.should_reduce,
-                        "reduction_reason": analysis.adjustment_result.reduction_reason,
-                        "suggested_multiplier": analysis.adjustment_result.suggested_position_multiplier,
-                    }
-                    if analysis.adjustment_result
-                    else None,
+                    "adjustment": (
+                        {
+                            "should_reduce": analysis.adjustment_result.should_reduce,
+                            "reduction_reason": analysis.adjustment_result.reduction_reason,
+                            "suggested_multiplier": analysis.adjustment_result.suggested_position_multiplier,
+                        }
+                        if analysis.adjustment_result
+                        else None
+                    ),
                     "history": history_data,
                 },
             }
@@ -742,7 +770,10 @@ def collaboration_view(request):
 
     显示和授权观察员。
     """
-    context = {"user": request.user, **interface_services.build_collaboration_context(request.user.id)}
+    context = {
+        "user": request.user,
+        **interface_services.build_collaboration_context(request.user.id),
+    }
     return render(request, "account/collaboration.html", context)
 
 
@@ -754,7 +785,10 @@ def observer_portal_view(request):
 
     显示当前用户有权限观察的账户列表。
     """
-    context = {"user": request.user, **interface_services.build_observer_portal_context(request.user.id)}
+    context = {
+        "user": request.user,
+        **interface_services.build_observer_portal_context(request.user.id),
+    }
     return render(request, "account/observer_portal.html", context)
 
 

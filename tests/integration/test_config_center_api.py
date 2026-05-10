@@ -86,6 +86,7 @@ def test_config_center_snapshot_returns_sections(staff_client):
     assert "valuation_repair" in item_keys
     assert "beta_gate" in item_keys
     assert "account_settings" in item_keys
+    assert "mcp_guide" in item_keys
     assert "system_settings" in item_keys
     assert "data_center_providers" in item_keys
     assert "data_center_runtime" in item_keys
@@ -102,6 +103,7 @@ def test_config_capabilities_returns_known_entries(staff_client):
     assert "agent_runtime_operator" in keys
     assert "valuation_repair" in keys
     assert "trading_cost" in keys
+    assert "mcp_guide" in keys
     assert "data_center_providers" in keys
     assert "data_center_runtime" in keys
 
@@ -193,6 +195,7 @@ def test_ops_center_page_is_single_entry_for_normal_user(normal_client):
         "设置中心",
         "统一入口",
         "账户设置",
+        "MCP 接入说明",
     )
 
 

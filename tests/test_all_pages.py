@@ -43,6 +43,7 @@ PAGE_ROUTES = [
     {"url": "/dashboard/", "name": "仪表盘", "requires_auth": True},
     {"url": "/account/profile/", "name": "用户资料", "requires_auth": True},
     {"url": "/account/settings/", "name": "账户设置", "requires_auth": True},
+    {"url": "/account/mcp/", "name": "MCP 接入说明", "requires_auth": True},
     {"url": "/account/capital-flow/", "name": "资金流水", "requires_auth": True},
 
     # 回测模块
