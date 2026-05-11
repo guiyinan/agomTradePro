@@ -4,23 +4,18 @@ Factor Module Infrastructure Layer - Repositories
 Data access layer for factor module.
 """
 
-from datetime import date, datetime
-from decimal import Decimal
-from typing import Dict, List, Optional
+from datetime import date
 
 from django.db.models import Count, Q
-from django.utils import timezone
 
 from apps.factor.domain.entities import (
     FactorDefinition,
     FactorPortfolioConfig,
     FactorPortfolioHolding,
-    FactorScore,
 )
 from apps.factor.infrastructure.models import (
     FactorDefinitionModel,
     FactorExposureModel,
-    FactorPerformanceModel,
     FactorPortfolioConfigModel,
     FactorPortfolioHoldingModel,
 )
@@ -358,10 +353,11 @@ class FactorPortfolioConfigRepository:
             config=selected_config,
             trade_date=latest_holding.trade_date,
         ).count()
-        holdings = FactorPortfolioHoldingModel._default_manager.filter(
+        holdings = list(FactorPortfolioHoldingModel._default_manager.filter(
             config=selected_config,
             trade_date=latest_holding.trade_date,
-        ).order_by("rank")[:top_n]
+        ).order_by("rank")[:top_n])
+        self._hydrate_holding_stock_display_fields(holdings)
         return selected_config, {
             "trade_date": latest_holding.trade_date,
             "total_stocks": total_stocks,
@@ -369,6 +365,39 @@ class FactorPortfolioConfigRepository:
             "config_name": selected_config.name,
             "top_n": top_n,
         }
+
+    def _hydrate_holding_stock_display_fields(
+        self,
+        holdings: list[FactorPortfolioHoldingModel],
+    ) -> None:
+        """Fill missing display fields from equity stock master data."""
+
+        lookup_codes = [
+            holding.stock_code
+            for holding in holdings
+            if not holding.stock_name or holding.stock_name == holding.stock_code or not holding.sector
+        ]
+        if not lookup_codes:
+            return
+
+        try:
+            from apps.equity.infrastructure.models import StockInfoModel
+
+            stock_info_by_code = {
+                stock.stock_code: stock
+                for stock in StockInfoModel._default_manager.filter(stock_code__in=lookup_codes)
+            }
+        except Exception:
+            stock_info_by_code = {}
+
+        for holding in holdings:
+            stock_info = stock_info_by_code.get(holding.stock_code)
+            if (not holding.stock_name or holding.stock_name == holding.stock_code) and stock_info:
+                holding.stock_name = stock_info.name
+            if not holding.stock_name:
+                holding.stock_name = holding.stock_code
+            if not holding.sector and stock_info:
+                holding.sector = stock_info.sector
 
 
 class FactorPortfolioHoldingRepository:

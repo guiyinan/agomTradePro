@@ -8,7 +8,7 @@ Orchestrates domain services and infrastructure adapters.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from apps.factor.application.dtos import (
     FactorCalculationRequest,
@@ -18,8 +18,6 @@ from apps.factor.application.dtos import (
 )
 from apps.factor.domain.entities import (
     FactorPortfolioConfig,
-    FactorPortfolioHolding,
-    FactorScore,
 )
 from apps.factor.domain.services import (
     FactorCalculationContext,
@@ -383,7 +381,7 @@ class GetFactorCalculationDataUseCase:
 
     def execute(self, request: FactorCalculateViewRequest) -> FactorCalculateViewResponse:
         """Get calculation page data"""
-        configs = self.portfolio_repo.list_active_models()
+        configs = self.portfolio_repo.list_models_for_view()
         factors = self.factor_repo.list_active_models()
 
         # Group factors by category

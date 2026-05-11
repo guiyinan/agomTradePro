@@ -23,8 +23,8 @@
             <select id="configSelect" class="form-select large" onchange="selectConfig()">
                 <option value="">-- 选择因子组合配置 --</option>
                 {% for config in configs %}
-                <option value="{{ config.id }}" {% if config_id == config.id|stringformat:"s" %}selected{% endif %}>
-                    {{ config.name }} ({{ config.get_rebalance_frequency_display }})
+                <option value="{{ config.id }}" {% if config_id == config.id %}selected{% endif %}>
+                    {{ config.name }} ({{ config.get_rebalance_frequency_display }}){% if not config.is_active %} - 禁用{% endif %}
                 </option>
                 {% endfor %}
             </select>
@@ -124,8 +124,17 @@
                 {% for holding in calculated_results.holdings %}
                 <tr>
                     <td>{{ holding.rank }}</td>
-                    <td>{{ holding.stock_code }}</td>
-                    <td>{{ holding.stock_name }}</td>
+                    {% url 'equity:detail' holding.stock_code as stock_detail_url %}
+                    <td>
+                        <a class="stock-link" href="{{ stock_detail_url }}" target="_blank" rel="noopener noreferrer">
+                            {{ holding.stock_code }}
+                        </a>
+                    </td>
+                    <td>
+                        <a class="stock-link" href="{{ stock_detail_url }}" target="_blank" rel="noopener noreferrer">
+                            {{ holding.stock_name|default:holding.stock_code }}
+                        </a>
+                    </td>
                     <td>
                         <div class="score-bar">
                             <div class="score-fill" style="width: {{ holding.factor_score|floatformat:2|add:"100"|divide:2 }}%;"></div>

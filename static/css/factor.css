@@ -622,6 +622,16 @@
     font-size: 14px;
 }
 
+.stock-link {
+    color: var(--primary-color, #2563eb);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.stock-link:hover {
+    text-decoration: underline;
+}
+
 .score-bar {
     position: relative;
     display: inline-block;
