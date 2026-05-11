@@ -11,6 +11,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
+from apps.decision_rhythm.infrastructure.models import (
+    DecisionRequestModel,
+    DecisionResponseModel,
+)
+
 User = get_user_model()
 
 
@@ -86,6 +91,37 @@ class TestNavigationNo404:
             ),
             css_assets=("/static/css/home.css",),
         )
+
+    def test_dashboard_url_renders_real_pending_request_contract(self, authenticated_client):
+        """Dashboard 应能渲染真实待执行 ORM 请求，而不是只接受 dict fixture。"""
+        request = DecisionRequestModel.objects.create(
+            request_id=f"req_nav_pending_{uuid.uuid4().hex[:8]}",
+            asset_code="000003.SH",
+            asset_class="a_share",
+            direction="BUY",
+            priority="HIGH",
+            reason="navigation guardrail pending request",
+            execution_target="SIMULATED",
+            execution_status="PENDING",
+        )
+        DecisionResponseModel.objects.create(
+            request=request,
+            approved=True,
+            approval_reason="navigation guardrail approved",
+        )
+
+        response = authenticated_client.get('/dashboard/')
+
+        _assert_expected_status(response, {200}, "Dashboard pending queue should render successfully")
+        text = _response_text(response)
+        assert "待执行队列 (1)" in text
+        assert "000003.SH" in text
+        assert (
+            "/decision/workspace/?source=dashboard-pending&amp;security_code=000003.SH&amp;step=5"
+            in text
+        )
+        assert "Internal Server Error" not in text
+        assert "Traceback" not in text
 
     def test_macro_data_url_no_404(self, authenticated_client):
         """宏观数据 URL 应返回图表和指标容器。"""

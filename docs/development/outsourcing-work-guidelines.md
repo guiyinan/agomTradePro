@@ -569,6 +569,35 @@ def test_api_policy_events_endpoint_returns_json_contract():
     # 不是 text/html
 ```
 
+### 9.2.1 页面 Smoke 不得只测 200（2026-05-11 新增）
+
+**规则**：关键页面的回归测试不能只断言 `status_code == 200`，必须同时验证页面契约和真实数据形态。
+
+**关键页面最少要求**：
+1. `Content-Type` 必须是 `text/html`
+2. 页面必须包含关键业务片段，而不是空壳模板
+3. 页面内容中不得出现 `Internal Server Error`、`Traceback`、Django 默认报错页片段
+4. 至少一条测试必须使用真实 ORM / Query 返回对象，而不是只用手工 `dict` fixture
+
+**典型反例**：
+```python
+# ❌ 这类测试会放过很多真实渲染错误
+response = client.get("/dashboard/")
+assert response.status_code == 200
+```
+
+**推荐做法**：
+```python
+# ✅ 同时验证 HTML contract 与真实对象载荷
+response = client.get("/dashboard/")
+assert response.status_code == 200
+assert response["Content-Type"].startswith("text/html")
+content = response.content.decode("utf-8")
+assert "待执行队列" in content
+assert "进入新 Workflow" in content
+assert "Internal Server Error" not in content
+```
+
 ### 9.3 成对操作一致性
 
 **规则**：CRUD 操作的参数签名必须保持一致。

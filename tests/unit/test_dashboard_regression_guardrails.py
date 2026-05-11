@@ -15,9 +15,37 @@ from apps.account.infrastructure.repositories import (
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
+from apps.decision_rhythm.infrastructure.models import (
+    DecisionRequestModel,
+    DecisionResponseModel,
+)
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
 from shared.infrastructure.crypto import FieldEncryptionService
+
+
+def _response_text(response) -> str:
+    return response.content.decode(response.charset or "utf-8")
+
+
+def _assert_dashboard_html_contract(response) -> str:
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+
+    content = _response_text(response)
+    for fragment in (
+        "AgomTradePro - 投资指挥中心",
+        "投资指挥中心",
+        "环境评估 → 方向选择 → 板块偏好 → 推优筛选 → 交易计划 → 审批执行",
+        "进入新 Workflow",
+        "Alpha 推荐资产",
+        "待执行队列",
+    ):
+        assert fragment in content
+
+    assert "Internal Server Error" not in content
+    assert "Traceback" not in content
+    return content
 
 
 @pytest.mark.django_db
@@ -32,7 +60,7 @@ def test_dashboard_page_does_not_log_known_regression_warnings(caplog):
     with caplog.at_level("WARNING"):
         response = client.get("/dashboard/")
 
-    assert response.status_code == 200
+    _assert_dashboard_html_contract(response)
     messages = "\n".join(record.getMessage() for record in caplog.records)
     assert "cannot import name 'AIProvider'" not in messages
     assert "unexpected keyword argument 'positions'" not in messages
@@ -50,13 +78,45 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
 
     response = client.get("/dashboard/")
 
-    assert response.status_code == 200
-    content = response.content.decode("utf-8")
+    content = _assert_dashboard_html_contract(response)
     assert "环境评估 → 方向选择 → 板块偏好 → 推优筛选 → 交易计划 → 审批执行" in content
     assert "环境 → 候选 → 决策 → 执行 → 回写" not in content
     assert 'href="/decision/workspace/"' in content
     assert "决策工作台" in content
     assert "进入新 Workflow" in content
+
+
+@pytest.mark.django_db
+def test_dashboard_renders_pending_queue_from_real_decision_request_models():
+    user = get_user_model().objects.create_user(
+        username="dashboard_pending_queue_user",
+        password="x",
+    )
+    client = Client()
+    client.force_login(user)
+
+    request = DecisionRequestModel.objects.create(
+        request_id="req_dashboard_guardrail_001",
+        asset_code="000003.SH",
+        asset_class="a_share",
+        direction="BUY",
+        priority="HIGH",
+        reason="dashboard pending queue guardrail",
+        execution_target="SIMULATED",
+        execution_status="PENDING",
+    )
+    DecisionResponseModel.objects.create(
+        request=request,
+        approved=True,
+        approval_reason="guardrail approved",
+    )
+
+    response = client.get("/dashboard/")
+
+    content = _assert_dashboard_html_contract(response)
+    assert "待执行队列 (1)" in content
+    assert "000003.SH" in content
+    assert "/decision/workspace/?source=dashboard-pending&amp;security_code=000003.SH&amp;step=5" in content
 
 
 @pytest.mark.django_db
